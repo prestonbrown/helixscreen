@@ -168,12 +168,23 @@ void save_calibration() {
 void calibration_done(const AmsError& result) {
     if (result.success()) {
         set_flow_state(lv_tr("Calibration finished, not saved yet"), kPhaseResult);
-        ConfirmOptions options;
-        options.cancel_text = lv_tr("Later");
-        modal_confirm(
-            lv_tr("Save calibration"),
-            lv_tr("Save the new heater values to printer.cfg? Klipper restarts."),
-            ModalSeverity::Warning, lv_tr("Save & Restart"), [] { save_calibration(); }, options);
+        // Worded from what the save will do: on a firmware that saves with
+        // RESTART=0, heater values INDX_CALIBRATE applied need no restart.
+        save_watch().query_restarts(get_moonraker_api(), [](bool restarts) {
+            ConfirmOptions options;
+            options.cancel_text = lv_tr("Later");
+            if (restarts) {
+                modal_confirm(
+                    lv_tr("Save calibration"),
+                    lv_tr("Save the new heater values to printer.cfg? Klipper restarts."),
+                    ModalSeverity::Warning, lv_tr("Save & Restart"), [] { save_calibration(); },
+                    options);
+            } else {
+                modal_confirm(
+                    lv_tr("Save calibration"), lv_tr("Save the new heater values to printer.cfg?"),
+                    ModalSeverity::Info, lv_tr("Save"), [] { save_calibration(); }, options);
+            }
+        });
         return;
     }
     if (result.result == AmsResult::TIMEOUT) {

@@ -1532,8 +1532,11 @@ MoonrakerClientMock::send_jsonrpc(const std::string& method, const json& params,
         if (auto f = fail_next_.find(method); f != fail_next_.end()) {
             injected_error = std::move(f->second);
             fail_next_.erase(f);
-        } else if (defer_next_.erase(method) > 0) {
-            held_requests_[method] = HeldRequest{params, success_cb, error_cb};
+        } else if (auto d = defer_next_.find(method); d != defer_next_.end()) {
+            if (--d->second == 0) {
+                defer_next_.erase(d);
+            }
+            held_requests_[method].push_back(HeldRequest{params, success_cb, error_cb});
             return next_mock_request_id();
         }
     }
@@ -1564,17 +1567,28 @@ void MoonrakerClientMock::fail_next(const std::string& method, MoonrakerError er
 
 void MoonrakerClientMock::defer_next(const std::string& method) {
     std::lock_guard<std::mutex> lock(fault_mutex_);
-    defer_next_.insert(method);
+    ++defer_next_[method];
+}
+
+std::optional<MoonrakerClientMock::HeldRequest>
+MoonrakerClientMock::take_held_locked(const std::string& method) {
+    auto h = held_requests_.find(method);
+    if (h == held_requests_.end() || h->second.empty()) {
+        return std::nullopt;
+    }
+    HeldRequest held = std::move(h->second.front());
+    h->second.pop_front();
+    if (h->second.empty()) {
+        held_requests_.erase(h);
+    }
+    return held;
 }
 
 void MoonrakerClientMock::fire_deferred(const std::string& method) {
     std::optional<HeldRequest> held;
     {
         std::lock_guard<std::mutex> lock(fault_mutex_);
-        if (auto h = held_requests_.find(method); h != held_requests_.end()) {
-            held = std::move(h->second);
-            held_requests_.erase(h);
-        }
+        held = take_held_locked(method);
     }
     if (!held) {
         return;
@@ -1589,10 +1603,7 @@ void MoonrakerClientMock::fire_deferred_error(const std::string& method,
     std::optional<HeldRequest> held;
     {
         std::lock_guard<std::mutex> lock(fault_mutex_);
-        if (auto h = held_requests_.find(method); h != held_requests_.end()) {
-            held = std::move(h->second);
-            held_requests_.erase(h);
-        }
+        held = take_held_locked(method);
     }
     if (held && held->error_cb) {
         held->error_cb(err);

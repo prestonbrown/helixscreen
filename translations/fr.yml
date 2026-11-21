@@ -3913,6 +3913,7 @@ translations:
   'Save failed: {}': 'Échec de l''enregistrement : {}'
   Save Offsets: Enregistrer les offsets
   Save offsets?: Enregistrer les offsets ?
+  Save the new heater values to printer.cfg?: Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ?
   Save the new heater values to printer.cfg? Klipper restarts.: Enregistrer les nouvelles valeurs du chauffage dans printer.cfg ? Klipper redémarre.
   Save to Spool: Enregistrer sur la bobine
   Save to Spoolman: Enregistrer dans Spoolman

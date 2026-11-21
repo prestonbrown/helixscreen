@@ -679,6 +679,8 @@ constexpr uint32_t kSharedSaveWindowMs = 90000;
 
 std::atomic<bool> g_shared_save_running{false};
 std::atomic<uint32_t> g_shared_save_started_ms{0};
+/// A Save tap is waiting to learn whether its save restarts Klipper. Main thread only.
+bool g_restart_query_pending = false;
 
 void end_shared_save() {
     g_shared_save_running = false;
@@ -706,6 +708,7 @@ bool shared_save_in_flight() {
 
 void reset_shared_save() {
     end_shared_save();
+    g_restart_query_pending = false;
     shared_save_watch_storage().reset();
 }
 
@@ -830,27 +833,46 @@ void save_dirty_offsets_shared() {
         return;
     }
 
-    // Only warn when a restart is actually coming. The machine-wide save always
-    // ends in SAVE_CONFIG, and so does a tool-only save on firmware that stages
-    // its parameters — but a firmware that persists immediately restarts
-    // nothing, and a confirmation promising a disconnect would be a lie.
-    const bool restart_expected =
-        facts.global_dirty ||
-        (facts.tools_dirty &&
-         helix::tool_offsets::persist_requires_save_config(ps.get_discovery()));
-
-    if (!restart_expected) {
+    // Only warn when a restart is actually coming, so a confirmation never
+    // promises a disconnect that does not happen. The machine-wide save always
+    // restarts: the probe's z_offset takes effect only on one. A tool-only save
+    // restarts nothing on a firmware that persists immediately, and on one that
+    // saves with RESTART=0 only when something else pending needs it.
+    const auto confirm_restart = []() {
+        // A one-tap button that silently restarts Klipper mid-session is the
+        // worse failure.
+        helix::ui::modal_confirm(
+            lv_tr("Save Z-Offset?"),
+            lv_tr("This will save the Z-offset and restart Klipper to write the configuration. "
+                  "The printer will briefly disconnect."),
+            ModalSeverity::Warning, lv_tr("Save"), []() { run_shared_save(); });
+    };
+    if (facts.global_dirty) {
+        confirm_restart();
+        return;
+    }
+    if (!facts.tools_dirty ||
+        !helix::tool_offsets::persist_requires_save_config(ps.get_discovery())) {
         run_shared_save();
         return;
     }
-
-    // A one-tap button that silently restarts Klipper mid-session is the worse
-    // failure.
-    helix::ui::modal_confirm(
-        lv_tr("Save Z-Offset?"),
-        lv_tr("This will save the Z-offset and restart Klipper to write the configuration. The "
-              "printer will briefly disconnect."),
-        ModalSeverity::Warning, lv_tr("Save"), []() { run_shared_save(); });
+    // Tool offsets are live once staged, so only what is already pending can
+    // force the restart. One question at a time: a second tap while it is out
+    // would stack a second confirmation.
+    if (g_restart_query_pending) {
+        return;
+    }
+    g_restart_query_pending = true;
+    shared_save_watch().query_restarts(get_moonraker_api(), [confirm_restart](bool restarts) {
+        g_restart_query_pending = false;
+        // The machine-wide offset can move while the question is out, and its
+        // save always restarts.
+        if (restarts || current_save_availability().global_dirty) {
+            confirm_restart();
+        } else {
+            run_shared_save();
+        }
+    });
 }
 
 namespace {

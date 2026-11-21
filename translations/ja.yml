@@ -3901,6 +3901,7 @@ translations:
   'Save failed: {}': '保存に失敗しました: {}'
   Save Offsets: オフセットを保存
   Save offsets?: オフセットを保存しますか？
+  Save the new heater values to printer.cfg?: 新しいヒーター値をprinter.cfgに保存しますか？
   Save the new heater values to printer.cfg? Klipper restarts.: 新しいヒーター値をprinter.cfgに保存しますか？Klipperが再起動します。
   Save to Spool: スプールに保存
   Save to Spoolman: Spoolman に保存
