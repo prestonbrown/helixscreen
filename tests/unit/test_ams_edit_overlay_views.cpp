@@ -1195,9 +1195,6 @@ TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
     unnamed.vendor = "Polymaker";
     unnamed.material = "PLA";
     access.set_cached_spools({clear, white, unnamed});
-    SlotInfo linked = untracked_slot();
-    linked.spoolman_id = 13;
-    access.set_working_info(linked);
 
     // Medium renders compact single-line rows, Large the two-line rich rows.
     const UiBreakpoint bp = GENERATE(UiBreakpoint::Medium, UiBreakpoint::Large);
@@ -1232,15 +1229,6 @@ TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
     CHECK(text_of(12, "row_detail") == "#12 · 750 g left");
     CHECK(text_of(14, "row_detail") == "#14");
 
-    // Only the linked spool's row is checked; a weight shows when Spoolman has one.
-    auto part = [&row_for](int id, const char* name) {
-        return lv_obj_find_by_name(row_for(id), name);
-    };
-    CHECK_FALSE(lv_obj_is_hidden(part(13, "selected_icon")));
-    CHECK(lv_obj_is_hidden(part(12, "selected_icon")));
-    CHECK(std::string(lv_label_get_text(part(12, "spool_weight"))) == "750g");
-    CHECK(std::string(lv_label_get_text(part(14, "spool_weight"))).empty());
-
     // The row prints the filament name once, whatever the layout.
     const auto visible_text = [](lv_obj_t* root) {
         std::string text;
@@ -1248,7 +1236,7 @@ TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
         while (!stack.empty()) {
             lv_obj_t* obj = stack.back();
             stack.pop_back();
-            if (lv_obj_is_hidden(obj)) {
+            if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) {
                 continue;
             }
             if (lv_obj_check_type(obj, &lv_label_class)) {

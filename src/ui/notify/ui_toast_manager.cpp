@@ -649,8 +649,13 @@ void ToastManager::detach_from_input(lv_obj_t* widget) {
 
     // A dying toast's action buttons must not latch a fresh press once teardown
     // has begun (CLICKABLE gates indev hit-testing).
-    for (const char* name : {"toast_action_btn", "toast_action_below_btn", "toast_action2_btn"}) {
-        if (lv_obj_t* btn = helix::ui::find_required(widget, name, "ToastManager")) {
+    if (lv_obj_t* action_btn =
+            helix::ui::find_required(widget, "toast_action_btn", "ToastManager")) {
+        lv_obj_set_clickable(action_btn, false);
+    }
+    // The two-action row's buttons, on a toast built with them.
+    for (const char* name : {"toast_action_below_btn", "toast_action2_btn"}) {
+        if (lv_obj_t* btn = lv_obj_find_by_name(widget, name)) {
             lv_obj_set_clickable(btn, false);
         }
     }
