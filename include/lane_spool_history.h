@@ -26,7 +26,7 @@
  * reinstalls and other clients.
  */
 
-struct MoonrakerError;
+struct MoonrakerError; // NAMESPACE_OK: forward declaration of the global MoonrakerError
 
 namespace helix {
 class IMoonrakerAPI;

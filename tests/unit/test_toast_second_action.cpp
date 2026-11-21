@@ -78,7 +78,7 @@ TEST_CASE_METHOD(SecondActionFixture, "an action toast's second button runs its 
                  "[toast][second-action]") {
     auto& tm = ToastManager::instance();
     tm.show_with_action(ToastSeverity::SUCCESS, "Lane 2: eSUN PLA", "Undo", first_cb, nullptr, 0,
-                        nullptr, ToastAction{"Print Label", second_cb, data_7()});
+                        nullptr, helix::ToastAction{"Print Label", second_cb, data_7()});
     drain();
     REQUIRE(tm.is_visible());
 
@@ -107,7 +107,7 @@ TEST_CASE_METHOD(SecondActionFixture, "an action toast's second button runs its 
 
     // The row's main button runs the main action.
     tm.show_with_action(ToastSeverity::SUCCESS, "Lane 3: Sunlu PETG", "Undo", first_cb, nullptr, 0,
-                        nullptr, ToastAction{"Print Label", second_cb, data_7()});
+                        nullptr, helix::ToastAction{"Print Label", second_cb, data_7()});
     drain();
     lv_obj_send_event(lv_obj_find_by_name(lv_layer_top(), "toast_action_below_btn"),
                       LV_EVENT_CLICKED, nullptr);

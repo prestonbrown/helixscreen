@@ -371,7 +371,7 @@ void ToastManager::show_with_action(ToastSeverity severity, const char* message,
                                     const char* action_text, toast_action_callback_t callback,
                                     void* user_data, uint32_t duration_ms,
                                     toast_action_callback_t user_closed_callback,
-                                    ToastAction second, const char* detail) {
+                                    helix::ToastAction second, const char* detail) {
     if (!action_text || !callback) {
         spdlog::warn("[ToastManager] Toast action requires action_text and callback");
         show(severity, message, duration_ms);
@@ -408,7 +408,7 @@ void ToastManager::show_with_action(ToastSeverity severity, const char* message,
         ToastManager::instance().create_toast_internal(
             p->severity, p->message.c_str(), p->detail.c_str(), p->duration_ms, true, p->action_cb,
             p->user_data, p->action_text.c_str(), p->user_closed_cb,
-            ToastAction{p->action2_text.c_str(), p->action2_cb, p->action2_user_data});
+            helix::ToastAction{p->action2_text.c_str(), p->action2_cb, p->action2_user_data});
     });
 }
 
@@ -473,7 +473,7 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
                                          toast_action_callback_t action_cb, void* action_user_data,
                                          const char* action_text,
                                          toast_action_callback_t user_closed_cb,
-                                         const ToastAction& second) {
+                                         const helix::ToastAction& second) {
     if (!message) {
         spdlog::warn("[ToastManager] Attempted to show toast with null message");
         return;

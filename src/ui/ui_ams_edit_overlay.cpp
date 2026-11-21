@@ -1378,11 +1378,11 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
 
     // Print Label, where a label printer is set up and the spool is Spoolman's
     // (a new one already printed its label; this is the reprint).
-    ToastAction print_label;
+    helix::ToastAction print_label;
 #if HELIX_HAS_LABEL_PRINTER
     if (after.spoolman_id > 0 && helix::LabelPrinterSettingsManager::instance().is_configured()) {
         payload->label = label_spool();
-        print_label = ToastAction{
+        print_label = helix::ToastAction{
             lv_tr("Print Label"),
             [](void* user_data) { print_label_for(static_cast<Payload*>(user_data)->label); },
             payload};

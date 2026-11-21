@@ -30,11 +30,13 @@ typedef void (*toast_action_callback_t)(void* user_data);
 
 /// One button on an action toast: its label and what a tap runs, with user_data.
 /// An action with no text or no callback is no button.
+namespace helix {
 struct ToastAction {
     const char* text = nullptr;
     toast_action_callback_t callback = nullptr;
     void* user_data = nullptr;
 };
+} // namespace helix
 
 /**
  * @brief Singleton manager for toast notifications
@@ -98,7 +100,7 @@ class ToastManager {
                           toast_action_callback_t action_callback, void* user_data,
                           uint32_t duration_ms = 5000,
                           toast_action_callback_t user_closed_callback = nullptr,
-                          ToastAction second = {}, const char* detail = nullptr);
+                          helix::ToastAction second = {}, const char* detail = nullptr);
 
     /** Dismiss all currently visible toasts (animated). */
     void hide();
@@ -177,7 +179,7 @@ class ToastManager {
                                uint32_t duration_ms, bool with_action,
                                toast_action_callback_t action_cb, void* action_user_data,
                                const char* action_text, toast_action_callback_t user_closed_cb,
-                               const ToastAction& second = {});
+                               const helix::ToastAction& second = {});
     /** The X button's removal: a user decision, unlike hide() or a timer. */
     void user_close_toast(ToastList::iterator it);
     void ensure_stack_container();
