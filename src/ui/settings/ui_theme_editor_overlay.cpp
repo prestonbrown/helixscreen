@@ -106,6 +106,9 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
         role_name_pool_.set_string(i, lv_tr(kRoleNames[i]));
     }
     update_swatch_colors();
+    // The header's Grid | Sliders switch binds the picker's subjects as it is
+    // built, before the picker attaches.
+    helix::ui::ensure_color_picker_view_subjects();
 
     // Create overlay root from XML (uses theme_editor_overlay component)
     overlay_root_ = helix::ui::create_xml_hidden(parent, "theme_editor_overlay");

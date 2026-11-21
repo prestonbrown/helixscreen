@@ -20,6 +20,7 @@
 #include "color_picker_model.h"
 #include "color_utils.h"
 #include "core/static_panel_registry.h"
+#include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "theme_loader.h"
@@ -223,4 +224,33 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture, "Save As with an empty name says why 
     REQUIRE(status != nullptr);
     CHECK(lv_obj_is_hidden(status));
     ModalStack::instance().clear();
+}
+
+TEST_CASE_METHOD(ThemeEditorSwatchFixture,
+                 "The header's Grid | Sliders switch shows which tab is active and switches it",
+                 "[theme_editor][color_picker]") {
+    // The editor may be the first picker host in the process: no picker
+    // subjects exist until it makes them.
+    StaticSubjectRegistry::instance().deinit_one("ColorPickerView");
+    auto& editor = get_theme_editor_overlay();
+    REQUIRE(editor.show(lv_screen_active()));
+    settle();
+    lv_obj_t* header = lv_obj_find_by_name(editor.get_root(), "overlay_header");
+    REQUIRE(header != nullptr);
+    lv_obj_t* grid = lv_obj_find_by_name(header, "cp_tab_grid");
+    lv_obj_t* sliders = lv_obj_find_by_name(header, "cp_tab_sliders");
+    REQUIRE(grid != nullptr);
+    REQUIRE(sliders != nullptr);
+    auto look = [](lv_obj_t* o) {
+        return std::to_string(rgb(lv_obj_get_style_bg_color(o, LV_PART_MAIN))) + "/" +
+               std::to_string(lv_obj_get_style_bg_opa(o, LV_PART_MAIN));
+    };
+    INFO("grid " << look(grid) << " sliders " << look(sliders));
+    CHECK(look(grid) != look(sliders));
+    const std::string active = look(grid);
+
+    lv_obj_send_event(sliders, LV_EVENT_CLICKED, nullptr);
+    settle();
+    CHECK(look(sliders) == active);
+    CHECK(look(grid) != active);
 }

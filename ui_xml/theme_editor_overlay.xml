@@ -38,7 +38,7 @@
          readout (name, hex and color), so the picker shows none. Save is the
          header's action; Reset and Save As New are behind the more button. -->
     <header_bar-header_content style_pad_gap="#space_sm">
-      <color_picker_tabs name="theme_header_tabs"/>
+      <color_picker_tabs/>
     </header_bar-header_content>
     <!-- Content Area - no padding, rows handle their own -->
     <overlay_panel-overlay_content style_pad_top="0" scrollable="true" flex_flow="column">
