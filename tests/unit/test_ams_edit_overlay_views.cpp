@@ -4742,8 +4742,9 @@ struct SaveAckFixture : LVGLUITestFixture {
     }
 
     /// Open the editor on lane 1 with the production consumer's commit, stage
-    /// PETG and press Save.
-    void save_petg(AmsEditOverlayViewTestAccess& access) {
+    /// PETG (and @p color, when given) and press Save.
+    void save_petg(AmsEditOverlayViewTestAccess& access,
+                   std::optional<uint32_t> color = std::nullopt) {
         auto& overlay = get_ams_edit_overlay();
         REQUIRE(overlay.show_for_slot(
             test_screen(), 1, backend->get_slot_info(1), &api,
@@ -4760,6 +4761,9 @@ struct SaveAckFixture : LVGLUITestFixture {
         SlotInfo edited = backend->get_slot_info(1);
         edited.material = "PETG";
         access.set_working_info(edited);
+        if (color) {
+            access.call_apply_color(*color);
+        }
         access.call_handle_save();
         UpdateQueue::instance().drain();
     }
@@ -4783,6 +4787,33 @@ TEST_CASE_METHOD(SaveAckFixture, "the spool editor closes once the lane holds th
     CHECK(access.closed());
     CHECK(access.save_state() == 0);
     CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a picked color joins the recents only once the save holds",
+                 "[ams_edit_overlay][save_ack][color_picker]") {
+    auto& data = helix::ConfigTestAccess::data(*helix::Config::get_instance());
+    if (data.is_object()) {
+        data.erase("color_recents");
+    }
+    const auto recents = [] {
+        return helix::ColorRecents::list(helix::ColorRecents::Kind::Filament);
+    };
+    const std::vector<uint32_t> before = recents();
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.fail_next("server.database.post_item", MoonrakerError::unknown("disk full"));
+    save_petg(access, 0x2468AC);
+    settle();
+    REQUIRE(access.save_state() == 2);
+    CHECK(recents() == before);
+    close_editor_overlay();
+
+    client.defer_next("server.database.post_item");
+    save_petg(access, 0x2468AC);
+    CHECK(recents() == before);
+    client.fire_deferred("server.database.post_item");
+    settle();
+    REQUIRE(access.closed());
+    CHECK(recents().front() == 0x2468AC);
 }
 
 TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",
@@ -5157,6 +5188,57 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "one draft: a pick on the color page edits the draft, Back keeps it, Save "
+                 "commits it, Discard drops it",
+                 "[ams_edit_overlay][color_picker]") {
+    SlotInfo start = untracked_slot();
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    auto open = [&] {
+        REQUIRE(overlay.show_for_slot(
+            test_screen(), 0, backend->get_slot_info(0), nullptr,
+            [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    };
+    auto pick_on_page = [&](int cell) {
+        lv_obj_send_event(access.widget("btn_all_colors"), LV_EVENT_CLICKED, nullptr);
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        ColorPickerView* page = ColorPickerView::active();
+        REQUIRE(page != nullptr);
+        page->pick_cell(cell);
+        NavigationManager::instance().go_back();
+        UpdateQueue::instance().drain();
+        process_lvgl(400);
+        return helix::color_palette(helix::ColorPalette::Filament)[static_cast<size_t>(cell)];
+    };
+
+    open();
+    const uint32_t picked = pick_on_page(12);
+    CHECK(access.draft_colors() == std::vector<uint32_t>{picked});
+    CHECK(backend->get_slot_info(0).color_rgb == start.color_rgb);
+    lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).color_rgb == picked);
+    close_editor_overlay();
+
+    open();
+    const uint32_t dropped = pick_on_page(20);
+    REQUIRE(dropped != picked);
+    lv_obj_send_event(access.widget("back_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    helix::test::answer_top_modal("btn_secondary"); // Discard
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).color_rgb == picked);
     close_editor_overlay();
 }
 

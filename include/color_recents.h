@@ -25,6 +25,9 @@ class ColorRecents {
     static std::vector<uint32_t> list(Kind kind);
     /// Moves @p rgb to the front, adding it when absent; drops the oldest past kCap.
     static void remember(Kind kind, uint32_t rgb);
+    /// remember() for several colors in one settings write: @p colors[0]
+    /// ends up first, the rest after it in order.
+    static void remember_all(Kind kind, const std::vector<uint32_t>& colors);
     static void remove(Kind kind, uint32_t rgb);
     /// The fresh-install list.
     static const std::vector<uint32_t>& seed(Kind kind);

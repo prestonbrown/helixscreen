@@ -508,6 +508,7 @@ class AmsEditOverlay : public OverlayBase {
         int chained_spool_id = 0;
         bool more_saved = false; ///< a More PATCH ran ahead of this commit and landed
         bool stay_open = false;  ///< commit the slot but keep the editor (unsaved More edits)
+        std::vector<uint32_t> picked_colors; ///< the colors this save commits, if any were picked
     };
     SaveCapture capture_save() const;
     /// Saves still running per slot, editor open or not. show_for_slot()
@@ -519,6 +520,8 @@ class AmsEditOverlay : public OverlayBase {
     void end_slot_save(int slot_index);
     /// The editor that began @p cap is still showing it.
     bool save_is_live(const SaveCapture& cap) const;
+    /// A committed save's picked colors join the filament recents, first leading.
+    static void remember_saved_colors(const SaveCapture& cap);
     /// Close that editor with @p committed, or hand it to @p cap's callback.
     void deliver_commit(const SaveCapture& cap, const SlotInfo& committed);
     /// Hand @p committed to the live editor's callback, then wait for the lane

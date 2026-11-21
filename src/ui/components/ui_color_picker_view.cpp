@@ -51,8 +51,9 @@ struct PickerSubjects {
     char caption_buf[48] = {};
     char keypad_buf[16] = {};
 
-    /// The view whose state the subjects show: the last one attached.
-    ColorPickerView* publisher = nullptr;
+    /// The attached views, oldest first. The subjects show the last one's
+    /// state; when it detaches, the one before it shows again.
+    std::vector<ColorPickerView*> publishers;
 };
 
 std::unique_ptr<PickerSubjects> s_subjects;
@@ -97,13 +98,24 @@ ColorRecents::Kind recents_kind(ColorStrip strip) {
 constexpr const char* kRootName = "color_picker_view";
 
 ColorPickerView* current_publisher() {
-    return s_subjects ? s_subjects->publisher : nullptr;
+    return s_subjects && !s_subjects->publishers.empty() ? s_subjects->publishers.back() : nullptr;
 }
 
-void set_publisher(ColorPickerView* view) {
-    if (s_subjects) {
-        s_subjects->publisher = view;
+void push_publisher(ColorPickerView* view) {
+    auto& v = s_subjects->publishers;
+    v.erase(std::remove(v.begin(), v.end(), view), v.end());
+    v.push_back(view);
+}
+
+/// Drops @p view; true when it was the one the subjects showed.
+bool drop_publisher(ColorPickerView* view) {
+    if (!s_subjects) {
+        return false;
     }
+    const bool was_current = current_publisher() == view;
+    auto& v = s_subjects->publishers;
+    v.erase(std::remove(v.begin(), v.end(), view), v.end());
+    return was_current;
 }
 
 /// The view a callback's widget belongs to: the picker root at or above the
@@ -294,25 +306,13 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     }
     ensure_color_picker_view_subjects();
     config_ = config;
-    set_publisher(this);
+    push_publisher(this);
     tab_ = Tab::Grid;
     keypad_open_ = false;
     strip_editing_ = false;
     keypad_.clear();
     model_ = ColorPickerModel(initial_rgb);
-
-    const auto& palette = color_palette(config_.palette);
-    for (size_t i = 0; i < palette.size() && i < kMaxCells; ++i) {
-        s_cells.set_color(i, palette[i]);
-    }
-    const std::string caption =
-        config_.strip_caption.empty() ? std::string(lv_tr("Recent")) : config_.strip_caption;
-    lv_subject_set_string(&s_subjects->strip_caption, caption.c_str());
-    lv_subject_set_int(&s_subjects->tab, 0);
-    lv_subject_set_int(&s_subjects->strip_editing, 0);
-    publish_keypad();
-    load_strip();
-    publish();
+    publish_all();
 
     const std::string palette_attr = std::to_string(static_cast<int>(config_.palette));
     const char* attrs[] = {
@@ -323,7 +323,7 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     root_.reset(static_cast<lv_obj_t*>(lv_xml_create(container, "color_picker_view", attrs)));
     if (!root_) {
         spdlog::error("[ColorPickerView] color_picker_view failed to build");
-        set_publisher(nullptr);
+        detach();
         return;
     }
     lv_obj_set_name(root_, kRootName);
@@ -339,9 +339,29 @@ void ColorPickerView::detach() {
         lv_obj_set_user_data(root_, nullptr);
     }
     root_.reset();
-    if (current_publisher() == this) {
-        set_publisher(nullptr);
+    if (drop_publisher(this)) {
+        if (ColorPickerView* previous = current_publisher()) {
+            previous->publish_all();
+        }
     }
+}
+
+void ColorPickerView::publish_all() {
+    if (current_publisher() != this) {
+        return;
+    }
+    const auto& palette = color_palette(config_.palette);
+    for (size_t i = 0; i < palette.size() && i < kMaxCells; ++i) {
+        s_cells.set_color(i, palette[i]);
+    }
+    const std::string caption =
+        config_.strip_caption.empty() ? std::string(lv_tr("Recent")) : config_.strip_caption;
+    lv_subject_set_string(&s_subjects->strip_caption, caption.c_str());
+    lv_subject_set_int(&s_subjects->tab, static_cast<int>(tab_));
+    lv_subject_set_int(&s_subjects->strip_editing, strip_editing_ ? 1 : 0);
+    publish_keypad();
+    load_strip();
+    publish();
 }
 
 void ColorPickerView::on_change(std::function<void(uint32_t)> callback) {
@@ -489,8 +509,10 @@ void ColorPickerView::hold_chip(int index) {
         return;
     }
     strip_editing_ = true;
-    lv_subject_set_int(&s_subjects->strip_editing, 1);
-    publish_strip_selection();
+    if (current_publisher() == this) {
+        lv_subject_set_int(&s_subjects->strip_editing, 1);
+        publish_strip_selection();
+    }
 }
 
 void ColorPickerView::finish_strip_edit() {
@@ -522,7 +544,7 @@ void ColorPickerView::step(HsvChannel channel, int direction) {
 }
 
 void ColorPickerView::publish_keypad() {
-    if (!s_subjects) {
+    if (!s_subjects || current_publisher() != this) {
         return;
     }
     auto& s = *s_subjects;

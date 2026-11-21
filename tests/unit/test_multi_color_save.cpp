@@ -250,6 +250,11 @@ TEST_CASE("A slot edit to several colors files a multi-color Spoolman filament",
     CHECK(f.multi_color_direction == "coaxial");
     CHECK(helix::SpoolmanSlotSaver::detect_changes(original, edited).filament_identity);
 
+    // The same colors spelled another way are the same filament.
+    SlotInfo spelled = edited;
+    spelled.multi_color_hexes = "d4af37, C0C0C0";
+    CHECK_FALSE(helix::SpoolmanSlotSaver::detect_changes(edited, spelled).filament_identity);
+
     // The same colors in another mode are another filament.
     SlotInfo gradient = edited;
     gradient.color_mode = "gradient";

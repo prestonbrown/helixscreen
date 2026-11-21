@@ -107,7 +107,8 @@ ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const Slot
     // brand, material and colour unmoved leaves the spool on its record.
     if (original.brand != edited.brand || original.material != edited.material ||
         original.color_rgb != edited.color_rgb ||
-        original.multi_color_hexes != edited.multi_color_hexes ||
+        spoolman::normalize_color_list(original.multi_color_hexes) !=
+            spoolman::normalize_color_list(edited.multi_color_hexes) ||
         color_mode::normalize(original.color_mode) != color_mode::normalize(edited.color_mode)) {
         changes.filament_identity = true;
     }

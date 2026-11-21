@@ -24,9 +24,9 @@
  * (<color_picker_readout/>) and the Grid | Sliders switch (<color_picker_tabs/>)
  * in its own header when it has one.
  *
- * One view is live at a time: the XML binds process-wide subjects
- * (color_picker_*), and the last attach() owns them until it detaches or its
- * widgets are deleted.
+ * The XML binds process-wide subjects (color_picker_*), so one view is live
+ * at a time: the last one attached. When it detaches, the view attached before
+ * it (a page under a modal's picker, say) shows its own state again and works.
  *
  * @code
  * picker_.attach(body, slot_rgb, {ColorPalette::Filament, ColorStrip::FilamentRecents});
@@ -129,6 +129,9 @@ class ColorPickerView {
   private:
     void apply(uint32_t rgb, bool from_sliders);
     void publish();
+    /// Every shared subject from this view's state: on attach, and when a
+    /// view attached after it detaches.
+    void publish_all();
     void publish_keypad();
     void load_strip();
     void publish_strip_selection();

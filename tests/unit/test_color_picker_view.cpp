@@ -100,6 +100,65 @@ TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a grid tap picks the cell and 
     CHECK(subject_string("color_picker_hex") == hex);
 }
 
+TEST_CASE_METHOD(PickerFixture,
+                 "ColorPickerView: taps on its own widgets reach it through their XML callbacks",
+                 "[color_picker]") {
+    ColorPickerConfig cfg;
+    cfg.tabs_in_body = true;
+    attach(0xFF0000, cfg);
+    auto click = [&](const char* name) {
+        lv_obj_t* w = named(view.root(), name);
+        INFO(name);
+        REQUIRE(w != nullptr);
+        lv_obj_send_event(w, LV_EVENT_CLICKED, nullptr);
+    };
+
+    // A grid cell: the first row's second cell is palette entry 1.
+    click("color_picker_cell_1");
+    CHECK(view.color() == helix::color_palette(ColorPalette::Filament)[1]);
+
+    // The Grid | Sliders switch, then a stepper.
+    click("cp_tab_sliders");
+    CHECK(subject_int("color_picker_tab") == 1);
+    view.set_color(0xFF0000);
+    lv_obj_send_event(named(view.root(), "cp_h_minus"), LV_EVENT_PRESSED, nullptr);
+    CHECK(subject_int("color_picker_hue") == 358);
+
+    // The hex keypad: open, six digits, OK.
+    click("cp_hex_button");
+    CHECK(subject_int("color_picker_keypad_open") == 1);
+    for (int i = 0; i < 6; ++i) {
+        click("cp_key_0");
+    }
+    click("cp_keypad_ok");
+    CHECK(view.color() == 0x000000);
+}
+
+TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a picker attached on top hands the subjects back",
+                 "[color_picker]") {
+    attach(0x123456);
+    lv_obj_t* other_host = lv_obj_create(test_screen());
+    {
+        ColorPickerView top;
+        ColorPickerConfig led;
+        led.palette = ColorPalette::Led;
+        top.attach(other_host, 0x00FF00, led);
+        REQUIRE(ColorPickerView::active() == &top);
+        CHECK(subject_string("color_picker_hex") == "#00FF00");
+        top.detach();
+    }
+    // The first view shows its own state again and still publishes.
+    CHECK(ColorPickerView::active() == &view);
+    CHECK(subject_string("color_picker_hex") == "#123456");
+    const lv_color_t cell0 =
+        lv_subject_get_color(lv_xml_get_subject(nullptr, "color_picker_cell_0"));
+    CHECK((lv_color_to_u32(cell0) & 0xFFFFFF) == helix::color_palette(ColorPalette::Filament)[0]);
+    view.pick_cell(2);
+    char hex[16];
+    std::snprintf(hex, sizeof(hex), "#%06X", helix::color_palette(ColorPalette::Filament)[2]);
+    CHECK(subject_string("color_picker_hex") == hex);
+}
+
 TEST_CASE_METHOD(PickerFixture, "ColorPickerView: set_color shows a color without reporting it",
                  "[color_picker]") {
     attach(0x123456);

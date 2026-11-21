@@ -2326,14 +2326,6 @@ void AmsEditOverlay::handle_save() {
     }
 
     stage_selection_into_working();
-    // Save commits a picked color: it joins the filament recents (every one
-    // of a multi-color spool's, the first last so it leads).
-    if (details_color_set_ || multi_set_) {
-        const std::vector<uint32_t> colors = draft_colors();
-        for (auto it = colors.rbegin(); it != colors.rend(); ++it) {
-            helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, *it);
-        }
-    }
     stage_pending_color_into_working();
 
     // The More section's Spoolman-owned fields (price/location/lot/notes):
@@ -2470,6 +2462,9 @@ AmsEditOverlay::SaveCapture AmsEditOverlay::capture_save() const {
     cap.spoolman_target = spoolman.target;
     cap.saving = working_info_;
     cap.owed = completion_callback_;
+    if (details_color_set_ || multi_set_) {
+        cap.picked_colors = draft_colors();
+    }
     cap.chained_spool_id = detail_working_.id;
     // The More fields ride the Update arm when the identity prompt owns this
     // save, so a combined material+Notes Save loses nothing. They are all
@@ -2486,8 +2481,13 @@ bool AmsEditOverlay::save_is_live(const SaveCapture& cap) const {
     return cap.session == session_ && !completion_fired_;
 }
 
+void AmsEditOverlay::remember_saved_colors(const SaveCapture& cap) {
+    helix::ColorRecents::remember_all(helix::ColorRecents::Kind::Filament, cap.picked_colors);
+}
+
 void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& committed) {
     if (cap.stay_open && save_is_live(cap)) {
+        remember_saved_colors(cap);
         // Commit the slot and keep the editor, holding the edits that could
         // not be saved.
         if (cap.owed) {
@@ -2516,6 +2516,7 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         spdlog::info("[AmsEditOverlay] Save for slot {} finished after the editor closed; "
                      "committing it",
                      cap.slot_index);
+        remember_saved_colors(cap);
         EditResult late;
         late.saved = true;
         late.slot_index = cap.slot_index;
@@ -2591,6 +2592,7 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
     }
     save_in_flight_ = false;
     if (outcome == helix::ams::PendingOutcome::Echoed) {
+        remember_saved_colors(cap);
         set_save_state(kSaveIdle);
         // The callback already has the edit: close without firing it again.
         completion_fired_ = true;
