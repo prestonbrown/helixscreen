@@ -167,37 +167,59 @@ TEST_CASE("uses_viewer - is not a restatement of apply", "[gcode][render_mode]")
 
 namespace {
 constexpr const char* kLlvmpipe = "llvmpipe (LLVM 11.0.1, 128 bits)";
+constexpr bool kGlUp = true;
+constexpr bool kGlDown = false;
 } // namespace
 
 TEST_CASE("Software GL: Auto on llvmpipe falls back to 2D", "[gcode][render_mode]") {
-    const auto d = decide_software_gl_fallback(kLlvmpipe, GcodeViewerRenderMode::Auto);
+    const auto d = decide_software_gl_fallback(kGlUp, kLlvmpipe, GcodeViewerRenderMode::Auto);
     REQUIRE(d.block_3d);
     REQUIRE(d.reason == SoftwareGlReason::SoftwareAuto);
 }
 
 TEST_CASE("Software GL: an explicit 3D choice is overridden", "[gcode][render_mode]") {
-    const auto d = decide_software_gl_fallback(kLlvmpipe, GcodeViewerRenderMode::Render3D);
+    const auto d = decide_software_gl_fallback(kGlUp, kLlvmpipe, GcodeViewerRenderMode::Render3D);
     REQUIRE(d.block_3d);
     REQUIRE(d.reason == SoftwareGlReason::SoftwareOverrides3D);
 }
 
 TEST_CASE("Software GL: a hardware GPU keeps 3D", "[gcode][render_mode]") {
     for (auto mode : {GcodeViewerRenderMode::Auto, GcodeViewerRenderMode::Render3D}) {
-        const auto d = decide_software_gl_fallback("V3D 7.1.7", mode);
+        const auto d = decide_software_gl_fallback(kGlUp, "V3D 7.1.7", mode);
         REQUIRE_FALSE(d.block_3d);
         REQUIRE(d.reason == SoftwareGlReason::Hardware);
     }
 }
 
 TEST_CASE("Software GL: an unknown renderer keeps 3D", "[gcode][render_mode]") {
-    // A failed GL init reports through its own path; guessing "software" from
-    // a missing string would hide that failure behind a renderer verdict.
-    REQUIRE_FALSE(decide_software_gl_fallback(nullptr, GcodeViewerRenderMode::Auto).block_3d);
-    REQUIRE_FALSE(decide_software_gl_fallback("", GcodeViewerRenderMode::Auto).block_3d);
+    // GL came up but named no renderer: nothing says it is software.
+    REQUIRE_FALSE(
+        decide_software_gl_fallback(kGlUp, nullptr, GcodeViewerRenderMode::Auto).block_3d);
+    REQUIRE_FALSE(decide_software_gl_fallback(kGlUp, "", GcodeViewerRenderMode::Auto).block_3d);
 }
 
 TEST_CASE("Software GL: a viewer already in 2D is left alone", "[gcode][render_mode]") {
-    const auto d = decide_software_gl_fallback(kLlvmpipe, GcodeViewerRenderMode::Layer2D);
+    const auto d = decide_software_gl_fallback(kGlUp, kLlvmpipe, GcodeViewerRenderMode::Layer2D);
+    REQUIRE_FALSE(d.block_3d);
+    REQUIRE(d.reason == SoftwareGlReason::NotRequested);
+}
+
+TEST_CASE("GL unavailable: Auto falls back to 2D", "[gcode][render_mode]") {
+    const auto d = decide_software_gl_fallback(kGlDown, nullptr, GcodeViewerRenderMode::Auto);
+    REQUIRE(d.block_3d);
+    REQUIRE(d.reason == SoftwareGlReason::GlUnavailable);
+}
+
+TEST_CASE("GL unavailable: an explicit 3D choice falls back to 2D", "[gcode][render_mode]") {
+    // A stale renderer string must not rescue a context that never came up.
+    const auto d =
+        decide_software_gl_fallback(kGlDown, "V3D 7.1.7", GcodeViewerRenderMode::Render3D);
+    REQUIRE(d.block_3d);
+    REQUIRE(d.reason == SoftwareGlReason::GlUnavailable);
+}
+
+TEST_CASE("GL unavailable: a viewer already in 2D is left alone", "[gcode][render_mode]") {
+    const auto d = decide_software_gl_fallback(kGlDown, nullptr, GcodeViewerRenderMode::Layer2D);
     REQUIRE_FALSE(d.block_3d);
     REQUIRE(d.reason == SoftwareGlReason::NotRequested);
 }

@@ -486,7 +486,8 @@ static bool has_gcode_data(const gcode_viewer_state_t* st) {
 #ifdef ENABLE_3D_RENDERER
 namespace {
 /// Every viewer draws through the same GPU, so whether GL is a software
-/// rasterizer is asked once per process and reused by each later viewer.
+/// rasterizer, or missing, is asked once per process and reused by each later
+/// viewer.
 struct SoftwareGlVerdict {
     bool checked = false;
     bool block_3d = false;
@@ -494,18 +495,19 @@ struct SoftwareGlVerdict {
 SoftwareGlVerdict g_software_gl;
 } // namespace
 
-/// Refuse the 3D path for the session when GL is a software rasterizer.
-/// Called on the main thread before any 3D geometry is built: on llvmpipe the
-/// full mesh draws at seconds per frame on the UI thread, so the first preview
-/// must already be 2D. Policy: decide_software_gl_fallback().
+/// Refuse the 3D path for the session when GL is a software rasterizer or
+/// cannot be initialized. Called on the main thread before any 3D geometry is
+/// built: on llvmpipe the full mesh draws at seconds per frame on the UI
+/// thread, and without GL it draws nothing, so the first preview must already
+/// be 2D. Policy: decide_software_gl_fallback().
 static void apply_software_gl_fallback(gcode_viewer_state_t* st) {
     if (!st->renderer_ || st->is_using_2d_mode()) {
         return;
     }
     if (!g_software_gl.checked) {
         const std::string& name = st->renderer_->gl_renderer_name();
-        const auto d =
-            helix::gcode_viewer::decide_software_gl_fallback(name.c_str(), st->render_mode_);
+        const auto d = helix::gcode_viewer::decide_software_gl_fallback(
+            !st->renderer_->init_failed(), name.c_str(), st->render_mode_);
         g_software_gl.checked = true;
         g_software_gl.block_3d = d.block_3d;
         switch (d.reason) {
@@ -517,6 +519,9 @@ static void apply_software_gl_fallback(gcode_viewer_state_t* st) {
             spdlog::info("[GCode Viewer] 3D preview uses 2D layers: GL renderer '{}' is software "
                          "(overrides the 3D View selection)",
                          name);
+            break;
+        case helix::gcode_viewer::SoftwareGlReason::GlUnavailable:
+            spdlog::warn("[GCode Viewer] 3D preview uses 2D layers: GL could not be initialized");
             break;
         case helix::gcode_viewer::SoftwareGlReason::Hardware:
         case helix::gcode_viewer::SoftwareGlReason::NotRequested:

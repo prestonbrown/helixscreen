@@ -172,6 +172,13 @@ class GCodeGLESRenderer {
         return gl_render_failed_;
     }
 
+    /// True once GL could not be brought up at all (no GL in the video driver,
+    /// no EGL device, shaders that do not compile). Sticky for the renderer's
+    /// lifetime: init_gl() never retries.
+    bool init_failed() const {
+        return gl_init_failed_;
+    }
+
     /// GL_RENDERER for this renderer's context, creating the context if it does
     /// not exist yet. Empty when GL is unavailable. Main thread only; the first
     /// call decides and later calls return the same answer.
