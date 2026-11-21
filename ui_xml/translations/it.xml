@@ -398,6 +398,7 @@
   <translation tag="Cannot remap: internal error" it="Impossibile rimappare: errore interno"/>
   <translation tag="Cannot reprint: not connected to printer" it="Impossibile ristampare: non connesso alla stampante"/>
   <translation tag="Cannot restart — no filename" it="Impossibile riavviare — nessun nome file"/>
+  <translation tag="Cannot restore the stock screen while printing" it="Impossibile ripristinare lo schermo originale durante una stampa"/>
   <translation tag="Cannot start print: internal error" it="Impossibile avviare stampa: errore interno"/>
   <translation tag="Cannot start print: not connected to printer" it="Impossibile avviare stampa: non connesso alla stampante"/>
   <translation tag="Cannot start print: printer is {}" it="Impossibile avviare stampa: stampante è {}"/>
@@ -601,6 +602,8 @@
   <translation tag="Could not reach Spoolman at" it="Impossibile raggiungere Spoolman a"/>
   <translation tag="Could not read the screw adjustments from the printer" it="Impossibile leggere le regolazioni delle viti dalla stampante"/>
   <translation tag="Could not resolve printer RFCOMM channel" it="Impossibile risolvere il canale RFCOMM della stampante"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" it="Impossibile riavviare la stampante; lo schermo originale non è stato ripristinato"/>
+  <translation tag="Could not restore the stock screen" it="Impossibile ripristinare lo schermo originale"/>
   <translation tag="Could not save filament" it="Impossibile salvare il filamento"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" it="Impossibile salvare la mesh come &apos;{}&apos;: {}"/>
   <translation tag="Could not start Bluetooth discovery" it="Impossibile avviare la ricerca Bluetooth"/>
@@ -2081,14 +2084,19 @@
   <translation tag="Restart failed: not connected" it="Riavvio fallito: non connesso"/>
   <translation tag="Restart the display application" it="Riavvia l&apos;applicazione display"/>
   <translation tag="Restart the printer or screen" it="Riavvia la stampante o lo schermo"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" it="Riavvia la stampante per completare il ripristino dello schermo originale"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" it="Riavvia la stampante. Se SSH rifiuta ancora la connessione, consulta la guida di installazione dello Snapmaker U1"/>
   <translation tag="Restarting HelixScreen..." it="Riavvio HelixScreen..."/>
   <translation tag="Restarting Klipper..." it="Riavvio Klipper..."/>
   <translation tag="Restarting Moonraker..." it="Riavvio Moonraker..."/>
   <translation tag="Restarting printer..." it="Riavvio stampante..."/>
   <translation tag="Restarting screen..." it="Riavvio schermo..."/>
+  <translation tag="Restarting the printer..." it="Riavvio della stampante..."/>
   <translation tag="Restarting with the new version..." it="Riavvio con la nuova versione..."/>
   <translation tag="Restarting..." it="Riavvio in corso..."/>
+  <translation tag="Restore" it="Ripristina"/>
   <translation tag="Restore Defaults" it="Ripristina predefiniti"/>
+  <translation tag="Restore Stock Screen" it="Ripristina schermo originale"/>
   <translation tag="Restoring position" it="Ripristino posizione"/>
   <translation tag="Resume" it="Riprendi"/>
   <translation tag="Resume Print" it="Riprendi stampa"/>
@@ -2140,6 +2148,7 @@
   <translation tag="SHIPPED IMAGES" it="IMMAGINI INCLUSE"/>
   <translation tag="SOFTWARE" it="SOFTWARE"/>
   <translation tag="SOUND" it="SUONO"/>
+  <translation tag="SSH did not start although Root access is on" it="SSH non si è avviato anche se l&apos;accesso root è attivo"/>
   <translation tag="STANDARD MACROS" it="MACRO STANDARD"/>
   <translation tag="STARTUP" it="AVVIO"/>
   <translation tag="STOP" it="STOP"/>
@@ -2420,6 +2429,7 @@
   <translation tag="Surfaces inherit app background tokens for light and dark modes." it="Le superfici ereditano i token sfondo app per modalità chiara e scura."/>
   <translation tag="Switch Printer" it="Cambia stampante"/>
   <translation tag="Switch Sensors" it="Sensori a interruttore"/>
+  <translation tag="Switch back to the Snapmaker screen" it="Torna allo schermo Snapmaker"/>
   <translation tag="Switch between light and dark themes" it="Passa tra tema chiaro e scuro"/>
   <translation tag="Switch to v%s" it="Passa alla v%s"/>
   <translation tag="Switch to {}?" it="Passare a {}?"/>
@@ -2513,6 +2523,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" it="La stampante ha perso l&apos;alimentazione durante la stampa di {}. Riprendere da dove si è interrotta?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." it="La stampante ha perso l&apos;alimentazione durante la stampa di {}. Il layer ripreso potrebbe non allinearsi perfettamente."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." it="La stampante ha rifiutato la configurazione del filamento. La stampa non è stata avviata."/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." it="La stampante si riavvia con lo schermo Snapmaker e HelixScreen non si avvia più. Le impostazioni di HelixScreen restano sulla stampante; esegui di nuovo il programma di installazione per tornare."/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" it="Il firmware della stampante sceglie la bobina di riserva"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" it="Il sensore di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" it="La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. Estrailo manualmente prima di stampare. Avviare comunque?"/>
@@ -2743,6 +2754,7 @@
   <translation tag="Waiting for Moonraker..." it="In attesa di Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." it="In attesa che il piano raggiunga la temperatura per una calibrazione precisa."/>
   <translation tag="Waiting for the filament system to report its state" it="In attesa dello stato del sistema filamento"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" it="In attesa dello stato della stampante; riprova quando è connessa"/>
   <translation tag="Warm Bed" it="Preriscalda piano"/>
   <translation tag="Warming Bed..." it="Preriscaldamento piano..."/>
   <translation tag="Warn" it="Avviso"/>

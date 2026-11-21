@@ -398,6 +398,7 @@
   <translation tag="Cannot remap: internal error" zh="无法重新映射：内部错误"/>
   <translation tag="Cannot reprint: not connected to printer" zh="无法重新打印: 未连接打印机"/>
   <translation tag="Cannot restart — no filename" zh="无法重启 — 没有文件名"/>
+  <translation tag="Cannot restore the stock screen while printing" zh="打印期间无法恢复原厂屏幕"/>
   <translation tag="Cannot start print: internal error" zh="无法开始打印: 内部错误"/>
   <translation tag="Cannot start print: not connected to printer" zh="无法开始打印: 未连接打印机"/>
   <translation tag="Cannot start print: printer is {}" zh="无法开始打印: 打印机状态为 {}"/>
@@ -601,6 +602,8 @@
   <translation tag="Could not reach Spoolman at" zh="无法连接 Spoolman："/>
   <translation tag="Could not read the screw adjustments from the printer" zh="无法从打印机读取螺丝调整数据"/>
   <translation tag="Could not resolve printer RFCOMM channel" zh="无法解析打印机 RFCOMM 通道"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" zh="无法重启打印机；未恢复原厂屏幕"/>
+  <translation tag="Could not restore the stock screen" zh="无法恢复原厂屏幕"/>
   <translation tag="Could not save filament" zh="无法保存耗材"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" zh="无法将网格保存为 &apos;{}&apos;：{}"/>
   <translation tag="Could not start Bluetooth discovery" zh="无法启动蓝牙发现"/>
@@ -2081,14 +2084,19 @@
   <translation tag="Restart failed: not connected" zh="重启失败: 未连接"/>
   <translation tag="Restart the display application" zh="重启显示应用程序"/>
   <translation tag="Restart the printer or screen" zh="重启打印机或屏幕"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" zh="请重启打印机以完成恢复原厂屏幕"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" zh="请重启打印机。如果 SSH 仍然拒绝连接，请参阅 Snapmaker U1 安装指南"/>
   <translation tag="Restarting HelixScreen..." zh="正在重启 HelixScreen…"/>
   <translation tag="Restarting Klipper..." zh="正在重启 Klipper..."/>
   <translation tag="Restarting Moonraker..." zh="正在重启 Moonraker..."/>
   <translation tag="Restarting printer..." zh="正在重启打印机..."/>
   <translation tag="Restarting screen..." zh="正在重启屏幕..."/>
+  <translation tag="Restarting the printer..." zh="正在重启打印机..."/>
   <translation tag="Restarting with the new version..." zh="正在以新版本重启..."/>
   <translation tag="Restarting..." zh="正在重启..."/>
+  <translation tag="Restore" zh="恢复"/>
   <translation tag="Restore Defaults" zh="恢复默认设置"/>
+  <translation tag="Restore Stock Screen" zh="恢复原厂屏幕"/>
   <translation tag="Restoring position" zh="正在恢复位置"/>
   <translation tag="Resume" zh="恢复"/>
   <translation tag="Resume Print" zh="恢复打印"/>
@@ -2140,6 +2148,7 @@
   <translation tag="SHIPPED IMAGES" zh="内置图片"/>
   <translation tag="SOFTWARE" zh="软件"/>
   <translation tag="SOUND" zh="声音"/>
+  <translation tag="SSH did not start although Root access is on" zh="Root 访问已开启，但 SSH 未能启动"/>
   <translation tag="STANDARD MACROS" zh="标准宏"/>
   <translation tag="STARTUP" zh="启动"/>
   <translation tag="STOP" zh="停止"/>
@@ -2420,6 +2429,7 @@
   <translation tag="Surfaces inherit app background tokens for light and dark modes." zh="表面继承应用背景色用于浅色和深色模式。"/>
   <translation tag="Switch Printer" zh="切换打印机"/>
   <translation tag="Switch Sensors" zh="开关传感器"/>
+  <translation tag="Switch back to the Snapmaker screen" zh="切换回 Snapmaker 屏幕"/>
   <translation tag="Switch between light and dark themes" zh="切换浅色和深色主题"/>
   <translation tag="Switch to v%s" zh="切换到 v%s"/>
   <translation tag="Switch to {}?" zh="切换到 {}?"/>
@@ -2513,6 +2523,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" zh="打印机在打印 {} 时断电。是否从中断处继续？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." zh="打印机在打印 {} 时断电。恢复后的层可能无法完全对准。"/>
   <translation tag="The printer rejected the filament configuration. The print was not started." zh="打印机拒绝了该耗材配置。打印未启动。"/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." zh="打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。"/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" zh="备用料盘由打印机固件自行选择"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" zh="工具头内有耗材，但没有 AMS 槽位报告已装载。请在打印前手动取出耗材。仍要开始打印吗？"/>
@@ -2743,6 +2754,7 @@
   <translation tag="Waiting for Moonraker..." zh="正在等待 Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." zh="等待热床达到温度以进行精确校准。"/>
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" zh="正在等待打印机状态；连接后请重试"/>
   <translation tag="Warm Bed" zh="预热热床"/>
   <translation tag="Warming Bed..." zh="正在预热热床..."/>
   <translation tag="Warn" zh="警告"/>

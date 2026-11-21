@@ -398,6 +398,7 @@
   <translation tag="Cannot remap: internal error" ja="リマップできません: 内部エラー"/>
   <translation tag="Cannot reprint: not connected to printer" ja="再印刷できません: プリンター未接続"/>
   <translation tag="Cannot restart — no filename" ja="再起動できません — ファイル名がありません"/>
+  <translation tag="Cannot restore the stock screen while printing" ja="印刷中は標準画面に戻せません"/>
   <translation tag="Cannot start print: internal error" ja="印刷を開始できません: 内部エラー"/>
   <translation tag="Cannot start print: not connected to printer" ja="印刷を開始できません: プリンター未接続"/>
   <translation tag="Cannot start print: printer is {}" ja="印刷を開始できません: プリンターは {} 状態です"/>
@@ -601,6 +602,8 @@
   <translation tag="Could not reach Spoolman at" ja="Spoolman に接続できません:"/>
   <translation tag="Could not read the screw adjustments from the printer" ja="プリンターからネジ調整を読み取れませんでした"/>
   <translation tag="Could not resolve printer RFCOMM channel" ja="プリンターの RFCOMM チャンネルを解決できませんでした"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" ja="プリンターを再起動できませんでした。標準画面には戻っていません"/>
+  <translation tag="Could not restore the stock screen" ja="標準画面に戻せませんでした"/>
   <translation tag="Could not save filament" ja="フィラメントを保存できませんでした"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" ja="メッシュを &apos;{}&apos; として保存できませんでした: {}"/>
   <translation tag="Could not start Bluetooth discovery" ja="Bluetooth の検出を開始できませんでした"/>
@@ -2081,14 +2084,19 @@
   <translation tag="Restart failed: not connected" ja="再起動に失敗: 未接続"/>
   <translation tag="Restart the display application" ja="ディスプレイアプリケーションを再起動"/>
   <translation tag="Restart the printer or screen" ja="プリンターまたは画面を再起動します"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" ja="標準画面への復元を完了するにはプリンターを再起動してください"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" ja="プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください"/>
   <translation tag="Restarting HelixScreen..." ja="HelixScreenを再起動中..."/>
   <translation tag="Restarting Klipper..." ja="Klipper を再起動中..."/>
   <translation tag="Restarting Moonraker..." ja="Moonrakerを再起動中..."/>
   <translation tag="Restarting printer..." ja="プリンターを再起動中..."/>
   <translation tag="Restarting screen..." ja="画面を再起動中..."/>
+  <translation tag="Restarting the printer..." ja="プリンターを再起動しています..."/>
   <translation tag="Restarting with the new version..." ja="新しいバージョンで再起動中..."/>
   <translation tag="Restarting..." ja="再起動中..."/>
+  <translation tag="Restore" ja="復元"/>
   <translation tag="Restore Defaults" ja="デフォルトに戻す"/>
+  <translation tag="Restore Stock Screen" ja="標準画面に戻す"/>
   <translation tag="Restoring position" ja="位置を復元中"/>
   <translation tag="Resume" ja="再開"/>
   <translation tag="Resume Print" ja="印刷を再開"/>
@@ -2140,6 +2148,7 @@
   <translation tag="SHIPPED IMAGES" ja="付属画像"/>
   <translation tag="SOFTWARE" ja="ソフトウェア"/>
   <translation tag="SOUND" ja="サウンド"/>
+  <translation tag="SSH did not start although Root access is on" ja="ルートアクセスがオンですが、SSHが起動しませんでした"/>
   <translation tag="STANDARD MACROS" ja="標準マクロ"/>
   <translation tag="STARTUP" ja="起動"/>
   <translation tag="STOP" ja="停止"/>
@@ -2420,6 +2429,7 @@
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ja="サーフェスはライトモードとダークモードのアプリ背景トークンを継承します。"/>
   <translation tag="Switch Printer" ja="プリンターを切り替え"/>
   <translation tag="Switch Sensors" ja="スイッチセンサー"/>
+  <translation tag="Switch back to the Snapmaker screen" ja="Snapmakerの画面に戻します"/>
   <translation tag="Switch between light and dark themes" ja="ライトテーマとダークテーマを切り替え"/>
   <translation tag="Switch to v%s" ja="v%s に切り替え"/>
   <translation tag="Switch to {}?" ja="{} に切り替えますか?"/>
@@ -2513,6 +2523,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ja="プリンターがフィラメント設定を拒否しました。印刷は開始されませんでした。"/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ja="プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。"/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" ja="バックアップスプールはプリンターのファームウェアが選びます"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ja="フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ja="ツールヘッドにフィラメントがありますが、装填済みと報告しているAMSスロットはありません。印刷前に手動で引き抜いてください。それでも印刷を開始しますか？"/>
@@ -2743,6 +2754,7 @@
   <translation tag="Waiting for Moonraker..." ja="Moonraker を待機中..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ja="正確なキャリブレーションのためにベッド温度到達を待機中。"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ja="プリンターの状態を待っています。接続後にもう一度お試しください"/>
   <translation tag="Warm Bed" ja="ベッドを予熱"/>
   <translation tag="Warming Bed..." ja="ベッド予熱中..."/>
   <translation tag="Warn" ja="警告"/>

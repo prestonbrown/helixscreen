@@ -398,6 +398,7 @@
   <translation tag="Cannot remap: internal error" ru="Не удалось переназначить: внутренняя ошибка"/>
   <translation tag="Cannot reprint: not connected to printer" ru="Невозможно перепечатать: не подключено к принтеру"/>
   <translation tag="Cannot restart — no filename" ru="Не удалось перезапустить — нет имени файла"/>
+  <translation tag="Cannot restore the stock screen while printing" ru="Нельзя вернуть штатный экран во время печати"/>
   <translation tag="Cannot start print: internal error" ru="Невозможно начать печать: внутренняя ошибка"/>
   <translation tag="Cannot start print: not connected to printer" ru="Невозможно начать печать: не подключено к принтеру"/>
   <translation tag="Cannot start print: printer is {}" ru="Невозможно начать печать: принтер {}"/>
@@ -601,6 +602,8 @@
   <translation tag="Could not reach Spoolman at" ru="Не удалось связаться со Spoolman по адресу"/>
   <translation tag="Could not read the screw adjustments from the printer" ru="Не удалось получить данные регулировки винтов от принтера"/>
   <translation tag="Could not resolve printer RFCOMM channel" ru="Не удалось определить RFCOMM-канал принтера"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" ru="Не удалось перезапустить принтер; штатный экран не восстановлен"/>
+  <translation tag="Could not restore the stock screen" ru="Не удалось вернуть штатный экран"/>
   <translation tag="Could not save filament" ru="Не удалось сохранить филамент"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" ru="Не удалось сохранить сетку как &apos;{}&apos;: {}"/>
   <translation tag="Could not start Bluetooth discovery" ru="Не удалось запустить поиск Bluetooth"/>
@@ -2081,14 +2084,19 @@
   <translation tag="Restart failed: not connected" ru="Перезапуск не удался: нет подключения"/>
   <translation tag="Restart the display application" ru="Перезапустить приложение дисплея"/>
   <translation tag="Restart the printer or screen" ru="Перезапустить принтер или экран"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" ru="Перезапустите принтер, чтобы завершить возврат штатного экрана"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" ru="Перезапустите принтер. Если SSH по-прежнему отклоняет подключение, см. руководство по установке Snapmaker U1"/>
   <translation tag="Restarting HelixScreen..." ru="Перезапуск HelixScreen..."/>
   <translation tag="Restarting Klipper..." ru="Перезапуск Klipper..."/>
   <translation tag="Restarting Moonraker..." ru="Перезапуск Moonraker..."/>
   <translation tag="Restarting printer..." ru="Перезапуск принтера..."/>
   <translation tag="Restarting screen..." ru="Перезапуск экрана..."/>
+  <translation tag="Restarting the printer..." ru="Перезапуск принтера..."/>
   <translation tag="Restarting with the new version..." ru="Перезапуск с новой версией..."/>
   <translation tag="Restarting..." ru="Перезапуск..."/>
+  <translation tag="Restore" ru="Восстановить"/>
   <translation tag="Restore Defaults" ru="Восстановить по умолчанию"/>
+  <translation tag="Restore Stock Screen" ru="Вернуть штатный экран"/>
   <translation tag="Restoring position" ru="Восстановление позиции"/>
   <translation tag="Resume" ru="Продолжить"/>
   <translation tag="Resume Print" ru="Продолжить печать"/>
@@ -2140,6 +2148,7 @@
   <translation tag="SHIPPED IMAGES" ru="ВСТРОЕННЫЕ ИЗОБРАЖЕНИЯ"/>
   <translation tag="SOFTWARE" ru="ПО"/>
   <translation tag="SOUND" ru="ЗВУК"/>
+  <translation tag="SSH did not start although Root access is on" ru="SSH не запустился, хотя root-доступ включён"/>
   <translation tag="STANDARD MACROS" ru="СТАНДАРТНЫЕ МАКРОСЫ"/>
   <translation tag="STARTUP" ru="ЗАПУСК"/>
   <translation tag="STOP" ru="СТОП"/>
@@ -2420,6 +2429,7 @@
   <translation tag="Surfaces inherit app background tokens for light and dark modes." ru="Поверхности наследуют токены фона приложения для светлого и тёмного режимов."/>
   <translation tag="Switch Printer" ru="Переключить принтер"/>
   <translation tag="Switch Sensors" ru="Датчики-переключатели"/>
+  <translation tag="Switch back to the Snapmaker screen" ru="Вернуться к экрану Snapmaker"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
   <translation tag="Switch to v%s" ru="Перейти на v%s"/>
   <translation tag="Switch to {}?" ru="Переключиться на {}?"/>
@@ -2513,6 +2523,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ru="Принтер потерял питание при печати {}. Продолжить с места остановки?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ru="Принтер потерял питание при печати {}. Возобновлённый слой может не совпасть точно."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." ru="Принтер отклонил конфигурацию филамента. Печать не была запущена."/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ru="Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик."/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" ru="Прошивка принтера сама выбирает резервную катушку"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" ru="В печатающей головке есть филамент, но ни один слот AMS не сообщает о его загрузке. Извлеките его вручную перед печатью. Всё равно начать?"/>
@@ -2743,6 +2754,7 @@
   <translation tag="Waiting for Moonraker..." ru="Ожидание Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." ru="Ожидание нагрева стола для точной калибровки."/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ru="Ожидание состояния принтера; повторите попытку после подключения"/>
   <translation tag="Warm Bed" ru="Прогреть стол"/>
   <translation tag="Warming Bed..." ru="Прогрев стола..."/>
   <translation tag="Warn" ru="Предупреждение"/>

@@ -398,6 +398,7 @@
   <translation tag="Cannot remap: internal error" en="Cannot remap: internal error"/>
   <translation tag="Cannot reprint: not connected to printer" en="Cannot reprint: not connected to printer"/>
   <translation tag="Cannot restart — no filename" en="Cannot restart — no filename"/>
+  <translation tag="Cannot restore the stock screen while printing" en="Cannot restore the stock screen while printing"/>
   <translation tag="Cannot start print: internal error" en="Cannot start print: internal error"/>
   <translation tag="Cannot start print: not connected to printer" en="Cannot start print: not connected to printer"/>
   <translation tag="Cannot start print: printer is {}" en="Cannot start print: printer is {}"/>
@@ -601,6 +602,8 @@
   <translation tag="Could not reach Spoolman at" en="Could not reach Spoolman at"/>
   <translation tag="Could not read the screw adjustments from the printer" en="Could not read the screw adjustments from the printer"/>
   <translation tag="Could not resolve printer RFCOMM channel" en="Could not resolve printer RFCOMM channel"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" en="Could not restart the printer; the stock screen was not restored"/>
+  <translation tag="Could not restore the stock screen" en="Could not restore the stock screen"/>
   <translation tag="Could not save filament" en="Could not save filament"/>
   <translation tag="Could not save the mesh as &apos;{}&apos;: {}" en="Could not save the mesh as &apos;{}&apos;: {}"/>
   <translation tag="Could not start Bluetooth discovery" en="Could not start Bluetooth discovery"/>
@@ -2081,14 +2084,19 @@
   <translation tag="Restart failed: not connected" en="Restart failed: not connected"/>
   <translation tag="Restart the display application" en="Restart the display application"/>
   <translation tag="Restart the printer or screen" en="Restart the printer or screen"/>
+  <translation tag="Restart the printer to finish restoring the stock screen" en="Restart the printer to finish restoring the stock screen"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" en="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide"/>
   <translation tag="Restarting HelixScreen..." en="Restarting HelixScreen..."/>
   <translation tag="Restarting Klipper..." en="Restarting Klipper..."/>
   <translation tag="Restarting Moonraker..." en="Restarting Moonraker..."/>
   <translation tag="Restarting printer..." en="Restarting printer..."/>
   <translation tag="Restarting screen..." en="Restarting screen..."/>
+  <translation tag="Restarting the printer..." en="Restarting the printer..."/>
   <translation tag="Restarting with the new version..." en="Restarting with the new version..."/>
   <translation tag="Restarting..." en="Restarting..."/>
+  <translation tag="Restore" en="Restore"/>
   <translation tag="Restore Defaults" en="Restore Defaults"/>
+  <translation tag="Restore Stock Screen" en="Restore Stock Screen"/>
   <translation tag="Restoring position" en="Restoring position"/>
   <translation tag="Resume" en="Resume"/>
   <translation tag="Resume Print" en="Resume Print"/>
@@ -2140,6 +2148,7 @@
   <translation tag="SHIPPED IMAGES" en="SHIPPED IMAGES"/>
   <translation tag="SOFTWARE" en="SOFTWARE"/>
   <translation tag="SOUND" en="SOUND"/>
+  <translation tag="SSH did not start although Root access is on" en="SSH did not start although Root access is on"/>
   <translation tag="STANDARD MACROS" en="STANDARD MACROS"/>
   <translation tag="STARTUP" en="STARTUP"/>
   <translation tag="STOP" en="STOP"/>
@@ -2420,6 +2429,7 @@
   <translation tag="Surfaces inherit app background tokens for light and dark modes." en="Surfaces inherit app background tokens for light and dark modes."/>
   <translation tag="Switch Printer" en="Switch Printer"/>
   <translation tag="Switch Sensors" en="Switch Sensors"/>
+  <translation tag="Switch back to the Snapmaker screen" en="Switch back to the Snapmaker screen"/>
   <translation tag="Switch between light and dark themes" en="Switch between light and dark themes"/>
   <translation tag="Switch to v%s" en="Switch to v%s"/>
   <translation tag="Switch to {}?" en="Switch to {}?"/>
@@ -2513,6 +2523,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" en="The printer lost power while printing {}. Resume where it left off?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." en="The printer lost power while printing {}. The resumed layer may not line up exactly."/>
   <translation tag="The printer rejected the filament configuration. The print was not started." en="The printer rejected the filament configuration. The print was not started."/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." en="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back."/>
   <translation tag="The printer&apos;s firmware chooses the backup spool itself" en="The printer&apos;s firmware chooses the backup spool itself"/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" en="The runout sensor indicates no filament is loaded. Start print anyway?"/>
   <translation tag="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?" en="The toolhead has filament but no AMS slot reports it loaded. Pull it out manually before printing. Start anyway?"/>
@@ -2743,6 +2754,7 @@
   <translation tag="Waiting for Moonraker..." en="Waiting for Moonraker..."/>
   <translation tag="Waiting for bed to reach temperature for accurate calibration." en="Waiting for bed to reach temperature for accurate calibration."/>
   <translation tag="Waiting for the filament system to report its state" en="Waiting for the filament system to report its state"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" en="Waiting for the printer&apos;s status; try again once it is connected"/>
   <translation tag="Warm Bed" en="Warm Bed"/>
   <translation tag="Warming Bed..." en="Warming Bed..."/>
   <translation tag="Warn" en="Warn"/>
