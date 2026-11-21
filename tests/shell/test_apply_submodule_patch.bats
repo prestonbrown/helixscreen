@@ -71,6 +71,16 @@ EOF
     grep -q '^ALPHA$' "$SUB/one.txt"
 }
 
+@test "a patch path relative to the superproject applies to a git submodule" {
+    # mk/deps.mk's libnl recipe passes patches/<name> from the tree root,
+    # while the git backend asks its question from inside the submodule.
+    cd "$ROOT"
+    run "$BATS_TEST_DIRNAME/../../$HELPER" lib/fake patches/good.patch "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    grep -q '^ALPHA$' "$SUB/one.txt"
+}
+
 @test "recognizes an already-applied patch through the reverse check" {
     git -C "$SUB" apply "$ROOT/patches/good.patch"
     run "$HELPER" "$SUB" "$ROOT/patches/good.patch" "fixture patch"

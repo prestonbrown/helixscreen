@@ -94,7 +94,7 @@ empty_git_dir=
 apply_patch() {
   case $backend in
     git)
-      git_submodule apply "$@" "$patch_file"
+      git_submodule apply "$@" "$abs_patch"
       ;;
     git-dir)
       # An empty repository whose work tree is the submodule: nothing is
