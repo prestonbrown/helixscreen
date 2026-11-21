@@ -2458,6 +2458,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a new spool on an unweighed lane saves as 1
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "relabelling a lane that already had a material keeps its weight",
+                 "[ams_edit_overlay][weight][afc-edit-echo]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo spent = untracked_slot_without_weights();
+    spent.material = "PETG";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, spent, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    SlotInfo edited = access.working_info();
+    edited.material = "PLA";
+    access.set_working_info(edited);
+    CHECK(access.saving().remaining_weight_g < 0.0f);
+    CHECK(access.saving().total_weight_g < 0.0f);
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "Reset to tag restores identity, not just the colour",
                  "[ams_edit_overlay][dropdown][tag]") {
     auto& overlay = get_ams_edit_overlay();

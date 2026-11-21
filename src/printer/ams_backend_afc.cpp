@@ -2497,9 +2497,13 @@ void AmsBackendAfc::apply_lane_status(int slot_index, const std::string& lane_na
     const ams::LaneId lane = lane_id(slot_index);
     ams::ingest(lane, firmware.cache);
     ams::ingest(lane, firmware.metered);
-    // The meter is AFC's own lane `weight`, which SET_WEIGHT writes, so it is
-    // the echo of an edit's remaining weight even though it ranks as Metered.
-    ams::echo_pending(lane, firmware.metered);
+    // The meter's remaining weight is AFC's own lane `weight`, which SET_WEIGHT
+    // writes, so it echoes an edit's remaining weight even though it ranks as
+    // Metered. Its total is the espooler's configured full weight, which no
+    // HelixScreen write sets, so it answers nothing.
+    ams::Observation weight_echo(ams::ObservationSource::Metered);
+    weight_echo.remaining_weight_g = firmware.metered.remaining_weight_g;
+    ams::echo_pending(lane, weight_echo);
 
     // Presence is the one reading AFC can stop having: prep, load and
     // tool_loaded are real sensors, and a frame naming none of them is not a

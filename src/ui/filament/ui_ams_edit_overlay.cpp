@@ -70,11 +70,12 @@ namespace {
 constexpr float kUnweighedSpoolG = 1000.0f;
 
 /// Give @p saving a 1 kg spool's weights when the save sets up a new spool on
-/// a lane whose weight nothing knows: an unlinked lane given a material it did
-/// not have, with no weight on either side and none typed. A linked spool's
-/// weights are Spoolman's.
+/// a lane whose weight nothing knows: an unlinked lane that had no material
+/// given one, with no weight on either side and none typed. A relabelled lane
+/// keeps what it held, even a metered 0 g; a linked spool's weights are
+/// Spoolman's.
 void seed_unweighed_spool(const SlotInfo& original, SlotInfo& saving) {
-    if (saving.spoolman_id > 0 || saving.material.empty() || saving.material == original.material) {
+    if (saving.spoolman_id > 0 || saving.material.empty() || !original.material.empty()) {
         return;
     }
     if (saving.remaining_weight_g > 0 || saving.total_weight_g > 0 ||
