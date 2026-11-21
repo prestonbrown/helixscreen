@@ -672,6 +672,11 @@ class PrinterPrintState {
     lv_subject_t* get_machine_motion_blocked_subject() {
         return &machine_motion_blocked_;
     }
+    /// True once a print_stats frame has been applied. Until then the job
+    /// state subjects hold their STANDBY defaults, not what Klipper is doing.
+    [[nodiscard]] bool print_stats_received() const {
+        return print_stats_frames_ > 0;
+    }
     lv_subject_t* get_spool_latch_subject() {
         return &spool_latch_;
     }
@@ -801,7 +806,8 @@ class PrinterPrintState {
         return print_exception_runout_lane_;
     }
 
-    /// Drop the latched pause cause (id, code, message, runout lane, subject).
+    /// Drop the latched pause cause (id, code, message, reason, runout lane,
+    /// subject).
     /// Main-thread only.
     void clear_print_exception();
 
@@ -810,6 +816,12 @@ class PrinterPrintState {
     /// pauses and the text lives here.
     [[nodiscard]] const std::string& get_print_exception_message() const {
         return print_exception_message_;
+    }
+
+    /// The latched pause cause in a user's words (pause_descriptor's reason),
+    /// empty when only the firmware's message describes it.
+    [[nodiscard]] const std::string& get_print_exception_reason() const {
+        return print_exception_reason_;
     }
 
     /// Power-loss recovery: the firmware reports a snapshot it validated itself
@@ -1582,6 +1594,7 @@ class PrinterPrintState {
     int print_exception_id_ = -1;
     int print_exception_code_ = -1;
     std::string print_exception_message_;
+    std::string print_exception_reason_;
     int print_exception_runout_lane_ = -1;
     /// print_stats frames parsed, and the one the latched exception arrived
     /// in: a pause takes an exception from its own frame, a later one, or the

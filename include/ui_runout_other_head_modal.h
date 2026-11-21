@@ -5,6 +5,7 @@
 
 #include "runout_other_head.h"
 
+#include <functional>
 #include <vector>
 
 namespace helix::ui {
@@ -19,7 +20,9 @@ namespace helix::ui {
  */
 class RunoutOtherHeadModal : public Modal {
   public:
-    explicit RunoutOtherHeadModal(int runout_head);
+    /// @param on_moved runs once a sent switch moved the print off the runout
+    ///        head, resumed or not (main thread; the caller guards its lifetime)
+    explicit RunoutOtherHeadModal(int runout_head, std::function<void()> on_moved = {});
     ~RunoutOtherHeadModal() override;
 
     const char* get_name() const override {
@@ -35,7 +38,13 @@ class RunoutOtherHeadModal : public Modal {
 
     /// Show the chooser for a runout on @p runout_head, owned by ModalStack.
     /// False when available() is not. Main thread only.
-    static bool show_owned(int runout_head);
+    static bool show_owned(int runout_head, std::function<void()> on_moved = {});
+
+    /// Apply or forget a restore a switch left pending (a setting it turned on
+    /// for itself and could not put back: a failed script, a restart, a lost
+    /// link). Call whenever the printer's state may have moved; also re-runs
+    /// itself when the firmware's runout switching changes. Main thread only.
+    static void settle_pending_restore();
 
     /// Register the subjects and the row callback the XML binds. Idempotent.
     static void init_subjects();
@@ -52,6 +61,7 @@ class RunoutOtherHeadModal : public Modal {
     void start(int head);
 
     int runout_head_;
+    std::function<void()> on_moved_;
     std::vector<helix::runout_other_head::HeadVerdict> verdicts_;
     static RunoutOtherHeadModal* shown_;
 };

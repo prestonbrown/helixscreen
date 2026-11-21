@@ -45,7 +45,7 @@ The file is JSON. It holds two kinds of settings:
   "active_printer_id": "default",
   "dark_mode": true,
   "brightness": 80,
-  "display": { "sleep_sec": 1200 },
+  "display": { "sleep_sec": 3600 },
   "input": { "scroll_limit": 10 },
   "printers": {
     "show_printer_switcher": false,

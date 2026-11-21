@@ -22,10 +22,15 @@
 #include "config.h"
 #include "core/update_queue.h"
 #include "lvgl.h"
+#include "src/ui/panel_widgets/shutdown_widget.h"
+#include "system_power.h"
 #include "system_settings_manager.h"
+#include "u1_stock_screen.h"
 
 #include <spdlog/spdlog.h>
 
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
 
 namespace helix::settings {
@@ -81,6 +86,8 @@ void SystemSettingsOverlay::register_callbacks() {
          [](lv_event_t*) { get_system_settings_overlay().handle_restart_helix_clicked(); }},
         {"on_factory_reset_clicked",
          [](lv_event_t*) { get_system_settings_overlay().handle_factory_reset_clicked(); }},
+        {"on_restore_stock_screen_clicked",
+         [](lv_event_t*) { get_system_settings_overlay().handle_restore_stock_screen_clicked(); }},
     });
 }
 
@@ -140,6 +147,69 @@ void SystemSettingsOverlay::perform_factory_reset() {
     helix::ui::queue_update("SystemSettingsOverlay::factory_reset_restart", []() {
         spdlog::info("[SystemSettingsOverlay] Restarting after factory reset...");
         app_request_restart_service();
+    });
+}
+
+namespace {
+
+/// The verdict for a Restore Stock Screen request now, with the refusal toast
+/// already shown when it is not Proceed.
+helix::u1::RestoreStockVerdict restore_stock_verdict_now() {
+    const auto verdict =
+        helix::u1::decide_restore_stock(std::getenv(helix::u1::kRestoreTriggerEnv),
+                                        helix::power_job_state_known(), helix::power_job_active());
+    if (verdict == helix::u1::RestoreStockVerdict::StateUnknown) {
+        ToastManager::instance().show(
+            ToastSeverity::WARNING,
+            lv_tr("Waiting for the printer's status; try again once it is connected"), 4000);
+    } else if (verdict == helix::u1::RestoreStockVerdict::JobActive) {
+        ToastManager::instance().show(
+            ToastSeverity::WARNING, lv_tr("Cannot restore the stock screen while printing"), 4000);
+    } else if (verdict == helix::u1::RestoreStockVerdict::NotOffered) {
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not restore the stock screen"), 4000);
+    }
+    return verdict;
+}
+
+} // namespace
+
+void SystemSettingsOverlay::handle_restore_stock_screen_clicked() {
+    if (restore_stock_verdict_now() != helix::u1::RestoreStockVerdict::Proceed) {
+        return;
+    }
+    helix::ui::ConfirmOptions options;
+    options.destructive = true;
+    helix::ui::modal_confirm(
+        lv_tr("Restore Stock Screen"),
+        lv_tr("The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. "
+              "Your HelixScreen settings stay on the printer; run the installer again to come "
+              "back."),
+        ModalSeverity::Warning, lv_tr("Restore"),
+        []() { get_system_settings_overlay().perform_restore_stock_screen(); }, options);
+}
+
+void SystemSettingsOverlay::perform_restore_stock_screen() {
+    if (restore_stock_verdict_now() != helix::u1::RestoreStockVerdict::Proceed) {
+        return;
+    }
+    const std::string path = std::getenv(helix::u1::kRestoreTriggerEnv);
+    if (!helix::u1::write_restore_trigger(path)) {
+        ToastManager::instance().show(ToastSeverity::ERROR,
+                                      lv_tr("Could not restore the stock screen"), 4000);
+        return;
+    }
+    // The boot delegate restores the stock screen at the next boot. A trigger
+    // left behind by a reboot that never happened would fire at some later,
+    // unasked-for boot, so it goes when the reboot does not dispatch.
+    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Restarting the printer..."), 1500);
+    helix::ui::queue_update("SystemSettingsOverlay::restore_stock_reboot", [path]() {
+        if (SystemPower::reboot_local() != PowerResult::Dispatched) {
+            std::remove(path.c_str());
+            ToastManager::instance().show(
+                ToastSeverity::ERROR,
+                lv_tr("Could not restart the printer; the stock screen was not restored"), 6000);
+        }
     });
 }
 

@@ -285,3 +285,21 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(std::count(scope.sent->begin(), scope.sent->end(), std::string("TURN_OFF_HEATERS")) ==
           (firmware_owns ? 0 : 1));
 }
+
+TEST_CASE_METHOD(StopReasonPanelFixture,
+                 "Canceled overlay: the corner buttons step aside for the badge",
+                 "[print_status][stop_reason][feed_failure]") {
+    lv_obj_t* corner = find("preview_corner_buttons");
+    REQUIRE(corner != nullptr);
+    lv_subject_t* cancelled = lv_xml_get_subject(nullptr, "show_cancelled_overlay");
+    REQUIRE(cancelled != nullptr);
+    const bool hidden_before = lv_obj_is_hidden(corner);
+
+    lv_subject_set_int(cancelled, 1);
+    settle();
+    CHECK(lv_obj_is_hidden(corner));
+
+    lv_subject_set_int(cancelled, 0);
+    settle();
+    CHECK(lv_obj_is_hidden(corner) == hidden_before);
+}

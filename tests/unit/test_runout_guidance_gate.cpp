@@ -455,3 +455,195 @@ TEST_CASE_METHOD(print_status_panel_test::PrintStatusPanelFixture,
     CHECK(top_guidance() != dialog);
     disarm_runout_sensor();
 }
+
+namespace {
+
+/// The sensor manager's subjects, live for one case as they are in the app: the
+/// paused re-check observes them. Left as found, so later cases see the
+/// manager they expect.
+class LiveSensorSubjects {
+  public:
+    LiveSensorSubjects() : was_live_(FilamentSensorManager::instance().subjects_initialized()) {
+        FilamentSensorManager::instance().init_subjects();
+    }
+    ~LiveSensorSubjects() {
+        if (!was_live_) {
+            FilamentSensorManager::instance().deinit_subjects();
+        }
+    }
+    LiveSensorSubjects(const LiveSensorSubjects&) = delete;
+    LiveSensorSubjects& operator=(const LiveSensorSubjects&) = delete;
+
+  private:
+    bool was_live_;
+};
+
+} // namespace
+
+// The U1 log: the sensor goes empty, the firmware pauses, and in the same
+// status tick the filament end moving through the pause retract reads detected
+// again. The pause itself sees no runout; the sensor reading empty again while
+// paused is the runout.
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "a sensor that flaps back to detected at the pause still gets guidance once",
+                 "[runout_guidance][gate][pause_recheck]") {
+    LiveSensorSubjects live_sensors;
+    int wakes = 0;
+    handler->set_wake([&wakes] { ++wakes; });
+
+    set_filament_present(false);
+    FilamentSensorManager::instance().update_from_status(sensor_status(true));
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    REQUIRE_FALSE(handler->is_modal_visible());
+
+    set_filament_present(false);
+    CHECK(handler->is_modal_visible());
+    CHECK(handler->is_modal_shown_for_pause());
+    CHECK(wakes == 1);
+
+    // Dismissed, then the sensor flaps again within the same pause.
+    handler->hide_modal();
+    settle();
+    set_filament_present(true);
+    set_filament_present(false);
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK(wakes == 1);
+
+    // Once resumed, a flap is no longer this handler's to act on.
+    transition(::PrintState::Paused, ::PrintState::Printing);
+    set_filament_present(true);
+    set_filament_present(false);
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK(wakes == 1);
+}
+
+namespace {
+
+/// A Snapmaker U1 printing on head 2. Head 0 holds no filament in its feeder,
+/// so its empty toolhead switch is an idle lane, not a runout, unless the
+/// firmware's pause cause names it.
+struct U1PausedOnHead2 {
+    helix::test::RegisteredWired<helix::AmsBackendSnapmaker> u1;
+    std::vector<std::string> heads;
+
+    U1PausedOnHead2() {
+        auto feed = [](bool detected) {
+            return nlohmann::json{{"filament_detected", detected},
+                                  {"channel_state", detected ? "load_finish" : "unload_finish"}};
+        };
+        u1->fire_status(nlohmann::json{
+            {"filament_feed left", {{"extruder0", feed(false)}, {"extruder1", feed(true)}}},
+            {"filament_feed right", {{"extruder2", feed(true)}, {"extruder3", feed(true)}}},
+            {"toolhead", {{"extruder", "extruder2"}}}});
+        REQUIRE((*u1).get_current_slot() == 2);
+        REQUIRE_FALSE((*u1).get_slot_info(0).is_present());
+
+        auto& fsm = FilamentSensorManager::instance();
+        for (int h = 0; h < 4; ++h) {
+            heads.push_back("filament_motion_sensor e" + std::to_string(h) + "_filament");
+        }
+        discover_filament_sensors(fsm, heads);
+        for (int h = 0; h < 4; ++h) {
+            fsm.set_role(heads[h], static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+            set_head(h, true);
+        }
+    }
+
+    void set_head(int head, bool detected) {
+        const auto frame =
+            nlohmann::json{{heads[head], {{"filament_detected", detected}, {"enabled", true}}}};
+        u1->fire_status(frame);
+        FilamentSensorManager::instance().update_from_status(frame);
+    }
+};
+
+nlohmann::json u1_runout_cause(int head) {
+    return {{"id", 523}, {"index", head}, {"code", 0}, {"message", "e0_filament runout"}};
+}
+
+} // namespace
+
+// The firmware's runout event (0523) can reach print_stats frames after the
+// pause, naming a head the sensor readings alone do not vouch for.
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "a pause cause naming the run-out head after the pause shows the guidance",
+                 "[runout_guidance][gate][pause_recheck]") {
+    LiveSensorSubjects live_sensors;
+    U1PausedOnHead2 rig;
+    auto& ps = get_printer_state();
+    ps.update_from_status(
+        print_stats({{"state", "printing"}, {"exception", nlohmann::json::object()}}));
+    rig.set_head(0, false);
+    ps.update_from_status(print_stats({{"state", "paused"}}));
+    settle();
+    REQUIRE(get_runtime_config()->should_show_runout_modal());
+
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    REQUIRE_FALSE(handler->is_modal_visible());
+
+    ps.update_from_status(print_stats({{"exception", u1_runout_cause(0)}}));
+    settle();
+    CHECK(handler->is_modal_visible());
+    CHECK(handler->is_modal_shown_for_pause());
+
+    ps.update_from_status(print_stats({{"state", "standby"}}));
+    settle();
+}
+
+// The e2 case in the U1 log: a head that was never loaded reads empty while
+// paused. That is no runout, however often it is re-checked.
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "an empty never-loaded head going empty while paused shows nothing",
+                 "[runout_guidance][gate][pause_recheck]") {
+    LiveSensorSubjects live_sensors;
+    U1PausedOnHead2 rig;
+    auto& ps = get_printer_state();
+    ps.update_from_status(
+        print_stats({{"state", "printing"}, {"exception", nlohmann::json::object()}}));
+    ps.update_from_status(print_stats({{"state", "paused"}}));
+    settle();
+
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    rig.set_head(0, false);
+    settle();
+    rig.set_head(0, true);
+    rig.set_head(0, false);
+    settle();
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK_FALSE(handler->is_modal_shown_for_pause());
+
+    ps.update_from_status(print_stats({{"state", "standby"}}));
+    settle();
+}
+
+// A pause a print-defect detection explains stays the detection's, whatever a
+// sensor reads after it.
+TEST_CASE_METHOD(RunoutGuidanceFixture,
+                 "a sensor going empty during a detection's pause shows no runout dialog",
+                 "[runout_guidance][gate][pause_recheck][bed_check]") {
+    LiveSensorSubjects live_sensors;
+    auto& dm = helix::detection::DetectionManager::instance();
+    dm.reset_for_test();
+    auto source = std::make_unique<helix::detection::U1StockSource>(&get_printer_state());
+    auto* u1 = source.get();
+    u1->start();
+    dm.register_source(std::move(source));
+    u1->set_capable(true);
+    auto& ps = get_printer_state();
+
+    ps.update_from_status(
+        print_stats({{"state", "printing"}, {"exception", nlohmann::json::object()}}));
+    ps.update_from_status(
+        print_stats({{"state", "paused"}, {"exception", defect(1, "detected dirty bed")}}));
+    settle();
+    REQUIRE(dm.pause_explained_by_detection());
+
+    transition(::PrintState::Printing, ::PrintState::Paused);
+    set_filament_present(false);
+    CHECK_FALSE(handler->is_modal_visible());
+    CHECK_FALSE(handler->is_modal_shown_for_pause());
+
+    ps.update_from_status(print_stats({{"state", "standby"}}));
+    settle();
+    dm.reset_for_test();
+}

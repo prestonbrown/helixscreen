@@ -556,32 +556,14 @@ std::optional<int> FilamentSensorManager::real_runout_lane() const {
     // recursive lock, so taking its lock from inside ours closes an ABBA cycle
     // (TSan: lock-order-inversion). Only the snapshot needs our lock; the runout
     // decision below is pure reads over that snapshot.
-    struct Candidate {
-        std::string sensor_name;
-        FilamentSensorRole role;
-        int lane;
-        bool stood_down;
-    };
-    std::vector<Candidate> candidates;
+    std::vector<RunoutCandidate> candidates;
     {
         std::lock_guard<std::recursive_mutex> lock(mutex());
 
         if (!master_enabled_) {
             return std::nullopt;
         }
-
-        for (const auto& sensor : entries_locked()) {
-            if (!monitors_runout(sensor)) {
-                continue;
-            }
-
-            auto* st = state(sensor.klipper_name);
-            if (!st || !st->available || st->filament_detected) {
-                continue; // sensor present and filament detected -> not a runout
-            }
-            candidates.push_back({sensor.display_name, filament_role(sensor),
-                                  lane_index_for_sensor(sensor), !st->enabled});
-        }
+        candidates = runout_candidates_locked();
     }
 
     AmsBackend* backend = AmsState::instance().get_backend();
@@ -927,6 +909,34 @@ int FilamentSensorManager::motion_signature() const {
         h.mix((sensor.enabled ? 1u : 0u) | (st && st->available ? 2u : 0u) |
               (st && st->enabled ? 4u : 0u) | (st && st->filament_detected ? 8u : 0u) |
               (static_cast<uint32_t>(lane_index_for_sensor(sensor) + 1) << 4));
+    }
+    return static_cast<int>(h.value());
+}
+
+std::vector<FilamentSensorManager::RunoutCandidate>
+FilamentSensorManager::runout_candidates_locked() const {
+    std::vector<RunoutCandidate> candidates;
+    for (const auto& sensor : entries_locked()) {
+        if (!monitors_runout(sensor)) {
+            continue;
+        }
+        auto* st = state(sensor.klipper_name);
+        if (!st || !st->available || st->filament_detected) {
+            continue; // sensor present and filament detected -> not a runout
+        }
+        candidates.push_back({sensor.display_name, filament_role(sensor),
+                              lane_index_for_sensor(sensor), !st->enabled});
+    }
+    return candidates;
+}
+
+int FilamentSensorManager::runout_signature() const {
+    Fnv1a h;
+    h.mix(master_enabled_ ? 1u : 0u);
+    for (const auto& c : runout_candidates_locked()) {
+        h.mix(c.sensor_name);
+        h.mix(static_cast<uint32_t>(c.role) | (c.stood_down ? 0x100u : 0u) |
+              (static_cast<uint32_t>(c.lane + 1) << 9));
     }
     return static_cast<int>(h.value());
 }
@@ -1311,6 +1321,7 @@ void FilamentSensorManager::register_subjects(SubjectManager& subjects) {
     UI_MANAGED_SUBJECT_INT(entry_detected_, -1, "filament_entry_detected", subjects);
     UI_MANAGED_SUBJECT_INT(any_runout_, 0, "filament_any_runout", subjects);
     UI_MANAGED_SUBJECT_INT(motion_signature_, 0, "filament_motion_signature", subjects);
+    UI_MANAGED_SUBJECT_INT(runout_signature_, 0, "filament_runout_signature", subjects);
     UI_MANAGED_SUBJECT_INT(master_enabled_subject_, is_master_enabled() ? 1 : 0,
                            "filament_master_enabled", subjects);
     UI_MANAGED_SUBJECT_INT(config_revision_, 0, "filament_sensor_config_revision", subjects);
@@ -1326,6 +1337,7 @@ void FilamentSensorManager::refresh_subjects() {
     int entry = -1;
     int any_runout_value = 0;
     int signature = 0;
+    int runout_sig = 0;
     bool master = true;
     uint32_t config = 0;
     {
@@ -1377,6 +1389,7 @@ void FilamentSensorManager::refresh_subjects() {
                 "[FilamentSensorManager] Suppressing runout modal during startup grace period");
         }
         signature = motion_signature();
+        runout_sig = runout_signature();
         master = master_enabled_;
         config = config_signature();
     }
@@ -1394,6 +1407,7 @@ void FilamentSensorManager::refresh_subjects() {
     lv_subject_set_int(&entry_detected_, entry);
     lv_subject_set_int(&any_runout_, any_runout_value);
     lv_subject_set_int(&motion_signature_, signature);
+    lv_subject_set_int(&runout_signature_, runout_sig);
 
     spdlog::trace("[FilamentSensorManager] Subjects updated: runout={}, toolhead={}, entry={}, "
                   "any_runout={}",
@@ -1426,6 +1440,10 @@ lv_subject_t* FilamentSensorManager::get_any_runout_subject() {
 
 lv_subject_t* FilamentSensorManager::get_motion_signature_subject() {
     return &motion_signature_;
+}
+
+lv_subject_t* FilamentSensorManager::get_runout_signature_subject() {
+    return &runout_signature_;
 }
 
 lv_subject_t* FilamentSensorManager::get_config_revision_subject() {

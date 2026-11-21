@@ -303,6 +303,9 @@ class AmsEditOverlayViewTestAccess {
     std::string save_error() {
         return lv_subject_get_string(&overlay_.save_error_subject_);
     }
+    std::string save_wait_text() {
+        return lv_subject_get_string(&overlay_.save_wait_text_subject_);
+    }
     bool closed() const {
         return overlay_.completion_fired_;
     }
@@ -4873,6 +4876,28 @@ class RecordBackedChanger : public helix::AmsBackendToolChanger {
     helix::AmsError execute_gcode(const std::string&, helix::SharedCallback<void()>) override {
         return helix::AmsErrorHelper::success();
     }
+    /// The filament operation the system reports, on the head it works.
+    void set_operation(AmsAction action, int working_slot) {
+        operation_ = action;
+        working_slot_ = working_slot;
+    }
+    AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = helix::AmsBackendToolChanger::get_system_info();
+        if (operation_ != AmsAction::IDLE) {
+            info.action = operation_;
+            info.operation_working_slot = working_slot_;
+        }
+        return info;
+    }
+    BackendTraits traits() const override {
+        BackendTraits t = helix::AmsBackendToolChanger::traits();
+        t.tool_noun = helix::ui::LaneNoun::Toolhead;
+        return t;
+    }
+
+  private:
+    AmsAction operation_ = AmsAction::IDLE;
+    int working_slot_ = -1;
 };
 
 void settle() {
@@ -4956,6 +4981,43 @@ TEST_CASE_METHOD(SaveAckFixture, "the spool editor closes once the lane holds th
     CHECK(access.closed());
     CHECK(access.save_state() == 0);
     CHECK(backend->get_slot_info(1).material == "PETG");
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save queued behind a load says which load it waits for",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    backend->set_operation(AmsAction::LOADING, 0);
+    AmsState::instance().set_action(AmsAction::LOADING);
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+
+    REQUIRE(access.save_state() == 1);
+    CHECK(access.save_wait_text() == "Saves when the load on Toolhead 1 finishes.");
+
+    // The load ends while the write is still out: the save is all that is left.
+    backend->set_operation(AmsAction::IDLE, -1);
+    AmsState::instance().set_action(AmsAction::IDLE);
+    UpdateQueue::instance().drain();
+    CHECK(access.save_state() == 1);
+    CHECK(access.save_wait_text() == "Saving...");
+
+    client.fire_deferred("server.database.post_item");
+    settle();
+    CHECK(access.closed());
+}
+
+TEST_CASE_METHOD(SaveAckFixture, "a save with the filament system idle just says it is saving",
+                 "[ams_edit_overlay][save_ack]") {
+    AmsEditOverlayViewTestAccess access(get_ams_edit_overlay());
+    client.defer_next("server.database.post_item");
+    save_petg(access);
+
+    REQUIRE(access.save_state() == 1);
+    CHECK(access.save_wait_text() == "Saving...");
+
+    client.fire_deferred("server.database.post_item");
+    settle();
+    CHECK(access.closed());
 }
 
 TEST_CASE_METHOD(SaveAckFixture, "a save whose write fails keeps the editor open and says why",

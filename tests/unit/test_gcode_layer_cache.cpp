@@ -318,6 +318,28 @@ TEST_CASE("GCodeLayerCache adaptive mode", "[gcode][cache]") {
     }
 }
 
+TEST_CASE("GCodeLayerCache adapts below 1GB-class total RAM", "[gcode][cache]") {
+    struct Case {
+        size_t total_mb;
+        bool want;
+    };
+    const Case cases[] = {
+        {0, true},    // total unreadable
+        {110, true},  // AD5M
+        {300, true},  // 256-448MB normal tier
+        {470, true},  // AD5X
+        {487, true},  // QIDI Q2
+        {767, true},  //
+        {768, false}, // the line
+        {906, false}, // 1GB Raspberry Pi
+        {3800, false},
+    };
+    for (const auto& c : cases) {
+        INFO("total=" << c.total_mb << "MB");
+        CHECK(GCodeLayerCache::adaptive_for_total_ram_kb(c.total_mb * 1024) == c.want);
+    }
+}
+
 TEST_CASE("GCodeLayerCache thread safety", "[gcode][cache][thread][slow]") {
     GCodeLayerCache cache(100 * 1024);
 
