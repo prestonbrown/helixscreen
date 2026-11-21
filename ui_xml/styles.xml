@@ -29,7 +29,8 @@
          Cancel) share them. Inline style attributes outrank bound styles, so
          the properties the selection and press styles change start here. -->
     <style name="picker_row_base" bg_opa="0" border_width="0"/>
-    <style name="picker_row_selected" bg_color="#primary" bg_opa="40" border_width="1" border_color="#primary"/>
+    <style name="picker_row_selected"
+           bg_color="#primary" bg_opa="40" outline_width="1" outline_color="#primary" outline_pad="-1"/>
     <!-- Callout leader lines are dotted on every screen that draws them. -->
     <style name="leader_dotted" line_dash_width="#space_xxs" line_dash_gap="#space_xs"/>
     <!-- The translucent metadata strip that rides at the bottom of a g-code
