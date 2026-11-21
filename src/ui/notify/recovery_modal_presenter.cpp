@@ -292,9 +292,13 @@ void RecoveryModalPresenter::on_guided_flow_tapped(const helix::RecoveryAction& 
                  action.guided_flow);
     // Deferred past the dialog's own close, which runs after this callback and
     // must not land on top of the flow's surface.
-    helix::ui::queue_update("recovery_guided_flow", [id = action.guided_flow,
-                                                     label = action.label]() {
+    helix::ui::queue_update("recovery_guided_flow", [id = action.guided_flow, label = action.label,
+                                                     lane = action.lane]() {
         const GuidedDeviceFlow* flow = find_guided_device_flow(id);
+        if (flow && flow->start_on_lane && lane >= 0) {
+            flow->start_on_lane(lane);
+            return;
+        }
         if (!flow || !flow->start) {
             spdlog::warn("[RecoveryModal] Guided flow '{}' is not registered; nothing opened", id);
             return;

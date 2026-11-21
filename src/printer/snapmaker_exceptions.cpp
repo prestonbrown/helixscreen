@@ -787,6 +787,7 @@ FeedRetry feed_retry(const ExceptionCode& c) {
     case 0:  // the auto-feed setting
     case 90: // a hand feed
         return FeedRetry::None;
+    case 15: // filament already in the feed path: it comes out first
     case 70:
         return FeedRetry::Unload;
     default:

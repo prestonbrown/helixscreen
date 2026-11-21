@@ -450,9 +450,10 @@ SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, int t
     return settled || given_up ? SwitchStep::Fail : SwitchStep::Wait;
 }
 
-bool load_failed_on(const RunoutFacts& facts, int head) {
-    const HeadFacts* h = find_head(facts, head);
-    return h != nullptr && h->load_failed;
+bool load_failed_by_switch(const RunoutFacts& before, const RunoutFacts& now, int head) {
+    const HeadFacts* was = find_head(before, head);
+    const HeadFacts* is = find_head(now, head);
+    return is != nullptr && is->load_failed && (was == nullptr || !was->load_failed);
 }
 
 bool label_written(const RunoutFacts& now, const FilamentRecord& label) {

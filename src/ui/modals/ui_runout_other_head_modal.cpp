@@ -240,7 +240,8 @@ class SwitchWatch {
         // After on_moved has closed the runout dialog, so the new one opens over
         // the print rather than over a dialog on its way out. A load that failed
         // on the new head is the firmware's own fault, reported with its retry.
-        if (step == roh::SwitchStep::Stranded && !roh::load_failed_on(*now, job_.target)) {
+        if (step == roh::SwitchStep::Stranded &&
+            !roh::load_failed_by_switch(job_.before, *now, job_.target)) {
             show_stranded();
         }
         RunoutOtherHeadModal::settle_pending_restore();
@@ -627,7 +628,8 @@ void RunoutOtherHeadModal::start(int head) {
             reply(err.is_transport_loss() ? roh::SendReply::TransportLost
                                           : roh::SendReply::Refused);
         },
-        kSwitchSendTimeoutMs, /*silent=*/true);
+        kSwitchSendTimeoutMs, /*silent=*/true, /*on_queued=*/nullptr,
+        /*caller_surfaces_errors=*/false);
     hide();
 }
 

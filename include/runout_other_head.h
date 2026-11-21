@@ -242,9 +242,11 @@ inline constexpr uint32_t kSwitchBusyGiveUpMs = 900000;
                                       SendReply reply, uint32_t ms_since_reply,
                                       uint32_t ms_since_send);
 
-/// The print is stranded on @p head because loading it failed: the filament
-/// system reports that fault itself, with a retry.
-[[nodiscard]] bool load_failed_on(const RunoutFacts& facts, int head);
+/// The switch strands on @p head because loading it failed during the switch:
+/// the filament system reports that fault itself, with a retry. A failure the
+/// head already showed when the switch was sent is not this switch's.
+[[nodiscard]] bool load_failed_by_switch(const RunoutFacts& before, const RunoutFacts& now,
+                                         int head);
 
 /// Whether the empty head now carries @p label: the record write went through,
 /// whatever became of the switch after it.

@@ -355,10 +355,15 @@ TEST_CASE("runout other head: a resume that fails after the routing moved strand
     CHECK(judge_switch(f.sent, f.rerouted, 3, SendReply::TransportLost, 0, kSwitchBusyGiveUpMs) ==
           SwitchStep::Stranded);
     // A failed load on the new head is the filament system's own fault to report.
-    CHECK_FALSE(load_failed_on(failed, 3));
+    CHECK_FALSE(load_failed_by_switch(f.sent, failed, 3));
     failed.heads[3].load_failed = true;
-    CHECK(load_failed_on(failed, 3));
-    CHECK_FALSE(load_failed_on(failed, 1));
+    CHECK(load_failed_by_switch(f.sent, failed, 3));
+    CHECK_FALSE(load_failed_by_switch(f.sent, failed, 1));
+    // A failure the head already showed when the switch went out brings no new
+    // fault: the stranded dialog is the only report.
+    auto stale = f.sent;
+    stale.heads[3].load_failed = true;
+    CHECK_FALSE(load_failed_by_switch(stale, failed, 3));
     // The way out resumes on the new head, as the firmware's own replenish does.
     const auto plan = build_plan(AmsType::SNAPMAKER, f.sent, 3);
     REQUIRE(plan.ok());

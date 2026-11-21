@@ -14,6 +14,8 @@
 #include "rpc_error_correlation.h"
 #include "snapmaker_exceptions.h"
 
+#include <tuple>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -658,11 +660,11 @@ bool has_flow(const ErrorEvent& e, const char* flow) {
                        [flow](const RecoveryAction& a) { return a.guided_flow == flow; });
 }
 
-/// The primary way on: its label, and the gcode it sends (empty for a flow).
-std::pair<std::string, std::string> primary_action(const ErrorEvent& e) {
+/// The primary way on: its label, the flow it opens and the lane it acts on.
+std::tuple<std::string, std::string, int> primary_action(const ErrorEvent& e) {
     for (const auto& a : e.recovery_actions) {
         if (a.style == "primary") {
-            return {a.label, a.gcode};
+            return {a.label, a.guided_flow, a.lane};
         }
     }
     return {};
@@ -707,7 +709,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(e->severity == ErrorSeverity::CRITICAL);
     // The way on loads the failed head again, in place.
     CHECK(primary_action(*e) ==
-          std::pair<std::string, std::string>{"Load", "AUTO_FEEDING EXTRUDER=0 LOAD=1"});
+          std::tuple<std::string, std::string, int>{"Load", kLoadLaneFlowId, 0});
     CHECK(has_flow(*e, kCancelPrintFlowId));
     CHECK(e->code == "0002-0525-0000-0051");
 
@@ -715,7 +717,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                                          printing_ctx());
     REQUIRE(unload.has_value());
     CHECK(primary_action(*unload) ==
-          std::pair<std::string, std::string>{"Unload", "AUTO_FEEDING EXTRUDER=3 UNLOAD=1"});
+          std::tuple<std::string, std::string, int>{"Unload", kUnloadLaneFlowId, 3});
+    // Filament already in the feed path comes out before anything loads.
+    auto blocked =
+        backend.classify_error("!! 0002-0525-0001-0015 extruder[1]: state: x", printing_ctx());
+    REQUIRE(blocked.has_value());
+    CHECK(primary_action(*blocked) ==
+          std::tuple<std::string, std::string, int>{"Unload", kUnloadLaneFlowId, 1});
     // A hand feed has no one-tap retry: the Filament panel offers the choices.
     auto hand = backend.classify_error("!! 0002-0525-0002-0090 extruder[2]: state: manual_feed",
                                        printing_ctx());

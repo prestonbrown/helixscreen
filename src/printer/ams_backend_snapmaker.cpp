@@ -3700,14 +3700,12 @@ AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
     const bool head_known = code->index >= 0 && code->index < kNumTools;
     helix::RecoveryAction load_again{lv_tr("Open Filament"), "",
                                      "ams_backend_snapmaker::feed_retry", "primary"};
-    if (head_known && retry == snapmaker::FeedRetry::Load) {
-        load_again.label = lv_tr("Load");
-        load_again.gcode = load_head_gcode(code->index);
-    } else if (head_known && retry == snapmaker::FeedRetry::Unload) {
-        load_again.label = lv_tr("Unload");
-        load_again.gcode = unload_head_gcode(code->index);
-    } else {
-        load_again.guided_flow = helix::kOpenFilamentFlowId;
+    load_again.guided_flow = helix::kOpenFilamentFlowId;
+    if (head_known && retry != snapmaker::FeedRetry::None) {
+        const bool load = retry == snapmaker::FeedRetry::Load;
+        load_again.label = load ? lv_tr("Load") : lv_tr("Unload");
+        load_again.guided_flow = load ? helix::kLoadLaneFlowId : helix::kUnloadLaneFlowId;
+        load_again.lane = code->index;
     }
     helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
                                  "ams_backend_snapmaker::feed_cancel_print", "danger"};
