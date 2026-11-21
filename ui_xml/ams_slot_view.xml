@@ -36,6 +36,11 @@
         style_bg_opa="0" style_border_width="0" clickable="true" scrollable="false" overflow_visible="true"
         style_radius="#border_radius">
     <style name="styles.press_wash" selector="pressed"/>
+    <!-- Dims the spool while the finger is down, wherever on the slot it landed,
+         and lights the lane over a drawn unit (ui_ams_detail.cpp). -->
+    <event_cb trigger="pressed" callback="on_ams_detail_slot_pressed"/>
+    <event_cb trigger="released" callback="on_ams_detail_slot_released"/>
+    <event_cb trigger="press_lost" callback="on_ams_detail_slot_released"/>
 
     <!-- Per-lane climate under a per-lane lid: the droplet says it is humidity, not
          filament remaining. Temperature stacks above it, since side by side the pair

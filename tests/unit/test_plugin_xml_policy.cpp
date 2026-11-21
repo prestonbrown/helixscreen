@@ -168,9 +168,8 @@ TEST_CASE("cond expressions may name only plugin-owned subjects", "[plugin][xml_
             "ab", {}, view_with(R"(<bind_flag_if cond="printer_connected == 1" flag="hidden"/>)"))
             .empty());
     CHECK_FALSE(
-        check_plugin_xml(
-            "ab", {},
-            view_with(R"(<overlay_panel action_button_2_hidden_cond="not printer_connected"/>)"))
+        check_plugin_xml("ab", {},
+                         view_with(R"(<ui_button label_hidden_cond="not printer_connected"/>)"))
             .empty());
     CHECK(
         check_plugin_xml("ab", {}, view_with(R"(<bind_flag_if cond="ab__x == 1" flag="hidden"/>)"))
@@ -194,7 +193,7 @@ TEST_CASE("check_plugin_attr is the one attribute rule", "[plugin][xml_policy]")
     CHECK(check_plugin_attr("ab", "bind_value", "ab__target") == std::nullopt);
     CHECK(check_plugin_attr("ab", "user_data", "hello__go:1").has_value());
     CHECK(check_plugin_attr("ab", "user_data", "ab__go:1") == std::nullopt);
-    CHECK(check_plugin_attr("ab", "action_button_2_hidden_cond", "printer_connected").has_value());
+    CHECK(check_plugin_attr("ab", "label_hidden_cond", "printer_connected").has_value());
     CHECK(check_plugin_attr("ab", "hidden_cond", "ab__ready or 1") == std::nullopt);
     CHECK(check_plugin_attr("ab", "bind_text", "$title").has_value());
     // Attributes that carry none of these roles are not the policy's business.

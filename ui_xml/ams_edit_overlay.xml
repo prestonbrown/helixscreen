@@ -150,11 +150,11 @@
        spool with its remaining weight on the right). The title and the
        "Lane 3 · Box Turtle" subtitle are written from C++. The header carries
        Scan Label, and Different Spool while editing; the actions sit in the
-       right column, so the header's own Save stays hidden. -->
+       right column, so the header has no Save. -->
   <view name="ams_edit_overlay"
-        extends="overlay_panel" title="Assign Spool" hide_action_button="true" title_badge_icon="spoolman"
+        extends="overlay_panel" title="Assign Spool" title_badge_icon="spoolman"
         title_badge_subject="ams_edit_is_managed" back_button_callback="ams_edit_back_cb">
-    <header_bar-header_content>
+    <overlay_panel-actions>
       <lv_obj name="hdr_actions"
               width="content" height="100%" style_pad_ver="0" style_pad_hor="#ams_edit_hdr_hit"
               style_pad_gap="#ams_edit_hdr_gap" style_bg_opa="0" style_border_width="0" scrollable="false"
@@ -189,7 +189,7 @@
           <event_cb trigger="clicked" callback="ams_edit_scan_qr_cb"/>
         </ui_button>
       </lv_obj>
-    </header_bar-header_content>
+    </overlay_panel-actions>
     <overlay_panel-overlay_content style_pad_left="#space_md"
                                    style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs"
                                    flex_flow="column" style_pad_gap="#space_xs" scrollable="true" scrollbar_mode="auto">

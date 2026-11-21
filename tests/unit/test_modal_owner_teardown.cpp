@@ -16,6 +16,7 @@
  */
 
 #include "ui_button.h"
+#include "ui_icon_codepoints.h"
 #include "ui_modal.h"
 
 #include "../test_helpers/widget_in_tree.h"
@@ -1192,7 +1193,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "stacked confirmations keep their own captio
     CHECK(text_of(upper, "btn_secondary") == "Nope");
 
     // The warning icon belongs to the lower dialog, the error icon to the upper.
-    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_warning")));
-    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(lower, "icon_error")));
-    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(upper, "icon_error")));
+    auto icon_of = [](lv_obj_t* dlg) {
+        lv_obj_t* icon = lv_obj_find_by_name(dlg, "dialog_icon");
+        REQUIRE(icon != nullptr);
+        CHECK_FALSE(lv_obj_is_hidden(icon));
+        return std::string(lv_label_get_text(icon));
+    };
+    CHECK(icon_of(lower) == helix::ui::icon::lookup_codepoint("alert"));
+    CHECK(icon_of(upper) == helix::ui::icon::lookup_codepoint("alert_octagon"));
 }

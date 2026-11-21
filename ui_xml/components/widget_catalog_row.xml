@@ -5,7 +5,8 @@
   <!-- One widget in the home-screen widget catalog:
        [icon] [name / description ....] [Placed] [size badge].
        A placed, hardware-gated or unfit widget is dimmed and not clickable;
-       C++ passes those as props and wires the click on an offerable row. The
+       C++ passes those as props and names the row for its widget id, which the
+       click callback reads. The
        text column takes its width from flex_grow, not its content: a gated
        widget carries its reason in the name, which can be far wider than the
        row, so the name wraps instead of running through the badge. C++ sets the name
@@ -28,6 +29,7 @@
         style_bg_opa="255" style_radius="8" style_border_width="0" style_opa="$row_opa" scrollable="false"
         clickable="$row_clickable">
     <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="on_catalog_widget_clicked"/>
     <icon src="$icon_src" size="sm" variant="$icon_variant" hidden="$hide_icon"/>
     <lv_obj width="0"
             height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_bg_opa="0" style_border_width="0"

@@ -96,6 +96,11 @@ class FanControlOverlay : public OverlayBase {
         api_ = api;
     }
 
+    /// Every fan dial's and status card's pressed and long_pressed callback. A
+    /// stationary hold off the dial renames the card's fan; a card with no
+    /// hold_index (a home-screen dial) does nothing.
+    static void on_fan_rename_hold(lv_event_t* e);
+
   private:
     /// Drops the dials and cards on close. The root's delete hook cannot: the
     /// close resets overlay_root_ before the deferred delete reaches it.
@@ -109,6 +114,16 @@ class FanControlOverlay : public OverlayBase {
     /// Unsubscribe observers, stop spin animations, destroy the dials and
     /// forget the cards. Their widgets must still be alive.
     void release_fan_widgets();
+
+    /// What a long press on a fan card renames.
+    struct RenameTarget {
+        std::string object_name;
+        std::string display_name;
+    };
+    /// One per dial and status card; a card's index here is its hold's event user_data.
+    std::vector<RenameTarget> rename_targets_;
+    /// Record a card's rename target and return its index as the card's hold_index.
+    std::string add_rename_target(const std::string& object_name, const std::string& display_name);
 
     /**
      * @brief Populate fan widgets from helix::PrinterState

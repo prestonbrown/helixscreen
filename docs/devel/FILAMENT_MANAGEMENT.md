@@ -1536,8 +1536,8 @@ The title is the job; the subtitle names the lane in the backend's noun and its
 unit ("Lane 3 · Turtle 1"), and on Edit Spool the spool ("· PolyTerra PLA · #12").
 The header carries **Scan Label** and, on Edit Spool, **Different Spool**,
 labeled from the small class up and icon-only below it so the title stays
-readable; the header's own Save stays hidden, because the actions sit in the
-right column.
+readable. They sit in `header_bar`'s `actions` slot; the header has no Save,
+because the actions sit in the right column.
 
 **Assign Spool.** Left: the describe form (below). Right: the user's spools.
 With Spoolman they are its spools in recency order, searchable by name, brand,

@@ -116,6 +116,9 @@ void NotificationManager::register_callbacks() {
                 static_cast<size_t>(std::atoi(index)));
         }
     });
+    lv_xml_register_event_cb(nullptr, "on_notification_history_clear", [](lv_event_t*) {
+        get_global_notification_history_panel().handle_clear_clicked();
+    });
     callbacks_registered_ = true;
     spdlog::debug("[NotificationManager] Event callbacks registered");
 }

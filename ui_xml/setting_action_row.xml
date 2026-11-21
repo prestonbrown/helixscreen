@@ -12,6 +12,8 @@
     <prop name="description_tag" type="string" default=""/>
     <prop name="bind_description" type="string" default=""/>
     <prop name="callback" type="string" default=""/>
+    <!-- The row's position in a generated list, passed to callback as event user_data. -->
+    <prop name="index" type="string" default=""/>
     <prop name="disabled" type="string" default=""/>
     <!-- Hide description when ui_breakpoint is below this value. Default 2 hides on
          micro/tiny; set to 0 to force the description visible at all breakpoints
@@ -91,6 +93,6 @@
           src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true"
           hidden_if_prop_eq="$chevron|false"/>
     <!-- Declarative event callback -->
-    <event_cb trigger="clicked" callback="$callback"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
   </view>
 </component>

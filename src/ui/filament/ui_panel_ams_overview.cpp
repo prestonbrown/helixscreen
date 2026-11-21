@@ -10,6 +10,7 @@
 #include "ui_ams_sidebar.h"
 #include "ui_ams_slot.h"
 #include "ui_ams_slot_layout.h"
+#include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_external_spool_menu.h"
@@ -360,26 +361,6 @@ void AmsOverviewPanel::on_deactivating(DeactivateReason) {
 // ============================================================================
 // Event Handling
 // ============================================================================
-
-void AmsOverviewPanel::on_unit_card_clicked(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[AMS Overview] on_unit_card_clicked");
-
-    auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e));
-    if (!self) {
-        spdlog::warn("[AMS Overview] Card clicked but panel instance is null");
-        return;
-    }
-
-    lv_obj_t* target = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
-    int unit_index = static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(target)));
-
-    spdlog::info("[AMS Overview] Unit {} clicked - showing its page", unit_index);
-
-    // Zoom into the unit view inline (swaps left column content, no overlay push)
-    self->show_unit_view(unit_index);
-
-    LVGL_SAFE_EVENT_CB_END();
-}
 
 void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AMS Overview] on_detail_slot_clicked");
@@ -1000,6 +981,16 @@ static void ensure_overview_registered() {
         } else {
             helix::nav::go_back();
         }
+    });
+    // A unit card or tile carries its unit index as event user_data.
+    lv_xml_register_event_cb(nullptr, "on_ams_unit_card_clicked", [](lv_event_t* e) {
+        AmsOverviewPanel* panel = g_overview_panel_instance.load();
+        const auto unit_index = helix::ui::event_user_int(e);
+        if (!panel || !unit_index)
+            return;
+        spdlog::info("[AMS Overview] Unit {} clicked - showing its page", *unit_index);
+        // Zoom into the unit view inline (swaps left column content, no overlay push)
+        panel->show_unit_view(*unit_index);
     });
     lv_xml_register_event_cb(nullptr, "on_ams_page_prev_clicked", [](lv_event_t* e) {
         LV_UNUSED(e);

@@ -7,40 +7,30 @@
        printer), optionally heat the chamber alongside (its dryer, or a plain
        chamber heater without one), and acknowledge what
        the run does before Start enables. Backdrop created by the Modal system. -->
-  <view name="bed_drying_modal"
-        extends="ui_dialog" width="80%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-        <icon src="heat_wave" size="md" variant="primary"/>
-        <text_heading text="Dry Filament on the Bed"/>
-      </lv_obj>
-      <lv_dropdown name="material_dropdown" width="100%">
-        <event_cb trigger="value_changed" callback="on_bed_drying_material_changed"/>
-      </lv_dropdown>
-      <!-- bed_drying_chamber_assist: 0 nothing heats the chamber, 1 its dryer, 2 a plain heater -->
-      <lv_obj name="appliance_row"
-              width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
-              style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
-        <bind_flag_if_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="0"/>
-        <text_body text="Run the chamber dryer too" flex_grow="1" long_mode="wrap">
-          <bind_flag_if_not_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="1"/>
-        </text_body>
-        <text_body name="chamber_heater_label" bind_text="bed_drying_chamber_text" flex_grow="1" long_mode="wrap">
-          <bind_flag_if_not_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="2"/>
-        </text_body>
-        <ui_switch name="appliance_switch" checked="true"/>
-      </lv_obj>
-      <text_body name="warning_text"
-                 width="100%" long_mode="wrap"
-                 text="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
-      <lv_checkbox name="ack_checkbox" text="I understand" bind_checked="bed_drying_ack"/>
+  <view name="bed_drying_modal" extends="dialog_frame" width="80%" title="Dry Filament on the Bed" icon="heat_wave">
+    <lv_dropdown name="material_dropdown" width="100%">
+      <event_cb trigger="value_changed" callback="on_bed_drying_material_changed"/>
+    </lv_dropdown>
+    <!-- bed_drying_chamber_assist: 0 nothing heats the chamber, 1 its dryer, 2 a plain heater -->
+    <lv_obj name="appliance_row"
+            width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+            style_flex_main_place="space_between" style_flex_cross_place="center" scrollable="false">
+      <bind_flag_if_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="0"/>
+      <text_body text="Run the chamber dryer too" flex_grow="1" long_mode="wrap">
+        <bind_flag_if_not_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="1"/>
+      </text_body>
+      <text_body name="chamber_heater_label" bind_text="bed_drying_chamber_text" flex_grow="1" long_mode="wrap">
+        <bind_flag_if_not_eq subject="bed_drying_chamber_assist" flag="hidden" ref_value="2"/>
+      </text_body>
+      <ui_switch name="appliance_switch" checked="true"/>
     </lv_obj>
-    <modal_button_row primary_text="Start"
-                      secondary_text="Cancel" primary_moves_machine="true" primary_enable_subject="bed_drying_ack"/>
+    <text_body name="warning_text"
+               width="100%" long_mode="wrap"
+               text="The printer homes, then moves the plate as far from the nozzle as it goes. Some spools are not heat-resistant enough and can deform. Nothing moves from this screen until you confirm the spools are off the bed; Mainsail, macros and prints sent from a slicer are not blocked."/>
+    <lv_checkbox name="ack_checkbox" text="I understand" bind_checked="bed_drying_ack"/>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="Start"
+                        secondary_text="Cancel" primary_moves_machine="true" primary_enable_subject="bed_drying_ack"/>
+    </dialog_frame-footer>
   </view>
 </component>

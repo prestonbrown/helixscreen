@@ -5,14 +5,10 @@
 <!-- NOTE: Backdrop created manually on lv_layer_top() to survive screen changes -->
 <!-- (Cannot use Modal::show() which defaults to lv_screen_active()) -->
 <component>
-  <view name="abort_progress_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area with spinner and message -->
-    <lv_obj width="100%"
-            height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_xl" style_pad_bottom="#space_xl" flex_flow="column" style_flex_cross_place="center"
-            style_flex_main_place="center" style_flex_track_place="center" style_pad_gap="#space_lg">
+  <view name="abort_progress_modal" extends="dialog_frame" title="Cancel Print" icon="stop" icon_variant="danger">
+    <!-- Spinner and message, centered: a progress readout -->
+    <dialog_frame-body style_pad_top="#space_md"
+                       style_pad_bottom="#space_xl" style_flex_cross_place="center" style_pad_gap="#space_lg">
       <!-- Spinner animation (Material Design style) -->
       <spinner size="lg"/>
       <!-- Progress message (dynamically bound to abort_progress_message subject) -->
@@ -25,6 +21,6 @@
                  style_margin_top="#space_sm">
         <event_cb trigger="clicked" callback="on_abort_emergency_stop"/>
       </ui_button>
-    </lv_obj>
+    </dialog_frame-body>
   </view>
 </component>

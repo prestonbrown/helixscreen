@@ -9,9 +9,12 @@
 <!-- Usage C (bound title + X):     <modal_header title_subject="my_title_subj" hide_icon="true" hide_close="false" close_callback="my_close_cb"/> -->
 <component>
   <api>
+    <!-- Widgets between the title and the close button: <modal_header-extra>. -->
+    <slot name="extra" target="header_extra" hide_empty="true"/>
     <prop name="icon_src" type="string" default=""/>
     <prop name="icon_variant" type="string" default="accent"/>
-    <!-- Icon shown by default (existing icon+title consumers). Title-only modals pass hide_icon="true". -->
+    <!-- Icon shown by default (existing icon+title consumers). Title-only modals pass hide_icon="true";
+         an empty icon_src hides it as well. -->
     <prop name="hide_icon" type="string" default="false"/>
     <prop name="title" type="string" default=""/>
     <prop name="title_tag" type="string" default=""/>
@@ -34,10 +37,16 @@
         scrollable="false">
     <bind_style_if_eq name="mh_pad_micro" subject="ui_breakpoint" ref_value="0"/>
     <bind_style_if_ge name="mh_pad_std" subject="ui_breakpoint" ref_value="1"/>
-    <icon name="$icon_name" src="$icon_src" size="md" variant="$icon_variant" hidden="$hide_icon"/>
+    <icon name="$icon_name"
+          src="$icon_src" size="md" variant="$icon_variant" hidden="$hide_icon" hidden_if_empty="$icon_src"/>
     <text_heading name="$title_name"
                   text="$title" translation_tag="$title_tag" bind_text="$title_subject" style_text_align="left"
                   flex_grow="1"/>
+    <!-- Host of the extra slot; hidden until filled, so it adds no flex gap. -->
+    <lv_obj name="header_extra"
+            width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false" clickable="false" flex_flow="row" style_flex_cross_place="center"
+            style_pad_gap="#space_sm"/>
     <ui_button name="$close_name"
                width="#button_height_sm" height="#button_height_sm" hidden="$hide_close" icon="close" variant="ghost"
                focusable="false">

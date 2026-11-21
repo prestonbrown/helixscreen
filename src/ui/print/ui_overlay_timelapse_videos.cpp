@@ -389,8 +389,8 @@ void TimelapseVideosOverlay::populate_video_grid(const std::vector<FileInfo>& fi
                          video.filename);
         }
 
-        // NOTE: lv_obj_add_event_cb used here (not XML event_cb) because each dynamically
-        // created card needs per-instance user_data (filename) that XML bindings can't provide.
+        // DECLARATIVE_OK: the handlers act on this overlay instance and read the
+        // card's filename, which find_card() also uses as the card's identity.
         lv_obj_add_event_cb(card, on_card_clicked, LV_EVENT_CLICKED, this);
         lv_obj_add_event_cb(card, on_card_long_pressed, LV_EVENT_LONG_PRESSED, this);
 

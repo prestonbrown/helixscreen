@@ -65,22 +65,19 @@ void LockScreenOverlay::hide() {
 // ============================================================================
 
 void LockScreenOverlay::create_overlay() {
-    // Full-screen clickable overlay on lv_layer_top() — absorbs all touch
-    overlay_ = lv_obj_create(lv_layer_top());
-    lv_obj_set_size(overlay_, lv_pct(100), lv_pct(100));
-    lv_obj_set_clickable(overlay_, true);
-    lv_obj_set_scrollable(overlay_, false);
-    lv_obj_set_style_bg_opa(overlay_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_border_width(overlay_, 0, 0);
-    lv_obj_set_style_pad_all(overlay_, 0, 0);
-    lv_obj_set_style_radius(overlay_, 0, 0);
+    // The lock_screen component is the full-screen root: background, card and
+    // keypad, clickable so it absorbs every touch on lv_layer_top()
+    pin_display_ = std::make_unique<PinDisplay>("lock_pin");
+    overlay_ =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_layer_top(), "lock_screen", pin_display_->attrs()));
+    if (!overlay_) {
+        spdlog::error("[LockScreen] Failed to create lock_screen component");
+        pin_display_.reset();
+        return;
+    }
 
     // Bring above all other content on lv_layer_top()
     lv_obj_move_to_index(overlay_, -1);
-
-    // Instantiate the lock_screen XML component (defines background, card, keypad)
-    pin_display_ = std::make_unique<PinDisplay>("lock_pin");
-    lv_xml_create(overlay_, "lock_screen", pin_display_->attrs());
 
     clear_digits();
 

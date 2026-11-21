@@ -172,6 +172,7 @@ void seed_objects(helix::PrinterExcludedObjectsState& st) {
 TEST_CASE_METHOD(XMLTestFixture, "ExcludeObjectMapView create/destroy roundtrip is crash-free",
                  "[exclude_map][lifecycle]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     seed_objects(state().excluded_objects_state());
 
     auto view = std::make_unique<ExcludeObjectMapView>();
@@ -206,6 +207,7 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "ExcludeObjectMapView destructor cleans up without explicit destroy",
                  "[exclude_map][lifecycle]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     seed_objects(state().excluded_objects_state());
 
     const uint32_t baseline_children = lv_obj_get_child_count(test_screen());
@@ -291,6 +293,7 @@ TEST_CASE_METHOD(
     "Map view in toggle mode hands taps to the callback and keeps a picked rect tappable",
     "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
     std::vector<std::string> taps;
@@ -318,6 +321,7 @@ TEST_CASE_METHOD(
 TEST_CASE_METHOD(XMLTestFixture, "Map view in exclude-only mode drops an excluded rect's tap",
                  "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
 
@@ -340,6 +344,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Map view in exclude-only mode drops an exclude
 TEST_CASE_METHOD(XMLTestFixture, "Each open map view's close button closes only that view",
                  "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
 
@@ -376,6 +381,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Each open map view's close button closes only 
 TEST_CASE_METHOD(XMLTestFixture, "Two map views keep their own plate size and empty message",
                  "[exclude_map]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
     helix::PrinterExcludedObjectsState bare;
@@ -411,6 +417,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Two map views keep their own plate size and em
 TEST_CASE_METHOD(XMLTestFixture, "A picked object's outline fades on the map like an excluded one",
                  "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
 
@@ -442,6 +449,7 @@ TEST_CASE_METHOD(XMLTestFixture,
                  "Map outlines come from the map's own copy once the source parse is gone",
                  "[exclude_map][pre_start_exclude]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
     // Only the parse knows OBJ_1's outline.
@@ -495,6 +503,7 @@ TEST_CASE_METHOD(XMLTestFixture,
 TEST_CASE_METHOD(XMLTestFixture, "Every object rect and its badge fit inside the map's plate",
                  "[exclude_map][fit]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     using ObjectInfo = helix::PrinterExcludedObjectsState::ObjectInfo;
     std::vector<ObjectInfo> objs;
@@ -708,6 +717,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Map view rebuilds its surface when its slot is
 TEST_CASE_METHOD(XMLTestFixture, "Interactive map keeps its rects and close button after a resize",
                  "[exclude_map][resize]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     auto& st = state().excluded_objects_state();
     seed_objects(st);
     lv_obj_t* card = lv_obj_create(test_screen());
@@ -733,6 +743,7 @@ TEST_CASE_METHOD(XMLTestFixture, "Interactive map keeps its rects and close butt
 TEST_CASE_METHOD(XMLTestFixture, "ExcludeObjectMapView destroy runs no queued callback",
                  "[exclude_map][lifecycle][drain_reentrancy]") {
     REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
     seed_objects(state().excluded_objects_state());
 
     auto view = std::make_unique<ExcludeObjectMapView>();
@@ -748,5 +759,84 @@ TEST_CASE_METHOD(XMLTestFixture, "ExcludeObjectMapView destroy runs no queued ca
     helix::ui::UpdateQueue::instance().drain();
     CHECK(ran);
     view.reset();
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "Map rects show the printing and excluded objects through states",
+                 "[exclude_map]") {
+    REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
+    auto& st = state().excluded_objects_state();
+    seed_objects(st);
+    st.set_current_object("OBJ_0");
+
+    ExcludeObjectMapView view;
+    view.create(test_screen(), &st, helix::bed_dimensions_from_volume(0.0f, 235.0f, 0.0f, 235.0f),
+                {}, ExcludeTapMode::ExcludeOnly, nullptr);
+    process_lvgl(50);
+    lv_obj_t* current = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_0");
+    lv_obj_t* excluded = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1");
+    lv_obj_t* idle = ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_2");
+    REQUIRE(current);
+    REQUIRE(excluded);
+    REQUIRE(idle);
+
+    st.set_excluded_objects({"OBJ_1"});
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+
+    // An exclusion restates the rects it already has.
+    CHECK(ExcludeObjectMapViewTestAccess::rect_for(view, "OBJ_1") == excluded);
+    CHECK(lv_obj_has_state(current, LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(current, LV_STATE_USER_1));
+    CHECK(lv_obj_has_state(excluded, LV_STATE_USER_1));
+    CHECK_FALSE(lv_obj_has_state(excluded, LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(idle, LV_STATE_CHECKED));
+    CHECK_FALSE(lv_obj_has_state(idle, LV_STATE_USER_1));
+
+    // The canvas draws the outlines, so every box is a bare tap target with its disc.
+    for (lv_obj_t* rect : {current, excluded, idle}) {
+        CHECK(lv_obj_has_state(rect, LV_STATE_USER_2));
+        CHECK(lv_obj_get_style_border_width(rect, LV_PART_MAIN) == 0);
+        CHECK(lv_obj_get_style_bg_opa(rect, LV_PART_MAIN) == LV_OPA_TRANSP);
+    }
+    CHECK(lv_obj_get_style_opa(excluded, LV_PART_MAIN) == helix::ui::object_badge_opa(true));
+    CHECK(lv_obj_get_style_opa(idle, LV_PART_MAIN) == LV_OPA_COVER);
+    CHECK(lv_obj_get_style_opa(current, LV_PART_MAIN) == LV_OPA_COVER);
+
+    view.destroy();
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "A rect tap reaches only the map view that holds the rect",
+                 "[exclude_map]") {
+    REQUIRE(register_component("components/exclude_object_map"));
+    REQUIRE(register_component("components/exclude_object_rect"));
+    auto& st = state().excluded_objects_state();
+    seed_objects(st);
+    std::vector<std::string> first_taps;
+    std::vector<std::string> second_taps;
+
+    ExcludeObjectMapView first;
+    ExcludeObjectMapView second;
+    first.create(
+        test_screen(), &st, helix::bed_dimensions_from_volume(0.0f, 235.0f, 0.0f, 235.0f),
+        [&](const std::string& name) { first_taps.push_back(name); }, ExcludeTapMode::Toggle,
+        nullptr);
+    second.create(
+        test_screen(), &st, helix::bed_dimensions_from_volume(0.0f, 235.0f, 0.0f, 235.0f),
+        [&](const std::string& name) { second_taps.push_back(name); }, ExcludeTapMode::Toggle,
+        nullptr);
+    process_lvgl(50);
+
+    lv_obj_t* rect = ExcludeObjectMapViewTestAccess::rect_for(second, "OBJ_2");
+    REQUIRE(rect);
+    lv_obj_send_event(rect, LV_EVENT_CLICKED, nullptr);
+    CHECK(first_taps.empty());
+    REQUIRE(second_taps.size() == 1);
+    CHECK(second_taps[0] == "OBJ_2");
+
+    first.destroy();
+    second.destroy();
     process_lvgl(20);
 }

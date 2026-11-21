@@ -75,7 +75,7 @@ struct EditorFixture : LVGLUITestFixture {
                                                 : std::string("btn_") + c;
             click(pad, name.c_str());
         }
-        click(pad, "action_button");
+        click(pad, "btn_set");
     }
 
     static lv_obj_t* text_dialog() {
@@ -114,7 +114,7 @@ TEST_CASE_METHOD(EditorFixture, "helix.ui.edit_number returns the keypad's value
     REQUIRE(b.t.run("open_number({default = 7.5})"));
     drain();
     CHECK(helix::test::keypad_press_reset() == "7.5");
-    click(keypad(), "action_button");
+    click(keypad(), "btn_set");
     CHECK(b.t.global("got") == "7.5");
 
     // decimals = 0 hands back an integer.

@@ -191,6 +191,7 @@ TEST_CASE_METHOD(WizardLanguageUIFixture, "Each language row picks its language 
         {"lang_item_es", "es"},       {"lang_item_ru", "ru"}, {"lang_item_pt", "pt"},
         {"lang_item_it", "it"},       {"lang_item_en", "en"},
     };
+    lv_obj_t* previous = nullptr;
     for (const auto& [name, code] : rows) {
         CAPTURE(name);
         lv_obj_t* row = lv_obj_find_by_name(wizard_, name);
@@ -198,5 +199,11 @@ TEST_CASE_METHOD(WizardLanguageUIFixture, "Each language row picks its language 
         CHECK(lv_image_get_src(lv_obj_get_child(row, 0)) != nullptr);
         lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
         CHECK(helix::SystemSettingsManager::instance().get_language() == code);
+        // The chosen row alone is lit.
+        CHECK(lv_obj_get_style_bg_opa(row, LV_PART_MAIN) > LV_OPA_TRANSP);
+        if (previous) {
+            CHECK(lv_obj_get_style_bg_opa(previous, LV_PART_MAIN) == LV_OPA_TRANSP);
+        }
+        previous = row;
     }
 }

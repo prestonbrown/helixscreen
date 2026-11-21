@@ -38,6 +38,12 @@
         <event_cb trigger="clicked" callback="on_exclude_map_close"/>
         <icon src="close" size="sm" style_text_color="#text_muted" align="center" clickable="false" event_bubble="true"/>
       </lv_obj>
+
+      <!-- Holds one exclude_object_rect per object, placed in C++ from bed
+           coordinates. Above the close button, so a rect over it takes the tap. -->
+      <lv_obj name="object_container"
+              x="0" y="0" style_width="100%" style_height="100%" style_bg_opa="0" style_border_width="0"
+              style_pad_all="0" scrollable="false" clickable="false" event_bubble="true"/>
     </lv_obj>
   </view>
 </component>

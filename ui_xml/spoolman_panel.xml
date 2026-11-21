@@ -7,12 +7,19 @@
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_border_width="0"
         style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
     <!-- Header Bar with back button -->
-    <header_bar name="overlay_header"
-                title="Spoolman" hide_action_button="false" action_button_icon="refresh" hide_action_button_text="true"
-                action_button_callback="on_spoolman_refresh_clicked" action_button_bg_color="#elevated_bg"
-                action_button_width="40" action_button_height="40" action_button_radius="9999"
-                hide_action_button_2="false" action_button_2_text="+ Add"
-                action_button_2_callback="on_spoolman_add_spool_clicked" action_button_2_bg_color="#primary"/>
+    <header_bar name="overlay_header" title="Spoolman">
+      <header_bar-actions>
+        <ui_button name="btn_add_spool" height="40" text="+ Add" style_min_width="#header_slot2_min_width">
+          <style name="styles.header_action"/>
+          <event_cb trigger="clicked" callback="on_spoolman_add_spool_clicked"/>
+        </ui_button>
+        <ui_button name="btn_refresh"
+                   width="40" height="40" style_max_height="#header_button_height" icon="refresh" icon_size="sm">
+          <style name="styles.header_icon_button"/>
+          <event_cb trigger="clicked" callback="on_spoolman_refresh_clicked"/>
+        </ui_button>
+      </header_bar-actions>
+    </header_bar>
     <!-- Search Row -->
     <lv_obj name="search_row"
             width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"

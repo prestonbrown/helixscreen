@@ -41,6 +41,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from path_scope import in_skipped_dir
 from source_strip import blank_xml_comments
 
 SCAN_DIRS = ("ui_xml",)
@@ -102,7 +103,7 @@ def collect_files(args: argparse.Namespace) -> list[Path]:
     files: list[Path] = []
     for d in SCAN_DIRS:
         for p in Path(d).rglob("*.xml"):
-            if not any(part in SKIP_PARTS for part in p.parts):
+            if not in_skipped_dir(p, ".", SKIP_PARTS):
                 files.append(p)
     return sorted(files)
 

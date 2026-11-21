@@ -6,24 +6,15 @@
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
   <view name="bed_mesh_save_config_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <lv_obj width="100%"
-            height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Info icon -->
-      <icon src="info" size="lg" variant="success"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Save Printer Configuration" style_text_align="center"/>
-      <!-- Message -->
-      <text_small width="100%" text="Save changes to persist them across restarts?" style_text_align="center"/>
-      <!-- Warning about restart -->
-      <text_small width="100%" text="This will restart Klipper." style_text_align="center" style_text_color="#warning"/>
-    </lv_obj>
-    <modal_button_row primary_text="Save"
-                      secondary_text="Don't Save" primary_callback="on_bed_mesh_save_config_yes"
-                      secondary_callback="on_bed_mesh_save_config_no"/>
+        extends="dialog_frame" title="Save Printer Configuration" icon="info" icon_variant="success">
+    <!-- Message -->
+    <text_small width="100%" text="Save changes to persist them across restarts?" style_text_align="left"/>
+    <!-- Warning about restart -->
+    <text_small width="100%" text="This will restart Klipper." style_text_align="left" style_text_color="#warning"/>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="Save"
+                        secondary_text="Don't Save" primary_callback="on_bed_mesh_save_config_yes"
+                        secondary_callback="on_bed_mesh_save_config_no"/>
+    </dialog_frame-footer>
   </view>
 </component>

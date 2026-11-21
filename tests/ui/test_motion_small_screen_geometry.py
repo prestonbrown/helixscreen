@@ -134,12 +134,12 @@ def test_landscape_header_coords_fit_and_pad_grew(size, pad_floor, tmp_path):
             assert coords["hidden"] is False, f"{size}: header coords hidden in landscape"
 
             # The coordinate group must clear both neighbours: the title on the
-            # left and the cog (action_icon_button) on the right. The cog only
+            # left and the cog (btn_motion_settings) on the right. The cog only
             # exists from the SMALL tier up; below it the header's own right
             # edge is the limit.
             right_edge = _right(coords)
             try:
-                next_left = _geom(app, "action_icon_button")["x"]
+                next_left = _geom(app, "btn_motion_settings")["x"]
             except HelixCtlError:
                 next_left = _right(_geom(app, "overlay_header"))
             assert right_edge + 4 <= next_left, (

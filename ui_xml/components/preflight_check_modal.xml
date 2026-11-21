@@ -8,34 +8,21 @@
      the cached PreflightResult reports a blocking condition (a required tool
      maps to an empty slot). Per-tool rows are populated dynamically in C++. -->
 <component>
-  <view name="preflight_check_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Header row with warning icon + title -->
-    <modal_header icon_src="alert" icon_variant="warning" title="Check filament"/>
-
-    <!-- Scrollable per-tool check list. Sizes to its rows (the dialog itself is
-         height="content", so flex_grow has no free space to claim and would
-         collapse the list to zero height); capped so a many-tool print scrolls
-         instead of growing the modal off-screen. -->
+  <view name="preflight_check_modal" extends="dialog_frame" title="Check filament" icon="alert" icon_variant="warning">
+    <!-- Per-tool check list; the dialog body scrolls it with the lines below
+         when a many-tool print outgrows the card. Rows populated in C++. -->
     <lv_obj name="preflight_tool_list"
-            width="100%" height="content" style_max_height="220" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_sm" style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs"
-            scrollable="true" scrollbar_mode="active">
-      <!-- Rows populated dynamically in C++ -->
-    </lv_obj>
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+            scrollable="false"/>
 
     <!-- Explanation line: the first blocking check, from C++ on_show(). -->
     <text_body name="preflight_explanation"
-               width="100%" bind_text="preflight_explanation" long_mode="wrap" style_pad_left="#space_lg"
-               style_pad_right="#space_lg" style_pad_top="#space_xs" style_pad_bottom="#space_md"
-               style_text_color="#text_muted"/>
+               width="100%" bind_text="preflight_explanation" long_mode="wrap" style_text_color="#text_muted"/>
 
     <!-- Writes the material the file names to a slot that has none set. -->
     <lv_obj name="preflight_material_fix_row"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_md" style_border_width="0" style_bg_opa="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="center">
+            width="100%" height="content" style_pad_all="0" style_border_width="0" style_bg_opa="0" scrollable="false"
+            flex_flow="row" style_flex_main_place="center">
       <bind_flag_if_eq subject="preflight_material_fix_shown" flag="hidden" ref_value="0"/>
       <ui_button name="btn_set_material" variant="secondary" bind_text="preflight_material_fix_text">
         <event_cb trigger="clicked" callback="on_preflight_set_material"/>
@@ -45,8 +32,10 @@
     <!-- Button row: Map Filament… (tertiary, optional), Cancel (secondary),
          Print Anyway (primary). Wired programmatically; no XML callbacks to
          avoid double-wiring. Map Filament shows while a remap can be carried out. -->
-    <modal_button_row hide_tertiary="false"
-                      tertiary_show_subject="preflight_remap_shown" tertiary_variant="primary"
-                      tertiary_text="Map Filament…" secondary_text="Cancel" primary_text="Print Anyway"/>
+    <dialog_frame-footer>
+      <modal_button_row hide_tertiary="false"
+                        tertiary_show_subject="preflight_remap_shown" tertiary_variant="primary"
+                        tertiary_text="Map Filament…" secondary_text="Cancel" primary_text="Print Anyway"/>
+    </dialog_frame-footer>
   </view>
 </component>

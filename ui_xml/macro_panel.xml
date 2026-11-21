@@ -2,10 +2,15 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <view name="macro_panel"
-        extends="overlay_panel" title="Macros" hide_action_button="false" action_button_text="Save"
-        action_button_callback="on_macros_edit_save" action_button_hidden_subject="macros_edit_save_hidden"
-        back_button_callback="on_macros_back_clicked">
+  <view name="macro_panel" extends="overlay_panel" title="Macros" back_button_callback="on_macros_back_clicked">
+    <!-- Save, shown only while the list is in edit mode. -->
+    <overlay_panel-actions>
+      <ui_button name="btn_save" height="content" text="Save">
+        <style name="styles.header_action"/>
+        <bind_flag_if_eq subject="macros_edit_save_hidden" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_macros_edit_save"/>
+      </ui_button>
+    </overlay_panel-actions>
     <!-- Content Area -->
     <overlay_panel-overlay_content style_pad_left="#space_lg"
                                    style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_sm"

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- A caption beside the bypass spool card: "Bypass" under it, or the loaded
+       material over it. A sibling of the card, floating on the path container,
+       so bypass_spool_create() can center each on the card at its own width. -->
+  <api>
+    <prop name="label_name" type="string" default=""/>
+    <prop name="text" type="string" default=""/>
+    <prop name="hidden" type="boolean" default="false"/>
+  </api>
+  <view name="$label_name" extends="text_body" text="$text" floating="true" hidden="$hidden"/>
+</component>

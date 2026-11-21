@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The shared modal dialog card: a left-aligned title (with an optional icon
+     before it), a padded body that scrolls past #dialog_content_max, and a
+     footer for the dialog's buttons. The backdrop comes from the Modal system.
+
+     A dialog's view extends dialog_frame and sets title / title_tag / icon.
+     Its widgets land in the body (dialog_body, a column); its
+     modal_button_row goes in a dialog_frame-footer tag, and widgets beside
+     the title in dialog_frame-header_extra. The body is restyled on its slot
+     tag, dialog_frame-body. Example: bed_mesh_rename_modal.xml. -->
+<component>
+  <api>
+    <slot name="body" target="dialog_body" default="true"/>
+    <slot name="footer" target="dialog_footer" hide_empty="true"/>
+    <slot name="header_extra" target="header_extra" hide_empty="true"/>
+    <prop name="title" type="string" default=""/>
+    <prop name="title_tag" type="string" default=""/>
+    <!-- A string subject that retitles the dialog live; unset, the title stays static. -->
+    <prop name="title_subject" type="string"/>
+    <!-- An icon name shown before the title; empty shows none. -->
+    <prop name="icon" type="string" default=""/>
+    <prop name="icon_variant" type="string" default="primary"/>
+    <prop name="width" type="string" default="70%"/>
+    <!-- A close (X) button after the title. -->
+    <prop name="hide_close" type="string" default="true"/>
+    <prop name="close_callback" type="string" default=""/>
+  </api>
+  <view extends="ui_dialog"
+        width="$width" height="content" style_max_height="85%" align="center" flex_flow="column"
+        style_flex_main_place="start" style_pad_gap="0" scrollable="false">
+    <modal_header name="dialog_header"
+                  icon_name="dialog_icon" icon_src="$icon" icon_variant="$icon_variant" title_name="dialog_title"
+                  title="$title" title_tag="$title_tag" title_subject="$title_subject" hide_close="$hide_close"
+                  close_callback="$close_callback"/>
+    <lv_obj name="dialog_body"
+            width="100%" height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_lg" style_pad_gap="#space_md"
+            style_bg_opa="0" style_border_width="0" flex_flow="column" scrollable="true" scroll_snap_y="none"/>
+    <lv_obj name="dialog_footer"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+            flex_flow="column" scrollable="false"/>
+  </view>
+</component>

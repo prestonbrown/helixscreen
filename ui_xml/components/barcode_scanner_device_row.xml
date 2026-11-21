@@ -1,33 +1,33 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Single row in the barcode scanner device list (USB or Bluetooth). -->
-<!-- Styling/layout entirely declarative; C++ instantiates one per device  -->
-<!-- and attaches identifying data via lv_obj_set_user_data.               -->
+<!-- Single row in the barcode scanner device list (USB or Bluetooth). C++
+     instantiates one per device, sets row_label and row_sublabel after
+     creation (device names come from the hardware, and as a prop a leading
+     '#' would read as a const), and resolves both clicks from `index`. -->
 <component>
   <api>
     <prop name="row_icon" type="string" default="usb"/>
-    <prop name="row_label" type="string" default=""/>
-    <prop name="row_sublabel" type="string" default=""/>
+    <prop name="index" type="int" default="0"/>
     <prop name="hide_forget" type="boolean" default="true"/>
     <prop name="hide_check" type="boolean" default="true"/>
   </api>
   <view name="barcode_scanner_device_row"
         extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
         style_pad_all="#space_md" style_pad_gap="#space_md" style_bg_opa="0" style_border_width="0" scrollable="false">
-    <event_cb trigger="clicked" callback="on_bs_row_clicked"/>
+    <event_cb trigger="clicked" callback="on_bs_row_clicked" user_data="$index"/>
     <icon src="$row_icon" size="md" variant="accent" clickable="false" event_bubble="true"/>
     <lv_obj width="0"
             flex_grow="1" flex_flow="column" style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0"
             style_pad_all="0" scrollable="false" clickable="false" event_bubble="true">
-      <text_body text="$row_label" style_text_align="left" clickable="false" event_bubble="true"/>
-      <text_small text="$row_sublabel"
-                  style_text_color="#text_muted" style_text_align="left" clickable="false" event_bubble="true"/>
+      <text_body name="row_label" text="" style_text_align="left" clickable="false" event_bubble="true"/>
+      <text_small name="row_sublabel"
+                  text="" style_text_color="#text_muted" style_text_align="left" clickable="false" event_bubble="true"/>
     </lv_obj>
     <icon name="selected_check"
           src="check" size="md" variant="accent" hidden="$hide_check" clickable="false" event_bubble="true"/>
     <ui_button name="btn_forget" width="100" text="Forget" variant="secondary" hidden="$hide_forget">
-      <event_cb trigger="clicked" callback="on_bs_row_forget"/>
+      <event_cb trigger="clicked" callback="on_bs_row_forget" user_data="$index"/>
     </ui_button>
   </view>
 </component>

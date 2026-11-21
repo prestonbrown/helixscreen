@@ -231,7 +231,7 @@ TEST_CASE_METHOD(KeypadLayoutFixture, "The +/- key signs the draft and the range
     press(keypad, "btn_sign");
     CHECK(display() == "-10");
     // Below the minimum: refused, and the keypad stays open.
-    press(keypad, "action_button");
+    press(keypad, "btn_set");
     CHECK(confirms_ == 0);
     CHECK(ui_keypad_is_visible());
 
@@ -239,7 +239,7 @@ TEST_CASE_METHOD(KeypadLayoutFixture, "The +/- key signs the draft and the range
     press(keypad, "btn_dot");
     press(keypad, "btn_5");
     CHECK(display() == "-1.5");
-    press(keypad, "action_button");
+    press(keypad, "btn_set");
     CHECK(confirms_ == 1);
     CHECK(confirmed_ == -1.5f);
 }
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(KeypadLayoutFixture,
     press(keypad, "btn_0");
     press(keypad, "btn_0");
     CHECK(display() == "-100");
-    press(keypad, "action_button");
+    press(keypad, "btn_set");
     CHECK(confirmed_ == -100.0f);
 }
 
@@ -267,7 +267,7 @@ TEST_CASE_METHOD(KeypadLayoutFixture, "The field name sits in the header between
     lv_area_t header, name, set;
     lv_obj_get_coords(key(keypad, "overlay_header"), &header);
     lv_obj_get_coords(title, &name);
-    lv_obj_get_coords(key(keypad, "action_button"), &set);
+    lv_obj_get_coords(key(keypad, "btn_set"), &set);
     CHECK(name.y1 >= header.y1);
     CHECK(name.y2 <= header.y2);
     CHECK(name.x2 < set.x1);
@@ -297,7 +297,7 @@ TEST_CASE_METHOD(KeypadLayoutFixture,
     press(keypad, "btn_4");
     press(keypad, "btn_default");
     CHECK(display() == "25");
-    press(keypad, "action_button");
+    press(keypad, "btn_set");
     CHECK(confirms_ == 1);
     CHECK(confirmed_ == 25.0f);
 

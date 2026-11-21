@@ -28,58 +28,37 @@
           type="string"
           default="The printer isn't detecting that any filament is currently loaded. What would you like to do?"/>
   </api>
-  <!-- Dialog card (backdrop created programmatically) -->
+  <!-- Runout is a warning; a deliberate tap from the home tile is not.
+       RunoutGuidanceModal::on_show() swaps the header icon to the neutral
+       filament glyph when runout_is_advisory is 1. Every show site states its
+       own value via set_advisory(): the subject is static and outlives any one
+       show, so inheriting would latch. -->
   <view name="runout_guidance_modal"
-        extends="ui_dialog" width="80%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Header row with warning icon + title -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <!-- Runout is a warning; a deliberate tap from the home tile is not.
-           runout_is_advisory is owned by RunoutGuidanceModal and every show
-           site states its own value via set_advisory() - the subject is static
-           and outlives any one show, so inheriting would latch. -->
-      <icon name="icon_warning" src="alert" size="md" variant="warning">
-        <bind_flag_if_eq subject="runout_is_advisory" flag="hidden" ref_value="1"/>
-      </icon>
-      <icon name="icon_advisory" src="filament" size="md" variant="primary">
-        <bind_flag_if_not_eq subject="runout_is_advisory" flag="hidden" ref_value="1"/>
-      </icon>
-      <!-- Title -->
-      <text_heading name="dialog_title" text="$title" translation_tag="$title" style_text_align="left" flex_grow="1"/>
-    </lv_obj>
-    <!-- Message content area -->
-    <lv_obj name="content_container"
-            width="100%" height="content" style_min_height="40" style_max_height="200" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_sm" flex_flow="column"
-            style_pad_gap="0">
-      <!-- Default message (prop-driven), shown only on basic-sensor backends.
+        extends="dialog_frame" width="80%" title="$title" title_tag="$title" icon="alert" icon_variant="warning">
+    <!-- Default message (prop-driven), shown only on basic-sensor backends.
            Hidden when autofeed-capable (runout_autofeed_capable == 1). -->
-      <text_body name="dialog_message"
-                 width="100%" text="$message" translation_tag="$message" style_text_align="left" long_mode="wrap">
-        <bind_flag_if_eq subject="runout_autofeed_capable" flag="hidden" ref_value="1"/>
-      </text_body>
-      <!-- Autofeed, port empty: a real runout. Resume alone reloads, so just
+    <text_body name="dialog_message"
+               width="100%" text="$message" translation_tag="$message" style_text_align="left" long_mode="wrap">
+      <bind_flag_if_eq subject="runout_autofeed_capable" flag="hidden" ref_value="1"/>
+    </text_body>
+    <!-- Autofeed, port empty: a real runout. Resume alone reloads, so just
            refill the spool. -->
-      <text_body name="dialog_message_autofeed"
-                 width="100%" text="Refill the spool, then Resume." style_text_align="left" long_mode="wrap">
-        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 0" flag="hidden"/>
-      </text_body>
-      <!-- Autofeed, port still sees filament: the motion sensor reported the
+    <text_body name="dialog_message_autofeed"
+               width="100%" text="Refill the spool, then Resume." style_text_align="left" long_mode="wrap">
+      <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 0" flag="hidden"/>
+    </text_body>
+    <!-- Autofeed, port still sees filament: the motion sensor reported the
            runout, and the spool is not empty. -->
-      <text_body name="dialog_message_motion_stuck"
-                 width="100%" text="Motion sensor stuck: filament is still at the feeder. Resume to feed it."
-                 style_text_align="left" long_mode="wrap">
-        <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 1" flag="hidden"/>
-      </text_body>
-    </lv_obj>
+    <text_body name="dialog_message_motion_stuck"
+               width="100%" text="Motion sensor stuck: filament is still at the feeder. Resume to feed it."
+               style_text_align="left" long_mode="wrap">
+      <bind_flag_if cond="runout_autofeed_capable ne 1 or runout_resume_blocked eq 1" flag="hidden"/>
+    </text_body>
     <!-- "Manual" section header. The header was only ever a label for a demoted
          manual row; with the manual row now hidden entirely on autofeed backends
          (#991) it serves no purpose in either mode, so it is always hidden. -->
     <lv_obj name="manual_section_header"
-            width="100%" height="content" hidden="true" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="0" style_pad_bottom="0" style_pad_gap="0" flex_flow="column">
+            width="100%" height="content" hidden="true" style_pad_all="0" style_pad_gap="0" flex_flow="column">
       <text_small name="manual_label" text="Manual" style_text_color="#text_muted" style_text_align="left"/>
     </lv_obj>
     <!-- ACTION BUTTONS ROW - horizontal, beneath message. Prominent on basic
@@ -87,8 +66,8 @@
          recovers the runout, so the manual Load/Unload/Purge row is hidden
          entirely and the dialog reduces to message + Cancel/Resume (#991). -->
     <lv_obj name="manual_action_row"
-            width="100%" height="content" style_pad_all="#space_lg" style_pad_top="#space_sm" flex_flow="row"
-            style_flex_main_place="space_between" style_pad_gap="#space_sm">
+            width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+            style_pad_gap="#space_sm">
       <!-- Hidden when the backend recovers on Resume (autofeed), and while a
            print is actively running - Load/Unload/Purge mid-print destroys the
            print. Paused (2) deliberately keeps them: that is the runout case. -->
@@ -100,32 +79,34 @@
       <!-- Purge button (wired programmatically by RunoutGuidanceModal::on_show → wire_quinary_button) -->
       <ui_button name="btn_purge" flex_grow="1" icon="nozzle" text="Purge"/>
     </lv_obj>
-    <!-- CLOSE BUTTON ROW (only when NOT paused - hidden when print_state_enum == 2).
+    <dialog_frame-footer>
+      <!-- CLOSE BUTTON ROW (only when NOT paused - hidden when print_state_enum == 2).
          Close is wired programmatically by RunoutGuidanceModal::on_show → wire_senary_button. -->
-    <modal_button_row hide_secondary="true" primary_name="btn_ok" primary_text="Close">
-      <bind_flag_if_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
-    </modal_button_row>
-    <!-- Continue on another loaded toolhead (#2137): offered only while paused and
+      <modal_button_row hide_secondary="true" primary_name="btn_ok" primary_text="Close">
+        <bind_flag_if_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
+      </modal_button_row>
+      <!-- Continue on another loaded toolhead (#2137): offered only while paused and
          when the filament system can move the rest of the print to another head
          (runout_other_head_offered, set at show time). Wired programmatically by
          RunoutGuidanceModal::on_show; it opens RunoutOtherHeadModal. -->
-    <lv_obj name="other_head_row"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_md" flex_flow="row">
-      <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2" flag="hidden"/>
-      <ui_button name="btn_other_head" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
-    </lv_obj>
-    <!-- PAUSED BUTTONS ROW (only when paused - hidden when print_state_enum != 2).
+      <lv_obj name="other_head_row"
+              width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
+              style_pad_bottom="#space_md" flex_flow="row">
+        <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2" flag="hidden"/>
+        <ui_button name="btn_other_head" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
+      </lv_obj>
+      <!-- PAUSED BUTTONS ROW (only when paused - hidden when print_state_enum != 2).
          Wired programmatically by RunoutGuidanceModal::on_show: Cancel Print →
          wire_tertiary_button, Resume Print → wire_cancel_button.
          Resume is ringed when the backend autofeeds on resume (it is then the
          recovery action), and disabled while runout_resume_blocked is 1 (#991):
          an auto-feed runout with no filament at the active tool's port. -->
-    <modal_button_row secondary_name="btn_cancel_print"
-                      secondary_variant="danger" secondary_text="Cancel Print" primary_name="btn_resume"
-                      primary_text="Resume Print" primary_accent_subject="runout_autofeed_capable"
-                      primary_disable_subject="runout_resume_blocked">
-      <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
-    </modal_button_row>
+      <modal_button_row secondary_name="btn_cancel_print"
+                        secondary_variant="danger" secondary_text="Cancel Print" primary_name="btn_resume"
+                        primary_text="Resume Print" primary_accent_subject="runout_autofeed_capable"
+                        primary_disable_subject="runout_resume_blocked">
+        <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
+      </modal_button_row>
+    </dialog_frame-footer>
   </view>
 </component>

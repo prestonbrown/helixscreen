@@ -257,11 +257,11 @@ TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and war
     modal.set_mappings({t0, t1});
     REQUIRE(modal.show(test_screen()));
 
-    lv_obj_t* list = lv_obj_find_by_name(modal.dialog(), "mapping_tool_list");
+    lv_obj_t* list = lv_obj_find_by_name(modal.dialog(), "mapping_tool_rows");
     REQUIRE(list != nullptr);
-    REQUIRE(lv_obj_get_child_count(list) == 3); // the toggle row, then one per tool
+    REQUIRE(lv_obj_get_child_count(list) == 2); // one per tool
     auto part = [&](int tool, const char* name) {
-        lv_obj_t* obj = lv_obj_find_by_name(lv_obj_get_child(list, tool + 1), name);
+        lv_obj_t* obj = lv_obj_find_by_name(lv_obj_get_child(list, tool), name);
         REQUIRE(obj != nullptr);
         return obj;
     };
@@ -285,16 +285,21 @@ TEST_CASE_METHOD(MappingCancelFixture, "A remap row shows its tool, pick and war
 
     // A tap opens the slot picker on the screen.
     const uint32_t before = lv_obj_get_child_count(lv_screen_active());
-    lv_obj_send_event(lv_obj_get_child(list, 1), LV_EVENT_CLICKED, nullptr);
+    lv_obj_send_event(lv_obj_get_child(list, 0), LV_EVENT_CLICKED, nullptr);
     CHECK(lv_obj_get_child_count(lv_screen_active()) > before);
 
     // Auto-color mode, through the toggle row's switch: the rows dim, lose
     // the chevron and stop taking taps.
-    lv_obj_t* toggle = lv_obj_get_child(lv_obj_get_child(list, 0), -1);
+    lv_obj_t* toggle =
+        lv_obj_find_by_name(lv_obj_find_by_name(modal.dialog(), "auto_color_map_row"), "toggle");
+    REQUIRE(toggle != nullptr);
+    REQUIRE_FALSE(lv_obj_has_state(toggle, LV_STATE_CHECKED));
     lv_obj_add_state(toggle, LV_STATE_CHECKED);
     lv_obj_send_event(toggle, LV_EVENT_VALUE_CHANGED, nullptr);
     CHECK_FALSE(shown(0, "trigger_chevron"));
-    CHECK_FALSE(lv_obj_is_clickable(lv_obj_get_child(list, 1)));
+    CHECK_FALSE(lv_obj_is_clickable(lv_obj_get_child(list, 0)));
+    // The rows rebuilt in auto-color mode; the toggle row stays, still on.
+    CHECK(lv_obj_has_state(toggle, LV_STATE_CHECKED));
     lv_obj_send_event(lv_obj_find_by_name(modal.dialog(), "btn_secondary"), LV_EVENT_CLICKED,
                       nullptr);
     helix::ui::UpdateQueue::instance().drain();

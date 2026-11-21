@@ -16,19 +16,10 @@
 namespace helix::nav {
 
 lv_obj_t* make_loading_scrim() {
-    lv_obj_t* pill = lv_obj_create(lv_layer_top());
-    lv_obj_remove_style_all(pill);
-    lv_obj_set_size(pill, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_bg_color(pill, lv_color_black(), LV_PART_MAIN);
-    lv_obj_set_style_bg_opa(pill, LV_OPA_80, LV_PART_MAIN);
-    lv_obj_set_style_radius(pill, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-    lv_obj_set_style_pad_hor(pill, 24, LV_PART_MAIN);
-    lv_obj_set_style_pad_ver(pill, 12, LV_PART_MAIN);
-    lv_obj_set_scrollable(pill, false);
-    lv_obj_t* lbl = lv_label_create(pill);
-    lv_label_set_text(lbl, lv_tr("Loading..."));
-    lv_obj_set_style_text_color(lbl, lv_color_white(), LV_PART_MAIN);
-    lv_obj_center(pill);
+    auto* pill = static_cast<lv_obj_t*>(lv_xml_create(lv_layer_top(), "loading_scrim", nullptr));
+    if (!pill) {
+        spdlog::error("[NavigationManager] Failed to create loading_scrim component");
+    }
     return pill;
 }
 

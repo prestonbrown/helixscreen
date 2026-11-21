@@ -188,3 +188,21 @@ run_gate() {
 }
 
 # ------------------------------------------------------------- the real tree
+
+@test "a whole-tree run from a root under .worktrees/ scans it; a nested .worktrees/ is not" {
+    local root gate bad='<component>
+  <consts>
+    <px name="card_gutter_small" value="8"/>
+  </consts>
+  <view name="card" extends="lv_obj"/>
+</component>'
+    gate="$PWD/$GATE"
+    root="$(make_worktree_root)"
+    mkdir -p "$root/ui_xml/components" "$root/ui_xml/.worktrees/other/components"
+    printf '%s\n' "$bad" > "$root/ui_xml/components/own_card.xml"
+    printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/components/peer_card.xml"
+    run bash -c 'cd "$1" && python3 "$2"' _ "$root" "$gate"
+    [ "$status" -eq 1 ]
+    contains "own_card.xml" "$output"
+    lacks "peer_card.xml" "$output"
+}

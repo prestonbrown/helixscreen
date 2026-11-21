@@ -4,10 +4,15 @@
 <!-- Firmware Update: the printer's own firmware from a USB stick, Moonraker's
      update_manager entries, and the progress of the one update running -->
 <component>
-  <view name="settings_firmware_update_overlay"
-        extends="overlay_panel" title="Firmware Update" bg_color="#screen_bg" action_button_text="Refresh"
-        action_button_callback="on_fwupdate_refresh" hide_action_button="false"
-        action_button_hidden_subject="fwupdate_busy">
+  <view name="settings_firmware_update_overlay" extends="overlay_panel" title="Firmware Update" bg_color="#screen_bg">
+    <!-- Refresh, hidden while an update runs -->
+    <overlay_panel-actions>
+      <ui_button name="btn_fwupdate_refresh" height="content" text="Refresh">
+        <style name="styles.header_action"/>
+        <bind_flag_if_eq subject="fwupdate_busy" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_fwupdate_refresh"/>
+      </ui_button>
+    </overlay_panel-actions>
     <!-- Two views share the content area and each scrolls on its own -->
     <overlay_panel-overlay_content style_pad_all="0" scrollable="false">
       <!-- LIST VIEW -->

@@ -17,6 +17,7 @@
 #include "ui_confetti.h"
 #include "ui_context_menu.h"
 #include "ui_event_safety.h"
+#include "ui_fan_control_overlay.h"
 #include "ui_fan_dial.h"
 #include "ui_fault_path.h"
 #include "ui_fonts.h"
@@ -509,6 +510,8 @@ void register_xml_components() {
     helix::ui::register_plugin_menu_row_callbacks();
 
     register_fan_dial_callbacks(); // Register FanDial event callbacks
+    // A hold on a fan dial or status card; renames the fan from the Fans overlay.
+    lv_xml_register_event_cb(nullptr, "on_fan_rename_hold", FanControlOverlay::on_fan_rename_hold);
 
     // AMS Device Operations (accessed from Settings > AMS)
     helix::ui::get_ams_device_operations_overlay().register_callbacks();

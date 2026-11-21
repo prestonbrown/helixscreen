@@ -16,6 +16,8 @@
 # constant, and widget_catalog_overlay legitimately sets width="70%". A gate
 # that fired on those would be noise on every XML commit and get switched off.
 
+load helpers
+
 GATE="scripts/check_overlay_width.py"
 
 setup() {
@@ -150,4 +152,18 @@ setup_tmp_repo() {
         > ui_xml/base.xml
     run python3 "$GATE_ABS" --staged-only
     [ "$status" -eq 0 ]
+}
+
+@test "a whole-tree run from a root under .worktrees/ scans it; a nested .worktrees/ is not" {
+    local root bad='<component>
+  <view name="x" extends="overlay_panel" width="#overlay_width_destination" title="X"/>
+</component>'
+    root="$(make_worktree_root)"
+    printf '%s\n' "$bad" > "$root/ui_xml/own_overlay.xml"
+    mkdir -p "$root/ui_xml/.worktrees/other"
+    printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/peer_overlay.xml"
+    run bash -c 'cd "$1" && python3 "$2"' _ "$root" "$GATE_ABS"
+    [ "$status" -eq 1 ]
+    contains "ui_xml/own_overlay.xml" "$output"
+    lacks "peer_overlay.xml" "$output"
 }

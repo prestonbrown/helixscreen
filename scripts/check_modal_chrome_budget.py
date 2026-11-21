@@ -76,6 +76,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from path_scope import in_skipped_dir
+
 SCAN_DIRS = ('ui_xml',)
 
 # android/app/src/main/assets/ui_xml/ is a gradle copy of ui_xml/, not a source
@@ -101,8 +103,12 @@ DIVIDER_TAGS = {'divider_horizontal'}
 BUTTON_ROW_TAGS = {'modal_button_row'}
 
 
-def is_button_row(el):
+def is_button_row(el, footer_targets=frozenset()):
     """Is this element the modal's button row?
+
+    A frame component's footer slot container (the target of its
+    `<slot name="footer">`) is where a dialog puts its button row, so it
+    counts as the row.
 
     modal_dialog.xml and several modals hand-roll the row rather than using the
     modal_button_row component, so the tag name alone does not identify it. Two
@@ -117,6 +123,8 @@ def is_button_row(el):
     when enough buttons wrap, which the single-row budget does not cover.
     """
     if el.tag in BUTTON_ROW_TAGS:
+        return True
+    if (el.get('name') or '') in footer_targets:
         return True
     # A wrapper whose only widget is the row, so the row and its leading divider
     # hide as a unit (klipper_recovery_dialog). Bindings are not widgets.
@@ -194,6 +202,10 @@ def find_violations(path):
         # silent here beats reporting a parse error as a chrome violation.
         return
 
+    footer_targets = frozenset(
+        slot.get('target') for slot in root.iter('slot')
+        if slot.get('name') == 'footer' and slot.get('target'))
+
     uses_shared = any(
         el.get('style_max_height') in SHARED_TOKENS for el in root.iter()
     )
@@ -224,7 +236,7 @@ def find_violations(path):
             for sibling in children[idx + 1:]:
                 if is_divider(sibling):
                     continue
-                if is_button_row(sibling):
+                if is_button_row(sibling, footer_targets):
                     button_rows_seen += 1
                     if button_rows_seen == 1:
                         first_button_row = sibling
@@ -257,7 +269,7 @@ def iter_xml_files(repo_root):
         if not base.is_dir():
             continue
         for path in sorted(base.rglob('*.xml')):
-            if any(part in SKIP_PARTS for part in path.parts):
+            if in_skipped_dir(path, repo_root, SKIP_PARTS):
                 continue
             yield path
 

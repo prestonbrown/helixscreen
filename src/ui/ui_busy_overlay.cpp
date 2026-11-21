@@ -7,11 +7,13 @@
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "core/static_subject_registry.h"
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
-#include "theme_manager.h"
+#include "subject_managed_panel.h"
 
 #include <spdlog/spdlog.h>
 
@@ -25,17 +27,49 @@ namespace helix {
 namespace {
 
 helix::ui::WidgetRef g_overlay;      // Full-screen backdrop
-lv_obj_t* g_spinner = nullptr;       // Centered spinner
-lv_obj_t* g_label = nullptr;         // Progress text below spinner
 lv_timer_t* g_grace_timer = nullptr; // Delayed show timer
 bool g_pending_show = false;         // Show requested but grace period not elapsed
-std::string g_pending_text;          // Text to show when overlay appears
 
 // Backdrop opacity matches modal system (~70%)
 constexpr uint8_t kOverlayBackdropOpacity = 180;
 
-// Spacing between spinner and label
-constexpr int32_t kSpinnerLabelGap = 16;
+/// busy_overlay_text: the line under the spinner, bound by busy_overlay.xml.
+/// Holds the text while the grace period runs, so the overlay appears with it.
+struct BusyTextSubject {
+    helix::Subject subject{};
+    char buf[256] = {};
+    SubjectManager subjects;
+    bool ready = false;
+};
+
+BusyTextSubject& text_state() {
+    static BusyTextSubject s;
+    return s;
+}
+
+void deinit_text_subject() {
+    auto& s = text_state();
+    if (!s.ready) {
+        return;
+    }
+    s.subjects.deinit_all();
+    s.ready = false;
+}
+
+lv_subject_t* busy_text_subject() {
+    auto& s = text_state();
+    if (!s.ready) {
+        UI_MANAGED_SUBJECT_STRING(s.subject, s.buf, "", "busy_overlay_text", s.subjects);
+        s.ready = true;
+        StaticSubjectRegistry::instance().register_deinit("BusyOverlay", deinit_text_subject,
+                                                          StaticSubjectRegistry::Lifetime::Process);
+    }
+    return &s.subject;
+}
+
+void set_text(const char* text) {
+    lv_subject_set_string(busy_text_subject(), text);
+}
 
 void create_overlay_internal();
 void destroy_overlay_internal();
@@ -60,7 +94,7 @@ void create_overlay_internal() {
     // This prevents dangling pointer if user navigates while overlay is visible
     lv_obj_t* parent = lv_layer_top();
 
-    // Create full-screen backdrop using shared utility
+    // Blurred or dimmed snapshot of the screen: built from a render, so it stays C++
     g_overlay = helix::ui::create_fullscreen_backdrop(parent, kOverlayBackdropOpacity);
     if (!g_overlay) {
         spdlog::error("[BusyOverlay] Failed to create backdrop");
@@ -68,56 +102,22 @@ void create_overlay_internal() {
         return;
     }
 
-    // Create container for centered content (spinner + label)
-    lv_obj_t* container = lv_obj_create(g_overlay);
-    lv_obj_set_size(container, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(container, LV_ALIGN_CENTER, 0, 0);
-    lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
-    lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(container, 0, LV_PART_MAIN);
-    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_flex_align(container, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
-                          LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_row(container, kSpinnerLabelGap, LV_PART_MAIN);
-    lv_obj_set_scrollable(container, false);
-
-    // Create spinner using XML widget (with fallback to raw LVGL)
-    g_spinner = static_cast<lv_obj_t*>(lv_xml_create(container, "spinner", nullptr));
-    if (!g_spinner) {
-        // Fallback: create spinner using raw LVGL API
-        g_spinner = lv_spinner_create(container);
-        if (g_spinner) {
-            lv_spinner_set_anim_params(g_spinner, 1000, 200); // 1s rotation, 200deg arc
-            // Match what the <spinner> XML widget would have produced on the
-            // happy path, rather than freezing the small-breakpoint value here.
-            int32_t spinner_size = theme_manager_get_spacing("spinner_lg");
-            if (spinner_size <= 0)
-                spinner_size = 48;
-            lv_obj_set_size(g_spinner, spinner_size, spinner_size);
-            spdlog::debug("[BusyOverlay] Using fallback spinner (XML not available)");
-        } else {
-            spdlog::error("[BusyOverlay] Failed to create spinner widget");
-        }
+    busy_text_subject();
+    if (!lv_xml_create(g_overlay, "busy_overlay", nullptr)) {
+        spdlog::error("[BusyOverlay] Failed to create busy_overlay component");
     }
-
-    g_label = lv_label_create(container);
-    lv_obj_set_style_text_color(g_label, theme_manager_get_color("text"), LV_PART_MAIN);
-    lv_obj_set_style_text_font(g_label, theme_manager_get_font("font_small"), LV_PART_MAIN);
-    lv_label_set_text(g_label, g_pending_text.c_str());
 
     // Bring to foreground
     lv_obj_move_to_index(g_overlay, -1);
 
     g_pending_show = false;
-    spdlog::debug("[BusyOverlay] Created overlay with text: '{}'", g_pending_text);
+    spdlog::debug("[BusyOverlay] Created overlay with text: '{}'",
+                  lv_subject_get_string(busy_text_subject()));
 }
 
 void destroy_overlay_internal() {
     if (g_overlay) {
         helix::ui::safe_delete_deferred(g_overlay);
-        // g_spinner and g_label are children of g_overlay and were destroyed with it
-        g_spinner = nullptr;
-        g_label = nullptr;
         spdlog::trace("[BusyOverlay] Destroyed overlay");
     }
 }
@@ -147,14 +147,11 @@ void grace_timer_cb(lv_timer_t* timer) {
 // ============================================================================
 
 void BusyOverlay::show(const std::string& initial_text, uint32_t grace_period_ms) {
-    // Store text for when overlay actually appears
-    g_pending_text = initial_text;
+    // Bound by the label, and held for the overlay if it is still pending
+    set_text(initial_text.c_str());
 
-    // If already visible, just update text
+    // If already visible, the label already shows the new text
     if (g_overlay) {
-        if (g_label) {
-            lv_label_set_text(g_label, initial_text.c_str());
-        }
         spdlog::debug("[BusyOverlay] Already visible - updated text to: '{}'", initial_text);
         return;
     }
@@ -194,12 +191,7 @@ void BusyOverlay::set_progress(const std::string& operation, float percent) {
     char buf[128];
     snprintf(buf, sizeof(buf), "%s... %s", operation.c_str(), percent_buf);
 
-    // Update pending text (in case overlay not yet visible)
-    g_pending_text = buf;
-
-    if (g_overlay && g_label) {
-        lv_label_set_text(g_label, buf);
-    }
+    set_text(buf);
 }
 
 void BusyOverlay::hide() {
@@ -209,8 +201,9 @@ void BusyOverlay::hide() {
         spdlog::debug("[BusyOverlay] Cancelled grace timer");
     }
 
+    // The text stays: the backdrop is deleted on a later tick, and the next
+    // show() sets its own.
     g_pending_show = false;
-    g_pending_text.clear();
 
     if (g_overlay) {
         destroy_overlay_internal();

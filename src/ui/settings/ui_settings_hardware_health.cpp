@@ -8,8 +8,10 @@
 
 #include "ui_settings_hardware_health.h"
 
+#include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
+#include "ui_row_text.h"
 #include "ui_severity_card.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
@@ -89,9 +91,10 @@ void HardwareHealthOverlay::populate_hardware_issues() {
         // Add issue rows
         for (const auto& issue : issues) {
             // Create row with severity attribute for colored left border
-            const char* attrs[] = {"severity",      severity_to_string(issue.severity),
-                                   "hardware_name", issue.hardware_name.c_str(),
-                                   "message",       issue.message.c_str(),
+            const std::string index = std::to_string(issue_names_.size());
+            const char* attrs[] = {"severity", severity_to_string(issue.severity),
+                                   "message",  issue.message.c_str(),
+                                   "index",    index.c_str(),
                                    nullptr};
             lv_obj_t* row =
                 static_cast<lv_obj_t*>(lv_xml_create(list, "hardware_issue_row", attrs));
@@ -99,82 +102,17 @@ void HardwareHealthOverlay::populate_hardware_issues() {
                 continue;
             }
 
+            // Printer object names are printer data.
+            helix::ui::set_row_label_text(row, "hardware_name", issue.hardware_name.c_str());
+            issue_names_.push_back(issue.hardware_name);
+
             // Finalize severity_card to show correct icon
             ui_severity_card_finalize(row);
-
-            // Every issue can be ignored; only newly discovered hardware can be saved,
-            // and the row shows Save for its info severity alone.
-            lv_obj_t* ignore_btn = helix::ui::find_required(row, "ignore_btn", get_name());
-            lv_obj_t* save_btn = helix::ui::find_required(row, "save_btn", get_name());
-
-            if (ignore_btn) {
-                // Store hardware name for callbacks (freed on row delete).
-                // NOTE: We do NOT use lv_obj_set_user_data() here because
-                // severity_card (our parent XML component) owns that slot
-                // to store its severity string. Using event cb user_data instead.
-                char* name_copy = strdup(issue.hardware_name.c_str());
-                if (!name_copy) {
-                    spdlog::error("[{}] Failed to allocate memory for hardware name", get_name());
-                    continue;
-                }
-
-                // Add delete handler to free the strdup'd name
-                // (acceptable exception to declarative UI rule for cleanup)
-                lv_obj_add_event_cb(
-                    row,
-                    [](lv_event_t* e) {
-                        void* data = lv_event_get_user_data(e);
-                        if (data) {
-                            free(data);
-                        }
-                    },
-                    LV_EVENT_DELETE, name_copy);
-
-                // Helper lambda for button click handlers
-                // (acceptable exception to declarative UI rule for dynamic rows)
-                auto add_button_handler = [&](lv_obj_t* btn, bool is_ignore) {
-                    // Pack hardware name pointer and is_ignore flag into a single
-                    // user_data value. name_copy is owned by the row's DELETE handler.
-                    struct ActionCtx {
-                        const char* hw_name;
-                        bool is_ignore;
-                    };
-                    auto* ctx = new ActionCtx{name_copy, is_ignore};
-
-                    lv_obj_add_event_cb(
-                        btn,
-                        [](lv_event_t* e) {
-                            LVGL_SAFE_EVENT_CB_BEGIN("[HardwareHealthOverlay] action_clicked");
-                            auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
-
-                            if (ctx && ctx->hw_name) {
-                                get_hardware_health_overlay().handle_hardware_action(
-                                    ctx->hw_name, ctx->is_ignore);
-                            }
-                            LVGL_SAFE_EVENT_CB_END();
-                        },
-                        LV_EVENT_CLICKED, ctx);
-
-                    // Clean up the ActionCtx when the button is destroyed
-                    lv_obj_add_event_cb(
-                        btn,
-                        [](lv_event_t* e) {
-                            auto* ctx = static_cast<ActionCtx*>(lv_event_get_user_data(e));
-                            delete ctx;
-                        },
-                        LV_EVENT_DELETE, ctx);
-                };
-
-                // Wire up Ignore button (always visible)
-                add_button_handler(ignore_btn, true);
-
-                // Wire up Save button (only for INFO severity)
-                if (save_btn && issue.severity == HardwareIssueSeverity::INFO) {
-                    add_button_handler(save_btn, false);
-                }
-            }
         }
     };
+
+    // Rows in all four lists index this, so it restarts with them.
+    issue_names_.clear();
 
     // Populate each section
     populate_list("critical_issues_list", result.critical_missing);
@@ -190,6 +128,23 @@ void HardwareHealthOverlay::populate_hardware_issues() {
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
+
+void HardwareHealthOverlay::register_callbacks() {
+    register_xml_callbacks({
+        {"on_hardware_issue_ignore", [](lv_event_t* e) { on_issue_action(e, true); }},
+        {"on_hardware_issue_save", [](lv_event_t* e) { on_issue_action(e, false); }},
+    });
+}
+
+void HardwareHealthOverlay::on_issue_action(lv_event_t* e, bool is_ignore) {
+    auto& self = get_hardware_health_overlay();
+    const auto index = helix::ui::event_user_int(e);
+    if (!index || *index < 0 || static_cast<size_t>(*index) >= self.issue_names_.size())
+        return;
+    // Copied: acting on it rebuilds the rows and the names with them.
+    const std::string name = self.issue_names_[static_cast<size_t>(*index)];
+    self.handle_hardware_action(name.c_str(), is_ignore);
+}
 
 void HardwareHealthOverlay::handle_hardware_action(const char* hardware_name, bool is_ignore) {
     if (!hardware_name) {
