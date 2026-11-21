@@ -1986,6 +1986,7 @@
   <translation tag="Imported {}" it="Importato {}"/>
   <translation tag="Importing {}..." it="Importazione di {}..."/>
   <translation tag="In Progress" it="In corso"/>
+  <translation tag="In config · {}"/>
   <translation tag="Inactive" it="Inattivo"/>
   <translation tag="Include Klipper/Moonraker logs" it="Includi log Klipper/Moonraker"/>
   <translation tag="Incompatible materials: {} cannot use {} as backup" it="Materiali incompatibili: {} non può usare {} come riserva"/>

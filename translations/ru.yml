@@ -2127,6 +2127,7 @@ translations:
   Imported {}: Импортировано {}
   Importing {}...: 'Импорт {}...'
   In Progress: В процессе
+  In config · {}: ''
   Inactive: Неактивно
   Include Klipper/Moonraker logs: Включить логи Klipper/Moonraker
   'Incompatible materials: {} cannot use {} as backup': 'Несовместимые материалы: {} не может использовать {} в качестве резерва'

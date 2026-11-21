@@ -2,6 +2,7 @@
 #include "ui_calibration_hub_overlay.h"
 
 #include "../lvgl_test_fixture.h"
+#include "calibration_config_results.h"
 #include "calibration_history_store.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -206,11 +207,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
     StepInfo step;
     step.tier = Tier::Required;
     const HistoryEntry done{"2026-11-20", "MPC 60 W", json::object()};
-    auto s = helix::ui::tile_status(step, &done);
+    auto s = helix::ui::tile_status(step, &done, nullptr);
     CHECK(s.text == "Done Nov 20 · MPC 60 W");
     CHECK(s.tone == helix::ui::TileTone::Done);
     const HistoryEntry bare{"2026-03-09", "", json::object()};
-    CHECK(helix::ui::tile_status(step, &bare).text == "Done Mar 9");
+    CHECK(helix::ui::tile_status(step, &bare, nullptr).text == "Done Mar 9");
 
     using helix::ui::TileTone;
     const std::pair<Tier, std::pair<const char*, TileTone>> never[] = {
@@ -221,8 +222,103 @@ TEST_CASE_METHOD(LVGLTestFixture,
     };
     for (const auto& [tier, want] : never) {
         step.tier = tier;
-        s = helix::ui::tile_status(step, nullptr);
+        s = helix::ui::tile_status(step, nullptr, nullptr);
         CHECK(s.text == want.first);
         CHECK(s.tone == want.second);
     }
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a Calibration tile with no history shows what the printer's config holds",
+                 "[calibration_history]") {
+    StepInfo step;
+    step.tier = Tier::Recommended;
+    const std::string in_config = "-1.250 mm";
+    auto s = helix::ui::tile_status(step, nullptr, &in_config);
+    CHECK(s.text == "In config · -1.250 mm");
+    CHECK(s.tone == helix::ui::TileTone::Idle);
+
+    // HelixScreen's own record has a date and wins.
+    const HistoryEntry done{"2026-11-20", "-1.300 mm", json::object()};
+    s = helix::ui::tile_status(step, &done, &in_config);
+    CHECK(s.text == "Done Nov 20 · -1.300 mm");
+    CHECK(s.tone == helix::ui::TileTone::Done);
+}
+
+TEST_CASE("results_in_config reads each step's tuned value from configfile.settings",
+          "[calibration_history]") {
+    const json settings = {
+        {"probe", {{"z_offset", -1.25}, {"x_offset", 0.0}}},
+        {"stepper_z", {{"position_endstop", 0.5}}},
+        {"extruder", {{"control", "pid"}, {"pid_kp", 22.0}}},
+        {"bed_mesh", {{"probe_count", json::array({5, 5})}}},
+        {"bed_mesh hot", {{"version", 1}}},
+        {"bed_mesh default", {{"version", 1}}},
+        {"input_shaper",
+         {{"shaper_type", "mzv"},
+          {"shaper_type_x", "mzv"},
+          {"shaper_freq_x", 36.7},
+          {"shaper_type_y", "ei"},
+          {"shaper_freq_y", 47.6}}},
+    };
+    const ConfigResults r = results_in_config(settings);
+    CHECK(r.at("z_offset") == "-1.250 mm");
+    CHECK(r.at("heaters") == "PID");
+    CHECK(r.at("bed_mesh") == "profile default");
+    CHECK(r.at("input_shaper") == "MZV 36.7 · EI 47.6 Hz");
+
+    SECTION("without a probe, Z offset is stepper_z's endstop") {
+        json s = settings;
+        s.erase("probe");
+        CHECK(results_in_config(s).at("z_offset") == "0.500 mm");
+    }
+    SECTION("BTT Eddy keeps z_offset in its probe_eddy_current section") {
+        json s = settings;
+        s.erase("probe");
+        s["probe_eddy_current btt_eddy"] = {{"z_offset", 1.5}};
+        CHECK(results_in_config(s).at("z_offset") == "1.500 mm");
+    }
+    SECTION("Beacon's offset is its active model's model_offset") {
+        json s = settings;
+        s.erase("probe");
+        s["beacon"] = {{"x_offset", 0.0}};
+        CHECK(results_in_config(s).count("z_offset") == 0);
+        s["beacon model default"] = {{"model_offset", 0.02}};
+        s["beacon model hot"] = {{"model_offset", -0.04}};
+        CHECK(results_in_config(s).at("z_offset") == "0.020 mm");
+        s["beacon"]["default_model_name"] = "hot";
+        CHECK(results_in_config(s).at("z_offset") == "-0.040 mm");
+    }
+    SECTION("Cartographer's offset is its touch model's, else its scan model's") {
+        json s = settings;
+        s.erase("probe");
+        s["cartographer"] = {{"x_offset", 0.0}};
+        s["cartographer scan_model default"] = {{"z_offset", 0.1}};
+        CHECK(results_in_config(s).at("z_offset") == "0.100 mm");
+        s["cartographer touch_model default"] = {{"z_offset", -0.06}};
+        CHECK(results_in_config(s).at("z_offset") == "-0.060 mm");
+    }
+    SECTION("MPC counts; watermark has nothing tuned") {
+        json s = settings;
+        s["extruder"]["control"] = "mpc";
+        CHECK(results_in_config(s).at("heaters") == "MPC");
+        s["extruder"]["control"] = "watermark";
+        CHECK(results_in_config(s).count("heaters") == 0);
+    }
+    SECTION("the [bed_mesh] section alone is not a saved profile") {
+        json s = settings;
+        s.erase("bed_mesh default");
+        s.erase("bed_mesh hot");
+        CHECK(results_in_config(s).count("bed_mesh") == 0);
+        s["bed_mesh hot"] = {{"version", 1}};
+        CHECK(results_in_config(s).at("bed_mesh") == "profile hot");
+    }
+    SECTION("an axis at the default frequency 0 is not shaped") {
+        json s = settings;
+        s["input_shaper"]["shaper_freq_x"] = 0.0;
+        CHECK(results_in_config(s).at("input_shaper") == "EI 47.6 Hz");
+        s["input_shaper"]["shaper_freq_y"] = 0.0;
+        CHECK(results_in_config(s).count("input_shaper") == 0);
+    }
+    CHECK(results_in_config(json::array()).empty());
 }

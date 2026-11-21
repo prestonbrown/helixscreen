@@ -2034,6 +2034,7 @@
   <translation tag="Imported {}" ru="Импортировано {}"/>
   <translation tag="Importing {}..." ru="Импорт {}..."/>
   <translation tag="In Progress" ru="В процессе"/>
+  <translation tag="In config · {}"/>
   <translation tag="Inactive" ru="Неактивно"/>
   <translation tag="Include Klipper/Moonraker logs" ru="Включить логи Klipper/Moonraker"/>
   <translation tag="Incompatible materials: {} cannot use {} as backup" ru="Несовместимые материалы: {} не может использовать {} в качестве резерва"/>

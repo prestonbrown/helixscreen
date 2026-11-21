@@ -18,7 +18,8 @@
 
 namespace helix::ui {
 
-TileStatus tile_status(const calibration::StepInfo& step, const calibration::HistoryEntry* last) {
+TileStatus tile_status(const calibration::StepInfo& step, const calibration::HistoryEntry* last,
+                       const std::string* in_config) {
     using calibration::Tier;
     if (last) {
         const auto date = calibration::parse_iso_date(last->date);
@@ -27,6 +28,9 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
                                ? fmt::format(lv_tr("Done {}"), when)
                                : fmt::format(lv_tr("Done {} · {}"), when, last->summary);
         return {std::move(text), TileTone::Done};
+    }
+    if (in_config) {
+        return {fmt::format(lv_tr("In config · {}"), *in_config), TileTone::Idle};
     }
     switch (step.tier) {
     case Tier::Required:
@@ -78,6 +82,7 @@ void CalibrationHubOverlay::on_activate() {
 void CalibrationHubOverlay::refresh() {
     const auto steps = calibration::current_printer_steps(get_printer_state());
     const auto& history = calibration::CalibrationHistory::instance();
+    const auto& in_config = get_printer_state().get_discovery().calibration_in_config();
     const auto& ids = calibration::all_step_ids();
     for (size_t i = 0; i < ids.size(); ++i) {
         const calibration::StepInfo* step = nullptr;
@@ -91,7 +96,9 @@ void CalibrationHubOverlay::refresh() {
         if (!step) {
             continue;
         }
-        const TileStatus status = tile_status(*step, history.entry(step->id));
+        const auto found = in_config.find(step->id);
+        const TileStatus status = tile_status(*step, history.entry(step->id),
+                                              found != in_config.end() ? &found->second : nullptr);
         lv_subject_set_int(&tone_[i], static_cast<int>(status.tone));
         lv_subject_set_string(&status_[i], status.text.c_str());
     }

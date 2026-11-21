@@ -1163,6 +1163,7 @@ void PrinterDiscovery::clear() {
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
     z_position_endstop_.reset();
+    calibration_in_config_.clear();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
     fan_tachometers_.clear();

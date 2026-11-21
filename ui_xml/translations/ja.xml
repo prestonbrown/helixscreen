@@ -1986,6 +1986,7 @@
   <translation tag="Imported {}" ja="{} をインポートしました"/>
   <translation tag="Importing {}..." ja="{} をインポート中..."/>
   <translation tag="In Progress" ja="進行中"/>
+  <translation tag="In config · {}"/>
   <translation tag="Inactive" ja="非アクティブ"/>
   <translation tag="Include Klipper/Moonraker logs" ja="Klipper/Moonrakerのログを含める"/>
   <translation tag="Incompatible materials: {} cannot use {} as backup" ja="非対応の素材: {} は {} をバックアップとして使用できません"/>

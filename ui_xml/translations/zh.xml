@@ -1986,6 +1986,7 @@
   <translation tag="Imported {}" zh="已导入 {}"/>
   <translation tag="Importing {}..." zh="正在导入 {}..."/>
   <translation tag="In Progress" zh="进行中"/>
+  <translation tag="In config · {}"/>
   <translation tag="Inactive" zh="未激活"/>
   <translation tag="Include Klipper/Moonraker logs" zh="包含 Klipper/Moonraker 日志"/>
   <translation tag="Incompatible materials: {} cannot use {} as backup" zh="材料不兼容: {} 无法使用 {} 作为备用"/>

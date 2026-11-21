@@ -21,13 +21,15 @@ namespace helix::ui {
 /// The color of a tile's status line; the values are calibration_hub_tile.xml's.
 enum class TileTone : int { Idle = 0, Due = 1, Done = 2 };
 
-/// What a tile's status line says about a step: its last result, or its tier.
+/// What a tile's status line says about a step: its last result, else the
+/// result the printer's config holds (@p in_config, no date), else its tier.
 struct TileStatus {
     std::string text;
     TileTone tone;
 };
 [[nodiscard]] TileStatus tile_status(const calibration::StepInfo& step,
-                                     const calibration::HistoryEntry* last);
+                                     const calibration::HistoryEntry* last,
+                                     const std::string* in_config);
 
 class CalibrationHubOverlay : public OverlayBase {
   public:

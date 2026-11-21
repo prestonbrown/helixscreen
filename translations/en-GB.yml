@@ -2051,6 +2051,7 @@ translations:
   Imported {}: ''
   Importing {}...: ''
   In Progress: ''
+  In config · {}: ''
   Inactive: ''
   Include Klipper/Moonraker logs: ''
   'Incompatible materials: {} cannot use {} as backup': ''
