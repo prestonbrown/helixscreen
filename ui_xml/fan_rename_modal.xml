@@ -4,7 +4,7 @@
 <!-- Fan Rename Modal - Rename a fan's display name -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="fan_rename_modal" extends="dialog_frame" title="Rename Fan" title_tag="Rename Fan" icon="fan">
+  <view name="fan_rename_modal" extends="dialog_frame" title="Rename Fan" icon="fan">
     <!-- Current name display -->
     <lv_obj width="100%"
             height="content" flex_flow="row" style_flex_main_place="start" style_pad_all="0" style_pad_gap="#space_xs">

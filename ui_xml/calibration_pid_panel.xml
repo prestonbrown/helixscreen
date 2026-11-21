@@ -46,7 +46,7 @@
     <!-- Header Bar -->
     <header_bar name="overlay_header" title="Heater Calibration">
       <header_bar-actions>
-        <ui_button name="btn_start" height="content" text="Start" translation_tag="Start">
+        <ui_button name="btn_start" height="content" text="Start">
           <style name="styles.header_action"/>
           <bind_state_if cond="pid_cal_not_idle or nav_buttons_enabled eq 0" state="disabled"/>
           <event_cb trigger="clicked" callback="on_pid_start"/>

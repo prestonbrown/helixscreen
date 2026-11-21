@@ -4,8 +4,7 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="plugin_install_modal"
-        extends="dialog_frame" width="85%" title="Optimize Your Printing" title_tag="Optimize Your Printing"
-        icon="puzzle_outline" icon_variant="success">
+        extends="dialog_frame" width="85%" title="Optimize Your Printing" icon="puzzle_outline" icon_variant="success">
     <!-- plugin_install_phase: 0 local prompt, 1 remote prompt, 2 installing, 3 succeeded,
            4 failed. Each part below shows for its own phases. -->
     <!-- Description (LOCAL mode - auto-install available) -->

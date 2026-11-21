@@ -7,9 +7,7 @@
        printer), optionally heat the chamber alongside (its dryer, or a plain
        chamber heater without one), and acknowledge what
        the run does before Start enables. Backdrop created by the Modal system. -->
-  <view name="bed_drying_modal"
-        extends="dialog_frame" width="80%" title="Dry Filament on the Bed" title_tag="Dry Filament on the Bed"
-        icon="heat_wave">
+  <view name="bed_drying_modal" extends="dialog_frame" width="80%" title="Dry Filament on the Bed" icon="heat_wave">
     <lv_dropdown name="material_dropdown" width="100%">
       <event_cb trigger="value_changed" callback="on_bed_drying_material_changed"/>
     </lv_dropdown>

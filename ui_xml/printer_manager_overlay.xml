@@ -56,7 +56,7 @@
         <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="pm_manage_printers_clicked"/>
       </ui_button>
-      <ui_button name="btn_manage_printers" height="content" text="Manage Printers" translation_tag="Manage Printers">
+      <ui_button name="btn_manage_printers" height="content" text="Manage Printers">
         <style name="styles.header_action"/>
         <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="pm_manage_printers_clicked"/>

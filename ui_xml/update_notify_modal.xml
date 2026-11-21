@@ -6,8 +6,8 @@
 <!-- Subjects: update_new_version, update_release_notes, update_changelog_visible -->
 <component>
   <view name="update_notify_modal"
-        extends="dialog_frame" title="New Version Available" title_tag="New Version Available" icon="download"
-        hide_close="false" close_callback="on_update_notify_close">
+        extends="dialog_frame" title="New Version Available" icon="download" hide_close="false"
+        close_callback="on_update_notify_close">
 
     <!-- Version subtitle -->
     <text_muted name="notify_version_text" width="100%" bind_text="update_version_text" long_mode="wrap"/>

@@ -4,8 +4,7 @@
 <!-- Debug Bundle Modal - Upload diagnostic data for support -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="debug_bundle_modal"
-        extends="dialog_frame" width="85%" title="Upload Debug Bundle" title_tag="Upload Debug Bundle" icon="bug">
+  <view name="debug_bundle_modal" extends="dialog_frame" width="85%" title="Upload Debug Bundle" icon="bug">
     <dialog_frame-body style_flex_cross_place="center">
 
       <!-- STATE 0: Consent -->

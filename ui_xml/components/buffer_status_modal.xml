@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <component>
   <view name="buffer_status_modal"
-        extends="dialog_frame" title="Buffer Status" title_tag="Buffer Status" icon="info" icon_variant="info"
-        hide_close="false" close_callback="on_modal_cancel_clicked">
+        extends="dialog_frame" title="Buffer Status" icon="info" icon_variant="info" hide_close="false"
+        close_callback="on_modal_cancel_clicked">
     <!-- The close X is the only way out: the modal is read-only. -->
     <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0" style_pad_gap="0">
       <!-- The clog reading, full width. Gated on clog_meter_mode by clog_bar_body's own

@@ -5,7 +5,7 @@
   <!-- Print Cancel Confirmation Modal -->
   <!-- Note: Backdrop is created programmatically by Modal class in C++ -->
   <view name="print_cancel_confirm_modal"
-        extends="dialog_frame" title="Stop Print?" title_tag="Stop Print?" icon="alert_octagon" icon_variant="danger">
+        extends="dialog_frame" title="Stop Print?" icon="alert_octagon" icon_variant="danger">
     <!-- Warning message -->
     <text_muted width="100%"
                 text="Are you sure you want to cancel this print? All progress will be lost." long_mode="wrap"

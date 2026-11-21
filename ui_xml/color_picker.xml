@@ -35,8 +35,7 @@
     <!-- Stays on ui_dialog, not dialog_frame: MICRO/TINY turn this card into a
          full-screen tabbed picker. The header matches the frame's: icon, title, close. -->
     <modal_header icon_src="palette"
-                  icon_variant="primary" title="Pick Color" title_tag="Pick Color" hide_close="false"
-                  close_callback="color_picker_close_cb"/>
+                  icon_variant="primary" title="Pick Color" hide_close="false" close_callback="color_picker_close_cb"/>
     <!-- Horizontal divider -->
     <divider_horizontal/>
 

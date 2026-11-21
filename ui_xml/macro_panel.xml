@@ -5,7 +5,7 @@
   <view name="macro_panel" extends="overlay_panel" title="Macros" back_button_callback="on_macros_back_clicked">
     <!-- Save, shown only while the list is in edit mode. -->
     <overlay_panel-actions>
-      <ui_button name="btn_save" height="content" text="Save" translation_tag="Save">
+      <ui_button name="btn_save" height="content" text="Save">
         <style name="styles.header_action"/>
         <bind_flag_if_eq subject="macros_edit_save_hidden" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_macros_edit_save"/>

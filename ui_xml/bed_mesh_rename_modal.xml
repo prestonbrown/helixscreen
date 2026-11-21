@@ -4,8 +4,7 @@
 <!-- Bed Mesh Rename Modal - Rename the active mesh profile -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="bed_mesh_rename_modal"
-        extends="dialog_frame" title="Rename Mesh Profile" title_tag="Rename Mesh Profile" icon="pencil">
+  <view name="bed_mesh_rename_modal" extends="dialog_frame" title="Rename Mesh Profile" icon="pencil">
     <dialog_frame-body>
       <!-- Current name display -->
       <lv_obj width="100%"

@@ -6,7 +6,7 @@
      layer readout on the print status panel; only reachable on printers that
      define the macros. Backdrop created by the Modal system. -->
 <component>
-  <view name="layer_pause_modal" extends="dialog_frame" title="Pause at Layer" title_tag="Pause at Layer" icon="pause">
+  <view name="layer_pause_modal" extends="dialog_frame" title="Pause at Layer" icon="pause">
     <text_body name="layer_pause_status"
                width="100%" bind_text="layer_pause_status_text" long_mode="wrap" style_text_align="left"/>
     <ui_button name="btn_layer_pause_next" width="100%" icon="pause" text="Next Layer">

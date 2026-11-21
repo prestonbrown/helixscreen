@@ -11,8 +11,7 @@
   <!-- Camera Configuration Modal
        Opened from grid edit mode gear icon on the camera widget.
        Source (which webcam), rotation and flip settings. -->
-  <view name="camera_config_modal"
-        extends="dialog_frame" width="60%" title="Camera" title_tag="Camera" icon="cog" icon_variant="accent">
+  <view name="camera_config_modal" extends="dialog_frame" width="60%" title="Camera" icon="cog" icon_variant="accent">
     <!-- Content: scrolls under the header and button row once the source
          list makes it taller than the dialog budget -->
     <dialog_frame-body>

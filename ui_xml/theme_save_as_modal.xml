@@ -5,7 +5,7 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
-  <view name="theme_save_as_modal" extends="dialog_frame" title="Save Theme As" title_tag="Save Theme As" icon="palette">
+  <view name="theme_save_as_modal" extends="dialog_frame" title="Save Theme As" icon="palette">
     <dialog_frame-body style_flex_cross_place="center">
       <!-- Instructions -->
       <text_small width="100%"

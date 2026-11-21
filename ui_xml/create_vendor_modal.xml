@@ -3,8 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Modal dialog for creating a new vendor in the spool wizard -->
 <component>
-  <view name="create_vendor_modal"
-        extends="dialog_frame" width="80%" title="Create New Vendor" title_tag="Create New Vendor" icon="inventory">
+  <view name="create_vendor_modal" extends="dialog_frame" width="80%" title="Create New Vendor" icon="inventory">
     <dialog_frame-body>
       <!-- Vendor name input -->
       <lv_obj width="100%"

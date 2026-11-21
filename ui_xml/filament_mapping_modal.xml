@@ -6,8 +6,8 @@
   <!-- A fixed-height card: the body grows into it and the tool list is its one
        scroll region. -->
   <view name="filament_mapping_modal"
-        extends="dialog_frame" height="90%" style_max_height="90%" title="Filament Mapping" title_tag="Filament Mapping"
-        icon="palette" icon_variant="info">
+        extends="dialog_frame" height="90%" style_max_height="90%" title="Filament Mapping" icon="palette"
+        icon_variant="info">
     <dialog_frame-body flex_grow="1"
                        style_max_height="100%" style_pad_bottom="#space_sm" style_pad_gap="#space_sm" scrollable="false">
       <!-- Start macro parameters a file-rewrite remap leaves as sliced -->

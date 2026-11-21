@@ -3,8 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Modal dialog for creating a new filament in the spool wizard -->
 <component>
-  <view name="create_filament_modal"
-        extends="dialog_frame" width="80%" title="Create New Filament" title_tag="Create New Filament" icon="filament">
+  <view name="create_filament_modal" extends="dialog_frame" width="80%" title="Create New Filament" icon="filament">
     <dialog_frame-body style_pad_gap="#space_sm">
       <!-- Vendor context -->
       <lv_obj width="100%"

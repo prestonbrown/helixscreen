@@ -5,8 +5,7 @@
 <!-- States controlled by download_status subject (DownloadStatus enum) -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="update_download_modal"
-        extends="dialog_frame" title="Install Update" title_tag="Install Update" icon="update">
+  <view name="update_download_modal" extends="dialog_frame" title="Install Update" icon="update">
     <!-- Each state is a centered status: an icon or spinner over its heading and detail. -->
     <dialog_frame-body style_flex_cross_place="center">
 

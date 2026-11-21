@@ -21,8 +21,7 @@
     <style name="runout_other_head_row_off" opa="50%"/>
   </styles>
   <view name="runout_other_head_modal"
-        extends="dialog_frame" width="80%" title="Continue on Another Toolhead" title_tag="Continue on Another Toolhead"
-        icon="swap_horizontal">
+        extends="dialog_frame" width="80%" title="Continue on Another Toolhead" icon="swap_horizontal">
     <dialog_frame-body style_pad_bottom="#space_md" style_pad_gap="#space_sm">
       <text_body width="100%" bind_text="runout_other_head_message" style_text_align="left" long_mode="wrap"/>
       <repeat count="4">

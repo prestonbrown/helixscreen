@@ -11,7 +11,7 @@
        length, already clamped to what the appliance accepts) and optionally
        heat the bed alongside. The bed row hides on a printer with no heated
        bed. Backdrop created by the Modal system. -->
-  <view name="chamber_dryer_modal" extends="dialog_frame" title="Start Drying" title_tag="Start Drying" icon="heat_wave">
+  <view name="chamber_dryer_modal" extends="dialog_frame" title="Start Drying" icon="heat_wave">
     <lv_dropdown name="preset_dropdown" width="100%"/>
     <lv_obj name="bed_assist_row"
             width="100%" height="content" flex_flow="row" style_pad_all="#space_sm" style_pad_gap="#space_sm"

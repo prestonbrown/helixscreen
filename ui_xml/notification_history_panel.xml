@@ -10,12 +10,12 @@
     <header_bar name="overlay_header" title="Notifications">
       <header_bar-actions>
         <ui_button name="btn_printer_events"
-                   height="#button_height" text="Printer Events" translation_tag="Printer Events" icon="script_text"
-                   style_bg_color="#secondary" style_min_width="#header_slot2_min_width">
+                   height="#button_height" text="Printer Events" icon="script_text" style_bg_color="#secondary"
+                   style_min_width="#header_slot2_min_width">
           <style name="styles.header_action"/>
           <event_cb trigger="clicked" callback="on_open_printer_events"/>
         </ui_button>
-        <ui_button name="btn_clear_all" height="#button_height" text="Clear All" translation_tag="Clear All">
+        <ui_button name="btn_clear_all" height="#button_height" text="Clear All">
           <style name="styles.header_action"/>
           <bind_flag_if_eq subject="notification_has_entries" flag="hidden" ref_value="0"/>
           <event_cb trigger="clicked" callback="on_notification_history_clear"/>

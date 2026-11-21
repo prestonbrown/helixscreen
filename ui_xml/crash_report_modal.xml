@@ -10,8 +10,7 @@
   <!-- The body is capped by #dialog_content_max and scrolls: a real crash
        report carries a resolved backtrace, so its details do reach the cap. -->
   <view name="crash_report_modal"
-        extends="dialog_frame" width="85%" title="HelixScreen Crashed" title_tag="HelixScreen Crashed" icon="alert"
-        icon_variant="warning">
+        extends="dialog_frame" width="85%" title="HelixScreen Crashed" icon="alert" icon_variant="warning">
     <!-- Details + QR row -->
     <lv_obj width="100%"
             height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_flex_cross_place="center">

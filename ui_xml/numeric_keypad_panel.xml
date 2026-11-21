@@ -45,7 +45,7 @@
                 title="" title_subject="keypad_title" title_transform="none" title_font="#keypad_title_font"
                 title_long_mode="dots" title_max_lines="2">
       <header_bar-actions>
-        <ui_button name="btn_set" height="content" text="Set " translation_tag="Set ">
+        <ui_button name="btn_set" height="content" text="Set ">
           <style name="styles.header_action"/>
           <event_cb trigger="clicked" callback="on_keypad_confirm"/>
         </ui_button>

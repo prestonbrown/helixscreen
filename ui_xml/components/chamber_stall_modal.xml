@@ -11,8 +11,8 @@
 <!-- Buttons are wired programmatically in ChamberStallModal::on_show(). -->
 <component>
   <view name="chamber_stall_modal"
-        extends="dialog_frame" width="80%" style_max_height="90%" title="Chamber heater didn't start"
-        title_tag="Chamber heater didn't start" icon="alert" icon_variant="warning">
+        extends="dialog_frame" width="80%" style_max_height="90%" title="Chamber heater didn't start" icon="alert"
+        icon_variant="warning">
     <dialog_frame-body style_pad_gap="#space_sm">
       <text_body name="chamber_stall_text" width="100%" long_mode="wrap" bind_text="chamber_stall_message"/>
       <text_muted name="chamber_stall_cancel_hint" width="100%" long_mode="wrap" bind_text="chamber_stall_cancel_hint"/>

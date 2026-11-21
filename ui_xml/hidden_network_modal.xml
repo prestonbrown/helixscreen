@@ -34,8 +34,7 @@
        button row off a 480x272 panel. The form and the connecting spinner are
        never visible together, so their heights do not sum. -->
   <view name="hidden_network_modal"
-        extends="dialog_frame" title="Add Hidden Network" title_tag="Add Hidden Network" icon="wifi_lock"
-        style_min_width="320" style_max_width="440">
+        extends="dialog_frame" title="Add Hidden Network" icon="wifi_lock" style_min_width="320" style_max_width="440">
     <!-- ============================================================ -->
     <!-- STATE: IDLE - Hidden network entry form (hidden when connecting) -->
     <!-- ============================================================ -->

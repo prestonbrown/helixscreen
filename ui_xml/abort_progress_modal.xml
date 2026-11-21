@@ -5,8 +5,7 @@
 <!-- NOTE: Backdrop created manually on lv_layer_top() to survive screen changes -->
 <!-- (Cannot use Modal::show() which defaults to lv_screen_active()) -->
 <component>
-  <view name="abort_progress_modal"
-        extends="dialog_frame" title="Cancel Print" title_tag="Cancel Print" icon="stop" icon_variant="danger">
+  <view name="abort_progress_modal" extends="dialog_frame" title="Cancel Print" icon="stop" icon_variant="danger">
     <!-- Spinner and message, centered: a progress readout -->
     <dialog_frame-body style_pad_top="#space_md"
                        style_pad_bottom="#space_xl" style_flex_cross_place="center" style_pad_gap="#space_lg">

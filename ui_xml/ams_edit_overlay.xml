@@ -122,7 +122,7 @@
         extends="overlay_panel" title="Edit Spool" title_badge_icon="spoolman" title_badge_subject="ams_edit_is_managed"
         back_button_callback="ams_edit_back_cb">
     <overlay_panel-actions>
-      <ui_button name="btn_save" height="content" text="Save" translation_tag="Save">
+      <ui_button name="btn_save" height="content" text="Save">
         <style name="styles.header_action"/>
         <bind_state_if cond="ams_edit_save_disabled eq 1 or ams_lane_records_ready eq 0" state="disabled"/>
         <bind_flag_if_eq subject="ams_edit_save_hidden" flag="hidden" ref_value="1"/>

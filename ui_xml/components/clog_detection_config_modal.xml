@@ -12,7 +12,7 @@
        Opened from grid edit mode gear icon on the clog detection widget.
        Source selection, detection mode, and danger threshold. -->
   <view name="clog_detection_config_modal"
-        extends="dialog_frame" title="Clog Detection" title_tag="Clog Detection" icon="cog" icon_variant="accent">
+        extends="dialog_frame" title="Clog Detection" icon="cog" icon_variant="accent">
     <dialog_frame-body>
 
       <!-- Source row -->

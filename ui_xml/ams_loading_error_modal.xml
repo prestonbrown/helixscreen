@@ -11,8 +11,8 @@
   </api>
   <!-- Dialog card. The close X is wired in C++ via wire_cancel_button("btn_close"). -->
   <view name="ams_loading_error_modal"
-        extends="dialog_frame" title="Loading Error" title_tag="Loading Error" icon="alert_circle" icon_variant="danger"
-        hide_close="false" style_min_width="300" style_max_width="400">
+        extends="dialog_frame" title="Loading Error" icon="alert_circle" icon_variant="danger" hide_close="false"
+        style_min_width="300" style_max_width="400">
     <!-- Error text. The body is capped at the pinned ladder and scrolls, so a long backend
          fault string scrolls inside the card instead of growing it off both screen edges,
          and the diagram in the footer stays in view. -->

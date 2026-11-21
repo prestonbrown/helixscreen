@@ -7,8 +7,7 @@
 <!-- via wire_ok_button / wire_cancel_button / wire_tertiary_button. -->
 <component>
   <view name="spaghetti_detection_modal"
-        extends="dialog_frame" style_max_height="90%" title="Print issue detected" title_tag="Print issue detected"
-        icon="alert" icon_variant="warning">
+        extends="dialog_frame" style_max_height="90%" title="Print issue detected" icon="alert" icon_variant="warning">
     <!-- Body: optional camera frame preview + message -->
     <dialog_frame-body style_flex_cross_place="center">
       <!-- Camera frame preview. Image source is fed from C++ on_show() when a

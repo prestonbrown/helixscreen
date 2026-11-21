@@ -5,8 +5,7 @@
      guided_load_view: 0 = push filament in, 1 = working, 2 = is filament coming out,
      3 = heating the nozzle (a manual load heats first). -->
 <component>
-  <view name="guided_load_modal"
-        extends="dialog_frame" width="85%" title="Load Filament" title_tag="Load Filament" icon="filament">
+  <view name="guided_load_modal" extends="dialog_frame" width="85%" title="Load Filament" icon="filament">
     <dialog_frame-body style_flex_cross_place="center">
       <!-- View 3: heating the nozzle before the hand push -->
       <lv_obj name="heating_container"

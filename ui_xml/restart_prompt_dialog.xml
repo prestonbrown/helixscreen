@@ -6,8 +6,7 @@
 <!-- User can restart now or dismiss and restart later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="restart_prompt_dialog"
-        extends="dialog_frame" title="Restart Required" title_tag="Restart Required" icon="refresh">
+  <view name="restart_prompt_dialog" extends="dialog_frame" title="Restart Required" icon="refresh">
     <!-- Message -->
     <text_muted name="dialog_message"
                 width="100%" text="Some settings will take effect after restart." long_mode="wrap"

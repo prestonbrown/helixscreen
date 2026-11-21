@@ -4,8 +4,7 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="estop_confirmation_dialog"
-        extends="dialog_frame" title="Emergency Stop?" title_tag="Emergency Stop?" icon="alert_octagon"
-        icon_variant="danger">
+        extends="dialog_frame" title="Emergency Stop?" icon="alert_octagon" icon_variant="danger">
     <text_muted width="100%"
                 text="This will immediately halt all printer operations. The printer will require a restart to resume."
                 long_mode="wrap" style_text_align="left"/>

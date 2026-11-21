@@ -17,12 +17,12 @@
   <view name="theme_preview_overlay" extends="overlay_panel" title="Theme" bg_color="#screen_bg">
     <overlay_panel-actions>
       <ui_button name="btn_edit_colors"
-                 height="#button_height_sm" text="Edit" translation_tag="Edit" style_bg_color="#secondary"
+                 height="#button_height_sm" text="Edit" style_bg_color="#secondary"
                  style_min_width="#header_slot2_min_width">
         <style name="styles.header_action"/>
         <event_cb trigger="clicked" callback="on_edit_colors_clicked"/>
       </ui_button>
-      <ui_button name="btn_apply_theme" height="#button_height_sm" text="Apply" translation_tag="Apply">
+      <ui_button name="btn_apply_theme" height="#button_height_sm" text="Apply">
         <style name="styles.header_action"/>
         <bind_state_if_eq subject="theme_apply_disabled" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_apply_theme_clicked"/>

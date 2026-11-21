@@ -15,7 +15,7 @@
   </consts>
   <!-- Dialog card -->
   <view name="spoolman_edit_modal"
-        extends="dialog_frame" style_min_width="380" style_max_width="520" title="Edit Spool" title_tag="Edit Spool"
+        extends="dialog_frame" style_min_width="380" style_max_width="520" title="Edit Spool"
         title_subject="spoolman_edit_title" icon="spoolman" hide_close="false" close_callback="spoolman_edit_close_cb">
     <!-- Body: spool preview left, form right -->
     <dialog_frame-body style_pad_left="#space_md"

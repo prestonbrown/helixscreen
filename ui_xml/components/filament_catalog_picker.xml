@@ -7,8 +7,8 @@
   <!-- 400 wide at least: the selector's Vendor and Type groups (180 each)
        share one row inside the body's side padding on a 480-wide panel. -->
   <view name="filament_catalog_picker"
-        extends="dialog_frame" height="85%" style_min_width="400" title="Choose Filament" title_tag="Choose Filament"
-        icon="filament" hide_close="false" close_callback="catalog_picker_close_cb">
+        extends="dialog_frame" height="85%" style_min_width="400" title="Choose Filament" icon="filament"
+        hide_close="false" close_callback="catalog_picker_close_cb">
     <!-- The body fills the card between the header and the button row; the
          fragment's own product_list is the sole scroll region (dropdowns stay
          put). -->

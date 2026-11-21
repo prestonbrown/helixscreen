@@ -19,9 +19,7 @@
   <styles>
     <style name="status_error" text_color="#danger"/>
   </styles>
-  <view name="belt_names_modal"
-        extends="dialog_frame" width="80%" title="Which belt is which?" title_tag="Which belt is which?"
-        icon="help_circle">
+  <view name="belt_names_modal" extends="dialog_frame" width="80%" title="Which belt is which?" icon="help_circle">
     <dialog_frame-body style_pad_gap="#space_sm">
       <!-- Path A -->
       <lv_obj width="100%"

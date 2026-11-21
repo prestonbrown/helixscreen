@@ -8,8 +8,7 @@
      the cached PreflightResult reports a blocking condition (a required tool
      maps to an empty slot). Per-tool rows are populated dynamically in C++. -->
 <component>
-  <view name="preflight_check_modal"
-        extends="dialog_frame" title="Check filament" title_tag="Check filament" icon="alert" icon_variant="warning">
+  <view name="preflight_check_modal" extends="dialog_frame" title="Check filament" icon="alert" icon_variant="warning">
     <!-- Per-tool check list; the dialog body scrolls it with the lines below
          when a many-tool print outgrows the card. Rows populated in C++. -->
     <lv_obj name="preflight_tool_list"

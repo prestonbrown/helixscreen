@@ -4,7 +4,7 @@
 <component>
   <view name="probe_accuracy_modal"
         extends="dialog_frame" width="75%" style_min_width="320" style_max_width="440" title="Probe Accuracy Test"
-        title_tag="Probe Accuracy Test" icon="target">
+        icon="target">
     <!-- ============================================================ -->
     <!-- STATE: PROBING (state=1) - Progress bar + sample readout     -->
     <!-- ============================================================ -->

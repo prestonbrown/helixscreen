@@ -73,7 +73,7 @@
     <!-- Header Bar with the Probe (calibrate) action -->
     <header_bar name="overlay_header" title="Bed Mesh">
       <header_bar-actions>
-        <ui_button name="btn_probe" height="#button_height" text="Probe" translation_tag="Probe">
+        <ui_button name="btn_probe" height="#button_height" text="Probe">
           <style name="styles.header_action"/>
           <bind_state_if cond="nav_buttons_enabled eq 0" state="disabled"/>
           <event_cb trigger="clicked" callback="on_bed_mesh_calibrate_clicked"/>

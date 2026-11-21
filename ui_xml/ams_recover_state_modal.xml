@@ -11,8 +11,7 @@
        firmware only re-syncs its tracking. Options and pre-selection come from
        AmsRecoverStateModal. Backdrop created by the Modal system. -->
   <view name="ams_recover_state_modal"
-        extends="dialog_frame" title="Recover State" title_tag="Recover State" icon="refresh" style_min_width="320"
-        style_max_width="480">
+        extends="dialog_frame" title="Recover State" icon="refresh" style_min_width="320" style_max_width="480">
     <text_small width="100%"
                 long_mode="wrap" text="Set what is really selected and loaded. Nothing moves."
                 style_text_color="#text_muted" style_text_align="left"/>

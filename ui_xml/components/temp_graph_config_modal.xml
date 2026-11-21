@@ -7,8 +7,7 @@
        Opened from grid edit mode gear icon on the temp graph widget.
        Sensor selection with enable/disable toggles and color swatches. -->
   <view name="temp_graph_config_modal"
-        extends="dialog_frame" title="Configure Graph" title_tag="Configure Graph" icon="chart_line"
-        icon_variant="accent">
+        extends="dialog_frame" title="Configure Graph" icon="chart_line" icon_variant="accent">
     <!-- The sensor list scrolls on its own, so the body adds no padding. -->
     <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0">
       <!-- Scrollable sensor list: the follow toggle, then one row per series. -->

@@ -10,7 +10,7 @@
        StepperResonanceCalModal. Backdrop created by the Modal system. -->
   <view name="stepper_resonance_cal_modal"
         extends="dialog_frame" style_min_width="320" style_max_width="480" title="Vertical Artifact Compensation"
-        title_tag="Vertical Artifact Compensation" icon="sine_wave">
+        icon="sine_wave">
     <dialog_frame-body style_flex_cross_place="center">
       <text_small width="100%" long_mode="wrap" text="$message" style_text_color="#text_muted" style_text_align="left"/>
       <text_small width="100%"

@@ -4,8 +4,8 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="ipp_print_modal"
-        extends="dialog_frame" style_min_width="320" style_max_width="420" title="Sheet Label Print"
-        title_tag="Sheet Label Print" icon="printer" icon_variant="accent">
+        extends="dialog_frame" style_min_width="320" style_max_width="420" title="Sheet Label Print" icon="printer"
+        icon_variant="accent">
     <!-- Template name -->
     <lv_obj width="100%"
             height="content" flex_flow="row" style_pad_all="0" style_bg_opa="0" style_border_width="0"

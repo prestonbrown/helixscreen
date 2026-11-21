@@ -7,8 +7,7 @@
 <component>
   <!-- NOTE: test_complete subject is registered globally in C++ (network_settings_overlay.cpp) -->
   <view name="network_test_modal"
-        extends="dialog_frame" style_min_width="300" style_max_width="380" title="Network Test" title_tag="Network Test"
-        icon="lan">
+        extends="dialog_frame" style_min_width="300" style_max_width="380" title="Network Test" icon="lan">
     <!-- Step progress container - widget created dynamically in C++ -->
     <lv_obj name="step_container"
             width="100%" height="content" style_min_height="104" style_pad_left="#space_xs" style_pad_right="0"

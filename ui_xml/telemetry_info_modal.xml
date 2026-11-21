@@ -6,7 +6,7 @@
 <component>
   <view name="telemetry_info_modal"
         extends="dialog_frame" width="75%" height="80%" style_max_height="80%" clickable="true" title="What We Collect"
-        title_tag="What We Collect" icon="chart_line">
+        icon="chart_line">
     <!-- The markdown scrolls in the body, which fills the space between header and button -->
     <dialog_frame-body height="0" flex_grow="1" style_max_height="100%" style_pad_bottom="#space_md">
       <ui_markdown name="info_text" width="100%" bind_text="telemetry_info_text"/>

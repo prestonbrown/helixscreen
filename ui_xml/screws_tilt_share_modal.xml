@@ -8,8 +8,7 @@
   <api>
     <slot name="qr" target="qr_frame"/>
   </api>
-  <view name="screws_tilt_share_modal"
-        extends="dialog_frame" width="90%" title="Bed Screw Results" title_tag="Bed Screw Results" icon="qrcode_scan">
+  <view name="screws_tilt_share_modal" extends="dialog_frame" width="90%" title="Bed Screw Results" icon="qrcode_scan">
     <dialog_frame-body style_pad_bottom="#space_sm" style_pad_gap="#space_sm">
       <!-- Body: screw rows on the left, QR on the right -->
       <lv_obj width="100%"

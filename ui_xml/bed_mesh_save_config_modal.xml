@@ -6,8 +6,7 @@
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
   <view name="bed_mesh_save_config_modal"
-        extends="dialog_frame" title="Save Printer Configuration" title_tag="Save Printer Configuration" icon="info"
-        icon_variant="success">
+        extends="dialog_frame" title="Save Printer Configuration" icon="info" icon_variant="success">
     <!-- Message -->
     <text_small width="100%" text="Save changes to persist them across restarts?" style_text_align="left"/>
     <!-- Warning about restart -->

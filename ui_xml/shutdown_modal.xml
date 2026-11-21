@@ -10,8 +10,8 @@
        shutdown_status_unknown: 1 while the printer's job state is not known.
        Both owned by the ShutdownModal C++ class, registered into component scope. -->
   <view name="shutdown_modal"
-        extends="dialog_frame" title="Shutdown / Reboot" title_tag="Shutdown / Reboot" icon="power"
-        icon_variant="warning" hide_close="false" close_callback="on_modal_cancel_clicked">
+        extends="dialog_frame" title="Shutdown / Reboot" icon="power" icon_variant="warning" hide_close="false"
+        close_callback="on_modal_cancel_clicked">
     <!-- Each view below carries its own padding, so the body adds none. -->
     <dialog_frame-body style_pad_left="0" style_pad_right="0" style_pad_bottom="0" style_pad_gap="0">
       <!-- Confirm message — single scope -->

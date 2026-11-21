@@ -5,8 +5,7 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
-  <view name="bed_mesh_calibrate_modal"
-        extends="dialog_frame" width="75%" title="Bed Mesh" title_tag="Bed Mesh" icon="grid_large">
+  <view name="bed_mesh_calibrate_modal" extends="dialog_frame" width="75%" title="Bed Mesh" icon="grid_large">
     <!-- ============================================================ -->
     <!-- STATE: PROBING (state=1) - Progress bar + E-Stop -->
     <!-- ============================================================ -->

@@ -13,8 +13,7 @@
        the macro list scrolls within it. -->
   <view name="favorite_macro_config_modal"
         extends="dialog_frame" width="90%" height="85%" style_max_width="600" style_max_height="520"
-        title="Customize Macro Button" title_tag="Customize Macro Button" icon="script_text" hide_close="false"
-        close_callback="fav_macro_config_close_cb">
+        title="Customize Macro Button" icon="script_text" hide_close="false" close_callback="fav_macro_config_close_cb">
     <!-- The body fills the card; the tab bar and each section carry their own
          padding, and the active section's list or grid is what scrolls. -->
     <dialog_frame-body flex_grow="1"

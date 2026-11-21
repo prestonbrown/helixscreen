@@ -4,8 +4,8 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="job_queue_modal"
-        extends="dialog_frame" width="85%" height="85%" title="Job Queue" title_tag="Job Queue" icon="progress_clock"
-        icon_variant="accent" hide_close="false" close_callback="on_jq_modal_close">
+        extends="dialog_frame" width="85%" height="85%" title="Job Queue" icon="progress_clock" icon_variant="accent"
+        hide_close="false" close_callback="on_jq_modal_close">
     <!-- The card stands at the shared 85% cap and the body takes the rest of
          it, so a long queue scrolls in the full card height. -->
     <dialog_frame-body flex_grow="1" style_max_height="100%">
