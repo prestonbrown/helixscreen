@@ -139,7 +139,7 @@ void ensure_ams_widgets_registered() {
         helix::asset_component_uri("ui_xml/ams_context_menu.xml").c_str());
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_selector_menu.xml").c_str());
-    // NOTE: spoolman_spool_item.xml and ams_edit_overlay.xml are registered
+    // NOTE: ams_edit_overlay.xml is registered
     // globally in xml_registration.cpp (needed by FilamentPanel without AMS lazy init)
     lv_xml_register_component_from_file(
         helix::asset_component_uri("ui_xml/ams_loading_error_modal.xml").c_str());

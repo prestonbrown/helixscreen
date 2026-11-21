@@ -732,9 +732,6 @@
     <px name="ams_title_row_height_xlarge" value="68"/>
     <px name="ams_title_row_height_xxlarge" value="80"/>
 
-    <!-- NOTE: spool_row_min_height_* and spool_swatch_size_* are component-scoped
-         in ui_xml/spoolman_spool_item.xml (their only consumer). -->
-
     <!-- ===================================================================== -->
     <!-- Responsive Panel Heights (print status, file detail, history)         -->
     <!-- ===================================================================== -->

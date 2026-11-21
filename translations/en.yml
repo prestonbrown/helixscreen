@@ -319,9 +319,11 @@ translations:
   Add part fan to MPC?: Add part fan to MPC?
   Add to Mainsail/Fluidd Webcams: Add to Mainsail/Fluidd Webcams
   Add to Queue: Add to Queue
+  Add to Spoolman & Assign: Add to Spoolman & Assign
   Add to Spoolman + label: Add to Spoolman + label
   Added: Added
   Added to Spoolman: Added to Spoolman
+  'Added to Spoolman as #{}': 'Added to Spoolman as #{}'
   Added to queue (position {}): Added to queue (position {})
   Added to queue (position {}) - queue is paused: Added to queue (position {}) - queue is paused
   Adding printer: Adding printer
@@ -428,7 +430,9 @@ translations:
   Ask before turning off the stepper motors: 'Ask before turning off the stepper motors'
   Ask every time: Ask every time
   Ask for parameters: Ask for parameters
+  Assign: Assign
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assign Klipper macros to control LEDs via on/off, toggle, or presets
+  Assign Spool: Assign Spool
   Assign a role to enable sensor monitoring: Assign a role to enable sensor monitoring
   Assign a slot first: Assign a slot first
   Assigned Tool: Assigned Tool
@@ -904,6 +908,7 @@ translations:
   Clear All Events: Clear All Events
   Clear Console?: Clear Console?
   Clear Error: Clear Error
+  Clear Lane: Clear Lane
   Clear Spool: Clear Spool
   Clear and clean the build plate, then resume.: Clear and clean the build plate, then resume.
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.
@@ -950,6 +955,7 @@ translations:
   Command Failed: Command Failed
   Command failed: Command failed
   Command not allowed: Command not allowed
+  Common spools to start from: Common spools to start from
   Communication Test: Communication Test
   Compact: Compact
   Compare belt paths with a resonance sweep: Compare belt paths with a resonance sweep
@@ -1171,6 +1177,7 @@ translations:
   Could not verify Spoolman status. Moonraker may still be restarting.: Could not verify Spoolman status. Moonraker may still be restarting.
   Couldn't assign the tool: Couldn't assign the tool
   Couldn't clear the printer's gate map: Couldn't clear the printer's gate map
+  Couldn't load spools — tap to retry: Couldn't load spools — tap to retry
   "Couldn't map filament: internal error": "Couldn't map filament: internal error"
   "Couldn't map filament: no temp directory available": "Couldn't map filament: no temp directory available"
   Couldn't save the material name: Couldn't save the material name
@@ -1194,6 +1201,7 @@ translations:
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
   Ctrl: Ctrl
   Currency: Currency
+  Current: Current
   Current / Target: Current / Target
   Current Configuration: Current Configuration
   Current Mesh: Current Mesh
@@ -1296,6 +1304,7 @@ translations:
   Device name is required: Device name is required
   'Device: ': 'Device: '
   Devices: Devices
+  Different Spool: Different Spool
   Different color: Different color
   Different filament?: Different filament?
   Different material: Different material
@@ -2360,6 +2369,7 @@ translations:
   Labels: Labels
   Labels Per Sheet: Labels Per Sheet
   Lane: Lane
+  Lane Settings: Lane Settings
   Lane name contains invalid characters: Lane name contains invalid characters
   Lane tests and motor resets: Lane tests and motor resets
   Lanes: Lanes
@@ -2583,6 +2593,7 @@ translations:
   Matched at {:.1f} Hz: Matched at {:.1f} Hz
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
+  Matching Spools: Matching Spools
   Matching printers: Matching printers
   Material: Material
   'Material Comfort:': 'Material Comfort:'
@@ -2856,6 +2867,7 @@ translations:
   No spool linked: No spool linked
   No spools found — tap to retry: No spools found — tap to retry
   No spools match your search: No spools match your search
+  No spools match. Add it as a new spool below.: No spools match. Add it as a new spool below.
   No spools placed: No spools placed
   No tape detected in printer: No tape detected in printer
   No target printer configured: No target printer configured
@@ -2888,6 +2900,7 @@ translations:
   Not Enough Filament: Not Enough Filament
   Not Enough Memory: Not Enough Memory
   Not Initialized: Not Initialized
+  Not Listed? Add New Spool: Not Listed? Add New Spool
   Not Now: Not Now
   Not Supported: Not Supported
   Not added: Not added
@@ -2913,6 +2926,9 @@ translations:
   Not turned: Not turned
   'Not saved: {}. Try again.': 'Not saved: {}. Try again.'
   Not set: Not set
+  'Not undone: the lane changed since that save.': 'Not undone: the lane changed since that save.'
+  'Not undone: the printer changed since that save.': 'Not undone: the printer changed since that save.'
+  'Not undone: {}': 'Not undone: {}'
   Not while printing: Not while printing
   Not yet available on this display: Not yet available on this display
   Not yet calibrated: Not yet calibrated
@@ -3102,6 +3118,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: Part of the plugin failed to load. Reinstall the plugin.
   Part of the plugin is missing. Reinstall the plugin.: Part of the plugin is missing. Reinstall the plugin.
   Part, hotend, and auxiliary fan speeds: Part, hotend, and auxiliary fan speeds
+  Partial…: Partial…
   Pass: Pass
   Password: Password
   Password cannot be empty: Password cannot be empty
@@ -3526,6 +3543,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: Recalibrate or view detailed results anytime in Settings.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Received oversized data from printer ({} bytes). This may indicate a communication error.
   Recent Prints: Recent Prints
+  Recent Spools: Recent Spools
   Recently Printed: Recently Printed
   Recirculate: Recirculate
   Recirculation fan: Recirculation fan
@@ -3836,6 +3854,7 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: Saves a camera photo after layer 2 and when each print ends, shown in print history.
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.
   Saves to Klipper config and restarts firmware.: Saves to Klipper config and restarts firmware.
+  'Saves to Spoolman spool #{}': 'Saves to Spoolman spool #{}'
   Saves when the filament operation finishes.: Saves when the filament operation finishes.
   Saves when the filament operation on {} finishes.: Saves when the filament operation on {} finishes.
   Saves when the load finishes.: Saves when the load finishes.
@@ -3854,6 +3873,7 @@ translations:
   Saving...: Saving...
   Scan: Scan
   Scan Cal: Scan Cal
+  Scan Label: Scan Label
   Scan QR Code: Scan QR Code
   Scan Spool QR Code: Scan Spool QR Code
   Scan and select a Bluetooth printer first: Scan and select a Bluetooth printer first
@@ -4121,6 +4141,7 @@ translations:
   'Spool #{}': 'Spool #{}'
   Spool Info: Spool Info
   Spool Not Found: Spool Not Found
+  Spool Size: Spool Size
   Spool Weight (g): Spool Weight (g)
   Spool archived: Spool archived
   Spool created successfully: Spool created successfully
@@ -4155,6 +4176,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu Spools'
   SpoolmanDB search failed: SpoolmanDB search failed
   Spools: Spools
+  Spools Used on This Printer: Spools Used on This Printer
   Spools are off: Spools are off
   'Spools are on the bed: remove them and confirm before moving the printer': 'Spools are on the bed: remove them and confirm before moving the printer'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'Spools are on the bed: tap the drying banner to confirm they are off, then restart.'
@@ -4896,6 +4918,7 @@ translations:
   Tool offsets (mm): Tool offsets (mm)
   Tool offsets saved: Tool offsets saved
   Tool swap: Tool swap
+  Tool, runout backup: Tool, runout backup
   Toolchange purge: Toolchange purge
   Toolhead: Toolhead
   Toolhead Calibration Running: Toolhead Calibration Running
@@ -5089,6 +5112,7 @@ translations:
   Upload unavailable in this build: Upload unavailable in this build
   Upper belt: Upper belt
   Uptime: Uptime
+  Use: Use
   Use AFC's mapping commands to add or move a tool: Use AFC's mapping commands to add or move a tool
   Use Android native keyboard for text input: Use Android native keyboard for text input
   Use Another Toolhead: Use Another Toolhead
@@ -5349,6 +5373,7 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': '[{}] was found {} times in the config files printer.cfg loads, expected once'
   a newer version: a newer version
   already loaded: already loaded
+  assign without adding to Spoolman: assign without adding to Spoolman
   attempt {}: attempt {}
   auto: auto
   bed: bed
@@ -5357,6 +5382,7 @@ translations:
   by: by
   by Preston Brown: by Preston Brown
   chamber heater: chamber heater
+  'close: {}': 'close: {}'
   color differs: color differs
   complete: complete
   cores: cores
@@ -5432,6 +5458,7 @@ translations:
   rendering: rendering
   reset at {} h: reset at {} h
   set manually: set manually
+  similar color: similar color
   sleep {} min: sleep {} min
   slots): slots)
   started: started
@@ -5476,6 +5503,7 @@ translations:
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)'
+  '{:.0f} g left': '{:.0f} g left'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruders'

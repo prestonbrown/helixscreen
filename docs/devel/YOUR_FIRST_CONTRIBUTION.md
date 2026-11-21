@@ -316,7 +316,7 @@ AMS is a large C++ panel (`src/ui/filament/ui_panel_ams.cpp`) plus a family of `
 | `ams_current_tool.xml` | "Currently loaded" display at the top |
 | `ams_device_section_detail.xml` | Detail pane showing humidity, temp, etc. |
 | `ams_device_operations.xml` | Action buttons (load, unload, purge) |
-| `ams_edit_overlay.xml` | Edit filament assigned to a slot |
+| `ams_edit_overlay.xml` | Assign a spool to a lane, or edit the one it holds |
 | `ams_context_menu.xml` | Long-press context menu |
 | `ams_selector_menu.xml` | Selector context menu (switch active lane) |
 | `ams_loading_error_modal.xml` | Error state dialog |

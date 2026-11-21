@@ -321,6 +321,7 @@ translations:
   Add to Queue: Zur Warteschlange hinzufügen
   Added: Hinzugefügt
   Added to Spoolman: Zu Spoolman hinzugefügt
+  'Added to Spoolman as #{}': 'Zu Spoolman hinzugefügt als #{}'
   Added to queue (position {}): Zur Warteschlange hinzugefügt (Position {})
   Added to queue (position {}) - queue is paused: Zur Warteschlange hinzugefügt (Position {}) – Warteschlange ist pausiert
   Adding printer: Drucker wird hinzugefügt
@@ -427,7 +428,9 @@ translations:
   Ask before turning off the stepper motors: 'Vor dem Abschalten der Schrittmotoren fragen'
   Ask every time: 'Jedes Mal fragen'
   Ask for parameters: 'Nach Parametern fragen'
+  Assign: Zuweisen
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
+  Assign Spool: Spule zuweisen
   Assign a role to enable sensor monitoring: Rolle zuweisen, um Sensorüberwachung zu aktivieren
   Assign a slot first: 'Zuerst einen Slot zuweisen'
   Assigned Tool: Zugewiesenes Werkzeug
@@ -903,6 +906,7 @@ translations:
   Clear All Events: Alle Ereignisse löschen
   Clear Console?: Konsole leeren?
   Clear Error: Fehler löschen
+  Clear Lane: Spur leeren
   Clear Spool: Spule entfernen
   Clear and clean the build plate, then resume.: 'Druckplatte räumen und reinigen, dann fortsetzen.'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: 'Schmutz von Schlitten und Verriegelung des Kopfs entfernen, den Kopf neu einsetzen, dann referenzieren und fortsetzen.'
@@ -951,6 +955,7 @@ translations:
   Command Failed: 'Befehl fehlgeschlagen'
   Command failed: Befehl fehlgeschlagen
   Command not allowed: 'Befehl nicht erlaubt'
+  Common spools to start from: Gängige Spulen zum Start
   Communication Test: 'Kommunikationstest'
   Compact: Kompakt
   Compare belt paths with a resonance sweep: "Riemenpfade mit einem Resonanz-Sweep vergleichen"
@@ -1175,6 +1180,7 @@ translations:
   Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman-Status konnte nicht überprüft werden. Moonraker startet möglicherweise noch neu.
   Couldn't assign the tool: Werkzeug konnte nicht zugewiesen werden
   Couldn't clear the printer's gate map: Gate-Zuordnung des Druckers konnte nicht geleert werden
+  Couldn't load spools — tap to retry: Spulen konnten nicht geladen werden — tippen zum Wiederholen
   "Couldn't map filament: internal error": 'Filament-Zuordnung nicht möglich: interner Fehler'
   "Couldn't map filament: no temp directory available": 'Filament-Zuordnung nicht möglich: kein temporäres Verzeichnis verfügbar'
   Couldn't save the material name: 'Materialname konnte nicht gespeichert werden'
@@ -1198,6 +1204,7 @@ translations:
   'Critical hardware missing: {}': 'Kritische Hardware fehlt: {}'
   Ctrl: 'Strg'
   Currency: "Währung"
+  Current: Aktuell
   Current / Target: Aktuell / Ziel
   Current Configuration: Aktuelle Konfiguration
   Current Mesh: Aktuelles Netz
@@ -1300,6 +1307,7 @@ translations:
   Device name is required: Gerätename ist erforderlich
   'Device: ': 'Gerät: '
   Devices: Geräte
+  Different Spool: Andere Spule
   Different color: 'Andere Farbe'
   Different filament?: Anderes Filament?
   Different material: 'Anderes Material'
@@ -2377,6 +2385,7 @@ translations:
   Labels: Etiketten
   Labels Per Sheet: Etiketten pro Blatt
   Lane: Spur
+  Lane Settings: Spur-Einstellungen
   Lane name contains invalid characters: 'Der Spurname enthält ungültige Zeichen'
   Lane tests and motor resets: 'Spurtests und Motor-Rücksetzungen'
   Lanes: Spuren
@@ -2603,6 +2612,7 @@ translations:
   Matched at {:.1f} Hz: "Abgeglichen bei {:.1f} Hz"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "Gleich gespannte Riemen ergeben Kurven gleicher Form. Hat die höchste Spitze eines Pfads kein Gegenstück auf dem anderen, prägt etwas anderes als die Spannung die Antwort:\n\n- ein abgenutzter, ausgefranster oder schief laufender Riemen\n- eine lose oder rutschende Madenschraube am Pulley\n- eine klemmende Umlenkrolle oder ein Lager\n- Schmutz in den Zähnen oder ein Riemen, der an einem Bund schleift\n- eine lose Beschleunigungssensor-Halterung\n\nDie Einstellung folgt weiter der Zone, die sich mit der Drehung bewegt hat, aber prüfe diese Punkte, bevor du einem perfekten Abgleich nachjagst."
+  Matching Spools: Passende Spulen
   Matching printers: Passende Drucker
   Material: Material
   'Material Comfort:': 'Materialkomfort:'
@@ -2872,6 +2882,7 @@ translations:
   No spool linked: 'Keine Spule verknüpft'
   No spools found — tap to retry: Keine Spulen gefunden — tippen zum Wiederholen
   No spools match your search: Keine Spulen entsprechen Ihrer Suche
+  No spools match. Add it as a new spool below.: Keine passenden Spulen. Unten als neue Spule hinzufügen.
   No spools placed: Keine Spulen eingelegt
 
   No tape detected in printer: Kein Band im Drucker erkannt
@@ -2906,6 +2917,7 @@ translations:
   Not Enough Filament: Nicht genug Filament
   Not Enough Memory: "Nicht genug Speicher"
   Not Initialized: 'Nicht initialisiert'
+  Not Listed? Add New Spool: Nicht dabei? Neue Spule hinzufügen
   Not Now: Nicht jetzt
   Not Supported: 'Nicht unterstützt'
   Not added: Nicht hinzugefügt
@@ -2931,6 +2943,9 @@ translations:
   Not turned: 'Ungedreht'
   'Not saved: {}. Try again.': "Nicht gespeichert: {}. Bitte erneut versuchen."
   Not set: Nicht festgelegt
+  'Not undone: the lane changed since that save.': 'Nicht rückgängig gemacht: Die Spur hat sich seitdem geändert.'
+  'Not undone: the printer changed since that save.': 'Nicht rückgängig gemacht: Der Drucker hat sich seitdem geändert.'
+  'Not undone: {}': 'Nicht rückgängig gemacht: {}'
   Not while printing: 'Nicht während des Drucks'
   Not yet available on this display: 'Auf diesem Display noch nicht verfügbar'
   Not yet calibrated: Noch nicht kalibriert
@@ -3121,6 +3136,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Ein Teil des Plugins konnte nicht geladen werden. Installiere das Plugin neu."
   Part of the plugin is missing. Reinstall the plugin.: "Ein Teil des Plugins fehlt. Installiere das Plugin neu."
   Part, hotend, and auxiliary fan speeds: 'Bauteil-, Hotend- und Zusatzlüftergeschwindigkeiten'
+  Partial…: Teilweise…
   Pass: "Durchgang"
   Password: Passwort
   Password cannot be empty: Passwort darf nicht leer sein
@@ -3545,6 +3561,7 @@ translations:
   Recalibrate or view detailed results anytime in Settings.: Jederzeit in den Einstellungen neu kalibrieren oder detaillierte Ergebnisse anzeigen.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen.
   Recent Prints: Letzte Drucke
+  Recent Spools: Zuletzt verwendete Spulen
   Recently Printed: Zuletzt gedruckt
   Recirculate: 'Umwälzen'
   Recirculation fan: 'Umwälzlüfter'
@@ -3855,6 +3872,7 @@ translations:
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: 'Speichert nach Schicht 2 und am Ende jedes Drucks ein Kamerafoto, das im Druckverlauf angezeigt wird.'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Speichert die Druckposition etwa einmal pro Sekunde, damit ein Druck nach einem Stromausfall fortgesetzt werden kann. Auf einer SD-Karte erhöht das den Verschleiß.
   Saves to Klipper config and restarts firmware.: Speichert in Klipper-Konfiguration und startet Firmware neu.
+  'Saves to Spoolman spool #{}': 'Speichert in Spoolman-Spule #{}'
   Saves when the filament operation finishes.: 'Wird gespeichert, wenn der Filamentvorgang abgeschlossen ist.'
   Saves when the filament operation on {} finishes.: 'Wird gespeichert, wenn der Filamentvorgang an {} abgeschlossen ist.'
   Saves when the load finishes.: 'Wird gespeichert, wenn das Laden abgeschlossen ist.'
@@ -3874,6 +3892,7 @@ translations:
   Saving...: Speichern...
   Scan: Suchen
   Scan Cal: Scan-Kal.
+  Scan Label: Etikett scannen
   Scan QR Code: QR-Code scannen
   Scan Spool QR Code: Spulen-QR-Code scannen
   Scan and select a Bluetooth printer first: Zuerst Bluetooth-Drucker suchen und auswählen
@@ -4141,6 +4160,7 @@ translations:
   'Spool #{}': 'Spule #{}'
   Spool Info: Spuleninfo
   Spool Not Found: 'Spule nicht gefunden'
+  Spool Size: Spulengröße
   Spool Weight (g): Spulengewicht (g)
   Spool archived: Spule archiviert
   Spool created successfully: Spule erfolgreich erstellt
@@ -4175,6 +4195,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu Spulen'
   SpoolmanDB search failed: 'SpoolmanDB-Suche fehlgeschlagen'
   Spools: 'Spulen'
+  Spools Used on This Printer: Auf diesem Drucker verwendete Spulen
   Spools are off: "Spulen sind entnommen"
   'Spools are on the bed: remove them and confirm before moving the printer': 'Spulen liegen auf dem Heizbett: entferne sie und bestätige, bevor der Drucker bewegt wird'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'Spulen liegen auf dem Heizbett: Tippe auf das Trocknungsbanner, um zu bestätigen, dass sie entnommen sind, und starte dann neu.'
@@ -4925,6 +4946,7 @@ translations:
   Tool offsets (mm): Werkzeug-Offsets (mm)
   Tool offsets saved: Werkzeug-Offsets gespeichert
   Tool swap: Werkzeugwechsel
+  Tool, runout backup: Werkzeug, Ersatz bei Filamentende
   Toolchange purge: 'Werkzeugwechsel-Entlüftung'
   Toolhead: 'Werkzeugkopf'
   Toolhead Calibration Running: 'Werkzeugkopf-Kalibrierung läuft'
@@ -5114,6 +5136,7 @@ translations:
   Upload unavailable in this build: Hochladen in diesem Build nicht verfügbar
   Upper belt: "Riemen oben"
   Uptime: Betriebszeit
+  Use: Verwenden
   Use AFC's mapping commands to add or move a tool: 'Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben'
   Use Android native keyboard for text input: Native Android-Tastatur für Texteingabe verwenden
   Use Another Toolhead: 'Anderen Werkzeugkopf verwenden'
@@ -5373,6 +5396,7 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] wurde {}-mal in den von printer.cfg geladenen Konfigurationsdateien gefunden, erwartet einmal"
   a newer version: 'eine neuere Version'
   already loaded: 'bereits geladen'
+  assign without adding to Spoolman: ohne Spoolman zuweisen
   attempt {}: 'Versuch {}'
   auto: auto
   bed: Bett
@@ -5381,6 +5405,7 @@ translations:
   by: 'von'
   by Preston Brown: von Preston Brown
   chamber heater: Kammerheizung
+  'close: {}': 'ähnlich: {}'
   color differs: 'Farbe abweichend'
   complete: abgeschlossen
   cores: Kerne
@@ -5461,6 +5486,7 @@ translations:
   rendering: wird gerendert
   reset at {} h: 'zurückgesetzt bei {} Std'
   set manually: 'manuell gesetzt'
+  similar color: ähnliche Farbe
   sleep {} min: Ruhezustand nach {} Min.
   slots): Slots)
   started: gestartet
@@ -5505,6 +5531,7 @@ translations:
   : "{0} schwingt bei {2:.0f} Hz viel stärker als {1}. Das deutet auf einen mechanischen Unterschied hin (Madenschrauben am Pulley, Umlenkrollenlager, Riemenlauf), nicht auf die Spannung."
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% weniger)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% mehr)'
+  '{:.0f} g left': noch {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · ca. {} Min.'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruder'
@@ -5636,6 +5663,7 @@ translations:
   'Basic': 'Standard'
   Recovery is not possible in the printer's current state.: 'Im aktuellen Zustand des Druckers ist keine Wiederherstellung möglich.'
   'Recycled': 'Recycelt'
+  Add to Spoolman & Assign: Zu Spoolman hinzufügen & zuweisen
   'Add to Spoolman + label': 'Zu Spoolman hinzufügen + Etikett'
   'More': 'Mehr'
   Price per kWh: "Preis pro kWh"
