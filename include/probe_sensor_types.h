@@ -96,4 +96,19 @@ inline constexpr EnumName<ProbeSensorType> kProbeSensorTypes[] = {
     return enum_from_id(kProbeSensorTypes, str);
 }
 
+/// The probe measures with the nozzle itself touching the bed, so Z offset needs no
+/// paper test. Cartographer and Beacon are absent: both also run as scanners, and the
+/// type alone does not say which mode a printer uses.
+[[nodiscard]] constexpr bool probe_contacts_nozzle(ProbeSensorType type) {
+    switch (type) {
+    case ProbeSensorType::TAP:
+    case ProbeSensorType::SMART_EFFECTOR:
+    case ProbeSensorType::PRTOUCH_V2:
+    case ProbeSensorType::LOADCELL:
+        return true;
+    default:
+        return false;
+    }
+}
+
 } // namespace helix::sensors

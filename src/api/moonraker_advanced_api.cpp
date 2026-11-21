@@ -2904,6 +2904,36 @@ void MoonrakerAdvancedAPI::save_config(SuccessCallback on_success, ErrorCallback
     api_.execute_gcode("SAVE_CONFIG", std::move(on_success), std::move(on_error));
 }
 
+void MoonrakerAdvancedAPI::save_config_without_restart(SuccessCallback on_success,
+                                                       ErrorCallback on_error) {
+    spdlog::info("[MoonrakerAPI] Sending SAVE_CONFIG RESTART=0");
+    api_.execute_gcode("SAVE_CONFIG RESTART=0", std::move(on_success), std::move(on_error));
+}
+
+json MoonrakerAdvancedAPI::pending_items_from(const json& response) {
+    const json* items = json_util::find_path(response, "result", "status", "configfile",
+                                             "save_config_pending_items");
+    return items && items->is_object() ? *items : json(nullptr);
+}
+
+void MoonrakerAdvancedAPI::get_save_config_pending_items(
+    helix::SharedCallback<void(const json&)> on_items, ErrorCallback on_error) {
+    json params = {
+        {"objects", json::object({{"configfile", json::array({"save_config_pending_items"})}})}};
+    client_.send_jsonrpc(
+        "printer.objects.query", params,
+        [on_items](const json& response) {
+            if (on_items) {
+                on_items(pending_items_from(response));
+            }
+        },
+        [on_error](const MoonrakerError& err) {
+            if (on_error) {
+                on_error(err);
+            }
+        });
+}
+
 void MoonrakerAdvancedAPI::execute_macro(const std::string& name,
                                          const std::map<std::string, std::string>& params,
                                          SuccessCallback on_success, ErrorCallback on_error,

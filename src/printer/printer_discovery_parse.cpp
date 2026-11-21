@@ -1076,6 +1076,7 @@ void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
     software_version_ = json_util::safe_string(result, "software_version", "unknown");
     if (json_util::safe_string(result, "app") == "Kalico") {
         is_kalico_ = true;
+        save_config_takes_restart_param_ = true;
     }
 }
 
@@ -1163,6 +1164,7 @@ void PrinterDiscovery::clear() {
     leveling_probe_points_.clear();
     probe_xy_offset_.reset();
     z_position_endstop_.reset();
+    calibration_in_config_.clear();
     firmware_runs_start_macro_before_file_ = false;
     fan_max_power_.clear();
     fan_tachometers_.clear();
@@ -1183,6 +1185,7 @@ void PrinterDiscovery::clear() {
     has_speaker_ = false;
     has_fan_feedback_ = false;
     is_kalico_ = false;
+    save_config_takes_restart_param_ = false;
     mmu_type_ = AmsType::NONE;
     qidi_box_slot_count_ = 0;
     detected_ams_systems_.clear();

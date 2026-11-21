@@ -859,6 +859,7 @@ void MoonrakerClientMock::populate_capabilities() {
         hw.parse_build_volume(mock_config);
         hw.parse_probe_xy_offset(mock_config);
         hw.parse_z_position_endstop(mock_config);
+        hw.parse_calibration_in_config(mock_config);
         macros_snapshot = hw.macros();
     });
 

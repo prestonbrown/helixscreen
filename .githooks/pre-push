@@ -43,12 +43,11 @@
 # swept in a throwaway checkout of that commit. Patch drift still runs: it
 # describes this tree's lib/, not the commit.
 #
-# The ESP32 syntax check is skipped too when the gate's own run covers it: every
-# pushed ref is main, and the pushed range lies inside the range the gate's
-# esp32 row measured (merge-base(HEAD, origin/main)..HEAD, which that row runs
-# with --require). Then the push runs patch drift alone, in seconds, with no
-# throwaway checkout. A push to release/* or a tag still runs the ESP32 check:
-# the gate measured its range from origin/main, not from that line.
+# A gated tip needs nothing from its own checkout, so it runs patch drift
+# alone, in seconds, with no throwaway checkout.
+#
+# No ESP32 firmware compile runs here or in make land-gate: CI's esp32-build
+# job is the ESP32 check.
 #
 # Doc anchors are not checked here: `make check-doc-anchors` is advisory, takes
 # over a minute, and blocks nothing, so a push would wait on a report it ignores.
@@ -74,7 +73,6 @@ cd "$REPO_ROOT"
 TARGET=""
 REMOTE_SHA=""
 WORK_BRANCHES_ONLY=1
-MAIN_ONLY=1
 PROTECTED_SHAS=""
 while read -r _local_ref local_sha remote_ref remote_sha; do
     # All zeros is a branch deletion: it publishes no content to gate.
@@ -82,7 +80,6 @@ while read -r _local_ref local_sha remote_ref remote_sha; do
         "" | *[!0]*) TARGET="$local_sha" REMOTE_SHA="$remote_sha" ;;
         *) continue ;;
     esac
-    [ "$remote_ref" = refs/heads/main ] || MAIN_ONLY=""
     case "$remote_ref" in
         refs/heads/main | refs/heads/release/* | refs/tags/*)
             WORK_BRANCHES_ONLY=""
@@ -123,43 +120,13 @@ if [ -z "${HELIX_PREPUSH_FULL:-}" ]; then
         GATE_PASSED=1
     fi
 fi
-# esp32_covered_by_gate: the gate's esp32 row, merge-base(TARGET, origin/main)
-# to TARGET, holds the whole pushed range, BASE to TARGET.
-esp32_covered_by_gate() {
-    local fork
-    [ -n "$MAIN_ONLY" ] && [ -n "$BASE" ] || return 1
-    fork=$(git merge-base "$TARGET" origin/main 2>/dev/null) || return 1
-    git merge-base --is-ancestor "$fork" "$BASE" 2>/dev/null &&
-        git merge-base --is-ancestor "$BASE" "$TARGET" 2>/dev/null
-}
-# A push the gate's esp32 row covered needs nothing from the pushed commit's
-# own checkout, so it takes the in-place path below whatever the tree holds.
-ESP32_COVERED=""
-if [ -n "$GATE_PASSED" ] && esp32_covered_by_gate; then ESP32_COVERED=1; fi
-
 gate_passed_note() {
-    if [ -n "$ESP32_COVERED" ]; then
-        echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep and the ESP32 check its esp32 row covered (HELIX_PREPUSH_FULL=1 runs them)"
-    else
-        echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
-    fi
-}
-
-# Code that compiles on the host can still fail on the ESP32 image: int32_t is
-# long on Xtensa and the image builds -fno-exceptions. This syntax-checks the
-# firmware units the pushed commits reach, measured from what the remote has;
-# a new branch measures from its merge-base with origin/main.
-esp32_syntax_check() {
-    local tree="$1"
-    [ -f "$tree/scripts/esp32_syntax_check.py" ] || return 0
-    [ -n "$BASE" ] || return 0
-    echo ""
-    python3 "$tree/scripts/esp32_syntax_check.py" --tree "$tree" --base "$BASE" --head "$TARGET"
+    echo "⏭️  pre-push: make land-gate passed ${TARGET:0:9}${GATE_HOST:+ on $GATE_HOST}; skipping the quality sweep it ran (HELIX_PREPUSH_FULL=1 runs it)"
 }
 
 TREE_DIFFERS="$(git diff --name-only "$TARGET" -- . | head -1)"
 
-if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ] || [ -n "$ESP32_COVERED" ]; then
+if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ] || [ -n "$GATE_PASSED" ]; then
     STATUS=0
     if [ -n "$GATE_PASSED" ]; then
         gate_passed_note
@@ -170,7 +137,6 @@ if [ -n "${HELIX_PREPUSH_IN_PLACE:-}" ] || [ -z "$TREE_DIFFERS" ] || [ -n "$ESP3
         env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 ./scripts/quality-checks.sh || STATUS=$?
     fi
     prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
-    [ -n "$ESP32_COVERED" ] || esp32_syntax_check "$REPO_ROOT" || STATUS=1
     exit "$STATUS"
 fi
 
@@ -235,16 +201,10 @@ done
 # never built. Reporting green off an unbuilt tree would be a vacuous pass, so
 # the gate declines - correctly - and the question moves below with patch drift.
 STATUS=0
-if [ -n "$GATE_PASSED" ]; then
-    gate_passed_note
-else
-    echo "🚦 pre-push: $SWEEP_NOTE"
-    ( cd "$ISOLATED/tree" \
-        && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
-           ./scripts/quality-checks.sh ) || STATUS=$?
-fi
-
-esp32_syntax_check "$ISOLATED/tree" || STATUS=1
+echo "🚦 pre-push: $SWEEP_NOTE"
+( cd "$ISOLATED/tree" \
+    && env $SWEEP_ENV HELIX_QC_SKIP_PATCH_DRIFT=1 HELIX_QC_SKIP_CLANG_DIVERGENCE=1 \
+       ./scripts/quality-checks.sh ) || STATUS=$?
 
 if [ "$STATUS" -ne 0 ]; then
     echo ""
@@ -254,7 +214,7 @@ fi
 
 prepush_patch_drift "$REPO_ROOT" "$BASE" "$TARGET" || STATUS=1
 
-if [ -z "$GATE_PASSED" ] && [ -z "$WORK_BRANCHES_ONLY" ] &&
+if [ -z "$WORK_BRANCHES_ONLY" ] &&
     [ -f "$REPO_ROOT/scripts/check_clang_diagnostics.py" ]; then
     echo ""
     echo "🐉 Checking clang/GCC divergence in your working tree (it has the compile database)..."

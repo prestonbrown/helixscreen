@@ -1547,7 +1547,7 @@ void BedMeshPanel::execute_save_config() {
     if (!api)
         return;
 
-    spdlog::info("[{}] Saving config (will restart Klipper)", get_name());
+    spdlog::info("[{}] Saving config", get_name());
 
     operation_guard_.begin(kSlowOperationTimeoutMs, [this] {
         hide_all_modals();

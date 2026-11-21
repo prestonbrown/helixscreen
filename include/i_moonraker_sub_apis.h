@@ -448,6 +448,20 @@ class IAdvancedAPI {
 
     virtual void save_config(SuccessCallback on_success, ErrorCallback on_error) = 0;
 
+    /// SAVE_CONFIG RESTART=0: write printer.cfg without restarting Klipper.
+    /// Only for a firmware that takes the parameter, and only when every
+    /// pending item is already live (helix::save_config::restart_required()).
+    virtual void save_config_without_restart(SuccessCallback on_success,
+                                             ErrorCallback on_error) = 0;
+
+    /// configfile.save_config_pending_items: {section: {option: value}}, with
+    /// null for a section staged for removal; an empty object when nothing is
+    /// pending. A reply without the field gives null, which restart_required()
+    /// reads as "restart".
+    virtual void
+    get_save_config_pending_items(helix::SharedCallback<void(const nlohmann::json&)> on_items,
+                                  ErrorCallback on_error) = 0;
+
     /// @param suppress_auto_toast Maps to helix::rpc_error_policy::CallerIntent::silent
     ///        — opts out of the tracker's generic fallback toast, nothing more.
     virtual void execute_macro(const std::string& name,
