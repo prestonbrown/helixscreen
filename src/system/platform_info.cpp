@@ -85,6 +85,10 @@ bool platform_defaults_to_external_updates() {
 #endif
 }
 
+std::string writable_install_root(const std::string& install_root) {
+    return platform_defaults_to_external_updates() ? std::string() : install_root;
+}
+
 void set_external_updates_default_override(int override_value) {
     s_external_updates_default_override = override_value;
 }

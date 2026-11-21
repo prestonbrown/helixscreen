@@ -30,6 +30,11 @@ bool platform_host_power_supported();
 /// which is how a dev box force-enables self-update.
 bool platform_defaults_to_external_updates();
 
+/// @p install_root for a caller that writes into it, or empty when the firmware owns
+/// the running install (platform_defaults_to_external_updates()): the app never writes
+/// into a firmware's package directory, whose next package update replaces it anyway.
+std::string writable_install_root(const std::string& install_root);
+
 /// True when a Snapmaker U1's firmware owns the HelixScreen install that is running.
 /// Decided under @p probe_root, failing toward "managed" because self-updating a
 /// firmware's package is the worse mistake:

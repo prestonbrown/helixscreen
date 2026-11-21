@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "app_globals.h"
+#include "platform_info.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -65,4 +66,20 @@ TEST_CASE("app_get_config_dir returns a slash-free, stable path", "[app_globals]
     // contract the way it is for the other two.
     require_no_trailing_slash(cfg);
     REQUIRE(app_get_config_dir() == cfg);
+}
+
+TEST_CASE("writable_install_root is empty when the firmware owns the install",
+          "[app_globals][paths][install_root]") {
+    struct ResetOverride {
+        ~ResetOverride() {
+            helix::set_external_updates_default_override(-1);
+        }
+    } reset;
+    const std::string root = "/oem/apps/helixscreen/latest";
+
+    helix::set_external_updates_default_override(1);
+    CHECK(helix::writable_install_root(root).empty());
+
+    helix::set_external_updates_default_override(0);
+    CHECK(helix::writable_install_root(root) == root);
 }

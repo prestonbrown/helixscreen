@@ -4,6 +4,7 @@
 #pragma once
 
 #include "lvgl.h"
+#include "platform_info.h"
 #include "subject_managed_panel.h"
 
 #include <functional>
@@ -432,6 +433,17 @@ int sweep_stale_helix_cache_dirs();
  * Result is cached after first call.
  */
 std::string app_get_install_root();
+
+/**
+ * @brief app_get_install_root() for a caller that writes into it
+ *
+ * helix::writable_install_root() of it: empty when the firmware owns the running
+ * install.
+ */
+// NAMESPACE_OK: app_get_* path accessor, alongside its siblings
+inline std::string app_get_writable_install_root() {
+    return helix::writable_install_root(app_get_install_root());
+}
 
 // Returns the cache directory (thumbnails, update tarballs, transient
 // assets). Resolved via the same platform-specific hierarchy as
