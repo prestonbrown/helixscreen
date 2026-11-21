@@ -857,6 +857,7 @@ translations:
   Coarse: Grob
   Coarse Inner: Grob Innen
   Coarse Outer: Grob Außen
+  Coaxial: Koaxial
   Code: Code
   Coil Temperature: Spulentemperatur
   Cold Pull: "Cold Pull"
@@ -869,6 +870,7 @@ translations:
   Color: Farbe
   Color Mismatch: Farbabweichung
   Color Sensors: Farbsensoren
+  Colors: Farben
   Colors for every screen: "Farben für alle Bildschirme"
   Command Failed: 'Befehl fehlgeschlagen'
   Command failed: Befehl fehlgeschlagen
@@ -1832,6 +1834,7 @@ translations:
   Good Enough: "Gut genug"
   Good match: "Gute Passung"
   Got it: Verstanden
+  Gradient: Verlauf
   Gray: Grau
   Grid: Raster
   Grip filament: Filament greifen

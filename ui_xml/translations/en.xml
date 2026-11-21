@@ -834,6 +834,7 @@
   <translation tag="Coarse" en="Coarse"/>
   <translation tag="Coarse Inner" en="Coarse Inner"/>
   <translation tag="Coarse Outer" en="Coarse Outer"/>
+  <translation tag="Coaxial" en="Coaxial"/>
   <translation tag="Code" en="Code"/>
   <translation tag="Coil Temperature" en="Coil Temperature"/>
   <translation tag="Cold Pull" en="Cold Pull"/>
@@ -846,6 +847,7 @@
   <translation tag="Color" en="Color"/>
   <translation tag="Color Mismatch" en="Color Mismatch"/>
   <translation tag="Color Sensors" en="Color Sensors"/>
+  <translation tag="Colors" en="Colors"/>
   <translation tag="Colors for every screen" en="Colors for every screen"/>
   <translation tag="Command Failed" en="Command Failed"/>
   <translation tag="Command failed" en="Command failed"/>
@@ -1762,6 +1764,7 @@
   <translation tag="Good Enough" en="Good Enough"/>
   <translation tag="Good match" en="Good match"/>
   <translation tag="Got it" en="Got it"/>
+  <translation tag="Gradient" en="Gradient"/>
   <translation tag="Gray" en="Gray"/>
   <translation tag="Grid" en="Grid"/>
   <translation tag="Grip filament" en="Grip filament"/>

@@ -857,6 +857,7 @@ translations:
   Coarse: 粗调
   Coarse Inner: 粗调内圈
   Coarse Outer: 粗调外圈
+  Coaxial: 同轴
   Code: 代码
   Coil Temperature: 线圈温度
   Cold Pull: "冷拉清理"
@@ -869,6 +870,7 @@ translations:
   Color: 颜色
   Color Mismatch: 颜色不匹配
   Color Sensors: 颜色传感器
+  Colors: 颜色
   Colors for every screen: "所有屏幕的配色"
   Command Failed: '命令失败'
   Command failed: 命令失败
@@ -1832,6 +1834,7 @@ translations:
   Good Enough: "足够了"
   Good match: "匹配良好"
   Got it: 知道了
+  Gradient: 渐变
   Gray: 灰色
   Grid: 网格
   Grip filament: 夹持耗材

@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The slot editor's colors as dots: one for a single-color spool, two to four
+     for a multi-color one, the selected one ringed, then an outlined "+" while
+     there is room and the lane can store several colors. Tapping a dot selects
+     it; tapping the selected dot opens the color page for it; a long press
+     removes it. Subjects and callbacks: ui_ams_edit_overlay.cpp. -->
+<component>
+  <api>
+    <prop name="size" type="string" default="#ams_edit_current_swatch"/>
+  </api>
+  <view extends="lv_obj"
+        width="content" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+        style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
+    <lv_obj name="dots"
+            width="content" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
+      <repeat count="ams_edit_seg_count">
+        <color_swatch index="${i}"
+                      color_subject="ams_edit_seg_${i}" selected_subject="ams_edit_seg_selected"
+                      callback="ams_edit_seg_cb" size="$size" hit="0">
+          <event_cb trigger="long_pressed" callback="ams_edit_seg_hold_cb" user_data="${i}"/>
+        </color_swatch>
+      </repeat>
+    </lv_obj>
+    <ui_button name="btn_add_color"
+               width="$size" height="$size" style_radius="9999" icon="plus" variant="outline" hidden="true">
+      <bind_flag_if cond="ams_edit_seg_count ge 4 or ams_edit_multi_capable eq 0" flag="hidden"/>
+      <event_cb trigger="clicked" callback="ams_edit_add_color_cb"/>
+    </ui_button>
+  </view>
+</component>

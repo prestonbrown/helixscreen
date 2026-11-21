@@ -273,6 +273,21 @@ class AmsEditOverlayViewTestAccess {
     const std::vector<uint32_t>& color_row() {
         return overlay_.color_row_;
     }
+    void call_add_color() {
+        overlay_.add_color();
+    }
+    void call_seg_tap(int i) {
+        overlay_.handle_seg_tap(i);
+    }
+    void call_seg_hold(int i) {
+        overlay_.handle_seg_hold(i);
+    }
+    void call_color_mode(int mode) {
+        overlay_.handle_color_mode(mode);
+    }
+    std::vector<uint32_t> draft_colors() {
+        return overlay_.draft_colors();
+    }
     void call_apply_color(uint32_t rgb) {
         overlay_.apply_color(rgb);
     }
@@ -552,6 +567,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         close_editor_overlay();
     }
 }
+
+namespace {
+int subject_value(const char* name) {
+    lv_subject_t* subj = lv_xml_get_subject(nullptr, name);
+    REQUIRE(subj != nullptr);
+    return lv_subject_get_int(subj);
+}
+} // namespace
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "the color page edits the draft live; Back keeps it, the slot waits for Save",
@@ -3587,7 +3610,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px"
     REQUIRE(reset_visible != nullptr);
     lv_subject_set_int(reset_visible, 1);
     process_lvgl(5);
-    check_44("color_current");
     check_44("btn_all_colors");
     check_44("weight_pill");
     check_44("add_to_spoolman_link");
@@ -3691,21 +3713,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             lv_obj_get_coords(row, &box);
             // Four recents beside the current color on the 480-wide panel, six above.
             CHECK(access.color_row().size() == (w == 480 ? 4u : 6u));
+            // Every shown tap target in the row, the dots and recents inside
+            // their containers included.
             std::vector<lv_obj_t*> targets;
-            for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
-                lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
-                if (lv_obj_is_clickable(child)) {
-                    targets.push_back(child);
+            std::vector<lv_obj_t*> walk{row};
+            while (!walk.empty()) {
+                lv_obj_t* o = walk.front();
+                walk.erase(walk.begin());
+                for (uint32_t i = 0; i < lv_obj_get_child_count(o); ++i) {
+                    lv_obj_t* child = lv_obj_get_child(o, static_cast<int32_t>(i));
+                    if (lv_obj_is_hidden(child)) {
+                        continue;
+                    }
+                    if (lv_obj_is_clickable(child)) {
+                        targets.push_back(child);
+                    } else {
+                        walk.push_back(child);
+                    }
                 }
-            }
-            if (!split) {
-                targets.clear();
-                targets.push_back(access.widget("color_current"));
-                lv_obj_t* recents = access.widget("color_recents");
-                for (uint32_t i = 0; i < lv_obj_get_child_count(recents); ++i) {
-                    targets.push_back(lv_obj_get_child(recents, static_cast<int32_t>(i)));
-                }
-                targets.push_back(access.widget("btn_all_colors"));
             }
             CHECK(targets.size() == access.color_row().size() + 2);
             lv_area_t prev{};
@@ -3716,7 +3741,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
                 INFO("target " << i);
                 CHECK(area_within(hit, box));
                 CHECK(lv_area_get_height(&hit) >= 40);
-                if (i > 0 && hit.y1 == prev.y1) {
+                if (i > 0 && hit.y1 == prev.y1 && hit.x1 > prev.x1) {
                     CHECK(prev.x2 < hit.x1);
                 }
                 prev = hit;
@@ -4948,5 +4973,95 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         CHECK(std::find(materials.begin(), materials.end(), "ASA") != materials.end());
         CHECK(variants_of("PLA").size() > 3);
     }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "multi-color: add up to four, remove back to one, save colors and mode",
+                 "[ams_edit_overlay][color_picker][multi_color]") {
+    auto& data = helix::ConfigTestAccess::data(*helix::Config::get_instance());
+    if (data.is_object()) {
+        data.erase("color_recents");
+    }
+    SlotInfo start = untracked_slot();
+    start.color_rgb = 0xD4AF37;
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, start, nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(subject_value("ams_edit_multi_capable") == 1);
+    REQUIRE(subject_value("ams_edit_multi") == 0);
+
+    auto back_from_page = [&] {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        NavigationManager::instance().go_back();
+        UpdateQueue::instance().drain();
+        process_lvgl(400);
+    };
+    for (int n = 2; n <= 4; ++n) {
+        access.call_add_color();
+        back_from_page();
+        CHECK(access.draft_colors().size() == static_cast<size_t>(n));
+    }
+    CHECK(subject_value("ams_edit_multi") == 1);
+    CHECK(subject_value("ams_edit_seg_count") == 4);
+    access.call_add_color(); // a fifth is refused
+    CHECK(access.draft_colors().size() == 4);
+    CHECK(access.draft_colors().front() == 0xD4AF37);
+
+    // Tapping another dot selects it; a page pick then edits that one.
+    access.call_seg_tap(2);
+    CHECK(subject_value("ams_edit_seg_selected") == 2);
+    access.call_apply_color(0x00FF00);
+    CHECK(access.draft_colors()[2] == 0x00FF00);
+    access.call_color_mode(1);
+
+    // Save writes the list and the mode; the slot's color is the first.
+    lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    const SlotInfo saved = backend->get_slot_info(0);
+    CHECK(saved.color_rgb == 0xD4AF37);
+    CHECK(AmsEditOverlay::split_color_list(saved.multi_color_hexes) == access.draft_colors());
+    CHECK(saved.color_mode == "coaxial");
+    close_editor_overlay();
+
+    // Removing down to one color makes the spool single-color again.
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, saved, nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.draft_colors().size() == 4);
+    for (int i = 0; i < 3; ++i) {
+        access.call_seg_hold(1);
+    }
+    CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
+    CHECK(subject_value("ams_edit_multi") == 0);
+    access.call_seg_hold(0); // the last color stays
+    CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
+    lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).multi_color_hexes.empty());
+    CHECK(backend->get_slot_info(0).color_mode.empty());
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a lane that cannot store colors offers no \"+\"",
+                 "[ams_edit_overlay][color_picker][multi_color]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(subject_value("ams_edit_multi_capable") == 0);
+    access.call_add_color();
+    CHECK(access.draft_colors().size() == 1);
     close_editor_overlay();
 }

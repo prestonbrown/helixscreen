@@ -177,6 +177,14 @@ class AmsEditOverlay : public OverlayBase {
 
     /// The filament recents the color row offers beside @p current: the
     /// newest first, @p current left out, at most @p room of them.
+    /// The most colors a multi-color spool takes in the editor.
+    static constexpr size_t kMaxColors = 4;
+
+    /// "#RRGGBB" entries of a comma-separated color list, unparseable ones dropped.
+    static std::vector<uint32_t> split_color_list(const std::string& csv);
+    /// The list back as "#RRGGBB,#RRGGBB".
+    static std::string join_color_list(const std::vector<uint32_t>& colors);
+
     static std::vector<uint32_t> color_row_recents(const std::vector<uint32_t>& recents,
                                                    uint32_t current, size_t room);
 
@@ -273,6 +281,33 @@ class AmsEditOverlay : public OverlayBase {
     void update_color_row();
     std::vector<uint32_t> color_row_;
 
+    // === Multi-color draft ===
+    // The draft's colors: the pending pick alone, or two to kMaxColors. A
+    // multi-color edit lives in draft_multi_/draft_mode_ while multi_set_, and
+    // reaches working_info_ only on Save, like a single pick.
+    std::vector<uint32_t> draft_colors() const;
+    bool draft_is_multi() const {
+        return draft_colors().size() >= 2;
+    }
+    /// The draft mode, "gradient" or "coaxial", for a multi-color draft.
+    std::string draft_mode() const;
+    /// Whether this lane can store several colors (AmsBackend::stores_multi_color,
+    /// or a lane linked to a Spoolman spool).
+    bool multi_color_capable() const;
+    /// Put @p colors in the draft: two or more stay a list, one becomes the
+    /// single pending color.
+    void set_draft_colors(const std::vector<uint32_t>& colors);
+    void handle_seg_tap(int index);
+    void handle_seg_hold(int index);
+    void add_color();
+    void handle_color_mode(int mode_index);
+    /// Back to the slot's own colors: no pick, no multi-color edit.
+    void reset_color_draft();
+    bool multi_set_ = false;
+    std::string draft_multi_;
+    std::string draft_mode_;
+    int selected_seg_ = 0;
+
     // === Identity dropdowns ===
     /// One option's label and the value picking it stages.
     struct Option {
@@ -336,8 +371,14 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject color_current_subject_{};  ///< the color row's current swatch
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
-    helix::Subject color_ring_subject_{};          ///< always 0: rings the current swatch
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row
+    helix::Subject multi_subject_{};               ///< 1 while the draft has several colors
+    helix::Subject multi_capable_subject_{};       ///< 1 where the lane can store several
+    helix::Subject seg_count_subject_{};           ///< color dots shown
+    helix::Subject seg_selected_subject_{};        ///< the ringed dot
+    helix::Subject seg_label_subject_{};           ///< "Color 2: Gold" in multi mode
+    helix::Subject color_mode_subject_{};          ///< dropdown: 0 gradient, 1 coaxial
+    char seg_label_buf_[64]{};
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
     helix::Subject summary_text_subject_{};
@@ -383,6 +424,9 @@ class AmsEditOverlay : public OverlayBase {
         bool selection_moved = false;
         uint32_t details_color = 0;
         bool details_color_set = false;
+        bool multi_set = false;
+        std::string draft_multi;
+        std::string draft_mode;
     };
     std::optional<FormSnapshot> note_action_form_;
     char save_error_buf_[192] = {0};

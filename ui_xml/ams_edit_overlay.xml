@@ -81,6 +81,16 @@
     <px name="ams_edit_current_swatch_small" value="55"/>
     <px name="ams_edit_current_swatch_medium" value="75"/>
     <px name="ams_edit_current_swatch_large" value="80"/>
+    <px name="ams_edit_mode_dd_w_micro" value="120"/>
+    <px name="ams_edit_mode_dd_w_tiny" value="130"/>
+    <px name="ams_edit_mode_dd_w_small" value="140"/>
+    <px name="ams_edit_mode_dd_w_medium" value="190"/>
+    <px name="ams_edit_mode_dd_w_large" value="210"/>
+    <px name="ams_edit_preview_h_micro" value="22"/>
+    <px name="ams_edit_preview_h_tiny" value="24"/>
+    <px name="ams_edit_preview_h_small" value="24"/>
+    <px name="ams_edit_preview_h_medium" value="33"/>
+    <px name="ams_edit_preview_h_large" value="35"/>
     <px name="ams_edit_wheel_micro" value="22"/>
     <px name="ams_edit_wheel_tiny" value="24"/>
     <px name="ams_edit_wheel_small" value="24"/>
@@ -321,6 +331,8 @@
           <lv_obj name="color_col_split"
                   width="#ams_edit_color_col_w" height="content" style_pad_all="0" flex_flow="column"
                   style_pad_gap="#space_xs" scrollable="false">
+            <!-- A multi-color spool's dots need the full width below. -->
+            <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="1"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                     style_flex_cross_place="center" scrollable="false">
@@ -331,10 +343,7 @@
             <lv_obj name="color_row_split"
                     width="100%" height="content" style_pad_all="#led_ring_reach" flex_flow="row_wrap"
                     style_pad_gap="#space_sm" style_flex_cross_place="center" scrollable="false">
-              <color_swatch name="color_current_split"
-                            size="#ams_edit_recent_chip" colors_subject="ams_edit_color_current_multi"
-                            color_subject="ams_edit_color_current" selected_subject="ams_edit_color_ring" index="0"
-                            callback="ams_edit_color_page_cb" hit="0"/>
+              <ams_edit_color_dots name="color_dots_split" size="#ams_edit_recent_chip"/>
               <custom_color_swatch name="btn_all_colors_split"
                                    icon="palette" callback="ams_edit_color_page_cb" size="#ams_edit_recent_chip" hit="0"
                                    reach="#led_ring_reach" ring="styles.led_swatch_ring"/>
@@ -400,21 +409,35 @@
         <lv_obj name="color_section"
                 width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
                 scrollable="false">
-          <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+          <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0 and ams_edit_multi eq 0" flag="hidden"/>
+          <lv_obj name="color_line"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                   style_flex_cross_place="center" scrollable="false">
+            <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="1"/>
             <text_small text="Color" style_min_width="#ams_edit_row_label_w"/>
             <text_body name="color_name" bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
             <tag_badge subject="ams_edit_tag_color"/>
           </lv_obj>
+          <!-- A multi-color spool: how its colors run, and a bar of them. -->
+          <lv_obj name="colors_line"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                  style_flex_cross_place="center" scrollable="false" hidden="true">
+            <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
+            <text_small text="Colors" style_min_width="#ams_edit_row_label_w"/>
+            <lv_dropdown name="dropdown_color_mode"
+                         width="#ams_edit_mode_dd_w" height="#button_height_sm" style_radius="#border_radius"
+                         options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial"
+                         bind_value="ams_edit_color_mode">
+              <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
+            </lv_dropdown>
+            <swatch_paint name="color_preview_bar"
+                          height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
+                          bind_colors="ams_edit_color_current_multi"/>
+          </lv_obj>
           <lv_obj name="color_row"
                   width="100%" height="content" style_pad_all="#led_ring_reach" flex_flow="row"
                   style_pad_gap="#space_sm" style_flex_cross_place="center" scrollable="false">
-            <color_swatch name="color_current"
-                          size="#ams_edit_current_swatch" colors_subject="ams_edit_color_current_multi"
-                          color_subject="ams_edit_color_current" selected_subject="ams_edit_color_ring" index="0"
-                          callback="ams_edit_color_page_cb" hit="0"/>
+            <ams_edit_color_dots name="color_dots"/>
             <lv_obj name="color_recents"
                     width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
                     style_flex_cross_place="center" scrollable="false" clickable="false">
@@ -424,8 +447,9 @@
                               size="#ams_edit_recent_chip" hit="0"/>
               </repeat>
             </lv_obj>
-            <lv_obj height="1"
-                    flex_grow="1" style_bg_opa="0" style_border_width="0" clickable="false" scrollable="false"/>
+            <text_small name="color_seg_label"
+                        flex_grow="1" bind_text="ams_edit_seg_label" long_mode="dots" style_text_align="right"
+                        style_text_color="#text_muted"/>
             <lv_obj name="btn_all_colors"
                     width="content" height="#ams_edit_recent_chip" style_radius="9999" style_bg_color="#elevated_bg"
                     style_bg_opa="255" style_border_width="0" style_pad_hor="#space_md" style_pad_gap="#space_xs"

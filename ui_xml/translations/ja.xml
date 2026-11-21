@@ -834,6 +834,7 @@
   <translation tag="Coarse" ja="粗動"/>
   <translation tag="Coarse Inner" ja="粗動・内側"/>
   <translation tag="Coarse Outer" ja="粗動・外側"/>
+  <translation tag="Coaxial" ja="同軸"/>
   <translation tag="Code" ja="コード"/>
   <translation tag="Coil Temperature" ja="コイル温度"/>
   <translation tag="Cold Pull" ja="コールドプル"/>
@@ -846,6 +847,7 @@
   <translation tag="Color" ja="色"/>
   <translation tag="Color Mismatch" ja="色の不一致"/>
   <translation tag="Color Sensors" ja="カラーセンサー"/>
+  <translation tag="Colors" ja="色"/>
   <translation tag="Colors for every screen" ja="すべての画面の配色"/>
   <translation tag="Command Failed" ja="コマンドに失敗しました"/>
   <translation tag="Command failed" ja="コマンドに失敗しました"/>
@@ -1762,6 +1764,7 @@
   <translation tag="Good Enough" ja="これで十分"/>
   <translation tag="Good match" ja="良好な一致"/>
   <translation tag="Got it" ja="了解"/>
+  <translation tag="Gradient" ja="グラデーション"/>
   <translation tag="Gray" ja="グレー"/>
   <translation tag="Grid" ja="グリッド"/>
   <translation tag="Grip filament" ja="フィラメントを把持"/>

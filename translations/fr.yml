@@ -869,6 +869,7 @@ translations:
   Coarse: Gros
   Coarse Inner: Gros intérieur
   Coarse Outer: Gros extérieur
+  Coaxial: Coaxial
   Code: Code
   Coil Temperature: Température de la bobine
   Cold Pull: "Cold Pull"
@@ -881,6 +882,7 @@ translations:
   Color: Couleur
   Color Mismatch: Couleur incompatible
   Color Sensors: Capteurs de couleur
+  Colors: Couleurs
   Colors for every screen: "Couleurs de tous les écrans"
   Command Failed: 'Échec de la commande'
   Command failed: Échec de la commande
@@ -1844,6 +1846,7 @@ translations:
   Good Enough: "Suffisant"
   Good match: "Bonne correspondance"
   Got it: Compris
+  Gradient: Dégradé
   Gray: Gris
   Grid: Grille
   Grip filament: Saisir le filament

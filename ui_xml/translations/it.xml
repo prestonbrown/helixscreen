@@ -834,6 +834,7 @@
   <translation tag="Coarse" it="Grossolano"/>
   <translation tag="Coarse Inner" it="Grossolano interno"/>
   <translation tag="Coarse Outer" it="Grossolano esterno"/>
+  <translation tag="Coaxial" it="Coassiale"/>
   <translation tag="Code" it="Codice"/>
   <translation tag="Coil Temperature" it="Temperatura bobina"/>
   <translation tag="Cold Pull" it="Cold Pull"/>
@@ -846,6 +847,7 @@
   <translation tag="Color" it="Colore"/>
   <translation tag="Color Mismatch" it="Colore non corrispondente"/>
   <translation tag="Color Sensors" it="Sensori di colore"/>
+  <translation tag="Colors" it="Colori"/>
   <translation tag="Colors for every screen" it="Colori di tutte le schermate"/>
   <translation tag="Command Failed" it="Comando non riuscito"/>
   <translation tag="Command failed" it="Comando non riuscito"/>
@@ -1762,6 +1764,7 @@
   <translation tag="Good Enough" it="Va bene così"/>
   <translation tag="Good match" it="Buona corrispondenza"/>
   <translation tag="Got it" it="Capito"/>
+  <translation tag="Gradient" it="Sfumato"/>
   <translation tag="Gray" it="Grigio"/>
   <translation tag="Grid" it="Griglia"/>
   <translation tag="Grip filament" it="Afferra il filamento"/>

@@ -859,6 +859,7 @@ translations:
   Coarse: ''
   Coarse Inner: ''
   Coarse Outer: ''
+  Coaxial: ''
   Code: ''
   Coil Temperature: ''
   Cold Pull: ''
@@ -871,6 +872,7 @@ translations:
   Color: Colour
   Color Mismatch: Colour Mismatch
   Color Sensors: Colour Sensors
+  Colors: Colours
   Colors for every screen: Colours for every screen
   Command Failed: ''
   Command failed: ''
@@ -1822,6 +1824,7 @@ translations:
   Good Enough: ''
   Good match: ''
   Got it: ''
+  Gradient: ''
   Gray: Grey
   Grid: ''
   Grip filament: ''

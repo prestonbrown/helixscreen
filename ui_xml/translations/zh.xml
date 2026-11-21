@@ -834,6 +834,7 @@
   <translation tag="Coarse" zh="粗调"/>
   <translation tag="Coarse Inner" zh="粗调内圈"/>
   <translation tag="Coarse Outer" zh="粗调外圈"/>
+  <translation tag="Coaxial" zh="同轴"/>
   <translation tag="Code" zh="代码"/>
   <translation tag="Coil Temperature" zh="线圈温度"/>
   <translation tag="Cold Pull" zh="冷拉清理"/>
@@ -846,6 +847,7 @@
   <translation tag="Color" zh="颜色"/>
   <translation tag="Color Mismatch" zh="颜色不匹配"/>
   <translation tag="Color Sensors" zh="颜色传感器"/>
+  <translation tag="Colors" zh="颜色"/>
   <translation tag="Colors for every screen" zh="所有屏幕的配色"/>
   <translation tag="Command Failed" zh="命令失败"/>
   <translation tag="Command failed" zh="命令失败"/>
@@ -1762,6 +1764,7 @@
   <translation tag="Good Enough" zh="足够了"/>
   <translation tag="Good match" zh="匹配良好"/>
   <translation tag="Got it" zh="知道了"/>
+  <translation tag="Gradient" zh="渐变"/>
   <translation tag="Gray" zh="灰色"/>
   <translation tag="Grid" zh="网格"/>
   <translation tag="Grip filament" zh="夹持耗材"/>

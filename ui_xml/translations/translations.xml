@@ -876,6 +876,7 @@
   <translation tag="Coarse" de="Grob" en="Coarse" es="Grueso" fr="Gros" it="Grossolano" ja="粗動" pt="Grosso" ru="Грубо" zh="粗调"/>
   <translation tag="Coarse Inner" de="Grob Innen" en="Coarse Inner" es="Grueso interior" fr="Gros intérieur" it="Grossolano interno" ja="粗動・内側" pt="Grosso Interno" ru="Грубо (внутренний)" zh="粗调内圈"/>
   <translation tag="Coarse Outer" de="Grob Außen" en="Coarse Outer" es="Grueso exterior" fr="Gros extérieur" it="Grossolano esterno" ja="粗動・外側" pt="Grosso Externo" ru="Грубо (внешний)" zh="粗调外圈"/>
+  <translation tag="Coaxial" de="Koaxial" en="Coaxial" es="Coaxial" fr="Coaxial" it="Coassiale" ja="同軸" pt="Coaxial" ru="Коаксиальный" zh="同轴"/>
   <translation tag="Code" de="Code" en="Code" es="Código" fr="Code" it="Codice" ja="コード" pt="Código" ru="Код" zh="代码"/>
   <translation tag="Coil Temperature" de="Spulentemperatur" en="Coil Temperature" es="Temperatura de Bobina" fr="Température de la bobine" it="Temperatura bobina" ja="コイル温度" pt="Temperatura da Bobina" ru="Температура катушки" zh="线圈温度"/>
   <translation tag="Cold Pull" de="Cold Pull" en="Cold Pull" es="Extracción en frío" fr="Cold Pull" it="Cold Pull" ja="コールドプル" pt="Extração a frio" ru="Холодная протяжка" zh="冷拉清理"/>
@@ -888,6 +889,7 @@
   <translation tag="Color" de="Farbe" en="Color" en-GB="Colour" es="Color" fr="Couleur" it="Colore" ja="色" pt="Cor" ru="Цвет" zh="颜色"/>
   <translation tag="Color Mismatch" de="Farbabweichung" en="Color Mismatch" en-GB="Colour Mismatch" es="Color No Coincide" fr="Couleur incompatible" it="Colore non corrispondente" ja="色の不一致" pt="Cor Incompatível" ru="Несоответствие цвета" zh="颜色不匹配"/>
   <translation tag="Color Sensors" de="Farbsensoren" en="Color Sensors" en-GB="Colour Sensors" es="Sensores de color" fr="Capteurs de couleur" it="Sensori di colore" ja="カラーセンサー" pt="Sensores de cor" ru="Датчики цвета" zh="颜色传感器"/>
+  <translation tag="Colors" de="Farben" en="Colors" en-GB="Colours" es="Colores" fr="Couleurs" it="Colori" ja="色" pt="Cores" ru="Цвета" zh="颜色"/>
   <translation tag="Colors for every screen" de="Farben für alle Bildschirme" en="Colors for every screen" en-GB="Colours for every screen" es="Colores de todas las pantallas" fr="Couleurs de tous les écrans" it="Colori di tutte le schermate" ja="すべての画面の配色" pt="Cores de todas as telas" ru="Цвета всех экранов" zh="所有屏幕的配色"/>
   <translation tag="Command Failed" de="Befehl fehlgeschlagen" en="Command Failed" es="El comando falló" fr="Échec de la commande" it="Comando non riuscito" ja="コマンドに失敗しました" pt="O comando falhou" ru="Ошибка команды" zh="命令失败"/>
   <translation tag="Command failed" de="Befehl fehlgeschlagen" en="Command failed" es="El comando falló" fr="Échec de la commande" it="Comando non riuscito" ja="コマンドに失敗しました" pt="O comando falhou" ru="Ошибка команды" zh="命令失败"/>
@@ -1810,6 +1812,7 @@
   <translation tag="Good Enough" de="Gut genug" en="Good Enough" es="Suficiente" fr="Suffisant" it="Va bene così" ja="これで十分" pt="Bom o suficiente" ru="Достаточно" zh="足够了"/>
   <translation tag="Good match" de="Gute Passung" en="Good match" es="Buena coincidencia" fr="Bonne correspondance" it="Buona corrispondenza" ja="良好な一致" pt="Boa correspondência" ru="Хорошее совпадение" zh="匹配良好"/>
   <translation tag="Got it" de="Verstanden" en="Got it" es="Entendido" fr="Compris" it="Capito" ja="了解" pt="Entendi" ru="Понятно" zh="知道了"/>
+  <translation tag="Gradient" de="Verlauf" en="Gradient" es="Degradado" fr="Dégradé" it="Sfumato" ja="グラデーション" pt="Gradiente" ru="Градиент" zh="渐变"/>
   <translation tag="Gray" de="Grau" en="Gray" en-GB="Grey" es="Gris" fr="Gris" it="Grigio" ja="グレー" pt="Cinza" ru="Серый" zh="灰色"/>
   <translation tag="Grid" de="Raster" en="Grid" es="Cuadrícula" fr="Grille" it="Griglia" ja="グリッド" pt="Grade" ru="Сетка" zh="网格"/>
   <translation tag="Grip filament" de="Filament greifen" en="Grip filament" es="Agarrar filamento" fr="Saisir le filament" it="Afferra il filamento" ja="フィラメントを把持" pt="Segurar filamento" ru="Зажать филамент" zh="夹持耗材"/>

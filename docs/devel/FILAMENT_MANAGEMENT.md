@@ -1589,6 +1589,21 @@ recent chip stages its color in the editor's draft at once. The current color,
 All colors and the summary swatch push the color page (`ColorPickerPage`,
 `COLOR_SWATCHES.md` § "The color picker"), which edits the same draft live: Back
 keeps it and only Save commits it, adding it to the filament recents.
+
+**Multi-color.** The color is a row of dots: one for a single-color spool, two
+to four for a multi-color one, and a "+" while there is room and the lane can
+store several colors (`AmsBackend::stores_multi_color()`: HelixScreen's own lane
+record holds them; AFC's and Happy Hare's narrowed records do not), or the lane
+is linked to a Spoolman spool, whose filament holds them. A multi-color spool
+shows a Colors line instead of the Color line: Gradient or Coaxial and a bar
+of its colors. Tapping a dot selects it, and the recents, All colors and the
+color page then edit that one; tapping the selected dot opens the page; a long
+press removes a dot, and one left makes the spool single-color. Save writes
+`SlotInfo::multi_color_hexes` and `color_mode` (the lane record's `colors` and
+`color_mode`, docs/specs/filament_slots.md §3), and on a linked spool files a
+Spoolman filament with `multi_color_hexes` and `multi_color_direction`
+(`longitudinal` for Gradient). At 480x272 a multi-color spool's dots take the
+full width below the form.
 Every non-swatch control reaches 44px: Reset to tag, More and the Add link sit
 in one short bar and reach it through `ext_click_area`, as the weight pill does.
 The editor fits without scrolling at 800x480, 480x320, 480x272 and 320x480,

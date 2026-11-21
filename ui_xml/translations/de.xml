@@ -834,6 +834,7 @@
   <translation tag="Coarse" de="Grob"/>
   <translation tag="Coarse Inner" de="Grob Innen"/>
   <translation tag="Coarse Outer" de="Grob Außen"/>
+  <translation tag="Coaxial" de="Koaxial"/>
   <translation tag="Code" de="Code"/>
   <translation tag="Coil Temperature" de="Spulentemperatur"/>
   <translation tag="Cold Pull" de="Cold Pull"/>
@@ -846,6 +847,7 @@
   <translation tag="Color" de="Farbe"/>
   <translation tag="Color Mismatch" de="Farbabweichung"/>
   <translation tag="Color Sensors" de="Farbsensoren"/>
+  <translation tag="Colors" de="Farben"/>
   <translation tag="Colors for every screen" de="Farben für alle Bildschirme"/>
   <translation tag="Command Failed" de="Befehl fehlgeschlagen"/>
   <translation tag="Command failed" de="Befehl fehlgeschlagen"/>
@@ -1762,6 +1764,7 @@
   <translation tag="Good Enough" de="Gut genug"/>
   <translation tag="Good match" de="Gute Passung"/>
   <translation tag="Got it" de="Verstanden"/>
+  <translation tag="Gradient" de="Verlauf"/>
   <translation tag="Gray" de="Grau"/>
   <translation tag="Grid" de="Raster"/>
   <translation tag="Grip filament" de="Filament greifen"/>

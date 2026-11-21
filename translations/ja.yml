@@ -857,6 +857,7 @@ translations:
   Coarse: 粗動
   Coarse Inner: 粗動・内側
   Coarse Outer: 粗動・外側
+  Coaxial: 同軸
   Code: コード
   Coil Temperature: コイル温度
   Cold Pull: "コールドプル"
@@ -869,6 +870,7 @@ translations:
   Color: 色
   Color Mismatch: 色の不一致
   Color Sensors: カラーセンサー
+  Colors: 色
   Colors for every screen: "すべての画面の配色"
   Command Failed: 'コマンドに失敗しました'
   Command failed: コマンドに失敗しました
@@ -1832,6 +1834,7 @@ translations:
   Good Enough: "これで十分"
   Good match: "良好な一致"
   Got it: 了解
+  Gradient: グラデーション
   Gray: グレー
   Grid: グリッド
   Grip filament: フィラメントを把持

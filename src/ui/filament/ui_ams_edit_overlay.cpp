@@ -27,6 +27,7 @@
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
+#include "filament_color_mode.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
 #include "filament_variants.h"
@@ -67,6 +68,9 @@ namespace {
 /// The color row's recent chips, ams_edit_recent_<i>.
 helix::xml::IndexedSubjectPool s_recent_colors{"ams_edit_recent",
                                                helix::xml::IndexedSubjectPool::Type::Color};
+/// The color dots, ams_edit_seg_<i>.
+helix::xml::IndexedSubjectPool s_seg_colors{"ams_edit_seg",
+                                            helix::xml::IndexedSubjectPool::Type::Color};
 /// Recent chips beside the current color: four on the 480-wide classes, six above.
 constexpr size_t kNarrowRowRecents = 4;
 constexpr size_t kMaxRowRecents = 6;
@@ -201,8 +205,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
     identity_reset_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     tag_.reset();
     linked_fetch_pending_ = false;
     recents_pending_ = false;
@@ -370,8 +373,7 @@ void AmsEditOverlay::load_swapped_spool() {
     reseed_details_for_spool();
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     if (!editor_entered_) {
         enter_editor();
         return;
@@ -500,9 +502,17 @@ void AmsEditOverlay::init_subjects() {
                                   "ams_edit_color_current_multi", subjects_);
         UI_MANAGED_SUBJECT_STRING(color_name_subject_, color_name_buf_, "", "ams_edit_color_name",
                                   subjects_);
-        UI_MANAGED_SUBJECT_INT(color_ring_subject_, 0, "ams_edit_color_ring", subjects_);
         s_recent_colors.ensure_size(kMaxRowRecents);
         UI_MANAGED_SUBJECT_INT(recent_count_subject_, 0, "ams_edit_recent_count", subjects_);
+        // The color dots (ams_edit_color_dots.xml).
+        s_seg_colors.ensure_size(kMaxColors);
+        UI_MANAGED_SUBJECT_INT(multi_subject_, 0, "ams_edit_multi", subjects_);
+        UI_MANAGED_SUBJECT_INT(multi_capable_subject_, 0, "ams_edit_multi_capable", subjects_);
+        UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
+        UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
+        UI_MANAGED_SUBJECT_STRING(seg_label_subject_, seg_label_buf_, "", "ams_edit_seg_label",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
 
         // Summary line, temperatures, weight pill, badges, disclosure.
         UI_MANAGED_SUBJECT_STRING(summary_text_subject_, summary_buf_, "", "ams_edit_summary_text",
@@ -558,6 +568,7 @@ void AmsEditOverlay::deinit_subjects() {
     // it back, so a second editor object (a test's) leaves the live one alone.
     if (subjects_initialized_) {
         s_recent_colors.reclaim();
+        s_seg_colors.reclaim();
     }
     deinit_subjects_base(subjects_);
 }
@@ -1079,6 +1090,7 @@ SlotInfo AmsEditOverlay::shown_slot() const {
     if (details_color_set_) {
         shown.color_rgb = details_color_;
         shown.multi_color_hexes.clear();
+        shown.color_mode.clear();
     }
     shown.nozzle_temp_min = shown_nozzle_min_;
     shown.nozzle_temp_max = shown_nozzle_max_;
@@ -1350,7 +1362,7 @@ void AmsEditOverlay::update_ui() {
 }
 
 bool AmsEditOverlay::selection_dirty() const {
-    return selection_moved_ || details_color_set_;
+    return selection_moved_ || details_color_set_ || multi_set_;
 }
 
 bool AmsEditOverlay::is_dirty() const {
@@ -1525,8 +1537,156 @@ uint32_t AmsEditOverlay::pending_color() const {
     return details_color_set_ ? details_color_ : working_info_.color_rgb;
 }
 
+std::vector<uint32_t> AmsEditOverlay::split_color_list(const std::string& csv) {
+    std::vector<uint32_t> out;
+    size_t start = 0;
+    while (start <= csv.size()) {
+        const size_t comma = csv.find(',', start);
+        const std::string item =
+            csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+        if (const auto rgb = helix::parse_hex_color(item)) {
+            out.push_back(*rgb);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return out;
+}
+
+std::string AmsEditOverlay::join_color_list(const std::vector<uint32_t>& colors) {
+    std::string out;
+    for (uint32_t c : colors) {
+        out += (out.empty() ? "" : ",") + helix::color_to_hex_string(c);
+    }
+    return out;
+}
+
+std::vector<uint32_t> AmsEditOverlay::draft_colors() const {
+    const std::string& csv = multi_set_           ? draft_multi_
+                             : details_color_set_ ? std::string()
+                                                  : working_info_.multi_color_hexes;
+    std::vector<uint32_t> list = split_color_list(csv);
+    if (list.size() >= 2) {
+        if (list.size() > kMaxColors) {
+            list.resize(kMaxColors);
+        }
+        return list;
+    }
+    return {pending_color()};
+}
+
+std::string AmsEditOverlay::draft_mode() const {
+    const std::string mode =
+        helix::color_mode::normalize(multi_set_ ? draft_mode_ : working_info_.color_mode);
+    return mode.empty() ? std::string(helix::color_mode::kGradient) : mode;
+}
+
+bool AmsEditOverlay::multi_color_capable() const {
+    if (const AmsBackend* backend = AmsState::instance().get_backend();
+        backend && backend->stores_multi_color()) {
+        return true;
+    }
+    auto* spoolman = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    return working_info_.spoolman_id > 0 && spoolman && lv_subject_get_int(spoolman) == 1;
+}
+
+void AmsEditOverlay::reset_color_draft() {
+    details_color_ = working_info_.color_rgb;
+    details_color_set_ = false;
+    multi_set_ = false;
+    draft_multi_.clear();
+    draft_mode_.clear();
+    selected_seg_ = 0;
+}
+
+void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& colors) {
+    if (colors.empty()) {
+        return;
+    }
+    const std::string mode = draft_mode();
+    multi_set_ = true;
+    details_color_ = helix::ams::picked_color(colors.front());
+    details_color_set_ = true;
+    if (colors.size() >= 2) {
+        draft_multi_ = join_color_list(colors);
+        draft_mode_ = mode;
+    } else {
+        draft_multi_.clear();
+        draft_mode_.clear();
+    }
+    selected_seg_ = std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1);
+    update_summary();
+    update_sync_button_state();
+}
+
 void AmsEditOverlay::apply_color(uint32_t rgb) {
+    std::vector<uint32_t> colors = draft_colors();
+    if (colors.size() >= 2) {
+        colors[static_cast<size_t>(selected_seg_)] = helix::ams::picked_color(rgb);
+        set_draft_colors(colors);
+        return;
+    }
     details_color_ = helix::ams::picked_color(rgb);
+    details_color_set_ = true;
+    update_summary();
+    update_sync_button_state();
+}
+
+void AmsEditOverlay::handle_seg_tap(int index) {
+    if (index < 0 || static_cast<size_t>(index) >= draft_colors().size()) {
+        return;
+    }
+    if (index == selected_seg_) {
+        open_color_page();
+        return;
+    }
+    selected_seg_ = index;
+    update_color_row();
+}
+
+void AmsEditOverlay::handle_seg_hold(int index) {
+    std::vector<uint32_t> colors = draft_colors();
+    if (colors.size() < 2 || index < 0 || static_cast<size_t>(index) >= colors.size()) {
+        return;
+    }
+    colors.erase(colors.begin() + index);
+    if (selected_seg_ >= index && selected_seg_ > 0) {
+        --selected_seg_;
+    }
+    set_draft_colors(colors);
+}
+
+void AmsEditOverlay::add_color() {
+    std::vector<uint32_t> colors = draft_colors();
+    if (!multi_color_capable() || colors.size() >= kMaxColors) {
+        return;
+    }
+    // The newest recent the spool does not already show, else white.
+    uint32_t next = 0xFFFFFF;
+    for (uint32_t c : helix::ColorRecents::list(helix::ColorRecents::Kind::Filament)) {
+        if (std::find(colors.begin(), colors.end(), c) == colors.end()) {
+            next = c;
+            break;
+        }
+    }
+    colors.push_back(next);
+    selected_seg_ = static_cast<int>(colors.size()) - 1;
+    set_draft_colors(colors);
+    open_color_page();
+}
+
+void AmsEditOverlay::handle_color_mode(int mode_index) {
+    const std::vector<uint32_t> colors = draft_colors();
+    if (colors.size() < 2) {
+        return;
+    }
+    draft_multi_ = join_color_list(colors);
+    draft_mode_ =
+        std::string(mode_index == 1 ? helix::color_mode::kCoaxial : helix::color_mode::kGradient);
+    multi_set_ = true;
+    details_color_ = colors.front();
     details_color_set_ = true;
     update_summary();
     update_sync_button_state();
@@ -1546,10 +1706,13 @@ void AmsEditOverlay::open_color_page() {
     helix::ui::ColorPickerConfig cfg;
     cfg.palette = helix::ColorPalette::Filament;
     cfg.strip = helix::ui::ColorStrip::FilamentRecents;
-    // One draft: the page edits the editor's pending color live, Back keeps
-    // it, and only Save commits it.
+    const std::vector<uint32_t> colors = draft_colors();
+    const uint32_t editing = colors[static_cast<size_t>(
+        std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1))];
+    // One draft: the page edits the editor's pending color (the selected one
+    // of several) live, Back keeps it, and only Save commits it.
     helix::ui::get_color_picker_page().open(
-        lv_obj_get_parent(overlay_root_), pending_color(), cfg,
+        lv_obj_get_parent(overlay_root_), editing, cfg,
         [](uint32_t rgb) { get_ams_edit_overlay().apply_color(rgb); },
         [] { get_ams_edit_overlay().update_color_row(); });
 }
@@ -1558,10 +1721,14 @@ void AmsEditOverlay::update_color_row() {
     if (!subjects_initialized_) {
         return;
     }
-    const uint32_t current = pending_color();
-    const std::string multi = details_color_set_ ? std::string() : working_info_.multi_color_hexes;
+    const std::vector<uint32_t> colors = draft_colors();
+    const bool multi = colors.size() >= 2;
+    selected_seg_ = std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1);
+    const uint32_t current = colors[static_cast<size_t>(selected_seg_)];
+    const bool capable = multi_color_capable();
     lv_subject_set_color(&color_current_subject_, lv_color_hex(current));
-    lv_subject_set_string(&color_current_multi_subject_, multi.c_str());
+    const std::string list = multi ? join_color_list(colors) : std::string();
+    lv_subject_set_string(&color_current_multi_subject_, list.c_str());
     const bool color_set = details_color_set_ || slot_has_colour(working_info_);
     const std::string name = !color_set ? std::string(lv_tr("None"))
                              : details_color_set_
@@ -1569,18 +1736,41 @@ void AmsEditOverlay::update_color_row() {
                                  : helix::ams::slot_color_name(working_info_.color_rgb);
     lv_subject_set_string(&color_name_subject_, name.c_str());
 
+    s_seg_colors.ensure_size(kMaxColors);
+    for (size_t i = 0; i < colors.size(); ++i) {
+        s_seg_colors.set_color(i, colors[i]);
+    }
+    const auto set_int = [](helix::Subject& subject, int value) {
+        if (lv_subject_get_int(&subject) != value) {
+            lv_subject_set_int(&subject, value);
+        }
+    };
+    set_int(seg_count_subject_, static_cast<int>(colors.size()));
+    set_int(seg_selected_subject_, selected_seg_);
+    set_int(multi_subject_, multi ? 1 : 0);
+    set_int(multi_capable_subject_, capable ? 1 : 0);
+    set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
+    const std::string label = multi ? fmt::format("{} {}: {}", lv_tr("Color"), selected_seg_ + 1,
+                                                  helix::get_color_name_from_hex(current))
+                                    : std::string();
+    lv_subject_set_string(&seg_label_subject_, label.c_str());
+
+    // Room beside the dots: fewer recents where a "+" or more dots take it.
     lv_subject_t* bp = theme_manager_get_breakpoint_subject();
     const bool roomy = bp && lv_subject_get_int(bp) >= static_cast<int>(UiBreakpoint::Medium);
+    const size_t room = roomy     ? (multi     ? 2
+                                     : capable ? kMaxRowRecents - 1
+                                               : kMaxRowRecents)
+                        : multi   ? 0
+                        : capable ? kNarrowRowRecents - 1
+                                  : kNarrowRowRecents;
     color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
-                                   current, roomy ? kMaxRowRecents : kNarrowRowRecents);
+                                   current, room);
     s_recent_colors.ensure_size(kMaxRowRecents);
     for (size_t i = 0; i < color_row_.size(); ++i) {
         s_recent_colors.set_color(i, color_row_[i]);
     }
-    const int count = static_cast<int>(color_row_.size());
-    if (lv_subject_get_int(&recent_count_subject_) != count) {
-        lv_subject_set_int(&recent_count_subject_, count);
-    }
+    set_int(recent_count_subject_, static_cast<int>(color_row_.size()));
 }
 
 void AmsEditOverlay::handle_picker_search(const char* text) {
@@ -1604,8 +1794,7 @@ void AmsEditOverlay::handle_reset_to_tag() {
     identity_reset_ = true;
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     rebuild_option_lists();
     update_summary();
     update_temp_display();
@@ -1897,11 +2086,11 @@ void AmsEditOverlay::handle_reapply_linked_spool() {
         working_info_.color_rgb = rgb;
         working_info_.color_name.clear();
         working_info_.multi_color_hexes.clear();
+        working_info_.color_mode.clear();
     }
     sel_ = selection_from_slot(working_info_);
     selection_moved_ = false;
-    details_color_ = working_info_.color_rgb;
-    details_color_set_ = false;
+    reset_color_draft();
     handle_save();
 }
 
@@ -2017,7 +2206,8 @@ AmsEditOverlay::SpoolmanView AmsEditOverlay::spoolman_view() const {
 
 void AmsEditOverlay::remember_form_for_note_action() {
     note_action_form_ =
-        FormSnapshot{working_info_, sel_, selection_moved_, details_color_, details_color_set_};
+        FormSnapshot{working_info_,      sel_,       selection_moved_, details_color_,
+                     details_color_set_, multi_set_, draft_multi_,     draft_mode_};
 }
 
 void AmsEditOverlay::restore_form_after_note_action() {
@@ -2029,6 +2219,9 @@ void AmsEditOverlay::restore_form_after_note_action() {
     selection_moved_ = note_action_form_->selection_moved;
     details_color_ = note_action_form_->details_color;
     details_color_set_ = note_action_form_->details_color_set;
+    multi_set_ = note_action_form_->multi_set;
+    draft_multi_ = note_action_form_->draft_multi;
+    draft_mode_ = note_action_form_->draft_mode;
     note_action_form_.reset();
     if (editor_entered_) {
         rebuild_option_lists();
@@ -2077,6 +2270,16 @@ bool AmsEditOverlay::needs_identity_confirmation(const SlotInfo& original, const
 }
 
 void AmsEditOverlay::stage_pending_color_into_working() {
+    if (multi_set_) {
+        const std::vector<uint32_t> list = split_color_list(draft_multi_);
+        if (list.size() >= 2) {
+            working_info_.color_rgb = list.front();
+            working_info_.color_name.clear();
+            working_info_.multi_color_hexes = join_color_list(list);
+            working_info_.color_mode = draft_mode();
+            return;
+        }
+    }
     if (!details_color_set_)
         return;
     working_info_.color_rgb = details_color_;
@@ -2084,6 +2287,7 @@ void AmsEditOverlay::stage_pending_color_into_working() {
     // and every label that wants words computes them from the hex.
     working_info_.color_name.clear();
     working_info_.multi_color_hexes.clear();
+    working_info_.color_mode.clear();
 }
 
 void AmsEditOverlay::handle_add_to_spoolman() {
@@ -2118,9 +2322,13 @@ void AmsEditOverlay::handle_save() {
     }
 
     stage_selection_into_working();
-    // Save commits a picked color: it joins the filament recents.
-    if (details_color_set_) {
-        helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, details_color_);
+    // Save commits a picked color: it joins the filament recents (every one
+    // of a multi-color spool's, the first last so it leads).
+    if (details_color_set_ || multi_set_) {
+        const std::vector<uint32_t> colors = draft_colors();
+        for (auto it = colors.rbegin(); it != colors.rend(); ++it) {
+            helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, *it);
+        }
     }
     stage_pending_color_into_working();
 
@@ -2289,8 +2497,7 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         working_info_ = committed;
         sel_ = selection_from_slot(working_info_);
         selection_moved_ = false;
-        details_color_ = working_info_.color_rgb;
-        details_color_set_ = false;
+        reset_color_draft();
         update_summary();
         report_save_problem(true, lv_tr("Saved. Spoolman is offline, so price, location, lot "
                                         "and notes stay here unsaved."));
@@ -2758,6 +2965,27 @@ void AmsEditOverlay::register_callbacks() {
              }
          }},
         {"ams_edit_color_page_cb", [](lv_event_t*) { get_ams_edit_overlay().open_color_page(); }},
+        {"ams_edit_seg_cb",
+         [](lv_event_t* e) {
+             if (const auto i = helix::ui::event_user_int(e)) {
+                 get_ams_edit_overlay().handle_seg_tap(*i);
+             }
+         }},
+        {"ams_edit_seg_hold_cb",
+         [](lv_event_t* e) {
+             const auto i = helix::ui::event_user_int(e);
+             auto& editor = get_ams_edit_overlay();
+             if (i && editor.draft_is_multi()) {
+                 editor.handle_seg_hold(*i);
+                 helix::ui::end_press(e);
+             }
+         }},
+        {"ams_edit_add_color_cb", [](lv_event_t*) { get_ams_edit_overlay().add_color(); }},
+        {"ams_edit_color_mode_cb",
+         [](lv_event_t* e) {
+             get_ams_edit_overlay().handle_color_mode(
+                 static_cast<int>(lv_dropdown_get_selected(lv_event_get_target_obj(e))));
+         }},
         {"ams_edit_reset_tag_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_reset_to_tag(); }},
         {"ams_edit_clear_spool_cb",

@@ -913,6 +913,7 @@ translations:
   Coarse: Грубо
   Coarse Inner: Грубо (внутренний)
   Coarse Outer: Грубо (внешний)
+  Coaxial: Коаксиальный
   Code: Код
   Coil Temperature: Температура катушки
   Cold Pull: "Холодная протяжка"
@@ -925,6 +926,7 @@ translations:
   Color: Цвет
   Color Mismatch: Несоответствие цвета
   Color Sensors: Датчики цвета
+  Colors: Цвета
   Colors for every screen: "Цвета всех экранов"
   Command Failed: 'Ошибка команды'
   Command failed: Ошибка команды
@@ -1896,6 +1898,7 @@ translations:
   Good Enough: "Достаточно"
   Good match: "Хорошее совпадение"
   Got it: Понятно
+  Gradient: Градиент
   Gray: Серый
   Grid: Сетка
   Grip filament: Зажать филамент
