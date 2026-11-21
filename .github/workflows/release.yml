@@ -724,8 +724,8 @@ jobs:
   # every other routing decision does.
   publish-android:
     name: Publish to Play Store (production)
-    needs: [build-android, release, plan]
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.channel == 'stable' && needs.plan.outputs.mode == 'publish' }}
+    needs: [build-android, release, publish-release, plan]
+    if: ${{ !cancelled() && needs.publish-release.result == 'success' && needs.release.outputs.channel == 'stable' && needs.plan.outputs.mode == 'publish' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -828,6 +828,7 @@ jobs:
       channel: ${{ steps.channel.outputs.channel }}
       channels: ${{ steps.channel.outputs.channels }}
       prerelease: ${{ steps.channel.outputs.prerelease }}
+      make_latest: ${{ steps.latest.outputs.make_latest }}
 
     steps:
     - name: Checkout repository
@@ -1165,13 +1166,15 @@ jobs:
         echo "releases/latest is '${current:-<none>}'; ${RELEASE_TAG} make_latest=${make_latest}"
         echo "make_latest=${make_latest}" >> "$GITHUB_OUTPUT"
 
-    - name: Create GitHub Release
+    # A draft until the release-signing approval: publish-release makes it
+    # public only after upload-r2, the gated job, succeeds.
+    - name: Create GitHub Release (draft)
       if: env.RELEASE_MODE == 'publish'
       uses: softprops/action-gh-release@v3
       with:
         name: ${{ steps.version.outputs.version }}
         body_path: release-notes.md
-        draft: false
+        draft: true
         prerelease: ${{ steps.channel.outputs.prerelease }}  # from RELEASE_CHANNEL
         make_latest: ${{ steps.latest.outputs.make_latest }}
         files: |
@@ -1200,12 +1203,42 @@ jobs:
         if-no-files-found: error
         retention-days: 3
 
+  # ============================================================================
+  # Publish the draft release once the release-signing approval has run
+  # ============================================================================
+  # Create Release leaves a draft. Nothing reaches the public (the GitHub
+  # release, the Play Store, the website, Discord) until a reviewer approves the
+  # release-signing environment and upload-r2 succeeds.
+  publish-release:
+    name: Publish GitHub Release
+    runs-on: ubuntu-latest
+    needs: [release, upload-r2, plan]
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.upload-r2.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Publish the draft
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PRERELEASE: ${{ needs.release.outputs.prerelease }}
+        MAKE_LATEST: ${{ needs.release.outputs.make_latest }}
+      run: |
+        set -euo pipefail
+        gh release edit "$RELEASE_TAG" --repo "${{ github.repository }}" \
+          --draft=false --prerelease="$PRERELEASE" --latest="$MAKE_LATEST"
+        echo "Published $RELEASE_TAG (prerelease=$PRERELEASE, latest=$MAKE_LATEST)"
+
     - name: Notify Discord
-      if: success() && env.RELEASE_MODE == 'publish'
+      if: success()
       continue-on-error: true
       env:
         DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        RELEASE_CHANNEL: ${{ steps.channel.outputs.channel }}
+        RELEASE_CHANNEL: ${{ needs.release.outputs.channel }}
       run: |
         [ -z "$DISCORD_WEBHOOK_URL" ] && { echo "No webhook configured, skipping"; exit 0; }
 
@@ -1275,15 +1308,14 @@ jobs:
   # ============================================================================
   # The pre-publish guard in "Prepare symbol files for release" predicts the
   # order; this reads it back from the API that old Moonraker's zip_deploy
-  # takes assets[0] from (helixscreen#993, #2147). It is its own job, and
-  # nothing needs it, because the release is already public by now: a mismatch
-  # must not stop upload-r2 from publishing the manifests the in-app updaters
-  # read. It turns the run red instead.
+  # takes assets[0] from (helixscreen#993, #2147). The tags endpoint cannot see a
+  # draft, so it runs after publish-release. Nothing needs it: a mismatch turns
+  # the run red rather than holding anything back.
   verify-release-assets:
     name: Verify assets[0] of the published release
     runs-on: ubuntu-latest
-    needs: [release, plan]
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    needs: [publish-release, plan]
+    if: ${{ !cancelled() && needs.publish-release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
     permissions:
       contents: read
     env:
@@ -2009,8 +2041,8 @@ jobs:
   notify-website:
     name: Trigger Docs Deploy
     runs-on: ubuntu-latest
-    needs: [release, plan]
-    if: ${{ !cancelled() && needs.release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
+    needs: [release, publish-release, plan]
+    if: ${{ !cancelled() && needs.publish-release.result == 'success' && needs.plan.outputs.mode == 'publish' }}
 
     steps:
     - name: Record dispatch time
