@@ -312,6 +312,10 @@ class AmsEditOverlayViewTestAccess {
     SlotInfo working_info() const {
         return overlay_.working_info_;
     }
+    /// The slot a Save would commit now.
+    SlotInfo saving() const {
+        return overlay_.capture_save().saving;
+    }
     static std::string not_saved_message(helix::ams::PendingOutcome outcome,
                                          const std::string& reason) {
         return AmsEditOverlay::not_saved_message(outcome, reason);
@@ -2417,6 +2421,60 @@ TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
     UpdateQueue::instance().drain();
     CHECK(access.working_info().remaining_weight_g == 750);
     CHECK(access.working_info().total_weight_g == 750);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a new spool on an unweighed lane saves as 1 kg",
+                 "[ams_edit_overlay][weight][afc-edit-echo]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo fresh = untracked_slot_without_weights();
+    fresh.material.clear();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, fresh, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    SlotInfo edited = access.working_info();
+    SECTION("a material on a lane with none: a 1 kg spool") {
+        edited.material = "PLA";
+        access.set_working_info(edited);
+        const SlotInfo saving = access.saving();
+        CHECK(saving.remaining_weight_g == Catch::Approx(1000.0f));
+        CHECK(saving.total_weight_g == Catch::Approx(1000.0f));
+    }
+    SECTION("a weight typed beside it stands") {
+        edited.material = "PLA";
+        edited.remaining_weight_g = 0.0f;
+        access.set_working_info(edited);
+        CHECK(access.saving().remaining_weight_g == Catch::Approx(0.0f));
+    }
+    SECTION("a colour alone sets up no spool") {
+        edited.color_rgb = 0x00FF00;
+        access.set_working_info(edited);
+        CHECK(access.saving().remaining_weight_g < 0.0f);
+        CHECK(access.saving().total_weight_g < 0.0f);
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "relabelling a lane that already had a material keeps its weight",
+                 "[ams_edit_overlay][weight][afc-edit-echo]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo spent = untracked_slot_without_weights();
+    spent.material = "PETG";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, spent, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    SlotInfo edited = access.working_info();
+    edited.material = "PLA";
+    access.set_working_info(edited);
+    CHECK(access.saving().remaining_weight_g < 0.0f);
+    CHECK(access.saving().total_weight_g < 0.0f);
     close_editor_overlay();
 }
 

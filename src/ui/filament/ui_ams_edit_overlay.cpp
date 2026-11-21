@@ -65,6 +65,27 @@ namespace helix::ui {
 
 namespace {
 
+/// The weight a spool nobody has weighed is taken to have: the common 1 kg
+/// spool, which the person corrects in one keypad entry when theirs differs.
+constexpr float kUnweighedSpoolG = 1000.0f;
+
+/// Give @p saving a 1 kg spool's weights when the save sets up a new spool on
+/// a lane whose weight nothing knows: an unlinked lane that had no material
+/// given one, with no weight on either side and none typed. A relabelled lane
+/// keeps what it held, even a metered 0 g; a linked spool's weights are
+/// Spoolman's.
+void seed_unweighed_spool(const SlotInfo& original, SlotInfo& saving) {
+    if (saving.spoolman_id > 0 || saving.material.empty() || !original.material.empty()) {
+        return;
+    }
+    if (saving.remaining_weight_g > 0 || saving.total_weight_g > 0 ||
+        std::fabs(saving.remaining_weight_g - original.remaining_weight_g) > 0.1f) {
+        return;
+    }
+    saving.remaining_weight_g = kUnweighedSpoolG;
+    saving.total_weight_g = kUnweighedSpoolG;
+}
+
 /// Move every element of @p recents that appears in @p base (case-insensitive)
 /// to the front, keeping both lists' own orders otherwise.
 std::vector<std::string> hoist_recents(const std::vector<std::string>& base,
@@ -2412,6 +2433,7 @@ AmsEditOverlay::SaveCapture AmsEditOverlay::capture_save() const {
     cap.original = spoolman.base;
     cap.spoolman_target = spoolman.target;
     cap.saving = working_info_;
+    seed_unweighed_spool(cap.original, cap.saving);
     cap.owed = completion_callback_;
     cap.chained_spool_id = detail_working_.id;
     // The More fields ride the Update arm when the identity prompt owns this

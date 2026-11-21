@@ -543,8 +543,8 @@ cd .worktrees/my-feature
 # Set up existing worktree without creating
 ./scripts/setup-worktree.sh --setup-only feature/i18n
 
-# Skip the initial build
-./scripts/setup-worktree.sh --no-build feature/quick-test
+# Build right after setup (off by default: the first make in the worktree builds)
+./scripts/setup-worktree.sh --build feature/quick-test
 ```
 
 A new branch is cut from the HEAD of **whichever tree you run the script in**,
@@ -673,7 +673,7 @@ But it only helps across worktrees if it is configured for it. The native build 
 | `sloppiness` | `pch_defines,time_macros` | Without it ccache refuses to cache any `-include include/lvgl_pch.h` compile — i.e. all of them. See the box above for the `__DATE__` tradeoff |
 | `max_size` | `25G` (raised, never lowered) | The default 5 GiB thrashes once several worktrees + cross-compile caches share it, re-causing cold misses |
 
-For the script's own initial build it also exports `CCACHE_BASEDIR` (the longest common ancestor of the main tree and the worktree, so it works even for out-of-tree paths like `/tmp/foo`), `CCACHE_NOHASHDIR=1`, and `CCACHE_SLOPPINESS`.
+For the initial build `--build` runs, it also exports `CCACHE_BASEDIR` (the longest common ancestor of the main tree and the worktree, so it works even for out-of-tree paths like `/tmp/foo`), `CCACHE_NOHASHDIR=1`, and `CCACHE_SLOPPINESS`.
 
 These are global ccache settings, so they apply to normal main-tree builds too, not just worktrees — running `setup-worktree.sh` once is enough to fix a whole machine. Worth doing on every machine you build on, including remote build hosts: an existing ccache install with `base_dir`/`hash_dir` already set can still be caching nothing if `sloppiness` was never configured.
 
@@ -709,7 +709,7 @@ prerequisite of all of them, independent of this hash.
 ### Typical worktree workflow
 
 ```bash
-# 1. Spin up an isolated workspace for a feature (builds automatically)
+# 1. Spin up an isolated workspace for a feature (no build; add --build for one)
 ./scripts/setup-worktree.sh feature/my-feature
 cd .worktrees/my-feature
 
