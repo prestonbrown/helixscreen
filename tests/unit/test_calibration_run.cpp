@@ -428,8 +428,8 @@ TEST_CASE("a guided run's results read as the measured values", "[calibration_ru
     CHECK(format_pid(68.2, 0.92, 1265.3) == "68.2 / 0.92 / 1265");
     CHECK(format_mpc(18.43) == "MPC 18.4 J/K");
     CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.71), format_shaper_axis("ei", 47.6)) ==
-          "MZV 36.7 · EI 47.6 Hz");
-    CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.7), "") == "MZV 36.7 Hz");
+          "X: MZV 36.7 · Y: EI 47.6");
+    CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.7), "") == "X: MZV 36.7");
     CHECK(format_mesh_range(0.183) == "0.18 mm range");
 }
 
