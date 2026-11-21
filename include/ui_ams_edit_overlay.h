@@ -486,12 +486,15 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t last_product_subject_{}; ///< what it last held, product line
     lv_subject_t last_material_subject_{};   ///< what it last held, material · color
     lv_subject_t add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
+    lv_subject_t adding_subject_{};          ///< 1 while the summary holds a new spool going in
     lv_subject_t tag_text_subject_{};        ///< "Tag says PLA · Bambu · Black"
     lv_subject_t clear_archive_subject_{};   ///< the Clear Lane archive checkbox
     lv_subject_t clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")
     char product_line_buf_[128] = {0};
     char material_line_buf_[128] = {0};
     char lane_line_buf_[128] = {0};
+    lv_subject_t runout_text_subject_{}; ///< what a runout of this lane does
+    char runout_text_buf_[160] = {0};
     char empty_title_buf_[96] = {0};
     char last_product_buf_[128] = {0};
     char last_material_buf_[128] = {0};
@@ -510,6 +513,14 @@ class AmsEditOverlay : public OverlayBase {
     void handle_clear_confirm();
     void handle_clear_cancel();
     void handle_new_spool();
+    /// What the lane held before it emptied or was cleared here.
+    SlotInfo last_held_;
+    [[nodiscard]] bool spoolman_set_up() const;
+    /// File the staged spool going in: in Spoolman and the lane, or the lane alone.
+    void save_new_spool(bool add_to_spoolman);
+    void archive_spool(int spool_id);
+    /// Write a lane-setting change now; a refusal restores the dropdowns.
+    void apply_lane_settings();
     void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
@@ -562,8 +573,8 @@ class AmsEditOverlay : public OverlayBase {
     void update_summary();
     /// Title, subtitle and the Edit panel's lines for the current mode.
     void update_header_and_panel();
-    /// What the describe form says now, as a spool query.
-    [[nodiscard]] spool_assign::SpoolQuery current_query() const;
+    /// The lane other than this one linked to @p spool_id, or -1.
+    [[nodiscard]] int lane_holding_spool(int spool_id) const;
     void update_sync_button_state();
     void update_temp_display();
     bool is_dirty() const;

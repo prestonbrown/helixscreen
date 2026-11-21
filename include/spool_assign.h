@@ -154,6 +154,10 @@ struct SpoolSize {
 /// The Edit screen's - / + step.
 inline constexpr float kRemainingStepGrams = 10.0f;
 
+/// A linked spool with less than this left is offered for archiving when its
+/// lane is cleared.
+inline constexpr float kArchiveBelowGrams = 20.0f;
+
 /// @p remaining_g moved by @p delta_g, kept at 0 or more and, when the spool's
 /// total is known, at most that total.
 [[nodiscard]] float step_remaining(float remaining_g, float delta_g, float total_g);
