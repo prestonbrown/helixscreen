@@ -264,6 +264,23 @@ untar_fixture() {
     [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
 }
 
+# Buildroot's git download keeps each submodule's .git gitfile but not the
+# superproject's .git/modules it points at, and git refuses to run in such a
+# directory at all. mk/patches.mk names the submodule relative to the tree.
+@test "a submodule whose .git file points nowhere is patched once" {
+    untar_fixture
+    printf 'gitdir: ../../.git/modules/fake\n' > "$SUB/.git"
+    local helper="$PWD/$HELPER"
+    cd "$ROOT" || return 1
+    run "$helper" lib/fake patches/good.patch "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch applied' <<<"$output"
+    run "$helper" lib/fake patches/good.patch "fixture patch"
+    [ "$status" -eq 0 ]
+    grep -q 'fixture patch already applied' <<<"$output"
+    [ "$(grep -c '^ALPHA$' "$SUB/one.txt")" -eq 1 ]
+}
+
 @test "a submodule with no repository anywhere is patched once" {
     untar_fixture
     GIT_CEILING_DIRECTORIES="$(dirname "$ROOT")" \
