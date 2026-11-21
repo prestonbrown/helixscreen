@@ -303,9 +303,11 @@
   <translation tag="Add part fan to MPC?" zh="将模型风扇添加到 MPC?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" zh="添加到 Mainsail/Fluidd 摄像头"/>
   <translation tag="Add to Queue" zh="添加到队列"/>
+  <translation tag="Add to Spoolman &amp; Assign" zh="添加到 Spoolman 并分配"/>
   <translation tag="Add to Spoolman + label" zh="添加到 Spoolman + 标签"/>
   <translation tag="Added" zh="已添加"/>
   <translation tag="Added to Spoolman" zh="已添加到 Spoolman"/>
+  <translation tag="Added to Spoolman as #{}" zh="已添加到 Spoolman，编号 #{}"/>
   <translation tag="Added to queue (position {})" zh="已添加到队列（第 {} 位）"/>
   <translation tag="Added to queue (position {}) - queue is paused" zh="已添加到队列（第 {} 位）– 队列已暂停"/>
   <translation tag="Adding printer" zh="正在添加打印机"/>
@@ -409,7 +411,9 @@
   <translation tag="Ask before turning off the stepper motors" zh="关闭步进电机前先询问"/>
   <translation tag="Ask every time" zh="每次询问"/>
   <translation tag="Ask for parameters" zh="询问参数"/>
+  <translation tag="Assign" zh="分配"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" zh="分配 Klipper 宏通过开/关、切换或预设控制 LED"/>
+  <translation tag="Assign Spool" zh="分配料盘"/>
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
   <translation tag="Assign a slot first" zh="请先分配槽位"/>
   <translation tag="Assigned Tool" zh="已分配工具"/>
@@ -880,6 +884,7 @@
   <translation tag="Clear All Events" zh="清除所有事件"/>
   <translation tag="Clear Console?" zh="清空控制台？"/>
   <translation tag="Clear Error" zh="清除错误"/>
+  <translation tag="Clear Lane" zh="清空耗材通道"/>
   <translation tag="Clear Spool" zh="移除料盘"/>
   <translation tag="Clear and clean the build plate, then resume." zh="请清空并清洁打印板，然后恢复。"/>
   <translation tag="Clear any debris from the carriage and the head&apos;s latch, seat the head again, then home and resume." zh="请清除滑架和工具头锁定装置上的杂物，重新安装工具头，然后归位并恢复。"/>
@@ -926,6 +931,7 @@
   <translation tag="Command Failed" zh="命令失败"/>
   <translation tag="Command failed" zh="命令失败"/>
   <translation tag="Command not allowed" zh="命令不被允许"/>
+  <translation tag="Common spools to start from" zh="从常用料盘开始"/>
   <translation tag="Communication Test" zh="通信测试"/>
   <translation tag="Compact" zh="紧凑"/>
   <translation tag="Compare belt paths with a resonance sweep" zh="用共振扫频比较皮带路径"/>
@@ -1111,6 +1117,7 @@
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." zh="无法验证 Spoolman 状态。Moonraker 可能仍在重启中。"/>
   <translation tag="Couldn&apos;t assign the tool" zh="无法分配工具"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" zh="无法清空打印机的通道映射"/>
+  <translation tag="Couldn&apos;t load spools — tap to retry" zh="无法加载料盘 — 点按重试"/>
   <translation tag="Couldn&apos;t map filament: internal error" zh="无法映射耗材：内部错误"/>
   <translation tag="Couldn&apos;t map filament: no temp directory available" zh="无法映射耗材：没有可用的临时目录"/>
   <translation tag="Couldn&apos;t save the material name" zh="无法保存材料名称"/>
@@ -1238,6 +1245,7 @@
   <translation tag="Device name is required" zh="设备名称为必填项"/>
   <translation tag="Device: " zh="设备: "/>
   <translation tag="Devices" zh="设备"/>
+  <translation tag="Different Spool" zh="更换料盘"/>
   <translation tag="Different color" zh="颜色不同"/>
   <translation tag="Different filament?" zh="耗材不同？"/>
   <translation tag="Different material" zh="材料不同"/>
@@ -2293,6 +2301,7 @@
   <translation tag="Labels" zh="标签"/>
   <translation tag="Labels Per Sheet" zh="每页标签数"/>
   <translation tag="Lane" zh="耗材通道"/>
+  <translation tag="Lane Settings" zh="耗材通道设置"/>
   <translation tag="Lane name contains invalid characters" zh="耗材通道名称包含无效字符"/>
   <translation tag="Lane tests and motor resets" zh="耗材通道测试与电机重置"/>
   <translation tag="Lanes" zh="耗材通道"/>
@@ -2521,6 +2530,7 @@
   <translation tag="Match your typical print fan speed" zh="匹配您常用的打印风扇速度"/>
   <translation tag="Matched at {:.1f} Hz" zh="在 {:.1f} Hz 处匹配"/>
   <translation tag="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match." zh="张力一致的皮带会得到形状相同的曲线。当一条路径的最高峰在另一条路径上没有对应峰时,说明除张力外还有其他因素在影响响应:&#10;&#10;- 皮带磨损、起毛或跑偏&#10;- 同步轮顶丝松动或打滑&#10;- 惰轮或轴承卡滞&#10;- 齿间有杂物,或皮带摩擦挡边&#10;- 加速度计安装松动&#10;&#10;调整仍跟随随转动而移动的区间,但在追求完美匹配之前请先检查这些。"/>
+  <translation tag="Matching Spools" zh="匹配的料盘"/>
   <translation tag="Matching printers" zh="匹配的打印机"/>
   <translation tag="Material" zh="材料"/>
   <translation tag="Material Comfort:" zh="材料适配度："/>
@@ -2795,6 +2805,7 @@
   <translation tag="No spool linked" zh="未关联料盘"/>
   <translation tag="No spools found — tap to retry" zh="未找到料盘 - 点击重试"/>
   <translation tag="No spools match your search" zh="没有符合搜索条件的料盘"/>
+  <translation tag="No spools match. Add it as a new spool below." zh="没有匹配的料盘。请在下方添加为新料盘。"/>
   <translation tag="No spools placed" zh="未放置料盘"/>
   <translation tag="No tape detected in printer" zh="打印机中未检测到标签带"/>
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
@@ -2826,6 +2837,7 @@
   <translation tag="Not Enough Filament" zh="耗材不足"/>
   <translation tag="Not Enough Memory" zh="内存不足"/>
   <translation tag="Not Initialized" zh="未初始化"/>
+  <translation tag="Not Listed? Add New Spool" zh="不在列表中？添加新料盘"/>
   <translation tag="Not Now" zh="暂不"/>
   <translation tag="Not Supported" zh="不支持"/>
   <translation tag="Not added" zh="未添加"/>
@@ -2852,6 +2864,9 @@
   <translation tag="Not set" zh="未设置"/>
   <translation tag="Not set up for this printer model yet." zh="尚未为此打印机型号配置。"/>
   <translation tag="Not turned" zh="未转动"/>
+  <translation tag="Not undone: the lane changed since that save." zh="未撤销：保存后耗材通道已更改。"/>
+  <translation tag="Not undone: the printer changed since that save." zh="未撤销：保存后打印机已更换。"/>
+  <translation tag="Not undone: {}" zh="未撤销：{}"/>
   <translation tag="Not while printing" zh="打印时不可用"/>
   <translation tag="Not yet available on this display" zh="此屏幕暂不支持"/>
   <translation tag="Not yet calibrated" zh="尚未校准"/>
@@ -3031,6 +3046,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." zh="插件的一部分加载失败。请重新安装插件。"/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." zh="插件缺少一部分。请重新安装插件。"/>
   <translation tag="Part, hotend, and auxiliary fan speeds" zh="零件、热端与辅助风扇速度"/>
+  <translation tag="Partial…" zh="部分…"/>
   <translation tag="Pass" zh="轮次"/>
   <translation tag="Password" zh="密码"/>
   <translation tag="Password cannot be empty" zh="密码不能为空"/>
@@ -3455,6 +3471,7 @@
   <translation tag="Recalibrate or view detailed results anytime in Settings." zh="可随时在设置中重新校准或查看详细结果。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." zh="从打印机收到的数据过大（{} 字节）。这可能表示通信错误。"/>
   <translation tag="Recent Prints" zh="最近打印"/>
+  <translation tag="Recent Spools" zh="最近的料盘"/>
   <translation tag="Recently Printed" zh="最近打印过的"/>
   <translation tag="Recirculate" zh="内循环"/>
   <translation tag="Recirculation fan" zh="循环风扇"/>
@@ -3764,6 +3781,7 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." zh="在第 2 层之后和每次打印结束时保存一张摄像头照片，显示在打印历史中。"/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." zh="大约每秒保存一次打印位置，以便断电后可以恢复打印。在 SD 卡上这会增加磨损。"/>
   <translation tag="Saves to Klipper config and restarts firmware." zh="保存到 Klipper 配置并重启固件。"/>
+  <translation tag="Saves to Spoolman spool #{}" zh="保存到 Spoolman 料盘 #{}"/>
   <translation tag="Saves when the filament operation finishes." zh="耗材操作完成后保存。"/>
   <translation tag="Saves when the filament operation on {} finishes." zh="{} 的耗材操作完成后保存。"/>
   <translation tag="Saves when the load finishes." zh="装载完成后保存。"/>
@@ -3782,6 +3800,7 @@
   <translation tag="Saving..." zh="保存中..."/>
   <translation tag="Scan" zh="扫描"/>
   <translation tag="Scan Cal" zh="扫描校准"/>
+  <translation tag="Scan Label" zh="扫描标签"/>
   <translation tag="Scan QR Code" zh="扫描 QR 码"/>
   <translation tag="Scan Spool QR Code" zh="扫描料盘 QR 码"/>
   <translation tag="Scan and select a Bluetooth printer first" zh="请先扫描并选择蓝牙打印机"/>
@@ -4045,6 +4064,7 @@
   <translation tag="Spool #{}" zh="线轴 #{}"/>
   <translation tag="Spool Info" zh="料盘信息"/>
   <translation tag="Spool Not Found" zh="找不到料盘"/>
+  <translation tag="Spool Size" zh="料盘尺寸"/>
   <translation tag="Spool Weight (g)" zh="料盘重量（克）"/>
   <translation tag="Spool archived" zh="料盘已归档"/>
   <translation tag="Spool created successfully" zh="料盘创建成功"/>
@@ -4079,6 +4099,7 @@
   <translation tag="Spoolman: %zu/%zu Spools" zh="Spoolman: %zu/%zu 个线轴"/>
   <translation tag="SpoolmanDB search failed" zh="SpoolmanDB 搜索失败"/>
   <translation tag="Spools" zh="料盘"/>
+  <translation tag="Spools Used on This Printer" zh="本打印机用过的料盘"/>
   <translation tag="Spools are off" zh="料盘已取下"/>
   <translation tag="Spools are on the bed: remove them and confirm before moving the printer" zh="热床上有料盘：请先移除并确认，再移动打印机"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." zh="热床上有料盘:点击烘干横幅确认已取下,然后再重启。"/>
@@ -4772,6 +4793,7 @@
   <translation tag="Tool offsets (mm)" zh="工具偏移 (mm)"/>
   <translation tag="Tool offsets saved" zh="工具偏移已保存"/>
   <translation tag="Tool swap" zh="工具切换"/>
+  <translation tag="Tool, runout backup" zh="工具、断料备用"/>
   <translation tag="Toolchange purge" zh="换刀排料"/>
   <translation tag="Toolhead" zh="工具头"/>
   <translation tag="Toolhead Calibration Running" zh="工具头校准进行中"/>
@@ -4966,6 +4988,7 @@
   <translation tag="Upload unavailable in this build" zh="此构建版本无法上传"/>
   <translation tag="Upper belt" zh="上皮带"/>
   <translation tag="Uptime" zh="运行时长"/>
+  <translation tag="Use" zh="使用"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" zh="请使用 AFC 的映射命令添加或移动工具"/>
   <translation tag="Use Android native keyboard for text input" zh="使用 Android 原生键盘进行文本输入"/>
   <translation tag="Use Another Toolhead" zh="使用另一个工具头"/>
@@ -5230,6 +5253,7 @@
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" zh="在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"/>
   <translation tag="a newer version" zh="更新的版本"/>
   <translation tag="already loaded" zh="已加载"/>
+  <translation tag="assign without adding to Spoolman" zh="分配但不添加到 Spoolman"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
   <translation tag="bed" zh="热床"/>
@@ -5238,6 +5262,7 @@
   <translation tag="by" zh="作者："/>
   <translation tag="by Preston Brown" zh="by Preston Brown"/>
   <translation tag="chamber heater" zh="腔体加热器"/>
+  <translation tag="close: {}" zh="相近：{}"/>
   <translation tag="color differs" zh="颜色不同"/>
   <translation tag="complete" zh="完成"/>
   <translation tag="cores" zh="核心"/>
@@ -5313,6 +5338,7 @@
   <translation tag="rendering" zh="渲染中"/>
   <translation tag="reset at {} h" zh="于 {} 小时时重置"/>
   <translation tag="set manually" zh="手动设置"/>
+  <translation tag="similar color" zh="相近颜色"/>
   <translation tag="sleep {} min" zh="{} 分钟后休眠"/>
   <translation tag="slots)" zh="个槽位)"/>
   <translation tag="started" zh="已启动"/>
@@ -5355,6 +5381,7 @@
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." zh="{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" zh="{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" zh="{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）"/>
+  <translation tag="{:.0f} g left" zh="剩余 {:.0f} g"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" zh="{:.0f}-{:.0f} Hz · 约 {} 分钟"/>
   <translation tag="{} ({})" zh="{}（{}）"/>
   <translation tag="{} Extruders" zh="{} 个挤出机"/>
