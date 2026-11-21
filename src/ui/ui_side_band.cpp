@@ -5,7 +5,6 @@
 
 #include "ui_ams_mini_status.h"
 #include "ui_nav.h"
-#include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_panel_motion.h"
@@ -60,7 +59,7 @@ void fill_band(lv_obj_t* root, lv_obj_t* band) {
         lv_obj_set_parent(root, band);
     }
     // DECLARATIVE_OK: the band places a tree built for the overlay stack; its
-    // size and visibility are what NavigationManager would otherwise set on push.
+    // size and visibility are what the navigation stack would otherwise set on push.
     lv_obj_set_size(root, lv_pct(100), lv_pct(100));
     lv_obj_set_align(root, LV_ALIGN_TOP_LEFT);
     lv_obj_set_hidden(root, false);
@@ -258,9 +257,8 @@ void SideBand::observe_inputs() {
         theme_observer_ = observe<int>(theme, this, on_change, subject_never_freed());
     }
     // Switching main panels from under an overlay leaves the host for real.
-    auto& nav = NavigationManager::instance();
     active_panel_observer_ = observe<int>(
-        nav.get_active_panel_subject(), this,
+        nav::active_panel_subject(), this,
         [](SideBand* self, int panel) {
             if (self->covered_ && panel != self->panel_at_cover_) {
                 self->covered_ = false;
@@ -269,7 +267,7 @@ void SideBand::observe_inputs() {
                 }
             }
         },
-        nav.get_subjects_lifetime());
+        nav::subjects_lifetime());
     if (content_ != SideBandContent::Ams) {
         return;
     }
@@ -424,12 +422,11 @@ void SideBand::on_host_deactivate(DeactivateReason reason) {
     // An overlay over the host (and a screensaver) keeps the guest's place; a
     // switch to another main panel does not. The overlay case waits for the
     // active panel to change from under it (active_panel_observer_).
-    const bool covered = NavigationManager::instance().main_panel_deactivated_for_overlay();
+    const bool covered = nav::main_panel_covered();
     if (live_hosted() && reason == DeactivateReason::NavigateAway) {
         if (covered) {
             covered_ = true;
-            panel_at_cover_ =
-                lv_subject_get_int(NavigationManager::instance().get_active_panel_subject());
+            panel_at_cover_ = lv_subject_get_int(nav::active_panel_subject());
         } else {
             guest_->on_host_left();
         }
