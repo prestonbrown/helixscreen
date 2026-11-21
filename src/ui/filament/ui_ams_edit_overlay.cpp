@@ -586,9 +586,6 @@ void AmsEditOverlay::init_subjects() {
                                   "ams_edit_last_material", subjects_);
         UI_MANAGED_SUBJECT_INT(add_to_spoolman_subject_, 1, "ams_edit_add_to_spoolman", subjects_);
         UI_MANAGED_SUBJECT_INT(adding_subject_, 0, "ams_edit_adding", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_named_subject_, 0, "ams_edit_color_named", subjects_);
-        UI_MANAGED_SUBJECT_STRING(tag_text_subject_, tag_text_buf_, "", "ams_edit_tag_text",
-                                  subjects_);
         UI_MANAGED_SUBJECT_INT(clear_archive_subject_, 0, "ams_edit_clear_archive", subjects_);
         UI_MANAGED_SUBJECT_STRING(clear_title_subject_, clear_title_buf_, "",
                                   "ams_edit_clear_title", subjects_);
@@ -623,6 +620,8 @@ void AmsEditOverlay::init_subjects() {
 
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
+        UI_MANAGED_SUBJECT_INT(no_product_subject_, 1, "ams_edit_no_product", subjects_);
+        UI_MANAGED_SUBJECT_INT(has_variants_subject_, 0, "ams_edit_has_variants", subjects_);
         // The color line and row (update_color_row).
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
@@ -811,10 +810,11 @@ void AmsEditOverlay::rebuild_option_lists() {
     }
     variant_options_ = std::move(variants);
 
-    // BRAND: Generic, then recents, then the rest, then "Browse catalog...".
+    // BRAND: Generic, then recents, then every other maker (the product says
+    // the material), then "Browse catalog...".
     std::vector<Option> brands;
     brands.push_back({"Generic", "Generic", false});
-    std::vector<std::string> makers = catalog_->brands_in_family(sel_.family);
+    std::vector<std::string> makers = catalog_->all_brands();
     std::vector<std::string> ordered = hoist_recents(makers, recent_brands_);
     bool brand_known = helix::text_io::equals_ignore_case(sel_.brand, "Generic");
     for (const auto& brand : ordered) {
@@ -832,11 +832,15 @@ void AmsEditOverlay::rebuild_option_lists() {
     brands.push_back({lv_tr("Browse catalog..."), {}, true});
     brand_options_ = std::move(brands);
 
-    // PRODUCT: that brand's lines for the material. Hidden under Generic.
+    // PRODUCT: every line of the brand the firmware accepts, each carrying
+    // its material and type, then "Other..." (described by Material instead).
+    // Hidden under Generic.
     std::vector<Option> products;
     if (!helix::text_io::equals_ignore_case(sel_.brand, "Generic")) {
-        for (const auto* ef : catalog_->products_in_family(sel_.brand, sel_.family)) {
-            products.push_back({ef->name, ef->id, false});
+        for (const auto* ef : catalog_->products_for_brand(sel_.brand)) {
+            if (printer::type_allowed(allowed, ef->type)) {
+                products.push_back({ef->name, ef->id, false});
+            }
         }
         // Firmware that names the product without a catalog id (the CFS fork's
         // NAME) opens on the line of that name, or on the name itself when the
@@ -872,9 +876,15 @@ void AmsEditOverlay::rebuild_option_lists() {
             products.insert(products.begin(), {label, sel_.product_id, false});
         }
     }
+    if (!products.empty()) {
+        products.push_back({lv_tr("Other…"), {}, false});
+    }
     product_options_ = std::move(products);
     lv_subject_set_int(&product_hidden_subject_,
                        helix::text_io::equals_ignore_case(sel_.brand, "Generic") ? 1 : 0);
+    // Material shows where no product says it; Type where it has variants.
+    lv_subject_set_int(&no_product_subject_, sel_.product_id.empty() ? 1 : 0);
+    lv_subject_set_int(&has_variants_subject_, variant_options_.size() > 1 ? 1 : 0);
 
     refresh_dropdowns();
 }
@@ -960,6 +970,12 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
             return;
         }
         sel_.product_id = option.payload;
+        // A product carries its material and type.
+        if (const auto* ef =
+                option.payload.empty() ? nullptr : catalog_->resolve_id(option.payload)) {
+            sel_.family = filament::display_family(ef->type);
+            sel_.variant = filament::variant_label(ef->type, sel_.family);
+        }
         break;
     default:
         return;
@@ -1116,14 +1132,13 @@ void AmsEditOverlay::update_empty_page() {
     }
 }
 
-void AmsEditOverlay::update_tag_text() {
-    // "Tag says PLA · Bambu · Black", shown only while the form differs
-    // from what the tag states.
+void AmsEditOverlay::update_tag_reset() {
+    // The Filament page's reset shows only while the form differs from what
+    // the spool's tag states.
     if (!subjects_initialized_) {
         return;
     }
     bool differs = false;
-    std::string text;
     if (tag_ && !tag_->empty()) {
         const SlotInfo shown = shown_slot();
         const SlotInfo tagged = ams::reset_to_tag(shown, *tag_);
@@ -1131,21 +1146,7 @@ void AmsEditOverlay::update_tag_text() {
                   tagged.product_name != shown.product_name ||
                   tagged.color_rgb != shown.color_rgb ||
                   tagged.multi_color_hexes != shown.multi_color_hexes;
-        std::string parts;
-        const auto add = [&parts](const std::string& part) {
-            if (!part.empty()) {
-                parts += (parts.empty() ? "" : " · ") + part;
-            }
-        };
-        add(tag_->material.value_or(""));
-        add(tag_->brand.value_or(""));
-        if (tag_->color_rgb) {
-            add(helix::ams::slot_color_name(*tag_->color_rgb));
-        }
-        text = fmt::format(fmt::runtime(lv_tr("Tag says {}")), parts);
     }
-    snprintf(tag_text_buf_, sizeof(tag_text_buf_), "%s", text.c_str());
-    lv_subject_set_string(&tag_text_subject_, tag_text_buf_);
     lv_subject_set_int(&reset_tag_visible_subject_, differs ? 1 : 0);
 }
 
@@ -1890,7 +1891,7 @@ void AmsEditOverlay::refresh_tag_state() {
     if (backend && slot_index_ >= 0) {
         tag_ = backend->tag_reading(slot_index_);
     }
-    update_tag_text();
+    update_tag_reset();
     update_tag_badges();
 }
 
@@ -2026,8 +2027,13 @@ void AmsEditOverlay::size_color_row() {
 int AmsEditOverlay::color_row_rows(lv_obj_t* row) const {
     // DECLARATIVE_OK: measured layout. The swatches take the height the page
     // leaves under the row once everything after it is in.
-    lv_obj_t* page = lv_obj_get_parent(row);
-    if (!page || row_chip_ <= 0) {
+    // The page's child that holds the row; the rows after it share the height.
+    lv_obj_t* page = find_widget("filament_page");
+    lv_obj_t* holder = row;
+    while (holder && lv_obj_get_parent(holder) != page) {
+        holder = lv_obj_get_parent(holder);
+    }
+    if (!page || !holder || row_chip_ <= 0) {
         return 1;
     }
     lv_area_t page_box;
@@ -2037,7 +2043,7 @@ int AmsEditOverlay::color_row_rows(lv_obj_t* row) const {
     bool after = false;
     for (uint32_t i = 0; i < lv_obj_get_child_count(page); ++i) {
         lv_obj_t* child = lv_obj_get_child(page, static_cast<int32_t>(i));
-        if (child == row) {
+        if (child == holder) {
             after = true;
         } else if (after && !lv_obj_is_hidden(child)) {
             below += lv_obj_get_height(child) + gap;
@@ -2156,7 +2162,7 @@ void AmsEditOverlay::update_summary() {
 
     update_header_and_panel();
     update_tag_badges();
-    update_tag_text();
+    update_tag_reset();
     refresh_spool_list();
 }
 
@@ -2656,7 +2662,6 @@ void AmsEditOverlay::update_color_row() {
                                  ? helix::get_color_name_from_hex(details_color_)
                                  : helix::ams::slot_color_name(working_info_.color_rgb);
     lv_subject_set_string(&color_name_subject_, name.c_str());
-    lv_subject_set_int(&color_named_subject_, name.empty() ? 0 : 1);
 
     s_seg_colors.ensure_size(kMaxColors);
     for (size_t i = 0; i < static_cast<size_t>(dots); ++i) {

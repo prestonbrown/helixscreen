@@ -437,6 +437,8 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject is_managed_subject_{};     ///< 1=linked Spoolman spool ("ams_edit_is_managed")
     helix::Subject scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
     helix::Subject product_hidden_subject_{}; ///< 1 while Generic selected
+    helix::Subject no_product_subject_{};     ///< 1 while no catalog product is chosen
+    helix::Subject has_variants_subject_{};   ///< 1 while the material has more than one type
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row
@@ -480,8 +482,6 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject last_material_subject_{};   ///< what it last held, material · color
     helix::Subject add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
     helix::Subject adding_subject_{};          ///< 1 while the summary holds a new spool going in
-    helix::Subject color_named_subject_{};     ///< 1 while the color line has a name to show
-    helix::Subject tag_text_subject_{};        ///< "Tag says PLA · Bambu · Black"
     helix::Subject clear_archive_subject_{};   ///< the Clear Lane archive checkbox
     helix::Subject clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")
     char product_line_buf_[128] = {0};
@@ -494,7 +494,6 @@ class AmsEditOverlay : public OverlayBase {
     char empty_title_buf_[96] = {0};
     char last_product_buf_[128] = {0};
     char last_material_buf_[128] = {0};
-    char tag_text_buf_[160] = {0};
     char clear_title_buf_[96] = {0};
     /// The page the New Spool list returns to.
     int list_return_page_ = kPageSummary;
@@ -502,7 +501,7 @@ class AmsEditOverlay : public OverlayBase {
     void update_page_title();
     void update_lane_line();
     void update_empty_page();
-    void update_tag_text();
+    void update_tag_reset();
     void handle_weight_slider(int pct);
     void handle_same_filament();
     void show_clear_confirm();

@@ -5643,12 +5643,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot's color line names no color",
     REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    // No word stands in for a color nobody picked, and its line takes no room.
+    // No word stands in for a color nobody picked.
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "ams_edit_color_name")))
               .empty());
-    AmsEditOverlayViewTestAccess access(overlay);
-    access.open_page(AmsEditOverlay::kPageFilament);
-    CHECK_FALSE(access.shown("color_label_row"));
+
     close_editor_overlay();
 }
 

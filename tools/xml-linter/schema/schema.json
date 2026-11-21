@@ -1860,12 +1860,6 @@
         "fill_level": {
           "type": "int"
         },
-        "view": {
-          "type": "string"
-        },
-        "smoke": {
-          "type": "string"
-        },
         "size": {
           "type": "int"
         }
@@ -3164,6 +3158,18 @@
     "ams_edit_hdr_hit_medium",
     "ams_edit_hdr_hit_micro",
     "ams_edit_hdr_hit_small",
+    "ams_edit_label_pad",
+    "ams_edit_label_pad_large",
+    "ams_edit_label_pad_medium",
+    "ams_edit_label_pad_micro",
+    "ams_edit_label_pad_small",
+    "ams_edit_label_pad_tiny",
+    "ams_edit_label_w",
+    "ams_edit_label_w_large",
+    "ams_edit_label_w_medium",
+    "ams_edit_label_w_micro",
+    "ams_edit_label_w_small",
+    "ams_edit_label_w_tiny",
     "ams_edit_lane_dd_w",
     "ams_edit_lane_dd_w_large",
     "ams_edit_lane_dd_w_medium",
@@ -3206,6 +3212,12 @@
     "ams_edit_step_hit_micro",
     "ams_edit_step_hit_small",
     "ams_edit_step_hit_tiny",
+    "ams_edit_tag_hit",
+    "ams_edit_tag_hit_large",
+    "ams_edit_tag_hit_medium",
+    "ams_edit_tag_hit_micro",
+    "ams_edit_tag_hit_small",
+    "ams_edit_tag_hit_tiny",
     "ams_edit_vgap",
     "ams_edit_vgap_large",
     "ams_edit_vgap_medium",

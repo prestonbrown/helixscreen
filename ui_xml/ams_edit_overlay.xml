@@ -108,6 +108,24 @@
     <px name="ams_edit_preview_h_small" value="22"/>
     <px name="ams_edit_preview_h_medium" value="24"/>
     <px name="ams_edit_preview_h_large" value="28"/>
+    <!-- The Filament page's label column, and the label's drop to sit level
+         with the first line of swatches beside it. -->
+    <px name="ams_edit_label_w_micro" value="64"/>
+    <px name="ams_edit_label_w_tiny" value="72"/>
+    <px name="ams_edit_label_w_small" value="88"/>
+    <px name="ams_edit_label_w_medium" value="104"/>
+    <px name="ams_edit_label_w_large" value="124"/>
+    <px name="ams_edit_label_pad_micro" value="6"/>
+    <px name="ams_edit_label_pad_tiny" value="8"/>
+    <px name="ams_edit_label_pad_small" value="10"/>
+    <px name="ams_edit_label_pad_medium" value="12"/>
+    <px name="ams_edit_label_pad_large" value="12"/>
+    <!-- ↺'s hit reach: #button_height_sm plus twice this is 44 or more. -->
+    <px name="ams_edit_tag_hit_micro" value="10"/>
+    <px name="ams_edit_tag_hit_tiny" value="8"/>
+    <px name="ams_edit_tag_hit_small" value="2"/>
+    <px name="ams_edit_tag_hit_medium" value="2"/>
+    <px name="ams_edit_tag_hit_large" value="2"/>
     <!-- The Lane Settings dropdowns. -->
     <px name="ams_edit_lane_dd_w_micro" value="110"/>
     <px name="ams_edit_lane_dd_w_tiny" value="120"/>
@@ -399,126 +417,126 @@
               scrollable="false" hidden="true">
         <bind_flag_if_not_eq subject="ams_edit_page" flag="hidden" ref_value="3"/>
 
-        <!-- The lane's tag states a different filament. -->
-        <lv_obj name="tag_bar"
-                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-                scrollable="false" hidden="true">
-          <style name="nav_row"/>
-          <bind_flag_if_eq subject="ams_edit_reset_tag_visible" flag="hidden" ref_value="0"/>
-          <text_small name="tag_bar_text" flex_grow="1" bind_text="ams_edit_tag_text" long_mode="dots"/>
+        <!-- Rows that read as sentences: a label column on the left, the
+             controls on the right. -->
+        <!-- Filament: Brand and Product. A product carries its material and
+             type; ↺ puts back what the spool's tag says, while the lane
+             differs from it. -->
+        <lv_obj name="filament_row"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false">
+          <lv_obj width="#ams_edit_label_w"
+                  height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
+            <text_body width="100%" text="Filament" long_mode="dots"/>
+            <tag_badge subject="ams_edit_tag_brand"/>
+          </lv_obj>
+          <lv_dropdown name="dropdown_brand"
+                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
+            <event_cb trigger="value_changed" callback="ams_edit_brand_dd_cb"/>
+          </lv_dropdown>
+          <lv_dropdown name="dropdown_product"
+                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
+            <bind_flag_if_eq subject="ams_edit_product_hidden" flag="hidden" ref_value="1"/>
+            <event_cb trigger="value_changed" callback="ams_edit_product_dd_cb"/>
+          </lv_dropdown>
           <ui_button name="btn_reset_tag"
-                     width="content" height="#button_height_sm" ext_click_area="#ams_edit_bar_hit" text="Use Tag"
-                     variant="secondary">
+                     width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit" icon="undo"
+                     icon_size="sm" variant="secondary" hidden="true">
+            <bind_flag_if_eq subject="ams_edit_reset_tag_visible" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_edit_reset_tag_cb"/>
           </ui_button>
         </lv_obj>
 
-        <!-- Material, Type, Brand, Product as a 2x2 grid; Product hides
-             under Generic and the grid drops to three cells. Each list ends
-             in "Browse catalog..." for the full catalog picker. -->
-        <lv_obj name="describe_grid"
-                width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xs"
-                style_pad_row="#ams_edit_vgap" scrollable="false">
-          <lv_obj width="49%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
-                    style_flex_cross_place="center" scrollable="false">
-              <text_small text="Material" style_text_color="#text_muted"/>
-              <tag_badge subject="ams_edit_tag_material"/>
-            </lv_obj>
-            <lv_dropdown name="dropdown_material"
-                         width="100%" height="#button_height_sm" style_radius="#border_radius" options="">
-              <event_cb trigger="value_changed" callback="ams_edit_material_dd_cb"/>
-            </lv_dropdown>
+        <!-- Material, where no product says it: under Generic, or a product
+             the catalog does not know. Type shows where the material has
+             variants. Firmware and slicers need the material. -->
+        <lv_obj name="material_row"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false" hidden="true">
+          <bind_flag_if cond="ams_edit_product_hidden eq 0 and ams_edit_no_product eq 0" flag="hidden"/>
+          <lv_obj width="#ams_edit_label_w"
+                  height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
+            <text_body width="100%" text="Material" long_mode="dots"/>
+            <tag_badge subject="ams_edit_tag_material"/>
           </lv_obj>
-          <lv_obj width="49%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
-            <text_small text="Type" style_text_color="#text_muted"/>
-            <lv_dropdown name="dropdown_variant"
-                         width="100%" height="#button_height_sm" style_radius="#border_radius" options="">
-              <event_cb trigger="value_changed" callback="ams_edit_variant_dd_cb"/>
-            </lv_dropdown>
+          <lv_dropdown name="dropdown_material"
+                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
+            <event_cb trigger="value_changed" callback="ams_edit_material_dd_cb"/>
+          </lv_dropdown>
+          <lv_dropdown name="dropdown_variant"
+                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
+            <bind_flag_if_eq subject="ams_edit_has_variants" flag="hidden" ref_value="0"/>
+            <event_cb trigger="value_changed" callback="ams_edit_variant_dd_cb"/>
+          </lv_dropdown>
+        </lv_obj>
+
+        <!-- Color: the spool's own color first, then as many recents and
+             palette colors as the page has room for, the rainbow tile last. -->
+        <lv_obj name="color_line"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="start" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false">
+          <lv_obj width="#ams_edit_label_w"
+                  height="content" style_pad_top="#ams_edit_label_pad" style_pad_hor="0" style_pad_bottom="0"
+                  flex_flow="column" style_pad_gap="0" scrollable="false">
+            <text_body width="100%" text="Color" long_mode="dots"/>
+            <tag_badge subject="ams_edit_tag_color"/>
           </lv_obj>
-          <lv_obj width="49%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
-                    style_flex_cross_place="center" scrollable="false">
-              <text_small text="Brand" style_text_color="#text_muted"/>
-              <tag_badge subject="ams_edit_tag_brand"/>
+          <lv_obj width="1"
+                  height="content" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
+                  scrollable="false">
+            <!-- A multi-color spool: how its colors run. Gradient blends them
+                 along the bar; Coaxial shows them as bands. -->
+            <lv_obj name="colors_line"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" scrollable="false" hidden="true">
+              <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
+              <lv_dropdown name="dropdown_color_mode"
+                           width="#ams_edit_mode_dd_w" height="#button_height_sm" style_radius="#border_radius"
+                           options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial"
+                           bind_value="ams_edit_color_mode">
+                <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
+              </lv_dropdown>
+              <swatch_paint name="color_preview_bar"
+                            height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
+                            bind_colors="ams_edit_color_current_multi" blend="on">
+                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="1"/>
+              </swatch_paint>
+              <swatch_paint name="color_preview_bands"
+                            height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
+                            bind_colors="ams_edit_color_current_multi">
+                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="0"/>
+              </swatch_paint>
             </lv_obj>
-            <lv_dropdown name="dropdown_brand"
-                         width="100%" height="#button_height_sm" style_radius="#border_radius" options="">
-              <event_cb trigger="value_changed" callback="ams_edit_brand_dd_cb"/>
-            </lv_dropdown>
-          </lv_obj>
-          <lv_obj width="49%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
-            <bind_flag_if_eq subject="ams_edit_product_hidden" flag="hidden" ref_value="1"/>
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xxs"
+            <!-- As many swatches as the page has room for (size_color_row
+                 measures it): a fixed set, each shown while its index is
+                 under the count, so they wrap with the dots and the rainbow
+                 tile ends the last line. -->
+            <lv_obj name="color_row"
+                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
                     style_flex_cross_place="center" scrollable="false">
-              <text_small text="Product" style_text_color="#text_muted"/>
-              <tag_badge subject="ams_edit_tag_product"/>
+              <style name="color_row_pad"/>
+              <ams_edit_color_dots name="color_dots"/>
+              <repeat count="64">
+                <color_swatch index="${i}"
+                              color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
+                              size="#swatch_grid_size" hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach"
+                              ring="styles.grid_swatch_ring">
+                  <bind_flag_if cond="ams_edit_recent_count le ${i}" flag="hidden"/>
+                </color_swatch>
+              </repeat>
+              <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb"/>
             </lv_obj>
-            <lv_dropdown name="dropdown_product"
-                         width="100%" height="#button_height_sm" style_radius="#border_radius" options="">
-              <event_cb trigger="value_changed" callback="ams_edit_product_dd_cb"/>
-            </lv_dropdown>
           </lv_obj>
         </lv_obj>
 
-        <!-- A single color's name, where it fits; a multi-color spool shows
-             its mode and a bar of its colors instead. -->
-        <lv_obj name="color_label_row"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
-                style_flex_cross_place="center" scrollable="false">
-          <bind_flag_if cond="(ui_breakpoint eq 0 and ui_is_portrait eq 0) or ams_edit_multi eq 1 or ams_edit_color_named eq 0"
-                        flag="hidden"/>
-          <text_small name="color_name" bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
-          <tag_badge subject="ams_edit_tag_color"/>
-        </lv_obj>
-        <!-- A multi-color spool: how its colors run. Gradient blends them
-             along the bar; Coaxial shows them as bands. -->
-        <lv_obj name="colors_line"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
-                style_flex_cross_place="center" scrollable="false" hidden="true">
-          <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
-          <lv_dropdown name="dropdown_color_mode"
-                       width="#ams_edit_mode_dd_w" height="#button_height_sm" style_radius="#border_radius"
-                       options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial"
-                       bind_value="ams_edit_color_mode">
-            <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
-          </lv_dropdown>
-          <swatch_paint name="color_preview_bar"
-                        height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
-                        bind_colors="ams_edit_color_current_multi" blend="on">
-            <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="1"/>
-          </swatch_paint>
-          <swatch_paint name="color_preview_bands"
-                        height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
-                        bind_colors="ams_edit_color_current_multi">
-            <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="0"/>
-          </swatch_paint>
-        </lv_obj>
-        <!-- The spool's color dots ("+" where the lane can store several),
-             the newest filament recents, and the rainbow tile that opens the
-             color page. The recents' count is measured in C++
-             (size_color_row). -->
-        <lv_obj name="color_row"
-                width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
-                style_flex_cross_place="center" scrollable="false">
-          <style name="color_row_pad"/>
-          <ams_edit_color_dots name="color_dots"/>
-          <!-- As many swatches as the page has room for (size_color_row
-               measures it): a fixed set, each shown while its index is under
-               the count, so they wrap with the dots and the rainbow tile ends
-               the last line. -->
-          <repeat count="64">
-            <color_swatch index="${i}"
-                          color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb" size="#swatch_grid_size"
-                          hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring">
-              <bind_flag_if cond="ams_edit_recent_count le ${i}" flag="hidden"/>
-            </color_swatch>
-          </repeat>
-          <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb"/>
+        <!-- Temperatures, read-only: the product's, else the material's. -->
+        <lv_obj name="temps_row"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_xs" scrollable="false">
+          <text_body width="#ams_edit_label_w" text="Temps" long_mode="dots"/>
+          <text_small name="filament_temps"
+                      flex_grow="1" bind_text="ams_edit_temp_text" long_mode="dots" style_text_color="#text_muted"/>
+          <tag_badge subject="ams_edit_tag_temps"/>
         </lv_obj>
 
         <!-- Adding a spool: the common ones fill the form in one tap. -->

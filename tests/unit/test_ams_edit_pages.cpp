@@ -14,6 +14,8 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
+#include "filament_catalog.h"
+#include "filament_variants.h"
 #include "moonraker_client_mock_spoolman.h"
 
 #include <optional>
@@ -327,4 +329,94 @@ TEST_CASE_METHOD(PagesFixture, "Use moves a spool another lane holds",
     CHECK(result->saved);
     CHECK(backend->get_slot_info(0).spoolman_id == 22);
     CHECK(backend->get_slot_info(3).spoolman_id == 0);
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "the Filament row's product says the material; Material shows only without one",
+                 "[ams_edit_overlay][pages][filament_rows]") {
+    // A brand with products of two different materials, from the catalog itself.
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    std::string brand;
+    const helix::printer::EffectiveFilament* first = nullptr;
+    const helix::printer::EffectiveFilament* other = nullptr;
+    for (const auto& b : catalog.all_brands()) {
+        if (b == "Generic") {
+            continue;
+        }
+        const auto lines = catalog.products_for_brand(b);
+        for (const auto* ef : lines) {
+            if (lines.front()->type != ef->type) {
+                brand = b;
+                first = lines.front();
+                other = ef;
+                break;
+            }
+        }
+        if (other) {
+            break;
+        }
+    }
+    REQUIRE(other != nullptr);
+
+    open(1, describe_lane(*backend, 1, "PLA"));
+    access.open_page(AmsEditOverlay::kPageFilament);
+    settle();
+    REQUIRE(access.pick_dropdown("dropdown_brand", brand));
+    settle();
+    // A brand with no product picked yet: Material says what the spool is.
+    CHECK(access.shown("dropdown_product"));
+    CHECK(access.shown("material_row"));
+
+    // A product carries its material and type, and Material steps aside.
+    REQUIRE(access.pick_dropdown("dropdown_product", other->name));
+    settle();
+    CHECK_FALSE(access.shown("material_row"));
+    CHECK(access.sel().family == filament::display_family(other->type));
+    CHECK(access.sel().product_id == other->id);
+    REQUIRE(access.pick_dropdown("dropdown_product", first->name));
+    settle();
+    CHECK(access.sel().family == filament::display_family(first->type));
+
+    // "Other…": described by Material again.
+    REQUIRE(access.pick_dropdown("dropdown_product", "Other…"));
+    settle();
+    CHECK(access.sel().product_id.empty());
+    CHECK(access.shown("material_row"));
+
+    // Generic: no Product, the material row instead.
+    REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
+    settle();
+    CHECK_FALSE(access.shown("dropdown_product"));
+    CHECK(access.shown("material_row"));
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "the Filament row's reset shows only while the lane differs from its tag",
+                 "[ams_edit_overlay][pages][filament_rows]") {
+    const SlotInfo lane = describe_lane(*backend, 1, "PLA");
+    open(1, lane);
+    access.open_page(AmsEditOverlay::kPageFilament);
+    helix::ams::TagReading tag;
+    tag.material = "PLA";
+    tag.brand = "eSUN";
+    tag.color_rgb = lane.color_rgb;
+    access.set_tag(tag);
+    access.call_update_ui();
+    settle();
+    CHECK_FALSE(access.shown("btn_reset_tag"));
+
+    tag.color_rgb = 0xFF0000;
+    access.set_tag(tag);
+    access.call_update_ui();
+    settle();
+    REQUIRE(access.shown("btn_reset_tag"));
+    const lv_area_t hit = access.click_area("btn_reset_tag");
+    CHECK(lv_area_get_width(&hit) >= 44);
+    CHECK(lv_area_get_height(&hit) >= 44);
+    // Its tap puts the tag's color back.
+    access.click("btn_reset_tag");
+    settle();
+    CHECK(access.working_info().color_rgb == 0xFF0000U);
+    close_editor_overlay();
 }
