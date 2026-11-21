@@ -75,9 +75,19 @@ std::string normalized_name(const std::string& name);
 /// same stored material string, the same colour and the same name after
 /// normalized_name(). The one rule for reusing a Spoolman filament without
 /// asking; anything less exact is for the user to choose.
+///
+/// A multi-color filament (@p multi_color_hexes non-empty) matches on its
+/// color list and @p direction instead of one color: Spoolman keeps no
+/// color_hex for one.
 const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& filaments,
                                            const std::string& material, const std::string& name,
-                                           const std::string& color_hex);
+                                           const std::string& color_hex,
+                                           const std::string& multi_color_hexes = {},
+                                           const std::string& direction = {});
+
+/// @p csv's colors in Spoolman's spelling, "D4AF37,C0C0C0": each entry
+/// normalize_color_hex()'d, unparseable ones dropped. Empty for fewer than two.
+std::string normalize_color_list(const std::string& csv);
 
 /// The name a new Spoolman filament is filed under: @p product (a catalog
 /// product name or the precise type, "ABS+" or "Silk PLA") then the colour,

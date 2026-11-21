@@ -38,6 +38,11 @@ struct Observation {
     std::optional<bool> tool_docked;
 
     std::optional<uint32_t> color_rgb;
+    /// Every color of a multi-color filament, comma-separated (the lane
+    /// record's `colors`); an empty string states one color.
+    std::optional<std::string> multi_color_hexes;
+    /// "gradient" or "coaxial" (filament_color_mode.h); empty states solid.
+    std::optional<std::string> color_mode;
     std::optional<std::string> color_name;
     std::optional<std::string> material;
     std::optional<std::string> brand;
@@ -59,17 +64,17 @@ struct Observation {
     /// instead of keeping its own field list, so a field added here reaches
     /// that code with no matching line to remember.
     auto fields() {
-        return std::tie(present, tool_docked, color_rgb, color_name, material, brand, spool_name,
-                        catalog_id, product_name, spoolman_id, spoolman_filament_id,
-                        spoolman_vendor_id, spoolman_orca_filament_id, remaining_weight_g,
-                        total_weight_g);
+        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, color_name,
+                        material, brand, spool_name, catalog_id, product_name, spoolman_id,
+                        spoolman_filament_id, spoolman_vendor_id, spoolman_orca_filament_id,
+                        remaining_weight_g, total_weight_g);
     }
 
     auto fields() const {
-        return std::tie(present, tool_docked, color_rgb, color_name, material, brand, spool_name,
-                        catalog_id, product_name, spoolman_id, spoolman_filament_id,
-                        spoolman_vendor_id, spoolman_orca_filament_id, remaining_weight_g,
-                        total_weight_g);
+        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, color_name,
+                        material, brand, spool_name, catalog_id, product_name, spoolman_id,
+                        spoolman_filament_id, spoolman_vendor_id, spoolman_orca_filament_id,
+                        remaining_weight_g, total_weight_g);
     }
 };
 

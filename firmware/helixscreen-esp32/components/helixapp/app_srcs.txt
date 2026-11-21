@@ -868,6 +868,7 @@ src/ui/filament/path_view_scale.cpp
 src/ui/filament/ui_ams_detail_tray.cpp
 src/system/helix_paths.cpp
 src/printer/filament_slot_override_store.cpp
+src/printer/filament_color_mode.cpp
 src/printer/filament_temperature_source.cpp
 src/calibration/screws_tilt_dialect.cpp
 src/calibration/snapmaker_screws_tilt.cpp

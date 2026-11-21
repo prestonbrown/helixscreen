@@ -22,6 +22,12 @@ namespace helix {
 /// backend of its own never reaches this one: discovery tries it last.
 class AmsBackendLaneStatus : public AmsSubscriptionBackend {
   public:
+    /// The lanes are another producer's records, written through its own
+    /// commands, and none of them takes a color list yet.
+    [[nodiscard]] bool stores_multi_color() const override {
+        return false;
+    }
+
     AmsBackendLaneStatus(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendLaneStatus() override = default;
 

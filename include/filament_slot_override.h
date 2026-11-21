@@ -46,6 +46,12 @@ struct FilamentSlotOverride {
     // color_set to false.
     uint32_t color_rgb = 0;
     bool color_set = false;
+    // A multi-color filament: every color, comma-separated (#RRGGBB), first
+    // equal to color_rgb, and how they run ("gradient" or "coaxial",
+    // filament_color_mode.h). Both empty for one color. Persisted as the
+    // record's `colors` list and `color_mode`.
+    std::string multi_color_hexes;
+    std::string color_mode;
     std::string color_name;
     std::string material;
     // Catalog product identity, mirroring SlotInfo::catalog_id / product_name

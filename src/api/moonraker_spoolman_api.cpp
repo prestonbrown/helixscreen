@@ -61,6 +61,7 @@ SpoolInfo helix::spoolman_detail::parse_spool_info(const nlohmann::json& spool_j
         info.filament_price = safe_double(filament, "price");
         info.color_hex = safe_string(filament, "color_hex");
         info.multi_color_hexes = safe_string(filament, "multi_color_hexes");
+        info.multi_color_direction = safe_string(filament, "multi_color_direction");
 
         // Spoolman stores one temperature per filament, not a range, and
         // serializes it as present-but-null when unset; safe_int null-guards
@@ -208,6 +209,7 @@ static FilamentInfo parse_filament_info(const nlohmann::json& filament_json) {
     info.filament_name = safe_string(filament_json, "name");
     info.color_hex = safe_string(filament_json, "color_hex");
     info.multi_color_hexes = safe_string(filament_json, "multi_color_hexes");
+    info.multi_color_direction = safe_string(filament_json, "multi_color_direction");
     info.density = safe_float(filament_json, "density", 0.0f);
     info.diameter = safe_float(filament_json, "diameter", 1.75f);
     info.weight = safe_float(filament_json, "weight", 0.0f);

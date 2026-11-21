@@ -3136,6 +3136,7 @@ void AmsBackendToolChanger::clear_override_fields(SlotInfo& slot) const {
     slot.material.clear();
     slot.color_rgb = kAmsDefaultSlotColor;
     slot.multi_color_hexes.clear();
+    slot.color_mode.clear();
 }
 
 AmsError AmsBackendToolChanger::assign_tool(const std::string& physical_tool_name,

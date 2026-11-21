@@ -1656,6 +1656,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         cleared.color_rgb = kAmsDefaultSlotColor;
         cleared.color_name.clear();
         cleared.multi_color_hexes.clear();
+        cleared.color_mode.clear();
         cleared.brand.clear();
         // The catalog pick names a product of the material cleared above.
         cleared.catalog_id.clear();

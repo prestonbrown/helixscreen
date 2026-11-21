@@ -41,6 +41,9 @@ namespace helix {
 ///   - slot_index_bound_locked() - if the valid index range is not total_slots
 class AmsSubscriptionBackend : public AmsBackend {
   public:
+    /// HelixScreen's full lane record holds the colors; the narrowed record
+    /// beside AFC's or Happy Hare's own (holds_extras_only) does not.
+    [[nodiscard]] bool stores_multi_color() const override;
     AmsSubscriptionBackend(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsSubscriptionBackend() override;
 

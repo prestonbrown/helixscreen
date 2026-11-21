@@ -4,6 +4,7 @@
 
 #include "color_utils.h"
 #include "core/text_io.h"
+#include "filament_color_mode.h"
 #include "filament_database.h"
 #include "filament_variants.h"
 #include "i_moonraker_api.h"
@@ -53,6 +54,13 @@ NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& original, const 
     f.precise_type = std::string(text_io::trim(slot.material));
     f.material = filament::slicer_material(f.precise_type);
     f.color_hex = color_to_hex(slot.color_rgb);
+    f.multi_color_hexes = spoolman::normalize_color_list(slot.multi_color_hexes);
+    if (!f.multi_color_hexes.empty()) {
+        f.multi_color_direction = color_mode::to_spoolman_direction(slot.color_mode);
+        if (f.multi_color_direction.empty()) {
+            f.multi_color_direction = color_mode::to_spoolman_direction(color_mode::kGradient);
+        }
+    }
 
     // A spool name that is only the material names nothing Spoolman's own
     // material field does not, and one from before a brand, material or
@@ -98,7 +106,9 @@ ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const Slot
     // save_impl() writes no filament for it either: a catalog pick with
     // brand, material and colour unmoved leaves the spool on its record.
     if (original.brand != edited.brand || original.material != edited.material ||
-        original.color_rgb != edited.color_rgb) {
+        original.color_rgb != edited.color_rgb ||
+        original.multi_color_hexes != edited.multi_color_hexes ||
+        color_mode::normalize(original.color_mode) != color_mode::normalize(edited.color_mode)) {
         changes.filament_identity = true;
     }
     if (changes.filament_identity || original.catalog_id != edited.catalog_id ||
@@ -145,8 +155,28 @@ void SpoolmanSlotSaver::build_spool_patches(const SpoolInfo& original, const Spo
         spool_patch["spool_weight"] = edited.spool_weight_g;
     }
 
-    // Filament-level fields (affect all spools of this filament definition)
-    if (edited.color_hex != original.color_hex) {
+    // Filament-level fields (affect all spools of this filament definition).
+    // A multi-color filament carries its list and direction and no single
+    // color; going back to one color clears both and sends the color.
+    const std::string list = spoolman::normalize_color_list(edited.multi_color_hexes);
+    const std::string was_list = spoolman::normalize_color_list(original.multi_color_hexes);
+    const std::string direction =
+        list.empty() ? std::string{}
+                     : (color_mode::to_spoolman_direction(edited.multi_color_direction).empty()
+                            ? color_mode::to_spoolman_direction(color_mode::kGradient)
+                            : color_mode::to_spoolman_direction(edited.multi_color_direction));
+    if (!list.empty()) {
+        if (list != was_list ||
+            direction != color_mode::to_spoolman_direction(original.multi_color_direction)) {
+            filament_patch["multi_color_hexes"] = list;
+            filament_patch["multi_color_direction"] = direction;
+            filament_patch["color_hex"] = nullptr;
+        }
+    } else if (!was_list.empty()) {
+        filament_patch["multi_color_hexes"] = nullptr;
+        filament_patch["multi_color_direction"] = nullptr;
+        filament_patch["color_hex"] = edited.color_hex;
+    } else if (edited.color_hex != original.color_hex) {
         filament_patch["color_hex"] = edited.color_hex;
     }
 }
@@ -512,7 +542,8 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
             // Only the exact record this save would file is reused without
             // asking; anything near it goes to the chooser below.
             if (const FilamentInfo* f = spoolman::find_matching_filament(
-                    filaments, wanted.material, wanted.name, wanted.color_hex)) {
+                    filaments, wanted.material, wanted.name, wanted.color_hex,
+                    wanted.multi_color_hexes, wanted.multi_color_direction)) {
                 spdlog::debug("[SpoolmanSlotSaver] Reusing filament id={} "
                               "(vendor={}, material={}, color={})",
                               f->id, vendor_id, wanted.material, wanted.color_hex);
@@ -520,8 +551,13 @@ void SpoolmanSlotSaver::find_or_create_filament(int vendor_id, const NewFilament
                     on_found(f->id);
                 return;
             }
-            const FilamentInfo* similar = spoolman::find_similar_filament(
-                filaments, wanted.material, wanted.color_hex, wanted.linked_filament_id);
+            // A near match is offered by its one color, which says nothing
+            // about a multi-color filament: that one is filed exactly or anew.
+            const FilamentInfo* similar =
+                wanted.multi_color_hexes.empty()
+                    ? spoolman::find_similar_filament(filaments, wanted.material, wanted.color_hex,
+                                                      wanted.linked_filament_id)
+                    : nullptr;
             if (!similar || !similar_chooser_) {
                 create_filament(vendor_id, wanted, on_found, on_error);
                 return;
@@ -562,7 +598,12 @@ void SpoolmanSlotSaver::create_filament(int vendor_id, const NewFilament& filame
     nlohmann::json payload;
     payload["vendor_id"] = vendor_id;
     payload["material"] = filament.material;
-    payload["color_hex"] = filament.color_hex;
+    if (filament.multi_color_hexes.empty()) {
+        payload["color_hex"] = filament.color_hex;
+    } else {
+        payload["multi_color_hexes"] = filament.multi_color_hexes;
+        payload["multi_color_direction"] = filament.multi_color_direction;
+    }
     payload["name"] = filament.name;
     if (filament.extruder_temp > 0) {
         payload["settings_extruder_temp"] = filament.extruder_temp;

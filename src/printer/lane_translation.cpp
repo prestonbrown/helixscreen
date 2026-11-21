@@ -88,6 +88,14 @@ constexpr auto kFieldRoster = std::make_tuple(
     field<FieldKind::Untranslated>("tool_docked", nullptr, nullptr, &Observation::tool_docked),
     field<FieldKind::Color>("color_rgb", &SlotInfo::color_rgb, &FilamentSlotOverride::color_rgb,
                             &Observation::color_rgb),
+    // A multi-color list and its mode. The edit path states a change, an
+    // empty list included (back to one color); a record states only a list it
+    // holds, since an older record without one says nothing about it.
+    field<FieldKind::Text>("multi_color_hexes", &SlotInfo::multi_color_hexes,
+                           &FilamentSlotOverride::multi_color_hexes,
+                           &Observation::multi_color_hexes),
+    field<FieldKind::Text>("color_mode", &SlotInfo::color_mode, &FilamentSlotOverride::color_mode,
+                           &Observation::color_mode),
     field<FieldKind::Text>("color_name", &SlotInfo::color_name, &FilamentSlotOverride::color_name,
                            &Observation::color_name),
     // Material, brand, spool name and vendor id are what a Spoolman spool states

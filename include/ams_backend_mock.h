@@ -38,6 +38,11 @@ class AmsBackendMock : public AmsBackend,
                        public IDryer,
                        public IPrintRouting {
   public:
+    /// The mock keeps whatever an edit gives a slot, colors included.
+    [[nodiscard]] bool stores_multi_color() const override {
+        return true;
+    }
+
     friend class AmsBackendMockTimingTestAccess;
 
     [[nodiscard]] void* capability(helix::TypeTag tag) override {

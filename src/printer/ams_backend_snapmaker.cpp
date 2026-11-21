@@ -2715,6 +2715,7 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
         slot.multi_color_hexes = now;
     } else if (!previous_multi.empty() && slot.multi_color_hexes == previous_multi) {
         slot.multi_color_hexes.clear();
+        slot.color_mode.clear();
     }
 }
 
@@ -2797,6 +2798,7 @@ bool AmsBackendSnapmaker::retract_tag_reading_locked(int slot_index, SlotInfo& s
     if (const auto& kept = tag_readings_[i]; kept && !kept->multi_color_hexes.empty() &&
                                              slot.multi_color_hexes == kept->multi_color_hexes) {
         slot.multi_color_hexes.clear();
+        slot.color_mode.clear();
     }
     tag_readings_[i].reset();
     if (cache->product_name.has_value()) {

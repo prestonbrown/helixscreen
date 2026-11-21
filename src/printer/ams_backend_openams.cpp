@@ -1173,6 +1173,7 @@ void AmsBackendOpenAms::clear_override_fields(SlotInfo& slot) const {
     slot.material.clear();
     slot.color_rgb = kAmsDefaultSlotColor;
     slot.multi_color_hexes.clear();
+    slot.color_mode.clear();
 }
 
 // ============================================================================

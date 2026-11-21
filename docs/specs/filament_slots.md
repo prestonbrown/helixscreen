@@ -139,6 +139,8 @@ reference, Part B §7:
   "lane_name": "lane1",
   "loaded": true,
   "color": "#1A1A1A",
+  "colors": null,
+  "color_mode": "solid",
   "material": "ASA",
   "filament_type": "ASA-GF",
   "vendor_name": "Polymaker",
@@ -169,6 +171,8 @@ does not know is `null` (RFC 0001 V-S2), never `""`, `0` or a placeholder.
 | `lane_name` | string | The record's key, `laneN` or `T<n>` (§4). |
 | `loaded` | bool or null | Whether a spool is in the lane; `null` when the lane has never reported. |
 | `color` | string or null | `#RRGGBB`. Pure black `#000000` is a colour, not an unset one. |
+| `colors` | list or null | Every color of a multi-color filament, in order, each `#RRGGBB`, with `color` equal to the first. `null` for one color. A list of fewer than two is read as one color. |
+| `color_mode` | string or null | How the colors run: `"solid"` (one color), `"gradient"` (the color changes along the filament's length; Spoolman's `multi_color_direction` `longitudinal`) or `"coaxial"` (the colors run side by side the whole length, as in dual-color silk; Spoolman's `coaxial`). `null` when there is no color. The lane spec's names (prestonbrown/lane-status-spec, REFERENCE.md). |
 | `material` | string or null | The **slicer-matchable** type. OrcaSlicer matches a lane to a preset by this string alone and falls back to a Generic PLA preset on a miss, so HelixScreen writes the exact library type or its base polymer, and `null` when nothing matches safely. |
 | `filament_type` | string or null | The precise type the user chose (`ASA-GF`, `PLA Silk`), which `material` may have reduced for matching. |
 | `vendor_name` | string or null | Manufacturer. |
@@ -572,6 +576,10 @@ reader can resolve.
 
 ## Changelog
 
+- **v2.1 (2026-11)**: §3: new fields `colors` (a multi-color filament's list,
+  `color` its first entry) and `color_mode` (`"solid"`, `"gradient"`,
+  `"coaxial"`), in the lane spec's names. Records without them read as one
+  color.
 - **v2.0 (2026-11)**: Aligned with RFC 0001, Lane Status Surface. §1: the
   writer per printer, and the printers where HelixScreen only reads (AFC, Happy
   Hare, OpenAMS with `[openams_spoolman]`). §3: HelixScreen's records carry

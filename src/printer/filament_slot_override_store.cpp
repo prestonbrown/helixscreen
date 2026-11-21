@@ -2,8 +2,10 @@
 #include "filament_slot_override_store.h"
 
 #include "ams_types.h"
+#include "color_utils.h"
 #include "core/text_io.h"
 #include "filament_catalog.h"
+#include "filament_color_mode.h"
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_variants.h"
@@ -80,6 +82,30 @@ nlohmann::json weight_or_null(float grams) {
 
 } // namespace
 
+/// The #RRGGBB entries of a comma-separated multi-color list, blanks dropped.
+std::vector<std::string> split_colors(const std::string& csv) {
+    std::vector<std::string> out;
+    size_t start = 0;
+    while (start <= csv.size()) {
+        const size_t comma = csv.find(',', start);
+        const std::string item(text_io::trim(
+            csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start)));
+        if (!item.empty()) {
+            uint32_t rgb = 0;
+            if (helix::parse_hex_color(item.c_str(), rgb)) {
+                char buf[16];
+                std::snprintf(buf, sizeof(buf), "#%06X", rgb & 0x00FFFFFFu);
+                out.emplace_back(buf);
+            }
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return out;
+}
+
 bool is_bypass_record(const nlohmann::json& record) {
     if (!record.is_object()) {
         return false;
@@ -106,6 +132,17 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["color"] = buf;
     } else {
         j["color"] = nullptr;
+    }
+    // Lane spec `colors` and `color_mode`: the list only for two or more
+    // colors, and the mode beside any color ("solid" for one).
+    const std::vector<std::string> colors = split_colors(o.multi_color_hexes);
+    if (o.color_set && colors.size() >= 2) {
+        j["colors"] = colors;
+        j["color_mode"] = std::string(color_mode::to_spec(o.color_mode));
+    } else {
+        j["colors"] = nullptr;
+        j["color_mode"] =
+            o.color_set ? nlohmann::json(std::string(color_mode::kSolid)) : nlohmann::json(nullptr);
     }
     // Two strings. OrcaSlicer matches `material` by exact equality against its
     // library and falls back to a PLA preset on a miss, so `material` carries
@@ -178,6 +215,28 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
         if (color.kind == ColorReadingKind::Observed) {
             o.color_rgb = color.rgb;
             o.color_set = true;
+        }
+    }
+    if (const auto* colors = helix::json_util::find_member(j, "colors");
+        colors && colors->is_array()) {
+        std::string joined;
+        size_t count = 0;
+        for (const auto& c : *colors) {
+            if (!c.is_string()) {
+                continue;
+            }
+            const ColorReading color = read_lane_color(c.get<std::string>());
+            if (color.kind != ColorReadingKind::Observed) {
+                continue;
+            }
+            char buf[16];
+            std::snprintf(buf, sizeof(buf), "#%06X", color.rgb & 0x00FFFFFFu);
+            joined += (joined.empty() ? "" : ",") + std::string(buf);
+            ++count;
+        }
+        if (count >= 2) {
+            o.multi_color_hexes = std::move(joined);
+            o.color_mode = color_mode::normalize(helix::json_util::safe_string(j, "color_mode"));
         }
     }
     // The precise type first, then the legacy spelling, then the matchable one
@@ -329,6 +388,10 @@ FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
     if (is_declarable_color(edited.color_rgb)) {
         ovr.color_rgb = edited.color_rgb;
         ovr.color_set = true;
+        if (split_colors(edited.multi_color_hexes).size() >= 2) {
+            ovr.multi_color_hexes = edited.multi_color_hexes;
+            ovr.color_mode = color_mode::normalize(edited.color_mode);
+        }
     }
     ovr.loaded = slot_status_reports_filament(edited.status);
     populate_temps_from_slot_info(ovr, edited);
