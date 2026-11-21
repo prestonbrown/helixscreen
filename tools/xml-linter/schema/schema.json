@@ -1863,6 +1863,9 @@
         "view": {
           "type": "string"
         },
+        "smoke": {
+          "type": "string"
+        },
         "size": {
           "type": "int"
         }

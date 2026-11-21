@@ -22,7 +22,7 @@
         style_pad_gap="#space_md" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
         style_border_width="0" style_pad_hor="#space_sm" style_pad_ver="#space_xs" scrollable="false" clickable="false">
     <spool_canvas name="$spool_name"
-                  size="#edit_spool_size" view="front" color="#text_muted" fill_level="1.0" clickable="false"
+                  size="#edit_spool_size" view="front" smoke="40" color="#text_muted" fill_level="1.0" clickable="false"
                   event_bubble="true"/>
     <lv_obj height="content"
             flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column" style_bg_opa="0"
