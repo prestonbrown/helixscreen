@@ -206,9 +206,10 @@ class AmsEditOverlay : public OverlayBase {
     static std::vector<uint32_t> color_row_recents(const std::vector<uint32_t>& recents,
                                                    uint32_t current, size_t room);
 
-    /// Recent chips that fit in a @p row_width row of @p chip tiles @p gap
-    /// apart beside @p fixed_tiles other tiles, at most @p cap.
-    static size_t recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap);
+    /// Recent chips that fit in @p rows rows @p row_width wide of @p chip
+    /// tiles @p gap apart beside @p fixed_tiles other tiles, at most @p cap.
+    static size_t recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap,
+                               int rows = 1);
 
   private:
     // === State ===
@@ -332,6 +333,9 @@ class AmsEditOverlay : public OverlayBase {
     int row_width_ = 0;
     int row_chip_ = 0;
     int row_gap_ = 0;
+    int row_rows_ = 1; ///< swatch rows the Filament page has height for
+    /// The swatch rows that fit under @p row on its page.
+    [[nodiscard]] int color_row_rows(lv_obj_t* row) const;
     /// Measure the color row and publish its recents.
     void size_color_row();
     /// Recent chips the row has room for beside what the draft shows.
@@ -483,6 +487,8 @@ class AmsEditOverlay : public OverlayBase {
     char product_line_buf_[128] = {0};
     char material_line_buf_[128] = {0};
     char lane_line_buf_[128] = {0};
+    helix::Subject lane_title_subject_{}; ///< "Lane Settings" ("ams_edit_lane_title")
+    char lane_title_buf_[64] = {0};
     helix::Subject runout_text_subject_{}; ///< what a runout of this lane does
     char runout_text_buf_[160] = {0};
     char empty_title_buf_[96] = {0};

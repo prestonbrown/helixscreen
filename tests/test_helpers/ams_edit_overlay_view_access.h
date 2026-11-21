@@ -299,6 +299,22 @@ class AmsEditOverlayViewTestAccess {
     void call_recent_color(int index) {
         overlay_.handle_recent_color(index);
     }
+    /// The color row's shown swatches after the spool's dots, in order.
+    std::vector<lv_obj_t*> row_swatches() {
+        std::vector<lv_obj_t*> out;
+        lv_obj_t* row = overlay_.find_widget("color_row");
+        REQUIRE(row != nullptr);
+        for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+            lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
+            const char* name = lv_obj_get_name(child);
+            const bool fixed = name && (std::string(name) == "color_dots" ||
+                                        std::string(name) == "btn_all_colors");
+            if (!fixed && !lv_obj_is_hidden(child)) {
+                out.push_back(child);
+            }
+        }
+        return out;
+    }
     const std::vector<uint32_t>& color_row() {
         return overlay_.color_row_;
     }

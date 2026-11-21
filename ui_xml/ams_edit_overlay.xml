@@ -52,6 +52,12 @@
     <px name="ams_edit_step_gap_small" value="12"/>
     <px name="ams_edit_step_gap_medium" value="16"/>
     <px name="ams_edit_step_gap_large" value="20"/>
+    <!-- Space between the drag bar and the lane line under it. -->
+    <px name="ams_edit_lane_gap_micro" value="6"/>
+    <px name="ams_edit_lane_gap_tiny" value="8"/>
+    <px name="ams_edit_lane_gap_small" value="12"/>
+    <px name="ams_edit_lane_gap_medium" value="16"/>
+    <px name="ams_edit_lane_gap_large" value="20"/>
     <!-- The weight pill's least width, so - and + do not move as the value
          changes from "50 g of 1 kg" to "1000 g of 1 kg". -->
     <px name="ams_edit_weight_w_micro" value="150"/>
@@ -87,16 +93,10 @@
     <!-- The summary's spool drawing: as large as the page leaves room for
          once the weight, lane and action rows are in. -->
     <px name="edit_spool_size_micro" value="64"/>
-    <px name="edit_spool_size_tiny" value="96"/>
+    <px name="edit_spool_size_tiny" value="80"/>
     <px name="edit_spool_size_small" value="120"/>
     <px name="edit_spool_size_medium" value="168"/>
     <px name="edit_spool_size_large" value="210"/>
-    <!-- The empty lane's drawing of what it last held. -->
-    <px name="empty_spool_size_micro" value="40"/>
-    <px name="empty_spool_size_tiny" value="48"/>
-    <px name="empty_spool_size_small" value="56"/>
-    <px name="empty_spool_size_medium" value="72"/>
-    <px name="empty_spool_size_large" value="88"/>
     <!-- A multi-color spool's mode dropdown and the bar of its colors. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
     <px name="ams_edit_mode_dd_w_tiny" value="110"/>
@@ -221,36 +221,13 @@
 
         <!-- The spool card: drawn in its color and filled to what is left.
              A tap opens the Filament screen. -->
-        <lv_obj name="summary_card"
-                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_md"
-                scrollable="false" clickable="true">
-          <style name="nav_row"/>
+        <ams_edit_spool_card card_name="summary_card"
+                             spool_name="edit_spool" title_subject="ams_edit_product_line"
+                             line1_subject="ams_edit_material_line" line2_subject="ams_edit_temp_text"
+                             badge_subject="ams_edit_tag_temps" clickable="true">
           <style name="styles.press_wash" selector="pressed"/>
           <event_cb trigger="clicked" callback="ams_edit_open_filament_cb"/>
-          <spool_canvas name="edit_spool"
-                        size="#edit_spool_size" view="front" color="#text_muted" fill_level="1.0" clickable="false"
-                        event_bubble="true"/>
-          <lv_obj height="content"
-                  flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column" style_bg_opa="0"
-                  style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
-            <text_heading name="summary_product"
-                          width="100%" bind_text="ams_edit_product_line" long_mode="dots" clickable="false"
-                          event_bubble="true"/>
-            <text_body name="summary_material"
-                       width="100%" bind_text="ams_edit_material_line" long_mode="dots" clickable="false"
-                       event_bubble="true"/>
-            <lv_obj name="temp_row"
-                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                    style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false"
-                    clickable="false" event_bubble="true">
-              <text_small name="temp_line"
-                          bind_text="ams_edit_temp_text" long_mode="dots" style_text_color="#text_muted"
-                          clickable="false" event_bubble="true"/>
-              <tag_badge subject="ams_edit_tag_temps"/>
-            </lv_obj>
-          </lv_obj>
-          <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
-        </lv_obj>
+        </ams_edit_spool_card>
 
         <!-- What is left: - / "850 g of 1 kg" / +, the number opening the
              keypad, and a drag bar under them. -->
@@ -291,17 +268,27 @@
         </lv_obj>
 
         <!-- The lane's settings, only where one can change. -->
+        <!-- "Lane Settings" over what they do now, "Feeds T0 · Pauses on runout",
+             clear of the drag bar above and a full row tall. -->
         <lv_obj name="lane_line"
-                width="100%" height="content" ext_click_area="#ams_edit_bar_hit" flex_flow="row"
-                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" clickable="true"
-                hidden="true">
+                width="100%" height="content" style_min_height="#button_height" style_margin_top="#ams_edit_lane_gap"
+                flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false"
+                clickable="true" hidden="true">
           <style name="nav_row"/>
           <style name="styles.press_wash" selector="pressed"/>
           <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
                         flag="hidden"/>
           <event_cb trigger="clicked" callback="ams_edit_open_lane_cb"/>
-          <text_body name="lane_line_text"
-                     flex_grow="1" bind_text="ams_edit_lane_line" long_mode="dots" clickable="false" event_bubble="true"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                  style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+            <text_body name="lane_line_title"
+                       width="100%" bind_text="ams_edit_lane_title" long_mode="dots" clickable="false"
+                       event_bubble="true"/>
+            <text_small name="lane_line_text"
+                        width="100%" bind_text="ams_edit_lane_line" long_mode="dots" style_text_color="#text_muted"
+                        clickable="false" event_bubble="true"/>
+          </lv_obj>
           <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
         </lv_obj>
 
@@ -332,27 +319,14 @@
       <!-- EMPTY LANE (page 1): what it last held, and what goes in.    -->
       <!-- ============================================================ -->
       <lv_obj name="empty_page"
-              width="100%" height="100%" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#ams_edit_vgap" scrollable="false"
-              hidden="true">
+              width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#ams_edit_vgap"
+              scrollable="false" hidden="true">
         <bind_flag_if_not_eq subject="ams_edit_page" flag="hidden" ref_value="1"/>
-        <text_heading name="empty_title" bind_text="ams_edit_empty_title" long_mode="dots"/>
-        <lv_obj name="empty_last"
-                width="100%" height="content" flex_flow="row" style_flex_main_place="center"
-                style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
-                style_border_width="0" scrollable="false" hidden="true">
-          <bind_flag_if_eq subject="ams_edit_has_last" flag="hidden" ref_value="0"/>
-          <spool_canvas name="empty_last_spool"
-                        size="#empty_spool_size" view="front" color="#text_muted" fill_level="1.0"/>
-          <lv_obj width="content"
-                  height="content" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
-                  style_border_width="0" scrollable="false">
-            <text_small text="Last held" style_text_color="#text_muted"/>
-            <text_body name="empty_last_product" bind_text="ams_edit_last_product" long_mode="dots"/>
-            <text_small name="empty_last_material"
-                        bind_text="ams_edit_last_material" long_mode="dots" style_text_color="#text_muted"/>
-          </lv_obj>
-        </lv_obj>
+        <!-- The summary's card, empty: what the lane last held, where the spool sits. -->
+        <ams_edit_spool_card card_name="empty_card"
+                             spool_name="empty_last_spool" title_subject="ams_edit_empty_title"
+                             line1_subject="ams_edit_last_product" line2_subject="ams_edit_last_material"
+                             hide_badge="true" hide_chevron="true"/>
         <ui_button name="btn_same_filament"
                    width="100%" height="#button_height" text="Same Filament, New Spool" variant="primary" hidden="true">
           <bind_flag_if_eq subject="ams_edit_has_last" flag="hidden" ref_value="0"/>
@@ -533,15 +507,17 @@
                 style_flex_cross_place="center" scrollable="false">
           <style name="color_row_pad"/>
           <ams_edit_color_dots name="color_dots"/>
-          <lv_obj name="color_recents"
-                  width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#swatch_grid_gap"
-                  style_flex_cross_place="center" scrollable="false" clickable="false">
-            <repeat count="ams_edit_recent_count">
-              <color_swatch index="${i}"
-                            color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb" size="#swatch_grid_size"
-                            hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring"/>
-            </repeat>
-          </lv_obj>
+          <!-- As many swatches as the page has room for (size_color_row
+               measures it): a fixed set, each shown while its index is under
+               the count, so they wrap with the dots and the rainbow tile ends
+               the last line. -->
+          <repeat count="64">
+            <color_swatch index="${i}"
+                          color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb" size="#swatch_grid_size"
+                          hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring">
+              <bind_flag_if cond="ams_edit_recent_count le ${i}" flag="hidden"/>
+            </color_swatch>
+          </repeat>
           <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb"/>
         </lv_obj>
 

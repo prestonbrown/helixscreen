@@ -720,7 +720,7 @@ TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
     CHECK(text_of(13, "row_name") == "Kingroon Basic PETG White");
     CHECK(text_of(14, "row_name") == "Polymaker PLA");
     // The id and what is left go on the line under it.
-    CHECK(text_of(12, "row_detail") == "#12 · 750 g left");
+    CHECK(text_of(12, "row_detail") == "#12 · 750 g");
     CHECK(text_of(14, "row_detail") == "#14");
 
     // The row prints the filament name once, whatever the layout.
@@ -1427,7 +1427,7 @@ TEST_CASE_METHOD(EditorFixture,
         process_lvgl(10);
         CHECK(access.mode() == AmsEditOverlay::kModeAssign);
         CHECK(access.page() == AmsEditOverlay::kPageEmpty);
-        CHECK(access.shown("empty_title"));
+        CHECK(access.shown("empty_card"));
         CHECK(access.shown("btn_choose_spool"));
         // Nothing recorded: no last-held filament to repeat.
         CHECK_FALSE(access.shown("btn_same_filament"));
@@ -2143,7 +2143,7 @@ TEST_CASE_METHOD(EditorFixture, "Assign Spool keeps the weight a lane with no ma
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
-    CHECK(access.subject_text("ams_edit_weight_text") == "640 g of 1 kg");
+    CHECK(access.subject_text("ams_edit_weight_text") == "640 g of 1 kg · 64%");
 
     REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
     access.call_assign_local();
@@ -3170,10 +3170,9 @@ TEST_CASE_METHOD(EditorFixture, "picking another colour drops the colour's from-
     REQUIRE(subject_int("ams_edit_tag_color") == 1);
 
     // The first recent chip in the color row, tapped.
-    lv_obj_t* recents = access.widget("color_recents");
-    REQUIRE(recents != nullptr);
-    REQUIRE(lv_obj_get_child_count(recents) > 0);
-    lv_obj_t* preset = lv_obj_get_child(recents, 0);
+    const std::vector<lv_obj_t*> swatches = access.row_swatches();
+    REQUIRE_FALSE(swatches.empty());
+    lv_obj_t* preset = swatches.front();
     REQUIRE((lv_color_to_u32(helix::ui::swatch_color_of(preset)) & 0xFFFFFF) != info.color_rgb);
     lv_obj_send_event(preset, LV_EVENT_CLICKED, nullptr);
     process_lvgl(5);
@@ -3788,7 +3787,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     show_editor_on_lane(*this, *backend, 2, &completions, &saved);
     // The summary's lane line opens the Lane Settings page.
     REQUIRE(access.shown("lane_line"));
-    CHECK(access.subject_text("ams_edit_lane_line").rfind("Tool T2", 0) == 0);
+    CHECK(access.subject_text("ams_edit_lane_title") == "Gate Settings");
+    CHECK(access.subject_text("ams_edit_lane_line") == "Feeds T2 · Pauses on runout");
     access.click("lane_line");
     REQUIRE(access.page() == AmsEditOverlay::kPageLane);
 
@@ -3807,7 +3807,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(backend->get_tool_mapping()[0] == 2);
     CHECK_FALSE(access.is_dirty());
     CHECK(access.save_disabled() == 1);
-    CHECK(access.subject_text("ams_edit_lane_line").rfind("Tool T0", 0) == 0);
+    CHECK(access.subject_text("ams_edit_lane_line").rfind("Feeds T0", 0) == 0);
     close_editor_overlay();
     helix::ui::set_test_toast_hook(nullptr);
     REQUIRE(toasts.size() == 1);
@@ -4747,13 +4747,13 @@ TEST_CASE_METHOD(EditorFixture, "a new spool is assigned at the weight the summa
         REQUIRE(bar != nullptr);
         lv_slider_set_value(bar, 50, LV_ANIM_OFF);
         lv_obj_send_event(bar, LV_EVENT_VALUE_CHANGED, nullptr);
-        CHECK(access.subject_text("ams_edit_weight_text") == "500 g of 1 kg");
+        CHECK(access.subject_text("ams_edit_weight_text") == "500 g of 1 kg · 50%");
         want_remaining = 500;
         want_total = 1000;
     }
     SECTION("the keypad: what is left of a 1 kg spool") {
         access.call_apply_weight(400);
-        CHECK(access.subject_text("ams_edit_weight_text") == "400 g of 1 kg");
+        CHECK(access.subject_text("ams_edit_weight_text") == "400 g of 1 kg · 40%");
         want_remaining = 400;
         want_total = 1000;
     }
@@ -5510,10 +5510,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a recent color chip changes the draft, not 
     const uint32_t second = row[1];
 
     // The chip, through its XML callback.
-    lv_obj_t* recents = access.widget("color_recents");
-    REQUIRE(recents != nullptr);
-    REQUIRE(lv_obj_get_child_count(recents) == row.size());
-    lv_obj_send_event(lv_obj_get_child(recents, 1), LV_EVENT_CLICKED, nullptr);
+    const std::vector<lv_obj_t*> swatches = access.row_swatches();
+    REQUIRE(swatches.size() == row.size());
+    lv_obj_send_event(swatches[1], LV_EVENT_CLICKED, nullptr);
     process_lvgl(5);
     CHECK(access.details_color() == second);
     CHECK(access.details_color_set());
@@ -5570,12 +5569,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
                 }
             }
             CHECK(targets.size() == access.color_row().size() + 2);
+            // In reading order: line by line, left to right.
             std::sort(targets.begin(), targets.end(), [](lv_obj_t* a, lv_obj_t* b) {
                 lv_area_t ha;
                 lv_area_t hb;
                 lv_obj_get_click_area(a, &ha);
                 lv_obj_get_click_area(b, &hb);
-                return ha.x1 < hb.x1;
+                return ha.y1 != hb.y1 ? ha.y1 < hb.y1 : ha.x1 < hb.x1;
             });
             lv_area_t prev{};
             for (size_t i = 0; i < targets.size(); ++i) {
@@ -5585,13 +5585,30 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
                 INFO("target " << i);
                 CHECK(area_within(hit, box));
                 CHECK(lv_area_get_height(&hit) >= 40);
-                // One color: the dot, its recents and the rainbow tile share a row.
+                // Neighbors on one line never share a pixel; a new line starts below.
                 if (i > 0) {
-                    CHECK(hit.y1 == prev.y1);
-                    CHECK(prev.x2 < hit.x1);
+                    CHECK((hit.y1 == prev.y1 ? prev.x2 < hit.x1 : prev.y2 <= hit.y1 + 1));
                 }
                 prev = hit;
             }
+            // The rainbow tile ends the last line.
+            CHECK(targets.back() == access.widget("btn_all_colors"));
+            // The swatches fill the page: another line would not fit under them.
+            lv_obj_t* page = lv_obj_get_parent(row);
+            lv_area_t page_box;
+            lv_obj_get_content_coords(page, &page_box);
+            lv_obj_t* last = row;
+            for (uint32_t i = 0; i < lv_obj_get_child_count(page); ++i) {
+                lv_obj_t* child = lv_obj_get_child(page, static_cast<int32_t>(i));
+                if (!lv_obj_is_hidden(child)) {
+                    last = child;
+                }
+            }
+            lv_area_t last_box;
+            lv_obj_get_coords(last, &last_box);
+            const int line = lv_obj_get_width(access.widget("btn_all_colors")) +
+                             lv_obj_get_style_pad_row(row, LV_PART_MAIN);
+            CHECK((page_box.y2 - last_box.y2 < line || access.color_row().size() == 64));
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);
@@ -5703,10 +5720,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
             // wrapping under them only when the row is full.
             lv_obj_update_layout(access.widget("color_row"));
             lv_obj_t* dots = access.widget("color_dots");
-            for (const char* name : {"color_recents", "btn_all_colors"}) {
-                INFO(name);
-                lv_obj_t* w = access.widget(name);
-                REQUIRE(access.shown(name));
+            const std::vector<lv_obj_t*> swatches = access.row_swatches();
+            REQUIRE_FALSE(swatches.empty());
+            for (lv_obj_t* w : {swatches.front(), access.widget("btn_all_colors")}) {
+                REQUIRE(w != nullptr);
                 CHECK((lv_obj_get_y(w) >= dots_bottom() ||
                        lv_obj_get_x(w) >= lv_obj_get_x(dots) + lv_obj_get_width(dots)));
             }
@@ -5761,9 +5778,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
     CHECK(subject_value("ams_edit_multi") == 0);
     CHECK(summary_colors() == 0); // one color: no bar
-    // One color: its dot, the recents and All colors share a row.
+    // One color: the swatches start on its dot's line.
     lv_obj_update_layout(access.widget("color_row"));
-    CHECK(lv_obj_get_y(access.widget("btn_all_colors")) < dots_bottom());
+    REQUIRE_FALSE(access.row_swatches().empty());
+    CHECK(lv_obj_get_y(access.row_swatches().front()) < dots_bottom());
     access.call_seg_hold(0); // the last color stays
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
     lv_obj_send_event(access.widget("btn_edit_save"), LV_EVENT_CLICKED, nullptr);

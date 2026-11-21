@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The lane spool editor's spool card, on its summary and its empty page: the
+     spool drawn on the left (painted from C++, filled to what is left), a title
+     and two lines on the right, and an optional chevron. A tappable instance
+     adds its own event_cb and pressed style. -->
+<component>
+  <api>
+    <prop name="card_name" type="string" default="spool_card"/>
+    <prop name="spool_name" type="string" default="card_spool"/>
+    <prop name="title_subject" type="subject" default="ams_edit_product_line"/>
+    <prop name="line1_subject" type="subject" default="ams_edit_material_line"/>
+    <prop name="line2_subject" type="subject" default="ams_edit_temp_text"/>
+    <!-- The int subject of a "from tag" badge after the second line. -->
+    <prop name="badge_subject" type="subject" default="ams_edit_tag_temps"/>
+    <prop name="hide_badge" type="string" default="false"/>
+    <prop name="hide_chevron" type="string" default="false"/>
+  </api>
+  <view name="$card_name"
+        extends="lv_obj" width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
+        style_pad_gap="#space_md" style_bg_color="#elevated_bg" style_bg_opa="255" style_radius="#border_radius"
+        style_border_width="0" style_pad_hor="#space_sm" style_pad_ver="#space_xs" scrollable="false" clickable="false">
+    <spool_canvas name="$spool_name"
+                  size="#edit_spool_size" view="front" color="#text_muted" fill_level="1.0" clickable="false"
+                  event_bubble="true"/>
+    <lv_obj height="content"
+            flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column" style_bg_opa="0"
+            style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+      <text_heading name="card_title"
+                    width="100%" bind_text="$title_subject" long_mode="dots" clickable="false" event_bubble="true"/>
+      <text_body name="card_line1"
+                 width="100%" bind_text="$line1_subject" long_mode="dots" clickable="false" event_bubble="true"/>
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+              style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false"
+              event_bubble="true">
+        <text_small name="card_line2"
+                    bind_text="$line2_subject" long_mode="dots" style_text_color="#text_muted" clickable="false"
+                    event_bubble="true"/>
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                clickable="false" hidden="$hide_badge">
+          <tag_badge subject="$badge_subject"/>
+        </lv_obj>
+      </lv_obj>
+    </lv_obj>
+    <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true" hidden="$hide_chevron"/>
+  </view>
+</component>

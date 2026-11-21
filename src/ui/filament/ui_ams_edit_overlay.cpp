@@ -21,6 +21,7 @@
 #include "ams_state.h"
 #include "ams_tag_reading.h"
 #include "app_globals.h"
+#include "color_picker_model.h"
 #include "color_recents.h"
 #include "color_utils.h"
 #include "core/observer_factory.h"
@@ -38,6 +39,7 @@
 #include "lane_spool_history.h"
 #include "lane_translation.h"
 #include "spool_assign.h"
+#include "spool_remaining_format.h"
 #include "spoolman_manager.h"
 #include "ui/ui_widget_helpers.h"
 #if HELIX_HAS_LABEL_PRINTER
@@ -83,7 +85,8 @@ helix::xml::IndexedSubjectPool s_seg_colors{"ams_edit_seg",
 helix::xml::IndexedSubjectPool s_common_colors{"ams_edit_common_color",
                                                helix::xml::IndexedSubjectPool::Type::Color};
 /// The most recent chips the color row shows.
-constexpr size_t kMaxRowRecents = 6;
+// The color row's swatches; ams_edit_overlay.xml builds this many (<repeat count="64">).
+constexpr size_t kMaxRowRecents = 64;
 } // namespace
 
 namespace {
@@ -569,6 +572,8 @@ void AmsEditOverlay::init_subjects() {
                                   "ams_edit_material_line", subjects_);
         UI_MANAGED_SUBJECT_STRING(lane_line_subject_, lane_line_buf_, "", "ams_edit_lane_line",
                                   subjects_);
+        UI_MANAGED_SUBJECT_STRING(lane_title_subject_, lane_title_buf_, "", "ams_edit_lane_title",
+                                  subjects_);
         UI_MANAGED_SUBJECT_INT(weight_pct_subject_, 100, "ams_edit_weight_pct", subjects_);
         UI_MANAGED_SUBJECT_STRING(runout_text_subject_, runout_text_buf_, "",
                                   "ams_edit_runout_text", subjects_);
@@ -1034,46 +1039,48 @@ void AmsEditOverlay::update_lane_line() {
     if (!subjects_initialized_) {
         return;
     }
-    // "Tool T0 · Runout → Lane 3". The XML shows it only where a lane
-    // setting can change.
     const bool tool_row = lv_subject_get_int(&tool_row_visible_subject_) == 1;
     const bool backup_row = lv_subject_get_int(&backup_row_visible_subject_) == 1;
+    const AmsBackend* backend = AmsState::instance().get_backend();
+    const LaneNoun noun = backend ? backend->lane_noun() : active_lane_noun();
+    // A runout of this lane continues from its backup where the printer
+    // switches spools, else it pauses.
+    lv_subject_t* endless = lv_xml_get_subject(nullptr, "ams_endless_state");
+    const auto kind =
+        static_cast<printer::EndlessSpoolStatusKind>(endless ? lv_subject_get_int(endless) : 0);
+    const bool continues = backup_row && lane_working_.backup >= 0 &&
+                           (kind == printer::EndlessSpoolStatusKind::On ||
+                            kind == printer::EndlessSpoolStatusKind::OnWithoutBackup);
+    const std::string backup_lane =
+        lane_working_.backup >= 0 ? lane_label(noun, lane_working_.backup) : std::string();
+
+    // The summary's row: "Lane Settings" over "Feeds T0 · Pauses on runout".
+    // The XML shows it only where a lane setting can change.
+    const std::string title = fmt::format(fmt::runtime(lv_tr("{} Settings")), noun_text(noun));
+    snprintf(lane_title_buf_, sizeof(lane_title_buf_), "%s", title.c_str());
+    lv_subject_set_string(&lane_title_subject_, lane_title_buf_);
     std::string line;
     if (tool_row) {
         line = lane_working_.tool >= 0
-                   ? fmt::format(fmt::runtime(lv_tr("Tool {}")), tool_label(lane_working_.tool))
-                   : std::string(lv_tr("No Tool"));
+                   ? fmt::format(fmt::runtime(lv_tr("Feeds {}")), tool_label(lane_working_.tool))
+                   : std::string(lv_tr("Feeds no tool"));
     }
     if (backup_row) {
-        const AmsBackend* backend = AmsState::instance().get_backend();
-        const LaneNoun noun = backend ? backend->lane_noun() : active_lane_noun();
-        const std::string backup = lane_working_.backup >= 0
-                                       ? fmt::format(fmt::runtime(lv_tr("Runout → {}")),
-                                                     lane_label(noun, lane_working_.backup))
-                                       : std::string(lv_tr("No Runout Backup"));
-        line += (line.empty() ? "" : " · ") + backup;
+        const std::string runout =
+            continues ? fmt::format(fmt::runtime(lv_tr("Continues from {} on runout")), backup_lane)
+                      : std::string(lv_tr("Pauses on runout"));
+        line += (line.empty() ? "" : " · ") + runout;
     }
     snprintf(lane_line_buf_, sizeof(lane_line_buf_), "%s", line.c_str());
     lv_subject_set_string(&lane_line_subject_, lane_line_buf_);
 
-    // What a runout of this lane will do: continue from its backup where the
-    // printer switches spools, else pause.
-    lv_subject_t* endless = lv_xml_get_subject(nullptr, "ams_endless_state");
-    const auto kind =
-        static_cast<printer::EndlessSpoolStatusKind>(endless ? lv_subject_get_int(endless) : 0);
-    const bool switches = kind == printer::EndlessSpoolStatusKind::On ||
-                          kind == printer::EndlessSpoolStatusKind::OnWithoutBackup;
-    std::string runout;
-    if (backup_row && switches && lane_working_.backup >= 0) {
-        const AmsBackend* backend = AmsState::instance().get_backend();
-        const LaneNoun noun = backend ? backend->lane_noun() : active_lane_noun();
-        runout = fmt::format(
-            fmt::runtime(lv_tr("When this spool runs out, printing continues from {}.")),
-            lane_label(noun, lane_working_.backup));
-    } else {
-        runout = lv_tr("When this spool runs out, the print pauses.");
-    }
-    snprintf(runout_text_buf_, sizeof(runout_text_buf_), "%s", runout.c_str());
+    // The Lane Settings page's sentence.
+    const std::string sentence =
+        continues ? fmt::format(fmt::runtime(
+                                    lv_tr("When this spool runs out, printing continues from {}.")),
+                                backup_lane)
+                  : std::string(lv_tr("When this spool runs out, the print pauses."));
+    snprintf(runout_text_buf_, sizeof(runout_text_buf_), "%s", sentence.c_str());
     lv_subject_set_string(&runout_text_subject_, runout_text_buf_);
 }
 
@@ -1090,8 +1097,10 @@ void AmsEditOverlay::update_empty_page() {
     const SlotInfo& last = last_held_;
     const bool has_last = !last.material.empty();
     lv_subject_set_int(&has_last_subject_, has_last ? 1 : 0);
-    snprintf(last_product_buf_, sizeof(last_product_buf_), "%s",
-             has_last ? product_line_of(last).c_str() : "");
+    const std::string held =
+        has_last ? fmt::format(fmt::runtime(lv_tr("Last held: {}")), product_line_of(last))
+                 : std::string();
+    snprintf(last_product_buf_, sizeof(last_product_buf_), "%s", held.c_str());
     lv_subject_set_string(&last_product_subject_, last_product_buf_);
     std::string material_line = last.material;
     if (has_last && slot_has_colour(last)) {
@@ -1101,7 +1110,9 @@ void AmsEditOverlay::update_empty_page() {
              has_last ? material_line.c_str() : "");
     lv_subject_set_string(&last_material_subject_, last_material_buf_);
     if (lv_obj_t* spool = find_widget("empty_last_spool")) {
+        // The spool it held, run out.
         spool_canvas_set_filament(spool, last);
+        ui_spool_canvas_set_fill_level(spool, 0.0f);
     }
 }
 
@@ -1551,7 +1562,8 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             detail += (detail.empty() ? "" : " · ") + std::string(lv_tr("Full"));
         } else if (spool.remaining_weight_g > 0) {
             detail += (detail.empty() ? "" : " · ") +
-                      fmt::format(fmt::runtime(lv_tr("{:.0f} g left")), spool.remaining_weight_g);
+                      helix::format_spool_remaining(static_cast<float>(spool.remaining_weight_g),
+                                                    static_cast<float>(spool.initial_weight_g));
         }
 #if !defined(HELIX_PLATFORM_ESP32)
         // spoolman_types.cpp is scoped out of the ESP32 image; rows there
@@ -1982,13 +1994,15 @@ std::vector<uint32_t> AmsEditOverlay::color_row_recents(const std::vector<uint32
     return out;
 }
 
-size_t AmsEditOverlay::recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap) {
+size_t AmsEditOverlay::recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap,
+                                    int rows) {
     if (chip <= 0 || row_width < chip) {
         return 0;
     }
-    // n tiles take n chips and n - 1 gaps.
+    // n tiles take n chips and n - 1 gaps, on each of @p rows rows.
     const int per_row = (row_width + gap) / (chip + gap);
-    return std::min(cap, static_cast<size_t>(std::max(0, per_row - fixed_tiles)));
+    return std::min(cap,
+                    static_cast<size_t>(std::max(0, per_row * std::max(1, rows) - fixed_tiles)));
 }
 
 void AmsEditOverlay::size_color_row() {
@@ -2003,9 +2017,38 @@ void AmsEditOverlay::size_color_row() {
             row_width_ = width;
             row_gap_ = lv_obj_get_style_pad_column(row, LV_PART_MAIN);
             row_chip_ = lv_obj_get_width(tile);
+            row_rows_ = color_row_rows(row);
         }
     }
     update_color_row();
+}
+
+int AmsEditOverlay::color_row_rows(lv_obj_t* row) const {
+    // DECLARATIVE_OK: measured layout. The swatches take the height the page
+    // leaves under the row once everything after it is in.
+    lv_obj_t* page = lv_obj_get_parent(row);
+    if (!page || row_chip_ <= 0) {
+        return 1;
+    }
+    lv_area_t page_box;
+    lv_obj_get_content_coords(page, &page_box);
+    const int gap = lv_obj_get_style_pad_row(page, LV_PART_MAIN);
+    int below = 0;
+    bool after = false;
+    for (uint32_t i = 0; i < lv_obj_get_child_count(page); ++i) {
+        lv_obj_t* child = lv_obj_get_child(page, static_cast<int32_t>(i));
+        if (child == row) {
+            after = true;
+        } else if (after && !lv_obj_is_hidden(child)) {
+            below += lv_obj_get_height(child) + gap;
+        }
+    }
+    const int pads = lv_obj_get_style_pad_top(row, LV_PART_MAIN) +
+                     lv_obj_get_style_pad_bottom(row, LV_PART_MAIN);
+    lv_area_t row_box;
+    lv_obj_get_coords(row, &row_box);
+    const int room = page_box.y2 - row_box.y1 - below - pads;
+    return std::max(1, (room + row_gap_) / (row_chip_ + row_gap_));
 }
 
 size_t AmsEditOverlay::recent_room() const {
@@ -2017,7 +2060,7 @@ size_t AmsEditOverlay::recent_room() const {
     const int dots = editable ? shown_colors() : 1;
     const int plus = multi_color_capable() && dots < static_cast<int>(kMaxColors) ? 1 : 0;
     const int fixed = dots + plus + 1;
-    return recents_room(row_width_, fixed, row_chip_, row_gap_, kMaxRowRecents);
+    return recents_room(row_width_, fixed, row_chip_, row_gap_, kMaxRowRecents, row_rows_);
 }
 
 void AmsEditOverlay::populate_editor_view() {
@@ -2069,8 +2112,11 @@ void AmsEditOverlay::update_summary() {
                                   : working_info_.remaining_weight_g >= 0
                                       ? working_info_.remaining_weight_g
                                       : shown_total;
-    const std::string weight = fmt::format(fmt::runtime(lv_tr("{:.0f} g of {}")), shown_remaining,
-                                           format_spool_size(shown_total));
+    // "850 g of 1 kg · 85%": what is left, of what size, and how much of it.
+    const std::string weight =
+        fmt::format(fmt::runtime(lv_tr("{:.0f} g of {} · {}%")), shown_remaining,
+                    format_spool_size(shown_total),
+                    std::max(0, helix::spool_remaining_percent(shown_remaining, shown_total)));
     snprintf(weight_buf_, sizeof(weight_buf_), "%s", weight.c_str());
     lv_subject_set_string(&weight_text_subject_, weight_buf_);
     const int pct = shown_total > 0 ? static_cast<int>(std::lround(std::clamp(
@@ -2628,8 +2674,15 @@ void AmsEditOverlay::update_color_row() {
     set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
 
     // As many recents as size_color_row() measured room for.
-    color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
-                                   current, recent_room());
+    // The newest recents first, then the color page's filament palette to fill
+    // what room is left.
+    std::vector<uint32_t> offered = helix::ColorRecents::list(helix::ColorRecents::Kind::Filament);
+    for (uint32_t c : helix::color_palette(helix::ColorPalette::Filament)) {
+        if (std::find(offered.begin(), offered.end(), c) == offered.end()) {
+            offered.push_back(c);
+        }
+    }
+    color_row_ = color_row_recents(offered, current, recent_room());
     s_recent_colors.ensure_size(kMaxRowRecents);
     for (size_t i = 0; i < color_row_.size(); ++i) {
         s_recent_colors.set_color(i, color_row_[i]);
