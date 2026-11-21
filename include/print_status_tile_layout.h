@@ -56,11 +56,9 @@ struct PrintStatusTileLayout {
 /// yet measured). After the lane tray, stacked tiles give it that height out
 /// of the job tile alone, down to the same floor; too little room shows none,
 /// leaving the Tune button. Side by side never shows it.
-[[nodiscard]] PrintStatusTileLayout
-decide_print_status_tile_layout(int32_t content_w, int32_t content_h, int32_t gap,
-                                int32_t strip_row_h, int32_t strip_stacked_h,
-                                bool lane_tray = false, int32_t job_content_h = 0,
-                                int32_t tune_natural_h = 0);
+[[nodiscard]] PrintStatusTileLayout decide_print_status_tile_layout(
+    int32_t content_w, int32_t content_h, int32_t gap, int32_t strip_row_h, int32_t strip_stacked_h,
+    bool lane_tray = false, int32_t job_content_h = 0, int32_t tune_natural_h = 0);
 
 /// The ultrawide arrangement of a `content_w` x `content_h` box whose columns sit
 /// `gap` apart: the preview square at the full height, the printer picture at
@@ -69,17 +67,18 @@ decide_print_status_tile_layout(int32_t content_w, int32_t content_h, int32_t ga
 /// the preview give up width toward their floors. The Tune column shows only
 /// where the readouts, the preview and the info column can make room for it
 /// and still keep most of the height's width; the printer picture keeps its
-/// full width beside it.
+/// full width beside it. Without `tune` (no print running) there is no Tune
+/// column to make room for.
 [[nodiscard]] PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h,
-                                                             int32_t gap);
+                                                             int32_t gap, bool tune = false);
 
 /// The ultrawide tile layout: the columns, with the job tile the preview
 /// square and the printer tile its column, both at the full height. With
 /// `lane_tray` the readouts' column shows the lane tray instead, since the
-/// printer picture's callouts already carry the readings.
-[[nodiscard]] PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w,
-                                                                         int32_t content_h,
-                                                                         int32_t gap,
-                                                                         bool lane_tray = false);
+/// printer picture's callouts already carry the readings. `tune` as for
+/// decide_print_status_columns().
+[[nodiscard]] PrintStatusTileLayout
+decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h, int32_t gap,
+                                     bool lane_tray = false, bool tune = false);
 
 } // namespace helix

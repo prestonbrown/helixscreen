@@ -128,7 +128,7 @@ int32_t columns_total(const PrintStatusColumns& c, int32_t gap) {
 
 TEST_CASE("ultrawide columns at 1480x320 make room for the Tune column",
           "[print_status_tile_layout][ultrawide][tune_inline]") {
-    const auto c = decide_print_status_columns(1410, 269, 6);
+    const auto c = decide_print_status_columns(1410, 269, 6, true);
     CHECK(c.tune_w == 295);
     // The printer picture keeps its full width; readouts and preview give
     // way to their floors.
@@ -142,7 +142,7 @@ TEST_CASE("ultrawide columns at 1480x320 make room for the Tune column",
 
 TEST_CASE("ultrawide columns at 1920x440 cap the Tune column's width",
           "[print_status_tile_layout][ultrawide][tune_inline]") {
-    const auto c = decide_print_status_columns(1820, 372, 8);
+    const auto c = decide_print_status_columns(1820, 372, 8, true);
     CHECK(c.tune_w == 300);
     CHECK(c.printer_w == 520);
     CHECK(c.readouts_w == 260);
@@ -156,10 +156,10 @@ TEST_CASE("ultrawide columns show Tune only while the info column keeps its floo
           "[print_status_tile_layout][ultrawide][tune_inline]") {
     // Readouts and preview at their floors at 1394: the info column keeps
     // 188, 70% of 269. One pixel less and the Tune button comes back instead.
-    const auto fits = decide_print_status_columns(1394, 269, 6);
+    const auto fits = decide_print_status_columns(1394, 269, 6, true);
     CHECK(fits.tune_w == 295);
     CHECK(fits.info_w == 188);
-    const auto short_by_one = decide_print_status_columns(1393, 269, 6);
+    const auto short_by_one = decide_print_status_columns(1393, 269, 6, true);
     CHECK(short_by_one.tune_w == 0);
     CHECK(short_by_one.info_w > 188);
     CHECK(columns_total(short_by_one, 6) == 1393);
@@ -170,7 +170,7 @@ TEST_CASE("ultrawide columns never narrow the printer picture for Tune",
     int shown = 0;
     for (int32_t h = 200; h <= 480; h += 20) {
         for (int32_t w = 2 * h; w <= 2600; w += 37) {
-            const auto c = decide_print_status_columns(w, h, 8);
+            const auto c = decide_print_status_columns(w, h, 8, true);
             if (c.tune_w == 0) {
                 continue;
             }
@@ -182,6 +182,20 @@ TEST_CASE("ultrawide columns never narrow the printer picture for Tune",
         }
     }
     CHECK(shown > 0);
+}
+
+TEST_CASE("ultrawide columns keep their natural widths without a running print",
+          "[print_status_tile_layout][ultrawide][tune_inline]") {
+    // The room the Tune column would take at 1480x320 goes back to the
+    // preview and readouts: there is no column to make room for.
+    const auto c = decide_print_status_columns(1410, 269, 6, false);
+    CHECK(c.tune_w == 0);
+    CHECK(c.preview_w == 269);
+    CHECK(c.printer_w == 376);
+    CHECK(c.readouts_w == 250);
+    CHECK(c.actions_w == 129);
+    CHECK(c.info_w == 362);
+    CHECK(columns_total(c, 6) == 1410);
 }
 
 TEST_CASE("ultrawide columns narrow the printer first to keep the info column",
@@ -209,7 +223,7 @@ TEST_CASE("ultrawide columns stop each column at its floor",
 
 TEST_CASE("ultrawide tile layout sizes the job tile as the preview square",
           "[print_status_tile_layout][ultrawide]") {
-    const auto l = decide_print_status_ultrawide_layout(1410, 269, 6);
+    const auto l = decide_print_status_ultrawide_layout(1410, 269, 6, false, true);
     CHECK(l.arrangement == PrintStatusArrangement::SideBySide);
     CHECK(l.job_w == 188);
     CHECK(l.job_h == 269);

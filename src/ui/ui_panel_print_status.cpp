@@ -237,7 +237,8 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
           {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
            &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
            &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
-           &printer_tile_h_subject_, &uw_tune_w_subject_, &tune_h_subject_},
+           &printer_tile_h_subject_, &uw_tune_w_subject_, &tune_h_subject_,
+           &print_controls_enabled_subject_},
           {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
@@ -843,6 +844,18 @@ void PrintStatusPanel::init_subjects() {
 
     // Button enable states driven declaratively from XML (see update_button_states).
     UI_MANAGED_SUBJECT_INT(print_controls_enabled_subject_, 0, "print_controls_enabled", subjects_);
+    // The inline Tune section takes room only while a print runs.
+    {
+        auto token = lifetime_.token();
+        tune_controls_observer_ = observe<int>(
+            &print_controls_enabled_subject_, this,
+            [token](PrintStatusPanel* self, int) {
+                if (token.expired())
+                    return;
+                self->layout_fitter_.recompute();
+            },
+            get_subjects_lifetime());
+    }
 
     // Exclude objects availability (0=hidden, 1=visible - shown when >= 2 objects defined)
     // Note: subject already initialized in constructor (needed before observer fires)

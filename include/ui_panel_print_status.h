@@ -723,6 +723,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard lane_tray_gate_observer_;
     ObserverGuard lane_tray_slots_observer_;
     ObserverGuard lane_tray_steps_observer_;
+    ObserverGuard tune_controls_observer_;
     ObserverGuard lane_tray_preparing_observer_;
     ObserverGuard scoped_runout_observer_; ///< Recomputes scoped runout badge on sensor edge
     /// ...and on AMS lane change (slots_version), which also re-pushes the

@@ -134,13 +134,15 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     }
     const int32_t gap = theme_manager_get_spacing("space_md");
     const bool lane_tray = has_lane_tray();
+    const bool tune = subjects_.print_controls_enabled &&
+                      lv_subject_get_int(subjects_.print_controls_enabled) == 1;
     if (is_ultrawide()) {
-        last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray);
+        last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray, tune);
     } else {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
-        last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
-                                                strip_stacked_height(progress), lane_tray,
-                                                checklist_height(root), tune_section_height(root));
+        last_ = decide_print_status_tile_layout(
+            w, h, gap, strip_row_height(progress), strip_stacked_height(progress), lane_tray,
+            checklist_height(root), tune ? tune_section_height(root) : 0);
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {

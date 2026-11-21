@@ -1328,7 +1328,7 @@ TEST_CASE_METHOD(Ultrawide1480,
     const int32_t w = lv_obj_get_content_width(content);
     const int32_t h = lv_obj_get_content_height(content);
     const auto cols =
-        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"));
+        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"), true);
     REQUIRE(cols.preview_w > 0);
 
     lv_obj_t* job = find("ps_job_tile");
@@ -1647,8 +1647,8 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
     lv_obj_t* content = find("overlay_content");
     REQUIRE(content != nullptr);
     const int32_t h = lv_obj_get_content_height(content);
-    const auto cols = helix::decide_print_status_columns(lv_obj_get_content_width(content), h,
-                                                         theme_manager_get_spacing("space_md"));
+    const auto cols = helix::decide_print_status_columns(
+        lv_obj_get_content_width(content), h, theme_manager_get_spacing("space_md"), true);
     REQUIRE(cols.tune_w > 0);
 
     CHECK(shown(root_, "ps_uw_tune"));
@@ -1658,9 +1658,17 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
     CHECK(shown(root_, "ps_printer_tile"));
     CHECK(lv_obj_get_width(find("ps_printer_tile")) >= h);
 
-    // Outside a running print the info column takes the room back.
+    // Outside a running print the column goes, and the preview and readouts
+    // take their room back, with no relayout asked for here.
     lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 0);
-    CHECK_FALSE(shown(root_, "ps_uw_tune"));
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    const auto idle = helix::decide_print_status_columns(lv_obj_get_content_width(content), h,
+                                                         theme_manager_get_spacing("space_md"));
+    REQUIRE(idle.preview_w > cols.preview_w);
+    CHECK(subject_int("ps_uw_tune_w") == 0);
+    CHECK(lv_obj_get_width(find("ps_job_tile")) == idle.preview_w);
+    CHECK(lv_obj_get_width(find("ps_uw_readouts")) == idle.readouts_w);
 }
 
 TEST_CASE_METHOD(TallPortrait320, "a tall portrait screen shows the Tune section under the strip",

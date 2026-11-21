@@ -47,7 +47,8 @@ bool is_compact_job(int32_t job_w, int32_t job_h) {
 PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t content_h,
                                                       int32_t gap, int32_t strip_row_h,
                                                       int32_t strip_stacked_h, bool lane_tray,
-                                                      int32_t job_content_h, int32_t tune_natural_h) {
+                                                      int32_t job_content_h,
+                                                      int32_t tune_natural_h) {
     PrintStatusTileLayout out;
     const bool stacked = content_h > content_w && content_h >= kStackedMinHeight;
     out.arrangement =
@@ -129,20 +130,21 @@ PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool t
 }
 } // namespace
 
-PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap) {
+PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap,
+                                               bool tune) {
     const int32_t h = std::max<int32_t>(0, content_h);
     const PrintStatusColumns with_tune = fit_columns(content_w, h, gap, true);
-    if (with_tune.info_w >= h * kFloorWithTunePct / 100) {
+    if (tune && with_tune.info_w >= h * kFloorWithTunePct / 100) {
         return with_tune;
     }
     return fit_columns(content_w, h, gap, false);
 }
 
 PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,
-                                                           int32_t gap, bool lane_tray) {
+                                                           int32_t gap, bool lane_tray, bool tune) {
     PrintStatusTileLayout out;
     out.lane_tray = lane_tray ? PrintStatusLaneTray::Column : PrintStatusLaneTray::None;
-    out.columns = decide_print_status_columns(content_w, content_h, gap);
+    out.columns = decide_print_status_columns(content_w, content_h, gap, tune);
     out.job_w = out.columns.preview_w;
     out.job_h = content_h;
     out.printer_w = out.columns.printer_w;

@@ -45,6 +45,9 @@ class PrintStatusLayoutFitter {
         lv_subject_t* printer_tile_h = nullptr;
         lv_subject_t* tune_w = nullptr;
         lv_subject_t* tune_h = nullptr;
+        /// Read, not published: 1 while a print runs, the only time the
+        /// inline Tune section shows and takes room.
+        lv_subject_t* print_controls_enabled = nullptr;
     };
 
     struct Host {
