@@ -60,8 +60,9 @@ static constexpr uint8_t kVentInsideShadeTop = 20;
 static constexpr uint8_t kVentInsideShadeBottom = 50;
 static constexpr float kFlangeThickness = 3.0f / 240.0f; // 3 px on a 240 px spool
 // A one-pixel rim, this much darker than the flange, outlines each flange so a
-// neighbouring spool's flange standing over it stays separate.
-static constexpr uint8_t kFlangeRimDrop = 110;
+// neighbouring spool's flange standing over it stays separate: a dark gray
+// edge, soft enough not to read as a black line on either theme.
+static constexpr uint8_t kFlangeRimDrop = 45;
 static constexpr float kVentLipFraction = kFlangeThickness * kLightDrop;
 static constexpr lv_opa_t kVentLipShade = 115; // 45% toward black
 // Face-on, the flange is smoked plastic over the wound filament.

@@ -365,6 +365,7 @@
   <translation tag="Add part fan to MPC?" ru="Добавить вентилятор детали в MPC?"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ru="Добавить в веб-камеры Mainsail/Fluidd"/>
   <translation tag="Add to Queue" ru="Добавить в очередь"/>
+  <translation tag="Add to Spoolman" ru="Добавить в Spoolman"/>
   <translation tag="Add to Spoolman &amp; Assign" ru="Добавить в Spoolman и назначить"/>
   <translation tag="Add to Spoolman + label" ru="Добавить в Spoolman + этикетка"/>
   <translation tag="Added" ru="Добавлено"/>
@@ -962,6 +963,7 @@
   <translation tag="Choose Filament" ru="Выбрать филамент"/>
   <translation tag="Choose Layer" ru="Выбрать слой"/>
   <translation tag="Choose Model" ru="Выберите модель"/>
+  <translation tag="Choose a Different Spool" ru="Выбрать другую катушку"/>
   <translation tag="Choose a discovered printer" ru="Выберите найденный принтер"/>
   <translation tag="Choose an existing filament, or tap + New to create one." ru="Выберите существующий филамент или нажмите + Новый, чтобы создать."/>
   <translation tag="Choose display language" ru="Выберите язык интерфейса"/>
@@ -1005,6 +1007,7 @@
   <translation tag="Clear Console?" ru="Очистить консоль?"/>
   <translation tag="Clear Error" ru="Сбросить ошибку"/>
   <translation tag="Clear Lane" ru="Очистить канал"/>
+  <translation tag="Clear Lane?" ru="Очистить канал?"/>
   <translation tag="Clear Spool" ru="Убрать катушку"/>
   <translation tag="Clear and clean the build plate, then resume." ru="Освободите и очистите печатную пластину, затем продолжите."/>
   <translation tag="Clear any debris from the carriage and the head&apos;s latch, seat the head again, then home and resume." ru="Уберите мусор с каретки и защёлки головки, заново установите головку, затем выполните парковку и продолжите."/>
@@ -1021,6 +1024,7 @@
   <translation tag="Clear the nozzle and the part, then restart the firmware."/>
   <translation tag="Clear the nozzle and the purge chute, load {}, then resume."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ru="Освободите стол и загрузите {}. Башня печатается в центре стола."/>
+  <translation tag="Clear {}?" ru="Очистить {}?"/>
   <translation tag="Cleared" ru="Очищено"/>
   <translation tag="Cleared from settings — system unpair failed, may need OS Bluetooth" ru="Удалено из настроек; не удалось отменить сопряжение в системе, возможно нужен Bluetooth ОС"/>
   <translation tag="Clipboard" ru="Буфер обмена"/>
@@ -1170,6 +1174,7 @@
   <translation tag="Continue" ru="Продолжить"/>
   <translation tag="Continue on Another Toolhead" ru="Продолжить на другой печатающей головке"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ru="Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать."/>
+  <translation tag="Continues from {} on runout" ru="При окончании продолжает с {}"/>
   <translation tag="Control optional print start features" ru="Управление дополнительными функциями начала печати"/>
   <translation tag="Control power relays and smart outlets" ru="Управление реле и умными розетками"/>
   <translation tag="Controllable Fans" ru="Управляемые вентиляторы"/>
@@ -1253,6 +1258,7 @@
   <translation tag="Could not turn the heaters off" ru="Не удалось выключить нагреватели"/>
   <translation tag="Could not update filaments" ru="Не удалось обновить филаменты"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." ru="Не удалось проверить статус Spoolman. Moonraker может ещё перезапускаться."/>
+  <translation tag="Couldn&apos;t archive the spool in Spoolman" ru="Не удалось архивировать катушку в Spoolman"/>
   <translation tag="Couldn&apos;t assign the tool" ru="Не удалось назначить инструмент"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" ru="Не удалось очистить карту шлюзов принтера"/>
   <translation tag="Couldn&apos;t load spools — tap to retry" ru="Не удалось загрузить катушки — нажмите, чтобы повторить"/>
@@ -1837,6 +1843,9 @@
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
   <translation tag="Feeding the head by hand did not finish." ru="Ручная подача в головку не завершилась."/>
+  <translation tag="Feeds Tool" ru="Подаёт в инструмент"/>
+  <translation tag="Feeds no tool" ru="Не подаёт ни в один инструмент"/>
+  <translation tag="Feeds {}" ru="Подаёт в {}"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -2529,6 +2538,7 @@
   <translation tag="Last 30 days" ru="Последние 30 дней"/>
   <translation tag="Last 7 days" ru="Последние 7 дней"/>
   <translation tag="Last done at {} h" ru="Прошлый раз: {} ч"/>
+  <translation tag="Last held: {}" ru="Последняя: {}"/>
   <translation tag="Last measured" ru="Последний замер"/>
   <translation tag="Last print canceled" ru="Последняя печать отменена"/>
   <translation tag="Last print failed" ru="Последняя печать не удалась"/>
@@ -2883,6 +2893,7 @@
   <translation tag="Moving over the resume point" ru="Перемещение к точке продолжения"/>
   <translation tag="Moving the plate..." ru="Перемещение стола..."/>
   <translation tag="Moving {} to the front..." ru="Перемещение вперёд: {}..."/>
+  <translation tag="Multi-Color" ru="Многоцветная"/>
   <translation tag="Multi-Filament" ru="Мульти-филамент"/>
   <translation tag="Multi-Filament Overview" ru="Обзор мульти-филамента"/>
   <translation tag="Multi-Filament System" ru="Мультифиламентная система"/>
@@ -3050,6 +3061,7 @@
   <translation tag="No spools match your search" ru="По вашему запросу катушки не найдены"/>
   <translation tag="No spools match. Add it as a new spool below." ru="Подходящих катушек нет. Добавьте её как новую катушку ниже."/>
   <translation tag="No spools placed" ru="Катушки не положены"/>
+  <translation tag="No spools to show. Add it as a new spool below." ru="Нет катушек. Добавьте её ниже как новую катушку."/>
   <translation tag="No tape detected in printer" ru="В принтере не обнаружена лента"/>
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
@@ -3239,6 +3251,7 @@
   <translation tag="Original file location unknown" ru="Расположение исходного файла неизвестно"/>
   <translation tag="Oscillating... cycle %d/%d" ru="Осцилляция... цикл %d/%d"/>
   <translation tag="Other" ru="Другое"/>
+  <translation tag="Other…" ru="Другое…"/>
   <translation tag="Outcome" ru="Результат"/>
   <translation tag="Output Device" ru="Устройство вывода"/>
   <translation tag="Output Mode" ru="Режим вывода"/>
@@ -3318,6 +3331,7 @@
   <translation tag="Paused by a command" ru="Приостановлено командой"/>
   <translation tag="Paused by {}: {}" ru="Приостановлено ({}): {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ru="Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати."/>
+  <translation tag="Pauses on runout" ru="Пауза при окончании"/>
   <translation tag="Pausing at layer {}." ru="Пауза на слое {}."/>
   <translation tag="Pausing..." ru="Приостановка..."/>
   <translation tag="Peak Freq" ru="Пиковая частота"/>
@@ -4011,6 +4025,7 @@
   <translation tag="Running tight" ru="Натянут"/>
   <translation tag="Running {}..." ru="Выполнение {}..."/>
   <translation tag="Runout" ru="Окончание"/>
+  <translation tag="Runout Backup" ru="Резерв при окончании"/>
   <translation tag="Runout Sensor" ru="Датчик окончания"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске."/>
@@ -4029,6 +4044,7 @@
   <translation tag="Safe Mode active. The printer connection is disabled because the app kept crashing on startup. Open Settings to fix the issue, then reboot." ru="Активен безопасный режим. Подключение к принтеру отключено, так как приложение постоянно аварийно завершалось при запуске. Откройте настройки, чтобы устранить проблему, затем перезагрузите."/>
   <translation tag="Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal." ru="Безопасный режим: приложение постоянно аварийно завершалось при запуске, поэтому плагины отключены, а раскладки виджетов показаны по умолчанию. Перезапустите, чтобы вернуться к обычному режиму."/>
   <translation tag="Safety &amp; Alerts" ru="Безопасность и оповещения"/>
+  <translation tag="Same Filament, New Spool" ru="Тот же филамент, новая катушка"/>
   <translation tag="Same filament" ru="Тот же филамент"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." ru="Та же катушка в {}? Нажмите «Очистить», если это новая."/>
   <translation tag="Sample" ru="Образец"/>
@@ -4374,12 +4390,14 @@
   <translation tag="Spool archived" ru="Катушка архивирована"/>
   <translation tag="Spool created successfully" ru="Катушка успешно создана"/>
   <translation tag="Spool deleted" ru="Катушка удалена"/>
+  <translation tag="Spool is empty, archive it in Spoolman" ru="Катушка пуста, архивировать в Spoolman"/>
   <translation tag="Spool menu" ru="Меню катушки"/>
   <translation tag="Spool motor" ru="Мотор катушки"/>
   <translation tag="Spool saved" ru="Катушка сохранена"/>
   <translation tag="Spool switching per tool and lane" ru="Переключение катушек по инструменту и каналу"/>
   <translation tag="Spool wt (g)" ru="Вес катушки (г)"/>
   <translation tag="Spoolman" ru="Spoolman"/>
+  <translation tag="Spoolman Details" ru="Сведения Spoolman"/>
   <translation tag="Spoolman Not Available" ru="Spoolman недоступен"/>
   <translation tag="Spoolman Server" ru="Сервер Spoolman"/>
   <translation tag="Spoolman already has &quot;{}&quot; from this brand in a close color. Use it for lane {}, or add a new filament?" ru="В Spoolman уже есть «{}» этой марки близкого цвета. Использовать его для канала {} или добавить новый филамент?"/>
@@ -4623,6 +4641,7 @@
   <translation tag="Temporary adjustment for this print" ru="Временная настройка для этой печати"/>
   <translation tag="Temporary adjustment for this print, unless saved on Controls panel" ru="Временная настройка для этой печати, если не сохранена в панели управления"/>
   <translation tag="Temporary for this print; a tool change resets it" ru="Временно для этой печати; смена инструмента сбрасывает её"/>
+  <translation tag="Temps" ru="Температуры"/>
   <translation tag="Tension Belts" ru="Натянуть ремни"/>
   <translation tag="Tensioner: {}" ru="Натяжитель: {}"/>
   <translation tag="Tensioning belts..." ru="Натяжение ремней..."/>
@@ -4806,6 +4825,8 @@
   <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream."/>
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination."/>
   <translation tag="The label didn&apos;t print: {}" ru="Этикетка не напечатана: {}"/>
+  <translation tag="The lane forgets this spool. The filament itself stays where it is." ru="Канал забудет эту катушку. Сам филамент останется на месте."/>
+  <translation tag="The lane that takes over when this one runs out" ru="Канал, который продолжит, когда этот закончится"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ru="Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
@@ -4981,6 +5002,7 @@
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
   <translation tag="The toolhead sensor went empty, and no other lane holds the same type and color, or backup is off."/>
+  <translation tag="The toolhead this lane loads into" ru="Печатающая головка, в которую подаёт этот канал"/>
   <translation tag="The toolhead&apos;s pogo pins are not making contact." ru="Пого-контакты печатающей головки не замыкаются."/>
   <translation tag="The toolheads have changed enough times since their last maintenance." ru="С последнего обслуживания печатающие головки сменились достаточно раз."/>
   <translation tag="The toolheads&apos; docked and picked-up states do not add up." ru="Состояния «в доке» и «на каретке» печатающих головок не сходятся."/>
@@ -5232,6 +5254,7 @@
   <translation tag="Touch the target (point %1$d of 3) — touch %2$d of %3$d" ru="Коснитесь цели (точка %1$d из 3) — касание %2$d из %3$d"/>
   <translation tag="TouchCalibration" ru="Калибровка касания"/>
   <translation tag="Trace" ru="Трассировка"/>
+  <translation tag="Track this spool&apos;s weight there" ru="Отслеживать там вес этой катушки"/>
   <translation tag="Trailing" ru="Отставание"/>
   <translation tag="Tried ports {} and {}." ru="Проверены порты {} и {}."/>
   <translation tag="Trigger" ru="Триггер"/>
@@ -5524,6 +5547,8 @@
   <translation tag="When a slicer uploads and starts a file that moves past this printer&apos;s travel, heats past its limits or uses a missing tool, keep the file but do not start it." ru="Если слайсер загружает и запускает файл, который выходит за ход этого принтера, нагревает выше его пределов или использует отсутствующий инструмент, сохранить файл, но не запускать печать."/>
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." ru="Когда включено, запускается только макрос. Когда выключено, сначала задаются температуры, затем запускается макрос."/>
   <translation tag="When it is safe, restart the firmware."/>
+  <translation tag="When this spool runs out, printing continues from {}." ru="Когда эта катушка закончится, печать продолжится с {}."/>
+  <translation tag="When this spool runs out, the print pauses." ru="Когда эта катушка закончится, печать приостановится."/>
   <translation tag="Where UI sounds play" ru="Где воспроизводятся звуки интерфейса"/>
   <translation tag="Whether filament is loaded" ru="Загружен ли филамент"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" ru="Следуют ли стрелки Z за столом или за значением Z"/>
@@ -5696,6 +5721,8 @@
   <translation tag="color differs" ru="другой цвет"/>
   <translation tag="complete" ru="завершено"/>
   <translation tag="cores" ru="ядер"/>
+  <translation tag="cycle {}" ru="цикл {}"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" ru="цикл {}, {:.2f} (цель {:.2f})"/>
   <translation tag="direct drive" ru="с прямой подачей"/>
   <translation tag="disable" ru="отключить"/>
   <translation tag="disabled" ru="отключено"/>
@@ -5735,6 +5762,8 @@
   <translation tag="helixscreen.env ignored: {}" ru="helixscreen.env проигнорирован: {}"/>
   <translation tag="idle" ru="простой"/>
   <translation tag="in unit {} slot {}" ru="в блоке {} слот {}"/>
+  <translation tag="in {}" ru="в {}"/>
+  <translation tag="in {}, feeding the print" ru="в {}, подаёт в печать"/>
   <translation tag="incompatible" ru="несовместим"/>
   <translation tag="invalid" ru="недопустим"/>
   <translation tag="just now" ru="только что"/>
@@ -5821,6 +5850,7 @@
   <translation tag="{1} never triggered"/>
   <translation tag="{1} temperature reading is out of range"/>
   <translation tag="{:.0f} g left" ru="осталось {:.0f} г"/>
+  <translation tag="{:.0f} g of {} · {}%" ru="{:.0f} г из {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{:.2f} mm range" ru="разброс {:.2f} мм"/>
   <translation tag="{} ({})" ru="{} ({})"/>
@@ -5829,6 +5859,7 @@
   <translation tag="{} Issues Detected" ru="Обнаружено проблем: {}"/>
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
   <translation tag="{} MCUs" ru="{} MCU"/>
+  <translation tag="{} Settings" ru="Настройки: {}"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
   <translation tag="{} and {}" ru="{} и {}"/>
   <translation tag="{} and {} are both mapped here" ru="{} и {} оба назначены сюда"/>
@@ -5894,6 +5925,7 @@
   <translation tag="{} is blocked — manual intervention required" ru="{}: блокировка — требуется ручное вмешательство"/>
   <translation tag="{} is due" ru="{}: пора выполнить"/>
   <translation tag="{} is due: {} h reached" ru="{}: пора обслуживать, {} ч достигнуто"/>
+  <translation tag="{} is empty" ru="{} пуст"/>
   <translation tag="{} is feeding the current print. Clear it after the print ends." ru="{}: подаёт филамент для текущей печати. Удалите катушку после завершения печати."/>
   <translation tag="{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout." ru="{} установлен, но его настройка бесконечной катушки выключена, поэтому при обрыве ничего не переключится."/>
   <translation tag="{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool." ru="{} установлен, но прочитать его настройку бесконечной катушки не удалось - не рассчитывайте на бесконечную катушку."/>

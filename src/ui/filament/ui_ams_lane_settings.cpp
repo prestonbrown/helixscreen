@@ -93,10 +93,10 @@ std::string tool_row_refusal(const AmsBackend& backend, int slot, int assigned) 
     return err.user_msg;
 }
 
-std::string tool_options(int tool_count) {
-    std::string options = lv_tr("None");
+std::string tool_options(int tool_count, bool offer_none) {
+    std::string options = offer_none ? std::string(lv_tr("None")) : std::string();
     for (int i = 0; i < tool_count; ++i) {
-        options += "\n" + helix::ui::tool_label(i);
+        options += (options.empty() ? "" : "\n") + helix::ui::tool_label(i);
     }
     return options;
 }

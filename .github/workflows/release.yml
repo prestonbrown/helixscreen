@@ -1188,7 +1188,7 @@ jobs:
 
     # A draft until the release-signing approval: publish-release makes it
     # public only after upload-r2, the gated job, succeeds.
-    - name: Create GitHub Release (draft)
+    - name: Create GitHub Release
       if: env.RELEASE_MODE == 'publish'
       uses: softprops/action-gh-release@v3
       with:

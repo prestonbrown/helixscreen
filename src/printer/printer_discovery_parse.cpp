@@ -1079,6 +1079,7 @@ void PrinterDiscovery::apply_printer_info(const nlohmann::json& result) {
     if (json_util::safe_string(result, "app") == "Kalico") {
         is_kalico_ = true;
         save_config_takes_restart_param_ = true;
+        pid_calibrate_takes_tolerance_ = true;
     }
 }
 
@@ -1189,6 +1190,7 @@ void PrinterDiscovery::clear() {
     has_fan_feedback_ = false;
     is_kalico_ = false;
     save_config_takes_restart_param_ = false;
+    pid_calibrate_takes_tolerance_ = false;
     mmu_type_ = AmsType::NONE;
     qidi_box_slot_count_ = 0;
     detected_ams_systems_.clear();

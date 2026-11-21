@@ -490,6 +490,13 @@ class PrinterDiscovery {
         return save_config_takes_restart_param_;
     }
 
+    /// Whether this firmware's PID_CALIBRATE takes TOLERANCE (Kalico): it repeats
+    /// heating cycles until the last ones agree that closely. Mainline Klipper
+    /// runs a fixed number of cycles and has no such parameter.
+    [[nodiscard]] bool pid_calibrate_takes_tolerance() const {
+        return pid_calibrate_takes_tolerance_;
+    }
+
     /// The firmware's own name, as people know it: "Kalico" for that fork, else "Klipper".
     [[nodiscard]] const char* firmware_name() const {
         return is_kalico_ ? "Kalico" : "Klipper";
@@ -1332,6 +1339,7 @@ class PrinterDiscovery {
     bool has_fan_feedback_ = false;
     bool is_kalico_ = false;
     bool save_config_takes_restart_param_ = false;
+    bool pid_calibrate_takes_tolerance_ = false;
     AmsType mmu_type_ = AmsType::NONE;
     std::vector<DetectedAmsSystem> detected_ams_systems_;
 

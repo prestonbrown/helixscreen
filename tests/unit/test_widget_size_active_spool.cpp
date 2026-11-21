@@ -112,7 +112,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(shown(h.child("spoolman_material")));
     CHECK_FALSE(shown(h.child("spoolman_no_spool_wide")));
     CHECK(shown(h.child("spoolman_brand_color")));
-    CHECK(std::string(lv_label_get_text(h.child("spoolman_weight"))) == "500g / 1000g");
+    CHECK(std::string(lv_label_get_text(h.child("spoolman_weight"))) == "500 g \xC2\xB7 50%");
     CHECK(shown(h.child("spoolman_weight")));
 
     // Back to compact by pixel, contradicting span (colspan=3 -> old predicate goes wide).
