@@ -3539,9 +3539,12 @@ void AmsBackendCfs::abort_action_state(const MoonrakerError& err) {
     // way the driver isn't running our script anymore, so flip back to IDLE so
     // the UI doesn't get stuck on a "loading" spinner.
     spdlog::error("[AMS CFS] Action script failed: {}", err.message);
-    std::lock_guard<std::mutex> lock(mutex_);
-    system_info_.action = AmsAction::IDLE;
-    end_phase_tracking();
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        system_info_.action = AmsAction::IDLE;
+        end_phase_tracking();
+    }
+    emit_event(EVENT_STATE_CHANGED);
 }
 
 AmsError AmsBackendCfs::dispatch_action_script(std::string gcode) {
@@ -3820,11 +3823,20 @@ std::optional<bool> AmsBackendCfs::toolhead_filament_unaccounted() const {
 }
 
 void AmsBackendCfs::finish_action() {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (system_info_.action == AmsAction::IDLE) {
-        return;
+    // AmsState syncs the action subject only on an event, so the settled
+    // action is published here rather than left for the next status frame.
+    // emit_event() takes mutex_, so it runs after the lock is released.
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if (system_info_.action == AmsAction::IDLE) {
+            return;
+        }
+        settle_finished_action_locked();
     }
+    emit_event(EVENT_STATE_CHANGED);
+}
 
+void AmsBackendCfs::settle_finished_action_locked() {
     // Gcode acceptance is not evidence the operation worked: the BOX_*
     // primitives record and queue failures instead of raising, so the script
     // drains and every RPC succeeds while nothing moved (#968). Check the
