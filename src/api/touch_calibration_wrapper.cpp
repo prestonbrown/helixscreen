@@ -11,6 +11,7 @@
 
 #include <mutex>
 #include <string>
+#include <utility>
 
 namespace helix {
 
@@ -239,6 +240,11 @@ void set_touch_capture_active(bool active) {
     if (s_active_ctx) {
         s_active_ctx->capture_active = active;
     }
+}
+
+void set_touch_raw_source(CalibrationContext& ctx, std::function<bool(int&, int&)> source) {
+    std::lock_guard<std::mutex> lock(s_diag_mutex);
+    ctx.raw_source = std::move(source);
 }
 
 bool get_touch_range_diagnostics(TouchRangeDiagnostics& out) {

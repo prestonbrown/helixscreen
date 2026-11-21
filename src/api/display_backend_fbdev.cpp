@@ -537,9 +537,9 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
     // #1276). A shim rather than a direct call because the wrapper translation
     // unit is compiled on desktop, where lv_evdev does not exist.
     lv_indev_t* raw_indev = touch_;
-    calibration_context_.raw_source = [raw_indev](int& x, int& y) {
+    helix::set_touch_raw_source(calibration_context_, [raw_indev](int& x, int& y) {
         return lv_evdev_get_last_raw(raw_indev, &x, &y);
-    };
+    });
     // Only the transposed guess is ever re-programmed from samples: touches past
     // the display edge, within the declared range, disprove it.
     const bool display_size_live = transposed_guess && !env_range_override && !stored_applies;

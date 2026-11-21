@@ -695,6 +695,35 @@ TEST_CASE_METHOD(LVGLTestFixture, "touch diagnostics: a torn-down wrapper report
     lv_indev_delete(indev);
 }
 
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "touch diagnostics: a reopen's raw source swap is what the bundle sees",
+                 "[touch][touch-diagnostics][wrapper]") {
+    lv_indev_t* indev = lv_indev_create();
+    REQUIRE(indev != nullptr);
+    lv_indev_set_type(indev, LV_INDEV_TYPE_POINTER);
+
+    TouchCalibration cal;
+    CalibrationContext ctx;
+    install_calibration_wrapper(indev, ctx, cal, 480, 272);
+
+    set_touch_raw_source(ctx, [](int& x, int& y) {
+        x = 100;
+        y = 100;
+        return true;
+    });
+    TouchRangeDiagnostics live;
+    CHECK(get_touch_range_diagnostics(live));
+
+    // The device dropped: the reopen retry clears the source until one opens.
+    set_touch_raw_source(ctx, nullptr);
+    TouchRangeDiagnostics away;
+    CHECK_FALSE(get_touch_range_diagnostics(away));
+    CHECK(away.unavailable_reason == "no-raw-source");
+
+    uninstall_calibration_wrapper(indev, ctx);
+    lv_indev_delete(indev);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "touch diagnostics: the span check latches for the bundle",
                  "[touch][touch-diagnostics][wrapper]") {
     lv_indev_t* indev = lv_indev_create();

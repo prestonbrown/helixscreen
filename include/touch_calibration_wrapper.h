@@ -113,6 +113,11 @@ void set_touch_configured_range(bool swap_axes, int min_x, int min_y, int max_x,
 /// CalibrationContext::capture_active). No-op when no wrapper is installed.
 void set_touch_capture_active(bool active);
 
+/// Set or clear ctx.raw_source under the lock get_touch_range_diagnostics()
+/// reads it under. A backend calls this rather than assigning the field: a
+/// debug bundle may be reading it from the collect worker.
+void set_touch_raw_source(CalibrationContext& ctx, std::function<bool(int&, int&)> source);
+
 /// Snapshot everything a debug bundle needs about the touch pipeline.
 ///
 /// Returns false, with `out.unavailable_reason` set and nothing else filled in,

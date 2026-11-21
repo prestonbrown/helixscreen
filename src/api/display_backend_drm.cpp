@@ -491,7 +491,7 @@ lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
 bool DisplayBackendDRM::open_touch_device(bool reopening) {
     // Reset per device: a reopen may land on another driver than the device it replaces.
     pointer_is_evdev_ = false;
-    calibration_context_.raw_source = nullptr;
+    helix::set_touch_raw_source(calibration_context_, nullptr);
     // A reopen retries every second while the device is away; only its success is news.
     const auto announce = reopening ? spdlog::level::debug : spdlog::level::info;
 
@@ -861,9 +861,9 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
             // does not exist.
             if (pointer_is_evdev_) {
                 lv_indev_t* raw_indev = pointer_;
-                calibration_context_.raw_source = [raw_indev](int& x, int& y) {
+                helix::set_touch_raw_source(calibration_context_, [raw_indev](int& x, int& y) {
                     return lv_evdev_get_last_raw(raw_indev, &x, &y);
-                };
+                });
             }
 
             // A reopened device keeps the calibration live when the old one dropped,
