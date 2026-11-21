@@ -50,6 +50,9 @@ struct PickerSubjects {
     char val_buf[16] = {};
     char caption_buf[48] = {};
     char keypad_buf[16] = {};
+
+    /// The view whose state the subjects show: the last one attached.
+    ColorPickerView* publisher = nullptr;
 };
 
 std::unique_ptr<PickerSubjects> s_subjects;
@@ -57,7 +60,6 @@ helix::xml::IndexedSubjectPool s_cells{"color_picker_cell",
                                        helix::xml::IndexedSubjectPool::Type::Color};
 helix::xml::IndexedSubjectPool s_chips{"color_picker_chip",
                                        helix::xml::IndexedSubjectPool::Type::Color};
-ColorPickerView* s_active = nullptr;
 
 /// The most chips a strip shows: the recents cap, or a theme's 16 roles.
 constexpr size_t kMaxChips = 16;
@@ -91,11 +93,39 @@ ColorRecents::Kind recents_kind(ColorStrip strip) {
     return strip == ColorStrip::LedRecents ? ColorRecents::Kind::Led : ColorRecents::Kind::Filament;
 }
 
-/// Routes a callback to the live view. A view whose widgets the host has
-/// deleted is not live, though it is still the last one attached.
-template <typename Fn> void with_active(Fn&& fn) {
-    if (s_active && s_active->attached()) {
-        fn(*s_active);
+/// The name the view gives its root, so a callback can find it.
+constexpr const char* kRootName = "color_picker_view";
+
+ColorPickerView* current_publisher() {
+    return s_subjects ? s_subjects->publisher : nullptr;
+}
+
+void set_publisher(ColorPickerView* view) {
+    if (s_subjects) {
+        s_subjects->publisher = view;
+    }
+}
+
+/// The view a callback's widget belongs to: the picker root at or above the
+/// widget, or, for a control in the host's header (the switch, the readout),
+/// the picker inside the nearest ancestor that holds one. The root's user data
+/// is its view while attached.
+ColorPickerView* view_from_event(lv_event_t* e) {
+    for (lv_obj_t* o = lv_event_get_current_target_obj(e); o; o = lv_obj_get_parent(o)) {
+        const char* name = lv_obj_get_name(o);
+        lv_obj_t* root =
+            (name && std::strcmp(name, kRootName) == 0) ? o : lv_obj_find_by_name(o, kRootName);
+        if (root) {
+            return static_cast<ColorPickerView*>(lv_obj_get_user_data(root));
+        }
+    }
+    return nullptr;
+}
+
+/// Routes a callback to the view its widget belongs to.
+template <typename Fn> void with_view(lv_event_t* e, Fn&& fn) {
+    if (ColorPickerView* view = view_from_event(e); view && view->attached()) {
+        fn(*view);
     }
 }
 
@@ -104,24 +134,24 @@ void register_callbacks() {
         {"color_picker_tab_cb",
          [](lv_event_t* e) {
              const int tab = std::atoi(user_data_of(e));
-             with_active([&](ColorPickerView& v) {
+             with_view(e, [&](ColorPickerView& v) {
                  v.set_tab(tab == 1 ? ColorPickerView::Tab::Sliders : ColorPickerView::Tab::Grid);
              });
          }},
         {"color_picker_cell_cb",
          [](lv_event_t* e) {
              const int i = std::atoi(user_data_of(e));
-             with_active([&](ColorPickerView& v) { v.pick_cell(i); });
+             with_view(e, [&](ColorPickerView& v) { v.pick_cell(i); });
          }},
         {"color_picker_chip_cb",
          [](lv_event_t* e) {
              const int i = std::atoi(user_data_of(e));
-             with_active([&](ColorPickerView& v) { v.pick_chip(i); });
+             with_view(e, [&](ColorPickerView& v) { v.pick_chip(i); });
          }},
         {"color_picker_chip_hold_cb",
          [](lv_event_t* e) {
              const int i = std::atoi(user_data_of(e));
-             with_active([&](ColorPickerView& v) {
+             with_view(e, [&](ColorPickerView& v) {
                  const bool was = v.strip_editing();
                  v.hold_chip(i);
                  if (!was && v.strip_editing()) {
@@ -130,11 +160,11 @@ void register_callbacks() {
              });
          }},
         {"color_picker_strip_done_cb",
-         [](lv_event_t*) { with_active([](ColorPickerView& v) { v.finish_strip_edit(); }); }},
+         [](lv_event_t* e) { with_view(e, [](ColorPickerView& v) { v.finish_strip_edit(); }); }},
         {"color_picker_slider_cb",
          [](lv_event_t* e) {
              const char c = user_data_of(e)[0];
-             with_active([&](ColorPickerView& v) { v.slider_changed(channel_of(c)); });
+             with_view(e, [&](ColorPickerView& v) { v.slider_changed(channel_of(c)); });
          }},
         {"color_picker_step_cb",
          [](lv_event_t* e) {
@@ -142,15 +172,15 @@ void register_callbacks() {
              if (std::strlen(ud) < 2) {
                  return;
              }
-             with_active(
-                 [&](ColorPickerView& v) { v.step(channel_of(ud[0]), ud[1] == '-' ? -1 : 1); });
+             with_view(
+                 e, [&](ColorPickerView& v) { v.step(channel_of(ud[0]), ud[1] == '-' ? -1 : 1); });
          }},
         {"color_picker_hex_open_cb",
-         [](lv_event_t*) { with_active([](ColorPickerView& v) { v.open_keypad(); }); }},
+         [](lv_event_t* e) { with_view(e, [](ColorPickerView& v) { v.open_keypad(); }); }},
         {"color_picker_key_cb",
          [](lv_event_t* e) {
              const char* ud = user_data_of(e);
-             with_active([&](ColorPickerView& v) {
+             with_view(e, [&](ColorPickerView& v) {
                  if (std::strcmp(ud, "back") == 0) {
                      v.keypad_backspace();
                  } else if (ud[0] != '\0') {
@@ -159,9 +189,9 @@ void register_callbacks() {
              });
          }},
         {"color_picker_keypad_cancel_cb",
-         [](lv_event_t*) { with_active([](ColorPickerView& v) { v.keypad_cancel(); }); }},
+         [](lv_event_t* e) { with_view(e, [](ColorPickerView& v) { v.keypad_cancel(); }); }},
         {"color_picker_keypad_ok_cb",
-         [](lv_event_t*) { with_active([](ColorPickerView& v) { v.keypad_ok(); }); }},
+         [](lv_event_t* e) { with_view(e, [](ColorPickerView& v) { v.keypad_ok(); }); }},
     });
 }
 
@@ -244,13 +274,12 @@ void ensure_color_picker_view_subjects() {
             s_cells.reclaim();
             s_chips.reclaim();
             s_subjects.reset();
-            s_active = nullptr;
         },
         StaticSubjectRegistry::Lifetime::Process);
 }
 
 ColorPickerView* ColorPickerView::active() {
-    return s_active;
+    return current_publisher();
 }
 
 ColorPickerView::~ColorPickerView() {
@@ -265,7 +294,7 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     }
     ensure_color_picker_view_subjects();
     config_ = config;
-    s_active = this;
+    set_publisher(this);
     tab_ = Tab::Grid;
     keypad_open_ = false;
     strip_editing_ = false;
@@ -291,9 +320,11 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     root_.reset(static_cast<lv_obj_t*>(lv_xml_create(container, "color_picker_view", attrs)));
     if (!root_) {
         spdlog::error("[ColorPickerView] color_picker_view failed to build");
-        s_active = nullptr;
+        set_publisher(nullptr);
         return;
     }
+    lv_obj_set_name(root_, kRootName);
+    lv_obj_set_user_data(root_, this);
     spdlog::debug("[ColorPickerView] attached, palette {} color #{:06X}", palette_attr,
                   model_.rgb());
 }
@@ -301,9 +332,12 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
 void ColorPickerView::detach() {
     // The widgets stay: they belong to the host's tree, which deletes them with
     // its page or dialog, and a delete here could land inside that teardown.
+    if (root_) {
+        lv_obj_set_user_data(root_, nullptr);
+    }
     root_.reset();
-    if (s_active == this) {
-        s_active = nullptr;
+    if (current_publisher() == this) {
+        set_publisher(nullptr);
     }
 }
 
@@ -313,21 +347,21 @@ void ColorPickerView::on_change(std::function<void(uint32_t)> callback) {
 
 void ColorPickerView::set_color(uint32_t rgb) {
     model_.set_rgb(rgb);
-    if (s_active == this) {
+    if (current_publisher() == this) {
         publish();
     }
 }
 
 void ColorPickerView::set_label(const std::string& label) {
     label_ = label;
-    if (s_active == this) {
+    if (current_publisher() == this) {
         publish();
     }
 }
 
 void ColorPickerView::set_tab(Tab tab) {
     tab_ = tab;
-    if (s_active == this) {
+    if (current_publisher() == this) {
         lv_subject_set_int(&s_subjects->tab, static_cast<int>(tab));
     }
 }
@@ -343,7 +377,7 @@ void ColorPickerView::apply(uint32_t rgb, bool from_sliders) {
 }
 
 void ColorPickerView::publish() {
-    if (!s_subjects || s_active != this) {
+    if (!s_subjects || current_publisher() != this) {
         return;
     }
     auto& s = *s_subjects;
@@ -406,7 +440,7 @@ void ColorPickerView::load_strip() {
     if (strip_.size() > kMaxChips) {
         strip_.resize(kMaxChips);
     }
-    if (s_active != this) {
+    if (current_publisher() != this) {
         return;
     }
     for (size_t i = 0; i < strip_.size(); ++i) {
@@ -458,14 +492,14 @@ void ColorPickerView::hold_chip(int index) {
 
 void ColorPickerView::finish_strip_edit() {
     strip_editing_ = false;
-    if (s_active == this) {
+    if (current_publisher() == this) {
         lv_subject_set_int(&s_subjects->strip_editing, 0);
         publish_strip_selection();
     }
 }
 
 void ColorPickerView::slider_changed(HsvChannel channel) {
-    if (publishing_ || s_active != this) {
+    if (publishing_ || current_publisher() != this) {
         return;
     }
     lv_subject_t* subject = channel == HsvChannel::Hue          ? &s_subjects->hue
