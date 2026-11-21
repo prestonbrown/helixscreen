@@ -73,6 +73,11 @@ class NavigationManagerTestAccess {
         return callback;
     }
 
+    /// Set the screensaver-suspended flag without dispatching any lifecycle call.
+    static void set_suspended(NavigationManager& nav, bool suspended) {
+        nav.suspended_ = suspended;
+    }
+
     /// The close path taken on connection loss or Klippy leaving READY.
     static void clear_overlay_stack(NavigationManager& nav) {
         nav.clear_overlay_stack();

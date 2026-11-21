@@ -217,6 +217,14 @@ class PIDCalibrationPanel : public OverlayBase {
 
     // State
     State state_ = State::IDLE;
+
+    /// Guards the run's own callbacks (calibrate result, error and progress,
+    /// migration). It outlives the screensaver, which leaves the run going on
+    /// the printer, and is invalidated when the user really leaves the panel.
+    helix::AsyncLifetimeGuard run_lifetime_;
+    /// Set while the screensaver has the panel suspended: the wake resumes
+    /// whatever the panel showed instead of resetting it.
+    bool suspended_ = false;
     Heater selected_heater_ = Heater::EXTRUDER;
     int target_temp_ = 200;         // Default for extruder
     int fan_speed_ = 0;             // Part cooling fan speed for extruder PID
@@ -358,6 +366,11 @@ class PIDCalibrationPanel : public OverlayBase {
     lv_timer_t* eta_update_timer_ = nullptr;
 
     void start_progress_tracking();
+    /// Follow the run's heater and refresh the ETA, keeping what the tracker
+    /// has measured so far: a wake from the screensaver resumes a run.
+    void attach_progress_tracking();
+    /// The temperature subject of the heater this run calibrates, or nullptr.
+    lv_subject_t* progress_temp_subject();
     void stop_progress_tracking();
 
     /// Cancel the ETA refresh timer. Safe to call when none is armed, and safe
