@@ -512,6 +512,10 @@ void SpoolEditModal::handle_color_clicked() {
         char hex_buf[8];
         snprintf(hex_buf, sizeof(hex_buf), "%06X", color_rgb);
         working_spool_.color_hex = std::string("#") + hex_buf;
+        // One picked color replaces a multi-color filament's list, so the
+        // save sends color_hex and clears the list.
+        working_spool_.multi_color_hexes.clear();
+        working_spool_.multi_color_direction.clear();
         // color_hex is the only colour Spoolman stores, and the only one
         // build_spool_patches() PATCHes. The picker's colour word is a display
         // string; it must not land in filament_name, which is the user's own

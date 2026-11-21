@@ -52,6 +52,11 @@ struct FilamentSlotOverride {
     // record's `colors` list and `color_mode`.
     std::string multi_color_hexes;
     std::string color_mode;
+    // The record states how many colors the lane holds: its `color_mode` is a
+    // string, which every writer puts beside a color. With an empty list it
+    // states one color and clears a list another source holds; a record with
+    // a null or missing `color_mode` says nothing about it.
+    bool colors_stated = false;
     std::string color_name;
     std::string material;
     // Catalog product identity, mirroring SlotInfo::catalog_id / product_name

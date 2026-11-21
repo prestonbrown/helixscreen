@@ -5081,6 +5081,85 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "multi-color: a list that starts with the no-color marker keeps its colors",
+                 "[ams_edit_overlay][multi_color]") {
+    SlotInfo start = untracked_slot();
+    start.color_rgb = 0x808080;
+    start.multi_color_hexes = "#808080,#FF0000";
+    start.color_mode = "gradient";
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, start, nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_color_mode(1);
+    lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    const SlotInfo saved = backend->get_slot_info(0);
+    CHECK(saved.color_rgb == 0x7F7F7F);
+    CHECK(AmsEditOverlay::split_color_list(saved.multi_color_hexes) ==
+          std::vector<uint32_t>{0x7F7F7F, 0xFF0000});
+    CHECK(saved.color_mode == "coaxial");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "multi-color: a spool with more colors than dots keeps the rest",
+                 "[ams_edit_overlay][multi_color]") {
+    SlotInfo start = untracked_slot();
+    start.color_rgb = 0x111111;
+    start.multi_color_hexes = "#111111,#222222,#333333,#444444,#555555,#666666";
+    start.color_mode = "gradient";
+    REQUIRE(helix::test::apply_edit(*backend, 0, start).success());
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, start, nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(subject_value("ams_edit_seg_count") == 4);
+    access.call_seg_tap(1);
+    access.call_apply_color(0x00FF00);
+    access.call_seg_hold(3);
+    lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(AmsEditOverlay::split_color_list(backend->get_slot_info(0).multi_color_hexes) ==
+          std::vector<uint32_t>{0x111111, 0x00FF00, 0x333333, 0x555555, 0x666666});
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a lane that cannot store colors shows a multi-color spool read-only; a pick "
+                 "replaces it",
+                 "[ams_edit_overlay][color_picker][multi_color]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo start = untracked_slot();
+    start.color_rgb = 0xD4AF37;
+    start.multi_color_hexes = "#D4AF37,#C0C0C0";
+    start.color_mode = "gradient";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, start, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(subject_value("ams_edit_multi_capable") == 0);
+    CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(subject_value("ams_edit_seg_count") == 1);
+    CHECK(lv_obj_is_hidden(lv_obj_get_parent(access.widget("dropdown_color_mode"))));
+    access.call_seg_hold(0);
+    access.call_color_mode(1);
+    CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
+    access.call_apply_color(0x00FF00);
+    CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(LVGLUITestFixture, "a lane that cannot store colors offers no \"+\"",
                  "[ams_edit_overlay][color_picker][multi_color]") {
     auto& overlay = get_ams_edit_overlay();

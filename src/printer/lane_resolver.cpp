@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "lane_resolver.h"
 
+#include "color_utils.h"
+
 namespace helix::ams {
 
 namespace {
@@ -14,6 +16,10 @@ const Observation* held(const std::optional<Observation>& obs) {
 void lay_identity(const Observation& obs, ResolvedLane& out) {
     if (obs.color_rgb.has_value())
         out.color_rgb = *obs.color_rgb;
+    if (obs.multi_color_hexes.has_value())
+        out.multi_color_hexes = *obs.multi_color_hexes;
+    if (obs.color_mode.has_value())
+        out.color_mode = *obs.color_mode;
     if (obs.color_name.has_value())
         out.color_name = *obs.color_name;
     if (obs.material.has_value())
@@ -82,6 +88,16 @@ ResolvedLane resolve(const LaneSources& sources) {
          {spoolman, held(sources.record), held(sources.firmware), held(sources.pending)}) {
         if (obs != nullptr) {
             lay_identity(*obs, out);
+        }
+    }
+    // A list starts with the lane's color. A stronger source that states
+    // another color alone has replaced the filament, so the list goes too.
+    if (out.multi_color_hexes && !out.multi_color_hexes->empty() && out.color_rgb) {
+        const std::string& list = *out.multi_color_hexes;
+        const auto first = helix::parse_hex_color(list.substr(0, list.find(',')));
+        if (!first || (*first & 0xFFFFFF) != (*out.color_rgb & 0xFFFFFF)) {
+            out.multi_color_hexes = std::string();
+            out.color_mode = std::string();
         }
     }
     for (const Observation* obs : {held(sources.metered), held(sources.record),

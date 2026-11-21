@@ -217,6 +217,10 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
             o.color_set = true;
         }
     }
+    if (const auto* mode = helix::json_util::find_member(j, "color_mode");
+        mode && mode->is_string()) {
+        o.colors_stated = true;
+    }
     if (const auto* colors = helix::json_util::find_member(j, "colors");
         colors && colors->is_array()) {
         std::string joined;
@@ -388,6 +392,8 @@ FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
     if (is_declarable_color(edited.color_rgb)) {
         ovr.color_rgb = edited.color_rgb;
         ovr.color_set = true;
+        // Written beside the color as `color_mode`, so the edit states its count.
+        ovr.colors_stated = true;
         if (split_colors(edited.multi_color_hexes).size() >= 2) {
             ovr.multi_color_hexes = edited.multi_color_hexes;
             ovr.color_mode = color_mode::normalize(edited.color_mode);

@@ -1560,9 +1560,6 @@ std::vector<uint32_t> AmsEditOverlay::draft_colors() const {
                                                   : working_info_.multi_color_hexes;
     std::vector<uint32_t> list = split_color_list(csv);
     if (list.size() >= 2) {
-        if (list.size() > kMaxColors) {
-            list.resize(kMaxColors);
-        }
         return list;
     }
     return {pending_color()};
@@ -1592,13 +1589,19 @@ void AmsEditOverlay::reset_color_draft() {
     selected_seg_ = 0;
 }
 
-void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& colors) {
-    if (colors.empty()) {
+void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& picked) {
+    if (picked.empty()) {
         return;
+    }
+    // Every color goes through the same mapping as a single pick, so no entry
+    // is the no-color marker.
+    std::vector<uint32_t> colors = picked;
+    for (uint32_t& c : colors) {
+        c = helix::ams::picked_color(c);
     }
     const std::string mode = draft_mode();
     multi_set_ = true;
-    details_color_ = helix::ams::picked_color(colors.front());
+    details_color_ = colors.front();
     details_color_set_ = true;
     if (colors.size() >= 2) {
         draft_multi_ = join_color_list(colors);
@@ -1607,7 +1610,7 @@ void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& colors) {
         draft_multi_.clear();
         draft_mode_.clear();
     }
-    selected_seg_ = std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1);
+    selected_seg_ = std::clamp(selected_seg_, 0, shown_colors() - 1);
     update_summary();
     update_sync_button_state();
 }
@@ -1615,7 +1618,13 @@ void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& colors) {
 void AmsEditOverlay::apply_color(uint32_t rgb) {
     std::vector<uint32_t> colors = draft_colors();
     if (colors.size() >= 2) {
-        colors[static_cast<size_t>(selected_seg_)] = helix::ams::picked_color(rgb);
+        if (!multi_color_capable()) {
+            // The lane keeps one color: a pick replaces the spool's colors.
+            set_draft_colors({rgb});
+            return;
+        }
+        selected_seg_ = std::clamp(selected_seg_, 0, shown_colors() - 1);
+        colors[static_cast<size_t>(selected_seg_)] = rgb;
         set_draft_colors(colors);
         return;
     }
@@ -1626,7 +1635,7 @@ void AmsEditOverlay::apply_color(uint32_t rgb) {
 }
 
 void AmsEditOverlay::handle_seg_tap(int index) {
-    if (index < 0 || static_cast<size_t>(index) >= draft_colors().size()) {
+    if (index < 0 || index >= (multi_color_editable() ? shown_colors() : 1)) {
         return;
     }
     if (index == selected_seg_) {
@@ -1639,7 +1648,7 @@ void AmsEditOverlay::handle_seg_tap(int index) {
 
 void AmsEditOverlay::handle_seg_hold(int index) {
     std::vector<uint32_t> colors = draft_colors();
-    if (colors.size() < 2 || index < 0 || static_cast<size_t>(index) >= colors.size()) {
+    if (!multi_color_editable() || index < 0 || index >= shown_colors()) {
         return;
     }
     colors.erase(colors.begin() + index);
@@ -1670,17 +1679,13 @@ void AmsEditOverlay::add_color() {
 
 void AmsEditOverlay::handle_color_mode(int mode_index) {
     const std::vector<uint32_t> colors = draft_colors();
-    if (colors.size() < 2) {
+    if (!multi_color_editable()) {
         return;
     }
-    draft_multi_ = join_color_list(colors);
     draft_mode_ =
         std::string(mode_index == 1 ? helix::color_mode::kCoaxial : helix::color_mode::kGradient);
     multi_set_ = true;
-    details_color_ = colors.front();
-    details_color_set_ = true;
-    update_summary();
-    update_sync_button_state();
+    set_draft_colors(colors);
 }
 
 void AmsEditOverlay::handle_recent_color(int index) {
@@ -1699,7 +1704,7 @@ void AmsEditOverlay::open_color_page() {
     cfg.strip = helix::ui::ColorStrip::FilamentRecents;
     const std::vector<uint32_t> colors = draft_colors();
     const uint32_t editing = colors[static_cast<size_t>(
-        std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1))];
+        std::clamp(selected_seg_, 0, (multi_color_editable() ? shown_colors() : 1) - 1))];
     // One draft: the page edits the editor's pending color (the selected one
     // of several) live, Back keeps it, and only Save commits it.
     helix::ui::get_color_picker_page().open(
@@ -1713,10 +1718,14 @@ void AmsEditOverlay::update_color_row() {
         return;
     }
     const std::vector<uint32_t> colors = draft_colors();
-    const bool multi = colors.size() >= 2;
-    selected_seg_ = std::clamp(selected_seg_, 0, static_cast<int>(colors.size()) - 1);
-    const uint32_t current = colors[static_cast<size_t>(selected_seg_)];
     const bool capable = multi_color_capable();
+    // A list the lane cannot store shows read-only (the summary dot's split)
+    // behind one dot, like a single color, and a pick replaces it.
+    const bool multi = colors.size() >= 2;
+    const bool editable = multi && capable;
+    const int dots = editable ? shown_colors() : 1;
+    selected_seg_ = std::clamp(selected_seg_, 0, dots - 1);
+    const uint32_t current = colors[static_cast<size_t>(selected_seg_)];
     lv_subject_set_color(&color_current_subject_, lv_color_hex(current));
     const std::string list = multi ? join_color_list(colors) : std::string();
     lv_subject_set_string(&color_current_multi_subject_, list.c_str());
@@ -1732,7 +1741,7 @@ void AmsEditOverlay::update_color_row() {
     lv_subject_set_string(&color_name_subject_, name.c_str());
 
     s_seg_colors.ensure_size(kMaxColors);
-    for (size_t i = 0; i < colors.size(); ++i) {
+    for (size_t i = 0; i < static_cast<size_t>(dots); ++i) {
         s_seg_colors.set_color(i, colors[i]);
     }
     const auto set_int = [](helix::Subject& subject, int value) {
@@ -1740,14 +1749,14 @@ void AmsEditOverlay::update_color_row() {
             lv_subject_set_int(&subject, value);
         }
     };
-    set_int(seg_count_subject_, static_cast<int>(colors.size()));
+    set_int(seg_count_subject_, dots);
     set_int(seg_selected_subject_, selected_seg_);
-    set_int(multi_subject_, multi ? 1 : 0);
+    set_int(multi_subject_, editable ? 1 : 0);
     set_int(multi_capable_subject_, capable ? 1 : 0);
     set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
-    const std::string label = multi ? fmt::format("{} {}: {}", lv_tr("Color"), selected_seg_ + 1,
-                                                  helix::get_color_name_from_hex(current))
-                                    : std::string();
+    const std::string label = editable ? fmt::format("{} {}: {}", lv_tr("Color"), selected_seg_ + 1,
+                                                     helix::get_color_name_from_hex(current))
+                                       : std::string();
     lv_subject_set_string(&seg_label_subject_, label.c_str());
 
     // Room in the recents' row: one dot and its "+" share it, so the "+"
@@ -1755,7 +1764,7 @@ void AmsEditOverlay::update_color_row() {
     lv_subject_t* bp = theme_manager_get_breakpoint_subject();
     const bool roomy = bp && lv_subject_get_int(bp) >= static_cast<int>(UiBreakpoint::Medium);
     const size_t row_max = roomy ? kMaxRowRecents : kNarrowRowRecents;
-    const size_t room = capable && !multi ? row_max - 1 : row_max;
+    const size_t room = capable && !editable ? row_max - 1 : row_max;
     color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
                                    current, room);
     s_recent_colors.ensure_size(kMaxRowRecents);
@@ -2263,8 +2272,11 @@ bool AmsEditOverlay::needs_identity_confirmation(const SlotInfo& original, const
 
 void AmsEditOverlay::stage_pending_color_into_working() {
     if (multi_set_) {
-        const std::vector<uint32_t> list = split_color_list(draft_multi_);
+        std::vector<uint32_t> list = split_color_list(draft_multi_);
         if (list.size() >= 2) {
+            for (uint32_t& c : list) {
+                c = helix::ams::picked_color(c);
+            }
             working_info_.color_rgb = list.front();
             working_info_.color_name.clear();
             working_info_.multi_color_hexes = join_color_list(list);

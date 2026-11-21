@@ -274,6 +274,11 @@ Observation record_observation(const FilamentSlotOverride& record) {
             }
         }
     });
+    // A record that states one color clears a list another source holds.
+    if (record.colors_stated && record.multi_color_hexes.empty()) {
+        obs.multi_color_hexes = std::string();
+        obs.color_mode = std::string();
+    }
     return obs;
 }
 

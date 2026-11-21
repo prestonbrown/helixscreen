@@ -19,6 +19,7 @@
 #include "spoolman_types.h"
 #include "subject_managed_panel.h"
 
+#include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
@@ -175,9 +176,8 @@ class AmsEditOverlay : public OverlayBase {
     /// and not the bare black some firmware reports for an empty slot.
     static bool slot_has_colour(const SlotInfo& info);
 
-    /// The filament recents the color row offers beside @p current: the
-    /// newest first, @p current left out, at most @p room of them.
-    /// The most colors a multi-color spool takes in the editor.
+    /// The most colors a multi-color spool shows as dots, and takes from "+".
+    /// A longer list keeps its later colors; they are not shown as dots.
     static constexpr size_t kMaxColors = 4;
 
     /// "#RRGGBB" entries of a comma-separated color list, unparseable ones dropped.
@@ -185,6 +185,8 @@ class AmsEditOverlay : public OverlayBase {
     /// The list back as "#RRGGBB,#RRGGBB".
     static std::string join_color_list(const std::vector<uint32_t>& colors);
 
+    /// The filament recents the color row offers beside @p current: the
+    /// newest first, @p current left out, at most @p room of them.
     static std::vector<uint32_t> color_row_recents(const std::vector<uint32_t>& recents,
                                                    uint32_t current, size_t room);
 
@@ -282,7 +284,7 @@ class AmsEditOverlay : public OverlayBase {
     std::vector<uint32_t> color_row_;
 
     // === Multi-color draft ===
-    // The draft's colors: the pending pick alone, or two to kMaxColors. A
+    // The draft's colors: the pending pick alone, or two or more. A
     // multi-color edit lives in draft_multi_/draft_mode_ while multi_set_, and
     // reaches working_info_ only on Save, like a single pick.
     std::vector<uint32_t> draft_colors() const;
@@ -294,9 +296,18 @@ class AmsEditOverlay : public OverlayBase {
     /// Whether this lane can store several colors (AmsBackend::stores_multi_color,
     /// or a lane linked to a Spoolman spool).
     bool multi_color_capable() const;
-    /// Put @p colors in the draft: two or more stay a list, one becomes the
-    /// single pending color.
-    void set_draft_colors(const std::vector<uint32_t>& colors);
+    /// A multi-color draft the lane can store: its colors show as dots to edit.
+    /// Elsewhere a multi-color spool shows read-only and a pick replaces it.
+    bool multi_color_editable() const {
+        return draft_is_multi() && multi_color_capable();
+    }
+    /// How many of the draft's colors show as dots: at most kMaxColors.
+    int shown_colors() const {
+        return static_cast<int>(std::min(draft_colors().size(), kMaxColors));
+    }
+    /// Put @p picked in the draft, each through helix::ams::picked_color():
+    /// two or more stay a list, one becomes the single pending color.
+    void set_draft_colors(const std::vector<uint32_t>& picked);
     void handle_seg_tap(int index);
     void handle_seg_hold(int index);
     void add_color();
