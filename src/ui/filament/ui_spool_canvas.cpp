@@ -1124,6 +1124,14 @@ static void spool_canvas_xml_apply(lv_xml_parser_state_t* state, const char** at
             data->fill_level = strtof(value, nullptr);
             needs_redraw = true;
             spdlog::debug("[SpoolCanvas] Set fill_level={:.2f}", data->fill_level);
+        } else if (strcmp(name, "view") == 0) {
+            // "front" looks at the wound filament face-on; anything else, the side.
+            const auto view = strcmp(value, "front") == 0 ? helix::ui::SpoolView::Front
+                                                          : helix::ui::SpoolView::Side;
+            if (data->view != view) {
+                data->view = view;
+                needs_redraw = true;
+            }
         } else if (strcmp(name, "size") == 0) {
             int32_t new_size = atoi(value);
             if (new_size != data->size && new_size > 0) {
