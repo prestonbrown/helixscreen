@@ -352,6 +352,15 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     }
     lv_obj_set_name(root_, kRootName);
     lv_obj_set_user_data(root_, this);
+    // Only the palette's own grid is built. This engine's <if> cannot test a
+    // component prop, so the grid tab is filled here, once per attach.
+    static constexpr const char* kGridComponents[] = {
+        "color_picker_grid_filament", "color_picker_grid_led", "color_picker_grid_theme"};
+    const auto grid_index = static_cast<size_t>(config_.palette);
+    lv_obj_t* grid_tab = lv_obj_find_by_name(root_, "cp_grid_tab");
+    if (grid_tab && grid_index < std::size(kGridComponents)) {
+        lv_xml_create(grid_tab, kGridComponents[grid_index], nullptr);
+    }
     spdlog::debug("[ColorPickerView] attached, palette {} color #{:06X}", palette_attr,
                   model_.rgb());
 }
