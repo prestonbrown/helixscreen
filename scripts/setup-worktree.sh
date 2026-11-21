@@ -34,7 +34,10 @@ usage() {
     echo "                  so git status/merge/rebase/stash work in this worktree."
     echo "                  Private checkouts (lvgl, libhv, lua, helix-xml) are untouched."
     echo "  --relink        Restore the lib/ symlinks after --unlink"
-    echo "  --no-build      Skip the initial build after setup"
+    echo "  --build         Run an initial build after setup. Off by default: a branch"
+    echo "                  that differs from the main tree's objects recompiles, and"
+    echo "                  the first make in the worktree builds anyway."
+    echo "  --no-build      Accepted for older callers; already the default"
     echo "  -h, --help      Show this help message"
     echo ""
     echo "Examples:"
@@ -181,7 +184,7 @@ unlink_lib_for_git() {
 
 # Parse arguments
 SETUP_ONLY=false
-NO_BUILD=false
+NO_BUILD=true
 LINK_MODE=""
 BRANCH=""
 WORKTREE_PATH=""
@@ -201,6 +204,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --no-build)
             NO_BUILD=true
+            shift
+            ;;
+        --build)
+            NO_BUILD=false
             shift
             ;;
         --base)
