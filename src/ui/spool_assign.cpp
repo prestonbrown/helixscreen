@@ -8,10 +8,11 @@
 #include "filament_variants.h"
 #include "text_io.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cmath>
-#include <fmt/format.h>
 
 namespace helix::spool_assign {
 
