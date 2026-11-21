@@ -5,6 +5,7 @@
 // what each last measured and when. Each tile opens the step's own screen.
 
 #include "calibration_catalog.h"
+#include "core/observer_guard.h"
 #include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -64,6 +65,8 @@ class CalibrationHubOverlay : public OverlayBase {
     std::array<helix::Subject, calibration::kStepCount> tone_{};
     std::array<helix::Subject, calibration::kStepCount> status_{};
     char status_bufs_[calibration::kStepCount][kStatusLen]{};
+    /// Refreshes the tiles when the history changes under an open screen.
+    ObserverGuard history_obs_;
     helix::Subject banner_shown_{};
     helix::Subject banner_text_{};
     char banner_text_buf_[kStatusLen]{};

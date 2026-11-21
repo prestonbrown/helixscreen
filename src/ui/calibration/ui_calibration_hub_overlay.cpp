@@ -8,6 +8,7 @@
 #include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
 #include "calibration_run.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "locale_formats.h"
@@ -76,8 +77,15 @@ void CalibrationHubOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(banner_text_, banner_text_buf_, "", "cal_run_banner_text", subjects_);
     // Runs from StaticSubjectRegistry::deinit_all(), which may come after
     // StaticPanelRegistry has destroyed the overlay.
+    // The history loads asynchronously and a guided run records into it, both
+    // possibly while this screen is open.
+    auto& history = calibration::CalibrationHistory::instance();
+    history_obs_ = observe<int>(
+        history.version_subject(), this, [](CalibrationHubOverlay* self, int) { self->refresh(); },
+        history.version_lifetime());
     StaticSubjectRegistry::instance().register_deinit("CalibrationHubOverlay", []() {
         if (auto* self = helix::lazy_global_if_exists<CalibrationHubOverlay>()) {
+            self->history_obs_.reset();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;
         }
