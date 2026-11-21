@@ -204,6 +204,12 @@ struct Portrait320 : TileFixture {
 struct Portrait272 : TileFixture {
     Portrait272() : TileFixture(272, 480) {}
 };
+struct Portrait480 : TileFixture {
+    Portrait480() : TileFixture(480, 800) {}
+};
+struct TallPortrait320 : TileFixture {
+    TallPortrait320() : TileFixture(320, 1480) {}
+};
 
 /// The panel built under the ultrawide layout at 1480x320, which picks its ultrawide body.
 class Ultrawide1480 : public PrintStatusPanelFixture {
@@ -1725,6 +1731,10 @@ TEST_CASE_METHOD(Landscape800, "the other-tools chip numbers configured names to
 TEST_CASE_METHOD(Ultrawide1480,
                  "ultrawide builds one row of columns at the widths the fitter decides",
                  "[print_status][ultrawide]") {
+    // A running print: the Tune column shows where the fitter gives it room.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 1);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
     // The ultrawide body, not the landscape strip.
     REQUIRE(find("ps_uw_info") != nullptr);
     CHECK(find("ps_strip") == nullptr);
@@ -1735,7 +1745,7 @@ TEST_CASE_METHOD(Ultrawide1480,
     const int32_t w = lv_obj_get_content_width(content);
     const int32_t h = lv_obj_get_content_height(content);
     const auto cols =
-        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"));
+        helix::decide_print_status_columns(w, h, theme_manager_get_spacing("space_md"), true);
     REQUIRE(cols.preview_w > 0);
 
     lv_obj_t* job = find("ps_job_tile");
@@ -2009,4 +2019,123 @@ TEST_CASE_METHOD(Portrait600, "the lane tray leaves the pre-print checklist ever
     settle();
     CHECK(subject_int("ps_lane_tray_h") == printing_tray_h);
     CHECK(preparing_tray_h <= printing_tray_h);
+}
+
+// ============================================================================
+// Inline Tune: where the layout has room, the Tune section shows beside the
+// print and the Tune button that opens the overlay goes.
+// ============================================================================
+
+namespace {
+
+/// The panel's own subjects as a running print publishes them, then the
+/// fitter run the way activation runs it.
+void show_running_print(PrintStatusPanel& panel, lv_obj_t* root) {
+    lv_subject_t* enabled = lv_xml_get_subject(nullptr, "print_controls_enabled");
+    REQUIRE(enabled != nullptr);
+    lv_subject_set_int(enabled, 1);
+    lv_obj_update_layout(root);
+    PrintStatusPanelTestAccess::relayout(panel);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root);
+}
+
+bool shown(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the Tune button",
+                 "[print_status][ultrawide][tune_inline]") {
+    show_running_print(panel(), root_);
+    lv_obj_t* content = find("overlay_content");
+    REQUIRE(content != nullptr);
+    const int32_t h = lv_obj_get_content_height(content);
+    const auto cols = helix::decide_print_status_columns(
+        lv_obj_get_content_width(content), h, theme_manager_get_spacing("space_md"), true);
+    REQUIRE(cols.tune_w > 0);
+
+    CHECK(shown(root_, "ps_uw_tune_slot"));
+    CHECK(lv_obj_get_width(find("ps_uw_tune")) == cols.tune_w);
+    CHECK_FALSE(shown(root_, "btn_tune"));
+    // The printer picture keeps its column, at least as wide as it is tall.
+    CHECK(shown(root_, "ps_printer_tile"));
+    CHECK(lv_obj_get_width(find("ps_printer_tile")) >= h);
+
+    // Outside a running print the column goes, and the preview and readouts
+    // take their room back, with no relayout asked for here.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 0);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    const auto idle = helix::decide_print_status_columns(lv_obj_get_content_width(content), h,
+                                                         theme_manager_get_spacing("space_md"));
+    REQUIRE(idle.preview_w > cols.preview_w);
+    CHECK(subject_int("ps_uw_tune_w") == 0);
+    CHECK(lv_obj_get_width(find("ps_job_tile")) == idle.preview_w);
+    CHECK(lv_obj_get_width(find("ps_uw_readouts")) == idle.readouts_w);
+    // Nothing shows it, so it is not kept built.
+    CHECK(find("ps_uw_tune") == nullptr);
+}
+
+TEST_CASE_METHOD(TallPortrait320, "a tall portrait screen shows the Tune section under the strip",
+                 "[print_status][tune_inline]") {
+    show_running_print(panel(), root_);
+    REQUIRE(subject_int("ps_arrangement") == 1);
+    CHECK(subject_int("ps_tune_h") > 0);
+    CHECK(shown(root_, "ps_tune_slot"));
+    CHECK_FALSE(shown(root_, "btn_tune"));
+    // The printer tile stands at the height the fitter kept for it; the job
+    // tile gave the section its room.
+    CHECK(shown(root_, "ps_printer_tile"));
+    CHECK(lv_obj_get_height(lv_obj_find_by_name(root_, "ps_printer_tile")) ==
+          subject_int("ps_printer_tile_h"));
+}
+
+TEST_CASE_METHOD(TallPortrait320, "the stacked Tune section is fitted again when it grows",
+                 "[print_status][tune_inline]") {
+    show_running_print(panel(), root_);
+    const int before = subject_int("ps_tune_h");
+    REQUIRE(before > 0);
+
+    // A pressure-advance tuning run puts its Tuner button in the header,
+    // which wraps under the title.
+    lv_subject_t* pa_session = lv_xml_get_subject(nullptr, "tune_pa_session_active");
+    REQUIRE(pa_session != nullptr);
+    const int original = lv_subject_get_int(pa_session);
+    lv_subject_set_int(pa_session, 1);
+    lv_obj_update_layout(root_);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    lv_obj_t* section = lv_obj_find_by_name(root_, "ps_tune");
+    REQUIRE(section != nullptr);
+    REQUIRE(lv_obj_get_height(section) > before);
+    // The fitter gave it its new height, or none when the job tile cannot.
+    const int after = subject_int("ps_tune_h");
+    CHECK((after == lv_obj_get_height(section) || after == 0));
+
+    lv_subject_set_int(pa_session, original);
+    lv_obj_update_layout(root_);
+    UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(Portrait480, "480x800 keeps the Tune button: no room for the section",
+                 "[print_status][tune_inline]") {
+    show_running_print(panel(), root_);
+    REQUIRE(subject_int("ps_arrangement") == 1);
+    CHECK(subject_int("ps_tune_h") == 0);
+    CHECK_FALSE(shown(root_, "ps_tune_slot"));
+    CHECK(shown(root_, "btn_tune"));
+}
+
+TEST_CASE_METHOD(Landscape800, "800x480 keeps the Tune button and shows no section",
+                 "[print_status][tune_inline]") {
+    show_running_print(panel(), root_);
+    CHECK(subject_int("ps_tune_h") == 0);
+    CHECK_FALSE(shown(root_, "ps_tune_slot"));
+    // Side by side can never show it, so it is never built.
+    CHECK(lv_obj_find_by_name(root_, "ps_tune") == nullptr);
+    CHECK(shown(root_, "btn_tune"));
 }

@@ -357,7 +357,7 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
-    const auto values = tune_hint_label_values("ui_xml/print_tune_panel.xml");
+    const auto values = tune_hint_label_values("ui_xml/components/tune_z_offset.xml");
     CHECK(values == expected);
 
     // On the U1 the tool-change label is the only one left visible.

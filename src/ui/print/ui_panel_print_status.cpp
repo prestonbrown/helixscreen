@@ -251,9 +251,15 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                      {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
                       &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
                       &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
-                      &printer_tile_h_subject_},
+                      &printer_tile_h_subject_, &uw_tune_w_subject_, &tune_h_subject_,
+                      &print_controls_enabled_subject_, &tune_build_subject_},
                      {[this]() -> lv_obj_t* { return overlay_root_; },
-                      [this]() { return subjects_initialized_; }}),
+                      [this]() { return subjects_initialized_; },
+                      [this]() {
+                          get_print_tune_overlay().prepare_inline(api_, printer_state_,
+                                                                  parent_screen_);
+                      },
+                      [this](bool built) { on_tune_build_changed(built); }}),
       tiles_(printer_state, {[this]() -> lv_obj_t* { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
                              [this]() { return lifecycle_.speed_percent(); },
@@ -646,6 +652,9 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "ps_lane_tray", subjects_);
     UI_MANAGED_SUBJECT_INT(lane_tray_h_subject_, 0, "ps_lane_tray_h", subjects_);
     UI_MANAGED_SUBJECT_INT(printer_tile_h_subject_, lv_pct(100), "ps_printer_tile_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_tune_w_subject_, 0, "ps_uw_tune_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_h_subject_, 0, "ps_tune_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_build_subject_, 0, "ps_tune_build", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -853,6 +862,18 @@ void PrintStatusPanel::init_subjects() {
 
     // Button enable states driven declaratively from XML (see update_button_states).
     UI_MANAGED_SUBJECT_INT(print_controls_enabled_subject_, 0, "print_controls_enabled", subjects_);
+    // The inline Tune section takes room only while a print runs.
+    {
+        auto token = lifetime_.token();
+        tune_controls_observer_ = observe<int>(
+            &print_controls_enabled_subject_, this,
+            [token](PrintStatusPanel* self, int) {
+                if (token.expired())
+                    return;
+                self->layout_fitter_.recompute();
+            },
+            get_subjects_lifetime());
+    }
 
     // Exclude objects availability (0=hidden, 1=visible - shown when >= 2 objects defined)
     // Note: subject already initialized in constructor (needed before observer fires)
@@ -863,7 +884,8 @@ void PrintStatusPanel::init_subjects() {
                                  LV_SUBJECT_TYPE_INT);
 
     // Register XML event callbacks for print status panel buttons
-    // (tune overlay subjects/callbacks registered by singleton on first show())
+    // (the tune overlay registers its own subjects and callbacks when it is shown
+    // or the inline Tune section is built: PrintTuneOverlay::prepare_inline())
     // (light and timelapse callbacks are registered by light_timelapse_controls_.init_subjects())
     register_xml_callbacks({
         {"on_print_status_tune",
@@ -1309,6 +1331,7 @@ void PrintStatusPanel::on_activate() {
     // subject of its own.
     bind_fan_observers();
     tiles_.refresh_checklist();
+    sync_inline_tune();
 
     // This is the earliest point where overlay_root_ is visible, so LVGL
     // computes real sizes. Deferred so layout has a tick to settle.
@@ -1326,6 +1349,7 @@ void PrintStatusPanel::on_deactivating(DeactivateReason reason) {
     is_active_ = false;
     exclude_map_requested_ = false;
     spdlog::debug("[{}] on_deactivating()", get_name());
+    sync_inline_tune();
 
     // The panel is no longer visible: drop the queued G-code load
     preview_.cancel_pending_load();
@@ -2197,6 +2221,58 @@ void PrintStatusPanel::rebind_single_fan(ObserverGuard& guard, SubjectLifetime& 
         lt);
 }
 
+lv_obj_t* PrintStatusPanel::tune_section() const {
+    if (!overlay_root_) {
+        return nullptr;
+    }
+    if (lv_obj_t* column = lv_obj_find_by_name(overlay_root_, "ps_uw_tune")) {
+        return column;
+    }
+    return lv_obj_find_by_name(overlay_root_, "ps_tune");
+}
+
+void PrintStatusPanel::sync_inline_tune() {
+    // Never builds the tune overlay: only a built section needs it, and this
+    // also runs during shutdown, after it is gone.
+    auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>();
+    if (!tune) {
+        return;
+    }
+    lv_obj_t* section = tune_section();
+    if (section && is_active_) {
+        tune->activate_inline(section);
+    } else {
+        tune->deactivate_inline();
+    }
+}
+
+void PrintStatusPanel::on_tune_build_changed(bool built) {
+    if (built && overlay_root_) {
+        // The stacked section takes its content height, which grows with rows
+        // that come and go (a tool changer's Z target, the PA Tuner button, the
+        // saved-offset line): the tiles give it room again each time.
+        if (lv_obj_t* section = tune_section()) {
+            // DECLARATIVE_OK: SIZE_CHANGED has no XML binding equivalent.
+            lv_obj_add_event_cb(section, on_tune_size_changed, LV_EVENT_SIZE_CHANGED, this);
+        }
+        // The stacked section is shown only once measured: lay it out now.
+        lv_obj_update_layout(overlay_root_);
+        layout_fitter_.recompute();
+    }
+    sync_inline_tune();
+}
+
+void PrintStatusPanel::on_tune_size_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusPanel] on_tune_size_changed");
+    auto* self = static_cast<PrintStatusPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        auto token = self->lifetime_.token();
+        token.defer("PrintStatusPanel::tune_size_changed",
+                    [self]() { self->layout_fitter_.recompute(); });
+    }
+    LVGL_SAFE_EVENT_CB_END();
+}
+
 void PrintStatusPanel::relayout() {
     layout_fitter_.recompute();
     tiles_.request_update();
@@ -2928,7 +3004,8 @@ void PrintStatusPanel::animate_print_error() {
 
 // Tune panel handlers delegated to PrintTuneOverlay singleton:
 // See get_print_tune_overlay() and handle_*() methods in ui_print_tune_overlay.cpp
-// XML callbacks are registered in ui_print_tune_overlay.cpp on first show()
+// XML callbacks are registered by ui_print_tune_overlay.cpp when the overlay is
+// shown or Print Status builds its inline Tune section (prepare_inline())
 
 // ============================================================================
 // FILAMENT COLOR OVERRIDE
