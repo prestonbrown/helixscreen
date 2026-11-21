@@ -451,6 +451,8 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             has_indx_ = true;
         } else if (name == "save_variables") {
             has_save_variables_ = true;
+        } else if (name == "mod_params") {
+            has_mod_params_ = true;
         } else if (name == "spoollink") {
             has_spoollink_ = true;
         }
@@ -1144,6 +1146,7 @@ void PrinterDiscovery::clear() {
     has_indx_ = false;
     has_lane_status_ = false;
     has_save_variables_ = false;
+    has_mod_params_ = false;
     has_spoollink_ = false;
     has_pa_adjust_ = false;
     has_chamber_heater_ = false;
