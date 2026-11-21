@@ -794,6 +794,9 @@ HELIX_MOCK_KALICO=1 HELIX_MOCK_KLIPPER_VERSION=v2026.07.00-0-g30c65e09-dirty ./b
 
 Snapmaker U1 mock only. The digits name heads whose spool has run out at the feeder port: their
 `filament_detected` reads false and their channel rests at `wait_insert`, as after a real runout.
+The head's `print_task_config` record forgets the filament (`filament_exist` false, type and
+vendor `NONE`), its tag reader reports `NONE`, and its toolhead switch (`e<N>_filament`) reads
+empty, as the real U1 reports an empty feeder. The lane then reads EMPTY.
 With a paused print on such a head, the firmware's Auto-Replenish looks for another head instead
 of refeeding in place, which is what the runout dialog's "Use Another Toolhead" needs.
 

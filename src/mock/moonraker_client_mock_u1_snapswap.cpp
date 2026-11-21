@@ -75,19 +75,23 @@ nlohmann::json MoonrakerClientMock::u1_snapswap_status_json() const {
     }
     for (int i = 0; i < kU1Channels; ++i) {
         const U1Spool& s = spools[static_cast<size_t>(i)];
-        // A Snapmaker RFID spool's tag, as the reader reports it.
-        info.push_back({{"MAIN_TYPE", s.type},
-                        {"SUB_TYPE", "Basic"},
-                        {"VENDOR", s.vendor},
-                        {"MANUFACTURER", s.vendor},
+        // A Snapmaker RFID spool's tag, as the reader reports it; an empty
+        // feeder reads no tag.
+        const bool tagged = u1_filament_detected_[static_cast<size_t>(i)];
+        info.push_back({{"MAIN_TYPE", tagged ? s.type : std::string("NONE")},
+                        {"SUB_TYPE", tagged ? std::string("Basic") : std::string("NONE")},
+                        {"VENDOR", tagged ? s.vendor : std::string("NONE")},
+                        {"MANUFACTURER", tagged ? s.vendor : std::string("NONE")},
                         {"ARGB_COLOR", 0xFF000000u | s.rgb},
                         {"CARD_UID", {144, 32, 196, i + 1}}});
         // Fed through to the head, the entrance sensor reads 0.
         state.push_back(0);
-        // The feeder's port sensor: an unloaded spool leaves the head's record empty.
-        exist.push_back(u1_filament_detected_[static_cast<size_t>(i)]);
-        type.push_back(s.type);
-        vendor.push_back(s.vendor);
+        // The feeder's port sensor: an unloaded spool leaves the head's record
+        // empty, and the firmware forgets its filament, as the real U1 reports.
+        const bool present = u1_filament_detected_[static_cast<size_t>(i)];
+        exist.push_back(present);
+        type.push_back(present ? s.type : std::string("NONE"));
+        vendor.push_back(present ? s.vendor : std::string("NONE"));
         rgba.push_back(fmt::format("{:06X}{:02X}", s.rgb, s.alpha));
         subtype.push_back(s.subtype);
         multi.push_back(
