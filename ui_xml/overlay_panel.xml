@@ -22,8 +22,9 @@
   <api>
     <slot name="overlay_content" default="true"/>
     <slot name="overlay_footer" hide_empty="true"/>
-    <!-- header_bar's own slot, reachable from a view that extends this one. -->
+    <!-- header_bar's own slots, reachable from a view that extends this one. -->
     <slot name="header_content"/>
+    <slot name="actions" target="header_actions" hide_empty="true"/>
     <prop name="title" type="string" default="Overlay"/>
     <prop name="title_tag" type="string" default=""/>
     <!-- Forwarded to header_bar: bind a string subject to retitle the header live. -->

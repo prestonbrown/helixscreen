@@ -162,6 +162,12 @@
          glyph centred with no padding. The size stays on the ui_button
          (width = height = #button_height_sm), which sets its own height. -->
     <style name="header_icon_button" radius="9999" bg_color="#elevated_bg" pad_hor="0" pad_ver="0"/>
+    <!-- A labelled action in a screen's header, put in header_bar's actions
+         slot: a primary button capped at #header_button_height so it never
+         outgrows the bar. The button itself sets height="content", since
+         ui_button's own default height is a local value a style cannot
+         override. A secondary action adds style_bg_color="#secondary". -->
+    <style name="header_action" max_height="#header_button_height" radius="#border_radius" bg_color="#primary"/>
     <!-- A swatch is its whole touch target: a transparent circle whose padding
          is the ring's reach, holding the colored disc. The selection ring is its
          border, so it draws inside the swatch and no container can clip it. -->

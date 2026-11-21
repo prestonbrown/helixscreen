@@ -89,3 +89,68 @@ TEST_CASE_METHOD(XMLTestFixture, "header_bar content slot re-parents injected ch
     REQUIRE(lv_obj_get_parent(injected) == slot);
     REQUIRE(lv_obj_get_child_count(slot) == 1);
 }
+
+// A screen's own header buttons go in the actions slot at the bar's right end;
+// an unfilled slot is hidden, so it adds no flex gap.
+TEST_CASE_METHOD(XMLTestFixture, "header_bar actions slot is hidden until filled",
+                 "[header_bar][xml][header_actions]") {
+    REQUIRE(register_component("header_bar"));
+    const char* attrs[] = {"title", "Tune", nullptr};
+    lv_obj_t* hdr = create_component("header_bar", attrs);
+    REQUIRE(hdr != nullptr);
+
+    lv_obj_t* host = lv_xml_component_get_slot(hdr, "actions");
+    REQUIRE(host != nullptr);
+    CHECK(host == lv_obj_find_by_name(hdr, "header_actions"));
+    CHECK(lv_obj_get_child_count(host) == 0);
+    CHECK(lv_obj_is_hidden(host));
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "overlay_panel actions slot puts buttons at the header's right end",
+                 "[header_bar][xml][header_actions]") {
+    REQUIRE(register_component("header_bar"));
+    REQUIRE(lv_xml_register_component_from_data(
+                "actions_filler_screen",
+                "<component>"
+                "<view extends=\"overlay_panel\" title=\"Tune\">"
+                "<overlay_panel-actions>"
+                "<ui_button name=\"btn_first\" height=\"content\" text=\"A\"/>"
+                "<ui_button name=\"btn_second\" height=\"content\" text=\"B\"/>"
+                "</overlay_panel-actions>"
+                "<lv_label name=\"body_label\" text=\"body\"/>"
+                "</view>"
+                "</component>") == LV_RESULT_OK);
+
+    lv_obj_t* screen = create_component("actions_filler_screen");
+    REQUIRE(screen != nullptr);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(screen);
+
+    lv_obj_t* header = lv_obj_find_by_name(screen, "overlay_header");
+    lv_obj_t* host = lv_obj_find_by_name(header, "header_actions");
+    lv_obj_t* first = lv_obj_find_by_name(screen, "btn_first");
+    lv_obj_t* second = lv_obj_find_by_name(screen, "btn_second");
+    REQUIRE(header != nullptr);
+    REQUIRE(host != nullptr);
+    REQUIRE(first != nullptr);
+    REQUIRE(second != nullptr);
+    CHECK(lv_obj_get_parent(first) == host);
+    CHECK(lv_obj_get_parent(second) == host);
+    CHECK_FALSE(lv_obj_is_hidden(host));
+    // Body content still goes to overlay_content, not the header.
+    CHECK(lv_obj_get_parent(lv_obj_find_by_name(screen, "body_label")) ==
+          lv_obj_find_by_name(screen, "overlay_content"));
+
+    // Right of the built-in action buttons, so the buttons sit where the
+    // action_button props put them.
+    CHECK(lv_obj_get_index(host) > lv_obj_get_index(lv_obj_find_by_name(header, "action_button")));
+
+    // Spaced as the bar spaces its own buttons.
+    CHECK(lv_obj_get_style_pad_column(host, LV_PART_MAIN) ==
+          lv_obj_get_style_pad_column(header, LV_PART_MAIN));
+    lv_area_t a, b;
+    lv_obj_get_coords(first, &a);
+    lv_obj_get_coords(second, &b);
+    CHECK(b.x1 - a.x2 - 1 == lv_obj_get_style_pad_column(header, LV_PART_MAIN));
+}

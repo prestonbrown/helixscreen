@@ -671,9 +671,8 @@ class ModalDialogAttrs {
   private:
     std::string title_, message_, primary_, secondary_;
     const char* primary_variant_ = "primary";
-    const char* hide_info_;
-    const char* hide_warning_;
-    const char* hide_error_;
+    const char* icon_;
+    const char* icon_variant_;
     const char* hide_secondary_;
     std::vector<const char*> attrs_;
 };

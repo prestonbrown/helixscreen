@@ -5,30 +5,13 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="debug_bundle_modal"
-        extends="ui_dialog" width="85%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <!-- style_max_height was a flat 400, which is 128px taller than a MICRO
-         screen (272) - the dialog rendered from y=-103 to 376 and lost both its
-         header and its button row. dialog_content_max is the responsive ladder
-         modal_dialog uses (140 at MICRO ... 800 at XXLARGE), bounded so the
-         button row stays on screen at every breakpoint. -->
-    <lv_obj name="content_container"
-            width="100%" height="content" style_max_height="#dialog_content_max" scrollable="true"
-            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md">
+        extends="dialog_frame" width="85%" title="Upload Debug Bundle" title_tag="Upload Debug Bundle" icon="bug">
+    <dialog_frame-body style_flex_cross_place="center">
 
       <!-- STATE 0: Consent -->
       <lv_obj name="consent_container"
               width="100%" height="content" flex_flow="column" style_pad_all="0" style_pad_gap="#space_md">
         <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="0"/>
-        <!-- Title with bug icon -->
-        <lv_obj width="100%"
-                height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
-                style_flex_main_place="center" style_flex_cross_place="center">
-          <icon src="bug" size="md" variant="primary"/>
-          <text_heading text="Upload Debug Bundle"/>
-        </lv_obj>
         <text_body width="100%"
                    text="This will collect system info, logs, settings, and printer data to help diagnose issues. No passwords or sensitive data will be included."
                    long_mode="wrap" style_text_align="center"/>
@@ -84,28 +67,30 @@
         <text_heading text="Upload Failed"/>
         <text_body width="100%" bind_text="debug_bundle_error" long_mode="wrap" style_text_align="center"/>
       </lv_obj>
-    </lv_obj>
+    </dialog_frame-body>
 
     <!-- Button rows, one per state; each carries its own top divider. -->
-    <!-- State 0: Cancel | Upload -->
-    <modal_button_row name="consent_buttons"
-                      secondary_name="btn_cancel" secondary_text="Cancel" secondary_callback="on_debug_bundle_cancel"
-                      primary_name="btn_upload" primary_text="Upload" primary_callback="on_debug_bundle_upload">
-      <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="0"/>
-    </modal_button_row>
+    <dialog_frame-footer>
+      <!-- State 0: Cancel | Upload -->
+      <modal_button_row name="consent_buttons"
+                        secondary_name="btn_cancel" secondary_text="Cancel" secondary_callback="on_debug_bundle_cancel"
+                        primary_name="btn_upload" primary_text="Upload" primary_callback="on_debug_bundle_upload">
+        <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="0"/>
+      </modal_button_row>
 
-    <!-- State 2: Done -->
-    <modal_button_row name="success_buttons"
-                      hide_secondary="true" primary_name="btn_done" primary_text="Done"
-                      primary_callback="on_debug_bundle_done">
-      <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="2"/>
-    </modal_button_row>
+      <!-- State 2: Done -->
+      <modal_button_row name="success_buttons"
+                        hide_secondary="true" primary_name="btn_done" primary_text="Done"
+                        primary_callback="on_debug_bundle_done">
+        <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="2"/>
+      </modal_button_row>
 
-    <!-- State 3: Close -->
-    <modal_button_row name="error_buttons"
-                      hide_secondary="true" primary_name="btn_close" primary_text="Close"
-                      primary_callback="on_debug_bundle_close">
-      <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="3"/>
-    </modal_button_row>
+      <!-- State 3: Close -->
+      <modal_button_row name="error_buttons"
+                        hide_secondary="true" primary_name="btn_close" primary_text="Close"
+                        primary_callback="on_debug_bundle_close">
+        <bind_flag_if_not_eq subject="debug_bundle_state" flag="hidden" ref_value="3"/>
+      </modal_button_row>
+    </dialog_frame-footer>
   </view>
 </component>
