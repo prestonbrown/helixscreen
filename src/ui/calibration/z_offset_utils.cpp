@@ -679,6 +679,8 @@ constexpr uint32_t kSharedSaveWindowMs = 90000;
 
 std::atomic<bool> g_shared_save_running{false};
 std::atomic<uint32_t> g_shared_save_started_ms{0};
+/// A Save tap is waiting to learn whether its save restarts Klipper. Main thread only.
+bool g_restart_query_pending = false;
 
 void end_shared_save() {
     g_shared_save_running = false;
@@ -706,6 +708,7 @@ bool shared_save_in_flight() {
 
 void reset_shared_save() {
     end_shared_save();
+    g_restart_query_pending = false;
     shared_save_watch_storage().reset();
 }
 
@@ -854,9 +857,17 @@ void save_dirty_offsets_shared() {
         return;
     }
     // Tool offsets are live once staged, so only what is already pending can
-    // force the restart.
+    // force the restart. One question at a time: a second tap while it is out
+    // would stack a second confirmation.
+    if (g_restart_query_pending) {
+        return;
+    }
+    g_restart_query_pending = true;
     shared_save_watch().query_restarts(get_moonraker_api(), [confirm_restart](bool restarts) {
-        if (restarts) {
+        g_restart_query_pending = false;
+        // The machine-wide offset can move while the question is out, and its
+        // save always restarts.
+        if (restarts || current_save_availability().global_dirty) {
             confirm_restart();
         } else {
             run_shared_save();

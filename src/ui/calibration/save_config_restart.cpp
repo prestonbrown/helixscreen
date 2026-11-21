@@ -63,7 +63,7 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
         api, [this, api, save,
               message = std::string(initiation_message ? initiation_message : "")](bool restarts) {
             if (!current(save)) {
-                return; // A reply for a save that has already settled
+                return; // A reply for a save that is no longer the one in flight
             }
             if (restarts) {
                 begin_with_restart(api, message, save);

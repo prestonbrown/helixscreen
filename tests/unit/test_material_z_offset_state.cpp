@@ -719,5 +719,22 @@ TEST_CASE_METHOD(MaterialStateFixture,
         CHECK(ModalStack::instance().top_dialog() == nullptr);
         CHECK(api.contains("SAVE_CONFIG RESTART=0"));
     }
+    SECTION("Kalico with a pending change that restarts: confirmed, once however often tapped") {
+        helix::ScopedEnv env{"HELIX_MOCK_KALICO", "1"};
+        discover_changer(true);
+        client.gcode_script("Z_OFFSET_APPLY_PROBE"); // stages [probe] z_offset
+        REQUIRE(helix::zoffset::save_available());
+        const int queries = client.call_count("printer.objects.query");
+        client.defer_next("printer.objects.query");
+        helix::zoffset::save_dirty_offsets_shared();
+        helix::zoffset::save_dirty_offsets_shared();
+        CHECK(client.call_count("printer.objects.query") == queries + 1);
+        client.fire_deferred("printer.objects.query");
+        REQUIRE(wait_until([] { return ModalStack::instance().top_dialog() != nullptr; }, 3000));
+        CHECK(api.sent.empty());
+        helix::test::dismiss_top_modal();
+        process_lvgl(50);
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+    }
     helix::zoffset::reset_shared_save();
 }
