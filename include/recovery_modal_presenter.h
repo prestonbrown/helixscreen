@@ -77,6 +77,9 @@ class RecoveryModalPresenter {
 
     [[nodiscard]] bool is_visible() const;
 
+    /// True while the dialog shows the fault whose detail is @p detail.
+    [[nodiscard]] bool is_showing(const std::string& detail) const;
+
   private:
     friend struct ::RecoveryModalPresenterTestAccess;
 

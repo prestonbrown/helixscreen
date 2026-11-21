@@ -37,6 +37,11 @@ void AmsErrorBridge::start() {
         [](AmsErrorBridge* self, const char* detail) { self->on_detail_changed(detail); },
         AmsState::instance().get_subjects_lifetime());
 
+    data_revision_observer_ = helix::ui::observe<int>(
+        AmsState::instance().get_ams_data_revision_subject(), this,
+        [](AmsErrorBridge* self, int) { self->upgrade_shown_fault(); },
+        AmsState::instance().get_subjects_lifetime());
+
     auto& printer = get_printer_state();
     // RAW_PRINT_STATE_OK: the printer's own pause is what a filament fault
     // stops the print with.
@@ -59,9 +64,22 @@ bool print_paused() {
 
 } // namespace
 
+void AmsErrorBridge::upgrade_shown_fault() {
+    if (!presenter_.is_visible()) {
+        return;
+    }
+    const auto ev = AmsState::instance().standing_fault();
+    if (!ev || !presenter_.is_showing(ev->detail)) {
+        return;
+    }
+    // present() keeps the dialog as it is when the actions did not change.
+    presenter_.present(*ev);
+}
+
 void AmsErrorBridge::evaluate_current_error_with_cause() {
     auto& ams = AmsState::instance();
     ams.refresh_fault_cause();
+    upgrade_shown_fault();
     const auto ev = ams.standing_fault();
     // Outside a pause the ERROR edge in on_action_changed() raises the fault, so
     // only the pause counts here.

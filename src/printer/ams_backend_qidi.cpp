@@ -6,6 +6,7 @@
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
+#include "app_globals.h"
 #include "color_utils.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
@@ -19,6 +20,7 @@
 #include "macro_param_cache.h"
 #include "notice.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
 #include "qidi_fault_codes.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
@@ -1275,11 +1277,13 @@ namespace {
 /// QIDI's own retry: TRY_MOVE_AGAIN re-runs the step retry_step names, heating
 /// first where it needs to, and resumes the print when nothing new fails. The
 /// event blocks so the buttons show (a warning toast carries none).
-void offer_try_again(helix::ErrorEvent& e) {
+void offer_try_again(helix::ErrorEvent& e, int slot) {
     e.severity = helix::ErrorSeverity::CRITICAL;
     e.sticky = true;
-    e.recovery_actions = {{lv_tr("Retry"), "TRY_MOVE_AGAIN", "qidi::try_move_again", "primary"},
-                          {lv_tr("OK"), "", "qidi::dismiss", ""}};
+    helix::RecoveryAction retry{lv_tr("Retry"), "TRY_MOVE_AGAIN", "qidi::try_move_again",
+                                "primary"};
+    retry.acts_on_lane = slot;
+    e.recovery_actions = {retry, {lv_tr("OK"), "", "qidi::dismiss", ""}};
 }
 
 /// The step retry_step records for TRY_MOVE_AGAIN, when it is one TRY_MOVE_AGAIN
@@ -1333,13 +1337,20 @@ AmsBackendQidi::classify_error(const std::string& raw_line,
     // status push. The Box owns the fault either way, and its blocked-slot
     // fault (current_error) then carries the same words with Retry, which the
     // recovery dialog takes in place.
+    // Only into a paused print: retry_step and the slot state persist, so
+    // anywhere else Retry would heat and move filament on stale state.
     const int named = qidi::named_slot(raw_line);
-    if (pending && pending->code == *code && (named < 0 || named == pending->slot)) {
-        offer_try_again(*e);
+    if (ctx.is_paused && pending && pending->code == *code &&
+        (named < 0 || named == pending->slot)) {
+        offer_try_again(*e, pending->slot);
     } else {
         offer_dismiss(*e);
     }
     return e;
+}
+
+int AmsBackendQidi::lane_named_in(const std::string& text) const {
+    return qidi::named_slot(text);
 }
 
 std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
@@ -1360,11 +1371,10 @@ std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
     }
     if (blocked < 0)
         return std::nullopt;
-    // retry_step persists across restarts, so it explains the fault only while
-    // a slot really reads blocked; then the console raise and this standing
-    // fault carry the same wording, and one presentation covers both.
-    // Retry re-runs retry_step's slot, so it is offered only on the slot the
-    // dialog names.
+    // retry_step words the fault only while the slot it names reads blocked;
+    // then the console raise and this standing fault carry the same wording,
+    // and one presentation covers both. Retry re-runs retry_step's slot, so it
+    // is offered only on the slot the dialog names.
     if (const auto pending = box_uses_multi_color_ ? std::nullopt : retryable_step(retry_step_);
         pending && pending->slot == blocked) {
         const std::string label =
@@ -1372,7 +1382,13 @@ std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
         auto worded = qidi::classify_fault_line(
             fmt::format("Code:{}; Message:{}", qidi::format_fault_code(pending->code), label), {});
         if (worded) {
-            offer_try_again(*worded);
+            // Retry only into a paused print; at boot or idle the persisted
+            // fault shows with OK and the Filament panel's own operations.
+            if (get_printer_state().is_paused()) {
+                offer_try_again(*worded, blocked);
+            } else {
+                offer_dismiss(*worded);
+            }
             return worded;
         }
     }

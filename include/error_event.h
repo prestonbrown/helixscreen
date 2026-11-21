@@ -63,6 +63,12 @@ struct RecoveryAction {
     std::string guided_flow;
     /// The lane a lane flow (kLoadLaneFlowId, kUnloadLaneFlowId) acts on; -1 otherwise.
     int lane = -1;
+    /// The lane @ref gcode moves filament on when the firmware, not the
+    /// command, decides which (a retry of a step it recorded); -1 otherwise.
+    /// Fault text about any other lane must not stand above this action, so
+    /// AmsState::standing_fault() drops it when it swaps in a cause that does
+    /// not name this lane.
+    int acts_on_lane = -1;
 };
 
 /// Guided flows any producer may name in RecoveryAction::guided_flow: the way on

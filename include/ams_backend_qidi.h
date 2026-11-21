@@ -187,6 +187,9 @@ class AmsBackendQidi : public AmsSubscriptionBackend, public helix::IDryer {
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
+    /// QIDI's slot label (`2C`) in a fault message.
+    [[nodiscard]] int lane_named_in(const std::string& text) const override;
+
     /// A Box fault QIDI's TRY_MOVE_AGAIN can retry, while save_variables
     /// retry_step still names it: worded by its code, with Retry offered.
     [[nodiscard]] std::optional<helix::ErrorEvent>

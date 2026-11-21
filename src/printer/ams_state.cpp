@@ -1808,6 +1808,15 @@ std::optional<ErrorEvent> AmsState::standing_fault() const {
     auto fault = backend->current_error();
     if (fault && !fault_cause_.empty()) {
         fault->detail = fault_cause_;
+        // An action the firmware aims at one lane must not stand under text
+        // about another: keep it only when the cause names that same lane.
+        const int named = backend->lane_named_in(fault_cause_);
+        auto& actions = fault->recovery_actions;
+        actions.erase(std::remove_if(actions.begin(), actions.end(),
+                                     [named](const RecoveryAction& a) {
+                                         return a.acts_on_lane >= 0 && a.acts_on_lane != named;
+                                     }),
+                      actions.end());
     }
     return fault;
 }

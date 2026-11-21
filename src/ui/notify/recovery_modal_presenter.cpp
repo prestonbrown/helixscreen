@@ -93,6 +93,10 @@ bool RecoveryModalPresenter::is_visible() const {
     return modal_ && modal_->is_visible();
 }
 
+bool RecoveryModalPresenter::is_showing(const std::string& detail) const {
+    return is_visible() && shown_detail_ == detail;
+}
+
 namespace {
 /// Whether two recovery sets offer the user the same choices. Compares what the
 /// modal actually renders and dispatches — label and gcode — so a set that
