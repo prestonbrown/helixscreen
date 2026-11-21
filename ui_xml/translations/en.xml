@@ -172,6 +172,7 @@
   <translation tag="A command is missing a value, or a value is out of its allowed range." en="A command is missing a value, or a value is out of its allowed range."/>
   <translation tag="A controller board did not answer" en="A controller board did not answer"/>
   <translation tag="A controller board fell behind" en="A controller board fell behind"/>
+  <translation tag="A controller board missed a timed update" en="A controller board missed a timed update"/>
   <translation tag="A controller board runs firmware that does not match the printer software." en="A controller board runs firmware that does not match the printer software."/>
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." en="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed."/>
   <translation tag="A different toolhead than the one asked for is on the carriage." en="A different toolhead than the one asked for is on the carriage."/>
@@ -183,6 +184,7 @@
   <translation tag="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it." en="A heat soak macro is set up on the printer. HelixScreen detects it but does not run it."/>
   <translation tag="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material." en="A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print&apos;s material."/>
   <translation tag="A heater did not warm up at the expected rate." en="A heater did not warm up at the expected rate."/>
+  <translation tag="A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled." en="A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled."/>
   <translation tag="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen." en="A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen."/>
   <translation tag="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen." en="A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen."/>
   <translation tag="A home-origin calibration point failed or stayed unstable." en="A home-origin calibration point failed or stayed unstable."/>
@@ -195,8 +197,12 @@
   <translation tag="A motor driver reported a fault such as overheating or a short." en="A motor driver reported a fault such as overheating or a short."/>
   <translation tag="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry" en="A motor&apos;s parameters couldn&apos;t be written. Power-cycle the printer to retry"/>
   <translation tag="A move command has an invalid speed or cannot be read." en="A move command has an invalid speed or cannot be read."/>
+  <translation tag="A move to X {1}, Y {2}, Z {3} is outside the printer&apos;s travel." en="A move to X {1}, Y {2}, Z {3} is outside the printer&apos;s travel."/>
   <translation tag="A move was sent before that axis was homed." en="A move was sent before that axis was homed."/>
+  <translation tag="A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle." en="A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle."/>
+  <translation tag="A move went outside the printer&apos;s travel." en="A move went outside the printer&apos;s travel."/>
   <translation tag="A move went past the printer&apos;s travel limits." en="A move went past the printer&apos;s travel limits."/>
+  <translation tag="A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion." en="A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion."/>
   <translation tag="A new Print Status screen" en="A new Print Status screen"/>
   <translation tag="A newer version of the helper macros is available" en="A newer version of the helper macros is available"/>
   <translation tag="A picture of your printer" en="A picture of your printer"/>
@@ -212,6 +218,7 @@
   <translation tag="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop." en="A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop."/>
   <translation tag="A print started, so the calibration did not start." en="A print started, so the calibration did not start."/>
   <translation tag="A print took the printer." en="A print took the printer."/>
+  <translation tag="A required setting is missing" en="A required setting is missing"/>
   <translation tag="A restart is already in progress" en="A restart is already in progress"/>
   <translation tag="A right, B left" en="A right, B left"/>
   <translation tag="A saturated filter stops trapping fumes and particles." en="A saturated filter stops trapping fumes and particles."/>
@@ -223,7 +230,9 @@
   <translation tag="A spool may be tangled or the drive gear is jammed" en="A spool may be tangled or the drive gear is jammed"/>
   <translation tag="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool." en="A spool&apos;s own price in Spoolman is used when it has one. These prices cover every other spool."/>
   <translation tag="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen." en="A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen."/>
+  <translation tag="A target of {1} °C was asked for, outside this heater&apos;s allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it." en="A target of {1} °C was asked for, outside this heater&apos;s allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it."/>
   <translation tag="A temperature reading went outside its valid range." en="A temperature reading went outside its valid range."/>
+  <translation tag="A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe." en="A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe."/>
   <translation tag="A temperature was set for a toolhead number that does not exist." en="A temperature was set for a toolhead number that does not exist."/>
   <translation tag="A toolhead is in an unknown position, so the change did not start." en="A toolhead is in an unknown position, so the change did not start."/>
   <translation tag="A toolhead is neither in its dock nor on the carriage." en="A toolhead is neither in its dock nor on the carriage."/>
@@ -279,6 +288,7 @@
   <translation tag="Acceleration to deceleration limit (mm/s²)" en="Acceleration to deceleration limit (mm/s²)"/>
   <translation tag="Accelerometer" en="Accelerometer"/>
   <translation tag="Accelerometer communication failed. Try again." en="Accelerometer communication failed. Try again."/>
+  <translation tag="Accelerometer not connected" en="Accelerometer not connected"/>
   <translation tag="Accelerometer not responding" en="Accelerometer not responding"/>
   <translation tag="Accelerometers" en="Accelerometers"/>
   <translation tag="Accept" en="Accept"/>
@@ -296,6 +306,7 @@
   <translation tag="Actual" en="Actual"/>
   <translation tag="Adaptive Bed Mesh" en="Adaptive Bed Mesh"/>
   <translation tag="Add" en="Add"/>
+  <translation tag="Add &apos;{1}&apos; under [{2}] in the printer&apos;s configuration, then restart Klipper." en="Add &apos;{1}&apos; under [{2}] in the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Add Filament" en="Add Filament"/>
   <translation tag="Add Hidden Network" en="Add Hidden Network"/>
   <translation tag="Add Part Fan to MPC" en="Add Part Fan to MPC"/>
@@ -332,6 +343,7 @@
   <translation tag="Advancing" en="Advancing"/>
   <translation tag="After" en="After"/>
   <translation tag="After an error" en="After an error"/>
+  <translation tag="After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short." en="After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short."/>
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." en="After connecting the {}, we recommend recalibrating input shaping to ensure print quality."/>
   <translation tag="After parking, the head does not read as docked." en="After parking, the head does not read as docked."/>
   <translation tag="After running the commands, tap Check Again below." en="After running the commands, tap Check Again below."/>
@@ -367,6 +379,7 @@
   <translation tag="Ambient Transfer" en="Ambient Transfer"/>
   <translation tag="AmsIdentify" en="AmsIdentify"/>
   <translation tag="An API key is 32 characters, each 0-9 or a-f." en="An API key is 32 characters, each 0-9 or a-f."/>
+  <translation tag="An M112 emergency stop from the console, a macro or the slicer shut the printer down." en="An M112 emergency stop from the console, a macro or the slicer shut the printer down."/>
   <translation tag="An accelerometer was detected on your printer." en="An accelerometer was detected on your printer."/>
   <translation tag="An app on your network is asking to connect to this printer." en="An app on your network is asking to connect to this printer."/>
   <translation tag="An earlier IPv4 change is still being undone. Try again shortly." en="An earlier IPv4 change is still being undone. Try again shortly."/>
@@ -476,6 +489,7 @@
   <translation tag="BLE write failed at packet {}: {}" en="BLE write failed at packet {}: {}"/>
   <translation tag="BLE write failed: {}" en="BLE write failed: {}"/>
   <translation tag="BLTouch Controls" en="BLTouch Controls"/>
+  <translation tag="BLTouch did not respond" en="BLTouch did not respond"/>
   <translation tag="BLUETOOTH PRINTERS" en="BLUETOOTH PRINTERS"/>
   <translation tag="BLUETOOTH SCANNERS" en="BLUETOOTH SCANNERS"/>
   <translation tag="Back" en="Back"/>
@@ -522,6 +536,7 @@
   <translation tag="Bed mesh" en="Bed mesh"/>
   <translation tag="Bed mesh calibration failed: {}" en="Bed mesh calibration failed: {}"/>
   <translation tag="Bed mesh operation timed out" en="Bed mesh operation timed out"/>
+  <translation tag="Bed mesh profile not found" en="Bed mesh profile not found"/>
   <translation tag="Bed mesh..." en="Bed mesh..."/>
   <translation tag="Bed needs manual leveling" en="Bed needs manual leveling"/>
   <translation tag="Bed screws" en="Bed screws"/>
@@ -563,7 +578,9 @@
   <translation tag="Bluetooth not initialized" en="Bluetooth not initialized"/>
   <translation tag="Bluetooth printer forgotten" en="Bluetooth printer forgotten"/>
   <translation tag="Bluetooth scanner forgotten" en="Bluetooth scanner forgotten"/>
+  <translation tag="Board &apos;{1}&apos; restarted on its own" en="Board &apos;{1}&apos; restarted on its own"/>
   <translation tag="Board firmware does not match" en="Board firmware does not match"/>
+  <translation tag="Board firmware needs updating" en="Board firmware needs updating"/>
   <translation tag="Body text supports longer guidance while staying readable." en="Body text supports longer guidance while staying readable."/>
   <translation tag="Bold" en="Bold"/>
   <translation tag="Border Opacity" en="Border Opacity"/>
@@ -602,6 +619,7 @@
   <translation tag="Buffer-driven gear speed control" en="Buffer-driven gear speed control"/>
   <translation tag="Build Volume" en="Build Volume"/>
   <translation tag="Build Volume: " en="Build Volume: "/>
+  <translation tag="Build and flash the firmware for each board listed, then restart the firmware." en="Build and flash the firmware for each board listed, then restart the firmware."/>
   <translation tag="Build plate missing" en="Build plate missing"/>
   <translation tag="Build plate not seated" en="Build plate not seated"/>
   <translation tag="Building preview: %d%%" en="Building preview: %d%%"/>
@@ -711,6 +729,8 @@
   <translation tag="Can&apos;t move filament while the print is paused" en="Can&apos;t move filament while the print is paused"/>
   <translation tag="Can&apos;t reach this printer. Save anyway?" en="Can&apos;t reach this printer. Save anyway?"/>
   <translation tag="Can&apos;t read filament RFID tag" en="Can&apos;t read filament RFID tag"/>
+  <translation tag="Can&apos;t save: the value is set in another file" en="Can&apos;t save: the value is set in another file"/>
+  <translation tag="Can&apos;t talk to stepper driver {1}" en="Can&apos;t talk to stepper driver {1}"/>
   <translation tag="Cancel" en="Cancel"/>
   <translation tag="Cancel Escalation" en="Cancel Escalation"/>
   <translation tag="Cancel Print" en="Cancel Print"/>
@@ -805,31 +825,43 @@
   <translation tag="Check for Updates" en="Check for Updates"/>
   <translation tag="Check slot failed" en="Check slot failed"/>
   <translation tag="Check slots failed" en="Check slots failed"/>
+  <translation tag="Check that motor power is on and its connectors are tight, then restart the firmware." en="Check that motor power is on and its connectors are tight, then restart the firmware."/>
   <translation tag="Check that nothing blocks the toolhead or the head&apos;s dock, then load the head again." en="Check that nothing blocks the toolhead or the head&apos;s dock, then load the head again."/>
   <translation tag="Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand." en="Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand."/>
   <translation tag="Check that only one filament path is active" en="Check that only one filament path is active"/>
+  <translation tag="Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY." en="Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY."/>
   <translation tag="Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again." en="Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again."/>
   <translation tag="Check that the camera&apos;s live view works, or turn off timelapse for this print, then resume." en="Check that the camera&apos;s live view works, or turn off timelapse for this print, then resume."/>
   <translation tag="Check that the cutter mechanism is properly installed" en="Check that the cutter mechanism is properly installed"/>
+  <translation tag="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge." en="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge."/>
   <translation tag="Check that the printer is powered on and connected to the network" en="Check that the printer is powered on and connected to the network"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" en="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor"/>
   <translation tag="Check the RS-485 cable between printer and CFS" en="Check the RS-485 cable between printer and CFS"/>
+  <translation tag="Check the USB or CAN cable and its termination, keep it away from motor wires, check the host&apos;s load, then restart the firmware." en="Check the USB or CAN cable and its termination, keep it away from motor wires, check the host&apos;s load, then restart the firmware."/>
+  <translation tag="Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY." en="Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY."/>
   <translation tag="Check the bed temperature in the slicer&apos;s profile." en="Check the bed temperature in the slicer&apos;s profile."/>
   <translation tag="Check the belts and rails for debris or looseness, then home again." en="Check the belts and rails for debris or looseness, then home again."/>
+  <translation tag="Check the board&apos;s power and cable, and the serial or canbus_uuid setting in the printer&apos;s configuration, then restart the firmware." en="Check the board&apos;s power and cable, and the serial or canbus_uuid setting in the printer&apos;s configuration, then restart the firmware."/>
+  <translation tag="Check the board&apos;s power supply and look for damaged or shorted wiring, then restart the firmware." en="Check the board&apos;s power supply and look for damaged or shorted wiring, then restart the firmware."/>
   <translation tag="Check the buffer unit on the back of the printer" en="Check the buffer unit on the back of the printer"/>
+  <translation tag="Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware." en="Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware."/>
   <translation tag="Check the chips, then save" en="Check the chips, then save"/>
   <translation tag="Check the dock for debris or a bent latch, guide the head into its dock, then home and resume." en="Check the dock for debris or a bent latch, guide the head into its dock, then home and resume."/>
   <translation tag="Check the fan for obstructions and its cable, then resume." en="Check the fan for obstructions and its cable, then resume."/>
   <translation tag="Check the filament path and try again." en="Check the filament path and try again."/>
+  <translation tag="Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware." en="Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware."/>
+  <translation tag="Check the motor cable, the driver&apos;s cooling and the motor power, then restart the firmware." en="Check the motor cable, the driver&apos;s cooling and the motor power, then restart the firmware."/>
   <translation tag="Check the nozzle temperature in the slicer&apos;s filament profile." en="Check the nozzle temperature in the slicer&apos;s filament profile."/>
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" en="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed"/>
   <translation tag="Check the power cable and outlet. When power is back, resume the print if the printer offers it." en="Check the power cable and outlet. When power is back, resume the print if the printer offers it."/>
   <translation tag="Check the print. Resume only if it looks fine; otherwise cancel and clean the plate." en="Check the print. Resume only if it looks fine; otherwise cancel and clean the plate."/>
   <translation tag="Check the provided value and try again" en="Check the provided value and try again"/>
+  <translation tag="Check the sensor&apos;s wiring and connector, and that the room is not colder than the sensor&apos;s minimum. Let the printer cool, then restart the firmware." en="Check the sensor&apos;s wiring and connector, and that the room is not colder than the sensor&apos;s minimum. Let the printer cool, then restart the firmware."/>
   <translation tag="Check the spool and the filament path for a jam, then retry" en="Check the spool and the filament path for a jam, then retry"/>
   <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again." en="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again."/>
   <translation tag="Check the spool for a tangle or a stuck spool, clear the filament path, then resume." en="Check the spool for a tangle or a stuck spool, clear the filament path, then resume."/>
   <translation tag="Check the spool, the feeder and the feed tube to this head, then load the head again." en="Check the spool, the feeder and the feed tube to this head, then load the head again."/>
+  <translation tag="Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver&apos;s stall threshold." en="Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver&apos;s stall threshold."/>
   <translation tag="Check the tension of the motion belts" en="Check the tension of the motion belts"/>
   <translation tag="Check this head&apos;s feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn." en="Check this head&apos;s feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn."/>
   <translation tag="Check your heater&apos;s rating (typically 40-60W for hotends)" en="Check your heater&apos;s rating (typically 40-60W for hotends)"/>
@@ -885,6 +917,7 @@
   <translation tag="Clean the nozzle and the plate, check nothing touches the nozzle, then retry." en="Clean the nozzle and the plate, check nothing touches the nozzle, then retry."/>
   <translation tag="Clean the nozzle tip and the build plate, then run the calibration again." en="Clean the nozzle tip and the build plate, then run the calibration again."/>
   <translation tag="Clean the nozzle, then resume." en="Clean the nozzle, then resume."/>
+  <translation tag="Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries)." en="Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries)."/>
   <translation tag="Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry." en="Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry."/>
   <translation tag="Clean up" en="Clean up"/>
   <translation tag="Clean {}" en="Clean {}"/>
@@ -1057,6 +1090,7 @@
   <translation tag="Controllable Fans" en="Controllable Fans"/>
   <translation tag="Controlled by hardware sensor" en="Controlled by hardware sensor"/>
   <translation tag="Controller" en="Controller"/>
+  <translation tag="Controller board &apos;{1}&apos; not found" en="Controller board &apos;{1}&apos; not found"/>
   <translation tag="Controls" en="Controls"/>
   <translation tag="Cool" en="Cool"/>
   <translation tag="Cool Down" en="Cool Down"/>
@@ -1364,6 +1398,7 @@
   <translation tag="EMPTY" en="EMPTY"/>
   <translation tag="ETA {}" en="ETA {}"/>
   <translation tag="EXTRAS" en="EXTRAS"/>
+  <translation tag="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable." en="Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable."/>
   <translation tag="Each fan can only be selected once" en="Each fan can only be selected once"/>
   <translation tag="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead." en="Each head keeps its own Z offset on this printer. Use its tool offset calibration instead."/>
   <translation tag="Edit" en="Edit"/>
@@ -1394,6 +1429,7 @@
   <translation tag="Emergency stop activated" en="Emergency stop activated"/>
   <translation tag="Emergency stop failed: not connected" en="Emergency stop failed: not connected"/>
   <translation tag="Emergency stop failed: {}" en="Emergency stop failed: {}"/>
+  <translation tag="Emergency stop pressed" en="Emergency stop pressed"/>
   <translation tag="Empty" en="Empty"/>
   <translation tag="Empty slots disable the associated functionality" en="Empty slots disable the associated functionality"/>
   <translation tag="Enable" en="Enable"/>
@@ -1435,6 +1471,7 @@
   <translation tag="Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout" en="Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout"/>
   <translation tag="Endless Spool is turned off on this MMU" en="Endless Spool is turned off on this MMU"/>
   <translation tag="Endless Spool state unknown" en="Endless Spool state unknown"/>
+  <translation tag="Endstop {1} is stuck triggered" en="Endstop {1} is stuck triggered"/>
   <translation tag="Ensure Happy Hare or AFC is installed and configured" en="Ensure Happy Hare or AFC is installed and configured"/>
   <translation tag="Enter API Key" en="Enter API Key"/>
   <translation tag="Enter Current PIN" en="Enter Current PIN"/>
@@ -1459,6 +1496,7 @@
   <translation tag="Entry to Extruder" en="Entry to Extruder"/>
   <translation tag="Error" en="Error"/>
   <translation tag="Error at chunk {} (code={})" en="Error at chunk {} (code={})"/>
+  <translation tag="Error in macro {1}" en="Error in macro {1}"/>
   <translation tag="Error loading file" en="Error loading file"/>
   <translation tag="Error saving printer settings: {}" en="Error saving printer settings: {}"/>
   <translation tag="Error state" en="Error state"/>
@@ -1732,6 +1770,7 @@
   <translation tag="Filament buffer position against its target" en="Filament buffer position against its target"/>
   <translation tag="Filament buffer stopped moving" en="Filament buffer stopped moving"/>
   <translation tag="Filament by Type" en="Filament by Type"/>
+  <translation tag="Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it." en="Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it."/>
   <translation tag="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again" en="Filament can&apos;t be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again"/>
   <translation tag="Filament controls are unavailable while printing." en="Filament controls are unavailable while printing."/>
   <translation tag="Filament could not be fed to this head." en="Filament could not be fed to this head."/>
@@ -1756,6 +1795,7 @@
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" en="Filament is still present after the cut — the blade may be dull or misaligned"/>
   <translation tag="Filament jam detected" en="Filament jam detected"/>
   <translation tag="Filament jammed at the extruder gear" en="Filament jammed at the extruder gear"/>
+  <translation tag="Filament move too long" en="Filament move too long"/>
   <translation tag="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head." en="Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head."/>
   <translation tag="Filament never reached the CFS hub sensor" en="Filament never reached the CFS hub sensor"/>
   <translation tag="Filament not identified" en="Filament not identified"/>
@@ -1822,6 +1862,7 @@
   <translation tag="Fit the heater model with the part fan off" en="Fit the heater model with the part fan off"/>
   <translation tag="Fit the induction heater&apos;s safety model" en="Fit the induction heater&apos;s safety model"/>
   <translation tag="Fix the reason shown for the shutdown, then restart the firmware." en="Fix the reason shown for the shutdown, then restart the firmware."/>
+  <translation tag="Fix the spelling or remove the line from the printer&apos;s configuration, then restart Klipper." en="Fix the spelling or remove the line from the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Fix: chmod 644 {}, then restart" en="Fix: chmod 644 {}, then restart"/>
   <translation tag="Fix: chown {} {}, then restart" en="Fix: chown {} {}, then restart"/>
   <translation tag="FlashForge Adventurer 5M" en="FlashForge Adventurer 5M"/>
@@ -1881,6 +1922,7 @@
   <translation tag="G-code commands will appear here" en="G-code commands will appear here"/>
   <translation tag="GCode Console" en="GCode Console"/>
   <translation tag="Game Over!&#10;Score: {}&#10;Tap to restart" en="Game Over!&#10;Score: {}&#10;Tap to restart"/>
+  <translation tag="Gantry leveling failed" en="Gantry leveling failed"/>
   <translation tag="Gate" en="Gate"/>
   <translation tag="Gates" en="Gates"/>
   <translation tag="Gateway" en="Gateway"/>
@@ -1951,6 +1993,7 @@
   <translation tag="Heat the extruder to at least {} before loading filament" en="Heat the extruder to at least {} before loading filament"/>
   <translation tag="Heat the head to the filament&apos;s temperature and check that it heats at all." en="Heat the head to the filament&apos;s temperature and check that it heats at all."/>
   <translation tag="Heat the hotend." en="Heat the hotend."/>
+  <translation tag="Heat the nozzle to the filament&apos;s printing temperature, wait for it to get there, then try again." en="Heat the nozzle to the filament&apos;s printing temperature, wait for it to get there, then try again."/>
   <translation tag="Heat to at least %s for filament operations" en="Heat to at least %s for filament operations"/>
   <translation tag="Heat {} above {} before resuming" en="Heat {} above {} before resuming"/>
   <translation tag="Heatbed Temperature" en="Heatbed Temperature"/>
@@ -1966,6 +2009,7 @@
   <translation tag="Heater offline" en="Heater offline"/>
   <translation tag="Heater over-temperature" en="Heater over-temperature"/>
   <translation tag="Heater sensor fault" en="Heater sensor fault"/>
+  <translation tag="Heater {1} is not heating as expected" en="Heater {1} is not heating as expected"/>
   <translation tag="HeaterSelect" en="HeaterSelect"/>
   <translation tag="Heaters" en="Heaters"/>
   <translation tag="Heaters off" en="Heaters off"/>
@@ -2182,6 +2226,7 @@
   <translation tag="Install plugin" en="Install plugin"/>
   <translation tag="Install script not found. Use the remote install command instead." en="Install script not found. Use the remote install command instead."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" en="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:"/>
+  <translation tag="Install the plugin it belongs to, or rename or remove the section, then restart Klipper." en="Install the plugin it belongs to, or rename or remove the section, then restart Klipper."/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." en="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;."/>
   <translation tag="Install timelapse plugin" en="Install timelapse plugin"/>
   <translation tag="Install {} on this printer?" en="Install {} on this printer?"/>
@@ -2286,8 +2331,11 @@
   <translation tag="Klipper Config Error" en="Klipper Config Error"/>
   <translation tag="Klipper Error" en="Klipper Error"/>
   <translation tag="Klipper already reports the ACE slots." en="Klipper already reports the ACE slots."/>
+  <translation tag="Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged." en="Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged."/>
   <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." en="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper."/>
   <translation tag="Klipper disconnected" en="Klipper disconnected"/>
+  <translation tag="Klipper does not know the section [{1}]: a typo, or a plugin that is not installed." en="Klipper does not know the section [{1}]: a typo, or a plugin that is not installed."/>
+  <translation tag="Klipper does not know the setting &apos;{1}&apos; in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware." en="Klipper does not know the setting &apos;{1}&apos; in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."/>
   <translation tag="Klipper failed to start with the skip macros, so they were removed" en="Klipper failed to start with the skip macros, so they were removed"/>
   <translation tag="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg." en="Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg."/>
   <translation tag="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart." en="Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart."/>
@@ -2301,6 +2349,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" en="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" en="Klipper is halted — restart firmware to continue"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." en="Klipper is restarting. Timelapse frames are captured from the next print."/>
+  <translation tag="Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper&apos;s message below lists the boards." en="Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper&apos;s message below lists the boards."/>
   <translation tag="Klipper or Moonraker may restart while it updates." en="Klipper or Moonraker may restart while it updates."/>
   <translation tag="Klipper ready" en="Klipper ready"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." en="Klipper reserves &apos;default&apos; for new calibrations. Choose another name."/>
@@ -2375,11 +2424,13 @@
   <translation tag="Length of the cooling tube section" en="Length of the cooling tube section"/>
   <translation tag="Length:" en="Length:"/>
   <translation tag="Let a browser tap and drag on this screen" en="Let a browser tap and drag on this screen"/>
+  <translation tag="Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware." en="Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware."/>
   <translation tag="Let the printer&apos;s tensioners set the belts" en="Let the printer&apos;s tensioners set the belts"/>
   <translation tag="Let&apos;s take a quick tour so you can find things fast." en="Let&apos;s take a quick tour so you can find things fast."/>
   <translation tag="Level" en="Level"/>
   <translation tag="Level the bed with the manual leveling procedure." en="Level the bed with the manual leveling procedure."/>
   <translation tag="Leveling Gantry..." en="Leveling Gantry..."/>
+  <translation tag="Leveling made things worse" en="Leveling made things worse"/>
   <translation tag="Library" en="Library"/>
   <translation tag="Lifting the nozzle clear of the print" en="Lifting the nozzle clear of the print"/>
   <translation tag="Light" en="Light"/>
@@ -2422,6 +2473,7 @@
   <translation tag="Load into which tool?" en="Load into which tool?"/>
   <translation tag="Load it in the filament panel, then tap Resume." en="Load it in the filament panel, then tap Resume."/>
   <translation tag="Load or unload filament." en="Load or unload filament."/>
+  <translation tag="Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion." en="Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion."/>
   <translation tag="Load stopped" en="Load stopped"/>
   <translation tag="Load the head again. If it fails again, unload it, cut the filament end square and load it once more." en="Load the head again. If it fails again, unload it, cut the filament end square and load it once more."/>
   <translation tag="Load the required filaments or start anyway?" en="Load the required filaments or start anyway?"/>
@@ -2469,6 +2521,7 @@
   <translation tag="Loosen {}" en="Loosen {}"/>
   <translation tag="Lost connection during print — try again" en="Lost connection during print — try again"/>
   <translation tag="Lost connection to CFS unit" en="Lost connection to CFS unit"/>
+  <translation tag="Lost connection to board &apos;{1}&apos;" en="Lost connection to board &apos;{1}&apos;"/>
   <translation tag="Lost contact with a controller board" en="Lost contact with a controller board"/>
   <translation tag="Lost contact with the printer. The update may still be running." en="Lost contact with the printer. The update may still be running."/>
   <translation tag="Lost the connection to the printer." en="Lost the connection to the printer."/>
@@ -2479,7 +2532,9 @@
   <translation tag="Lower" en="Lower"/>
   <translation tag="Lower belt" en="Lower belt"/>
   <translation tag="Lower fan speed?" en="Lower fan speed?"/>
+  <translation tag="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware." en="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware."/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." en="Lower the nozzle until it just touches the top of the print, then resume."/>
+  <translation tag="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it." en="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it."/>
   <translation tag="Lowest notification level that interrupts with a toast" en="Lowest notification level that interrupts with a toast"/>
   <translation tag="M to toggle" en="M to toggle"/>
   <translation tag="MAC:" en="MAC:"/>
@@ -2532,9 +2587,11 @@
   <translation tag="Make a smaller adjustment." en="Make a smaller adjustment."/>
   <translation tag="Make color, material and spool changes in Spoolman." en="Make color, material and spool changes in Spoolman."/>
   <translation tag="Make sure every nozzle is clean." en="Make sure every nozzle is clean."/>
+  <translation tag="Make sure motor power is on, reseat the driver and check its pin in the printer&apos;s configuration, then restart the firmware." en="Make sure motor power is on, reseat the driver and check its pin in the printer&apos;s configuration, then restart the firmware."/>
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." en="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats."/>
   <translation tag="Make sure one toolhead is on the carriage and the rest are docked, then home." en="Make sure one toolhead is on the carriage and the rest are docked, then home."/>
   <translation tag="Make sure the printer is safe, then restart the firmware." en="Make sure the printer is safe, then restart the firmware."/>
+  <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." en="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line."/>
   <translation tag="MakeID (Bluetooth)" en="MakeID (Bluetooth)"/>
   <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." en="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used."/>
   <translation tag="Manage" en="Manage"/>
@@ -2659,6 +2716,7 @@
   <translation tag="Motors disable failed: {}" en="Motors disable failed: {}"/>
   <translation tag="Motors disabled" en="Motors disabled"/>
   <translation tag="Motors stay on while a print is active" en="Motors stay on while a print is active"/>
+  <translation tag="Motors were asked to step too fast" en="Motors were asked to step too fast"/>
   <translation tag="Mounted: {}" en="Mounted: {}"/>
   <translation tag="Move" en="Move"/>
   <translation tag="Move before homing" en="Move before homing"/>
@@ -2667,8 +2725,10 @@
   <translation tag="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides." en="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides."/>
   <translation tag="Move selector" en="Move selector"/>
   <translation tag="Move speed multipliers" en="Move speed multipliers"/>
+  <translation tag="Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch." en="Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch."/>
   <translation tag="Move the toolhead end to end by hand to spread it." en="Move the toolhead end to end by hand to spread it."/>
   <translation tag="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings." en="Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings."/>
+  <translation tag="Move would go past the printer&apos;s limits" en="Move would go past the printer&apos;s limits"/>
   <translation tag="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal." en="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal."/>
   <translation tag="Moves to {} {:g} mm, below this printer&apos;s {:g} mm." en="Moves to {} {:g} mm, below this printer&apos;s {:g} mm."/>
   <translation tag="Moves to {} {:g} mm, past this printer&apos;s {:g} mm." en="Moves to {} {:g} mm, past this printer&apos;s {:g} mm."/>
@@ -2950,6 +3010,7 @@
   <translation tag="Nozzle size and flow type per head" en="Nozzle size and flow type per head"/>
   <translation tag="Nozzle target set to {}" en="Nozzle target set to {}"/>
   <translation tag="Nozzle temp must be %d-%s" en="Nozzle temp must be %d-%s"/>
+  <translation tag="Nozzle too cold to extrude" en="Nozzle too cold to extrude"/>
   <translation tag="Nozzle, bed, and chamber in one widget" en="Nozzle, bed, and chamber in one widget"/>
   <translation tag="Nozzle:" en="Nozzle:"/>
   <translation tag="Nozzles still heating: {}" en="Nozzles still heating: {}"/>
@@ -2990,6 +3051,7 @@
   <translation tag="On/Off (state-aware)" en="On/Off (state-aware)"/>
   <translation tag="On:" en="On:"/>
   <translation tag="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept." en="Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept."/>
+  <translation tag="One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance)." en="One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance)."/>
   <translation tag="One save for everything. Klipper may restart." en="One save for everything. Klipper may restart."/>
   <translation tag="One tap runs this macro. Dangerous macros still ask." en="One tap runs this macro. Dangerous macros still ask."/>
   <translation tag="One-time setup" en="One-time setup"/>
@@ -3086,6 +3148,7 @@
   <translation tag="Part, hotend, and auxiliary fan speeds" en="Part, hotend, and auxiliary fan speeds"/>
   <translation tag="Partial…" en="Partial…"/>
   <translation tag="Pass" en="Pass"/>
+  <translation tag="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro." en="Pass the missing parameter from the slicer&apos;s start G-code, or give it a default in the macro."/>
   <translation tag="Password" en="Password"/>
   <translation tag="Password cannot be empty" en="Password cannot be empty"/>
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
@@ -3182,6 +3245,7 @@
   <translation tag="Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing." en="Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing."/>
   <translation tag="Power the printer off and on, and check the toolhead cables and their connectors." en="Power the printer off and on, and check the toolhead cables and their connectors."/>
   <translation tag="Power the printer off and on. Check that every toolhead is seated and its cable is connected." en="Power the printer off and on. Check that every toolhead is seated and its cable is connected."/>
+  <translation tag="Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware." en="Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware."/>
   <translation tag="Power was lost" en="Power was lost"/>
   <translation tag="Power was lost about {} hours ago." en="Power was lost about {} hours ago."/>
   <translation tag="Power was lost about {} minutes ago." en="Power was lost about {} minutes ago."/>
@@ -3374,8 +3438,10 @@
   <translation tag="Probe Management" en="Probe Management"/>
   <translation tag="Probe Sensors" en="Probe Sensors"/>
   <translation tag="Probe Speed" en="Probe Speed"/>
+  <translation tag="Probe already triggered" en="Probe already triggered"/>
   <translation tag="Probe controls, accuracy test, and settings" en="Probe controls, accuracy test, and settings"/>
   <translation tag="Probe readings disagree" en="Probe readings disagree"/>
+  <translation tag="Probe readings don&apos;t agree" en="Probe readings don&apos;t agree"/>
   <translation tag="Probe triggered too early" en="Probe triggered too early"/>
   <translation tag="Probing Bed Mesh" en="Probing Bed Mesh"/>
   <translation tag="Probing Bed Mesh..." en="Probing Bed Mesh..."/>
@@ -3471,6 +3537,7 @@
   <translation tag="RUNNING" en="RUNNING"/>
   <translation tag="Rails" en="Rails"/>
   <translation tag="Raise" en="Raise"/>
+  <translation tag="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion." en="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion."/>
   <translation tag="Raise and lower the bed or gantry through its travel." en="Raise and lower the bed or gantry through its travel."/>
   <translation tag="Ramming Volume" en="Ramming Volume"/>
   <translation tag="Ramp: band {} of {}" en="Ramp: band {} of {}"/>
@@ -3536,6 +3603,7 @@
   <translation tag="Recycled" en="Recycled"/>
   <translation tag="Reduce Sensitivity" en="Reduce Sensitivity"/>
   <translation tag="Reduce ringing and ghosting artifacts" en="Reduce ringing and ghosting artifacts"/>
+  <translation tag="Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." en="Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" en="Reduce vibration artifacts like ringing and ghosting"/>
   <translation tag="Reducing the fan speed may affect filtration performance. Do you want to continue?" en="Reducing the fan speed may affect filtration performance. Do you want to continue?"/>
   <translation tag="Reducing the fan speed may affect print quality. Do you want to continue?" en="Reducing the fan speed may affect print quality. Do you want to continue?"/>
@@ -3567,6 +3635,7 @@
   <translation tag="Remove HelixScreen&apos;s include lines from printer.cfg; a resume then uses the printer&apos;s default mesh profile" en="Remove HelixScreen&apos;s include lines from printer.cfg; a resume then uses the printer&apos;s default mesh profile"/>
   <translation tag="Remove PIN" en="Remove PIN"/>
   <translation tag="Remove Spoolman?" en="Remove Spoolman?"/>
+  <translation tag="Remove or comment out &apos;{2}&apos; under [{1}] in the included file, then save again." en="Remove or comment out &apos;{2}&apos; under [{1}] in the included file, then save again."/>
   <translation tag="Remove plugin from printer" en="Remove plugin from printer"/>
   <translation tag="Remove the PEI Sheet" en="Remove the PEI Sheet"/>
   <translation tag="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results" en="Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results"/>
@@ -3590,6 +3659,7 @@
   <translation tag="Rendering timelapse..." en="Rendering timelapse..."/>
   <translation tag="Repeat" en="Repeat"/>
   <translation tag="Repeated probe readings differed more than allowed." en="Repeated probe readings differed more than allowed."/>
+  <translation tag="Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast." en="Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast."/>
   <translation tag="Replace" en="Replace"/>
   <translation tag="Replace Profile?" en="Replace Profile?"/>
   <translation tag="Replace a worn nozzle or hotend" en="Replace a worn nozzle or hotend"/>
@@ -3742,11 +3812,13 @@
   <translation tag="Rounded" en="Rounded"/>
   <translation tag="Run" en="Run"/>
   <translation tag="Run Again" en="Run Again"/>
+  <translation tag="Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False." en="Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False."/>
   <translation tag="Run Calibration Wizard" en="Run Calibration Wizard"/>
   <translation tag="Run Dangerous Macro?" en="Run Dangerous Macro?"/>
   <translation tag="Run Macro" en="Run Macro"/>
   <translation tag="Run Macro?" en="Run Macro?"/>
   <translation tag="Run a Klipper macro when preheating this material" en="Run a Klipper macro when preheating this material"/>
+  <translation tag="Run a bed mesh calibration and save it, or fix the profile name in the start G-code." en="Run a bed mesh calibration and save it, or fix the profile name in the start G-code."/>
   <translation tag="Run a cold pull or replace the nozzle" en="Run a cold pull or replace the nozzle"/>
   <translation tag="Run a macro you choose, in one tap" en="Run a macro you choose, in one tap"/>
   <translation tag="Run brush cleaning sequence" en="Run brush cleaning sequence"/>
@@ -3771,6 +3843,7 @@
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." en="Runs the printer&apos;s tool offset calibration for every tool."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." en="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." en="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart."/>
+  <translation tag="SAVE_CONFIG wants to save &apos;{2}&apos; in section [{1}], but an included configuration file already sets it." en="SAVE_CONFIG wants to save &apos;{2}&apos; in section [{1}], but an included configuration file already sets it."/>
   <translation tag="SCREEN" en="SCREEN"/>
   <translation tag="SETTINGS" en="SETTINGS"/>
   <translation tag="SHIPPED IMAGES" en="SHIPPED IMAGES"/>
@@ -3905,6 +3978,7 @@
   <translation tag="Seating {}..." en="Seating {}..."/>
   <translation tag="Secondary" en="Secondary"/>
   <translation tag="Section Detail" en="Section Detail"/>
+  <translation tag="Section [{2}] needs the setting &apos;{1}&apos;, and the configuration does not have it." en="Section [{2}] needs the setting &apos;{1}&apos;, and the configuration does not have it."/>
   <translation tag="Security" en="Security"/>
   <translation tag="See exactly what data will be sent" en="See exactly what data will be sent"/>
   <translation tag="See results" en="See results"/>
@@ -4214,6 +4288,10 @@
   <translation tag="Step 1 of 3" en="Step 1 of 3"/>
   <translation tag="Step {} of {}" en="Step {} of {}"/>
   <translation tag="Step {} of {} · about {} min left" en="Step {} of {} · about {} min left"/>
+  <translation tag="Stepper driver {1} detected a short" en="Stepper driver {1} detected a short"/>
+  <translation tag="Stepper driver {1} lost motor power" en="Stepper driver {1} lost motor power"/>
+  <translation tag="Stepper driver {1} overheated" en="Stepper driver {1} overheated"/>
+  <translation tag="Stepper driver {1} reported a fault" en="Stepper driver {1} reported a fault"/>
   <translation tag="Stepper driver {} is overheating" en="Stepper driver {} is overheating"/>
   <translation tag="Stepper driver {} overheated and shut down" en="Stepper driver {} overheated and shut down"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." en="Still reading the printer&apos;s lane record. Try again in a moment."/>
@@ -4352,6 +4430,8 @@
   <translation tag="Temperature and humidity sensor not responding" en="Temperature and humidity sensor not responding"/>
   <translation tag="Temperature control optimized for {} at {}." en="Temperature control optimized for {} at {}."/>
   <translation tag="Temperature out of range for {}" en="Temperature out of range for {}"/>
+  <translation tag="Temperature outside the heater&apos;s limits" en="Temperature outside the heater&apos;s limits"/>
+  <translation tag="Temperature reading is out of range" en="Temperature reading is out of range"/>
   <translation tag="Temperature sensor out of range" en="Temperature sensor out of range"/>
   <translation tag="Temperatures" en="Temperatures"/>
   <translation tag="Temperatures plotted over time" en="Temperatures plotted over time"/>
@@ -4393,6 +4473,7 @@
   <translation tag="That turn didn&apos;t register yet. Tighten {0} one more full turn." en="That turn didn&apos;t register yet. Tighten {0} one more full turn."/>
   <translation tag="The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load" en="The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load"/>
   <translation tag="The ACE state can&apos;t be read." en="The ACE state can&apos;t be read."/>
+  <translation tag="The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options." en="The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options."/>
   <translation tag="The CFS odometer hardware is faulty and needs repair or replacement" en="The CFS odometer hardware is faulty and needs repair or replacement"/>
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." en="The CFS ran out of filament in {}. Printing continues on what is left in the tube."/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." en="The CFS ran out of filament. Printing continues on what is left in the tube."/>
@@ -4411,6 +4492,7 @@
   <translation tag="The active tool has no nozzle heater." en="The active tool has no nozzle heater."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." en="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display."/>
   <translation tag="The automatic feeding setting could not be applied." en="The automatic feeding setting could not be applied."/>
+  <translation tag="The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy." en="The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy."/>
   <translation tag="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it." en="The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it."/>
   <translation tag="The bed check found the plate dirty or occupied." en="The bed check found the plate dirty or occupied."/>
   <translation tag="The bed did not heat at the expected rate." en="The bed did not heat at the expected rate."/>
@@ -4421,10 +4503,12 @@
   <translation tag="The bed is too far out of level for automatic compensation." en="The bed is too far out of level for automatic compensation."/>
   <translation tag="The bed is too small for settling laps." en="The bed is too small for settling laps."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." en="The bed is too small for the test tower, or its size is unknown."/>
+  <translation tag="The bed mesh profile &apos;{1}&apos; was never saved on this printer." en="The bed mesh profile &apos;{1}&apos; was never saved on this printer."/>
   <translation tag="The bed temperature asked for is outside the allowed range." en="The bed temperature asked for is outside the allowed range."/>
   <translation tag="The bed temperature reading is out of range: its sensor is loose or damaged." en="The bed temperature reading is out of range: its sensor is loose or damaged."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." en="The bed turns off. The spools stay latched on the bed until you confirm they are off."/>
   <translation tag="The bed was reported dirty, so this print cannot resume." en="The bed was reported dirty, so this print cannot resume."/>
+  <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire." en="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" en="The buffer may be disconnected, stuck, or faulty. Check it before retrying"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" en="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer"/>
   <translation tag="The build plate should be on the bed but reads as removed." en="The build plate should be on the bed but reads as removed."/>
@@ -4444,9 +4528,15 @@
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." en="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." en="The change was not applied: the current settings could not be saved for a revert."/>
   <translation tag="The connection to Klipper was lost" en="The connection to Klipper was lost"/>
+  <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." en="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." en="The controller boards Klipper runs on. See their load in the system settings."/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" en="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>
+  <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." en="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers."/>
+  <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." en="The driver for {1} reported an error, and the firmware stopped the printer."/>
+  <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." en="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver."/>
+  <translation tag="The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose." en="The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose."/>
+  <translation tag="The emergency stop was pressed on a screen or in a web interface, and the printer shut down." en="The emergency stop was pressed on a screen or in a web interface, and the printer shut down."/>
   <translation tag="The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one." en="The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one."/>
   <translation tag="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend" en="The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend"/>
   <translation tag="The extruder is pulling but the feeder is not turning: the filament is tangled or stuck between the spool and the head." en="The extruder is pulling but the feeder is not turning: the filament is tangled or stuck between the spool and the head."/>
@@ -4475,6 +4565,8 @@
   <translation tag="The file uses inches (G20)." en="The file uses inches (G20)."/>
   <translation tag="The file was sliced for a different nozzle size than one the print uses." en="The file was sliced for a different nozzle size than one the print uses."/>
   <translation tag="The file was sliced for a different nozzle type than the one installed." en="The file was sliced for a different nozzle type than the one installed."/>
+  <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it." en="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it."/>
+  <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong." en="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." en="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn."/>
   <translation tag="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after loosening {0}. Check you turned {0}&apos;s tensioner."/>
   <translation tag="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner." en="The gap grew after tightening {0}. Check you turned {0}&apos;s tensioner."/>
@@ -4492,6 +4584,7 @@
   <translation tag="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog." en="The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog."/>
   <translation tag="The heater can&apos;t be changed while the printer is waiting." en="The heater can&apos;t be changed while the printer is waiting."/>
   <translation tag="The heater did not accept the printer&apos;s credentials." en="The heater did not accept the printer&apos;s credentials."/>
+  <translation tag="The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it." en="The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it."/>
   <translation tag="The heater didn&apos;t accept the command." en="The heater didn&apos;t accept the command."/>
   <translation tag="The heater hasn&apos;t answered yet. Still trying." en="The heater hasn&apos;t answered yet. Still trying."/>
   <translation tag="The heater is inhibited." en="The heater is inhibited."/>
@@ -4501,6 +4594,8 @@
   <translation tag="The heater was turned off at the heater." en="The heater was turned off at the heater."/>
   <translation tag="The heater will cycle on and off several times." en="The heater will cycle on and off several times."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
+  <translation tag="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream." en="The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream."/>
+  <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." en="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination."/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." en="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." en="The latch opens and {} can drop. Hold it before you continue, then put it in its dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" en="The left RFID reader in this CFS unit may need service"/>
@@ -4508,6 +4603,7 @@
   <translation tag="The load failed without a more specific reason." en="The load failed without a more specific reason."/>
   <translation tag="The loaded slot is not known yet" en="The loaded slot is not known yet"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." en="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle."/>
+  <translation tag="The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have." en="The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The measured offset between toolheads is outside the allowed range." en="The measured offset between toolheads is outside the allowed range."/>
   <translation tag="The message your printer&apos;s macros show (M117)" en="The message your printer&apos;s macros show (M117)"/>
   <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." en="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes."/>
@@ -4605,6 +4701,7 @@
   <translation tag="The printer may need a reboot afterwards." en="The printer may need a reboot afterwards."/>
   <translation tag="The printer moved the print to {}, not {}." en="The printer moved the print to {}, not {}."/>
   <translation tag="The printer moves the toolhead and measures its motors." en="The printer moves the toolhead and measures its motors."/>
+  <translation tag="The printer needs homing first" en="The printer needs homing first"/>
   <translation tag="The printer no longer has a print to resume." en="The printer no longer has a print to resume."/>
   <translation tag="The printer reads the file up to the last saved position. A large file can take a minute." en="The printer reads the file up to the last saved position. A large file can take a minute."/>
   <translation tag="The printer records lane {} in the toolhead, not this one" en="The printer records lane {} in the toolhead, not this one"/>
@@ -4623,9 +4720,11 @@
   <translation tag="The printer stops and cannot print until the update is done." en="The printer stops and cannot print until the update is done."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." en="The printer swaps between several toolheads. Manage the tools on the filament system screen."/>
   <translation tag="The printer was stopped" en="The printer was stopped"/>
+  <translation tag="The printer&apos;s computer fell behind" en="The printer&apos;s computer fell behind"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" en="The printer&apos;s firmware chooses where to switch on runout"/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." en="The printer&apos;s status isn&apos;t known yet, so a print may be running."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." en="The probe never touched the plate: the PEI plate is not placed correctly."/>
+  <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted." en="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." en="The probe was already triggered before the move started."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." en="The queue prints this .3mf&apos;s default plate. Print this plate from here instead."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>
@@ -4670,6 +4769,8 @@
   <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
+  <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." en="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
+  <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." en="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe."/>
   <translation tag="Theme" en="Theme"/>
   <translation tag="Theme Colors" en="Theme Colors"/>
   <translation tag="Theme Preset" en="Theme Preset"/>
@@ -4843,6 +4944,7 @@
   <translation tag="Toggle toolhead LED for an extruder" en="Toggle toolhead LED for an extruder"/>
   <translation tag="Toggle:" en="Toggle:"/>
   <translation tag="Too humid" en="Too humid"/>
+  <translation tag="Too much filament for one move" en="Too much filament for one move"/>
   <translation tag="Tool" en="Tool"/>
   <translation tag="Tool Change Failed" en="Tool Change Failed"/>
   <translation tag="Tool Changer" en="Tool Changer"/>
@@ -4972,7 +5074,9 @@
   <translation tag="Unknown Event" en="Unknown Event"/>
   <translation tag="Unknown Spool" en="Unknown Spool"/>
   <translation tag="Unknown Step" en="Unknown Step"/>
+  <translation tag="Unknown configuration section" en="Unknown configuration section"/>
   <translation tag="Unknown error" en="Unknown error"/>
+  <translation tag="Unknown setting in the configuration" en="Unknown setting in the configuration"/>
   <translation tag="Unlink" en="Unlink"/>
   <translation tag="Unlink, keep on this slot" en="Unlink, keep on this slot"/>
   <translation tag="Unload" en="Unload"/>
@@ -5176,6 +5280,7 @@
   <translation tag="What happens when a print ends" en="What happens when a print ends"/>
   <translation tag="When a slicer uploads and starts a file that moves past this printer&apos;s travel, heats past its limits or uses a missing tool, keep the file but do not start it." en="When a slicer uploads and starts a file that moves past this printer&apos;s travel, heats past its limits or uses a missing tool, keep the file but do not start it."/>
   <translation tag="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs." en="When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs."/>
+  <translation tag="When it is safe, restart the firmware." en="When it is safe, restart the firmware."/>
   <translation tag="Where UI sounds play" en="Where UI sounds play"/>
   <translation tag="Whether filament is loaded" en="Whether filament is loaded"/>
   <translation tag="Whether the Z arrows follow the bed or the Z value" en="Whether the Z arrows follow the bed or the Z value"/>
@@ -5227,6 +5332,7 @@
   <translation tag="Wiping {}..." en="Wiping {}..."/>
   <translation tag="With exhaust cooling on, the recirculation fan cannot be turned on" en="With exhaust cooling on, the recirculation fan cannot be turned on"/>
   <translation tag="With internal circulation on, the exhaust fan cannot be turned on" en="With internal circulation on, the exhaust fan cannot be turned on"/>
+  <translation tag="With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again." en="With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again."/>
   <translation tag="Within {0:.1f} Hz of each other at {1:.0f} Hz" en="Within {0:.1f} Hz of each other at {1:.0f} Hz"/>
   <translation tag="Wizard Error" en="Wizard Error"/>
   <translation tag="Working..." en="Working..."/>
@@ -5463,6 +5569,8 @@
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." en="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension."/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)" en="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)"/>
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" en="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)"/>
+  <translation tag="{1} never triggered" en="{1} never triggered"/>
+  <translation tag="{1} temperature reading is out of range" en="{1} temperature reading is out of range"/>
   <translation tag="{:.0f} g left" en="{:.0f} g left"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>
   <translation tag="{:.2f} mm range" en="{:.2f} mm range"/>

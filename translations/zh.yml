@@ -59,6 +59,7 @@ translations:
   "Both belts": "两条皮带"
   "Cutter Calibration": "切刀校准"
   "Find the filament cutter's position": "确定耗材切刀的位置"
+  Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: ''
   "Let the printer's tensioners set the belts": "由打印机的张紧器调整皮带"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"
@@ -186,6 +187,7 @@ translations:
   A command is missing a value, or a value is out of its allowed range.: '命令缺少数值，或数值超出允许范围。'
   A controller board did not answer: '控制板无响应'
   A controller board fell behind: '控制板处理滞后'
+  A controller board missed a timed update: ''
   A controller board runs firmware that does not match the printer software.: '某块控制板的固件与打印机软件不匹配。'
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Delta 打印机无法在不移动 Z 轴的情况下将 X 和 Y 轴归零，因此无法恢复打印。"
   A different toolhead than the one asked for is on the carriage.: '滑架上的工具头不是所请求的工具头。'
@@ -198,6 +200,8 @@ translations:
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "热床受热会膨胀，因此每种材料可以有自己的首层偏移。打印开始宏会应用它，打印中保存只会修改该打印的材料。"
   A heater did not warm up at the expected rate.: '加热器未按预期速度升温。'
+  ? A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled.
+  : ''
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: '为腔体内空气加热的加热器。在腔体温度界面设置温度。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipper 用来补偿热床不平整的高度图。在热床网格界面查看和校准。'
   A home-origin calibration point failed or stayed unstable.: '原点校准点失败或始终不稳定。'
@@ -211,8 +215,13 @@ translations:
   A motor driver reported a fault such as overheating or a short.: '电机驱动器报告故障，如过热或短路。'
   A motor's parameters couldn't be written. Power-cycle the printer to retry: 无法写入电机参数。请重新为打印机上电后重试
   A move command has an invalid speed or cannot be read.: '移动命令的速度无效或无法读取。'
+  A move to X {1}, Y {2}, Z {3} is outside the printer's travel.: ''
   A move was sent before that axis was homed.: '该轴归位前就发送了移动命令。'
+  A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle.: ''
+  A move went outside the printer's travel.: ''
   A move went past the printer's travel limits.: '移动超出了打印机的行程范围。'
+  ? A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion.
+  : ''
   "A new Print Status screen": "全新的打印状态屏幕"
   A newer version of the helper macros is available: '有更新版本的帮助宏可用'
   A picture of your printer: 打印机的图片
@@ -229,6 +238,7 @@ translations:
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "在料盘仍标记为放在热床上时开始了打印。如果料盘还在，请立即用紧急停止停下打印机。"
   A print started, so the calibration did not start.: "打印已开始，因此未启动校准。"
   A print took the printer.: "打印任务接管了打印机。"
+  A required setting is missing: ''
   A restart is already in progress: 重启正在进行中
   A right, B left: "A 右,B 左"
   A saturated filter stops trapping fumes and particles.: "饱和的滤网无法再吸附烟雾和颗粒。"
@@ -242,7 +252,11 @@ translations:
   A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Spoolman 中的料盘有自己的价格时使用该价格。其他料盘使用这些价格。"
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : '向工具头供应多种耗材的系统,显示槽位数量。在耗材系统界面管理槽位。'
+  ? A target of {1} °C was asked for, outside this heater's allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it.
+  : ''
   A temperature reading went outside its valid range.: '温度读数超出有效范围。'
+  ? A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe.
+  : ''
   A temperature was set for a toolhead number that does not exist.: '为不存在的工具头编号设置了温度。'
   A toolhead is in an unknown position, so the change did not start.: '有工具头位置未知，因此未开始切换。'
   A toolhead is neither in its dock nor on the carriage.: '有工具头既不在停靠位也不在滑架上。'
@@ -295,6 +309,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
   Accelerometer communication failed. Try again.: 加速度计通信失败，请重试。
+  Accelerometer not connected: ''
   Accelerometer not responding: '加速度计无响应'
   Accelerometers: 加速度传感器
   Accept: 接受
@@ -312,6 +327,7 @@ translations:
   Actual: 当前
   Adaptive Bed Mesh: 自适应热床网格
   Add: 添加
+  Add '{1}' under [{2}] in the printer's configuration, then restart Klipper.: ''
   Add Filament: 添加耗材
   Add Hidden Network: 添加隐藏网络
   Add Part Fan to MPC: '将模型风扇添加到 MPC'
@@ -346,6 +362,8 @@ translations:
   Advancing: 前进
   After: '之后'
   After an error: 发生错误后
+  ? 'After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short.'
+  : ''
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: '连接{}后，建议重新校准输入整形，以确保打印质量。'
   After parking, the head does not read as docked.: '停放后，工具头未显示为已停靠。'
   After running the commands, tap Check Again below.: 执行命令后，点击下方的重新检查。
@@ -382,6 +400,7 @@ translations:
   AmsIdentify: 识别 AMS
   An earlier install is still finishing...: '之前的安装仍在进行中...'
   An API key is 32 characters, each 0-9 or a-f.: 'API 密钥为 32 个字符，每个为 0-9 或 a-f。'
+  An M112 emergency stop from the console, a macro or the slicer shut the printer down.: ''
   An accelerometer was detected on your printer.: 在您的打印机上检测到加速度计。
   An app on your network is asking to connect to this printer.: '网络中的某个应用请求连接到此打印机。'
   An earlier IPv4 change is still being undone. Try again shortly.: '之前的 IPv4 更改仍在撤销中。请稍后再试。'
@@ -492,6 +511,7 @@ translations:
   'BLE write failed at packet {}: {}': 'BLE 在数据包 {} 处写入失败: {}'
   'BLE write failed: {}': 'BLE 写入失败: {}'
   BLTouch Controls: BLTouch 控制
+  BLTouch did not respond: ''
   BLUETOOTH PRINTERS: 蓝牙打印机
   BLUETOOTH SCANNERS: 蓝牙扫描器
   Back: 返回
@@ -538,6 +558,7 @@ translations:
   Bed mesh: 热床网格
   'Bed mesh calibration failed: {}': '热床网格校准失败：{}'
   Bed mesh operation timed out: 热床网格操作超时
+  Bed mesh profile not found: ''
   Bed mesh...: 热床网格...
   Bed screws: '热床螺丝'
   Bed needs manual leveling: '热床需要手动调平'
@@ -579,7 +600,9 @@ translations:
   Bluetooth not initialized: 蓝牙未初始化
   Bluetooth printer forgotten: 已忘记蓝牙打印机
   Bluetooth scanner forgotten: 已忘记蓝牙扫描器
+  Board '{1}' restarted on its own: ''
   Board firmware does not match: '主板固件不匹配'
+  Board firmware needs updating: ''
   Body text supports longer guidance while staying readable.: 正文支持更长的说明同时保持可读性。
   Bold: 加粗
   Border Opacity: 边框不透明度
@@ -616,6 +639,7 @@ translations:
   Buffer-driven gear speed control: "由缓冲器控制齿轮速度"
   Build Volume: '打印尺寸'
   'Build Volume: ': '构建尺寸: '
+  Build and flash the firmware for each board listed, then restart the firmware.: ''
   Build plate missing: '打印板缺失'
   Build plate not seated: '打印板未放好'
   'Building preview: %d%%': '正在生成预览：%d%%'
@@ -729,6 +753,8 @@ translations:
   Can't move filament while the print is paused: 打印暂停期间无法移动耗材
   Can't read filament RFID tag: 无法读取耗材 RFID 标签
   Can't reach this printer. Save anyway?: 无法连接到此打印机。仍要保存吗？
+  "Can't save: the value is set in another file": ''
+  Can't talk to stepper driver {1}: ''
   Cancel: 取消
   Cancel Escalation: 取消升级
   Cancel Print: 取消打印
@@ -824,33 +850,52 @@ translations:
   Check slot failed: 检查槽位失败
   Check Slots: 检查槽位
   Check slots failed: 检查槽位失败
+  Check that motor power is on and its connectors are tight, then restart the firmware.: ''
   Check that nothing blocks the toolhead or the head's dock, then load the head again.: '请检查工具头及其停靠位没有被阻挡，然后重新装载该工具头。'
   ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
   : '请检查工具头没有被阻挡，然后重新卸载。如果耗材卡住，请加热喷嘴并手动拔出。'
   Check that only one filament path is active: 请确认只有一条耗材通路处于活动状态
+  Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY.: ''
   Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.: '请检查打印板已放好且轴没有被阻挡，清洁喷嘴尖端，然后重新归位。'
   Check that the camera's live view works, or turn off timelapse for this print, then resume.: '请检查摄像头实时画面是否正常，或为本次打印关闭延时摄影，然后恢复。'
   Check that the cutter mechanism is properly installed: 请检查切刀机构是否正确安装
+  ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
+  : ''
   Check that the printer is powered on and connected to the network: 请检查打印机是否已开机并连接到网络
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: 请检查拖链沿线的 PTFE 管是否折弯，以及进入挤出机传感器处的弯曲
   Check the RS-485 cable between printer and CFS: 请检查打印机与 CFS 之间的 RS-485 线缆
+  ? Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
+  : ''
+  Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY.: ''
   Check the bed temperature in the slicer's profile.: '请检查切片软件配置中的热床温度。'
   Check the belts and rails for debris or looseness, then home again.: '请检查皮带和导轨是否有杂物或松动，然后重新归位。'
+  ? Check the board's power and cable, and the serial or canbus_uuid setting in the printer's configuration, then restart the firmware.
+  : ''
+  Check the board's power supply and look for damaged or shorted wiring, then restart the firmware.: ''
   Check the buffer unit on the back of the printer: 请检查打印机背面的缓冲单元
+  ? Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware.
+  : ''
   Check the chips, then save: 检查标签后保存
   Check the dock for debris or a bent latch, guide the head into its dock, then home and resume.: '请检查停靠位是否有杂物或锁定装置弯曲，将工具头放回停靠位，然后归位并恢复。'
   Check the fan for obstructions and its cable, then resume.: '请检查风扇是否被阻挡及其线缆，然后恢复。'
   Check the filament path and try again.: 检查耗材路径并重试。
+  ? Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware.
+  : ''
+  Check the motor cable, the driver's cooling and the motor power, then restart the firmware.: ''
   Check the nozzle temperature in the slicer's filament profile.: '请检查切片软件耗材配置中的喷嘴温度。'
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : 请检查从槽位到集线器的通路是否缠绕或阻力过大。若槽位送料顺畅，可能是集线器传感器或送料电机故障
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: '请检查电源线和插座。恢复供电后，如打印机提供该选项，可恢复打印。'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: '请检查打印件。确认正常再恢复，否则取消并清理打印板。'
   Check the provided value and try again: 请检查所提供的值后重试
+  ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
+  : ''
   Check the spool and the filament path for a jam, then retry: 请检查料盘和耗材通路是否卡住，然后重试
   Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: '请检查料盘是否打结、送料管是否弯折或接头松动，然后重新装载该工具头。'
   Check the spool for a tangle or a stuck spool, clear the filament path, then resume.: '请检查料盘是否打结或卡住，清理耗材路径，然后恢复。'
   Check the spool, the feeder and the feed tube to this head, then load the head again.: '请检查此工具头的料盘、送料器和送料管，然后重新装载该工具头。'
+  ? Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver's stall threshold.
+  : ''
   Check the tension of the motion belts: "检查运动皮带的张力"
   ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
   : '请检查此工具头的送料器是否卡料，然后重新装载。如电机仍不转动，请重启打印机。'
@@ -907,6 +952,7 @@ translations:
   Clean the nozzle and the plate, check nothing touches the nozzle, then retry.: '请清洁喷嘴和打印板，确认没有东西碰到喷嘴，然后重试。'
   Clean the nozzle tip and the build plate, then run the calibration again.: '请清洁喷嘴尖端和打印板，然后重新校准。'
   Clean the nozzle, then resume.: '请清洁喷嘴，然后恢复。'
+  Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries).: ''
   Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.: '请清洁工具头和滑架上的弹簧针，重新安装工具头，然后重试。'
   Clean up: '清理'
   Clean {}: 清洁{}
@@ -1084,6 +1130,7 @@ translations:
   Controllable Fans: 可控风扇
   Controlled by hardware sensor: 由硬件传感器控制
   Controller: 控制器
+  Controller board '{1}' not found: ''
   Controls: 控制
   Cool: 冷色
   Cool Down: 冷却
@@ -1125,6 +1172,8 @@ translations:
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "了解基本操作：设置向导、在界面间切换以及触摸手势。"
   Load all stopped: '全部装载已停止'
   "Load and unload": "加载和卸载"
+  ? Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion.
+  : ''
   Load stopped: '装载已停止'
   "Load, unload, purge, and extrude filament": "装载、卸载、清洗和挤出耗材"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "在此加载、卸载和排料。先选择材料以设置其温度。"
@@ -1430,6 +1479,8 @@ translations:
   EMPTY: 空
   ETA {}: '预计 {}'
   EXTRAS: 其他
+  ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
+  : ''
   Each fan can only be selected once: 每个风扇只能选择一次
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: '此打印机的每个工具头都有自己的 Z 偏移。请改用工具偏移校准。'
   Edit: 编辑
@@ -1460,6 +1511,7 @@ translations:
   Emergency stop activated: 紧急停止已激活
   'Emergency stop failed: not connected': '紧急停止失败: 未连接'
   'Emergency stop failed: {}': '紧急停止失败: {}'
+  Emergency stop pressed: ''
   Empty: 空
   Empty slots disable the associated functionality: 空槽位将禁用相关功能
   Enable: 启用
@@ -1503,6 +1555,7 @@ translations:
   Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout: 无限料盘已开启，但没有两个槽位装有相同的耗材，因此耗材用尽时不会切换
   Endless Spool is turned off on this MMU: '此 MMU 上的无限料盘已关闭'
   Endless Spool state unknown: 无限料盘状态未知
+  Endstop {1} is stuck triggered: ''
   Ensure Happy Hare or AFC is installed and configured: 请确保已安装并配置 Happy Hare 或 AFC
   Enter API Key: '输入 API 密钥'
   Enter Current PIN: 输入当前 PIN 码
@@ -1527,6 +1580,7 @@ translations:
   Entry to Extruder: '入口至挤出机'
   Error: 错误
   Error at chunk {} (code={}): 区块 {} 出错 (code={})
+  Error in macro {1}: ''
   Error loading file: 加载文件出错
   'Error saving printer settings: {}': '保存打印机设置出错: {}'
   Error state: 错误状态
@@ -1800,6 +1854,7 @@ translations:
   Filament buffer position against its target: '耗材缓冲器相对目标的位置'
   Filament buffer stopped moving: 耗材缓冲器停止移动
   Filament by Type: 按类型分类的耗材
+  Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it.: ''
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : 低于最低挤出温度时无法加载耗材。请设置热端目标温度（例如 PLA 220°C、PETG 240°C），待达到温度后重试
   Filament controls are unavailable while printing.: 打印过程中耗材控制不可用。
@@ -1827,6 +1882,7 @@ translations:
   Filament is still present after the cut — the blade may be dull or misaligned: 切断后仍有耗材残留。刀片可能已钝或未对准
   Filament jam detected: 检测到耗材堵塞
   Filament jammed at the extruder gear: 耗材卡在挤出机齿轮处
+  Filament move too long: ''
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: '挤出机中必须已装入耗材，打印板已装好，且没有任何物体挡住工具头。'
   Filament never reached the CFS hub sensor: 耗材未到达 CFS 集线器传感器
   Filament not identified: '耗材未识别'
@@ -1893,6 +1949,7 @@ translations:
   Fit the heater model with the part fan off: 在模型风扇关闭时测定加热器模型
   Fit the induction heater's safety model: 测定感应加热器的安全模型
   Fix the reason shown for the shutdown, then restart the firmware.: '请修复显示的关机原因，然后重启固件。'
+  Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': '修复：chmod 644 {}，然后重启'
   'Fix: chown {} {}, then restart': '修复：chown {} {}，然后重启'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
@@ -1954,6 +2011,7 @@ translations:
   GCode Console: 'G-code 控制台'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "游戏结束！\n得分：{}\n点按重新开始"
+  Gantry leveling failed: ''
   Gate: 通道
   Gates: 通道
   Gateway: '网关'
@@ -2026,6 +2084,7 @@ translations:
   Heat the extruder to at least {} before loading filament: 装载耗材前请将挤出机加热至至少 {}
   Heat the head to the filament's temperature and check that it heats at all.: '请将工具头加热到耗材温度，并检查它是否能加热。'
   Heat the hotend.: "加热热端。"
+  Heat the nozzle to the filament's printing temperature, wait for it to get there, then try again.: ''
   Heat to at least %s for filament operations: 请加热至至少 %s 以进行耗材操作
   Heat {} above {} before resuming: 恢复前请将{}加热到{}以上
   Heatbed Temperature: 热床温度
@@ -2041,6 +2100,7 @@ translations:
   Heater offline: 加热器已断开
   Heater over-temperature: 加热器过热
   Heater sensor fault: 加热器传感器故障
+  Heater {1} is not heating as expected: ''
   HeaterSelect: 选择加热器
   Heaters: '加热器'
   Heaters off: 加热器已关闭
@@ -2261,6 +2321,7 @@ translations:
   Install plugin: 安装插件
   Install script not found. Use the remote install command instead.: 未找到安装脚本。请改用远程安装命令。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令：
+  Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "通过SSH安装延时摄影插件，\n然后点击\"重新检查\"。"
   Install timelapse plugin: 安装延时摄影插件
@@ -2369,8 +2430,13 @@ translations:
   Klipper Config Error: "Klipper 配置错误"
   Klipper Error: Klipper 错误
   Klipper already reports the ACE slots.: "Klipper 已在报告 ACE 槽位。"
+  ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
+  : ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper 无法加载其配置。请在打印机配置文件中修正下方所示的设置，然后重启 Klipper。"
   Klipper disconnected: Klipper已断开
+  'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
+  ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
+  : ''
   Klipper failed to start with the skip macros, so they were removed: 'Klipper 无法在加载跳过宏后启动，已将其移除'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'Klipper 无法启动。请从 printer.cfg 中删除 helix_skips.cfg 的 include。'
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper 固件已与主机断开连接。请尝试重启 Klipper 或执行固件重启。
@@ -2384,6 +2450,8 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper：'
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。'
+  ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
+  : ''
   Klipper or Moonraker may restart while it updates.: '更新期间 Klipper 或 Moonraker 可能会重启。'
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
@@ -2462,6 +2530,7 @@ translations:
   Level: 级别
   Level the bed with the manual leveling procedure.: '请按手动调平流程调平热床。'
   Leveling Gantry...: 正在调平龙门...
+  Leveling made things worse: ''
   Library: 库
   Lifting the nozzle clear of the print: 正在将喷嘴抬离打印件
   Light: 浅色
@@ -2546,6 +2615,7 @@ translations:
   Looking for the active spool...: 正在查找当前料盘...
   Lost connection during print — try again: 打印过程中连接丢失 — 请重试
   Lost connection to CFS unit: 与 CFS 单元的连接已断开
+  Lost connection to board '{1}': ''
   Lost contact with a controller board: '与控制板失去连接'
   Lost contact with the printer. The update may still be running.: '与打印机的连接已断开。更新可能仍在进行。'
   Lost the connection to the printer.: 与打印机的连接已断开。
@@ -2556,7 +2626,9 @@ translations:
   Lower: 降低
   Lower belt: "下皮带"
   Lower fan speed?: '降低风扇速度？'
+  Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: ''
   Lower the nozzle until it just touches the top of the print, then resume.: 降低喷嘴，直到刚好接触打印件顶部，然后恢复。
+  Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: ''
   Lowest notification level that interrupts with a toast: '以浮层提醒打断的最低通知级别'
   M to toggle: 按 M 切换
   'MAC:': MAC：
@@ -2609,10 +2681,14 @@ translations:
   Make a smaller adjustment.: '请减小调整幅度。'
   Make color, material and spool changes in Spoolman.: "请在 Spoolman 中更改颜色、材料和料盘。"
   Make sure every nozzle is clean.: 请确保所有喷嘴都干净。
+  ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
+  : ''
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 请确认工具头中没有装入耗材:热床加热时它可能在挤出机中变软。
 
   Make sure one toolhead is on the carriage and the rest are docked, then home.: '请确保一个工具头在滑架上、其余都已停靠，然后归位。'
   Make sure the printer is safe, then restart the firmware.: '请确认打印机处于安全状态，然后重启固件。'
+  ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
+  : ''
   MakeID (Bluetooth): MakeID（蓝牙）
   ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   : '让 Spoolman 按每个工具或耗材通道各自的料盘计算用量（适用于不会自行切换的打印机），并记录每次打印各料盘的用量。'
@@ -2737,6 +2813,7 @@ translations:
   'Motors disable failed: {}': '禁用电机失败: {}'
   Motors disabled: 电机已禁用
   Motors stay on while a print is active: 打印期间电机保持开启
+  Motors were asked to step too fast: ''
   'Mounted: {}': '已装上: {}'
   Move: 移动
   Move before homing: '归位前移动'
@@ -2745,8 +2822,11 @@ translations:
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: 调整时前后移动纸张。当纸张有轻微阻力但仍能滑动时停止。
   Move selector: 移动选择器
   Move speed multipliers: '移动速度倍率'
+  ? Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch.
+  : ''
   Move the toolhead end to end by hand to spread it.: "用手将工具头从一端移到另一端，使其分布均匀。"
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': 移动打印头、归位轴、调平热床，并微调温度、风扇及其他运动设置。
+  Move would go past the printer's limits: ''
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
   : 移动打印头以测量每个轴上的振动频率。需要 2-3 分钟。打印机会发出噪音——这是正常的。
   Moves to {} {:g} mm, below this printer's {:g} mm.: '移动到 {} {:g} mm，低于此打印机的 {:g} mm。'
@@ -3034,6 +3114,7 @@ translations:
   Nozzle size and flow type per head: "每个工具头的喷嘴尺寸和流量类型"
   Nozzle target set to {}: 喷嘴目标已设为 {}
   Nozzle temp must be %d-%s: 喷嘴温度必须为 %d-%s
+  Nozzle too cold to extrude: ''
   Nozzle, bed, and chamber in one widget: 喷嘴、热床和腔体合为一个小组件
   'Nozzle:': 喷嘴：
   'Nozzles still heating: {}': '仍在加热的喷嘴: {}'
@@ -3075,6 +3156,7 @@ translations:
   'On:': '开:'
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : '每天一次，删除超过一周的打印副本和超过一个月的日志。您的文件、照片和延时摄影视频会保留。'
+  One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance).: ''
   One save for everything. Klipper may restart.: '一次保存全部内容。Klipper 可能会重启。'
   One tap runs this macro. Dangerous macros still ask.: '单击即可运行此宏。危险宏仍会询问。'
   One-time setup: "一次性设置"
@@ -3175,6 +3257,7 @@ translations:
   Part, hotend, and auxiliary fan speeds: '零件、热端与辅助风扇速度'
   Partial…: 部分…
   Pass: "轮次"
+  Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: ''
   Password: 密码
   Password cannot be empty: 密码不能为空
   Password is required for secured networks: 加密网络需要密码
@@ -3273,6 +3356,8 @@ translations:
   Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.: '请断电，重新安装工具头并检查其接口。如再次出现，需要更换热端传感器。'
   Power the printer off and on, and check the toolhead cables and their connectors.: '请重新为打印机上电，并检查工具头线缆及接口。'
   Power the printer off and on. Check that every toolhead is seated and its cable is connected.: '请重新为打印机上电。检查每个工具头都已安装到位且线缆已连接。'
+  ? Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware.
+  : ''
   Power was lost: '电源中断'
   Power was lost about {} hours ago.: 大约 {} 小时前断电。
   Power was lost about {} minutes ago.: 大约 {} 分钟前断电。
@@ -3461,8 +3546,10 @@ translations:
   Probe Management: 探针管理
   Probe Sensors: 探针传感器
   Probe Speed: 探针速度
+  Probe already triggered: ''
   Probe controls, accuracy test, and settings: 探针控制、精度测试和设置
   Probe readings disagree: '探针读数不一致'
+  Probe readings don't agree: ''
   Probe triggered too early: '探针过早触发'
   Probing Bed Mesh: 正在探测热床网格
   Probing Bed Mesh...: 正在探测热床网格...
@@ -3559,6 +3646,8 @@ translations:
   'RSS:': RSS：
   Rails: '导轨'
   Raise: 升高
+  ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
+  : ''
   Raise and lower the bed or gantry through its travel.: "让热床或龙门全行程升降。"
   Ramming Volume: '填充体积'
   'Ramp: band {} of {}': '自动: 第 {} / {} 段'
@@ -3623,6 +3712,8 @@ translations:
   'Recovery failed: {}': '恢复失败: {}'
   Reduce Sensitivity: 降低灵敏度
   Reduce ringing and ghosting artifacts: 减少振纹和残影
+  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Reduce vibration artifacts like ringing and ghosting: 减少振纹和残影等振动伪影
   Reducing the fan speed may affect filtration performance. Do you want to continue?: '降低风扇速度可能影响过滤效果。是否继续？'
   Reducing the fan speed may affect print quality. Do you want to continue?: '降低风扇速度可能影响打印质量。是否继续？'
@@ -3653,6 +3744,7 @@ translations:
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: 从 printer.cfg 中移除 HelixScreen 的 include 行；恢复时将使用打印机的默认网格配置
   Remove PIN: 移除 PIN
   Remove Spoolman?: 移除 Spoolman？
+  Remove or comment out '{2}' under [{1}] in the included file, then save again.: ''
   Remove plugin from printer: 从打印机移除插件
   Remove the PEI Sheet: 取下 PEI 板
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': '请先从热床上取下 PEI 板再重新开始：隔着板材探测会导致结果错误'
@@ -3679,6 +3771,8 @@ translations:
   Rendering timelapse...: 正在渲染延时摄影...
   Repeat: "重复"
   Repeated probe readings differed more than allowed.: '多次探针读数差异超出允许范围。'
+  ? 'Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast.'
+  : ''
   Replace: "替换"
   Replace Profile?: "替换配置？"
   Replace a worn nozzle or hotend: "更换磨损的喷嘴或热端"
@@ -3830,11 +3924,14 @@ translations:
   Rounded: 圆角
   Run: 运行
   Run Again: '再次运行'
+  ? Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False.
+  : ''
   Run Calibration Wizard: '运行校准向导'
   Run Dangerous Macro?: 运行危险宏？
   Run Macro: 运行宏
   Run Macro?: 运行宏？
   Run a Klipper macro when preheating this material: 预热此材料时运行 Klipper 宏
+  Run a bed mesh calibration and save it, or fix the profile name in the start G-code.: ''
   Run a cold pull or replace the nozzle: 请执行冷拉清理或更换喷嘴
   Run a macro you choose, in one tap: 一键运行选定的宏
   Run brush cleaning sequence: '运行刷子清洁流程'
@@ -3861,6 +3958,7 @@ translations:
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG 失败：{}。Z 偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后偏移将丢失。'
+  SAVE_CONFIG wants to save '{2}' in section [{1}], but an included configuration file already sets it.: ''
   SCREEN: 屏幕
   SETTINGS: 设置
   SHIPPED IMAGES: 内置图片
@@ -3998,6 +4096,7 @@ translations:
   Seating {}...: 正在安装{}...
   Secondary: 次要
   Section Detail: 区域详情
+  Section [{2}] needs the setting '{1}', and the configuration does not have it.: ''
   Security: 安全
   See exactly what data will be sent: 查看将发送的确切数据
   See results: '查看结果'
@@ -4313,6 +4412,10 @@ translations:
   Step 1 of 3: 第 1 步，共 3 步
   Step {} of {}: 第 {} 步，共 {} 步
   Step {} of {} · about {} min left: '第 {} 步，共 {} 步 · 剩余约 {} 分钟'
+  Stepper driver {1} detected a short: ''
+  Stepper driver {1} lost motor power: ''
+  Stepper driver {1} overheated: ''
+  Stepper driver {1} reported a fault: ''
   Stepper driver {} is overheating: '步进电机驱动器 {} 过热'
   Stepper driver {} overheated and shut down: '步进电机驱动器 {} 过热并已关闭'
   Still reading the printer's lane record. Try again in a moment.: '仍在读取打印机的耗材通道记录，请稍后再试。'
@@ -4453,6 +4556,8 @@ translations:
   Temperature and humidity sensor not responding: 温湿度传感器无响应
   Temperature control optimized for {} at {}.: 已针对 {} 在 {} 下优化温度控制。
   Temperature out of range for {}: '{} 温度超出范围'
+  Temperature outside the heater's limits: ''
+  Temperature reading is out of range: ''
   Temperature sensor out of range: '温度传感器超出范围'
   Temperatures: 温度
   Temperatures plotted over time: 温度随时间的变化曲线
@@ -4494,6 +4599,8 @@ translations:
   That turn didn't register yet. Tighten {0} one more full turn.: "这次转动还没有体现出来。请将 {0} 再拉紧一整圈。"
   The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load: "ACE 与挤出机一起推送已加载的耗材。驱动程序会在加载后开启送料辅助"
   The ACE state can't be read.: "无法读取 ACE 状态。"
+  ? 'The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options.'
+  : ''
   The CFS odometer hardware is faulty and needs repair or replacement: CFS 计量硬件故障，需维修或更换
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'CFS 的 {} 耗材已用完。打印将使用管内剩余的耗材继续。'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'CFS 耗材已用完。打印将使用管内剩余的耗材继续。'
@@ -4514,6 +4621,8 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。
   The automatic feeding setting could not be applied.: '无法应用自动送料设置。'
+  ? 'The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy.'
+  : ''
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "在任何移动之前，热床和喷嘴同时加热，使打印件重新附着，喷嘴脱离打印件。"
   The bed check found the plate dirty or occupied.: '热床检查发现打印板脏污或有异物。'
   The bed did not heat at the expected rate.: '热床未按预期速度升温。'
@@ -4525,11 +4634,13 @@ translations:
   The bed is too small for settling laps.: '打印床太小，无法进行稳定绕圈。'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: '热床加热器。在热床温度界面设置温度并查看曲线。'
   The bed is too small for the test tower, or its size is unknown.: 热床太小放不下测试塔,或尺寸未知。
+  The bed mesh profile '{1}' was never saved on this printer.: ''
   The bed temperature asked for is outside the allowed range.: '请求的热床温度超出允许范围。'
   'The bed temperature reading is out of range: its sensor is loose or damaged.': '热床温度读数超出范围：其传感器松动或损坏。'
   The bed turns off. The spools stay latched on the bed until you confirm they are off.: 热床将关闭。在你确认取下之前,料盘仍视为在热床上。
 
   The bed was reported dirty, so this print cannot resume.: '热床被报告为脏污，因此无法恢复此次打印。'
+  The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: ''
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: 缓冲器可能未连接、卡住或损坏。请检查后重试
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: 缓冲器已 16 秒未检测到运动。请检查 CFS 与挤出机之间是否堵塞，或缓冲器是否卡住
   The build plate should be on the bed but reads as removed.: '打印板应在热床上，却显示为已取下。'
@@ -4551,9 +4662,17 @@ translations:
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
   'The change was not applied: the current settings could not be saved for a revert.': '未应用更改：无法保存当前设置以便还原。'
   The connection to Klipper was lost: '与 Klipper 的连接已断开'
+  ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
+  : ''
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准
+  The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: ''
+  The driver for {1} reported an error, and the firmware stopped the printer.: ''
+  'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': ''
+  ? 'The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose.'
+  : ''
+  The emergency stop was pressed on a screen or in a web interface, and the printer shut down.: ''
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : 未找到确切的停止点。打印将从下一层开头恢复，并跳过本层剩余部分。
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: 挤出机无法顺畅拉动。请检查料盘是否缠绕或打结，以及 PTFE 管是否严重弯折
@@ -4583,6 +4702,10 @@ translations:
   The file uses inches (G20).: '文件使用英寸单位（G20）。'
   The file was sliced for a different nozzle size than one the print uses.: '文件切片时的喷嘴尺寸与打印所用的不同。'
   The file was sliced for a different nozzle type than the one installed.: '文件切片时的喷嘴类型与已安装的不同。'
+  ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
+  : ''
+  ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
+  : ''
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "差距没有缩小(移动了 {:.1f} Hz)。请转得更多一些。"
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "放松 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "拉紧 {0} 后差距变大了。请确认转动的是 {0} 的张紧器。"
@@ -4601,6 +4724,8 @@ translations:
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: '热床和机箱可以烘干放在热床上的料盘。在热床烘干对话框中启动周期。'
   The heater can't be changed while the printer is waiting.: '打印机等待期间无法更改加热器。'
   The heater did not accept the printer's credentials.: '加热器不接受打印机的凭据。'
+  ? The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it.
+  : ''
   The heater didn't accept the command.: '加热器未接受该命令。'
   The heater hasn't answered yet. Still trying.: '加热器尚未响应，正在继续尝试。'
   The heater is inhibited.: '加热器已被禁止。'
@@ -4610,6 +4735,10 @@ translations:
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
+  ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
+  : ''
+  ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
+  : ''
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最后一次打印件可能仍在热床上。请在工具头移动前将其取下，然后点按“已清空”。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修
@@ -4618,6 +4747,8 @@ translations:
   The loaded slot is not known yet: "已加载的槽位尚未报告"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。
+  ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
+  : ''
   The measured offset between toolheads is outside the allowed range.: '测得的工具头间偏移超出允许范围。'
   The message your printer's macros show (M117): '打印机宏显示的消息 (M117)'
   ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
@@ -4724,6 +4855,7 @@ translations:
   The printer moved the print to {}, not {}.: '打印机将打印转移到了 {}，而不是 {}。'
   The printer may need a reboot afterwards.: '之后打印机可能需要重启。'
   The printer moves the toolhead and measures its motors.: '打印机将移动打印头并测量电机。'
+  The printer needs homing first: ''
   The printer no longer has a print to resume.: 打印机已没有可恢复的打印。
   The printer reads the file up to the last saved position. A large file can take a minute.: 打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。
   The printer records lane {} in the toolhead, not this one: '打印机记录的工具头里是耗材通道{}，不是这个'
@@ -4743,6 +4875,7 @@ translations:
   The printer stops and cannot print until the update is done.: '更新完成之前打印机会停止，无法打印。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: '打印机在多个工具头之间切换。在耗材系统界面管理工具。'
   The printer was stopped: '打印机已停止'
+  The printer's computer fell behind: ''
   The printer's firmware chooses where to switch on runout: 耗材用尽时切换到哪里由打印机固件自行选择
   The requested position is outside the printer's bounds: '请求的位置超出打印机范围'
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
@@ -4791,6 +4924,9 @@ translations:
   'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新已停止报告进度。结果未知：使用前请检查打印机。'
   The update's result is unknown: '更新结果未知'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: '视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。'
+  ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
+  : ''
+  The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: ''
   Theme: 主题
   Theme Colors: 主题颜色
   Theme Preset: 主题预设
@@ -4810,6 +4946,8 @@ translations:
   This .3mf has no sliced plate to print.: '此 .3mf 中没有可打印的已切片板。'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: '此 .3mf 需要先转换为 G-code 才能加入队列。请直接从这里打印。'
   'The probe never touched the plate: the PEI plate is not placed correctly.': '探针始终未接触到打印板：PEI 板未正确放置。'
+  ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
+  : ''
   The probe was already triggered before the move started.: '移动开始前探针已处于触发状态。'
   The printer's status isn't known yet, so a print may be running.: '打印机状态尚未确定，可能正在打印。'
   The queue prints this .3mf's default plate. Print this plate from here instead.: '队列会打印此 .3mf 的默认板。请直接从这里打印此板。'
@@ -4993,6 +5131,7 @@ translations:
   Toggle toolhead LED for an extruder: '切换某个挤出机的工具头 LED'
   'Toggle:': '切换:'
   Too humid: 湿度过高
+  Too much filament for one move: ''
   Tool: 工具
   Tool Change Failed: '工具切换失败'
   Tool Changer: 换刀器
@@ -5123,6 +5262,7 @@ translations:
   Unknown Event: 未知事件
   Unknown Spool: 未知料盘
   Unknown Step: 未知步骤
+  Unknown configuration section: ''
   Unknown error: 未知错误
   Unload: 卸载
   Unload Distance: '卸载距离'
@@ -5320,6 +5460,7 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : '当切片软件上传并启动的文件超出此打印机的行程、加热超过其上限或使用不存在的工具时，保留文件但不开始打印。'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: 启用时仅运行宏。禁用时先设置温度，然后运行宏。
+  When it is safe, restart the firmware.: ''
   Where UI sounds play: 界面声音的播放位置
   Whether filament is loaded: 耗材是否已装载
   Which macro switches the ACE path back on: '重新开启ACE通路的宏'
@@ -5363,6 +5504,8 @@ translations:
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
   With exhaust cooling on, the recirculation fan cannot be turned on: '外循环冷却时无法开启循环风扇'
   With internal circulation on, the exhaust fan cannot be turned on: '内循环时无法开启排气风扇'
+  ? With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again.
+  : ''
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "在 {1:.0f} Hz 处相差 {0:.1f} Hz 以内"
   Wipe the Z screws and guides clean.: "擦净 Z 丝杆和导向件。"
   Wipe the mounted nozzle on the brush: '在刷子上擦拭当前喷嘴'
@@ -5610,6 +5753,8 @@ translations:
   : "{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（减少 {4}%）'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）'
+  '{1} never triggered': ''
+  '{1} temperature reading is out of range': ''
   '{:.0f} g left': 剩余 {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
   '{:.2f} mm range': '范围 {:.2f} mm'
@@ -5759,6 +5904,7 @@ translations:
   'Save the Z-offset after the print: saving restarts Klipper.': "请在打印结束后保存 Z 偏移：保存会重启 Klipper。"
   'Save the changes to this spool?': '保存此料盘的更改？'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': '与关联的 Spoolman 料盘不匹配。在 Spoolman 中更新，还是取消关联并保留在此料位？'
+  Unknown setting in the configuration: ''
   'Unlink': '取消关联'
   'Unlink, keep on this slot': '取消关联，保留在此料位'
   'Unsaved changes': '未保存的更改'

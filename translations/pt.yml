@@ -59,6 +59,7 @@ translations:
   "Both belts": "Ambas as correias"
   "Cutter Calibration": "Calibração do cortador"
   "Find the filament cutter's position": "Localiza a posição do cortador de filamento"
+  Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: ''
   "Let the printer's tensioners set the belts": "Deixe os tensores da impressora ajustarem as correias"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "A impressora faz home de X e Y se necessário e depois leva o cabeçote contra o cortador para localizar sua posição. Descarregue o filamento antes."
@@ -186,6 +187,7 @@ translations:
   A command is missing a value, or a value is out of its allowed range.: 'Falta um valor em um comando, ou um valor está fora da faixa permitida.'
   A controller board did not answer: 'Uma placa controladora não respondeu'
   A controller board fell behind: 'Uma placa controladora ficou atrasada'
+  A controller board missed a timed update: ''
   A controller board runs firmware that does not match the printer software.: 'Uma placa controladora roda um firmware incompatível com o software da impressora.'
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Uma impressora delta não consegue fazer home de X e Y sem mover Z, então uma impressão não pode ser retomada."
   A different toolhead than the one asked for is on the carriage.: 'Há no carro um cabeçote diferente do solicitado.'
@@ -198,6 +200,8 @@ translations:
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : "Uma mesa aquecida se dilata com a temperatura, então cada material pode ter seu próprio offset de primeira camada. A macro de início o aplica, e Salvar durante uma impressão muda só o material dessa impressão."
   A heater did not warm up at the expected rate.: 'Um aquecedor não aqueceu no ritmo esperado.'
+  ? A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled.
+  : ''
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Um aquecedor que esquenta o ar dentro da câmara. Defina a temperatura na tela de temperatura da câmara.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Um mapa de alturas da mesa que o Klipper usa para compensar uma superfície irregular. Veja e calibre na tela Malha da Mesa.'
   A home-origin calibration point failed or stayed unstable.: 'Um ponto da calibração da origem de home falhou ou ficou instável.'
@@ -211,8 +215,13 @@ translations:
   A motor driver reported a fault such as overheating or a short.: 'Um driver de motor relatou uma falha, como superaquecimento ou curto-circuito.'
   A motor's parameters couldn't be written. Power-cycle the printer to retry: Não foi possível gravar os parâmetros de um motor. Desligue e ligue a impressora para tentar novamente
   A move command has an invalid speed or cannot be read.: 'Um comando de movimento tem velocidade inválida ou não pode ser lido.'
+  A move to X {1}, Y {2}, Z {3} is outside the printer's travel.: ''
   A move was sent before that axis was homed.: 'Um movimento foi enviado antes do home desse eixo.'
+  A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle.: ''
+  A move went outside the printer's travel.: ''
   A move went past the printer's travel limits.: 'Um movimento ultrapassou os limites de curso da impressora.'
+  ? A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion.
+  : ''
   "A new Print Status screen": "Uma nova tela de Status da Impressão"
   A newer version of the helper macros is available: 'Uma versão mais recente das macros de ajuda está disponível'
   A picture of your printer: Uma imagem da sua impressora
@@ -229,6 +238,7 @@ translations:
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: "Uma impressão começou com carretéis marcados como na mesa. Se ainda estiverem lá, pare a impressora agora com a Parada de Emergência."
   A print started, so the calibration did not start.: "Uma impressão foi iniciada, por isso a calibração não foi iniciada."
   A print took the printer.: "Uma impressão assumiu a impressora."
+  A required setting is missing: ''
   A restart is already in progress: Já há uma reinicialização em andamento
   A right, B left: "A direita, B esquerda"
   A saturated filter stops trapping fumes and particles.: "Um filtro saturado deixa de reter fumos e partículas."
@@ -242,7 +252,11 @@ translations:
   A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "O preço próprio de um carretel no Spoolman é usado quando ele tem um. Estes preços valem para qualquer outro carretel."
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : 'Um sistema que alimenta vários filamentos ao cabeçote, mostrado com o número de slots. Gerencie os slots na tela do sistema de filamento.'
+  ? A target of {1} °C was asked for, outside this heater's allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it.
+  : ''
   A temperature reading went outside its valid range.: 'Uma leitura de temperatura saiu da faixa válida.'
+  ? A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe.
+  : ''
   A temperature was set for a toolhead number that does not exist.: 'Foi definida uma temperatura para um número de cabeçote que não existe.'
   A toolhead is in an unknown position, so the change did not start.: 'Um cabeçote está em posição desconhecida, por isso a troca não começou.'
   A toolhead is neither in its dock nor on the carriage.: 'Um cabeçote não está nem na doca nem no carro.'
@@ -295,6 +309,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): Limite de aceleração para desaceleração (mm/s²)
   Accelerometer: Acelerômetro
   Accelerometer communication failed. Try again.: Falha na comunicação com o acelerômetro. Tente novamente.
+  Accelerometer not connected: ''
   Accelerometer not responding: 'Acelerômetro não responde'
   Accelerometers: Acelerômetros
   Accept: Aceitar
@@ -312,6 +327,7 @@ translations:
   Actual: Atual
   Adaptive Bed Mesh: Malha da Mesa Adaptativa
   Add: Adicionar
+  Add '{1}' under [{2}] in the printer's configuration, then restart Klipper.: ''
   Add Filament: Adicionar Filamento
   Add Hidden Network: Adicionar Rede Oculta
   Add Part Fan to MPC: 'Adicionar ventoinha da peça ao MPC'
@@ -346,6 +362,8 @@ translations:
   Advancing: Avançando
   After: 'Depois'
   After an error: Após um erro
+  ? 'After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short.'
+  : ''
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Depois de ligar {}, recomendamos recalibrar o Input Shaping para garantir a qualidade de impressão.'
   After parking, the head does not read as docked.: 'Após estacionar, o cabeçote não aparece na doca.'
   After running the commands, tap Check Again below.: Após executar os comandos, toque em Verificar Novamente abaixo.
@@ -382,6 +400,7 @@ translations:
   AmsIdentify: Identificar AMS
   An earlier install is still finishing...: 'Uma instalação anterior ainda está terminando...'
   An API key is 32 characters, each 0-9 or a-f.: 'Uma chave de API tem 32 caracteres, cada um 0-9 ou a-f.'
+  An M112 emergency stop from the console, a macro or the slicer shut the printer down.: ''
   An accelerometer was detected on your printer.: Um acelerômetro foi detectado na sua impressora.
   An app on your network is asking to connect to this printer.: 'Um aplicativo na sua rede quer conectar-se a esta impressora.'
   An earlier IPv4 change is still being undone. Try again shortly.: 'Uma alteração IPv4 anterior ainda está sendo desfeita. Tente novamente em instantes.'
@@ -492,6 +511,7 @@ translations:
   'BLE write failed at packet {}: {}': 'Falha na escrita BLE no pacote {}: {}'
   'BLE write failed: {}': 'Falha na escrita BLE: {}'
   BLTouch Controls: Controles BLTouch
+  BLTouch did not respond: ''
   BLUETOOTH PRINTERS: IMPRESSORAS BLUETOOTH
   BLUETOOTH SCANNERS: LEITORES BLUETOOTH
   Back: Voltar
@@ -538,6 +558,7 @@ translations:
   Bed mesh: Malha da mesa
   'Bed mesh calibration failed: {}': 'Falha na calibração da malha da mesa: {}'
   Bed mesh operation timed out: Malha da mesa — tempo esgotado
+  Bed mesh profile not found: ''
   Bed mesh...: Malha da mesa...
   Bed screws: 'Parafusos da mesa'
   Bed needs manual leveling: 'A mesa precisa de nivelamento manual'
@@ -579,7 +600,9 @@ translations:
   Bluetooth not initialized: Bluetooth não inicializado
   Bluetooth printer forgotten: Impressora Bluetooth esquecida
   Bluetooth scanner forgotten: Leitor Bluetooth esquecido
+  Board '{1}' restarted on its own: ''
   Board firmware does not match: 'Firmware da placa incompatível'
+  Board firmware needs updating: ''
   Body text supports longer guidance while staying readable.: O texto do corpo suporta orientações mais longas mantendo a legibilidade.
   Bold: Negrito
   Border Opacity: Opacidade da Borda
@@ -616,6 +639,7 @@ translations:
   Buffer-driven gear speed control: "Velocidade da engrenagem controlada pelo buffer"
   Build Volume: 'Volume de impressão'
   'Build Volume: ': 'Volume de Impressão: '
+  Build and flash the firmware for each board listed, then restart the firmware.: ''
   Build plate missing: 'Placa ausente'
   Build plate not seated: 'Placa mal assentada'
   'Building preview: %d%%': 'Gerando visualização: %d%%'
@@ -729,6 +753,8 @@ translations:
   Can't move filament while the print is paused: Não é possível mover o filamento com a impressão pausada
   Can't read filament RFID tag: Não é possível ler a etiqueta RFID do filamento
   Can't reach this printer. Save anyway?: Não foi possível alcançar esta impressora. Salvar mesmo assim?
+  "Can't save: the value is set in another file": ''
+  Can't talk to stepper driver {1}: ''
   Cancel: Cancelar
   Cancel Escalation: Cancelar Escalação
   Cancel Print: Cancelar Impressão
@@ -824,33 +850,52 @@ translations:
   Check slot failed: Falha ao verificar slot
   Check Slots: Verificar
   Check slots failed: Falha ao verificar slots
+  Check that motor power is on and its connectors are tight, then restart the firmware.: ''
   Check that nothing blocks the toolhead or the head's dock, then load the head again.: 'Verifique se nada bloqueia o cabeçote ou a doca dele e carregue o cabeçote novamente.'
   ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
   : 'Verifique se nada bloqueia o cabeçote e descarregue-o novamente. Se o filamento estiver preso, aqueça o bico e puxe-o manualmente.'
   Check that only one filament path is active: Verifique se apenas um caminho de filamento está ativo
+  Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY.: ''
   Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.: 'Verifique se a placa está no lugar e nada bloqueia o eixo, limpe a ponta do bico e faça home novamente.'
   Check that the camera's live view works, or turn off timelapse for this print, then resume.: 'Verifique se a visualização ao vivo da câmera funciona, ou desligue o timelapse nesta impressão, e retome.'
   Check that the cutter mechanism is properly installed: Verifique se o mecanismo de corte está instalado corretamente
+  ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
+  : ''
   Check that the printer is powered on and connected to the network: Verifique se a impressora está ligada e conectada à rede
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Verifique se o tubo PTFE ao longo da esteira está dobrado, e a curva na entrada do sensor do extrusor
   Check the RS-485 cable between printer and CFS: Verifique o cabo RS-485 entre a impressora e o CFS
+  ? Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
+  : ''
+  Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY.: ''
   Check the bed temperature in the slicer's profile.: 'Verifique a temperatura da mesa no perfil do fatiador.'
   Check the belts and rails for debris or looseness, then home again.: 'Verifique se há sujeira ou folga nas correias e trilhos e faça home novamente.'
+  ? Check the board's power and cable, and the serial or canbus_uuid setting in the printer's configuration, then restart the firmware.
+  : ''
+  Check the board's power supply and look for damaged or shorted wiring, then restart the firmware.: ''
   Check the buffer unit on the back of the printer: Verifique a unidade de buffer na parte de trás da impressora
+  ? Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware.
+  : ''
   Check the chips, then save: Confira as etiquetas e salve
   Check the dock for debris or a bent latch, guide the head into its dock, then home and resume.: 'Verifique se há sujeira ou trava torta na doca, guie o cabeçote até a doca, faça home e retome.'
   Check the fan for obstructions and its cable, then resume.: 'Verifique se o ventilador está obstruído e seu cabo, e retome.'
   Check the filament path and try again.: Verifique o caminho do filamento e tente novamente.
+  ? Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware.
+  : ''
+  Check the motor cable, the driver's cooling and the motor power, then restart the firmware.: ''
   Check the nozzle temperature in the slicer's filament profile.: 'Verifique a temperatura do bico no perfil de filamento do fatiador.'
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : Verifique o percurso do slot até o hub quanto a emaranhados ou atrito. Se o slot alimenta livremente, o sensor do hub ou o motor de alimentação podem ter falhado
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: 'Verifique o cabo de energia e a tomada. Quando a energia voltar, retome a impressão se a impressora oferecer.'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: 'Verifique a impressão. Retome só se estiver boa; caso contrário, cancele e limpe a placa.'
   Check the provided value and try again: Verifique o valor fornecido e tente novamente
+  ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
+  : ''
   Check the spool and the filament path for a jam, then retry: Verifique o carretel e o caminho do filamento quanto a obstruções e tente novamente
   Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: 'Verifique se o carretel está embaraçado e se o tubo de alimentação está dobrado ou com conexão solta, e carregue o cabeçote novamente.'
   Check the spool for a tangle or a stuck spool, clear the filament path, then resume.: 'Verifique se o carretel está embaraçado ou travado, desobstrua o caminho do filamento e retome.'
   Check the spool, the feeder and the feed tube to this head, then load the head again.: 'Verifique o carretel, o alimentador e o tubo de alimentação deste cabeçote, e carregue-o novamente.'
+  ? Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver's stall threshold.
+  : ''
   Check the tension of the motion belts: "Verificar a tensão das correias de movimento"
   ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
   : 'Verifique se há filamento preso no alimentador deste cabeçote e carregue-o novamente. Reinicie a impressora se o motor ainda não girar.'
@@ -907,6 +952,7 @@ translations:
   Clean the nozzle and the plate, check nothing touches the nozzle, then retry.: 'Limpe o bico e a placa, verifique se nada toca o bico e tente novamente.'
   Clean the nozzle tip and the build plate, then run the calibration again.: 'Limpe a ponta do bico e a placa e execute a calibração novamente.'
   Clean the nozzle, then resume.: 'Limpe o bico e retome.'
+  Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries).: ''
   Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.: 'Limpe os pinos pogo do cabeçote e do carro, encaixe o cabeçote novamente e tente outra vez.'
   Clean up: 'Limpar'
   Clean {}: Limpar {}
@@ -1084,6 +1130,7 @@ translations:
   Controllable Fans: Ventiladores controláveis
   Controlled by hardware sensor: Controlado por sensor de hardware
   Controller: Controlador
+  Controller board '{1}' not found: ''
   Controls: Controles
   Cool: Frio
   Cool Down: Resfriar
@@ -1125,6 +1172,8 @@ translations:
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "O básico: o assistente de configuração, a navegação entre telas e os gestos de toque."
   Load all stopped: Carregamento de todos interrompido
   "Load and unload": "Carregar e descarregar"
+  ? Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion.
+  : ''
   Load stopped: Carregamento interrompido
   "Load, unload, purge, and extrude filament": "Carregar, descarregar, purgar e extrudar filamento"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Carregue, descarregue e purgue aqui. Escolha primeiro um material para definir suas temperaturas."
@@ -1430,6 +1479,8 @@ translations:
   EMPTY: VAZIO
   ETA {}: 'Término {}'
   EXTRAS: EXTRAS
+  ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
+  : ''
   Each fan can only be selected once: Cada ventoinha só pode ser selecionada uma vez
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Cada cabeçote tem seu próprio Z-offset nesta impressora. Use a calibração de offset de ferramenta.'
   Edit: Editar
@@ -1460,6 +1511,7 @@ translations:
   Emergency stop activated: Parada de emergência ativada
   'Emergency stop failed: not connected': 'Parada de emergência falhou: não conectado'
   'Emergency stop failed: {}': 'Falha na parada de emergência: {}'
+  Emergency stop pressed: ''
   Empty: Vazio
   Empty slots disable the associated functionality: Slots vazios desabilitam a funcionalidade associada
   Enable: Habilitar
@@ -1503,6 +1555,7 @@ translations:
   Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout: O carretel infinito está ligado, mas nenhum par de slots tem filamento compatível, então nada trocará ao acabar o filamento
   Endless Spool is turned off on this MMU: 'O carretel infinito está desativado neste MMU'
   Endless Spool state unknown: Estado do carretel infinito desconhecido
+  Endstop {1} is stuck triggered: ''
   Ensure Happy Hare or AFC is installed and configured: Certifique-se de que o Happy Hare ou o AFC esteja instalado e configurado
   Enter API Key: 'Digite a chave de API'
   Enter Current PIN: Digite o PIN Atual
@@ -1527,6 +1580,7 @@ translations:
   Entry to Extruder: 'Entrada ao extrusor'
   Error: Erro
   Error at chunk {} (code={}): Erro no fragmento {} (code={})
+  Error in macro {1}: ''
   Error loading file: Erro ao carregar arquivo
   'Error saving printer settings: {}': 'Erro ao salvar configurações da impressora: {}'
   Error state: Estado de erro
@@ -1800,6 +1854,7 @@ translations:
   Filament buffer position against its target: 'Posição do buffer de filamento em relação ao alvo'
   Filament buffer stopped moving: O buffer de filamento parou de se mover
   Filament by Type: Filamento por Tipo
+  Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it.: ''
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : Não é possível carregar filamento abaixo da temperatura mínima de extrusão. Defina uma temperatura-alvo do hotend (p. ex. 220 °C para PLA, 240 °C para PETG), aguarde atingi-la e tente novamente
   Filament controls are unavailable while printing.: Os controles de filamento estão indisponíveis durante a impressão.
@@ -1827,6 +1882,7 @@ translations:
   Filament is still present after the cut — the blade may be dull or misaligned: Ainda há filamento após o corte. A lâmina pode estar cega ou desalinhada
   Filament jam detected: Entupimento de filamento detectado
   Filament jammed at the extruder gear: Filamento preso na engrenagem do extrusor
+  Filament move too long: ''
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'O filamento deve estar carregado no extrusor e a placa montada, sem nada no caminho do cabeçote.'
   Filament never reached the CFS hub sensor: O filamento nunca chegou ao sensor do hub do CFS
   Filament not identified: 'Filamento não identificado'
@@ -1893,6 +1949,7 @@ translations:
   Fit the heater model with the part fan off: Ajustar o modelo do aquecedor com a ventoinha da peça desligada
   Fit the induction heater's safety model: Ajustar o modelo de segurança do aquecedor por indução
   Fix the reason shown for the shutdown, then restart the firmware.: 'Corrija o motivo exibido para o desligamento e reinicie o firmware.'
+  Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': 'Correção: chmod 644 {}, depois reinicie'
   'Fix: chown {} {}, then restart': 'Correção: chown {} {}, depois reinicie'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
@@ -1954,6 +2011,7 @@ translations:
   GCode Console: 'Console G-code'
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Fim de jogo!\nPontuação: {}\nToque para reiniciar"
+  Gantry leveling failed: ''
   Gate: Gate
   Gates: Gates
   Gateway: 'Gateway'
@@ -2026,6 +2084,7 @@ translations:
   Heat the extruder to at least {} before loading filament: Aqueça o extrusor a pelo menos {} antes de carregar filamento
   Heat the head to the filament's temperature and check that it heats at all.: 'Aqueça o cabeçote na temperatura do filamento e verifique se ele aquece.'
   Heat the hotend.: "Aqueça o hotend."
+  Heat the nozzle to the filament's printing temperature, wait for it to get there, then try again.: ''
   Heat to at least %s for filament operations: Aqueça até pelo menos %s para operações de filamento
   Heat {} above {} before resuming: Aqueça {} acima de {} antes de retomar
   Heatbed Temperature: Temperatura da Mesa Aquecida
@@ -2041,6 +2100,7 @@ translations:
   Heater offline: Aquecedor desconectado
   Heater over-temperature: Sobretemperatura do aquecedor
   Heater sensor fault: Falha no sensor do aquecedor
+  Heater {1} is not heating as expected: ''
   HeaterSelect: Selecionar Aquecedor
   Heaters: 'Aquecedores'
   Heaters off: Aquecedores desligados
@@ -2261,6 +2321,7 @@ translations:
   Install plugin: Instalar plugin
   Install script not found. Use the remote install command instead.: Script de instalação não encontrado. Use o comando de instalação remota.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Instale o plugin HelixPrint para habilitar modificações rápidas de G-code. Execute este comando via SSH na sua impressora:'
+  Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Instale o plugin de timelapse via SSH,\ndepois toque em \"Verificar novamente\"."
   Install timelapse plugin: Instalar plugin de timelapse
@@ -2369,8 +2430,13 @@ translations:
   Klipper Config Error: "Erro de configuração do Klipper"
   Klipper Error: Erro do Klipper
   Klipper already reports the ACE slots.: "O Klipper já informa os slots do ACE."
+  ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
+  : ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "O Klipper não conseguiu carregar sua configuração. Corrija a configuração indicada abaixo nos arquivos de configuração da impressora e reinicie o Klipper."
   Klipper disconnected: Klipper desconectado
+  'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
+  ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
+  : ''
   Klipper failed to start with the skip macros, so they were removed: 'O Klipper não iniciou com as macros de salto, por isso foram removidas'
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: 'O Klipper não iniciou. Remova o include de helix_skips.cfg do printer.cfg.'
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: O firmware Klipper desconectou do host. Tente reiniciar o Klipper ou realizar um firmware restart.
@@ -2384,6 +2450,8 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'O Klipper não carregou as macros de timelapse, então nenhum quadro é capturado. Adicione esta linha ao printer.cfg e reinicie o Klipper:'
   Klipper is halted — restart firmware to continue: O Klipper está parado — reinicie o firmware para continuar
   Klipper is restarting. Timelapse frames are captured from the next print.: 'O Klipper está reiniciando. Os quadros do timelapse são capturados a partir da próxima impressão.'
+  ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
+  : ''
   Klipper or Moonraker may restart while it updates.: 'O Klipper ou o Moonraker podem reiniciar durante a atualização.'
   Klipper ready: Klipper pronto
   Klipper reserves 'default' for new calibrations. Choose another name.: "O Klipper reserva 'default' para novas calibrações. Escolha outro nome."
@@ -2462,6 +2530,7 @@ translations:
   Level: Nível
   Level the bed with the manual leveling procedure.: 'Nivele a mesa com o procedimento de nivelamento manual.'
   Leveling Gantry...: Nivelando pórtico...
+  Leveling made things worse: ''
   Library: Biblioteca
   Lifting the nozzle clear of the print: Afastando o bico da impressão
   Light: Claro
@@ -2546,6 +2615,7 @@ translations:
   Looking for the active spool...: Procurando o carretel ativo...
   Lost connection during print — try again: Conexão perdida durante a impressão — tente novamente
   Lost connection to CFS unit: Conexão perdida com a unidade CFS
+  Lost connection to board '{1}': ''
   Lost contact with a controller board: 'Contato perdido com uma placa controladora'
   Lost contact with the printer. The update may still be running.: 'Conexão com a impressora perdida. A atualização pode ainda estar em andamento.'
   Lost the connection to the printer.: A conexão com a impressora foi perdida.
@@ -2556,7 +2626,9 @@ translations:
   Lower: Descer
   Lower belt: "Correia inferior"
   Lower fan speed?: 'Reduzir a velocidade da ventoinha?'
+  Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: ''
   Lower the nozzle until it just touches the top of the print, then resume.: Desça o bico até que toque levemente o topo da impressão e depois retome.
+  Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: ''
   Lowest notification level that interrupts with a toast: 'Nível de notificação mais baixo que interrompe com um aviso flutuante'
   M to toggle: M para alternar
   'MAC:': 'MAC:'
@@ -2609,10 +2681,14 @@ translations:
   Make a smaller adjustment.: 'Faça um ajuste menor.'
   Make color, material and spool changes in Spoolman.: "Altere cor, material e carretel no Spoolman."
   Make sure every nozzle is clean.: Certifique-se de que todos os bicos estejam limpos.
+  ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
+  : ''
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Verifique se não há filamento carregado no cabeçote: ele pode amolecer na extrusora enquanto a mesa aquece.'
 
   Make sure one toolhead is on the carriage and the rest are docked, then home.: 'Confirme que um cabeçote está no carro e os demais na doca, e faça home.'
   Make sure the printer is safe, then restart the firmware.: 'Confirme que a impressora está segura e reinicie o firmware.'
+  ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
+  : ''
   MakeID (Bluetooth): MakeID (Bluetooth)
   ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   : 'Faz o Spoolman descontar do carretel de cada ferramenta ou lane, em impressoras que não o trocam sozinhas, e registra por impressão quanto cada carretel usou.'
@@ -2737,6 +2813,7 @@ translations:
   'Motors disable failed: {}': 'Falha ao desativar motores: {}'
   Motors disabled: Motores desativados
   Motors stay on while a print is active: Os motores permanecem ativos durante uma impressão
+  Motors were asked to step too fast: ''
   'Mounted: {}': 'Montada: {}'
   Move: Mover
   Move before homing: 'Movimento antes do homing'
@@ -2745,8 +2822,11 @@ translations:
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Mova o papel para frente e para trás enquanto ajusta. Pare quando o papel prender levemente, mas ainda deslizar.
   Move selector: Mover seletor
   Move speed multipliers: 'Multiplicadores de velocidade de movimento'
+  ? Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch.
+  : ''
   Move the toolhead end to end by hand to spread it.: "Mova o cabeçote à mão de ponta a ponta para espalhar."
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': 'Mova o cabeçote, referencie eixos, nivele a mesa e ajuste temperaturas, ventoinhas e outras configurações de movimento.'
+  Move would go past the printer's limits: ''
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
   : Move o cabeçote para medir frequências de vibração em cada eixo. Leva 2-3 minutos. A impressora fará barulho — isso é normal.
   Moves to {} {:g} mm, below this printer's {:g} mm.: 'Move para {} {:g} mm, abaixo dos {:g} mm desta impressora.'
@@ -3034,6 +3114,7 @@ translations:
   Nozzle size and flow type per head: "Tamanho e tipo de fluxo do bico por cabeçote"
   Nozzle target set to {}: Bico configurado para {}
   Nozzle temp must be %d-%s: A temperatura do bico deve ser %d-%s
+  Nozzle too cold to extrude: ''
   Nozzle, bed, and chamber in one widget: Bico, mesa e câmara em um widget
   'Nozzle:': 'Bico:'
   'Nozzles still heating: {}': 'Bicos ainda aquecendo: {}'
@@ -3075,6 +3156,7 @@ translations:
   'On:': 'Ligado:'
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : 'Uma vez por dia, exclui cópias de impressão com mais de uma semana e registros com mais de um mês. Seus arquivos, fotos e vídeos de timelapse são mantidos.'
+  One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance).: ''
   One save for everything. Klipper may restart.: 'Um único salvamento para tudo. O Klipper pode reiniciar.'
   One tap runs this macro. Dangerous macros still ask.: 'Um toque executa esta macro. Macros perigosas ainda pedem confirmação.'
   One-time setup: "Configuração inicial"
@@ -3175,6 +3257,7 @@ translations:
   Part, hotend, and auxiliary fan speeds: 'Velocidades das ventoinhas de peça, hotend e auxiliar'
   Partial…: Parcial…
   Pass: "Passagem"
+  Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: ''
   Password: Senha
   Password cannot be empty: A senha não pode estar vazia
   Password is required for secured networks: Senha é necessária para redes protegidas
@@ -3273,6 +3356,8 @@ translations:
   Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.: 'Desligue, encaixe o cabeçote novamente e verifique o conector. Se acontecer de novo, o sensor do hotend precisa ser substituído.'
   Power the printer off and on, and check the toolhead cables and their connectors.: 'Desligue e ligue a impressora e verifique os cabos dos cabeçotes e seus conectores.'
   Power the printer off and on. Check that every toolhead is seated and its cable is connected.: 'Desligue e ligue a impressora. Verifique se todos os cabeçotes estão encaixados e com o cabo conectado.'
+  ? Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware.
+  : ''
   Power was lost: 'A energia caiu'
   Power was lost about {} hours ago.: A energia caiu há cerca de {} horas.
   Power was lost about {} minutes ago.: A energia caiu há cerca de {} minutos.
@@ -3461,8 +3546,10 @@ translations:
   Probe Management: Gerenciamento de Sonda
   Probe Sensors: Sensores de sonda
   Probe Speed: Velocidade da Sonda
+  Probe already triggered: ''
   Probe controls, accuracy test, and settings: Controles de sonda, teste de precisão e configurações
   Probe readings disagree: 'Leituras da sonda divergentes'
+  Probe readings don't agree: ''
   Probe triggered too early: 'Sonda acionada cedo demais'
   Probing Bed Mesh: Sondando Malha da Mesa
   Probing Bed Mesh...: Sondando Malha da Mesa...
@@ -3559,6 +3646,8 @@ translations:
   'RSS:': 'RSS:'
   Rails: 'Trilhos'
   Raise: Subir
+  ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
+  : ''
   Raise and lower the bed or gantry through its travel.: "Suba e desça a mesa ou o pórtico em todo o curso."
   Ramming Volume: 'Volume de compactação'
   'Ramp: band {} of {}': 'Rampa: faixa {} de {}'
@@ -3623,6 +3712,8 @@ translations:
   'Recovery failed: {}': 'A recuperação falhou: {}'
   Reduce Sensitivity: Reduzir Sensibilidade
   Reduce ringing and ghosting artifacts: Reduzir artefatos de ringing e ghosting
+  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Reduce vibration artifacts like ringing and ghosting: Reduzir artefatos de vibração como ringing e ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Reduzir a velocidade da ventoinha pode afetar a filtragem. Quer continuar?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Reduzir a velocidade da ventoinha pode afetar a qualidade de impressão. Quer continuar?'
@@ -3653,6 +3744,7 @@ translations:
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: Remove as linhas include do HelixScreen do printer.cfg; uma retomada usará então o perfil de malha padrão da impressora
   Remove PIN: Remover PIN
   Remove Spoolman?: Remover Spoolman?
+  Remove or comment out '{2}' under [{1}] in the included file, then save again.: ''
   Remove plugin from printer: Remover plugin da impressora
   Remove the PEI Sheet: Retirar a folha PEI
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Remova a folha PEI da mesa e comece de novo: sondar através da folha dá resultados errados'
@@ -3679,6 +3771,8 @@ translations:
   Rendering timelapse...: Renderizando timelapse...
   Repeat: "Repetir"
   Repeated probe readings differed more than allowed.: 'Leituras repetidas da sonda variaram mais que o permitido.'
+  ? 'Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast.'
+  : ''
   Replace: "Substituir"
   Replace Profile?: "Substituir Perfil?"
   Replace a worn nozzle or hotend: "Trocar bico ou hotend gasto"
@@ -3830,11 +3924,14 @@ translations:
   Rounded: Arredondado
   Run: Executar
   Run Again: 'Executar novamente'
+  ? Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False.
+  : ''
   Run Calibration Wizard: 'Executar o assistente de calibração'
   Run Dangerous Macro?: Executar Macro Perigosa?
   Run Macro: Executar macro
   Run Macro?: Executar Macro?
   Run a Klipper macro when preheating this material: Executar uma macro Klipper ao pré-aquecer este material
+  Run a bed mesh calibration and save it, or fix the profile name in the start G-code.: ''
   Run a cold pull or replace the nozzle: Faça uma extração a frio ou substitua o bico
   Run a macro you choose, in one tap: Executar uma macro escolhida em um toque
   Run brush cleaning sequence: 'Executar a sequência de limpeza com escova'
@@ -3861,6 +3958,7 @@ translations:
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falhou: {}. Os offsets de ferramenta foram aplicados mas não salvos. Execute SAVE_CONFIG manualmente ou serão perdidos ao reiniciar.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG falhou: {}. O Z-offset foi aplicado mas não salvo. Execute SAVE_CONFIG manualmente ou o offset será perdido ao reiniciar.'
+  SAVE_CONFIG wants to save '{2}' in section [{1}], but an included configuration file already sets it.: ''
   SCREEN: TELA
   SETTINGS: CONFIGURAÇÕES
   SHIPPED IMAGES: IMAGENS INCLUÍDAS
@@ -3998,6 +4096,7 @@ translations:
   Seating {}...: Encaixando {}...
   Secondary: Secundário
   Section Detail: Detalhe da Seção
+  Section [{2}] needs the setting '{1}', and the configuration does not have it.: ''
   Security: Segurança
   See exactly what data will be sent: Veja exatamente quais dados serão enviados
   See results: 'Ver resultados'
@@ -4313,6 +4412,10 @@ translations:
   Step 1 of 3: Etapa 1 de 3
   Step {} of {}: Etapa {} de {}
   Step {} of {} · about {} min left: 'Etapa {} de {} · faltam cerca de {} min'
+  Stepper driver {1} detected a short: ''
+  Stepper driver {1} lost motor power: ''
+  Stepper driver {1} overheated: ''
+  Stepper driver {1} reported a fault: ''
   Stepper driver {} is overheating: 'O driver do motor de passo {} está superaquecendo'
   Stepper driver {} overheated and shut down: 'O driver do motor de passo {} superaqueceu e desligou'
   Still reading the printer's lane record. Try again in a moment.: 'Ainda lendo o registro de lanes da impressora. Tente novamente em instantes.'
@@ -4453,6 +4556,8 @@ translations:
   Temperature and humidity sensor not responding: O sensor de temperatura e umidade não responde
   Temperature control optimized for {} at {}.: Controle de temperatura otimizado para {} a {}.
   Temperature out of range for {}: 'Temperatura fora da faixa para {}'
+  Temperature outside the heater's limits: ''
+  Temperature reading is out of range: ''
   Temperature sensor out of range: 'Sensor de temperatura fora da faixa'
   Temperatures: Temperaturas
   Temperatures plotted over time: Temperaturas ao longo do tempo
@@ -4494,6 +4599,8 @@ translations:
   That turn didn't register yet. Tighten {0} one more full turn.: "Esse giro ainda não apareceu. Aperte {0} mais uma volta completa."
   The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load: "O ACE empurra o filamento carregado junto com o extrusor. O driver ativa a assistência de alimentação após um carregamento"
   The ACE state can't be read.: "Não é possível ler o estado do ACE."
+  ? 'The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options.'
+  : ''
   The CFS odometer hardware is faulty and needs repair or replacement: O hardware do odômetro do CFS está com defeito e precisa de reparo ou substituição
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: 'O CFS ficou sem filamento em {}. A impressão continua com o que resta no tubo.'
   The CFS ran out of filament. Printing continues on what is left in the tube.: 'O CFS ficou sem filamento. A impressão continua com o que resta no tubo.'
@@ -4514,6 +4621,8 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : O protetor de tela animado foi desativado neste dispositivo para evitar que interfira nas impressões. Você pode reativá-lo em Configurações > Tela.
   The automatic feeding setting could not be applied.: 'Não foi possível aplicar a configuração de alimentação automática.'
+  ? 'The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy.'
+  : ''
   "The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.": "A mesa e o bico aquecem juntos antes de qualquer movimento, para que a impressão volte a aderir e o bico se solte dela."
   The bed check found the plate dirty or occupied.: 'A verificação da mesa encontrou a placa suja ou ocupada.'
   The bed did not heat at the expected rate.: 'A mesa não aqueceu no ritmo esperado.'
@@ -4525,11 +4634,13 @@ translations:
   The bed is too small for settling laps.: 'A mesa é pequena demais para as voltas de assentamento.'
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'O aquecedor da mesa. Defina a temperatura e acompanhe o gráfico na tela de temperatura da mesa.'
   The bed is too small for the test tower, or its size is unknown.: A mesa é pequena demais para a torre de teste, ou seu tamanho é desconhecido.
+  The bed mesh profile '{1}' was never saved on this printer.: ''
   The bed temperature asked for is outside the allowed range.: 'A temperatura da mesa pedida está fora da faixa permitida.'
   'The bed temperature reading is out of range: its sensor is loose or damaged.': 'A leitura da temperatura da mesa está fora da faixa: o sensor está solto ou danificado.'
   The bed turns off. The spools stay latched on the bed until you confirm they are off.: A mesa desliga. Os carretéis continuam registrados na mesa até você confirmar que foram retirados.
 
   The bed was reported dirty, so this print cannot resume.: 'A mesa foi reportada como suja, portanto esta impressão não pode ser retomada.'
+  The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: ''
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: O buffer pode estar desconectado, travado ou com defeito. Verifique antes de tentar novamente
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: O buffer não detectou movimento por 16 segundos. Verifique se há obstrução entre o CFS e o extrusor, ou um buffer travado
   The build plate should be on the bed but reads as removed.: 'A placa deveria estar na mesa, mas aparece como retirada.'
@@ -4551,9 +4662,17 @@ translations:
   : A mudança tem efeito depois que o Klipper reiniciar. O firmware Klipper será reiniciado. Operações ativas serão interrompidas.
   'The change was not applied: the current settings could not be saved for a revert.': 'A alteração não foi aplicada: não foi possível salvar as configurações atuais para reverter.'
   The connection to Klipper was lost: 'A conexão com o Klipper foi perdida'
+  ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
+  : ''
   The controller boards Klipper runs on. See their load in the system settings.: 'As placas controladoras em que o Klipper roda. Veja a carga delas nas configurações do sistema.'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: O cortador está desalinhado. Recalibre com CALIBRATE_CUT_POS
+  The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: ''
+  The driver for {1} reported an error, and the firmware stopped the printer.: ''
+  'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': ''
+  ? 'The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose.'
+  : ''
+  The emergency stop was pressed on a screen or in a web interface, and the printer shut down.: ''
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : O ponto exato de parada não foi encontrado. A impressão é retomada no início da próxima camada e pula o restante desta.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: O extrusor não consegue puxar com suavidade. Verifique se o carretel está embaraçado ou com nós, e se o tubo PTFE tem uma curva acentuada
@@ -4583,6 +4702,10 @@ translations:
   The file uses inches (G20).: 'O arquivo usa polegadas (G20).'
   The file was sliced for a different nozzle size than one the print uses.: 'O arquivo foi fatiado para um tamanho de bico diferente de um usado na impressão.'
   The file was sliced for a different nozzle type than the one installed.: 'O arquivo foi fatiado para um tipo de bico diferente do instalado.'
+  ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
+  : ''
+  ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
+  : ''
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: "A diferença não diminuiu (moveu {:.1f} Hz). Tente uma volta maior."
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: "A diferença aumentou após afrouxar {0}. Confira se girou o tensor de {0}."
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: "A diferença aumentou após apertar {0}. Confira se girou o tensor de {0}."
@@ -4601,6 +4724,8 @@ translations:
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: 'A mesa aquecida e o gabinete podem secar carretéis colocados sobre a mesa. Inicie um ciclo pelo diálogo de secagem da mesa.'
   The heater can't be changed while the printer is waiting.: 'O aquecedor não pode ser alterado enquanto a impressora aguarda.'
   The heater did not accept the printer's credentials.: 'O aquecedor não aceitou as credenciais da impressora.'
+  ? The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it.
+  : ''
   The heater didn't accept the command.: 'O aquecedor não aceitou o comando.'
   The heater hasn't answered yet. Still trying.: 'O aquecedor ainda não respondeu. Tentando novamente.'
   The heater is inhibited.: 'O aquecedor está inibido.'
@@ -4610,6 +4735,10 @@ translations:
   The heater was turned off at the heater.: 'O aquecedor foi desligado no próprio aquecedor.'
   The heater will cycle on and off several times.: O aquecedor ligará e desligará várias vezes.
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
+  ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
+  : ''
+  ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
+  : ''
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca.
   The left RFID reader in this CFS unit may need service: O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção
@@ -4618,6 +4747,8 @@ translations:
   The loaded slot is not known yet: "O slot carregado ainda não é conhecido"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : O carretel carregado é {}, mas este arquivo foi fatiado para {}. Filamento composto funciona com fluxo menor e precisa de um bico endurecido.
+  ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
+  : ''
   The measured offset between toolheads is outside the allowed range.: 'O offset medido entre os cabeçotes está fora da faixa permitida.'
   The message your printer's macros show (M117): 'A mensagem que as macros da sua impressora mostram (M117)'
   ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
@@ -4724,6 +4855,7 @@ translations:
   The printer moved the print to {}, not {}.: 'A impressora passou a impressão para {}, não para {}.'
   The printer may need a reboot afterwards.: 'A impressora pode precisar reiniciar depois.'
   The printer moves the toolhead and measures its motors.: 'A impressora move o cabeçote e mede seus motores.'
+  The printer needs homing first: ''
   The printer no longer has a print to resume.: A impressora não tem mais uma impressão para retomar.
   The printer reads the file up to the last saved position. A large file can take a minute.: A impressora lê o arquivo até a última posição salva. Um arquivo grande pode levar um minuto.
   The printer records lane {} in the toolhead, not this one: 'A impressora registra a lane {} no cabeçote, não esta'
@@ -4743,6 +4875,7 @@ translations:
   The printer stops and cannot print until the update is done.: 'A impressora para e não pode imprimir até a atualização terminar.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'A impressora alterna entre vários cabeçotes. Gerencie as ferramentas na tela do sistema de filamento.'
   The printer was stopped: 'A impressora foi parada'
+  The printer's computer fell behind: ''
   The printer's firmware chooses where to switch on runout: O firmware da impressora escolhe para onde trocar ao acabar
   The requested position is outside the printer's bounds: 'A posição solicitada está fora dos limites da impressora'
   The right RFID reader in this CFS unit may need service: O leitor RFID direito desta unidade CFS pode precisar de manutenção
@@ -4791,6 +4924,9 @@ translations:
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'A atualização parou de informar. O resultado é desconhecido: verifique a impressora antes de usá-la.'
   The update's result is unknown: 'O resultado da atualização é desconhecido'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse.'
+  ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
+  : ''
+  The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: ''
   Theme: Tema
   Theme Colors: Cores do Tema
   Theme Preset: Predefinição de Tema
@@ -4810,6 +4946,8 @@ translations:
   This .3mf has no sliced plate to print.: 'Este .3mf não tem nenhuma placa fatiada para imprimir.'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Este .3mf precisa ser convertido em G-code antes de entrar na fila. Imprima-o daqui.'
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'A sonda nunca tocou a placa: a placa PEI não está colocada corretamente.'
+  ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
+  : ''
   The probe was already triggered before the move started.: 'A sonda já estava acionada antes do movimento começar.'
   The printer's status isn't known yet, so a print may be running.: 'O estado da impressora ainda não é conhecido, então pode haver uma impressão em andamento.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'A fila imprime a placa padrão deste .3mf. Imprima esta placa daqui.'
@@ -4993,6 +5131,7 @@ translations:
   Toggle toolhead LED for an extruder: 'Alternar o LED do cabeçote para um extrusor'
   'Toggle:': 'Alternar:'
   Too humid: Muito úmido
+  Too much filament for one move: ''
   Tool: Ferramenta
   Tool Change Failed: 'Falha ao trocar de ferramenta'
   Tool Changer: Trocador de Ferramentas
@@ -5123,6 +5262,7 @@ translations:
   Unknown Event: Evento Desconhecido
   Unknown Spool: Carretel Desconhecido
   Unknown Step: Etapa Desconhecida
+  Unknown configuration section: ''
   Unknown error: Erro desconhecido
   Unload: Descarregar
   Unload Distance: 'Distância de descarregamento'
@@ -5320,6 +5460,7 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Quando um fatiador envia e inicia um arquivo que vai além do curso desta impressora, aquece acima dos limites ou usa uma ferramenta que não existe, manter o arquivo mas não iniciá-lo.'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: Quando habilitado, apenas a macro é executada. Quando desabilitado, as temperaturas são definidas primeiro, depois a macro é executada.
+  When it is safe, restart the firmware.: ''
   Where UI sounds play: Onde os sons da interface são reproduzidos
   Whether filament is loaded: Se há filamento carregado
   Which macro switches the ACE path back on: 'Qual macro religa o caminho do ACE'
@@ -5363,6 +5504,8 @@ translations:
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'
   With exhaust cooling on, the recirculation fan cannot be turned on: 'Com o arrefecimento por exaustão ativo, a ventoinha de recirculação não pode ser ligada'
   With internal circulation on, the exhaust fan cannot be turned on: 'Com a recirculação ativa, a ventoinha de exaustão não pode ser ligada'
+  ? With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again.
+  : ''
   Within {0:.1f} Hz of each other at {1:.0f} Hz: "A {0:.1f} Hz uma da outra em {1:.0f} Hz"
   Wipe the Z screws and guides clean.: "Limpe os fusos e guias Z."
   Wipe the mounted nozzle on the brush: 'Limpar o bico montado na escova'
@@ -5610,6 +5753,8 @@ translations:
   : "{0} ressoa muito mais que {1} a {2:.0f} Hz. Isso indica uma diferença mecânica (parafusos da polia, rolamentos das polias livres, alinhamento da correia), não a tensão."
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': 'Ondulação {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} depois ({4}% menos)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulação {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} depois ({4}% mais)'
+  '{1} never triggered': ''
+  '{1} temperature reading is out of range': ''
   '{:.0f} g left': restam {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · cerca de {} min'
   '{:.2f} mm range': '{:.2f} mm de variação'
@@ -5759,6 +5904,7 @@ translations:
   'Save the Z-offset after the print: saving restarts Klipper.': "Salve o Z-Offset depois da impressão: salvar reinicia o Klipper."
   'Save the changes to this spool?': 'Salvar as alterações deste carrete?'
   'This doesn''t match the linked Spoolman spool. Update it in Spoolman, or unlink and keep it on this slot?': 'Não corresponde ao carrete vinculado do Spoolman. Atualizar no Spoolman ou desvincular e manter neste slot?'
+  Unknown setting in the configuration: ''
   'Unlink': 'Desvincular'
   'Unlink, keep on this slot': 'Desvincular, manter neste slot'
   'Unsaved changes': 'Alterações não salvas'

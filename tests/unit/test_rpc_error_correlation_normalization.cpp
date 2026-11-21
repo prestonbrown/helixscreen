@@ -164,7 +164,7 @@ class CorrelationFixture : public LVGLTestFixture {
         int error_notifications = 0;
         helix::ui::set_test_notification_event_hook(
             [&error_notifications](const helix::ui::NotificationEvent& e) {
-                if (e.severity == ToastSeverity::ERROR && e.title == "Klipper Error") {
+                if (e.severity == ToastSeverity::ERROR && !e.title.empty()) {
                     ++error_notifications;
                 }
             });

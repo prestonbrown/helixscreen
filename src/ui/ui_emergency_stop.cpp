@@ -16,6 +16,7 @@
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_wake_request.h"
+#include "error_wording.h"
 #include "fault_modal_registry.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
@@ -892,8 +893,18 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     // fault, and this dialog adds the restart, so it becomes the one dialog for
     // it. Generic text restates nothing, and the alerts stay.
     helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_.get());
+    const auto known =
+        message.empty() || !code.empty()
+            ? std::optional<helix::error_wording::Classification>{}
+            : helix::error_wording::classify(message, &printer_state_->get_discovery());
+    const auto worded = known ? helix::error_wording::word(*known) : std::nullopt;
     if (message.empty()) {
         message = lv_tr(content.message);
+    } else if (worded) {
+        // What went wrong and what to do, above Klipper's own text: a support
+        // thread still needs the firmware's exact words.
+        lv_subject_set_string(&recovery_title_subject_, worded->summary.c_str());
+        message = worded->detail() + "\n\n" + message;
     } else if (is_klippy_config_error(message)) {
         // Restarting reloads the same broken file, so say what has to change
         // first. Klipper's text names the option and section; the guidance goes

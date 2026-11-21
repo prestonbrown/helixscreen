@@ -236,13 +236,13 @@ TEST_CASE("Error: command error is WARNING/KLIPPER", "[error-center][classify]")
     REQUIRE(e->source == helix::ErrorSource::KLIPPER);
 }
 
-TEST_CASE("raw_detail preserves Klipper's wording when detail is rewritten",
+TEST_CASE("raw_detail preserves Klipper's wording when detail is worded",
           "[error-center][classify]") {
     ClassifyContext ctx;
     auto e = classify("!! Must home axis first", ctx);
     REQUIRE(e.has_value());
-    // clean_error_text() rewrites the display text ("axis" -> "axes")...
-    REQUIRE(e->detail == "Must home axes first");
+    // The wording table replaces the display text...
+    REQUIRE(e->detail != "Must home axis first");
     // ...but raw_detail must keep Klipper's exact wording, because that is the
     // string the RPC channel records via record_caller_handled(). If these two
     // diverge without raw_detail, the cross-source dedup can never match and
@@ -250,12 +250,11 @@ TEST_CASE("raw_detail preserves Klipper's wording when detail is rewritten",
     REQUIRE(e->raw_detail == "Must home axis first");
 }
 
-TEST_CASE("raw_detail equals detail when the cleaner leaves the text alone",
-          "[error-center][classify]") {
+TEST_CASE("raw_detail equals detail when nothing words the text", "[error-center][classify]") {
     ClassifyContext ctx;
-    auto e = classify("!! Move out of range: X=400.000000", ctx);
+    auto e = classify("!! PRINT_START: chamber not at temperature", ctx);
     REQUIRE(e.has_value());
-    REQUIRE(e->detail == "Move out of range: X=400.000000");
+    REQUIRE(e->detail == "PRINT_START: chamber not at temperature");
     REQUIRE(e->raw_detail == e->detail);
 }
 

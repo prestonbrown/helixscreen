@@ -59,6 +59,7 @@ translations:
   "Both belts": "Both belts"
   "Cutter Calibration": "Cutter Calibration"
   "Find the filament cutter's position": "Find the filament cutter's position"
+  Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.: Let it cool, lower run_current for {1} or improve the cooling over the drivers, then restart the firmware.
   "Let the printer's tensioners set the belts": "Let the printer's tensioners set the belts"
   ? "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
   : "The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first."
@@ -184,6 +185,7 @@ translations:
   A command is missing a value, or a value is out of its allowed range.: A command is missing a value, or a value is out of its allowed range.
   A controller board did not answer: A controller board did not answer
   A controller board fell behind: A controller board fell behind
+  A controller board missed a timed update: A controller board missed a timed update
   A controller board runs firmware that does not match the printer software.: A controller board runs firmware that does not match the printer software.
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: A delta printer can't home X and Y without moving Z, so a print can't be resumed.
   A different toolhead than the one asked for is on the carriage.: A different toolhead than the one asked for is on the carriage.
@@ -196,6 +198,8 @@ translations:
   ? A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   : A heated bed expands with temperature, so each material can keep its own first-layer offset. The print-start macro applies it, and a Save during a print changes only that print's material.
   A heater did not warm up at the expected rate.: A heater did not warm up at the expected rate.
+  ? A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled.
+  : A heater or fan update from the host arrived too late. The USB or CAN connection to the board most likely dropped out for a moment, or the host stalled.
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.
   A home-origin calibration point failed or stayed unstable.: A home-origin calibration point failed or stayed unstable.
@@ -209,8 +213,13 @@ translations:
   A motor driver reported a fault such as overheating or a short.: A motor driver reported a fault such as overheating or a short.
   A motor's parameters couldn't be written. Power-cycle the printer to retry: A motor's parameters couldn't be written. Power-cycle the printer to retry
   A move command has an invalid speed or cannot be read.: A move command has an invalid speed or cannot be read.
+  A move to X {1}, Y {2}, Z {3} is outside the printer's travel.: A move to X {1}, Y {2}, Z {3} is outside the printer's travel.
   A move was sent before that axis was homed.: A move was sent before that axis was homed.
+  A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle.: A move was sent before the axes were homed, often because the motors were turned off after the printer sat idle.
+  A move went outside the printer's travel.: A move went outside the printer's travel.
   A move went past the printer's travel limits.: A move went past the printer's travel limits.
+  ? A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion.
+  : A move would push out far more filament than its length allows ({1} square mm against a limit of {2}), usually because the slicer and the start G-code disagree on relative or absolute extrusion.
   "A new Print Status screen": "A new Print Status screen"
   A newer version of the helper macros is available: A newer version of the helper macros is available
   A picture of your printer: A picture of your printer
@@ -227,6 +236,7 @@ translations:
   A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.: A print started while spools are marked as on the bed. If they are still there, stop the printer now with the E-stop.
   A print started, so the calibration did not start.: A print started, so the calibration did not start.
   A print took the printer.: A print took the printer.
+  A required setting is missing: A required setting is missing
   A restart is already in progress: A restart is already in progress
   A right, B left: A right, B left
   A saturated filter stops trapping fumes and particles.: A saturated filter stops trapping fumes and particles.
@@ -240,7 +250,11 @@ translations:
   A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: A spool's own price in Spoolman is used when it has one. These prices cover every other spool.
   ? A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
   : A system that feeds several filaments to the toolhead, shown with its slot count. Manage the slots on the filament system screen.
+  ? A target of {1} °C was asked for, outside this heater's allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it.
+  : A target of {1} °C was asked for, outside this heater's allowed range of {2} to {3} °C. Slicer start G-code for a hotter filament usually asks for it.
   A temperature reading went outside its valid range.: A temperature reading went outside its valid range.
+  ? A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe.
+  : A temperature sensor read a value outside its configured minimum or maximum, so the firmware stopped every heater to be safe.
   A temperature was set for a toolhead number that does not exist.: A temperature was set for a toolhead number that does not exist.
   A toolhead is in an unknown position, so the change did not start.: A toolhead is in an unknown position, so the change did not start.
   A toolhead is neither in its dock nor on the carriage.: A toolhead is neither in its dock nor on the carriage.
@@ -295,6 +309,7 @@ translations:
   Acceleration to deceleration limit (mm/s²): Acceleration to deceleration limit (mm/s²)
   Accelerometer: Accelerometer
   Accelerometer communication failed. Try again.: Accelerometer communication failed. Try again.
+  Accelerometer not connected: Accelerometer not connected
   Accelerometer not responding: Accelerometer not responding
   Accelerometers: Accelerometers
   Accept: Accept
@@ -312,6 +327,7 @@ translations:
   Actual: Actual
   Adaptive Bed Mesh: Adaptive Bed Mesh
   Add: Add
+  Add '{1}' under [{2}] in the printer's configuration, then restart Klipper.: Add '{1}' under [{2}] in the printer's configuration, then restart Klipper.
   Add Filament: Add Filament
   Add Hidden Network: Add Hidden Network
   Add Part Fan to MPC: Add Part Fan to MPC
@@ -348,6 +364,8 @@ translations:
   Advancing: Advancing
   After: After
   After an error: After an error
+  ? 'After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short.'
+  : 'After backing off, the {1} endstop still reads as triggered: the switch is stuck, its signal is inverted, or the retract distance is too short.'
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: After connecting the {}, we recommend recalibrating input shaping to ensure print quality.
   After parking, the head does not read as docked.: After parking, the head does not read as docked.
   After running the commands, tap Check Again below.: After running the commands, tap Check Again below.
@@ -384,6 +402,7 @@ translations:
   AmsIdentify: AmsIdentify
   An earlier install is still finishing...: 'An earlier install is still finishing...'
   An API key is 32 characters, each 0-9 or a-f.: An API key is 32 characters, each 0-9 or a-f.
+  An M112 emergency stop from the console, a macro or the slicer shut the printer down.: An M112 emergency stop from the console, a macro or the slicer shut the printer down.
   An accelerometer was detected on your printer.: An accelerometer was detected on your printer.
   An app on your network is asking to connect to this printer.: An app on your network is asking to connect to this printer.
   An earlier IPv4 change is still being undone. Try again shortly.: An earlier IPv4 change is still being undone. Try again shortly.
@@ -494,6 +513,7 @@ translations:
   'BLE write failed at packet {}: {}': 'BLE write failed at packet {}: {}'
   'BLE write failed: {}': 'BLE write failed: {}'
   BLTouch Controls: BLTouch Controls
+  BLTouch did not respond: BLTouch did not respond
   BLUETOOTH PRINTERS: BLUETOOTH PRINTERS
   BLUETOOTH SCANNERS: BLUETOOTH SCANNERS
   Back: Back
@@ -539,6 +559,7 @@ translations:
   Bed mesh: Bed mesh
   'Bed mesh calibration failed: {}': 'Bed mesh calibration failed: {}'
   Bed mesh operation timed out: Bed mesh operation timed out
+  Bed mesh profile not found: Bed mesh profile not found
   'Bed mesh...': 'Bed mesh...'
   Bed screws: Bed screws
   Bed needs manual leveling: Bed needs manual leveling
@@ -580,7 +601,9 @@ translations:
   Bluetooth not initialized: Bluetooth not initialized
   Bluetooth printer forgotten: Bluetooth printer forgotten
   Bluetooth scanner forgotten: Bluetooth scanner forgotten
+  Board '{1}' restarted on its own: Board '{1}' restarted on its own
   Board firmware does not match: Board firmware does not match
+  Board firmware needs updating: Board firmware needs updating
   Body text supports longer guidance while staying readable.: Body text supports longer guidance while staying readable.
   Bold: Bold
   Border Opacity: Border Opacity
@@ -618,6 +641,7 @@ translations:
   Buffer-driven gear speed control: Buffer-driven gear speed control
   Build Volume: Build Volume
   'Build Volume: ': 'Build Volume: '
+  Build and flash the firmware for each board listed, then restart the firmware.: Build and flash the firmware for each board listed, then restart the firmware.
   Build plate missing: Build plate missing
   Build plate not seated: Build plate not seated
   'Building preview: %d%%': 'Building preview: %d%%'
@@ -731,6 +755,8 @@ translations:
   Can't move filament while the print is paused: Can't move filament while the print is paused
   Can't read filament RFID tag: Can't read filament RFID tag
   Can't reach this printer. Save anyway?: Can't reach this printer. Save anyway?
+  "Can't save: the value is set in another file": "Can't save: the value is set in another file"
+  Can't talk to stepper driver {1}: Can't talk to stepper driver {1}
   Cancel: Cancel
   Cancel Escalation: Cancel Escalation
   Cancel Print: Cancel Print
@@ -826,33 +852,52 @@ translations:
   Check slot failed: Check slot failed
   Check Slots: Check Slots
   Check slots failed: Check slots failed
+  Check that motor power is on and its connectors are tight, then restart the firmware.: Check that motor power is on and its connectors are tight, then restart the firmware.
   Check that nothing blocks the toolhead or the head's dock, then load the head again.: Check that nothing blocks the toolhead or the head's dock, then load the head again.
   ? Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
   : Check that nothing blocks the toolhead, then unload the head again. If the filament is stuck, heat the nozzle and pull it out by hand.
   Check that only one filament path is active: Check that only one filament path is active
+  Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY.: Check that stepper_z to stepper_z3 match their corners in the configuration, and check the probe with PROBE_ACCURACY.
   Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.: Check that the build plate is in place and nothing blocks the axis, clean the nozzle tip, then home again.
   Check that the camera's live view works, or turn off timelapse for this print, then resume.: Check that the camera's live view works, or turn off timelapse for this print, then resume.
   Check that the cutter mechanism is properly installed: Check that the cutter mechanism is properly installed
+  ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
+  : Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
   Check that the printer is powered on and connected to the network: Check that the printer is powered on and connected to the network
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor
   Check the RS-485 cable between printer and CFS: Check the RS-485 cable between printer and CFS
+  ? Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
+  : Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
+  Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY.: Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY.
   Check the bed temperature in the slicer's profile.: Check the bed temperature in the slicer's profile.
   Check the belts and rails for debris or looseness, then home again.: Check the belts and rails for debris or looseness, then home again.
+  ? Check the board's power and cable, and the serial or canbus_uuid setting in the printer's configuration, then restart the firmware.
+  : Check the board's power and cable, and the serial or canbus_uuid setting in the printer's configuration, then restart the firmware.
+  Check the board's power supply and look for damaged or shorted wiring, then restart the firmware.: Check the board's power supply and look for damaged or shorted wiring, then restart the firmware.
   Check the buffer unit on the back of the printer: Check the buffer unit on the back of the printer
+  ? Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware.
+  : Check the cable, connectors and power of that board (often the toolhead board) and the CAN termination, then restart the firmware.
   Check the chips, then save: Check the chips, then save
   Check the dock for debris or a bent latch, guide the head into its dock, then home and resume.: Check the dock for debris or a bent latch, guide the head into its dock, then home and resume.
   Check the fan for obstructions and its cable, then resume.: Check the fan for obstructions and its cable, then resume.
   Check the filament path and try again.: Check the filament path and try again.
+  ? Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware.
+  : Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware.
+  Check the motor cable, the driver's cooling and the motor power, then restart the firmware.: Check the motor cable, the driver's cooling and the motor power, then restart the firmware.
   Check the nozzle temperature in the slicer's filament profile.: Check the nozzle temperature in the slicer's filament profile.
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   : Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: Check the power cable and outlet. When power is back, resume the print if the printer offers it.
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.
   Check the provided value and try again: Check the provided value and try again
+  ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
+  : Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
   Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.: Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again.
   Check the spool for a tangle or a stuck spool, clear the filament path, then resume.: Check the spool for a tangle or a stuck spool, clear the filament path, then resume.
   Check the spool, the feeder and the feed tube to this head, then load the head again.: Check the spool, the feeder and the feed tube to this head, then load the head again.
+  ? Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver's stall threshold.
+  : Check the switch with QUERY_ENDSTOPS (or QUERY_PROBE) and its wiring and pin. For sensorless homing, tune the driver's stall threshold.
   Check the tension of the motion belts: Check the tension of the motion belts
   ? Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
   : Check this head's feeder for jammed filament, then load the head again. Restart the printer if the motor still does not turn.
@@ -909,6 +954,7 @@ translations:
   Clean the nozzle and the plate, check nothing touches the nozzle, then retry.: Clean the nozzle and the plate, check nothing touches the nozzle, then retry.
   Clean the nozzle tip and the build plate, then run the calibration again.: Clean the nozzle tip and the build plate, then run the calibration again.
   Clean the nozzle, then resume.: Clean the nozzle, then resume.
+  Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries).: Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries).
   Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.: Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.
   Clean up: Clean up
   Clean {}: Clean {}
@@ -1084,6 +1130,7 @@ translations:
   Controllable Fans: Controllable Fans
   Controlled by hardware sensor: Controlled by hardware sensor
   Controller: Controller
+  Controller board '{1}' not found: Controller board '{1}' not found
   Controls: Controls
   Cool: Cool
   Cool Down: Cool Down
@@ -1125,6 +1172,8 @@ translations:
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Learn the basics: the setup wizard, moving around the screens, and touch gestures."
   Load all stopped: Load all stopped
   "Load and unload": "Load and unload"
+  ? Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion.
+  : Load or unload in shorter steps, or raise max_extrude_only_distance in the extruder section. Check that the slicer and the start G-code agree on relative or absolute extrusion.
   Load stopped: Load stopped
   "Load, unload, purge, and extrude filament": "Load, unload, purge, and extrude filament"
   "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Load, unload, and purge from here. Choose a material to set its temperatures first."
@@ -1422,6 +1471,8 @@ translations:
   EMPTY: EMPTY
   ETA {}: ETA {}
   EXTRAS: EXTRAS
+  ? 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
+  : 'Each correction increased the difference between the probe points: the Z motors are mapped to the wrong corners, or the probe is not repeatable.'
   Each fan can only be selected once: Each fan can only be selected once
   Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.: 'Each head keeps its own Z offset on this printer. Use its tool offset calibration instead.'
   Edit: Edit
@@ -1452,6 +1503,7 @@ translations:
   Emergency stop activated: Emergency stop activated
   'Emergency stop failed: not connected': 'Emergency stop failed: not connected'
   'Emergency stop failed: {}': 'Emergency stop failed: {}'
+  Emergency stop pressed: Emergency stop pressed
   Empty: Empty
   Empty slots disable the associated functionality: Empty slots disable the associated functionality
   Enable: Enable
@@ -1493,6 +1545,7 @@ translations:
   Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout: Endless Spool is on but no two slots hold matching filament, so nothing will switch on runout
   Endless Spool is turned off on this MMU: Endless Spool is turned off on this MMU
   Endless Spool state unknown: Endless Spool state unknown
+  Endstop {1} is stuck triggered: Endstop {1} is stuck triggered
   Ensure Happy Hare or AFC is installed and configured: Ensure Happy Hare or AFC is installed and configured
   Enter API Key: Enter API Key
   Enter Current PIN: Enter Current PIN
@@ -1517,6 +1570,7 @@ translations:
   Entry to Extruder: Entry to Extruder
   Error: Error
   Error at chunk {} (code={}): Error at chunk {} (code={})
+  Error in macro {1}: Error in macro {1}
   Error loading file: Error loading file
   'Error saving printer settings: {}': 'Error saving printer settings: {}'
   Error state: Error state
@@ -1790,6 +1844,7 @@ translations:
   Filament buffer position against its target: 'Filament buffer position against its target'
   Filament buffer stopped moving: Filament buffer stopped moving
   Filament by Type: Filament by Type
+  Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it.: Filament can only move through the nozzle above its minimum extrusion temperature, and the nozzle is below it.
   ? Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   : Filament can't be loaded below the minimum extrude temperature. Set a hotend target (e.g. 220°C for PLA, 240°C for PETG), wait for it to reach temperature, then try again
   Filament controls are unavailable while printing.: Filament controls are unavailable while printing.
@@ -1816,6 +1871,7 @@ translations:
   Filament is still present after the cut — the blade may be dull or misaligned: Filament is still present after the cut — the blade may be dull or misaligned
   Filament jam detected: Filament jam detected
   Filament jammed at the extruder gear: Filament jammed at the extruder gear
+  Filament move too long: Filament move too long
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.
   Filament never reached the CFS hub sensor: Filament never reached the CFS hub sensor
   Filament not identified: Filament not identified
@@ -1882,6 +1938,7 @@ translations:
   Fit the heater model with the part fan off: Fit the heater model with the part fan off
   Fit the induction heater's safety model: Fit the induction heater's safety model
   Fix the reason shown for the shutdown, then restart the firmware.: Fix the reason shown for the shutdown, then restart the firmware.
+  Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: Fix the spelling or remove the line from the printer's configuration, then restart Klipper.
   'Fix: chmod 644 {}, then restart': 'Fix: chmod 644 {}, then restart'
   'Fix: chown {} {}, then restart': 'Fix: chown {} {}, then restart'
   FlashForge Adventurer 5M: FlashForge Adventurer 5M
@@ -1942,6 +1999,7 @@ translations:
   GCode Console: GCode Console
   ? "Game Over!\nScore: {}\nTap to restart"
   : "Game Over!\nScore: {}\nTap to restart"
+  Gantry leveling failed: Gantry leveling failed
   Gate: Gate
   Gates: Gates
   Gateway: Gateway
@@ -2013,6 +2071,7 @@ translations:
   Heat the extruder to at least {} before loading filament: Heat the extruder to at least {} before loading filament
   Heat the head to the filament's temperature and check that it heats at all.: Heat the head to the filament's temperature and check that it heats at all.
   Heat the hotend.: Heat the hotend.
+  Heat the nozzle to the filament's printing temperature, wait for it to get there, then try again.: Heat the nozzle to the filament's printing temperature, wait for it to get there, then try again.
   Heat to at least %s for filament operations: Heat to at least %s for filament operations
   Heat {} above {} before resuming: Heat {} above {} before resuming
   Heatbed Temperature: Heatbed Temperature
@@ -2028,6 +2087,7 @@ translations:
   Heater offline: Heater offline
   Heater over-temperature: 'Heater over-temperature'
   Heater sensor fault: 'Heater sensor fault'
+  Heater {1} is not heating as expected: Heater {1} is not heating as expected
   HeaterSelect: HeaterSelect
   Heaters: Heaters
   Heaters off: Heaters off
@@ -2247,6 +2307,7 @@ translations:
   Install plugin: Install plugin
   Install script not found. Use the remote install command instead.: Install script not found. Use the remote install command instead.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:'
+  Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: Install the plugin it belongs to, or rename or remove the section, then restart Klipper.
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   Install timelapse plugin: Install timelapse plugin
@@ -2353,8 +2414,13 @@ translations:
   Klipper Config Error: Klipper Config Error
   Klipper Error: Klipper Error
   Klipper already reports the ACE slots.: Klipper already reports the ACE slots.
+  ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
+  : 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.
   Klipper disconnected: Klipper disconnected
+  'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': 'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.'
+  ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
+  : "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
   Klipper failed to start with the skip macros, so they were removed: Klipper failed to start with the skip macros, so they were removed
   Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.: Klipper failed to start. Remove the helix_skips.cfg include from printer.cfg.
   Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.: Klipper firmware has disconnected from the host. Try restarting Klipper or performing a firmware restart.
@@ -2368,6 +2434,8 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:'
   Klipper is halted — restart firmware to continue: Klipper is halted — restart firmware to continue
   Klipper is restarting. Timelapse frames are captured from the next print.: Klipper is restarting. Timelapse frames are captured from the next print.
+  ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
+  : Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
   Klipper or Moonraker may restart while it updates.: Klipper or Moonraker may restart while it updates.
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
@@ -2446,6 +2514,7 @@ translations:
   Level: Level
   Level the bed with the manual leveling procedure.: Level the bed with the manual leveling procedure.
   Leveling Gantry...: Leveling Gantry...
+  Leveling made things worse: Leveling made things worse
   Library: Library
   Lifting the nozzle clear of the print: Lifting the nozzle clear of the print
   Light: Light
@@ -2529,6 +2598,7 @@ translations:
   Looking for the active spool...: Looking for the active spool...
   Lost connection during print — try again: Lost connection during print — try again
   Lost connection to CFS unit: Lost connection to CFS unit
+  Lost connection to board '{1}': Lost connection to board '{1}'
   Lost contact with a controller board: Lost contact with a controller board
   Lost contact with the printer. The update may still be running.: Lost contact with the printer. The update may still be running.
   Lost the connection to the printer.: Lost the connection to the printer.
@@ -2539,7 +2609,9 @@ translations:
   Lower: Lower
   Lower belt: Lower belt
   Lower fan speed?: Lower fan speed?
+  Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.
   Lower the nozzle until it just touches the top of the print, then resume.: Lower the nozzle until it just touches the top of the print, then resume.
+  Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.
   Lowest notification level that interrupts with a toast: Lowest notification level that interrupts with a toast
   M to toggle: M to toggle
   'MAC:': 'MAC:'
@@ -2592,9 +2664,13 @@ translations:
   Make a smaller adjustment.: Make a smaller adjustment.
   Make color, material and spool changes in Spoolman.: Make color, material and spool changes in Spoolman.
   Make sure every nozzle is clean.: Make sure every nozzle is clean.
+  ? Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
+  : Make sure motor power is on, reseat the driver and check its pin in the printer's configuration, then restart the firmware.
   'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.': 'Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats.'
   Make sure one toolhead is on the carriage and the rest are docked, then home.: Make sure one toolhead is on the carriage and the rest are docked, then home.
   Make sure the printer is safe, then restart the firmware.: Make sure the printer is safe, then restart the firmware.
+  ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
+  : Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   MakeID (Bluetooth): MakeID (Bluetooth)
   ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   : Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
@@ -2723,6 +2799,7 @@ translations:
   'Motors disable failed: {}': 'Motors disable failed: {}'
   Motors disabled: Motors disabled
   Motors stay on while a print is active: Motors stay on while a print is active
+  Motors were asked to step too fast: Motors were asked to step too fast
   'Mounted: {}': 'Mounted: {}'
   Move: Move
   Move before homing: Move before homing
@@ -2731,8 +2808,11 @@ translations:
   Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.: Move paper back and forth while adjusting. Stop when paper catches slightly but still slides.
   Move selector: Move selector
   Move speed multipliers: Move speed multipliers
+  ? Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch.
+  : Move the axis away from the switch and run QUERY_ENDSTOPS. If it still reads TRIGGERED, invert the pin or replace the switch.
   Move the toolhead end to end by hand to spread it.: Move the toolhead end to end by hand to spread it.
   'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.': 'Move the toolhead, home axes, level the bed, and fine-tune temperatures, fans, and other motion settings.'
+  Move would go past the printer's limits: Move would go past the printer's limits
   ? Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
   : Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal.
   Moves to {} {:g} mm, below this printer's {:g} mm.: Moves to {} {:g} mm, below this printer's {:g} mm.
@@ -3017,6 +3097,7 @@ translations:
   Nozzle size and flow type per head: Nozzle size and flow type per head
   Nozzle target set to {}: Nozzle target set to {}
   Nozzle temp must be %d-%s: Nozzle temp must be %d-%s
+  Nozzle too cold to extrude: Nozzle too cold to extrude
   Nozzle, bed, and chamber in one widget: Nozzle, bed, and chamber in one widget
   'Nozzle:': 'Nozzle:'
   'Nozzles still heating: {}': 'Nozzles still heating: {}'
@@ -3058,6 +3139,7 @@ translations:
   'On:': 'On:'
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
+  One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance).: One filament-only move of {1} mm is longer than the {2} mm the printer allows (max_extrude_only_distance).
   One save for everything. Klipper may restart.: One save for everything. Klipper may restart.
   One tap runs this macro. Dangerous macros still ask.: One tap runs this macro. Dangerous macros still ask.
   One-time setup: One-time setup
@@ -3157,6 +3239,7 @@ translations:
   Part, hotend, and auxiliary fan speeds: Part, hotend, and auxiliary fan speeds
   Partial…: Partial…
   Pass: Pass
+  Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.: Pass the missing parameter from the slicer's start G-code, or give it a default in the macro.
   Password: Password
   Password cannot be empty: Password cannot be empty
   Password is required for secured networks: Password is required for secured networks
@@ -3254,6 +3337,8 @@ translations:
   Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.: Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.
   Power the printer off and on, and check the toolhead cables and their connectors.: Power the printer off and on, and check the toolhead cables and their connectors.
   Power the printer off and on. Check that every toolhead is seated and its cable is connected.: Power the printer off and on. Check that every toolhead is seated and its cable is connected.
+  ? Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware.
+  : Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware.
   Power was lost: Power was lost
   Power was lost about {} hours ago.: Power was lost about {} hours ago.
   Power was lost about {} minutes ago.: Power was lost about {} minutes ago.
@@ -3444,8 +3529,10 @@ translations:
   Probe Management: Probe Management
   Probe Sensors: Probe Sensors
   Probe Speed: Probe Speed
+  Probe already triggered: Probe already triggered
   Probe controls, accuracy test, and settings: Probe controls, accuracy test, and settings
   Probe readings disagree: Probe readings disagree
+  Probe readings don't agree: Probe readings don't agree
   Probe triggered too early: Probe triggered too early
   Probing Bed Mesh: Probing Bed Mesh
   'Probing Bed Mesh...': 'Probing Bed Mesh...'
@@ -3541,6 +3628,8 @@ translations:
   'RSS:': 'RSS:'
   Rails: Rails
   Raise: Raise
+  ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
+  : Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   Raise and lower the bed or gantry through its travel.: Raise and lower the bed or gantry through its travel.
   Ramming Volume: Ramming Volume
   'Ramp: band {} of {}': 'Ramp: band {} of {}'
@@ -3605,6 +3694,8 @@ translations:
   'Recovery failed: {}': 'Recovery failed: {}'
   Reduce Sensitivity: Reduce Sensitivity
   Reduce ringing and ghosting artifacts: Reduce ringing and ghosting artifacts
+  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   Reduce vibration artifacts like ringing and ghosting: Reduce vibration artifacts like ringing and ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: Reducing the fan speed may affect filtration performance. Do you want to continue?
   Reducing the fan speed may affect print quality. Do you want to continue?: Reducing the fan speed may affect print quality. Do you want to continue?
@@ -3636,6 +3727,7 @@ translations:
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile
   Remove PIN: Remove PIN
   Remove Spoolman?: Remove Spoolman?
+  Remove or comment out '{2}' under [{1}] in the included file, then save again.: Remove or comment out '{2}' under [{1}] in the included file, then save again.
   Remove plugin from printer: Remove plugin from printer
   Remove the PEI Sheet: Remove the PEI Sheet
   'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results': 'Remove the PEI sheet from the bed, then start again: probing through the sheet gives wrong results'
@@ -3659,6 +3751,8 @@ translations:
   Rendering timelapse...: Rendering timelapse...
   Repeat: Repeat
   Repeated probe readings differed more than allowed.: Repeated probe readings differed more than allowed.
+  ? 'Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast.'
+  : 'Repeated probe samples at one point differed by more than the allowed tolerance: ooze on the nozzle, a loose probe mount, a wobbly bed, or probing too fast.'
   Replace: Replace
   Replace Profile?: Replace Profile?
   Replace a worn nozzle or hotend: Replace a worn nozzle or hotend
@@ -3811,11 +3905,14 @@ translations:
   Rounded: Rounded
   Run: Run
   Run Again: Run Again
+  ? Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False.
+  : Run BLTOUCH_DEBUG COMMAND=reset and check that the pin moves freely and the wiring is sound. Clones may need pin_up_touch_mode_reports_triggered set to False.
   Run Calibration Wizard: Run Calibration Wizard
   Run Dangerous Macro?: Run Dangerous Macro?
   Run Macro: Run Macro
   Run Macro?: Run Macro?
   Run a Klipper macro when preheating this material: Run a Klipper macro when preheating this material
+  Run a bed mesh calibration and save it, or fix the profile name in the start G-code.: Run a bed mesh calibration and save it, or fix the profile name in the start G-code.
   Run a cold pull or replace the nozzle: Run a cold pull or replace the nozzle
   Run a macro you choose, in one tap: Run a macro you choose, in one tap
   Run brush cleaning sequence: Run brush cleaning sequence
@@ -3841,6 +3938,7 @@ translations:
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
   : 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
+  SAVE_CONFIG wants to save '{2}' in section [{1}], but an included configuration file already sets it.: SAVE_CONFIG wants to save '{2}' in section [{1}], but an included configuration file already sets it.
   SCREEN: SCREEN
   SETTINGS: SETTINGS
   SHIPPED IMAGES: SHIPPED IMAGES
@@ -3979,6 +4077,7 @@ translations:
   Seating {}...: Seating {}...
   Secondary: Secondary
   Section Detail: Section Detail
+  Section [{2}] needs the setting '{1}', and the configuration does not have it.: Section [{2}] needs the setting '{1}', and the configuration does not have it.
   Security: Security
   See exactly what data will be sent: See exactly what data will be sent
   See results: See results
@@ -4290,6 +4389,10 @@ translations:
   Step 1 of 3: Step 1 of 3
   Step {} of {}: Step {} of {}
   Step {} of {} · about {} min left: Step {} of {} · about {} min left
+  Stepper driver {1} detected a short: Stepper driver {1} detected a short
+  Stepper driver {1} lost motor power: Stepper driver {1} lost motor power
+  Stepper driver {1} overheated: Stepper driver {1} overheated
+  Stepper driver {1} reported a fault: Stepper driver {1} reported a fault
   Stepper driver {} is overheating: Stepper driver {} is overheating
   Stepper driver {} overheated and shut down: Stepper driver {} overheated and shut down
   Still reading the printer's lane record. Try again in a moment.: Still reading the printer's lane record. Try again in a moment.
@@ -4429,6 +4532,8 @@ translations:
   Temperature and humidity sensor not responding: Temperature and humidity sensor not responding
   Temperature control optimized for {} at {}.: Temperature control optimized for {} at {}.
   Temperature out of range for {}: Temperature out of range for {}
+  Temperature outside the heater's limits: Temperature outside the heater's limits
+  Temperature reading is out of range: Temperature reading is out of range
   Temperature sensor out of range: Temperature sensor out of range
   Temperatures: Temperatures
   Temperatures plotted over time: Temperatures plotted over time
@@ -4470,6 +4575,8 @@ translations:
   That turn didn't register yet. Tighten {0} one more full turn.: That turn didn't register yet. Tighten {0} one more full turn.
   The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load: The ACE pushes the loaded filament along with the extruder. The driver turns Feed Assist on after a load
   The ACE state can't be read.: The ACE state can't be read.
+  ? 'The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options.'
+  : 'The BLTouch pin did not report the state the firmware expected: a bent or stuck pin, a self-test fault (blinking red), loose wiring, or a clone that needs its touch-mode options.'
   The CFS odometer hardware is faulty and needs repair or replacement: The CFS odometer hardware is faulty and needs repair or replacement
   The CFS ran out of filament in {}. Printing continues on what is left in the tube.: The CFS ran out of filament in {}. Printing continues on what is left in the tube.
   The CFS ran out of filament. Printing continues on what is left in the tube.: The CFS ran out of filament. Printing continues on what is left in the tube.
@@ -4490,6 +4597,8 @@ translations:
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   The automatic feeding setting could not be applied.: The automatic feeding setting could not be applied.
+  ? 'The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy.'
+  : 'The axis moved its full travel without {1} triggering: an unplugged or broken switch, a wrong pin or inverted signal, a sensorless homing threshold set too low, or a probe that did not deploy.'
   The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.: The bed and nozzle heat together before anything moves, so the print re-grips and the nozzle lets go of it.
   The bed check found the plate dirty or occupied.: The bed check found the plate dirty or occupied.
   The bed did not heat at the expected rate.: The bed did not heat at the expected rate.
@@ -4500,10 +4609,12 @@ translations:
   The bed is too small for settling laps.: The bed is too small for settling laps.
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: The bed heater. Set its temperature and watch its graph on the bed temperature screen.
   The bed is too small for the test tower, or its size is unknown.: The bed is too small for the test tower, or its size is unknown.
+  The bed mesh profile '{1}' was never saved on this printer.: The bed mesh profile '{1}' was never saved on this printer.
   The bed temperature asked for is outside the allowed range.: The bed temperature asked for is outside the allowed range.
   'The bed temperature reading is out of range: its sensor is loose or damaged.': 'The bed temperature reading is out of range: its sensor is loose or damaged.'
   The bed turns off. The spools stay latched on the bed until you confirm they are off.: The bed turns off. The spools stay latched on the bed until you confirm they are off.
   The bed was reported dirty, so this print cannot resume.: The bed was reported dirty, so this print cannot resume.
+  The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: The buffer may be disconnected, stuck, or faulty. Check it before retrying
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer
   The build plate should be on the bed but reads as removed.: The build plate should be on the bed but reads as removed.
@@ -4525,9 +4636,17 @@ translations:
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   'The change was not applied: the current settings could not be saved for a revert.': 'The change was not applied: the current settings could not be saved for a revert.'
   The connection to Klipper was lost: The connection to Klipper was lost
+  ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
+  : The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
+  The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.
+  The driver for {1} reported an error, and the firmware stopped the printer.: The driver for {1} reported an error, and the firmware stopped the printer.
+  'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': 'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.'
+  ? 'The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose.'
+  : 'The driver for {1} saw its motor power drop or reset while the board kept running: the motor power supply is off, an emergency-stop relay is open, or a power connector is loose.'
+  The emergency stop was pressed on a screen or in a web interface, and the printer shut down.: The emergency stop was pressed on a screen or in a web interface, and the printer shut down.
   ? The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   : The exact stopping point could not be found. The print resumes at the start of the next layer and skips the rest of this one.
   The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend: The extruder cannot pull it smoothly. Check the spool for a tangle or knot, and the PTFE tube for a severe bend
@@ -4557,6 +4676,10 @@ translations:
   The file uses inches (G20).: The file uses inches (G20).
   The file was sliced for a different nozzle size than one the print uses.: The file was sliced for a different nozzle size than one the print uses.
   The file was sliced for a different nozzle type than the one installed.: The file was sliced for a different nozzle type than the one installed.
+  ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
+  : The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
+  ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
+  : The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
   The gap didn't close (moved {:.1f} Hz). Try a bigger turn.: The gap didn't close (moved {:.1f} Hz). Try a bigger turn.
   The gap grew after loosening {0}. Check you turned {0}'s tensioner.: The gap grew after loosening {0}. Check you turned {0}'s tensioner.
   The gap grew after tightening {0}. Check you turned {0}'s tensioner.: The gap grew after tightening {0}. Check you turned {0}'s tensioner.
@@ -4575,6 +4698,8 @@ translations:
   The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.: The heated bed and enclosure can dry spools placed on the bed. Start a cycle from the bed drying dialog.
   The heater can't be changed while the printer is waiting.: The heater can't be changed while the printer is waiting.
   The heater did not accept the printer's credentials.: The heater did not accept the printer's credentials.
+  ? The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it.
+  : The heater did not warm up as fast as expected, or its temperature stayed below the target for too long. A loose heater or thermistor, a fan blowing on the heater block or a missing silicone sock can cause it.
   The heater didn't accept the command.: The heater didn't accept the command.
   The heater hasn't answered yet. Still trying.: The heater hasn't answered yet. Still trying.
   The heater is inhibited.: The heater is inhibited.
@@ -4584,6 +4709,10 @@ translations:
   The heater was turned off at the heater.: The heater was turned off at the heater.
   The heater will cycle on and off several times.: The heater will cycle on and off several times.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
+  ? 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
+  : 'The host computer did not send moves to the controller board in time, usually because it is overloaded: high CPU or swap use, a slow SD card, an unstable power supply, or a webcam stream.'
+  ? 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
+  : 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service
@@ -4592,6 +4721,8 @@ translations:
   The loaded slot is not known yet: The loaded slot is not known yet
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
+  ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
+  : 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   The measured offset between toolheads is outside the allowed range.: The measured offset between toolheads is outside the allowed range.
   The message your printer's macros show (M117): The message your printer's macros show (M117)
   ? The mounted nozzle heats to {} and cools again while the heater's safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes.
@@ -4695,6 +4826,7 @@ translations:
   The printer moved the print to {}, not {}.: The printer moved the print to {}, not {}.
   The printer may need a reboot afterwards.: The printer may need a reboot afterwards.
   The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
+  The printer needs homing first: The printer needs homing first
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
   The printer records lane {} in the toolhead, not this one: The printer records lane {} in the toolhead, not this one
@@ -4714,6 +4846,7 @@ translations:
   The printer stops and cannot print until the update is done.: The printer stops and cannot print until the update is done.
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: The printer swaps between several toolheads. Manage the tools on the filament system screen.
   The printer was stopped: The printer was stopped
+  The printer's computer fell behind: The printer's computer fell behind
   The printer's firmware chooses where to switch on runout: The printer's firmware chooses where to switch on runout
   The requested position is outside the printer's bounds: The requested position is outside the printer's bounds
   The right RFID reader in this CFS unit may need service: The right RFID reader in this CFS unit may need service
@@ -4762,6 +4895,9 @@ translations:
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'The update stopped reporting. Its result is unknown: check the printer before using it.'
   The update's result is unknown: The update's result is unknown
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.
+  ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
+  : The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
+  The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.
   Theme: Theme
   Theme Colors: Theme Colors
   Theme Preset: Theme Preset
@@ -4781,6 +4917,8 @@ translations:
   This .3mf has no sliced plate to print.: This .3mf has no sliced plate to print.
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: This .3mf has to be converted to G-code before it can be queued. Print it from here instead.
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'The probe never touched the plate: the PEI plate is not placed correctly.'
+  ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
+  : 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   The probe was already triggered before the move started.: The probe was already triggered before the move started.
   The printer's status isn't known yet, so a print may be running.: The printer's status isn't known yet, so a print may be running.
   The queue prints this .3mf's default plate. Print this plate from here instead.: The queue prints this .3mf's default plate. Print this plate from here instead.
@@ -4965,6 +5103,7 @@ translations:
   Toggle toolhead LED for an extruder: Toggle toolhead LED for an extruder
   'Toggle:': 'Toggle:'
   Too humid: Too humid
+  Too much filament for one move: Too much filament for one move
   Tool: Tool
   Tool Change Failed: Tool Change Failed
   Tool Changer: Tool Changer
@@ -5095,7 +5234,9 @@ translations:
   Unknown Event: Unknown Event
   Unknown Spool: Unknown Spool
   Unknown Step: Unknown Step
+  Unknown configuration section: Unknown configuration section
   Unknown error: Unknown error
+  Unknown setting in the configuration: Unknown setting in the configuration
   Unlink: Unlink
   Unlink, keep on this slot: Unlink, keep on this slot
   Unload: Unload
@@ -5297,6 +5438,7 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.
+  When it is safe, restart the firmware.: When it is safe, restart the firmware.
   Where UI sounds play: Where UI sounds play
   Whether filament is loaded: Whether filament is loaded
   Which macro switches the ACE path back on: Which macro switches the ACE path back on
@@ -5340,6 +5482,8 @@ translations:
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
   With exhaust cooling on, the recirculation fan cannot be turned on: With exhaust cooling on, the recirculation fan cannot be turned on
   With internal circulation on, the exhaust fan cannot be turned on: With internal circulation on, the exhaust fan cannot be turned on
+  ? With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again.
+  : With the power off, level the gantry roughly by hand, check the probe points and the Z motor order in the quad_gantry_level section, then try again.
   Within {0:.1f} Hz of each other at {1:.0f} Hz: Within {0:.1f} Hz of each other at {1:.0f} Hz
   Wipe the Z screws and guides clean.: Wipe the Z screws and guides clean.
   Wipe the mounted nozzle on the brush: Wipe the mounted nozzle on the brush
@@ -5582,6 +5726,8 @@ translations:
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)': '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% less)'
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)'
+  '{1} never triggered': '{1} never triggered'
+  '{1} temperature reading is out of range': '{1} temperature reading is out of range'
   '{:.0f} g left': '{:.0f} g left'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
   '{:.2f} mm range': '{:.2f} mm range'

@@ -308,6 +308,7 @@ ClassifyContext GcodeErrorRouter::current_classify_context() {
     // nothing to resume.
     ctx.is_printing =
         get_printer_state().print_state().get_print_job_state() == PrintJobState::PRINTING;
+    ctx.hw = &get_printer_state().get_discovery();
     return ctx;
 }
 
@@ -629,6 +630,10 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
 
     spdlog::error("[GcodeError] sev={} src={} code={}: {}", static_cast<int>(ev->severity),
                   static_cast<int>(ev->source), ev->code.empty() ? "-" : ev->code, ev->detail);
+    // Support threads need the firmware's exact line, which worded text replaces.
+    if (!ev->raw_detail.empty() && ev->raw_detail != ev->detail) {
+        spdlog::error("[GcodeError] firmware said: {}", ev->raw_detail);
+    }
 
     // Release an optimistic Pause/Resume spinner. A RESUME macro can refuse by
     // printing `!!` and returning normally, so the gcode.script RPC still

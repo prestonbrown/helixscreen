@@ -7,6 +7,8 @@
 
 namespace helix {
 
+class PrinterDiscovery;
+
 enum class ErrorSeverity { INFO, WARNING, CRITICAL };
 
 enum class ErrorSource {
@@ -112,6 +114,9 @@ struct ErrorEvent {
 struct ClassifyContext {
     bool is_paused = false;   ///< print currently paused (pause_resume.is_paused)
     bool is_printing = false; ///< print active (print_stats.state == "printing")
+    /// The printer's discovery, for wording rows a firmware adds; nullptr
+    /// asks only the rows every printer shares.
+    const PrinterDiscovery* hw = nullptr;
 };
 
 /// Which error shape a gcode-response line carries. The two mark different

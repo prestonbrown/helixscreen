@@ -151,11 +151,25 @@ TEST_CASE_METHOD(StartupFaultFixture, "Nothing shows before Klippy reports a sta
 
 TEST_CASE_METHOD(StartupFaultFixture, "A printer in error at connect shows Klipper's reason",
                  "[klippy_startup_fault][recovery]") {
-    report("error", "MCU 'mcu' shutdown: Timer too close");
+    report("error", "MCU 'mcu' shutdown: Some reason no row words");
 
     REQUIRE(recovery_card() != nullptr);
-    CHECK(recovery_label("recovery_message").find("Timer too close") != std::string::npos);
+    CHECK(recovery_label("recovery_message").find("Some reason no row words") != std::string::npos);
     CHECK(recovery_label("recovery_title") == lv_tr("Printer Error"));
+}
+
+TEST_CASE_METHOD(StartupFaultFixture, "A worded shutdown says what to do above Klipper's reason",
+                 "[klippy_startup_fault][recovery][error-wording]") {
+    report("shutdown", "MCU 'mcu' shutdown: Timer too close");
+
+    REQUIRE(recovery_card() != nullptr);
+    const std::string message = recovery_label("recovery_message");
+    // Klipper's own text stays, for a support thread, below the wording.
+    const auto klipper_at = message.find("MCU 'mcu' shutdown: Timer too close");
+    REQUIRE(klipper_at != std::string::npos);
+    CHECK(klipper_at > 0);
+    CHECK(recovery_label("recovery_title") != lv_tr("Printer Shutdown"));
+    CHECK(recovery_label("recovery_title") != lv_tr("Printer Error"));
 }
 
 TEST_CASE_METHOD(StartupFaultFixture, "A printer already shut down at connect shows the dialog",
