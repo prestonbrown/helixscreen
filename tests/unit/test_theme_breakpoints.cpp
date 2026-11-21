@@ -237,8 +237,8 @@ TEST_CASE("Validation does not require _micro for complete sets", "[theme][break
 // print_tune z-offset tokens (ui_xml/print_tune_tokens.xml)
 // ============================================================================
 //
-// These three size the z-offset row in both ui_xml/print_tune_panel.xml and
-// ui_xml/portrait/print_tune_panel.xml. They were flat 170/90/160 literals, and
+// These three size the z-offset row in ui_xml/components/tune_z_offset.xml,
+// landscape and portrait. They were flat 170/90/160 literals, and
 // at 272x480 that left the four z-step buttons 0px wide — present, bound, and
 // impossible to tap.
 //

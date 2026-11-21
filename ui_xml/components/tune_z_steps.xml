@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The Z-offset step amounts, radio-style: one active at a time. Part of
+       tune_z_offset, which places it beside the direction buttons in
+       landscape and on a full-width row of its own in portrait. -->
+  <api>
+    <prop name="btn_h" type="string" default="#button_height_sm"/>
+  </api>
+  <!-- L040: TWO bind_styles per button -->
+  <styles>
+    <style name="z_step_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="z_step_unselected" bg_color="#primary" bg_opa="40"/>
+  </styles>
+  <view extends="lv_obj"
+        height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+        style_pad_gap="#space_xxs" scrollable="false">
+    <ui_button name="btn_z_step_0" height="$btn_h" flex_grow="1" text="0.05">
+      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 0"/>
+      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 0"/>
+      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="0"/>
+    </ui_button>
+    <ui_button name="btn_z_step_1" height="$btn_h" flex_grow="1" text="0.025">
+      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 1"/>
+      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 1"/>
+      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="1"/>
+    </ui_button>
+    <ui_button name="btn_z_step_2" height="$btn_h" flex_grow="1" text="0.01">
+      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 2"/>
+      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 2"/>
+      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="2"/>
+    </ui_button>
+    <ui_button name="btn_z_step_3" height="$btn_h" flex_grow="1" text="0.005">
+      <bind_style_if name="z_step_selected" cond="z_step_selected_idx eq 3"/>
+      <bind_style_if name="z_step_unselected" cond="z_step_selected_idx ne 3"/>
+      <event_cb trigger="clicked" callback="on_tune_z_step" user_data="3"/>
+    </ui_button>
+  </view>
+</component>

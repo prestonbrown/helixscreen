@@ -350,8 +350,7 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
     };
 
-    for (const char* path :
-         {"ui_xml/print_tune_panel.xml", "ui_xml/portrait/print_tune_panel.xml"}) {
+    for (const char* path : {"ui_xml/components/tune_z_offset.xml"}) {
         INFO(path);
         const auto values = tune_hint_label_values(path);
         CHECK(values == expected);

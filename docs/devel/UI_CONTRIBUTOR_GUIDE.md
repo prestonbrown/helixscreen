@@ -919,9 +919,8 @@ ui_xml/
     controls_panel.xml
     header_bar.xml
     ...
-  portrait/                <-- Portrait overrides (2 files)
+  portrait/                <-- Portrait overrides (1 file)
     print_status_panel.xml
-    print_tune_panel.xml
   micro_portrait/          <-- Micro-portrait overrides (dir present, empty)
   ultrawide/               <-- Ultrawide overrides (1 file)
     print_status_panel.xml
@@ -1143,8 +1142,8 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Portrait / Micro Status
 
-- `ui_xml/portrait/` exists with two overrides (`print_status_panel.xml`,
-  `print_tune_panel.xml`); the app shell and navigation bar are single files that
+- `ui_xml/portrait/` exists with one override (`print_status_panel.xml`); the app
+  shell, the navigation bar and the Print Tuning overlay are single files that
   adapt via `ui_is_portrait` instead.
 - `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
   `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
