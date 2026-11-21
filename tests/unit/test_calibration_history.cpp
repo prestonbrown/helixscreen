@@ -393,12 +393,19 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the guided run banner's button opens the gu
     }
     NavigationManager::instance().set_panels(panels.data());
     helix::ui::init_calibration_hub_row_handler();
-    lv_event_cb_t on_guided = lv_xml_get_event_cb(nullptr, "on_guided_calibration_clicked");
-    REQUIRE(on_guided != nullptr);
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
+    REQUIRE(shown != nullptr);
+    lv_subject_set_int(shown, 1);
+    auto* hub = static_cast<lv_obj_t*>(
+        lv_xml_create(lv_screen_active(), "calibration_hub_overlay", nullptr));
+    REQUIRE(hub != nullptr);
+    lv_obj_t* banner = lv_obj_find_by_name(hub, "cal_guided_banner");
+    REQUIRE(banner != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
 
     auto& run = helix::ui::get_calibration_run_overlay();
     REQUIRE(run.get_root() == nullptr);
-    on_guided(nullptr);
+    lv_obj_send_event(banner, LV_EVENT_CLICKED, nullptr);
     drain();
     CHECK(run.get_root() != nullptr);
     NavigationManager::instance().go_back();
