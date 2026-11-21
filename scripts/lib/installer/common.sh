@@ -48,6 +48,21 @@ _is_self_update() {
     [ "${HELIX_SELF_UPDATE:-}" = "1" ]
 }
 
+# helix-screen raises its own oom_score_adj so the kernel kills it before
+# Klipper, and an in-app update forks install.sh from it, so every service the
+# installer starts or restarts (dropbear, the Creality backend) would inherit
+# that score and be among the first OOM victims. Drop a positive inherited
+# score to 0 before starting anything. Lowering it needs root; without root
+# the inherited score stays. Arg: the oom_score_adj file (tests pass a temp one).
+reset_inherited_oom_score_adj() {
+    _oom_path="${1:-/proc/self/oom_score_adj}"
+    _oom_now=$(cat "$_oom_path" 2>/dev/null) || _oom_now=0
+    if [ "${_oom_now:-0}" -gt 0 ] 2>/dev/null && echo 0 2>/dev/null > "$_oom_path"; then
+        log_info "Reset inherited oom_score_adj $_oom_now to 0"
+    fi
+    unset _oom_path _oom_now
+}
+
 # Probe for a usable Python interpreter with urllib (cached). Sets _PY_BIN to
 # the first of python3/python that can import urllib.request — the baseline for
 # downloading over plain HTTP. Used as a download/extraction fallback on

@@ -321,6 +321,10 @@ main() {
         _refuse_if_firmware_managed
     fi
 
+    # Before any service starts, so none inherits helix-screen's OOM score.
+    # Not earlier: --help and the refusals above change nothing.
+    reset_inherited_oom_score_adj
+
     printf '\n'
     printf '%b\n' "${BOLD}========================================${NC}"
     printf '%b\n' "${BOLD}       HelixScreen Installer${NC}"
