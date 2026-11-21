@@ -8,17 +8,10 @@
 
          connecting_state's own root is height="100%", so a content-sized
          parent collapses it to nothing - the container has to state a height.
-         It used to state style_min_height="280", which is taller than a
-         480x272 screen before the divider and the button row are counted, so
-         the connecting state overflowed on a Qidi Q2 no matter what the rest
-         of the dialog did.
-
-         This ladder replaces it with a per-breakpoint height that holds
-         spinner_lg plus its caption (48 + 6 + ~14 = 68px at MICRO, ~100px at
-         LARGE) and keeps the whole card inside the dialog's 85% cap:
-         at 480x272 that is 120 + 1 (divider) + 26 (button row) = 147 against a
-         231px cap; at 480x320, 150 + 1 + 32 = 183 against 272; at 1024x600,
-         240 + 1 + 72 = 313 against 510. -->
+         Per breakpoint it holds spinner_lg plus its caption (48 + 6 + ~14 =
+         68px at MICRO, ~100px at LARGE) and stays inside #dialog_content_max
+         (140 at MICRO, 170 at TINY), so the header and the button row keep
+         their place on a 480x272 panel. -->
     <px name="hidden_connecting_height_micro" value="120"/>
     <px name="hidden_connecting_height_tiny" value="150"/>
     <px name="hidden_connecting_height_small" value="180"/>
@@ -36,41 +29,21 @@
     <subject name="hidden_show_password" type="int" value="0"/>
     <!-- 0=hide input, 1=show for None -->
   </subjects>
-  <!-- Dialog card (backdrop created programmatically).
-
-       style_max_height="85%" + scrollable="false" is modal_dialog.xml's bound:
-       without it nothing caps the card's growth, and the form inside it is
-       taller than a 480x272 panel on its own (title + three labelled 48px
-       inputs + error line measures ~272px at MICRO). The form scrolls inside
-       #dialog_content_max the way modal_dialog's content_container does, so
-       the worst case the card can reach is content-cap + divider + button row:
-       140 + 1 + 26 = 167 at MICRO (cap 231), 200 + 1 + 32 = 233 at TINY (cap
-       272), 260 + 1 + 48 = 309 at SMALL (cap 340). -->
+  <!-- The frame's body scrolls inside #dialog_content_max, so the form (three
+       labelled 48px inputs + error line, ~272px at MICRO) never pushes the
+       button row off a 480x272 panel. The form and the connecting spinner are
+       never visible together, so their heights do not sum. -->
   <view name="hidden_network_modal"
-        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="440"
-        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
-        scrollable="false">
+        extends="dialog_frame" title="Add Hidden Network" title_tag="Add Hidden Network" icon="wifi_lock"
+        style_min_width="320" style_max_width="440">
     <!-- ============================================================ -->
     <!-- STATE: IDLE - Hidden network entry form (hidden when connecting) -->
     <!-- ============================================================ -->
-    <!-- Scroll area, per modal_dialog.xml's content_container: height="content"
-         capped at #dialog_content_max, scrollable, no snap. The cap is what
-         creates the scroll range - the form's natural height exceeds it at
-         MICRO and TINY, so this is a live scroller and not an inert attribute.
-         The old style_min_height="280" is gone rather than made responsive:
-         the form always has a title, an SSID field and a dropdown in it, so it
-         can never collapse, and a floor is the one thing that cannot help a
-         box that is already too tall. The title stays inside the scroll area
-         (and inside the connecting-state hide) because it is form content
-         here, not the prop-driven chrome modal_dialog pins in its header. -->
     <lv_obj name="hidden_form_container"
-            width="100%" height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column"
-            style_flex_cross_place="start" style_pad_gap="#space_sm" scrollable="true" scroll_snap_y="none">
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="start"
+            style_pad_gap="#space_sm" scrollable="false">
       <!-- Hide form when hidden_connecting == 1 -->
       <bind_flag_if_eq subject="hidden_connecting" flag="hidden" ref_value="1"/>
-      <!-- Title -->
-      <text_heading name="modal_title" width="100%" text="Add Hidden Network" style_text_align="center"/>
       <!-- SSID Input -->
       <form_field label="Network Name (SSID)"
                   input_name="ssid_input" placeholder="Enter network name" placeholder_tag="Enter network name"/>
@@ -94,7 +67,7 @@
       </lv_obj>
       <!-- Error message (hidden when empty) -->
       <text_small name="error_label"
-                  width="100%" bind_text="hidden_network_error" style_text_align="center" style_text_color="#danger">
+                  width="100%" bind_text="hidden_network_error" style_text_align="left" style_text_color="#danger">
         <bind_flag_if_eq subject="hidden_network_has_error" flag="hidden" ref_value="0"/>
       </text_small>
     </lv_obj>
@@ -109,8 +82,10 @@
     </lv_obj>
     <!-- Connect is withdrawn while a connection attempt runs; Cancel stays. HiddenNetworkModal
          wires both buttons. -->
-    <modal_button_row secondary_name="cancel_btn"
-                      secondary_text="Cancel" primary_name="connect_btn" primary_text="Connect"
-                      primary_hide_subject="hidden_connecting"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_name="cancel_btn"
+                        secondary_text="Cancel" primary_name="connect_btn" primary_text="Connect"
+                        primary_hide_subject="hidden_connecting"/>
+    </dialog_frame-footer>
   </view>
 </component>

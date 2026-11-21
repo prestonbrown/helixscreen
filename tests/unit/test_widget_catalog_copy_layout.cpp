@@ -84,7 +84,7 @@ class CopyLayoutFixture : public LVGLUITestFixture {
         PanelWidgetManager::instance().register_rebuild_callback("home", [this] { ++rebuilds_; });
         WidgetCatalogOverlay::show(test_screen(), home(), [](const std::string&) {});
         process_lvgl(10);
-        row_ = lv_obj_find_by_name(WidgetCatalogOverlay::active_root(), "action_button_2");
+        row_ = lv_obj_find_by_name(WidgetCatalogOverlay::active_root(), "btn_copy_layout");
         REQUIRE(row_ != nullptr);
     }
 

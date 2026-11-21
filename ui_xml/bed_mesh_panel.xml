@@ -70,12 +70,16 @@
   <view name="bed_mesh_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
         style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
-    <!-- Header Bar with CALIBRATE action button -->
-    <header_bar name="overlay_header"
-                title="Bed Mesh" action_button_text="Probe" action_button_height="#button_height"
-                action_button_pad="#space_md" hide_action_button="false"
-                action_button_callback="on_bed_mesh_calibrate_clicked"
-                action_button_disabled_cond="nav_buttons_enabled eq 0"/>
+    <!-- Header Bar with the Probe (calibrate) action -->
+    <header_bar name="overlay_header" title="Bed Mesh">
+      <header_bar-actions>
+        <ui_button name="btn_probe" height="#button_height" text="Probe" translation_tag="Probe">
+          <style name="styles.header_action"/>
+          <bind_state_if cond="nav_buttons_enabled eq 0" state="disabled"/>
+          <event_cb trigger="clicked" callback="on_bed_mesh_calibrate_clicked"/>
+        </ui_button>
+      </header_bar-actions>
+    </header_bar>
     <!-- Content Area: landscape is a row (canvas left, cards in a fixed-width
          side column); portrait is a column — canvas on top, then mesh info
          and the profiles list SIDE BY SIDE in one row below it (not

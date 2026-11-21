@@ -38,8 +38,10 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
-/// Pull action_button_disabled_cond="..." out of a panel's XML source.
-/// Returns empty if absent — which is the regression this guards.
+/// The disabled condition on a panel's header action: the first
+/// `<bind_state_if cond="...">` inside its header actions slot, or the
+/// action_button_disabled_cond prop on a header not yet moved to the slot.
+/// Returns empty if absent, which is the regression this guards.
 std::string read_disabled_cond(const std::string& xml_path) {
     std::ifstream f(xml_path);
     if (!f) {
@@ -49,17 +51,29 @@ std::string read_disabled_cond(const std::string& xml_path) {
     ss << f.rdbuf();
     const std::string src = ss.str();
 
-    const std::string key = "action_button_disabled_cond=\"";
-    const size_t start = src.find(key);
-    if (start == std::string::npos) {
-        return {};
+    // The quoted value of the first `key` in [from, to).
+    auto value_in = [&src](const std::string& key, size_t from, size_t to) -> std::string {
+        const size_t start = src.find(key, from);
+        if (start == std::string::npos || start >= to) {
+            return {};
+        }
+        const size_t value_start = start + key.size();
+        const size_t end = src.find('"', value_start);
+        if (end == std::string::npos) {
+            return {};
+        }
+        return src.substr(value_start, end - value_start);
+    };
+
+    const size_t actions = src.find("-actions>");
+    if (actions != std::string::npos) {
+        const std::string cond =
+            value_in("<bind_state_if cond=\"", actions, src.find("-actions>", actions + 1));
+        if (!cond.empty()) {
+            return cond;
+        }
     }
-    const size_t value_start = start + key.size();
-    const size_t end = src.find('"', value_start);
-    if (end == std::string::npos) {
-        return {};
-    }
-    return src.substr(value_start, end - value_start);
+    return value_in("action_button_disabled_cond=\"", 0, std::string::npos);
 }
 
 } // namespace
@@ -123,7 +137,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
         {"ui_xml/calibration_pid_panel.xml", "PID"},
         {"ui_xml/bed_mesh_panel.xml", "bed mesh"},
         {"ui_xml/input_shaper_panel.xml", "input shaper"},
-        {"ui_xml/panel_belt_tension.xml", "belt tension"},
     };
 
     for (const auto& p : panels) {

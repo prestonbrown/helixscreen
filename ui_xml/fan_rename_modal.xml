@@ -4,31 +4,21 @@
 <!-- Fan Rename Modal - Rename a fan's display name -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <!-- Dialog card (backdrop created programmatically) -->
-  <view name="fan_rename_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <lv_obj name="rename_form_container"
-            width="100%" height="content" style_min_height="180" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Title -->
-      <text_heading width="100%" text="Rename Fan" style_text_align="center"/>
-      <!-- Current name display -->
-      <lv_obj width="100%"
-              height="content" flex_flow="row" style_flex_main_place="center" style_pad_all="0"
-              style_pad_gap="#space_xs">
-        <text_small text="Current name:"/>
-        <text_small name="fan_rename_current_name" bind_text="fan_rename_old_name" style_text_color="#success"/>
-      </lv_obj>
-      <!-- New name input -->
-      <text_input name="fan_rename_new_name_input"
-                  width="100%" height="#input_height" placeholder_text="New fan name" placeholder_tag="New fan name"
-                  translation_tag="New fan name" style_margin_top="#space_sm"/>
+  <view name="fan_rename_modal" extends="dialog_frame" title="Rename Fan" title_tag="Rename Fan" icon="fan">
+    <!-- Current name display -->
+    <lv_obj width="100%"
+            height="content" flex_flow="row" style_flex_main_place="start" style_pad_all="0" style_pad_gap="#space_xs">
+      <text_small text="Current name:"/>
+      <text_small name="fan_rename_current_name" bind_text="fan_rename_old_name" style_text_color="#success"/>
     </lv_obj>
-    <modal_button_row primary_text="Rename"
-                      secondary_text="Cancel" primary_callback="on_fan_rename_confirm"
-                      secondary_callback="on_fan_rename_cancel"/>
+    <!-- New name input -->
+    <text_input name="fan_rename_new_name_input"
+                width="100%" height="#input_height" placeholder_text="New fan name" placeholder_tag="New fan name"
+                translation_tag="New fan name" style_margin_top="#space_sm"/>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="Rename"
+                        secondary_text="Cancel" primary_callback="on_fan_rename_confirm"
+                        secondary_callback="on_fan_rename_cancel"/>
+    </dialog_frame-footer>
   </view>
 </component>

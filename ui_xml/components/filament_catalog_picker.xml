@@ -4,28 +4,28 @@
 <!-- Offline branded-filament picker: Vendor -> Type -> product list -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
+  <!-- 400 wide at least: the selector's Vendor and Type groups (180 each)
+       share one row inside the body's side padding on a 480-wide panel. -->
   <view name="filament_catalog_picker"
-        extends="ui_dialog" width="70%" height="85%" style_min_width="380" align="center" flex_flow="column"
-        style_flex_main_place="start" style_pad_gap="0">
-    <modal_header title="Choose Filament" hide_icon="true" hide_close="false" close_callback="catalog_picker_close_cb"/>
-    <divider_horizontal/>
-    <!-- Content region hosting the shared selector fragment. flex_grow fills the
-         space between the fixed header and button row; the fragment's own
-         product_list is the sole scroll region (dropdowns stay put). -->
-    <lv_obj width="100%"
-            height="content" flex_grow="1" style_pad_all="#space_md" flex_flow="column" style_pad_gap="#space_md"
-            scrollable="false">
+        extends="dialog_frame" height="85%" style_min_width="400" title="Choose Filament" title_tag="Choose Filament"
+        icon="filament" hide_close="false" close_callback="catalog_picker_close_cb">
+    <!-- The body fills the card between the header and the button row; the
+         fragment's own product_list is the sole scroll region (dropdowns stay
+         put). -->
+    <dialog_frame-body flex_grow="1" style_max_height="100%" scrollable="false">
       <filament_catalog_selector name="catalog_selector"/>
-    </lv_obj>
+    </dialog_frame-body>
     <!-- Reset-to-defaults is the leading (tertiary) action in the button row. It is only
          meaningful in the preset-editing context (a reset callback set before show()), so
          on_show() hides btn_tertiary/div_tertiary for other pickers (e.g. AMS slot
          assignment). hide_tertiary="false" reveals it here by default; the C++ gate narrows
          it to the preset case. -->
-    <modal_button_row primary_text="Select"
-                      primary_callback="catalog_picker_select_cb" secondary_text="Cancel"
-                      secondary_callback="catalog_picker_close_cb" tertiary_text="Reset to defaults"
-                      tertiary_callback="catalog_picker_reset_cb" tertiary_variant="secondary" hide_tertiary="false"
-                      tertiary_show_subject="catalog_picker_reset_shown"/>
+    <dialog_frame-footer>
+      <modal_button_row primary_text="Select"
+                        primary_callback="catalog_picker_select_cb" secondary_text="Cancel"
+                        secondary_callback="catalog_picker_close_cb" tertiary_text="Reset to defaults"
+                        tertiary_callback="catalog_picker_reset_cb" tertiary_variant="secondary" hide_tertiary="false"
+                        tertiary_show_subject="catalog_picker_reset_shown"/>
+    </dialog_frame-footer>
   </view>
 </component>
