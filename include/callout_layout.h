@@ -957,15 +957,25 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
                 }
             }
         }
+        // Past the line modes every chip lands on or over the picture, so a
+        // chip showing only an expected value is not worth the pixels it hides.
+        CalloutLayoutInput unlined = base;
+        for (auto* v : {&unlined.budget, &unlined.active})
+            v->erase(std::remove_if(v->begin(), v->end(),
+                                    [](const CalloutChipIn& c) { return c.expendable; }),
+                     v->end());
+        for (const auto& c : base.active)
+            if (c.expendable)
+                out.dropped.push_back(c.kind);
         // Compact chips in the side margins before any lands on the picture's
         // middle, when every chip fits there: pinning sheds nothing it can keep.
-        if (try_staggered(base, out)) {
+        if (try_staggered(unlined, out)) {
             out.unlabeled = can_unlabel;
             return out;
         }
         // Pinned chips sit on their parts, so their place names them: no labels.
         out.unlabeled = can_unlabel;
-        chips = base.active;
+        chips = unlined.active;
         for (auto& c : chips)
             if (has_label(c))
                 c.w = c.w_unlabeled;
