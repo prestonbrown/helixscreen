@@ -158,9 +158,9 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.tune_h, last_.tune_h);
     set(subjects_.lane_tray, static_cast<int>(last_.lane_tray));
     set(subjects_.lane_tray_h, last_.lane_tray_h);
-    set(subjects_.printer_tile_h,
-        last_.lane_tray == PrintStatusLaneTray::Strip || last_.tune_h > 0 ? last_.printer_h
-                                                                          : lv_pct(100));
+    set(subjects_.printer_tile_h, last_.lane_tray == PrintStatusLaneTray::Strip || last_.tune_h > 0
+                                      ? last_.printer_h
+                                      : lv_pct(100));
     // The tray picks its spool or bar view from the width it is given.
     if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
         tray && ui_ams_mini_status_is_valid(tray)) {

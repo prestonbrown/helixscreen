@@ -14,6 +14,9 @@
     <!-- The narrow ultrawide column passes "ui_is_portrait ge 0" (always):
          Flow stacks under Speed there, as it does in portrait. -->
     <prop name="stack_cond" type="string" default="ui_is_portrait eq 1"/>
+    <!-- The stacked section passes "ui_is_portrait ge 0": without the help
+         lines it fits under the strip on a tall screen. -->
+    <prop name="help_hidden_cond" type="string" default="ui_is_portrait eq 1 and ui_breakpoint le 0"/>
   </api>
   <view extends="lv_obj"
         style_pad_all="#space_sm" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="0"
@@ -37,7 +40,8 @@
     <!-- The direction buttons in a row: beside the steps in landscape (the
          ultrawide column), side by side above them in portrait. -->
     <tune_z_offset indicator_hidden="$indicator_hidden"
-                   portrait_dir_flow="row" portrait_dir_btn_w="49%" squish_hint_hidden="true" dir_flow="row"
-                   dir_w="content" dir_btn_w="#tune_pa_btn_w" dir_btn_h="#button_height_sm"/>
+                   help_hidden_cond="$help_hidden_cond" portrait_dir_flow="row" portrait_dir_btn_w="49%"
+                   squish_hint_hidden="true" dir_flow="row" dir_w="content" dir_btn_w="#tune_pa_btn_w"
+                   dir_btn_h="#button_height_sm"/>
   </view>
 </component>

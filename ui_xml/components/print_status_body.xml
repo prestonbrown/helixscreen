@@ -53,7 +53,9 @@
          content height, when the fitter finds the tiles room above it
          (ps_tune_h; 0 hides it). Tuning is for a running print: outside one
          the tiles take the room. -->
-    <print_status_tune name="ps_tune" width="100%" height="content" indicator_hidden="true" hidden="true">
+    <print_status_tune name="ps_tune"
+                       width="100%" height="content" indicator_hidden="true" help_hidden_cond="ui_is_portrait ge 0"
+                       hidden="true">
       <bind_flag_if cond="ps_tune_h eq 0 or print_controls_enabled eq 0" flag="hidden"/>
     </print_status_tune>
   </view>
