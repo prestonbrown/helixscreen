@@ -5342,44 +5342,67 @@ TEST_CASE_METHOD(EditorFixture,
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "Assign Spool and Edit Spool fit 800x480 without a page scroll",
+                 "Assign Spool and Edit Spool fit 800x480 and 480x272 without a page scroll",
                  "[ams_edit_overlay][spool-assign][layout]") {
     lv_display_t* disp = lv_display_get_default();
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
-    {
-        ScopedResolution res(disp, 800, 480);
-        theme_manager_refresh_layout_constants(disp);
-        const auto page_scroll = [&access] {
-            lv_obj_t* content = access.widget("overlay_content");
-            REQUIRE(content != nullptr);
-            lv_obj_update_layout(content);
-            return lv_obj_get_scroll_bottom(content);
-        };
+    // The loading line binds the lane-records subject, which exists in the app
+    // before the editor is built.
+    AmsState::instance().init_subjects(true);
+    lv_subject_t* records = lv_xml_get_subject(nullptr, "ams_lane_records_ready");
+    REQUIRE(records != nullptr);
+    for (const auto& [w, h] : {std::pair<int32_t, int32_t>{800, 480}, {480, 272}}) {
+        {
+            ScopedResolution res(disp, w, h);
+            theme_manager_refresh_layout_constants(disp);
+            CAPTURE(w, h);
+            // Measured with the lane records read: the loading line above the
+            // form shows only until they land.
+            const auto page_scroll = [&access, records] {
+                if (records) {
+                    lv_subject_set_int(records, 1);
+                }
+                UpdateQueue::instance().drain();
+                lv_obj_t* loading = access.widget("lane_records_loading");
+                REQUIRE(loading != nullptr);
+                REQUIRE(lv_obj_has_flag(loading, LV_OBJ_FLAG_HIDDEN));
+                lv_obj_t* content = access.widget("overlay_content");
+                REQUIRE(content != nullptr);
+                lv_obj_update_layout(content);
+                return lv_obj_get_scroll_bottom(content);
+            };
 
-        show_editor_on_lane(*this, *backend, 1);
-        REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
-        REQUIRE(access.shown("tool_dropdown"));
-        CHECK(page_scroll() <= 0);
+            show_editor_on_lane(*this, *backend, 1);
+            REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
+            CHECK(page_scroll() <= 0);
 
-        // Assign with a full list: the list scrolls inside itself, not the page.
-        access.call_different_spool();
-        std::vector<SpoolInfo> many;
-        for (int id = 1; id <= 12; ++id) {
-            SpoolInfo spool;
-            spool.id = id;
-            spool.vendor = "Polymaker";
-            spool.material = "PLA";
-            spool.remaining_weight_g = 500;
-            many.push_back(spool);
+            // Assign with a full list: the list scrolls inside itself, not the page.
+            access.call_different_spool();
+            std::vector<SpoolInfo> many;
+            for (int id = 1; id <= 12; ++id) {
+                SpoolInfo spool;
+                spool.id = id;
+                spool.vendor = "Polymaker";
+                spool.material = "PLA";
+                spool.remaining_weight_g = 500;
+                many.push_back(spool);
+            }
+            access.set_cached_spools(many);
+            access.call_render_spool_list("");
+            process_lvgl(10);
+            REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+            REQUIRE(access.listed_ids().size() == 12);
+            CHECK(page_scroll() <= 0);
+
+            // A fresh install: the common spools grid instead of the list.
+            access.set_cached_spools({});
+            access.call_render_spool_list("");
+            process_lvgl(10);
+            REQUIRE(access.shown("common_spools"));
+            CHECK(page_scroll() <= 0);
+            close_editor_overlay();
         }
-        access.set_cached_spools(many);
-        access.call_render_spool_list("");
-        process_lvgl(10);
-        REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
-        REQUIRE(access.listed_ids().size() == 12);
-        CHECK(page_scroll() <= 0);
-        close_editor_overlay();
+        theme_manager_refresh_layout_constants(disp);
     }
-    theme_manager_refresh_layout_constants(disp);
 }

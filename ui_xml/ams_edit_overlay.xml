@@ -508,7 +508,8 @@
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
             <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
             <text_small name="list_title" bind_text="ams_edit_list_title" style_text_color="#text_muted">
-              <bind_flag_if_eq subject="edit_picker_state" flag="hidden" ref_value="4"/>
+              <!-- The short landscape class lets the rows speak for themselves. -->
+              <bind_flag_if cond="edit_picker_state eq 4 or (ui_breakpoint eq 0 and ui_is_portrait eq 0)" flag="hidden"/>
             </text_small>
             <!-- Search matches name, brand, color or #ID; Spoolman only. -->
             <text_input name="picker_search"
@@ -557,7 +558,9 @@
                     width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                     scrollable="false" hidden="true">
               <bind_flag_if_eq subject="ams_edit_common_visible" flag="hidden" ref_value="0"/>
-              <text_small text="Common spools to start from" style_text_color="#text_muted"/>
+              <text_small text="Common spools to start from" style_text_color="#text_muted">
+                <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
+              </text_small>
               <lv_obj width="100%"
                       height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                       style_pad_row="#space_xxs" scrollable="false">
