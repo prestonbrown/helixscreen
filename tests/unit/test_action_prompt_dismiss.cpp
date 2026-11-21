@@ -40,7 +40,7 @@ class DismissFixture : public LVGLUITestFixture {
     lv_obj_t* nth_button(size_t n) {
         std::vector<lv_obj_t*> found;
         std::function<void(lv_obj_t*)> walk = [&](lv_obj_t* node) {
-            if (!node || lv_obj_has_flag(node, LV_OBJ_FLAG_HIDDEN))
+            if (!node || lv_obj_is_hidden(node))
                 return;
             if (lv_obj_check_type(node, &lv_button_class))
                 found.push_back(node);
