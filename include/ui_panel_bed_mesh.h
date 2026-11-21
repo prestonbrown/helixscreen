@@ -338,8 +338,7 @@ class BedMeshPanel : public OverlayBase {
     nlohmann::json calibrated_points_;
     /// A calibration that probed but stored nothing usable: tell the run, or
     /// the owner. @p user_message is translated.
-    void report_store_failure(const std::string& user_message,
-                              const std::string& staged_profile = {});
+    void report_store_failure(const std::string& user_message);
 
     /// What begin_calibration() planned: launch_calibration() sends its command,
     /// and on_calibration_complete() finishes where it says the mesh went.
