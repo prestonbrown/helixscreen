@@ -696,6 +696,12 @@ namespace telemetry_context {
 std::atomic<int> print_state_int{-1};
 std::atomic<int> active_panel_int{-1};
 std::atomic<bool> gcode_renderer_loaded{false};
+// NavigationManager records the top overlay for the hang reporter; the
+// firmware has no telemetry, so the record goes nowhere.
+void set_top_overlay(std::string) {}
+std::string top_overlay() {
+    return {};
+}
 } // namespace telemetry_context
 } // namespace helix
 

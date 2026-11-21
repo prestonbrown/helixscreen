@@ -421,3 +421,162 @@ TEST_CASE("Heap trim: release_free_heap trims exactly where the libc can", "[mem
 #endif
     CHECK(release_free_heap() == heap_trim_supported());
 }
+
+// ============================================================================
+// Per-process memory for telemetry [memory][proc_stat]
+// ============================================================================
+
+TEST_CASE("parse_proc_stat reads comm, major faults and resident pages", "[memory][proc_stat]") {
+    ProcStat st;
+    // A comm may hold spaces and parentheses; it ends at the LAST ')'.
+    REQUIRE(parse_proc_stat("812 (my (odd) name) S 1 812 812 0 -1 4194560 2000 0 37 0 50 20 0 0 20 "
+                            "0 3 0 1500 123456789 9000 18446744073709551615",
+                            st));
+    CHECK(st.comm == "my (odd) name");
+    CHECK(st.major_faults == 37);
+    CHECK(st.rss_pages == 9000);
+
+    CHECK_FALSE(parse_proc_stat("", st));
+    CHECK_FALSE(parse_proc_stat("812 (truncated) S 1 812", st));
+    CHECK_FALSE(parse_proc_stat(
+        "812 no-parens S 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21", st));
+}
+
+TEST_CASE("telemetry_process_name passes only known program names", "[memory][proc_stat]") {
+    struct Row {
+        const char* comm;
+        const char* want;
+    };
+    const Row rows[] = {
+        {"helix-screen", "helix-screen"},
+        {"moonraker", "moonraker"},
+        {"ustreamer", "ustreamer"},
+        {"KlipperScreen", "KlipperScreen"},
+        {"lmd", "lmd"},
+        // The kernel keeps 15 characters of a comm; a longer known name still matches.
+        {"systemd-journal", "systemd-journald"},
+        {"python3", "python3"},
+        {"python3.11", "python3.11"},
+        // Free text a binary's builder chose: never sent as is.
+        {"jsmith-sync", "other"},
+        {"printer3-cam", "other"},
+        {"python_jsmith", "other"},
+        {"helix-screen2", "other"},
+        {"kworker/0:1H", "other"},
+        {"", "other"},
+    };
+    for (const Row& r : rows) {
+        INFO("comm: " << r.comm);
+        CHECK(telemetry_process_name(r.comm) == r.want);
+    }
+}
+
+TEST_CASE("telemetry_process_name names interpreter services from a fixed allowlist",
+          "[memory][proc_stat]") {
+    using namespace std::string_literals;
+    struct Row {
+        const char* comm;
+        std::string cmdline;
+        const char* want;
+    };
+    const Row rows[] = {
+        {"python3",
+         "/home/pi/klippy-env/bin/python\0/home/pi/klipper/klippy/klippy.py\0"
+         "/home/pi/printer_data/config/printer.cfg\0-l\0/tmp/klippy.log\0"s,
+         "klipper"},
+        {"python",
+         "/home/pi/moonraker-env/bin/python\0/home/pi/moonraker/moonraker/moonraker.py\0"
+         "-d\0/home/pi/printer_data\0"s,
+         "moonraker"},
+        {"python3", "python3\0-m\0moonraker\0"s, "moonraker"},
+        {"python3",
+         "/home/pi/moonraker-obico-env/bin/python3\0-m\0moonraker_obico.app\0"
+         "-c\0/home/pi/printer_data/config/moonraker-obico.cfg\0"s,
+         "obico"},
+        {"python3", "/usr/bin/python3\0/home/pi/KlipperScreen/screen.py\0"s, "klipperscreen"},
+        {"bash", "/bin/bash\0/usr/local/bin/crowsnest\0-c\0/home/pi/crowsnest.conf\0"s,
+         "crowsnest"},
+        {"python3", "python3\0-m\0octoapp\0"s, "octoapp"},
+        {"python3.11", "/opt/spoolman/.venv/bin/python\0-m\0uvicorn\0spoolman.main:app\0"s,
+         "spoolman"},
+        // Not on the allowlist: the bare interpreter, never an argument.
+        {"python3", "python3\0/home/pi/secret_project/run.py\0--token\0abc\0"s, "python3"},
+        // argv[0] alone names no service, even a venv named after one.
+        {"python3", "/home/pi/klippy-env/bin/python3\0"s, "python3"},
+        {"node", "node\0/srv/app/server.js\0"s, "node"},
+        {"sh", ""s, "sh"},
+        // Not an interpreter: its comm, whatever the arguments say.
+        {"ustreamer", "/usr/bin/ustreamer\0--host\0moonraker\0"s, "ustreamer"},
+        {"helix-screen", "/opt/helix/helix-screen\0klippy.py\0"s, "helix-screen"},
+        {"jsmith-sync", "/home/jsmith/bin/jsmith-sync\0moonraker\0"s, "other"},
+    };
+    for (const Row& r : rows) {
+        INFO("comm: " << r.comm);
+        CHECK(telemetry_process_name(r.comm, r.cmdline) == r.want);
+    }
+}
+
+namespace {
+
+/// A fake /proc with one stat file per pid.
+struct FakeProc {
+    std::filesystem::path root =
+        std::filesystem::temp_directory_path() / ("helix_fake_proc_" + std::to_string(::getpid()));
+    FakeProc() {
+        std::filesystem::remove_all(root);
+        std::filesystem::create_directories(root / "self");
+        std::filesystem::create_directories(root / "sys");
+    }
+    ~FakeProc() {
+        std::error_code ec;
+        std::filesystem::remove_all(root, ec);
+    }
+    void add(const std::string& pid, const std::string& comm, long rss_pages, long majflt = 0) {
+        std::filesystem::create_directories(root / pid);
+        std::ofstream(root / pid / "stat")
+            << pid << " (" << comm << ") S 1 1 1 0 -1 0 10 0 " << majflt
+            << " 0 5 5 0 0 20 0 1 0 100 1000000 " << rss_pages << " 18446744073709551615\n";
+    }
+};
+
+} // namespace
+
+TEST_CASE("top_processes_by_rss lists the largest resident processes, largest first",
+          "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("101", "klippy", 51200);                       // 200 MB at 4 KB pages
+    proc.add("102", "moonraker", 25600);                    // 100 MB
+    proc.add("103", "helix-screen", 12800);                 // 50 MB
+    proc.add("104", "jsmith-cam", 2560);                    // 10 MB
+    proc.add("2", "kthreadd", 0);                           // kernel threads hold no RSS
+    std::filesystem::create_directories(proc.root / "105"); // exited between readdir and open
+    proc.add("106", "python3", 1280);                       // 5 MB
+    std::ofstream(proc.root / "106" / "cmdline") << std::string("python3\0-m\0moonraker\0", 21);
+
+    const auto top = top_processes_by_rss(3, proc.root.c_str(), 4);
+    REQUIRE(top.size() == 3);
+    CHECK(top[0].name == "klippy");
+    CHECK(top[0].rss_mb == 200);
+    CHECK(top[1].name == "moonraker");
+    CHECK(top[1].rss_mb == 100);
+    CHECK(top[2].name == "helix-screen");
+    CHECK(top[2].rss_mb == 50);
+
+    // Fewer processes than asked for: every one with resident memory.
+    const auto all = top_processes_by_rss(10, proc.root.c_str(), 4);
+    REQUIRE(all.size() == 5);
+    CHECK(all[3].name == "other");     // not a known program
+    CHECK(all[4].name == "moonraker"); // named from its cmdline, not "python3"
+    CHECK(top_processes_by_rss(3, "/nonexistent-proc-root", 4).empty());
+}
+
+TEST_CASE("read_self_major_faults reads the stat file's majflt", "[memory][proc_stat]") {
+    FakeProc proc;
+    proc.add("self", "helix-screen", 100, 4242);
+    CHECK(read_self_major_faults((proc.root / "self" / "stat").c_str()) ==
+          std::optional<uint64_t>(4242));
+    CHECK_FALSE(read_self_major_faults("/nonexistent-proc-root/self/stat").has_value());
+#ifdef __linux__
+    CHECK(read_self_major_faults().has_value());
+#endif
+}

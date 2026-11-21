@@ -399,6 +399,7 @@ translations:
   Another filament operation is heating the nozzle.: "別のフィラメント操作がノズルを加熱しています。"
   Another print is in progress.: '別の印刷が進行中です。'
   Another toolhead is active: '別のツールヘッドが使用中です'
+  Another update is already running: '別の更新が既に実行中です'
   Any notes...: メモ...
   Any other material: "その他の素材"
   App Background: アプリ背景
@@ -847,6 +848,7 @@ translations:
   Checking filament...: フィラメントを確認中...
   Checking for ffmpeg...: 'ffmpegを確認中...'
   Checking for plugin...: プラグインを確認中...
+  Checking for updates...: '更新を確認しています...'
   Checking for webcam...: ウェブカメラを確認中...
   Checking plugin: プラグインを確認中
   Checking slots...: スロットを確認中...
@@ -1143,10 +1145,13 @@ translations:
 
   Could not open a browser for the update: 更新用のブラウザを開けませんでした
   Could not parse tips database: ヒントデータベースを解析できませんでした
+  Could not prepare a folder for the update log: '更新ログ用のフォルダーを作成できませんでした'
   Could not reach Spoolman at: 'Spoolman に接続できません:'
   Could not read the current IPv4 settings.: '現在のIPv4設定を読み取れませんでした。'
+  Could not read the free space on the printer: 'プリンターの空き容量を読み取れませんでした'
   "Could not read the printer's limits: {}": 'プリンターの限界値を読み取れませんでした: {}'
   Could not read the printer's storage: 'プリンターのストレージを読み取れませんでした'
+  Could not read the printer's update status: 'プリンターの更新状態を読み取れませんでした'
   Could not read the screw adjustments from the printer: プリンターからネジ調整を読み取れませんでした
   Could not remove the job from the queue: キューからジョブを削除できませんでした
   Could not reset the printer image tags: プリンター画像のタグのリセットに失敗しました
@@ -1336,6 +1341,8 @@ translations:
   Do not power off your printer.: プリンターの電源を切らないでください。
   Do not touch the filament yet.: "まだフィラメントに触れないでください。"
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
+  Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完了するまでプリンターの電源を切らないでください。書き込み中に電源が切れると、プリンターが起動しなくなる可能性があります。'
+  Do not turn the printer off until the update finishes.: '更新が完了するまでプリンターの電源を切らないでください。'
   Dock: ドック
   Dock every toolhead first: '先にすべてのツールヘッドをドックに戻してください'
   Dock position change too large: 'ドック位置の変更が大きすぎます'
@@ -1844,6 +1851,7 @@ translations:
   Fireflies: ホタル
   Fireworks: 花火
   Firmware Restart: ファームウェア再起動
+  Firmware Update: 'ファームウェア更新'
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください
   Firmware restart: ファームウェア再起動
   'Firmware restart failed: {}': 'ファームウェア再起動に失敗しました: {}'
@@ -2199,6 +2207,7 @@ translations:
   Input shaping reduces vibration artifacts (ringing) in your prints.: インプットシェーピングは印刷物の振動アーティファクト（リンギング）を軽減します。
   'Input: ': '入力: '
   InputShaper: InputShaper
+  Insert a USB stick with the {} firmware file in its top folder.: '{} のファームウェアファイルを最上位フォルダーに入れたUSBメモリを挿入してください。'
   Insert filament: 'フィラメントを差し込む'
   Insert filament before resuming: 再開前にフィラメントを挿入してください
   Insert filament into this head's feeder until it grabs, then load the head again.: 'このヘッドのフィーダーがつかむまでフィラメントを挿入してから、再度装填してください。'
@@ -2217,6 +2226,7 @@ translations:
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "SSHでタイムラプスプラグインをインストールし、\n「再確認」をタップしてください。"
   Install timelapse plugin: タイムラプスプラグインをインストール
+  Install {} on this printer?: 'このプリンターに {} をインストールしますか?'
   Installation Failed: インストール失敗
   Installation failed: インストールに失敗しました
   Installation failed. Check logs for details.: インストールに失敗しました。詳細はログを確認してください。
@@ -2225,8 +2235,11 @@ translations:
   Installation timed out: インストールがタイムアウトしました
   Installation timed out. The script may be stuck.: インストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Installed: 'インストール済み'
+  Installing firmware is not enabled on this printer: 'このプリンターではファームウェアのインストールが有効になっていません'
+  Installing printer firmware: 'プリンターのファームウェアをインストールしています'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。'
   Installing the timelapse plugin...: 'タイムラプスプラグインをインストール中...'
+  Installing {} firmware from this screen is not available yet.: 'この画面からの {} ファームウェアのインストールはまだ利用できません。'
   Installing...: インストール中...
   Intensity: 強度
   Interactive calibration for all lanes: '全レーンの対話式キャリブレーション'
@@ -2330,6 +2343,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:'
   Klipper is halted — restart firmware to continue: Klipper が停止しています — 続行するにはファームウェアを再起動してください
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper を再起動しています。タイムラプスのフレームは次の印刷から撮影されます。'
+  Klipper or Moonraker may restart while it updates.: '更新中に Klipper または Moonraker が再起動する場合があります。'
   Klipper ready: Klipper準備完了
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
@@ -2491,6 +2505,7 @@ translations:
   Lost connection during print — try again: 印刷中に接続が切断されました — もう一度お試しください
   Lost connection to CFS unit: CFS ユニットとの接続が切断されました
   Lost contact with a controller board: '制御ボードとの接続が切れました'
+  Lost contact with the printer. The update may still be running.: 'プリンターとの接続が切れました。更新はまだ実行中の可能性があります。'
   Lost the connection to the printer.: プリンターとの接続が切れました。
   Lost the printer.: "プリンターとの接続が失われました。"
   'Lot # (optional)': ロット番号（オプション）
@@ -2725,6 +2740,7 @@ translations:
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   : 'パーツファンを指定すると、MPCがその冷却を考慮できます。Klipperの再起動後、このヒーターをキャリブレートします。加熱した状態で数分かかります。'
   Needs attention: 対応が必要
+  Needs repair from a web interface: 'Webインターフェースからの修復が必要です'
   Needs the {} package to switch spools: 'スプール切り替えには {} プラグインが必要です'
   'Needs {}x{} free: remove or shrink a widget first': 空き {}x{} が必要です。先にウィジェットを削除または縮小してください
   Net Weight (g): 正味重量（g）
@@ -2905,6 +2921,7 @@ translations:
   Not detected: 検出されません
   Not drying: 乾燥していません
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'このファイルを置く空き容量がプリンターにありません。設定 > システム > ストレージで空き容量を確保してください。'
+  Not enough free space on the printer to unpack the firmware: 'ファームウェアを展開するための空き容量がプリンターにありません'
   Not enough frequency data from the sweeps. Try again.: '測定から十分な周波数データが得られませんでした。再試行してください。'
   Not enough room for this widget. Rearrange or remove widgets to make space.: このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。
   Not enough room to put the widget back. It stays removed.: 'ウィジェットを元に戻すスペースが足りません。削除されたままです。'
@@ -3073,6 +3090,8 @@ translations:
   POWER: 電源
   PRINT OPTIONS: 印刷オプション
   PRINTER: プリンター
+  PRINTER FIRMWARE: 'プリンターのファームウェア'
+  PRINTER SOFTWARE: 'プリンターのソフトウェア'
   PRINTER VISUALS: プリンター表示
   PRINTERS: プリンター
   PRINTING: '印刷'
@@ -3554,6 +3573,8 @@ translations:
   Refresh: 更新
   Refresh Interval: 更新間隔
   Refresh RFID: 'RFIDを再読み込み'
+  Reinstall it afterwards by following {}.: '更新後に {} の手順で再インストールしてください。'
+  Reinstall it afterwards.: '更新後に再インストールしてください。'
   Relative vibration: 相対振動
   Refresh Spoolman: 'Spoolmanを再読み込み'
   Reheating...: 再加熱中...
@@ -3684,6 +3705,7 @@ translations:
   Restarting printer...: プリンターを再起動中...
   Restarting screen...: 画面を再起動中...
   Restarting the printer...: 'プリンターを再起動しています...'
+  Restarting the printer: 'プリンターを再起動しています'
   Restarting with the new version...: 新しいバージョンで再起動中...
   Restarting...: 再起動中...
   Restore: '復元'
@@ -4197,6 +4219,7 @@ translations:
   Starting nozzle clean...: ノズル清掃を開始中...
   Starting print...: 印刷開始中...
   Starting the print: 印刷を開始中
+  Starting the update: '更新を開始しています'
   Starting {}…: '{} を開始中…'
   Starting...: 開始中...
   Starts after the current print: 現在の印刷が終わったら開始します
@@ -4578,6 +4601,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。'
   The printer did not report its toolhead limits.: 'プリンターがツールヘッドの限界値を報告しませんでした。'
   The printer did not reset the filter: 'プリンターがフィルターをリセットしませんでした'
+  The printer did not say whether it is printing. Try again.: 'プリンターが印刷中かどうかを返しませんでした。もう一度お試しください。'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。'
   The printer finishes this measurement on its own.: 'この測定はプリンターが最後まで行います。'
   The printer halted this print and cannot resume it. Restart from the beginning?: プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？
@@ -4600,6 +4624,7 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
   The printer is not ready.: "プリンターの準備ができていません。"
   The printer is not reporting its toolheads: 'プリンターがツールヘッドの情報を報告していません'
+  The printer is restarting into the new firmware.: 'プリンターは新しいファームウェアで再起動しています。'
   The printer is shut down.: 'プリンターはシャットダウンしています。'
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : 'この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。'
@@ -4615,6 +4640,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"
   The printer moved the print to {}, not {}.: 'プリンターは印刷を {} に移しました ({} ではありません)。'
+  The printer may need a reboot afterwards.: '更新後にプリンターの再起動が必要になる場合があります。'
   The printer moves the toolhead and measures its motors.: 'プリンターがツールヘッドを動かし、モーターを測定します。'
   The printer no longer has a print to resume.: プリンターに再開できる印刷がありません。
   The printer reads the file up to the last saved position. A large file can take a minute.: プリンターは最後に保存された位置までファイルを読み込みます。大きなファイルでは1分かかることがあります。
@@ -4631,6 +4657,8 @@ translations:
   The printer stopped itself for safety; the firmware gave no specific reason.: 'プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
+  The printer restarts when the update finishes.: '更新が完了するとプリンターは再起動します。'
+  The printer stops and cannot print until the update is done.: '更新が完了するまでプリンターは停止し、印刷できません。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。'
   The printer was stopped: 'プリンターが停止されました'
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
@@ -4672,7 +4700,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
+  The update ended, but the printer still offers it. Check the printer before using it.: '更新は終了しましたが、プリンターはまだ更新を提示しています。使用する前にプリンターを確認してください。'
+  The update failed: '更新に失敗しました'
   'The {0} motor was not measured: {1}.': '{0} モーターは測定されませんでした: {1}。'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。'
+  The update's result is unknown: '更新の結果は不明です'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   Theme: テーマ
   Theme Colors: テーマカラー
@@ -4773,6 +4805,7 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'このプリンターのMoonrakerはログインを要求しています。設定 > 接続 でAPIキーを追加してください。'
   This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'このプリンターの加速度センサーは {0:.0f} Hz までしか測定できないため、それより速いリップルは表示されません。'
   This printer's firmware has its own power-loss recovery.: "このプリンターのファームウェアには独自の停電からの復帰機能があります。"
+  This printer's firmware offers updates by itself when one is available.: 'このプリンターのファームウェアは、更新があるときに自ら更新を提示します。'
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "このプリンターのhoming overrideはXとYと同時にZもホーミングするため、印刷を再開できません。"
   This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "このプリンターのhoming overrideはXとYのホーミング時にZ位置を設定するため、印刷を再開できません。"
@@ -4797,6 +4830,8 @@ translations:
   This system does not support bypass mode: 'このシステムはバイパスモードに対応していません'
   This tool probes each bed screw and tells you how much to adjust.: このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
+  This update removes HelixScreen from the printer.: 'この更新はプリンターから HelixScreen を削除します。'
+  This upgrades the printer's operating system packages.: 'プリンターのOSパッケージを更新します。'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。
@@ -5033,6 +5068,7 @@ translations:
   Unlock: ロック解除
   Unmapped: 未割当
   Unmount: 取り外し
+  Unpacking the firmware: 'ファームウェアを展開しています'
   Unretract Extra: アンリトラクト追加量
   Unretract Speed: アンリトラクト速度
   Unsupported tape width: サポートされていないテープ幅
@@ -5040,6 +5076,7 @@ translations:
   'Up next: {}': '次の印刷：{}'
   'Up next: {} (+{})': '次の印刷：{}（+{}）'
   Up to date: 最新の状態です
+  Up to date ({}): '最新 ({})'
   'Up: %s': '稼働時間: %s'
   Update: 更新
   Update Available: 更新あり
@@ -5048,14 +5085,24 @@ translations:
   Update Helper Macros: 'ヘルパーマクロを更新'
   Update Helper Macros?: 'ヘルパーマクロを更新しますか？'
   Update Success: 更新成功
+  Update complete: '更新が完了しました'
   Update from a Terminal: ターミナルから更新
   Update installed!: アップデートをインストールしました！
+  Update printer software and firmware: 'プリンターのソフトウェアとファームウェアを更新'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。
   Update your security PIN: セキュリティ PIN を更新
+  Update {} from {} to {}?: '{} を {} から {} に更新しますか?'
+  Update {} system packages?: '{} 件のシステムパッケージを更新しますか?'
+  Update {} to {}?: '{} を {} に更新しますか?'
+  Update {}?: '{} を更新しますか?'
   Updates: 更新
   Updates & Data: '更新とデータ'
   Updating Configuration...: 設定を更新中...
+  Updating the main board: 'メインボードを更新しています'
+  Updating the system: 'システムを更新しています'
+  Updating toolhead {}: 'ツールヘッド {} を更新しています'
+  Updating {}: '{} を更新しています'
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: マルチカラースプールにはAFC 1.2.0以降へのアップグレードが必要です。フィラメント名にも対応し、これまではSpoolmanが別途必要でした。
   Upload: アップロード
   Upload Debug Bundle: デバッグバンドルをアップロード
@@ -5324,6 +5371,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "ゾーン {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"
+  a newer version: '新しいバージョン'
   already loaded: '装填済み'
   attempt {}: '試行 {}'
   auto: 自動
@@ -5503,6 +5551,9 @@ translations:
   '{} filament sensors available': '{} 個のフィラメントセンサーが利用可能です'
   '{} filament • {}': 'フィラメント {} • {}'
   '{} firmware': '{} ファームウェア'
+  '{} firmware can only be updated from its own screen app.': '{} のファームウェアは専用の画面アプリからのみ更新できます。'
+  '{} firmware updates are managed by its own tools.': '{} のファームウェア更新は専用のツールで管理されます。'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': '{} のファームウェア {} が利用可能です。設定 > システム > ファームウェア更新 からインストールしてください。'
   '{} free of {}': '空き {} / {}'
   '{} h': '{} 時間'
   '{} h of {} h': '{} / {} 時間'
@@ -5549,6 +5600,7 @@ translations:
   '{} new hardware available': '{} 個の新しいハードウェアが利用可能です'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 個の新しいプラグインが利用可能です。設定 > プラグインで有効化してください。'
   '{} nozzle sensor fault': '{} のノズルセンサー異常'
+  '{} packages to update': '更新するパッケージ {} 件'
   '{} preset': '{} 個のプリセット'
   '{} presets': '{} 個のプリセット'
   '{} prints': '{} 件'

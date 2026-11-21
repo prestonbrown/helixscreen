@@ -14,6 +14,8 @@
 #include <lvgl/lvgl.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <chrono>
 #include <cstdlib>
@@ -25,6 +27,11 @@
 
 #if defined(HELIX_PLATFORM_ESP32)
 #include <esp_heap_caps.h>
+#endif
+
+#ifdef __linux__
+#include <dirent.h>
+#include <unistd.h>
 #endif
 
 #ifdef __APPLE__
@@ -146,6 +153,210 @@ bool read_smaps_rollup(SmapsRollup& rollup) {
 #else
     return false;
 #endif
+}
+
+bool parse_proc_stat(const std::string& line, ProcStat& out) {
+    const auto open = line.find('(');
+    const auto close = line.rfind(')');
+    if (open == std::string::npos || close == std::string::npos || close < open) {
+        return false;
+    }
+    // Fields after comm, from field 3 (state) on: majflt is field 12, rss field 24.
+    constexpr size_t kMajfltIndex = 12 - 3;
+    constexpr size_t kRssIndex = 24 - 3;
+    std::vector<std::string> fields;
+    size_t pos = close + 1;
+    while (fields.size() <= kRssIndex) {
+        pos = line.find_first_not_of(' ', pos);
+        if (pos == std::string::npos) {
+            return false;
+        }
+        const auto end = line.find(' ', pos);
+        fields.push_back(
+            line.substr(pos, end == std::string::npos ? std::string::npos : end - pos));
+        pos = end;
+    }
+    const auto majflt = tio::parse_leading<unsigned long long>(fields[kMajfltIndex]);
+    const auto rss = tio::parse_leading<long long>(fields[kRssIndex]);
+    if (!majflt || !rss) {
+        return false;
+    }
+    out.comm = line.substr(open + 1, close - open - 1);
+    out.major_faults = *majflt;
+    out.rss_pages = *rss;
+    return true;
+}
+
+namespace {
+
+/// python, python3, python3.11: digits and dots after "python", nothing else.
+bool is_python(const std::string& comm) {
+    if (comm.compare(0, 6, "python") != 0) {
+        return false;
+    }
+    return std::all_of(comm.begin() + 6, comm.end(),
+                       [](char c) { return (c >= '0' && c <= '9') || c == '.'; });
+}
+
+bool is_interpreter(const std::string& comm) {
+    if (is_python(comm)) {
+        return true;
+    }
+    for (const char* name : {"node", "bash", "sh", "dash", "ash"}) {
+        if (comm == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/// Programs telemetry names by their comm: HelixScreen, the Klipper stack,
+/// camera streamers, stock vendor UIs and the daemons of printer-host images.
+/// A comm is whatever the binary's builder chose, so anything else is "other".
+constexpr const char* kKnownPrograms[] = {
+    // HelixScreen
+    "helix-screen", "helix-splash", "helix-watchdog",
+    // Klipper stack, and the UIs and services beside it
+    "klippy", "klipper", "klipper_mcu", "moonraker", "KlipperScreen", "crowsnest",
+    // Cameras
+    "ustreamer", "camera-streamer", "mjpg_streamer", "go2rtc", "janus", "webcamd",
+    // Stock vendor UIs and services
+    "gui", "lmd", "unisrv", "display-server", "master-server", "app-server", "audio-server",
+    "wifi-server", "upgrade-server", "web-server", "firmwareExe",
+    // Web servers
+    "nginx", "lighttpd", "httpd", "mosquitto",
+    // Display
+    "Xorg", "X", "Xwayland", "weston", "cage", "lightdm", "chromium", "chromium-browser",
+    // Remote access
+    "dropbear", "sshd",
+    // System daemons
+    "init", "systemd", "systemd-journald", "systemd-logind", "systemd-udevd", "systemd-networkd",
+    "systemd-resolved", "systemd-timesyncd", "udevd", "dbus-daemon", "avahi-daemon",
+    "NetworkManager", "ModemManager", "wpa_supplicant", "hostapd", "dhcpcd", "dnsmasq", "udhcpc",
+    "connmand", "rsyslogd", "syslogd", "klogd", "cron", "crond", "polkitd", "bluetoothd", "chronyd",
+    "ntpd", "containerd", "dockerd", "snapd", "smbd", "nmbd", "getty", "agetty", "login", "busybox",
+    "irqbalance", "haveged", "rngd"};
+
+/// The kernel keeps the first 15 characters of a program's name as its comm.
+constexpr size_t kCommLen = 15;
+
+const char* known_program(const std::string& comm) {
+    if (comm.empty()) {
+        return nullptr;
+    }
+    for (const char* name : kKnownPrograms) {
+        if (std::string_view(name).substr(0, kCommLen) == comm) {
+            return name;
+        }
+    }
+    return nullptr;
+}
+
+/// Printer-host services an interpreter runs, by a lowercase substring of one
+/// of its arguments. First match wins, so a name that contains another
+/// (moonraker-obico, KlipperScreen) comes before it.
+struct InterpretedService {
+    const char* needle;
+    const char* label;
+};
+constexpr InterpretedService kInterpretedServices[] = {
+    {"obico", "obico"},         {"klipperscreen", "klipperscreen"}, {"klippy", "klipper"},
+    {"moonraker", "moonraker"}, {"crowsnest", "crowsnest"},         {"octoapp", "octoapp"},
+    {"spoolman", "spoolman"},
+};
+
+const char* interpreted_service(std::string_view cmdline) {
+    // Arguments after argv[0]: the interpreter's own path, often a venv
+    // named after whatever it runs, says nothing about this process.
+    const auto first_end = cmdline.find('\0');
+    if (first_end == std::string_view::npos) {
+        return nullptr;
+    }
+    std::string args(cmdline.substr(first_end + 1));
+    for (char& c : args) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    for (const auto& service : kInterpretedServices) {
+        if (args.find(service.needle) != std::string::npos) {
+            return service.label;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+std::string telemetry_process_name(const std::string& comm, std::string_view cmdline) {
+    if (is_interpreter(comm)) {
+        const char* label = interpreted_service(cmdline);
+        return label ? label : comm;
+    }
+    const char* known = known_program(comm);
+    return known ? known : "other";
+}
+
+std::vector<ProcessRss> top_processes_by_rss(size_t count, const char* proc_root,
+                                             long page_size_kb) {
+    std::vector<ProcessRss> all;
+#ifdef __linux__
+    DIR* dir = opendir(proc_root);
+    if (!dir) {
+        return all;
+    }
+    const std::string root(proc_root);
+    while (dirent* entry = readdir(dir)) {
+        const char* pid = entry->d_name;
+        if (pid[0] < '0' || pid[0] > '9') {
+            continue;
+        }
+        // A process that exits between readdir() and here leaves nothing to read.
+        const auto line = tio::read_file(root + "/" + pid + "/stat");
+        ProcStat st;
+        if (!line || !parse_proc_stat(*line, st) || st.rss_pages <= 0) {
+            continue;
+        }
+        // Only an interpreter's arguments are read, and only to pick a fixed label.
+        std::string cmdline;
+        if (is_interpreter(st.comm)) {
+            cmdline = tio::read_file(root + "/" + pid + "/cmdline", 4096).value_or("");
+        }
+        all.push_back(
+            {telemetry_process_name(st.comm, cmdline), st.rss_pages * page_size_kb / 1024});
+    }
+    closedir(dir);
+    std::sort(all.begin(), all.end(),
+              [](const ProcessRss& a, const ProcessRss& b) { return a.rss_mb > b.rss_mb; });
+    if (all.size() > count) {
+        all.resize(count);
+    }
+#else
+    (void)count;
+    (void)proc_root;
+    (void)page_size_kb;
+#endif
+    return all;
+}
+
+std::vector<ProcessRss> top_processes_by_rss(size_t count) {
+#ifdef __linux__
+    return top_processes_by_rss(count, "/proc", sysconf(_SC_PAGESIZE) / 1024);
+#else
+    (void)count;
+    return {};
+#endif
+}
+
+std::optional<uint64_t> read_self_major_faults(const char* stat_path) {
+#ifdef __linux__
+    const auto line = tio::read_file(stat_path);
+    ProcStat st;
+    if (line && parse_proc_stat(*line, st)) {
+        return st.major_faults;
+    }
+#else
+    (void)stat_path;
+#endif
+    return std::nullopt;
 }
 
 MemoryInfo get_system_memory_info() {

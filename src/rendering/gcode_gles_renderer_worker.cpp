@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "gcode_gles_renderer_internal.h"
+#include "system/telemetry_manager.h"
 
 #ifdef ENABLE_GLES_3D
 
@@ -202,6 +203,7 @@ GCodeRenderWorker::StepOutcome GCodeGLESRenderer::step_locked(const RenderReques
         gpu_checked_ = true;
         const char* renderer = reinterpret_cast<const char*>(glGetString(GL_RENDERER));
         spdlog::info("[GCode GLES] GL_RENDERER: {}", renderer ? renderer : "(null)");
+        helix::telemetry_context::set_gl_renderer(renderer);
         if (gl_renderer_is_denylisted(renderer)) {
             spdlog::error("[GCode GLES] GPU '{}' is denylisted (known to fault inside the driver) "
                           "— disabling GPU rendering, falling back to 2D",

@@ -11,6 +11,9 @@
 #include "ui_settings_security.h"
 #include "ui_settings_storage.h"
 #if !defined(HELIX_PLATFORM_ESP32)
+#include "ui_settings_firmware_update.h"
+#endif
+#if !defined(HELIX_PLATFORM_ESP32)
 #include "ui_settings_telemetry_data.h"
 #include "ui_telemetry_info_modal.h"
 #include "ui_wizard_telemetry.h"
@@ -76,6 +79,16 @@ void SystemSettingsOverlay::register_callbacks() {
          [](lv_event_t* e) {
              SystemSettingsManager::instance().set_log_level_by_index(event_selected(e));
          }},
+#if !defined(HELIX_PLATFORM_ESP32)
+        {"on_firmware_update_clicked",
+         [](lv_event_t*) {
+             get_firmware_update_overlay().show(get_system_settings_overlay().parent_screen_);
+         }},
+#else
+        // No firmware update page on the firmware: the row stays hidden
+        // (settings_firmware_update = 0) and this only lets the XML resolve it.
+        {"on_firmware_update_clicked", [](lv_event_t*) {}},
+#endif
         {"on_storage_clicked",
          [](lv_event_t*) {
              get_storage_settings_overlay().show(get_system_settings_overlay().parent_screen_);

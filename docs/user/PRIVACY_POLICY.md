@@ -55,6 +55,10 @@ Recorded once per application launch.
 | `app.display` | string | Display resolution (e.g., `"800x480"`) |
 | `app.install_source` | string | Channel that installed HelixScreen, one word from a fixed list (e.g., `"kiauh"`, `"curl"`, `"unknown"`) |
 | `app.host_mod` | string | Firmware mod on the printer, one word from a fixed list (e.g., `"forge_x"`, `"none"`) |
+| `app.gcode_render_mode` | string | G-code preview setting, one word from a fixed list (`"auto"`, `"3d"`, `"2d"`, `"thumbnail"`) |
+| `app.gpu_3d_blocked` | boolean | Whether the 3D preview is turned off after a graphics driver crash |
+| `app.gl_renderer` | string | Graphics renderer name with driver and version detail removed (e.g., `"V3D 4.2"`), once a 3D preview has been shown |
+| `app.gl_software` | boolean | Whether that renderer draws on the CPU rather than a GPU |
 
 ### 4.2 Print Outcome Events
 
@@ -98,16 +102,16 @@ In addition to the three categories above, HelixScreen records the following dia
 |-------|---------------|------------------|
 | Update events | When the in-app updater runs | Whether an update attempt succeeded or failed, and version/platform context |
 | Memory snapshots | Hourly and at startup | Resident/virtual memory usage and uptime (for leak detection) |
-| Memory warnings | When memory pressure is detected | The same memory-usage figures at the moment of a warning |
+| Memory warnings | When memory pressure is detected | The same memory-usage figures at the moment of a warning; at the warning and critical levels, the names and memory use of the three largest programs, each a name from a fixed list of known programs and printer services, or "other" for any program not on it (never arguments, paths, or a program's own name when it is not on the list) |
 | Hardware profile | Once per session | Detected printer model, kinematics, MCU, extruder/fan counts, capability flags, and Klipper configuration identifiers (see Section 4.5) |
 | Settings snapshot | Once per session | A subset of your preferences (theme, brightness, locale, animations on/off) |
 | Settings changes | Batched over 30 seconds after a change | The name of a changed setting and its old/new value — enumerated category values only, never free text |
 | Panel usage | Every 4 hours and at close | Time spent on and visit counts for each UI panel (no actions or content) |
-| Performance snapshots | Every 4 hours | Frame-render timing percentiles and dropped-frame counts (no user content) |
+| Performance snapshots | Every 4 hours | Frame-render timing percentiles and dropped-frame counts, and the graphics renderer name once known (no user content) |
 | Feature adoption | 5 minutes after startup | Boolean flags for which built-in features have been used |
 | Connection stability | Every 4 hours and at close | Connect/disconnect counts and total connected time |
 | Print start context | When a print begins | Print source, whether the file has a thumbnail, a bucketed file-size range, and slicer name — never the filename |
-| Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted |
+| Error events | When a non-fatal error occurs (rate-limited) | An error category, code, and the operation being attempted; for a frozen screen, also which screen was open, the graphics renderer name, free memory and HelixScreen's count of memory reads from storage |
 
 ### 4.5 Klipper Configuration Identifiers
 

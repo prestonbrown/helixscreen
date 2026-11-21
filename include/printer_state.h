@@ -621,6 +621,11 @@ class PrinterState {
         return lv_subject_get_int(capabilities_state_.subject(Capability::HasJobQueue)) == 1;
     }
 
+    /// Whether Moonraker lists its update_manager component. Any thread.
+    bool is_update_manager_available() const {
+        return lv_subject_get_int(capabilities_state_.subject(Capability::HasUpdateManager)) == 1;
+    }
+
     /// True if at least one enabled webcam has been detected
     bool has_webcam() const {
         return lv_subject_get_int(capabilities_state_.subject(Capability::HasWebcam)) == 1;

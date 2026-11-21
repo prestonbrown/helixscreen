@@ -2066,14 +2066,38 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     [[nodiscard]] bool update_manager_busy() const {
         return update_manager_busy_;
     }
+    /// One update_manager entry as machine.update.status reports it. An empty type
+    /// reports the channel alone.
+    struct MockUpdateEntry {
+        std::string channel;
+        std::string type; ///< configured_type: "git_repo", "web"
+        std::string version;
+        std::string remote_version;
+        int commits_behind = 0;
+        int package_count = 0; ///< type "system": OS packages with updates
+    };
     /// The update_manager entries machine.update.status reports in `version_info`, each
-    /// with the `channel:` Moonraker loaded for it. Empty by default.
-    void set_update_manager_entries(std::map<std::string, std::string> name_to_channel) {
-        update_manager_entries_ = std::move(name_to_channel);
+    /// with only the `channel:` Moonraker loaded for it. Empty by default; replaces
+    /// every entry.
+    void set_update_manager_entries(const std::map<std::string, std::string>& name_to_channel) {
+        std::lock_guard<std::mutex> lock(update_manager_mutex_);
+        update_manager_entries_.clear();
+        for (const auto& [name, channel] : name_to_channel)
+            update_manager_entries_[name] = MockUpdateEntry{channel, "", "", "", 0};
     }
-    [[nodiscard]] const std::map<std::string, std::string>& update_manager_entries() const {
+    /// What a --test run lists: Klipper, Mainsail and the OS packages with updates,
+    /// Moonraker and Fluidd current.
+    void seed_update_manager_demo();
+    /// A copy of the entries, safe beside the simulation thread finishing an upgrade.
+    [[nodiscard]] std::map<std::string, MockUpdateEntry> update_manager_entries() const {
+        std::lock_guard<std::mutex> lock(update_manager_mutex_);
         return update_manager_entries_;
     }
+    /// machine.update.upgrade: start a simulated upgrade of @p name that the
+    /// simulation loop plays out as notify_update_response lines, then answers
+    /// @p done. False when the entry is unknown or another upgrade runs.
+    bool start_update_manager_job(const std::string& name,
+                                  helix::SharedCallback<void(const json&)> done);
     /// The `name` of the last machine.update.refresh; empty until one arrives.
     [[nodiscard]] const std::string& last_update_refresh_name() const {
         return last_update_refresh_name_;
@@ -2251,8 +2275,16 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// never simulate a link keep getting answers (the mock's initial
     /// ConnectionState is DISCONNECTED and must not gate sends by itself).
     bool sim_link_down_{false};
-    bool update_manager_busy_{false};
-    std::map<std::string, std::string> update_manager_entries_;
+    std::atomic<bool> update_manager_busy_{false};
+    mutable std::mutex update_manager_mutex_; ///< guards the entries and the job
+    std::map<std::string, MockUpdateEntry> update_manager_entries_;
+    struct MockUpdateJob {
+        std::string name;
+        double elapsed = 0.0;
+        std::size_t step = 0;
+        helix::SharedCallback<void(const json&)> done;
+    };
+    std::optional<MockUpdateJob> update_job_;
     std::string last_update_refresh_name_;
     bool openams_spoolman_{false};
     json openams_spoolman_status_ =
@@ -3179,6 +3211,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     int material_zoffset_apply_count_ = 0;
     /// Accrues the inner fan's work time over @p dt simulated seconds.
     void service_purifier(double dt);
+    /// Advance a simulated update_manager upgrade by @p dt seconds.
+    void service_update_job(double dt);
     void publish_purifier();
     mutable std::mutex purifier_mutex_;
     MockPurifier purifier_;

@@ -774,6 +774,7 @@ void MoonrakerDiscoverySequence::apply_server_components(uint64_t seq, const jso
     // get re-set below if the components are detected.
     get_printer_state().set_timelapse_available(false);
     get_printer_state().capabilities_state().set_job_queue_available(false);
+    get_printer_state().capabilities_state().set_update_manager_available(false);
 
     // Check for Spoolman component and verify connection
     bool has_spoolman_component =
@@ -837,6 +838,7 @@ void MoonrakerDiscoverySequence::apply_server_components(uint64_t seq, const jso
 
     update_manager_listed_ =
         std::find(components.begin(), components.end(), "update_manager") != components.end();
+    get_printer_state().capabilities_state().set_update_manager_available(update_manager_listed_);
     if (helix::is_placeholder_version(moonraker_version) && update_manager_listed_) {
         fetch_update_manager_version(seq, "moonraker");
     }

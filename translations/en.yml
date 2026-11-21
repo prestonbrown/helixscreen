@@ -400,6 +400,7 @@ translations:
   Another filament operation is heating the nozzle.: Another filament operation is heating the nozzle.
   Another print is in progress.: Another print is in progress.
   Another toolhead is active: Another toolhead is active
+  Another update is already running: Another update is already running
   Any notes...: Any notes...
   Any other material: Any other material
   App Background: App Background
@@ -849,6 +850,7 @@ translations:
   Checking filament...: Checking filament...
   Checking for ffmpeg...: Checking for ffmpeg...
   Checking for plugin...: Checking for plugin...
+  Checking for updates...: Checking for updates...
   Checking for webcam...: Checking for webcam...
   Checking plugin: Checking plugin
   Checking slots...: Checking slots...
@@ -1141,10 +1143,13 @@ translations:
   Could not move the plate: Could not move the plate
   Could not open a browser for the update: Could not open a browser for the update
   Could not parse tips database: Could not parse tips database
+  Could not prepare a folder for the update log: Could not prepare a folder for the update log
   Could not reach Spoolman at: Could not reach Spoolman at
   Could not read the current IPv4 settings.: Could not read the current IPv4 settings.
+  Could not read the free space on the printer: Could not read the free space on the printer
   "Could not read the printer's limits: {}": "Could not read the printer's limits: {}"
   Could not read the printer's storage: Could not read the printer's storage
+  Could not read the printer's update status: Could not read the printer's update status
   Could not read the screw adjustments from the printer: Could not read the screw adjustments from the printer
   Could not remove the job from the queue: Could not remove the job from the queue
   Could not reset the printer image tags: Could not reset the printer image tags
@@ -1332,6 +1337,8 @@ translations:
   Do not power off your printer.: Do not power off your printer.
   Do not touch the filament yet.: Do not touch the filament yet.
   Do not touch the printer during calibration: Do not touch the printer during calibration
+  Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.
+  Do not turn the printer off until the update finishes.: Do not turn the printer off until the update finishes.
   Dock: Dock
   Dock every toolhead first: Dock every toolhead first
   Dock position change too large: Dock position change too large
@@ -1832,6 +1839,7 @@ translations:
   Fireflies: Fireflies
   Fireworks: Fireworks
   Firmware Restart: Firmware Restart
+  Firmware Update: Firmware Update
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Firmware reports no bypass. Enable if you feed filament straight to the extruder
   Firmware restart: Firmware restart
   'Firmware restart failed: {}': 'Firmware restart failed: {}'
@@ -2184,6 +2192,7 @@ translations:
   Input shaping reduces vibration artifacts (ringing) in your prints.: Input shaping reduces vibration artifacts (ringing) in your prints.
   'Input: ': 'Input: '
   InputShaper: InputShaper
+  Insert a USB stick with the {} firmware file in its top folder.: Insert a USB stick with the {} firmware file in its top folder.
   Insert filament: Insert filament
   Insert filament before resuming: Insert filament before resuming
   Insert filament into this head's feeder until it grabs, then load the head again.: Insert filament into this head's feeder until it grabs, then load the head again.
@@ -2202,6 +2211,7 @@ translations:
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   Install timelapse plugin: Install timelapse plugin
+  Install {} on this printer?: Install {} on this printer?
   Installation Failed: Installation Failed
   Installation failed: Installation failed
   Installation failed. Check logs for details.: Installation failed. Check logs for details.
@@ -2210,8 +2220,11 @@ translations:
   Installation timed out: Installation timed out
   Installation timed out. The script may be stuck.: Installation timed out. The script may be stuck.
   Installed: Installed
+  Installing firmware is not enabled on this printer: Installing firmware is not enabled on this printer
+  Installing printer firmware: Installing printer firmware
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: Installing restarts Moonraker, so it waits until the print is finished or cancelled.
   Installing the timelapse plugin...: Installing the timelapse plugin...
+  Installing {} firmware from this screen is not available yet.: Installing {} firmware from this screen is not available yet.
   Installing...: Installing...
   Intensity: Intensity
   Interactive calibration for all lanes: Interactive calibration for all lanes
@@ -2313,6 +2326,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:'
   Klipper is halted — restart firmware to continue: Klipper is halted — restart firmware to continue
   Klipper is restarting. Timelapse frames are captured from the next print.: Klipper is restarting. Timelapse frames are captured from the next print.
+  Klipper or Moonraker may restart while it updates.: Klipper or Moonraker may restart while it updates.
   Klipper ready: Klipper ready
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
@@ -2473,6 +2487,7 @@ translations:
   Lost connection during print — try again: Lost connection during print — try again
   Lost connection to CFS unit: Lost connection to CFS unit
   Lost contact with a controller board: Lost contact with a controller board
+  Lost contact with the printer. The update may still be running.: Lost contact with the printer. The update may still be running.
   Lost the connection to the printer.: Lost the connection to the printer.
   Lost the printer.: Lost the printer.
   'Lot # (optional)': 'Lot # (optional)'
@@ -2709,6 +2724,7 @@ translations:
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   : Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   Needs attention: Needs attention
+  Needs repair from a web interface: Needs repair from a web interface
   Needs the {} package to switch spools: Needs the {} package to switch spools
   'Needs {}x{} free: remove or shrink a widget first': 'Needs {}x{} free: remove or shrink a widget first'
   Net Weight (g): Net Weight (g)
@@ -2887,6 +2903,7 @@ translations:
   Not detected: Not detected
   Not drying: Not drying
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: Not enough free space on the printer for this file. Free some in Settings > System > Storage.
+  Not enough free space on the printer to unpack the firmware: Not enough free space on the printer to unpack the firmware
   Not enough frequency data from the sweeps. Try again.: 'Not enough frequency data from the sweeps. Try again.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Not enough room for this widget. Rearrange or remove widgets to make space.
   Not enough room to put the widget back. It stays removed.: Not enough room to put the widget back. It stays removed.
@@ -3054,6 +3071,8 @@ translations:
   POWER: POWER
   PRINT OPTIONS: PRINT OPTIONS
   PRINTER: PRINTER
+  PRINTER FIRMWARE: PRINTER FIRMWARE
+  PRINTER SOFTWARE: PRINTER SOFTWARE
   PRINTER VISUALS: PRINTER VISUALS
   PRINTERS: PRINTERS
   PRINTING: PRINTING
@@ -3537,6 +3556,8 @@ translations:
   Refresh RFID: Refresh RFID
   Refresh Spoolman: Refresh Spoolman
   'Reheating...': 'Reheating...'
+  Reinstall it afterwards by following {}.: Reinstall it afterwards by following {}.
+  Reinstall it afterwards.: Reinstall it afterwards.
   Relative vibration: Relative vibration
   Release all stepper motors. Position will be lost.: Release all stepper motors. Position will be lost.
   Release filament: Release filament
@@ -3664,6 +3685,7 @@ translations:
   Restarting printer...: Restarting printer...
   Restarting screen...: Restarting screen...
   Restarting the printer...: Restarting the printer...
+  Restarting the printer: Restarting the printer
   Restarting with the new version...: Restarting with the new version...
   Restarting...: Restarting...
   Restore: Restore
@@ -4173,6 +4195,7 @@ translations:
   'Starting nozzle clean...': 'Starting nozzle clean...'
   'Starting print...': 'Starting print...'
   Starting the print: Starting the print
+  Starting the update: Starting the update
   Starting {}…: Starting {}…
   Starting...: Starting...
   Starts after the current print: Starts after the current print
@@ -4550,6 +4573,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.'
   The printer did not report its toolhead limits.: The printer did not report its toolhead limits.
   The printer did not reset the filter: The printer did not reset the filter
+  The printer did not say whether it is printing. Try again.: The printer did not say whether it is printing. Try again.
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.
   The printer finishes this measurement on its own.: 'The printer finishes this measurement on its own.'
   The printer halted this print and cannot resume it. Restart from the beginning?: The printer halted this print and cannot resume it. Restart from the beginning?
@@ -4570,6 +4594,7 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.
   The printer is not ready.: The printer is not ready.
   The printer is not reporting its toolheads: The printer is not reporting its toolheads
+  The printer is restarting into the new firmware.: The printer is restarting into the new firmware.
   The printer is shut down.: The printer is shut down.
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
@@ -4585,6 +4610,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   The printer moved the print to {}, not {}.: The printer moved the print to {}, not {}.
+  The printer may need a reboot afterwards.: The printer may need a reboot afterwards.
   The printer moves the toolhead and measures its motors.: The printer moves the toolhead and measures its motors.
   The printer no longer has a print to resume.: The printer no longer has a print to resume.
   The printer reads the file up to the last saved position. A large file can take a minute.: The printer reads the file up to the last saved position. A large file can take a minute.
@@ -4601,6 +4627,8 @@ translations:
   The printer stopped itself for safety; the firmware gave no specific reason.: The printer stopped itself for safety; the firmware gave no specific reason.
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  The printer restarts when the update finishes.: The printer restarts when the update finishes.
+  The printer stops and cannot print until the update is done.: The printer stops and cannot print until the update is done.
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: The printer swaps between several toolheads. Manage the tools on the filament system screen.
   The printer was stopped: The printer was stopped
   The printer's firmware chooses where to switch on runout: The printer's firmware chooses where to switch on runout
@@ -4642,7 +4670,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
   'The unload did not start: unload by hand, then start again': 'The unload did not start: unload by hand, then start again'
   The unload finishes on its own, but the plate will not move.: The unload finishes on its own, but the plate will not move.
+  The update ended, but the printer still offers it. Check the printer before using it.: The update ended, but the printer still offers it. Check the printer before using it.
+  The update failed: The update failed
   'The {0} motor was not measured: {1}.': 'The {0} motor was not measured: {1}.'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': 'The update stopped reporting. Its result is unknown: check the printer before using it.'
+  The update's result is unknown: The update's result is unknown
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.
   Theme: Theme
   Theme Colors: Theme Colors
@@ -4744,6 +4776,7 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: This printer's Moonraker requires a login. Add its API key in Settings > Connection.
   This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.
   This printer's firmware has its own power-loss recovery.: This printer's firmware has its own power-loss recovery.
+  This printer's firmware offers updates by itself when one is available.: This printer's firmware offers updates by itself when one is available.
   This printer's gantry drops when the power is cut, so a print can't be resumed.: This printer's gantry drops when the power is cut, so a print can't be resumed.
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "This printer's homing override homes Z along with X and Y, so a print can't be resumed."
   This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed."
@@ -4768,6 +4801,8 @@ translations:
   This system does not support bypass mode: This system does not support bypass mode
   This tool probes each bed screw and tells you how much to adjust.: This tool probes each bed screw and tells you how much to adjust.
   'This update asks for new permissions:': 'This update asks for new permissions:'
+  This update removes HelixScreen from the printer.: This update removes HelixScreen from the printer.
+  This upgrades the printer's operating system packages.: This upgrades the printer's operating system packages.
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
@@ -5005,6 +5040,7 @@ translations:
   Unlock: Unlock
   Unmapped: Unmapped
   Unmount: Unmount
+  Unpacking the firmware: Unpacking the firmware
   Unretract Extra: Unretract Extra
   Unretract Speed: Unretract Speed
   Unsaved changes: Unsaved changes
@@ -5013,6 +5049,7 @@ translations:
   'Up next: {}': 'Up next: {}'
   'Up next: {} (+{})': 'Up next: {} (+{})'
   Up to date: Up to date
+  Up to date ({}): Up to date ({})
   'Up: %s': 'Up: %s'
   Update: Update
   Update Available: Update Available
@@ -5021,16 +5058,26 @@ translations:
   Update Helper Macros: Update Helper Macros
   Update Helper Macros?: Update Helper Macros?
   Update Success: Update Success
+  Update complete: Update complete
   Update from a Terminal: Update from a Terminal
   Update heater model?: Update heater model?
   Update in Spoolman: Update in Spoolman
   Update installed!: Update installed!
+  Update printer software and firmware: Update printer software and firmware
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.'
   Update your security PIN: Update your security PIN
+  Update {} from {} to {}?: Update {} from {} to {}?
+  Update {} system packages?: Update {} system packages?
+  Update {} to {}?: Update {} to {}?
+  Update {}?: Update {}?
   Updates: Updates
   Updates & Data: Updates & Data
   Updating Configuration...: Updating Configuration...
+  Updating the main board: Updating the main board
+  Updating the system: Updating the system
+  Updating toolhead {}: Updating toolhead {}
+  Updating {}: Updating {}
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.
   Upload: Upload
   Upload Debug Bundle: Upload Debug Bundle
@@ -5300,6 +5347,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: Zone {:.0f}-{:.0f} Hz
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': '[{}] was found {} times in the config files printer.cfg loads, expected once'
+  a newer version: a newer version
   already loaded: already loaded
   attempt {}: attempt {}
   auto: auto
@@ -5474,6 +5522,9 @@ translations:
   '{} filament sensors available': '{} filament sensors available'
   '{} filament • {}': '{} filament • {}'
   '{} firmware': '{} firmware'
+  '{} firmware can only be updated from its own screen app.': '{} firmware can only be updated from its own screen app.'
+  '{} firmware updates are managed by its own tools.': '{} firmware updates are managed by its own tools.'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': '{} firmware {} is available. Open Settings > System > Firmware Update to install it.'
   '{} free of {}': '{} free of {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h of {} h'
@@ -5520,6 +5571,7 @@ translations:
   '{} new hardware available': '{} new hardware available'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} new plugins available. Enable them in Settings > Plugins.'
   '{} nozzle sensor fault': '{} nozzle sensor fault'
+  '{} packages to update': '{} packages to update'
   '{} preset': '{} preset'
   '{} presets': '{} presets'
   '{} prints': '{} prints'

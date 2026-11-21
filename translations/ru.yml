@@ -447,6 +447,7 @@ translations:
   Another filament operation is heating the nozzle.: "Другая операция с филаментом нагревает сопло."
   Another print is in progress.: 'Идёт другая печать.'
   Another toolhead is active: 'Активна другая печатающая головка'
+  Another update is already running: 'Уже выполняется другое обновление'
   Any notes...: Заметки...
   Any other material: "Любой другой материал"
   App Background: Фон приложения
@@ -903,6 +904,7 @@ translations:
   Checking filament...: Проверка филамента...
   Checking for ffmpeg...: 'Поиск ffmpeg...'
   Checking for plugin...: Поиск плагина...
+  Checking for updates...: 'Поиск обновлений...'
   Checking for webcam...: Проверка веб-камеры...
   Checking plugin: Проверка плагина
   Checking slots...: Проверка слотов...
@@ -1203,10 +1205,13 @@ translations:
 
   Could not open a browser for the update: Не удалось открыть браузер для обновления
   Could not parse tips database: Не удалось разобрать базу данных советов
+  Could not prepare a folder for the update log: 'Не удалось подготовить папку для журнала обновления'
   Could not reach Spoolman at: Не удалось связаться со Spoolman по адресу
   Could not read the current IPv4 settings.: 'Не удалось прочитать текущие настройки IPv4.'
+  Could not read the free space on the printer: 'Не удалось прочитать свободное место на принтере'
   "Could not read the printer's limits: {}": 'Не удалось прочитать пределы принтера: {}'
   Could not read the printer's storage: 'Не удалось прочитать хранилище принтера'
+  Could not read the printer's update status: 'Не удалось прочитать состояние обновлений принтера'
   Could not read the screw adjustments from the printer: Не удалось получить данные регулировки винтов от принтера
   Could not remove the job from the queue: Не удалось удалить задание из очереди
   Could not reset the printer image tags: Не удалось сбросить отметки изображения
@@ -1396,6 +1401,8 @@ translations:
   Do not power off your printer.: Не выключайте принтер.
   Do not touch the filament yet.: "Пока не трогайте филамент."
   Do not touch the printer during calibration: Не трогайте принтер во время калибровки
+  Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Не выключайте принтер до завершения. Пропадание питания во время прошивки может привести к тому, что принтер не запустится.'
+  Do not turn the printer off until the update finishes.: 'Не выключайте принтер до завершения обновления.'
   Dock: Парковать
   Dock every toolhead first: 'Сначала поставьте все головки в доки'
   Dock position change too large: 'Слишком большое изменение положения дока'
@@ -1904,6 +1911,7 @@ translations:
   Fireflies: Светлячки
   Fireworks: Фейерверк
   Firmware Restart: Перезапуск прошивки
+  Firmware Update: 'Обновление прошивки'
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: Прошивка не сообщает о байпасе. Включите, если филамент подаётся прямо в экструдер.
   Firmware restart: Перезапуск прошивки
   'Firmware restart failed: {}': 'Ошибка перезапуска прошивки: {}'
@@ -2263,6 +2271,7 @@ translations:
   Input shaping reduces vibration artifacts (ringing) in your prints.: Input Shaper уменьшает артефакты вибрации (эхо) в ваших отпечатках.
   'Input: ': 'Вход: '
   InputShaper: InputShaper
+  Insert a USB stick with the {} firmware file in its top folder.: 'Вставьте USB-накопитель с файлом прошивки {} в корневой папке.'
   Insert filament: 'Вставить филамент'
   Insert filament before resuming: Вставьте филамент перед возобновлением
   Insert filament into this head's feeder until it grabs, then load the head again.: 'Вставьте филамент в фидер этой головки до захвата, затем снова загрузите головку.'
@@ -2281,6 +2290,7 @@ translations:
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Установите плагин таймлапс через SSH,\nзатем нажмите \"Проверить снова\"."
   Install timelapse plugin: Установить плагин таймлапса
+  Install {} on this printer?: 'Установить {} на этот принтер?'
   Installation Failed: Ошибка установки
   Installation failed: Ошибка установки
   Installation failed. Check logs for details.: Ошибка установки. Подробности смотрите в журналах.
@@ -2289,8 +2299,11 @@ translations:
   Installation timed out: Время установки истекло
   Installation timed out. The script may be stuck.: Время установки истекло. Скрипт мог зависнуть.
   Installed: 'Установлено'
+  Installing firmware is not enabled on this printer: 'Установка прошивки на этом принтере не включена'
+  Installing printer firmware: 'Установка прошивки принтера'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: 'Установка перезапускает Moonraker, поэтому ждёт, пока печать не завершится или не будет отменена.'
   Installing the timelapse plugin...: 'Установка плагина таймлапса...'
+  Installing {} firmware from this screen is not available yet.: 'Установка прошивки {} с этого экрана пока недоступна.'
   Installing...: Установка...
   Intensity: Интенсивность
   Interactive calibration for all lanes: 'Интерактивная калибровка всех каналов'
@@ -2394,6 +2407,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper не загрузил макросы таймлапса, поэтому кадры не снимаются. Добавьте эту строку в printer.cfg и перезапустите Klipper:'
   Klipper is halted — restart firmware to continue: Klipper остановлен — перезапустите прошивку, чтобы продолжить
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper перезапускается. Кадры таймлапса будут сниматься со следующей печати.'
+  Klipper or Moonraker may restart while it updates.: 'Во время обновления Klipper или Moonraker могут перезапуститься.'
   Klipper ready: Klipper готов
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
@@ -2555,6 +2569,7 @@ translations:
   Lost connection during print — try again: Потеряно соединение во время печати — попробуйте снова
   Lost connection to CFS unit: Потеряна связь с блоком CFS
   Lost contact with a controller board: 'Потеряна связь с платой управления'
+  Lost contact with the printer. The update may still be running.: 'Связь с принтером потеряна. Обновление, возможно, ещё выполняется.'
   Lost the connection to the printer.: Связь с принтером потеряна.
   Lost the printer.: "Связь с принтером потеряна."
   'Lot # (optional)': 'Партия # (необязательно)'
@@ -2789,6 +2804,7 @@ translations:
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   : 'Указание вентилятора детали позволяет MPC учитывать его охлаждение. Klipper перезапустится, затем этот нагреватель будет откалиброван. Это займёт несколько минут при рабочей температуре.'
   Needs attention: Требует внимания
+  Needs repair from a web interface: 'Требуется восстановление через веб-интерфейс'
   Needs the {} package to switch spools: 'Для смены катушки нужен плагин {}'
   'Needs {}x{} free: remove or shrink a widget first': 'Требуется {}x{} свободного места: сначала удалите или уменьшите виджет'
   Net Weight (g): Вес нетто (г)
@@ -2969,6 +2985,7 @@ translations:
   Not detected: Не обнаружено
   Not drying: Не сушится
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: 'На принтере недостаточно свободного места для этого файла. Освободите место в разделе Настройки > Система > Хранилище.'
+  Not enough free space on the printer to unpack the firmware: 'Недостаточно свободного места на принтере для распаковки прошивки'
   Not enough frequency data from the sweeps. Try again.: 'Недостаточно данных о частоте по результатам измерений. Попробуйте снова.'
   Not enough room for this widget. Rearrange or remove widgets to make space.: Недостаточно места для этого виджета. Измените раскладку или удалите виджеты, чтобы освободить место.
   Not enough room to put the widget back. It stays removed.: 'Недостаточно места, чтобы вернуть виджет. Он остаётся удалённым.'
@@ -3137,6 +3154,8 @@ translations:
   POWER: ПИТАНИЕ
   PRINT OPTIONS: ПАРАМЕТРЫ ПЕЧАТИ
   PRINTER: ПРИНТЕР
+  PRINTER FIRMWARE: 'ПРОШИВКА ПРИНТЕРА'
+  PRINTER SOFTWARE: 'ПРОГРАММЫ ПРИНТЕРА'
   PRINTER VISUALS: ВНЕШНИЙ ВИД ПРИНТЕРА
   PRINTERS: ПРИНТЕРЫ
   PRINTING: 'ПЕЧАТЬ'
@@ -3634,6 +3653,8 @@ translations:
   Refresh: Обновить
   Refresh Interval: Интервал обновления
   Refresh RFID: 'Обновить RFID'
+  Reinstall it afterwards by following {}.: 'Затем установите его заново по инструкции {}.'
+  Reinstall it afterwards.: 'Затем установите его заново.'
   Relative vibration: Относительная вибрация
   Refresh Spoolman: 'Обновить Spoolman'
   Reheating...: Разогрев...
@@ -3764,6 +3785,7 @@ translations:
   Restarting printer...: Перезапуск принтера...
   Restarting screen...: Перезапуск экрана...
   Restarting the printer...: 'Перезапуск принтера...'
+  Restarting the printer: 'Перезапуск принтера'
   Restarting with the new version...: Перезапуск с новой версией...
   Restarting...: Перезапуск...
   Restore: 'Восстановить'
@@ -4285,6 +4307,7 @@ translations:
   Starting nozzle clean...: Запуск очистки сопла...
   Starting print...: Запуск печати...
   Starting the print: Запуск печати
+  Starting the update: 'Запуск обновления'
   Starting {}…: 'Запуск {}…'
   Starting...: Запуск...
   Starts after the current print: Начнётся после текущей печати
@@ -4666,6 +4689,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': 'Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова.'
   The printer did not report its toolhead limits.: 'Принтер не сообщил пределы печатающей головки.'
   The printer did not reset the filter: 'Принтер не сбросил счётчик фильтра'
+  The printer did not say whether it is printing. Try again.: 'Принтер не сообщил, идёт ли печать. Повторите попытку.'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: 'Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз.'
   The printer finishes this measurement on its own.: 'Принтер завершит это измерение сам.'
   The printer halted this print and cannot resume it. Restart from the beginning?: Принтер остановил эту печать и не может её возобновить. Начать с начала?
@@ -4688,6 +4712,7 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен.
   The printer is not ready.: "Принтер не готов."
   The printer is not reporting its toolheads: 'Принтер не сообщает о своих печатающих головках'
+  The printer is restarting into the new firmware.: 'Принтер перезапускается с новой прошивкой.'
   The printer is shut down.: 'Принтер выключен.'
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : 'Принтер использует это значение до перезапуска Klipper. Чтобы сохранить его, добавьте его как pressure_advance в секцию экструдера этого инструмента в printer.cfg.'
@@ -4703,6 +4728,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "Принтер может выполнить парковку и переместить печатающую головку, затем моторизованные натяжители натянут ремни X и Y. Освободите стол и портал."
   The printer moved the print to {}, not {}.: 'Принтер перенёс печать на {}, а не на {}.'
+  The printer may need a reboot afterwards.: 'После этого может потребоваться перезагрузка принтера.'
   The printer moves the toolhead and measures its motors.: 'Принтер перемещает печатающую головку и измеряет моторы.'
   The printer no longer has a print to resume.: У принтера больше нет печати для продолжения.
   The printer reads the file up to the last saved position. A large file can take a minute.: Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту.
@@ -4719,6 +4745,8 @@ translations:
   The printer stopped itself for safety; the firmware gave no specific reason.: 'Принтер остановился ради безопасности; прошивка не указала конкретной причины.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик.'
+  The printer restarts when the update finishes.: 'Принтер перезапустится после завершения обновления.'
+  The printer stops and cannot print until the update is done.: 'Принтер остановится и не сможет печатать до завершения обновления.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента.'
   The printer was stopped: 'Принтер был остановлен'
   The printer's firmware chooses where to switch on runout: Прошивка принтера сама выбирает, на что переключиться при обрыве
@@ -4760,7 +4788,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
+  The update ended, but the printer still offers it. Check the printer before using it.: 'Обновление завершилось, но принтер всё ещё его предлагает. Проверьте принтер перед использованием.'
+  The update failed: 'Обновление не удалось'
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием.'
+  The update's result is unknown: 'Результат обновления неизвестен'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   Theme: Тема
   Theme Colors: Цвета темы
@@ -4861,6 +4893,7 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: 'Moonraker этого принтера требует входа. Добавьте его API-ключ в Настройки > Соединение.'
   This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: 'Акселерометр этого принтера измеряет до {0:.0f} Hz, поэтому более быстрые пульсации не показаны.'
   This printer's firmware has its own power-loss recovery.: "Прошивка этого принтера имеет собственное восстановление после отключения питания."
+  This printer's firmware offers updates by itself when one is available.: 'Прошивка этого принтера сама предлагает обновления, когда они появляются.'
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "Портал этого принтера опускается при отключении питания, поэтому печать нельзя продолжить."
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "Homing override этого принтера паркует Z вместе с X и Y, поэтому печать нельзя продолжить."
   This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "Homing override этого принтера задаёт положение Z при парковке X и Y, поэтому печать нельзя продолжить."
@@ -4885,6 +4918,8 @@ translations:
   This system does not support bypass mode: 'Эта система не поддерживает режим обхода'
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
+  This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
+  This upgrades the printer's operating system packages.: 'Будут обновлены пакеты операционной системы принтера.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится.
@@ -5121,6 +5156,7 @@ translations:
   Unlock: Разблокировать
   Unmapped: Не сопоставлен
   Unmount: Снять
+  Unpacking the firmware: 'Распаковка прошивки'
   Unretract Extra: Дополнительная подача
   Unretract Speed: Скорость возврата
   Unsupported tape width: Неподдерживаемая ширина ленты
@@ -5128,6 +5164,7 @@ translations:
   'Up next: {}': 'Далее: {}'
   'Up next: {} (+{})': 'Далее: {} (+{})'
   Up to date: Актуальная версия
+  Up to date ({}): 'Актуально ({})'
   'Up: %s': 'Время работы: %s'
   Update: Обновить
   Update Available: Доступно обновление
@@ -5136,14 +5173,24 @@ translations:
   Update Helper Macros: 'Обновить вспомогательные макросы'
   Update Helper Macros?: 'Обновить вспомогательные макросы?'
   Update Success: Обновление успешно
+  Update complete: 'Обновление завершено'
   Update from a Terminal: Обновление через терминал
   Update installed!: Обновление установлено!
+  Update printer software and firmware: 'Обновление программ и прошивки принтера'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код
+  Update {} from {} to {}?: 'Обновить {} с {} до {}?'
+  Update {} system packages?: 'Обновить системные пакеты ({})?'
+  Update {} to {}?: 'Обновить {} до {}?'
+  Update {}?: 'Обновить {}?'
   Updates: Обновления
   Updates & Data: 'Обновления и данные'
   Updating Configuration...: Обновление конфигурации...
+  Updating the main board: 'Обновление основной платы'
+  Updating the system: 'Обновление системы'
+  Updating toolhead {}: 'Обновление печатающей головки {}'
+  Updating {}: 'Обновление {}'
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: Обновите AFC до 1.2.0 или новее для многоцветных катушек. Также добавляются названия филаментов, для которых иначе требуется Spoolman.
   Upload: Отправить
   Upload Debug Bundle: Отправить пакет диагностики
@@ -5412,6 +5459,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "Зона {:.0f}-{:.0f} Гц"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': 'В [resonance_tester] нет probe_points, поэтому у головы нет безопасной высоты для кругов приработки.'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] найден {} раз в файлах конфигурации, которые загружает printer.cfg; ожидался один"
+  a newer version: 'более новая версия'
   already loaded: 'уже загружен'
   attempt {}: 'попытка {}'
   auto: авто
@@ -5603,6 +5651,9 @@ translations:
   '{} filament sensors available': 'Доступно датчиков филамента: {}'
   '{} filament • {}': '{} филамента • {}'
   '{} firmware': 'Прошивка {}'
+  '{} firmware can only be updated from its own screen app.': 'Прошивку {} можно обновить только из её собственного экранного приложения.'
+  '{} firmware updates are managed by its own tools.': 'Обновления прошивки {} управляются её собственными инструментами.'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': 'Доступна прошивка {} {}. Откройте Настройки > Система > Обновление прошивки, чтобы установить её.'
   '{} free of {}': '{} свободно из {}'
   '{} h': '{} ч'
   '{} h of {} h': '{} ч из {} ч'
@@ -5653,6 +5704,7 @@ translations:
   '{} new hardware available': 'Доступно нового оборудования: {}'
   '{} new plugins available. Enable them in Settings > Plugins.': 'Доступно новых плагинов: {}. Включите их в разделе Настройки > Плагины.'
   '{} nozzle sensor fault': '{}: неисправность датчика сопла'
+  '{} packages to update': 'Пакетов для обновления: {}'
   '{} preset': '{} пресет'
   '{} presets':
     one: '{} пресет'
