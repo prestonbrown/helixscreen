@@ -7,7 +7,9 @@
      ps_arrangement (0 side by side, 1 job tile above printer tile, split
      236:196 as decide_print_status_tile_layout() splits it).
      The job tile is the preview card while printing; during pre-print the
-     start-sequence checklist covers it. -->
+     start-sequence checklist covers it. Stacked tiles with a filament system
+     or several heads give the lane tray strip under the strip the height
+     the fitter decides (ps_lane_tray 2, ps_lane_tray_h). -->
 <component>
   <styles>
     <style name="tiles_side" layout="flex" flex_flow="row"/>
@@ -40,5 +42,9 @@
       </print_status_printer_tile>
     </lv_obj>
     <print_status_strip name="ps_strip"/>
+    <print_status_lane_tray name="ps_lane_tray" width="100%" hidden="true">
+      <bind_style_prop prop="height" subject="ps_lane_tray_h"/>
+      <bind_flag_if_not_eq subject="ps_lane_tray" flag="hidden" ref_value="2"/>
+    </print_status_lane_tray>
   </view>
 </component>

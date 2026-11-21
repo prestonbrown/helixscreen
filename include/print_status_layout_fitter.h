@@ -9,8 +9,8 @@
  * they share it depends on the pixels that box measures, which no style
  * attribute can express. This measures the box, asks
  * decide_print_status_tile_layout(), or decide_print_status_ultrawide_layout()
- * while `ui_is_ultrawide` is 1, and publishes the answer as subjects the XML
- * binds to.
+ * while `ui_is_ultrawide` is 1, with the `has_filament_system_or_multi_tool`
+ * gate, and publishes the answer as subjects the XML binds to.
  *
  * @threading Main thread only.
  */
@@ -36,6 +36,10 @@ class PrintStatusLayoutFitter {
         lv_subject_t* printer_w = nullptr;
         lv_subject_t* readouts_w = nullptr;
         lv_subject_t* actions_w = nullptr;
+        // Where the lane tray shows (PrintStatusLaneTray int) and the stacked
+        // strip's height in px.
+        lv_subject_t* lane_tray = nullptr;
+        lv_subject_t* lane_tray_h = nullptr;
     };
 
     struct Host {

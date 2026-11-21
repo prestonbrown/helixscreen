@@ -26,6 +26,13 @@ constexpr int32_t kPrinterFloorPct = 100;
 constexpr int32_t kReadoutsFloorPct = 75;
 constexpr int32_t kPreviewFloorPct = 75;
 
+// The stacked lane tray strip: its natural height, the smallest that still
+// reads as lanes, and the height the two stacked tiles keep for themselves
+// (with the gap between them) before giving any to it.
+constexpr int32_t kLaneTrayMaxHeight = 120;
+constexpr int32_t kLaneTrayMinHeight = 48;
+constexpr int32_t kTilesFloorWithTray = 320;
+
 bool is_compact_job(int32_t job_w, int32_t job_h) {
     return job_w < kCompactMinJobWidth || job_h < kCompactMinJobHeight;
 }
@@ -33,7 +40,7 @@ bool is_compact_job(int32_t job_w, int32_t job_h) {
 
 PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t content_h,
                                                       int32_t gap, int32_t strip_row_h,
-                                                      int32_t strip_stacked_h) {
+                                                      int32_t strip_stacked_h, bool lane_tray) {
     PrintStatusTileLayout out;
     const bool stacked = content_h > content_w && content_h >= kStackedMinHeight;
     out.arrangement =
@@ -41,7 +48,15 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
     out.strip_stacked = stacked || content_w < kStackedStripMaxWidth;
     out.strip_h = out.strip_stacked ? strip_stacked_h : strip_row_h;
 
-    const int32_t area_h = std::max<int32_t>(0, content_h - out.strip_h - gap);
+    int32_t area_h = std::max<int32_t>(0, content_h - out.strip_h - gap);
+    if (stacked && lane_tray) {
+        const int32_t spare = area_h - gap - kTilesFloorWithTray;
+        if (spare >= kLaneTrayMinHeight) {
+            out.lane_tray = PrintStatusLaneTray::Strip;
+            out.lane_tray_h = std::min(spare, kLaneTrayMaxHeight);
+            area_h -= out.lane_tray_h + gap;
+        }
+    }
     if (stacked) {
         const int32_t usable = std::max<int32_t>(0, area_h - gap);
         out.job_w = out.printer_w = content_w;
@@ -82,8 +97,9 @@ PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t conten
 }
 
 PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,
-                                                           int32_t gap) {
+                                                           int32_t gap, bool lane_tray) {
     PrintStatusTileLayout out;
+    out.lane_tray = lane_tray ? PrintStatusLaneTray::Column : PrintStatusLaneTray::None;
     out.columns = decide_print_status_columns(content_w, content_h, gap);
     out.job_w = out.columns.preview_w;
     out.job_h = content_h;

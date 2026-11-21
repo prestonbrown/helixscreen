@@ -5,6 +5,7 @@
 // state: what each chip and checklist subject publishes, and how the callout
 // layout drops, glows and relayouts across a phase switch.
 
+#include "ui_ams_mini_status.h"
 #include "ui_print_status_tiles.h"
 #include "ui_update_queue.h"
 
@@ -12,6 +13,8 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../test_helpers/scoped_portrait_layout.h"
+#include "ams_state.h"
+#include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_controller.h"
 #include "prerendered_images.h"
@@ -22,6 +25,7 @@
 #include "printer_image_manager.h"
 #include "printer_state.h"
 #include "status_dispatch.h"
+#include "target_tool.h"
 #include "theme_manager.h"
 #include "tool_state.h"
 
@@ -88,14 +92,25 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
     return img;
 }
 
+/// The lane tray's ams_mini_status, which the app registers with AmsState
+/// standing, and the gate following AmsState as it does in the app.
+void enable_lane_tray_widget() {
+    AmsState::instance().init_subjects();
+    ui_ams_mini_status_init();
+    helix::ui::TargetTool::instance().attach(get_printer_state());
+}
+
 /// The panel's own XML built at a screen size, with a tagged printer picture.
 class TileFixture : public PrintStatusPanelFixture {
   public:
-    TileFixture(int32_t screen_w, int32_t screen_h)
-        : PrintStatusPanelFixture([screen_w, screen_h]() -> std::shared_ptr<void> {
+    TileFixture(int32_t screen_w, int32_t screen_h, bool lane_tray = false)
+        : PrintStatusPanelFixture([screen_w, screen_h, lane_tray]() -> std::shared_ptr<void> {
               // The chips read the light and tool-badge subjects their owners publish.
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
+              if (lane_tray) {
+                  enable_lane_tray_widget();
+              }
               // The tile follows the image-changed subject, which exists
               // before any panel, as in the app.
               helix::PrinterImageManager::instance().init_subjects();
@@ -137,10 +152,13 @@ struct Portrait272 : TileFixture {
 /// The panel built from its ultrawide layout at 1480x320.
 class Ultrawide1480 : public PrintStatusPanelFixture {
   public:
-    Ultrawide1480()
-        : PrintStatusPanelFixture([]() -> std::shared_ptr<void> {
+    explicit Ultrawide1480(bool lane_tray = false)
+        : PrintStatusPanelFixture([lane_tray]() -> std::shared_ptr<void> {
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
+              if (lane_tray) {
+                  enable_lane_tray_widget();
+              }
               helix::PrinterImageManager::instance().init_subjects();
               auto layout =
                   std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
@@ -1328,4 +1346,118 @@ TEST_CASE_METHOD(Landscape800, "a standard screen keeps the strip and builds no 
     CHECK(lv_obj_find_by_name(root_, "ps_strip") != nullptr);
     CHECK(lv_obj_find_by_name(root_, "ps_uw_info") == nullptr);
     CHECK(lv_obj_find_by_name(root_, "metadata_overlay") != nullptr);
+}
+
+// The lane tray: the readouts' column on ultrawide, a strip under stacked
+// tiles, nothing beside side-by-side tiles. The gate is
+// has_filament_system_or_multi_tool, which TargetTool publishes.
+
+namespace {
+
+/// Sets the lane tray gate for a case and puts it back after.
+class ScopedLaneTrayGate {
+  public:
+    explicit ScopedLaneTrayGate(int value)
+        : gate_(lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool")) {
+        REQUIRE(gate_ != nullptr);
+        original_ = lv_subject_get_int(gate_);
+        set(value);
+    }
+    ~ScopedLaneTrayGate() {
+        lv_subject_set_int(gate_, original_);
+        UpdateQueue::instance().drain();
+    }
+    void set(int value) {
+        lv_subject_set_int(gate_, value);
+        UpdateQueue::instance().drain();
+    }
+
+  private:
+    lv_subject_t* gate_;
+    int original_ = 0;
+};
+
+bool shown(lv_obj_t* obj) {
+    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+
+struct Portrait600 : TileFixture {
+    Portrait600() : TileFixture(600, 1024, true) {}
+};
+struct UltrawideTray : Ultrawide1480 {
+    UltrawideTray() : Ultrawide1480(true) {}
+};
+
+} // namespace
+
+TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray in the readouts' column when gated",
+                 "[print_status_tray][ultrawide]") {
+    ScopedLaneTrayGate gate(0);
+    lv_obj_update_layout(root_);
+    lv_obj_t* readouts = find("ps_uw_readouts");
+    lv_obj_t* tray = find("ps_uw_lane_tray");
+    REQUIRE((readouts && tray));
+    CHECK(shown(readouts));
+    CHECK_FALSE(shown(tray));
+
+    gate.set(1);
+    lv_obj_update_layout(root_);
+    CHECK_FALSE(shown(readouts));
+    CHECK(shown(tray));
+    lv_obj_t* content = find("overlay_content");
+    const auto cols = helix::decide_print_status_columns(lv_obj_get_content_width(content),
+                                                         lv_obj_get_content_height(content),
+                                                         theme_manager_get_spacing("space_md"));
+    CHECK(lv_obj_get_width(tray) == cols.readouts_w);
+    CHECK(lv_obj_get_height(tray) == lv_obj_get_content_height(content));
+    // The tray widget itself, which opens the filament system's panel on a tap.
+    lv_obj_t* status = lv_obj_find_by_name(tray, "ps_lane_tray_status");
+    REQUIRE(status != nullptr);
+    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_CLICKABLE));
+
+    gate.set(0);
+    lv_obj_update_layout(root_);
+    CHECK(shown(readouts));
+    CHECK_FALSE(shown(tray));
+}
+
+TEST_CASE_METHOD(Portrait600, "stacked tiles give the lane tray a strip under the strip when gated",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(0);
+    settle();
+    lv_obj_t* tray = lv_obj_find_by_name(root_, "ps_lane_tray");
+    lv_obj_t* strip = lv_obj_find_by_name(root_, "ps_strip");
+    lv_obj_t* content = lv_obj_find_by_name(root_, "overlay_content");
+    REQUIRE((tray && strip && content));
+    REQUIRE(subject_int("ps_arrangement") == static_cast<int>(PrintStatusArrangement::Stacked));
+    CHECK_FALSE(shown(tray));
+    const int32_t tiles_h_plain = lv_obj_get_height(lv_obj_find_by_name(root_, "ps_tiles"));
+
+    gate.set(1);
+    settle();
+    CHECK(shown(tray));
+    const int tray_h = subject_int("ps_lane_tray_h");
+    CHECK(tray_h > 0);
+    CHECK(lv_obj_get_height(tray) == tray_h);
+    // Under the strip, inside the content box: nothing scrolls.
+    lv_area_t tray_a, strip_a, content_a;
+    lv_obj_get_coords(tray, &tray_a);
+    lv_obj_get_coords(strip, &strip_a);
+    lv_obj_get_content_coords(content, &content_a);
+    CHECK(tray_a.y1 > strip_a.y2);
+    CHECK(tray_a.y2 <= content_a.y2);
+    CHECK(lv_obj_get_height(lv_obj_find_by_name(root_, "ps_tiles")) < tiles_h_plain);
+
+    gate.set(0);
+    settle();
+    CHECK_FALSE(shown(tray));
+}
+
+TEST_CASE_METHOD(Landscape800, "side by side tiles show no lane tray even when gated",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(1);
+    settle();
+    REQUIRE(subject_int("ps_arrangement") == static_cast<int>(PrintStatusArrangement::SideBySide));
+    CHECK(subject_int("ps_lane_tray") == 0);
+    CHECK_FALSE(shown(lv_obj_find_by_name(root_, "ps_lane_tray")));
 }

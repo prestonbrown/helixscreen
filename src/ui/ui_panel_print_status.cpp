@@ -64,6 +64,7 @@
 #include "settings_manager.h"
 #include "static_panel_registry.h"
 #include "system/crash_handler.h"
+#include "target_tool.h"
 #include "text_io.h"
 #include "theme_manager.h"
 #include "tool_state.h"
@@ -235,7 +236,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
           get_name(),
           {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
            &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
-           &uw_actions_w_subject_},
+           &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_},
           {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
@@ -617,6 +618,8 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(uw_printer_w_subject_, 0, "ps_uw_printer_w", subjects_);
     UI_MANAGED_SUBJECT_INT(uw_readouts_w_subject_, 0, "ps_uw_readouts_w", subjects_);
     UI_MANAGED_SUBJECT_INT(uw_actions_w_subject_, 0, "ps_uw_actions_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "ps_lane_tray", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_tray_h_subject_, 0, "ps_lane_tray_h", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -694,6 +697,23 @@ void PrintStatusPanel::init_subjects() {
                     self->relayout();
                 },
                 queue->get_subjects_lifetime());
+        }
+    }
+
+    // The lane tray shows, and takes its room, while the printer has a
+    // filament system or several heads.
+    {
+        lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
+        if (gate) {
+            auto token = lifetime_.token();
+            lane_tray_gate_observer_ = observe<int>(
+                gate, this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->relayout();
+                },
+                helix::ui::TargetTool::instance().get_subjects_lifetime());
         }
     }
 
@@ -899,6 +919,7 @@ void PrintStatusPanel::deinit_subjects() {
     fans_version_observer_.reset();
     primary_fans_version_observer_.reset();
     breakpoint_observer_.reset();
+    lane_tray_gate_observer_.reset();
     scoped_runout_observer_.reset();
     scoped_runout_slots_observer_.reset();
     part_speed_lifetime_.reset();
