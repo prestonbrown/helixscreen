@@ -51,7 +51,7 @@ handoff that `/continue-project` resumes.
    - `path/file.cpp` - [role]
    ```
 5. **Worktree?** Ask whether to create one; if yes,
-   `scripts/setup-worktree.sh feature/<name>` (creates `.worktrees/<name>` and builds).
+   `scripts/setup-worktree.sh feature/<name>` (creates `.worktrees/<name>`; the first `make` there builds).
 6. **Handoff** (below).
 
 ## Plan location
