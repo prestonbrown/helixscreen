@@ -4,7 +4,9 @@
 <!-- Print status panel content on ultrawide screens: one row of columns, each
      at a shape that suits it. Left to right: the preview as a square at the
      full height, the info column, the printer picture with its callouts, the
-     readouts and the button stack. PrintStatusLayoutFitter measures
+     readouts and the button stack. With a filament system or several heads
+     (ps_lane_tray 1) the readouts' column shows the lane tray instead: the
+     printer picture's callouts already carry the readings. PrintStatusLayoutFitter measures
      overlay_content and publishes each column's width
      (decide_print_status_columns()); the info column takes the rest. The job
      tile is the preview card while printing; during pre-print the
@@ -29,7 +31,12 @@
       </print_status_printer_tile>
       <print_status_readouts name="ps_uw_readouts" height="100%">
         <bind_style_prop prop="width" subject="ps_uw_readouts_w"/>
+        <bind_flag_if_eq subject="ps_lane_tray" flag="hidden" ref_value="1"/>
       </print_status_readouts>
+      <print_status_lane_tray name="ps_uw_lane_tray" height="100%" hidden="true">
+        <bind_style_prop prop="width" subject="ps_uw_readouts_w"/>
+        <bind_flag_if_not_eq subject="ps_lane_tray" flag="hidden" ref_value="1"/>
+      </print_status_lane_tray>
       <print_status_actions name="ps_uw_actions" height="100%" flow="column" btn_w="100%" btn_h="content">
         <bind_style_prop prop="width" subject="ps_uw_actions_w"/>
       </print_status_actions>

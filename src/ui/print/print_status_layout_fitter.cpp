@@ -3,6 +3,8 @@
 
 #include "print_status_layout_fitter.h"
 
+#include "ui_ams_mini_status.h"
+
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 
@@ -70,6 +72,14 @@ bool is_ultrawide() {
     return uw && lv_subject_get_int(uw) == 1;
 }
 
+/// has_filament_system_or_multi_tool(), as TargetTool publishes it, and a
+/// tray with lanes to draw: several heads without a filament system leave it
+/// empty.
+bool has_lane_tray() {
+    lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
+    return gate && lv_subject_get_int(gate) == 1 && helix::ui::ams_mini_status_has_lanes_to_show();
+}
+
 /// The strip is a ui_card: its padding and border on both sides.
 int32_t strip_chrome() {
     return 2 * (theme_manager_get_spacing("space_sm") + theme_manager_get_spacing("border_width"));
@@ -104,12 +114,13 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         return last_;
     }
     const int32_t gap = theme_manager_get_spacing("space_md");
+    const bool lane_tray = has_lane_tray();
     if (is_ultrawide()) {
-        last_ = decide_print_status_ultrawide_layout(w, h, gap);
+        last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray);
     } else {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
         last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
-                                                strip_stacked_height(progress));
+                                                strip_stacked_height(progress), lane_tray);
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {
@@ -123,11 +134,24 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.printer_w, last_.columns.printer_w);
     set(subjects_.readouts_w, last_.columns.readouts_w);
     set(subjects_.actions_w, last_.columns.actions_w);
-    spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}",
+    set(subjects_.lane_tray, static_cast<int>(last_.lane_tray));
+    set(subjects_.lane_tray_h, last_.lane_tray_h);
+    set(subjects_.printer_tile_h,
+        last_.lane_tray == PrintStatusLaneTray::Strip ? last_.printer_h : lv_pct(100));
+    // The tray picks its spool or bar view from the width it is given.
+    if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
+        tray && ui_ams_mini_status_is_valid(tray)) {
+        const int32_t tray_w =
+            last_.lane_tray == PrintStatusLaneTray::Column ? last_.columns.readouts_w : w;
+        ui_ams_mini_status_set_width(tray, tray_w - 2 * theme_manager_get_spacing("space_sm"));
+    }
+    spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}, "
+                  "lane tray {} ({}px)",
                   log_tag_, w, h,
                   last_.arrangement == PrintStatusArrangement::Stacked ? "stacked" : "side by side",
                   last_.strip_stacked ? "stacked" : "row", last_.strip_h, last_.job_w, last_.job_h,
-                  last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list");
+                  last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list",
+                  static_cast<int>(last_.lane_tray), last_.lane_tray_h);
     return last_;
 }
 
