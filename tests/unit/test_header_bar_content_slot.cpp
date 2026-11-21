@@ -15,6 +15,7 @@
  */
 
 #include "../test_fixtures.h"
+#include "../test_helpers/scoped_geometry.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 
@@ -152,4 +153,21 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_get_coords(first, &a);
     lv_obj_get_coords(second, &b);
     CHECK(b.x1 - a.x2 - 1 == lv_obj_get_style_pad_column(header, LV_PART_MAIN));
+}
+
+// The slot's gap is the bar's at the 480x272 tier too, where a spacing token
+// and the theme's container gap part ways.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "header_bar actions slot spaces buttons as the bar does at 480x272",
+                 "[header_bar][xml][header_actions]") {
+    helix::test::ScopedGeometry micro(480, 272);
+    REQUIRE(register_component("header_bar"));
+    const char* attrs[] = {"title", "Tune", nullptr};
+    lv_obj_t* hdr = create_component("header_bar", attrs);
+    REQUIRE(hdr != nullptr);
+
+    lv_obj_t* host = lv_obj_find_by_name(hdr, "header_actions");
+    REQUIRE(host != nullptr);
+    CHECK(lv_obj_get_style_pad_column(host, LV_PART_MAIN) ==
+          lv_obj_get_style_pad_column(hdr, LV_PART_MAIN));
 }
