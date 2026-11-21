@@ -1116,6 +1116,20 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
+    // The spool this lane holds leads the list, marked Current in place of
+    // Use, so Different Spool shows which one is linked (#2095). The search
+    // and the form still apply to it.
+    const int current_id = spools_from_spoolman_ ? original_info_.spoolman_id : 0;
+    if (current_id > 0) {
+        const auto current =
+            std::find_if(listed_.begin(), listed_.end(), [&](const spool_assign::RankedSpool& r) {
+                return cached_spools_[r.index].id == current_id;
+            });
+        if (current != listed_.end()) {
+            std::rotate(listed_.begin(), current, current + 1);
+        }
+    }
+
     const std::set<int> in_use = spools_in_other_lanes();
     listed_query_ = ListedQuery{query, filter, cached_spools_.size(), in_use};
 
@@ -1123,8 +1137,16 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     const std::string close_color = lv_tr("similar color");
     for (size_t row = 0; row < listed_.size(); ++row) {
         const SpoolInfo& spool = cached_spools_[listed_[row].index];
+        const bool close = listed_[row].match.kind == spool_assign::MatchKind::Close;
+        const bool taken = spool.id > 0 && in_use.count(spool.id) > 0;
+        const bool is_current = current_id > 0 && spool.id == current_id;
+        const char* attrs[] = {"hide_close",   close ? "false" : "true",
+                               "use_disabled", taken ? "true" : "false",
+                               "is_current",   is_current ? "true" : "false",
+                               "hide_current", is_current ? "false" : "true",
+                               nullptr};
         lv_obj_t* item =
-            static_cast<lv_obj_t*>(lv_xml_create(spool_list, "spool_assign_row", nullptr));
+            static_cast<lv_obj_t*>(lv_xml_create(spool_list, "spool_assign_row", attrs));
         if (!item) {
             continue;
         }
@@ -1157,12 +1179,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         if (lv_obj_t* line = lv_obj_find_by_name(item, "row_detail")) {
             lv_label_set_text(line, detail.c_str()); // DECLARATIVE_OK: generated row text
         }
-        if (listed_[row].match.kind == spool_assign::MatchKind::Close) {
+        if (close) {
             if (lv_obj_t* note = lv_obj_find_by_name(item, "row_close")) {
                 const std::string text = spool_assign::close_note(listed_[row].match.differs, spool,
                                                                   close_format, close_color);
-                lv_label_set_text(note, text.c_str());        // DECLARATIVE_OK: generated row text
-                lv_obj_remove_flag(note, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-row state
+                lv_label_set_text(note, text.c_str()); // DECLARATIVE_OK: generated row text
             }
         }
         if (lv_obj_t* canvas = lv_obj_find_by_name(item, "row_spool")) {
@@ -1172,11 +1193,6 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
             const double total = spool.initial_weight_g;
             ui_spool_canvas_set_fill_level(
                 canvas, total > 0 ? static_cast<float>(spool.remaining_weight_g / total) : 1.0f);
-        }
-        if (spool.id > 0 && in_use.count(spool.id) > 0) {
-            if (lv_obj_t* use = lv_obj_find_by_name(item, "row_use")) {
-                lv_obj_add_state(use, LV_STATE_DISABLED); // DECLARATIVE_OK: per-row state
-            }
         }
     }
 
@@ -1358,11 +1374,16 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
     // toast stack can show.
     static std::deque<std::unique_ptr<Payload>> s_payloads;
     constexpr size_t kKeptPayloads = 8;
-    s_payloads.push_back(std::make_unique<Payload>(Payload{slot_index_, before, after, {}}));
+    // Filled in place: building a Payload temporary to move in costs a
+    // field-by-field move and destroy of two SlotInfos here.
+    s_payloads.push_back(std::make_unique<Payload>());
     while (s_payloads.size() > kKeptPayloads) {
         s_payloads.pop_front();
     }
     Payload* payload = s_payloads.back().get();
+    payload->slot_index = slot_index_;
+    payload->before = before;
+    payload->after = after;
     payload->backend_generation = AmsState::instance().backend_generation();
 
     const std::string lane =
@@ -1465,15 +1486,18 @@ void AmsEditOverlay::fetch_recents() {
     auto token = lifetime_.token();
     api_->spoolman().get_spoolman_spools(
         [this, token](const std::vector<SpoolInfo>& spools) {
-            token.defer([this, spools]() {
-                recents_pending_ = false;
-                recents_loaded_ = true;
 #if !defined(HELIX_PLATFORM_ESP32)
-                // spoolman_types.cpp is scoped out of the ESP32 image; the
-                // rows there stay in catalog order.
+            token.defer([this, spools]() {
                 recent_families_ = recent_material_families(spools);
                 recent_brands_ = recent_brands(spools);
+#else
+            // spoolman_types.cpp is scoped out of the ESP32 image; the rows
+            // there stay in catalog order, so the spools need no copy.
+            (void)spools;
+            token.defer([this]() {
 #endif
+                recents_pending_ = false;
+                recents_loaded_ = true;
                 // cached_spools_ doubles as the picker's warm cache; a later
                 // populate_picker() refetches anyway.
                 if (lv_subject_get_int(&view_mode_subject_) == kViewEditor) {

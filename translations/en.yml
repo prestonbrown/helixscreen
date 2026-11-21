@@ -1073,6 +1073,7 @@ translations:
   'Creating bed mesh...': 'Creating bed mesh...'
   Creating spool...: Creating spool...
   'Critical hardware missing: {}': 'Critical hardware missing: {}'
+  Current: Current
   Current / Target: Current / Target
   Current Configuration: Current Configuration
   Current Mesh: Current Mesh

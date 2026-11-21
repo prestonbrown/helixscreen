@@ -1035,6 +1035,7 @@ translations:
   Creating bed mesh...: ベッドメッシュを作成中...
   Creating spool...: スプールを作成中...
   'Critical hardware missing: {}': '重要なハードウェアがありません: {}'
+  Current: 現在
   Current / Target: 現在 / 目標
   Current Configuration: 現在の設定
   Current Mesh: 現在のメッシュ

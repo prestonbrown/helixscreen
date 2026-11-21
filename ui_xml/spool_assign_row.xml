@@ -6,6 +6,15 @@
      ago", an optional "close: PLA+" tag, and Use. The row carries the spool's
      index on its user_data; C++ writes the texts and paints the spool. -->
 <component>
+  <api>
+    <!-- "false" shows the close-match tag. -->
+    <prop name="hide_close" type="string" default="true"/>
+    <!-- "true" for a spool another lane holds: no Use. -->
+    <prop name="use_disabled" type="string" default="false"/>
+    <!-- "true" for the spool this lane holds: "Current" stands in for Use. -->
+    <prop name="is_current" type="string" default="false"/>
+    <prop name="hide_current" type="string" default="true"/>
+  </api>
   <consts>
     <px name="spool_assign_row_spool_micro" value="28"/>
     <px name="spool_assign_row_spool_tiny" value="32"/>
@@ -23,10 +32,14 @@
             scrollable="false" clickable="false">
       <text_body name="row_name" width="100%" text="" long_mode="dots"/>
       <text_small name="row_detail" width="100%" text="" long_mode="dots" style_text_color="#text_muted"/>
-      <text_small name="row_close" width="100%" text="" long_mode="dots" style_text_color="#warning" hidden="true"/>
+      <text_small name="row_close"
+                  width="100%" text="" long_mode="dots" style_text_color="#warning" hidden="$hide_close"/>
     </lv_obj>
-    <ui_button name="row_use" width="content" height="#button_height_sm" text="Use" variant="primary">
+    <ui_button name="row_use"
+               width="content" height="#button_height_sm" text="Use" variant="primary" disabled="$use_disabled"
+               hidden="$is_current">
       <event_cb trigger="clicked" callback="ams_edit_row_use_cb"/>
     </ui_button>
+    <text_small name="row_current" text="Current" style_text_color="#text_muted" hidden="$hide_current"/>
   </view>
 </component>

@@ -978,6 +978,7 @@
   <translation tag="Creating bed mesh..." it="Creazione mesh piano..."/>
   <translation tag="Creating spool..." it="Creazione bobina..."/>
   <translation tag="Critical hardware missing: {}" it="Hardware critico mancante: {}"/>
+  <translation tag="Current" it="Attuale"/>
   <translation tag="Current / Target" it="Attuale / Target"/>
   <translation tag="Current Configuration" it="Configurazione attuale"/>
   <translation tag="Current Mesh" it="Mesh attuale"/>

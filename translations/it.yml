@@ -1098,6 +1098,7 @@ translations:
   Creating bed mesh...: Creazione mesh piano...
   Creating spool...: Creazione bobina...
   'Critical hardware missing: {}': 'Hardware critico mancante: {}'
+  Current: Attuale
   Current / Target: Attuale / Target
   Current Configuration: Configurazione attuale
   Current Mesh: Mesh attuale
