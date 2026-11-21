@@ -18,6 +18,10 @@ static constexpr uint32_t kDefaultColor = 0xE0E0E0; // Default white/light filam
 
 enum class SpoolGlow : uint8_t { None, Outline, Halo };
 
+/// How much of the face-on flange covers the filament behind it, by default:
+/// 55% flange over 45% filament.
+static constexpr uint8_t kDefaultFrontSmokeOpa = 140;
+
 struct SpoolCacheKey {
     uint32_t color_rgb; // 0x00RRGGBB
     uint16_t size;
@@ -26,11 +30,12 @@ struct SpoolCacheKey {
     uint32_t filament_hash = 0; // multi-colour list and finish; 0 for a plain single colour
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
+    uint8_t front_smoke = kDefaultFrontSmokeOpa; // face-on flange cover over the filament
 
     bool operator==(const SpoolCacheKey& o) const {
         return color_rgb == o.color_rgb && size == o.size && fill_bucket == o.fill_bucket &&
                glow == o.glow && filament_hash == o.filament_hash && view == o.view &&
-               vent_phase == o.vent_phase;
+               vent_phase == o.vent_phase && front_smoke == o.front_smoke;
     }
 };
 
@@ -47,6 +52,8 @@ struct SpoolCanvasData {
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     helix::ui::SpoolSpin spin;
     int vent_phase = 0; ///< current rotation, kept across a stop so the vents hold still
+    /// Face-on only: how much the solid flange covers the filament behind it.
+    uint8_t front_smoke = kDefaultFrontSmokeOpa;
 
     // Last-rendered key, for dedup (idea #1). Valid only when has_rendered.
     SpoolCacheKey last_key{0, 0, 0, SpoolGlow::None};

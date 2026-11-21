@@ -195,3 +195,29 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const lv_color32_t shaded = px(canvas, 147, 126);
     CHECK(brightness(lit) > brightness(shaded) + 60);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "spool_canvas: smoke sets how much the face-on flange hides the filament",
+                 "[spool_canvas][spool_vents]") {
+    // The share of the canvas that reads as the red filament, face-on, at @p smoke.
+    const auto red_share = [this](const char* smoke) {
+        const char* attrs[] = {"size", "80", "view", "front", "smoke", smoke, nullptr};
+        auto* canvas = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "spool_canvas", attrs));
+        REQUIRE(canvas != nullptr);
+        ui_spool_canvas_set_fill_level(canvas, 1.0f);
+        ui_spool_canvas_set_color(canvas, lv_color_hex(0xD02020));
+        int red = 0;
+        for (int32_t y = 0; y < kSpool; ++y) {
+            for (int32_t x = 0; x < kSpool; ++x) {
+                red += reddish(px(canvas, x, y)) ? 1 : 0;
+            }
+        }
+        lv_obj_delete(canvas);
+        return red;
+    };
+    const int clear = red_share("0");
+    const int stock = red_share("140");
+    const int hidden = red_share("255");
+    CHECK(clear > stock);
+    CHECK(stock > hidden);
+}
