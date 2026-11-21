@@ -232,6 +232,16 @@ int size_chip_for(float remaining_g, float total_g) {
     return kPartialChip;
 }
 
+SpoolSize size_for_reading(float remaining_g, float total_g) {
+    if (remaining_g < 0 && total_g <= 0) {
+        return {};
+    }
+    const float remaining = remaining_g >= 0 ? remaining_g : total_g;
+    const float total =
+        total_g > 0 ? std::max(total_g, remaining) : std::max(remaining, kDefaultSpoolGrams);
+    return {size_chip_for(remaining, total), remaining, total};
+}
+
 float step_remaining(float remaining_g, float delta_g, float total_g) {
     float next = std::max(0.0f, remaining_g + delta_g);
     if (total_g > 0) {

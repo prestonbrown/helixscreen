@@ -72,6 +72,15 @@ namespace helix::ui {
 
 namespace {
 
+/// The editor's name for the slot it edits: "External Filament", or the lane
+/// in the active backend's noun and tool style ("Gate 3", "T2").
+std::string editor_lane_label(int slot_index) {
+    if (slot_index == -2) {
+        return lv_tr("External Filament");
+    }
+    return helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index);
+}
+
 /// Move every element of @p recents that appears in @p base (case-insensitive)
 /// to the front, keeping both lists' own orders otherwise.
 std::vector<std::string> hoist_recents(const std::vector<std::string>& base,
@@ -215,9 +224,13 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     edited_spoolman_record_ = false;
     spools_from_spoolman_ = false;
     picker_search_debounce_.cancel();
-    size_chip_ = 0;
-    size_remaining_g_ = spool_assign::kDefaultSpoolGrams;
-    size_total_g_ = spool_assign::kDefaultSpoolGrams;
+    // Assign Spool on a lane that reads a weight keeps that weight; a spool
+    // going in over one (begin_fresh_assign) starts at 1 kg instead.
+    const spool_assign::SpoolSize size = spool_assign::size_for_reading(
+        initial_info.remaining_weight_g, initial_info.total_weight_g);
+    size_chip_ = size.chip;
+    size_remaining_g_ = size.remaining_g;
+    size_total_g_ = size.total_g;
     created_spool_id_ = 0;
 
     // Always prefer the active screen so the overlay renders above everything
@@ -1117,12 +1130,14 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         searched = &found;
     }
     const spool_assign::SpoolQuery query = current_query();
-    const auto ranked = spool_assign::rank_spools(query, *searched);
+    // Ranked in full: the lane's own spool is pinned below before the list
+    // is cut to its row budget, however far down its recency puts it.
+    const auto ranked = spool_assign::rank_spools(query, *searched, searched->size());
     listed_.clear();
     // Rows index cached_spools_. A search keeps Spoolman spools, found again
-    // by id; the lane history is never searched, so its indices stand.
+    // by id; an unsearched list and the lane history index it already.
     for (const auto& r : ranked) {
-        if (!spools_from_spoolman_) {
+        if (!spools_from_spoolman_ || searched == &cached_spools_) {
             listed_.push_back(r);
             continue;
         }
@@ -1147,6 +1162,9 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         if (current != listed_.end()) {
             std::rotate(listed_.begin(), current, current + 1);
         }
+    }
+    if (listed_.size() > spool_assign::kMaxListedSpools) {
+        listed_.resize(spool_assign::kMaxListedSpools);
     }
 
     const std::set<int> in_use = spools_in_other_lanes();
@@ -1394,9 +1412,7 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
     Payload* payload = s_payloads.back().get();
     payload->backend_generation = AmsState::instance().backend_generation();
 
-    const std::string lane =
-        slot_index_ == -2 ? std::string(lv_tr("External Filament"))
-                          : helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_);
+    const std::string lane = editor_lane_label(slot_index_);
     const std::string name =
         helix::compose_filament_label(after.brand, after.spool_name, after.material, " ");
     const std::string message = lane + ": " + name;
@@ -1756,11 +1772,8 @@ void AmsEditOverlay::update_header_and_panel() {
     lv_subject_set_string(&title_subject_, title_buf_);
 
     // "Lane 3 · Turtle 1", and on Edit Spool the spool: "· PolyTerra PLA · #12".
-    std::string subtitle;
-    if (slot_index_ == -2) {
-        subtitle = lv_tr("External Filament");
-    } else {
-        subtitle = helix::ui::active_tool_lane_label(helix::ui::active_lane_noun(), slot_index_);
+    std::string subtitle = editor_lane_label(slot_index_);
+    if (slot_index_ != -2) {
         if (const AmsBackend* backend = AmsState::instance().get_backend()) {
             const AmsSystemInfo info = backend->get_system_info();
             if (const AmsUnit* unit = info.get_unit_for_slot(slot_index_)) {

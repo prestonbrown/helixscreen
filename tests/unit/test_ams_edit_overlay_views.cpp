@@ -1433,11 +1433,24 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     backend->set_tool_changer_mode(true);
     SettingsManager::instance().init_subjects();
     SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Gcode);
-    REQUIRE(overlay.show_for_slot(test_screen(), 2, info, nullptr, nullptr));
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 2, backend->get_slot_info(2), nullptr,
+        [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); },
+        /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     CHECK(std::string(lv_label_get_text(access.widget("subtitle"))).rfind("T2", 0) == 0);
+    // The toast an assign closes with names the lane the same way.
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().rfind("T2: ", 0) == 0);
+    helix::ui::set_test_toast_hook(nullptr);
     SettingsManager::instance().set_tool_number_style_setting(ToolNumberStyleSetting::Auto);
-    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
@@ -1834,6 +1847,28 @@ TEST_CASE_METHOD(EditorFixture, "Assign Spool lists the lane's linked spool firs
     process_lvgl(10);
     CHECK(access.listed_ids() == std::vector<int>{11});
     CHECK(current_rows().empty());
+
+    // Older than the row budget's most recent spools, it still leads.
+    std::vector<SpoolInfo> many;
+    for (int id = 100; id < 100 + static_cast<int>(spool_assign::kMaxListedSpools) + 5; ++id) {
+        SpoolInfo spool;
+        spool.id = id;
+        spool.vendor = "Generic";
+        spool.material = "PLA";
+        many.push_back(spool);
+    }
+    if (linked_id) {
+        SpoolInfo linked;
+        linked.id = linked_id;
+        linked.material = "ABS";
+        many.push_back(linked);
+    }
+    access.set_cached_spools(many);
+    access.call_render_spool_list("");
+    process_lvgl(10);
+    const auto ids = access.listed_ids();
+    REQUIRE(ids.size() == spool_assign::kMaxListedSpools);
+    CHECK(ids.front() == (linked_id ? linked_id : 100));
     close_editor_overlay();
 }
 
@@ -2575,6 +2610,41 @@ TEST_CASE_METHOD(EditorFixture, "a new spool on an unweighed lane saves as 1 kg"
     REQUIRE(fired);
     CHECK(result.slot_info.material == "PLA");
     CHECK(result.slot_info.remaining_weight_g == Catch::Approx(want_remaining));
+    CHECK(result.slot_info.total_weight_g == Catch::Approx(1000.0f));
+}
+
+TEST_CASE_METHOD(EditorFixture, "Assign Spool keeps the weight a lane with no material reads",
+                 "[ams_edit_overlay][weight][spool-assign]") {
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0); // the local commit, no Spoolman save
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    // An AFC lane tracking 640 g of a 1 kg spool, its material not yet named.
+    SlotInfo reading = untracked_slot_without_weights();
+    reading.material.clear();
+    reading.remaining_weight_g = 640.0f;
+    reading.total_weight_g = 1000.0f;
+    bool fired = false;
+    AmsEditOverlay::EditResult result;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, reading, nullptr,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      fired = true;
+                                      result = r;
+                                  }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_size_chip")) ==
+          spool_assign::kPartialChip);
+
+    REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(fired);
+    CHECK(result.slot_info.remaining_weight_g == Catch::Approx(640.0f));
     CHECK(result.slot_info.total_weight_g == Catch::Approx(1000.0f));
 }
 

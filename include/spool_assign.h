@@ -136,6 +136,19 @@ inline constexpr int kPartialChip = 3;
 /// spool of a chip's size lights that chip, anything else lights Partial.
 [[nodiscard]] int size_chip_for(float remaining_g, float total_g);
 
+/// The size chips' state: the lit chip and the grams it stands for.
+struct SpoolSize {
+    int chip = 0;
+    float remaining_g = kDefaultSpoolGrams;
+    float total_g = kDefaultSpoolGrams;
+};
+
+/// The size Assign Spool starts from on a lane reading @p remaining_g of
+/// @p total_g (negative = unknown): a known weight lights its chip, or Partial
+/// with that weight, so an assign never writes over a reading; an unknown
+/// weight starts at a full 1 kg spool.
+[[nodiscard]] SpoolSize size_for_reading(float remaining_g, float total_g);
+
 /// The Edit screen's - / + step.
 inline constexpr float kRemainingStepGrams = 10.0f;
 
