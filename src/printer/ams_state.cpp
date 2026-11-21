@@ -333,6 +333,7 @@ int AmsState::add_backend(std::unique_ptr<AmsBackend> backend) {
         std::move(backend), [this](int i, const std::string& event, const std::string& data) {
             on_backend_event(i, event, data);
         });
+    ++backend_generation_;
     invalidate_system_info();
 
     lv_subject_set_int(&backend_count_, registry_.count());
@@ -378,6 +379,7 @@ void AmsState::clear_backends() {
     assert_main_thread();
 
     registry_.clear();
+    ++backend_generation_;
     invalidate_system_info();
     system_info_snapshots_.clear();
 

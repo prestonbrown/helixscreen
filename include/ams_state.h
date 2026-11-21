@@ -405,6 +405,19 @@ class AmsState {
     [[nodiscard]] AmsBackend* get_backend() const;
 
     /**
+     * @brief A number that changes whenever the set of backends does
+     *
+     * Bumped by every add_backend() and clear_backends() (so set_backend()
+     * too). Work that names a lane by index and finishes later (an Undo) keeps
+     * it to tell whether the index still names a lane of the same printer; a
+     * backend's address cannot, since the next one may be allocated there.
+     * Main thread only.
+     */
+    [[nodiscard]] uint64_t backend_generation() const {
+        return backend_generation_;
+    }
+
+    /**
      * @brief Why the primary backend's standing fault happened
      *
      * The newest standing_fault_cause() seen while the fault stands (the action
@@ -2400,6 +2413,7 @@ class AmsState {
                                lv_subject_t (&subjects)[kMaxSlots]);
 
     AmsBackendRegistry registry_;
+    uint64_t backend_generation_ = 0; ///< backend_generation()
     helix::PendingToolMapRestore pending_tool_map_restore_;
     bool initialized_ = false;
 

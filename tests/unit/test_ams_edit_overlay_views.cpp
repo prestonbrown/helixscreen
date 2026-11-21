@@ -5601,11 +5601,16 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     use_on_lane(*this, 0, 22);
 
     // Another printer connects: its backend holds the same spool on lane 0,
-    // so only the printer says the lane is not the one saved.
+    // so only the printer says the lane is not the one saved. The old backend
+    // goes first, so the new one may well be allocated at its address.
     auto& ams = AmsState::instance();
+    const SlotInfo saved = backend->get_slot_info(0);
+    const void* old_address = backend;
+    ams.clear_backends();
     auto other = std::make_unique<AmsBackendMock>(4);
     AmsBackendMock* other_backend = other.get();
-    REQUIRE(helix::test::apply_edit(*other_backend, 0, backend->get_slot_info(0)).success());
+    CAPTURE(old_address == static_cast<const void*>(other_backend));
+    REQUIRE(helix::test::apply_edit(*other_backend, 0, saved).success());
     const SlotInfo held = other_backend->get_slot_info(0);
     ams.set_backend(std::move(other));
     backend = other_backend;
@@ -5728,4 +5733,22 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     process_lvgl(10);
     CHECK(unusable_spool_ids(list, access.listed_ids()) == std::vector<int>{22});
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "every change of the backend set moves its generation",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    auto& ams = AmsState::instance();
+    const uint64_t start = ams.backend_generation();
+    ams.clear_backends();
+    const uint64_t cleared = ams.backend_generation();
+    CHECK(cleared != start);
+    auto replacement = std::make_unique<AmsBackendMock>(4);
+    backend = replacement.get();
+    ams.set_backend(std::move(replacement));
+    CHECK(ams.backend_generation() != cleared);
+    const uint64_t set = ams.backend_generation();
+    ams.add_backend(std::make_unique<AmsBackendMock>(2));
+    CHECK(ams.backend_generation() != set);
+    UpdateQueue::instance().drain();
 }
