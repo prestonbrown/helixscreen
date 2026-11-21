@@ -211,6 +211,9 @@ bool show_common_spools(size_t spool_count) {
 }
 
 LaneScreen screen_for_lane(const SlotInfo& lane) {
+    if (lane.status == SlotStatus::EMPTY) {
+        return LaneScreen::Assign;
+    }
     return (lane.spoolman_id > 0 || !lane.material.empty()) ? LaneScreen::Edit : LaneScreen::Assign;
 }
 

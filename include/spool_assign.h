@@ -105,8 +105,10 @@ inline constexpr size_t kFewSpools = 3;
 
 enum class LaneScreen { Assign, Edit };
 
-/// A lane holding a spool (linked, or described by a material) opens on Edit
-/// Spool; an empty lane opens on Assign Spool.
+/// A lane holding a spool (linked, or described by a material) opens on its
+/// summary (Edit); an empty lane opens on the empty page (Assign). A lane its
+/// sensor reports empty is empty, whatever filament it still records: that is
+/// what it last held.
 [[nodiscard]] LaneScreen screen_for_lane(const SlotInfo& lane);
 
 /// The action at the bottom of the spools list.

@@ -22,7 +22,6 @@
 // clang-format off
 static const BindGroup kDoubleBindWidgets[] = {
     {"ams_current_tool", "ams_current_tool", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_slot_count", -1}, {"ams_current_tool", 0}}, 2, {{0, 0}, {1, -1}}, 2, true},
-    {"ams_edit_overlay", "more_section", 0, {}, 0, BindKind::Flag, "hidden", {{"ams_edit_more_open", -1}, {"ams_edit_is_managed", -1}}, 2, {{0, 0}, {1, 0}}, 2, true},
     {"components/ams_sidebar", "btn_park", 0, {}, 0, BindKind::State, "disabled", {{"machine_motion_blocked", 0}, {"ams_sidebar_park_disabled", 0}}, 2, {{0, 1}, {1, 1}}, 2, true},
     {"components/filament_operations_group", "btn_load", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_load_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
     {"components/filament_operations_group", "btn_unload", 0, {}, 0, BindKind::State, "disabled", {{"filament_safety_warning_visible", 0}, {"filament_operation_in_progress", 0}, {"filament_unload_disabled", 0}}, 3, {{0, 1}, {1, 1}, {2, 1}}, 3, true},
@@ -75,6 +74,6 @@ static const BindGroup kDoubleBindWidgets[] = {
 };
 // clang-format on
 
-// Groups in ui_xml/: 51 drivable, 59 that no test can drive (see the header
-// comment), 110 total. qc_double_binds fails a commit that leaves this file
+// Groups in ui_xml/: 50 drivable, 59 that no test can drive (see the header
+// comment), 109 total. qc_double_binds fails a commit that leaves this file
 // behind ui_xml/.

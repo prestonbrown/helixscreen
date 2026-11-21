@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Clear Lane asks first: "Clear Lane 3?". A Spoolman-linked spool adds the
+     archive checkbox, pre-checked when the spool ran out or Spoolman says it
+     is all but empty. Subjects and callbacks: ui_ams_edit_overlay.cpp. -->
+<component>
+  <view name="ams_clear_lane_modal"
+        extends="ui_dialog" width="70%" height="content" style_min_width="320" style_max_width="480"
+        style_max_height="85%" align="center" flex_flow="column" style_flex_main_place="start" style_pad_gap="0"
+        scrollable="false">
+    <lv_obj width="100%"
+            height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column"
+            style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+              style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+        <icon src="alert" size="md" variant="danger"/>
+        <text_heading bind_text="ams_edit_clear_title"/>
+      </lv_obj>
+      <text_body width="100%"
+                 text="The lane forgets this spool. The filament itself stays where it is." long_mode="wrap"/>
+      <lv_checkbox name="clear_archive_check"
+                   width="100%" text="Spool is empty, archive it in Spoolman" bind_checked="ams_edit_clear_archive"
+                   hidden="true">
+        <bind_flag_if_eq subject="ams_edit_is_managed" flag="hidden" ref_value="0"/>
+      </lv_checkbox>
+    </lv_obj>
+    <modal_button_row primary_text="Clear"
+                      secondary_text="Cancel" primary_variant="danger" primary_callback="ams_edit_clear_confirm_cb"
+                      secondary_callback="ams_edit_clear_cancel_cb"/>
+  </view>
+</component>
