@@ -1171,6 +1171,7 @@ translations:
   Could not restore the previous IPv4 settings: '无法恢复之前的 IPv4 设置'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '暂时无法恢复之前的 IPv4 设置。将在最多两分钟内重试。'
   Could not restore the stock screen: '无法恢复原厂屏幕'
+  'Could not restore: {}': '无法恢复：{}'
   Could not save filament: 无法保存耗材
   Could not save the drying state: 无法保存烘干状态
 
@@ -3743,6 +3744,7 @@ translations:
   Restore Defaults: 恢复默认设置
   Restore Stock Screen: '恢复原厂屏幕'
   Restore tool: '恢复工具'
+  Restored to {:.3f} mm: '已恢复为 {:.3f} mm'
   Restoring position: 正在恢复位置
   Restoring the print settings: 正在恢复打印设置
   Resume: 恢复

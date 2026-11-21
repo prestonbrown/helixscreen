@@ -1231,6 +1231,7 @@ translations:
   Could not restore the previous IPv4 settings: 'Не удалось восстановить прежние настройки IPv4'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут.'
   Could not restore the stock screen: 'Не удалось вернуть штатный экран'
+  'Could not restore: {}': 'Не удалось восстановить: {}'
   Could not save filament: Не удалось сохранить филамент
   Could not save the drying state: Не удалось сохранить состояние сушки
 
@@ -3823,6 +3824,7 @@ translations:
   Restore Defaults: Восстановить по умолчанию
   Restore Stock Screen: 'Вернуть штатный экран'
   Restore tool: 'Вернуть инструмент'
+  Restored to {:.3f} mm: 'Восстановлено: {:.3f} мм'
   Restoring position: Восстановление позиции
   Restoring the print settings: Восстановление настроек печати
   Resume: Продолжить

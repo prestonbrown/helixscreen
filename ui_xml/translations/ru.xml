@@ -1153,6 +1153,7 @@
   <translation tag="Could not restore the previous IPv4 settings" ru="Не удалось восстановить прежние настройки IPv4"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." ru="Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут."/>
   <translation tag="Could not restore the stock screen" ru="Не удалось вернуть штатный экран"/>
+  <translation tag="Could not restore: {}" ru="Не удалось восстановить: {}"/>
   <translation tag="Could not save filament" ru="Не удалось сохранить филамент"/>
   <translation tag="Could not save the drying state" ru="Не удалось сохранить состояние сушки"/>
   <translation tag="Could not save the drying state: nothing was heated" ru="Не удалось сохранить состояние сушки: ничего не нагревалось"/>
@@ -3714,6 +3715,7 @@
   <translation tag="Restore Defaults" ru="Восстановить по умолчанию"/>
   <translation tag="Restore Stock Screen" ru="Вернуть штатный экран"/>
   <translation tag="Restore tool" ru="Вернуть инструмент"/>
+  <translation tag="Restored to {:.3f} mm" ru="Восстановлено: {:.3f} мм"/>
   <translation tag="Restoring position" ru="Восстановление позиции"/>
   <translation tag="Restoring the print settings" ru="Восстановление настроек печати"/>
   <translation tag="Resume" ru="Продолжить"/>

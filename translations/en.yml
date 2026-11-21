@@ -1169,6 +1169,7 @@ translations:
   Could not restore the previous IPv4 settings: Could not restore the previous IPv4 settings
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.
   Could not restore the stock screen: Could not restore the stock screen
+  'Could not restore: {}': 'Could not restore: {}'
   Could not save filament: Could not save filament
   Could not save the drying state: Could not save the drying state
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
@@ -3723,6 +3724,7 @@ translations:
   Restore Defaults: Restore Defaults
   Restore Stock Screen: Restore Stock Screen
   Restore tool: Restore tool
+  Restored to {:.3f} mm: Restored to {:.3f} mm
   Restoring position: Restoring position
   Restoring the print settings: Restoring the print settings
   Resume: Resume

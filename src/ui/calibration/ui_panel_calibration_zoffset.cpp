@@ -512,8 +512,9 @@ void ZOffsetCalibrationPanel::start_calibration() {
     ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
 }
 
-void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api,
-                                           std::function<void(bool accepted, float z)> on_done) {
+void ZOffsetCalibrationPanel::open_for_run(
+    IMoonrakerAPI* api,
+    std::function<void(bool accepted, float z, ZOffsetCalibrationStrategy strategy)> on_done) {
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
@@ -530,7 +531,21 @@ void ZOffsetCalibrationPanel::finish_run(bool accepted) {
     }
     if (done) {
         spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
-        done(accepted, final_offset_);
+        done(accepted, final_offset_, run_strategy());
+    }
+}
+
+void ZOffsetCalibrationPanel::abort_run() {
+    run_done_ = nullptr;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&run_mode_subject_, 0);
+    }
+    if (state_ == State::PROBING || state_ == State::ADJUSTING || state_ == State::WARMING) {
+        spdlog::info("[ZOffsetCal] Guided run stopped: aborting the calibration");
+        send_abort();
+    }
+    if (is_visible()) {
+        helix::nav::go_back();
     }
 }
 
@@ -908,14 +923,9 @@ void ZOffsetCalibrationPanel::send_accept() {
         // Calibration is an idle activity; the print gate still holds in case
         // an accept ever fires under a running print, where the subtraction
         // excludes the live transient and is correct.
-        std::string cmd = fmt::format("SET_GCODE_OFFSET Z={:.3f}", cumulative_z_delta_);
-        if (lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) == 0) {
-            std::string clear =
-                helix::zoffset::stale_probe_delta_clear_gcode(get_printer_state().get_discovery());
-            if (!clear.empty()) {
-                cmd = clear + "\n" + cmd;
-            }
-        }
+        const std::string cmd = helix::zoffset::firmware_managed_offset_gcode(
+            cumulative_z_delta_, get_printer_state().get_discovery(),
+            lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0);
         spdlog::info("[ZOffsetCal] Applying gcode_offset: {}", cmd);
 
         auto tok = lifetime_.token();

@@ -1108,6 +1108,7 @@
   <translation tag="Could not restore the previous IPv4 settings" ja="以前のIPv4設定を復元できませんでした"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." ja="以前のIPv4設定をまだ復元できていません。最大2分間再試行します。"/>
   <translation tag="Could not restore the stock screen" ja="標準画面に戻せませんでした"/>
+  <translation tag="Could not restore: {}" ja="元に戻せませんでした: {}"/>
   <translation tag="Could not save filament" ja="フィラメントを保存できませんでした"/>
   <translation tag="Could not save the drying state" ja="乾燥の状態を保存できませんでした"/>
   <translation tag="Could not save the drying state: nothing was heated" ja="乾燥の状態を保存できませんでした: 何も加熱していません"/>
@@ -3654,6 +3655,7 @@
   <translation tag="Restore Defaults" ja="デフォルトに戻す"/>
   <translation tag="Restore Stock Screen" ja="標準画面に戻す"/>
   <translation tag="Restore tool" ja="ツールを元に戻す"/>
+  <translation tag="Restored to {:.3f} mm" ja="{:.3f} mm に戻しました"/>
   <translation tag="Restoring position" ja="位置を復元中"/>
   <translation tag="Restoring the print settings" ja="印刷設定を復元中"/>
   <translation tag="Resume" ja="再開"/>

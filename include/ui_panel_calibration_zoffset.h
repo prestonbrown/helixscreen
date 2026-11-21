@@ -147,8 +147,13 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// no SAVE_CONFIG: the run saves everything at once) and Continue returns to
     /// the run. @p on_done runs once on the main thread: with true and the
     /// accepted Z position, or with false when the owner leaves without accepting.
-    void open_for_run(helix::IMoonrakerAPI* api,
-                      std::function<void(bool accepted, float z)> on_done);
+    void open_for_run(
+        helix::IMoonrakerAPI* api,
+        std::function<void(bool accepted, float z, helix::ZOffsetCalibrationStrategy strategy)>
+            on_done);
+    /// The guided run stops while this panel serves it: a manual probe ends with
+    /// ABORT (nothing is sent when none is running) and the panel closes.
+    void abort_run();
     void handle_continue_clicked();
     void on_dismissed() override;
 
@@ -259,7 +264,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     char error_text_buf_[512] = {0};
 
     /// Set while the panel serves a guided run; see open_for_run().
-    std::function<void(bool, float)> run_done_;
+    std::function<void(bool, float, helix::ZOffsetCalibrationStrategy)> run_done_;
     /// 1 while the panel serves a guided run.
     helix::Subject run_mode_subject_{};
     /// Tell the run how the step ended and leave run mode.

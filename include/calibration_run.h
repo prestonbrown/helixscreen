@@ -79,6 +79,8 @@ class CalibrationRun {
         StepProgress progress;
         StepResult result;
         std::string message;
+        /// What Discard all did to a step that restores_on_discard().
+        std::string restore_note;
     };
 
     /// @p on_change runs on the main thread after every status or progress change.
@@ -95,7 +97,8 @@ class CalibrationRun {
     /// Save everything that finished with one SAVE_CONFIG; record the history
     /// only once the save is known to have happened.
     void save_all(RunFinisher& finisher);
-    /// Drop everything that finished; record nothing.
+    /// Drop everything that finished; record nothing. A step whose result the
+    /// firmware already persisted restores its old value first.
     void discard_all(RunFinisher& finisher);
 
     [[nodiscard]] RunPhase phase() const {
@@ -132,6 +135,8 @@ class CalibrationRun {
     void on_step_progress(size_t index, const StepProgress& progress);
     void finish_steps();
     void changed();
+    /// Discard all: restore entries from @p from on, then restart if needed.
+    void restore_from(size_t from, RunFinisher& finisher);
 
     IMoonrakerAPI& api_;
     std::function<void()> on_change_;

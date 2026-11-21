@@ -16,6 +16,7 @@
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "translation_loader.h"
+#include "z_offset_utils.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -382,9 +383,15 @@ class ZOffsetStep : public CalibrationStep {
 
     void start(StepContext& ctx) override {
         ctx_ = &ctx;
+        accepted_ = false;
+        // What a firmware-managed offset is before the step, for Discard all.
+        old_offset_mm_ = lv_subject_get_int(
+                             ctx.api.printer_state().motion_state().get_gcode_z_offset_subject()) /
+                         1000.0;
         ctx.progress({lv_tr("Waiting for you at the Z offset screen"), -1});
         get_global_zoffset_cal_panel().open_for_run(
-            &ctx.api, [this, alive = std::weak_ptr<int>(alive_)](bool accepted, float z) {
+            &ctx.api, [this, alive = std::weak_ptr<int>(alive_)](
+                          bool accepted, float z, ZOffsetCalibrationStrategy strategy) {
                 if (alive.expired() ||
                     !ctx_) { // L081_OK: main thread, from the panel's own handlers
                     return;
@@ -395,25 +402,57 @@ class ZOffsetStep : public CalibrationStep {
                     c->done(StepOutcome::skipped());
                     return;
                 }
+                accepted_ = true;
+                strategy_ = strategy;
                 c->done(StepOutcome::finished(
                     {fmt::format(fmt::runtime(lv_tr("Accepted at Z {:.3f} mm")), z),
                      {{"accepted_z", z}}}));
             });
     }
 
-    /// The run never stops while the panel is on top of it; a stop then has
-    /// nothing running here.
+    /// A manual probe ends with ABORT; nothing is sent when none is running.
     void abort() override {
         if (auto* c = ctx_) {
             ctx_ = nullptr;
+            get_global_zoffset_cal_panel().abort_run();
             c->done(StepOutcome::aborted());
         }
+    }
+
+    /// The firmware persists a firmware-managed offset as soon as it is set.
+    bool restores_on_discard() const override {
+        return accepted_ && strategy_ == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED;
+    }
+
+    void restore(IMoonrakerAPI& api, std::function<void(std::string note)> done) override {
+        auto& ps = api.printer_state();
+        const std::string cmd = zoffset::firmware_managed_offset_gcode(
+            old_offset_mm_, api.hardware(),
+            lv_subject_get_int(ps.print_state().get_print_active_subject()) != 0);
+        spdlog::info("[CalibrationRun] Restoring the Z offset: {}", cmd);
+        const double old_mm = old_offset_mm_;
+        api.execute_gcode(
+            cmd,
+            lifetime_.bg_cb("CalibrationRun.ZOffset.restored",
+                            [done, old_mm]() {
+                                done(fmt::format(fmt::runtime(lv_tr("Restored to {:.3f} mm")),
+                                                 old_mm));
+                            }),
+            lifetime_.bg_cb("CalibrationRun.ZOffset.restore_failed",
+                            [done](const MoonrakerError& err) {
+                                done(fmt::format(fmt::runtime(lv_tr("Could not restore: {}")),
+                                                 err.localized_message()));
+                            }));
     }
 
   private:
     StepInfo info_;
     StepContext* ctx_ = nullptr;
+    bool accepted_ = false;
+    ZOffsetCalibrationStrategy strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    double old_offset_mm_ = 0.0;
     std::shared_ptr<int> alive_ = std::make_shared<int>(0);
+    helix::AsyncLifetimeGuard lifetime_;
 };
 
 } // namespace

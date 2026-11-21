@@ -1171,6 +1171,7 @@ translations:
   Could not restore the previous IPv4 settings: 'Não foi possível restaurar as configurações IPv4 anteriores'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Ainda não foi possível restaurar as configurações IPv4 anteriores. Tentando novamente por até dois minutos.'
   Could not restore the stock screen: 'Não foi possível restaurar a tela original'
+  'Could not restore: {}': 'Não foi possível restaurar: {}'
   Could not save filament: Não foi possível salvar o filamento
   Could not save the drying state: Não foi possível salvar o estado da secagem
 
@@ -3743,6 +3744,7 @@ translations:
   Restore Defaults: Restaurar Padrões
   Restore Stock Screen: 'Restaurar tela original'
   Restore tool: 'Restaurar ferramenta'
+  Restored to {:.3f} mm: 'Restaurado para {:.3f} mm'
   Restoring position: Restaurando posição
   Restoring the print settings: Restaurando as configurações de impressão
   Resume: Retomar

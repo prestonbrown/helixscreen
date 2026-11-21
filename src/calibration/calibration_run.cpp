@@ -217,7 +217,10 @@ void CalibrationRun::stop() {
     phase_ = RunPhase::Results;
     running.step->abort();
     if (running.step->abort_restarted_firmware()) {
-        results_lost_ = finished_count() > 0;
+        // A result the firmware persisted itself survives the restart.
+        results_lost_ = std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) {
+            return e.status == StepStatus::Finished && !e.step->restores_on_discard();
+        });
         if (results_lost_) {
             spdlog::warn("[CalibrationRun] The abort restarted the firmware: {} finished "
                          "result(s) are no longer pending",
@@ -278,17 +281,43 @@ void CalibrationRun::discard_all(RunFinisher& finisher) {
     if (phase_ != RunPhase::Results && phase_ != RunPhase::SaveFailed) {
         return;
     }
-    // Only a finished step leaves anything pending; an aborted one already
-    // restarted, and a failed or skipped one staged nothing.
-    if (finished_count() == 0 || results_lost_) {
+    phase_ = RunPhase::Discarding;
+    error_.clear();
+    changed();
+    restore_from(0, finisher);
+}
+
+void CalibrationRun::restore_from(size_t from, RunFinisher& finisher) {
+    std::weak_ptr<int> alive = alive_;
+    for (size_t i = from; i < entries_.size(); ++i) {
+        Entry& e = entries_[i];
+        if (e.status != StepStatus::Finished || !e.step->restores_on_discard()) {
+            continue;
+        }
+        spdlog::info("[CalibrationRun] Restoring {} before discarding", e.step->info().id);
+        e.step->restore(api_, [this, alive, i, &finisher](std::string note) {
+            if (alive.expired() ||
+                phase_ != RunPhase::Discarding) { // L081_OK: steps call back on the main thread
+                return;
+            }
+            entries_[i].restore_note = std::move(note);
+            changed();
+            restore_from(i + 1, finisher);
+        });
+        return;
+    }
+    // Only a finished step's pending config needs the restart; an aborted one
+    // already restarted, a failed or skipped one staged nothing, and a restored
+    // one never was pending.
+    const bool pending =
+        !results_lost_ && std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) {
+            return e.status == StepStatus::Finished && !e.step->restores_on_discard();
+        });
+    if (!pending) {
         phase_ = RunPhase::Discarded;
         changed();
         return;
     }
-    phase_ = RunPhase::Discarding;
-    error_.clear();
-    changed();
-    std::weak_ptr<int> alive = alive_;
     finisher.discard_all(
         [this, alive]() {
             if (alive.expired() ||

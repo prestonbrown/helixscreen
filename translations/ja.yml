@@ -1171,6 +1171,7 @@ translations:
   Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '以前のIPv4設定をまだ復元できていません。最大2分間再試行します。'
   Could not restore the stock screen: '標準画面に戻せませんでした'
+  'Could not restore: {}': '元に戻せませんでした: {}'
   Could not save filament: フィラメントを保存できませんでした
   Could not save the drying state: 乾燥の状態を保存できませんでした
 
@@ -3743,6 +3744,7 @@ translations:
   Restore Defaults: デフォルトに戻す
   Restore Stock Screen: '標準画面に戻す'
   Restore tool: 'ツールを元に戻す'
+  Restored to {:.3f} mm: '{:.3f} mm に戻しました'
   Restoring position: 位置を復元中
   Restoring the print settings: 印刷設定を復元中
   Resume: 再開

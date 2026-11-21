@@ -9,8 +9,11 @@
 #include "calibration_run.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_profile_state.h"
 #include "printer_state.h"
+#include "z_offset_persistence.h"
+#include "z_offset_utils.h"
 
 #include <memory>
 #include <optional>
@@ -81,6 +84,13 @@ class FakeStep : public CalibrationStep {
     bool abort_restarted_firmware() const override {
         return restarts_on_abort;
     }
+    bool restores_on_discard() const override {
+        return restorable;
+    }
+    void restore(helix::IMoonrakerAPI&, std::function<void(std::string)> done) override {
+        ++restores;
+        restored = std::move(done);
+    }
     void finish(const std::string& summary) {
         ctx_->done(StepOutcome::finished({summary, {{"v", summary}}}));
     }
@@ -93,6 +103,9 @@ class FakeStep : public CalibrationStep {
     int starts = 0;
     int aborts = 0;
     bool restarts_on_abort = false;
+    bool restorable = false;
+    int restores = 0;
+    std::function<void(std::string)> restored;
     std::optional<StepOutcome> immediate;
 };
 
@@ -348,4 +361,54 @@ TEST_CASE_METHOD(RunFixture, "a failed discard goes back to the choice with the 
     CHECK(run->phase() == RunPhase::Results);
     CHECK(run->error() == "Klippy disconnected");
     CHECK(run->can_save());
+}
+
+TEST_CASE_METHOD(RunFixture, "discard all puts a firmware-persisted result back before restarting",
+                 "[calibration_run]") {
+    make_run(2);
+    fakes[0]->restorable = true;
+    run->start();
+    fakes[0]->finish("Accepted at Z 1.235 mm");
+    fakes[1]->finish("Nozzle PID");
+    FakeFinisher finisher;
+    run->discard_all(finisher);
+    REQUIRE(fakes[0]->restores == 1);
+    // The restart waits for the old offset to be back.
+    CHECK(finisher.discards == 0);
+    fakes[0]->restored("Restored to -1.245 mm");
+    CHECK(run->entries()[0].restore_note == "Restored to -1.245 mm");
+    CHECK(finisher.discards == 1);
+    finisher.discarded();
+    CHECK(run->phase() == RunPhase::Discarded);
+    CHECK(finisher.recorded.empty());
+}
+
+TEST_CASE_METHOD(RunFixture, "a run whose only result was restored needs no restart",
+                 "[calibration_run]") {
+    make_run(1);
+    fakes[0]->restorable = true;
+    run->start();
+    fakes[0]->finish("Accepted at Z 1.235 mm");
+    FakeFinisher finisher;
+    run->discard_all(finisher);
+    fakes[0]->restored("Restored to -1.245 mm");
+    CHECK(finisher.discards == 0);
+    CHECK(run->phase() == RunPhase::Discarded);
+}
+
+TEST_CASE("a firmware-managed Z offset is set, and restored, by one command",
+          "[calibration_run][zoffset]") {
+    const helix::PrinterDiscovery plain;
+    CHECK(helix::zoffset::firmware_managed_offset_gcode(-1.245, plain, false) ==
+          "SET_GCODE_OFFSET Z=-1.245");
+
+    helix::PrinterDiscovery persisting;
+    persisting.parse_objects(nlohmann::json::array({"gcode_macro SAVE_ZMOD_DATA"}));
+    const std::string clear = helix::zoffset::stale_probe_delta_clear_gcode(persisting);
+    REQUIRE_FALSE(clear.empty());
+    CHECK(helix::zoffset::firmware_managed_offset_gcode(0.05, persisting, false) ==
+          clear + "\nSET_GCODE_OFFSET Z=0.050");
+    // Under a print the delta is live and stays.
+    CHECK(helix::zoffset::firmware_managed_offset_gcode(0.05, persisting, true) ==
+          "SET_GCODE_OFFSET Z=0.050");
 }

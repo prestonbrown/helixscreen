@@ -1108,6 +1108,7 @@
   <translation tag="Could not restore the previous IPv4 settings" en="Could not restore the previous IPv4 settings"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." en="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes."/>
   <translation tag="Could not restore the stock screen" en="Could not restore the stock screen"/>
+  <translation tag="Could not restore: {}" en="Could not restore: {}"/>
   <translation tag="Could not save filament" en="Could not save filament"/>
   <translation tag="Could not save the drying state" en="Could not save the drying state"/>
   <translation tag="Could not save the drying state: nothing was heated" en="Could not save the drying state: nothing was heated"/>
@@ -3654,6 +3655,7 @@
   <translation tag="Restore Defaults" en="Restore Defaults"/>
   <translation tag="Restore Stock Screen" en="Restore Stock Screen"/>
   <translation tag="Restore tool" en="Restore tool"/>
+  <translation tag="Restored to {:.3f} mm" en="Restored to {:.3f} mm"/>
   <translation tag="Restoring position" en="Restoring position"/>
   <translation tag="Restoring the print settings" en="Restoring the print settings"/>
   <translation tag="Resume" en="Resume"/>

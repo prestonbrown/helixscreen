@@ -384,13 +384,14 @@ void CalibrationRunOverlay::publish_run() {
         }
         const auto k = static_cast<size_t>(i);
         lv_subject_set_int(&in_run_[k], 1);
-        const bool dropped = run_->results_lost() && e.status == StepStatus::Finished;
+        const bool dropped = run_->results_lost() && e.status == StepStatus::Finished &&
+                             !e.step->restores_on_discard();
         lv_subject_set_int(&state_[k], dropped ? 3 : dot_state(e.status));
         const std::string status = dropped
                                        ? std::string(lv_tr("Dropped when the printer restarted"))
                                        : entry_status_text(e);
         set_text(detail_[k], status);
-        set_text(after_[k], status);
+        set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
         set_text(before_[k], before_text(e.step->info()));
         if (e.status == StepStatus::Pending || e.status == StepStatus::Running) {
             remaining_min += e.step->info().minutes;

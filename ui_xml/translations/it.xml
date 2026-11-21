@@ -1108,6 +1108,7 @@
   <translation tag="Could not restore the previous IPv4 settings" it="Impossibile ripristinare le impostazioni IPv4 precedenti"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." it="Non è ancora stato possibile ripristinare le impostazioni IPv4 precedenti. Nuovi tentativi per un massimo di due minuti."/>
   <translation tag="Could not restore the stock screen" it="Impossibile ripristinare lo schermo originale"/>
+  <translation tag="Could not restore: {}" it="Impossibile ripristinare: {}"/>
   <translation tag="Could not save filament" it="Impossibile salvare il filamento"/>
   <translation tag="Could not save the drying state" it="Impossibile salvare lo stato dell&apos;essiccazione"/>
   <translation tag="Could not save the drying state: nothing was heated" it="Impossibile salvare lo stato dell&apos;essiccazione: non è stato riscaldato nulla"/>
@@ -3654,6 +3655,7 @@
   <translation tag="Restore Defaults" it="Ripristina predefiniti"/>
   <translation tag="Restore Stock Screen" it="Ripristina schermo originale"/>
   <translation tag="Restore tool" it="Ripristina strumento"/>
+  <translation tag="Restored to {:.3f} mm" it="Ripristinato a {:.3f} mm"/>
   <translation tag="Restoring position" it="Ripristino posizione"/>
   <translation tag="Restoring the print settings" it="Ripristino delle impostazioni di stampa"/>
   <translation tag="Resume" it="Riprendi"/>

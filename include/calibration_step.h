@@ -81,6 +81,19 @@ class CalibrationStep {
     [[nodiscard]] virtual bool abort_restarted_firmware() const {
         return false;
     }
+    /// This finished step's result took effect outside Klipper's pending config
+    /// (the firmware persisted it), so no restart undoes it and Discard all
+    /// must put the old value back with restore().
+    [[nodiscard]] virtual bool restores_on_discard() const {
+        return false;
+    }
+    /// Put the value from before the step back, the way the step set the new
+    /// one. @p done runs once on the main thread with a translated line saying
+    /// what happened ("Restored to -1.245 mm").
+    virtual void restore(IMoonrakerAPI& api, std::function<void(std::string note)> done) {
+        (void)api;
+        done({});
+    }
 };
 
 } // namespace helix::calibration

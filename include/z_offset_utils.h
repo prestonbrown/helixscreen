@@ -427,4 +427,10 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
 /// actually needs answered.
 ///
 /// It also detects the restart *completing*. SAVE_CONFIG restarts Klipper, and
+/// The command that sets a firmware-managed Z offset to @p z_mm, which the
+/// firmware then persists itself. Outside a print it first clears the probe
+/// delta the last print left (stale_probe_delta_clear_gcode()).
+[[nodiscard]] std::string firmware_managed_offset_gcode(double z_mm, const PrinterDiscovery& hw,
+                                                        bool print_active);
+
 } // namespace helix::zoffset

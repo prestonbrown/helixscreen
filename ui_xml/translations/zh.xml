@@ -1108,6 +1108,7 @@
   <translation tag="Could not restore the previous IPv4 settings" zh="无法恢复之前的 IPv4 设置"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." zh="暂时无法恢复之前的 IPv4 设置。将在最多两分钟内重试。"/>
   <translation tag="Could not restore the stock screen" zh="无法恢复原厂屏幕"/>
+  <translation tag="Could not restore: {}" zh="无法恢复：{}"/>
   <translation tag="Could not save filament" zh="无法保存耗材"/>
   <translation tag="Could not save the drying state" zh="无法保存烘干状态"/>
   <translation tag="Could not save the drying state: nothing was heated" zh="无法保存烘干状态:未进行任何加热"/>
@@ -3654,6 +3655,7 @@
   <translation tag="Restore Defaults" zh="恢复默认设置"/>
   <translation tag="Restore Stock Screen" zh="恢复原厂屏幕"/>
   <translation tag="Restore tool" zh="恢复工具"/>
+  <translation tag="Restored to {:.3f} mm" zh="已恢复为 {:.3f} mm"/>
   <translation tag="Restoring position" zh="正在恢复位置"/>
   <translation tag="Restoring the print settings" zh="正在恢复打印设置"/>
   <translation tag="Resume" zh="恢复"/>
