@@ -186,6 +186,21 @@ class InputShaperCalibrator {
      */
     void check_accelerometer(AccelCheckCallback on_complete, ErrorCallback on_error = nullptr);
 
+    /// Progress of a two-axis run: the axis under test, then as ProgressCallback.
+    using AxisProgressCallback =
+        std::function<void(char axis, int percent, ShaperCalibrationPhase phase)>;
+    using BothAxesCallback = std::function<void(const CalibrationResults& results)>;
+
+    /**
+     * @brief The whole two-axis calibration: the noise check, then X, then Y
+     *
+     * Each axis is run_calibration()'s; the next one starts from the main
+     * thread once the last has finished. on_complete gets both results.
+     * Callbacks fire off the main thread, as run_calibration()'s do.
+     */
+    void run_both_axes(AxisProgressCallback on_progress, BothAxesCallback on_complete,
+                       ErrorCallback on_error);
+
     /**
      * @brief Run resonance calibration on specified axis
      *

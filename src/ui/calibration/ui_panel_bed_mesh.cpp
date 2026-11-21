@@ -1621,16 +1621,17 @@ void BedMeshPanel::on_calibration_complete() {
                 spdlog::error("[BedMeshPanel] Calibration finished, but no stored profile holds a "
                               "new mesh (expected '{}')",
                               calibration_plan_.writes_profile);
-                NOTIFY_ERROR(lv_tr("No new mesh was stored as '{}'"), calibration_plan_.name);
-                hide_all_modals();
+                report_store_failure(fmt::format(
+                    fmt::runtime(lv_tr("No new mesh was stored as '{}'")), calibration_plan_.name));
                 return;
             }
         },
         [this](const std::string& why) {
             spdlog::error("[BedMeshPanel] Could not read the stored meshes after calibrating: {}",
                           why);
-            NOTIFY_ERROR(lv_tr("Could not save the mesh as '{}': {}"), calibration_plan_.name, why);
-            hide_all_modals();
+            report_store_failure(
+                fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")),
+                            calibration_plan_.name, why));
         });
 }
 
@@ -1664,6 +1665,15 @@ void BedMeshPanel::read_stored_meshes(std::function<void(helix::bed_mesh::Stored
 
 void BedMeshPanel::finish_calibration(const std::string& profile) {
     spdlog::info("[BedMeshPanel] Calibration complete, mesh stored as '{}'", profile);
+    if (in_run_) {
+        // The run saves everything at once; nothing here asks or saves.
+        lv_subject_set_int(&bed_mesh_calibrate_state_,
+                           static_cast<int>(BedMeshCalibrationState::IDLE));
+        if (run_hooks_.stored) {
+            run_hooks_.stored(profile);
+        }
+        return;
+    }
     NOTIFY_SUCCESS(lv_tr("Mesh saved as '{}'"), profile);
     hide_all_modals();
     // The profile lives in Klipper's memory until SAVE_CONFIG writes it out.
@@ -1722,8 +1732,8 @@ bool BedMeshPanel::offer_material_mesh() {
 void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::string& to) {
     auto fail = [this, to](const std::string& why) {
         spdlog::error("[BedMeshPanel] Could not save the mesh as '{}': {}", to, why);
-        NOTIFY_ERROR(lv_tr("Could not save the mesh as '{}': {}"), to, why);
-        hide_all_modals();
+        report_store_failure(
+            fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")), to, why));
     };
     IMoonrakerAPI* api = api_;
     if (!api) {
@@ -1810,6 +1820,45 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     lv_subject_set_string(&bed_mesh_error_message_, error_message_buf_);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
+    if (in_run_ && run_hooks_.failed) {
+        run_hooks_.failed(clean);
+    }
+}
+
+void BedMeshPanel::report_store_failure(const std::string& user_message) {
+    if (in_run_) {
+        lv_subject_set_int(&bed_mesh_calibrate_state_,
+                           static_cast<int>(BedMeshCalibrationState::IDLE));
+        if (run_hooks_.failed) {
+            run_hooks_.failed(user_message);
+        }
+        return;
+    }
+    NOTIFY_ERROR("{}", user_message);
+    hide_all_modals();
+}
+
+void BedMeshPanel::calibrate_for_run(IMoonrakerAPI* api, RunHooks hooks) {
+    if (api) {
+        set_api(api);
+    }
+    init_subjects();
+    run_hooks_ = std::move(hooks);
+    in_run_ = true;
+    spdlog::info("[BedMeshPanel] Guided run: calibrating into '{}'",
+                 helix::bed_mesh::kDefaultProfile);
+    begin_calibration(helix::bed_mesh::kDefaultProfile);
+}
+
+void BedMeshPanel::end_run(bool aborted) {
+    in_run_ = false;
+    run_hooks_ = {};
+    if (aborted) {
+        // The stop turned every heater off; there is nothing left to restore.
+        heat_.forget();
+        lv_subject_set_int(&bed_mesh_calibrate_state_,
+                           static_cast<int>(BedMeshCalibrationState::IDLE));
+    }
 }
 
 void BedMeshPanel::handle_emergency_stop() {

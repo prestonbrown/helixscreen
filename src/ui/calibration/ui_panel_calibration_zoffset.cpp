@@ -94,6 +94,7 @@ void ZOffsetCalibrationPanel::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
                               subjects_);
+    UI_MANAGED_SUBJECT_INT(run_mode_subject_, 0, "zoffset_cal_run_mode", subjects_);
 
     subjects_initialized_ = true;
 
@@ -110,6 +111,8 @@ void ZOffsetCalibrationPanel::init_subjects() {
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_done_clicked(); }},
             {"on_zoffset_retry_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_retry_clicked(); }},
+            {"on_zoffset_continue_clicked",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_continue_clicked(); }},
             {"on_zoffset_z_adjust",
              [](lv_event_t* e) {
                  const char* delta_str = static_cast<const char*>(lv_event_get_user_data(e));
@@ -501,7 +504,44 @@ static std::string per_head_refusal() {
 }
 
 void ZOffsetCalibrationPanel::start_calibration() {
+    if (run_done_) {
+        // The run's "Before you start" page already had the bed cleared.
+        start_once_bed_clear();
+        return;
+    }
     ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
+}
+
+void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api,
+                                           std::function<void(bool accepted, float z)> on_done) {
+    set_api(api);
+    init_subjects();
+    run_done_ = std::move(on_done);
+    lv_subject_set_int(&run_mode_subject_, 1);
+    spdlog::info("[ZOffsetCal] Opened for a guided run");
+    show(lv_screen_active());
+}
+
+void ZOffsetCalibrationPanel::finish_run(bool accepted) {
+    auto done = std::move(run_done_);
+    run_done_ = nullptr;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&run_mode_subject_, 0);
+    }
+    if (done) {
+        spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
+        done(accepted, final_offset_);
+    }
+}
+
+void ZOffsetCalibrationPanel::handle_continue_clicked() {
+    finish_run(state_ == State::COMPLETE);
+    helix::nav::go_back();
+}
+
+void ZOffsetCalibrationPanel::on_dismissed() {
+    // Leaving a run's Z offset without accepting it skips the step.
+    finish_run(false);
 }
 
 void ZOffsetCalibrationPanel::start_once_bed_clear() {
@@ -894,10 +934,12 @@ void ZOffsetCalibrationPanel::send_accept() {
                     on_calibration_result(false, lv_tr("Failed to set Z-offset"));
                 });
             });
-    } else if (!helix::zoffset::save_enabled()) {
-        // Saving is off for this printer: ACCEPT stages the result for Klipper's
-        // next SAVE_CONFIG and nothing here sends one. The complete state says so.
-        spdlog::info("[ZOffsetCal] Z-offset saving is off - sending ACCEPT without saving");
+    } else if (run_done_ || !helix::zoffset::save_enabled()) {
+        // Saving is off for this printer, or a guided run saves everything at its
+        // end: ACCEPT stages the result for Klipper's next SAVE_CONFIG and nothing
+        // here sends one. The complete state says so.
+        spdlog::info("[ZOffsetCal] Sending ACCEPT without saving ({})",
+                     run_done_ ? "guided run" : "Z-offset saving is off");
         auto tok = lifetime_.token();
         api_->execute_gcode(
             "ACCEPT",

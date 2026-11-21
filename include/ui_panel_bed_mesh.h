@@ -106,6 +106,20 @@ class BedMeshPanel : public OverlayBase {
     /** @brief Force redraw of bed mesh visualization */
     void redraw();
 
+    /// Where a guided calibration run hears how its mesh calibration ended. Both
+    /// run on the main thread, and at most one of them once per calibration.
+    struct RunHooks {
+        std::function<void(const std::string& profile)> stored;
+        std::function<void(const std::string& why)> failed;
+    };
+    /// Calibrate into the default profile for a guided run: the same plan,
+    /// preheat, homing and probing as the panel's own, without the panel's
+    /// questions, its toasts or its SAVE_CONFIG prompt. The panel need not be open.
+    void calibrate_for_run(helix::IMoonrakerAPI* api, RunHooks hooks);
+    /// The run no longer listens. @p aborted: the run stopped Klipper, which
+    /// turned every heater off.
+    void end_run(bool aborted);
+
     // Profile operations (called from XML event callbacks)
     void load_profile(int index);
     void delete_profile(int index);
@@ -301,6 +315,13 @@ class BedMeshPanel : public OverlayBase {
     // Pending mesh data - stored until build_volume is available
     std::vector<std::vector<float>> pending_mesh_data_;
     bool has_pending_mesh_data_ = false;
+
+    /// Set while a guided run's calibration is under way.
+    RunHooks run_hooks_;
+    bool in_run_ = false;
+    /// A calibration that probed but stored nothing usable: tell the run, or
+    /// the owner. @p user_message is translated.
+    void report_store_failure(const std::string& user_message);
 
     /// What begin_calibration() planned: launch_calibration() sends its command,
     /// and on_calibration_complete() finishes where it says the mesh went.
