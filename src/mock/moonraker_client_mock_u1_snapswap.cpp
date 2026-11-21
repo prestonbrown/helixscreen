@@ -87,11 +87,13 @@ nlohmann::json MoonrakerClientMock::u1_snapswap_status_json() const {
         // Fed through to the head, the entrance sensor reads 0.
         state.push_back(0);
         // The feeder's port sensor: an unloaded spool leaves the head's record
-        // empty, and the firmware forgets its filament, as the real U1 reports.
+        // empty, and the firmware forgets its filament, as the real U1 reports,
+        // until a SET_PRINT_FILAMENT_CONFIG names it again.
         const bool present = u1_filament_detected_[static_cast<size_t>(i)];
+        const bool named = present || u1_record_set_while_empty_[static_cast<size_t>(i)];
         exist.push_back(present);
-        type.push_back(present ? s.type : std::string("NONE"));
-        vendor.push_back(present ? s.vendor : std::string("NONE"));
+        type.push_back(named ? s.type : std::string("NONE"));
+        vendor.push_back(named ? s.vendor : std::string("NONE"));
         rgba.push_back(fmt::format("{:06X}{:02X}", s.rgb, s.alpha));
         subtype.push_back(s.subtype);
         multi.push_back(
@@ -195,6 +197,8 @@ std::optional<int> MoonrakerClientMock::u1_snapswap_line(const std::string& gcod
         {
             std::lock_guard<std::mutex> lock(u1_snapswap_mutex_);
             U1Spool& s = u1_spools_[static_cast<size_t>(head)];
+            u1_record_set_while_empty_[static_cast<size_t>(head)] =
+                !u1_filament_detected_[static_cast<size_t>(head)];
             if (const std::string t = param(gcode, "FILAMENT_TYPE"); !t.empty()) {
                 s.type = t;
             }

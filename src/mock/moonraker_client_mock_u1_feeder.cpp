@@ -106,6 +106,7 @@ bool MoonrakerClientMock::apply_u1_feeding_gcode(const std::string& gcode) {
     u1_channel_state_[ext_idx] = unload ? "unload_heat_finish" : "preload_finish";
     if (!unload) {
         u1_filament_detected_[ext_idx] = true;
+        u1_record_set_while_empty_[ext_idx] = false;
     }
     publish_u1_channel_frame(ext);
 

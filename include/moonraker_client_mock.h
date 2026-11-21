@@ -2915,6 +2915,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// FEED_AUTO ... AUTO=<0|1>; an AUTO_FEEDING load on such a head does nothing,
     /// as the firmware answers it.
     std::array<bool, static_cast<size_t>(kU1Channels)> u1_disable_auto_{};
+    /// SET_PRINT_FILAMENT_CONFIG named this head's filament while its port was
+    /// empty: the record keeps that name until filament is inserted again.
+    std::array<bool, static_cast<size_t>(kU1Channels)> u1_record_set_while_empty_{};
 
     /// The SnapSwap mock's spools (RFID tag and print_task_config agree) and the
     /// head on the carriage, behind u1_snapswap_mutex_.
