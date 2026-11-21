@@ -2,7 +2,6 @@
 
 #include "firmware_fault_codes.h"
 
-#include "ams_types.h"
 #include "lvgl.h"
 #include "printer_discovery.h"
 #include "qidi_fault_codes.h"
@@ -118,7 +117,7 @@ bool detect_snapmaker(const PrinterDiscovery& hw) {
 /// QIDI's extras raise QD codes with or without a Box; the Box (its own
 /// detection, or QIDI's box_extras object) is what marks the firmware.
 bool detect_qidi(const PrinterDiscovery& hw) {
-    if (hw.mmu_type() == AmsType::QIDI_BOX) {
+    if (hw.qidi_box_slot_count() > 0) {
         return true;
     }
     const auto& objects = hw.printer_objects();
