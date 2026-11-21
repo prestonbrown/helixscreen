@@ -11,6 +11,7 @@
 #ifdef HELIX_DISPLAY_FBDEV
 
 #include "display_backend.h"
+#include "indev_delete_watch.h"
 #include "touch_calibration.h"
 #include "touch_calibration_wrapper.h"
 
@@ -58,6 +59,10 @@ class DisplayBackendFbdev : public DisplayBackend {
 
     // Input device creation
     lv_indev_t* create_input_pointer() override;
+    lv_indev_t* reopen_input_pointer() override;
+    bool can_reopen_input_pointer() const override {
+        return true;
+    }
     lv_indev_t* create_input_keyboard() override;
 
     // Backend info
@@ -190,6 +195,10 @@ class DisplayBackendFbdev : public DisplayBackend {
     lv_indev_t* touch_ = nullptr;
     lv_indev_t* mouse_ = nullptr;
     lv_indev_t* keyboard_ = nullptr;
+    /// Clears touch_/mouse_ when LVGL deletes the device, as lv_evdev does when a
+    /// USB touch controller drops off the bus, so a reopen and the destructor
+    /// never reach a freed device.
+    helix::IndevDeleteWatch input_delete_watch_;
 
     /// Affine touch calibration coefficients
     helix::TouchCalibration calibration_;
@@ -248,6 +257,12 @@ class DisplayBackendFbdev : public DisplayBackend {
      * @return Path to touch device
      */
     std::string auto_detect_touch_device() const;
+
+    /// Opens touch_ on @p touch_path with the coordinate mapping, gestures and
+    /// calibration wrapper startup gives it. A reopen keeps the calibration already
+    /// live and logs its misses at debug. False when the device would not open.
+    bool open_touch_device(const std::string& touch_path, bool reopening);
+    void open_mouse_device();
 };
 
 #endif // HELIX_DISPLAY_FBDEV

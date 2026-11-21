@@ -341,6 +341,34 @@ std::optional<ScannedDevice> find_touch_device() {
     return find_touch_device("/dev/input", "/sys/class/input");
 }
 
+TouchDeviceOverride touch_device_override() {
+    const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
+    if (env_device != nullptr && env_device[0] != '\0') {
+        return {env_device, "HELIX_TOUCH_DEVICE"};
+    }
+    return {Config::get_instance()->get<std::string>("/input/touch_device", ""), "config"};
+}
+
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path,
+                                                  const std::string& dev_base,
+                                                  const std::string& sysfs_base) {
+    if (!override_path.empty()) {
+        if (access(override_path.c_str(), F_OK) != 0) {
+            return std::nullopt;
+        }
+        return override_path;
+    }
+    auto touch = find_touch_device(dev_base, sysfs_base);
+    if (!touch) {
+        return std::nullopt;
+    }
+    return touch->path;
+}
+
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path) {
+    return find_touch_reopen_path(override_path, "/dev/input", "/sys/class/input");
+}
+
 std::optional<ScannedDevice> find_keyboard_device(const std::string& dev_base,
                                                   const std::string& sysfs_base,
                                                   const std::string& exclude_vendor_product,

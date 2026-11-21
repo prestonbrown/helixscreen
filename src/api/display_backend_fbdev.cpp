@@ -237,15 +237,48 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         return nullptr;
     }
 
-    spdlog::info("[Fbdev Backend] Creating evdev touch input on {}", touch_path);
+    if (!open_touch_device(touch_path, false)) {
+        return nullptr;
+    }
+    open_mouse_device();
+    if (mouse_ != nullptr) {
+        input_delete_watch_.watch(mouse_, &mouse_);
+    }
+    return touch_;
+}
+
+lv_indev_t* DisplayBackendFbdev::reopen_input_pointer() {
+    if (touch_ != nullptr) {
+        return touch_;
+    }
+    // The calibration wrapper went with the deleted device.
+    calibration_wrapper_installed_ = false;
+    const std::string override_path =
+        touch_device_.empty() ? helix::input::touch_device_override().path : touch_device_;
+    const auto touch_path = helix::input::find_touch_reopen_path(override_path);
+    if (!touch_path || !open_touch_device(*touch_path, true)) {
+        return nullptr;
+    }
+    spdlog::info("[Fbdev Backend] Touch device reopened on {}", *touch_path);
+    return touch_;
+}
+
+bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool reopening) {
+    // A reopen retries every second while the device is away; only its success is news.
+    spdlog::log(reopening ? spdlog::level::debug : spdlog::level::info,
+                "[Fbdev Backend] Creating evdev touch input on {}", touch_path);
 
     // LVGL's evdev driver for touch input
     touch_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, touch_path.c_str());
 
     if (touch_ == nullptr) {
-        spdlog::error("[Fbdev Backend] Failed to create evdev touch input on {}", touch_path);
-        return nullptr;
+        spdlog::log(reopening ? spdlog::level::debug : spdlog::level::err,
+                    "[Fbdev Backend] Failed to create evdev touch input on {}", touch_path);
+        return false;
     }
+    input_delete_watch_.watch(touch_, &touch_);
+    // Per device: only a transposed guess on this device sets it again below.
+    calibration_context_.reprogram_range = nullptr;
 
     // Determine if touch calibration is needed using unified logic.
     // Reads device name, phys, and capabilities from sysfs.
@@ -456,8 +489,12 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
                                       : "kernel/MT-declared ABS range");
     }
 
-    // Load affine calibration from config (saved by calibration wizard)
-    calibration_ = helix::load_touch_calibration();
+    // Load affine calibration from config (saved by calibration wizard). A reopened
+    // device keeps the one already live, which a calibration this session may have
+    // replaced or cleared.
+    if (!reopening) {
+        calibration_ = helix::load_touch_calibration();
+    }
 
     // Post-#943-fix upgrade: a stored affine on a non-resistive panel whose ABS range
     // mismatches the display was computed in the wrong (unscaled) coordinate space —
@@ -466,7 +503,7 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     // and live ABS range are known.
     if (helix::Config* cfg = helix::Config::get_instance()) {
         bool recheck_pending = cfg->get<bool>("/input/calibration/recheck_pending", false);
-        if (recheck_pending) {
+        if (recheck_pending && !reopening) {
             bool is_resistive = helix::is_resistive_touchscreen_name(dev_name);
             bool abs_mismatch =
                 got_range && helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
@@ -579,7 +616,10 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
     }
 
     spdlog::info("[Fbdev Backend] Evdev touch input created on {}", touch_path);
+    return true;
+}
 
+void DisplayBackendFbdev::open_mouse_device() {
     // Detect USB HID mouse (in addition to touchscreen)
     const char* mouse_env = std::getenv("HELIX_MOUSE_DEVICE");
     if (mouse_env && mouse_env[0] != '\0') {
@@ -612,8 +652,6 @@ lv_indev_t* DisplayBackendFbdev::create_input_pointer() {
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[Fbdev Backend] Mouse cursor enabled");
     }
-
-    return touch_;
 }
 
 lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
@@ -643,20 +681,14 @@ lv_indev_t* DisplayBackendFbdev::create_input_keyboard() {
 }
 
 std::string DisplayBackendFbdev::auto_detect_touch_device() const {
-    // Priority 1: Environment variable override
-    const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
-    if (env_device != nullptr && strlen(env_device) > 0) {
-        spdlog::info("[Fbdev Backend] Using touch device from HELIX_TOUCH_DEVICE: {}", env_device);
-        return env_device;
+    // Priority 1 and 2: HELIX_TOUCH_DEVICE, then the config file
+    const helix::input::TouchDeviceOverride device_override = helix::input::touch_device_override();
+    if (!device_override.path.empty()) {
+        spdlog::info("[Fbdev Backend] Using touch device from {}: {}", device_override.source,
+                     device_override.path);
+        return device_override.path;
     }
-
-    // Priority 2: Config file override
     helix::Config* cfg = helix::Config::get_instance();
-    auto device_override = cfg->get<std::string>("/input/touch_device", "");
-    if (!device_override.empty()) {
-        spdlog::info("[Fbdev Backend] Using touch device from config: {}", device_override);
-        return device_override;
-    }
 
     // Check for common misconfiguration: touch_device at root or display level
     // instead of under /input/

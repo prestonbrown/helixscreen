@@ -77,6 +77,27 @@ std::optional<ScannedDevice> find_touch_device();
 std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
                                                const std::string& sysfs_base);
 
+/// The touch device the user named explicitly: HELIX_TOUCH_DEVICE, then
+/// /input/touch_device in the config. An empty path when neither is set.
+struct TouchDeviceOverride {
+    std::string path;
+    /// Where the path came from, for the log: "HELIX_TOUCH_DEVICE" or "config".
+    const char* source = "";
+};
+TouchDeviceOverride touch_device_override();
+
+/// The device to reopen after LVGL deleted the touch pointer, as lv_evdev does
+/// when a USB touch controller drops off the bus and re-enumerates
+/// (prestonbrown/helixscreen#2069). An explicit @p override_path is the answer
+/// once its node exists again; with none, the touchscreen find_touch_device()
+/// finds, wherever it re-enumerated. nullopt means keep waiting: a reopen never
+/// settles on a node without touch axes, which would end the retry on the
+/// wrong device.
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path);
+std::optional<std::string> find_touch_reopen_path(const std::string& override_path,
+                                                  const std::string& dev_base,
+                                                  const std::string& sysfs_base);
+
 /// Scan /dev/input/event* for keyboard devices (KEY_A set).
 /// Skips devices that look like barcode scanners ("barcode"/"scanner" in name).
 /// If exclude_vendor_product is non-empty (format "vendor:product"), also skips
