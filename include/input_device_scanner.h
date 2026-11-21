@@ -69,6 +69,10 @@ std::optional<ScannedDevice> find_mouse_device();
 std::optional<ScannedDevice> find_mouse_device(const std::string& dev_base,
                                                const std::string& sysfs_base);
 
+/// The N of the /dev/input/eventN node @p device_path names, following links such as
+/// /dev/input/by-id/*. -1 when the node it names is not an event node.
+int event_number_for_device(const std::string& device_path);
+
 /// Scan /dev/input/event* for the touchscreen: a device with ABS_X+ABS_Y or
 /// ABS_MT_POSITION_X+Y. Candidates score +2 for a known touchscreen name, +2 for
 /// INPUT_PROP_DIRECT, +1 for a USB phys; the highest score wins and the lowest

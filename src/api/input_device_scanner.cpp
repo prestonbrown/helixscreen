@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <climits>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -339,6 +340,21 @@ std::optional<ScannedDevice> find_touch_device(const std::string& dev_base,
 
 std::optional<ScannedDevice> find_touch_device() {
     return find_touch_device("/dev/input", "/sys/class/input");
+}
+
+int event_number_for_device(const std::string& device_path) {
+    // Resolve links such as /dev/input/by-id/*, whose names say nothing about the node.
+    char resolved[PATH_MAX];
+    const char* node_path =
+        ::realpath(device_path.c_str(), resolved) != nullptr ? resolved : device_path.c_str();
+    const char* slash = std::strrchr(node_path, '/');
+    const char* node = slash != nullptr ? slash + 1 : node_path;
+
+    int event_num = -1;
+    if (sscanf(node, "event%d", &event_num) != 1 || event_num < 0) {
+        return -1;
+    }
+    return event_num;
 }
 
 TouchDeviceOverride touch_device_override() {

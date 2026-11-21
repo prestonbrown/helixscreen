@@ -588,12 +588,7 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
 
     // --- Touch calibration detection ---
     if (pointer_ && touch_path) {
-        // Parse event number from path like "/dev/input/event0"
-        int event_num = -1;
-        const char* event_pos = strstr(touch_path, "event");
-        if (event_pos) {
-            sscanf(event_pos, "event%d", &event_num);
-        }
+        const int event_num = helix::input::event_number_for_device(touch_path);
 
         if (event_num >= 0) {
             std::string dev_name = helix::input::get_input_device_name(event_num);
