@@ -44,90 +44,97 @@
       </text_small>
       <text_heading name="z_offset_display" bind_text="tune_z_offset_display"/>
     </lv_obj>
-    <if cond="ui_is_portrait eq 1">
-      <!-- Portrait: four step buttons beside a fixed-width indicator would be
-           ~14px each at 272x480, so the indicator shares its row with the
-           direction buttons only, and the steps get a full-width row below.
-           The direction buttons are the step buttons' height: here the pair
-           sets the row's height, and they stay wide, so the touch target
-           does not shrink. -->
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-        <z_offset_indicator name="z_offset_indicator"
-                            width="#z_tune_indicator_w" height="#z_tune_indicator_h" hidden="$indicator_hidden"/>
-        <lv_obj height="content"
-                flex_grow="1" style_pad_all="0" flex_flow="$portrait_dir_flow" style_flex_main_place="space_between"
-                style_pad_gap="#space_xxs" scrollable="false">
-          <ui_button name="btn_z_farther"
-                     width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
-            <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
-          </ui_button>
-          <ui_button name="btn_z_closer"
-                     width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
-            <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
-          </ui_button>
+    <!-- The step amounts, direction buttons, help line and target selector.
+         A dedicated container, because the <if> rebuilds when the
+         orientation flips and a rebuilt body lands after its siblings. -->
+    <lv_obj name="z_controls"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+            style_pad_gap="#space_xs" scrollable="false">
+      <if cond="ui_is_portrait eq 1">
+        <!-- Portrait: four step buttons beside a fixed-width indicator would be
+             ~14px each at 272x480, so the indicator shares its row with the
+             direction buttons only, and the steps get a full-width row below.
+             The direction buttons are the step buttons' height: here the pair
+             sets the row's height, and they stay wide, so the touch target
+             does not shrink. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <z_offset_indicator name="z_offset_indicator"
+                              width="#z_tune_indicator_w" height="#z_tune_indicator_h" hidden="$indicator_hidden"/>
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" flex_flow="$portrait_dir_flow" style_flex_main_place="space_between"
+                  style_pad_gap="#space_xxs" scrollable="false">
+            <ui_button name="btn_z_farther"
+                       width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+              <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
+            </ui_button>
+            <ui_button name="btn_z_closer"
+                       width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+              <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
-      </lv_obj>
-      <tune_z_steps width="100%" btn_h="$btn_h"/>
-      <!-- Hidden on a tool changer, where the target selector below takes this
-           slot, and on the smallest portrait panel, where the controls above
-           already fill the height. -->
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-              hidden="$squish_hint_hidden">
-        <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
-          <bind_flag_if cond="per_tool_z_supported eq 1 or ui_breakpoint le 0" flag="hidden"/>
-        </text_small>
-      </lv_obj>
-      <tune_z_target_row btn_h="$btn_h"/>
-      <else/>
-      <!-- Indicator (left) + controls (right) side by side -->
-      <lv_obj width="100%"
-              height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-        <z_offset_indicator name="z_offset_indicator"
-                            width="#z_tune_indicator_w" height="#z_tune_indicator_h" hidden="$indicator_hidden"/>
-        <!-- Controls column: amount buttons row with direction buttons stacked on the right -->
-        <lv_obj height="content"
-                flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
-                  style_flex_cross_place="center" scrollable="false">
-            <tune_z_steps flex_grow="1" btn_h="$btn_h"/>
-            <!-- Direction buttons, stacked unless dir_flow puts them in a row -->
-            <lv_obj width="$dir_w"
-                    height="content" style_pad_all="0" flex_flow="$dir_flow" style_pad_gap="#space_xxs"
-                    scrollable="false">
-              <ui_button name="btn_z_farther"
-                         width="$dir_btn_w" height="$dir_btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
-                <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
-              </ui_button>
-              <ui_button name="btn_z_closer"
-                         width="$dir_btn_w" height="$dir_btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
-                <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
-              </ui_button>
+        <tune_z_steps width="100%" btn_h="$btn_h"/>
+        <!-- Hidden on a tool changer, where the target selector below takes this
+             slot, and on the smallest portrait panel, where the controls above
+             already fill the height. -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                hidden="$squish_hint_hidden">
+          <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+            <bind_flag_if cond="per_tool_z_supported eq 1 or ui_breakpoint le 0" flag="hidden"/>
+          </text_small>
+        </lv_obj>
+        <tune_z_target_row btn_h="$btn_h"/>
+        <else/>
+        <!-- Indicator (left) + controls (right) side by side -->
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
+          <z_offset_indicator name="z_offset_indicator"
+                              width="#z_tune_indicator_w" height="#z_tune_indicator_h" hidden="$indicator_hidden"/>
+          <!-- Controls column: amount buttons row with direction buttons stacked on the right -->
+          <lv_obj height="content"
+                  flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" scrollable="false">
+              <tune_z_steps flex_grow="1" btn_h="$btn_h"/>
+              <!-- Direction buttons, stacked unless dir_flow puts them in a row -->
+              <lv_obj width="$dir_w"
+                      height="content" style_pad_all="0" flex_flow="$dir_flow" style_pad_gap="#space_xxs"
+                      scrollable="false">
+                <ui_button name="btn_z_farther"
+                           width="$dir_btn_w" height="$dir_btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                  <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
+                </ui_button>
+                <ui_button name="btn_z_closer"
+                           width="$dir_btn_w" height="$dir_btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+                  <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
+                </ui_button>
+              </lv_obj>
             </lv_obj>
-          </lv_obj>
-          <!-- Help text. Wraps rather than setting the row's minimum width:
-               an unwrapped label here is what pushes the whole z-offset row
-               past the screen edge once the string is longer than the box,
-               which English fits on one line but translations need not.
+            <!-- Help text. Wraps rather than setting the row's minimum width:
+                 an unwrapped label here is what pushes the whole z-offset row
+                 past the screen edge once the string is longer than the box,
+                 which English fits on one line but translations need not.
 
-               Hidden on a tool changer, where the target selector below takes
-               this slot. The swap is what keeps the section the same height:
-               the controls column has ~28px of slack under the indicator at
-               800x480 and ~23px at 480x272, enough for the taller selector
-               only because the label goes away. -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
-                  hidden="$squish_hint_hidden">
-            <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
-              <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
-            </text_small>
+                 Hidden on a tool changer, where the target selector below takes
+                 this slot. The swap is what keeps the section the same height:
+                 the controls column has ~28px of slack under the indicator at
+                 800x480 and ~23px at 480x272, enough for the taller selector
+                 only because the label goes away. -->
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                    hidden="$squish_hint_hidden">
+              <text_small width="100%" long_mode="wrap" text="Closer = more squish | Farther = less squish">
+                <bind_flag_if_eq subject="per_tool_z_supported" flag="hidden" ref_value="1"/>
+              </text_small>
+            </lv_obj>
+            <tune_z_target_row btn_h="$btn_h"/>
           </lv_obj>
-          <tune_z_target_row btn_h="$btn_h"/>
         </lv_obj>
-      </lv_obj>
-    </if>
+      </if>
+    </lv_obj>
     <!-- The help lines give way on the smallest portrait panel, where the
          controls above them already fill the height. -->
     <lv_obj width="100%"

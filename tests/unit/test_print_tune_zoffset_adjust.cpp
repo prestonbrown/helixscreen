@@ -590,3 +590,52 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(shown_speed() == "120 / 500 mm/s");
     lv_obj_delete(section);
 }
+
+namespace {
+/// The direct child of `ancestor` that holds `obj`.
+lv_obj_t* child_holding(lv_obj_t* ancestor, lv_obj_t* obj) {
+    while (obj && lv_obj_get_parent(obj) != ancestor) {
+        obj = lv_obj_get_parent(obj);
+    }
+    return obj;
+}
+} // namespace
+
+TEST_CASE_METHOD(
+    PrintTuneZOffsetFixture,
+    "PrintTune: an orientation flip keeps Reset before PA and the Z steps above the help",
+    "[ui_integration][print_tune][portrait]") {
+    lv_subject_t* is_portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(is_portrait != nullptr);
+    auto& overlay = show_overlay();
+    lv_obj_t* panel = overlay.get_panel();
+    REQUIRE(panel != nullptr);
+
+    // Each orientation rebuilds the <if> bodies; a body rebuilt beside other
+    // children lands after them.
+    const int start = lv_subject_get_int(is_portrait);
+    for (int flip = 0; flip < 2; ++flip) {
+        lv_subject_set_int(is_portrait, flip == 0 ? 1 - start : start);
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(20);
+
+        lv_obj_t* row = lv_obj_find_by_name(panel, "reset_pa_row");
+        lv_obj_t* reset = lv_obj_find_by_name(panel, "btn_reset");
+        lv_obj_t* pa = lv_obj_find_by_name(panel, "tune_pa_row");
+        REQUIRE(row != nullptr);
+        REQUIRE(reset != nullptr);
+        REQUIRE(pa != nullptr);
+        CAPTURE(flip);
+        CHECK(lv_obj_get_index(child_holding(row, reset)) <
+              lv_obj_get_index(child_holding(row, pa)));
+
+        lv_obj_t* section = lv_obj_find_by_name(panel, "z_offset_section");
+        lv_obj_t* farther = lv_obj_find_by_name(panel, "btn_z_farther");
+        lv_obj_t* help = lv_obj_find_by_name(panel, "z_offset_help_text_manual");
+        REQUIRE(section != nullptr);
+        REQUIRE(farther != nullptr);
+        REQUIRE(help != nullptr);
+        CHECK(lv_obj_get_index(child_holding(section, farther)) <
+              lv_obj_get_index(child_holding(section, help)));
+    }
+}

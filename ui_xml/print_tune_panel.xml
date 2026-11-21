@@ -24,20 +24,21 @@
       <lv_obj name="reset_pa_row"
               width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_xs"
               style_flex_cross_place="center" scrollable="false">
-        <if cond="ui_is_portrait eq 1">
-          <!-- "Reset" alone: in portrait it shares the row with pressure
-               advance, directly under the speed and flow steppers it resets. -->
-          <ui_button name="btn_reset"
-                     height="#button_height_sm" flex_grow="1" style_min_width="40%" icon="refresh" text="Reset">
-            <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
-          </ui_button>
-          <else/>
-          <ui_button name="btn_reset"
-                     height="#button_height_sm" flex_grow="1" style_min_width="40%" icon="refresh"
-                     text="Reset Speed &amp; Flow to 100%">
-            <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
-          </ui_button>
-        </if>
+        <!-- Portrait says just "Reset": there it shares the row with pressure
+             advance, directly under the speed and flow steppers it resets. The
+             <if> has this cell to itself because it rebuilds on rotation. -->
+        <lv_obj height="content" flex_grow="1" style_min_width="40%" style_pad_all="0" scrollable="false">
+          <if cond="ui_is_portrait eq 1">
+            <ui_button name="btn_reset" width="100%" height="#button_height_sm" icon="refresh" text="Reset">
+              <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
+            </ui_button>
+            <else/>
+            <ui_button name="btn_reset"
+                       width="100%" height="#button_height_sm" icon="refresh" text="Reset Speed &amp; Flow to 100%">
+              <event_cb trigger="clicked" callback="on_tune_reset_clicked"/>
+            </ui_button>
+          </if>
+        </lv_obj>
         <tune_pa_row name="tune_pa_row"/>
       </lv_obj>
       <tune_z_offset/>
