@@ -849,6 +849,7 @@ src/ui/theme/theme_manager.cpp
 src/ui/theme/theme_token_scan.cpp
 src/ui/theme/theme_color_math.cpp
 src/ui/overlay_geometry.cpp
+src/ui/ui_side_band.cpp
 src/ui/theme/theme_fonts.cpp
 src/ui/theme/theme_responsive.cpp
 src/ui/theme/theme_lvgl_apply.cpp

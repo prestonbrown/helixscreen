@@ -24,7 +24,7 @@ void open_motion_controls(lv_obj_t* parent_screen) {
     if (jump_to_full_page(kMotionFunction)) {
         return;
     }
-    get_global_motion_panel().show(parent_screen);
+    open_motion_panel(parent_screen);
 }
 
 MotionWidget::MotionWidget(const std::string& instance_id)
