@@ -2072,15 +2072,17 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         int commits_behind = 0;
     };
     /// The update_manager entries machine.update.status reports in `version_info`, each
-    /// with only the `channel:` Moonraker loaded for it. Replaces every entry,
-    /// including the ones a --test run starts with (Klipper and Mainsail behind,
-    /// Moonraker and Fluidd current).
+    /// with only the `channel:` Moonraker loaded for it. Empty by default; replaces
+    /// every entry.
     void set_update_manager_entries(const std::map<std::string, std::string>& name_to_channel) {
         std::lock_guard<std::mutex> lock(update_manager_mutex_);
         update_manager_entries_.clear();
         for (const auto& [name, channel] : name_to_channel)
             update_manager_entries_[name] = MockUpdateEntry{channel, "", "", "", 0};
     }
+    /// What a --test run lists: Klipper and Mainsail with updates, Moonraker and
+    /// Fluidd current.
+    void seed_update_manager_demo();
     /// A copy of the entries, safe beside the simulation thread finishing an upgrade.
     [[nodiscard]] std::map<std::string, MockUpdateEntry> update_manager_entries() const {
         std::lock_guard<std::mutex> lock(update_manager_mutex_);
@@ -2270,12 +2272,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool sim_link_down_{false};
     std::atomic<bool> update_manager_busy_{false};
     mutable std::mutex update_manager_mutex_; ///< guards the entries and the job
-    std::map<std::string, MockUpdateEntry> update_manager_entries_ = {
-        {"klipper", {"dev", "git_repo", "v0.13.0-148-g1f3c2e9", "v0.13.0-152-gd04a7b1", 4}},
-        {"moonraker", {"dev", "git_repo", "v0.9.3-61-g8a1d2f0", "v0.9.3-61-g8a1d2f0", 0}},
-        {"mainsail", {"stable", "web", "v2.13.1", "v2.14.0", 0}},
-        {"fluidd", {"stable", "web", "v1.34.3", "v1.34.3", 0}},
-    };
+    std::map<std::string, MockUpdateEntry> update_manager_entries_;
     struct MockUpdateJob {
         std::string name;
         double elapsed = 0.0;

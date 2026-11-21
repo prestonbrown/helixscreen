@@ -1220,6 +1220,16 @@ const std::vector<std::string>& mock_update_lines(const std::string& type) {
 constexpr double kMockUpdateStepSeconds = 1.5;
 } // namespace
 
+void MoonrakerClientMock::seed_update_manager_demo() {
+    std::lock_guard<std::mutex> lock(update_manager_mutex_);
+    update_manager_entries_ = {
+        {"klipper", {"dev", "git_repo", "v0.13.0-148-g1f3c2e9", "v0.13.0-152-gd04a7b1", 4}},
+        {"moonraker", {"dev", "git_repo", "v0.9.3-61-g8a1d2f0", "v0.9.3-61-g8a1d2f0", 0}},
+        {"mainsail", {"stable", "web", "v2.13.1", "v2.14.0", 0}},
+        {"fluidd", {"stable", "web", "v1.34.3", "v1.34.3", 0}},
+    };
+}
+
 bool MoonrakerClientMock::start_update_manager_job(const std::string& name,
                                                    helix::SharedCallback<void(const json&)> done) {
     std::lock_guard<std::mutex> lock(update_manager_mutex_);

@@ -78,7 +78,7 @@
         <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="2"/>
       </icon>
       <lv_bar name="fwupdate_run_bar"
-              width="100%" height="8" bind_value="fwupdate_run_pct" min_value="0" max_value="100">
+              width="100%" height="#meter_track_h" bind_value="fwupdate_run_pct" min_value="0" max_value="100">
         <bind_flag_if cond="fwupdate_run_has_pct eq 0 or fwupdate_run_state ne 0" flag="hidden"/>
       </lv_bar>
       <text_body name="fwupdate_run_message"
