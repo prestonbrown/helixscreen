@@ -77,6 +77,14 @@ class AfcTestAccess {
     /// Namespace the override store was pointed at, or empty when no store was
     /// built. Lets a test assert the PRIVATE namespace without reaching for the
     /// store itself, which stays private.
+    /// Open the lane record store the way on_started() does, so a write is
+    /// followed by the production re-read.
+    static void open_lane_records(AmsBackendAfc& b) {
+        b.open_lane_record_store("afc", AmsBackendAfc::kOverrideNamespace);
+    }
+    static std::string override_namespace() {
+        return AmsBackendAfc::kOverrideNamespace;
+    }
     template <class B> static std::string store_namespace(const B& b) {
         return b.override_store_ ? b.override_store_->namespace_name() : std::string();
     }
