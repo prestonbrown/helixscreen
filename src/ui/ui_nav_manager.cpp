@@ -2315,4 +2315,16 @@ bool is_showing(lv_obj_t* panel) {
             !lv_obj_has_flag(panel, LV_OBJ_FLAG_HIDDEN));
 }
 
+lv_subject_t* active_panel_subject() {
+    return NavigationManager::instance().get_active_panel_subject();
+}
+
+std::shared_ptr<bool> subjects_lifetime() {
+    return NavigationManager::instance().get_subjects_lifetime();
+}
+
+bool main_panel_covered() {
+    return NavigationManager::instance().main_panel_deactivated_for_overlay();
+}
+
 } // namespace helix::nav
