@@ -38,6 +38,9 @@ enum class ShutdownScope : uint32_t { Both = 0, Printer = 1, Screen = 2 };
  *     6 = both shutting down    (progress spinner)
  *     7 = both rebooting        (progress spinner)
  *
+ *   shutdown_status_unknown: 1 while the printer's job state is not known, so
+ *   the confirm view warns that a print may be running.
+ *
  * In single-scope mode, both buttons invoke on_printer_*_cb_ — the host
  * running helixscreen IS the printer host, so Moonraker's machine.shutdown
  * brings the screen down with it.
@@ -88,6 +91,11 @@ class ShutdownModal : public Modal {
         on_screen_shutdown_cb_ = std::move(screen_shutdown);
         on_screen_reboot_cb_ = std::move(screen_reboot);
         lv_subject_set_int(&view_state_subject_, 1);
+    }
+
+    /// Show the "status not known" warning in the confirm view. Set before show().
+    void set_status_unknown(bool unknown) {
+        lv_subject_set_int(&status_unknown_subject_, unknown ? 1 : 0);
     }
 
     // Invoked from XML event callback free functions (registered in
@@ -160,6 +168,7 @@ class ShutdownModal : public Modal {
     ActionCallback on_both_reboot_cb_;
 
     static inline helix::Subject view_state_subject_{};
+    static inline helix::Subject status_unknown_subject_{};
     static inline bool subjects_initialized_ = false;
 
     static void init_subjects() {
@@ -168,10 +177,12 @@ class ShutdownModal : public Modal {
         subjects_initialized_ = true;
 
         view_state_subject_.init_int(0);
+        status_unknown_subject_.init_int(0);
 
         auto* scope = lv_xml_component_get_scope("shutdown_modal");
         if (scope) {
             lv_xml_register_subject(scope, "shutdown_view_state", &view_state_subject_);
+            lv_xml_register_subject(scope, "shutdown_status_unknown", &status_unknown_subject_);
         } else {
             spdlog::warn("[ShutdownModal] Component scope not found — "
                          "ensure shutdown_modal.xml is registered first");
@@ -182,8 +193,10 @@ class ShutdownModal : public Modal {
                 return;
             if (auto* scope = lv_xml_component_find_scope("shutdown_modal")) {
                 lv_xml_unregister_subject(scope, "shutdown_view_state");
+                lv_xml_unregister_subject(scope, "shutdown_status_unknown");
             }
             view_state_subject_.reset();
+            status_unknown_subject_.reset();
             subjects_initialized_ = false;
         });
     }

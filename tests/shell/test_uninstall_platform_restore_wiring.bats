@@ -33,9 +33,10 @@ setup() {
     mkdir -p "$MOCK_ROOT/etc/init.d" "$MOCK_ROOT/usr/bin" "$MOCK_ROOT/oem"
 
     # Post-install U1 state, as snapmaker-u1-setup-autostart.sh leaves it:
-    # debug flag set, stock UI binary neutralized, launchers taken over with the
-    # originals parked alongside as .stock.
-    touch "$MOCK_ROOT/oem/.debug"
+    # debug flag set (by the installer, which marks it), stock UI binary
+    # neutralized, launchers taken over with the originals parked alongside as
+    # .stock.
+    touch "$MOCK_ROOT/oem/.debug" "$MOCK_ROOT/oem/.debug.helixscreen"
     printf '#!/bin/sh\necho stock gui\n' > "$MOCK_ROOT/usr/bin/gui"
     chmod a-x "$MOCK_ROOT/usr/bin/gui"
     printf '#!/bin/sh\n# HelixScreen delegate\n' > "$MOCK_ROOT/etc/init.d/S99fb-http"

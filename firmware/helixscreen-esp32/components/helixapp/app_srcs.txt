@@ -1032,6 +1032,7 @@ src/ui/calibration/ui_calibration_hub_overlay.cpp
 # MOCK: src/printer/ams_backend_mock_identity.cpp
 src/system/host_identity.cpp
 src/system/env_refusal_notice.cpp
+src/system/u1_stock_screen.cpp
 src/system/home_layout_share.cpp
 src/ui/controls/opa_pulse.cpp
 src/rendering/toolhead_art_gen.cpp

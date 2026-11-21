@@ -12,6 +12,7 @@
  * - Telemetry
  * - Log level
  * - Restart / Factory reset
+ * - Restore Stock Screen (stock-firmware Snapmaker U1 only)
  *
  * The telemetry and log-level rows bind to their SystemSettingsManager subjects;
  * this overlay owns the row callbacks and the factory reset dialog.
@@ -57,6 +58,8 @@ class SystemSettingsOverlay : public OverlayBase {
     void handle_restart_helix_clicked();
     void handle_factory_reset_clicked();
     void perform_factory_reset();
+    void handle_restore_stock_screen_clicked();
+    void perform_restore_stock_screen();
 };
 
 inline SystemSettingsOverlay& get_system_settings_overlay() {

@@ -5830,3 +5830,19 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(h.config_writes().size() == 2);
     }
 }
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a failed load with a token of no wording reads as the failed load",
+                 "[ams][snapmaker][action_state][feed_failure]") {
+    helix::test::StartedBackend<CapturingSnapmakerBackend> backend;
+
+    backend.fire_status(make_feed_status(0, "load_extruding", true));
+    backend.fire_status(make_feed_status(0, "load_fail", true, "move_extrude"));
+    REQUIRE(backend.get_current_action() == AmsAction::ERROR);
+    CHECK(backend.get_system_info().operation_detail == "Feeder 1: Load failed");
+
+    // With no failed operation, the token stays: it names a novel fault.
+    backend.fire_status(make_feed_status(1, "load_feeding", true));
+    backend.fire_status(make_feed_status(1, "load_feeding", true, "move_extrude"));
+    CHECK(backend.get_system_info().operation_detail.find("move_extrude") != std::string::npos);
+}

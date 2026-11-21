@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <string>
 
 using namespace helix;
 
@@ -516,6 +517,34 @@ void ams_lane_bar_create_range(lv_obj_t* parent, int first_slot_index, int slot_
             spdlog::error("[AmsLaneBar] creation failed for slot {}", first_slot_index + s);
         }
     }
+}
+
+lv_obj_t* ams_lane_bar_create_unbound(lv_obj_t* parent, int32_t bar_width, int32_t bar_height) {
+    const std::string w = std::to_string(bar_width);
+    const std::string h = std::to_string(bar_height);
+    const char* attrs[] = {"bar_width", w.c_str(), "bar_height", h.c_str(), nullptr};
+    auto* bar = static_cast<lv_obj_t*>(lv_xml_create(parent, "ams_lane_bar", attrs));
+    if (!bar)
+        spdlog::error("[AmsLaneBar] unbound bar creation failed");
+    return bar;
+}
+
+void ams_lane_bar_paint_unbound(lv_obj_t* bar, bool has_spool, uint32_t color_rgb, bool active) {
+    LaneBarData* d = get_lane_bar_data(bar);
+    if (!d || d->slot_index >= 0 || !d->bar_bg || !d->bar_fill)
+        return;
+    d->is_active = active;
+    if (has_spool) {
+        // Nothing weighs a node with no slot, so a spool on it draws full.
+        d->fill_pct = 100;
+        apply_lane_state(d, helix::ui::LaneState::Present);
+        apply_lane_color(d, static_cast<int>(color_rgb));
+        return;
+    }
+    // Present's outline over an empty body: room for a spool, none on it.
+    apply_lane_state(d, helix::ui::LaneState::Present);
+    lv_obj_set_hidden(d->bar_fill, true);
+    lv_obj_set_style_bg_opa(d->bar_bg, LV_OPA_TRANSP, LV_PART_MAIN);
 }
 
 int ams_lane_bar_slot_index(lv_obj_t* obj) {
