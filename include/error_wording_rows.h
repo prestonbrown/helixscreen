@@ -27,7 +27,6 @@ struct Row {
     bool capture_in_body;
     Category category;
     Severity severity;
-    Recovery recovery;
     /// English source; summary nullptr for a row that only classifies. "{0}"
     /// is the shutdown prefix's board, "{1}" on the row's captures.
     const char* summary;

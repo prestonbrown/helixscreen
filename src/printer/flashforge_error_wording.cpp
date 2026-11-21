@@ -21,7 +21,6 @@ namespace {
 
 using C = Category;
 using S = Severity;
-using R = Recovery;
 
 bool has_object_prefix(const PrinterDiscovery& hw, const std::string& prefix) {
     const auto& objects = hw.printer_objects();
@@ -107,7 +106,7 @@ constexpr const char* kToolSensorFix =
 // ZMOD. IFS rows come from zmod_ifs.py, the rest from its English macros.
 constexpr Row kZmodRows[] = {
     {"FF-I15", "Filament jam detected (IFS).", nullptr, nullptr, false, C::Filament, S::FollowPrint,
-     R::None, TR_NOOP("Filament jam in the IFS"),
+     TR_NOOP("Filament jam in the IFS"),
      TR_NOOP("The IFS motion sensor saw no filament movement while printing: a tangled spool, a "
              "kinked tube, the wrong slot recorded as loaded, or old filament still in the "
              "head."),
@@ -115,58 +114,58 @@ constexpr Row kZmodRows[] = {
              "SET_EXTRUDER_SLOT. For false alarms, raise detection_length of the IFS motion "
              "sensor (8 to 17).")},
     {"FF-I1", "Failed to extract filament from extruder", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kExtractSummary, kExtractCause, kExtractFix},
+     S::FollowPrint, kExtractSummary, kExtractCause, kExtractFix},
     {"FF-I1", "Не удалось извлечь пруток из экструдера", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kExtractSummary, kExtractCause, kExtractFix},
+     S::FollowPrint, kExtractSummary, kExtractCause, kExtractFix},
     {"FF-I2", "No filament ", " in IFS", "^No filament (\\d+) in IFS", false, C::Filament,
-     S::FollowPrint, R::Retry, kNoFilamentSummary, kNoFilamentCause, kNoFilamentFix},
+     S::FollowPrint, kNoFilamentSummary, kNoFilamentCause, kNoFilamentFix},
     {"FF-I2", "Нет прутка ", " в IFS", "^Нет прутка (\\d+) в IFS", false, C::Filament,
-     S::FollowPrint, R::Retry, kNoFilamentSummary, kNoFilamentCause, kNoFilamentFix},
+     S::FollowPrint, kNoFilamentSummary, kNoFilamentCause, kNoFilamentFix},
     {"FF-I3", "Filament ", " stalled in IFS", "^Filament (\\d+) stalled in IFS", false, C::Filament,
-     S::FollowPrint, R::Retry, TR_NOOP("Filament stalled in IFS lane {1}"),
+     S::FollowPrint, TR_NOOP("Filament stalled in IFS lane {1}"),
      TR_NOOP("Lane {1}'s motor turns but its motion sensor sees no movement: a tangle on the "
              "spool, a kinked PTFE tube, or a slipping drive roller."),
      TR_NOOP("Check that the spool turns freely and lane {1}'s tube is not kinked, and clear "
              "debris from the pinch roller.")},
-    {"FF-I6", "IFS driver failure", nullptr, nullptr, false, C::Filament, S::FollowPrint, R::Retry,
+    {"FF-I6", "IFS driver failure", nullptr, nullptr, false, C::Filament, S::FollowPrint,
      TR_NOOP("IFS driver failure"),
      TR_NOOP("The IFS board reported a driver error on every retry."),
      TR_NOOP("Power the printer off and on and reseat the IFS cable. IFS_F15 resets the "
              "driver.")},
     {"FF-I8", "Timeout waiting for response from command ", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kNoReplySummary, kNoReplyCause, kNoReplyFix},
+     S::FollowPrint, kNoReplySummary, kNoReplyCause, kNoReplyFix},
     {"FF-I8", "Таймаут ожидания ответа от команды", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kNoReplySummary, kNoReplyCause, kNoReplyFix},
+     S::FollowPrint, kNoReplySummary, kNoReplyCause, kNoReplyFix},
     {"FF-I9", "IFS: Timeout waiting for status ", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kStateTimeoutSummary, kStateTimeoutCause, kStateTimeoutFix},
+     S::FollowPrint, kStateTimeoutSummary, kStateTimeoutCause, kStateTimeoutFix},
     {"FF-I9", "IFS: Вышло время для получения статуса", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::Retry, kStateTimeoutSummary, kStateTimeoutCause, kStateTimeoutFix},
+     S::FollowPrint, kStateTimeoutSummary, kStateTimeoutCause, kStateTimeoutFix},
     {"FF-I17", "Filament runout detected (Head)", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::None, TR_NOOP("Filament ran out at the toolhead"),
+     S::FollowPrint, TR_NOOP("Filament ran out at the toolhead"),
      TR_NOOP("The toolhead sensor went empty, and no other lane holds the same type and color, "
              "or backup is off."),
      TR_NOOP("Load filament into the empty lane or another one, then resume.")},
     {"FF-Z7", "Filament runout detected T", nullptr, "^Filament runout detected T(\\d+)", false,
-     C::Filament, S::FollowPrint, R::None, TR_NOOP("Filament ran out on head T{1}"),
+     C::Filament, S::FollowPrint, TR_NOOP("Filament ran out on head T{1}"),
      TR_NOOP("Head T{1}'s filament sensor went empty."),
      TR_NOOP("Load filament into head T{1}, then resume.")},
     {"FF-Z8", "Filament jam detected T", nullptr, "^Filament jam detected T(\\d+)", false,
-     C::Filament, S::FollowPrint, R::None, TR_NOOP("Clog in head T{1}"),
+     C::Filament, S::FollowPrint, TR_NOOP("Clog in head T{1}"),
      TR_NOOP("Head T{1} has filament, but its motion sensor stopped seeing it move."),
      TR_NOOP("Clear the clog in head T{1} (a cold pull works), then resume.")},
     {"FF-Z5", "Filament runout or jam detected", nullptr, nullptr, false, C::Filament,
-     S::FollowPrint, R::None, TR_NOOP("Filament ran out or jammed"),
+     S::FollowPrint, TR_NOOP("Filament ran out or jammed"),
      TR_NOOP("The filament sensor saw the filament stop: the spool is empty, or the filament is "
              "not moving."),
      TR_NOOP("Load filament or clear the jam, then resume. For false alarms, tune "
              "detection_length (8 to 17).")},
     {"FF-Z6", "Filament runout detected", nullptr, nullptr, false, C::Filament, S::FollowPrint,
-     R::None, TR_NOOP("Filament ran out"), TR_NOOP("The filament sensor reads empty."),
+     TR_NOOP("Filament ran out"), TR_NOOP("The filament sensor reads empty."),
      TR_NOOP("Load filament, then resume.")},
     {"FF-Z1", "Nozzle hit bed or part detachment. Weight ", ". PAUSE",
      "^Nozzle hit bed or part detachment\\. Weight ([0-9.]+)>([0-9.]+)\\. "
      "Z=(-?[0-9]+(?:\\.[0-9]+)?)",
-     false, C::Probe, S::FollowPrint, R::None, kNozzleHitSummary,
+     false, C::Probe, S::FollowPrint, kNozzleHitSummary,
      TR_NOOP("The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is "
              "dragging on the part, a part came loose, or the print warped. The print paused."),
      TR_NOOP("Remove any loose part and clear the nozzle, then resume. For false alarms, raise "
@@ -174,27 +173,27 @@ constexpr Row kZmodRows[] = {
     {"FF-Z2", "Nozzle hit bed or part detachment. Weight ", ". FIRMWARE_RESTART",
      "^Nozzle hit bed or part detachment\\. Weight ([0-9.]+)>([0-9.]+)\\. "
      "Z=(-?[0-9]+(?:\\.[0-9]+)?)",
-     false, C::Probe, S::FollowPrint, R::FirmwareRestart, kNozzleHitSummary,
+     false, C::Probe, S::FollowPrint, kNozzleHitSummary,
      TR_NOOP("The bed's load cell read {1} g, above the {2} g limit, at Z {3}, and the printer "
              "shut down to protect itself."),
      TR_NOOP("Clear the bed and the nozzle, then restart the firmware.")},
-    {"FF-Z3", "Cell Tare: Error.", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::Retry,
-     kTareSummary, kTareCause, kTareFix},
-    {"FF-Z4", "Load cell reset error.", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::Retry,
+    {"FF-Z3", "Cell Tare: Error.", nullptr, nullptr, false, C::Probe, S::FollowPrint, kTareSummary,
+     kTareCause, kTareFix},
+    {"FF-Z4", "Load cell reset error.", nullptr, nullptr, false, C::Probe, S::FollowPrint,
      kTareSummary, kTareCause, kTareFix},
     {"FF-Z9", "Resumption interrupted !!! ", "not hot enough", nullptr, false, C::Command,
-     S::FollowPrint, R::None, kResumeHotSummary, kResumeHotCause, kResumeHotFix},
+     S::FollowPrint, kResumeHotSummary, kResumeHotCause, kResumeHotFix},
     {"FF-Z10", "Resumption interrupted !!! ", "filament has run out", nullptr, false, C::Filament,
-     S::FollowPrint, R::None, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix},
-    {"FF-Z13", "File ", " MD5 mismatch", nullptr, false, C::Command, S::FollowPrint, R::None,
+     S::FollowPrint, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix},
+    {"FF-Z13", "File ", " MD5 mismatch", nullptr, false, C::Command, S::FollowPrint,
      kDamagedFileSummary, kDamagedFileCause, kDamagedFileFix},
     {"FF-Z13", "MD5 check failed. Print canceled.", nullptr, nullptr, false, C::Command,
-     S::FollowPrint, R::None, kDamagedFileSummary, kDamagedFileCause, kDamagedFileFix},
+     S::FollowPrint, kDamagedFileSummary, kDamagedFileCause, kDamagedFileFix},
     {"FF-Z14", "File ", " contains arc commands (G2, G3)", nullptr, false, C::Command,
-     S::FollowPrint, R::None, TR_NOOP("The file uses arc moves"),
+     S::FollowPrint, TR_NOOP("The file uses arc moves"),
      TR_NOOP("The file contains G2 and G3 arc moves, which this firmware refuses."),
      TR_NOOP("Turn off arc fitting in the slicer and slice the file again.")},
-    {"FF-Z15", "WARNING: Last probe ", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::None,
+    {"FF-Z15", "WARNING: Last probe ", nullptr, nullptr, false, C::Probe, S::FollowPrint,
      TR_NOOP("The bed no longer matches the saved mesh"),
      TR_NOOP("The probe before the print disagrees with the saved bed mesh: a different plate, a "
              "different temperature, or debris on the bed."),
@@ -205,45 +204,45 @@ constexpr Row kZmodRows[] = {
 // Forge-X: its macros and klippy plugins.
 constexpr Row kForgeXRows[] = {
     {"FF-F1", "Bed pressure detected: ", nullptr, "^Bed pressure detected: ([0-9.]+) g", false,
-     C::Probe, S::FollowPrint, R::FirmwareRestart, TR_NOOP("Pressure on the bed"),
+     C::Probe, S::FollowPrint, TR_NOOP("Pressure on the bed"),
      TR_NOOP("The load cell read {1} g on the bed: the nozzle hit the print or a part came "
              "loose. During a print the firmware stops the printer."),
      TR_NOOP("Clear the nozzle and the part, then restart the firmware.")},
-    {"FF-F3", "Load cell tare failed", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::Retry,
+    {"FF-F3", "Load cell tare failed", nullptr, nullptr, false, C::Probe, S::FollowPrint,
      kTareSummary, kTareCause, kTareFix},
     {"FF-F6", "Unable to start print. Filament runout detected!", nullptr, nullptr, false,
-     C::Filament, S::FollowPrint, R::None, TR_NOOP("No filament loaded"),
+     C::Filament, S::FollowPrint, TR_NOOP("No filament loaded"),
      TR_NOOP("The runout sensor reads empty, so the print did not start."),
      TR_NOOP("Load filament, then start the print again.")},
     {"FF-F8", "Resume aborted !!! ", "not hot enough", nullptr, false, C::Command, S::FollowPrint,
-     R::None, kResumeHotSummary, kResumeHotCause, kResumeHotFix},
+     kResumeHotSummary, kResumeHotCause, kResumeHotFix},
     {"FF-F8", "Resume aborted !!! ", "detects no filament", nullptr, false, C::Filament,
-     S::FollowPrint, R::None, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix},
+     S::FollowPrint, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix},
 };
 
 // OpenCreator: its Kalico toolchanger and motion guard.
 constexpr Row kOpenCreatorRows[] = {
     {"FF-C1", "E0163: Paused. T", " clog detected", "^E0163: Paused\\. T(\\d+) clog detected",
-     false, C::Filament, S::FollowPrint, R::None, TR_NOOP("Clog in head T{1}"),
+     false, C::Filament, S::FollowPrint, TR_NOOP("Clog in head T{1}"),
      TR_NOOP("Head T{1} has filament, but its filament wheel stopped moving."),
      TR_NOOP("Clear head T{1}'s filament path (a cold pull works), then resume.")},
     {"FF-C3", "Conflicting dock/grab sensors", nullptr, nullptr, false, C::Homing, S::FollowPrint,
-     R::None, kToolSensorSummary, kToolSensorCause, kToolSensorFix},
+     kToolSensorSummary, kToolSensorCause, kToolSensorFix},
     {"FF-C3", "Multiple heads appear attached", nullptr, nullptr, false, C::Homing, S::FollowPrint,
-     R::None, kToolSensorSummary, kToolSensorCause, kToolSensorFix},
+     kToolSensorSummary, kToolSensorCause, kToolSensorFix},
     {"FF-C3", "Missing dock confirmation for T", nullptr, nullptr, false, C::Homing, S::FollowPrint,
-     R::None, kToolSensorSummary, kToolSensorCause, kToolSensorFix},
+     kToolSensorSummary, kToolSensorCause, kToolSensorFix},
     {"FF-C4", "T", " stayed in its dock after ", "^T(\\d+) stayed in its dock after (\\d+) grabs",
-     false, C::Homing, S::FollowPrint, R::Retry, TR_NOOP("Could not pick up head T{1}"),
+     false, C::Homing, S::FollowPrint, TR_NOOP("Could not pick up head T{1}"),
      TR_NOOP("Head T{1} stayed in its dock after {2} tries, and its heaters were turned off."),
      TR_NOOP("Home the printer, check that the head moves freely in its dock, then try again.")},
     {"FF-C5", "T", " is not seated in its dock", "^T(\\d+) is not seated in its dock", false,
-     C::Homing, S::FollowPrint, R::Home, TR_NOOP("Head T{1} is not seated in its dock"),
+     C::Homing, S::FollowPrint, TR_NOOP("Head T{1} is not seated in its dock"),
      TR_NOOP("Head T{1} did not seat in its dock, so it was not released and its heaters are "
              "off. X and Y may have lost steps."),
      TR_NOOP("Home X and Y, then dock the head again.")},
     {"FF-C7", "Motion guard: ", nullptr, "^Motion guard: (\\S+) (?:skipped steps|stalled)", false,
-     C::Move, S::FollowPrint, R::Home, TR_NOOP("The {1} motor lost steps"),
+     C::Move, S::FollowPrint, TR_NOOP("The {1} motor lost steps"),
      TR_NOOP("The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt "
              "slipped."),
      TR_NOOP("Remove whatever blocks the axis and home again before resuming.")},

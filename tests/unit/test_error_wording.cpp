@@ -156,7 +156,6 @@ TEST_CASE("a shutdown's state_message classifies by its reason", "[error-wording
     REQUIRE(got.has_value());
     CHECK(got->id == "MCU-1");
     CHECK(got->captures.at(0) == "mcu");
-    CHECK(got->recovery == Recovery::FirmwareRestart);
     CHECK(got->reason == "Timer too close");
 }
 
@@ -178,7 +177,6 @@ TEST_CASE("a config error asks for the file to be fixed", "[error-wording]") {
         classify("Option 'max_temp' in section 'extruder' must be specified" + kRestartTrailer);
     REQUIRE(got.has_value());
     CHECK(got->category == Category::Config);
-    CHECK(got->recovery == Recovery::RestartAfterFix);
 }
 
 TEST_CASE("an ADC shutdown names the sensor when Klipper clarifies it", "[error-wording]") {

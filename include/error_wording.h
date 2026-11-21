@@ -34,15 +34,6 @@ namespace helix::error_wording {
 /// One row of a wording table; opaque outside error_wording.cpp.
 struct Row;
 
-/// What gets the printer going again once the cause is dealt with.
-enum class Recovery {
-    None,            ///< nothing to run: fix the cause, then carry on
-    FirmwareRestart, ///< a shutdown: FIRMWARE_RESTART
-    RestartAfterFix, ///< a config error: fix the file, then RESTART
-    Retry,           ///< the command can simply be sent again once fixed
-    Home,            ///< home the axes, then retry
-};
-
 /// What part of the printer the message is about.
 enum class Category {
     Heater,
@@ -71,7 +62,6 @@ struct Classification {
     std::string id;
     Category category = Category::Mcu;
     Severity severity = Severity::FollowPrint;
-    Recovery recovery = Recovery::None;
     /// Capture 0 is the board named by a `MCU '<name>' shutdown: ` prefix
     /// ("" when there is none); the row's own captures follow from 1.
     std::vector<std::string> captures;
