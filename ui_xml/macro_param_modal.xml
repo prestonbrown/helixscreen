@@ -32,11 +32,15 @@
         style_flex_main_place="start" style_pad_gap="0" scrollable="false">
     <bind_style_if name="card_single" cond="macro_param_modal_field_count le 1"/>
     <bind_style_if name="card_multi" cond="macro_param_modal_field_count gt 1"/>
-    <!-- Header with title and close button -->
+    <!-- Header: icon, the two titles (run / save mode) over the macro name, and
+         the close button. Kept off dialog_frame: the card width comes from the
+         bound card_single / card_multi styles, which the frame's local width
+         would override. -->
     <lv_obj width="100%"
             height="content" style_pad_left="#space_lg" style_pad_right="#space_md" style_pad_top="#space_lg"
             style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="space_between"
-            style_flex_cross_place="center" scrollable="false">
+            style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
+      <icon src="script_text" size="md" variant="primary"/>
       <lv_obj height="content"
               flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs" scrollable="false" flex_grow="1">
         <text_heading name="modal_title" text="Run Macro">

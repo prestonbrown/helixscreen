@@ -77,8 +77,9 @@ class RunoutGuidanceModal : public Modal {
     /**
      * @brief Say whether this showing is advisory or a real runout.
      *
-     * Drives the global `runout_is_advisory` subject the header icons
-     * bind to: 0 picks the `alert` warning icon, 1 the neutral `filament` icon.
+     * Drives the global `runout_is_advisory` subject on_show() reads for the
+     * header icon: 0 keeps the `alert` warning icon, 1 shows the neutral
+     * `filament` icon. Call it before show().
      * A deliberate tap on the home Filament tile is advisory; a runout that
      * paused a print is not.
      *
