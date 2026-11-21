@@ -10,11 +10,16 @@
     <prop name="speed_percent" type="number" default="0"/>
     <!-- The card's speed line, a per-card subject FanControlOverlay publishes -->
     <prop name="speed_subject" type="string" default=""/>
+    <!-- A hold on the card renames this entry of FanControlOverlay's fans;
+         empty for a card that renames nothing. -->
+    <prop name="hold_index" type="string" default=""/>
   </api>
   <view name="fan_status_card_root"
         extends="ui_card" width="#fan_card_base_width" height="#fan_card_height" style_min_width="#fan_card_min_width"
         style_max_width="#fan_card_max_width" flex_flow="column" style_flex_main_place="start"
         style_flex_cross_place="center" style_pad_all="#space_sm" style_pad_gap="#space_xs" scrollable="false">
+    <event_cb trigger="pressed" callback="on_fan_rename_hold" user_data="$hold_index"/>
+    <event_cb trigger="long_pressed" callback="on_fan_rename_hold" user_data="$hold_index"/>
     <!-- Fan name label at top — non-clickable so long-press bubbles to card -->
     <text_small name="name_label" text="$fan_name" clickable="false" event_bubble="true"/>
     <!-- Arc display core - shared component, read-only with no knob by default -->

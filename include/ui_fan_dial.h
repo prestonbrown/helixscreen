@@ -42,9 +42,11 @@ class FanDial {
      * @param fan_id Identifier passed to callbacks (e.g., "fan" or "fan_generic chamber")
      * @param initial_speed Initial speed percentage (0-100)
      * @param label_bottom If true, fan name label appears below the arc instead of above
+     * @param hold_index A hold on the card renames entry hold_index of the Fans
+     *        overlay (FanControlOverlay::on_fan_rename_hold); empty for none
      */
     FanDial(lv_obj_t* parent, const std::string& name, const std::string& fan_id,
-            int initial_speed = 0, bool label_bottom = false);
+            int initial_speed = 0, bool label_bottom = false, const std::string& hold_index = {});
     ~FanDial();
 
     // Disable copy, allow move

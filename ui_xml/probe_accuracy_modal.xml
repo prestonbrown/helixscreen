@@ -3,19 +3,16 @@
 <!-- Modal for PROBE_ACCURACY test: 3-state (PROBING, RESULTS, ERROR) -->
 <component>
   <view name="probe_accuracy_modal"
-        extends="ui_dialog" width="75%" height="content" style_min_width="320" style_max_width="440" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
-
+        extends="dialog_frame" width="75%" style_min_width="320" style_max_width="440" title="Probe Accuracy Test"
+        icon="target">
     <!-- ============================================================ -->
     <!-- STATE: PROBING (state=1) - Progress bar + sample readout     -->
     <!-- ============================================================ -->
     <lv_obj name="probing_container"
-            width="100%" height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_flex_main_place="start" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
+            width="100%" height="content" style_min_height="120" style_pad_all="0" flex_flow="column"
+            style_flex_cross_place="center" style_flex_main_place="start" style_flex_track_place="center"
+            style_pad_gap="#space_md" hidden="true">
       <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="1"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Probe Accuracy Test" style_text_align="center"/>
       <!-- Progress text: "Sample 3 of 10: z=1.2341" -->
       <text_muted name="probe_acc_progress_text"
                   width="100%" bind_text="probe_acc_progress_text" text="Preparing..." translation_tag="Preparing..."
@@ -28,8 +25,7 @@
     <!-- STATE: RESULTS (state=2) - Stats + individual samples        -->
     <!-- ============================================================ -->
     <lv_obj name="results_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
             style_pad_gap="#space_md" hidden="true">
       <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="2"/>
 
@@ -78,44 +74,45 @@
     <!-- STATE: ERROR (state=3) - Error message                       -->
     <!-- ============================================================ -->
     <lv_obj name="error_container"
-            width="100%" height="content" style_min_height="160" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_flex_main_place="start" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
+            width="100%" height="content" style_min_height="120" style_pad_all="0" flex_flow="column"
+            style_flex_cross_place="center" style_flex_main_place="start" style_flex_track_place="center"
+            style_pad_gap="#space_md" hidden="true">
       <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="3"/>
       <icon src="alert_circle" size="lg" variant="danger"/>
       <text_heading width="100%" text="Probe Accuracy Failed" style_text_align="center"/>
       <text_muted name="probe_acc_error_text"
                   width="100%" bind_text="probe_acc_error_msg" text="An error occurred."
-                  translation_tag="An error occurred." long_mode="wrap" style_text_align="center"/>
+                  translation_tag="An error occurred." long_mode="wrap" style_text_align="left"/>
     </lv_obj>
 
-    <!-- Button rows, one per state; each carries its own top divider. -->
-    <!-- PROBING state (state=1): E-Stop -->
-    <modal_button_row name="probing_button_row"
-                      hidden="true" hide_secondary="true" primary_name="btn_emergency_stop" primary_variant="danger"
-                      primary_icon="alert_octagon" primary_text="EMERGENCY STOP"
-                      primary_callback="on_probe_accuracy_estop">
-      <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="1"/>
-    </modal_button_row>
-    <text_small width="100%"
-                text="Stops all motion. Requires firmware restart." style_text_align="center" style_pad_top="#space_sm"
-                style_pad_bottom="#space_sm" hidden="true">
-      <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="1"/>
-    </text_small>
+    <dialog_frame-footer>
+      <!-- Button rows, one per state; each carries its own top divider. -->
+      <!-- PROBING state (state=1): E-Stop -->
+      <modal_button_row name="probing_button_row"
+                        hidden="true" hide_secondary="true" primary_name="btn_emergency_stop" primary_variant="danger"
+                        primary_icon="alert_octagon" primary_text="EMERGENCY STOP"
+                        primary_callback="on_probe_accuracy_estop">
+        <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="1"/>
+      </modal_button_row>
+      <text_small width="100%"
+                  text="Stops all motion. Requires firmware restart." style_text_align="center"
+                  style_pad_top="#space_sm" style_pad_bottom="#space_sm" hidden="true">
+        <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="1"/>
+      </text_small>
 
-    <!-- RESULTS state (state=2): OK -->
-    <modal_button_row name="results_button_row"
-                      hidden="true" hide_secondary="true" primary_name="btn_ok" primary_text="OK"
-                      primary_callback="on_probe_accuracy_close">
-      <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="2"/>
-    </modal_button_row>
+      <!-- RESULTS state (state=2): OK -->
+      <modal_button_row name="results_button_row"
+                        hidden="true" hide_secondary="true" primary_name="btn_ok" primary_text="OK"
+                        primary_callback="on_probe_accuracy_close">
+        <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="2"/>
+      </modal_button_row>
 
-    <!-- ERROR state (state=3): Close -->
-    <modal_button_row name="error_button_row"
-                      hidden="true" hide_secondary="true" primary_name="btn_error_close" primary_text="Close"
-                      primary_callback="on_probe_accuracy_close">
-      <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="3"/>
-    </modal_button_row>
-
+      <!-- ERROR state (state=3): Close -->
+      <modal_button_row name="error_button_row"
+                        hidden="true" hide_secondary="true" primary_name="btn_error_close" primary_text="Close"
+                        primary_callback="on_probe_accuracy_close">
+        <bind_flag_if_not_eq subject="probe_acc_state" flag="hidden" ref_value="3"/>
+      </modal_button_row>
+    </dialog_frame-footer>
   </view>
 </component>

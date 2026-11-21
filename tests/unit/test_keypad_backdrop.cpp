@@ -239,7 +239,7 @@ TEST_CASE_METHOD(KeypadBackdropFixture,
         tap("btn_7");
         CHECK(display() == "192.168.1.7");
 
-        tap("action_button"); // the header's Set
+        tap("btn_set"); // the header's Set
         helix::ui::UpdateQueue::instance().drain();
         process_lvgl(600);
         helix::ui::UpdateQueue::instance().drain();

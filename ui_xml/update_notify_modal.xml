@@ -6,34 +6,16 @@
 <!-- Subjects: update_new_version, update_release_notes, update_changelog_visible -->
 <component>
   <view name="update_notify_modal"
-        extends="ui_dialog" width="70%" height="content" style_max_height="85%" align="center" flex_flow="column"
-        style_flex_main_place="start" style_pad_gap="0" scrollable="false">
-
-    <!-- Header row: icon + title | close button -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_md" style_pad_top="#space_md"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="space_between"
-            style_flex_cross_place="center" scrollable="false">
-      <lv_obj height="content"
-              style_pad_all="0" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm"
-              scrollable="false">
-        <icon src="download" size="md" variant="primary"/>
-        <text_heading text="New Version Available"/>
-      </lv_obj>
-      <ui_button name="btn_close" width="40" height="40" icon="close" variant="ghost" focusable="false">
-        <event_cb trigger="clicked" callback="on_update_notify_close"/>
-      </ui_button>
-    </lv_obj>
+        extends="dialog_frame" title="New Version Available" icon="download" hide_close="false"
+        close_callback="on_update_notify_close">
 
     <!-- Version subtitle -->
-    <text_muted name="notify_version_text"
-                width="100%" bind_text="update_version_text" long_mode="wrap" style_text_align="center"
-                style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_md"/>
+    <text_muted name="notify_version_text" width="100%" bind_text="update_version_text" long_mode="wrap"/>
 
     <!-- View Changelog button (hidden when changelog is visible) -->
     <lv_obj width="100%"
-            height="content" style_pad_top="0" style_pad_bottom="#space_md" style_border_width="0" flex_flow="row"
-            style_flex_main_place="center" scrollable="false">
+            height="content" style_pad_all="0" style_border_width="0" flex_flow="row" style_flex_main_place="center"
+            scrollable="false">
       <bind_flag_if_eq subject="update_changelog_visible" flag="hidden" ref_value="1"/>
       <ui_button name="btn_toggle_changelog" width="content" text="View Changelog" variant="outline">
         <event_cb trigger="clicked" callback="on_update_toggle_changelog"/>
@@ -44,16 +26,17 @@
     <lv_obj name="changelog_container"
             width="100%" height="content" style_max_height="250" style_bg_color="#screen_bg" style_bg_opa="255"
             style_radius="8" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
-            style_pad_bottom="#space_md" style_margin_left="#space_lg" style_margin_right="#space_lg"
-            style_margin_bottom="#space_md" scrollable="true" scroll_snap_y="none" hidden="true">
+            style_pad_bottom="#space_md" scrollable="true" scroll_snap_y="none" hidden="true">
       <bind_flag_if_not_eq subject="update_changelog_visible" flag="hidden" ref_value="1"/>
       <ui_markdown name="changelog_text" width="100%" bind_text="update_release_notes"/>
     </lv_obj>
 
     <!-- Button row: Ignore | Install -->
-    <modal_button_row secondary_text="Ignore"
-                      secondary_callback="on_update_notify_ignore" primary_text="Install"
-                      primary_callback="on_update_notify_install"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Ignore"
+                        secondary_callback="on_update_notify_ignore" primary_text="Install"
+                        primary_callback="on_update_notify_install"/>
+    </dialog_frame-footer>
 
   </view>
 </component>

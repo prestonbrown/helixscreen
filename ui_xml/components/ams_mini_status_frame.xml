@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The AMS mini status strip's fixed structure, shared by the C++ factory
+       (ui_ams_mini_status_create, fixed height) and the <ams_mini_status> XML
+       widget (fills its parent). Bar view: ams_bars_container holds the lane
+       bars (or a stacked row per unit), then the "+N" overflow label. The
+       bypass column and the spool view (ams_mini_spools_row) are added the
+       first time they are needed. The strip shows one view at a time and starts
+       hidden until it has lanes. A tap opens the AMS panel. -->
+  <api>
+    <prop name="height" type="string" default="100%"/>
+    <prop name="bars_width" type="string" default="content"/>
+    <prop name="bars_height" type="string" default="100%"/>
+    <prop name="bars_grow" type="string" default="0"/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" height="$height" style_bg_opa="0" style_border_width="0" style_pad_all="0" scrollable="false"
+        clickable="true" hidden="true" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+        style_flex_track_place="center" style_pad_column="#space_xs">
+    <style name="styles.press_dim" selector="pressed"/>
+    <event_cb trigger="clicked" callback="ams_mini_status_clicked"/>
+    <lv_obj name="ams_bars_container"
+            width="$bars_width" height="$bars_height" flex_grow="$bars_grow" style_bg_opa="0" style_border_width="0"
+            style_pad_all="0" scrollable="false" event_bubble="true" flex_flow="row" style_flex_main_place="center"
+            style_flex_cross_place="end" style_flex_track_place="center" style_pad_column="#space_xxs"/>
+    <text_xs name="ams_overflow_label" text="" event_bubble="true" hidden="true"/>
+  </view>
+</component>

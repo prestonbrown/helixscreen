@@ -14,12 +14,20 @@
     <style name="explorer_row_gap" pad_gap="#space_md"/>
     <style name="explorer_row_gap_micro" pad_gap="#space_sm"/>
   </styles>
-  <view name="theme_preview_overlay"
-        extends="overlay_panel" title="Theme" bg_color="#screen_bg" hide_action_button="false"
-        action_button_text="Apply" action_button_callback="on_apply_theme_clicked"
-        action_button_height="#button_height_sm" action_button_pad="#space_sm"
-        action_button_disabled_subject="theme_apply_disabled" hide_action_button_2="false" action_button_2_text="Edit"
-        action_button_2_callback="on_edit_colors_clicked" action_button_2_bg_color="#secondary">
+  <view name="theme_preview_overlay" extends="overlay_panel" title="Theme" bg_color="#screen_bg">
+    <overlay_panel-actions>
+      <ui_button name="btn_edit_colors"
+                 height="#button_height_sm" text="Edit" style_bg_color="#secondary"
+                 style_min_width="#header_slot2_min_width">
+        <style name="styles.header_action"/>
+        <event_cb trigger="clicked" callback="on_edit_colors_clicked"/>
+      </ui_button>
+      <ui_button name="btn_apply_theme" height="#button_height_sm" text="Apply">
+        <style name="styles.header_action"/>
+        <bind_state_if_eq subject="theme_apply_disabled" state="disabled" ref_value="1"/>
+        <event_cb trigger="clicked" callback="on_apply_theme_clicked"/>
+      </ui_button>
+    </overlay_panel-actions>
     <overlay_panel-overlay_content flex_flow="column" scrollable="true">
       <bind_style_if_eq name="explorer_content_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="explorer_content" subject="ui_breakpoint" ref_value="1"/>

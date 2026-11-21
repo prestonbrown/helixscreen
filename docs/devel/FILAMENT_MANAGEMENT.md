@@ -1532,12 +1532,12 @@ The lane context menu's **Edit Spool** opens `AmsEditOverlay`
 Spool** opens it on the spool picker instead. In the picker the lane's linked spool
 leads the list, checked, so it shows without scrolling; a search still applies to it,
 and the other rows keep Spoolman's recency order. The title is the lane in the
-backend's noun ("Gate 3"). The header carries Save (`action_button`, dirty-gated)
+backend's noun ("Gate 3"). The header carries Save (`btn_save`, dirty-gated)
 and, where Spoolman is configured, two round icon buttons left of it on the
 title's centre line: Choose from Spoolman and Scan QR (`ams_edit_scan_enabled`
 also carries the no-camera build gate). They sit in `header_bar`'s
-`header_content` slot, drawn by `styles.header_icon_button` like the header's own
-`action_icon`, in a row padded by their `ext_click_area` reach so each reaches
+`header_content` slot, drawn by `styles.header_icon_button` like every round
+header button, in a row padded by their `ext_click_area` reach so each reaches
 the header's height (or 44px) while staying inside its parent's hit box.
 
 **Materials the firmware accepts.** A backend whose firmware validates the material against

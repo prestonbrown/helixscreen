@@ -1427,18 +1427,30 @@ helix::ui::ModalDialogAttrs::ModalDialogAttrs(std::string title, std::string mes
                                               std::string secondary, bool show_cancel)
     : title_(std::move(title)), message_(std::move(message)), primary_(std::move(primary)),
       secondary_(std::move(secondary)) {
-    hide_info_ = severity == ModalSeverity::Info ? "false" : "true";
-    hide_warning_ = severity == ModalSeverity::Warning ? "false" : "true";
-    hide_error_ = severity == ModalSeverity::Error ? "false" : "true";
+    switch (severity) {
+    case ModalSeverity::Warning:
+        icon_ = "alert";
+        icon_variant_ = "warning";
+        break;
+    case ModalSeverity::Error:
+        icon_ = "alert_octagon";
+        icon_variant_ = "danger";
+        break;
+    case ModalSeverity::Info:
+    default:
+        icon_ = "info";
+        icon_variant_ = "primary";
+        break;
+    }
     hide_secondary_ = show_cancel ? "false" : "true";
 }
 
 const char** helix::ui::ModalDialogAttrs::get() {
-    attrs_ = {"title",           title_.c_str(),   "message",        message_.c_str(),
-              "primary_text",    primary_.c_str(), "secondary_text", secondary_.c_str(),
-              "hide_info",       hide_info_,       "hide_warning",   hide_warning_,
-              "hide_error",      hide_error_,      "hide_secondary", hide_secondary_,
-              "primary_variant", primary_variant_, nullptr};
+    attrs_ = {
+        "title",          title_.c_str(),   "message",          message_.c_str(), "primary_text",
+        primary_.c_str(), "secondary_text", secondary_.c_str(), "icon",           icon_,
+        "icon_variant",   icon_variant_,    "hide_secondary",   hide_secondary_,  "primary_variant",
+        primary_variant_, nullptr};
     return attrs_.data();
 }
 

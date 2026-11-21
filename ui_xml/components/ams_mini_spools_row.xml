@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The AMS mini strip's wide spool view, created the first time the strip
+       is wide enough for it: the lanes' horizontal scroller, then the bypass
+       pinned past it. Only the lanes scroll, so the bypass, often the node
+       feeding the toolhead, stays in sight. The strip adds the card surface
+       per its "card" attribute. -->
+  <styles>
+    <!-- The scrollbar runs on the scroller's bottom edge: the strip keeps the
+         lanes above it, and every pixel it floats above the edge comes off them. -->
+    <style name="scrollbar_flush" pad_bottom="0"/>
+  </styles>
+  <view name="ams_spools_row"
+        extends="lv_obj" width="100%" height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+        scrollable="false" event_bubble="true" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center" style_flex_track_place="center" style_pad_column="#space_xxs">
+    <lv_obj name="ams_spools_container"
+            width="100%" height="100%" flex_grow="1" style_bg_opa="0" style_border_width="0" style_pad_all="0"
+            event_bubble="true" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+            style_flex_track_place="center" style_pad_column="#space_xxs" scrollable="true" scroll_dir="hor"
+            scrollbar_mode="auto">
+      <style name="scrollbar_flush" selector="scrollbar"/>
+    </lv_obj>
+  </view>
+</component>

@@ -95,6 +95,7 @@ import sys
 from pathlib import Path
 
 from staged_content import catfile_batch
+from path_scope import in_skipped_dir
 
 from source_strip import blank_xml_comments
 import ratchet  # noqa: E402
@@ -305,7 +306,7 @@ def _in_scope(rel: str) -> bool:
     mode (ls-tree) sees the whole tree, so it must apply the same scoping or it
     would count tests/, firmware/, tools/ and inflate the ratchet.
     """
-    if any(part in SKIP_PARTS for part in Path(rel).parts):
+    if in_skipped_dir(rel, ".", SKIP_PARTS):
         return False
     if rel.endswith(".xml"):
         return rel.startswith("ui_xml/")
@@ -352,12 +353,9 @@ def collect(args, root: Path):
     patterns += [(d, f"*{ext}") for d in CPP_DIRS for ext in CPP_EXTS]
     for d, glob in patterns:
         for p in sorted((root / d).rglob(glob)):
-            rel = p.relative_to(root).as_posix()
-            # Test the RELATIVE path: the repo itself may live under a directory
-            # named in SKIP_PARTS (every git worktree lives under .worktrees/),
-            # which would make an absolute-path test skip the entire tree.
-            if any(part in SKIP_PARTS for part in Path(rel).parts):
+            if in_skipped_dir(p, root, SKIP_PARTS):
                 continue
+            rel = p.relative_to(root).as_posix()
             try:
                 yield (rel, p.read_text(encoding="utf-8"))
             except (OSError, UnicodeDecodeError):

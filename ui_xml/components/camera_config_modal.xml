@@ -11,19 +11,10 @@
   <!-- Camera Configuration Modal
        Opened from grid edit mode gear icon on the camera widget.
        Source (which webcam), rotation and flip settings. -->
-  <view name="camera_config_modal"
-        extends="ui_dialog" width="60%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-
-    <!-- Header -->
-    <modal_header icon_src="cog" icon_variant="accent" title="Camera"/>
-
+  <view name="camera_config_modal" extends="dialog_frame" width="60%" title="Camera" icon="cog" icon_variant="accent">
     <!-- Content: scrolls under the header and button row once the source
          list makes it taller than the dialog budget -->
-    <lv_obj width="100%"
-            height="content" style_max_height="#dialog_content_max" scrollable="true" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_sm" style_pad_bottom="#space_lg" flex_flow="column"
-            style_pad_gap="#space_md">
+    <dialog_frame-body>
 
       <!-- Source row: Automatic (the discovery auto-pick) plus one row per
            named webcam Moonraker lists, all from one repeat. Hidden when
@@ -98,11 +89,13 @@
           </ui_button>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </dialog_frame-body>
 
     <!-- Buttons -->
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="on_modal_cancel_clicked" primary_text="Save"
-                      primary_callback="on_modal_ok_clicked"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel"
+                        secondary_callback="on_modal_cancel_clicked" primary_text="Save"
+                        primary_callback="on_modal_ok_clicked"/>
+    </dialog_frame-footer>
   </view>
 </component>

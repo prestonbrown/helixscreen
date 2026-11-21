@@ -108,6 +108,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `quality-checks.sh` | Pre-commit and CI quality checks driver: one `qc/<gate>.sh` per gate, result cache |
 | `qc_file_cache.py` | Per-file facts the registration and ESP32 gates share, cached by file content under `build/.qc-cache/` |
 | `source_strip.py` | The one comment and literal blanker every pattern-matching gate imports |
+| `path_scope.py` | Whether a gate skips a file by directory name, judged on its repo-relative path so a worktree is scanned |
 | `ratchet.py` | The shared ratchet verdicts: under the baseline passes at every stage; `WARN_EXIT` for a warning |
 | `ratchet_report.py` | Weekly trend of every count ratchet, and each new design-ratchet site with its commit and stated reason; `.github/workflows/ratchet-report.yml` |
 | `design_ratchets.py` | The architecture ratchets (namespace, layering, vendor, declarative UI, swatches, LVGL 9.6, markers, comment SHAs): a warning naming each new site, never a failure |

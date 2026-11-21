@@ -15,7 +15,6 @@
  * Tests cover:
  * - Grace period behavior (delayed show)
  * - Immediate hide cancels pending show
- * - Progress text updates
  * - State tracking (is_visible, is_pending)
  * - Multiple show/hide cycles
  */
@@ -120,44 +119,6 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay hide behavior", "[ui_busy_overlay
 
         REQUIRE(BusyOverlay::is_visible() == false);
         REQUIRE(BusyOverlay::is_pending() == false);
-    }
-
-    BusyOverlay::hide();
-    spdlog::set_level(spdlog::level::warn);
-}
-
-// ============================================================================
-// Progress Update Tests
-// ============================================================================
-
-TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay progress updates", "[ui_busy_overlay][progress]") {
-    spdlog::set_level(spdlog::level::debug);
-    BusyOverlay::hide();
-
-    SECTION("set_progress while visible") {
-        BusyOverlay::show("Starting...", 0);
-        REQUIRE(BusyOverlay::is_visible() == true);
-
-        // Should update without crashing
-        BusyOverlay::set_progress("Downloading", 25.0f);
-        BusyOverlay::set_progress("Downloading", 50.0f);
-        BusyOverlay::set_progress("Downloading", 100.0f);
-
-        // Still visible
-        REQUIRE(BusyOverlay::is_visible() == true);
-
-        BusyOverlay::hide();
-    }
-
-    // NOTE: Timer-based test skipped - verified manually in SDL mode
-    // SECTION("set_progress while pending stores text for later") { ... }
-
-    SECTION("set_progress when not showing is safe") {
-        // Should not crash
-        BusyOverlay::set_progress("Idle", 0.0f);
-        BusyOverlay::set_progress("Idle", 50.0f);
-
-        REQUIRE(BusyOverlay::is_visible() == false);
     }
 
     BusyOverlay::hide();

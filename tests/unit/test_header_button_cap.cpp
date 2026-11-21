@@ -71,39 +71,33 @@ TEST_CASE("header_button_height resolves from the vertical axis",
     CHECK(theme_manager_token_uses_vertical_axis("header_height"));
 }
 
-TEST_CASE("header_bar.xml actually applies the cap to both action buttons",
+TEST_CASE("the header button cap is applied where header buttons are styled",
           "[theme][header][header-button-cap]") {
-    // The two cases above only exercise TOKEN VALUES, via
-    // theme_manager_parse_all_xml_for_suffix / theme_manager_token_uses_vertical_axis.
-    // None of them read the <ui_button> elements themselves, so none would
-    // notice if style_max_height="#header_button_height" were reverted from
-    // action_button / action_button_2 while the token definitions stayed put —
-    // that revert IS the regression this whole cap exists to prevent, and it
-    // would leave both token-only cases green. This case closes that gap
-    // by reading header_bar.xml directly and pinning the attribute onto both
-    // button elements, no LVGL init required.
-    std::ifstream file("ui_xml/header_bar.xml");
-    REQUIRE(file.is_open());
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    const std::string xml = buffer.str();
+    // The cases above read only TOKEN VALUES. A revert of the max_height
+    // attribute itself, with the tokens left in place, is the regression the
+    // cap exists to prevent, so this reads the XML.
+    auto read = [](const char* path) {
+        std::ifstream file(path);
+        REQUIRE(file.is_open());
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        return buffer.str();
+    };
 
-    // Isolate each button's own opening tag (up to its first unescaped '>')
-    // so the check is pinned to that element, not just "the attribute exists
-    // somewhere in the file."
-    auto element_has_cap = [&](const std::string& name) {
-        const std::string needle = "name=\"" + name + "\"";
+    // The opening tag that carries `needle`, up to its first '>'.
+    auto tag_with = [](const std::string& xml, const std::string& needle) {
         const auto tag_start = xml.find(needle);
         REQUIRE(tag_start != std::string::npos);
         const auto tag_end = xml.find('>', tag_start);
         REQUIRE(tag_end != std::string::npos);
-        const std::string tag = xml.substr(tag_start, tag_end - tag_start);
-        return tag.find("style_max_height=\"#header_button_height\"") != std::string::npos;
+        return xml.substr(tag_start, tag_end - tag_start);
     };
 
-    // Exact-quoted match: "action_button" does not match "action_button_2"'s
-    // element because the quote immediately follows the name.
-    CHECK(element_has_cap("action_button"));
-    CHECK(element_has_cap("action_button_2"));
-    CHECK(element_has_cap("action_icon_button"));
+    const std::string header = read("ui_xml/header_bar.xml");
+    CHECK(tag_with(header, "name=\"header_save_z_offset\"")
+              .find("style_max_height=\"#header_button_height\"") != std::string::npos);
+
+    const std::string styles = read("ui_xml/styles.xml");
+    CHECK(tag_with(styles, "<style name=\"header_action\"")
+              .find("max_height=\"#header_button_height\"") != std::string::npos);
 }

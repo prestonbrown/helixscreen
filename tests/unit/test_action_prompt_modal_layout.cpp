@@ -8,7 +8,7 @@
 // stay content-sized and wrap; 4 whose labels fit an even share make one
 // equal-width row (AFC's "Lane 1".."Lane 4", #1043); 5 or more labelled buttons
 // make a grid of equal cells, three across or two when the widest label does
-// not fit a third. Text and button rows scroll together in prompt_scroll while
+// not fit a third. Text and button rows scroll together in the dialog body while
 // the footer stays on the card.
 //
 // Tagged [ui_integration] (NOT hidden) — it shows real widgets and forces a
@@ -512,7 +512,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
         CAPTURE(i);
         CHECK(lv_obj_get_height(btns[i]) == theme_manager_get_spacing("button_height"));
     }
-    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "prompt_scroll");
+    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "dialog_body");
     REQUIRE(scroll != nullptr);
     CHECK(lv_obj_is_scrollable(scroll));
     CHECK(lv_obj_get_scroll_bottom(scroll) > 0);
@@ -639,7 +639,7 @@ void check_afc_calibration_fits(helix::ui::ActionPromptModal& modal, lv_obj_t* s
     CHECK(line_ys.size() <= 3);
 
     // Every unit button can be scrolled fully into the visible scroll area.
-    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "prompt_scroll");
+    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "dialog_body");
     REQUIRE(scroll != nullptr);
     for (size_t i = 0; i < 6; ++i) {
         lv_obj_scroll_to_view_recursive(btns[i], LV_ANIM_OFF);
@@ -701,7 +701,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     }
     CHECK(lv_obj_get_height(btns.back()) == compact_h);
 
-    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "prompt_scroll");
+    lv_obj_t* scroll = lv_obj_find_by_name(dialog, "dialog_body");
     REQUIRE(scroll != nullptr);
     CHECK(lv_obj_get_scroll_bottom(scroll) <= 0);
     for (size_t i = 0; i < btns.size(); ++i) {
@@ -759,7 +759,7 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
     CHECK(lv_obj_get_width(label) <= lv_obj_get_content_width(btns[0]));
     CHECK(lv_label_get_long_mode(label) == LV_LABEL_LONG_MODE_DOTS);
 
-    lv_obj_t* scroll = lv_obj_find_by_name(modal_.dialog(), "prompt_scroll");
+    lv_obj_t* scroll = lv_obj_find_by_name(modal_.dialog(), "dialog_body");
     REQUIRE(scroll != nullptr);
     CHECK(lv_obj_get_scroll_dir(scroll) == LV_DIR_VER);
     CHECK(lv_obj_get_scroll_right(scroll) <= 0);

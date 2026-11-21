@@ -84,7 +84,7 @@ tests/shell/test_growth_ratchets_gate.bats	.github/workflows/quality.yml lib/lvg
 tests/shell/test_layering_gate.bats	scripts/check_layering.py scripts/diff_base.py scripts/qc/_lib.sh scripts/design_ratchets.py
 tests/shell/test_hand_rolled_swatch_gate.bats	docs/devel/COLOR_SWATCHES.md scripts/check_hand_rolled_swatch.py scripts/hand_rolled_swatch_baseline.txt scripts/ratchet.py scripts/staged_content.py src/ui/components/ui_swatch.cpp ui_xml/components/color_swatch.xml scripts/design_ratchets.py
 tests/shell/test_lvgl_subject_api_gate.bats	scripts/check_lvgl_subject_api.py scripts/qc/lvgl_subject_api.sh scripts/source_strip.py scripts/staged_content.py
-tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/qc/_lib.sh scripts/qc/design_pixels.sh scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/notify/ui_fatal_error.cpp ui_xml/globals.xml
+tests/shell/test_hardcoded_pixels_gate.bats	scripts/check_hardcoded_pixels.py scripts/qc/_lib.sh scripts/qc/design_pixels.sh scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/notify/ui_fatal_error.cpp ui_xml/globals.xml scripts/path_scope.py
 tests/shell/test_helix_claim_date.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_helix_claim_jobs.bats	Makefile mk/rules.mk mk/tests.mk scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/qc/_lib.sh
 tests/shell/test_helix_claim_liveness.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
@@ -119,7 +119,7 @@ tests/shell/test_mem_available.bats	scripts/helix-claim scripts/lib/build_hosts.
 tests/shell/test_merge_claim_hooks.bats	.githooks/ scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh
 tests/shell/test_merge_compile_commands.bats	mk/rules.mk scripts/merge_compile_commands.py scripts/quality-checks.sh scripts/version-compare.sh
 tests/shell/test_merge_generated_files.bats	.gitattributes .githooks/pre-merge-commit scripts/check_translation_packs_fresh.py scripts/qc/_lib.sh scripts/qc/translation_packs_fresh.sh
-tests/shell/test_modal_chrome_budget_gate.bats	scripts/check_modal_chrome_budget.py
+tests/shell/test_modal_chrome_budget_gate.bats	scripts/check_modal_chrome_budget.py scripts/path_scope.py
 tests/shell/test_mutate_diff_dispatch.bats	scripts/diff_base.py scripts/lib/ scripts/mutate-diff.sh scripts/mutate_diff.py scripts/test-host-run.sh
 tests/shell/test_mutate_diff_gate.bats	Makefile android/app/build.gradle assets/config/printer_database.json scripts/compile_command.py scripts/diff_base.py scripts/merge_compile_commands.py scripts/mutate_diff.py scripts/syntax_check.py scripts/untestable_paths.txt
 tests/shell/test_mutate_diff_jobserver.bats	scripts/diff_base.py scripts/mutate_diff.py
@@ -132,7 +132,7 @@ tests/shell/test_order_dependence_gate.bats	scripts/check_test_order_dependence.
 tests/shell/test_orphan_callbacks_gate.bats	scripts/check_orphan_callbacks.py scripts/check_required_names.py scripts/qc/_lib.sh scripts/qc/orphan_callbacks.sh scripts/qc_file_cache.py scripts/ratchet.py scripts/source_strip.py
 tests/shell/test_orphan_subjects_gate.bats	assets/config/default_layout.json scripts/check_orphan_subjects.py scripts/qc_file_cache.py scripts/ratchet.py
 tests/shell/test_overlay_boilerplate_gate.bats	scripts/check_overlay_boilerplate.py scripts/check_required_names.py scripts/ratchet.py scripts/source_strip.py
-tests/shell/test_overlay_width_gate.bats	scripts/check_overlay_width.py scripts/staged_content.py
+tests/shell/test_overlay_width_gate.bats	scripts/check_overlay_width.py scripts/staged_content.py scripts/path_scope.py
 tests/shell/test_packaging_manifest.bats	scripts/code_lint.sh scripts/gen-packaging-manifest.sh
 tests/shell/test_panel_widget_scrollable_gate.bats	scripts/check_panel_widget_scrollable.py scripts/qc/design_pixels.sh scripts/ratchet.py scripts/source_strip.py scripts/staged_content.py src/ui/components/ui_card.cpp
 tests/shell/test_patch_drift_gate.bats	.githooks/lib/land-gate-stamp.sh .githooks/lib/push-range.sh .githooks/pre-push Makefile lib/lvgl mk/patches.mk patches/ scripts/check_clang_diagnostics.py scripts/check_patch_drift.py scripts/compile_command.py scripts/diff_base.py scripts/merge_compile_commands.py scripts/qc/decl_ui.sh scripts/qc/patch_drift.sh scripts/quality-checks.sh scripts/own_git_dir.sh
@@ -171,7 +171,7 @@ tests/shell/test_required_names_gate.bats	scripts/check_required_names.py script
 tests/shell/test_reset_patches.bats	Makefile lib/libhv lib/lua lib/lvgl mk/patches.mk scripts/check_patch_drift.py scripts/own_git_dir.sh
 tests/shell/test_resolve_backtrace.bats	scripts/resolve-backtrace.sh
 tests/shell/test_resource_advisor.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/ccache_shared.sh scripts/lib/mem_available.sh scripts/pool-docker.sh scripts/resource-advisor.sh scripts/test-host-run.sh
-tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py scripts/source_strip.py src/ui/theme/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml
+tests/shell/test_responsive_token_scope_gate.bats	scripts/check_responsive_token_scope.py scripts/source_strip.py src/ui/theme/theme_token_scan.cpp ui_xml/components/color_swatch_grid.xml scripts/path_scope.py
 tests/shell/test_runtime_file_lists.bats	android/app/build.gradle config/ mk/cross.mk scripts/lib/installer/platform.sh src/application/android_asset_extractor.cpp
 tests/shell/test_sandbox_gate.bats	Makefile lib/lvgl scripts/code_lint.sh
 tests/shell/test_screensaver_perf_names.bats	include/screensaver_registry.h scripts/screensaver-perf/

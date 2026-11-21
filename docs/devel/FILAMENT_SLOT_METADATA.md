@@ -264,7 +264,7 @@ has seen, and nothing is held to send later, so editing waits:
 - The context menu's **Edit Spool** button binds its disabled state to it
   (`ui_xml/ams_context_menu.xml`), and both the menu and the spool editor show an
   inline "Loading lane details…" line while it is 0.
-- The editor's Save is disabled by an `action_button_disabled_cond` in
+- The editor's Save (`btn_save`) is disabled by a `bind_state_if cond` in
   `ui_xml/ams_edit_overlay.xml` over the editor's own dirty gate
   (`ams_edit_save_disabled`) and the ready subject. It is a view-time `cond`
   because both subjects come from `init_subjects()`, after the component

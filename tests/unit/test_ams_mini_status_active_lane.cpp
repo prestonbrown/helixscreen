@@ -319,11 +319,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Assigned lane: material kept, and dimmed in lockstep with the spool visual.
     CHECK(std::string(lv_label_get_text(mat0)) == "PETG");
-    CHECK(lv_obj_get_style_text_opa(mat0, LV_PART_MAIN) == LV_OPA_30);
+    CHECK(lv_obj_get_style_text_opa(mat0, LV_PART_MAIN) == ams_draw::kGhostOpa);
+    // The percent line dims with it, so the lane's text reads as one group.
+    lv_obj_t* pct0 = UITest::find_by_name(w, "spool_pct_0");
+    REQUIRE(pct0 != nullptr);
+    CHECK(lv_obj_get_style_text_opa(pct0, LV_PART_MAIN) == ams_draw::kGhostOpa);
 
     // Unassigned lane: names its purpose, at full strength (nothing to ghost).
     CHECK(std::string(lv_label_get_text(mat1)) == std::string(lv_tr("Empty")));
     CHECK(lv_obj_get_style_text_opa(mat1, LV_PART_MAIN) == LV_OPA_COVER);
+    lv_obj_t* pct1 = UITest::find_by_name(w, "spool_pct_1");
+    REQUIRE(pct1 != nullptr);
+    CHECK(lv_obj_get_style_text_opa(pct1, LV_PART_MAIN) == LV_OPA_COVER);
 
     lv_obj_delete(w);
     teardown_ams();

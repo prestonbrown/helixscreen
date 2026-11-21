@@ -7,28 +7,14 @@
     <prop name="title" type="string" default="Exclude Object?"/>
     <prop name="message" type="string" default="Stop printing this object?"/>
   </api>
-  <!-- Dialog card (backdrop created programmatically) -->
-  <view name="exclude_object_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Header row with warning icon + title -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <!-- Warning icon (always shown for exclude action) -->
-      <icon name="icon_warning" src="alert" size="md" variant="warning"/>
-      <!-- Title -->
-      <text_heading name="dialog_title" text="$title" style_text_align="left" flex_grow="1"/>
-    </lv_obj>
-    <!-- Message content area -->
-    <lv_obj name="content_container"
-            width="100%" height="content" style_min_height="40" style_max_height="200" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="0" style_pad_bottom="#space_lg">
+  <view name="exclude_object_modal" extends="dialog_frame" title="$title" icon="alert" icon_variant="warning">
+    <dialog_frame-body style_min_height="40">
       <text_body name="dialog_message" width="100%" text="$message" style_text_align="left" long_mode="wrap"/>
-    </lv_obj>
-    <!-- Button row -->
+    </dialog_frame-body>
     <!-- Buttons are wired in ExcludeObjectModal::on_show() via wire_ok_button()/
          wire_cancel_button(); no XML callback names to resolve. -->
-    <modal_button_row secondary_text="Cancel" primary_text="Exclude"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel" primary_text="Exclude"/>
+    </dialog_frame-footer>
   </view>
 </component>

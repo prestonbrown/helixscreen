@@ -10,11 +10,11 @@
 #include "ams_bypass_policy.h"
 #include "ams_state.h"
 #include "settings_manager.h"
-#include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
 #include <algorithm>
 #include <cstring>
+#include <string>
 
 namespace helix::ui {
 
@@ -98,7 +98,8 @@ constexpr int32_t kLabelHeight = 16;
 // line and the "Bypass" label under it.
 constexpr int32_t kTubeDrop = 10;
 constexpr int32_t kTubeClear = 8;
-// What bypass_spool_drawn_area() finds the overlay by among its parent's children.
+// The part names bypass_spool_drawn_area() finds the overlay by among its parent's children;
+// bypass_spool_box.xml names the card.
 constexpr const char* kBoxName = "bypass_spool_box";
 constexpr const char* kMaterialLabelName = "bypass_material_label";
 } // namespace
@@ -217,16 +218,13 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
     const int32_t spool_size = ams_slot_spool_size();
     w.spool_size = spool_size;
     w.box_size = bypass_spool_box_size(spool_size);
-    w.box = lv_obj_create(parent);
-    lv_obj_set_name(w.box, kBoxName);
-    lv_obj_set_size(w.box, w.box_size, w.box_size);
-    lv_obj_set_style_pad_all(w.box, 0, 0);
-    lv_obj_set_style_bg_opa(w.box, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_bg_color(w.box, theme_manager_get_color("card_bg"), 0);
-    lv_obj_set_style_radius(w.box, theme_manager_get_spacing("border_radius"), 0);
-    lv_obj_set_style_border_width(w.box, 0, 0);
-    lv_obj_set_scrollable(w.box, false);
-    lv_obj_set_floating(w.box, true);
+    const std::string box_size = std::to_string(w.box_size);
+    const char* box_attrs[] = {"size", box_size.c_str(), nullptr};
+    w.box = static_cast<lv_obj_t*>(lv_xml_create(parent, "bypass_spool_box", box_attrs));
+    if (!w.box) {
+        w = {};
+        return w;
+    }
 
     w.spool_canvas = ui_spool_canvas_create(w.box, spool_size);
     if (!w.spool_canvas) {
@@ -234,26 +232,26 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
         w = {};
         return w;
     }
+    // DECLARATIVE_OK: the spool's inset is the card padding bypass_spool_box_size() adds
     lv_obj_set_pos(w.spool_canvas, kBoxPad, kBoxPad);
 
     if (on_click) {
         lv_obj_set_clickable(w.box, true);
+        // DECLARATIVE_OK: each caller's handler takes its own panel as user_data
         lv_obj_add_event_cb(w.box, on_click, LV_EVENT_CLICKED, user_data);
     }
 
-    w.bypass_label = lv_label_create(parent);
-    lv_label_set_text(w.bypass_label, lv_tr("Bypass"));
-    lv_obj_set_style_text_color(w.bypass_label, theme_manager_get_color("text"), 0);
-    lv_obj_set_floating(w.bypass_label, true);
-    lv_obj_update_layout(w.bypass_label);
-    w.cached_bypass_label_w = lv_obj_get_width(w.bypass_label);
+    const char* bypass_attrs[] = {"text", lv_tr("Bypass"), nullptr};
+    w.bypass_label =
+        static_cast<lv_obj_t*>(lv_xml_create(parent, "bypass_spool_label", bypass_attrs));
+    if (w.bypass_label) {
+        lv_obj_update_layout(w.bypass_label);
+        w.cached_bypass_label_w = lv_obj_get_width(w.bypass_label);
+    }
 
-    w.material_label = lv_label_create(parent);
-    lv_obj_set_name(w.material_label, kMaterialLabelName);
-    lv_label_set_text(w.material_label, "");
-    lv_obj_set_style_text_color(w.material_label, theme_manager_get_color("text"), 0);
-    lv_obj_set_floating(w.material_label, true);
-    lv_obj_set_hidden(w.material_label, true);
+    const char* material_attrs[] = {"label_name", kMaterialLabelName, "hidden", "true", nullptr};
+    w.material_label =
+        static_cast<lv_obj_t*>(lv_xml_create(parent, "bypass_spool_label", material_attrs));
 
     return w;
 }
@@ -334,6 +332,7 @@ void bypass_spool_set_material(BypassSpoolWidgets& w, const char* material) {
     std::strncpy(w.cached_material, m, sizeof(w.cached_material) - 1);
     w.cached_material[sizeof(w.cached_material) - 1] = '\0';
 
+    // DECLARATIVE_OK: the material is printer text; as a prop a leading '#' reads as a const
     lv_label_set_text(w.material_label, w.cached_material);
     if (w.cached_material[0] == '\0') {
         lv_obj_set_hidden(w.material_label, true);

@@ -3,6 +3,8 @@
 
 #include "ui_runout_guidance_modal.h"
 
+#include "ui_icon.h"
+
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -15,6 +17,15 @@ std::string RunoutGuidanceModal::switching_text(const std::string& target_name) 
 }
 
 void RunoutGuidanceModal::on_show() {
+    // The XML header icon is the runout warning; an advisory show (a tap on the
+    // home Filament tile) takes the neutral filament glyph instead.
+    if (lv_subject_get_int(&advisory_subject_) == 1) {
+        if (lv_obj_t* icon = find_widget("dialog_icon")) {
+            helix::ui::icon::set_source(icon, "filament");
+            helix::ui::icon::set_variant(icon, "primary");
+        }
+    }
+
     // RunoutGuidanceModal has 6 buttons for runout handling:
     // - btn_load_filament → on_ok() (primary action)
     // - btn_unload_filament → on_quaternary() (unload before loading new)
