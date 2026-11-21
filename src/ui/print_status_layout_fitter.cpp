@@ -73,14 +73,6 @@ bool is_ultrawide() {
     return uw && lv_subject_get_int(uw) == 1;
 }
 
-/// has_filament_system_or_multi_tool(), as TargetTool publishes it, and a
-/// tray with lanes to draw: several heads without a filament system leave it
-/// empty.
-bool has_lane_tray() {
-    lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
-    return gate && lv_subject_get_int(gate) == 1 && helix::ui::ams_mini_status_has_lanes_to_show();
-}
-
 /// The strip is a ui_card: its padding and border on both sides.
 int32_t strip_chrome() {
     return 2 * (theme_manager_get_spacing("space_sm") + theme_manager_get_spacing("border_width"));

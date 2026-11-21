@@ -3,7 +3,9 @@
 
 #include "ui_side_band.h"
 
+#include "ui_ams_mini_status.h"
 #include "ui_nav.h"
+#include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_panel_motion.h"
@@ -21,7 +23,7 @@
 
 namespace helix::ui {
 
-bool side_band_shows(SideBandContent content, bool ultrawide, int ams_slot_count, bool multi_head) {
+bool side_band_shows(SideBandContent content, bool ultrawide, bool lane_tray) {
     if (!ultrawide) {
         return false;
     }
@@ -29,7 +31,7 @@ bool side_band_shows(SideBandContent content, bool ultrawide, int ams_slot_count
     case SideBandContent::Motion:
         return true;
     case SideBandContent::Ams:
-        return has_filament_system_or_multi_tool(ams_slot_count, multi_head);
+        return lane_tray;
     }
     return false;
 }
@@ -130,6 +132,10 @@ class AmsGuest final : public SideBandGuest {
         lv_obj_t* root = view_ == AmsView::Overview ? get_global_ams_overview_panel().get_panel()
                                                     : get_global_ams_panel().get_panel();
         if (root) {
+            // The band owns this tree: building it registered it as a cached
+            // overlay, which a hot reload would rebuild behind the band's back.
+            // An overlay open builds its own tree and registers that one.
+            nav::unregister_overlay(root);
             fill_band(root, band);
         }
         return root;
@@ -212,8 +218,10 @@ void SideBand::deinit_subjects() {
         return;
     }
     ultrawide_observer_.reset();
-    slot_count_observer_.reset();
-    multi_head_observer_.reset();
+    lane_tray_observer_.reset();
+    lanes_observer_.reset();
+    theme_observer_.reset();
+    active_panel_observer_.reset();
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }
@@ -249,17 +257,38 @@ void SideBand::observe_inputs() {
     if (lv_subject_t* theme = theme_manager_get_changed_subject()) {
         theme_observer_ = observe<int>(theme, this, on_change, subject_never_freed());
     }
+    // Switching main panels from under an overlay leaves the host for real.
+    auto& nav = NavigationManager::instance();
+    active_panel_observer_ = observe<int>(
+        nav.get_active_panel_subject(), this,
+        [](SideBand* self, int panel) {
+            if (self->covered_ && panel != self->panel_at_cover_) {
+                self->covered_ = false;
+                if (self->live_hosted()) {
+                    self->guest_->on_host_left();
+                }
+            }
+        },
+        nav.get_subjects_lifetime());
     if (content_ != SideBandContent::Ams) {
         return;
     }
+    // The lane tray's two inputs: TargetTool's published gate, and the lanes a
+    // tray would draw (slots_version moves with lane presence).
+    if (lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool")) {
+        lane_tray_observer_ =
+            observe<int>(gate, this, on_change, TargetTool::instance().get_subjects_lifetime());
+    }
     auto& ams = AmsState::instance();
-    if (lv_subject_t* slots = ams.get_slot_count_subject()) {
-        slot_count_observer_ = observe<int>(slots, this, on_change, ams.get_subjects_lifetime());
+    if (ams.are_subjects_initialized()) {
+        lanes_observer_ = observe<int>(ams.get_slots_version_subject(), this, on_change,
+                                       ams.get_subjects_lifetime());
     }
-    if (lv_subject_t* multi = lv_xml_get_subject(nullptr, "target_tool_multi_head")) {
-        multi_head_observer_ =
-            observe<int>(multi, this, on_change, TargetTool::instance().get_subjects_lifetime());
-    }
+}
+
+lv_obj_t* SideBand::live_hosted() const {
+    lv_obj_t* hosted = hosted_.get();
+    return hosted && lv_obj_get_parent(hosted) == band_.get() ? hosted : nullptr;
 }
 
 bool SideBand::uses_full_width() const {
@@ -267,21 +296,19 @@ bool SideBand::uses_full_width() const {
 }
 
 void SideBand::refresh() {
-    int slots = 0;
-    bool multi = false;
-    if (content_ == SideBandContent::Ams) {
-        if (lv_subject_t* s = AmsState::instance().get_slot_count_subject()) {
-            slots = lv_subject_get_int(s);
-        }
-        if (lv_subject_t* m = lv_xml_get_subject(nullptr, "target_tool_multi_head")) {
-            multi = lv_subject_get_int(m) == 1;
-        }
-    }
-    shows_ = side_band_shows(content_, ultrawide_now(), slots, multi);
+    const bool lane_tray = content_ == SideBandContent::Ams && has_lane_tray();
+    shows_ = side_band_shows(content_, ultrawide_now(), lane_tray);
     fit_main_column();
 
     // The guest's tree went away without the band (a theme change, memory
-    // pressure, a printer switch): its lifecycle already wound itself down.
+    // pressure, a printer switch): its lifecycle already wound itself down,
+    // and the band holds nothing now.
+    if (hosted_.get() && !live_hosted()) {
+        hosted_.reset();
+        if (subjects_initialized_) {
+            lv_subject_set_int(&hosted_subject_, 0);
+        }
+    }
     if (guest_active_ && !hosted_.get()) {
         guest_active_ = false;
     }
@@ -309,7 +336,7 @@ void SideBand::refresh() {
 void SideBand::publish() {
     // The band shows only with content in it: a guest that cannot be built (an
     // AMS gate with no backend yet) leaves the host exactly as it was.
-    const int value = shows_ && hosted_.get() ? 1 : 0;
+    const int value = shows_ && live_hosted() ? 1 : 0;
     if (subjects_initialized_ && lv_subject_get_int(&shows_subject_) != value) {
         lv_subject_set_int(&shows_subject_, value);
     }
@@ -335,20 +362,17 @@ void SideBand::attach_guest() {
     if (hosted_.get() || !band) {
         return;
     }
-    // The tree may hide its back button as it is built.
-    if (subjects_initialized_) {
-        lv_subject_set_int(&hosted_subject_, 1);
-    }
     const int theme_gen = theme_generation();
     lv_obj_t* root = guest_->attach(band);
-    hosted_ = root;
-    theme_gen_ = theme_gen;
     if (!root) {
-        if (subjects_initialized_) {
-            lv_subject_set_int(&hosted_subject_, 0);
-        }
         spdlog::debug("[SideBand] content open elsewhere; the band waits for it");
         return;
+    }
+    hosted_ = root;
+    theme_gen_ = theme_gen;
+    // Only a tree that is now in the band hides its back button.
+    if (subjects_initialized_) {
+        lv_subject_set_int(&hosted_subject_, 1);
     }
     spdlog::debug("[SideBand] hosting {}", content_ == SideBandContent::Motion ? "Motion" : "AMS");
 }
@@ -391,13 +415,24 @@ void SideBand::deactivate_guest(DeactivateReason reason) {
 
 void SideBand::on_host_activate() {
     host_active_ = true;
+    covered_ = false;
     refresh();
 }
 
 void SideBand::on_host_deactivate(DeactivateReason reason) {
     host_active_ = false;
-    if (hosted_.get() && reason != DeactivateReason::Suspended) {
-        guest_->on_host_left();
+    // An overlay over the host (and a screensaver) keeps the guest's place; a
+    // switch to another main panel does not. The overlay case waits for the
+    // active panel to change from under it (active_panel_observer_).
+    const bool covered = NavigationManager::instance().main_panel_deactivated_for_overlay();
+    if (live_hosted() && reason == DeactivateReason::NavigateAway) {
+        if (covered) {
+            covered_ = true;
+            panel_at_cover_ =
+                lv_subject_get_int(NavigationManager::instance().get_active_panel_subject());
+        } else {
+            guest_->on_host_left();
+        }
     }
     deactivate_guest(reason);
     // A rebuild deletes the host tree, band and all: hand the guest's tree back first.
@@ -409,7 +444,7 @@ void SideBand::on_host_deactivate(DeactivateReason reason) {
 
 bool SideBand::take_open_request(SideBandContent content) {
     for (SideBand* band : live_bands()) {
-        if (band->content_ != content || !band->hosted_.get()) {
+        if (band->content_ != content || !band->live_hosted()) {
             continue;
         }
         if (band->host_active_ && band->shows_) {
@@ -427,7 +462,7 @@ void SideBand::notify_released(SideBandContent content) {
             continue;
         }
         band->lifetime_.defer("SideBand::notify_released", [band]() {
-            if (band->host_active_ && band->shows_ && !band->hosted_.get()) {
+            if (band->host_active_ && band->shows_ && !band->live_hosted()) {
                 band->refresh();
             }
         });
@@ -438,7 +473,10 @@ void SideBand::on_band_deleted(lv_event_t* e) {
     auto* self = static_cast<SideBand*>(lv_event_get_user_data(e));
     // The band's children go next. A tree still in it moves out first so the
     // guest frees it on its own path and never keeps a pointer to a freed tree.
-    if (self->hosted_.get() && !StaticPanelRegistry::is_destroying_all()) {
+    // band_ may already read null here (its WidgetRef hears the delete first).
+    lv_obj_t* band = static_cast<lv_obj_t*>(lv_event_get_target(e));
+    lv_obj_t* hosted = self->hosted_.get();
+    if (hosted && lv_obj_get_parent(hosted) == band && !StaticPanelRegistry::is_destroying_all()) {
         self->detach_guest();
         self->publish();
     }

@@ -53,12 +53,12 @@ enum class SideBandContent {
 /**
  * @brief Whether a host's side band shows @p content
  *
- * Only on the ultrawide layout. Motion needs no hardware. The AMS panel needs
- * has_filament_system_or_multi_tool() (include/target_tool.h): a filament
- * system with slots or a printer with several toolheads; without either the
- * band stays empty.
+ * Only on the ultrawide layout. Motion needs no hardware. The AMS view needs
+ * @p lane_tray, has_lane_tray() (include/ui_ams_mini_status.h): a filament
+ * system or several heads, with lanes to draw, the rule Print Status's lane tray
+ * follows too. Without it the band stays empty.
  */
-bool side_band_shows(SideBandContent content, bool ultrawide, int ams_slot_count, bool multi_head);
+bool side_band_shows(SideBandContent content, bool ultrawide, bool lane_tray);
 
 /// The view a side band hosts: its tree and its lifecycle.
 class SideBandGuest {
@@ -178,9 +178,21 @@ class SideBand {
     bool shows_ = false;
 
     ObserverGuard ultrawide_observer_;
-    ObserverGuard slot_count_observer_;
-    ObserverGuard multi_head_observer_;
+    ObserverGuard lane_tray_observer_;
+    ObserverGuard lanes_observer_;
     ObserverGuard theme_observer_;
+    ObserverGuard active_panel_observer_;
+
+    /// An overlay covers the host: its tree keeps its place, unless the user
+    /// switches to another main panel from under the overlay.
+    bool covered_ = false;
+    /// The active panel when the overlay covered the host.
+    int panel_at_cover_ = -1;
+
+    /// The hosted tree, if it is still in the band. A tree a cache pulled out
+    /// (reparented to its condemned container) is no longer the band's, though
+    /// its WidgetRef lives until the async delete.
+    lv_obj_t* live_hosted() const;
 
     /// theme_manager_get_changed_subject()'s generation when the hosted tree
     /// was built; its widgets keep the colors of that generation.

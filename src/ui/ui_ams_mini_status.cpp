@@ -1762,6 +1762,11 @@ bool helix::ui::ams_mini_status_has_lanes_to_show() {
     return helix::ui::ams_mini_status_shows_lanes(slot_count, present);
 }
 
+bool helix::ui::has_lane_tray() {
+    lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
+    return gate && lv_subject_get_int(gate) == 1 && ams_mini_status_has_lanes_to_show();
+}
+
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
     auto* data = get_data(obj);
     return data && data->magic == kAmsMiniStatusMagic;

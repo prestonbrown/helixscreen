@@ -16,6 +16,7 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
+#include "ui_side_band.h"
 #include "ui_update_queue.h"
 #include "ui_utils.h"
 
@@ -24,6 +25,7 @@
 #include "../test_helpers/draw_buf_alloc_spy.h"
 #include "../test_helpers/memory_monitor_test_access.h"
 #include "../test_helpers/navigation_manager_test_access.h"
+#include "../test_helpers/side_band_test_host.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "display_settings_manager.h"
@@ -366,6 +368,45 @@ TEST_CASE_METHOD(AmsKeepAliveFixture, "AMS: critical memory pressure leaves an o
     drain();
     CHECK(panel_obj() != nullptr);
     CHECK(helix::nav::is_showing(panel_obj()));
+}
+
+TEST_CASE_METHOD(AmsKeepAliveFixture, "AMS: critical memory pressure leaves the side band's tree",
+                 "[ams][keep_alive][uw_side_band]") {
+    // An overlay open registers the pressure responder.
+    open();
+    close();
+    lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
+    REQUIRE(gate != nullptr);
+    const int gate_before = lv_subject_get_int(gate);
+    lv_subject_set_int(gate, 1);
+    {
+        helix::test::ScopedUltrawide ultrawide(1);
+        helix::ui::SideBand band{helix::ui::SideBandContent::Ams,
+                                 helix::ui::make_ams_side_band_guest(), "test_filament_side_band",
+                                 "ams_in_side_band"};
+        band.init_subjects();
+        lv_obj_t* host = helix::test::make_side_band_host(test_screen());
+        band.bind(host);
+        band.on_host_activate();
+        drain();
+        lv_obj_t* tree = panel_obj();
+        REQUIRE(tree != nullptr);
+        REQUIRE(band.hosted() == tree);
+        // The band owns it: no overlay registration a hot reload would rebuild.
+        CHECK(NavigationManagerTestAccess::lifecycle_of(NavigationManager::instance(), tree) ==
+              nullptr);
+
+        MemoryMonitorTestAccess::fire_warning(MemoryMonitor::instance(),
+                                              MemoryPressureLevel::critical, "test", MemoryStats{},
+                                              MemoryInfo{}, 0);
+        drain();
+        CHECK(panel_obj() == tree);
+        CHECK(lv_obj_get_parent(tree) == lv_obj_find_by_name(host, "side_band"));
+
+        band.on_host_deactivate(DeactivateReason::NavigateAway);
+        band.deinit_subjects();
+    }
+    lv_subject_set_int(gate, gate_before);
 }
 
 TEST_CASE_METHOD(AmsKeepAliveFixture, "AmsPanel: reopening keeps one operation stepper",
