@@ -17,6 +17,7 @@
     <ui_button name="fwupdate_install_${index}"
                width="content" height="#button_height" style_min_width="64" variant="danger" text="Install"
                moves_machine="true">
+      <bind_flag_if_eq subject="fwupdate_busy" flag="hidden" ref_value="1"/>
       <event_cb trigger="clicked" callback="on_fwupdate_image_install" user_data="$index"/>
     </ui_button>
   </view>

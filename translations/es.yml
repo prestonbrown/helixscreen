@@ -5065,7 +5065,10 @@ translations:
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Actualice el plugin HelixPrint a 1.5.0 para ocultar las llamadas antiguas de PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': '¿Actualizar también el modelo del calentador INDX? {} ahora tiene {}: densidad {:.2f}, capacidad calorífica {:.2f}.'
   Update your security PIN: Actualice su PIN de seguridad en esta instalación.
-  'Update {}: {}': 'Actualizar {}: {}'
+  Update {} from {} to {}?: '¿Actualizar {} de {} a {}?'
+  Update {} system packages?: '¿Actualizar {} paquetes del sistema?'
+  Update {} to {}?: '¿Actualizar {} a {}?'
+  Update {}?: '¿Actualizar {}?'
   Updates: Actualizaciones
   Updates & Data: 'Actualizaciones y datos'
   Updating Configuration...: Actualizando configuración...
@@ -5520,6 +5523,7 @@ translations:
   '{} firmware': 'Firmware de {}'
   '{} firmware can only be updated from its own screen app.': 'El firmware de {} solo se puede actualizar desde su propia aplicación de pantalla.'
   '{} firmware updates are managed by its own tools.': 'Las actualizaciones del firmware de {} se gestionan con sus propias herramientas.'
+  '{} firmware {} is available. Open Settings > Firmware Update to install it.': 'El firmware de {} {} está disponible. Abre Ajustes > Actualización de firmware para instalarlo.'
   '{} free of {}': '{} libres de {}'
   '{} h': '{} h'
   '{} h of {} h': '{} h de {} h'

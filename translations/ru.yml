@@ -5153,7 +5153,10 @@ translations:
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: 'Обновите плагин HelixPrint до 1.5.0, чтобы скрыть старые вызовы в PRINT_START.'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 'Обновить и модель нагревателя INDX? В {} теперь {}: плотность {:.2f}, теплоёмкость {:.2f}.'
   Update your security PIN: Обновите ваш PIN-код
-  'Update {}: {}': 'Обновить {}: {}'
+  Update {} from {} to {}?: 'Обновить {} с {} до {}?'
+  Update {} system packages?: 'Обновить системные пакеты ({})?'
+  Update {} to {}?: 'Обновить {} до {}?'
+  Update {}?: 'Обновить {}?'
   Updates: Обновления
   Updates & Data: 'Обновления и данные'
   Updating Configuration...: Обновление конфигурации...
@@ -5620,6 +5623,7 @@ translations:
   '{} firmware': 'Прошивка {}'
   '{} firmware can only be updated from its own screen app.': 'Прошивку {} можно обновить только из её собственного экранного приложения.'
   '{} firmware updates are managed by its own tools.': 'Обновления прошивки {} управляются её собственными инструментами.'
+  '{} firmware {} is available. Open Settings > Firmware Update to install it.': 'Доступна прошивка {} {}. Откройте Настройки > Обновление прошивки, чтобы установить её.'
   '{} free of {}': '{} свободно из {}'
   '{} h': '{} ч'
   '{} h of {} h': '{} ч из {} ч'

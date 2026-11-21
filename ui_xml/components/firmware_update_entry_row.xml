@@ -24,7 +24,8 @@
     <ui_button name="fwupdate_update_${index}"
                width="content" height="#button_height" style_min_width="64" variant="primary" text="Update"
                moves_machine="true">
-      <bind_flag_if_eq subject="fwupdate_entry_${index}_can_update" flag="hidden" ref_value="0"/>
+      <!-- Moonraker runs one update_manager job at a time -->
+      <bind_flag_if cond="fwupdate_entry_${index}_can_update eq 0 or fwupdate_busy eq 1" flag="hidden"/>
       <event_cb trigger="clicked" callback="on_fwupdate_entry_update" user_data="$index"/>
     </ui_button>
   </view>

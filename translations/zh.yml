@@ -5065,7 +5065,10 @@ translations:
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: '将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
   Update your security PIN: 更新您的安全 PIN
-  'Update {}: {}': '更新 {}：{}'
+  Update {} from {} to {}?: '将 {} 从 {} 更新到 {}?'
+  Update {} system packages?: '更新 {} 个系统软件包?'
+  Update {} to {}?: '将 {} 更新到 {}?'
+  Update {}?: '更新 {}?'
   Updates: 更新
   Updates & Data: '更新与数据'
   Updating Configuration...: 正在更新配置...
@@ -5520,6 +5523,7 @@ translations:
   '{} firmware': '{} 固件'
   '{} firmware can only be updated from its own screen app.': '{} 固件只能通过其自带的屏幕应用更新。'
   '{} firmware updates are managed by its own tools.': '{} 固件更新由其自带的工具管理。'
+  '{} firmware {} is available. Open Settings > Firmware Update to install it.': '{} 固件 {} 已可用。请打开 设置 > 固件更新 进行安装。'
   '{} free of {}': '可用 {} / 共 {}'
   '{} h': '{} 小时'
   '{} h of {} h': '{} / {} 小时'

@@ -6,7 +6,8 @@
 <component>
   <view name="settings_firmware_update_overlay"
         extends="overlay_panel" title="Firmware Update" bg_color="#screen_bg" action_button_text="Refresh"
-        action_button_callback="on_fwupdate_refresh" hide_action_button="false">
+        action_button_callback="on_fwupdate_refresh" hide_action_button="false"
+        action_button_hidden_subject="fwupdate_busy">
     <!-- LIST VIEW -->
     <lv_obj name="fwupdate_list"
             width="100%" flex_grow="1" style_pad_top="0" style_pad_left="0" style_pad_right="0"
@@ -68,8 +69,9 @@
       <bind_flag_if_not_eq subject="fwupdate_view" flag="hidden" ref_value="1"/>
       <text_heading name="fwupdate_run_title"
                     width="100%" bind_text="fwupdate_run_title" style_text_align="center" long_mode="wrap"/>
+      <!-- The bar when the update reports a percent, the spinner when it does not -->
       <spinner name="fwupdate_spinner" size="lg">
-        <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="0"/>
+        <bind_flag_if cond="fwupdate_run_state ne 0 or fwupdate_run_has_pct eq 1" flag="hidden"/>
       </spinner>
       <icon name="fwupdate_done_icon" src="check" size="xl" variant="success">
         <bind_flag_if_not_eq subject="fwupdate_run_state" flag="hidden" ref_value="1"/>

@@ -68,6 +68,22 @@ std::string entry_detail(const ManagedEntry& e) {
                              : fmt::format(fmt::runtime(lv_tr("Up to date ({})")), e.version);
 }
 
+/// The confirm dialog's question for update_manager entry @p e.
+std::string confirm_question(const ManagedEntry& e) {
+    if (e.kind == "system") {
+        return fmt::format(fmt::runtime(lv_tr("Update {} system packages?")), e.package_count);
+    }
+    const bool remote_known = !e.remote_version.empty() && e.remote_version != "?";
+    if (!e.version.empty() && remote_known) {
+        return fmt::format(fmt::runtime(lv_tr("Update {} from {} to {}?")), e.name, e.version,
+                           e.remote_version);
+    }
+    if (remote_known) {
+        return fmt::format(fmt::runtime(lv_tr("Update {} to {}?")), e.name, e.remote_version);
+    }
+    return fmt::format(fmt::runtime(lv_tr("Update {}?")), e.name);
+}
+
 const char* blocker_text(Blocker b) {
     switch (b) {
     case Blocker::JobRunning:
@@ -199,6 +215,7 @@ void FirmwareUpdateOverlay::init_subjects() {
                                         image_name_buf_[i].size(), "",
                                         image_subject_names_[i].c_str(), subjects_);
         }
+        UI_MANAGED_SUBJECT_INT(busy_, 0, "fwupdate_busy", subjects_);
         UI_MANAGED_SUBJECT_INT(run_state_, kRunRunning, "fwupdate_run_state", subjects_);
         UI_MANAGED_SUBJECT_STRING(run_title_, run_title_buf_, "", "fwupdate_run_title", subjects_);
         UI_MANAGED_SUBJECT_STRING(run_message_, run_message_buf_, "", "fwupdate_run_message",
@@ -279,11 +296,13 @@ void FirmwareUpdateOverlay::show_status(const std::optional<UpdateStatus>& statu
     entries_.clear();
     if (!status) {
         update_manager_busy_ = false;
+        publish_busy();
         lv_subject_set_int(&entry_count_, 0);
         lv_subject_set_int(&list_state_, kListFailed);
         return;
     }
     update_manager_busy_ = status->busy;
+    publish_busy();
     for (const ManagedEntry& e : status->entries) {
         if (entries_.size() == kMaxEntries) {
             break;
@@ -349,8 +368,7 @@ void FirmwareUpdateOverlay::request_entry_update(std::size_t index) {
         return;
     }
     const ManagedEntry& e = entries_[index];
-    std::string message =
-        fmt::format(fmt::runtime(lv_tr("Update {}: {}")), e.name, entry_detail(e));
+    std::string message = confirm_question(e);
     message += "\n\n";
     message += lv_tr("Klipper or Moonraker may restart while it updates. Do not turn the printer "
                      "off until the update finishes.");
@@ -451,6 +469,7 @@ void FirmwareUpdateOverlay::start_managed(const std::string& name) {
         return;
     }
     running_ = Job{Job::Kind::Managed, name};
+    publish_busy();
     job_failed_ = false;
     lv_subject_set_string(&run_title_,
                           fmt::format(fmt::runtime(lv_tr("Updating {}")), name).c_str());
@@ -500,6 +519,7 @@ void FirmwareUpdateOverlay::start_vendor(const FileEntry& image, ApplyInputs in)
     std::error_code ec;
     std::filesystem::remove(plan.log_path, ec);
     running_ = Job{Job::Kind::Vendor, image.name};
+    publish_busy();
     job_failed_ = false;
     lv_subject_set_string(&run_title_, lv_tr("Installing printer firmware"));
     lv_subject_set_string(&run_message_, lv_tr("Starting the update"));
@@ -572,10 +592,16 @@ void FirmwareUpdateOverlay::finish(bool ok, const std::string& message) {
     vendor_timer_.reset();
     vendor_log_.reset();
     running_.reset();
+    publish_busy();
     lv_subject_set_string(&run_message_, !message.empty() ? message.c_str()
                                                           : (ok ? lv_tr("Update complete")
                                                                 : lv_tr("The update failed")));
     lv_subject_set_int(&run_state_, ok ? kRunDone : kRunFailed);
+}
+
+void FirmwareUpdateOverlay::publish_busy() {
+    // Moonraker runs one update_manager job at a time, whoever started it.
+    lv_subject_set_int(&busy_, running_ || update_manager_busy_ ? 1 : 0);
 }
 
 void FirmwareUpdateOverlay::dismiss_progress() {

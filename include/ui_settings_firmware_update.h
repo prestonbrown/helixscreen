@@ -91,6 +91,7 @@ class FirmwareUpdateOverlay : public OverlayBase {
     void poll_vendor_log();
     void unregister_response_handler();
     void toast_blocker(fwupdate::Blocker b);
+    void publish_busy();
 
     SubjectManager subjects_;
     helix::Subject view_{};
@@ -111,6 +112,7 @@ class FirmwareUpdateOverlay : public OverlayBase {
     std::array<helix::Subject, kMaxImages> image_name_{};
     std::array<std::array<char, 96>, kMaxImages> image_name_buf_{};
     std::array<std::string, kMaxImages> image_subject_names_{};
+    helix::Subject busy_{};
     helix::Subject run_state_{};
     helix::Subject run_title_{};
     char run_title_buf_[96] = {};
