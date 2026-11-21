@@ -2218,11 +2218,29 @@ void PrintStatusPanel::sync_inline_tune() {
 
 void PrintStatusPanel::on_tune_build_changed(bool built) {
     if (built && overlay_root_) {
+        // The stacked section takes its content height, which grows with rows
+        // that come and go (a tool changer's Z target, the PA Tuner button, the
+        // saved-offset line): the tiles give it room again each time.
+        if (lv_obj_t* section = tune_section()) {
+            // DECLARATIVE_OK: SIZE_CHANGED has no XML binding equivalent.
+            lv_obj_add_event_cb(section, on_tune_size_changed, LV_EVENT_SIZE_CHANGED, this);
+        }
         // The stacked section is shown only once measured: lay it out now.
         lv_obj_update_layout(overlay_root_);
         layout_fitter_.recompute();
     }
     sync_inline_tune();
+}
+
+void PrintStatusPanel::on_tune_size_changed(lv_event_t* e) {
+    LVGL_SAFE_EVENT_CB_BEGIN("[PrintStatusPanel] on_tune_size_changed");
+    auto* self = static_cast<PrintStatusPanel*>(lv_event_get_user_data(e));
+    if (self) {
+        auto token = self->lifetime_.token();
+        token.defer("PrintStatusPanel::tune_size_changed",
+                    [self]() { self->layout_fitter_.recompute(); });
+    }
+    LVGL_SAFE_EVENT_CB_END();
 }
 
 void PrintStatusPanel::relayout() {

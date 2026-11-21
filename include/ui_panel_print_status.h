@@ -625,6 +625,7 @@ class PrintStatusPanel : public OverlayBase {
     /// Point the tune overlay at the inline section while this panel shows it.
     void sync_inline_tune();
     void on_tune_build_changed(bool built);
+    static void on_tune_size_changed(lv_event_t* e);
     void relayout();
     void handle_more_clicked(lv_obj_t* anchor);
     void handle_more_action(int action);

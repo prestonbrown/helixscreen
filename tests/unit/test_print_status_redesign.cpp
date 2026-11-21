@@ -1688,6 +1688,33 @@ TEST_CASE_METHOD(TallPortrait320, "a tall portrait screen shows the Tune section
           subject_int("ps_printer_tile_h"));
 }
 
+TEST_CASE_METHOD(TallPortrait320, "the stacked Tune section is fitted again when it grows",
+                 "[print_status][tune_inline]") {
+    show_running_print(panel(), root_);
+    const int before = subject_int("ps_tune_h");
+    REQUIRE(before > 0);
+
+    // A pressure-advance tuning run puts its Tuner button in the header,
+    // which wraps under the title.
+    lv_subject_t* pa_session = lv_xml_get_subject(nullptr, "tune_pa_session_active");
+    REQUIRE(pa_session != nullptr);
+    const int original = lv_subject_get_int(pa_session);
+    lv_subject_set_int(pa_session, 1);
+    lv_obj_update_layout(root_);
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    lv_obj_t* section = lv_obj_find_by_name(root_, "ps_tune");
+    REQUIRE(section != nullptr);
+    REQUIRE(lv_obj_get_height(section) > before);
+    // The fitter gave it its new height, or none when the job tile cannot.
+    const int after = subject_int("ps_tune_h");
+    CHECK((after == lv_obj_get_height(section) || after == 0));
+
+    lv_subject_set_int(pa_session, original);
+    lv_obj_update_layout(root_);
+    UpdateQueue::instance().drain();
+}
+
 TEST_CASE_METHOD(Portrait480, "480x800 keeps the Tune button: no room for the section",
                  "[print_status][tune_inline]") {
     show_running_print(panel(), root_);
