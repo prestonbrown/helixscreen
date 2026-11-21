@@ -29,6 +29,10 @@
  * (uses_full_width()) and the band sizes the main column to the cap, so the
  * main content sits exactly where the panel cap would have put it.
  *
+ * HELIX_HAS_SIDE_BAND=0 (the ESP32 firmware, never ultrawide) compiles the band
+ * out: SideBand below becomes a stub whose band never shows and whose open
+ * requests always let the overlay open, so its hosts compile unchanged.
+ *
  * @threading Main thread only
  */
 
@@ -49,16 +53,6 @@ enum class SideBandContent {
     Motion, ///< The Motion panel, beside Controls
     Ams,    ///< The AMS panel, beside Filament
 };
-
-/**
- * @brief Whether a host's side band shows @p content
- *
- * Only on the ultrawide layout. Motion needs no hardware. The AMS view needs
- * @p lane_tray, has_lane_tray() (include/ui_ams_mini_status.h): a filament
- * system or several heads, with lanes to draw, the rule Print Status's lane tray
- * follows too. Without it the band stays empty.
- */
-bool side_band_shows(SideBandContent content, bool ultrawide, bool lane_tray);
 
 /// The view a side band hosts: its tree and its lifecycle.
 class SideBandGuest {
@@ -85,6 +79,18 @@ class SideBandGuest {
         return false;
     }
 };
+
+#if HELIX_HAS_SIDE_BAND
+
+/**
+ * @brief Whether a host's side band shows @p content
+ *
+ * Only on the ultrawide layout. Motion needs no hardware. The AMS view needs
+ * @p lane_tray, has_lane_tray() (include/ui_ams_mini_status.h): a filament
+ * system or several heads, with lanes to draw, the rule Print Status's lane tray
+ * follows too. Without it the band stays empty.
+ */
+bool side_band_shows(SideBandContent content, bool ultrawide, bool lane_tray);
 
 /// The Motion panel as a side band guest.
 std::unique_ptr<SideBandGuest> make_motion_side_band_guest();
@@ -200,5 +206,72 @@ class SideBand {
 
     AsyncLifetimeGuard lifetime_;
 };
+
+#else // HELIX_HAS_SIDE_BAND
+
+inline bool side_band_shows(SideBandContent, bool, bool) {
+    return false;
+}
+
+inline std::unique_ptr<SideBandGuest> make_motion_side_band_guest() {
+    return nullptr;
+}
+inline std::unique_ptr<SideBandGuest> make_ams_side_band_guest() {
+    return nullptr;
+}
+
+/// The band compiled out: it never shows, and every open goes to the overlay.
+/// Its two subjects still register (at 0) because the hosts' XML binds them.
+class SideBand {
+  public:
+    SideBand(SideBandContent, std::unique_ptr<SideBandGuest>, const char* subject_name,
+             const char* hosted_subject_name)
+        : subject_name_(subject_name), hosted_subject_name_(hosted_subject_name) {}
+
+    SideBand(const SideBand&) = delete;
+    SideBand& operator=(const SideBand&) = delete;
+
+    void init_subjects() {
+        if (subjects_initialized_) {
+            return;
+        }
+        UI_MANAGED_SUBJECT_INT(shows_subject_, 0, subject_name_, subjects_);
+        UI_MANAGED_SUBJECT_INT(hosted_subject_, 0, hosted_subject_name_, subjects_);
+        subjects_initialized_ = true;
+    }
+    void deinit_subjects() {
+        if (subjects_initialized_) {
+            subjects_.deinit_all();
+            subjects_initialized_ = false;
+        }
+    }
+    void bind(lv_obj_t*) {}
+    void on_host_activate() {}
+    void on_host_deactivate(DeactivateReason) {}
+    [[nodiscard]] bool uses_full_width() const {
+        return false;
+    }
+    [[nodiscard]] bool shows() const {
+        return false;
+    }
+    [[nodiscard]] lv_obj_t* hosted() const {
+        return nullptr;
+    }
+    void refresh() {}
+    static bool take_open_request(SideBandContent) {
+        return false;
+    }
+    static void notify_released(SideBandContent) {}
+
+  private:
+    const char* subject_name_;
+    const char* hosted_subject_name_;
+    SubjectManager subjects_;
+    lv_subject_t shows_subject_{};
+    lv_subject_t hosted_subject_{};
+    bool subjects_initialized_ = false;
+};
+
+#endif // HELIX_HAS_SIDE_BAND
 
 } // namespace helix::ui

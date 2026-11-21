@@ -3,6 +3,8 @@
 
 #include "ui_side_band.h"
 
+#if HELIX_HAS_SIDE_BAND
+
 #include "ui_ams_mini_status.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
@@ -487,3 +489,5 @@ void SideBand::on_host_size_changed(lv_event_t* e) {
 }
 
 } // namespace helix::ui
+
+#endif // HELIX_HAS_SIDE_BAND
