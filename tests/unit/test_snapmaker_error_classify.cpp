@@ -14,6 +14,8 @@
 #include "rpc_error_correlation.h"
 #include "snapmaker_exceptions.h"
 
+#include <tuple>
+
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
@@ -658,6 +660,16 @@ bool has_flow(const ErrorEvent& e, const char* flow) {
                        [flow](const RecoveryAction& a) { return a.guided_flow == flow; });
 }
 
+/// The primary way on: its label, the flow it opens and the lane it acts on.
+std::tuple<std::string, std::string, int> primary_action(const ErrorEvent& e) {
+    for (const auto& a : e.recovery_actions) {
+        if (a.style == "primary") {
+            return {a.label, a.guided_flow, a.lane};
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 TEST_CASE("each feeder code reads its own cause and fix", "[snapmaker][feed_failure]") {
@@ -695,9 +707,28 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(e->detail.find("logic error") == std::string::npos);
     CHECK(e->detail.find("load_extruding") == std::string::npos);
     CHECK(e->severity == ErrorSeverity::CRITICAL);
-    CHECK(has_flow(*e, kOpenFilamentFlowId));
+    // The way on loads the failed head again, in place.
+    CHECK(primary_action(*e) ==
+          std::tuple<std::string, std::string, int>{"Load", kLoadLaneFlowId, 0});
     CHECK(has_flow(*e, kCancelPrintFlowId));
     CHECK(e->code == "0002-0525-0000-0051");
+
+    auto unload = backend.classify_error("!! 0002-0525-0003-0070 extruder[3]: state: unload_doing",
+                                         printing_ctx());
+    REQUIRE(unload.has_value());
+    CHECK(primary_action(*unload) ==
+          std::tuple<std::string, std::string, int>{"Unload", kUnloadLaneFlowId, 3});
+    // Filament already in the feed path comes out before anything loads.
+    auto blocked =
+        backend.classify_error("!! 0002-0525-0001-0015 extruder[1]: state: x", printing_ctx());
+    REQUIRE(blocked.has_value());
+    CHECK(primary_action(*blocked) ==
+          std::tuple<std::string, std::string, int>{"Unload", kUnloadLaneFlowId, 1});
+    // A hand feed has no one-tap retry: the Filament panel offers the choices.
+    auto hand = backend.classify_error("!! 0002-0525-0002-0090 extruder[2]: state: manual_feed",
+                                       printing_ctx());
+    REQUIRE(hand.has_value());
+    CHECK(has_flow(*hand, kOpenFilamentFlowId));
 
     auto third = backend.classify_error("!! 0002-0525-0002-0013 extruder[2]: state: load_prepare",
                                         printing_ctx());

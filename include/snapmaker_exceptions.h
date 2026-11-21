@@ -68,6 +68,12 @@ inline constexpr int kToolheadModuleId = 523;
     return c.id == kToolheadModuleId && c.code == 0 ? c.index : -1;
 }
 
+/// The feed operation that retries a feeder fault: the load a failed preload or
+/// load needs again, the unload a failed unload does. None for a setting or a hand
+/// feed, and for any other module.
+enum class FeedRetry { None, Load, Unload };
+[[nodiscard]] FeedRetry feed_retry(const ExceptionCode& c);
+
 /// What a fault means to a user, as English source text; word_fault()
 /// translates it. A summary holding "{}" names the head the fault's index
 /// points at.

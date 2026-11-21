@@ -58,6 +58,8 @@ struct HeadFacts {
     bool feeder_can_supply = false;
     /// nullopt when the head's record names no filament.
     std::optional<FilamentRecord> record;
+    /// The head's last load failed and nothing has loaded it since.
+    bool load_failed = false;
 };
 
 /// The printer's state at a runout pause, as one filament backend sees it.
@@ -224,6 +226,9 @@ inline constexpr uint32_t kSwitchSettleMs = 5000;
 /// Past this since sending, a switch that has not shown is not coming. Longer
 /// than the send's own timeout, so a slow heat and purge is not called failed.
 inline constexpr uint32_t kSwitchGiveUpMs = 180000;
+/// Past this since sending, a firmware still busy switching after the routing
+/// moved is stuck. A load that retries and cleans the nozzle runs about 5 min.
+inline constexpr uint32_t kSwitchBusyGiveUpMs = 900000;
 
 /// The next step for a sent switch, judged by its target: the routing moved
 /// the runout head's tools onto @p target and the print left the pause. A
@@ -236,6 +241,12 @@ inline constexpr uint32_t kSwitchGiveUpMs = 180000;
 [[nodiscard]] SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, int target,
                                       SendReply reply, uint32_t ms_since_reply,
                                       uint32_t ms_since_send);
+
+/// The switch strands on @p head because loading it failed during the switch:
+/// the filament system reports that fault itself, with a retry. A failure the
+/// head already showed when the switch was sent is not this switch's.
+[[nodiscard]] bool load_failed_by_switch(const RunoutFacts& before, const RunoutFacts& now,
+                                         int head);
 
 /// Whether the empty head now carries @p label: the record write went through,
 /// whatever became of the switch after it.

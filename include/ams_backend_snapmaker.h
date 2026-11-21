@@ -265,7 +265,10 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     // The toolhead switch reads filament while the latch says not loaded: the
     // state after a firmware unload, and after filament is fed to the nozzle by
     // plain extrusion (the firmware sets load_finish only from its own load).
-    // Both read identically, so Unload is offered for both.
+    // Both read identically, so Unload is offered for both. A load that failed
+    // with the lane still holding filament counts too: the feed pushed filament
+    // into the head, maybe a broken stub the switch cannot see, and an unload
+    // is what clears it.
     [[nodiscard]] bool slot_filament_parked_in_toolhead(int slot_index) const override;
 
     // Per-tool LOADED status. The U1 has 4 independent toolheads, so each slot's
@@ -971,6 +974,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] bool parked_in_toolhead_locked(int i) const {
         return !loaded_at_toolhead_[i] && toolhead_switch_reported_[i] &&
                sensor_filament_present_[i];
+    }
+
+    /// A load into tool i's head failed while its lane holds filament, so the
+    /// head may hold what the feed pushed in. Caller holds mutex_.
+    [[nodiscard]] bool load_failed_into_head_locked(int i) const {
+        const ChannelSnapshot& snap = channel_snapshots_[i];
+        return snap.state == "load_fail" && snap.filament_detected;
     }
 
     /// Filament pushed into tool i's toolhead past its feeder, still there: a feed has nothing

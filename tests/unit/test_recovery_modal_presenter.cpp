@@ -691,6 +691,26 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault with no actions offers OK to c
     CHECK(TA::handled_detail(presenter()) == fault.detail);
 }
 
+TEST_CASE_METHOD(RecoveryPreheatFixture, "A lane flow starts on the lane its action names",
+                 "[error-center][recovery-presenter][2137]") {
+    int started_on = -2;
+    helix::ui::register_guided_device_flow(
+        helix::kLoadLaneFlowId, {nullptr, nullptr, [&started_on](int lane) { started_on = lane; }});
+    helix::ErrorEvent fault = make_afc_jam();
+    helix::RecoveryAction load{"Load", "", "[test]", "primary"};
+    load.guided_flow = helix::kLoadLaneFlowId;
+    load.lane = 2;
+    fault.recovery_actions = {load};
+    presenter().present(fault);
+    process_lvgl(20);
+    press("btn_primary");
+    process_lvgl(20);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(started_on == 2);
+    CHECK(mock_client_.gcode_script_history().empty());
+    helix::ui::register_recovery_flows();
+}
+
 TEST_CASE_METHOD(RecoveryPreheatFixture,
                  "The clog alert's Cold Pull opens the cold pull flow, which keeps its refusals",
                  "[error-center][recovery-presenter][cold_pull]") {

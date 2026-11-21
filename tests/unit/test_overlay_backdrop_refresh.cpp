@@ -429,3 +429,44 @@ TEST_CASE_METHOD(LVGLTestFixture, "a snapshot that cannot allocate falls back on
     CHECK(frames.attempts() == 1);
     lv_obj_delete(next);
 }
+
+namespace {
+/// The plainest modal: the shared dialog component, every hook the default.
+class PlainModal : public Modal {
+  public:
+    const char* get_name() const override {
+        return "Plain";
+    }
+    const char* component_name() const override {
+        return "modal_dialog";
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a modal opening as another closes leaves it out of its backdrop",
+                 "[modal][backdrop]") {
+    SnapshotBackdropsMode snapshots(true);
+    lv_obj_t* screen = test_screen();
+    make_flat_layer(screen, kBaseColor);
+    // A dialog that one tap closes and replaces: it is still fading out when the
+    // next one snapshots the screen.
+    lv_obj_t* closing = make_flat_layer(screen, LV_COLOR_MAKE(0x00, 0x00, 0xFF));
+    ModalStack::instance().push(closing, lv_obj_create(closing), "closing");
+    REQUIRE(ModalStack::instance().mark_exiting(closing));
+    process_lvgl(20);
+
+    PlainModal next;
+    REQUIRE(next.show(screen));
+    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(ModalStack::instance().top_dialog());
+    REQUIRE(backdrop != nullptr);
+    // Blue is the closing dialog frozen into the new one's backdrop for as long
+    // as it stays open.
+    const Rgb px = backdrop_center_pixel(backdrop);
+    CHECK(px.b < px.r);
+    CHECK_FALSE(lv_obj_is_hidden(closing));
+
+    next.hide();
+    ModalStack::instance().remove(closing, true);
+    process_lvgl(400);
+}

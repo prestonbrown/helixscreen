@@ -127,9 +127,11 @@ check. Each branch also needs `sign-release-manifest.sh` and the `upload-r2` sig
 
 ### 4. Approving a release
 
-A tag push runs the build as before; `upload-r2` then waits with "Waiting for review:
-release-signing needs approval". Approve it in the run's page (or
-`gh run view <id> --web`). Nothing reaches R2 until you do.
+A tag push runs the build, and "Create Release" leaves the GitHub release as a draft.
+`upload-r2` then waits with "Waiting for review: release-signing needs approval". Approve it in
+the run's page (or `gh run view <id> --web`). Nothing is public until you do: after `upload-r2`
+succeeds, `publish-release` publishes the draft and posts to Discord, and only then do
+`verify-release-assets`, `publish-android` and `notify-website` run.
 
 ## Rollout order
 
