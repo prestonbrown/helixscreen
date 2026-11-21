@@ -42,10 +42,9 @@ case "$1" in --probe) exit 1 ;; esac'
     mock_command_script fake-claim '
 echo "claim $*" >> "$CALLS"
 exit 0'
-    mock_command_script fake-esp32 'echo "esp32 $*" >> "$CALLS"'
     mock_command_script fake-no-mocks 'echo "no-mocks $*" >> "$CALLS"'
     export MAKE=fake-make TEST_HOST_RUN=fake-test-host-run HELIX_CLAIM=fake-claim
-    export ESP32_CHECK=fake-esp32 NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
+    export NO_MOCKS_CHECK=fake-no-mocks LAND_GATE_BASE_REF=HEAD
     export HELIX_TEST_HOST=testhost.invalid HELIX_BUILD_HOSTS_FILE=/nonexistent
     unset CI_SHARDS CI_SHARD_TIMEOUT
     export TEST_HOST=0
@@ -66,7 +65,7 @@ row() { # <status> <step>: the table row for step has that status
     run "$GATE"
     [ "$status" -eq 0 ]
     for s in app-build ci-shards slow ui plugin python theme-tokens xml-schema lint-xml \
-        lvgl-event-codes esp32 no-mocks; do
+        lvgl-event-codes no-mocks; do
         row SKIP "$s"
     done
     row PASS quality
@@ -179,10 +178,9 @@ plan_of() { # <stage> <changed path>...: "<verdict> <why>" for the stage
         awk -F'\t' -v s="$stage" '$1 == s { print $2 " " $3 }'
 }
 
-@test "plan: a test-only change runs the changed tests and quality, not esp32 or no-mocks" {
+@test "plan: a test-only change runs the changed tests and quality, not no-mocks" {
     [[ "$(plan_of ci-shards tests/unit/test_version.cpp)" == select* ]] || fail "verdict differs"
     [[ "$(plan_of quality tests/unit/test_version.cpp)" == run* ]] || fail "verdict differs"
-    [[ "$(plan_of esp32 tests/unit/test_version.cpp)" == skip* ]] || fail "verdict differs"
     [[ "$(plan_of no-mocks tests/unit/test_version.cpp)" == skip* ]] || fail "verdict differs"
     python3 "$SELECT" --root "$REPO_ROOT" plan --changed tests/unit/test_version.cpp | grep -q "^# mode	tests"
 }

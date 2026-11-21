@@ -175,7 +175,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_constant_naming.py` | Fail on a new `UPPER_SNAKE_CASE` constant in added lines |
 | `audit_codebase.sh` | Check for coding standard violations. `--strict` for CI |
 | `check_no_mocks.py` | The land-gate `no-mocks` row: mock code a packaged binary would carry |
-| `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image |
+| `esp32_syntax_check.py` | `-fsyntax-only` of every firmware unit a commit range reaches, in the IDF image; by hand only, CI's `esp32-build` is the gate |
 | `check_toolhead_census.py` | Commit-time version of the machine-moving control census tests |
 | `check_theme_artifacts.py` | Fail if the generated theme token table or its golden is stale |
 | `scan_double_binds.py` | Inventory of `ui_xml/` widgets with two or more bindings on one state or flag; `--emit-cpp` writes `tests/unit/double_bind_widgets.inc`, `--check` fails when it lags |
