@@ -470,10 +470,22 @@ class PrinterDiscovery {
 
     /**
      * @brief Set Kalico detection flag
-     * @param kalico true if printer.info reports app as "Kalico"
+     * @param detected true if printer.info reports app as "Kalico"
+     *
+     * Sets the capabilities that come with the firmware too, as
+     * apply_printer_info() does.
      */
-    void set_is_kalico(bool kalico) {
-        is_kalico_ = kalico;
+    void set_is_kalico(bool detected) {
+        is_kalico_ = detected;
+        save_config_takes_restart_param_ = detected;
+    }
+
+    /// Whether this firmware's SAVE_CONFIG takes RESTART=0 (Kalico): write the
+    /// file and stay up. Mainline Klipper has no such parameter. Whether a
+    /// given save may use it depends on what is pending:
+    /// save_config::restart_required() (include/save_config_live.h).
+    [[nodiscard]] bool save_config_takes_restart_param() const {
+        return save_config_takes_restart_param_;
     }
 
     /// The firmware's own name, as people know it: "Kalico" for that fork, else "Klipper".
@@ -1316,6 +1328,7 @@ class PrinterDiscovery {
     bool has_speaker_ = false;
     bool has_fan_feedback_ = false;
     bool is_kalico_ = false;
+    bool save_config_takes_restart_param_ = false;
     AmsType mmu_type_ = AmsType::NONE;
     std::vector<DetectedAmsSystem> detected_ams_systems_;
 
