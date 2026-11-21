@@ -12,6 +12,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../ui_test_utils.h"
 #include "ams_backend_afc.h"
 #include "ams_backend_mock.h"
 #include "ams_error_bridge.h"
@@ -27,6 +28,7 @@
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -153,6 +155,14 @@ TEST_CASE("standing_fault_cause says why the fault stands", "[ams-standing-fault
     SECTION("the stop reason wins over the `!!` line") {
         CHECK(standing_fault_cause(true, "Quad gantry level failed", kLane3Fault) ==
               "Quad gantry level failed");
+    }
+    SECTION("after an operation in the pause: the backend's text, else the `!!` line") {
+        CHECK(standing_fault_cause(true, "Quad gantry level failed", kLane3Fault,
+                                   /*stop_reason_predates_op=*/true, /*backend_has_detail=*/true)
+                  .empty());
+        CHECK(standing_fault_cause(true, "Quad gantry level failed", kLane3Fault,
+                                   /*stop_reason_predates_op=*/true,
+                                   /*backend_has_detail=*/false) == kLane3Fault);
     }
 }
 
@@ -919,6 +929,99 @@ TEST_CASE_METHOD(LVGLUITestFixture, "AmsErrorBridge presents a fault that comes 
     CHECK(RecoveryModalPresenterTestAccess::shown_detail(presenter) == kLane3Fault);
 
     presenter.dismiss();
+    state().print_state().set_last_gcode_error("", 0.0);
+    uninstall(*this);
+}
+
+namespace {
+
+/// A backend with no fault event of its own whose operation_detail says what
+/// failed, the way the Snapmaker backend words a failed channel.
+class DetailBackend : public AmsBackendMock {
+  public:
+    explicit DetailBackend(int slots) : AmsBackendMock(slots) {}
+    void set_detail(std::string detail) {
+        detail_ = std::move(detail);
+    }
+    AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = AmsBackendMock::get_system_info();
+        info.operation_detail = detail_;
+        return info;
+    }
+
+  private:
+    std::string detail_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A fault from a filament operation run during the pause is told by its own text",
+                 "[ams-standing-fault][ams-bridge]") {
+    const std::string kRunout = "Toolhead 1 ran out of filament";
+    const std::string kLoadFailed = "Toolhead 4: Load failed";
+    const std::string kRawBang =
+        "extruder[3]: state: load_feeding, error: wheel_speed!raw msg:logic error!";
+
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    ams.set_action(AmsAction::IDLE);
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    state().print_state().set_print_stop_reason("");
+    state().print_state().set_last_gcode_error("", 0.0);
+    auto owned = std::make_unique<DetailBackend>(4);
+    auto* backend = owned.get();
+    ams.set_backend(std::move(owned));
+    pump(*this);
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    AmsErrorBridge bridge(presenter);
+    bridge.start();
+    std::vector<std::string> toasts;
+    helix::ui::set_test_notification_error_hook(
+        [&toasts](const std::string& msg) { toasts.push_back(msg); });
+
+    // Toolhead 1 runs out, the print pauses, and the runout stands as a fault.
+    state().print_state().set_print_stop_reason(kRunout);
+    pump(*this);
+    test::set_wire_state(state(), PrintJobState::PAUSED);
+    pump(*this);
+    ams.set_action(AmsAction::ERROR);
+    pump(*this);
+    pump(*this);
+    CHECK(ams.fault_cause() == kRunout);
+    REQUIRE(toasts.size() == 1);
+    CHECK(toasts[0].find(kRunout) != std::string::npos);
+
+    // Still paused, Toolhead 4 loads and the load fails.
+    fault_surface_correlation::clear_for_test();
+    ams.set_action(AmsAction::LOADING);
+    pump(*this);
+    state().print_state().set_last_gcode_error(kRawBang, wall_now());
+    backend->set_detail(kLoadFailed);
+    ams.sync_from_backend();
+    ams.set_action(AmsAction::ERROR);
+    pump(*this);
+    pump(*this);
+
+    CHECK(ams.fault_cause().empty());
+    CHECK(sidebar_detail() == kLoadFailed);
+    REQUIRE(toasts.size() == 2);
+    CHECK(toasts[1].find(kLoadFailed) != std::string::npos);
+    CHECK(toasts[1].find(kRunout) == std::string::npos);
+
+    SECTION("a new stop reason in the same pause explains the next fault again") {
+        ams.set_action(AmsAction::IDLE);
+        pump(*this);
+        state().print_state().set_print_stop_reason("Toolhead 2 ran out of filament");
+        pump(*this);
+        ams.set_action(AmsAction::ERROR);
+        pump(*this);
+        CHECK(ams.fault_cause() == "Toolhead 2 ran out of filament");
+    }
+
+    helix::ui::set_test_notification_error_hook(nullptr);
+    backend->set_detail("");
     state().print_state().set_last_gcode_error("", 0.0);
     uninstall(*this);
 }
