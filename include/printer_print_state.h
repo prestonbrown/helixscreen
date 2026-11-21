@@ -667,6 +667,11 @@ class PrinterPrintState {
     lv_subject_t* get_machine_motion_blocked_subject() {
         return &machine_motion_blocked_;
     }
+    /// True once a print_stats frame has been applied. Until then the job
+    /// state subjects hold their STANDBY defaults, not what Klipper is doing.
+    [[nodiscard]] bool print_stats_received() const {
+        return print_stats_frames_ > 0;
+    }
     lv_subject_t* get_spool_latch_subject() {
         return &spool_latch_;
     }

@@ -86,7 +86,7 @@ HEADER
     # helix_print_conf.sh provides helix_print_section_files, which
     # moonraker.sh's plugin removal calls, and the Moonraker HTTP helpers
     # behind restart_moonraker, which camera.sh's teardown calls.
-    for module in common.sh host_profile.sh platform.sh permissions.sh requirements.sh forgex.sh competing_uis.sh desktop.sh service.sh helix_print_conf.sh moonraker.sh camera.sh remote_screen.sh uninstall.sh; do
+    for module in common.sh host_profile.sh platform.sh permissions.sh requirements.sh forgex.sh competing_uis.sh desktop.sh service.sh helix_print_conf.sh moonraker.sh camera.sh remote_screen.sh u1_stock_ui.sh uninstall.sh; do
         module_path="$LIB_DIR/$module"
         if [ ! -f "$module_path" ]; then
             echo "ERROR: Module not found: $module_path" >&2

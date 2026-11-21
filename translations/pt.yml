@@ -55,6 +55,16 @@ translations:
   '%u layers': '%u camadas'
   '%zu events queued': '%zu eventos na fila'
   '%zu plugins failed to load': '%zu plugins falharam ao carregar'
+  Cannot restore the stock screen while printing: 'Não é possível restaurar a tela original durante uma impressão'
+  Could not restart the printer; the stock screen was not restored: 'Não foi possível reiniciar a impressora; a tela original não foi restaurada'
+  Could not restore the stock screen: 'Não foi possível restaurar a tela original'
+  Restart the printer to finish restoring the stock screen: 'Reinicie a impressora para concluir a restauração da tela original'
+  Restarting the printer...: 'Reiniciando a impressora...'
+  Restore: 'Restaurar'
+  Restore Stock Screen: 'Restaurar tela original'
+  Switch back to the Snapmaker screen: 'Voltar para a tela da Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'A impressora reinicia com a tela da Snapmaker e o HelixScreen deixa de iniciar. Suas configurações do HelixScreen permanecem na impressora; execute o instalador novamente para voltar.'
   "'{}' already exists. Replace the stored mesh?": "'{}' já existe. Substituir a malha salva?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' já existem. Substituir as malhas salvas?"
   (different grade): (grau diferente)
@@ -3441,6 +3451,7 @@ translations:
   Restart print: 'Reiniciar impressão'
   Restart the display application: Reiniciar o aplicativo de exibição
   Restart the printer or screen: Reiniciar a impressora ou a tela
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie a impressora. Se o SSH continuar recusando a conexão, consulte o guia de instalação da Snapmaker U1'
   Restarting HelixScreen...: Reiniciando HelixScreen...
   Restarting Klipper...: Reiniciando Klipper...
   Restarting Moonraker...: Reiniciando Moonraker...
@@ -3538,6 +3549,7 @@ translations:
   SETTINGS: CONFIGURAÇÕES
   SHIPPED IMAGES: IMAGENS INCLUÍDAS
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: 'O SSH não iniciou, embora o acesso root esteja ativado'
   STANDARD MACROS: MACROS PADRÃO
   STARTUP: INICIALIZAÇÃO
   STOP: PARAR
@@ -4767,6 +4779,7 @@ translations:
   Waiting for the chamber to heat: Aguardando a câmara aquecer
   Waiting for the filament system to report its state: Aguardando o sistema de filamento informar seu estado
   Waiting for the printer: Aguardando a impressora
+  Waiting for the printer's status; try again once it is connected: 'Aguardando o status da impressora; tente novamente quando ela estiver conectada'
   Waiting to read the printer's configuration from Klipper.: "Aguardando a leitura da configuração da impressora no Klipper."
   Warm: Quente
   Warm Bed: Aquecer Mesa

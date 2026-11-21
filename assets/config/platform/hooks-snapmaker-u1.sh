@@ -21,9 +21,9 @@
 # itself, the keepalive process exits — but the CRTC stays active because
 # HelixScreen now has its own fd on the device.
 #
-# Stock UI: /usr/bin/gui (started by S99screen init script)
-# Camera supervisor: /usr/bin/lmd (started by /etc/init.d/S99v4l2-mpp-mipi at
-#   boot — and *only* at boot; no fake-service auto-restart). lmd forks
+# Stock UI: /usr/bin/gui (launched and relaunched by lmd)
+# Camera supervisor: /usr/bin/lmd (started by /etc/init.d/S90lmd at boot, and
+#   only at boot; nothing restarts it). lmd forks
 #   /usr/bin/unisrv which subscribes to MQTT topic camera/request and answers
 #   Klipper's TIMELAPSE_START / camera.take_a_photo RPCs.
 # Touch: TLSC6x capacitive controller (tlsc6x_touch on /dev/input/event0)
@@ -80,8 +80,8 @@ platform_stop_competing_uis() {
     # Kill stock UI processes only. unisrv (proprietary camera/MQTT daemon
     # handling Klipper's TIMELAPSE_START) and lmd (its supervisor) are NOT UIs
     # and must keep running for timelapse to work. Killing lmd permanently
-    # disables camera RPC until reboot — lmd has no supervisor of its own and
-    # /etc/init.d/S99v4l2-mpp-mipi only starts it at boot.
+    # disables camera RPC until reboot: lmd has no supervisor of its own and
+    # its init script only starts it at boot.
     # NOTE: Do NOT call /etc/init.d/S99screen stop — on the U1, S99screen is
     # patched to delegate to helixscreen.init, which would cause infinite recursion.
     for ui in gui snapmaker-ui snapmaker-screen KlipperScreen klipperscreen; do
@@ -116,35 +116,39 @@ platform_wait_for_services() {
     return 0
 }
 
-# Ensure lmd (camera/MQTT supervisor) is running. lmd is started once at boot
-# by /etc/init.d/S99v4l2-mpp-mipi with no auto-restart wrapper, so if it ever
-# dies — historically because older helixscreen builds killed it in
-# platform_stop_competing_uis — Klipper's TIMELAPSE_START hits a 5-second MQTT
-# timeout and pauses the print. We re-launch lmd with the same imposter env
-# the stock init uses; lmd then forks unisrv as its child.
+# The firmware init script that starts lmd (camera/MQTT supervisor): whichever
+# /etc/init.d/S* script launches /usr/bin/lmd. Stock 2.1.x and paxx both start
+# it from S90lmd, but finding it by content keeps a renamed or renumbered
+# script working. Empty when none does.
+_helix_lmd_init_script() {
+    _initd="${HELIX_INITD_DIR:-/etc/init.d}"
+    for _s in "$_initd"/S*; do
+        [ -f "$_s" ] || continue
+        [ -x "$_s" ] || continue
+        if grep -q '/usr/bin/lmd' "$_s" 2>/dev/null; then
+            echo "$_s"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# Ensure lmd is running. It is started once at boot with no auto-restart
+# wrapper, so if it dies, Klipper's TIMELAPSE_START hits a 5-second MQTT timeout
+# and pauses the print. The firmware's own init script restarts it, so lmd gets
+# exactly the environment boot gives it (cgroup, limits, the firmware's camera
+# hooks) on stock and paxx alike. It runs as its own process: paxx's hooks may
+# `exit`.
 ensure_lmd_running() {
     if pidof lmd >/dev/null 2>&1; then
         return 0
     fi
-    if [ ! -x /usr/bin/lmd ]; then
+    _lmd_init="$(_helix_lmd_init_script)"
+    if [ -z "$_lmd_init" ]; then
         return 0
     fi
-    if [ ! -e /tmp/capture-mipi-raw.sock ]; then
-        # Capture pipeline not up yet; lmd would just fail to attach. Let
-        # S99v4l2-mpp-mipi finish its sequence on its own.
-        return 0
-    fi
-    echo "lmd not running — restarting camera supervisor"
-    rm -f /var/run/unisrv.pid
-    (
-        export LD_PRELOAD=/usr/local/lib/libv4l2-imposter.so
-        export V4L2_IMPOSTER_SOCKET_PATH=/tmp/capture-mipi-raw.sock
-        export V4L2_IMPOSTER_DEVICE=/dev/video11
-        export V4L2_IMPOSTER_WIDTH=1920
-        export V4L2_IMPOSTER_HEIGHT=1080
-        export V4L2_IMPOSTER_FORMAT=nv12
-        start-stop-daemon -S -b -q -m -p /var/run/unisrv.pid -x /usr/bin/lmd
-    )
+    echo "lmd not running — starting it via $_lmd_init"
+    "$_lmd_init" start || true
 }
 
 # True (0) if the WiFi interface reports an associated/completed state.
@@ -253,17 +257,62 @@ _root_access_enabled() {
         grep -Eq '"open_root":(true|-?[0-9]*[1-9])'
 }
 
+# Who keeps SSH up with the stock UI disabled. Prints one word:
+#   ungated    S50dropbear has no live --force gate (PAXX, or no S50dropbear):
+#              SSH does not depend on the stock UI, so nothing here is needed
+#   no_config  gated, and gui_config.json is not where this hook reads it
+#   off        gated, and Root Access is off
+#   down       gated, Root Access on, dropbear not running
+#   ok         gated, Root Access on, dropbear running
+# The one rule both ensure_root_ssh and the installer's pre-flight
+# (snapmaker-u1-setup-autostart.sh) act on.
+u1_root_ssh_state() {
+    if [ ! -f "$HELIX_DROPBEAR_INIT" ] || \
+       ! grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null; then
+        echo ungated
+    elif [ ! -f "$HELIX_GUI_CONFIG" ]; then
+        echo no_config
+    elif ! _root_access_enabled; then
+        echo off
+    elif pidof dropbear >/dev/null 2>&1; then
+        echo ok
+    else
+        echo down
+    fi
+}
+
 # Start dropbear with --force when Root Access is on and it is not running.
 # Idempotent; never fails the caller.
+#
+# When it still is not running afterwards, SSH is gone until something changes,
+# and with the stock screen disabled SSH is how the user gets back to it. So
+# say so loudly: syslog, this hook's output (the
+# launcher log), and HELIX_U1_ROOT_SSH_DOWN=1, which the app turns into an
+# on-screen notification. The launcher's own platform_pre_start call is the one
+# whose environment reaches helix-screen, and it re-runs this check.
 ensure_root_ssh() {
-    [ -f "$HELIX_DROPBEAR_INIT" ] || return 0
-    grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null || return 0
-    _root_access_enabled || return 0
-    if pidof dropbear >/dev/null 2>&1; then
-        return 0
-    fi
+    # A status this function computes, never a setting: drop any inherited
+    # value first, so only this run's check can set it.
+    unset HELIX_U1_ROOT_SSH_DOWN
+    [ "$(u1_root_ssh_state)" = down ] || return 0
     echo "Root Access is enabled: starting SSH (dropbear)"
     "$HELIX_DROPBEAR_INIT" start --force || true
+    _ssh_wait=0
+    while [ "$_ssh_wait" -lt "${HELIX_ROOT_SSH_WAIT:-2}" ]; do
+        [ "$(u1_root_ssh_state)" = down ] || { unset _ssh_wait; return 0; }
+        sleep 1
+        _ssh_wait=$((_ssh_wait + 1))
+    done
+    unset _ssh_wait
+    if [ "$(u1_root_ssh_state)" = down ]; then
+        _ssh_msg="Root Access is on but SSH (dropbear) did not start: '$HELIX_DROPBEAR_INIT start --force' left no dropbear running"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $_ssh_msg" >&2
+        if command -v logger >/dev/null 2>&1; then
+            logger -p user.err -t helixscreen -- "$_ssh_msg" 2>/dev/null || true
+        fi
+        unset _ssh_msg
+        export HELIX_U1_ROOT_SSH_DOWN="${HELIX_U1_ROOT_SSH_DOWN:-1}"
+    fi
     return 0
 }
 
@@ -422,8 +471,8 @@ platform_pre_start() {
     # Force DRM device — skip auto-detection which may race with connector state
     export HELIX_DRM_DEVICE="${HELIX_DRM_DEVICE:-/dev/dri/card0}"
 
-    # Recover the camera supervisor if a prior helixscreen build killed it.
-    # Idempotent: no-op when lmd is already alive.
+    # Recover the camera supervisor if it is not running. No-op when lmd is
+    # already alive.
     ensure_lmd_running
 
     # Bring WiFi up independently of helix-screen's lifetime (detached worker).
@@ -436,6 +485,15 @@ platform_pre_start() {
     # Serve the live UI to Mainsail/Fluidd via the firmware's fb-http tool when
     # the PAXX `web remote_screen` toggle is on (no-op otherwise).
     start_remote_screen
+
+    # Stock firmware: tell the app where the restore trigger goes, which is
+    # what offers Settings > System > Restore Stock Screen. The boot delegate
+    # autostart installs over S99input-event-daemon acts on that file at boot
+    # (snapmaker-u1-setup-autostart.sh step 4c). PAXX firmware has its own way
+    # back to its screen.
+    if [ "$(u1_root_ssh_state)" != ungated ]; then
+        export HELIX_U1_RESTORE_TRIGGER="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
+    fi
 
     # Opt into the launcher's boot-time respawn self-heal (busybox init does
     # not respawn S99 children). Supplied here, not at file scope: the init

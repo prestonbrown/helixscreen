@@ -99,6 +99,16 @@ translations:
     many: '%zu событий в очереди'
     other: '%zu события в очереди'
   '%zu plugins failed to load': Не удалось загрузить %zu плагинов
+  Cannot restore the stock screen while printing: 'Нельзя вернуть штатный экран во время печати'
+  Could not restart the printer; the stock screen was not restored: 'Не удалось перезапустить принтер; штатный экран не восстановлен'
+  Could not restore the stock screen: 'Не удалось вернуть штатный экран'
+  Restart the printer to finish restoring the stock screen: 'Перезапустите принтер, чтобы завершить возврат штатного экрана'
+  Restarting the printer...: 'Перезапуск принтера...'
+  Restore: 'Восстановить'
+  Restore Stock Screen: 'Вернуть штатный экран'
+  Switch back to the Snapmaker screen: 'Вернуться к экрану Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик.'
   "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' и '{}' уже существуют. Заменить сохранённые сетки?"
   (different grade): (другая марка)
@@ -3489,6 +3499,7 @@ translations:
   Restart print: 'Перезапустить печать'
   Restart the display application: Перезапустить приложение дисплея
   Restart the printer or screen: Перезапустить принтер или экран
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Перезапустите принтер. Если SSH по-прежнему отклоняет подключение, см. руководство по установке Snapmaker U1'
   Restarting HelixScreen...: Перезапуск HelixScreen...
   Restarting Klipper...: Перезапуск Klipper...
   Restarting Moonraker...: Перезапуск Moonraker...
@@ -3586,6 +3597,7 @@ translations:
   SETTINGS: НАСТРОЙКИ
   SHIPPED IMAGES: ВСТРОЕННЫЕ ИЗОБРАЖЕНИЯ
   SOFTWARE: ПО
+  SSH did not start although Root access is on: 'SSH не запустился, хотя root-доступ включён'
   STANDARD MACROS: СТАНДАРТНЫЕ МАКРОСЫ
   STARTUP: ЗАПУСК
   STOP: СТОП
@@ -4805,6 +4817,7 @@ translations:
   Waiting for the chamber to heat: Ожидание нагрева камеры
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
+  Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
   Warm: Тёплый
   Warm Bed: Прогреть стол

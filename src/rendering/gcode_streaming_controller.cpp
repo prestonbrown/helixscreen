@@ -159,15 +159,15 @@ GCodeStreamingController::GCodeStreamingController()
 
     cache_.set_memory_budget(tier.budget_bytes);
 
-    // Enable adaptive mode on constrained/normal devices (not desktop)
-    if (!mem.is_good_device()) {
+    const bool adaptive = GCodeLayerCache::adaptive_for_total_ram_kb(mem.total_kb);
+    if (adaptive) {
         cache_.set_adaptive_mode(true, 15, kMinCacheBudget, tier.budget_bytes);
     }
 
     spdlog::info("[StreamingController] {} device (total: {}MB, available: {}MB), "
                  "using {}MB cache budget{}",
                  tier.name, mem.total_mb(), mem.available_mb(), tier.budget_bytes / (1024 * 1024),
-                 mem.is_good_device() ? "" : " with adaptive mode");
+                 adaptive ? " with adaptive mode" : "");
 
     register_memory_responder();
 }

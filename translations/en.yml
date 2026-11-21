@@ -55,6 +55,16 @@ translations:
   '%u layers': '%u layers'
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
+  Cannot restore the stock screen while printing: Cannot restore the stock screen while printing
+  Could not restart the printer; the stock screen was not restored: Could not restart the printer; the stock screen was not restored
+  Could not restore the stock screen: Could not restore the stock screen
+  Restart the printer to finish restoring the stock screen: Restart the printer to finish restoring the stock screen
+  Restarting the printer...: Restarting the printer...
+  Restore: Restore
+  Restore Stock Screen: Restore Stock Screen
+  Switch back to the Snapmaker screen: Switch back to the Snapmaker screen
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   "'{}' already exists. Replace the stored mesh?": "'{}' already exists. Replace the stored mesh?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' and '{}' already exist. Replace the stored meshes?"
   (different grade): (different grade)
@@ -3367,6 +3377,7 @@ translations:
   Restart print: Restart print
   Restart the display application: Restart the display application
   Restart the printer or screen: Restart the printer or screen
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide
   Restarting HelixScreen...: Restarting HelixScreen...
   Restarting Klipper...: Restarting Klipper...
   Restarting Moonraker...: Restarting Moonraker...
@@ -3463,6 +3474,7 @@ translations:
   SETTINGS: SETTINGS
   SHIPPED IMAGES: SHIPPED IMAGES
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: SSH did not start although Root access is on
   STANDARD MACROS: STANDARD MACROS
   STARTUP: STARTUP
   STOP: STOP
@@ -4667,6 +4679,7 @@ translations:
   Waiting for the chamber to heat: Waiting for the chamber to heat
   Waiting for the filament system to report its state: Waiting for the filament system to report its state
   Waiting for the printer: Waiting for the printer
+  Waiting for the printer's status; try again once it is connected: Waiting for the printer's status; try again once it is connected
   Waiting to read the printer's configuration from Klipper.: "Waiting to read the printer's configuration from Klipper."
   Warm: Warm
   Warm Bed: Warm Bed

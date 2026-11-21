@@ -55,6 +55,16 @@ translations:
   '%u layers': '%u Schichten'
   '%zu events queued': '%zu Ereignisse in Warteschlange'
   '%zu plugins failed to load': '%zu Plugins konnten nicht geladen werden'
+  Cannot restore the stock screen while printing: 'Der Originalbildschirm kann während eines Drucks nicht wiederhergestellt werden'
+  Could not restart the printer; the stock screen was not restored: 'Der Drucker konnte nicht neu gestartet werden; der Originalbildschirm wurde nicht wiederhergestellt'
+  Could not restore the stock screen: 'Der Originalbildschirm konnte nicht wiederhergestellt werden'
+  Restart the printer to finish restoring the stock screen: 'Drucker neu starten, um die Wiederherstellung des Originalbildschirms abzuschließen'
+  Restarting the printer...: 'Drucker wird neu gestartet...'
+  Restore: 'Wiederherstellen'
+  Restore Stock Screen: 'Originalbildschirm wiederherstellen'
+  Switch back to the Snapmaker screen: 'Zurück zum Snapmaker-Bildschirm wechseln'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'Der Drucker startet mit dem Snapmaker-Bildschirm neu, und HelixScreen startet nicht mehr. Ihre HelixScreen-Einstellungen bleiben auf dem Drucker; führen Sie das Installationsprogramm erneut aus, um zurückzukehren.'
   "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' und '{}' existieren bereits. Gespeicherte Netze ersetzen?"
   (different grade): (andere Klasse)
@@ -3446,6 +3456,7 @@ translations:
   Restart print: 'Druck neu starten'
   Restart the display application: Anzeigeanwendung neu starten
   Restart the printer or screen: Drucker oder Bildschirm neu starten
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Drucker neu starten. Wird SSH weiterhin abgelehnt, siehe die Installationsanleitung für den Snapmaker U1'
   Restarting HelixScreen...: HelixScreen wird neu gestartet...
   Restarting Klipper...: Klipper wird neu gestartet...
   Restarting Moonraker...: Moonraker wird neu gestartet...
@@ -3543,6 +3554,7 @@ translations:
   SETTINGS: EINSTELLUNGEN
   SHIPPED IMAGES: MITGELIEFERTE BILDER
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: 'SSH wurde nicht gestartet, obwohl der Root-Zugriff aktiviert ist'
   STANDARD MACROS: STANDARD-MAKROS
   STARTUP: START
   STOP: STOPP
@@ -4770,6 +4782,7 @@ translations:
   Waiting for the chamber to heat: Warten auf das Aufheizen der Kammer
   Waiting for the filament system to report its state: Warte auf Statusmeldung des Filamentsystems
   Waiting for the printer: Warten auf den Drucker
+  Waiting for the printer's status; try again once it is connected: 'Warten auf den Druckerstatus; erneut versuchen, sobald der Drucker verbunden ist'
   Waiting to read the printer's configuration from Klipper.: "Warte darauf, die Konfiguration des Druckers aus Klipper zu lesen."
   Warm: Warm
   Warm Bed: Bett vorheizen

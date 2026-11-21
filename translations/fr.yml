@@ -67,6 +67,16 @@ translations:
   '%u layers': '%u couches'
   '%zu events queued': '%zu événements en file'
   '%zu plugins failed to load': '%zu plugins n''ont pas pu se charger'
+  Cannot restore the stock screen while printing: 'Impossible de restaurer l''écran d''origine pendant une impression'
+  Could not restart the printer; the stock screen was not restored: 'Impossible de redémarrer l''imprimante ; l''écran d''origine n''a pas été restauré'
+  Could not restore the stock screen: 'Impossible de restaurer l''écran d''origine'
+  Restart the printer to finish restoring the stock screen: 'Redémarrez l''imprimante pour terminer la restauration de l''écran d''origine'
+  Restarting the printer...: 'Redémarrage de l''imprimante...'
+  Restore: 'Restaurer'
+  Restore Stock Screen: 'Restaurer l''écran d''origine'
+  Switch back to the Snapmaker screen: 'Revenir à l''écran Snapmaker'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'L''imprimante redémarre avec l''écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l''imprimante ; relancez l''installateur pour revenir.'
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' et '{}' existent déjà. Remplacer les maillages enregistrés ?"
   (different grade): (grade différent)
@@ -3470,6 +3480,7 @@ translations:
   Restart print: 'Relancer l''impression'
   Restart the display application: Redémarrer l'application d'affichage
   Restart the printer or screen: Redémarrer l'imprimante ou l'écran
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Redémarrez l''imprimante. Si SSH refuse toujours la connexion, consultez le guide d''installation du Snapmaker U1'
   Restarting HelixScreen...: Redémarrage de HelixScreen...
   Restarting Klipper...: Redémarrage de Klipper...
   Restarting Moonraker...: Redémarrage de Moonraker...
@@ -3567,6 +3578,7 @@ translations:
   SETTINGS: PARAMÈTRES
   SHIPPED IMAGES: IMAGES FOURNIES
   SOFTWARE: LOGICIEL
+  SSH did not start although Root access is on: 'SSH n''a pas démarré alors que l''accès root est activé'
   STANDARD MACROS: MACROS STANDARD
   STARTUP: DÉMARRAGE
   STOP: ARRÊT
@@ -4807,6 +4819,7 @@ translations:
   Waiting for the chamber to heat: Attente du chauffage de la chambre
   Waiting for the filament system to report its state: En attente de l'état du système de filament
   Waiting for the printer: Attente de l'imprimante
+  Waiting for the printer's status; try again once it is connected: 'En attente de l''état de l''imprimante ; réessayez une fois qu''elle est connectée'
   Waiting to read the printer's configuration from Klipper.: "En attente de la lecture de la configuration de l'imprimante depuis Klipper."
   Warm: Chaud
   Warm Bed: Préchauffer le plateau

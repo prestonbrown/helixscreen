@@ -2158,6 +2158,30 @@ The individual `helixscreen.env` lines the launcher refused, joined by `|` after
 
 The app parses this with a pure function that drops malformed entries rather than failing: the launcher owns the format, and a stray entry must not cost the boot. Observed in tests via `helix-launcher.sh --print-env HELIX_ENV_LINES_SKIPPED`, which runs the same parse the launch path does.
 
+### `HELIX_U1_ROOT_SSH_DOWN`
+
+Set to `1` by the Snapmaker U1 platform hook (`ensure_root_ssh`) when the stock firmware's Root access setting is on but `S50dropbear start --force` left no dropbear running. With the stock screen disabled SSH is how the user gets back to it, so the app shows a sticky warning at startup. The hook also logs the failure to syslog (`-t helixscreen`, `user.err`) and to the launcher log.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `1`, or unset |
+| **Default** | Unset |
+| **Files** | `assets/config/platform/hooks-snapmaker-u1.sh` (`ensure_root_ssh`), `src/system/u1_stock_screen.cpp` (`surface_root_ssh_down_from_hook`) |
+
+Only the launcher's own `platform_pre_start` call reaches `helix-screen`; it re-runs the check, so the variable is set only when dropbear is still down at that call.
+
+### `HELIX_U1_RESTORE_TRIGGER`
+
+The Snapmaker U1 restore-stock trigger file. The boot delegate the installer writes over `/etc/init.d/S99input-event-daemon` checks it at boot only (`start`, never a service restart): it removes the file, runs the uninstaller's restore from its overlay copy of `u1_stock_ui.sh` in /etc/helixscreen (re-enables `/usr/bin/gui`, puts back the boot launchers, drops `/oem/.debug` if our installer created it), logs to `printer_data/logs/helixscreen-restore-stock.log` and syslog, and does not start HelixScreen, so the stock screen comes up in that boot. On stock firmware the platform hook exports the path to the app, which is what shows **Settings > System > Restore Stock Screen**; that row refuses while a job holds the machine, writes the same file and reboots, and deletes the file again when the reboot does not dispatch.
+
+| Property | Value |
+|----------|-------|
+| **Values** | A file path |
+| **Default** | `/home/lava/printer_data/config/helixscreen-restore-stock` (Moonraker's config root, so Mainsail and Fluidd can create it) |
+| **Files** | `scripts/snapmaker-u1-setup-autostart.sh` (step 4c delegate), `assets/config/platform/hooks-snapmaker-u1.sh` (export), `scripts/lib/installer/u1_stock_ui.sh` (`u1_restore_stock_ui`), `src/system/u1_stock_screen.cpp` (`restore_stock_screen_offered`) |
+
+Tests also set `HELIX_U1_RESTORE_LOG` and `HELIX_U1_ROOT` (a mock rootfs prefix for the delegate and `u1_restore_stock_ui`); boot runs with none of them set.
+
 ### `HELIX_SUPERVISED`
 
 Marks that `helix-screen` is running under `helix-watchdog`. When an in-app action needs a service restart, a supervised process exits cleanly and lets the supervisor bring it back — forking a replacement itself would leave two instances running at once.

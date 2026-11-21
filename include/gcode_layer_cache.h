@@ -81,6 +81,23 @@ class GCodeLayerCache {
         return {kDefaultBudgetGood, "good"};
     }
 
+    /// Reported total RAM below which the cache adapts its budget to available
+    /// memory. It sits under the nominal sizes as the RAM tiers do: 512MB-class
+    /// boards report ~470-490MB, 1GB-class boards ~900MB and up.
+    static constexpr size_t kAdaptiveBelowTotalKb = 768 * 1024;
+
+    /**
+     * @brief Whether a device with @p total_ram_kb of total RAM runs the cache
+     *        in adaptive mode.
+     *
+     * Below 1GB the box usually co-hosts Klipper and Moonraker in a few hundred
+     * MB, so a fixed budget is held while another process starves the system.
+     * A total of 0 (unreadable) adapts.
+     */
+    static bool adaptive_for_total_ram_kb(size_t total_ram_kb) {
+        return total_ram_kb < kAdaptiveBelowTotalKb;
+    }
+
     /**
      * @brief Construct cache with memory budget
      * @param memory_budget_bytes Maximum memory usage in bytes

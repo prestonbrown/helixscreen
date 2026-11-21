@@ -66,6 +66,9 @@ json DebugBundleCollector::collect(const BundleOptions& options) {
     json bundle;
 
     bundle["version"] = HELIX_VERSION;
+    // The commit the binary was built from: scripts/debug-bundle.sh flags one
+    // our repo does not have as a fork build.
+    bundle["git_hash"] = helix_git_hash();
 
     // Compile-time channel marker: the endpoint rejects or flags bundles whose
     // client was not built to upload (prestonbrown/helixscreen#1410). Always
