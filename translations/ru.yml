@@ -1139,6 +1139,7 @@ translations:
   Continue: Продолжить
   Continue on Another Toolhead: 'Продолжить на другой печатающей головке'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать.'
+  Continue with the remaining steps, or stop the calibration?: 'Продолжить оставшиеся шаги или остановить калибровку?'
   Control optional print start features: Управление дополнительными функциями начала печати
   Control power relays and smart outlets: Управление реле и умными розетками
   Controllable Fans: Управляемые вентиляторы
@@ -4409,6 +4410,7 @@ translations:
   Stop: Стоп
   Stop Drying: Остановить сушку
   Stop Print?: Остановить печать?
+  Stop calibration: 'Остановить калибровку'
   Stop calibration?: 'Остановить калибровку?'
   Stop drying?: Остановить сушку?
 
@@ -5524,6 +5526,7 @@ translations:
   Z motor calibration failed: Не удалась калибровка двигателя Z
   Z offset: 'Смещение Z'
   Z offset by material: "Z-Offset по материалу"
+  Z offset not set: 'Смещение Z не задано'
   Z probes for bed leveling and mesh generation: Z-зонды для выравнивания стола и создания сетки
   Z tilt: Наклон Z
   Z {:.2f} mm: Z {:.2f} мм

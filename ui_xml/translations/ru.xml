@@ -1097,6 +1097,7 @@
   <translation tag="Continue" ru="Продолжить"/>
   <translation tag="Continue on Another Toolhead" ru="Продолжить на другой печатающей головке"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ru="Продолжить печать на {}? Принтер перенесёт на неё остаток печати, нагреет её и возобновит печать."/>
+  <translation tag="Continue with the remaining steps, or stop the calibration?" ru="Продолжить оставшиеся шаги или остановить калибровку?"/>
   <translation tag="Control optional print start features" ru="Управление дополнительными функциями начала печати"/>
   <translation tag="Control power relays and smart outlets" ru="Управление реле и умными розетками"/>
   <translation tag="Controllable Fans" ru="Управляемые вентиляторы"/>
@@ -4288,6 +4289,7 @@
   <translation tag="Stop" ru="Стоп"/>
   <translation tag="Stop Drying" ru="Остановить сушку"/>
   <translation tag="Stop Print?" ru="Остановить печать?"/>
+  <translation tag="Stop calibration" ru="Остановить калибровку"/>
   <translation tag="Stop calibration?" ru="Остановить калибровку?"/>
   <translation tag="Stop drying?" ru="Остановить сушку?"/>
   <translation tag="Stop failed" ru="Ошибка остановки"/>
@@ -5362,6 +5364,7 @@
   <translation tag="Z motor calibration failed" ru="Не удалась калибровка двигателя Z"/>
   <translation tag="Z offset" ru="Смещение Z"/>
   <translation tag="Z offset by material" ru="Z-Offset по материалу"/>
+  <translation tag="Z offset not set" ru="Смещение Z не задано"/>
   <translation tag="Z probes for bed leveling and mesh generation" ru="Z-зонды для выравнивания стола и создания сетки"/>
   <translation tag="Z tilt" ru="Наклон Z"/>
   <translation tag="Z {:.2f} mm" ru="Z {:.2f} мм"/>

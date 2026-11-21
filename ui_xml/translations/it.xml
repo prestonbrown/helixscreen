@@ -1052,6 +1052,7 @@
   <translation tag="Continue" it="Continua"/>
   <translation tag="Continue on Another Toolhead" it="Continua su un&apos;altra testina"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." it="Continuare la stampa su {}? La stampante vi sposta il resto della stampa, la riscalda e riprende."/>
+  <translation tag="Continue with the remaining steps, or stop the calibration?" it="Continuare con i passaggi rimanenti o interrompere la calibrazione?"/>
   <translation tag="Control optional print start features" it="Controlla funzionalità opzionali avvio stampa"/>
   <translation tag="Control power relays and smart outlets" it="Controlla relè e prese intelligenti"/>
   <translation tag="Controllable Fans" it="Ventilatori controllabili"/>
@@ -4222,6 +4223,7 @@
   <translation tag="Stop" it="Ferma"/>
   <translation tag="Stop Drying" it="Ferma essiccazione"/>
   <translation tag="Stop Print?" it="Fermare stampa?"/>
+  <translation tag="Stop calibration" it="Interrompi calibrazione"/>
   <translation tag="Stop calibration?" it="Fermare la calibrazione?"/>
   <translation tag="Stop drying?" it="Fermare l&apos;essiccazione?"/>
   <translation tag="Stop failed" it="Arresto fallito"/>
@@ -5296,6 +5298,7 @@
   <translation tag="Z motor calibration failed" it="Calibrazione del motore Z non riuscita"/>
   <translation tag="Z offset" it="Offset Z"/>
   <translation tag="Z offset by material" it="Z-Offset per materiale"/>
+  <translation tag="Z offset not set" it="Offset Z non impostato"/>
   <translation tag="Z probes for bed leveling and mesh generation" it="Sonde Z per livellamento piano e generazione mesh"/>
   <translation tag="Z tilt" it="Inclinazione Z"/>
   <translation tag="Z {:.2f} mm" it="Z {:.2f} mm"/>

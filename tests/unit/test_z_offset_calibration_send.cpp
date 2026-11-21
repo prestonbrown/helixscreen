@@ -24,12 +24,15 @@
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
+#include "calibration_run.h"
+#include "calibration_run_steps.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 #include "probe_sensor_manager.h"
 #include "settings_manager.h"
+#include "test_helpers/modal_answer.h"
 #include "test_helpers/printer_state_test_access.h"
 #include "test_helpers/zoffset_calibration_test_access.h"
 #include "tool_state.h"
@@ -1171,4 +1174,49 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     REQUIRE(done.size() == 1);
     CHECK(done[0].first);
     CHECK(done[0].second == ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: leaving the Z offset screen unaccepted asks before the next "
+                 "step heats",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    using namespace helix::calibration;
+    StepInfo zoffset;
+    zoffset.kind = StepKind::ZOffset;
+    zoffset.id = "z_offset";
+    zoffset.name = "Z offset";
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(zoffset));
+    steps.push_back(make_run_step(heaters));
+    CalibrationRun run(api, std::move(steps), nullptr);
+    client.clear_gcode_script_history();
+    run.start();
+    settle();
+    REQUIRE(panel.get_root() != nullptr);
+
+    NavigationManager::instance().go_back();
+    settle();
+    REQUIRE(Modal::get_top() != nullptr);
+    CHECK(run.entries()[1].status == StepStatus::Pending);
+    CHECK_FALSE(sent_any(client.gcode_script_history(), "PID_CALIBRATE"));
+
+    SECTION("Stop calibration ends the run before the heaters") {
+        helix::test::answer_top_modal("btn_secondary");
+        settle();
+        CHECK(run.phase() == RunPhase::Results);
+        CHECK(run.entries()[1].status == StepStatus::NotRun);
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "PID_CALIBRATE"));
+    }
+    SECTION("Continue skips the Z offset and runs the heaters") {
+        helix::test::answer_top_modal("btn_primary");
+        settle();
+        CHECK(run.entries()[0].status == StepStatus::Skipped);
+        CHECK(run.entries()[1].status == StepStatus::Running);
+        run.stop();
+        settle();
+    }
 }

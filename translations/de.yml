@@ -1079,6 +1079,7 @@ translations:
   Continue: Fortfahren
   Continue on Another Toolhead: 'Auf anderem Werkzeugkopf fortfahren'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: 'Druck auf {} fortsetzen? Der Drucker verlegt den Rest des Drucks dorthin, heizt ihn auf und setzt fort.'
+  Continue with the remaining steps, or stop the calibration?: 'Mit den übrigen Schritten fortfahren oder die Kalibrierung stoppen?'
   Control optional print start features: Optionale Druckstartfunktionen steuern
   Control power relays and smart outlets: Relais und smarte Steckdosen steuern
   Controllable Fans: Steuerbare Lüfter
@@ -4321,6 +4322,7 @@ translations:
   Stop: Stoppen
   Stop Drying: Trocknen stoppen
   Stop Print?: Druck stoppen?
+  Stop calibration: 'Kalibrierung stoppen'
   Stop calibration?: 'Kalibrierung stoppen?'
   Stop drying?: Trocknung stoppen?
 
@@ -5436,6 +5438,7 @@ translations:
   Z motor calibration failed: Kalibrierung des Z-Motors fehlgeschlagen
   Z offset: 'Z-Offset'
   Z offset by material: "Z-Offset nach Material"
+  Z offset not set: 'Z-Offset nicht eingestellt'
   Z probes for bed leveling and mesh generation: Z-Sonden für Bettnivellierung und Netzerzeugung
   Z tilt: Z-Neigung
   Z {:.2f} mm: Z {:.2f} mm

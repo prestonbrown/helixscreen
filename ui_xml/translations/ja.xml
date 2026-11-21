@@ -1052,6 +1052,7 @@
   <translation tag="Continue" ja="続行"/>
   <translation tag="Continue on Another Toolhead" ja="別のツールヘッドで続行"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." ja="{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。"/>
+  <translation tag="Continue with the remaining steps, or stop the calibration?" ja="残りのステップを続けますか、それともキャリブレーションを停止しますか？"/>
   <translation tag="Control optional print start features" ja="オプションの印刷開始機能を制御"/>
   <translation tag="Control power relays and smart outlets" ja="電源リレーとスマートコンセントを制御"/>
   <translation tag="Controllable Fans" ja="制御可能なファン"/>
@@ -4222,6 +4223,7 @@
   <translation tag="Stop" ja="停止"/>
   <translation tag="Stop Drying" ja="乾燥を停止"/>
   <translation tag="Stop Print?" ja="印刷を停止しますか？"/>
+  <translation tag="Stop calibration" ja="キャリブレーションを停止"/>
   <translation tag="Stop calibration?" ja="キャリブレーションを停止しますか？"/>
   <translation tag="Stop drying?" ja="乾燥を停止しますか?"/>
   <translation tag="Stop failed" ja="停止に失敗"/>
@@ -5296,6 +5298,7 @@
   <translation tag="Z motor calibration failed" ja="Z モーターの校正に失敗しました"/>
   <translation tag="Z offset" ja="Zオフセット"/>
   <translation tag="Z offset by material" ja="素材別 Z-Offset"/>
+  <translation tag="Z offset not set" ja="Zオフセット未設定"/>
   <translation tag="Z probes for bed leveling and mesh generation" ja="ベッドレベリングとメッシュ生成用 Z プローブ"/>
   <translation tag="Z tilt" ja="Zチルト"/>
   <translation tag="Z {:.2f} mm" ja="Z {:.2f} mm"/>
