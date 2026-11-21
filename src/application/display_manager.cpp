@@ -646,6 +646,7 @@ void DisplayManager::shutdown() {
     m_last_sleep_mechanism = SleepMechanism::SoftwareOverlay;
     m_keep_screen_on = true;
     m_resume_seq_at_sleep = 0;
+    m_pointer_reopen_timer.reset();
 
     // Release backends
     m_backlight.reset();
@@ -705,7 +706,37 @@ void DisplayManager::configure_scroll(int scroll_throw, int scroll_limit) {
 }
 
 void DisplayManager::watch_pointer() {
-    m_indev_delete_watch.watch(m_pointer, &m_pointer);
+    m_indev_delete_watch.watch(m_pointer, &m_pointer, &DisplayManager::on_pointer_deleted, this);
+}
+
+void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) {
+    auto* dm = static_cast<DisplayManager*>(ctx);
+    if (dm->m_shutting_down || !dm->m_backend || dm->m_pointer_reopen_timer.get()) {
+        return;
+    }
+    // A USB touch controller that resets drops off the bus and re-enumerates a
+    // few seconds later; lv_evdev has already deleted the device it read.
+    spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",
+                 kPointerReopenPeriodMs);
+    dm->m_pointer_reopen_timer.reset(
+        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, dm));
+}
+
+void DisplayManager::pointer_reopen_tick(lv_timer_t* t) {
+    auto* dm = static_cast<DisplayManager*>(lv_timer_get_user_data(t));
+    if (!dm->m_backend || dm->m_pointer) {
+        dm->m_pointer_reopen_timer.reset();
+        return;
+    }
+    lv_indev_t* pointer = dm->m_backend->reopen_input_pointer();
+    if (!pointer) {
+        return;
+    }
+    dm->m_pointer_reopen_timer.reset();
+    dm->m_pointer = pointer;
+    dm->watch_pointer();
+    dm->configure_pointer(dm->m_scroll_throw, dm->m_scroll_limit);
+    spdlog::info("[DisplayManager] Pointer device reopened");
 }
 
 void DisplayManager::watch_keyboard() {

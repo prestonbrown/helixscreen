@@ -450,14 +450,59 @@ lv_display_t* DisplayBackendDRM::create_display(int width, int height) {
 }
 
 lv_indev_t* DisplayBackendDRM::create_input_pointer() {
+    if (!open_touch_device(false)) {
+        open_mouse_device();
+    }
+    if (!pointer_ && !mouse_) {
+        spdlog::error("[DRM Backend] Failed to create any input device");
+    }
+    if (pointer_ != nullptr) {
+        input_delete_watch_.watch(pointer_, &pointer_);
+    }
+    if (mouse_ != nullptr) {
+        input_delete_watch_.watch(mouse_, &mouse_);
+    }
+    return pointer_;
+}
+
+lv_indev_t* DisplayBackendDRM::reopen_input_pointer() {
+    if (pointer_ != nullptr) {
+        return pointer_;
+    }
+    // The calibration wrapper went with the deleted device.
+    calibration_wrapper_installed_ = false;
+    open_touch_device(true);
+    if (pointer_ == nullptr) {
+        return nullptr;
+    }
+    input_delete_watch_.watch(pointer_, &pointer_);
+    // Discovery installs the wrapper on a touch panel it finds; an override path
+    // does not, so the reopened device gets it here, a passthrough until a valid
+    // calibration is set.
+    if (!calibration_wrapper_installed_) {
+        helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                           screen_width_, screen_height_);
+        calibration_wrapper_installed_ = true;
+    }
+    spdlog::info("[DRM Backend] Touch device reopened on {}", pointer_path_);
+    return pointer_;
+}
+
+bool DisplayBackendDRM::open_touch_device(bool reopening) {
+    // Reset per device: a reopen may land on another driver than the device it replaces.
+    pointer_is_evdev_ = false;
+    calibration_context_.raw_source = nullptr;
+    // A reopen retries every second while the device is away; only its success is news.
+    const auto announce = reopening ? spdlog::level::debug : spdlog::level::info;
+
     std::string device_override;
 
     // Priority 1: Environment variable override (for debugging/testing)
     const char* env_device = std::getenv("HELIX_TOUCH_DEVICE");
     if (env_device && env_device[0] != '\0') {
         device_override = env_device;
-        spdlog::info("[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
-                     device_override);
+        spdlog::log(announce, "[DRM Backend] Using touch device from HELIX_TOUCH_DEVICE: {}",
+                    device_override);
     }
 
     // Priority 2: Config file override
@@ -465,8 +510,15 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         helix::Config* cfg = helix::Config::get_instance();
         device_override = cfg->get<std::string>("/input/touch_device", "");
         if (!device_override.empty()) {
-            spdlog::info("[DRM Backend] Using touch device from config: {}", device_override);
+            spdlog::log(announce, "[DRM Backend] Using touch device from config: {}",
+                        device_override);
         }
+    }
+
+    // While a re-enumerating device is away its node is missing; trying to open
+    // it would log a driver error every retry.
+    if (reopening && !device_override.empty() && access(device_override.c_str(), F_OK) != 0) {
+        return true;
     }
 
     // If we have an explicit device, try it first
@@ -474,22 +526,25 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
 #if LV_USE_LIBINPUT
         pointer_ = lv_libinput_create(LV_INDEV_TYPE_POINTER, device_override.c_str());
         if (pointer_ != nullptr) {
+            pointer_path_ = device_override;
             spdlog::info("[DRM Backend] Libinput pointer device created on {}", device_override);
-            return pointer_;
+            return true;
         }
 #endif
         // Try evdev as fallback for the specified device
         pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, device_override.c_str());
         if (pointer_ != nullptr) {
             pointer_is_evdev_ = true;
+            pointer_path_ = device_override;
             spdlog::info("[DRM Backend] Evdev pointer device created on {}", device_override);
-            return pointer_;
+            return true;
         }
-        spdlog::warn("[DRM Backend] Could not open specified touch device: {}", device_override);
+        spdlog::log(reopening ? spdlog::level::debug : spdlog::level::warn,
+                    "[DRM Backend] Could not open specified touch device: {}", device_override);
     }
 
     // Priority 3: Auto-discover touch device
-    spdlog::info("[DRM Backend] Auto-detecting touch/pointer device...");
+    spdlog::log(announce, "[DRM Backend] Auto-detecting touch/pointer device...");
 
 #if LV_USE_LIBINPUT
     // Use libinput to discover touch devices, then prefer evdev driver for
@@ -537,6 +592,10 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         }
     }
 #endif
+
+    if (pointer_ && touch_path) {
+        pointer_path_ = touch_path;
+    }
 
     // --- Touch calibration detection ---
     if (pointer_ && touch_path) {
@@ -885,6 +944,12 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         }
     }
 
+    // A reopen waits for a real touch panel: the fallbacks below would settle
+    // on whatever pointer or event node exists and stop the retry.
+    if (reopening) {
+        return false;
+    }
+
     // If no touch was found, try pointer devices
     if (!pointer_) {
 #if LV_USE_LIBINPUT
@@ -919,6 +984,10 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         }
     }
 
+    return false;
+}
+
+void DisplayBackendDRM::open_mouse_device() {
     // --- Mouse detection (independent of touch) ---
     // A USB HID mouse can coexist with the touchscreen as a separate input device.
     std::string mouse_override;
@@ -968,12 +1037,6 @@ lv_indev_t* DisplayBackendDRM::create_input_pointer() {
         lv_indev_set_cursor(mouse_, cursor_obj);
         spdlog::info("[DRM Backend] Mouse cursor enabled");
     }
-
-    if (!pointer_ && !mouse_) {
-        spdlog::error("[DRM Backend] Failed to create any input device");
-    }
-
-    return pointer_;
 }
 
 lv_indev_t* DisplayBackendDRM::create_input_keyboard() {

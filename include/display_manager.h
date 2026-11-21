@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_timer_guard.h"
+
 #include "backlight_backend.h"
 #include "color_transform.h"
 #include "display_backend.h"
@@ -689,6 +691,11 @@ class DisplayManager : public helix::ICalibrationSink {
     // shutdown - so a later swap or read never reaches a freed device through
     // either member.
     helix::IndevDeleteWatch m_indev_delete_watch;
+    // Armed while the pointer device is gone, retrying the backend's reopen
+    // every kPointerReopenPeriodMs (#2069). Its callback dereferences this
+    // manager, so it must not outlive it.
+    helix::ui::LvglTimerGuard m_pointer_reopen_timer;
+    static constexpr uint32_t kPointerReopenPeriodMs = 1000;
 
     // Backlight control
     std::unique_ptr<BacklightBackend> m_backlight;
@@ -854,6 +861,13 @@ class DisplayManager : public helix::ICalibrationSink {
     /// creating the device, so the two paths watch it identically.
     void watch_pointer();
     void watch_keyboard();
+
+    /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
+    /// except while shutting down, when lv_deinit() is deleting every indev.
+    static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// One reopen attempt; on success adopts the device with init()'s pointer
+    /// setup and stops the retry. Named so a test can run it directly.
+    static void pointer_reopen_tick(lv_timer_t* t);
 
     /// The debug-touch ripple tick. Reads the pointer through instance() on
     /// every tick, so a device LVGL deleted is never read.
