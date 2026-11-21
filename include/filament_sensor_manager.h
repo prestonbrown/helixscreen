@@ -256,9 +256,9 @@ class FilamentSensorManager : public sensors::SensorManager {
      *        that none does (nullopt).
      *
      * @p lane is real_runout_lane()'s value, -1 included. While it is set, a
-     * removal toast for a sensor on that lane (any sensor, for -1) and a
-     * firmware runout fault naming it are not shown: they would cover the
-     * dialog that already says what happened. Main thread.
+     * removal toast for a sensor on exactly that lane (-1: a sensor that maps
+     * to no lane) and a firmware runout fault naming it are not shown: they
+     * would cover the dialog that already says what happened. Main thread.
      */
     void set_runout_explained(std::optional<int> lane);
 

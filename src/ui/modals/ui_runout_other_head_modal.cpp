@@ -103,6 +103,22 @@ void send_quiet(const std::string& gcode, const char* what) {
     }
 }
 
+/// The print moved to @p target_name but stayed paused: say so, and offer
+/// @p resume, which resumes it there.
+void show_stranded_dialog(const std::string& target_name, const std::string& resume) {
+    const std::string text = fmt::format(
+        fmt::runtime(lv_tr("The print moved to {} but did not resume. Check {}, then press "
+                           "Resume.")),
+        target_name, target_name);
+    modal_confirm(lv_tr("Print Did Not Resume"), text.c_str(), ModalSeverity::Warning,
+                  lv_tr("Resume"), [resume]() {
+                      spdlog::info("[RunoutOtherHead] resuming on the new head: {}", resume);
+                      if (IMoonrakerAPI* api = get_moonraker_api()) {
+                          api->execute_gcode(resume, nullptr, nullptr, 0);
+                      }
+                  });
+}
+
 /// What a sent switch needs once it ends.
 struct SwitchJob {
     roh::RunoutFacts before;
@@ -220,18 +236,7 @@ class SwitchWatch {
     }
 
     void show_stranded() {
-        const std::string text = fmt::format(
-            fmt::runtime(lv_tr("The print moved to {} but did not resume. Check {}, then press "
-                               "Resume.")),
-            job_.target_name, job_.target_name);
-        const std::string resume = job_.plan.resume_gcode;
-        modal_confirm(lv_tr("Print Did Not Resume"), text.c_str(), ModalSeverity::Warning,
-                      lv_tr("Resume"), [resume]() {
-                          spdlog::info("[RunoutOtherHead] resuming on the new head: {}", resume);
-                          if (IMoonrakerAPI* api = get_moonraker_api()) {
-                              api->execute_gcode(resume, nullptr, nullptr, 0);
-                          }
-                      });
+        show_stranded_dialog(job_.target_name, job_.plan.resume_gcode);
     }
 
     void fail(const roh::RunoutFacts& now, bool labelled) {
@@ -388,6 +393,17 @@ bool RunoutOtherHeadModal::show_owned(int runout_head, SwitchHooks hooks) {
     }
     return Modal::show_owned(std::make_unique<RunoutOtherHeadModal>(runout_head, std::move(hooks)),
                              lv_screen_active());
+}
+
+bool RunoutOtherHeadModal::show_stranded(int onto) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const std::string resume =
+        backend != nullptr ? roh::resume_on_gcode(backend->get_type(), onto) : std::string{};
+    if (resume.empty()) {
+        return false;
+    }
+    show_stranded_dialog(active_tool_name_label(tool_label(onto), onto), resume);
+    return true;
 }
 
 void RunoutOtherHeadModal::set_confirming(bool confirming) {

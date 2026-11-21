@@ -1477,13 +1477,11 @@ void FilamentSensorManager::set_runout_explained(std::optional<int> lane) {
 
 bool FilamentSensorManager::runout_explained(int lane) const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
-    return runout_explained_lane_ &&
-           (*runout_explained_lane_ < 0 || *runout_explained_lane_ == lane);
+    return runout_explained_lane_ == lane;
 }
 
 bool FilamentSensorManager::runout_explained_locked(const SensorEntry& sensor) const {
-    return runout_explained_lane_ && (*runout_explained_lane_ < 0 ||
-                                      *runout_explained_lane_ == lane_index_for_sensor(sensor));
+    return runout_explained_lane_ == lane_index_for_sensor(sensor);
 }
 
 int FilamentSensorManager::lane_index_for_sensor(const SensorEntry& sensor) const {

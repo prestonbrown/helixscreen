@@ -841,6 +841,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         process_lvgl(250);
         CHECK(titles.empty());
 
+        // A dialog about a sensor with no lane explains no head's runout.
+        sensors.set_runout_explained(-1);
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0000-0000 e0_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        REQUIRE(titles.size() == 1);
+        CHECK(titles[0] == "Toolhead 1 ran out of filament");
+        titles.clear();
+        fault_surface_correlation::clear_for_test();
+        sensors.set_runout_explained(0);
+
         // Another head's runout is not what the dialog explains.
         GcodeErrorRouterTestAccess::process_line(router,
                                                  "!! 0002-0523-0001-0000 e1_filament runout");

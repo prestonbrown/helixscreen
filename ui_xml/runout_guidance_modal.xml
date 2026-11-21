@@ -24,7 +24,8 @@
   While `runout_switch_in_progress` is 1 the printer is busy inside the pause
   (switching to another toolhead, heating, purging): `runout_switch_message`
   says what it is doing in place of the guidance, and every button is disabled
-  until it finishes or fails.
+  until it finishes or fails (Cancel Print stays live while the printer works on
+  its own; `runout_cancel_blocked`).
 -->
 <component>
   <api>
@@ -145,13 +146,13 @@
          Resume is ringed when the backend autofeeds on resume (it is then the
          recovery action), and disabled while runout_resume_blocked is 1 (#991):
          an auto-feed runout with no filament at the active tool's port, or the
-         printer busy inside the pause (runout_switch_in_progress), which also
-         disables Cancel Print. -->
+         printer busy inside the pause (runout_switch_in_progress). Cancel Print
+         is disabled only for a switch HelixScreen sent (runout_cancel_blocked),
+         which ends on its own. -->
     <modal_button_row secondary_name="btn_cancel_print"
                       secondary_variant="danger" secondary_text="Cancel Print" primary_name="btn_resume"
                       primary_text="Resume Print" primary_accent_subject="runout_autofeed_capable"
-                      primary_disable_subject="runout_resume_blocked"
-                      secondary_disable_subject="runout_switch_in_progress">
+                      primary_disable_subject="runout_resume_blocked" secondary_disable_subject="runout_cancel_blocked">
       <bind_flag_if_not_eq subject="print_state_enum" flag="hidden" ref_value="2"/>
     </modal_button_row>
   </view>

@@ -497,3 +497,35 @@ TEST_CASE_METHOD(DwellFixture, "A dialog about another lane leaves a sensor's re
     sensor(false);
     CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
 }
+
+// A dialog about a sensor that maps to no lane says nothing about a sensor on
+// a lane: a toolhead sensor in front of a multi-lane unit beside the unit's
+// own lane sensors.
+TEST_CASE_METHOD(DwellFixture,
+                 "A dialog about a lane-less sensor leaves a lane's removal toast alone",
+                 "[runout][dwell][sensors][runout_toast]") {
+    constexpr const char* kLaneSensor = "filament_switch_sensor e2_filament";
+    auto& fsm = FilamentSensorManager::instance();
+    discover_filament_sensors(fsm, {kHeadSensor, kLaneSensor});
+    fsm.set_role(kHeadSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    fsm.set_role(kLaneSensor, static_cast<uint8_t>(FilamentSensorRole::RUNOUT));
+    const auto lane_status = [&](bool detected) {
+        fsm.update_from_status(
+            nlohmann::json{{kLaneSensor, {{"filament_detected", detected}, {"enabled", true}}}});
+        helix::ui::UpdateQueue::instance().drain();
+    };
+    sensor(true);
+    lane_status(true);
+    PostUnloadGraceTestAccess::clear_startup_grace(fsm);
+    helix::test::set_wire_state(get_printer_state(), PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    ToastCapture toasts;
+    RunoutExplained dialog(-1);
+    CHECK(fsm.runout_explained(-1));
+    CHECK_FALSE(fsm.runout_explained(2));
+    sensor(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 0);
+    lane_status(false);
+    CHECK(toasts.warnings_containing(kRemovedWarning) == 1);
+}

@@ -52,6 +52,12 @@ class RunoutOtherHeadModal : public Modal {
     /// False when available() is not. Main thread only.
     static bool show_owned(int runout_head, SwitchHooks hooks = {});
 
+    /// The print sits paused on @p onto after a switch that moved it there
+    /// without resuming: offer Resume on that head, the dialog a sent switch
+    /// shows in the same state. False where the filament system has no way to
+    /// resume there. Main thread only.
+    static bool show_stranded(int onto);
+
     /// Apply or forget a restore a switch left pending (a setting it turned on
     /// for itself and could not put back: a failed script, a restart, a lost
     /// link). Call whenever the printer's state may have moved; also re-runs

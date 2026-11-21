@@ -831,26 +831,44 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
     settle();
     one_second_passes();
     settle();
-    // Busy inside the pause: it says so, and nothing can be pressed.
+    // Busy inside the pause: it says so, and only Cancel Print can be pressed.
     CHECK(subject_int("runout_switch_in_progress") == 1);
     CHECK(subject_int("runout_resume_blocked") == 1);
     CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
     CHECK_FALSE(widget_hidden(dialog, "switch_progress_row"));
-    CHECK(widget_disabled(dialog, "btn_cancel_print"));
+    CHECK_FALSE(widget_disabled(dialog, "btn_cancel_print"));
+    CHECK(widget_disabled(dialog, "btn_resume"));
 
-    // Done replenishing, still paused, on head 3: what head 3's port reads is
-    // not advice about head 0.
+    // A busy state that outlasts any switch gives the guidance back.
+    for (int s = 0; s < 181; ++s) {
+        one_second_passes();
+    }
+    CHECK(subject_int("runout_switch_in_progress") == 0);
+    CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
+
+    // Done, still paused, on head 3: the guidance about head 0 gives way to
+    // Resume on head 3 once that holds past the settle time, never to what
+    // head 3's port reads.
     rig.firmware_idle();
     settle();
     one_second_passes();
     settle();
-    CHECK(subject_int("runout_switch_in_progress") == 0);
-    CHECK(subject_int("runout_resume_blocked") == 1);
+    CHECK(handler->is_modal_visible());
     CHECK(widget_hidden(dialog, "dialog_message_motion_stuck"));
-
-    handler->hide_modal();
+    for (int s = 0; s < 5; ++s) {
+        one_second_passes();
+    }
     settle();
+    CHECK_FALSE(handler->is_modal_visible());
     CHECK_FALSE(FilamentSensorManager::instance().runout_explained(0));
+    lv_obj_t* stranded = ModalStack::instance().top_dialog();
+    REQUIRE(stranded != nullptr);
+    CHECK(stranded != dialog);
+    CHECK(subject_int("runout_switch_in_progress") == 0);
+    CHECK(subject_int("runout_resume_blocked") == 0);
+
+    ModalStack::instance().clear();
+    settle();
     ps.update_from_status(print_stats({{"state", "standby"}}));
     settle();
 }
@@ -928,6 +946,34 @@ TEST_CASE_METHOD(RunoutGuidanceFixture,
         settle();
         CHECK_FALSE(handler->is_modal_visible());
         CHECK(subject_int("runout_switch_in_progress") == 0);
+    }
+
+    SECTION("a dialog closed mid-switch leaves nothing behind") {
+        lv_obj_send_event(lv_obj_find_by_name(confirm, "btn_primary"), LV_EVENT_CLICKED, nullptr);
+        settle();
+        REQUIRE(subject_int("runout_switch_in_progress") == 1);
+        // Neither ESC nor the backdrop closes it while the switch runs.
+        lv_obj_t* backdrop = lv_obj_get_parent(dialog);
+        lv_obj_send_event(backdrop, LV_EVENT_CLICKED, nullptr);
+        uint32_t esc = LV_KEY_ESC;
+        lv_obj_send_event(backdrop, LV_EVENT_KEY, &esc);
+        settle();
+        REQUIRE(handler->is_modal_visible());
+
+        // Closed from outside (the shared stack sweeping it), the state behind
+        // it goes too: the subjects every runout dialog reads, and the re-check.
+        Modal::hide(dialog);
+        settle();
+        REQUIRE_FALSE(handler->is_modal_visible());
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+        CHECK(subject_int("runout_resume_blocked") == 0);
+        CHECK_FALSE(FilamentSensorManager::instance().runout_explained(0));
+        rig.firmware_switches_to_head3();
+        settle();
+        one_second_passes();
+        settle();
+        CHECK(subject_int("runout_switch_in_progress") == 0);
+        CHECK(subject_int("runout_resume_blocked") == 0);
     }
 
     SECTION("a switch the printer never makes gives the guidance back") {

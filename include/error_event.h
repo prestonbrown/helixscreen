@@ -93,7 +93,9 @@ struct ErrorEvent {
     /// command, so it shows again even if the user dismissed an identical one.
     bool command_refusal = false;
     /// The filament lane (a filament sensor's lane index) whose runout this
-    /// fault reports, or -1 when it reports none. A runout dialog already on
+    /// fault reports, or -1 when it reports none. A backend that reports the
+    /// fault by head fills it only where its heads and its sensor lanes share
+    /// one index. A runout dialog already on
     /// screen for that lane explains it, so its toast stands down.
     int runout_lane = -1;
 };

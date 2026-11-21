@@ -26,8 +26,11 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/timer_guard.h"
+#include "runout_other_head.h"
 
+#include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 
 // Forward declarations
@@ -218,6 +221,13 @@ class FilamentRunoutHandler {
     /// The head that switch goes to, as the user reads it.
     std::string switch_target_name_;
 
+    /// When the printer was first seen stranded on another head (routing moved,
+    /// idle, still paused) while the guidance is up.
+    std::optional<uint32_t> stranded_since_;
+
+    /// When the printer was first seen busy inside the pause.
+    std::optional<uint32_t> busy_since_;
+
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
@@ -253,6 +263,16 @@ class FilamentRunoutHandler {
 
     /// Gate Resume on the runout head's port reading, while guidance_current().
     void sync_resume_gate();
+
+    /// Close the guidance and offer Resume on the head the printer moved the
+    /// print to, once it has sat there idle and paused past the settle time.
+    /// True when it did.
+    bool take_stranded(const helix::runout_other_head::RunoutFacts& facts);
+
+    /// Drop everything the shown guidance holds: the re-check timer, a switch
+    /// in progress, the observers, and the explained runout. Never hides the
+    /// dialog itself; its on_hidden hook calls this.
+    void end_guidance();
 
     /**
      * @brief Show the runout guidance modal
