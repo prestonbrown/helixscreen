@@ -18,8 +18,11 @@ constexpr int kSlotsPerBox = 4;
 
 /// How a code's print effect reads on the console. FollowPrint blocks while a
 /// print runs or is paused (the pause codes, the load faults); Warning never
-/// does (a fan or dryer warning, an RFID scan, a drying setting).
-enum class Effect { FollowPrint, Warning };
+/// does (a fan or dryer warning, an RFID scan, a drying setting). Runout is a
+/// warning that names its slot as the runout's lane: the Box raises no runout
+/// fault of its own, so the stock runout guidance (Load, Resume) owns the
+/// paused print and this toast stands down where that dialog explains the slot.
+enum class Effect { FollowPrint, Warning, Runout };
 
 /// One code's wording. "{}" in any of the three is the slot the message
 /// names, as the app labels it ("Slot 3"), or the fan it names.
@@ -87,7 +90,7 @@ constexpr Row kRows[] = {
      TR_NOOP("At startup the toolhead holds filament, but the Box could not tell which slot it "
              "came from."),
      TR_NOOP("Pull the filament out of the toolhead by hand, then load again.")},
-    {4, 16, Effect::FollowPrint, TR_NOOP("{} ran out"),
+    {4, 16, Effect::Runout, TR_NOOP("{} ran out"),
      TR_NOOP("{} ran out of filament during the print, and auto refill is off."),
      TR_NOOP("Load a new spool into {}, or turn on auto refill with a matching spool, then "
              "resume.")},
@@ -254,7 +257,10 @@ std::optional<ErrorEvent> classify_fault_line(const std::string& line, const Cla
     e.source = ErrorSource::QIDI;
     e.code = format_fault_code(*code);
     e.raw_detail = text;
-    const bool warning = row && row->effect == Effect::Warning;
+    const bool warning = row && row->effect != Effect::FollowPrint;
+    if (row && row->effect == Effect::Runout) {
+        e.runout_lane = named_slot(message);
+    }
     e.severity = (!warning && (ctx.is_printing || ctx.is_paused)) ? ErrorSeverity::CRITICAL
                                                                   : ErrorSeverity::WARNING;
     if (row) {

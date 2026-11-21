@@ -264,7 +264,10 @@ summary, a cause and a fix, filling in the slot label (`1A`..`4D`) or fan the me
 | Klipper shutdown | 002_002 (hotend fan) | The coded text is `state_message`; the recovery dialog words it |
 | `save_variables.retry_step` | `QDE_004_<idx>_<slot>` | Set beside most Box raises, persisted, cleared only by `TRY_MOVE_AGAIN`. `AmsBackendQidi` offers `TRY_MOVE_AGAIN` as Retry when `retry_step` names the fault, and words its blocked-slot fault from it only while a slot reads blocked |
 
-Pause codes (004_005, 006, 007, 009, 016, 017) block while a print runs or is paused. 002_001, 005_001,
+Pause codes (004_005, 006, 007, 009, 017) block while a print runs or is paused. 004_016 (slot ran
+out) is a toast naming the slot as the runout's lane: the Box raises no runout fault of its own, so
+the stock runout guidance owns the paused print, and the toast stands down where that dialog
+explains the slot. 002_001, 005_001,
 004_011, 014, 019 and 020 are warnings. 004_008 and 004_025 come from compiled code whose context is
 unknown and keep QIDI's message; 004_012 and 004_024 are not raised anywhere. Detection is the Box
 (`box_stepper slot<N>` or `box_extras`), so QDE_002/005 on a printer without a Box are not yet read.

@@ -81,9 +81,7 @@ TEST_CASE("a QIDI pause code blocks while printing, a warning code never does",
     ClassifyContext printing;
     printing.is_printing = true;
     const auto pause = qidi::classify_fault_line(
-        "Code:QDE_004_016; Message:The filament has been exhausted, please load the filament to "
-        "1B.",
-        printing);
+        "// Code:QDE_004_005; Message:Please load the filament to 1B first.", printing);
     REQUIRE(pause.has_value());
     CHECK(pause->severity == ErrorSeverity::CRITICAL);
     CHECK(pause->title.find("Slot 2") != std::string::npos);
@@ -93,6 +91,21 @@ TEST_CASE("a QIDI pause code blocks while printing, a warning code never does",
     REQUIRE(dryer.has_value());
     CHECK(dryer->severity == ErrorSeverity::WARNING);
     CHECK_FALSE(dryer->title.empty());
+}
+
+TEST_CASE("a QIDI runout leaves the paused print to the runout dialog", "[qidi][fault-codes]") {
+    // The runout guidance (Load, Resume) owns a paused runout; this code says
+    // why beside it, and stands down where that dialog explains its slot.
+    ClassifyContext paused;
+    paused.is_paused = true;
+    const auto e = qidi::classify_fault_line(
+        "// Code:QDE_004_016; Message:The filament has been exhausted, please load the filament "
+        "to 1B.",
+        paused);
+    REQUIRE(e.has_value());
+    CHECK(e->severity == ErrorSeverity::WARNING);
+    CHECK(e->runout_lane == 1);
+    CHECK(e->title.find("Slot 2") != std::string::npos);
 }
 
 TEST_CASE("a QIDI fan code names the fan", "[qidi][fault-codes]") {
