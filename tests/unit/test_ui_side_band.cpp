@@ -19,6 +19,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "static_panel_registry.h"
 #include "theme_manager.h"
 
 #include <array>
@@ -382,6 +383,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 // never builds a second while the host shows it.
 TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel's own tree",
                  "[uw_side_band][motion]") {
+    // MotionPanel is a process-wide singleton whose observers outlive this case;
+    // its tree dies with the fixture's screen. Destroyed last (declared first),
+    // after the band and the layout subject restore, as the other Motion
+    // fixtures do, so no later case drives it.
+    struct DestroyPanelsOnExit {
+        ~DestroyPanelsOnExit() {
+            helix::ui::UpdateQueue::instance().drain();
+            StaticPanelRegistry::instance().destroy_all();
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    } destroy_panels_on_exit;
+
     std::array<lv_obj_t*, kUiPanelCount> panels{};
     for (auto& p : panels)
         p = lv_obj_create(lv_screen_active());
