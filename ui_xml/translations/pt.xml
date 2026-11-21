@@ -4158,7 +4158,7 @@
   <translation tag="Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature." pt="Mudar para MPC altera como este aquecedor é controlado e depois o calibra. Isso leva vários minutos em temperatura."/>
   <translation tag="Switching to MPC requires a config change and Klipper restart." pt="Mudar para MPC requer alteração de configuração e reinicialização do Klipper."/>
   <translation tag="Switching to {}" pt="Mudando para {}"/>
-  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print."/>
+  <translation tag="Switching to {}. The printer heats and purges it, then resumes the print." pt="Mudando para {}. A impressora aquece e purga, depois retoma a impressão."/>
   <translation tag="Sync" pt="Sinc."/>
   <translation tag="Sync Feedback" pt="Feedback de sincronização"/>
   <translation tag="Sync during printing" pt="Sincronizar durante a impressão"/>
@@ -4472,7 +4472,7 @@
   <translation tag="The printer is shut down." pt="A impressora está desligada."/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." pt="A impressora usa este valor até o Klipper reiniciar. Para mantê-lo, adicione-o como pressure_advance na seção do extrusor desta ferramenta em printer.cfg."/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." pt="A impressora aguarda a câmara atingir uma temperatura, e só uma parada de emergência e uma reinicialização do firmware encerram essa espera. A impressão para imediatamente e não pode ser retomada."/>
-  <translation tag="The printer is working on the paused print. Wait for it to finish."/>
+  <translation tag="The printer is working on the paused print. Wait for it to finish." pt="A impressora está trabalhando na impressão pausada. Aguarde até terminar."/>
   <translation tag="The printer isn&apos;t detecting that any filament is currently loaded. What would you like to do?" pt="A impressora não está detectando nenhum filamento carregado. O que você deseja fazer?"/>
   <translation tag="The printer kept printing after the cancel." pt="A impressora continuou imprimindo após o cancelamento."/>
   <translation tag="The printer lost power during a print. It can resume where it left off." pt="A impressora perdeu energia durante uma impressão. Ela pode retomar de onde parou."/>

@@ -4347,7 +4347,7 @@ translations:
   Switching heater control to MPC. Klipper will restart.: Переключение управления нагревом на MPC. Klipper перезапустится.
   Switching to MPC changes how this heater is controlled, then calibrates it. That takes several minutes at temperature.: Переход на MPC меняет способ управления этим нагревателем, а затем калибрует его. Это занимает несколько минут при рабочей температуре.
   Switching to MPC requires a config change and Klipper restart.: Переход на MPC требует изменения конфига и перезапуска Klipper.
-  Switching to {}. The printer heats and purges it, then resumes the print.: ''
+  Switching to {}. The printer heats and purges it, then resumes the print.: "Переключение на {}. Принтер нагревает и прочищает его, затем возобновляет печать."
   Sync: 'Синхр.'
   Switching to {}: Переключение на {}
   Sync Feedback: "Обратная связь синхронизации"
@@ -4679,7 +4679,7 @@ translations:
   : 'Принтер использует это значение до перезапуска Klipper. Чтобы сохранить его, добавьте его как pressure_advance в секцию экструдера этого инструмента в printer.cfg.'
   ? The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed.
   : 'Принтер ждёт, пока камера достигнет температуры, и прервать это ожидание могут только аварийная остановка и перезапуск прошивки. Печать остановится сразу, продолжить её будет нельзя.'
-  The printer is working on the paused print. Wait for it to finish.: ''
+  The printer is working on the paused print. Wait for it to finish.: "Принтер обрабатывает приостановленную печать. Дождитесь завершения."
   The printer isn't detecting that any filament is currently loaded. What would you like to do?: Принтер не обнаруживает загруженный филамент. Что вы хотите сделать?
   The printer kept printing after the cancel.: 'Принтер продолжил печать после отмены.'
   The printer lost power during a print. It can resume where it left off.: Принтер потерял питание во время печати. Он может продолжить с места остановки.
