@@ -15,9 +15,17 @@
          steps, or, for a short narrow column, a row of two ("row", "content",
          "#tune_pa_btn_w", "#button_height_sm"). -->
     <prop name="dir_flow" type="string" default="column"/>
+    <!-- The portrait direction buttons: stacked beside the indicator, or a
+         row of two halves ("row", "49%") where the indicator is left out and
+         the height is short. -->
+    <prop name="portrait_dir_flow" type="string" default="column"/>
+    <prop name="portrait_dir_btn_w" type="string" default="100%"/>
     <prop name="dir_w" type="string" default="#z_tune_dir_col_w"/>
     <prop name="dir_btn_w" type="string" default="100%"/>
     <prop name="dir_btn_h" type="string" default="#button_height"/>
+    <!-- When the help lines give way: on the smallest portrait panel, or
+         always ("ui_is_portrait ge 0") where a section's height is short -->
+    <prop name="help_hidden_cond" type="string" default="ui_is_portrait eq 1 and ui_breakpoint le 0"/>
     <!-- "true" leaves out the closer / farther hint, where the height is short -->
     <prop name="squish_hint_hidden" type="string" default="false"/>
   </api>
@@ -55,11 +63,14 @@
                               width="#z_tune_indicator_w" height="#z_tune_indicator_h"
                               bind_microns="tune_z_offset_microns" hidden="$indicator_hidden"/>
           <lv_obj height="content"
-                  flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-            <ui_button name="btn_z_farther" width="100%" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
+                  flex_grow="1" style_pad_all="0" flex_flow="$portrait_dir_flow" style_flex_main_place="space_between"
+                  style_pad_gap="#space_xxs" scrollable="false">
+            <ui_button name="btn_z_farther"
+                       width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_up" bind_icon="tune_z_farther_icon">
               <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="1"/>
             </ui_button>
-            <ui_button name="btn_z_closer" width="100%" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
+            <ui_button name="btn_z_closer"
+                       width="$portrait_dir_btn_w" height="$btn_h" icon="arrow_down" bind_icon="tune_z_closer_icon">
               <event_cb trigger="clicked" callback="on_tune_z_adjust" user_data="-1"/>
             </ui_button>
           </lv_obj>
@@ -131,7 +142,7 @@
     <lv_obj width="100%"
             height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
             scrollable="false">
-      <bind_flag_if cond="ui_is_portrait eq 1 and ui_breakpoint le 0" flag="hidden"/>
+      <bind_flag_if cond="$help_hidden_cond" flag="hidden"/>
       <!-- One of five, picked by z_offset_tune_hint (ZOffsetTuneHint in
            include/printer_profile_state.h). -->
       <text_small name="z_offset_help_text_manual"

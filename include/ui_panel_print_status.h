@@ -409,6 +409,9 @@ class PrintStatusPanel : public OverlayBase {
     helix::Subject lane_tray_subject_{};
     helix::Subject lane_tray_h_subject_{};
     helix::Subject printer_tile_h_subject_{};
+    helix::Subject uw_tune_w_subject_{};
+    helix::Subject tune_h_subject_{};
+    helix::Subject tune_build_subject_{}; ///< 1 while the inline Tune section is built
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;
@@ -618,6 +621,12 @@ class PrintStatusPanel : public OverlayBase {
     // has no XML binding equivalent (only click/value events go through XML).
     static void on_content_size_changed(lv_event_t* e);
     static void on_printer_area_size_changed(lv_event_t* e);
+    /// The built inline Tune section (ultrawide column or stacked), or null.
+    [[nodiscard]] lv_obj_t* tune_section() const;
+    /// Point the tune overlay at the inline section while this panel shows it.
+    void sync_inline_tune();
+    void on_tune_build_changed(bool built);
+    static void on_tune_size_changed(lv_event_t* e);
     void relayout();
     void handle_more_clicked(lv_obj_t* anchor);
     void handle_more_action(int action);
@@ -723,6 +732,7 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard lane_tray_gate_observer_;
     ObserverGuard lane_tray_slots_observer_;
     ObserverGuard lane_tray_steps_observer_;
+    ObserverGuard tune_controls_observer_;
     ObserverGuard scoped_runout_observer_; ///< Recomputes scoped runout badge on sensor edge
     /// ...and on AMS lane change (slots_version), which also re-pushes the
     /// viewer's per-tool colors: ams_color_observer_ only sees the ACTIVE lane

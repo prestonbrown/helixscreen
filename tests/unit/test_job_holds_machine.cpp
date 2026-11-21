@@ -554,6 +554,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/print_status_preview_card.xml",
     "ui_xml/components/print_status_printer_tile.xml",
     "ui_xml/components/print_status_readouts.xml",
+    "ui_xml/components/print_status_tune.xml",
     "ui_xml/components/print_status_up_next.xml",
     "ui_xml/components/printer_switch_row.xml",
     "ui_xml/components/printer_type_row.xml",
