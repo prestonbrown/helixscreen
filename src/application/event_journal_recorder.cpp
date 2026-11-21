@@ -128,7 +128,7 @@ void EventJournalRecorder::on_gcode_response(const nlohmann::json& msg) {
         JournalEntry e;
         e.kind = journal_kind::kGcodeError;
         e.text = journal_error_text(line);
-        e.cls = classify_journal_error(line);
+        e.cls = classify_journal_error(line, &get_printer_state().get_discovery());
         record(std::move(e));
     });
 }
@@ -167,7 +167,7 @@ void EventJournalRecorder::on_shutdown_reason(const nlohmann::json& response,
     const std::string message = webhooks ? safe_string(*webhooks, "state_message") : "";
     pending.text = journal_error_text(message);
     if (!pending.text.empty()) {
-        pending.cls = classify_journal_error(pending.text);
+        pending.cls = classify_journal_error(pending.text, &get_printer_state().get_discovery());
         if (is_mcu_disconnect(pending.text)) {
             pending.kind = journal_kind::kMcuDisconnect;
         }
@@ -233,7 +233,8 @@ void EventJournalRecorder::on_connected() {
         kGcodeStoreCount,
         lifetime_.bg_cb("EventJournal::gcode_store_backfill",
                         [this, since](const std::vector<GcodeStoreEntry>& store) {
-                            merge(backfill_from_gcode_store(store, since));
+                            merge(backfill_from_gcode_store(store, since,
+                                                            &get_printer_state().get_discovery()));
                         }),
         [](const MoonrakerError& err) {
             spdlog::debug("[EventJournal] gcode_store backfill failed: {}", err.message);
@@ -266,7 +267,7 @@ void EventJournalRecorder::on_history_backfill(const nlohmann::json& response, d
     }
     auto deliver =
         lifetime_.bg_cb("EventJournal::klippy_log_backfill", [this, since](const std::string& log) {
-            merge(backfill_from_klippy_log(log, since));
+            merge(backfill_from_klippy_log(log, since, &get_printer_state().get_discovery()));
             backfill_in_flight_ = false;
         });
     http::HttpExecutor::fast().submit([deliver]() mutable {

@@ -865,6 +865,7 @@
   <translation tag="Check that the printer is powered on and connected to the network" fr="Vérifiez que l&apos;imprimante est allumée et connectée au réseau"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the CAN wiring and bitrate and the host&apos;s load, then home again."/>
   <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" fr="Vérifiez le tube PTFE le long de la chaîne porte-câbles à la recherche de plis, ainsi que le coude à l&apos;entrée du capteur d&apos;extrudeur"/>
@@ -1296,6 +1297,7 @@
   <translation tag="Date Format" fr="Format de date"/>
   <translation tag="Day" fr="Jour"/>
   <translation tag="Day Month Year" fr="Jour Mois Année"/>
+  <translation tag="Deal with the shutdown&apos;s own reason first, then home again."/>
   <translation tag="Debug" fr="Débogage"/>
   <translation tag="Deep Black" fr="Noir profond"/>
   <translation tag="Default" fr="Par défaut"/>
@@ -2184,6 +2186,7 @@
   <translation tag="Homing XY..." fr="Référence XY..."/>
   <translation tag="Homing Y..." fr="Référence Y..."/>
   <translation tag="Homing Z..." fr="Référence Z..."/>
+  <translation tag="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN."/>
   <translation tag="Homing all axes..." fr="Référence de tous les axes..."/>
   <translation tag="Homing and moving the plate..." fr="Référence et déplacement du plateau..."/>
   <translation tag="Homing axes..." fr="Référence des axes..."/>
@@ -2194,6 +2197,7 @@
   <translation tag="Homing first..." fr="Référence en cours..."/>
   <translation tag="Homing gave inconsistent results." fr="La prise d&apos;origine a donné des résultats incohérents."/>
   <translation tag="Homing is disabled while a print is in progress" fr="La prise de référence est désactivée pendant une impression"/>
+  <translation tag="Homing lost contact between boards"/>
   <translation tag="Homing may still be running — response timed out" fr="Référence peut-être encore en cours — délai dépassé"/>
   <translation tag="Homing selector" fr="Prise d&apos;origine du sélecteur"/>
   <translation tag="Homing stopped at {}" fr="Prise d&apos;origine arrêtée sur {}"/>
@@ -4868,6 +4872,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." fr="L&apos;imprimante redémarre avec l&apos;écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l&apos;imprimante ; relancez l&apos;installateur pour revenir."/>
   <translation tag="The printer shut down" fr="L&apos;imprimante s&apos;est arrêtée"/>
   <translation tag="The printer shut down while homing or probing." fr="L&apos;imprimante s&apos;est arrêtée pendant la prise d&apos;origine ou le palpage."/>
+  <translation tag="The printer shut down while it was homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." fr="L&apos;imprimante s&apos;est arrêtée par sécurité ; le firmware n&apos;a donné aucune raison précise."/>
   <translation tag="The printer stops and cannot print until the update is done." fr="L&apos;imprimante s&apos;arrête et ne peut pas imprimer tant que la mise à jour n&apos;est pas terminée."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." fr="L&apos;imprimante change entre plusieurs têtes d&apos;outil. Gérez les outils sur l&apos;écran du système de filament."/>

@@ -81,6 +81,12 @@ constexpr const char* kMacroFix =
     TR_NOOP("Pass the missing parameter from the slicer's start G-code, or give it a default in "
             "the macro.");
 
+constexpr const char* kShutdownDuringHomingSummary = TR_NOOP("Homing stopped by a shutdown");
+constexpr const char* kShutdownDuringHomingCause =
+    TR_NOOP("The printer shut down while it was homing or probing.");
+constexpr const char* kShutdownDuringHomingFix =
+    TR_NOOP("Deal with the shutdown's own reason first, then home again.");
+
 using C = Category;
 using S = Severity;
 using R = Recovery;
@@ -251,6 +257,17 @@ constexpr Row kKlipperRows[] = {
      TR_NOOP("Home X and Y first, or home all axes together.")},
     {"PR-3", "Must home before probe", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::Home,
      kHomeSummary, TR_NOOP("The probe was used before the printer was homed."), kHomeFix},
+    {"MV-5", "Communication timeout during homing", nullptr, nullptr, false, C::Homing,
+     S::FollowPrint, R::Retry, TR_NOOP("Homing lost contact between boards"),
+     TR_NOOP("Homing across two boards (a toolhead board's endstop and the mainboard's motors) "
+             "lost contact over USB or CAN."),
+     TR_NOOP("Check the CAN wiring and bitrate and the host's load, then home again.")},
+    {"MV-7", "Homing failed due to printer shutdown", nullptr, nullptr, false, C::Homing,
+     S::FollowPrint, R::None, kShutdownDuringHomingSummary, kShutdownDuringHomingCause,
+     kShutdownDuringHomingFix},
+    {"MV-7", "Probing failed due to printer shutdown", nullptr, nullptr, false, C::Homing,
+     S::FollowPrint, R::None, kShutdownDuringHomingSummary, kShutdownDuringHomingCause,
+     kShutdownDuringHomingFix},
     {"MV-3", "No trigger on ", nullptr, "^No trigger on (\\S+) after full movement", false,
      C::Homing, S::FollowPrint, R::None, TR_NOOP("{1} never triggered"),
      TR_NOOP("The axis moved its full travel without {1} triggering: an unplugged or broken "
@@ -447,6 +464,16 @@ Normalized normalize(std::string_view text) {
         }
         break;
     }
+    // Homing wraps the failure it ran into ("Error during homing move: No
+    // trigger on z ..."); the inner message is the one that names the cause.
+    constexpr std::string_view kHomingWrapper = "Error during homing ";
+    if (starts_with(t, kHomingWrapper)) {
+        const size_t sep = t.find(": ", kHomingWrapper.size());
+        const size_t eol = t.find('\n');
+        if (sep != std::string_view::npos && (eol == std::string_view::npos || sep < eol)) {
+            t = t.substr(sep + 2);
+        }
+    }
     if (const size_t trailer = t.find("\nOnce the underlying issue is corrected");
         trailer != std::string_view::npos) {
         t = t.substr(0, trailer);
@@ -526,6 +553,16 @@ std::optional<Classification> classify(std::string_view text, const PrinterDisco
             c.row = &row;
             return c;
         }
+    }
+    // A shutdown a controller board reported, whatever its reason: an MCU
+    // fault, even when no row words it.
+    if (!n.mcu.empty()) {
+        Classification c;
+        c.id = "MCU-shutdown";
+        c.category = Category::Mcu;
+        c.captures.assign(1, n.mcu);
+        c.reason = n.reason;
+        return c;
     }
     return std::nullopt;
 }

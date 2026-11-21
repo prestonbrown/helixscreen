@@ -901,6 +901,7 @@ translations:
   Check that the printer is powered on and connected to the network: Vérifiez que l'imprimante est allumée et connectée au réseau
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Vérifiez le tube PTFE le long de la chaîne porte-câbles à la recherche de plis, ainsi que le coude à l'entrée du capteur d'extrudeur
@@ -1384,6 +1385,7 @@ translations:
   Date Format: Format de date
   Day: Jour
   Day Month Year: Jour Mois Année
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: Débogage
   Deep Black: Noir profond
   Default: 'Par défaut'
@@ -2289,6 +2291,7 @@ translations:
   Homing XY...: Référence XY...
   Homing Y...: Référence Y...
   Homing Z...: Référence Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: Référence de tous les axes...
   Homing and moving the plate...: 'Référence et déplacement du plateau...'
   Homing axes...: Référence des axes...
@@ -2299,6 +2302,7 @@ translations:
   Homing first...: Référence en cours...
   Homing gave inconsistent results.: 'La prise d''origine a donné des résultats incohérents.'
   Homing is disabled while a print is in progress: La prise de référence est désactivée pendant une impression
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: Référence peut-être encore en cours — délai dépassé
   Homing selector: 'Prise d''origine du sélecteur'
   Homing stopped at {}: 'Prise d''origine arrêtée sur {}'
@@ -5043,6 +5047,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'L''imprimante exige une connexion chiffrée, mais la connexion chiffrée à {}:{} a échoué'
   The printer shut down: 'L''imprimante s''est arrêtée'
   The printer shut down while homing or probing.: 'L''imprimante s''est arrêtée pendant la prise d''origine ou le palpage.'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'L''imprimante s''est arrêtée par sécurité ; le firmware n''a donné aucune raison précise.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'L''imprimante redémarre avec l''écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l''imprimante ; relancez l''installateur pour revenir.'

@@ -889,6 +889,7 @@ translations:
   Check that the printer is powered on and connected to the network: プリンターの電源が入っていて、ネットワークに接続されているか確認してください
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: ドラッグチェーンに沿った PTFE チューブの折れと、エクストルーダーセンサー入口の曲がりを確認してください
@@ -1372,6 +1373,7 @@ translations:
   Date Format: 日付形式
   Day: 日
   Day Month Year: 日 月 年
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: デバッグ
   Deep Black: ディープブラック
   Default: 'デフォルト'
@@ -2277,6 +2279,7 @@ translations:
   Homing XY...: XY軸をホーミング中...
   Homing Y...: Y軸をホーミング中...
   Homing Z...: Z軸をホーミング中...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: 全軸をホーミング中...
   Homing and moving the plate...: 'ホーミングしてベッドを移動中...'
   Homing axes...: 軸をホーミング中...
@@ -2287,6 +2290,7 @@ translations:
   Homing first...: ホーミング中...
   Homing gave inconsistent results.: 'ホーミングの結果が一致しませんでした。'
   Homing is disabled while a print is in progress: 印刷中はホーミングできません
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: ホーミングがまだ実行中の可能性があります — 応答タイムアウト
   Homing selector: 'セレクターをホーミングしています'
   Homing stopped at {}: '{} でホーミングが停止しました'
@@ -5031,6 +5035,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました'
   The printer shut down: 'プリンターが停止しました'
   The printer shut down while homing or probing.: 'ホーミングまたはプローブ中にプリンターが停止しました。'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'

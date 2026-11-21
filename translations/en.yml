@@ -891,6 +891,7 @@ translations:
   Check that the printer is powered on and connected to the network: Check that the printer is powered on and connected to the network
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.
   Check that the toolhead is really empty, then resume.: Check that the toolhead is really empty, then resume.
+  Check the CAN wiring and bitrate and the host's load, then home again.: Check the CAN wiring and bitrate and the host's load, then home again.
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: Check the IFS cable, make sure the native screen is off, and power the printer off and on.
   Check the PTFE tube: Check the PTFE tube
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor
@@ -1369,6 +1370,7 @@ translations:
   Date Format: Date Format
   Day: Day
   Day Month Year: Day Month Year
+  Deal with the shutdown's own reason first, then home again.: Deal with the shutdown's own reason first, then home again.
   Debug: Debug
   Deep Black: Deep Black
   Default: Default
@@ -2264,6 +2266,7 @@ translations:
   Homing XY...: Homing XY...
   Homing Y...: Homing Y...
   Homing Z...: Homing Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.
   Homing all axes...: Homing all axes...
   Homing and moving the plate...: Homing and moving the plate...
   'Homing axes...': 'Homing axes...'
@@ -2274,6 +2277,7 @@ translations:
   Homing first...: Homing first...
   Homing gave inconsistent results.: Homing gave inconsistent results.
   Homing is disabled while a print is in progress: Homing is disabled while a print is in progress
+  Homing lost contact between boards: Homing lost contact between boards
   Homing may still be running — response timed out: Homing may still be running — response timed out
   Homing selector: Homing selector
   Homing stopped at {}: Homing stopped at {}
@@ -5002,6 +5006,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: The printer requires an encrypted connection, but the encrypted connection to {}:{} failed
   The printer shut down: The printer shut down
   The printer shut down while homing or probing.: The printer shut down while homing or probing.
+  The printer shut down while it was homing or probing.: The printer shut down while it was homing or probing.
   The printer stopped itself for safety; the firmware gave no specific reason.: The printer stopped itself for safety; the firmware gave no specific reason.
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.

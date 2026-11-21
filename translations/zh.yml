@@ -889,6 +889,7 @@ translations:
   Check that the printer is powered on and connected to the network: 请检查打印机是否已开机并连接到网络
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: 请检查拖链沿线的 PTFE 管是否折弯，以及进入挤出机传感器处的弯曲
@@ -1372,6 +1373,7 @@ translations:
   Date Format: 日期格式
   Day: 日
   Day Month Year: 日 月 年
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: 调试
   Deep Black: 深黑色
   Default: '默认'
@@ -2277,6 +2279,7 @@ translations:
   Homing XY...: 正在归位 XY...
   Homing Y...: 正在归位 Y...
   Homing Z...: 正在归位 Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: 正在归位所有轴...
   Homing and moving the plate...: '正在归位并移动热床...'
   Homing axes...: 正在归位各轴...
@@ -2287,6 +2290,7 @@ translations:
   Homing first...: 正在先归位...
   Homing gave inconsistent results.: '归位结果不一致。'
   Homing is disabled while a print is in progress: 打印进行中，无法归位
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: 归位可能仍在运行 — 响应超时
   Homing selector: '选择器回零'
   Homing stopped at {}: '归位在 {} 处停止'
@@ -5031,6 +5035,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: '打印机要求加密连接，但与 {}:{} 的加密连接失败'
   The printer shut down: '打印机已关闭'
   The printer shut down while homing or probing.: '打印机在归位或探测时关闭。'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: '打印机出于安全自行停止；固件未给出具体原因。'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'

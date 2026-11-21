@@ -889,6 +889,7 @@ translations:
   Check that the printer is powered on and connected to the network: Verifica che la stampante sia accesa e connessa alla rete
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Controllare che il tubo PTFE lungo la catena portacavi non sia piegato, e la curva all'ingresso del sensore dell'estrusore
@@ -1372,6 +1373,7 @@ translations:
   Date Format: Formato data
   Day: Giorno
   Day Month Year: Giorno Mese Anno
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: Debug
   Deep Black: Nero intenso
   Default: 'Predefinito'
@@ -2277,6 +2279,7 @@ translations:
   Homing XY...: Homing XY...
   Homing Y...: Homing Y...
   Homing Z...: Homing Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: Homing tutti gli assi...
   Homing and moving the plate...: 'Homing e spostamento del piano...'
   Homing axes...: Homing degli assi...
@@ -2287,6 +2290,7 @@ translations:
   Homing first...: Homing in corso...
   Homing gave inconsistent results.: 'L''homing ha dato risultati incoerenti.'
   Homing is disabled while a print is in progress: L'homing è disabilitato durante una stampa
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: Homing potrebbe essere ancora in corso — tempo scaduto
   Homing selector: 'Homing del selettore'
   Homing stopped at {}: 'Homing interrotto su {}'
@@ -5031,6 +5035,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'La stampante richiede una connessione cifrata, ma la connessione cifrata a {}:{} non è riuscita'
   The printer shut down: 'La stampante si è spenta'
   The printer shut down while homing or probing.: 'La stampante si è spenta durante l''homing o il sondaggio.'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'La stampante si è fermata per sicurezza; il firmware non ha indicato un motivo specifico.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'La stampante si riavvia con lo schermo Snapmaker e HelixScreen non si avvia più. Le impostazioni di HelixScreen restano sulla stampante; esegui di nuovo il programma di installazione per tornare.'

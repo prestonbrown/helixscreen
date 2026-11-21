@@ -901,6 +901,7 @@
   <translation tag="Check that the printer is powered on and connected to the network" ru="Проверьте, что принтер включён и подключён к сети"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the CAN wiring and bitrate and the host&apos;s load, then home again."/>
   <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" ru="Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера"/>
@@ -1335,6 +1336,7 @@
   <translation tag="Date Format" ru="Формат даты"/>
   <translation tag="Day" ru="День"/>
   <translation tag="Day Month Year" ru="День Месяц Год"/>
+  <translation tag="Deal with the shutdown&apos;s own reason first, then home again."/>
   <translation tag="Debug" ru="Отладка"/>
   <translation tag="Deep Black" ru="Глубокий чёрный"/>
   <translation tag="Default" ru="По умолчанию"/>
@@ -2226,6 +2228,7 @@
   <translation tag="Homing XY..." ru="Парковка XY..."/>
   <translation tag="Homing Y..." ru="Парковка Y..."/>
   <translation tag="Homing Z..." ru="Парковка Z..."/>
+  <translation tag="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN."/>
   <translation tag="Homing all axes..." ru="Парковка всех осей..."/>
   <translation tag="Homing and moving the plate..." ru="Парковка и перемещение стола..."/>
   <translation tag="Homing axes..." ru="Парковка осей..."/>
@@ -2236,6 +2239,7 @@
   <translation tag="Homing first..." ru="Парковка..."/>
   <translation tag="Homing gave inconsistent results." ru="Парковка дала несогласованные результаты."/>
   <translation tag="Homing is disabled while a print is in progress" ru="Парковка недоступна во время печати"/>
+  <translation tag="Homing lost contact between boards"/>
   <translation tag="Homing may still be running — response timed out" ru="Парковка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Homing selector" ru="Парковка селектора"/>
   <translation tag="Homing stopped at {}" ru="Парковка остановлена: {}"/>
@@ -4928,6 +4932,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ru="Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик."/>
   <translation tag="The printer shut down" ru="Принтер отключился"/>
   <translation tag="The printer shut down while homing or probing." ru="Принтер отключился во время парковки или измерения."/>
+  <translation tag="The printer shut down while it was homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." ru="Принтер остановился ради безопасности; прошивка не указала конкретной причины."/>
   <translation tag="The printer stops and cannot print until the update is done." ru="Принтер остановится и не сможет печатать до завершения обновления."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>

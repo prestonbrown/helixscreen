@@ -83,12 +83,12 @@ bool is_mcu_disconnect(const std::string& line) {
                  c->category == error_wording::Category::McuConnect);
 }
 
-std::string classify_journal_error(const std::string& line) {
+std::string classify_journal_error(const std::string& line, const PrinterDiscovery* hw) {
     const std::string text = journal_error_text(line);
     if (is_firmware_envelope(text)) {
         return "firmware";
     }
-    const auto c = error_wording::classify(text);
+    const auto c = error_wording::classify(text, hw);
     return c ? error_wording::journal_class(c->category) : "other";
 }
 
@@ -245,7 +245,7 @@ nlohmann::json build_event_journal_section(JournalSource source,
 // ---------------------------------------------------------------------------
 
 std::vector<JournalEntry> backfill_from_gcode_store(const std::vector<GcodeStoreEntry>& store,
-                                                    double since) {
+                                                    double since, const PrinterDiscovery* hw) {
     std::vector<JournalEntry> out;
     for (const auto& item : store) {
         if (item.type != "response" || item.time <= since || item.message.rfind("!!", 0) != 0) {
@@ -255,7 +255,7 @@ std::vector<JournalEntry> backfill_from_gcode_store(const std::vector<GcodeStore
         e.time = item.time;
         e.kind = journal_kind::kGcodeError;
         e.text = journal_error_text(item.message);
-        e.cls = classify_journal_error(item.message);
+        e.cls = classify_journal_error(item.message, hw);
         out.push_back(std::move(e));
     }
     return out;
@@ -289,7 +289,8 @@ std::vector<JournalEntry> backfill_from_history(const nlohmann::json& result, do
     return out;
 }
 
-std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, double since) {
+std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, double since,
+                                                   const PrinterDiscovery* hw) {
     static constexpr const char* kStart = "Start printer at ";
     static constexpr const char* kStats = "Stats ";
     static constexpr const char* kShutdown = "Transition to shutdown state: ";
@@ -333,7 +334,7 @@ std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, doubl
             e.kind =
                 is_mcu_disconnect(message) ? journal_kind::kMcuDisconnect : journal_kind::kShutdown;
             e.text = message;
-            e.cls = classify_journal_error(message);
+            e.cls = classify_journal_error(message, hw);
             out.push_back(std::move(e));
         }
     }

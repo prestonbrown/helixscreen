@@ -859,6 +859,7 @@
   <translation tag="Check that the printer is powered on and connected to the network" en="Check that the printer is powered on and connected to the network"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller." en="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume." en="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the CAN wiring and bitrate and the host&apos;s load, then home again." en="Check the CAN wiring and bitrate and the host&apos;s load, then home again."/>
   <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on." en="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube" en="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" en="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor"/>
@@ -1290,6 +1291,7 @@
   <translation tag="Date Format" en="Date Format"/>
   <translation tag="Day" en="Day"/>
   <translation tag="Day Month Year" en="Day Month Year"/>
+  <translation tag="Deal with the shutdown&apos;s own reason first, then home again." en="Deal with the shutdown&apos;s own reason first, then home again."/>
   <translation tag="Debug" en="Debug"/>
   <translation tag="Deep Black" en="Deep Black"/>
   <translation tag="Default" en="Default"/>
@@ -2178,6 +2180,7 @@
   <translation tag="Homing XY..." en="Homing XY..."/>
   <translation tag="Homing Y..." en="Homing Y..."/>
   <translation tag="Homing Z..." en="Homing Z..."/>
+  <translation tag="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN." en="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN."/>
   <translation tag="Homing all axes..." en="Homing all axes..."/>
   <translation tag="Homing and moving the plate..." en="Homing and moving the plate..."/>
   <translation tag="Homing axes..." en="Homing axes..."/>
@@ -2188,6 +2191,7 @@
   <translation tag="Homing first..." en="Homing first..."/>
   <translation tag="Homing gave inconsistent results." en="Homing gave inconsistent results."/>
   <translation tag="Homing is disabled while a print is in progress" en="Homing is disabled while a print is in progress"/>
+  <translation tag="Homing lost contact between boards" en="Homing lost contact between boards"/>
   <translation tag="Homing may still be running — response timed out" en="Homing may still be running — response timed out"/>
   <translation tag="Homing selector" en="Homing selector"/>
   <translation tag="Homing stopped at {}" en="Homing stopped at {}"/>
@@ -4862,6 +4866,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." en="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back."/>
   <translation tag="The printer shut down" en="The printer shut down"/>
   <translation tag="The printer shut down while homing or probing." en="The printer shut down while homing or probing."/>
+  <translation tag="The printer shut down while it was homing or probing." en="The printer shut down while it was homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." en="The printer stopped itself for safety; the firmware gave no specific reason."/>
   <translation tag="The printer stops and cannot print until the update is done." en="The printer stops and cannot print until the update is done."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." en="The printer swaps between several toolheads. Manage the tools on the filament system screen."/>

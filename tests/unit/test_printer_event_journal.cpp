@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "printer_discovery.h"
 #include "printer_event_journal.h"
 #include "system/debug_bundle_collector.h"
 
@@ -56,6 +57,18 @@ TEST_CASE("journal classifier matches the plugin's on the shared fixture",
         CHECK(classify_journal_error(line) == c["class"].get<std::string>());
         CHECK(is_mcu_disconnect(line) == c["mcu_disconnect"].get<bool>());
     }
+}
+
+TEST_CASE("journal classifier reads a firmware's own errors on that firmware",
+          "[plugin_event_journal][error-wording]") {
+    PrinterDiscovery zmod;
+    zmod.parse_objects(json::array({"zmod_ifs", "zmod_color"}));
+    CHECK(classify_journal_error("!! Filament jam detected (IFS).", &zmod) == "filament");
+    CHECK(classify_journal_error("!! No filament 2 in IFS", &zmod) == "filament");
+    CHECK(classify_journal_error("!! Failed to extract filament from extruder", &zmod) ==
+          "filament");
+    // The same words on a printer without ZMOD are nobody's.
+    CHECK(classify_journal_error("!! No filament 2 in IFS") == "other");
 }
 
 TEST_CASE("journal source decision over every plugin state", "[plugin_event_journal]") {

@@ -859,6 +859,7 @@
   <translation tag="Check that the printer is powered on and connected to the network" ja="プリンターの電源が入っていて、ネットワークに接続されているか確認してください"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the CAN wiring and bitrate and the host&apos;s load, then home again."/>
   <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" ja="ドラッグチェーンに沿った PTFE チューブの折れと、エクストルーダーセンサー入口の曲がりを確認してください"/>
@@ -1290,6 +1291,7 @@
   <translation tag="Date Format" ja="日付形式"/>
   <translation tag="Day" ja="日"/>
   <translation tag="Day Month Year" ja="日 月 年"/>
+  <translation tag="Deal with the shutdown&apos;s own reason first, then home again."/>
   <translation tag="Debug" ja="デバッグ"/>
   <translation tag="Deep Black" ja="ディープブラック"/>
   <translation tag="Default" ja="デフォルト"/>
@@ -2178,6 +2180,7 @@
   <translation tag="Homing XY..." ja="XY軸をホーミング中..."/>
   <translation tag="Homing Y..." ja="Y軸をホーミング中..."/>
   <translation tag="Homing Z..." ja="Z軸をホーミング中..."/>
+  <translation tag="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN."/>
   <translation tag="Homing all axes..." ja="全軸をホーミング中..."/>
   <translation tag="Homing and moving the plate..." ja="ホーミングしてベッドを移動中..."/>
   <translation tag="Homing axes..." ja="軸をホーミング中..."/>
@@ -2188,6 +2191,7 @@
   <translation tag="Homing first..." ja="ホーミング中..."/>
   <translation tag="Homing gave inconsistent results." ja="ホーミングの結果が一致しませんでした。"/>
   <translation tag="Homing is disabled while a print is in progress" ja="印刷中はホーミングできません"/>
+  <translation tag="Homing lost contact between boards"/>
   <translation tag="Homing may still be running — response timed out" ja="ホーミングがまだ実行中の可能性があります — 応答タイムアウト"/>
   <translation tag="Homing selector" ja="セレクターをホーミングしています"/>
   <translation tag="Homing stopped at {}" ja="{} でホーミングが停止しました"/>
@@ -4862,6 +4866,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ja="プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。"/>
   <translation tag="The printer shut down" ja="プリンターが停止しました"/>
   <translation tag="The printer shut down while homing or probing." ja="ホーミングまたはプローブ中にプリンターが停止しました。"/>
+  <translation tag="The printer shut down while it was homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." ja="プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。"/>
   <translation tag="The printer stops and cannot print until the update is done." ja="更新が完了するまでプリンターは停止し、印刷できません。"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ja="プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。"/>

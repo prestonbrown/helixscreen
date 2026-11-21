@@ -945,6 +945,7 @@ translations:
   Check that the printer is powered on and connected to the network: Проверьте, что принтер включён и подключён к сети
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера
@@ -1432,6 +1433,7 @@ translations:
   Date Format: Формат даты
   Day: День
   Day Month Year: День Месяц Год
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: Отладка
   Deep Black: Глубокий чёрный
   Default: 'По умолчанию'
@@ -2341,6 +2343,7 @@ translations:
   Homing XY...: Парковка XY...
   Homing Y...: Парковка Y...
   Homing Z...: Парковка Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: Парковка всех осей...
   Homing and moving the plate...: 'Парковка и перемещение стола...'
   Homing axes...: Парковка осей...
@@ -2351,6 +2354,7 @@ translations:
   Homing first...: Парковка...
   Homing gave inconsistent results.: 'Парковка дала несогласованные результаты.'
   Homing is disabled while a print is in progress: Парковка недоступна во время печати
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: Парковка может ещё выполняться — время ожидания истекло
   Homing selector: 'Парковка селектора'
   Homing stopped at {}: 'Парковка остановлена: {}'
@@ -5119,6 +5123,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось'
   The printer shut down: 'Принтер отключился'
   The printer shut down while homing or probing.: 'Принтер отключился во время парковки или измерения.'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'Принтер остановился ради безопасности; прошивка не указала конкретной причины.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик.'

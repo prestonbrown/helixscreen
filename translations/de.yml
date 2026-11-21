@@ -889,6 +889,7 @@ translations:
   Check that the printer is powered on and connected to the network: Prüfen Sie, ob der Drucker eingeschaltet und mit dem Netzwerk verbunden ist
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the CAN wiring and bitrate and the host's load, then home again.: ''
   Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: PTFE-Schlauch entlang der Schleppkette auf Knicke prüfen, ebenso die Biegung am Eingang des Extruder-Sensors
@@ -1372,6 +1373,7 @@ translations:
   Date Format: Datumsformat
   Day: Tag
   Day Month Year: Tag Monat Jahr
+  Deal with the shutdown's own reason first, then home again.: ''
   Debug: Debug
   Deep Black: Tiefschwarz
   Default: 'Standard'
@@ -2277,6 +2279,7 @@ translations:
   Homing XY...: Referenzfahrt XY...
   Homing Y...: Referenzfahrt Y...
   Homing Z...: Referenzfahrt Z...
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: ''
   Homing all axes...: Referenzfahrt alle Achsen...
   Homing and moving the plate...: 'Referenzfahrt und Heizbett wird bewegt...'
   Homing axes...: Achsen referenzieren...
@@ -2287,6 +2290,7 @@ translations:
   Homing first...: Referenzfahrt zuerst...
   Homing gave inconsistent results.: 'Das Referenzieren lieferte uneinheitliche Ergebnisse.'
   Homing is disabled while a print is in progress: Referenzfahrt ist während eines laufenden Drucks deaktiviert
+  Homing lost contact between boards: ''
   Homing may still be running — response timed out: Referenzfahrt läuft möglicherweise noch — Zeitüberschreitung
   Homing selector: 'Referenzfahrt des Selektors'
   Homing stopped at {}: 'Referenzieren bei {} gestoppt'
@@ -5031,6 +5035,7 @@ translations:
   The printer requires an encrypted connection, but the encrypted connection to {}:{} failed: 'Der Drucker verlangt eine verschlüsselte Verbindung, aber die verschlüsselte Verbindung zu {}:{} ist fehlgeschlagen'
   The printer shut down: 'Der Drucker hat abgeschaltet'
   The printer shut down while homing or probing.: 'Der Drucker hat beim Referenzieren oder Abtasten abgeschaltet.'
+  The printer shut down while it was homing or probing.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'Der Drucker hat sich zur Sicherheit selbst gestoppt; die Firmware nannte keinen genauen Grund.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'Der Drucker startet mit dem Snapmaker-Bildschirm neu, und HelixScreen startet nicht mehr. Ihre HelixScreen-Einstellungen bleiben auf dem Drucker; führen Sie das Installationsprogramm erneut aus, um zurückzukehren.'

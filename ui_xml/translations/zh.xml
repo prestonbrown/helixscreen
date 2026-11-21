@@ -859,6 +859,7 @@
   <translation tag="Check that the printer is powered on and connected to the network" zh="请检查打印机是否已开机并连接到网络"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the CAN wiring and bitrate and the host&apos;s load, then home again."/>
   <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" zh="请检查拖链沿线的 PTFE 管是否折弯，以及进入挤出机传感器处的弯曲"/>
@@ -1290,6 +1291,7 @@
   <translation tag="Date Format" zh="日期格式"/>
   <translation tag="Day" zh="日"/>
   <translation tag="Day Month Year" zh="日 月 年"/>
+  <translation tag="Deal with the shutdown&apos;s own reason first, then home again."/>
   <translation tag="Debug" zh="调试"/>
   <translation tag="Deep Black" zh="深黑色"/>
   <translation tag="Default" zh="默认"/>
@@ -2178,6 +2180,7 @@
   <translation tag="Homing XY..." zh="正在归位 XY..."/>
   <translation tag="Homing Y..." zh="正在归位 Y..."/>
   <translation tag="Homing Z..." zh="正在归位 Z..."/>
+  <translation tag="Homing across two boards (a toolhead board&apos;s endstop and the mainboard&apos;s motors) lost contact over USB or CAN."/>
   <translation tag="Homing all axes..." zh="正在归位所有轴..."/>
   <translation tag="Homing and moving the plate..." zh="正在归位并移动热床..."/>
   <translation tag="Homing axes..." zh="正在归位各轴..."/>
@@ -2188,6 +2191,7 @@
   <translation tag="Homing first..." zh="正在先归位..."/>
   <translation tag="Homing gave inconsistent results." zh="归位结果不一致。"/>
   <translation tag="Homing is disabled while a print is in progress" zh="打印进行中，无法归位"/>
+  <translation tag="Homing lost contact between boards"/>
   <translation tag="Homing may still be running — response timed out" zh="归位可能仍在运行 — 响应超时"/>
   <translation tag="Homing selector" zh="选择器回零"/>
   <translation tag="Homing stopped at {}" zh="归位在 {} 处停止"/>
@@ -4862,6 +4866,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." zh="打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。"/>
   <translation tag="The printer shut down" zh="打印机已关闭"/>
   <translation tag="The printer shut down while homing or probing." zh="打印机在归位或探测时关闭。"/>
+  <translation tag="The printer shut down while it was homing or probing."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." zh="打印机出于安全自行停止；固件未给出具体原因。"/>
   <translation tag="The printer stops and cannot print until the update is done." zh="更新完成之前打印机会停止，无法打印。"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." zh="打印机在多个工具头之间切换。在耗材系统界面管理工具。"/>
