@@ -193,10 +193,15 @@ std::string format_shaper_axis(std::string_view type, double freq_hz) {
 }
 
 std::string join_shaper_axes(const std::string& x, const std::string& y) {
-    if (x.empty() && y.empty()) {
-        return {};
-    }
-    return (x.empty() ? y : y.empty() ? x : fmt::format("{} · {}", x, y)) + " Hz";
+    // Each axis names itself: the two rarely share a shaper or a frequency, and
+    // a printer shaping one axis must still say which. No unit: with one, both
+    // axes do not fit a half-width tile at 800x480.
+    const auto labeled = [](char axis, const std::string& shaper) {
+        return shaper.empty() ? std::string() : fmt::format("{}: {}", axis, shaper);
+    };
+    const std::string lx = labeled('X', x);
+    const std::string ly = labeled('Y', y);
+    return lx.empty() ? ly : ly.empty() ? lx : fmt::format("{} · {}", lx, ly);
 }
 
 std::string format_pid(double kp, double ki, double kd) {

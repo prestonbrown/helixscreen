@@ -352,7 +352,7 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
     CHECK(r.at("z_offset") == "-1.250 mm");
     CHECK(r.at("heaters") == "PID");
     CHECK(r.at("bed_mesh") == "profile default");
-    CHECK(r.at("input_shaper") == "MZV 36.7 · EI 47.6 Hz");
+    CHECK(r.at("input_shaper") == "X: MZV 36.7 · Y: EI 47.6");
 
     SECTION("a z_offset of 0 is a stock config, not a tune") {
         json s = settings;
@@ -408,7 +408,7 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
     SECTION("an axis at the default frequency 0 is not shaped") {
         json s = settings;
         s["input_shaper"]["shaper_freq_x"] = 0.0;
-        CHECK(results_in_config(s).at("input_shaper") == "EI 47.6 Hz");
+        CHECK(results_in_config(s).at("input_shaper") == "Y: EI 47.6");
         s["input_shaper"]["shaper_freq_y"] = 0.0;
         CHECK(results_in_config(s).count("input_shaper") == 0);
     }
