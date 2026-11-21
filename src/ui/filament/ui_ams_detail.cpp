@@ -263,12 +263,6 @@ static void slot_released_cb(lv_event_t* e) {
     }
 }
 
-static void ams_detail_add_slot_press_feedback(lv_obj_t* slot) {
-    lv_obj_add_event_cb(slot, slot_pressed_cb, LV_EVENT_PRESSED, nullptr);
-    lv_obj_add_event_cb(slot, slot_released_cb, LV_EVENT_RELEASED, nullptr);
-    lv_obj_add_event_cb(slot, slot_released_cb, LV_EVENT_PRESS_LOST, nullptr);
-}
-
 AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
                                             helix::ui::WidgetRef slot_widgets[], int max_slots,
                                             int unit_index, lv_event_cb_t click_cb,
@@ -302,6 +296,10 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
         count = max_slots;
     }
 
+    // ams_slot_view.xml wires these to each slot's press, release and lost press.
+    lv_xml_register_event_cb(nullptr, "on_ams_detail_slot_pressed", slot_pressed_cb);
+    lv_xml_register_event_cb(nullptr, "on_ams_detail_slot_released", slot_released_cb);
+
     // Create slot widgets via XML system
     for (int i = 0; i < count; ++i) {
         lv_obj_t* slot = static_cast<lv_obj_t*>(lv_xml_create(w.slot_grid, "ams_slot", nullptr));
@@ -317,9 +315,6 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
         slot_widgets[i] = slot;
         lv_obj_set_user_data(slot, reinterpret_cast<void*>(static_cast<intptr_t>(global_index)));
         lv_obj_add_event_cb(slot, click_cb, LV_EVENT_CLICKED, user_data);
-
-        // Add visual press feedback (opacity flash on touch)
-        ams_detail_add_slot_press_feedback(slot);
     }
 
     result.slot_count = count;

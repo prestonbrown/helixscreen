@@ -5,6 +5,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
+#include "ui_row_text.h"
 #include "ui_toast_manager.h"
 #include "ui_utils.h"
 
@@ -26,14 +27,6 @@
 #include <thread>
 
 namespace helix::ui {
-
-namespace {
-struct RowData {
-    std::string vendor_product; // empty = auto-detect
-    std::string device_name;
-    std::string bt_mac; // empty for USB rows
-};
-} // namespace
 
 // ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -93,24 +86,23 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
              auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
-             auto* row = lv_event_get_current_target_obj(e);
-             auto* data = row ? static_cast<RowData*>(lv_obj_get_user_data(row)) : nullptr;
-             if (!data)
+             const DeviceRow* found = self->device_row_from_event(e);
+             if (!found)
                  return;
-             self->handle_device_selected(data->vendor_product, data->device_name, data->bt_mac);
+             // Copied: selecting repopulates the list, which drops the row.
+             const DeviceRow row = *found;
+             self->handle_device_selected(row.vendor_product, row.device_name, row.bt_mac);
          }},
         {"on_bs_row_forget",
          [](lv_event_t* e) {
              auto* self = OverlayBase::from_event<BarcodeScannerSettingsOverlay>(e);
              if (!self)
                  return;
-             // The forget button is a child of the row; walk up to find the RowData.
-             auto* btn = lv_event_get_current_target_obj(e);
-             auto* row = btn ? lv_obj_get_parent(btn) : nullptr;
-             auto* data = row ? static_cast<RowData*>(lv_obj_get_user_data(row)) : nullptr;
-             if (!data || data->bt_mac.empty())
+             const DeviceRow* row = self->device_row_from_event(e);
+             if (!row || row->bt_mac.empty())
                  return;
-             self->handle_bt_forget(data->bt_mac);
+             const std::string mac = row->bt_mac;
+             self->handle_bt_forget(mac);
          }},
         {"on_bs_bt_scanner_selected",
          [](lv_event_t* e) {
@@ -272,88 +264,52 @@ void BarcodeScannerSettingsOverlay::refresh_current_selection_label() {
 // DEVICE LIST POPULATION
 // ============================================================================
 
-void BarcodeScannerSettingsOverlay::add_usb_row(lv_obj_t* container, const std::string& label,
-                                                const std::string& sublabel,
-                                                const std::string& vendor_product) {
+void BarcodeScannerSettingsOverlay::add_device_row(lv_obj_t* container, const char* icon,
+                                                   const std::string& label,
+                                                   const std::string& sublabel, bool selected,
+                                                   DeviceRow row) {
     if (!container)
         return;
 
-    const bool selected =
-        !vendor_product.empty() &&
-        vendor_product == helix::SettingsManager::instance().get_scanner_device_id();
-
+    const std::string index = std::to_string(device_rows_.size());
     const char* attrs[] = {
-        "row_icon",     "usb",
-        "row_label",    label.c_str(),
-        "row_sublabel", sublabel.c_str(),
-        "hide_check",   selected ? "false" : "true",
-        "hide_forget",  "true",
+        "row_icon",    icon,
+        "hide_check",  selected ? "false" : "true",
+        "hide_forget", row.bt_mac.empty() ? "true" : "false",
+        "index",       index.c_str(),
         nullptr,
     };
-    lv_obj_t* row =
+    lv_obj_t* obj =
         static_cast<lv_obj_t*>(lv_xml_create(container, "barcode_scanner_device_row", attrs));
-    if (!row)
+    if (!obj)
         return;
-
-    auto* data = new RowData{vendor_product, label, std::string{}};
-    lv_obj_set_user_data(row, data);
-
-    // LV_EVENT_DELETE cleanup: frees heap-allocated RowData for this row.
-    // lv_obj_add_event_cb is intentionally used here — LV_EVENT_DELETE cannot
-    // be expressed in XML, and this is the same pattern used in ScannerPickerModal.
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            if (lv_event_get_code(e) != LV_EVENT_DELETE)
-                return;
-            delete static_cast<RowData*>(
-                lv_obj_get_user_data(static_cast<lv_obj_t*>(lv_event_get_target(e))));
-        },
-        LV_EVENT_DELETE, nullptr);
+    // Device names come from the hardware.
+    helix::ui::set_row_label_text(obj, "row_label", label.c_str());
+    helix::ui::set_row_label_text(obj, "row_sublabel", sublabel.c_str());
+    device_rows_.push_back(std::move(row));
 }
 
-void BarcodeScannerSettingsOverlay::add_auto_detect_row(lv_obj_t* container) {
-    if (!container)
-        return;
-
-    const bool selected = helix::SettingsManager::instance().get_scanner_device_id().empty() &&
-                          helix::SettingsManager::instance().get_scanner_bt_address().empty();
-
-    const char* attrs[] = {
-        "row_icon",     "magnify",
-        "row_label",    lv_tr("Auto-detect"),
-        "row_sublabel", lv_tr("Use first HID scanner found"),
-        "hide_check",   selected ? "false" : "true",
-        "hide_forget",  "true",
-        nullptr,
-    };
-    lv_obj_t* row =
-        static_cast<lv_obj_t*>(lv_xml_create(container, "barcode_scanner_device_row", attrs));
-    if (!row)
-        return;
-
-    auto* data = new RowData{std::string{}, "Auto-detect", std::string{}};
-    lv_obj_set_user_data(row, data);
-
-    lv_obj_add_event_cb(
-        row,
-        [](lv_event_t* e) {
-            if (lv_event_get_code(e) != LV_EVENT_DELETE)
-                return;
-            delete static_cast<RowData*>(
-                lv_obj_get_user_data(static_cast<lv_obj_t*>(lv_event_get_target(e))));
-        },
-        LV_EVENT_DELETE, nullptr);
+const BarcodeScannerSettingsOverlay::DeviceRow*
+BarcodeScannerSettingsOverlay::device_row_from_event(lv_event_t* e) const {
+    const auto index = helix::ui::event_user_int(e);
+    if (!index || *index < 0 || static_cast<size_t>(*index) >= device_rows_.size())
+        return nullptr;
+    return &device_rows_[static_cast<size_t>(*index)];
 }
 
 void BarcodeScannerSettingsOverlay::populate_device_list() {
     if (usb_list_)
         helix::ui::safe_clean_children(usb_list_);
+    device_rows_.clear();
     if (!usb_list_)
         return;
 
     // Auto-detect always first
-    add_auto_detect_row(usb_list_);
+    auto& settings = helix::SettingsManager::instance();
+    const bool auto_selected =
+        settings.get_scanner_device_id().empty() && settings.get_scanner_bt_address().empty();
+    add_device_row(usb_list_, "magnify", lv_tr("Auto-detect"), lv_tr("Use first HID scanner found"),
+                   auto_selected, DeviceRow{std::string{}, "Auto-detect", std::string{}});
 
     auto devices = helix::input::enumerate_usb_hid_devices();
     spdlog::debug("[{}] Enumerated {} HID devices", get_name(), devices.size());
@@ -364,7 +320,9 @@ void BarcodeScannerSettingsOverlay::populate_device_list() {
             continue; // BT HIDs handled via dropdown
         const std::string vendor_product = dev.vendor_id + ":" + dev.product_id;
         const std::string sublabel = vendor_product + "  " + dev.event_path;
-        add_usb_row(usb_list_, dev.name, sublabel, vendor_product);
+        const bool selected = vendor_product == settings.get_scanner_device_id();
+        add_device_row(usb_list_, "usb", dev.name, sublabel, selected,
+                       DeviceRow{vendor_product, dev.name, std::string{}});
         usb_count++;
     }
 }

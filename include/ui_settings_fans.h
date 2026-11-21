@@ -31,6 +31,7 @@
 
 #include <lvgl.h>
 #include <string>
+#include <vector>
 
 namespace helix::settings {
 
@@ -84,6 +85,13 @@ class FanSettingsOverlay : public OverlayBase {
 
     /// Update badge count for a section
     void update_section_count(const char* badge_name, size_t count);
+
+    /// A fan row's tap: renames its fan. The row's index into row_objects_ is
+    /// event user_data.
+    static void on_row_clicked(lv_event_t* e);
+
+    /// Klipper object name of each fan row, in both lists, by the row's `index`
+    std::vector<std::string> row_objects_;
 
     lv_obj_t* controllable_list_ = nullptr;
     lv_obj_t* auto_list_ = nullptr;

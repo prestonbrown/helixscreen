@@ -30,6 +30,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace helix {
 class PrinterState;
@@ -60,11 +61,10 @@ namespace helix::settings {
  * overlay.show(parent_screen);  // Creates overlay if needed, shows; on_activate populates issues
  * @endcode
  *
- * ## Note on Dynamic Row Creation:
+ * ## Issue rows
  *
- * Issue rows are created dynamically using lv_xml_create(). This requires
- * using lv_obj_add_event_cb() for button callbacks and DELETE cleanup,
- * which is an acceptable exception to the declarative UI rule.
+ * Each issue is a hardware_issue_row created with lv_xml_create(). Its Ignore
+ * and Save buttons carry the row's index into issue_names_ as event user_data.
  */
 class HardwareHealthOverlay : public OverlayBase {
   public:
@@ -91,6 +91,8 @@ class HardwareHealthOverlay : public OverlayBase {
      * Cleans up any open modal dialogs.
      */
     void on_deactivating(DeactivateReason reason) override;
+
+    void register_callbacks() override;
 
     /**
      * @brief Set PrinterState dependency (required for validation results)
@@ -139,7 +141,13 @@ class HardwareHealthOverlay : public OverlayBase {
      */
     void populate_hardware_issues();
 
+    /// An issue row's Ignore (@p is_ignore) or Save button, by its row index.
+    static void on_issue_action(lv_event_t* e, bool is_ignore);
+
     PrinterState* printer_state_{nullptr};
+
+    /// Hardware name of each issue row, indexed by the row's `index` prop
+    std::vector<std::string> issue_names_;
 
     /// Hardware name pending save confirmation
     std::string pending_hardware_save_;

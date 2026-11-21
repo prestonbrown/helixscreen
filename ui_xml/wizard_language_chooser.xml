@@ -27,82 +27,103 @@
               style_bg_opa="255" style_radius="#border_radius" scrollable="true" flex_flow="column"
               style_flex_cross_place="center">
 
-        <!-- Language items: flag icon + label in a row -->
+        <!-- Language items: flag icon + label in a row. user_data is the Settings
+             language index; the chosen row is lit through wizard_language_choice. -->
         <lv_button name="lang_item_en"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="0"/>
           <lv_image src="flag_en"/>
           <text_body text="English" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="0"/>
         </lv_button>
 
         <lv_button name="lang_item_en_gb"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="1"/>
           <lv_image src="flag_en-GB"/>
           <text_body text="English (UK)" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="1"/>
         </lv_button>
 
         <lv_button name="lang_item_de"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="2"/>
           <lv_image src="flag_de"/>
           <text_body text="Deutsch" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="2"/>
         </lv_button>
 
         <lv_button name="lang_item_fr"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="3"/>
           <lv_image src="flag_fr"/>
           <text_body text="Français" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="3"/>
         </lv_button>
 
         <lv_button name="lang_item_es"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="4"/>
           <lv_image src="flag_es"/>
           <text_body text="Español" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="4"/>
         </lv_button>
 
         <lv_button name="lang_item_ru"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="5"/>
           <lv_image src="flag_ru"/>
           <text_body text="Русский" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="5"/>
         </lv_button>
 
         <lv_button name="lang_item_pt"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="6"/>
           <lv_image src="flag_pt"/>
           <text_body text="Português" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="6"/>
         </lv_button>
 
         <lv_button name="lang_item_it"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="7"/>
           <lv_image src="flag_it"/>
           <text_body text="Italiano" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="7"/>
         </lv_button>
 
         <lv_button name="lang_item_zh"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="8"/>
           <lv_image src="flag_zh"/>
           <text_body text="中文" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="8"/>
         </lv_button>
 
         <lv_button name="lang_item_ja"
-                   width="100%" style_bg_opa="0" style_shadow_width="0" style_border_width="0" style_pad_ver="#space_sm"
-                   style_pad_hor="#space_md" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+                   width="100%" style_shadow_width="0" style_pad_ver="#space_sm" style_pad_hor="#space_md"
+                   flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_lg">
+          <style name="styles.picker_row_base"/>
+          <bind_style_if_eq name="styles.picker_row_selected" subject="wizard_language_choice" ref_value="9"/>
           <lv_image src="flag_ja"/>
           <text_body text="日本語" flex_grow="1"/>
           <event_cb trigger="clicked" callback="on_language_selected" user_data="9"/>

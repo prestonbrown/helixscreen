@@ -50,6 +50,8 @@ class PowerDeviceWidget : public TiledPanelWidget {
     static void power_device_clicked_cb(lv_event_t* e);
     /// A tile_color_grid swatch in the open picker; applies live and leaves the card up.
     static void color_swatch_cb(lv_event_t* e);
+    /// A device row or sensor chip in the open picker; hides the card and applies.
+    static void picker_row_cb(lv_event_t* e);
 
   private:
     std::string instance_id_;
@@ -78,6 +80,9 @@ class PowerDeviceWidget : public TiledPanelWidget {
         /// Repaint the grid's selection ring after a live icon change.
         void refresh_icon_highlights();
 
+        /// Act on the tapped row @p index: hide the card, then pick its value.
+        void pick(int index);
+
         PowerDeviceWidget& owner() {
             return owner_;
         }
@@ -95,15 +100,14 @@ class PowerDeviceWidget : public TiledPanelWidget {
       private:
         using PickFn = void (*)(PowerDeviceWidget&, const std::string&);
 
-        /// What a generated row needs to act on a tap: the device or sensor id it
-        /// stands for, what picking it does, and the picker that owns it.
-        /// Heap-allocated per row, hung off its user_data and freed by that row's
-        /// own LV_EVENT_DELETE handler.
-        struct RowPayload {
-            DevicePicker* picker;
+        /// What a generated row does when tapped: the device or sensor id it
+        /// stands for and what picking it does. A row's index into rows_ is its
+        /// click's event user_data.
+        struct RowPick {
             std::string value;
             PickFn on_pick;
         };
+        std::vector<RowPick> rows_;
 
         /// Create one row from @p component under @p parent, labelled @p label,
         /// that hides the card and calls @p on_pick with its value when tapped.

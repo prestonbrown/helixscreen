@@ -147,6 +147,8 @@ void WizardLanguageChooserStep::init_subjects() {
     welcome_buffer_[sizeof(welcome_buffer_) - 1] = '\0';
     UI_MANAGED_SUBJECT_STRING(welcome_text_, welcome_buffer_, welcome_buffer_,
                               "wizard_welcome_text", subjects_);
+    // No row is lit until the user picks one.
+    UI_MANAGED_SUBJECT_INT(language_choice_, -1, "wizard_language_choice", subjects_);
 
     subjects_initialized_ = true;
     spdlog::debug("[{}] Subjects initialized", get_name());
@@ -155,46 +157,6 @@ void WizardLanguageChooserStep::init_subjects() {
 // ============================================================================
 // Callback Registration
 // ============================================================================
-
-// Helper to update visual selection state of language list items
-static void update_language_list_selection(lv_obj_t* selected_btn) {
-    if (!selected_btn)
-        return;
-
-    // Get the parent list container
-    lv_obj_t* list = lv_obj_get_parent(selected_btn);
-    if (!list)
-        return;
-
-    // Iterate through all children and update their visual state
-    uint32_t child_count = lv_obj_get_child_count(list);
-    for (uint32_t i = 0; i < child_count; ++i) {
-        lv_obj_t* btn = lv_obj_get_child(list, static_cast<int32_t>(i));
-        if (!btn)
-            continue;
-
-        // Each row is a flag image followed by its label.
-        lv_obj_t* label = lv_obj_get_child(btn, 1);
-        bool is_selected = (btn == selected_btn);
-
-        if (is_selected) {
-            // Selected: primary color background
-            lv_obj_set_style_bg_color(btn, theme_manager_get_color("primary"), LV_PART_MAIN);
-            lv_obj_set_style_bg_opa(btn, LV_OPA_COVER, LV_PART_MAIN);
-            if (label) {
-                lv_obj_set_style_text_color(
-                    label, theme_manager_get_readable_on(theme_manager_get_color("primary")),
-                    LV_PART_MAIN);
-            }
-        } else {
-            // Unselected: transparent background
-            lv_obj_set_style_bg_opa(btn, LV_OPA_TRANSP, LV_PART_MAIN);
-            if (label) {
-                lv_obj_set_style_text_color(label, theme_manager_get_color("text"), LV_PART_MAIN);
-            }
-        }
-    }
-}
 
 static void on_language_selected(lv_event_t* e) {
     // Get the language index from user_data (set in XML via event_cb user_data attribute)
@@ -216,10 +178,6 @@ static void on_language_selected(lv_event_t* e) {
 
     spdlog::info("[Wizard Language Chooser] Language selected: {}", code);
 
-    // Update visual selection
-    lv_obj_t* clicked_btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    update_language_list_selection(clicked_btn);
-
     // Apply language immediately via SystemSettingsManager (hot-reload)
     // This updates the subject, calls lv_translation_set_language(), and persists to config
     SystemSettingsManager::instance().set_language(code);
@@ -227,11 +185,12 @@ static void on_language_selected(lv_event_t* e) {
     // Refresh the wizard header with new translations
     ui_wizard_refresh_header_translations();
 
-    // Update step state
+    // Update step state; the choice lights its row.
     WizardLanguageChooserStep* step = get_wizard_language_chooser_step();
     if (step) {
         step->stop_cycle_timer();
         step->set_language_selected(true);
+        lv_subject_set_int(step->get_language_choice_subject(), index);
     }
 
     // Enable Next button

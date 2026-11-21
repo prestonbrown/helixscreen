@@ -11,7 +11,8 @@
   <view name="bed_row_root"
         extends="lv_obj" height="content" flex_flow="column" style_pad_all="0" style_pad_row="0" style_pad_column="0"
         style_bg_opa="0" style_border_side="top" style_border_color="#text_muted" style_border_opa="50"
-        scrollable="false">
+        scrollable="false" clickable="true">
+    <event_cb trigger="clicked" callback="nozzle_temps_bed_clicked_cb"/>
     <bind_style_if_eq name="nozzle_bed_full" subject="nozzle_row_columns" ref_value="1"/>
     <bind_style_if_eq name="nozzle_bed_half" subject="nozzle_row_columns" ref_value="2"/>
     <pass_through width="100%"

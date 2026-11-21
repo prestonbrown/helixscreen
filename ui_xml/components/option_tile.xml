@@ -8,7 +8,8 @@
      pill's checked state to its children so each child styles itself with a
      -checked state style (dash form; the colon form is dropped, see
      CONTRIBUTOR_GOTCHAS.md). Created by PrePrintOptionsRenderer, which binds
-     the option subject to the pill's checked state and wires value_changed. -->
+     the option subject to the pill's checked state and passes its
+     value_changed callback. -->
 <component>
   <api>
     <prop name="label" type="string" default="Option"/>

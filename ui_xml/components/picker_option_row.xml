@@ -4,12 +4,14 @@
 <component>
   <!-- One choice in a home-widget picker list (power device, fan stack display
        mode, favorite macro): a single label, primary-tinted while it is the
-       current choice. C++ creates one per option, hangs the option's value on
-       user_data, sets the label (a device or macro name is user text, and as a
-       prop a leading '#' would read as a const) and wires the click;
-       `selected` maps to LV_STATE_CHECKED. -->
+       current choice. C++ creates one per option and sets the label (a device
+       or macro name is user text, and as a prop a leading '#' would read as a
+       const). A caller that passes `callback` gets the row's `index` as event
+       user_data; `selected` maps to LV_STATE_CHECKED. -->
   <api>
     <prop name="selected" type="boolean" default="false"/>
+    <prop name="callback" type="string" default=""/>
+    <prop name="index" type="string" default=""/>
     <prop name="pad_all" type="string" default="#space_sm"/>
     <prop name="pad_gap" type="string" default="#space_xs"/>
     <!-- Optional trailing reading (a fan's speed), dimmed; hidden when empty. -->
@@ -24,6 +26,7 @@
         style_border_width="0" scrollable="false" clickable="true" checked="$selected">
     <style name="selected" selector="checked"/>
     <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
     <text_body name="option_label"
                text="" flex_grow="1" long_mode="dots" style_text_font="noto_sans_14" clickable="false"
                event_bubble="true"/>

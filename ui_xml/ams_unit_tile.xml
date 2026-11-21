@@ -3,6 +3,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
   <api>
+    <!-- Unit index the click callback receives as event user_data. -->
+    <prop name="index" type="int" default="0"/>
     <!-- 1 while the unit is an absent placeholder: shows disabled and says so. -->
     <prop name="absent" type="subject" default="ams_env_ind_off_flag"/>
     <!-- 1 while a present unit is reported offline: the art fades and a chip says so. -->
@@ -26,6 +28,7 @@
         style_pad_all="0" style_pad_gap="#space_xxs" style_radius="#border_radius" style_min_width="#ams_tile_min_width"
         clickable="true">
     <style name="styles.press_wash" selector="pressed"/>
+    <event_cb trigger="clicked" callback="on_ams_unit_card_clicked" user_data="$index"/>
     <bind_state_if_eq subject="$absent" state="disabled" ref_value="1"/>
     <lv_obj name="tile_stage"
             width="100%" height="#ams_tile_art_max_h" style_pad_all="0" overflow_visible="true" scrollable="false"
