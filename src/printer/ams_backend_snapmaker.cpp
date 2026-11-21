@@ -907,7 +907,7 @@ bool AmsBackendSnapmaker::slot_filament_parked_in_toolhead(int slot_index) const
     if (slot_index < 0 || slot_index >= kNumTools) {
         return false;
     }
-    return parked_in_toolhead_locked(slot_index);
+    return parked_in_toolhead_locked(slot_index) || load_failed_into_head_locked(slot_index);
 }
 
 bool AmsBackendSnapmaker::slot_is_actively_loaded(int slot_index) const {
