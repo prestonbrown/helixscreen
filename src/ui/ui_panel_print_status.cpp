@@ -872,7 +872,8 @@ void PrintStatusPanel::init_subjects() {
                                                       LV_SUBJECT_TYPE_INT, __FILE__, __LINE__);
 
     // Register XML event callbacks for print status panel buttons
-    // (tune overlay subjects/callbacks registered by singleton on first show())
+    // (the tune overlay registers its own subjects and callbacks when it is shown
+    // or the inline Tune section is built: PrintTuneOverlay::prepare_inline())
     // (light and timelapse callbacks are registered by light_timelapse_controls_.init_subjects())
     register_xml_callbacks({
         {"on_print_status_tune",
@@ -2995,7 +2996,8 @@ void PrintStatusPanel::animate_print_error() {
 
 // Tune panel handlers delegated to PrintTuneOverlay singleton:
 // See get_print_tune_overlay() and handle_*() methods in ui_print_tune_overlay.cpp
-// XML callbacks are registered in ui_print_tune_overlay.cpp on first show()
+// XML callbacks are registered by ui_print_tune_overlay.cpp when the overlay is
+// shown or Print Status builds its inline Tune section (prepare_inline())
 
 // ============================================================================
 // FILAMENT COLOR OVERRIDE

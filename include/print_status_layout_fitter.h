@@ -40,8 +40,9 @@ class PrintStatusLayoutFitter {
         // strip's height in px.
         lv_subject_t* lane_tray = nullptr;
         lv_subject_t* lane_tray_h = nullptr;
-        /// The stacked printer tile's height beside a lane tray strip, in px;
-        /// lv_pct(100) otherwise, where its flex share sets it.
+        /// The stacked printer tile's height in px while a lane tray strip or
+        /// the inline Tune section takes room from the job tile; lv_pct(100)
+        /// otherwise, where its flex share sets it.
         lv_subject_t* printer_tile_h = nullptr;
         lv_subject_t* tune_w = nullptr;
         lv_subject_t* tune_h = nullptr;
