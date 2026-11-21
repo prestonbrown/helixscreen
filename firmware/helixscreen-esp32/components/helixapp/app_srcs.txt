@@ -617,7 +617,11 @@ src/ui/filament/ui_unit_art.cpp
 src/ui/filament/unit_art_spin.cpp
 src/ui/filament/unit_art_geometry.cpp
 src/ui/filament/ui_dryer_presentation.cpp
-src/ui/components/ui_color_picker.cpp
+src/ui/components/ui_color_picker_view.cpp
+src/ui/components/ui_color_picker_modal.cpp
+src/ui/components/ui_color_picker_page.cpp
+src/ui/color_picker_model.cpp
+src/ui/color_recents.cpp
 src/ui/components/ui_component_header_bar.cpp
 src/ui/components/ui_component_keypad.cpp
 src/ui/components/ui_confetti.cpp
@@ -857,7 +861,6 @@ src/ui/home/grid_edit_cross_page.cpp
 src/ui/home/grid_edit_drop.cpp
 src/ui/home/grid_edit_page_set.cpp
 src/ui/home/ui_tile_edit_callout.cpp
-src/ui/components/ui_hsv_picker.cpp
 src/ui/components/ui_progress_bar.cpp
 src/ui/filament/ui_ams_detail.cpp
 src/ui/filament/ui_ams_detail_labels.cpp

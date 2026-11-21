@@ -308,6 +308,7 @@
   <translation tag="All Devices" ja="すべてのデバイス"/>
   <translation tag="All Healthy" ja="すべて正常"/>
   <translation tag="All axes homed" ja="すべての軸がホーミング済み"/>
+  <translation tag="All colors" ja="すべての色"/>
   <translation tag="All configured hardware detected" ja="設定済みのハードウェアをすべて検出"/>
   <translation tag="All fields are required" ja="すべての項目が必須です"/>
   <translation tag="All healthy" ja="すべて正常"/>
@@ -1762,6 +1763,7 @@
   <translation tag="Good match" ja="良好な一致"/>
   <translation tag="Got it" ja="了解"/>
   <translation tag="Gray" ja="グレー"/>
+  <translation tag="Grid" ja="グリッド"/>
   <translation tag="Grip filament" ja="フィラメントを把持"/>
   <translation tag="Grip the filament" ja="フィラメントを把持"/>
   <translation tag="Groups follow each slot&apos;s material and color" ja="グループは各スロットの素材と色に従います"/>
@@ -1877,6 +1879,7 @@
   <translation tag="Helper macros already installed" ja="ヘルパーマクロはすでにインストールされています"/>
   <translation tag="Helper macros are up to date" ja="ヘルパーマクロは最新です"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." ja="前回のバージョンからの変更点を簡単に説明します。"/>
+  <translation tag="Hex" ja="16進"/>
   <translation tag="Hide Firmware Noise" ja="ファームウェアノイズを非表示"/>
   <translation tag="Hide Temperature Reports" ja="温度レポートを非表示"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ja="USBキーボード接続中は画面キーボードを非表示にする"/>
@@ -1945,6 +1948,7 @@
   <translation tag="Hub" ja="ハブ"/>
   <translation tag="Hub &amp; Cutter" ja="ハブとカッター"/>
   <translation tag="Hub Bowden Length" ja="ハブのボーデン長"/>
+  <translation tag="Hue" ja="色相"/>
   <translation tag="Humidity" ja="湿度"/>
   <translation tag="Humidity Sensors" ja="湿度センサー"/>
   <translation tag="Humidity inside the enclosure" ja="チャンバー内の湿度"/>
@@ -3269,6 +3273,7 @@
   <translation tag="Recalibrate input shaping?" ja="インプットシェーピングを再キャリブレーションしますか？"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ja="設定からいつでも再キャリブレーションや詳細結果の確認ができます。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ja="プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。"/>
+  <translation tag="Recent" ja="最近"/>
   <translation tag="Recent Prints" ja="最近の印刷"/>
   <translation tag="Recently Printed" ja="最近印刷されたもの"/>
   <translation tag="Recirculate" ja="循環"/>
@@ -3519,6 +3524,7 @@
   <translation tag="Sample Dialog" ja="サンプルダイアログ"/>
   <translation tag="Samples" ja="サンプル数"/>
   <translation tag="Samples Tolerance" ja="サンプル許容値"/>
+  <translation tag="Saturation" ja="彩度"/>
   <translation tag="Save" ja="保存"/>
   <translation tag="Save &amp; Restart" ja="保存して再起動"/>
   <translation tag="Save As New" ja="新規として保存"/>
@@ -3773,6 +3779,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." ja="{:g} mmノズル（T{}）用にスライスされています。プリンターは{:g} mmです。"/>
   <translation tag="Sliced for {}, not {}." ja="{}用にスライスされています。{}用ではありません。"/>
   <translation tag="Slicer" ja="スライサー"/>
+  <translation tag="Sliders" ja="スライダー"/>
   <translation tag="Slot" ja="スロット"/>
   <translation tag="Slot 1" ja="スロット1"/>
   <translation tag="Slot Blocked" ja="スロットがブロックされています"/>
@@ -4358,6 +4365,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ja="このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ja="このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。"/>
   <translation tag="This system does not support bypass mode" ja="このシステムはバイパスモードに対応していません"/>
+  <translation tag="This theme" ja="このテーマ"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ja="このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"/>
   <translation tag="This update asks for new permissions:" ja="この更新は新しい権限を要求します："/>

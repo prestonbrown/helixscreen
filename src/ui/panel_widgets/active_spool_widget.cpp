@@ -5,7 +5,6 @@
 
 #include "ui_ams_edit_follow_up.h"
 #include "ui_ams_edit_overlay.h"
-#include "ui_color_picker.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_spool_canvas.h"
@@ -16,6 +15,7 @@
 #include "active_material_provider.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "color_utils.h"
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "filament_display_name.h"

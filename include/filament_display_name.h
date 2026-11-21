@@ -21,10 +21,8 @@ struct SlotInfo;
  * isolation (`tests/unit/test_filament_display_name.cpp`).
  *
  * The algorithmic color name (`helix::get_color_name_from_hex()`) is the last
- * naming layer, but it is **not** called from here: `ui_color_picker.h` pulls in
- * `ui_modal.h` and `subject_managed_panel.h`, and dragging LVGL into this
- * translation unit would defeat the point. The caller computes it and passes it
- * as `color_fallback`.
+ * naming layer, but it is **not** called from here, so this header stays free of
+ * every UI dependency. The caller computes it and passes it as `color_fallback`.
  */
 
 namespace helix {

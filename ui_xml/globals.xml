@@ -32,24 +32,13 @@
     <px name="tab_dot_ring_width_medium" value="2"/>
     <px name="tab_dot_ring_width_large" value="2"/>
     <px name="tab_dot_unknown_opacity" value="90"/>
-    <!-- The two-column color picker modal. Small keeps 470 (a 480-wide panel
-         cannot host more); the core tiers widen so the preset grid's 6 columns
-         of touch-target-sized cells fit beside the 190px HSV column as the
-         space_* padding grows. -->
-    <px name="color_picker_modal_width_small" value="470"/>
-    <px name="color_picker_modal_width_medium" value="500"/>
-    <px name="color_picker_modal_width_large" value="500"/>
-    <px name="color_picker_modal_width_xlarge" value="510"/>
-    <px name="color_picker_modal_width_xxlarge" value="520"/>
-    <!-- The 6-column, 30-swatch preset grids (color_swatch_grid, either palette):
-         swatch, gap, half the gap (each swatch's hit reach), and the grid width,
-         six swatches and five gaps, so the 30 always form 5 even rows. Every
-         class keeps each swatch's whole touch target at least 7mm on its
-         panel: swatch + 2*half is the pitch, 44px at 160 dpi or less, 46px on
-         the tiny class's 3.5" 480x320 at 165 dpi. gap == 2*half so
-         neighbouring targets abut without overlapping (LVGL gives an overlap
-         to the topmost widget, which makes taps unpredictable). Every grid
-         that uses them, the AMS editor's included, takes them from here. -->
+    <!-- Rows and grids of small pickable swatches (the wizard's catalog rows,
+         the custom color swatch): swatch, gap, half the gap (each swatch's hit
+         reach), and a six-column width. Every class keeps each swatch's whole
+         touch target at least 7mm on its panel: swatch + 2*half is the pitch,
+         44px at 160 dpi or less, 46px on the tiny class's 3.5" 480x320 at 165
+         dpi. gap == 2*half so neighboring targets abut without overlapping (LVGL
+         gives an overlap to the topmost widget, which makes taps unpredictable). -->
     <px name="swatch_grid_size_micro" value="26"/>
     <px name="swatch_grid_size_tiny" value="28"/>
     <px name="swatch_grid_size_small" value="28"/>
@@ -86,19 +75,6 @@
     <px name="swatch_grid_ring_reach_small" value="3"/>
     <px name="swatch_grid_ring_reach_medium" value="3"/>
     <px name="swatch_grid_ring_reach_large" value="3"/>
-    <!-- The tabbed picker (micro, tiny) gives its presets the whole tab: larger
-         swatches, and the column count follows from the tab's width. Only those
-         two tiers ever show the tab; the core tiers mirror them. -->
-    <px name="picker_tab_swatch_size_micro" value="40"/>
-    <px name="picker_tab_swatch_size_small" value="40"/>
-    <px name="picker_tab_swatch_size_medium" value="40"/>
-    <px name="picker_tab_swatch_size_large" value="40"/>
-    <px name="picker_tab_swatch_gap_small" value="6"/>
-    <px name="picker_tab_swatch_gap_medium" value="6"/>
-    <px name="picker_tab_swatch_gap_large" value="6"/>
-    <px name="picker_tab_swatch_gap_half_small" value="3"/>
-    <px name="picker_tab_swatch_gap_half_medium" value="3"/>
-    <px name="picker_tab_swatch_gap_half_large" value="3"/>
     <px name="border_radius_sm" value="4"/>
 
     <!-- Unified Responsive Spacing System (space_*)                         -->
@@ -248,13 +224,6 @@
     <string name="chamber_icon_size_medium" value="sm"/>
     <string name="chamber_icon_size_large" value="sm"/>
 
-    <!-- Literal text that begins with '#'. resolve_consts() treats a leading
-         '#' as a const reference on EVERY attribute, and only lets a value
-         through unchanged when it is exactly 6 hex digits (is_hex_color), so
-         placeholder_text="#RRGGBB" was looked up as a const, missed, and the
-         attribute was dropped — the hex field showed no hint at all. A const's
-         VALUE is not re-scanned, so routing the literal through one works. -->
-    <string name="hex_placeholder" value="#RRGGBB"/>
 
     <!-- ===================================================================== -->
     <!-- Responsive Badge Sizes (badge_size)                                   -->

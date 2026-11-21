@@ -301,27 +301,8 @@ TEST_CASE_METHOD(LazyXmlFixture, "a layout change keeps a component whose style 
     CHECK(lv_xml_component_find_scope("lazy_probe_lender") == lender);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a layout change keeps color_picker's C++ constants",
-                 "[xml][lazy][ui_integration]") {
-    lv_xml_component_scope_t* scope = lv_xml_component_find_scope("color_picker");
-    REQUIRE(scope != nullptr);
-    REQUIRE(scope->instance_cnt == 0);
-
-    helix::unregister_idle_xml_components();
-
-    lv_xml_component_scope_t* after = lv_xml_component_find_scope("color_picker");
-    REQUIRE(after != nullptr);
-    CHECK(lv_xml_get_const(after, "sv_size") != nullptr);
-}
-
 TEST_CASE_METHOD(LVGLUITestFixture, "the eager components are registered before first use",
                  "[xml][lazy][ui_integration]") {
     // styles.xml resolves theme tokens at registration, so it registers at boot.
     CHECK(is_registered("styles"));
-    // C++ writes responsive consts into these scopes at boot.
-    for (const char* name : {"color_picker", "ams_edit_overlay"}) {
-        INFO(name);
-        REQUIRE(is_registered(name));
-        CHECK(lv_xml_get_const(lv_xml_component_get_scope(name), "sv_size") != nullptr);
-    }
 }

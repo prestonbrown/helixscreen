@@ -143,7 +143,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "text_input max_length attribute limits inpu
     }
 
     SECTION("max_length of 9 for hex colors") {
-        // Real use case from color_picker.xml: #RRGGBBAA = 9 chars
+        // A hex color with alpha: #RRGGBBAA = 9 chars
         const char* attrs[] = {"max_length", "9", nullptr};
         lv_obj_t* text_input = create_text_input(test_screen(), attrs);
         REQUIRE(text_input != nullptr);

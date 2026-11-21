@@ -4,7 +4,7 @@
 #include "led/ui_led_control_overlay.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_modal.h"
 #include "ui_event_safety.h"
 #include "ui_swatch.h"
 
@@ -634,9 +634,27 @@ void LedControlOverlay::handle_custom_color() {
     if (focused_info() == nullptr || !overlay_root_) {
         return;
     }
-    static helix::ui::ColorPicker color_picker;
-    color_picker.set_color_callback([this](uint32_t rgb, const std::string& name) {
-        spdlog::info("[{}] Custom color selected: 0x{:06X} ({})", get_name(), rgb, name);
+    // The light previews every pick while the picker is open; Cancel puts the
+    // color and brightness back as they were.
+    static helix::ui::ColorPickerModal color_picker;
+    const uint32_t original_base = current_color_;
+    const int original_brightness = current_brightness_;
+    const double original_white = current_white_;
+    const double bf = static_cast<double>(original_brightness) / 100.0;
+    double r = 0.0, g = 0.0, b = 0.0;
+    unpack_rgb(original_base, r, g, b);
+    const uint32_t original_rgb = pack_rgb(r * bf, g * bf, b * bf);
+    auto preview = [this, original_rgb, original_base, original_brightness,
+                    original_white](uint32_t rgb) {
+        const auto* info = focused_info();
+        if (info == nullptr || info->backend != LedBackendType::NATIVE) {
+            return;
+        }
+        if (rgb == original_rgb) {
+            current_brightness_ = original_brightness;
+            apply_look(original_base, original_white);
+            return;
+        }
         // The picked color splits into a full-brightness base and a brightness,
         // the same decomposition the strip cache goes through.
         NativeBackend::StripColor picked;
@@ -645,14 +663,20 @@ void LedControlOverlay::handle_custom_color() {
         int brightness = 0;
         double white = 0.0;
         picked.decompose(base, brightness, white);
-        const auto* info = focused_info();
-        if (info == nullptr || info->backend != LedBackendType::NATIVE) {
-            return;
-        }
         current_brightness_ = std::max(brightness, 1);
         apply_look(base, 0.0);
+    };
+    helix::ui::ColorPickerConfig cfg;
+    cfg.palette = helix::ColorPalette::Led;
+    cfg.strip = helix::ui::ColorStrip::LedRecents;
+    color_picker.set_config(cfg);
+    color_picker.set_remember_on_done(true);
+    color_picker.set_preview_callback(preview);
+    color_picker.set_color_callback([this, preview](uint32_t rgb, const std::string& name) {
+        spdlog::info("[{}] Custom color selected: 0x{:06X} ({})", get_name(), rgb, name);
+        preview(rgb);
     });
-    color_picker.show_with_color(lv_obj_get_parent(overlay_root_), current_color_);
+    color_picker.show_with_color(lv_obj_get_parent(overlay_root_), original_rgb);
 }
 
 void LedControlOverlay::handle_list_chip(int index) {

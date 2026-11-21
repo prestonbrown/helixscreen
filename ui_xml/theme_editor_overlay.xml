@@ -4,7 +4,27 @@
 <!-- Theme Colors Editor Overlay - Secondary panel for detailed color editing -->
 <!-- Navigation: Settings → Appearance → Theme Colors → Edit Colors → (this) -->
 <component>
+  <consts>
+    <!-- The color editor's height: the roles and the picker beside or under
+         them. At 480x272 it is taller than the view, so the grid keeps touch-sized
+         rows and the content scrolls a little to reach the properties. -->
+    <px name="theme_colors_h_micro" value="236"/>
+    <px name="theme_colors_h_tiny" value="250"/>
+    <px name="theme_colors_h_small" value="300"/>
+    <px name="theme_colors_h_medium" value="330"/>
+    <px name="theme_colors_h_large" value="420"/>
+    <px name="theme_roles_w_micro" value="190"/>
+    <px name="theme_roles_w_tiny" value="170"/>
+    <px name="theme_roles_w_small" value="180"/>
+    <px name="theme_roles_w_medium" value="190"/>
+    <px name="theme_roles_w_large" value="230"/>
+  </consts>
   <styles>
+    <style name="colors_stacked" flex_flow="column"/>
+    <style name="roles_row" width="100%" height="content" flex_flow="row"/>
+    <style name="roles_column" width="#theme_roles_w" height="100%" flex_flow="column"/>
+    <style name="picker_below" width="100%" height="0"/>
+    <style name="picker_beside" width="0" height="100%"/>
     <!-- 480x272 tightens every inset one step so the swatch grid and the
          pinned action row share the 272px; the other tiers keep the standard
          spacing. -->
@@ -22,6 +42,17 @@
   <view name="theme_editor_overlay"
         extends="overlay_panel" title="Edit Theme Colors" title_subject="theme_editor_title" bg_color="#screen_bg"
         back_button_callback="on_theme_back_clicked">
+    <!-- At 480x272 the picker's readout and switch sit in the header. -->
+    <header_bar-header_content flex_grow="4" style_pad_gap="#space_sm">
+      <lv_obj name="theme_header_picker"
+              height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
+              clickable="false" hidden="true">
+        <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+        <color_picker_readout flex_grow="1"/>
+        <color_picker_tabs/>
+      </lv_obj>
+    </header_bar-header_content>
     <!-- Content Area - no padding, rows handle their own -->
     <overlay_panel-overlay_content style_pad_top="0" scrollable="true" flex_flow="column">
       <bind_style_if_eq name="editor_content_micro" subject="ui_breakpoint" ref_value="0"/>
@@ -29,32 +60,34 @@
       <!-- ================================================================== -->
       <!-- THEME COLORS -->
       <!-- ================================================================== -->
-      <setting_section_header title="THEME COLORS" icon="tune"/>
-      <!-- One card per theme colour, two to a row. The card is the touch
-           target (the swatch's index is its palette slot; the click handler
-           reads it from user_data), kept at the touch-target floor by
-           min_height so the smaller discs' cards still land a finger. -->
-      <lv_obj name="theme_swatch_list"
-              width="100%" height="content" scrollable="false" flex_flow="row_wrap"
-              style_flex_main_place="space_between">
+      <setting_section_header title="THEME COLORS" icon="tune">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </setting_section_header>
+      <!-- The theme's 16 roles as color bars beside the picker (a column from the
+           small class up; a sideways row above it at 480x272, where the readout
+           and switch sit in the header). Tapping a bar edits that role; the
+           picker repaints it and the theme previews it live. -->
+      <lv_obj name="theme_colors"
+              width="100%" height="#theme_colors_h" style_bg_opa="0" style_border_width="0" flex_flow="row"
+              scrollable="false" clickable="false">
+        <bind_style_if_eq name="colors_stacked" subject="ui_breakpoint" ref_value="0"/>
         <bind_style_if_eq name="editor_swatches_micro" subject="ui_breakpoint" ref_value="0"/>
         <bind_style_if_ge name="editor_swatches" subject="ui_breakpoint" ref_value="1"/>
-        <repeat count="16">
-          <ui_card width="49%"
-                   height="content" flex_flow="row" style_pad_all="#space_xs" style_pad_gap="#space_xs"
-                   style_radius="#border_radius_small" style_flex_cross_place="center"
-                   style_min_height="#touch_target_min" clickable="true">
-            <color_swatch name="swatch_${i}"
-                          index="${i}" color_subject="theme_editor_role_color_${i}" size="#theme_swatch_size" reach="0"
-                          hit="0" callback="on_theme_swatch_clicked"/>
-            <lv_obj width="0"
-                    height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_gap="#space_xs"
-                    scrollable="false" clickable="false" event_bubble="true">
-              <text_small bind_text="swatch_${i}_desc" clickable="false" event_bubble="true"/>
-            </lv_obj>
-            <event_cb trigger="clicked" callback="on_theme_swatch_clicked" user_data="${i}"/>
-          </ui_card>
-        </repeat>
+        <lv_obj name="theme_role_list"
+                style_pad_all="#space_xxs" style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0"
+                scrollable="true" scrollbar_mode="off" clickable="false">
+          <bind_style_if_eq name="roles_row" subject="ui_breakpoint" ref_value="0"/>
+          <bind_style_if_ge name="roles_column" subject="ui_breakpoint" ref_value="1"/>
+          <repeat count="16">
+            <theme_role_bar name="role_${i}" index="${i}"/>
+          </repeat>
+        </lv_obj>
+        <lv_obj name="theme_picker"
+                flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                clickable="false">
+          <bind_style_if_eq name="picker_below" subject="ui_breakpoint" ref_value="0"/>
+          <bind_style_if_ge name="picker_beside" subject="ui_breakpoint" ref_value="1"/>
+        </lv_obj>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STYLE PROPERTIES -->

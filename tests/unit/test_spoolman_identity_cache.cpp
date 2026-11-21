@@ -18,8 +18,6 @@
  *    algorithmic colour word, plus the fallback ladder underneath it.
  */
 
-#include "ui_color_picker.h"
-
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"

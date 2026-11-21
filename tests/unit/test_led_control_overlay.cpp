@@ -9,7 +9,7 @@
  * @see ui_led_control_overlay.h
  */
 
-#include "ui_color_picker.h"
+#include "ui_color_picker_view.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
 #include "ui_utils.h"
@@ -1208,15 +1208,14 @@ TEST_CASE_METHOD(OverlayXmlFixture, "overlay XML: the modes sit a step further f
 }
 
 TEST_CASE_METHOD(OverlayXmlFixture,
-                 "overlay XML: the LED rows and the preset grid use the same swatch component",
+                 "overlay XML: the LED rows and the color picker's strip use the same swatch",
                  "[led][overlay][xml][color_swatch]") {
-    const char* attrs[] = {"swatch_callback", "led_swatch_cb", nullptr};
-    auto* grid = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "color_swatch_grid", attrs));
-    REQUIRE(grid != nullptr);
-    // 30 presets after the grid's hidden custom-colour lead tile.
-    REQUIRE(lv_obj_get_child_count(grid) == 31);
+    helix::ui::ensure_color_picker_view_subjects();
+    const char* attrs[] = {"index", "0", nullptr};
+    auto* chip = static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "color_picker_chip", attrs));
+    REQUIRE(chip != nullptr);
 
-    for (lv_obj_t* swatch : {need("led_swatch_0"), lv_obj_get_child(grid, 1)}) {
+    for (lv_obj_t* swatch : {need("led_swatch_0"), chip}) {
         REQUIRE(swatch != nullptr);
         // Built by color_swatch: a transparent ring holder around the named disc.
         lv_obj_t* disc = lv_obj_get_child(swatch, 0);

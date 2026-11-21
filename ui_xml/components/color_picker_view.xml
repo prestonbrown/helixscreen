@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker body, one component used everywhere: inline in a page, in an
+     overlay page or in a modal (helix::ui::ColorPickerView, ui_color_picker_view.h).
+
+     Grid tab: the caller's palette as touching cells. Sliders tab: Hue,
+     Saturation and Brightness rows ([-] track [+] value) and a Hex button that
+     opens the keypad over the body. Both tabs share the bottom strip: a caption
+     and one row of chips that scrolls sideways (recents, or the theme's own
+     colors). The Grid | Sliders switch and the readout go in the host's header;
+     a host without one passes tabs_in_body="1" and they head the body.
+
+     Props, fixed per instance:
+       palette       0 filament, 1 LED, 2 theme (helix::ColorPalette)
+       tabs_in_body  1 shows the readout and switch above the body -->
+<component>
+  <api>
+    <prop name="palette" type="string" default="0"/>
+    <prop name="tabs_in_body" type="string" default="0"/>
+  </api>
+  <consts>
+    <px name="cpv_knob_pad_ver" value="3"/>
+    <px name="cpv_knob_border" value="3"/>
+    <px name="cpv_track_radius" value="8"/>
+    <color name="cpv_knob_border_color" value="#FFFFFF"/>
+    <color name="cpv_ramp_black" value="#000000"/>
+  </consts>
+  <gradients>
+    <linear name="cpv_hue" start="0% 50%" end="100% 50%">
+      <stop color="#E04848" offset="0"/>
+      <stop color="#E0E048" offset="43"/>
+      <stop color="#48E048" offset="85"/>
+      <stop color="#48E0E0" offset="128"/>
+      <stop color="#4848E0" offset="170"/>
+      <stop color="#E048E0" offset="213"/>
+      <stop color="#E04848" offset="255"/>
+    </linear>
+  </gradients>
+  <styles>
+    <style name="track" bg_opa="255" radius="#cpv_track_radius" pad_all="0" border_width="0"/>
+    <style name="track_hue" bg_grad="cpv_hue"/>
+    <style name="track_ramp" bg_color="#cpv_ramp_black" bg_grad_dir="hor"/>
+    <style name="track_indicator" bg_opa="0"/>
+    <style name="track_knob"
+           bg_opa="255" radius="#cpv_track_radius" border_width="#cpv_knob_border" border_color="#cpv_knob_border_color"
+           pad_left="#cpv_knob_pad_hor" pad_right="#cpv_knob_pad_hor" pad_top="#cpv_knob_pad_ver"
+           pad_bottom="#cpv_knob_pad_ver"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0"
+        flex_flow="column" scrollable="false" clickable="false">
+    <lv_obj name="cp_top"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false"
+            hidden_if_prop_not_eq="$tabs_in_body|1">
+      <color_picker_readout flex_grow="1"/>
+      <color_picker_tabs/>
+    </lv_obj>
+
+    <!-- Grid tab: one grid per palette, chosen once by the palette prop. -->
+    <lv_obj name="cp_grid_tab"
+            width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false">
+      <bind_flag_if_not_eq subject="color_picker_tab" flag="hidden" ref_value="0"/>
+      <if cond="$palette eq 0">
+        <color_picker_grid_filament/>
+      </if>
+      <if cond="$palette eq 1">
+        <color_picker_grid_led/>
+      </if>
+      <if cond="$palette eq 2">
+        <color_picker_grid_theme/>
+      </if>
+    </lv_obj>
+
+    <!-- Sliders tab. -->
+    <lv_obj name="cp_sliders_tab"
+            width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0"
+            style_border_width="0" flex_flow="column" style_flex_main_place="space_between" scrollable="false"
+            clickable="false" hidden="true">
+      <bind_flag_if_not_eq subject="color_picker_tab" flag="hidden" ref_value="1"/>
+      <lv_obj name="cp_row_h"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
+              clickable="false">
+        <text_small width="#cpv_label_w" text="Hue" style_text_color="#text_muted"/>
+        <ui_button name="cp_h_minus" width="#cpv_step_w" height="#cpv_track" icon="minus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="h-"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="h-"/>
+        </ui_button>
+        <lv_slider name="cp_h_slider"
+                   height="#cpv_track" flex_grow="1" min_value="0" max_value="359" bind_value="color_picker_hue">
+          <style name="track"/>
+          <style name="track_hue"/>
+          <style name="track_indicator" selector="indicator"/>
+          <style name="track_knob" selector="knob"/>
+          <bind_style_prop prop="bg_color" selector="knob" subject="color_picker_current"/>
+          <event_cb trigger="value_changed" callback="color_picker_slider_cb" user_data="h"/>
+        </lv_slider>
+        <ui_button name="cp_h_plus" width="#cpv_step_w" height="#cpv_track" icon="plus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="h+"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="h+"/>
+        </ui_button>
+        <text_small width="#cpv_value_w"
+                    bind_text="color_picker_hue_text" style_text_align="right" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj name="cp_row_s"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
+              clickable="false">
+        <text_small width="#cpv_label_w" text="Saturation" style_text_color="#text_muted"/>
+        <ui_button name="cp_s_minus" width="#cpv_step_w" height="#cpv_track" icon="minus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="s-"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="s-"/>
+        </ui_button>
+        <lv_slider name="cp_s_slider"
+                   height="#cpv_track" flex_grow="1" min_value="0" max_value="100" bind_value="color_picker_sat">
+          <style name="track"/>
+          <style name="track_ramp"/>
+          <style name="track_indicator" selector="indicator"/>
+          <style name="track_knob" selector="knob"/>
+          <bind_style_prop prop="bg_color" selector="knob" subject="color_picker_current"/>
+          <bind_style_prop prop="bg_color" subject="color_picker_sat_lo"/>
+          <bind_style_prop prop="bg_grad_color" subject="color_picker_sat_hi"/>
+          <event_cb trigger="value_changed" callback="color_picker_slider_cb" user_data="s"/>
+        </lv_slider>
+        <ui_button name="cp_s_plus" width="#cpv_step_w" height="#cpv_track" icon="plus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="s+"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="s+"/>
+        </ui_button>
+        <text_small width="#cpv_value_w"
+                    bind_text="color_picker_sat_text" style_text_align="right" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj name="cp_row_v"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
+              clickable="false">
+        <text_small width="#cpv_label_w" text="Brightness" style_text_color="#text_muted"/>
+        <ui_button name="cp_v_minus" width="#cpv_step_w" height="#cpv_track" icon="minus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="v-"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="v-"/>
+        </ui_button>
+        <lv_slider name="cp_v_slider"
+                   height="#cpv_track" flex_grow="1" min_value="0" max_value="100" bind_value="color_picker_val">
+          <style name="track"/>
+          <style name="track_ramp"/>
+          <style name="track_indicator" selector="indicator"/>
+          <style name="track_knob" selector="knob"/>
+          <bind_style_prop prop="bg_color" selector="knob" subject="color_picker_current"/>
+          <bind_style_prop prop="bg_grad_color" subject="color_picker_val_hi"/>
+          <event_cb trigger="value_changed" callback="color_picker_slider_cb" user_data="v"/>
+        </lv_slider>
+        <ui_button name="cp_v_plus" width="#cpv_step_w" height="#cpv_track" icon="plus" variant="secondary">
+          <event_cb trigger="pressed" callback="color_picker_step_cb" user_data="v+"/>
+          <event_cb trigger="long_pressed_repeat" callback="color_picker_step_cb" user_data="v+"/>
+        </ui_button>
+        <text_small width="#cpv_value_w"
+                    bind_text="color_picker_val_text" style_text_align="right" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj name="cp_row_hex"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
+              clickable="false">
+        <text_small width="#cpv_label_w" text="Hex" style_text_color="#text_muted"/>
+        <ui_button name="cp_hex_button"
+                   height="#cpv_track" bind_text="color_picker_hex" icon="pencil" variant="secondary">
+          <event_cb trigger="clicked" callback="color_picker_hex_open_cb"/>
+        </ui_button>
+      </lv_obj>
+    </lv_obj>
+
+    <!-- The strip: caption, chips, and Done while removing. -->
+    <lv_obj name="cp_strip"
+            width="100%" height="content" style_pad_all="0" style_pad_top="#space_xs" style_pad_gap="#space_sm"
+            style_bg_opa="0" style_border_width="1" style_border_side="top" style_border_color="#border" flex_flow="row"
+            style_flex_cross_place="center" scrollable="false" clickable="false">
+      <text_small name="cp_strip_caption" bind_text="color_picker_strip_caption" style_text_color="#text_muted"/>
+      <lv_obj name="cp_strip_chips"
+              height="content" flex_grow="1" style_pad_all="#space_xxs" style_pad_gap="#space_sm" style_bg_opa="0"
+              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="true" scroll_dir="hor"
+              scrollbar_mode="off" clickable="false">
+        <repeat count="color_picker_chip_count">
+          <color_picker_chip index="${i}" size="#cpv_chip"/>
+        </repeat>
+      </lv_obj>
+      <ui_button name="cp_strip_done" height="#cpv_chip" text="Done" variant="ghost" hidden="true">
+        <bind_flag_if_eq subject="color_picker_strip_editing" flag="hidden" ref_value="0"/>
+        <event_cb trigger="clicked" callback="color_picker_strip_done_cb"/>
+      </ui_button>
+    </lv_obj>
+
+    <color_picker_keypad/>
+  </view>
+</component>

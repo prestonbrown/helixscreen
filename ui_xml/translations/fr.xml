@@ -314,6 +314,7 @@
   <translation tag="All Devices" fr="Tous les appareils"/>
   <translation tag="All Healthy" fr="Tout est en ordre"/>
   <translation tag="All axes homed" fr="Tous les axes référencés"/>
+  <translation tag="All colors" fr="Toutes les couleurs"/>
   <translation tag="All configured hardware detected" fr="Tout le matériel configuré est détecté"/>
   <translation tag="All fields are required" fr="Tous les champs sont requis"/>
   <translation tag="All healthy" fr="Tout va bien"/>
@@ -1768,6 +1769,7 @@
   <translation tag="Good match" fr="Bonne correspondance"/>
   <translation tag="Got it" fr="Compris"/>
   <translation tag="Gray" fr="Gris"/>
+  <translation tag="Grid" fr="Grille"/>
   <translation tag="Grip filament" fr="Saisir le filament"/>
   <translation tag="Grip the filament" fr="Saisir le filament"/>
   <translation tag="Groups follow each slot&apos;s material and color" fr="Les groupes suivent le matériau et la couleur de chaque slot"/>
@@ -1883,6 +1885,7 @@
   <translation tag="Helper macros already installed" fr="Les macros d&apos;aide sont déjà installées"/>
   <translation tag="Helper macros are up to date" fr="Les macros d&apos;aide sont à jour"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." fr="Un aperçu rapide de ce qui a changé depuis votre dernière version."/>
+  <translation tag="Hex" fr="Hex"/>
   <translation tag="Hide Firmware Noise" fr="Masquer le bruit du firmware"/>
   <translation tag="Hide Temperature Reports" fr="Masquer les rapports de température"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" fr="Masquer le clavier à l&apos;écran lorsqu&apos;un clavier USB est branché"/>
@@ -1951,6 +1954,7 @@
   <translation tag="Hub" fr="Hub"/>
   <translation tag="Hub &amp; Cutter" fr="Hub et coupeur"/>
   <translation tag="Hub Bowden Length" fr="Longueur du bowden du hub"/>
+  <translation tag="Hue" fr="Teinte"/>
   <translation tag="Humidity" fr="Humidité"/>
   <translation tag="Humidity Sensors" fr="Capteurs d&apos;humidité"/>
   <translation tag="Humidity inside the enclosure" fr="Humidité dans l&apos;enceinte"/>
@@ -3275,6 +3279,7 @@
   <translation tag="Recalibrate input shaping?" fr="Recalibrer l&apos;Input Shaping ?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." fr="Recalibrez ou consultez les résultats détaillés à tout moment dans les paramètres."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." fr="Données trop volumineuses reçues de l&apos;imprimante ({} octets). Cela peut indiquer une erreur de communication."/>
+  <translation tag="Recent" fr="Récentes"/>
   <translation tag="Recent Prints" fr="Impressions récentes"/>
   <translation tag="Recently Printed" fr="Récemment imprimé"/>
   <translation tag="Recirculate" fr="Recirculer"/>
@@ -3525,6 +3530,7 @@
   <translation tag="Sample Dialog" fr="Dialogue exemple"/>
   <translation tag="Samples" fr="Échantillons"/>
   <translation tag="Samples Tolerance" fr="Tolérance des échantillons"/>
+  <translation tag="Saturation" fr="Saturation"/>
   <translation tag="Save" fr="Enregistrer"/>
   <translation tag="Save &amp; Restart" fr="Enregistrer &amp; Redémarrer"/>
   <translation tag="Save As New" fr="Enregistrer comme nouveau"/>
@@ -3779,6 +3785,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." fr="Tranché pour une buse de {:g} mm sur T{} ; l&apos;imprimante a {:g} mm."/>
   <translation tag="Sliced for {}, not {}." fr="Tranché pour {}, pas pour {}."/>
   <translation tag="Slicer" fr="Trancheur"/>
+  <translation tag="Sliders" fr="Curseurs"/>
   <translation tag="Slot" fr="Slot"/>
   <translation tag="Slot 1" fr="Slot 1"/>
   <translation tag="Slot Blocked" fr="Slot bloqué"/>
@@ -4364,6 +4371,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." fr="Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." fr="Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer."/>
   <translation tag="This system does not support bypass mode" fr="Ce système ne prend pas en charge le mode bypass"/>
+  <translation tag="This theme" fr="Ce thème"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." fr="Cet outil palpe chaque vis du plateau et vous indique combien ajuster."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." fr="Cette tête d&apos;outil n&apos;a pas d&apos;alimentateur automatique. Chargez le filament à la main."/>
   <translation tag="This update asks for new permissions:" fr="Cette mise à jour demande de nouvelles autorisations :"/>

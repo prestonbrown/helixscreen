@@ -8,6 +8,7 @@
 
 #include "ui_ams_edit_overlay.h"
 #include "ui_ams_lane_settings.h"
+#include "ui_color_picker_page.h"
 #include "ui_component_keypad.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
@@ -17,6 +18,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/config_test_access.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/scoped_breakpoint.h"
@@ -30,6 +32,9 @@
 #include "ams_error.h"
 #include "ams_state.h"
 #include "app_globals.h"
+#include "color_recents.h"
+#include "color_utils.h"
+#include "config.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -259,8 +264,14 @@ class AmsEditOverlayViewTestAccess {
     void call_repopulate() {
         overlay_.repopulate();
     }
-    void call_open_color_view() {
-        overlay_.open_color_view();
+    void call_open_color_page() {
+        overlay_.open_color_page();
+    }
+    void call_recent_color(int index) {
+        overlay_.handle_recent_color(index);
+    }
+    const std::vector<uint32_t>& color_row() {
+        return overlay_.color_row_;
     }
     void call_apply_color(uint32_t rgb) {
         overlay_.apply_color(rgb);
@@ -543,42 +554,47 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "color view from spool-edit stages the pending color and returns there",
-                 "[ams_edit_overlay][color_view]") {
+                 "the color page edits the draft live; Back keeps it, the slot waits for Save",
+                 "[ams_edit_overlay][color_view][color_picker]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
     REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    const uint32_t before = access.working_info().color_rgb;
 
-    access.call_enter_editor();
+    access.call_open_color_page();
     UpdateQueue::instance().drain();
     process_lvgl(10);
+    auto& page = helix::ui::get_color_picker_page();
+    REQUIRE(page.view().attached());
+    CHECK(page.view().color() == before);
 
-    access.call_open_color_view();
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    CHECK(access.view() == AmsEditOverlay::kViewColor);
-
-    uint32_t before = access.working_info().color_rgb;
-    access.call_apply_color(0x1E88E5);
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    CHECK(access.view() == AmsEditOverlay::kViewEditor);
-    CHECK(access.details_color() == 0x1E88E5);
+    const uint32_t picked = helix::color_palette(helix::ColorPalette::Filament)[31];
+    page.view().pick_cell(31);
+    CHECK(access.details_color() == picked);
     CHECK(access.details_color_set());
     CHECK(access.working_info().color_rgb == before); // slot untouched until Save
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "ams_edit_color_name"))) ==
+          helix::get_color_name_from_hex(picked));
+
+    NavigationManager::instance().go_back();
+    UpdateQueue::instance().drain();
+    process_lvgl(400);
+    CHECK_FALSE(page.view().attached());
+    CHECK(access.details_color() == picked);
+    CHECK(access.view() == AmsEditOverlay::kViewEditor);
 
     close_editor_overlay();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "custom color view opens on the slot's black, not the grey sentinel",
-                 "[ams_edit_overlay][color][1608]") {
+                 "the color page opens on the slot's black, not the gray sentinel",
+                 "[ams_edit_overlay][color][1608][color_picker]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
+    auto& page = helix::ui::get_color_picker_page();
 
     SlotInfo black = untracked_slot();
     black.color_rgb = 0x000000;
@@ -586,17 +602,13 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(overlay.show_for_slot(test_screen(), 0, black, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_enter_editor();
+    access.call_open_color_page();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_open_color_view();
+    CHECK(page.view().color() == 0x000000);
+    NavigationManager::instance().go_back();
     UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* hex_input = access.widget("ams_color_hex_input");
-    REQUIRE(hex_input != nullptr);
-    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#000000");
-
+    process_lvgl(400);
     close_editor_overlay();
 
     // A sentinel slot keeps its grey starting point: the picker needs some
@@ -607,19 +619,52 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(overlay.show_for_slot(test_screen(), 0, sentinel, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_enter_editor();
+    access.call_open_color_page();
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_open_color_view();
+    CHECK(page.view().color() == 0x808080);
+    NavigationManager::instance().go_back();
+    UpdateQueue::instance().drain();
+    process_lvgl(400);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a recent color chip changes the draft, not the saved slot",
+                 "[ams_edit_overlay][color][color_picker]") {
+    auto& data = helix::ConfigTestAccess::data(*helix::Config::get_instance());
+    if (data.is_object()) {
+        data.erase("color_recents");
+    }
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo info = untracked_slot();
+    info.color_rgb = 0xFFFFFF; // in the seed, so the row leaves it out
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    // close_editor_overlay() tears the widget tree down, so re-find the input
-    // in the rebuilt tree rather than reusing the pointer from the first half.
-    hex_input = access.widget("ams_color_hex_input");
-    REQUIRE(hex_input != nullptr);
-    CHECK(std::string(lv_textarea_get_text(hex_input)) == "#808080");
+    const auto& row = access.color_row();
+    REQUIRE(row.size() >= 2);
+    CHECK(std::find(row.begin(), row.end(), 0xFFFFFFu) == row.end());
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_recent_count")) ==
+          static_cast<int>(row.size()));
+    const uint32_t second = row[1];
 
+    // The chip, through its XML callback.
+    lv_obj_t* recents = access.widget("color_recents");
+    REQUIRE(recents != nullptr);
+    REQUIRE(lv_obj_get_child_count(recents) == row.size());
+    lv_obj_send_event(lv_obj_get_child(recents, 1), LV_EVENT_CLICKED, nullptr);
+    process_lvgl(5);
+    CHECK(access.details_color() == second);
+    CHECK(access.details_color_set());
+    CHECK(access.working_info().color_rgb == 0xFFFFFF);
+    // Picking from the row is browsing: recents stay as they were.
+    CHECK(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament) ==
+          helix::ColorRecents::seed(helix::ColorRecents::Kind::Filament));
+    // The row now leaves the new current color out and offers white again.
+    CHECK(std::find(access.color_row().begin(), access.color_row().end(), second) ==
+          access.color_row().end());
     close_editor_overlay();
 }
 
@@ -1794,14 +1839,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "header Save shows on the editor, hides on p
     access.call_set_view(AmsEditOverlay::kViewEditor);
     REQUIRE(lv_subject_get_int(hide_subj) == 0);
     REQUIRE_FALSE(access.is_dirty());
-    CHECK(lv_subject_get_int(save_dis) == 1);
-
-    access.call_set_view(AmsEditOverlay::kViewColor);
-    REQUIRE(lv_subject_get_int(hide_subj) == 1); // color: hidden
-
-    access.call_set_view(AmsEditOverlay::kViewEditor);
-    REQUIRE(lv_subject_get_int(hide_subj) == 0);
-    // Overview: dirty-gated — a clean slot keeps Save disabled.
     CHECK(lv_subject_get_int(save_dis) == 1);
 
     close_editor_overlay();
@@ -3217,7 +3254,6 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
 
     // A colour change rides the same save, so Save is open whatever the
     // dropdowns staged.
-    access.call_open_color_view();
     access.call_apply_color(0x1E88E5);
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -3237,6 +3273,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
     CHECK(backend->get_slot_info(0).material == "HIPS");
     CHECK(backend->get_slot_info(0).brand == "Generic");
     CHECK(backend->get_slot_info(0).color_rgb == 0x1E88E5);
+    // Save commits the color, so it leads the filament recents.
+    CHECK(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament).front() == 0x1E88E5);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the selected entry",
@@ -3446,30 +3484,18 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picking another colour drops the colour's f
     access.call_update_tag_badges();
     REQUIRE(subject_int("ams_edit_tag_color") == 1);
 
-    // The first preset tile in the grid, tapped.
-    lv_obj_t* grid = access.widget("color_grid");
-    REQUIRE(grid != nullptr);
-    REQUIRE(lv_obj_get_child_count(grid) > 1);
-    lv_obj_t* preset = lv_obj_get_child(grid, 1);
-    REQUIRE((lv_color_to_u32(helix::ui::swatch_color_of(preset)) & 0xFFFFFF) != info.color_rgb);
-    lv_obj_send_event(preset, LV_EVENT_CLICKED, nullptr);
+    // The first recent chip in the color row, tapped.
+    lv_obj_t* recents = access.widget("color_recents");
+    REQUIRE(recents != nullptr);
+    REQUIRE(lv_obj_get_child_count(recents) > 0);
+    lv_obj_t* chip = lv_obj_get_child(recents, 0);
+    REQUIRE((lv_color_to_u32(helix::ui::swatch_color_of(chip)) & 0xFFFFFF) != info.color_rgb);
+    lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
     process_lvgl(5);
 
     CHECK(access.details_color_set());
     CHECK(subject_int("ams_edit_tag_color") == 0);
     CHECK(subject_int("ams_edit_tag_badge_visible") == 0);
-    close_editor_overlay();
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "a colour no visible preset holds rings the custom tile",
-                 "[ams_edit_overlay][color]") {
-    auto& overlay = get_ams_edit_overlay();
-    SlotInfo info = untracked_slot();
-    info.color_rgb = 0x123457; // a hand-mixed colour, in no preset palette
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-    CHECK(subject_int("ams_edit_color_selected") == -2);
     close_editor_overlay();
 }
 
@@ -3561,7 +3587,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px"
     REQUIRE(reset_visible != nullptr);
     lv_subject_set_int(reset_visible, 1);
     process_lvgl(5);
-    check_44("btn_custom_color");
+    check_44("color_current");
+    check_44("btn_all_colors");
     check_44("weight_pill");
     check_44("add_to_spoolman_link");
     check_44("btn_reset_tag");
@@ -3641,37 +3668,63 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every colour swatch's reach is inside the grid and its own",
-                 "[ams_edit_overlay][touch][color][grid]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* grid = access.widget("color_grid");
-    REQUIRE(grid != nullptr);
-    lv_obj_update_layout(grid);
-    lv_area_t box;
-    lv_obj_get_coords(grid, &box);
-    const uint32_t tiles = lv_obj_get_child_count(grid);
-    REQUIRE(tiles > 2);
-    lv_area_t prev{};
-    for (uint32_t i = 0; i < tiles; ++i) {
-        lv_obj_t* tile = lv_obj_get_child(grid, static_cast<int32_t>(i));
-        lv_area_t hit;
-        lv_obj_get_click_area(tile, &hit);
-        INFO("tile " << i);
-        // The edge rows and columns too: reach outside the grid is never hit-tested.
-        CHECK(area_within(hit, box));
-        CHECK(lv_area_get_width(&hit) >= 44);
-        CHECK(lv_area_get_height(&hit) >= 44);
-        if (i > 0 && hit.y1 == prev.y1) {
-            CHECK(prev.x2 < hit.x1);
+TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apart",
+                 "[ams_edit_overlay][touch][color][color_picker]") {
+    lv_display_t* disp = lv_display_get_default();
+    for (const auto& [w, h] : {std::pair{480, 272}, std::pair{800, 480}}) {
+        CAPTURE(w, h);
+        {
+            ScopedResolution res(disp, w, h);
+            theme_manager_refresh_layout_constants(disp);
+            auto& overlay = get_ams_edit_overlay();
+            AmsEditOverlayViewTestAccess access(overlay);
+            REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
+            UpdateQueue::instance().drain();
+            process_lvgl(10);
+            // 480x272 wraps the row into the column beside the form.
+            const bool split = w == 480;
+            lv_obj_t* row = access.widget(split ? "color_row_split" : "color_row");
+            REQUIRE(row != nullptr);
+            REQUIRE(access.shown(split ? "color_row_split" : "color_row"));
+            lv_obj_update_layout(row);
+            lv_area_t box;
+            lv_obj_get_coords(row, &box);
+            // Four recents beside the current color on the 480-wide panel, six above.
+            CHECK(access.color_row().size() == (w == 480 ? 4u : 6u));
+            std::vector<lv_obj_t*> targets;
+            for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+                lv_obj_t* child = lv_obj_get_child(row, static_cast<int32_t>(i));
+                if (lv_obj_is_clickable(child)) {
+                    targets.push_back(child);
+                }
+            }
+            if (!split) {
+                targets.clear();
+                targets.push_back(access.widget("color_current"));
+                lv_obj_t* recents = access.widget("color_recents");
+                for (uint32_t i = 0; i < lv_obj_get_child_count(recents); ++i) {
+                    targets.push_back(lv_obj_get_child(recents, static_cast<int32_t>(i)));
+                }
+                targets.push_back(access.widget("btn_all_colors"));
+            }
+            CHECK(targets.size() == access.color_row().size() + 2);
+            lv_area_t prev{};
+            for (size_t i = 0; i < targets.size(); ++i) {
+                REQUIRE(targets[i] != nullptr);
+                lv_area_t hit;
+                lv_obj_get_click_area(targets[i], &hit);
+                INFO("target " << i);
+                CHECK(area_within(hit, box));
+                CHECK(lv_area_get_height(&hit) >= 40);
+                if (i > 0 && hit.y1 == prev.y1) {
+                    CHECK(prev.x2 < hit.x1);
+                }
+                prev = hit;
+            }
+            close_editor_overlay();
         }
-        prev = hit;
+        theme_manager_refresh_layout_constants(disp);
     }
-    close_editor_overlay();
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "colour swatches keep a 7mm pitch on every class's panel",
@@ -3709,221 +3762,6 @@ TEST_CASE_METHOD(LVGLUITestFixture, "colour swatches keep a 7mm pitch on every c
         }
     }
     theme_manager_refresh_layout_constants(disp);
-}
-
-TEST_CASE("color_panes_fit shows both panes only where one form fits the view",
-          "[ams_edit_overlay][color]") {
-    // Pane sizes and content boxes measured from the colour view at each class.
-    // 800x480: side by side, 252 + 20 + 302 = 574 of 672 wide, 235 of 372 tall.
-    CHECK(AmsEditOverlay::color_panes_fit(672, 372, 252, 235, 302, 209, 20));
-    // 480x320: 258 + 8 + 262 = 528 > 398 wide; stacked 229 + 8 + 175 = 412 > 259.
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(398, 259, 258, 229, 262, 175, 8));
-    // 480x272: 474 > 410 wide; stacked 355 > 204.
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(410, 204, 246, 219, 220, 128, 8));
-    // 320x480: 556 > 292 wide; stacked 443 > 326.
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(292, 326, 258, 229, 290, 206, 8));
-    // 600x1024 portrait: too narrow side by side (640 > 536), stacked 536 of 752.
-    CHECK(AmsEditOverlay::color_panes_fit(536, 752, 252, 238, 364, 274, 24));
-    // Exactly full fits; one pixel over does not.
-    CHECK(AmsEditOverlay::color_panes_fit(100, 50, 45, 50, 45, 50, 10));
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(99, 50, 45, 50, 45, 50, 10));
-    CHECK(AmsEditOverlay::color_panes_fit(50, 110, 50, 50, 50, 50, 10));
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(50, 109, 50, 50, 50, 50, 10));
-    // Side by side needs the height as well as the width.
-    CHECK_FALSE(AmsEditOverlay::color_panes_fit(500, 60, 100, 61, 100, 40, 10));
-}
-
-namespace {
-bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_is_hidden(obj);
-}
-int color_subject(const char* name) {
-    lv_subject_t* s = lv_xml_get_subject(nullptr, name);
-    REQUIRE(s != nullptr);
-    return lv_subject_get_int(s);
-}
-/// Nothing in the colour view scrolls, and every shown swatch of the grid
-/// lies inside the overlay's content area.
-void check_color_view_static(AmsEditOverlayViewTestAccess& access) {
-    lv_obj_t* content = access.widget("overlay_content");
-    lv_obj_t* view = access.widget("color_view");
-    REQUIRE(content != nullptr);
-    REQUIRE(view != nullptr);
-    lv_obj_update_layout(content);
-    CHECK(lv_obj_get_scroll_bottom(content) <= 0);
-    CHECK(lv_obj_get_scroll_bottom(view) <= 0);
-    CHECK(lv_obj_get_scroll_right(view) <= 0);
-    lv_area_t area;
-    lv_obj_get_coords(content, &area);
-    lv_obj_t* grid = access.widget("color_swatch_grid");
-    if (!shown(grid) || !shown(access.widget("color_presets"))) {
-        return;
-    }
-    for (uint32_t i = 0; i < lv_obj_get_child_count(grid); ++i) {
-        lv_obj_t* tile = lv_obj_get_child(grid, static_cast<int32_t>(i));
-        if (!shown(tile)) {
-            continue;
-        }
-        lv_area_t t;
-        lv_obj_get_coords(tile, &t);
-        CAPTURE(i, t.x1, t.y1, t.x2, t.y2, area.x1, area.y1, area.x2, area.y2);
-        CHECK(area_within(t, area));
-    }
-}
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "the colour view shows presets and picker together only where both fit",
-                 "[ams_edit_overlay][color][touch]") {
-    struct Size {
-        int32_t w;
-        int32_t h;
-        bool together;
-    };
-    lv_display_t* disp = lv_display_get_default();
-    for (const Size sz : {Size{800, 480, true}, Size{480, 320, false}, Size{480, 272, false},
-                          Size{320, 480, false}}) {
-        CAPTURE(sz.w, sz.h);
-        {
-            ScopedResolution res(disp, sz.w, sz.h);
-            theme_manager_refresh_layout_constants(disp);
-            CHECK(std::string(lv_xml_get_const(nullptr, "color_preview_size")) ==
-                  (sz.w == 800 ? "56" : "48"));
-            auto& overlay = get_ams_edit_overlay();
-            AmsEditOverlayViewTestAccess access(overlay);
-            REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-            UpdateQueue::instance().drain();
-            process_lvgl(10);
-            const int ring = color_subject("ams_edit_color_selected");
-            access.call_open_color_view();
-            process_lvgl(10);
-            const std::string hex = access.field_text("ams_color_hex_input");
-
-            CHECK(color_subject("ams_edit_color_fits") == (sz.together ? 1 : 0));
-            lv_obj_t* presets = access.widget("color_presets");
-            lv_obj_t* custom = access.widget("color_custom");
-            REQUIRE(presets != nullptr);
-            REQUIRE(custom != nullptr);
-            check_color_view_static(access);
-
-            if (sz.together) {
-                // Both panes, apart, and no pane switch on offer.
-                CHECK(shown(presets));
-                CHECK(shown(custom));
-                CHECK_FALSE(shown(access.widget("btn_custom_color_lead")));
-                CHECK_FALSE(shown(access.widget("btn_color_presets")));
-                lv_area_t p;
-                lv_area_t c;
-                lv_obj_get_coords(presets, &p);
-                lv_obj_get_coords(custom, &c);
-                CAPTURE(p.x1, p.y1, p.x2, p.y2, c.x1, c.y1, c.x2, c.y2);
-                CHECK_FALSE(areas_overlap(p, c));
-            } else {
-                // The presets alone, led by the custom swatch.
-                CHECK(shown(presets));
-                CHECK_FALSE(shown(custom));
-                REQUIRE(shown(access.widget("btn_custom_color_lead")));
-
-                access.click("btn_custom_color_lead");
-                process_lvgl(10);
-                CHECK_FALSE(shown(presets));
-                CHECK(shown(custom));
-                CHECK(shown(access.widget("btn_color_presets")));
-                check_color_view_static(access);
-                // The custom colour and the editor's ring ride through the swap.
-                CHECK(access.field_text("ams_color_hex_input") == hex);
-                CHECK(color_subject("ams_edit_color_selected") == ring);
-
-                access.click("btn_color_presets");
-                process_lvgl(10);
-                CHECK(shown(presets));
-                CHECK_FALSE(shown(custom));
-                check_color_view_static(access);
-                CHECK(access.field_text("ams_color_hex_input") == hex);
-                CHECK(color_subject("ams_edit_color_selected") == ring);
-            }
-            CHECK(access.view() == AmsEditOverlay::kViewColor);
-            close_editor_overlay();
-        }
-        theme_manager_refresh_layout_constants(disp);
-    }
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "reopening the colour view keeps its preset grid instead of rebuilding it",
-                 "[ams_edit_overlay][color]") {
-    // 480x320 is a one-pane size: the fit verdict is 0, the subject's
-    // registered default is 1, so a remeasure on every open would flip it.
-    lv_display_t* disp = lv_display_get_default();
-    {
-        ScopedResolution res(disp, 480, 320);
-        theme_manager_refresh_layout_constants(disp);
-        auto& overlay = get_ams_edit_overlay();
-        AmsEditOverlayViewTestAccess access(overlay);
-        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-        UpdateQueue::instance().drain();
-        process_lvgl(10);
-        access.call_open_color_view();
-        process_lvgl(10);
-        REQUIRE(color_subject("ams_edit_color_fits") == 0);
-
-        lv_obj_t* grid = lv_obj_find_by_name(access.widget("color_presets"), "color_swatch_grid");
-        REQUIRE(grid != nullptr);
-        static bool deleted;
-        deleted = false;
-        lv_obj_add_event_cb(grid, [](lv_event_t*) { deleted = true; }, LV_EVENT_DELETE, nullptr);
-
-        access.call_set_view(AmsEditOverlay::kViewEditor);
-        process_lvgl(10);
-        access.call_open_color_view();
-        process_lvgl(10);
-        CHECK_FALSE(deleted);
-        access.call_repopulate();
-        process_lvgl(10);
-        CHECK_FALSE(deleted);
-        CHECK(color_subject("ams_edit_color_fits") == 0);
-        CHECK(lv_obj_find_by_name(access.widget("color_presets"), "color_swatch_grid") == grid);
-        close_editor_overlay();
-    }
-    theme_manager_refresh_layout_constants(disp);
-}
-
-TEST_CASE("grid_preset_count fills whole rows less the custom tile",
-          "[ams_edit_overlay][color][grid]") {
-    // 704 wide at a 32px tile and 12px gap: 16 per row.
-    CHECK(AmsEditOverlay::grid_preset_count(704, 32, 12, 1, 30) == 15);
-    CHECK(AmsEditOverlay::grid_preset_count(704, 32, 12, 2, 30) == 30); // capped at the palette
-    // A 132px column at a 30px tile and 14px gap: three per row.
-    CHECK(AmsEditOverlay::grid_preset_count(132, 30, 14, 3, 30) == 8);
-    // Narrower than one tile still holds the custom swatch alone.
-    CHECK(AmsEditOverlay::grid_preset_count(10, 30, 14, 1, 30) == 0);
-    CHECK(AmsEditOverlay::grid_preset_count(132, 0, 14, 3, 30) == 0);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture, "the colour grid wraps inside the editor's width",
-                 "[ams_edit_overlay][color][grid]") {
-    auto& overlay = get_ams_edit_overlay();
-    AmsEditOverlayViewTestAccess access(overlay);
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
-    UpdateQueue::instance().drain();
-    process_lvgl(10);
-
-    lv_obj_t* grid = access.widget("color_grid");
-    REQUIRE(grid != nullptr);
-    lv_obj_update_layout(grid);
-    // The grid's own box grows with a non-wrapping row; the layout it sits
-    // in is the editor's width.
-    lv_area_t box;
-    lv_obj_get_coords(lv_obj_get_parent(grid), &box);
-    const uint32_t tiles = lv_obj_get_child_count(grid);
-    REQUIRE(tiles > 1);
-    for (uint32_t i = 0; i < tiles; ++i) {
-        lv_area_t tile;
-        lv_obj_get_coords(lv_obj_get_child(grid, static_cast<int32_t>(i)), &tile);
-        INFO("tile " << i);
-        CHECK(tile.x2 <= box.x2);
-    }
-    close_editor_overlay();
 }
 
 TEST_CASE("format_spool_price shows two decimals and blanks no price",
@@ -4037,13 +3875,14 @@ TEST_CASE_METHOD(MockApiUiFixture, "a spool record landing after Reset to tag ke
     set_spoolman_available(false);
 }
 
-TEST_CASE("color_ring_index rings custom only for a set colour no visible preset holds",
-          "[ams_edit_overlay][color]") {
-    const std::vector<uint32_t> palette = {0x111111, 0x222222, 0x333333};
-    CHECK(AmsEditOverlay::color_ring_index(0x222222, true, 3, palette) == 1);
-    CHECK(AmsEditOverlay::color_ring_index(0x333333, true, 2, palette) == -2); // not shown
-    CHECK(AmsEditOverlay::color_ring_index(0xABCDEF, true, 3, palette) == -2);
-    CHECK(AmsEditOverlay::color_ring_index(0xABCDEF, false, 3, palette) == -1);
+TEST_CASE("color_row_recents leaves the current color out and fits the room",
+          "[ams_edit_overlay][color][color_picker]") {
+    const std::vector<uint32_t> recents = {0x111111, 0x222222, 0x333333, 0x444444};
+    CHECK(AmsEditOverlay::color_row_recents(recents, 0x222222, 2) ==
+          std::vector<uint32_t>{0x111111, 0x333333});
+    CHECK(AmsEditOverlay::color_row_recents(recents, 0xABCDEF, 3) ==
+          std::vector<uint32_t>{0x111111, 0x222222, 0x333333});
+    CHECK(AmsEditOverlay::color_row_recents(recents, 0x111111, 6).size() == 3);
 
     SlotInfo unset;
     CHECK_FALSE(AmsEditOverlay::slot_has_colour(unset)); // the grey default
@@ -4054,8 +3893,8 @@ TEST_CASE("color_ring_index rings custom only for a set colour no visible preset
     CHECK(AmsEditOverlay::slot_has_colour(bare_black)); // black PLA is a colour
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
-                 "[ams_edit_overlay][color]") {
+TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot's color line names no color",
+                 "[ams_edit_overlay][color][color_picker]") {
     auto& overlay = get_ams_edit_overlay();
     SlotInfo info = untracked_slot();
     info.material.clear();
@@ -4064,7 +3903,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
     REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    CHECK(subject_int("ams_edit_color_selected") == -1);
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "ams_edit_color_name"))) ==
+          "None");
     close_editor_overlay();
 }
 

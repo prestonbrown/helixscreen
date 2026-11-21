@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One theme role in the theme editor: a bar painted in the role's own color
+     (a labelled chip, so a rounded rect through the swatch painter) carrying the
+     role's name and hex in a contrasting text color. The role being edited has
+     a white ring. A column of 44px bars from the small class up, a sideways row
+     of 34px bars at 480x272, where the hex is left off. Subjects (per index,
+     ui_theme_editor_overlay.cpp): theme_editor_role_color_<i>,
+     theme_editor_role_name_<i>, theme_editor_role_hex_<i>,
+     theme_editor_role_text_<i>, and theme_editor_role_selected. -->
+<component>
+  <api>
+    <prop name="index" type="string" default="0"/>
+  </api>
+  <consts>
+    <color name="role_ring" value="#FFFFFF"/>
+    <px name="role_ring_w" value="2"/>
+  </consts>
+  <styles>
+    <style name="bar_in_column" width="100%"/>
+    <style name="bar_in_row" width="content"/>
+    <style name="bar_editing"
+           outline_width="#role_ring_w" outline_color="#role_ring" outline_opa="255" outline_pad="#role_ring_w"/>
+  </styles>
+  <view extends="swatch_paint"
+        height="#theme_role_bar_h" bind_color="theme_editor_role_color_${index}" style_radius="#border_radius_small"
+        style_pad_hor="#space_md" style_pad_ver="0" style_pad_gap="#space_md" flex_flow="row"
+        style_flex_main_place="space_between" style_flex_cross_place="center" clickable="true" scrollable="false">
+    <bind_style_if_eq name="bar_in_row" subject="ui_breakpoint" ref_value="0"/>
+    <bind_style_if_ge name="bar_in_column" subject="ui_breakpoint" ref_value="1"/>
+    <bind_style_if_eq name="bar_editing" subject="theme_editor_role_selected" ref_value="$index"/>
+    <text_small bind_text="theme_editor_role_name_${index}" clickable="false" event_bubble="true">
+      <bind_style_prop prop="text_color" subject="theme_editor_role_text_${index}"/>
+    </text_small>
+    <text_small bind_text="theme_editor_role_hex_${index}" clickable="false" event_bubble="true">
+      <bind_style_prop prop="text_color" subject="theme_editor_role_text_${index}"/>
+      <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+    </text_small>
+    <event_cb trigger="clicked" callback="on_theme_swatch_clicked" user_data="$index"/>
+  </view>
+</component>

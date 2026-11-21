@@ -20,7 +20,6 @@
   <translation tag="No events yet" de="Noch keine Ereignisse"/>
   <translation tag="Events" de="Ereignisse"/>
   <translation tag="Destination" de="Ziel"/>
-  <translation tag="Recent" de="Verlauf"/>
   <translation tag="Send test notification" de="Testbenachrichtigung senden"/>
   <translation tag="Muting stops every send; the switches below pick the events."
                de="Stummschalten stoppt jede Sendung; die Schalter darunter wählen die Ereignisse."/>

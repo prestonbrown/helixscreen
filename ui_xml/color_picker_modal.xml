@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The color picker in a modal (helix::ui::ColorPickerModal): a header of
+     Cancel, the readout, the Grid | Sliders switch and Done over the picker body
+     (color_picker_view, attached into cpm_body by C++). Full screen on the
+     480-wide classes, a card elsewhere. The backdrop comes from the Modal system. -->
+<component>
+  <consts>
+    <px name="cpm_w_medium" value="660"/>
+    <px name="cpm_h_medium" value="430"/>
+    <px name="cpm_w_large" value="820"/>
+    <px name="cpm_h_large" value="540"/>
+    <px name="cpm_w_xlarge" value="980"/>
+    <px name="cpm_h_xlarge" value="640"/>
+    <px name="cpm_w_xxlarge" value="1200"/>
+    <px name="cpm_h_xxlarge" value="800"/>
+    <px name="cpm_w_small" value="480"/>
+    <px name="cpm_h_small" value="400"/>
+  </consts>
+  <styles>
+    <!-- Bound, not inline: an inline width would outrank either. -->
+    <style name="cpm_full" width="100%" height="100%" radius="0"/>
+    <style name="cpm_card" width="#cpm_w" height="#cpm_h"/>
+  </styles>
+  <view name="color_picker_modal"
+        extends="ui_dialog" align="center" flex_flow="column" style_pad_all="#space_sm" style_pad_gap="#space_sm"
+        scrollable="false">
+    <bind_style_if_lt name="cpm_full" subject="ui_breakpoint" ref_value="3"/>
+    <bind_style_if_ge name="cpm_card" subject="ui_breakpoint" ref_value="3"/>
+    <lv_obj name="cpm_header"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
+      <ui_button name="cpm_cancel" height="#button_height_sm" text="Cancel" variant="ghost">
+        <event_cb trigger="clicked" callback="color_picker_modal_cancel_cb"/>
+      </ui_button>
+      <color_picker_readout flex_grow="1"/>
+      <color_picker_tabs/>
+      <ui_button name="cpm_done" height="#button_height_sm" text="Done" variant="primary">
+        <event_cb trigger="clicked" callback="color_picker_modal_done_cb"/>
+      </ui_button>
+    </lv_obj>
+    <lv_obj name="cpm_body"
+            width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false"/>
+  </view>
+</component>

@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "ui_color_picker.h"
+#include "ui_color_picker_modal.h"
 #include "ui_modal.h"
 
 #include "core/subject.h"
@@ -81,7 +81,7 @@ class SpoolEditModal : public Modal {
     SpoolInfo working_spool_;
     IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
-    ColorPicker color_picker_;
+    ColorPickerModal color_picker_;
 
     bool subjects_initialized_ = false;
     SubjectManager subjects_;

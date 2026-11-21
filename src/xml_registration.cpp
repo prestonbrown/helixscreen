@@ -13,7 +13,6 @@
 #include "ui_button.h"
 #include "ui_carousel.h"
 #include "ui_cold_pull_tip_sketch.h"
-#include "ui_color_picker.h"
 #include "ui_confetti.h"
 #include "ui_context_menu.h"
 #include "ui_event_safety.h"
@@ -21,7 +20,6 @@
 #include "ui_fault_path.h"
 #include "ui_fonts.h"
 #include "ui_gcode_viewer.h"
-#include "ui_hsv_picker.h"
 #include "ui_icon_codepoints.h"
 #include "ui_leader_line.h"
 #include "ui_lock_screen.h"
@@ -85,124 +83,23 @@ static void noop_event_callback(lv_event_t* /*e*/) {
 static helix::Subject s_noop_subject;
 
 /**
- * Register responsive constants for color picker sizing based on screen dimensions
- * Call this BEFORE registering XML components that use the color picker
+ * Register the responsive color preview size the theme preview's status dots
+ * use. Called again on every layout refresh.
  */
-static void register_color_picker_responsive_constants() {
+void refresh_color_picker_constants() {
     lv_display_t* display = lv_display_get_default();
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
-    int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
-
-    // Preview swatch size and text height scale with screen
-    const char* preview_size;
-    const char* preview_size_small;
-    const char* text_height;
-    const char* theme_swatch_size;
-    if (greater_res <= UI_BREAKPOINT_MICRO_MAX) {
-        preview_size = "32";
-        preview_size_small = "16";
-        text_height = "44";
-        theme_swatch_size = "20";
-    } else if (greater_res <= UI_BREAKPOINT_SMALL_MAX) {
-        preview_size = "40";
-        preview_size_small = "20";
-        text_height = "52";
-        theme_swatch_size = "24";
-    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) {
-        preview_size = "48";
-        preview_size_small = "24";
-        text_height = "60";
-        theme_swatch_size = "28";
-    } else {
-        preview_size = "56";
-        preview_size_small = "28";
-        text_height = "68";
-        theme_swatch_size = "32";
-    }
-
+    const int32_t greater_res = LV_MAX(lv_display_get_horizontal_resolution(display),
+                                       lv_display_get_vertical_resolution(display));
+    const char* preview_size_small = greater_res <= UI_BREAKPOINT_MICRO_MAX    ? "16"
+                                     : greater_res <= UI_BREAKPOINT_SMALL_MAX  ? "20"
+                                     : greater_res <= UI_BREAKPOINT_MEDIUM_MAX ? "24"
+                                                                               : "28";
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
     if (scope) {
         // set, not register: register_const is first-write-wins, and a layout
-        // refresh resolves these again.
-        lv_xml_set_const(scope, "color_preview_size", preview_size);
+        // refresh resolves it again.
         lv_xml_set_const(scope, "color_preview_size_small", preview_size_small);
-        lv_xml_set_const(scope, "color_text_height", text_height);
-        lv_xml_set_const(scope, "theme_swatch_size", theme_swatch_size);
-        spdlog::debug(
-            "[Color Picker] Registered color_preview_size={}, theme_swatch_size={} for screen {}px",
-            preview_size, theme_swatch_size, greater_res);
     }
-}
-
-/**
- * Register the responsive HSV-picker constants into a component scope.
- * The scope lookup registers the component if nothing has named it yet.
- *
- * Takes the component name because consts are SCOPE-LOCAL: any component that
- * instantiates <ui_hsv_picker sv_size="#sv_size"> needs its own registration.
- * ams_edit_overlay embeds the picker and had none, so resolve_consts() dropped
- * both attributes and the widget silently fell back to default_sv_size() — a
- * fixed 128px on constrained devices, ignoring the breakpoint ladder entirely.
- */
-static void register_color_picker_component_constants(const char* component_name) {
-    lv_display_t* display = lv_display_get_default();
-    int32_t ver_res = lv_display_get_vertical_resolution(display);
-    // Swatch is a square touch target — size it off the constrained axis so it
-    // stays tappable in portrait. The HSV picker below is genuinely vertical (it
-    // fills the modal's height), so that math deliberately keeps using ver_res.
-    const int32_t resp_res = responsive_dimension(display);
-
-    // Swatch size: smaller on compact screens
-    const char* swatch_size = resp_res <= UI_BREAKPOINT_MICRO_MAX   ? "24"
-                              : resp_res <= UI_BREAKPOINT_SMALL_MAX ? "28"
-                                                                    : "32";
-
-    // HSV picker: size proportionally to screen height
-    // On TINY (full-screen modal), chrome is ~142px (header+tabs+padding+dividers+buttons)
-    // On larger screens (modal popup), use ~38% of screen height
-    static char sv_buf[8];
-    static char hue_buf[8];
-    int32_t computed_sv;
-    if (ver_res <= UI_BREAKPOINT_TINY_MAX) {
-        // Full-screen (MICRO/TINY): fill available vertical space
-        // Chrome: header(48) + divider(1) + tabs(36) + content pad(16) + spacer divider(1) +
-        // buttons(40)
-        constexpr int32_t chrome = 142;
-        int32_t available = ver_res - chrome;
-        // sv_size + gap(4) + hue_height, where hue = sv/8
-        computed_sv = (available - 4) * 8 / 9;
-    } else {
-        computed_sv = ver_res * 38 / 100;
-    }
-    computed_sv = LV_CLAMP(48, computed_sv, 240);
-    int32_t computed_hue = LV_MAX(computed_sv / 9, 8);
-    snprintf(sv_buf, sizeof(sv_buf), "%d", computed_sv);
-    snprintf(hue_buf, sizeof(hue_buf), "%d", computed_hue);
-
-    lv_xml_component_scope_t* scope = lv_xml_component_get_scope(component_name);
-    if (scope) {
-        keep_xml_component_registered(component_name);
-        // set, not register: register_const is first-write-wins, and <consts>
-        // are parsed during registration, so the fallback <px> in
-        // color_picker.xml already owns the name by the time we get here and
-        // would pin every screen to 32 instead of the responsive 24/28/32.
-        lv_xml_set_const(scope, "swatch_size", swatch_size);
-        lv_xml_set_const(scope, "sv_size", sv_buf);
-        lv_xml_set_const(scope, "hue_height", hue_buf);
-        spdlog::debug("[Color Picker] {}: swatch_size={}, sv_size={}, hue_height={} "
-                      "for height {}px",
-                      component_name, swatch_size, sv_buf, hue_buf, ver_res);
-    }
-}
-
-void refresh_color_picker_constants() {
-    register_color_picker_responsive_constants();
-    // Both embed <ui_hsv_picker sv_size="#sv_size">, and consts are scope-local.
-    // Looking the scope up registers the component here, at boot, so the consts
-    // are in place before its first instance.
-    register_color_picker_component_constants("ams_edit_overlay");
-    register_color_picker_component_constants("color_picker");
 }
 
 /**
@@ -417,7 +314,7 @@ void register_xml_components() {
 
     // Register responsive constants (AFTER globals, BEFORE components that use them)
     ui_switch_register_responsive_constants();
-    register_color_picker_responsive_constants();
+    refresh_color_picker_constants();
 
     // Register semantic text widgets (AFTER theme init, BEFORE components that use them)
     ui_text_init();
@@ -473,7 +370,6 @@ void register_xml_components() {
     // Register custom widgets (BEFORE components that use them)
     helix::ui::gcode_viewer_register();
     ui_spool_canvas_register();             // Needed by Spoolman panel (and AMS panel)
-    ui_hsv_picker_register();               // HSV color picker for edit filament modal
     ui_z_offset_indicator_register();       // Z-offset nozzle indicator
     helix::ui::ui_toolhead_view_register(); // <toolhead_view>: the configured head, fitted
     ui_ams_current_tool_init();             // AMS current tool indicator callbacks
@@ -485,7 +381,6 @@ void register_xml_components() {
 
     // AMS slot editor (single overlay, internal views — spec §13)
     helix::ui::get_ams_edit_overlay().register_callbacks();
-    helix::ui::ensure_swatch_grid_subjects();
     refresh_color_picker_constants();
     // Every refresh of the layout tokens, so a resize or rotation moves the
     // picker with them. Once per process: register_xml_components() can run again.

@@ -4,7 +4,7 @@
 #include "ui_theme_editor_overlay.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_view.h"
 #include "ui_event_safety.h"
 #include "ui_keyboard_manager.h"
 #include "ui_modal.h"
@@ -15,6 +15,7 @@
 
 #include "border_radius_sizes.h"
 #include "color_utils.h"
+#include "core/timer_guard.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
@@ -25,6 +26,7 @@
 
 #include <spdlog/spdlog.h>
 
+#include <array>
 #include <cctype>
 #include <chrono>
 #include <cstdlib>
@@ -32,6 +34,17 @@
 #include <sys/stat.h>
 
 using namespace helix;
+
+namespace {
+/// The role the editor opens on: Primary, the color a theme is known by.
+constexpr int kFirstEditedRole = 8;
+constexpr uint32_t kPreviewDelayMs = 150;
+/// The role bars' names, in ModePalette::color_names() order.
+constexpr std::array<const char*, 16> kRoleNames = {
+    "Screen",     "Overlay",     "Card",    "Elevated",  "Border",   "Text",
+    "Text muted", "Text subtle", "Primary", "Secondary", "Tertiary", "Info",
+    "Success",    "Warning",     "Danger",  "Focus"};
+} // namespace
 
 helix::ModePalette& ThemeEditorOverlay::get_active_palette() {
     // Edit dark or light palette based on editing mode (set by caller)
@@ -52,6 +65,7 @@ void ThemeEditorOverlay::set_editing_dark_mode(bool is_dark) {
 // ============================================================================
 
 ThemeEditorOverlay::~ThemeEditorOverlay() {
+    cancel_preview_timer();
     deinit_subjects();
 }
 
@@ -70,6 +84,8 @@ void ThemeEditorOverlay::init_subjects() {
                                   "theme_save_as_status", subjects_);
         UI_MANAGED_SUBJECT_INT(save_as_status_shown_subject_, 0, "theme_save_as_status_shown",
                                subjects_);
+        UI_MANAGED_SUBJECT_INT(role_selected_subject_, kFirstEditedRole,
+                               "theme_editor_role_selected", subjects_);
     });
 }
 
@@ -78,8 +94,15 @@ void ThemeEditorOverlay::deinit_subjects() {
 }
 
 lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
-    // The swatches bind their colour subjects by name as the XML is built.
-    swatch_color_pool_.ensure_size(helix::ModePalette::color_names().size());
+    // The role bars bind their subjects by name as the XML is built.
+    const size_t roles = helix::ModePalette::color_names().size();
+    swatch_color_pool_.ensure_size(roles);
+    role_name_pool_.ensure_size(roles);
+    role_hex_pool_.ensure_size(roles);
+    role_text_pool_.ensure_size(roles);
+    for (size_t i = 0; i < roles && i < kRoleNames.size(); ++i) {
+        role_name_pool_.set_string(i, lv_tr(kRoleNames[i]));
+    }
     update_swatch_colors();
 
     // Create overlay root from XML (uses theme_editor_overlay component)
@@ -91,6 +114,21 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
 
     // Find panel widget (content container)
     panel_ = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
+
+    // The picker sits in the page. At 480x272 its readout and switch are in the
+    // header (theme_editor_overlay.xml); elsewhere they head the picker.
+    lv_obj_t* picker_host = helix::ui::find_required(overlay_root_, "theme_picker", get_name());
+    if (picker_host) {
+        lv_subject_t* bp = theme_manager_get_breakpoint_subject();
+        helix::ui::ColorPickerConfig cfg;
+        cfg.palette = helix::ColorPalette::Theme;
+        cfg.strip = helix::ui::ColorStrip::Custom;
+        cfg.strip_caption = lv_tr("This theme");
+        cfg.custom_strip = [this] { return theme_colors(); };
+        cfg.tabs_in_body = !bp || lv_subject_get_int(bp) > static_cast<int>(UiBreakpoint::Micro);
+        picker_.attach(picker_host, 0x808080, cfg);
+        picker_.on_change([this](uint32_t rgb) { handle_role_color(rgb); });
+    }
 
     spdlog::debug("[{}] Created overlay", get_name());
     return overlay_root_;
@@ -160,11 +198,8 @@ void ThemeEditorOverlay::on_activate() {
 void ThemeEditorOverlay::cleanup() {
     spdlog::debug("[{}] Cleanup", get_name());
 
-    // Clean up color picker (may be showing a modal)
-    if (color_picker_) {
-        color_picker_.reset();
-    }
-    editing_color_index_ = -1;
+    cancel_preview_timer();
+    picker_.detach();
 
     // Clean up discard confirmation dialog if showing
     if (discard_dialog_) {
@@ -185,10 +220,10 @@ void ThemeEditorOverlay::cleanup() {
 }
 
 void ThemeEditorOverlay::on_ui_destroyed() {
-    // The tree is gone: nothing may reach the swatches, and a picker or dialog
-    // opened from them has no owner left.
-    color_picker_.reset();
-    editing_color_index_ = -1;
+    // The tree is gone: nothing may reach the role bars, and a dialog opened
+    // from them has no owner left.
+    cancel_preview_timer();
+    picker_.detach();
     if (discard_dialog_) {
         Modal::hide(discard_dialog_);
         discard_dialog_ = nullptr;
@@ -240,16 +275,11 @@ void ThemeEditorOverlay::load_theme(const std::string& filename) {
 
 void ThemeEditorOverlay::update_swatch_colors() {
     for (size_t i = 0; i < swatch_color_pool_.size(); ++i) {
-        // Get color from editing theme's active palette (dark or light based on mode)
-        const std::string& color_hex = get_active_palette().at(i);
-        if (color_hex.empty()) {
-            continue;
-        }
-
-        lv_color_t color = theme_manager_parse_hex_color(color_hex.c_str());
-        swatch_color_pool_.set_color(i, lv_color_to_u32(color) & 0xFFFFFF);
-
-        spdlog::trace("[{}] Set swatch {} to {}", get_name(), i, color_hex);
+        publish_role(i);
+    }
+    if (picker_.attached()) {
+        picker_.refresh_strip();
+        select_role(editing_color_index_ >= 0 ? editing_color_index_ : kFirstEditedRole);
     }
 }
 
@@ -519,70 +549,91 @@ void ThemeEditorOverlay::handle_swatch_click(int palette_index) {
         spdlog::warn("[{}] handle_swatch_click: invalid index {}", get_name(), palette_index);
         return;
     }
-
-    spdlog::debug("[{}] Swatch {} clicked, opening color picker", get_name(), palette_index);
-    show_color_picker(palette_index);
+    select_role(palette_index);
 }
 
-void ThemeEditorOverlay::show_color_picker(int palette_index) {
+void ThemeEditorOverlay::select_role(int palette_index) {
     if (palette_index < 0 ||
         palette_index >= static_cast<int>(helix::ModePalette::color_names().size())) {
-        spdlog::error("[{}] Invalid palette index {} for color picker", get_name(), palette_index);
         return;
     }
-
-    // Store which color we're editing
     editing_color_index_ = palette_index;
-
-    // Get current color hex from the active palette (dark or light based on mode)
-    const std::string& current_hex = get_active_palette().at(palette_index);
-    uint32_t current_rgb = helix::parse_hex_color(current_hex).value_or(0x808080);
-
-    // Create color picker if not already created
-    if (!color_picker_) {
-        color_picker_ = std::make_unique<helix::ui::ColorPicker>();
+    lv_subject_set_int(&role_selected_subject_, palette_index);
+    const uint32_t rgb =
+        helix::parse_hex_color(get_active_palette().at(static_cast<size_t>(palette_index)))
+            .value_or(0x808080);
+    picker_.set_label(static_cast<size_t>(palette_index) < kRoleNames.size()
+                          ? lv_tr(kRoleNames[static_cast<size_t>(palette_index)])
+                          : "");
+    picker_.set_color(rgb);
+    if (overlay_root_) {
+        const std::string name = "role_" + std::to_string(palette_index);
+        if (lv_obj_t* bar = lv_obj_find_by_name(overlay_root_, name.c_str())) {
+            lv_obj_scroll_to_view(bar, LV_ANIM_OFF);
+        }
     }
+    spdlog::debug("[{}] Editing role {}", get_name(), palette_index);
+}
 
-    // Theme tokens want theme presets — a dark-surface ramp and muted accents,
-    // not the filament/LED grid's Material 500s.
-    color_picker_->set_palette(helix::ui::ColorPicker::Palette::Theme);
+void ThemeEditorOverlay::handle_role_color(uint32_t rgb) {
+    if (editing_color_index_ < 0 ||
+        editing_color_index_ >= static_cast<int>(helix::ModePalette::color_names().size())) {
+        return;
+    }
+    const auto i = static_cast<size_t>(editing_color_index_);
+    get_active_palette().at(i) = helix::color_to_hex_string(rgb);
+    publish_role(i);
+    picker_.refresh_strip();
+    mark_dirty();
+    schedule_preview();
+}
 
-    // Set callback to handle color selection
-    color_picker_->set_color_callback([this](uint32_t color_rgb,
-                                             const std::string& /* color_name */) {
-        if (editing_color_index_ < 0 ||
-            editing_color_index_ >= static_cast<int>(helix::ModePalette::color_names().size())) {
-            spdlog::warn("[{}] Color picker callback: invalid editing_color_index_ {}", get_name(),
-                         editing_color_index_);
-            return;
+void ThemeEditorOverlay::publish_role(size_t i) {
+    if (i >= swatch_color_pool_.size()) {
+        return;
+    }
+    const std::string& hex = get_active_palette().at(i);
+    if (hex.empty()) {
+        return;
+    }
+    const lv_color_t color = theme_manager_parse_hex_color(hex.c_str());
+    swatch_color_pool_.set_color(i, lv_color_to_u32(color) & 0xFFFFFF);
+    if (i < role_hex_pool_.size()) {
+        role_hex_pool_.set_string(i, hex);
+        role_text_pool_.set_color(i, lv_color_to_u32(theme_manager_get_contrast_color(color)) &
+                                         0xFFFFFF);
+    }
+}
+
+std::vector<uint32_t> ThemeEditorOverlay::theme_colors() const {
+    std::vector<uint32_t> out;
+    for (size_t i = 0; i < helix::ModePalette::color_names().size(); ++i) {
+        if (const auto rgb = helix::parse_hex_color(get_active_palette().at(i))) {
+            out.push_back(*rgb);
         }
+    }
+    return out;
+}
 
-        // Format color as hex string
-        char hex_buf[8];
-        std::snprintf(hex_buf, sizeof(hex_buf), "#%06X", color_rgb);
+void ThemeEditorOverlay::schedule_preview() {
+    if (preview_timer_) {
+        lv_timer_reset(preview_timer_);
+        return;
+    }
+    preview_timer_ = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<ThemeEditorOverlay*>(lv_timer_get_user_data(t));
+            self->preview_timer_ = nullptr;
+            theme_manager_preview(self->editing_theme_);
+        },
+        kPreviewDelayMs, this);
+    lv_timer_set_repeat_count(preview_timer_, 1);
+}
 
-        // Update the active palette color (dark or light based on mode)
-        get_active_palette().at(editing_color_index_) = hex_buf;
-
-        if (editing_color_index_ < static_cast<int>(swatch_color_pool_.size())) {
-            swatch_color_pool_.set_color(static_cast<size_t>(editing_color_index_), color_rgb);
-        }
-
-        // Mark dirty and preview
-        mark_dirty();
-        theme_manager_preview(editing_theme_);
-
-        spdlog::info("[{}] Color {} updated to {}", get_name(), editing_color_index_, hex_buf);
-
-        // Reset editing index
-        editing_color_index_ = -1;
-    });
-
-    // Show the color picker with current color
-    lv_obj_t* screen = lv_screen_active();
-    if (!color_picker_->show_with_color(screen, current_rgb)) {
-        spdlog::error("[{}] Failed to show color picker", get_name());
-        editing_color_index_ = -1;
+void ThemeEditorOverlay::cancel_preview_timer() {
+    if (preview_timer_) {
+        helix::ui::lv_timer_cancel_safe(preview_timer_);
+        preview_timer_ = nullptr;
     }
 }
 

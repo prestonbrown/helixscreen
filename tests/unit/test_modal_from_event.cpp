@@ -10,7 +10,7 @@
  */
 
 #include "ui_change_host_modal.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_modal.h"
 #include "ui_crash_report_modal.h"
 #include "ui_debug_bundle_modal.h"
 #include "ui_filament_catalog_picker.h"
@@ -325,10 +325,10 @@ TEST_CASE_METHOD(FromEventFixture, "each modal's own widget closes it and leaves
         check_widget_closes_own_modal(a, b, "btn_close",
                                       [&](auto& m) { m.show_for_macro(screen, "M", {}, nullptr); });
     }
-    SECTION("ColorPicker") {
-        ColorPicker a;
-        ColorPicker b;
-        check_widget_closes_own_modal(a, b, "btn_close",
+    SECTION("ColorPickerModal") {
+        ColorPickerModal a;
+        ColorPickerModal b;
+        check_widget_closes_own_modal(a, b, "cpm_cancel",
                                       [&](auto& m) { m.show_with_color(screen, 0xFF0000); });
     }
     SECTION("DebugBundleModal") {

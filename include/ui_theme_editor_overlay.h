@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "ui_color_picker.h"
+#include "ui_color_picker_view.h"
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
@@ -135,7 +135,17 @@ class ThemeEditorOverlay : public OverlayBase {
     void perform_reset_to_default();
 
     void handle_swatch_click(int palette_index);
-    void show_color_picker(int palette_index);
+    /// Edit role @p palette_index in the inline picker: ring its bar, show its
+    /// color and name in the picker, and scroll the bar into view.
+    void select_role(int palette_index);
+    /// The inline picker changed the edited role's color.
+    void handle_role_color(uint32_t rgb);
+    /// Publish role @p i's bar: color, hex and a text color that reads on it.
+    void publish_role(size_t i);
+    /// The edited roles' colors, for the picker's "This theme" strip.
+    std::vector<uint32_t> theme_colors() const;
+    void schedule_preview();
+    void cancel_preview_timer();
     void show_save_as_dialog();
     void show_discard_confirmation(std::function<void()> on_discard);
     void update_title_dirty_indicator();
@@ -165,8 +175,17 @@ class ThemeEditorOverlay : public OverlayBase {
     helix::xml::IndexedSubjectPool swatch_color_pool_{"theme_editor_role_color",
                                                       helix::xml::IndexedSubjectPool::Type::Color};
 
-    // Color picker for swatch editing
-    std::unique_ptr<helix::ui::ColorPicker> color_picker_;
+    /// The role bars' names, hexes and text colors (theme_role_bar.xml).
+    helix::xml::IndexedSubjectPool role_name_pool_{"theme_editor_role_name",
+                                                   helix::xml::IndexedSubjectPool::Type::String};
+    helix::xml::IndexedSubjectPool role_hex_pool_{"theme_editor_role_hex",
+                                                  helix::xml::IndexedSubjectPool::Type::String, 16};
+    helix::xml::IndexedSubjectPool role_text_pool_{"theme_editor_role_text",
+                                                   helix::xml::IndexedSubjectPool::Type::Color};
+    /// The inline picker editing the selected role.
+    helix::ui::ColorPickerView picker_;
+    /// The theme previews a moment after the last change, not on every drag step.
+    lv_timer_t* preview_timer_ = nullptr;
 
     // Discard confirmation dialog tracking
     helix::ui::WidgetRef discard_dialog_;
@@ -185,6 +204,7 @@ class ThemeEditorOverlay : public OverlayBase {
     helix::Subject shadow_subject_{};
     helix::Subject save_as_status_subject_{};       ///< Save As dialog's error line
     helix::Subject save_as_status_shown_subject_{}; ///< 1 while that line shows
+    helix::Subject role_selected_subject_{};        ///< the role being edited
     char title_buf_[96]{};
     char radius_name_buf_[32]{};
     char save_as_status_buf_[96]{};

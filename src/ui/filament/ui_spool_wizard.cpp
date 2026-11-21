@@ -4,7 +4,7 @@
 #include "ui_spool_wizard.h"
 
 #include "ui_callback_helpers.h"
-#include "ui_color_picker.h"
+#include "ui_color_picker_modal.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_common.h"
@@ -16,6 +16,7 @@
 #include "ui_utils.h"
 
 #include "app_globals.h"
+#include "color_recents.h"
 #include "color_utils.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
@@ -61,7 +62,7 @@ void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int m
 // Constructor / Destructor
 // ============================================================================
 
-// Out of line: ColorPicker is incomplete in the header.
+// Out of line: ColorPickerModal is incomplete in the header.
 SpoolWizardOverlay::SpoolWizardOverlay() = default;
 
 SpoolWizardOverlay::~SpoolWizardOverlay() {
@@ -1544,7 +1545,7 @@ void SpoolWizardOverlay::pick_filament_color() {
 
     // Create picker on first use (lazy initialization)
     if (!color_picker_) {
-        color_picker_ = std::make_unique<helix::ui::ColorPicker>();
+        color_picker_ = std::make_unique<helix::ui::ColorPickerModal>();
     }
 
     // Set callback for when color is selected (access global, don't capture reference)
@@ -1625,6 +1626,11 @@ void SpoolWizardOverlay::confirm_create_filament() {
     new_fil.nozzle_temp_max = new_filament_nozzle_max_;
     new_fil.bed_temp_min = new_filament_bed_min_;
     new_fil.bed_temp_max = new_filament_bed_max_;
+
+    // The new filament commits its color: it joins the filament recents.
+    if (const auto rgb = helix::parse_hex_color(new_filament_color_hex_)) {
+        helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, *rgb);
+    }
 
     // Set as selected filament
     selected_filament_ = new_fil;

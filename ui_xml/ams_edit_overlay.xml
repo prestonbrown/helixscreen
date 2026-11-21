@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Spool editor overlay. One overlay, internal views selected by the
      ams_edit_view int subject: 0=editor (the identity form; the entry view),
-     1=Spoolman spool picker, 2=custom color (presets + HSV).
+     1=Spoolman spool picker. Color opens the color page (ColorPickerPage).
      Header: back (ams_edit_back_cb), lane-name title (bound from C++ in AmsEditOverlay::create()),
      the linked-spool badge (an indicator, part of the back target), and Spoolman
      + Scan QR round icon buttons (header_content slot, left of the
@@ -60,15 +60,32 @@
     <px name="ams_edit_row_label_w_small" value="72"/>
     <px name="ams_edit_row_label_w_medium" value="76"/>
     <px name="ams_edit_row_label_w_large" value="80"/>
-    <!-- Colour column width in the split (short-landscape) layout: wide
-         enough for four swatches plus the ring reach. -->
-    <px name="ams_edit_color_col_w_micro" value="132"/>
-    <px name="ams_edit_color_col_w_tiny" value="148"/>
+    <!-- The color column beside the form at the short landscape class:
+         three 40px swatches and their gaps across. -->
+    <px name="ams_edit_color_col_w_micro" value="148"/>
+    <px name="ams_edit_color_col_w_tiny" value="160"/>
     <px name="ams_edit_color_col_w_small" value="160"/>
-    <!-- The split column exists only at the micro class; the taller classes
-         stack the grid full-width and never read this token. -->
+    <!-- The column exists only at the micro class; the taller classes show the
+         full-width row and never read this token. -->
     <px name="ams_edit_color_col_w_medium" value="#ams_edit_color_col_w_small"/>
     <px name="ams_edit_color_col_w_large" value="#ams_edit_color_col_w_small"/>
+    <!-- The color row: recent chips, the current color at 1.25x, the
+         wheel inside All colors. -->
+    <px name="ams_edit_recent_chip_micro" value="40"/>
+    <px name="ams_edit_recent_chip_tiny" value="44"/>
+    <px name="ams_edit_recent_chip_small" value="44"/>
+    <px name="ams_edit_recent_chip_medium" value="60"/>
+    <px name="ams_edit_recent_chip_large" value="64"/>
+    <px name="ams_edit_current_swatch_micro" value="50"/>
+    <px name="ams_edit_current_swatch_tiny" value="55"/>
+    <px name="ams_edit_current_swatch_small" value="55"/>
+    <px name="ams_edit_current_swatch_medium" value="75"/>
+    <px name="ams_edit_current_swatch_large" value="80"/>
+    <px name="ams_edit_wheel_micro" value="22"/>
+    <px name="ams_edit_wheel_tiny" value="24"/>
+    <px name="ams_edit_wheel_small" value="24"/>
+    <px name="ams_edit_wheel_medium" value="33"/>
+    <px name="ams_edit_wheel_large" value="35"/>
     <!-- The lane-setting dropdowns, as narrow as their options allow so both
          share one row at every landscape class: the backup's wide enough for
          "Gate 12", the tool's for "None". -->
@@ -107,13 +124,6 @@
     <px name="ams_edit_hdr_gap_medium" value="4"/>
     <px name="ams_edit_hdr_gap_large" value="4"/>
   </consts>
-  <styles>
-    <!-- The colour view's presets pane: content-wide beside the picker, the
-         view's full width alone. Both are bound styles, since an inline width
-         would outrank either. -->
-    <style name="color_pane_fit" width="content"/>
-    <style name="color_pane_fill" width="100%"/>
-  </styles>
   <!-- Save is shut while nothing is dirty and until the lane records are read:
        an edit before the read would overwrite records nobody has seen. A cond,
        not a subject_expr: both operands come from init_subjects(), after the
@@ -186,7 +196,7 @@
           <lv_obj name="summary_swatch_wrap"
                   width="44" height="44" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                   style_flex_main_place="center" style_flex_cross_place="center" scrollable="false" clickable="true">
-            <event_cb trigger="clicked" callback="ams_edit_custom_color_cb"/>
+            <event_cb trigger="clicked" callback="ams_edit_color_page_cb"/>
             <color_dot name="summary_color_swatch" size="#swatch_grid_size" color="#card_bg"/>
           </lv_obj>
           <text_body name="summary_text" bind_text="ams_edit_summary_text" flex_grow="1" long_mode="dots"/>
@@ -246,11 +256,10 @@
           </lv_obj>
         </lv_obj>
 
-        <!-- Two layouts, both built, one hidden (bind_flag, not a structural
-             <if>: the engine refuses <repeat> nested inside <if>). The short
-             landscape class (min dimension <= 272, not portrait) splits -
-             dropdown form left, colour column right; everything else stacks
-             the colour grid under the form. Each dropdown's option list ends
+        <!-- Two layouts of the identity form, both built, one hidden. The short
+             landscape class (min dimension <= 272, not portrait) carries the
+             temperature line inside the form; everything else shows it above.
+             The color section follows either. Each dropdown's option list ends
              in "Browse catalog..." for the full catalog picker. -->
         <lv_obj name="layout_split"
                 width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
@@ -306,27 +315,33 @@
             </lv_obj>
           </lv_obj>
 
-          <lv_obj width="#ams_edit_color_col_w"
-                  height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
+          <!-- The color at this class: the same row as below, wrapped into the
+               column beside the form so the lane rows stay above the fold. All
+               colors is its hue wheel alone here. -->
+          <lv_obj name="color_col_split"
+                  width="#ams_edit_color_col_w" height="content" style_pad_all="0" flex_flow="column"
+                  style_pad_gap="#space_xs" scrollable="false">
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                     style_flex_cross_place="center" scrollable="false">
-              <text_small text="Color"/>
+              <text_small text="Color" style_text_color="#text_muted"/>
+              <text_small bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
               <tag_badge subject="ams_edit_tag_color"/>
             </lv_obj>
-            <lv_obj name="color_grid_split"
-                    width="100%" height="content" style_pad_all="#swatch_grid_gap_half" flex_flow="row_wrap"
-                    style_pad_gap="#swatch_grid_gap" scrollable="false">
-              <!-- The custom colour: the app's rainbow custom swatch, the grid's
-                   first tile so it shares the 44px hit pitch. It leads because
-                   a count change rebuilds the repeat at the end of the row. -->
-              <custom_color_swatch name="btn_custom_color_split"
-                                   selected_subject="ams_edit_color_selected" callback="ams_edit_custom_color_cb"/>
-              <repeat count="ams_edit_color_col_count">
+            <lv_obj name="color_row_split"
+                    width="100%" height="content" style_pad_all="#led_ring_reach" flex_flow="row_wrap"
+                    style_pad_gap="#space_sm" style_flex_cross_place="center" scrollable="false">
+              <color_swatch name="color_current_split"
+                            size="#ams_edit_recent_chip" colors_subject="ams_edit_color_current_multi"
+                            color_subject="ams_edit_color_current" selected_subject="ams_edit_color_ring" index="0"
+                            callback="ams_edit_color_page_cb" hit="0"/>
+              <custom_color_swatch name="btn_all_colors_split"
+                                   icon="palette" callback="ams_edit_color_page_cb" size="#ams_edit_recent_chip" hit="0"
+                                   reach="#led_ring_reach" ring="styles.led_swatch_ring"/>
+              <repeat count="ams_edit_recent_count">
                 <color_swatch index="${i}"
-                              color_subject="general_swatch_color_${i}" selected_subject="ams_edit_color_selected"
-                              callback="ams_edit_quick_swatch_cb" size="#swatch_grid_size" hit="#swatch_grid_gap_half"
-                              reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring"/>
+                              color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
+                              size="#ams_edit_recent_chip" hit="0"/>
               </repeat>
             </lv_obj>
           </lv_obj>
@@ -377,26 +392,50 @@
             <tag_badge subject="ams_edit_tag_product"/>
           </lv_obj>
 
+        </lv_obj>
+
+        <!-- Color: the name, then one row of the current color (opens the
+             color page), the newest filament recents other than it (each applies
+             at once, in the editor's draft) and All colors (the color page). -->
+        <lv_obj name="color_section"
+                width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+                scrollable="false">
+          <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                   style_flex_cross_place="center" scrollable="false">
-            <text_small text="Color"/>
+            <text_small text="Color" style_min_width="#ams_edit_row_label_w"/>
+            <text_body name="color_name" bind_text="ams_edit_color_name" flex_grow="1" long_mode="dots"/>
             <tag_badge subject="ams_edit_tag_color"/>
           </lv_obj>
-          <lv_obj name="color_grid"
-                  width="100%" height="content" style_pad_all="#swatch_grid_gap_half" flex_flow="row_wrap"
-                  style_pad_gap="#swatch_grid_gap" scrollable="false">
-            <!-- The custom colour: the app's rainbow custom swatch, the grid's
-                 first tile so it shares the 44px hit pitch. It leads because
-                 a count change rebuilds the repeat at the end of the row. -->
-            <custom_color_swatch name="btn_custom_color"
-                                 selected_subject="ams_edit_color_selected" callback="ams_edit_custom_color_cb"/>
-            <repeat count="ams_edit_color_row_count">
-              <color_swatch index="${i}"
-                            color_subject="general_swatch_color_${i}" selected_subject="ams_edit_color_selected"
-                            callback="ams_edit_quick_swatch_cb" size="#swatch_grid_size" hit="#swatch_grid_gap_half"
-                            reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring"/>
-            </repeat>
+          <lv_obj name="color_row"
+                  width="100%" height="content" style_pad_all="#led_ring_reach" flex_flow="row"
+                  style_pad_gap="#space_sm" style_flex_cross_place="center" scrollable="false">
+            <color_swatch name="color_current"
+                          size="#ams_edit_current_swatch" colors_subject="ams_edit_color_current_multi"
+                          color_subject="ams_edit_color_current" selected_subject="ams_edit_color_ring" index="0"
+                          callback="ams_edit_color_page_cb" hit="0"/>
+            <lv_obj name="color_recents"
+                    width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                    style_flex_cross_place="center" scrollable="false" clickable="false">
+              <repeat count="ams_edit_recent_count">
+                <color_swatch index="${i}"
+                              color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
+                              size="#ams_edit_recent_chip" hit="0"/>
+              </repeat>
+            </lv_obj>
+            <lv_obj height="1"
+                    flex_grow="1" style_bg_opa="0" style_border_width="0" clickable="false" scrollable="false"/>
+            <lv_obj name="btn_all_colors"
+                    width="content" height="#ams_edit_recent_chip" style_radius="9999" style_bg_color="#elevated_bg"
+                    style_bg_opa="255" style_border_width="0" style_pad_hor="#space_md" style_pad_gap="#space_xs"
+                    flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
+                    scrollable="false">
+              <style name="styles.press_wash" selector="pressed"/>
+              <color_swatch fill="disc_rainbow" size="#ams_edit_wheel" reach="0" hit="0" clickable="false" bubble="true"/>
+              <text_small text="All colors" clickable="false" event_bubble="true"/>
+              <event_cb trigger="clicked" callback="ams_edit_color_page_cb"/>
+            </lv_obj>
           </lv_obj>
         </lv_obj>
 
@@ -620,68 +659,6 @@
           <icon src="chevron_right" size="sm" variant="muted" clickable="false"/>
         </lv_obj>
 
-      </lv_obj>
-
-      <!-- ============================================================ -->
-      <!-- COLOR VIEW (ams_edit_view=2): preset grid and custom HSV.    -->
-      <!-- A preset tap applies immediately; HSV/hex + Select applies a -->
-      <!-- custom color. Returns to the editor view (its sole entry).   -->
-      <!-- ============================================================ -->
-      <!-- Where both panes fit the content area (ams_edit_color_fits, measured
-           by update_color_fit) they show together, side by side or wrapped onto
-           two rows. Where they do not, one pane fills the view at a time
-           (ams_edit_color_pane): the presets lead with the rainbow custom swatch,
-           which swaps in the picker, and the picker's Presets button swaps back. -->
-      <lv_obj name="color_view"
-              width="100%" height="content" style_min_height="100%" flex_flow="row_wrap" style_pad_all="#space_lg"
-              style_pad_gap="#space_xl" style_flex_main_place="center" style_flex_cross_place="center"
-              style_flex_track_place="center" scrollable="false" hidden="true">
-        <bind_flag_if_not_eq subject="ams_edit_view" flag="hidden" ref_value="2"/>
-
-        <!-- Preset swatches: tap applies + returns -->
-        <lv_obj name="color_presets"
-                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
-          <bind_flag_if cond="ams_edit_color_fits eq 0 and ams_edit_color_pane eq 1" flag="hidden"/>
-          <bind_style name="color_pane_fit" subject="ams_edit_color_fits" ref_value="1"/>
-          <bind_style name="color_pane_fill" subject="ams_edit_color_fits" ref_value="0"/>
-          <text_small text="Presets"/>
-          <!-- Last child: the reactive <if> rebuilds at the end of the list. -->
-          <if cond="ams_edit_color_fits eq 1">
-            <color_swatch_grid swatch_callback="ams_edit_color_swatch_cb"/>
-            <else/>
-            <color_swatch_grid width="100%"
-                               swatch_callback="ams_edit_color_swatch_cb" lead_hidden="false"
-                               lead_callback="ams_edit_color_show_picker_cb"/>
-          </if>
-        </lv_obj>
-
-        <!-- Custom hue: HSV + hex + Select -->
-        <lv_obj name="color_custom"
-                width="content" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xl"
-                style_flex_cross_place="center" scrollable="false">
-          <bind_flag_if cond="ams_edit_color_fits eq 0 and ams_edit_color_pane eq 0" flag="hidden"/>
-          <ui_hsv_picker name="ams_color_hsv" sv_size="#sv_size" hue_height="#hue_height" gap="#space_sm"/>
-          <lv_obj width="content"
-                  height="content" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
-                  style_flex_cross_place="start" style_pad_gap="#space_sm" scrollable="false">
-            <!-- A colour area, not a swatch: a rounded rect. -->
-            <swatch_paint name="ams_color_preview"
-                          width="#color_preview_size" height="#color_preview_size_small" style_radius="#border_radius"
-                          color="#card_bg"/>
-            <text_input name="ams_color_hex_input"
-                        width="100" height="content" max_length="9" text="#808080" placeholder_text="#hex_placeholder"
-                        style_outline_width="0" scrollable="false">
-              <event_cb trigger="value_changed" callback="ams_edit_color_hex_changed_cb"/>
-            </text_input>
-            <ui_button name="btn_color_apply" width="100" height="#button_height_sm" text="Select" variant="primary">
-              <event_cb trigger="clicked" callback="ams_edit_color_apply_cb"/>
-            </ui_button>
-            <ui_button name="btn_color_presets" width="100" height="#button_height_sm" text="Presets" variant="ghost">
-              <bind_flag_if_eq subject="ams_edit_color_fits" flag="hidden" ref_value="1"/>
-              <event_cb trigger="clicked" callback="ams_edit_color_show_presets_cb"/>
-            </ui_button>
-          </lv_obj>
-        </lv_obj>
       </lv_obj>
 
     </overlay_panel-overlay_content>

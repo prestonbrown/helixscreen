@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-#include "ui_color_picker.h"
+#include "ui_color_picker_modal.h"
 #include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../ui_test_utils.h"
+#include "color_picker_model.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_area_private.h" // lv_area_is_in
@@ -24,45 +25,6 @@
 
 extern "C" {
 #include "helix-xml/src/xml/lv_xml.h"
-}
-
-namespace {
-
-std::vector<uint32_t> g_tapped;
-
-/// Reads the color the way every grid consumer does: off the event target.
-void record_tap(lv_event_t* e) {
-    auto* target = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    g_tapped.push_back(lv_color_to_u32(helix::ui::swatch_color_of(target)) & 0xFFFFFF);
-}
-
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture, "color_swatch_grid: a tap reports the tapped palette color",
-                 "[color_swatch]") {
-    lv_xml_register_event_cb(nullptr, "test_grid_tap_cb", record_tap);
-    for (const auto palette :
-         {helix::ui::ColorPicker::Palette::General, helix::ui::ColorPicker::Palette::Theme}) {
-        const char* name =
-            palette == helix::ui::ColorPicker::Palette::General ? "general" : "theme";
-        INFO(name);
-        const char* attrs[] = {"swatch_callback", "test_grid_tap_cb", "palette", name, nullptr};
-        auto* grid =
-            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "color_swatch_grid", attrs));
-        REQUIRE(grid != nullptr);
-        const auto& expected = helix::ui::swatch_palette(palette);
-        // The palette follows the grid's hidden custom-colour lead tile.
-        REQUIRE(lv_obj_get_child_count(grid) == expected.size() + 1);
-        CHECK(lv_obj_is_hidden(lv_obj_get_child(grid, 0)));
-
-        g_tapped.clear();
-        for (uint32_t i = 0; i < expected.size(); ++i) {
-            lv_obj_send_event(lv_obj_get_child(grid, static_cast<int32_t>(i + 1)), LV_EVENT_CLICKED,
-                              nullptr);
-        }
-        CHECK(g_tapped == expected);
-        lv_obj_delete(grid);
-    }
 }
 
 TEST_CASE("swatch_needs_edge: a swatch too close to its surface gets an edge, in either theme",
@@ -169,8 +131,6 @@ TEST_CASE("swatch token ladders keep every touch target at the floor, per size c
     };
     const Ladder ladders[] = {
         {"swatch_grid", &globals, "swatch_grid_size", "swatch_grid_gap", "swatch_grid_gap_half"},
-        {"picker_tab", &globals, "picker_tab_swatch_size", "picker_tab_swatch_gap",
-         "picker_tab_swatch_gap_half"},
         {"led_swatch", &led, "led_swatch_size", "led_swatch_gap", "led_swatch_gap_half"},
     };
     const char* classes[] = {"_micro", "_tiny",   "_small",  "_medium",
@@ -199,35 +159,7 @@ TEST_CASE("swatch token ladders keep every touch target at the floor, per size c
     }
 }
 
-namespace {
-
-bool shown(lv_obj_t* obj) {
-    for (; obj; obj = lv_obj_get_parent(obj)) {
-        if (lv_obj_is_hidden(obj))
-            return false;
-    }
-    return true;
-}
-
-/// The preset grid the picker shows: it builds one per layout (tabbed and
-/// two-column) and hides the one the breakpoint does not use.
-lv_obj_t* shown_grid(lv_obj_t* root) {
-    lv_obj_t* found = nullptr;
-    for (uint32_t i = 0; i < lv_obj_get_child_count(root); ++i) {
-        lv_obj_t* child = lv_obj_get_child(root, static_cast<int32_t>(i));
-        const char* name = lv_obj_get_name(child);
-        if (name && strcmp(name, "color_swatch_grid") == 0 && shown(child))
-            return child;
-        if (!found)
-            found = shown_grid(child);
-    }
-    return found;
-}
-
-} // namespace
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "ColorPicker: the shown preset grid fits its dialog card at every size",
+TEST_CASE_METHOD(LVGLUITestFixture, "ColorPickerModal: the picker fits its card at every size",
                  "[color_swatch][color_picker][layout]") {
     auto& display = helix::DisplaySettingsManager::instance();
     const bool animations = display.get_animations_enabled();
@@ -237,12 +169,14 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     };
     for (const Size sz :
          {Size{480, 320}, Size{320, 480}, Size{480, 272}, Size{480, 400}, Size{800, 480}}) {
-        for (const auto palette :
-             {helix::ui::ColorPicker::Palette::General, helix::ui::ColorPicker::Palette::Theme}) {
+        for (const auto palette : {helix::ColorPalette::Filament, helix::ColorPalette::Led,
+                                   helix::ColorPalette::Theme}) {
             CAPTURE(sz.w, sz.h, static_cast<int>(palette));
             helix::test::ScopedGeometry geometry(sz.w, sz.h);
-            helix::ui::ColorPicker picker;
-            picker.set_palette(palette);
+            helix::ui::ColorPickerModal picker;
+            helix::ui::ColorPickerConfig cfg;
+            cfg.palette = palette;
+            picker.set_config(cfg);
             REQUIRE(picker.show_with_color(test_screen(), 0x808080));
             lv_obj_t* dialog = picker.dialog();
             REQUIRE(dialog != nullptr);
@@ -253,110 +187,29 @@ TEST_CASE_METHOD(LVGLUITestFixture,
             const lv_area_t screen{0, 0, sz.w - 1, sz.h - 1};
             CAPTURE(card.x1, card.y1, card.x2, card.y2);
             CHECK(lv_area_is_in(&card, &screen, 0));
-            // The card shows all of its content: nothing scrolls off its bottom or side.
             CHECK(lv_obj_get_scroll_bottom(dialog) <= 0);
             CHECK(lv_obj_get_scroll_right(dialog) <= 0);
 
-            lv_obj_t* grid = shown_grid(dialog);
-            REQUIRE(grid != nullptr);
+            // Every grid cell and the strip lie inside the card, and a cell is
+            // tall enough to hit.
+            lv_obj_t* grid_tab = lv_obj_find_by_name(dialog, "cp_grid_tab");
+            lv_obj_t* strip = lv_obj_find_by_name(dialog, "cp_strip");
+            REQUIRE(grid_tab != nullptr);
+            REQUIRE(strip != nullptr);
             lv_area_t g;
-            lv_obj_get_coords(grid, &g);
-            CAPTURE(g.x1, g.y1, g.x2, g.y2);
+            lv_area_t st;
+            lv_obj_get_coords(grid_tab, &g);
+            lv_obj_get_coords(strip, &st);
+            CAPTURE(g.x1, g.y1, g.x2, g.y2, st.y2);
             CHECK(lv_area_is_in(&g, &card, 0));
-            CHECK(lv_obj_get_scroll_bottom(grid) <= 0);
-            CHECK(lv_obj_get_scroll_right(grid) <= 0);
-            uint32_t swatches = 0;
-            for (uint32_t i = 0; i < lv_obj_get_child_count(grid); ++i) {
-                lv_obj_t* swatch = lv_obj_get_child(grid, static_cast<int32_t>(i));
-                if (!shown(swatch))
-                    continue;
-                ++swatches;
-                lv_area_t s;
-                lv_obj_get_coords(swatch, &s);
-                CAPTURE(i, s.x1, s.y1, s.x2, s.y2);
-                CHECK(lv_area_is_in(&s, &g, 0));
-            }
-            CHECK(swatches == helix::ui::swatch_palette(palette).size());
+            CHECK(lv_area_is_in(&st, &card, 0));
+            const int rows = static_cast<int>(helix::color_palette(palette).size()) /
+                             helix::color_palette_columns(palette);
+            CHECK(lv_area_get_height(&g) / rows >= 20);
             picker.hide();
             helix::ui::UpdateQueue::instance().drain();
             process_lvgl(10);
         }
     }
     display.set_animations_enabled(animations);
-}
-
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "The compact picker's tabs swap content and the open pill stays readable",
-                 "[color_picker]") {
-    const lv_color_t primary = theme_manager_get_color("primary");
-    const lv_color_t text = theme_manager_get_color("text");
-    REQUIRE(wcag::contrast(text, primary) < 4.0);
-
-    helix::test::ScopedBreakpoint bp(UiBreakpoint::Tiny);
-    helix::ui::ColorPicker picker;
-    picker.show_with_color(test_screen(), 0xFF0000);
-    auto settle = [] { helix::ui::UpdateQueue::instance().drain(); }; // deferred contrast pass
-    settle();
-    lv_obj_t* root =
-        lv_obj_find_by_name(lv_layer_top(), "btn_tab_presets") ? lv_layer_top() : test_screen();
-    auto find = [root](const char* name) {
-        lv_obj_t* obj = lv_obj_find_by_name(root, name);
-        REQUIRE(obj != nullptr);
-        return obj;
-    };
-    // The open tab is the filled pill, its label readable on primary.
-    auto open_tab_is = [&](const char* open, const char* closed) {
-        lv_obj_t* label = lv_obj_get_child(find(open), 0);
-        CHECK(lv_obj_get_style_bg_opa(find(open), LV_PART_MAIN) == LV_OPA_COVER);
-        CHECK(lv_obj_get_style_bg_opa(find(closed), LV_PART_MAIN) == LV_OPA_TRANSP);
-        CHECK(wcag::contrast(lv_obj_get_style_text_color(label, LV_PART_MAIN), primary) >= 4.0);
-    };
-
-    open_tab_is("btn_tab_presets", "btn_tab_custom");
-    CHECK_FALSE(lv_obj_is_hidden(find("presets_content")));
-    CHECK(lv_obj_is_hidden(find("custom_content")));
-
-    lv_obj_send_event(find("btn_tab_custom"), LV_EVENT_CLICKED, nullptr);
-    settle();
-    open_tab_is("btn_tab_custom", "btn_tab_presets");
-    CHECK(lv_obj_is_hidden(find("presets_content")));
-    CHECK_FALSE(lv_obj_is_hidden(find("custom_content")));
-
-    // A hex field that does not parse turns danger until it does.
-    lv_obj_t* hex = find("hex_input_tiny");
-    auto hex_is = [hex](const char* token) {
-        return lv_color_eq(lv_obj_get_style_text_color(hex, LV_PART_MAIN),
-                           theme_manager_get_color(token));
-    };
-    CHECK_FALSE(hex_is("danger"));
-    lv_textarea_set_text(hex, "#12");
-    CHECK(hex_is("danger"));
-    // Leaving the field puts the selected colour back untinted; the next bad entry tints again.
-    lv_obj_send_event(hex, LV_EVENT_DEFOCUSED, nullptr);
-    CHECK(std::string(lv_textarea_get_text(hex)) == "#FF0000");
-    CHECK_FALSE(hex_is("danger"));
-    lv_textarea_set_text(hex, "#12");
-    CHECK(hex_is("danger"));
-    lv_textarea_set_text(hex, "#123456");
-    CHECK_FALSE(hex_is("danger"));
-    picker.hide();
-}
-
-TEST_CASE("the general palette leads with the filament colours people load",
-          "[color_swatch_grid][palette]") {
-    // The spool editor shows only the palette's first row or two, so the core
-    // colours have to be in front: black, white, grey and every main hue.
-    const auto& palette = helix::ui::swatch_palette(helix::ui::ColorPicker::Palette::General);
-    REQUIRE(palette.size() == 30);
-    const std::vector<uint32_t> lead(palette.begin(), palette.begin() + 15);
-    auto has = [&](uint32_t c) { return std::find(lead.begin(), lead.end(), c) != lead.end(); };
-    for (uint32_t core : {0x1A1A1Au, 0xFFFFFFu, 0x7F7F7Fu, 0xE53935u, 0xFF9800u, 0xFFEB3Bu,
-                          0x43A047u, 0x1E88E5u, 0x7B1FA2u, 0xE91E63u}) {
-        CAPTURE(core);
-        CHECK(has(core));
-    }
-    // No two swatches alike.
-    std::vector<uint32_t> sorted(palette.begin(), palette.end());
-    std::sort(sorted.begin(), sorted.end());
-    CHECK(std::adjacent_find(sorted.begin(), sorted.end()) == sorted.end());
 }

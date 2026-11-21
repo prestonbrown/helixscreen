@@ -3,12 +3,13 @@
 
 /**
  * @file test_theme_editor_swatches.cpp
- * @brief The theme editor's role swatches are painter circles bound to its
- *        palette, and a tap opens the picker for that palette slot.
+ * @brief The theme editor's role bars are painted chips bound to its palette,
+ *        and a tap edits that role in the inline picker.
  *
  * Run with: ./build/bin/helix-tests "[theme_editor][swatch]"
  */
 
+#include "ui_color_picker_view.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
@@ -16,12 +17,15 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "border_radius_sizes.h"
+#include "color_picker_model.h"
+#include "color_utils.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "theme_loader.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <array>
 #include <cctype>
 #include <string>
@@ -61,10 +65,10 @@ uint32_t rgb(lv_color_t c) {
 
 } // namespace
 
-TEST_CASE_METHOD(
-    ThemeEditorSwatchFixture,
-    "Theme editor swatches are painter circles showing the palette, and a tap opens the picker",
-    "[theme_editor][swatch]") {
+TEST_CASE_METHOD(ThemeEditorSwatchFixture,
+                 "Theme editor role bars are painted chips of the palette; a tap edits that role "
+                 "inline",
+                 "[theme_editor][swatch][color_picker]") {
     auto& editor = get_theme_editor_overlay();
     REQUIRE(editor.show(lv_screen_active()));
     settle();
@@ -79,24 +83,40 @@ TEST_CASE_METHOD(
     const size_t count = helix::ModePalette::color_names().size();
     REQUIRE(count == 16);
     for (size_t i = 0; i < count; ++i) {
-        INFO("swatch " << i);
-        const std::string name = "swatch_" + std::to_string(i);
-        lv_obj_t* swatch = lv_obj_find_by_name(root, name.c_str());
-        REQUIRE(swatch != nullptr);
-        lv_obj_t* disc = lv_obj_find_by_name(swatch, "color_swatch_disc");
-        REQUIRE(disc != nullptr);
-        CHECK(has_swatch_paint(disc));
-        CHECK(lv_obj_get_style_radius(disc, LV_PART_MAIN) == LV_RADIUS_CIRCLE);
-        CHECK(lv_obj_get_style_border_width(swatch, LV_PART_MAIN) == 0);
-        CHECK(rgb(swatch_color_of(swatch)) ==
+        INFO("role " << i);
+        const std::string name = "role_" + std::to_string(i);
+        lv_obj_t* bar = lv_obj_find_by_name(root, name.c_str());
+        REQUIRE(bar != nullptr);
+        CHECK(has_swatch_paint(bar));
+        CHECK(lv_obj_get_style_radius(bar, LV_PART_MAIN) != LV_RADIUS_CIRCLE);
+        CHECK(rgb(swatch_color_of(bar)) ==
               rgb(theme_manager_parse_hex_color(palette.at(i).c_str())));
     }
 
-    // A tap opens the picker for that slot.
-    REQUIRE(ModalStack::instance().empty());
-    lv_obj_send_event(lv_obj_find_by_name(root, "swatch_5"), LV_EVENT_CLICKED, nullptr);
+    // The picker sits in the page, editing Primary, with no modal.
+    REQUIRE(ColorPickerView::active() != nullptr);
+    auto* picker = ColorPickerView::active();
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "theme_editor_role_selected")) == 8);
+    CHECK(picker->color() == rgb(theme_manager_parse_hex_color(palette.at(8).c_str())));
+
+    // A tap on a bar edits that role, still with no modal.
+    lv_obj_send_event(lv_obj_find_by_name(root, "role_5"), LV_EVENT_CLICKED, nullptr);
     settle();
-    CHECK(ModalStack::instance().top_component_name() == "color_picker");
+    CHECK(ModalStack::instance().empty());
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "theme_editor_role_selected")) == 5);
+    CHECK(picker->color() == rgb(theme_manager_parse_hex_color(palette.at(5).c_str())));
+    CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "color_picker_name"))) ==
+          "Text");
+
+    // A pick repaints the bar at once and marks the theme edited.
+    picker->pick_cell(0);
+    const uint32_t picked = helix::color_palette(helix::ColorPalette::Theme)[0];
+    CHECK(rgb(swatch_color_of(lv_obj_find_by_name(root, "role_5"))) == picked);
+    CHECK(editor.get_editing_theme().dark.at(5) == helix::color_to_hex_string(picked));
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "theme_editor_dirty")) == 1);
+    // The strip holds the theme's own colors, the new one among them.
+    const auto& strip = picker->strip_colors();
+    CHECK(std::find(strip.begin(), strip.end(), picked) != strip.end());
 }
 
 TEST_CASE_METHOD(ThemeEditorSwatchFixture, "The back button asks before dropping unsaved edits",

@@ -323,6 +323,7 @@ translations:
   All Devices: Tutti i dispositivi
   All Healthy: 'Tutto in ordine'
   All axes homed: Tutti gli assi in posizione
+  All colors: Tutti i colori
   All configured hardware detected: 'Tutto l''hardware configurato rilevato'
   All fields are required: Tutti i campi sono obbligatori
   All healthy: Tutto a posto
@@ -1832,6 +1833,7 @@ translations:
   Good match: "Buona corrispondenza"
   Got it: Capito
   Gray: Grigio
+  Grid: Griglia
   Grip filament: Afferra il filamento
   Grip the filament: Afferra il filamento
   Groups follow each slot's material and color: "I gruppi seguono materiale e colore di ogni slot"
@@ -1951,6 +1953,7 @@ translations:
   Helper Macros: 'Macro di ausilio'
   Helper macros already installed: 'Macro di ausilio già installate'
   Helper macros are up to date: 'Le macro di ausilio sono aggiornate'
+  Hex: Hex
   Hide Firmware Noise: Nascondi rumore firmware
   Hide Temperature Reports: Nascondi report temperature
   Hide the on-screen keyboard while a USB keyboard is attached: Nascondi la tastiera su schermo quando è collegata una tastiera USB
@@ -2021,6 +2024,7 @@ translations:
   Hub: Hub
   Hub & Cutter: 'Hub e taglierina'
   Hub Bowden Length: 'Lunghezza del bowden dell''hub'
+  Hue: Tonalità
   Humidity: Umidità
   Humidity inside the enclosure: Umidità nella camera
   Humidity Sensors: Sensori di umidità
@@ -3357,6 +3361,7 @@ translations:
   Recalibrate input shaping?: 'Ricalibrare l''Input Shaping?'
   Recalibrate or view detailed results anytime in Settings.: Ricalibra o visualizza i risultati dettagliati in qualsiasi momento nelle Impostazioni.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Ricevuti dati troppo grandi dalla stampante ({} byte). Potrebbe indicare un errore di comunicazione.
+  Recent: Recenti
   Recent Prints: Stampe recenti
   Recently Printed: Stampate di recente
   Recirculate: 'Ricircolo'
@@ -3611,6 +3616,7 @@ translations:
   Sample Dialog: Dialogo di esempio
   Samples: Campioni
   Samples Tolerance: Tolleranza campioni
+  Saturation: Saturazione
   Save: Salva
   Save & Restart: Salva e riavvia
   Save As New: Salva come nuovo
@@ -3866,6 +3872,7 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Preparato per un ugello da {:g} mm su T{}; la stampante ha {:g} mm.'
   Sliced for {}, not {}.: 'Preparato per {}, non per {}.'
   Slicer: Slicer
+  Sliders: Cursori
   Slot: Slot
   Slot 1: Slot 1
   Slot Blocked: 'Slot bloccato'
@@ -4498,6 +4505,7 @@ translations:
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Questa bobina è finita, quindi il CFS non può ritirare il filamento rimasto.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'I dettagli di questa bobina non sono ancora stati caricati da Spoolman. Premi di nuovo Salva.'
   This system does not support bypass mode: 'Questo sistema non supporta la modalità bypass'
+  This theme: Questo tema
   This tool probes each bed screw and tells you how much to adjust.: Questo strumento sonda ogni vite del piano e indica quanto regolare.
   'This update asks for new permissions:': 'Questo aggiornamento richiede nuovi permessi:'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Questa attesa termina solo alla sua temperatura: l''annullamento richiede un arresto di emergenza e un riavvio del firmware.'

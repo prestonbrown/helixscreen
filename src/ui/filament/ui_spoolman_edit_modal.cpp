@@ -8,6 +8,7 @@
 #include "ui_spool_canvas.h"
 #include "ui_toast_manager.h"
 
+#include "color_recents.h"
 #include "core/update_queue.h"
 #include "label_printer_settings.h"
 #if HELIX_HAS_LABEL_PRINTER
@@ -455,6 +456,12 @@ void SpoolEditModal::handle_save() {
     auto on_all_saved = [this, token, spool_id]() {
         spdlog::info("[SpoolEditModal] All changes saved for spool {}", spool_id);
         token.defer("SpoolEditModal::on_all_saved", [this]() {
+            // A saved color change commits the color: it joins the filament recents.
+            if (working_spool_.color_hex != original_spool_.color_hex) {
+                if (const auto rgb = helix::parse_hex_color(working_spool_.color_hex)) {
+                    helix::ColorRecents::remember(helix::ColorRecents::Kind::Filament, *rgb);
+                }
+            }
             ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Spool saved"), 2000);
             if (completion_callback_) {
                 completion_callback_(true);

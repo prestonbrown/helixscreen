@@ -308,6 +308,7 @@
   <translation tag="All Devices" zh="所有设备"/>
   <translation tag="All Healthy" zh="一切正常"/>
   <translation tag="All axes homed" zh="所有轴已归位"/>
+  <translation tag="All colors" zh="所有颜色"/>
   <translation tag="All configured hardware detected" zh="已检测到所有已配置的硬件"/>
   <translation tag="All fields are required" zh="所有字段均为必填项"/>
   <translation tag="All healthy" zh="一切正常"/>
@@ -1762,6 +1763,7 @@
   <translation tag="Good match" zh="匹配良好"/>
   <translation tag="Got it" zh="知道了"/>
   <translation tag="Gray" zh="灰色"/>
+  <translation tag="Grid" zh="网格"/>
   <translation tag="Grip filament" zh="夹持耗材"/>
   <translation tag="Grip the filament" zh="夹持耗材"/>
   <translation tag="Groups follow each slot&apos;s material and color" zh="分组跟随各槽位的材料和颜色"/>
@@ -1877,6 +1879,7 @@
   <translation tag="Helper macros already installed" zh="帮助宏已安装"/>
   <translation tag="Helper macros are up to date" zh="帮助宏已是最新版本"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." zh="快速了解自您上个版本以来的变化。"/>
+  <translation tag="Hex" zh="十六进制"/>
   <translation tag="Hide Firmware Noise" zh="隐藏固件噪声"/>
   <translation tag="Hide Temperature Reports" zh="隐藏温度报告"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" zh="连接 USB 键盘时隐藏屏幕键盘"/>
@@ -1945,6 +1948,7 @@
   <translation tag="Hub" zh="集线器"/>
   <translation tag="Hub &amp; Cutter" zh="集线器与切刀"/>
   <translation tag="Hub Bowden Length" zh="集线器波顿管长度"/>
+  <translation tag="Hue" zh="色相"/>
   <translation tag="Humidity" zh="湿度"/>
   <translation tag="Humidity Sensors" zh="湿度传感器"/>
   <translation tag="Humidity inside the enclosure" zh="腔体内的湿度"/>
@@ -3269,6 +3273,7 @@
   <translation tag="Recalibrate input shaping?" zh="重新校准输入整形？"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." zh="可随时在设置中重新校准或查看详细结果。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." zh="从打印机收到的数据过大（{} 字节）。这可能表示通信错误。"/>
+  <translation tag="Recent" zh="最近"/>
   <translation tag="Recent Prints" zh="最近打印"/>
   <translation tag="Recently Printed" zh="最近打印过的"/>
   <translation tag="Recirculate" zh="内循环"/>
@@ -3519,6 +3524,7 @@
   <translation tag="Sample Dialog" zh="示例对话框"/>
   <translation tag="Samples" zh="采样次数"/>
   <translation tag="Samples Tolerance" zh="采样容差"/>
+  <translation tag="Saturation" zh="饱和度"/>
   <translation tag="Save" zh="保存"/>
   <translation tag="Save &amp; Restart" zh="保存并重启"/>
   <translation tag="Save As New" zh="另存为新配置"/>
@@ -3773,6 +3779,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." zh="按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。"/>
   <translation tag="Sliced for {}, not {}." zh="为 {} 切片，而不是 {}。"/>
   <translation tag="Slicer" zh="切片软件"/>
+  <translation tag="Sliders" zh="滑块"/>
   <translation tag="Slot" zh="槽位"/>
   <translation tag="Slot 1" zh="槽位 1"/>
   <translation tag="Slot Blocked" zh="槽位被阻塞"/>
@@ -4358,6 +4365,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." zh="此料盘已用完，CFS 无法将剩余耗材抽回。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>
   <translation tag="This system does not support bypass mode" zh="此系统不支持旁通模式"/>
+  <translation tag="This theme" zh="此主题"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." zh="此工具头没有自动送料器。请手动装入耗材。"/>
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>

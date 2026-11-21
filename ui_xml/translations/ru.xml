@@ -344,6 +344,7 @@
   <translation tag="All Devices" ru="Все устройства"/>
   <translation tag="All Healthy" ru="Всё в порядке"/>
   <translation tag="All axes homed" ru="Все оси запаркованы"/>
+  <translation tag="All colors" ru="Все цвета"/>
   <translation tag="All configured hardware detected" ru="Всё настроенное оборудование обнаружено"/>
   <translation tag="All fields are required" ru="Все поля обязательны для заполнения"/>
   <translation tag="All healthy" ru="Всё в порядке"/>
@@ -1810,6 +1811,7 @@
   <translation tag="Good match" ru="Хорошее совпадение"/>
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Grid" ru="Сетка"/>
   <translation tag="Grip filament" ru="Зажать филамент"/>
   <translation tag="Grip the filament" ru="Зажать филамент"/>
   <translation tag="Groups follow each slot&apos;s material and color" ru="Группы следуют материалу и цвету каждого слота"/>
@@ -1925,6 +1927,7 @@
   <translation tag="Helper macros already installed" ru="Вспомогательные макросы уже установлены"/>
   <translation tag="Helper macros are up to date" ru="Вспомогательные макросы актуальны"/>
   <translation tag="Here&apos;s a quick look at what changed since your last version." ru="Краткий обзор изменений с вашей последней версии."/>
+  <translation tag="Hex" ru="Hex"/>
   <translation tag="Hide Firmware Noise" ru="Скрыть служебные сообщения прошивки"/>
   <translation tag="Hide Temperature Reports" ru="Скрыть отчёты о температуре"/>
   <translation tag="Hide the on-screen keyboard while a USB keyboard is attached" ru="Скрывать экранную клавиатуру, пока подключена USB-клавиатура"/>
@@ -1993,6 +1996,7 @@
   <translation tag="Hub" ru="Хаб"/>
   <translation tag="Hub &amp; Cutter" ru="Хаб и резак"/>
   <translation tag="Hub Bowden Length" ru="Длина боудена хаба"/>
+  <translation tag="Hue" ru="Оттенок"/>
   <translation tag="Humidity" ru="Влажность"/>
   <translation tag="Humidity Sensors" ru="Датчики влажности"/>
   <translation tag="Humidity inside the enclosure" ru="Влажность внутри камеры"/>
@@ -3329,6 +3333,7 @@
   <translation tag="Recalibrate input shaping?" ru="Откалибровать компенсацию вибраций?"/>
   <translation tag="Recalibrate or view detailed results anytime in Settings." ru="Перекалибруйте или просмотрите подробные результаты в любое время в Настройках."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>
+  <translation tag="Recent" ru="Недавние"/>
   <translation tag="Recent Prints" ru="Недавние печати"/>
   <translation tag="Recently Printed" ru="Недавно напечатано"/>
   <translation tag="Recirculate" ru="Рециркуляция"/>
@@ -3579,6 +3584,7 @@
   <translation tag="Sample Dialog" ru="Пример диалога"/>
   <translation tag="Samples" ru="Образцы"/>
   <translation tag="Samples Tolerance" ru="Допуск образцов"/>
+  <translation tag="Saturation" ru="Насыщенность"/>
   <translation tag="Save" ru="Сохранить"/>
   <translation tag="Save &amp; Restart" ru="Сохранить и перезапустить"/>
   <translation tag="Save As New" ru="Сохранить как новый"/>
@@ -3833,6 +3839,7 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." ru="Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм."/>
   <translation tag="Sliced for {}, not {}." ru="Нарезано для {}, а не для {}."/>
   <translation tag="Slicer" ru="Слайсер"/>
+  <translation tag="Sliders" ru="Ползунки"/>
   <translation tag="Slot" ru="Слот"/>
   <translation tag="Slot 1" ru="Слот 1"/>
   <translation tag="Slot Blocked" ru="Слот заблокирован"/>
@@ -4424,6 +4431,7 @@
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ru="Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
   <translation tag="This system does not support bypass mode" ru="Эта система не поддерживает режим обхода"/>
+  <translation tag="This theme" ru="Эта тема"/>
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ru="Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ru="У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."/>
   <translation tag="This update asks for new permissions:" ru="Это обновление запрашивает новые разрешения:"/>
