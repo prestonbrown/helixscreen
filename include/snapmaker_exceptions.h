@@ -50,31 +50,41 @@ enum class ExceptionSeverity { Informational, Pause, Cancel };
 /// spellings a user compares by eye cannot drift apart.
 [[nodiscard]] std::string format_exception_code(const ExceptionCode& c);
 
-/// Our wording for a fault we recognise; empty for one we do not, so the caller
-/// falls back to the firmware's own message rather than inventing one.
+/// The cause of a fault we recognize (fault_wording's), untranslated; empty for
+/// one we do not, so the caller falls back to the firmware's own message rather
+/// than inventing one.
 [[nodiscard]] std::string_view exception_message(const ExceptionCode& c);
 
 /// The feeder module: every fault it raises is one head's load, unload or hand
 /// feed failing, and its index is that head (0-based, "Toolhead 1" is 0).
 inline constexpr int kFeedingModuleId = 525;
 
-/// What a feeder fault means at the head and what puts it right, as English
-/// source text; the render path translates it. Each sentence stands alone, so
-/// the head is named in the title the caller builds, never inside these.
-struct FeedFailure {
-    /// The title around the head's name: "{} didn't load".
-    const char* title;
+/// What a fault means to a user, as English source text; word_fault()
+/// translates it. A summary holding "{}" names the head the fault's index
+/// points at.
+struct FaultWording {
+    /// A few words for a title or a stop reason: "{} could not load its filament".
+    const char* summary;
     /// What went wrong, in one sentence.
     const char* cause;
     /// What the user does about it.
     const char* fix;
 };
 
-/// The wording for a feeder fault: its code's row, or a generic load failure
-/// for a code the table does not know. nullopt for a fault from any other module.
-[[nodiscard]] std::optional<FeedFailure> feed_failure(const ExceptionCode& c);
+/// The wording for a fault: its code's row, a generic load failure for a
+/// feeder code the table does not know, nullopt for any other unknown fault.
+[[nodiscard]] std::optional<FaultWording> fault_wording(const ExceptionCode& c);
 
-/// What the firmware will do about a fault at this level. An unrecognised level
+/// A fault's wording in the current language. Main thread only.
+struct WordedFault {
+    /// The head named: "Toolhead 1 could not load its filament".
+    std::string summary;
+    /// The cause, a blank line, then the fix.
+    std::string detail;
+};
+[[nodiscard]] std::optional<WordedFault> word_fault(const ExceptionCode& c);
+
+/// What the firmware will do about a fault at this level. An unrecognized level
 /// reads as Cancel: assuming the worst is the safe direction.
 [[nodiscard]] ExceptionSeverity severity_of(int level);
 

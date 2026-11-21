@@ -86,7 +86,8 @@ std::string recent_gcode_error(const PrinterPrintState& state, double now) {
 
 std::string decide_print_stop_reason(PrintJobState stop, const std::string& print_message,
                                      const std::vector<JournalEntry>& entries, double stop_time,
-                                     const std::optional<JournalEntry>& monitor) {
+                                     const std::optional<JournalEntry>& monitor,
+                                     const std::string& worded_cause) {
     if (!is_stop(stop)) {
         return {};
     }
@@ -94,6 +95,11 @@ std::string decide_print_stop_reason(PrintJobState stop, const std::string& prin
     if (stop == PrintJobState::PAUSED && monitor && !monitor->text.empty() &&
         is_recent_cause(monitor->time, stop_time)) {
         return monitor->text;
+    }
+    // RAW_PRINT_STATE_OK: the firmware's own cause for the pause it made. Its
+    // console line carries the same fault as raw firmware text.
+    if (stop == PrintJobState::PAUSED && !worded_cause.empty()) {
+        return worded_cause;
     }
     if (!print_message.empty()) {
         return print_message;
@@ -178,6 +184,17 @@ PrintStopReasonTracker::PrintStopReasonTracker(IMoonrakerClient& client, Printer
         state_.get_subjects_lifetime());
     // Immediate: whether the text came from a subscription response belongs to
     // the frame that set it. The handler only records; publishing is deferred.
+    // Immediate, as the job state: a pause and its cause arrive in one frame,
+    // and the cause is read after the state, so the reason is redone before
+    // anything draws the stop.
+    pause_cause_observer_ = ui::observe<int>(
+        ps.get_print_exception_subject(), this,
+        [](PrintStopReasonTracker* self, int) {
+            if (self->stopped()) {
+                self->publish();
+            }
+        },
+        state_.get_subjects_lifetime(), ui::Dispatch::Immediate);
     display_message_observer_ = ui::observe<const char*>(
         ps.get_display_message_subject(), this,
         [](PrintStopReasonTracker* self, const char* text) { self->on_display_message(text); },
@@ -224,6 +241,8 @@ void PrintStopReasonTracker::on_state() {
     stop_message_.clear();
     // Canceling a paused print ends it for the reason it paused.
     carried_reason_ = was_paused && stopped() ? previous : std::string();
+    carried_cause_ = was_paused && stopped() && !stop_cause_.empty() && previous == stop_cause_;
+    stop_cause_.clear();
     if (!stopped()) {
         publish();
         return;
@@ -314,8 +333,15 @@ void PrintStopReasonTracker::publish() {
     if (stopped() && message && *message) {
         stop_message_ = message;
     }
-    std::string reason =
-        decide_print_stop_reason(stop_, stop_message_, entries, stop_time_, monitor_);
+    // RAW_PRINT_STATE_OK: only a pause carries the firmware's cause.
+    if (const std::string& live = state_.print_state().get_print_exception_reason();
+        stop_ == PrintJobState::PAUSED && !live.empty()) {
+        stop_cause_ = live;
+    }
+    std::string reason = carried_cause_
+                             ? carried_reason_
+                             : decide_print_stop_reason(stop_, stop_message_, entries, stop_time_,
+                                                        monitor_, stop_cause_);
     if (reason.empty()) {
         reason = carried_reason_;
     }

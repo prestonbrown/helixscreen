@@ -36,6 +36,9 @@ struct PauseDescriptor {
     /// The lane (a filament sensor's lane index) whose runout the firmware
     /// paused on, or -1 when the cause is no runout or names no lane.
     int runout_lane = -1;
+    /// The cause in a few translated words for a user ("Toolhead 1 could not
+    /// load its filament"), empty when the firmware's wording is all there is.
+    std::string reason;
 };
 
 /// Status fields the discovered firmware's pause descriptor needs, as a
@@ -49,7 +52,7 @@ struct PauseDescriptor {
 /// about it (key absent, or Moonraker's null for a field this firmware never
 /// populates): leave whatever is latched. An all -1 PauseDescriptor when the
 /// firmware reports no cause (an empty descriptor: a user pause, or the cause
-/// cleared).
+/// cleared). Main thread only: the reason is translated.
 [[nodiscard]] std::optional<PauseDescriptor> read(const nlohmann::json& print_stats);
 
 } // namespace helix::pause_descriptor

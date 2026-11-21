@@ -16,6 +16,7 @@
 #include "filament_database.h"
 #include "filament_slot_override.h"
 #include "filament_slot_override_store.h"
+#include "firmware_fault_codes.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
 #include "lane_source_store.h"
@@ -3631,48 +3632,49 @@ void AmsBackendSnapmaker::send_resume_repairs_then(std::vector<std::pair<int, st
         /*caller_surfaces_errors=*/false);
 }
 
-// A head's load, unload or hand feed failing (the feeder module's fault): the
-// head named the way the UI names it, and the cause and fix in place of the
-// firmware's state dump. A print it paused waits on the user, so it blocks with
-// the ways on; idle, it answers the command the user just sent.
+// A coded fault the U1 table words (snapmaker::word_fault): the fault-code
+// classifier's event with our summary as its title and the cause and fix as its
+// text. A feeder failure that pauses a print waits on the user, so it blocks
+// with the ways on; idle, it answers the command the user just sent.
 std::optional<helix::ErrorEvent>
-AmsBackendSnapmaker::classify_feed_failure(const std::string& detail,
-                                           const helix::ClassifyContext& ctx) const {
-    const auto code = snapmaker::decode_exception_code(detail);
+AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
+                                          const helix::ClassifyContext& ctx) const {
+    const auto code = snapmaker::decode_exception_code(raw_line);
     if (!code) {
         return std::nullopt;
     }
-    const auto feed = snapmaker::feed_failure(*code);
-    if (!feed) {
+    const auto worded = snapmaker::word_fault(*code);
+    if (!worded) {
         return std::nullopt;
     }
+    auto e = helix::faultcodes::classify(get_printer_state().get_discovery(), raw_line);
+    if (!e) {
+        return std::nullopt;
+    }
+    e->title = worded->summary;
+    e->detail = worded->detail;
+    if (code->id != snapmaker::kFeedingModuleId) {
+        return e;
+    }
     const bool job_waits = ctx.is_printing || ctx.is_paused;
-    std::vector<helix::RecoveryAction> actions;
-    if (job_waits) {
-        // Loading again is the Filament panel's, which keeps its own guards for
-        // a paused print; Resume refuses until the head reports a finished load.
-        helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
-                                            "ams_backend_snapmaker::feed_open_filament", "primary"};
-        open_filament.guided_flow = helix::kOpenFilamentFlowId;
-        helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
-                                     "ams_backend_snapmaker::feed_cancel_print", "danger"};
-        cancel.guided_flow = helix::kCancelPrintFlowId;
-        actions = {std::move(open_filament),
-                   std::move(cancel),
-                   {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
+    e->command_refusal = !job_waits;
+    if (!job_waits ||
+        snapmaker::severity_of(code->level) == snapmaker::ExceptionSeverity::Informational) {
+        return e;
     }
-    helix::ErrorEvent e = helix::make_ams_fault_event(
-        helix::ErrorSource::SNAPMAKER,
-        fmt::format(fmt::runtime(lv_tr(feed->title)),
-                    AmsErrorHelper::position_label(tool_noun(), code->index)),
-        fmt::format("{}\n\n{}", lv_tr(feed->cause), lv_tr(feed->fix)), std::move(actions));
-    if (!job_waits) {
-        e.severity = helix::ErrorSeverity::WARNING;
-        e.sticky = false;
-    }
-    e.code = snapmaker::format_exception_code(*code);
-    e.raw_detail = detail;
-    e.command_refusal = !job_waits;
+    // Loading again is the Filament panel's, which keeps its own guards for a
+    // paused print; Resume refuses until the head reports a finished load.
+    helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
+                                        "ams_backend_snapmaker::feed_open_filament", "primary"};
+    open_filament.guided_flow = helix::kOpenFilamentFlowId;
+    helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
+                                 "ams_backend_snapmaker::feed_cancel_print", "danger"};
+    cancel.guided_flow = helix::kCancelPrintFlowId;
+    e->recovery_actions = {std::move(open_filament),
+                           std::move(cancel),
+                           {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
+    e->severity = helix::ErrorSeverity::CRITICAL;
+    e->sticky = true;
     return e;
 }
 
@@ -3691,8 +3693,8 @@ AmsBackendSnapmaker::classify_error(const std::string& raw_line,
     if (!helix::is_bang_line(raw_line)) {
         return std::nullopt;
     }
-    if (auto feed = classify_feed_failure(helix::strip_bang_prefix(raw_line), ctx)) {
-        return feed;
+    if (auto coded = classify_coded_fault(raw_line, ctx)) {
+        return coded;
     }
 
     // Only meaningful against a job the user is trying to continue. Echoing the
