@@ -608,6 +608,86 @@ NET_DEPLOY_NO_ASSET='class NetDeploy(AppDeploy):
     [ ! -e "$restarted" ]
 }
 
+# A moonraker.conf whose stanza already matches this install, with the
+# moonraker.asvc beside it holding @1 (printf format). Sets ASVC.
+setup_matching_stanza_with_asvc() {
+    local conf
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf_with_helix "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    awk -v d="$INSTALL_DIR" '/^path:/ { print "path: " d; next } { print }' "$conf" > "$conf.new"
+    mv "$conf.new" "$conf"
+    R2_CHANNEL=stable
+    ASVC="$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    printf "$1" > "$ASVC"
+}
+
+@test "configure_moonraker_updates restarts Moonraker once when only the allowlist changes" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi"
+
+    grep -q '^helixscreen$' "$ASVC"
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates restarts Moonraker once for a stanza and allowlist change together" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+    R2_CHANNEL=beta
+
+    configure_moonraker_updates "pi"
+
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates leaves Moonraker running when the allowlist already has helixscreen" {
+    local restarts="$BATS_TEST_TMPDIR/restarts"
+    setup_matching_stanza_with_asvc 'klipper\nmoonraker\nhelixscreen\n'
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi"
+
+    [ "$(grep -c '^helixscreen$' "$ASVC")" -eq 1 ]
+    [ ! -e "$restarts" ]
+}
+
+@test "configure_moonraker_updates: unsupported restarts Moonraker once when the allowlist changes" {
+    local conf restarts="$BATS_TEST_TMPDIR/restarts"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
+    fake_non_buildroot_os_release
+    printf "klipper\nmoonraker\n" > "$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi" 2>/dev/null
+
+    [ "$(wc -l < "$restarts")" -eq 1 ]
+}
+
+@test "configure_moonraker_updates: unsupported leaves Moonraker running when the allowlist is current" {
+    local conf restarts="$BATS_TEST_TMPDIR/restarts"
+    conf=$(setup_moonraker_home)
+    create_moonraker_conf "$conf"
+    MOONRAKER_CONF_PATHS="$conf"
+    rm -f "$INSTALL_DIR/bin/helix-screen"
+    fake_moonraker_src "zip_deploy.py" "class ZipDeploy(AppDeploy): pass" >/dev/null
+    fake_non_buildroot_os_release
+    printf "klipper\nhelixscreen\n" > "$(dirname "$(dirname "$conf")")/moonraker.asvc"
+    restart_moonraker() { echo restart >> "$restarts"; }
+
+    configure_moonraker_updates "pi" 2>/dev/null
+
+    [ ! -e "$restarts" ]
+}
+
 # moonraker.conf that keeps the web UIs' updater stanzas in an included
 # mainsail.conf, the HelixScreen one among them. Sets INCLUDED_CONF.
 create_moonraker_conf_including_helix() {

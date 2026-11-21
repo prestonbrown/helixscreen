@@ -5065,9 +5065,13 @@ EOF
 #   /etc/klipper/config/moonraker.conf          -> /etc/klipper/moonraker.asvc  (COSMOS)
 # The COSMOS path was verified on a real CC1 -- that IS where its asvc file is.
 #
+# Moonraker reads the allowlist only at startup, so _MOONRAKER_ASVC_CHANGED is
+# set to "yes" when this call appended to it and to "" otherwise.
+#
 # Args: $1 = moonraker.conf path (used to derive the data dir holding the asvc)
 ensure_moonraker_asvc() {
     local conf="$1"
+    _MOONRAKER_ASVC_CHANGED=""
     local asvc
     asvc=$(moonraker_asvc_file "$conf")
 
@@ -5088,6 +5092,7 @@ ensure_moonraker_asvc() {
         echo "" | $fs tee -a "$asvc" >/dev/null
     fi
     echo "helixscreen" | $fs tee -a "$asvc" >/dev/null
+    _MOONRAKER_ASVC_CHANGED=yes
     log_success "Added helixscreen to Moonraker service allowlist"
 }
 
@@ -5269,7 +5274,7 @@ configure_moonraker_updates() {
         disable_system_updates_on_buildroot "$conf"
         ensure_moonraker_asvc "$conf"
 
-        if [ "$removed_stale" -eq 1 ]; then
+        if [ "$removed_stale" -eq 1 ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
             restart_moonraker
         fi
         return 0
@@ -5320,7 +5325,7 @@ STANZA_FILES
         disable_system_updates_on_buildroot "$conf"
         # Still ensure asvc is correct even if section already exists
         ensure_moonraker_asvc "$conf"
-        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ]; then
+        if [ "$_UPDATE_MANAGER_SYNCED" = "yes" ] || [ "$_MOONRAKER_ASVC_CHANGED" = "yes" ]; then
             restart_moonraker
         fi
         return 0
