@@ -1,5 +1,5 @@
 {
-  "config_version": 34,
+  "config_version": 35,
   "_config_version_comment": "Config schema version. MUST be present and current: Config::init treats a missing version as 0, reads that as a tarball default, and will restore a rolling backup over this file. Pinned by tests/unit/test_settings_template_contract.cpp.",
   "dark_mode": true,
   "brightness": 80,
@@ -76,8 +76,8 @@
     "_backlight_floor_percent_comment": "Lowest brightness level (percent of the panel's raw range) the screen may drop to while on. Some panels render lower levels as black; raise this if the panel goes black before the slider minimum. 0 disables. Default: 0 (20 on K2 builds). Requires restart.",
     "sleep_backlight_off": true,
     "_sleep_backlight_off_comment": "Power off backlight during display sleep. Set false only on platforms where backlight power-off is verified to prevent wake-on-touch. When false, software overlay + FBIOBLANK make screen appear off while backlight stays powered. Default: true.",
-    "sleep_sec": 1200,
-    "_sleep_sec_comment": "Seconds of inactivity before display turns OFF (0 = never). Default: 1200 (20 minutes).",
+    "sleep_sec": 3600,
+    "_sleep_sec_comment": "Seconds of inactivity before display turns OFF (0 = never). Default: 3600 (1 hour).",
     "sleep_while_printing": true,
     "_sleep_while_printing_comment": "Allow display to dim and sleep during active prints. When false, display stays on while printing. Default: true.",
     "dim_sec": 600,

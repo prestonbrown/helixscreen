@@ -35,7 +35,7 @@ Every config file has an integer `config_version` at the root level:
 The current version is defined in `config.h`:
 
 ```cpp
-static constexpr int kCurrentConfigVersion = 34;
+static constexpr int kCurrentConfigVersion = 35;
 static constexpr int kMinMigratableConfigVersion = 9;
 ```
 
@@ -103,6 +103,8 @@ Recent steps of the ladder (the doc comment on each `migrate_vN_to_vM` in
 - **v33 -> v34** retires the bypass spool settings: a printer's block is parked under
   `filament/legacy_external_spool`, which `AmsState` writes into an empty `bypass` lane record
   in Moonraker's database at the next connect.
+- **v34 -> v35** moves a display sleep still at the old 20-minute default (`1200`) to the
+  one-hour default; any other value, Never included, stays.
 
 Steps from v21 on have a dedicated test each, `tests/unit/test_config_migration_v<N>.cpp`
 (v23 is covered in `tests/unit/test_config.cpp`).
@@ -164,7 +166,7 @@ v17->v18 skips a version-0 document whose active printer has not completed the s
 In `include/config.h`:
 
 ```cpp
-static constexpr int kCurrentConfigVersion = 35;  // one above the current head
+static constexpr int kCurrentConfigVersion = 36;  // one above the current head
 ```
 
 ### Step 2: Write the migration function
@@ -172,8 +174,8 @@ static constexpr int kCurrentConfigVersion = 35;  // one above the current head
 In `src/system/config_migrations.cpp`, add a static function in the anonymous namespace alongside the existing migrations:
 
 ```cpp
-/// Migration v34->v35: <description of what and why>
-static void migrate_v34_to_v35(json& config, const std::string& /*config_path*/) {
+/// Migration v35->v36: <description of what and why>
+static void migrate_v35_to_v36(json& config, const std::string& /*config_path*/) {
     // Modify config in place; spdlog::info() what changed.
 }
 ```
@@ -183,8 +185,8 @@ static void migrate_v34_to_v35(json& config, const std::string& /*config_path*/)
 ### Step 3: Add a row to `kMigrations`
 
 ```cpp
-    {34, migrate_v33_to_v34},
-    {35, migrate_v34_to_v35},  // <-- ADD THIS
+    {35, migrate_v34_to_v35},
+    {36, migrate_v35_to_v36},  // <-- ADD THIS
 ```
 
 A `static_assert` fails the build if the last row does not reach `kCurrentConfigVersion`.
