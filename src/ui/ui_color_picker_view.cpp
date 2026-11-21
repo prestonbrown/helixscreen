@@ -361,6 +361,7 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     if (grid_tab && grid_index < std::size(kGridComponents)) {
         lv_xml_create(grid_tab, kGridComponents[grid_index], nullptr);
     }
+    fit_strip_to_row();
     spdlog::debug("[ColorPickerView] attached, palette {} color #{:06X}", palette_attr,
                   model_.rgb());
 }
@@ -505,7 +506,30 @@ void ColorPickerView::load_strip() {
     if (lv_subject_get_int(&s_subjects->chip_count) != static_cast<int>(strip_.size())) {
         lv_subject_set_int(&s_subjects->chip_count, static_cast<int>(strip_.size()));
     }
+    fit_strip_to_row();
     publish_strip_selection();
+}
+
+void ColorPickerView::fit_strip_to_row() {
+    if (!root_ || config_.strip == ColorStrip::Custom || current_publisher() != this) {
+        return;
+    }
+    lv_obj_t* row = lv_obj_find_by_name(root_, "cp_strip_chips");
+    if (!row) {
+        return;
+    }
+    lv_obj_update_layout(root_);
+    // The chips are the row's <repeat> children, all one size.
+    lv_obj_t* chip = lv_obj_get_child(row, 0);
+    if (!chip) {
+        return;
+    }
+    const int fit = whole_chips_in(lv_obj_get_content_width(row), lv_obj_get_width(chip),
+                                   lv_obj_get_style_pad_column(row, LV_PART_MAIN));
+    if (fit < static_cast<int>(strip_.size())) {
+        strip_.resize(static_cast<size_t>(fit));
+        lv_subject_set_int(&s_subjects->chip_count, fit);
+    }
 }
 
 void ColorPickerView::refresh_strip() {
@@ -544,6 +568,8 @@ void ColorPickerView::hold_chip(int index) {
     strip_editing_ = true;
     if (current_publisher() == this) {
         lv_subject_set_int(&s_subjects->strip_editing, 1);
+        // Done takes room from the row.
+        fit_strip_to_row();
         publish_strip_selection();
     }
 }
@@ -552,7 +578,8 @@ void ColorPickerView::finish_strip_edit() {
     strip_editing_ = false;
     if (current_publisher() == this) {
         lv_subject_set_int(&s_subjects->strip_editing, 0);
-        publish_strip_selection();
+        // Done gave its room back.
+        load_strip();
     }
 }
 

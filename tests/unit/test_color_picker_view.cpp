@@ -237,6 +237,30 @@ TEST_CASE_METHOD(PickerFixture, "ColorPickerView: the strip shows recents and pi
     CHECK(ColorRecents::list(ColorRecents::Kind::Filament) == seed);
 }
 
+TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a narrow strip shows only whole recents",
+                 "[color_picker]") {
+    const auto seed = ColorRecents::seed(ColorRecents::Kind::Filament);
+    lv_obj_t* host = lv_obj_create(test_screen());
+    lv_obj_set_size(host, 320, 300);
+    view.attach(host, 0x123456, {});
+    REQUIRE(view.root() != nullptr);
+    lv_obj_update_layout(test_screen());
+
+    lv_obj_t* row = named(view.root(), "cp_strip_chips");
+    REQUIRE(row != nullptr);
+    const int shown = subject_int("color_picker_chip_count");
+    REQUIRE(shown > 0);
+    CHECK(shown < static_cast<int>(seed.size()));
+    CHECK(view.strip_colors() == std::vector<uint32_t>(seed.begin(), seed.begin() + shown));
+    lv_area_t row_box;
+    lv_obj_get_content_coords(row, &row_box);
+    for (uint32_t i = 0; i < lv_obj_get_child_count(row); ++i) {
+        lv_area_t chip;
+        lv_obj_get_coords(lv_obj_get_child(row, static_cast<int32_t>(i)), &chip);
+        CHECK(chip.x2 <= row_box.x2);
+    }
+}
+
 TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a long press removes chips until Done",
                  "[color_picker]") {
     attach(0x123456);
