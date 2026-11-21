@@ -238,8 +238,12 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
            &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
            &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
            &printer_tile_h_subject_, &uw_tune_w_subject_, &tune_h_subject_,
-           &print_controls_enabled_subject_},
-          {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
+           &print_controls_enabled_subject_, &tune_build_subject_},
+          {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; },
+           [this]() {
+               get_print_tune_overlay().prepare_inline(api_, printer_state_, parent_screen_);
+           },
+           [this](bool built) { on_tune_build_changed(built); }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
                              [this]() { return lifecycle_.speed_percent(); },
@@ -625,6 +629,7 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(printer_tile_h_subject_, lv_pct(100), "ps_printer_tile_h", subjects_);
     UI_MANAGED_SUBJECT_INT(uw_tune_w_subject_, 0, "ps_uw_tune_w", subjects_);
     UI_MANAGED_SUBJECT_INT(tune_h_subject_, 0, "ps_tune_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_build_subject_, 0, "ps_tune_build", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -999,9 +1004,6 @@ void PrintStatusPanel::deinit_subjects() {
 lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     parent_screen_ = parent;
 
-    // The inline Tune section binds the tune overlay's subjects and callbacks
-    get_print_tune_overlay().prepare_inline(api_, printer_state_, parent);
-
     // Create overlay root from XML
     overlay_root_ = helix::ui::create_xml_hidden(parent, xml_component());
     if (!overlay_root_) {
@@ -1315,11 +1317,7 @@ void PrintStatusPanel::on_activate() {
     // subject of its own.
     bind_fan_observers();
     tiles_.refresh_checklist();
-    // create() built the tune overlay for the inline section; it is gone only
-    // after a printer switch tore both down.
-    if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
-        tune->activate_inline(overlay_root_);
-    }
+    sync_inline_tune();
 
     // This is the earliest point where overlay_root_ is visible, so LVGL
     // computes real sizes. Deferred so layout has a tick to settle.
@@ -1337,10 +1335,7 @@ void PrintStatusPanel::on_deactivating(DeactivateReason reason) {
     is_active_ = false;
     exclude_map_requested_ = false;
     spdlog::debug("[{}] on_deactivating()", get_name());
-    // Never builds the tune overlay: this also runs during shutdown, after it is gone.
-    if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
-        tune->deactivate_inline(overlay_root_);
-    }
+    sync_inline_tune();
 
     // The panel is no longer visible: drop the queued G-code load
     preview_.cancel_pending_load();
@@ -2194,6 +2189,40 @@ void PrintStatusPanel::rebind_single_fan(ObserverGuard& guard, SubjectLifetime& 
             self->tiles_.request_update();
         },
         lt);
+}
+
+lv_obj_t* PrintStatusPanel::tune_section() const {
+    if (!overlay_root_) {
+        return nullptr;
+    }
+    if (lv_obj_t* column = lv_obj_find_by_name(overlay_root_, "ps_uw_tune")) {
+        return column;
+    }
+    return lv_obj_find_by_name(overlay_root_, "ps_tune");
+}
+
+void PrintStatusPanel::sync_inline_tune() {
+    // Never builds the tune overlay: only a built section needs it, and this
+    // also runs during shutdown, after it is gone.
+    auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>();
+    if (!tune) {
+        return;
+    }
+    lv_obj_t* section = tune_section();
+    if (section && is_active_) {
+        tune->activate_inline(section);
+    } else {
+        tune->deactivate_inline();
+    }
+}
+
+void PrintStatusPanel::on_tune_build_changed(bool built) {
+    if (built && overlay_root_) {
+        // The stacked section is shown only once measured: lay it out now.
+        lv_obj_update_layout(overlay_root_);
+        layout_fitter_.recompute();
+    }
+    sync_inline_tune();
 }
 
 void PrintStatusPanel::relayout() {

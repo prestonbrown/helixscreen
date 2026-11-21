@@ -565,3 +565,28 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     CHECK(tap_in(overlay.get_panel(), "btn_speed_plus_10", mock_client) == "M220 S110");
 }
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the live readouts follow the printer only while something shows them",
+                 "[ui_integration][print_tune][tune_inline]") {
+    lv_subject_t* live = state().motion_state().get_live_velocity_subject();
+    lv_subject_t* max_v = state().motion_state().get_max_velocity_subject();
+    lv_subject_set_int(max_v, 500);
+    lv_subject_set_int(live, 100);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    lv_subject_t* actual = lv_xml_get_subject(nullptr, "tune_actual_speed_display");
+    REQUIRE(actual != nullptr);
+    const auto shown_speed = [&]() { return std::string(lv_subject_get_string(actual)); };
+    REQUIRE(shown_speed() == "100 / 500 mm/s");
+
+    lv_subject_set_int(live, 120);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(shown_speed() == "120 / 500 mm/s");
+
+    // Nothing shows them: the readouts stop following.
+    get_print_tune_overlay().deactivate_inline();
+    lv_subject_set_int(live, 140);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(shown_speed() == "120 / 500 mm/s");
+    lv_obj_delete(section);
+}

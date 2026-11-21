@@ -121,6 +121,19 @@ int32_t PrintStatusLayoutFitter::strip_stacked_height(lv_obj_t* progress) {
            strip_chrome();
 }
 
+void PrintStatusLayoutFitter::publish_tune_build(bool build) {
+    if (!subjects_.tune_build || (lv_subject_get_int(subjects_.tune_build) == 1) == build) {
+        return;
+    }
+    if (build && host_.prepare_tune) {
+        host_.prepare_tune();
+    }
+    lv_subject_set_int(subjects_.tune_build, build ? 1 : 0);
+    if (host_.tune_build_changed) {
+        host_.tune_build_changed(build);
+    }
+}
+
 const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     lv_obj_t* root = host_.root ? host_.root() : nullptr;
     lv_obj_t* content = root ? lv_obj_find_by_name(root, "overlay_content") : nullptr;
@@ -178,6 +191,9 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
                   last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list",
                   static_cast<int>(last_.lane_tray), last_.lane_tray_h, last_.columns.tune_w,
                   last_.tune_h);
+    // Last: building or tearing down the section relayouts from inside this call.
+    publish_tune_build(
+        tune && (last_.columns.tune_w > 0 || last_.arrangement == PrintStatusArrangement::Stacked));
     return last_;
 }
 

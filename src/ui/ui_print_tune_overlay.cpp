@@ -38,12 +38,7 @@ using namespace helix;
 
 PrintTuneOverlay::~PrintTuneOverlay() {
     // Clean up observers before subjects
-    speed_observer_.reset();
-    live_velocity_observer_.reset();
-    max_velocity_observer_.reset();
-    extruder_vel_observer_.reset();
-    units_observer_.reset();
-    pa_observer_.reset();
+    remove_observers();
 
     // Clean up subjects
     if (subjects_initialized_) {
@@ -173,6 +168,8 @@ void PrintTuneOverlay::register_callbacks() {
 
 void PrintTuneOverlay::on_activate() {
     OverlayBase::on_activate();
+    overlay_active_ = true;
+    update_observers();
     sync_to_state();
 #if !defined(HELIX_PLATFORM_ESP32)
     lv_subject_set_int(&tune_pa_session_subject_,
@@ -182,13 +179,14 @@ void PrintTuneOverlay::on_activate() {
 }
 
 void PrintTuneOverlay::on_deactivating(DeactivateReason) {
+    overlay_active_ = false;
+    update_observers();
     spdlog::debug("[PrintTuneOverlay] Deactivated");
 }
 
 void PrintTuneOverlay::setup_panel() {
     // Update Z-offset icons based on printer kinematics
     update_z_offset_icons(overlay_root_);
-    install_observers();
     spdlog::debug("[PrintTuneOverlay] Panel setup complete");
 }
 
@@ -204,14 +202,14 @@ void PrintTuneOverlay::prepare_inline(helix::IMoonrakerAPI* api, helix::PrinterS
         subjects_initialized_ = true;
     }
     register_callbacks();
-    install_observers();
 }
 
-void PrintTuneOverlay::activate_inline(lv_obj_t* host_root) {
+void PrintTuneOverlay::activate_inline(lv_obj_t* section) {
     if (!subjects_initialized_) {
         return; // prepare_inline() never ran: nothing binds the section
     }
-    inline_root_ = host_root;
+    inline_root_ = section;
+    update_observers();
     // Kinematics are known only once the printer has connected, after the host
     // view was built.
     update_z_offset_icons(nullptr);
@@ -222,10 +220,28 @@ void PrintTuneOverlay::activate_inline(lv_obj_t* host_root) {
 #endif
 }
 
-void PrintTuneOverlay::deactivate_inline(lv_obj_t* host_root) {
-    if (inline_root_.get() == host_root) {
-        inline_root_.reset();
+void PrintTuneOverlay::deactivate_inline() {
+    inline_root_.reset();
+    update_observers();
+}
+
+void PrintTuneOverlay::update_observers() {
+    if (overlay_active_ || inline_root_.get()) {
+        install_observers();
+    } else {
+        remove_observers();
     }
+}
+
+void PrintTuneOverlay::remove_observers() {
+    speed_observer_.reset();
+    live_velocity_observer_.reset();
+    max_velocity_observer_.reset();
+    extruder_vel_observer_.reset();
+    units_observer_.reset();
+    pa_observer_.reset();
+    tools_version_observer_.reset();
+    active_tool_observer_.reset();
 }
 
 template <typename Fn> void PrintTuneOverlay::for_each_z_indicator(Fn&& fn) {

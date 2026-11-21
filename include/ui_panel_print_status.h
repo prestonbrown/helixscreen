@@ -413,6 +413,7 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t printer_tile_h_subject_{};
     lv_subject_t uw_tune_w_subject_{};
     lv_subject_t tune_h_subject_{};
+    lv_subject_t tune_build_subject_{}; ///< 1 while the inline Tune section is built
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;
@@ -619,6 +620,11 @@ class PrintStatusPanel : public OverlayBase {
     // has no XML binding equivalent (only click/value events go through XML).
     static void on_content_size_changed(lv_event_t* e);
     static void on_printer_area_size_changed(lv_event_t* e);
+    /// The built inline Tune section (ultrawide column or stacked), or null.
+    [[nodiscard]] lv_obj_t* tune_section() const;
+    /// Point the tune overlay at the inline section while this panel shows it.
+    void sync_inline_tune();
+    void on_tune_build_changed(bool built);
     void relayout();
     void handle_more_clicked(lv_obj_t* anchor);
     void handle_more_action(int action);

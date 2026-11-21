@@ -51,12 +51,18 @@
     </print_status_lane_tray>
     <!-- A tall stacked screen shows the Tune section under the strip, at its
          content height, when the fitter finds the tiles room above it
-         (ps_tune_h; 0 hides it). Tuning is for a running print: outside one
-         the tiles take the room. -->
-    <print_status_tune name="ps_tune"
-                       width="100%" height="content" indicator_hidden="true" help_hidden_cond="ui_is_portrait ge 0"
-                       hidden="true">
-      <bind_flag_if cond="ps_tune_h eq 0 or print_controls_enabled eq 0" flag="hidden"/>
-    </print_status_tune>
+         (ps_tune_h; 0 hides it). The section is built only on stacked tiles
+         during a print (ps_tune_build), and measured hidden before it shows;
+         side by side never builds it. Its own container: a rebuilt <if> body
+         lands last. -->
+    <lv_obj name="ps_tune_slot"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            hidden="true">
+      <bind_flag_if cond="ps_tune_h eq 0 or ps_tune_build eq 0" flag="hidden"/>
+      <if cond="ps_tune_build eq 1">
+        <print_status_tune name="ps_tune"
+                           width="100%" height="content" indicator_hidden="true" help_hidden_cond="ui_is_portrait ge 0"/>
+      </if>
+    </lv_obj>
   </view>
 </component>

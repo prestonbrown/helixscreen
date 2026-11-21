@@ -1317,6 +1317,7 @@ TEST_CASE_METHOD(Ultrawide1480,
                  "[print_status][ultrawide]") {
     // A running print: the Tune column shows where the fitter gives it room.
     lv_subject_set_int(lv_xml_get_subject(nullptr, "print_controls_enabled"), 1);
+    UpdateQueue::instance().drain();
     lv_obj_update_layout(root_);
     // The ultrawide body, not the landscape strip.
     REQUIRE(find("ps_uw_info") != nullptr);
@@ -1651,7 +1652,7 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
         lv_obj_get_content_width(content), h, theme_manager_get_spacing("space_md"), true);
     REQUIRE(cols.tune_w > 0);
 
-    CHECK(shown(root_, "ps_uw_tune"));
+    CHECK(shown(root_, "ps_uw_tune_slot"));
     CHECK(lv_obj_get_width(find("ps_uw_tune")) == cols.tune_w);
     CHECK_FALSE(shown(root_, "btn_tune"));
     // The printer picture keeps its column, at least as wide as it is tall.
@@ -1669,6 +1670,8 @@ TEST_CASE_METHOD(Ultrawide1480, "ultrawide shows the Tune column instead of the 
     CHECK(subject_int("ps_uw_tune_w") == 0);
     CHECK(lv_obj_get_width(find("ps_job_tile")) == idle.preview_w);
     CHECK(lv_obj_get_width(find("ps_uw_readouts")) == idle.readouts_w);
+    // Nothing shows it, so it is not kept built.
+    CHECK(find("ps_uw_tune") == nullptr);
 }
 
 TEST_CASE_METHOD(TallPortrait320, "a tall portrait screen shows the Tune section under the strip",
@@ -1676,7 +1679,7 @@ TEST_CASE_METHOD(TallPortrait320, "a tall portrait screen shows the Tune section
     show_running_print(panel(), root_);
     REQUIRE(subject_int("ps_arrangement") == 1);
     CHECK(subject_int("ps_tune_h") > 0);
-    CHECK(shown(root_, "ps_tune"));
+    CHECK(shown(root_, "ps_tune_slot"));
     CHECK_FALSE(shown(root_, "btn_tune"));
     // The printer tile stands at the height the fitter kept for it; the job
     // tile gave the section its room.
@@ -1690,7 +1693,7 @@ TEST_CASE_METHOD(Portrait480, "480x800 keeps the Tune button: no room for the se
     show_running_print(panel(), root_);
     REQUIRE(subject_int("ps_arrangement") == 1);
     CHECK(subject_int("ps_tune_h") == 0);
-    CHECK_FALSE(shown(root_, "ps_tune"));
+    CHECK_FALSE(shown(root_, "ps_tune_slot"));
     CHECK(shown(root_, "btn_tune"));
 }
 
@@ -1698,6 +1701,8 @@ TEST_CASE_METHOD(Landscape800, "800x480 keeps the Tune button and shows no secti
                  "[print_status][tune_inline]") {
     show_running_print(panel(), root_);
     CHECK(subject_int("ps_tune_h") == 0);
-    CHECK_FALSE(shown(root_, "ps_tune"));
+    CHECK_FALSE(shown(root_, "ps_tune_slot"));
+    // Side by side can never show it, so it is never built.
+    CHECK(lv_obj_find_by_name(root_, "ps_tune") == nullptr);
     CHECK(shown(root_, "btn_tune"));
 }

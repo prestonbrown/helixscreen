@@ -64,17 +64,18 @@ class PrintTuneOverlay : public OverlayBase {
                         lv_obj_t* parent_screen);
 
     /**
-     * @brief The view holding an inline Tune section is showing
+     * @brief An inline Tune section is showing
      *
      * Re-syncs the readouts and starts a tuning session (the Z-offset travel
-     * guard measures from here). The section's Z indicator, if @p host_root
-     * holds one, follows adjustments until the tree is deleted or
-     * deactivate_inline() is called.
+     * guard measures from here). @p section's Z indicator, if it has one,
+     * follows adjustments until the section is deleted or deactivate_inline()
+     * is called. The live readouts follow the printer while the section or
+     * the overlay shows.
      */
-    void activate_inline(lv_obj_t* host_root);
+    void activate_inline(lv_obj_t* section);
 
-    /// The view holding an inline Tune section is no longer showing.
-    void deactivate_inline(lv_obj_t* host_root);
+    /// No inline Tune section is showing any more.
+    void deactivate_inline();
 
     /**
      * @brief Handle reset button click - resets speed/flow to 100%
@@ -202,6 +203,11 @@ class PrintTuneOverlay : public OverlayBase {
   private:
     void setup_panel();
     void install_observers();
+    /// The live readouts stop following the printer: nothing shows them.
+    void remove_observers();
+    /// Install or remove the observers by whether the overlay or an inline
+    /// section shows.
+    void update_observers();
     /// Applies @p fn to each live Z indicator: the overlay's and the inline section's.
     template <typename Fn> void for_each_z_indicator(Fn&& fn);
     /// Renders the speed/flow headlines and their live readouts, led by
@@ -217,8 +223,10 @@ class PrintTuneOverlay : public OverlayBase {
 
     helix::PrinterState* printer_state_ = nullptr;
 
-    /// The tree holding the inline Tune section while it shows; cleared when deleted.
+    /// The inline Tune section while it shows; cleared when deleted.
     helix::ui::WidgetRef inline_root_;
+    /// The overlay is on screen (on_activate() .. on_deactivating()).
+    bool overlay_active_ = false;
 
     //
     // === Subject Management ===
