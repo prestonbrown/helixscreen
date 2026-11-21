@@ -34,12 +34,13 @@ class DismissFixture : public LVGLUITestFixture {
         helix::DisplaySettingsManager::instance().set_animations_enabled(prev_animations_);
     }
 
-    /// Depth-first search for the nth lv_button in the dialog tree. The modal's
-    /// buttons are nameless, so type + order is the only handle.
+    /// Depth-first search for the nth shown lv_button in the dialog tree. The
+    /// modal's buttons are nameless, so type + order is the only handle; the
+    /// frame's hidden header close button is skipped.
     lv_obj_t* nth_button(size_t n) {
         std::vector<lv_obj_t*> found;
         std::function<void(lv_obj_t*)> walk = [&](lv_obj_t* node) {
-            if (!node)
+            if (!node || lv_obj_has_flag(node, LV_OBJ_FLAG_HIDDEN))
                 return;
             if (lv_obj_check_type(node, &lv_button_class))
                 found.push_back(node);
