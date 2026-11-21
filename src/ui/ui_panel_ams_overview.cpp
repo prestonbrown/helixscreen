@@ -411,6 +411,8 @@ void AmsOverviewPanel::on_closed() {
         return;
     }
     open_ = false;
+    // The tree left the navigation stack: a side band waiting for it may take it.
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
     sidebar_.reset();
     // The next open starts at the overview.
     if (unit_view_active_) {
@@ -1692,6 +1694,7 @@ void destroy_ams_overview_panel_ui() {
                 panel->clear_panel_reference();
             }
         }));
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
 }
 
 AmsOverviewPanel& get_global_ams_overview_panel() {
@@ -2031,6 +2034,10 @@ void helix::ui::open_ams_detail_panel() {
     });
 }
 
+helix::ui::AmsView helix::ui::ams_view_for(const AmsSystemInfo& info) {
+    return info.is_multi_unit() ? AmsView::Overview : AmsView::Detail;
+}
+
 void navigate_to_ams_panel() {
     auto* backend = AmsState::instance().get_backend();
     if (!backend) {
@@ -2044,7 +2051,7 @@ void navigate_to_ams_panel() {
     // Only one of the two panels serves a given unit count; opening one drops the
     // other's hidden tree rather than holding both.
     const AmsSystemInfo info = backend->get_system_info();
-    if (info.is_multi_unit()) {
+    if (helix::ui::ams_view_for(info) == helix::ui::AmsView::Overview) {
         open_ams_overview_panel(info.unit_count());
     } else {
         helix::ui::open_ams_detail_panel();

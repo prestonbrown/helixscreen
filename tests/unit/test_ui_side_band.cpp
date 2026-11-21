@@ -13,6 +13,7 @@
  */
 
 #include "ui_nav_manager.h"
+#include "ui_panel_ams_overview.h"
 #include "ui_panel_motion.h"
 #include "ui_side_band.h"
 #include "ui_update_queue.h"
@@ -72,6 +73,7 @@ struct FakeGuestLog {
     int attaches = 0;
     int detaches = 0;
     bool refuse = false; ///< attach() answers "open elsewhere"
+    bool stale = false;  ///< stale() answers "rebuild me"
     lv_obj_t* root = nullptr;
 };
 
@@ -113,6 +115,9 @@ class FakeGuest : public SideBandGuest {
     }
     IPanelLifecycle* lifecycle() override {
         return &view_;
+    }
+    bool stale() override {
+        return log_.stale;
     }
 
   private:
@@ -283,6 +288,68 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: deleting the host hands the tree
     lv_obj_delete(fx.host);
     fx.host = nullptr;
     CHECK(fx.log.detaches == 1);
+}
+
+TEST_CASE("side band AMS view: the overlay path's choice, by unit count", "[uw_side_band][ams]") {
+    using helix::ui::ams_view_for;
+    using helix::ui::AmsView;
+    AmsSystemInfo info;
+    info.units.resize(1);
+    CHECK(ams_view_for(info) == AmsView::Detail);
+    info.units.resize(2);
+    CHECK(ams_view_for(info) == AmsView::Overview);
+    info.units.resize(4);
+    CHECK(ams_view_for(info) == AmsView::Overview);
+    info.units.clear();
+    CHECK(ams_view_for(info) == AmsView::Detail);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a theme change rebuilds the hosted tree",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.log.attaches == 1);
+    lv_obj_t* first = fx.log.root;
+
+    lv_subject_t* theme = theme_manager_get_changed_subject();
+    REQUIRE(theme != nullptr);
+    // Unchanged generation: nothing to rebuild.
+    fx.band.refresh();
+    CHECK(fx.log.attaches == 1);
+
+    lv_subject_set_int(theme, lv_subject_get_int(theme) + 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.log.detaches == 1);
+    CHECK(fx.log.attaches == 2);
+    CHECK(fx.band.hosted() == fx.log.root);
+    CHECK(fx.log.root != first);
+    CHECK(fx.view.activations == 2);
+    CHECK(subject_value("test_side_band") == 1);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a stale guest is rebuilt, now or on return",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.log.attaches == 1);
+
+    fx.log.stale = true;
+    fx.band.refresh();
+    fx.log.stale = false;
+    CHECK(fx.log.detaches == 1);
+    CHECK(fx.log.attaches == 2);
+
+    // Off screen: handed back now, built again when the host returns.
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    fx.log.stale = true;
+    fx.band.refresh();
+    fx.log.stale = false;
+    CHECK(fx.log.detaches == 2);
+    CHECK(fx.band.hosted() == nullptr);
+    fx.band.on_host_activate();
+    CHECK(fx.log.attaches == 3);
 }
 
 // The real Motion panel: its one tree lives in the band, and the overlay path

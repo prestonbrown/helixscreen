@@ -5,6 +5,7 @@
 
 #include "ui_nav.h"
 #include "ui_panel_ams.h"
+#include "ui_panel_ams_overview.h"
 #include "ui_panel_motion.h"
 
 #include "ams_state.h"
@@ -38,6 +39,11 @@ namespace {
 std::vector<SideBand*>& live_bands() {
     static std::vector<SideBand*> bands;
     return bands;
+}
+
+int theme_generation() {
+    lv_subject_t* changed = theme_manager_get_changed_subject();
+    return changed ? lv_subject_get_int(changed) : 0;
 }
 
 bool ultrawide_now() {
@@ -96,38 +102,61 @@ class MotionGuest final : public SideBandGuest {
     }
 };
 
+/// The AMS view navigate_to_ams_panel() would open, built fresh in the band:
+/// a cached tree laid out its slots for the overlay's width, and slots lay out
+/// on activation, after the band is shown.
 class AmsGuest final : public SideBandGuest {
   public:
     lv_obj_t* attach(lv_obj_t* band) override {
-        if (!AmsState::instance().get_backend()) {
+        auto* backend = AmsState::instance().get_backend();
+        if (!backend) {
             return nullptr;
         }
-        if (const AmsPanel* cached = get_existing_ams_panel()) {
-            if (open_as_overlay(cached->get_panel())) {
-                return nullptr;
-            }
-            // A cached tree laid its slots out for the overlay's width; the
-            // band builds a fresh one, whose slots lay out on activation.
-            if (cached->get_panel()) {
-                destroy_ams_panel_ui();
-            }
-        }
-        AmsPanel& ams = get_global_ams_panel();
-        lv_obj_t* root = ams.get_panel();
-        if (!root) {
+        const AmsPanel* detail = get_existing_ams_panel();
+        const auto* overview = lazy_global_if_exists<AmsOverviewPanel>();
+        lv_obj_t* detail_root = detail ? detail->get_panel() : nullptr;
+        lv_obj_t* overview_root = overview ? overview->get_panel() : nullptr;
+        if (open_as_overlay(detail_root) || open_as_overlay(overview_root)) {
             return nullptr;
         }
-        fill_band(root, band);
+        // One of the two serves a given unit count; neither cached tree is reused.
+        if (detail_root) {
+            destroy_ams_panel_ui();
+        }
+        if (overview_root) {
+            destroy_ams_overview_panel_ui();
+        }
+        view_ = ams_view_for(backend->get_system_info());
+        lv_obj_t* root = view_ == AmsView::Overview ? get_global_ams_overview_panel().get_panel()
+                                                    : get_global_ams_panel().get_panel();
+        if (root) {
+            fill_band(root, band);
+        }
         return root;
     }
 
     void detach() override {
-        destroy_ams_panel_ui();
+        if (view_ == AmsView::Overview) {
+            destroy_ams_overview_panel_ui();
+        } else {
+            destroy_ams_panel_ui();
+        }
     }
 
     IPanelLifecycle* lifecycle() override {
+        if (view_ == AmsView::Overview) {
+            return lazy_global_if_exists<AmsOverviewPanel>();
+        }
         return get_existing_ams_panel();
     }
+
+    bool stale() override {
+        auto* backend = AmsState::instance().get_backend();
+        return backend && ams_view_for(backend->get_system_info()) != view_;
+    }
+
+  private:
+    AmsView view_ = AmsView::Detail;
 };
 
 } // namespace
@@ -208,6 +237,10 @@ void SideBand::observe_inputs() {
     if (lv_subject_t* ultrawide = lv_xml_get_subject(nullptr, "ui_is_ultrawide")) {
         ultrawide_observer_ = observe<int>(ultrawide, this, on_change, subject_never_freed());
     }
+    // A theme or mode change leaves the hosted tree in the old colors.
+    if (lv_subject_t* theme = theme_manager_get_changed_subject()) {
+        theme_observer_ = observe<int>(theme, this, on_change, subject_never_freed());
+    }
     if (content_ != SideBandContent::Ams) {
         return;
     }
@@ -243,6 +276,11 @@ void SideBand::refresh() {
     // pressure, a printer switch): its lifecycle already wound itself down.
     if (guest_active_ && !hosted_.get()) {
         guest_active_ = false;
+    }
+
+    if (hosted_.get() && (theme_generation() != theme_gen_ || guest_->stale())) {
+        spdlog::debug("[SideBand] hosted tree is stale; rebuilding");
+        detach_guest();
     }
 
     if (!shows_) {
@@ -293,8 +331,10 @@ void SideBand::attach_guest() {
     if (subjects_initialized_) {
         lv_subject_set_int(&hosted_subject_, 1);
     }
+    const int theme_gen = theme_generation();
     lv_obj_t* root = guest_->attach(band);
     hosted_ = root;
+    theme_gen_ = theme_gen;
     if (!root) {
         if (subjects_initialized_) {
             lv_subject_set_int(&hosted_subject_, 0);

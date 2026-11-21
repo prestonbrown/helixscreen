@@ -203,7 +203,18 @@
                                 icon_swap_subject="motors_enabled" icon_size="#controls_toggle_icon_size"
                                 label="Motors Off" label_hidden_cond="ui_breakpoint le 1"
                                 callback="on_calibration_motors" button_name="btn_motors" icon_name="btn_motors_icon"
-                                moves_machine="true" disabled_cond="motors_enabled eq 0"/>
+                                moves_machine="true" disabled_cond="motors_enabled eq 0">
+                <!-- On ultrawide Motion sits in the side band and the wide button below replaces this tile. -->
+                <bind_flag_if_eq subject="controls_side_band" flag="hidden" ref_value="1"/>
+              </home_action_tile>
+              <!-- Motors Off across the whole row, while Motion sits in the ultrawide side band. -->
+              <ui_button name="btn_motors_wide"
+                         width="0" height="100%" flex_grow="1" variant="secondary" icon="engine_off"
+                         icon_size="#controls_toggle_icon_size" text="Motors Off" moves_machine="true" hidden="true">
+                <bind_flag_if_eq subject="controls_side_band" flag="hidden" ref_value="0"/>
+                <bind_state_if cond="motors_enabled eq 0" state="disabled"/>
+                <event_cb trigger="clicked" callback="on_calibration_motors"/>
+              </ui_button>
             </lv_obj>
           </ui_card>
         </lv_obj>

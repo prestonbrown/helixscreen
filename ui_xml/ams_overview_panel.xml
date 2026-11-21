@@ -60,8 +60,13 @@
                 height="100%" flex_grow="1" style_pad_left="0" style_pad_right="0" style_pad_top="0"
                 style_pad_bottom="0" scrollable="false" clickable="true" style_flex_cross_place="center"
                 style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
+          <!-- In an ultrawide side band the overview has nothing to go back to; the
+               unit view still goes back to the overview. -->
+          <bind_flag_if cond="ams_in_side_band eq 0 or ams_unit_view_active eq 1" flag="clickable"/>
           <event_cb trigger="clicked" callback="on_ams_overview_back_clicked"/>
-          <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+          <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true">
+            <bind_flag_if cond="ams_in_side_band eq 1 and ams_unit_view_active eq 0" flag="hidden"/>
+          </icon>
           <!-- Overview title (hidden in the unit view) -->
           <text_heading name="header_title"
                         width="1" flex_grow="1" text="Multi-Filament Overview" text_transform="uppercase"

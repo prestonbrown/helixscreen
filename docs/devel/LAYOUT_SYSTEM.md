@@ -170,8 +170,9 @@ stack clear.
 #### The side band
 
 Two panels fill the space the cap leaves: Controls shows the Motion panel there, and Filament
-shows the AMS panel when a filament system has slots or the printer has several toolheads
-(`helix::ui::side_band_shows()`). `helix::ui::SideBand` (`include/ui_side_band.h`) is the one
+shows the AMS view when a filament system has slots or the printer has several toolheads
+(`helix::ui::side_band_shows()`). The AMS view is the one the overlay path would open
+(`helix::ui::ams_view_for()`): the overview for several units, the AMS panel for one. `helix::ui::SideBand` (`include/ui_side_band.h`) is the one
 mechanism both use. The host's XML wraps its content in a `side_band_main` column beside a
 `<side_band>` component; on ultrawide the host keeps the full width
 (`uses_full_content_width()` answers `SideBand::uses_full_width()`) and the band sizes
@@ -181,9 +182,11 @@ Motion and AMS are singletons with one widget tree, which the band and the overl
 share. The band builds or moves the tree into itself when the host activates and forwards
 the host's activation to it. Opening the overlay while the host is on screen does nothing
 (the content is already there); opening it from anywhere else takes the tree back first, and
-the band builds it again when the host next activates or the overlay's tree is freed. While
+the band builds it again when the host next activates or the overlay's tree is freed. A theme
+or mode change, or a change of AMS view, rebuilds the hosted tree. While
 the band holds the tree, `controls_side_band` / `filament_side_band` hide the host's Motion
-and Manage buttons, and `motion_in_side_band` / `ams_in_side_band` hide the guest's back arrow.
+and Manage buttons (Motors Off then spans the Position card's row), and `motion_in_side_band` /
+`ams_in_side_band` hide the guest's back arrow.
 
 ## Directory Structure
 

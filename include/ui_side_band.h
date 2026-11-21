@@ -20,7 +20,9 @@
  *   never a second tree. The band rebuilds it on the host's next activation,
  *   or sooner once the overlay's tree is freed (notify_released()).
  * - The gate going false, a host rebuild and the host tree's deletion all hand
- *   the tree back.
+ *   the tree back. A theme or mode change, and a guest that reports itself
+ *   stale(), make the band rebuild the tree, as the overlay path rebuilds a
+ *   cached tree built under an older theme generation.
  *
  * The host's XML wraps its content in a `side_band_main` column beside a
  * `<side_band>` component; on ultrawide the host keeps the full width
@@ -72,6 +74,12 @@ class SideBandGuest {
 
     /// The view's lifecycle; null once the singleton is gone.
     virtual IPanelLifecycle* lifecycle() = 0;
+
+    /// The tree attach() built is no longer the view this printer needs (the
+    /// AMS view after the unit count changed sides). The band rebuilds it.
+    virtual bool stale() {
+        return false;
+    }
 };
 
 /// The Motion panel as a side band guest.
@@ -168,6 +176,11 @@ class SideBand {
     ObserverGuard ultrawide_observer_;
     ObserverGuard slot_count_observer_;
     ObserverGuard multi_head_observer_;
+    ObserverGuard theme_observer_;
+
+    /// theme_manager_get_changed_subject()'s generation when the hosted tree
+    /// was built; its widgets keep the colors of that generation.
+    int theme_gen_ = 0;
 
     AsyncLifetimeGuard lifetime_;
 };

@@ -344,6 +344,18 @@ AmsOverviewPanel& get_global_ams_overview_panel();
  */
 void destroy_ams_overview_panel_ui();
 
+namespace helix::ui {
+/// Which AMS view serves a filament system: one view per unit count.
+enum class AmsView {
+    Detail,   ///< A single unit: the AMS panel itself
+    Overview, ///< Several units: the overview, which drills into each
+};
+
+/// The view navigate_to_ams_panel() opens, and the ultrawide side band hosts,
+/// for a system described by @p info.
+AmsView ams_view_for(const AmsSystemInfo& info);
+} // namespace helix::ui
+
 /**
  * @brief Navigate to AMS panel with multi-unit awareness
  *
