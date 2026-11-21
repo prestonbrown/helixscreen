@@ -9,6 +9,7 @@
 #include "../test_helpers/filament_slot_override_store_test_access.h"
 #include "../test_helpers/mock_printer.h"
 #include "../test_helpers/printer_state_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "../test_helpers/snapmaker_test_access.h"
 #include "../test_helpers/step_operation_helpers.h"
 #include "../test_helpers/toast_log.h"
@@ -1336,6 +1337,30 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker feeder port sensor is each lane's 
         CHECK(backend.get_slot_filament_segment(3) == PathSegment::NONE);
         CHECK(backend.get_filament_segment() == PathSegment::NONE);
     }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a head whose feeder ran empty reads empty",
+                 "[ams][snapmaker][empty_port]") {
+    // The mock U1's full frame after head 2's spool left its port, as the real
+    // U1 reports it: filament_detected false at wait_insert, filament_exist false.
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    helix::ScopedEnv u1{"HELIX_MOCK_PRINTER", "snapmaker_u1"};
+    helix::ScopedEnv empty{"HELIX_MOCK_U1_EMPTY_PORTS", "2"};
+    MoonrakerClientMock u1_mock(MoonrakerClientMock::PrinterType::SNAPMAKER_U1, 100.0);
+    const json status = u1_mock.u1_snapswap_status_json();
+    REQUIRE(status["filament_feed right"]["extruder2"]["channel_state"] == "wait_insert");
+    REQUIRE(status["print_task_config"]["filament_exist"][2] == false);
+
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    backend.fire_status(status);
+    CHECK(backend.get_slot_info(2).status == SlotStatus::EMPTY);
+    CHECK(backend.get_slot_info(1).status != SlotStatus::EMPTY);
+    // The head leaves the carriage and parks again (a tool change past it):
+    // the port has not refilled, so the lane is still empty.
+    backend.fire_status(json{{"extruder2", json{{"active_pin", true}, {"park_pin", false}}}});
+    backend.fire_status(json{{"extruder2", json{{"active_pin", false}, {"park_pin", true}}}});
+    CHECK(backend.get_slot_info(2).status == SlotStatus::EMPTY);
 }
 
 TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker active pin alone does not mark a tool loaded",
