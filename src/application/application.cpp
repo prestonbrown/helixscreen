@@ -266,6 +266,7 @@
 #include <fcntl.h>
 #include <filesystem>
 #include <fstream>
+#include <memory>
 #include <optional>
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -273,6 +274,9 @@
 
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
+#endif
+#ifdef __GLIBC__
+#include <malloc.h> // malloc_trim(): the pressure responder
 #endif
 
 using namespace helix;
@@ -1055,6 +1059,30 @@ int Application::run(int argc, char** argv) {
                     });
                 }
             });
+
+#ifdef __GLIBC__
+        // Return the heap those responders freed to the OS, once per rise to
+        // warning or critical. Freed heap stays in glibc's arenas otherwise, so
+        // RSS barely moves and the box gains nothing. Registered after the two
+        // above so its UI-queue hop runs behind theirs; the trim walks every
+        // arena under its lock, so it runs on a worker.
+        helix::MemoryMonitor::instance().add_pressure_responder(
+            // Shared, not captured by value: the monitor copies its responder
+            // list for every dispatch. Responders run only on the monitor
+            // thread, so the state needs no lock.
+            [state =
+                 std::make_shared<helix::HeapReleaseState>()](helix::MemoryPressureLevel level) {
+                const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now().time_since_epoch())
+                                        .count();
+                if (!helix::should_release_heap_on_pressure(*state, level, now_ms))
+                    return;
+                helix::ui::queue_update("Application::heap_release", []() {
+                    crash_handler::breadcrumb::note("heap", "pressure_trim");
+                    helix::http::HttpExecutor::fast().submit([] { malloc_trim(0); });
+                });
+            });
+#endif
 
         // Phase 16b: Force full screen refresh
         // On framebuffer displays with PARTIAL render mode, some widgets may not paint
