@@ -83,6 +83,21 @@ static constexpr int kMinSpoolImgPx = 24;
 static constexpr int kMaxSpoolImgPx = 56;
 
 /**
+ * Largest spool graphic a `fill` tray draws (px): a host that hands the tray a
+ * whole column wants the spools to carry it, so they grow past
+ * kMaxSpoolImgPx, to the ams_slot_spool_size scale of the full AMS panel and
+ * a little past it.
+ */
+static constexpr int kFillMaxSpoolImgPx = 120;
+
+/// The lane number badge on a spool of @p spool_size: two fifths of it, up to
+/// the home tray's largest spool, so a fill tray's larger spools keep a badge
+/// that reads without covering the spool.
+static int lane_badge_px(int spool_size) {
+    return std::min(spool_size, kMaxSpoolImgPx) * 2 / 5;
+}
+
+/**
  * Minimum width of one spool cell in the wide spool view (px), and the divisor
  * used to derive how many spool cells fit across a row:
  * visible = (avail_w + gap) / (min_spool_cell_w(...) + gap).
@@ -192,6 +207,11 @@ struct AmsMiniStatusData {
     // Draw the spool view on its own card surface (XML attribute "card").
     // Hosts that already supply a surface set it false.
     bool card = true;
+
+    // Size the spools from the height as well as the width (XML attribute
+    // "fill"): lanes wrap into the rows that give the largest spool, up to
+    // kFillMaxSpoolImgPx. Off, one row of spools capped at kMaxSpoolImgPx.
+    bool fill = false;
 
     // Where the lane bars sit along the widget's width (XML attribute
     // "bars_align": "center", the default, or "start").
@@ -704,7 +724,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     lv_obj_update_layout(data->container);
 
     // Hide entire widget if no slots
-    if (data->slot_count <= 0) {
+    if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count,
+                                                static_cast<int>(data->spool_cells.size()))) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
@@ -882,7 +903,7 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     // The lane's spool number, so a lane sharing another's spool wears that
     // spool's number; the plain 1-based lane number when no backend answers.
     lv_obj_t* badge = ams_draw::create_lane_badge(wrap, spool_badge_number(slot_index),
-                                                  spool_size * 2 / 5, false);
+                                                  lane_badge_px(spool_size), false);
     if (badge) {
         snprintf(nm, sizeof(nm), "spool_badge_%d", slot_index);
         lv_obj_set_name(badge, nm);
@@ -1117,6 +1138,12 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     lv_obj_t* sc = data->spools_container;
     lv_obj_remove_flag(row, LV_OBJ_FLAG_HIDDEN);
     lv_obj_remove_flag(sc, LV_OBJ_FLAG_HIDDEN);
+    if (data->fill) {
+        // Rows of lanes, centered as a block in the tray.
+        lv_obj_set_flex_flow(sc, LV_FLEX_FLOW_ROW_WRAP);
+        lv_obj_set_flex_align(sc, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_style_pad_row(sc, theme_manager_get_spacing("space_xxs"), LV_PART_MAIN);
+    }
 
     // Give each lane an equal share of the width, gaps subtracted so the row
     // fits exactly. The spool+label group is centered within each share.
@@ -1151,7 +1178,30 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     const int floor_cell = kMinSpoolImgPx + badge_margin;
     // Every lane's equal share of the row. -2px so sub-pixel rounding cannot
     // tip a row that fits into a spurious scrollbar.
-    const int share = (avail_w - (lanes - 1) * gap - 2) / lanes;
+    int share = (avail_w - (lanes - 1) * gap - 2) / lanes;
+    const lv_font_t* mat_font = theme_manager_get_font("font_small");
+    const int mat_h = mat_font ? static_cast<int>(lv_font_get_line_height(mat_font)) : 14;
+    // A fill tray wraps the lanes into the rows that give the largest spool,
+    // the name over each; the bypass keeps its own column past the lanes.
+    const int max_spool = data->fill ? kFillMaxSpoolImgPx : kMaxSpoolImgPx;
+    int fill_row_h = 0;
+    if (data->fill) {
+        const int lane_count = std::max(1, data->slot_count);
+        int best = -1;
+        for (int rows = 1; rows <= lane_count; ++rows) {
+            const int cols = (lane_count + rows - 1) / rows + (bypass_cell ? 1 : 0);
+            const int cell_w = (avail_w - (cols - 1) * gap - 2) / cols;
+            const int row_h = (avail_h - (rows - 1) * gap) / rows;
+            const int spool =
+                std::min({row_h - badge_margin - mat_h - gap, cell_w - badge_margin, max_spool});
+            if (spool > best) {
+                best = spool;
+                share = cell_w;
+                fill_row_h = row_h;
+            }
+        }
+        avail_h = fill_row_h;
+    }
     // Every sizing branch below widens a cell past its share only when the share
     // is under the floor, so that is exactly when the lanes scroll. The scrollbar
     // then runs along the scroller's bottom, and the cells stand above it: its
@@ -1165,18 +1215,16 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // spool, and above on a tie. A tall row maxes the spool either way, so it
     // stacks; a short row with width for the name in full keeps a full-height
     // spool beside it. Width decides only whether the row scrolls.
-    const lv_font_t* mat_font = theme_manager_get_font("font_small");
     const lv_font_t* pct_font = theme_manager_get_font("font_xs");
-    const int mat_h = mat_font ? static_cast<int>(lv_font_get_line_height(mat_font)) : 14;
     const int pct_h = pct_font ? static_cast<int>(lv_font_get_line_height(pct_font)) : 12;
     // The spool's wrap is badge_margin taller than the spool, and the cell
     // spaces the wrap and the text block by one gap.
     const int floor_h = kMinSpoolImgPx + badge_margin + gap;
-    const int row_spool = std::min(avail_h - 4, kMaxSpoolImgPx); // square spool fits the row
+    const int row_spool = std::min(avail_h - 4, max_spool); // square spool fits the row
     const int stacked_cell = std::max(share, floor_cell);
     auto stacked_spool_with = [&](int text_block) {
-        return std::min({avail_h - badge_margin - text_block - gap, kMaxSpoolImgPx,
-                         stacked_cell - badge_margin});
+        return std::min(
+            {avail_h - badge_margin - text_block - gap, max_spool, stacked_cell - badge_margin});
     };
     // The spool already draws how full it is, so the percent line under the
     // name stays only when it costs the spool nothing.
@@ -1225,7 +1273,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     spool_size = std::max(spool_size, kMinSpoolImgPx);
 
     const int n = static_cast<int>(data->spool_cells.size());
-    if (n <= 0) {
+    if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count, n)) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
         drop_spool_cells(data);
         return;
@@ -1284,7 +1332,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
         // Stacked cells put the name over the spool (the text column is the
         // cell's second child); short rows sit it alongside.
-        lv_obj_set_size(cell, cell_px, lv_pct(100));
+        lv_obj_set_size(cell, cell_px, data->fill ? fill_row_h : lv_pct(100));
         lv_obj_set_flex_flow(cell, stacked ? LV_FLEX_FLOW_COLUMN_REVERSE : LV_FLEX_FLOW_ROW);
         lv_obj_set_flex_align(cell, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
                               LV_FLEX_ALIGN_CENTER);
@@ -1301,7 +1349,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             helix::ui::ams_lane_spool_set_size(lspool, spool_size);
 
         if (lv_obj_t* badge = cell_part(cell, "spool_badge_%d", slot)) {
-            const int badge_size = spool_size * 2 / 5;
+            const int badge_size = lane_badge_px(spool_size);
             lv_obj_set_size(badge, badge_size, badge_size);
             ams_draw::set_lane_badge_active(badge, cd.active);
             ams_draw::set_lane_badge_number(badge, spool_badge_number(slot));
@@ -1671,6 +1719,15 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj) {
     }
 }
 
+void helix::ui::ams_mini_status_set_fill(lv_obj_t* obj, bool fill) {
+    auto* data = get_data(obj);
+    if (!data || data->fill == fill)
+        return;
+    data->fill = fill;
+    if (data->slot_count > 0)
+        rebuild(data);
+}
+
 void ui_ams_mini_status_set_width(lv_obj_t* obj, int width_px) {
     auto* data = get_data(obj);
     if (!data)
@@ -1685,6 +1742,24 @@ void ui_ams_mini_status_set_width(lv_obj_t* obj, int width_px) {
     // Rebuild if we already have slots (width affects mode, bar width, and spool count)
     if (data->slot_count > 0)
         rebuild(data);
+}
+
+bool helix::ui::ams_mini_status_shows_lanes(int slot_count, int present_lanes) {
+    return slot_count > 0 && present_lanes > 0;
+}
+
+bool helix::ui::ams_mini_status_has_lanes_to_show() {
+    auto& ams = helix::AmsState::instance();
+    if (!ams.are_subjects_initialized() || !ams.get_backend())
+        return false;
+    const int slot_count = lv_subject_get_int(ams.get_slot_count_subject());
+    const auto snapshot = ams.system_info();
+    int present = 0;
+    for (int i = 0; i < slot_count; ++i) {
+        if (!snapshot->slot_absent(i))
+            ++present;
+    }
+    return helix::ui::ams_mini_status_shows_lanes(slot_count, present);
 }
 
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
@@ -1952,6 +2027,10 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
     if (card_str) {
         data->card = lv_xml_to_bool(card_str);
         apply_spools_card_surface(data);
+    }
+
+    if (const char* fill_str = lv_xml_get_value_of(attrs, "fill")) {
+        helix::ui::ams_mini_status_set_fill(obj, lv_xml_to_bool(fill_str));
     }
 
     const char* bars_align_str = lv_xml_get_value_of(attrs, "bars_align");

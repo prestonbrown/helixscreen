@@ -3,6 +3,7 @@
 
 #include "ui_temperature_utils.h"
 
+#include "ams_state.h"
 #include "display_numbering.h"
 #include "observe_language.h"
 #include "observer_factory.h"
@@ -48,6 +49,7 @@ void TargetTool::init_subjects() {
     }
     UI_MANAGED_SUBJECT_INT(tool_subject_, 0, "target_tool", subjects_);
     UI_MANAGED_SUBJECT_INT(multi_head_subject_, 0, "target_tool_multi_head", subjects_);
+    UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "has_filament_system_or_multi_tool", subjects_);
     UI_MANAGED_SUBJECT_STRING(name_subject_, name_buf_, "", "target_tool_name", subjects_);
     UI_MANAGED_SUBJECT_STRING(number_subject_, number_buf_, "", "target_tool_number", subjects_);
     UI_MANAGED_SUBJECT_STRING(label_subject_, label_buf_, "", "target_nozzle_label", subjects_);
@@ -76,6 +78,7 @@ void TargetTool::deinit_subjects() {
     tools_version_observer_.reset();
     extruder_version_observer_.reset();
     language_observer_.reset();
+    ams_slot_count_observer_.reset();
     printer_state_ = nullptr;
     selection_ = TargetToolSelection{};
     last_active_ = kNoActiveSeen;
@@ -124,6 +127,16 @@ void TargetTool::attach(PrinterState& printer_state) {
         printer_state.temperature_state().get_subjects_lifetime());
     // Names and numbers follow the language and the display numbering.
     language_observer_ = observe_language_change(this, [](TargetTool* self) { self->publish(); });
+    // The lane tray gate follows the filament system's lane count. AmsState
+    // registers its subjects before the app attaches; without them there is
+    // no filament system to follow.
+    ams_slot_count_observer_.reset();
+    auto& ams = AmsState::instance();
+    if (ams.are_subjects_initialized()) {
+        ams_slot_count_observer_ = observe<int>(
+            ams.get_slot_count_subject(), this, [](TargetTool* self, int) { self->publish(); },
+            ams.get_subjects_lifetime());
+    }
     refresh();
 }
 
@@ -248,6 +261,11 @@ void TargetTool::publish() {
         number = tool_number_or_name(info.name, info.index);
     }
     set_int_if_changed(&multi_head_subject_, multi ? 1 : 0);
+    auto& ams = AmsState::instance();
+    const int slots =
+        ams.are_subjects_initialized() ? lv_subject_get_int(ams.get_slot_count_subject()) : 0;
+    set_int_if_changed(&lane_tray_subject_,
+                       has_filament_system_or_multi_tool(slots, multi) ? 1 : 0);
     copy_if_changed(&name_subject_, name);
     copy_if_changed(&number_subject_, number);
     copy_if_changed(&label_subject_, ts.nozzle_label(t));

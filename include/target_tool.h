@@ -36,6 +36,9 @@ namespace helix::ui {
  *  - `target_tool_name` ("Tool 2" or a configured name), `target_tool_number`
  *    ("2", empty with one head) and `target_nozzle_label` ("Nozzle 2"), all
  *    in the display numbering, so a chip, a segment and a row agree;
+ *  - `has_filament_system_or_multi_tool`: has_filament_system_or_multi_tool()
+ *    over AmsState's `ams_slot_count` and the head count, which gates the
+ *    lane tray surfaces;
  *  - `target_nozzle_temp` / `target_nozzle_target` (decidegrees) and
  *    `target_nozzle_status_state` / `target_nozzle_status` (classified as
  *    every heater row is) for the target's own nozzle.
@@ -107,6 +110,7 @@ class TargetTool {
     SubjectManager subjects_;
     lv_subject_t tool_subject_{};
     lv_subject_t multi_head_subject_{};
+    lv_subject_t lane_tray_subject_{};
     lv_subject_t name_subject_{};
     char name_buf_[64] = {};
     lv_subject_t number_subject_{};
@@ -126,6 +130,7 @@ class TargetTool {
     ObserverGuard tools_version_observer_;
     ObserverGuard extruder_version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard ams_slot_count_observer_;
 };
 
 } // namespace helix::ui

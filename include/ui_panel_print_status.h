@@ -407,6 +407,10 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t uw_printer_w_subject_{};
     lv_subject_t uw_readouts_w_subject_{};
     lv_subject_t uw_actions_w_subject_{};
+    // Where the lane tray shows (PrintStatusLaneTray) and its strip height.
+    lv_subject_t lane_tray_subject_{};
+    lv_subject_t lane_tray_h_subject_{};
+    lv_subject_t printer_tile_h_subject_{};
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;
@@ -714,6 +718,8 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard primary_fans_version_observer_;
     ObserverGuard breakpoint_observer_;
     ObserverGuard job_queue_count_observer_;
+    ObserverGuard lane_tray_gate_observer_;
+    ObserverGuard lane_tray_slots_observer_;
     ObserverGuard scoped_runout_observer_; ///< Recomputes scoped runout badge on sensor edge
     /// ...and on AMS lane change (slots_version), which also re-pushes the
     /// viewer's per-tool colors: ams_color_observer_ only sees the ACTIVE lane

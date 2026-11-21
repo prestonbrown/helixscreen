@@ -1136,7 +1136,12 @@ git log --no-merges --oneline 7915d7fa5b..origin/release/1.1 --not origin/releas
   preview is a square at full height, progress, times, layer, filament and the next job sit
   in a column in larger type, the printer picture keeps its shape with its callouts, a card
   lists the nozzle, bed and chamber with their targets beside speed, flow and the fans, and
-  Pause, Tune, More and Cancel stack on the right.
+  Pause, Tune, More and Cancel stack on the right. With a filament system or several
+  toolheads, that card gives way to the lane tray, which follows the active lane and its
+  colors through the print and opens the filament system screen on a tap.
+- **Lane tray on tall Print Status screens** - in portrait, with a filament system or several
+  toolheads, Print Status shows the lane tray under its buttons, as tall as the screen can
+  spare, and none on a screen too short for it.
 - **Random screensaver** - picks a different screensaver your screen can run each time it
   goes idle, never the same one twice in a row. Select it under Settings > Display >
   Screensaver.
