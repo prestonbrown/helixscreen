@@ -219,6 +219,7 @@
   <translation tag="API Key (if Moonraker requires a login)" en="API Key (if Moonraker requires a login)"/>
   <translation tag="API not available" en="API not available"/>
   <translation tag="APPEARANCE" en="APPEARANCE"/>
+  <translation tag="ASA" en="ASA"/>
   <translation tag="AUTO FANS" en="AUTO FANS"/>
   <translation tag="AUTO STATE" en="AUTO STATE"/>
   <translation tag="AUTOMATION" en="AUTOMATION"/>
@@ -258,9 +259,11 @@
   <translation tag="Add page" en="Add page"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" en="Add to Mainsail/Fluidd Webcams"/>
   <translation tag="Add to Queue" en="Add to Queue"/>
+  <translation tag="Add to Spoolman &amp; Assign" en="Add to Spoolman &amp; Assign"/>
   <translation tag="Add to Spoolman + label" en="Add to Spoolman + label"/>
   <translation tag="Added" en="Added"/>
   <translation tag="Added to Spoolman" en="Added to Spoolman"/>
+  <translation tag="Added to Spoolman as #{}" en="Added to Spoolman as #{}"/>
   <translation tag="Added to queue (position {})" en="Added to queue (position {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" en="Added to queue (position {}) - queue is paused"/>
   <translation tag="Adding printer" en="Adding printer"/>
@@ -340,7 +343,9 @@
   <translation tag="Arrows + Home" en="Arrows + Home"/>
   <translation tag="Ask before switching to another tool" en="Ask before switching to another tool"/>
   <translation tag="Ask for parameters" en="Ask for parameters"/>
+  <translation tag="Assign" en="Assign"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" en="Assign Klipper macros to control LEDs via on/off, toggle, or presets"/>
+  <translation tag="Assign Spool" en="Assign Spool"/>
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
   <translation tag="Assign a slot first" en="Assign a slot first"/>
   <translation tag="Assigned Tool" en="Assigned Tool"/>
@@ -746,6 +751,7 @@
   <translation tag="Clear All Events" en="Clear All Events"/>
   <translation tag="Clear Console?" en="Clear Console?"/>
   <translation tag="Clear Error" en="Clear Error"/>
+  <translation tag="Clear Lane" en="Clear Lane"/>
   <translation tag="Clear Spool" en="Clear Spool"/>
   <translation tag="Clear every Endless Spool backup" en="Clear every Endless Spool backup"/>
   <translation tag="Clear extruder only" en="Clear extruder only"/>
@@ -781,6 +787,7 @@
   <translation tag="Color Sensors" en="Color Sensors"/>
   <translation tag="Command Failed" en="Command Failed"/>
   <translation tag="Command failed" en="Command failed"/>
+  <translation tag="Common spools to start from" en="Common spools to start from"/>
   <translation tag="Communication Test" en="Communication Test"/>
   <translation tag="Compact" en="Compact"/>
   <translation tag="Compare belt paths with a resonance sweep" en="Compare belt paths with a resonance sweep"/>
@@ -949,6 +956,7 @@
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." en="Could not verify Spoolman status. Moonraker may still be restarting."/>
   <translation tag="Couldn&apos;t assign the tool" en="Couldn&apos;t assign the tool"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" en="Couldn&apos;t clear the printer&apos;s gate map"/>
+  <translation tag="Couldn&apos;t load spools — tap to retry" en="Couldn&apos;t load spools — tap to retry"/>
   <translation tag="Couldn&apos;t map filament: internal error" en="Couldn&apos;t map filament: internal error"/>
   <translation tag="Couldn&apos;t map filament: no temp directory available" en="Couldn&apos;t map filament: no temp directory available"/>
   <translation tag="Couldn&apos;t save the material name" en="Couldn&apos;t save the material name"/>
@@ -1062,6 +1070,7 @@
   <translation tag="Device name is required" en="Device name is required"/>
   <translation tag="Device: " en="Device: "/>
   <translation tag="Devices" en="Devices"/>
+  <translation tag="Different Spool" en="Different Spool"/>
   <translation tag="Different filament?" en="Different filament?"/>
   <translation tag="Digital Clock" en="Digital Clock"/>
   <translation tag="Direct drive" en="Direct drive"/>
@@ -1987,6 +1996,7 @@
   <translation tag="Labels" en="Labels"/>
   <translation tag="Labels Per Sheet" en="Labels Per Sheet"/>
   <translation tag="Lane" en="Lane"/>
+  <translation tag="Lane Settings" en="Lane Settings"/>
   <translation tag="Lane name contains invalid characters" en="Lane name contains invalid characters"/>
   <translation tag="Lane tests and motor resets" en="Lane tests and motor resets"/>
   <translation tag="Lanes" en="Lanes"/>
@@ -2193,6 +2203,7 @@
   <translation tag="Match your typical print fan speed" en="Match your typical print fan speed"/>
   <translation tag="Matched at {:.1f} Hz" en="Matched at {:.1f} Hz"/>
   <translation tag="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match." en="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match."/>
+  <translation tag="Matching Spools" en="Matching Spools"/>
   <translation tag="Matching printers" en="Matching printers"/>
   <translation tag="Material" en="Material"/>
   <translation tag="Material Comfort:" en="Material Comfort:"/>
@@ -2447,6 +2458,7 @@
   <translation tag="No spool linked" en="No spool linked"/>
   <translation tag="No spools found — tap to retry" en="No spools found — tap to retry"/>
   <translation tag="No spools match your search" en="No spools match your search"/>
+  <translation tag="No spools match. Add it as a new spool below." en="No spools match. Add it as a new spool below."/>
   <translation tag="No spools placed" en="No spools placed"/>
   <translation tag="No tape detected in printer" en="No tape detected in printer"/>
   <translation tag="No target printer configured" en="No target printer configured"/>
@@ -2477,6 +2489,7 @@
   <translation tag="Not Enough Filament" en="Not Enough Filament"/>
   <translation tag="Not Enough Memory" en="Not Enough Memory"/>
   <translation tag="Not Initialized" en="Not Initialized"/>
+  <translation tag="Not Listed? Add New Spool" en="Not Listed? Add New Spool"/>
   <translation tag="Not Now" en="Not Now"/>
   <translation tag="Not Supported" en="Not Supported"/>
   <translation tag="Not added" en="Not added"/>
@@ -2501,6 +2514,9 @@
   <translation tag="Not set" en="Not set"/>
   <translation tag="Not set up for this printer model yet." en="Not set up for this printer model yet."/>
   <translation tag="Not turned" en="Not turned"/>
+  <translation tag="Not undone: the lane changed since that save." en="Not undone: the lane changed since that save."/>
+  <translation tag="Not undone: the printer changed since that save." en="Not undone: the printer changed since that save."/>
+  <translation tag="Not undone: {}" en="Not undone: {}"/>
   <translation tag="Not yet available on this display" en="Not yet available on this display"/>
   <translation tag="Not yet calibrated" en="Not yet calibrated"/>
   <translation tag="Notes" en="Notes"/>
@@ -2664,6 +2680,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." en="Part of the plugin failed to load. Reinstall the plugin."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." en="Part of the plugin is missing. Reinstall the plugin."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" en="Part, hotend, and auxiliary fan speeds"/>
+  <translation tag="Partial…" en="Partial…"/>
   <translation tag="Password" en="Password"/>
   <translation tag="Password cannot be empty" en="Password cannot be empty"/>
   <translation tag="Password is required for secured networks" en="Password is required for secured networks"/>
@@ -3041,6 +3058,7 @@
   <translation tag="Recalibrate or view detailed results anytime in Settings." en="Recalibrate or view detailed results anytime in Settings."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." en="Received oversized data from printer ({} bytes). This may indicate a communication error."/>
   <translation tag="Recent Prints" en="Recent Prints"/>
+  <translation tag="Recent Spools" en="Recent Spools"/>
   <translation tag="Recently Printed" en="Recently Printed"/>
   <translation tag="Recirculate" en="Recirculate"/>
   <translation tag="Recirculation fan" en="Recirculation fan"/>
@@ -3312,6 +3330,7 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." en="Saves a camera photo after layer 2 and when each print ends, shown in print history."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." en="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear."/>
   <translation tag="Saves to Klipper config and restarts firmware." en="Saves to Klipper config and restarts firmware."/>
+  <translation tag="Saves to Spoolman spool #{}" en="Saves to Spoolman spool #{}"/>
   <translation tag="Saving Configuration..." en="Saving Configuration..."/>
   <translation tag="Saving Z-offset..." en="Saving Z-offset..."/>
   <translation tag="Saving and finishing..." en="Saving and finishing..."/>
@@ -3324,6 +3343,7 @@
   <translation tag="Saving..." en="Saving..."/>
   <translation tag="Scan" en="Scan"/>
   <translation tag="Scan Cal" en="Scan Cal"/>
+  <translation tag="Scan Label" en="Scan Label"/>
   <translation tag="Scan QR Code" en="Scan QR Code"/>
   <translation tag="Scan Spool QR Code" en="Scan Spool QR Code"/>
   <translation tag="Scan and select a Bluetooth printer first" en="Scan and select a Bluetooth printer first"/>
@@ -3555,6 +3575,7 @@
   <translation tag="Spool #{}" en="Spool #{}"/>
   <translation tag="Spool Info" en="Spool Info"/>
   <translation tag="Spool Not Found" en="Spool Not Found"/>
+  <translation tag="Spool Size" en="Spool Size"/>
   <translation tag="Spool Weight (g)" en="Spool Weight (g)"/>
   <translation tag="Spool archived" en="Spool archived"/>
   <translation tag="Spool created successfully" en="Spool created successfully"/>
@@ -3589,6 +3610,7 @@
   <translation tag="Spoolman: %zu/%zu Spools" en="Spoolman: %zu/%zu Spools"/>
   <translation tag="SpoolmanDB search failed" en="SpoolmanDB search failed"/>
   <translation tag="Spools" en="Spools"/>
+  <translation tag="Spools Used on This Printer" en="Spools Used on This Printer"/>
   <translation tag="Spools are off" en="Spools are off"/>
   <translation tag="Spools are on the bed: remove them and confirm before moving the printer" en="Spools are on the bed: remove them and confirm before moving the printer"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." en="Spools are on the bed: tap the drying banner to confirm they are off, then restart."/>
@@ -4112,6 +4134,7 @@
   <translation tag="Tool offsets (mm)" en="Tool offsets (mm)"/>
   <translation tag="Tool offsets saved" en="Tool offsets saved"/>
   <translation tag="Tool swap" en="Tool swap"/>
+  <translation tag="Tool, runout backup" en="Tool, runout backup"/>
   <translation tag="Toolchange purge" en="Toolchange purge"/>
   <translation tag="Toolhead" en="Toolhead"/>
   <translation tag="Toolhead Calibration Running" en="Toolhead Calibration Running"/>
@@ -4272,6 +4295,7 @@
   <translation tag="Upload unavailable in this build" en="Upload unavailable in this build"/>
   <translation tag="Upper belt" en="Upper belt"/>
   <translation tag="Uptime" en="Uptime"/>
+  <translation tag="Use" en="Use"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" en="Use AFC&apos;s mapping commands to add or move a tool"/>
   <translation tag="Use Android native keyboard for text input" en="Use Android native keyboard for text input"/>
   <translation tag="Use G10/G11 firmware retraction" en="Use G10/G11 firmware retraction"/>
@@ -4500,6 +4524,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" en="Zone {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." en="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps."/>
   <translation tag="already loaded" en="already loaded"/>
+  <translation tag="assign without adding to Spoolman" en="assign without adding to Spoolman"/>
   <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="auto" en="auto"/>
   <translation tag="bed" en="bed"/>
@@ -4507,6 +4532,7 @@
   <translation tag="by" en="by"/>
   <translation tag="by Preston Brown" en="by Preston Brown"/>
   <translation tag="chamber heater" en="chamber heater"/>
+  <translation tag="close: {}" en="close: {}"/>
   <translation tag="color differs" en="color differs"/>
   <translation tag="complete" en="complete"/>
   <translation tag="cores" en="cores"/>
@@ -4580,6 +4606,7 @@
   <translation tag="rendering" en="rendering"/>
   <translation tag="reset at {} h" en="reset at {} h"/>
   <translation tag="set manually" en="set manually"/>
+  <translation tag="similar color" en="similar color"/>
   <translation tag="sleep {} min" en="sleep {} min"/>
   <translation tag="slots)" en="slots)"/>
   <translation tag="started" en="started"/>
@@ -4617,6 +4644,7 @@
   <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" en="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." en="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." en="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension."/>
+  <translation tag="{:.0f} g left" en="{:.0f} g left"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" en="{:.0f}-{:.0f} Hz · about {} min"/>
   <translation tag="{} ({})" en="{} ({})"/>
   <translation tag="{} Extruders" en="{} Extruders"/>

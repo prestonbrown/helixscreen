@@ -241,6 +241,7 @@ translations:
   API Key (if Moonraker requires a login): 'API-Schlüssel (falls Moonraker eine Anmeldung verlangt)'
   API not available: API nicht verfügbar
   APPEARANCE: ERSCHEINUNGSBILD
+  ASA: 'ASA'
   AUTO FANS: AUTO-LÜFTER
   AUTO STATE: AUTO-STATUS
   AUTOMATION: AUTOMATISIERUNG
@@ -284,6 +285,7 @@ translations:
   Add to Queue: Zur Warteschlange hinzufügen
   Added: Hinzugefügt
   Added to Spoolman: Zu Spoolman hinzugefügt
+  'Added to Spoolman as #{}': 'Zu Spoolman hinzugefügt als #{}'
   Added to queue (position {}): Zur Warteschlange hinzugefügt (Position {})
   Added to queue (position {}) - queue is paused: Zur Warteschlange hinzugefügt (Position {}) – Warteschlange ist pausiert
   Adding printer: Drucker wird hinzugefügt
@@ -381,8 +383,10 @@ translations:
   Arrows: 'Pfeile'
   Ask before switching to another tool: 'Vor dem Wechsel zu einem anderen Werkzeug fragen'
   Ask for parameters: 'Nach Parametern fragen'
+  Assign: 'Zuweisen'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Klipper-Makros
     zuweisen, um LEDs per Ein/Aus, Umschalten oder Voreinstellungen zu steuern
+  Assign Spool: 'Spule zuweisen'
   Assign a role to enable sensor monitoring: Rolle zuweisen, um Sensorüberwachung
     zu aktivieren
   Assign a slot first: 'Zuerst einen Slot zuweisen'
@@ -827,6 +831,7 @@ translations:
   Clear All Events: Alle Ereignisse löschen
   Clear Console?: Konsole leeren?
   Clear Error: Fehler löschen
+  Clear Lane: 'Spur leeren'
   Clear Spool: Spule entfernen
   Clear every Endless Spool backup: Alle Endlosspulen-Reserven löschen
   Clear extruder only: 'Nur Extruder leeren'
@@ -869,6 +874,7 @@ translations:
   Color Sensors: Farbsensoren
   Command Failed: 'Befehl fehlgeschlagen'
   Command failed: Befehl fehlgeschlagen
+  Common spools to start from: 'Gängige Spulen zum Start'
   Communication Test: 'Kommunikationstest'
   Compact: Kompakt
   Compare belt paths with a resonance sweep: "Riemenpfade mit einem Resonanz-Sweep vergleichen"
@@ -1079,6 +1085,7 @@ translations:
     konnte nicht überprüft werden. Moonraker startet möglicherweise noch neu.
   Couldn't assign the tool: Werkzeug konnte nicht zugewiesen werden
   Couldn't clear the printer's gate map: Gate-Zuordnung des Druckers konnte nicht geleert werden
+  Couldn't load spools — tap to retry: 'Spulen konnten nicht geladen werden — tippen zum Wiederholen'
   "Couldn't map filament: internal error": 'Filament-Zuordnung nicht möglich: interner Fehler'
   "Couldn't map filament: no temp directory available": 'Filament-Zuordnung nicht möglich: kein temporäres Verzeichnis verfügbar'
   Couldn't save the material name: 'Materialname konnte nicht gespeichert werden'
@@ -1192,6 +1199,7 @@ translations:
   Device name is required: Gerätename ist erforderlich
   'Device: ': 'Gerät: '
   Devices: Geräte
+  Different Spool: 'Andere Spule'
   Different filament?: Anderes Filament?
   Digital Clock: 'Digitaluhr'
   Direct drive: Direktantrieb
@@ -2207,6 +2215,7 @@ translations:
   Labels: Etiketten
   Labels Per Sheet: Etiketten pro Blatt
   Lane: Spur
+  Lane Settings: 'Spur-Einstellungen'
   Lane name contains invalid characters: 'Der Spurname enthält ungültige Zeichen'
   Lane tests and motor resets: 'Spurtests und Motor-Rücksetzungen'
   Lanes: Spuren
@@ -2422,6 +2431,7 @@ translations:
   Matched at {:.1f} Hz: "Abgeglichen bei {:.1f} Hz"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "Gleich gespannte Riemen ergeben Kurven gleicher Form. Hat die höchste Spitze eines Pfads kein Gegenstück auf dem anderen, prägt etwas anderes als die Spannung die Antwort:\n\n- ein abgenutzter, ausgefranster oder schief laufender Riemen\n- eine lose oder rutschende Madenschraube am Pulley\n- eine klemmende Umlenkrolle oder ein Lager\n- Schmutz in den Zähnen oder ein Riemen, der an einem Bund schleift\n- eine lose Beschleunigungssensor-Halterung\n\nDie Einstellung folgt weiter der Zone, die sich mit der Drehung bewegt hat, aber prüfe diese Punkte, bevor du einem perfekten Abgleich nachjagst."
+  Matching Spools: 'Passende Spulen'
   Matching printers: Passende Drucker
   Material: Material
   'Material Comfort:': 'Materialkomfort:'
@@ -2684,6 +2694,7 @@ translations:
   No spool linked: 'Keine Spule verknüpft'
   No spools found — tap to retry: Keine Spulen gefunden — tippen zum Wiederholen
   No spools match your search: Keine Spulen entsprechen Ihrer Suche
+  No spools match. Add it as a new spool below.: 'Keine passenden Spulen. Unten als neue Spule hinzufügen.'
   No spools placed: Keine Spulen eingelegt
 
   No tape detected in printer: Kein Band im Drucker erkannt
@@ -2717,6 +2728,7 @@ translations:
   Not Enough Filament: Nicht genug Filament
   Not Enough Memory: "Nicht genug Speicher"
   Not Initialized: 'Nicht initialisiert'
+  Not Listed? Add New Spool: 'Nicht dabei? Neue Spule hinzufügen'
   Not Now: Nicht jetzt
   Not Supported: 'Nicht unterstützt'
   Not added: Nicht hinzugefügt
@@ -2740,6 +2752,9 @@ translations:
   Not turned: 'Ungedreht'
   'Not saved: {}. Try again.': "Nicht gespeichert: {}. Bitte erneut versuchen."
   Not set: Nicht festgelegt
+  'Not undone: the lane changed since that save.': 'Nicht rückgängig gemacht: Die Spur hat sich seitdem geändert.'
+  'Not undone: the printer changed since that save.': 'Nicht rückgängig gemacht: Der Drucker hat sich seitdem geändert.'
+  'Not undone: {}': 'Nicht rückgängig gemacht: {}'
   Not yet available on this display: 'Auf diesem Display noch nicht verfügbar'
   Not yet calibrated: Noch nicht kalibriert
   Notes: Notizen
@@ -2917,6 +2932,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Ein Teil des Plugins konnte nicht geladen werden. Installiere das Plugin neu."
   Part of the plugin is missing. Reinstall the plugin.: "Ein Teil des Plugins fehlt. Installiere das Plugin neu."
   Part, hotend, and auxiliary fan speeds: 'Bauteil-, Hotend- und Zusatzlüftergeschwindigkeiten'
+  Partial…: 'Teilweise…'
   Password: Passwort
   Password cannot be empty: Passwort darf nicht leer sein
   Password is required for secured networks: Passwort ist für gesicherte Netzwerke
@@ -3320,6 +3336,7 @@ translations:
     neu kalibrieren oder detaillierte Ergebnisse anzeigen.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Zu große Daten vom Drucker empfangen ({} Bytes). Das kann auf einen Kommunikationsfehler hinweisen.
   Recent Prints: Letzte Drucke
+  Recent Spools: 'Zuletzt verwendete Spulen'
   Recently Printed: Zuletzt gedruckt
   Recirculate: 'Umwälzen'
   Recirculation fan: 'Umwälzlüfter'
@@ -3607,6 +3624,7 @@ translations:
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Speichert die Druckposition etwa einmal pro Sekunde, damit ein Druck nach einem Stromausfall fortgesetzt werden kann. Auf einer SD-Karte erhöht das den Verschleiß.
   Saves to Klipper config and restarts firmware.: Speichert in Klipper-Konfiguration
     und startet Firmware neu.
+  'Saves to Spoolman spool #{}': 'Speichert in Spoolman-Spule #{}'
   Saving Configuration...: Konfiguration wird gespeichert...
   Saving Z-offset...: Z-Offset wird gespeichert...
   Saving and finishing...: Speichern und abschließen...
@@ -3622,6 +3640,7 @@ translations:
   Saving...: Speichern...
   Scan: Suchen
   Scan Cal: Scan-Kal.
+  Scan Label: 'Etikett scannen'
   Scan QR Code: QR-Code scannen
   Scan Spool QR Code: Spulen-QR-Code scannen
   Scan and select a Bluetooth printer first: Zuerst Bluetooth-Drucker suchen und auswählen
@@ -3883,6 +3902,7 @@ translations:
   'Spool #{}': 'Spule #{}'
   Spool Info: Spuleninfo
   Spool Not Found: 'Spule nicht gefunden'
+  Spool Size: 'Spulengröße'
   Spool Weight (g): Spulengewicht (g)
   Spool archived: Spule archiviert
   Spool created successfully: Spule erfolgreich erstellt
@@ -3919,6 +3939,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu Spulen'
   SpoolmanDB search failed: 'SpoolmanDB-Suche fehlgeschlagen'
   Spools: 'Spulen'
+  Spools Used on This Printer: 'Auf diesem Drucker verwendete Spulen'
   Spools are off: "Spulen sind entnommen"
   'Spools are on the bed: remove them and confirm before moving the printer': 'Spulen liegen auf dem Heizbett: entferne sie und bestätige, bevor der Drucker bewegt wird'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'Spulen liegen auf dem Heizbett: Tippe auf das Trocknungsbanner, um zu bestätigen, dass sie entnommen sind, und starte dann neu.'
@@ -4539,6 +4560,7 @@ translations:
   Tool offsets (mm): Werkzeug-Offsets (mm)
   Tool offsets saved: Werkzeug-Offsets gespeichert
   Tool swap: Werkzeugwechsel
+  Tool, runout backup: 'Werkzeug, Ersatz bei Filamentende'
   Toolchange purge: 'Werkzeugwechsel-Entlüftung'
   Toolhead: 'Werkzeugkopf'
   Toolhead Calibration Running: 'Werkzeugkopf-Kalibrierung läuft'
@@ -4702,6 +4724,7 @@ translations:
   Upload unavailable in this build: Hochladen in diesem Build nicht verfügbar
   Upper belt: "Riemen oben"
   Uptime: Betriebszeit
+  Use: 'Verwenden'
   Use AFC's mapping commands to add or move a tool: 'Verwende die Zuordnungsbefehle von AFC, um ein Werkzeug hinzuzufügen oder zu verschieben'
   Use Android native keyboard for text input: Native Android-Tastatur für Texteingabe
     verwenden
@@ -4943,6 +4966,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "Zone {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] hat keine probe_points, daher hat der Druckkopf keine sichere Höhe für die Setzrunden.'
   already loaded: 'bereits geladen'
+  assign without adding to Spoolman: 'ohne Spoolman zuweisen'
   attempt {}: 'Versuch {}'
   auto: auto
   bed: Bett
@@ -4950,6 +4974,7 @@ translations:
   by: 'von'
   by Preston Brown: von Preston Brown
   chamber heater: Kammerheizung
+  'close: {}': 'ähnlich: {}'
   color differs: 'Farbe abweichend'
   complete: abgeschlossen
   cores: Kerne
@@ -5029,6 +5054,7 @@ translations:
   rendering: wird gerendert
   reset at {} h: 'zurückgesetzt bei {} Std'
   set manually: 'manuell gesetzt'
+  similar color: 'ähnliche Farbe'
   sleep {} min: Ruhezustand nach {} Min.
   slots): Slots)
   started: gestartet
@@ -5068,6 +5094,7 @@ translations:
   : '{0} ist offen. {1} druckt am besten in einem warmen, geschlossenen Gehäuse; eine offene Tür kühlt den Bauraum und kann Verzug oder Schichtrisse verursachen. Schließen oder trotzdem starten.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} schwingt bei {2:.0f} Hz viel stärker als {1}. Das deutet auf einen mechanischen Unterschied hin (Madenschrauben am Pulley, Umlenkrollenlager, Riemenlauf), nicht auf die Spannung."
+  '{:.0f} g left': 'noch {:.0f} g'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · ca. {} Min.'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruder'
@@ -5168,6 +5195,7 @@ translations:
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} ist montiert. Mit einer gemeinsamen Sonde mit {1} kalibrieren. Mit {0} fortfahren?'
   'Basic': 'Standard'
   'Recycled': 'Recycelt'
+  Add to Spoolman & Assign: 'Zu Spoolman hinzufügen & zuweisen'
   'Add to Spoolman + label': 'Zu Spoolman hinzufügen + Etikett'
   'More': 'Mehr'
   'Price, location, lot, notes': 'Preis, Ort, Charge, Notizen'

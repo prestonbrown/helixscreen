@@ -25,6 +25,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -249,8 +250,11 @@ class AmsEditOverlay : public OverlayBase {
         spool_assign::SpoolQuery query;
         std::string filter;
         size_t spool_count = 0;
+        std::set<int> in_use; ///< spools other lanes link: their rows offer no Use
         bool operator==(const ListedQuery& o) const;
     };
+    /// The spools other lanes link, which this lane cannot take.
+    [[nodiscard]] std::set<int> spools_in_other_lanes() const;
     std::optional<ListedQuery> listed_query_;
     IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;

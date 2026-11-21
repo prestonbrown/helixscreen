@@ -98,15 +98,15 @@ TEST_CASE("brand and product compare loosely: case and whole extra words", "[spo
 
 TEST_CASE("close_note names what the spool says differently", "[spool-assign]") {
     CloseFields differs;
-    CHECK(close_note(differs, SpoolInfo{}, "color").empty());
+    CHECK(close_note(differs, SpoolInfo{}, "close: {}", "similar color").empty());
     differs.material = true;
     differs.color = true;
-    CHECK(close_note(differs, spool(1, "eSUN", "PLA+", "", "#EEEEEE"), "color") ==
-          "close: PLA+, color");
+    CHECK(close_note(differs, spool(1, "eSUN", "PLA+", "", "#EEEEEE"), "close: {}",
+                     "similar color") == "close: PLA+, similar color");
     CloseFields only_product;
     only_product.product = true;
-    CHECK(close_note(only_product, spool(1, "", "", "Polar White", ""), "color") ==
-          "close: Polar White");
+    CHECK(close_note(only_product, spool(1, "", "", "Polar White", ""), "ähnlich: {}",
+                     "similar color") == "ähnlich: Polar White");
 }
 
 TEST_CASE("common spools: four materials by three colors, until a few spools exist",
@@ -316,4 +316,24 @@ TEST_CASE("a multi-color spool matches by its first color", "[spool-assign]") {
     CHECK(match_spool(q, rainbow).kind == MatchKind::Exact);
     q.color = 0x0000FF;
     CHECK(match_spool(q, rainbow).kind == MatchKind::None);
+}
+
+TEST_CASE("a save that changed nothing on the lane leaves nothing to undo", "[spool-assign]") {
+    SlotInfo lane;
+    lane.spoolman_id = 7;
+    lane.material = "PLA";
+    lane.brand = "eSUN";
+    lane.color_rgb = 0xFFFFFF;
+    lane.remaining_weight_g = 600;
+    lane.total_weight_g = 1000;
+    CHECK_FALSE(save_changed_lane(lane, lane)); // notes, price, location, lot only
+    SlotInfo weighed = lane;
+    weighed.remaining_weight_g = 550;
+    CHECK(save_changed_lane(lane, weighed));
+    SlotInfo relinked = lane;
+    relinked.spoolman_id = 8;
+    CHECK(save_changed_lane(lane, relinked));
+    SlotInfo product = lane;
+    product.product_name = "PLA+ 2.0";
+    CHECK(save_changed_lane(lane, product));
 }

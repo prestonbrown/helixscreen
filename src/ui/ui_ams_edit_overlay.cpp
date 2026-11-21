@@ -1042,7 +1042,24 @@ spool_assign::SpoolQuery AmsEditOverlay::current_query() const {
 }
 
 bool AmsEditOverlay::ListedQuery::operator==(const ListedQuery& o) const {
-    return query == o.query && filter == o.filter && spool_count == o.spool_count;
+    return query == o.query && filter == o.filter && spool_count == o.spool_count &&
+           in_use == o.in_use;
+}
+
+std::set<int> AmsEditOverlay::spools_in_other_lanes() const {
+    // Spools another lane links are taken. The external spool feeds through no
+    // lane, so every lane's spool is taken for it.
+    std::set<int> in_use;
+    if (AmsBackend* backend = AmsState::instance().get_backend()) {
+        const AmsSystemInfo info = backend->get_system_info();
+        for (int i = 0; i < info.total_slots; ++i) {
+            const SlotInfo* lane = info.get_slot_global(i);
+            if (lane && i != slot_index_ && lane->spoolman_id > 0) {
+                in_use.insert(lane->spoolman_id);
+            }
+        }
+    }
+    return in_use;
 }
 
 void AmsEditOverlay::refresh_spool_list() {
@@ -1055,7 +1072,8 @@ void AmsEditOverlay::refresh_spool_list() {
     const char* text = search ? lv_textarea_get_text(search) : nullptr;
     // Most form taps (a chip, a weight) change nothing the list reads.
     if (listed_query_ &&
-        *listed_query_ == ListedQuery{current_query(), text ? text : "", cached_spools_.size()}) {
+        *listed_query_ == ListedQuery{current_query(), text ? text : "", cached_spools_.size(),
+                                      spools_in_other_lanes()}) {
         return;
     }
     render_spool_list(text ? text : "");
@@ -1081,7 +1099,6 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     }
     const spool_assign::SpoolQuery query = current_query();
     const auto ranked = spool_assign::rank_spools(query, *searched);
-    listed_query_ = ListedQuery{query, filter, cached_spools_.size()};
     listed_.clear();
     // Rows index cached_spools_. A search keeps Spoolman spools, found again
     // by id; the lane history is never searched, so its indices stand.
@@ -1099,20 +1116,11 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
-    // Spools another lane links are taken. The external spool feeds through no
-    // lane, so every lane's spool is taken for it.
-    std::set<int> in_use;
-    if (AmsBackend* backend = AmsState::instance().get_backend()) {
-        const AmsSystemInfo info = backend->get_system_info();
-        for (int i = 0; i < info.total_slots; ++i) {
-            const SlotInfo* lane = info.get_slot_global(i);
-            if (lane && i != slot_index_ && lane->spoolman_id > 0) {
-                in_use.insert(lane->spoolman_id);
-            }
-        }
-    }
+    const std::set<int> in_use = spools_in_other_lanes();
+    listed_query_ = ListedQuery{query, filter, cached_spools_.size(), in_use};
 
-    const std::string colour_word = lv_tr("color");
+    const std::string close_format = lv_tr("close: {}");
+    const std::string close_color = lv_tr("similar color");
     for (size_t row = 0; row < listed_.size(); ++row) {
         const SpoolInfo& spool = cached_spools_[listed_[row].index];
         lv_obj_t* item =
@@ -1151,8 +1159,8 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
         if (listed_[row].match.kind == spool_assign::MatchKind::Close) {
             if (lv_obj_t* note = lv_obj_find_by_name(item, "row_close")) {
-                const std::string text =
-                    spool_assign::close_note(listed_[row].match.differs, spool, colour_word);
+                const std::string text = spool_assign::close_note(listed_[row].match.differs, spool,
+                                                                  close_format, close_color);
                 lv_label_set_text(note, text.c_str());        // DECLARATIVE_OK: generated row text
                 lv_obj_remove_flag(note, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-row state
             }
@@ -1404,7 +1412,7 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
             if (undo->slot_index == -1) {
                 return;
             }
-            if (undo->slot_index >= 0 && backend != undo->backend) {
+            if (undo->slot_index != -2 && (!backend || backend != undo->backend)) {
                 ToastManager::instance().show(
                     ToastSeverity::WARNING,
                     lv_tr("Not undone: the printer changed since that save."), 4000);
@@ -1413,7 +1421,9 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
             // Undo puts back what was there only while the lane still holds
             // what this save put in: anything that changed it since wins.
             const SlotInfo now =
-                undo->slot_index >= 0 ? backend->get_slot_info(undo->slot_index) : undo->after;
+                undo->slot_index == -2
+                    ? AmsState::instance().get_external_spool_info().value_or(SlotInfo{})
+                    : backend->get_slot_info(undo->slot_index);
             if (!spool_assign::undo_still_applies(now, undo->after)) {
                 ToastManager::instance().show(
                     ToastSeverity::WARNING, lv_tr("Not undone: the lane changed since that save."),
@@ -1421,6 +1431,11 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
                 return;
             }
             spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
+            if (undo->slot_index == -2) {
+                // The external spool has a commit of its own.
+                AmsState::instance().commit_external_spool_edit(undo->before);
+                return;
+            }
             const AmsError err =
                 AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
             if (!err.success() && !err.partially_applied) {
@@ -2250,7 +2265,10 @@ void AmsEditOverlay::apply_weight(float grams) {
     if (lv_subject_get_int(&mode_subject_) == kModeAssign) {
         // Assign Spool's Partial...: what is left of a spool of the size last
         // chosen (1 kg unless another chip was), never less than what is left.
-        apply_size_chip(spool_assign::kPartialChip, grams, std::max(grams, size_total_g_));
+        const float chip_total = size_chip_ == spool_assign::kPartialChip
+                                     ? spool_assign::kDefaultSpoolGrams
+                                     : size_total_g_;
+        apply_size_chip(spool_assign::kPartialChip, grams, std::max(grams, chip_total));
         update_sync_button_state();
         return;
     }
@@ -3005,8 +3023,20 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
         if (api_) {
             lane_spool_history::record(*api_, working_info_);
         }
-        show_assigned_toast(original_info_, working_info_, created_spool_id_ > 0,
-                            !edited_spoolman_record_);
+        // What the lane settled on, which a backend may have normalized from
+        // the form: Undo checks the lane against this.
+        SlotInfo settled = working_info_;
+        if (cap.slot_index == -2) {
+            settled = AmsState::instance().get_external_spool_info().value_or(working_info_);
+        } else if (AmsBackend* backend = AmsState::instance().get_backend()) {
+            settled = backend->get_slot_info(cap.slot_index);
+        }
+        // Undo reverts the lane: a save that changed nothing on it (notes,
+        // price, location, lot) or rewrote a Spoolman record has nothing it
+        // can put back.
+        const bool undoable =
+            !edited_spoolman_record_ && spool_assign::save_changed_lane(original_info_, settled);
+        show_assigned_toast(original_info_, settled, created_spool_id_ > 0, undoable);
         return;
     }
     spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,

@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <fmt/format.h>
 
 namespace helix::spool_assign {
 
@@ -158,7 +159,7 @@ std::vector<RankedSpool> rank_spools(const SpoolQuery& query, const std::vector<
 }
 
 std::string close_note(const CloseFields& differs, const SpoolInfo& spool,
-                       const std::string& color_word) {
+                       const std::string& note_format, const std::string& color_phrase) {
     if (!differs.any()) {
         return {};
     }
@@ -173,16 +174,16 @@ std::string close_note(const CloseFields& differs, const SpoolInfo& spool,
         parts.push_back(spool.filament_name);
     }
     if (differs.color) {
-        parts.push_back(color_word);
+        parts.push_back(color_phrase);
     }
-    std::string note = "close: ";
+    std::string listed;
     for (size_t i = 0; i < parts.size(); ++i) {
         if (i > 0) {
-            note += ", ";
+            listed += ", ";
         }
-        note += parts[i];
+        listed += parts[i];
     }
-    return note;
+    return fmt::format(fmt::runtime(note_format), listed);
 }
 
 const std::vector<CommonSpool>& common_spools() {
@@ -241,6 +242,13 @@ float step_remaining(float remaining_g, float delta_g, float total_g) {
 bool undo_still_applies(const SlotInfo& now, const SlotInfo& after) {
     return now.spoolman_id == after.spoolman_id && now.material == after.material &&
            now.brand == after.brand && now.color_rgb == after.color_rgb;
+}
+
+bool save_changed_lane(const SlotInfo& before, const SlotInfo& after) {
+    constexpr float kWeightEpsilonG = 0.5f;
+    return !undo_still_applies(after, before) || before.product_name != after.product_name ||
+           std::fabs(before.remaining_weight_g - after.remaining_weight_g) > kWeightEpsilonG ||
+           std::fabs(before.total_weight_g - after.total_weight_g) > kWeightEpsilonG;
 }
 
 void apply_new_spool_default_weight(SlotInfo& slot) {

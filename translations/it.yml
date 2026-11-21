@@ -239,6 +239,7 @@ translations:
   API Key (if Moonraker requires a login): 'Chiave API (se Moonraker richiede l''accesso)'
   API not available: API non disponibile
   APPEARANCE: ASPETTO
+  ASA: 'ASA'
   AUTO FANS: VENTOLE AUTO
   AUTO STATE: STATO AUTO
   AUTOMATION: AUTOMAZIONE
@@ -282,6 +283,7 @@ translations:
   Add to Queue: Aggiungi alla coda
   Added: Aggiunto
   Added to Spoolman: Aggiunto a Spoolman
+  'Added to Spoolman as #{}': 'Aggiunta a Spoolman come #{}'
   Added to queue (position {}): Aggiunto alla coda (posizione {})
   Added to queue (position {}) - queue is paused: Aggiunto alla coda (posizione {}) – la coda è in pausa
   Adding printer: Aggiunta stampante
@@ -377,8 +379,10 @@ translations:
   Arrows: 'Frecce'
   Ask before switching to another tool: 'Chiedi prima di passare a un altro utensile'
   Ask for parameters: 'Chiedi i parametri'
+  Assign: 'Assegna'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Assegna macro
     Klipper per controllare LED tramite on/off, alternanza o preset
+  Assign Spool: 'Assegna bobina'
   Assign a role to enable sensor monitoring: Assegna un ruolo per abilitare il monitoraggio
     del sensore
   Assign a slot first: 'Assegna prima uno slot'
@@ -818,6 +822,7 @@ translations:
   Clear All Events: Cancella tutti gli eventi
   Clear Console?: Cancellare la console?
   Clear Error: Cancella errore
+  Clear Lane: 'Svuota corsia'
   Clear Spool: Rimuovi bobina
   Clear every Endless Spool backup: Cancella tutte le riserve della bobina infinita
   Clear extruder only: 'Svuota solo l''estrusore'
@@ -860,6 +865,7 @@ translations:
   Color Sensors: Sensori di colore
   Command Failed: 'Comando non riuscito'
   Command failed: Comando non riuscito
+  Common spools to start from: 'Bobine comuni per iniziare'
   Communication Test: 'Test di comunicazione'
   Compact: Compatto
   Compare belt paths with a resonance sweep: "Confronta i percorsi delle cinghie con una scansione di risonanza"
@@ -1070,6 +1076,7 @@ translations:
     verificare lo stato di Spoolman. Moonraker potrebbe essere ancora in riavvio.
   Couldn't assign the tool: Impossibile assegnare lo strumento
   Couldn't clear the printer's gate map: Impossibile svuotare la mappa dei gate della stampante
+  Couldn't load spools — tap to retry: 'Impossibile caricare le bobine — tocca per riprovare'
   "Couldn't map filament: internal error": 'Impossibile mappare il filamento: errore interno'
   "Couldn't map filament: no temp directory available": 'Impossibile mappare il filamento: directory temporanea non disponibile'
   Couldn't save the material name: 'Impossibile salvare il nome del materiale'
@@ -1183,6 +1190,7 @@ translations:
   Device name is required: Il nome dispositivo è obbligatorio
   'Device: ': 'Dispositivo: '
   Devices: Dispositivi
+  Different Spool: 'Altra bobina'
   Different filament?: Filamento diverso?
   Digital Clock: 'Orologio digitale'
   Direct drive: Diretto
@@ -2196,6 +2204,7 @@ translations:
   Labels: Etichette
   Labels Per Sheet: Etichette per foglio
   Lane: Corsia
+  Lane Settings: 'Impostazioni corsia'
   Lane name contains invalid characters: 'Il nome della corsia contiene caratteri non validi'
   Lane tests and motor resets: 'Test delle corsie e ripristini motore'
   Lanes: Corsie
@@ -2413,6 +2422,7 @@ translations:
   Matched at {:.1f} Hz: "Allineate a {:.1f} Hz"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "Cinghie allineate danno curve della stessa forma. Quando il picco più alto di un percorso non ha corrispondenza sull'altro, qualcosa oltre alla tensione modella la risposta:\n\n- una cinghia usurata, sfilacciata o che non scorre dritta\n- un grano della puleggia allentato o che slitta\n- un rinvio o un cuscinetto che si blocca\n- sporco nei denti, o una cinghia che sfrega su una flangia\n- un supporto dell'accelerometro allentato\n\nLa regolazione segue la zona che si è spostata con il giro, ma controlla questi punti prima di inseguire un allineamento perfetto."
+  Matching Spools: 'Bobine corrispondenti'
   Matching printers: Stampanti corrispondenti
   Material: Materiale
   'Material Comfort:': 'Comfort del materiale:'
@@ -2676,6 +2686,7 @@ translations:
   No spool linked: 'Nessuna bobina collegata'
   No spools found — tap to retry: Nessuna bobina trovata — tocca per riprovare
   No spools match your search: Nessuna bobina corrisponde alla tua ricerca
+  No spools match. Add it as a new spool below.: 'Nessuna bobina corrisponde. Aggiungila come nuova bobina qui sotto.'
   No spools placed: Nessuna bobina appoggiata
 
   No tape detected in printer: Nessun nastro rilevato nella stampante
@@ -2709,6 +2720,7 @@ translations:
   Not Enough Filament: Filamento insufficiente
   Not Enough Memory: "Memoria insufficiente"
   Not Initialized: 'Non inizializzato'
+  Not Listed? Add New Spool: 'Non c''è? Aggiungi nuova bobina'
   Not Now: Non ora
   Not Supported: 'Non supportato'
   Not added: Non aggiunto
@@ -2732,6 +2744,9 @@ translations:
   Not turned: 'Non girato'
   'Not saved: {}. Try again.': "Non salvato: {}. Riprova."
   Not set: Non impostato
+  'Not undone: the lane changed since that save.': 'Non annullato: la corsia è cambiata da quel salvataggio.'
+  'Not undone: the printer changed since that save.': 'Non annullato: la stampante è cambiata da quel salvataggio.'
+  'Not undone: {}': 'Non annullato: {}'
   Not yet available on this display: 'Non ancora disponibile su questo display'
   Not yet calibrated: Non ancora calibrato
   Notes: Note
@@ -2909,6 +2924,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Una parte del plugin non è stata caricata. Reinstalla il plugin."
   Part of the plugin is missing. Reinstall the plugin.: "Manca una parte del plugin. Reinstalla il plugin."
   Part, hotend, and auxiliary fan speeds: 'Velocità delle ventole pezzo, hotend e ausiliaria'
+  Partial…: 'Parziale…'
   Password: Password
   Password cannot be empty: La password non può essere vuota
   Password is required for secured networks: La password è necessaria per le reti
@@ -3310,6 +3326,7 @@ translations:
     i risultati dettagliati in qualsiasi momento nelle Impostazioni.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: Ricevuti dati troppo grandi dalla stampante ({} byte). Potrebbe indicare un errore di comunicazione.
   Recent Prints: Stampe recenti
+  Recent Spools: 'Bobine recenti'
   Recently Printed: Stampate di recente
   Recirculate: 'Ricircolo'
   Recirculation fan: 'Ventola di ricircolo'
@@ -3598,6 +3615,7 @@ translations:
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Salva la posizione di stampa circa una volta al secondo, così una stampa può riprendere dopo un'interruzione di corrente. Su una scheda SD questo aumenta l'usura.
   Saves to Klipper config and restarts firmware.: Salva nella configurazione Klipper
     e riavvia il firmware.
+  'Saves to Spoolman spool #{}': 'Salva nella bobina Spoolman #{}'
   Saving Configuration...: Salvataggio configurazione...
   Saving Z-offset...: Salvataggio Z-offset...
   Saving and finishing...: Salvataggio e completamento...
@@ -3612,6 +3630,7 @@ translations:
   Saving...: Salvataggio...
   Scan: Scansiona
   Scan Cal: Cal. scan
+  Scan Label: 'Scansiona etichetta'
   Scan QR Code: Scansiona codice QR
   Scan Spool QR Code: Scansiona codice QR bobina
   Scan and select a Bluetooth printer first: Prima scansiona e seleziona una stampante
@@ -3874,6 +3893,7 @@ translations:
   'Spool #{}': 'Bobina #{}'
   Spool Info: Info bobina
   Spool Not Found: 'Bobina non trovata'
+  Spool Size: 'Dimensione bobina'
   Spool Weight (g): Peso bobina (g)
   Spool archived: Bobina archiviata
   Spool created successfully: Bobina creata con successo
@@ -3910,6 +3930,7 @@ translations:
   'Spoolman: %zu/%zu Spools': 'Spoolman: %zu/%zu bobine'
   SpoolmanDB search failed: 'Ricerca in SpoolmanDB non riuscita'
   Spools: 'Bobine'
+  Spools Used on This Printer: 'Bobine usate su questa stampante'
   Spools are off: "Bobine tolte"
   'Spools are on the bed: remove them and confirm before moving the printer': 'Ci sono bobine sul piano: rimuovile e conferma prima di muovere la stampante'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': "Ci sono bobine sul piano: tocca il banner dell'essiccazione per confermare di averle tolte, poi riavvia."
@@ -4533,6 +4554,7 @@ translations:
   Tool offsets (mm): Offset strumenti (mm)
   Tool offsets saved: Offset strumenti salvati
   Tool swap: Cambio utensile
+  Tool, runout backup: 'Strumento, riserva a fine filamento'
   Toolchange purge: 'Spurgo cambio utensile'
   Toolhead: 'Testina'
   Toolhead Calibration Running: 'Calibrazione testine in corso'
@@ -4694,6 +4716,7 @@ translations:
   Upload unavailable in this build: Caricamento non disponibile in questa build
   Upper belt: "Cinghia superiore"
   Uptime: Tempo di attività
+  Use: 'Usa'
   Use AFC's mapping commands to add or move a tool: 'Usa i comandi di assegnazione di AFC per aggiungere o spostare un utensile'
   Use Android native keyboard for text input: Usa la tastiera nativa di Android per
     l'inserimento testo
@@ -4935,6 +4958,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "Zona {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] non ha probe_points, quindi la testina non ha un''altezza sicura per i giri di assestamento.'
   already loaded: 'già caricato'
+  assign without adding to Spoolman: 'assegna senza aggiungere a Spoolman'
   attempt {}: 'tentativo {}'
   auto: auto
   bed: piano
@@ -4942,6 +4966,7 @@ translations:
   by: 'di'
   by Preston Brown: di Preston Brown
   chamber heater: riscaldatore camera
+  'close: {}': 'simile: {}'
   color differs: 'colore diverso'
   complete: completato
   cores: core
@@ -5021,6 +5046,7 @@ translations:
   rendering: rendering
   reset at {} h: 'ripristinato a {} h'
   set manually: 'manuale'
+  similar color: 'colore simile'
   sleep {} min: sospensione tra {} min
   slots): slot)
   started: avviato
@@ -5060,6 +5086,7 @@ translations:
   : '{0} è aperta. {1} si stampa meglio in un''enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudila o avvia comunque.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} risuona molto più di {1} a {2:.0f} Hz. Indica una differenza meccanica (grani della puleggia, cuscinetti dei rinvii, scorrimento della cinghia), non la tensione."
+  '{:.0f} g left': 'restano {:.0f} g'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · circa {} min'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} estrusori'
@@ -5159,6 +5186,7 @@ translations:
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} è montato. Con una sonda condivisa, calibra con {1}. Continuare con {0}?'
   'Basic': 'Base'
   'Recycled': 'Riciclato'
+  Add to Spoolman & Assign: 'Aggiungi a Spoolman e assegna'
   'Add to Spoolman + label': 'Aggiungi a Spoolman + etichetta'
   'More': 'Altro'
   'Price, location, lot, notes': 'Prezzo, posizione, lotto, note'

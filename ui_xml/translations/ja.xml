@@ -219,6 +219,7 @@
   <translation tag="API Key (if Moonraker requires a login)" ja="APIキー（Moonrakerがログインを要求する場合）"/>
   <translation tag="API not available" ja="APIが利用できません"/>
   <translation tag="APPEARANCE" ja="外観"/>
+  <translation tag="ASA" ja="ASA"/>
   <translation tag="AUTO FANS" ja="自動ファン"/>
   <translation tag="AUTO STATE" ja="自動ステータス"/>
   <translation tag="AUTOMATION" ja="自動化"/>
@@ -258,9 +259,11 @@
   <translation tag="Add page" ja="ページを追加"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ja="Mainsail/Fluiddのウェブカメラに追加"/>
   <translation tag="Add to Queue" ja="キューに追加"/>
+  <translation tag="Add to Spoolman &amp; Assign" ja="Spoolmanに追加して割り当て"/>
   <translation tag="Add to Spoolman + label" ja="Spoolman に追加 + ラベル"/>
   <translation tag="Added" ja="追加済み"/>
   <translation tag="Added to Spoolman" ja="Spoolman に追加しました"/>
+  <translation tag="Added to Spoolman as #{}" ja="Spoolmanに #{} として追加しました"/>
   <translation tag="Added to queue (position {})" ja="キューに追加しました（{} 番目）"/>
   <translation tag="Added to queue (position {}) - queue is paused" ja="キューに追加しました（{} 番目）– キューは一時停止中です"/>
   <translation tag="Adding printer" ja="プリンターを追加中"/>
@@ -340,7 +343,9 @@
   <translation tag="Arrows + Home" ja="方向キー + ホーム"/>
   <translation tag="Ask before switching to another tool" ja="別のツールに切り替える前に確認する"/>
   <translation tag="Ask for parameters" ja="パラメータを確認する"/>
+  <translation tag="Assign" ja="割り当て"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ja="Klipper マクロを割り当ててオン/オフ、トグル、プリセットで LED を制御"/>
+  <translation tag="Assign Spool" ja="スプールを割り当て"/>
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
   <translation tag="Assign a slot first" ja="先にスロットを割り当ててください"/>
   <translation tag="Assigned Tool" ja="割り当てツール"/>
@@ -746,6 +751,7 @@
   <translation tag="Clear All Events" ja="すべてのイベントをクリア"/>
   <translation tag="Clear Console?" ja="コンソールをクリアしますか？"/>
   <translation tag="Clear Error" ja="エラーをクリア"/>
+  <translation tag="Clear Lane" ja="レーンをクリア"/>
   <translation tag="Clear Spool" ja="スプールを解除"/>
   <translation tag="Clear every Endless Spool backup" ja="エンドレススプールの予備をすべて消去"/>
   <translation tag="Clear extruder only" ja="エクストルーダーだけを空にする"/>
@@ -781,6 +787,7 @@
   <translation tag="Color Sensors" ja="カラーセンサー"/>
   <translation tag="Command Failed" ja="コマンドに失敗しました"/>
   <translation tag="Command failed" ja="コマンドに失敗しました"/>
+  <translation tag="Common spools to start from" ja="よく使うスプールから始める"/>
   <translation tag="Communication Test" ja="通信テスト"/>
   <translation tag="Compact" ja="コンパクト"/>
   <translation tag="Compare belt paths with a resonance sweep" ja="共振スイープでベルトパスを比較"/>
@@ -949,6 +956,7 @@
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." ja="Spoolman のステータスを確認できませんでした。Moonraker がまだ再起動中の可能性があります。"/>
   <translation tag="Couldn&apos;t assign the tool" ja="ツールを割り当てられませんでした"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" ja="プリンターのゲートマップをクリアできませんでした"/>
+  <translation tag="Couldn&apos;t load spools — tap to retry" ja="スプールを読み込めませんでした — タップして再試行"/>
   <translation tag="Couldn&apos;t map filament: internal error" ja="フィラメントをマッピングできません: 内部エラー"/>
   <translation tag="Couldn&apos;t map filament: no temp directory available" ja="フィラメントをマッピングできません: 一時ディレクトリが利用できません"/>
   <translation tag="Couldn&apos;t save the material name" ja="材料名を保存できませんでした"/>
@@ -1062,6 +1070,7 @@
   <translation tag="Device name is required" ja="デバイス名は必須です"/>
   <translation tag="Device: " ja="デバイス: "/>
   <translation tag="Devices" ja="デバイス"/>
+  <translation tag="Different Spool" ja="別のスプール"/>
   <translation tag="Different filament?" ja="別のフィラメント？"/>
   <translation tag="Digital Clock" ja="デジタル時計"/>
   <translation tag="Direct drive" ja="ダイレクトドライブ"/>
@@ -1987,6 +1996,7 @@
   <translation tag="Labels" ja="ラベル"/>
   <translation tag="Labels Per Sheet" ja="シートあたりのラベル数"/>
   <translation tag="Lane" ja="レーン"/>
+  <translation tag="Lane Settings" ja="レーン設定"/>
   <translation tag="Lane name contains invalid characters" ja="レーン名に無効な文字が含まれています"/>
   <translation tag="Lane tests and motor resets" ja="レーンテストとモーターリセット"/>
   <translation tag="Lanes" ja="レーン"/>
@@ -2193,6 +2203,7 @@
   <translation tag="Match your typical print fan speed" ja="通常の印刷ファン速度に合わせてください"/>
   <translation tag="Matched at {:.1f} Hz" ja="{:.1f} Hzで一致"/>
   <translation tag="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match." ja="張力のそろったベルトは同じ形のカーブになります。一方のパスの最も高いピークに、もう一方で対になるピークがない場合、張力以外の何かが応答に影響しています:&#10;&#10;- 摩耗、ほつれ、または片寄って走るベルト&#10;- プーリーのイモネジの緩みや滑り&#10;- 引っかかるアイドラーやベアリング&#10;- 歯の中のごみ、またはフランジに擦れるベルト&#10;- 加速度センサーの取り付けの緩み&#10;&#10;調整は回転に応じて動いたゾーンに従いますが、完全な一致を目指す前にこれらを確認してください。"/>
+  <translation tag="Matching Spools" ja="一致するスプール"/>
   <translation tag="Matching printers" ja="一致するプリンター"/>
   <translation tag="Material" ja="素材"/>
   <translation tag="Material Comfort:" ja="素材の適合度:"/>
@@ -2447,6 +2458,7 @@
   <translation tag="No spool linked" ja="スプール未リンク"/>
   <translation tag="No spools found — tap to retry" ja="スプールが見つかりません — タップして再試行"/>
   <translation tag="No spools match your search" ja="検索に一致するスプールがありません"/>
+  <translation tag="No spools match. Add it as a new spool below." ja="一致するスプールがありません。下から新しいスプールとして追加してください。"/>
   <translation tag="No spools placed" ja="スプールは置いていません"/>
   <translation tag="No tape detected in printer" ja="プリンターにテープが検出されません"/>
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
@@ -2477,6 +2489,7 @@
   <translation tag="Not Enough Filament" ja="フィラメントが不足しています"/>
   <translation tag="Not Enough Memory" ja="メモリ不足"/>
   <translation tag="Not Initialized" ja="初期化されていません"/>
+  <translation tag="Not Listed? Add New Spool" ja="見つからない場合は新しいスプールを追加"/>
   <translation tag="Not Now" ja="今はしない"/>
   <translation tag="Not Supported" ja="サポートされていません"/>
   <translation tag="Not added" ja="未追加"/>
@@ -2501,6 +2514,9 @@
   <translation tag="Not set" ja="未設定"/>
   <translation tag="Not set up for this printer model yet." ja="このプリンターモデルにはまだ対応していません。"/>
   <translation tag="Not turned" ja="未回転"/>
+  <translation tag="Not undone: the lane changed since that save." ja="元に戻せません: 保存後にレーンが変更されました。"/>
+  <translation tag="Not undone: the printer changed since that save." ja="元に戻せません: 保存後にプリンターが変わりました。"/>
+  <translation tag="Not undone: {}" ja="元に戻せません: {}"/>
   <translation tag="Not yet available on this display" ja="このディスプレイではまだ利用できません"/>
   <translation tag="Not yet calibrated" ja="未キャリブレーション"/>
   <translation tag="Notes" ja="メモ"/>
@@ -2664,6 +2680,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." ja="プラグインの一部を読み込めませんでした。プラグインを再インストールしてください。"/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." ja="プラグインの一部が見つかりません。プラグインを再インストールしてください。"/>
   <translation tag="Part, hotend, and auxiliary fan speeds" ja="パーツ・ホットエンド・補助ファンの速度"/>
+  <translation tag="Partial…" ja="使いかけ…"/>
   <translation tag="Password" ja="パスワード"/>
   <translation tag="Password cannot be empty" ja="パスワードを入力してください"/>
   <translation tag="Password is required for secured networks" ja="セキュリティ保護されたネットワークにはパスワードが必要です"/>
@@ -3041,6 +3058,7 @@
   <translation tag="Recalibrate or view detailed results anytime in Settings." ja="設定からいつでも再キャリブレーションや詳細結果の確認ができます。"/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ja="プリンターからサイズ超過のデータを受信しました ({} バイト)。通信エラーの可能性があります。"/>
   <translation tag="Recent Prints" ja="最近の印刷"/>
+  <translation tag="Recent Spools" ja="最近のスプール"/>
   <translation tag="Recently Printed" ja="最近印刷されたもの"/>
   <translation tag="Recirculate" ja="循環"/>
   <translation tag="Recirculation fan" ja="循環ファン"/>
@@ -3312,6 +3330,7 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ja="レイヤー2の後と各印刷の終了時にカメラの写真を保存し、印刷履歴に表示します。"/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." ja="停電後に印刷を再開できるよう、約1秒ごとに印刷位置を保存します。SDカードでは摩耗が多くなります。"/>
   <translation tag="Saves to Klipper config and restarts firmware." ja="Klipper 設定に保存してファームウェアを再起動します。"/>
+  <translation tag="Saves to Spoolman spool #{}" ja="Spoolman スプール #{} に保存"/>
   <translation tag="Saving Configuration..." ja="設定を保存中..."/>
   <translation tag="Saving Z-offset..." ja="Zオフセットを保存中..."/>
   <translation tag="Saving and finishing..." ja="保存して終了中..."/>
@@ -3324,6 +3343,7 @@
   <translation tag="Saving..." ja="保存中..."/>
   <translation tag="Scan" ja="スキャン"/>
   <translation tag="Scan Cal" ja="スキャンキャリブレーション"/>
+  <translation tag="Scan Label" ja="ラベルをスキャン"/>
   <translation tag="Scan QR Code" ja="QR コードをスキャン"/>
   <translation tag="Scan Spool QR Code" ja="スプール QR コードをスキャン"/>
   <translation tag="Scan and select a Bluetooth printer first" ja="先に Bluetooth プリンターをスキャンして選択してください"/>
@@ -3555,6 +3575,7 @@
   <translation tag="Spool #{}" ja="スプール #{}"/>
   <translation tag="Spool Info" ja="スプール情報"/>
   <translation tag="Spool Not Found" ja="スプールが見つかりません"/>
+  <translation tag="Spool Size" ja="スプールサイズ"/>
   <translation tag="Spool Weight (g)" ja="スプール重量（g）"/>
   <translation tag="Spool archived" ja="スプールをアーカイブしました"/>
   <translation tag="Spool created successfully" ja="スプールを作成しました"/>
@@ -3589,6 +3610,7 @@
   <translation tag="Spoolman: %zu/%zu Spools" ja="Spoolman: %zu/%zu 個のスプール"/>
   <translation tag="SpoolmanDB search failed" ja="SpoolmanDB の検索に失敗しました"/>
   <translation tag="Spools" ja="スプール"/>
+  <translation tag="Spools Used on This Printer" ja="このプリンターで使ったスプール"/>
   <translation tag="Spools are off" ja="スプールを取り出しました"/>
   <translation tag="Spools are on the bed: remove them and confirm before moving the printer" ja="ベッドにスプールがあります: 取り除いて確認してからプリンターを動かしてください"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." ja="ベッドにスプールがあります: 乾燥のバナーをタップして取り出したことを確認してから、再起動してください。"/>
@@ -4112,6 +4134,7 @@
   <translation tag="Tool offsets (mm)" ja="ツールオフセット (mm)"/>
   <translation tag="Tool offsets saved" ja="ツールオフセットを保存しました"/>
   <translation tag="Tool swap" ja="ツール交換"/>
+  <translation tag="Tool, runout backup" ja="ツール、フィラメント切れ時の予備"/>
   <translation tag="Toolchange purge" ja="ツール交換パージ"/>
   <translation tag="Toolhead" ja="ツールヘッド"/>
   <translation tag="Toolhead Calibration Running" ja="ツールヘッドのキャリブレーション実行中"/>
@@ -4272,6 +4295,7 @@
   <translation tag="Upload unavailable in this build" ja="このビルドではアップロードできません"/>
   <translation tag="Upper belt" ja="上ベルト"/>
   <translation tag="Uptime" ja="稼働時間"/>
+  <translation tag="Use" ja="使用"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ja="ツールの追加や移動には AFC の割り当てコマンドを使用してください"/>
   <translation tag="Use Android native keyboard for text input" ja="テキスト入力に Android ネイティブキーボードを使用"/>
   <translation tag="Use G10/G11 firmware retraction" ja="G10/G11 ファームウェアリトラクションを使用"/>
@@ -4500,6 +4524,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" ja="ゾーン {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." ja="[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。"/>
   <translation tag="already loaded" ja="装填済み"/>
+  <translation tag="assign without adding to Spoolman" ja="Spoolmanに追加せずに割り当て"/>
   <translation tag="attempt {}" ja="試行 {}"/>
   <translation tag="auto" ja="自動"/>
   <translation tag="bed" ja="ベッド"/>
@@ -4507,6 +4532,7 @@
   <translation tag="by" ja="作成者:"/>
   <translation tag="by Preston Brown" ja="by Preston Brown"/>
   <translation tag="chamber heater" ja="チャンバーヒーター"/>
+  <translation tag="close: {}" ja="近い: {}"/>
   <translation tag="color differs" ja="色が異なる"/>
   <translation tag="complete" ja="完了"/>
   <translation tag="cores" ja="コア"/>
@@ -4580,6 +4606,7 @@
   <translation tag="rendering" ja="レンダリング中"/>
   <translation tag="reset at {} h" ja="{} 時間時点でリセット"/>
   <translation tag="set manually" ja="手動設定"/>
+  <translation tag="similar color" ja="近い色"/>
   <translation tag="sleep {} min" ja="{}分でスリープ"/>
   <translation tag="slots)" ja="スロット)"/>
   <translation tag="started" ja="開始"/>
@@ -4617,6 +4644,7 @@
   <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" ja="{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ja="{0}が開いています。{1}は暖かく閉じたエンクロージャーで最もよく印刷できます。ドアが開いているとチャンバーが冷え、反りやレイヤーの分離の原因になります。閉じるか、このまま開始してください。"/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ja="{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"/>
+  <translation tag="{:.0f} g left" ja="残り {:.0f} g"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ja="{:.0f}-{:.0f} Hz · 約{}分"/>
   <translation tag="{} ({})" ja="{}（{}）"/>
   <translation tag="{} Extruders" ja="{} エクストルーダー"/>

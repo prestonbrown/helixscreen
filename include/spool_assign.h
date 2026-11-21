@@ -82,10 +82,12 @@ inline constexpr size_t kMaxListedSpools = 40;
 std::vector<RankedSpool> rank_spools(const SpoolQuery& query, const std::vector<SpoolInfo>& spools,
                                      size_t max = kMaxListedSpools);
 
-/// "close: PLA+, color", naming the spool's own value for each text field.
-/// Empty when nothing differs. @p color_word is the localized word for colour.
+/// The close-match note, "close: PLA+, similar color": @p note_format (one
+/// "{}", a whole translatable phrase) around the spool's own value for each
+/// text field that differs and @p color_phrase for a color that does. Empty
+/// when nothing differs.
 std::string close_note(const CloseFields& differs, const SpoolInfo& spool,
-                       const std::string& color_word);
+                       const std::string& note_format, const std::string& color_phrase);
 
 /// A starting point for a fresh install: material and colour, nothing else.
 struct CommonSpool {
@@ -144,6 +146,11 @@ inline constexpr float kRemainingStepGrams = 10.0f;
 /// Whether Undo of a save that put @p after on a lane still applies to the lane
 /// as it is @p now: the same spool link, material, brand and color.
 [[nodiscard]] bool undo_still_applies(const SlotInfo& now, const SlotInfo& after);
+
+/// Whether a save that took a lane from @p before to @p after changed anything
+/// on the lane (its spool link, identity or weights), and so left something an
+/// Undo could put back.
+[[nodiscard]] bool save_changed_lane(const SlotInfo& before, const SlotInfo& after);
 
 /// A new spool with no weight yet holds a full default spool.
 void apply_new_spool_default_weight(SlotInfo& slot);

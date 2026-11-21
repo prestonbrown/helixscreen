@@ -5619,3 +5619,113 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(toasts.back().find("printer changed") != std::string::npos);
     helix::ui::set_test_toast_hook(nullptr);
 }
+
+TEST_CASE_METHOD(EditorFixture, "Undo on an External Filament toast puts the external spool back",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    set_spoolman_available(false);
+    AmsState::instance().init_subjects(true);
+    AmsState::instance().set_backend(nullptr);
+    AmsState::instance().set_moonraker_api(&api);
+    UpdateQueue::instance().drain();
+    SlotInfo before = tracked_slot();
+    before.slot_index = -2;
+    before.global_index = -2;
+    AmsState::instance().commit_external_spool_edit(before);
+    UpdateQueue::instance().drain();
+    // The external spool's record, as the printer's database holds it.
+    const auto stored_id = [&client] {
+        const auto record = client.mock_db_get("lane_data", "lane1");
+        return record.is_object() && record.contains("spool_id") ? record["spool_id"].get<int>()
+                                                                 : 0;
+    };
+    REQUIRE(stored_id() == before.spoolman_id);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), -2, AmsState::instance().get_external_spool_info().value_or(before), &api,
+        [](const AmsEditOverlay::EditResult& r) {
+            if (r.saved) {
+                AmsState::instance().commit_external_spool_edit(r.slot_info);
+            }
+        },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    for (int i = 0; i < 3; ++i) {
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+    }
+    REQUIRE(stored_id() == 22);
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(stored_id() == before.spoolman_id);
+    helix::ui::set_test_toast_hook(nullptr);
+    AmsState::instance().set_moonraker_api(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Undo checks the lane against what it settled on, not the form",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    helix::ui::set_test_toast_hook([](ToastSeverity, const std::string&, uint32_t) {});
+    const SlotInfo before = backend->get_slot_info(0);
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    // A backend that files the material in its own spelling, as a box that
+    // owns lane identity does.
+    REQUIRE(overlay.show_for_slot(
+        test_screen(), 0, before, nullptr,
+        [this](const AmsEditOverlay::EditResult& r) {
+            AmsEditOverlay::EditResult stored = r;
+            stored.slot_info.material = "PETG-HF";
+            commit_like_consumer(stored);
+        },
+        /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.use_spool(22);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(backend->get_slot_info(0).material == "PETG-HF");
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_slot_info(0).spoolman_id == before.spoolman_id);
+    CHECK(backend->get_slot_info(0).material == before.material);
+    helix::ui::set_test_toast_hook(nullptr);
+}
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "a spool another lane takes while the list shows greys its Use on the next tap",
+                 "[ams_edit_overlay][spool-assign]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.set_cached_spools(two_spools());
+    access.call_render_spool_list("");
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(unusable_spool_ids(list, access.listed_ids()).empty());
+
+    SlotInfo lane3 = backend->get_slot_info(3);
+    lane3.spoolman_id = 22;
+    REQUIRE(helix::test::apply_edit(*backend, 3, lane3).success());
+    access.tap_size_chip(1);
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(unusable_spool_ids(list, access.listed_ids()) == std::vector<int>{22});
+    close_editor_overlay();
+}

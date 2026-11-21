@@ -252,6 +252,7 @@
   <translation tag="API Key (if Moonraker requires a login)" ru="API-ключ (если Moonraker требует входа)"/>
   <translation tag="API not available" ru="API недоступен"/>
   <translation tag="APPEARANCE" ru="ВНЕШНИЙ ВИД"/>
+  <translation tag="ASA" ru="ASA"/>
   <translation tag="AUTO FANS" ru="АВТО ВЕНТИЛЯТОРЫ"/>
   <translation tag="AUTO STATE" ru="АВТО СОСТОЯНИЕ"/>
   <translation tag="AUTOMATION" ru="АВТОМАТИЗАЦИЯ"/>
@@ -291,9 +292,11 @@
   <translation tag="Add page" ru="Добавить страницу"/>
   <translation tag="Add to Mainsail/Fluidd Webcams" ru="Добавить в веб-камеры Mainsail/Fluidd"/>
   <translation tag="Add to Queue" ru="Добавить в очередь"/>
+  <translation tag="Add to Spoolman &amp; Assign" ru="Добавить в Spoolman и назначить"/>
   <translation tag="Add to Spoolman + label" ru="Добавить в Spoolman + этикетка"/>
   <translation tag="Added" ru="Добавлено"/>
   <translation tag="Added to Spoolman" ru="Добавлено в Spoolman"/>
+  <translation tag="Added to Spoolman as #{}" ru="Добавлено в Spoolman как #{}"/>
   <translation tag="Added to queue (position {})" ru="Добавлено в очередь (позиция {})"/>
   <translation tag="Added to queue (position {}) - queue is paused" ru="Добавлено в очередь (позиция {}) – очередь на паузе"/>
   <translation tag="Adding printer" ru="Добавление принтера"/>
@@ -373,7 +376,9 @@
   <translation tag="Arrows + Home" ru="Стрелки + Домой"/>
   <translation tag="Ask before switching to another tool" ru="Спрашивать перед переключением на другой инструмент"/>
   <translation tag="Ask for parameters" ru="Спрашивать параметры"/>
+  <translation tag="Assign" ru="Назначить"/>
   <translation tag="Assign Klipper macros to control LEDs via on/off, toggle, or presets" ru="Назначьте макросы Klipper для управления LED через вкл/выкл, переключение или пресеты"/>
+  <translation tag="Assign Spool" ru="Назначить катушку"/>
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
   <translation tag="Assign a slot first" ru="Сначала назначьте слот"/>
   <translation tag="Assigned Tool" ru="Назначенный инструмент"/>
@@ -785,6 +790,7 @@
   <translation tag="Clear All Events" ru="Очистить все события"/>
   <translation tag="Clear Console?" ru="Очистить консоль?"/>
   <translation tag="Clear Error" ru="Сбросить ошибку"/>
+  <translation tag="Clear Lane" ru="Очистить канал"/>
   <translation tag="Clear Spool" ru="Убрать катушку"/>
   <translation tag="Clear every Endless Spool backup" ru="Очистить все резервы бесконечной катушки"/>
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>
@@ -820,6 +826,7 @@
   <translation tag="Color Sensors" ru="Датчики цвета"/>
   <translation tag="Command Failed" ru="Ошибка команды"/>
   <translation tag="Command failed" ru="Ошибка команды"/>
+  <translation tag="Common spools to start from" ru="Популярные катушки для начала"/>
   <translation tag="Communication Test" ru="Проверка связи"/>
   <translation tag="Compact" ru="Компактный"/>
   <translation tag="Compare belt paths with a resonance sweep" ru="Сравнение путей ремней резонансным свипом"/>
@@ -991,6 +998,7 @@
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." ru="Не удалось проверить статус Spoolman. Moonraker может ещё перезапускаться."/>
   <translation tag="Couldn&apos;t assign the tool" ru="Не удалось назначить инструмент"/>
   <translation tag="Couldn&apos;t clear the printer&apos;s gate map" ru="Не удалось очистить карту шлюзов принтера"/>
+  <translation tag="Couldn&apos;t load spools — tap to retry" ru="Не удалось загрузить катушки — нажмите, чтобы повторить"/>
   <translation tag="Couldn&apos;t map filament: internal error" ru="Не удалось сопоставить филамент: внутренняя ошибка"/>
   <translation tag="Couldn&apos;t map filament: no temp directory available" ru="Не удалось сопоставить филамент: нет доступной временной директории"/>
   <translation tag="Couldn&apos;t save the material name" ru="Не удалось сохранить название материала"/>
@@ -1104,6 +1112,7 @@
   <translation tag="Device name is required" ru="Требуется название устройства"/>
   <translation tag="Device: " ru="Устройство: "/>
   <translation tag="Devices" ru="Устройства"/>
+  <translation tag="Different Spool" ru="Другая катушка"/>
   <translation tag="Different filament?" ru="Другой филамент?"/>
   <translation tag="Digital Clock" ru="Цифровые часы"/>
   <translation tag="Direct drive" ru="Директ"/>
@@ -2032,6 +2041,7 @@
   <translation tag="Labels" ru="Этикетки"/>
   <translation tag="Labels Per Sheet" ru="Этикеток на листе"/>
   <translation tag="Lane" ru="Канал"/>
+  <translation tag="Lane Settings" ru="Настройки канала"/>
   <translation tag="Lane name contains invalid characters" ru="Имя канала содержит недопустимые символы"/>
   <translation tag="Lane tests and motor resets" ru="Тесты каналов и сброс моторов"/>
   <translation tag="Lanes" ru="Каналы"/>
@@ -2238,6 +2248,7 @@
   <translation tag="Match your typical print fan speed" ru="Настройте типичную скорость вентилятора печати"/>
   <translation tag="Matched at {:.1f} Hz" ru="Совпадает на {:.1f} Гц"/>
   <translation tag="Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:&#10;&#10;- a worn, frayed or mis-tracking belt&#10;- a loose or slipping pulley grub screw&#10;- an idler or bearing that binds&#10;- debris in the teeth, or a belt rubbing a flange&#10;- a loose accelerometer mount&#10;&#10;Tuning still follows the zone that moved with the turn, but check these before chasing a perfect match." ru="Одинаково натянутые ремни дают кривые одной формы. Если у самого высокого пика одного пути нет пары на другом, ответ формирует что-то помимо натяжения:&#10;&#10;- изношенный, разлохмаченный или уходящий в сторону ремень&#10;- ослабленный или проскальзывающий винт шкива&#10;- заедающий ролик или подшипник&#10;- мусор в зубьях или ремень, трущийся о буртик&#10;- ослабленное крепление акселерометра&#10;&#10;Настройка следует за зоной, которая сдвинулась от поворота, но проверьте это, прежде чем добиваться идеального совпадения."/>
+  <translation tag="Matching Spools" ru="Подходящие катушки"/>
   <translation tag="Matching printers" ru="Подходящие принтеры"/>
   <translation tag="Material" ru="Материал"/>
   <translation tag="Material Comfort:" ru="Комфорт материала:"/>
@@ -2492,6 +2503,7 @@
   <translation tag="No spool linked" ru="Катушка не привязана"/>
   <translation tag="No spools found — tap to retry" ru="Катушки не найдены — нажмите для повтора"/>
   <translation tag="No spools match your search" ru="По вашему запросу катушки не найдены"/>
+  <translation tag="No spools match. Add it as a new spool below." ru="Подходящих катушек нет. Добавьте её как новую катушку ниже."/>
   <translation tag="No spools placed" ru="Катушки не положены"/>
   <translation tag="No tape detected in printer" ru="В принтере не обнаружена лента"/>
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
@@ -2522,6 +2534,7 @@
   <translation tag="Not Enough Filament" ru="Недостаточно филамента"/>
   <translation tag="Not Enough Memory" ru="Недостаточно памяти"/>
   <translation tag="Not Initialized" ru="Не инициализировано"/>
+  <translation tag="Not Listed? Add New Spool" ru="Нет в списке? Добавить новую катушку"/>
   <translation tag="Not Now" ru="Не сейчас"/>
   <translation tag="Not Supported" ru="Не поддерживается"/>
   <translation tag="Not added" ru="Не добавлено"/>
@@ -2546,6 +2559,9 @@
   <translation tag="Not set" ru="Не задана"/>
   <translation tag="Not set up for this printer model yet." ru="Для этой модели принтера пока не настроено."/>
   <translation tag="Not turned" ru="Не повёрнут"/>
+  <translation tag="Not undone: the lane changed since that save." ru="Не отменено: канал изменился после сохранения."/>
+  <translation tag="Not undone: the printer changed since that save." ru="Не отменено: принтер сменился после сохранения."/>
+  <translation tag="Not undone: {}" ru="Не отменено: {}"/>
   <translation tag="Not yet available on this display" ru="Пока недоступно на этом дисплее"/>
   <translation tag="Not yet calibrated" ru="Ещё не откалибровано"/>
   <translation tag="Notes" ru="Заметки"/>
@@ -2709,6 +2725,7 @@
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." ru="Часть плагина не загрузилась. Переустановите плагин."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." ru="Часть плагина отсутствует. Переустановите плагин."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" ru="Скорости вентиляторов обдува, хотэнда и дополнительного"/>
+  <translation tag="Partial…" ru="Частично…"/>
   <translation tag="Password" ru="Пароль"/>
   <translation tag="Password cannot be empty" ru="Пароль не может быть пустым"/>
   <translation tag="Password is required for secured networks" ru="Для защищённых сетей требуется пароль"/>
@@ -3098,6 +3115,7 @@
   <translation tag="Recalibrate or view detailed results anytime in Settings." ru="Перекалибруйте или просмотрите подробные результаты в любое время в Настройках."/>
   <translation tag="Received oversized data from printer ({} bytes). This may indicate a communication error." ru="От принтера получены слишком большие данные ({} байт). Возможна ошибка связи."/>
   <translation tag="Recent Prints" ru="Недавние печати"/>
+  <translation tag="Recent Spools" ru="Недавние катушки"/>
   <translation tag="Recently Printed" ru="Недавно напечатано"/>
   <translation tag="Recirculate" ru="Рециркуляция"/>
   <translation tag="Recirculation fan" ru="Вентилятор рециркуляции"/>
@@ -3369,6 +3387,7 @@
   <translation tag="Saves a camera photo after layer 2 and when each print ends, shown in print history." ru="Сохраняет снимок камеры после 2-го слоя и в конце каждой печати; он показывается в истории печати."/>
   <translation tag="Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear." ru="Сохраняет позицию печати примерно раз в секунду, чтобы печать можно было продолжить после отключения питания. На SD-карте это увеличивает износ."/>
   <translation tag="Saves to Klipper config and restarts firmware." ru="Сохраняет в конфигурацию Klipper и перезапускает прошивку."/>
+  <translation tag="Saves to Spoolman spool #{}" ru="Сохраняется в катушку Spoolman #{}"/>
   <translation tag="Saving Configuration..." ru="Сохранение конфигурации..."/>
   <translation tag="Saving Z-offset..." ru="Сохранение Z-offset..."/>
   <translation tag="Saving and finishing..." ru="Сохранение и завершение..."/>
@@ -3381,6 +3400,7 @@
   <translation tag="Saving..." ru="Сохранение..."/>
   <translation tag="Scan" ru="Поиск"/>
   <translation tag="Scan Cal" ru="Кал. скана"/>
+  <translation tag="Scan Label" ru="Сканировать этикетку"/>
   <translation tag="Scan QR Code" ru="Сканировать QR-код"/>
   <translation tag="Scan Spool QR Code" ru="Сканировать QR-код катушки"/>
   <translation tag="Scan and select a Bluetooth printer first" ru="Сначала найдите и выберите Bluetooth-принтер"/>
@@ -3612,6 +3632,7 @@
   <translation tag="Spool #{}" ru="Катушка #{}"/>
   <translation tag="Spool Info" ru="Информация о катушке"/>
   <translation tag="Spool Not Found" ru="Катушка не найдена"/>
+  <translation tag="Spool Size" ru="Размер катушки"/>
   <translation tag="Spool Weight (g)" ru="Вес катушки (г)"/>
   <translation tag="Spool archived" ru="Катушка архивирована"/>
   <translation tag="Spool created successfully" ru="Катушка успешно создана"/>
@@ -3652,6 +3673,7 @@
   <translation tag="Spoolman: %zu/%zu Spools_one" ru="Spoolman: %zu/%zu катушка"/>
   <translation tag="SpoolmanDB search failed" ru="Ошибка поиска в SpoolmanDB"/>
   <translation tag="Spools" ru="Катушки"/>
+  <translation tag="Spools Used on This Printer" ru="Катушки, использованные на этом принтере"/>
   <translation tag="Spools are off" ru="Катушки сняты"/>
   <translation tag="Spools are on the bed: remove them and confirm before moving the printer" ru="На столе лежат катушки: уберите их и подтвердите, прежде чем двигать принтер"/>
   <translation tag="Spools are on the bed: tap the drying banner to confirm they are off, then restart." ru="На столе катушки: нажмите на баннер сушки, чтобы подтвердить, что они сняты, затем перезапустите."/>
@@ -4175,6 +4197,7 @@
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
+  <translation tag="Tool, runout backup" ru="Инструмент, резерв при окончании филамента"/>
   <translation tag="Toolchange purge" ru="Продувка при смене инструмента"/>
   <translation tag="Toolhead" ru="Печатающая головка"/>
   <translation tag="Toolhead Calibration Running" ru="Идёт калибровка головок"/>
@@ -4335,6 +4358,7 @@
   <translation tag="Upload unavailable in this build" ru="Отправка недоступна в этой сборке"/>
   <translation tag="Upper belt" ru="Верхний ремень"/>
   <translation tag="Uptime" ru="Время работы"/>
+  <translation tag="Use" ru="Использовать"/>
   <translation tag="Use AFC&apos;s mapping commands to add or move a tool" ru="Используйте команды назначения AFC, чтобы добавить или переместить инструмент"/>
   <translation tag="Use Android native keyboard for text input" ru="Использовать нативную клавиатуру Android для ввода текста"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>
@@ -4563,6 +4587,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" ru="Зона {:.0f}-{:.0f} Гц"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." ru="В [resonance_tester] нет probe_points, поэтому у головы нет безопасной высоты для кругов приработки."/>
   <translation tag="already loaded" ru="уже загружен"/>
+  <translation tag="assign without adding to Spoolman" ru="назначить без добавления в Spoolman"/>
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
   <translation tag="bed" ru="стол"/>
@@ -4570,6 +4595,7 @@
   <translation tag="by" ru="автор:"/>
   <translation tag="by Preston Brown" ru="от Preston Brown"/>
   <translation tag="chamber heater" ru="нагреватель камеры"/>
+  <translation tag="close: {}" ru="похоже: {}"/>
   <translation tag="color differs" ru="другой цвет"/>
   <translation tag="complete" ru="завершено"/>
   <translation tag="cores" ru="ядер"/>
@@ -4646,6 +4672,7 @@
   <translation tag="rendering" ru="рендеринг"/>
   <translation tag="reset at {} h" ru="сброс на {} ч"/>
   <translation tag="set manually" ru="вручную"/>
+  <translation tag="similar color" ru="похожий цвет"/>
   <translation tag="sleep {} min" ru="сон через {} мин"/>
   <translation tag="slots)" ru="слотов)"/>
   <translation tag="started" ru="запущено"/>
@@ -4683,6 +4710,7 @@
   <translation tag="{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?" ru="Установлен {0}. С общим датчиком калибруйте с {1}. Продолжить с {0}?"/>
   <translation tag="{0} is open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close it, or start anyway." ru="{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно."/>
   <translation tag="{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension." ru="{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."/>
+  <translation tag="{:.0f} g left" ru="осталось {:.0f} г"/>
   <translation tag="{:.0f}-{:.0f} Hz · about {} min" ru="{:.0f}-{:.0f} Гц · примерно {} мин"/>
   <translation tag="{} ({})" ru="{} ({})"/>
   <translation tag="{} Extruders" ru="Экструдеров: {}"/>

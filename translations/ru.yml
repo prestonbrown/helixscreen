@@ -281,6 +281,7 @@ translations:
   API Key (if Moonraker requires a login): 'API-ключ (если Moonraker требует входа)'
   API not available: API недоступен
   APPEARANCE: ВНЕШНИЙ ВИД
+  ASA: 'ASA'
   AUTO FANS: АВТО ВЕНТИЛЯТОРЫ
   AUTO STATE: АВТО СОСТОЯНИЕ
   AUTOMATION: АВТОМАТИЗАЦИЯ
@@ -323,6 +324,7 @@ translations:
   Add to Queue: Добавить в очередь
   Added: Добавлено
   Added to Spoolman: Добавлено в Spoolman
+  'Added to Spoolman as #{}': 'Добавлено в Spoolman как #{}'
   Added to queue (position {}): Добавлено в очередь (позиция {})
   Added to queue (position {}) - queue is paused: Добавлено в очередь (позиция {}) – очередь на паузе
   Adding printer: Добавление принтера
@@ -416,8 +418,10 @@ translations:
   Arrows: 'Стрелки'
   Ask before switching to another tool: 'Спрашивать перед переключением на другой инструмент'
   Ask for parameters: 'Спрашивать параметры'
+  Assign: 'Назначить'
   Assign Klipper macros to control LEDs via on/off, toggle, or presets: Назначьте
     макросы Klipper для управления LED через вкл/выкл, переключение или пресеты
+  Assign Spool: 'Назначить катушку'
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
   Assign a slot first: 'Сначала назначьте слот'
   Assigned Tool: Назначенный инструмент
@@ -865,6 +869,7 @@ translations:
   Clear All Events: Очистить все события
   Clear Console?: Очистить консоль?
   Clear Error: Сбросить ошибку
+  Clear Lane: 'Очистить канал'
   Clear Spool: Убрать катушку
   Clear every Endless Spool backup: Очистить все резервы бесконечной катушки
   Clear extruder only: 'Только очистить экструдер'
@@ -906,6 +911,7 @@ translations:
   Color Sensors: Датчики цвета
   Command Failed: 'Ошибка команды'
   Command failed: Ошибка команды
+  Common spools to start from: 'Популярные катушки для начала'
   Communication Test: 'Проверка связи'
   Compact: Компактный
   Compare belt paths with a resonance sweep: "Сравнение путей ремней резонансным свипом"
@@ -1118,6 +1124,7 @@ translations:
     проверить статус Spoolman. Moonraker может ещё перезапускаться.
   Couldn't assign the tool: Не удалось назначить инструмент
   Couldn't clear the printer's gate map: Не удалось очистить карту шлюзов принтера
+  Couldn't load spools — tap to retry: 'Не удалось загрузить катушки — нажмите, чтобы повторить'
   "Couldn't map filament: internal error": 'Не удалось сопоставить филамент: внутренняя ошибка'
   "Couldn't map filament: no temp directory available": 'Не удалось сопоставить филамент: нет доступной временной директории'
   Couldn't save the material name: 'Не удалось сохранить название материала'
@@ -1231,6 +1238,7 @@ translations:
   Device name is required: Требуется название устройства
   'Device: ': 'Устройство: '
   Devices: Устройства
+  Different Spool: 'Другая катушка'
   Different filament?: Другой филамент?
   Digital Clock: 'Цифровые часы'
   Direct drive: Директ
@@ -2238,6 +2246,7 @@ translations:
   Labels: Этикетки
   Labels Per Sheet: Этикеток на листе
   Lane: Канал
+  Lane Settings: 'Настройки канала'
   Lane name contains invalid characters: 'Имя канала содержит недопустимые символы'
   Lane tests and motor resets: 'Тесты каналов и сброс моторов'
   Lanes: Каналы
@@ -2454,6 +2463,7 @@ translations:
   Matched at {:.1f} Hz: "Совпадает на {:.1f} Гц"
   ? "Matched belts give curves of the same shape. When the tallest peak on one path has no partner on the other, something besides tension is shaping the response:\n\n- a worn, frayed or mis-tracking belt\n- a loose or slipping pulley grub screw\n- an idler or bearing that binds\n- debris in the teeth, or a belt rubbing a flange\n- a loose accelerometer mount\n\nTuning still follows the zone that moved with the turn, but check these before chasing a perfect match."
   : "Одинаково натянутые ремни дают кривые одной формы. Если у самого высокого пика одного пути нет пары на другом, ответ формирует что-то помимо натяжения:\n\n- изношенный, разлохмаченный или уходящий в сторону ремень\n- ослабленный или проскальзывающий винт шкива\n- заедающий ролик или подшипник\n- мусор в зубьях или ремень, трущийся о буртик\n- ослабленное крепление акселерометра\n\nНастройка следует за зоной, которая сдвинулась от поворота, но проверьте это, прежде чем добиваться идеального совпадения."
+  Matching Spools: 'Подходящие катушки'
   Matching printers: Подходящие принтеры
   Material: Материал
   'Material Comfort:': 'Комфорт материала:'
@@ -2715,6 +2725,7 @@ translations:
   No spool linked: 'Катушка не привязана'
   No spools found — tap to retry: Катушки не найдены — нажмите для повтора
   No spools match your search: По вашему запросу катушки не найдены
+  No spools match. Add it as a new spool below.: 'Подходящих катушек нет. Добавьте её как новую катушку ниже.'
   No spools placed: Катушки не положены
 
   No tape detected in printer: В принтере не обнаружена лента
@@ -2748,6 +2759,7 @@ translations:
   Not Enough Filament: Недостаточно филамента
   Not Enough Memory: "Недостаточно памяти"
   Not Initialized: 'Не инициализировано'
+  Not Listed? Add New Spool: 'Нет в списке? Добавить новую катушку'
   Not Now: Не сейчас
   Not Supported: 'Не поддерживается'
   Not added: Не добавлено
@@ -2771,6 +2783,9 @@ translations:
   Not turned: 'Не повёрнут'
   'Not saved: {}. Try again.': "Не сохранено: {}. Попробуйте ещё раз."
   Not set: Не задана
+  'Not undone: the lane changed since that save.': 'Не отменено: канал изменился после сохранения.'
+  'Not undone: the printer changed since that save.': 'Не отменено: принтер сменился после сохранения.'
+  'Not undone: {}': 'Не отменено: {}'
   Not yet available on this display: 'Пока недоступно на этом дисплее'
   Not yet calibrated: Ещё не откалибровано
   Notes: Заметки
@@ -2947,6 +2962,7 @@ translations:
   Part of the plugin failed to load. Reinstall the plugin.: "Часть плагина не загрузилась. Переустановите плагин."
   Part of the plugin is missing. Reinstall the plugin.: "Часть плагина отсутствует. Переустановите плагин."
   Part, hotend, and auxiliary fan speeds: 'Скорости вентиляторов обдува, хотэнда и дополнительного'
+  Partial…: 'Частично…'
   Password: Пароль
   Password cannot be empty: Пароль не может быть пустым
   Password is required for secured networks: Для защищённых сетей требуется пароль
@@ -3363,6 +3379,7 @@ translations:
     подробные результаты в любое время в Настройках.
   Received oversized data from printer ({} bytes). This may indicate a communication error.: От принтера получены слишком большие данные ({} байт). Возможна ошибка связи.
   Recent Prints: Недавние печати
+  Recent Spools: 'Недавние катушки'
   Recently Printed: Недавно напечатано
   Recirculate: 'Рециркуляция'
   Recirculation fan: 'Вентилятор рециркуляции'
@@ -3649,6 +3666,7 @@ translations:
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Сохраняет позицию печати примерно раз в секунду, чтобы печать можно было продолжить после отключения питания. На SD-карте это увеличивает износ.
   Saves to Klipper config and restarts firmware.: Сохраняет в конфигурацию Klipper
     и перезапускает прошивку.
+  'Saves to Spoolman spool #{}': 'Сохраняется в катушку Spoolman #{}'
   Saving Configuration...: Сохранение конфигурации...
   Saving Z-offset...: Сохранение Z-offset...
   Saving and finishing...: Сохранение и завершение...
@@ -3663,6 +3681,7 @@ translations:
   Saving...: Сохранение...
   Scan: Поиск
   Scan Cal: Кал. скана
+  Scan Label: 'Сканировать этикетку'
   Scan QR Code: Сканировать QR-код
   Scan Spool QR Code: Сканировать QR-код катушки
   Scan and select a Bluetooth printer first: Сначала найдите и выберите Bluetooth-принтер
@@ -3922,6 +3941,7 @@ translations:
   'Spool #{}': 'Катушка #{}'
   Spool Info: Информация о катушке
   Spool Not Found: 'Катушка не найдена'
+  Spool Size: 'Размер катушки'
   Spool Weight (g): Вес катушки (г)
   Spool archived: Катушка архивирована
   Spool created successfully: Катушка успешно создана
@@ -3965,6 +3985,7 @@ translations:
     other: 'Spoolman: %zu/%zu катушки'
   SpoolmanDB search failed: 'Ошибка поиска в SpoolmanDB'
   Spools: 'Катушки'
+  Spools Used on This Printer: 'Катушки, использованные на этом принтере'
   Spools are off: "Катушки сняты"
   'Spools are on the bed: remove them and confirm before moving the printer': 'На столе лежат катушки: уберите их и подтвердите, прежде чем двигать принтер'
   'Spools are on the bed: tap the drying banner to confirm they are off, then restart.': 'На столе катушки: нажмите на баннер сушки, чтобы подтвердить, что они сняты, затем перезапустите.'
@@ -4577,6 +4598,7 @@ translations:
   Tool offsets (mm): Смещения инструментов (мм)
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
+  Tool, runout backup: 'Инструмент, резерв при окончании филамента'
   Toolchange purge: 'Продувка при смене инструмента'
   Toolhead: 'Печатающая головка'
   Toolhead Calibration Running: 'Идёт калибровка головок'
@@ -4737,6 +4759,7 @@ translations:
   Upload unavailable in this build: Отправка недоступна в этой сборке
   Upper belt: "Верхний ремень"
   Uptime: Время работы
+  Use: 'Использовать'
   Use AFC's mapping commands to add or move a tool: 'Используйте команды назначения AFC, чтобы добавить или переместить инструмент'
   Use Android native keyboard for text input: Использовать нативную клавиатуру Android
     для ввода текста
@@ -4976,6 +4999,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "Зона {:.0f}-{:.0f} Гц"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': 'В [resonance_tester] нет probe_points, поэтому у головы нет безопасной высоты для кругов приработки.'
   already loaded: 'уже загружен'
+  assign without adding to Spoolman: 'назначить без добавления в Spoolman'
   attempt {}: 'попытка {}'
   auto: авто
   bed: стол
@@ -4983,6 +5007,7 @@ translations:
   by: 'автор:'
   by Preston Brown: от Preston Brown
   chamber heater: нагреватель камеры
+  'close: {}': 'похоже: {}'
   color differs: 'другой цвет'
   complete: завершено
   cores: ядер
@@ -5065,6 +5090,7 @@ translations:
   rendering: рендеринг
   reset at {} h: 'сброс на {} ч'
   set manually: 'вручную'
+  similar color: 'похожий цвет'
   sleep {} min: сон через {} мин
   slots): слотов)
   started: запущено
@@ -5104,6 +5130,7 @@ translations:
   : '{0} открыта. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте её или начните всё равно.'
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} резонирует на {2:.0f} Гц намного сильнее, чем {1}. Это указывает на механическое различие (установочные винты шкивов, подшипники роликов, ход ремня), а не на натяжение."
+  '{:.0f} g left': 'осталось {:.0f} г'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
   '{} ({})': '{} ({})'
   '{} Extruders': 'Экструдеров: {}'
@@ -5227,6 +5254,7 @@ translations:
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': 'Установлен {0}. С общим датчиком калибруйте с {1}. Продолжить с {0}?'
   'Basic': 'Базовый'
   'Recycled': 'Переработанный'
+  Add to Spoolman & Assign: 'Добавить в Spoolman и назначить'
   'Add to Spoolman + label': 'Добавить в Spoolman + этикетка'
   'More': 'Ещё'
   'Price, location, lot, notes': 'Цена, место, партия, заметки'
