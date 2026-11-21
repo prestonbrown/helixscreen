@@ -390,7 +390,6 @@ class AmsEditOverlay : public OverlayBase {
         bool more = false;   ///< the trailing "Browse catalog..." entry
     };
     std::vector<Option> material_options_;
-    std::vector<Option> variant_options_;
     std::vector<Option> brand_options_;
     std::vector<Option> product_options_;
     /// Fill the dropdown widgets from the option vectors.
@@ -445,7 +444,6 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject scan_enabled_subject_{};   ///< 1=QR button may show ("ams_edit_scan_enabled")
     helix::Subject product_hidden_subject_{}; ///< 1 while Generic selected
     helix::Subject no_product_subject_{};     ///< 1 while no catalog product is chosen
-    helix::Subject has_variants_subject_{};   ///< 1 while the material has more than one type
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row

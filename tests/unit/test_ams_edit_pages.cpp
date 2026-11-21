@@ -375,12 +375,12 @@ TEST_CASE_METHOD(PagesFixture,
     settle();
     // A brand with no product picked yet: Material says what the spool is.
     CHECK(access.shown("dropdown_product"));
-    CHECK(access.shown("material_row"));
+    CHECK(access.shown("dropdown_material"));
 
     // A product carries its material and type, and Material steps aside.
     REQUIRE(access.pick_dropdown("dropdown_product", other->name));
     settle();
-    CHECK_FALSE(access.shown("material_row"));
+    CHECK_FALSE(access.shown("dropdown_material"));
     CHECK(access.sel().family == filament::display_family(other->type));
     CHECK(access.sel().product_id == other->id);
     REQUIRE(access.pick_dropdown("dropdown_product", first->name));
@@ -391,13 +391,41 @@ TEST_CASE_METHOD(PagesFixture,
     REQUIRE(access.pick_dropdown("dropdown_product", "Other…"));
     settle();
     CHECK(access.sel().product_id.empty());
-    CHECK(access.shown("material_row"));
+    CHECK(access.shown("dropdown_material"));
 
-    // Generic: no Product, the material row instead.
+    // Generic: no Product; one Material list of precise types beside Brand,
+    // each family's types in the catalog's order.
     REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
     settle();
     CHECK_FALSE(access.shown("dropdown_product"));
-    CHECK(access.shown("material_row"));
+    CHECK(access.shown("dropdown_material"));
+    CHECK(access.widget("dropdown_variant") == nullptr);
+    std::vector<std::string> expected;
+    for (const auto& v : catalog.variants_in_family("ASA")) {
+        expected.push_back(filament::compose_family_type("ASA", v.label));
+    }
+    REQUIRE(expected.size() > 1);
+    const std::string options = "\n" + access.dropdown_options("dropdown_material") + "\n";
+    size_t at = 0;
+    for (const auto& type : expected) {
+        INFO(type);
+        at = options.find("\n" + type + "\n", at);
+        REQUIRE(at != std::string::npos);
+    }
+
+    // One pick says the precise type; the lane keeps it, and the material a
+    // slicer matches reduces from it.
+    const std::string precise = expected.back();
+    REQUIRE(access.pick_dropdown("dropdown_material", precise));
+    settle();
+    CHECK(access.sel().family == "ASA");
+    back();
+    CHECK(access.subject_text("ams_edit_material_line").rfind(precise + " · ", 0) == 0);
+    // Save stages the pick into the lane record it writes.
+    access.call_handle_save();
+    settle();
+    CHECK(access.working_info().material == precise);
+    CHECK(filament::slicer_material(precise) == "ASA");
     close_editor_overlay();
 }
 

@@ -141,6 +141,19 @@ std::string product_line_of(const SlotInfo& info) {
     return line.empty() ? info.material : line;
 }
 
+/// The Material list's payload for @p family's @p variant: both, so one pick
+/// sets both.
+constexpr char kMaterialPayloadSep = '\x1f';
+std::string material_payload(const std::string& family, const std::string& variant) {
+    return family + kMaterialPayloadSep + variant;
+}
+std::pair<std::string, std::string> split_material_payload(const std::string& payload) {
+    const size_t sep = payload.find(kMaterialPayloadSep);
+    return sep == std::string::npos ? std::pair<std::string, std::string>{payload, "Basic"}
+                                    : std::pair<std::string, std::string>{payload.substr(0, sep),
+                                                                          payload.substr(sep + 1)};
+}
+
 /// A card's second line under @p product: "PLA · Charcoal Black", the material
 /// left off when the product line already says it.
 std::string material_color_line(const std::string& product, const std::string& material,
@@ -649,7 +662,6 @@ void AmsEditOverlay::init_subjects() {
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(no_product_subject_, 1, "ams_edit_no_product", subjects_);
-        UI_MANAGED_SUBJECT_INT(has_variants_subject_, 0, "ams_edit_has_variants", subjects_);
         // The color line and row (update_color_row).
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
@@ -759,8 +771,8 @@ void AmsEditOverlay::fill_dropdown(const char* name, const std::vector<Option>& 
 }
 
 void AmsEditOverlay::refresh_dropdowns() {
-    fill_dropdown("dropdown_material", material_options_, sel_.family);
-    fill_dropdown("dropdown_variant", variant_options_, sel_.variant);
+    fill_dropdown("dropdown_material", material_options_,
+                  material_payload(sel_.family, sel_.variant));
     fill_dropdown("dropdown_brand", brand_options_, sel_.brand);
     fill_dropdown("dropdown_product", product_options_, sel_.product_id);
 }
@@ -809,34 +821,29 @@ void AmsEditOverlay::rebuild_option_lists() {
         }
         families = std::move(lead);
     }
-    bool family_known = false;
+    // One flat list of precise types, each family's variants in the catalog's
+    // order ("ASA", "ASA-CF", "Silk PLA"...), spelled as the type a family and
+    // variant compose to: picking one sets the family and variant together. A
+    // selection the catalog lacks leads, selected.
+    const std::string selected = material_payload(sel_.family, sel_.variant);
+    bool selection_known = false;
     for (const auto& fam : families) {
-        material.push_back({fam, fam, false});
-        if (helix::text_io::equals_ignore_case(fam, sel_.family)) {
-            family_known = true;
+        for (const auto& v : catalog_->variants_in_family(fam)) {
+            if (!printer::type_allowed(allowed, v.sample_type)) {
+                continue;
+            }
+            const std::string payload = material_payload(fam, v.label);
+            material.push_back({filament::compose_family_type(fam, v.label), payload, false});
+            selection_known =
+                selection_known || helix::text_io::equals_ignore_case(payload, selected);
         }
     }
-    if (!family_known) {
-        material.insert(material.begin(), {sel_.family, sel_.family, false});
+    if (!selection_known) {
+        material.insert(material.begin(), {filament::compose_family_type(sel_.family, sel_.variant),
+                                           selected, false});
     }
     material.push_back({lv_tr("Browse catalog..."), {}, true});
     material_options_ = std::move(material);
-
-    // VARIANT: the catalog's variants for the family; a variant the catalog
-    // lacks leads, selected, like an unknown family.
-    std::vector<Option> variants;
-    bool variant_known = false;
-    for (const auto& v : catalog_->variants_in_family(sel_.family)) {
-        if (!printer::type_allowed(allowed, v.sample_type)) {
-            continue;
-        }
-        variants.push_back({v.label, v.label, false});
-        variant_known = variant_known || helix::text_io::equals_ignore_case(v.label, sel_.variant);
-    }
-    if (!variant_known && !sel_.variant.empty()) {
-        variants.insert(variants.begin(), {sel_.variant, sel_.variant, false});
-    }
-    variant_options_ = std::move(variants);
 
     // BRAND: Generic, then recents, then every other maker (the product says
     // the material), then "Browse catalog...".
@@ -912,7 +919,6 @@ void AmsEditOverlay::rebuild_option_lists() {
                        helix::text_io::equals_ignore_case(sel_.brand, "Generic") ? 1 : 0);
     // Material shows where no product says it; Type where it has variants.
     lv_subject_set_int(&no_product_subject_, sel_.product_id.empty() ? 1 : 0);
-    lv_subject_set_int(&has_variants_subject_, variant_options_.size() > 1 ? 1 : 0);
 
     refresh_dropdowns();
 }
@@ -922,9 +928,6 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
     switch (row) {
     case 0:
         options_list = &material_options_;
-        break;
-    case 1:
-        options_list = &variant_options_;
         break;
     case 2:
         options_list = &brand_options_;
@@ -973,19 +976,20 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
         return;
     }
     switch (row) {
-    case 0:
-        if (helix::text_io::equals_ignore_case(option.payload, sel_.family)) {
+    case 0: {
+        // A precise type: its family and variant at once.
+        if (helix::text_io::equals_ignore_case(option.payload,
+                                               material_payload(sel_.family, sel_.variant))) {
             return;
         }
-        sel_ = apply_family_change(sel_, option.payload, *catalog_);
-        break;
-    case 1:
-        if (helix::text_io::equals_ignore_case(option.payload, sel_.variant)) {
-            return;
+        const auto [family, variant] = split_material_payload(option.payload);
+        if (!helix::text_io::equals_ignore_case(family, sel_.family)) {
+            sel_ = apply_family_change(sel_, family, *catalog_);
         }
-        sel_.variant = option.payload;
-        sel_.product_id.clear(); // the product described the old variant
+        sel_.variant = variant;
+        sel_.product_id.clear(); // the product described the old material
         break;
+    }
     case 2:
         if (helix::text_io::equals_ignore_case(option.payload, sel_.brand)) {
             return;
@@ -4279,10 +4283,6 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_material_dd_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_option_selected(0, helix::ui::event_selected(e));
-         }},
-        {"ams_edit_variant_dd_cb",
-         [](lv_event_t* e) {
-             get_ams_edit_overlay().handle_option_selected(1, helix::ui::event_selected(e));
          }},
         {"ams_edit_brand_dd_cb",
          [](lv_event_t* e) {

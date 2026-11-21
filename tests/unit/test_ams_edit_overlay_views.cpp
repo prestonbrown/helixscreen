@@ -1963,12 +1963,11 @@ TEST_CASE_METHOD(EditorFixture, "every identity dropdown stages its pick through
     CHECK(access.sel().family == "PLA");
     CHECK(access.save_disabled() == 0);
 
-    // Variant, through the split layout's twin: both layouts are wired.
-    const auto variants = split_options(access.dropdown_options("dropdown_variant"));
-    REQUIRE(variants.size() > 1);
-    REQUIRE(access.pick_dropdown("dropdown_variant", variants[1]));
+    // A precise type in the same list sets the family and the variant at once.
+    REQUIRE(access.pick_dropdown("dropdown_material", "PLA-CF"));
     process_lvgl(5);
-    CHECK(access.sel().variant == variants[1]);
+    CHECK(access.sel().family == "PLA");
+    CHECK(access.sel().variant == "CF");
 
     // Brand: the first maker after Generic, which reveals the product row.
     const auto brands = split_options(access.dropdown_options("dropdown_brand"));
@@ -2974,7 +2973,8 @@ TEST_CASE_METHOD(EditorFixture, "a variant the catalog lacks shows as the select
 
     REQUIRE(access.sel().family == "PLA");
     REQUIRE(access.sel().variant == "Zebra");
-    CHECK(access.dropdown_selected("dropdown_variant") == "Zebra");
+    CHECK(access.dropdown_selected("dropdown_material") ==
+          filament::compose_family_type("PLA", "Zebra"));
     CHECK_FALSE(access.is_dirty());
     close_editor_overlay();
 }
@@ -3139,19 +3139,20 @@ TEST_CASE_METHOD(EditorFixture, "the material and brand rows show their from-tag
     access.call_update_tag_badges();
     process_lvgl(5);
 
-    // Both layouts carry the pills; only the breakpoint decides which shows.
-    for (const char* dd : {"dropdown_material", "dropdown_brand"}) {
-        INFO(dd);
-        lv_obj_t* pill = tag_pill_beside(access, dd);
-        REQUIRE(pill != nullptr);
-        CHECK_FALSE(lv_obj_is_hidden(pill));
-    }
+    // The Filament row's pill says the brand is the tag's.
+    lv_obj_t* pill = tag_pill_beside(access, "dropdown_brand");
+    REQUIRE(pill != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(pill));
+    CHECK(subject_int("ams_edit_tag_material") == 1);
+    CHECK(subject_int("ams_edit_tag_brand") == 1);
 
-    // A material the tag does not state loses its pill; the brand keeps its own.
+    // A material the tag does not state loses its own flag; the brand keeps
+    // its flag, and with it the row's pill.
     REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
     process_lvgl(5);
-    CHECK(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_material")));
-    CHECK_FALSE(lv_obj_is_hidden(tag_pill_beside(access, "dropdown_brand")));
+    CHECK(subject_int("ams_edit_tag_material") == 0);
+    CHECK(subject_int("ams_edit_tag_brand") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(pill));
     close_editor_overlay();
 }
 
@@ -4217,7 +4218,8 @@ TEST_CASE_METHOD(EditorFixture, "Clear takes a linked external spool off with Sp
     CHECK((!ext || (ext->spoolman_id == 0 && ext->material.empty())));
     // The editor stays, on the empty page, remembering what came out.
     CHECK(access.page() == AmsEditOverlay::kPageEmpty);
-    CHECK(access.subject_text("ams_edit_last_material").rfind("ASA", 0) == 0);
+    // "Bambu Lab ASA" names its material, so the line under it is the color.
+    CHECK(access.subject_text("ams_edit_last_product").find("ASA") != std::string::npos);
     CHECK_FALSE(fired);
 
     // The clear is the commit; the caller must not commit the editor's copy over it.
@@ -4681,30 +4683,23 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         process_lvgl(10);
     };
     auto options = [&](const char* name) { return split_options(access.dropdown_options(name)); };
-    auto variants_of = [&](const char* family) {
-        REQUIRE(access.pick_dropdown("dropdown_material", family));
-        process_lvgl(5);
-        return options("dropdown_variant");
-    };
     using List = std::vector<std::string>;
 
     SECTION("AD5X: its whitelist, with the slot's own value still shown") {
         open(std::make_unique<AmsBackendAd5xIfs>(nullptr, nullptr), "ASA");
-        CHECK(options("dropdown_material") ==
-              List{"ASA", "PLA", "PETG", "ABS", "TPU", "Browse catalog..."});
+        CHECK(options("dropdown_material") == List{"ASA", "PLA", "PLA-CF", "Silk PLA", "PETG",
+                                                   "PETG-CF", "ABS", "TPU", "Browse catalog..."});
         CHECK(access.dropdown_selected("dropdown_material") == "ASA");
-        CHECK(variants_of("PLA") == List{"Basic", "CF", "Silk"});
     }
     SECTION("any backend that publishes a list, matched case-insensitively") {
         open(std::make_unique<FirmwareListMock>(4), "PETG");
         CHECK(options("dropdown_material") == List{"PLA", "PETG", "Browse catalog..."});
-        CHECK(variants_of("PLA") == List{"Basic"});
     }
     SECTION("a backend with no list keeps the whole catalog") {
         open(std::make_unique<AmsBackendMock>(4), "PETG");
         const List materials = options("dropdown_material");
         CHECK(std::find(materials.begin(), materials.end(), "ASA") != materials.end());
-        CHECK(variants_of("PLA").size() > 3);
+        CHECK(std::find(materials.begin(), materials.end(), "ASA-CF") != materials.end());
     }
     close_editor_overlay();
 }
@@ -5611,8 +5606,18 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
                              lv_obj_get_style_pad_row(row, LV_PART_MAIN);
             const int cap = std::atoi(lv_xml_get_const(
                 lv_xml_component_get_scope("ams_edit_overlay"), "ams_edit_swatch_cap"));
-            CHECK((page_box.y2 - last_box.y2 < line ||
-                   static_cast<int>(access.color_row().size()) == cap));
+            // Or the row already holds every color it has to offer: the
+            // recents and the palette, less the one the spool has.
+            std::vector<uint32_t> offered =
+                helix::ColorRecents::list(helix::ColorRecents::Kind::Filament);
+            for (uint32_t c : helix::color_palette(helix::ColorPalette::Filament)) {
+                if (std::find(offered.begin(), offered.end(), c) == offered.end()) {
+                    offered.push_back(c);
+                }
+            }
+            const int all = static_cast<int>(offered.size()) - 1;
+            const int shown = static_cast<int>(access.color_row().size());
+            CHECK((page_box.y2 - last_box.y2 < line || shown == cap || shown >= all));
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);

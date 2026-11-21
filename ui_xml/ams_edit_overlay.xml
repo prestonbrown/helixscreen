@@ -440,9 +440,12 @@
 
         <!-- Rows that read as sentences: a label column on the left, the
              controls on the right. -->
-        <!-- Filament: Brand and Product. A product carries its material and
-             type; ↺ puts back what the spool's tag says, while the lane
-             differs from it. -->
+        <!-- Filament: Brand, then what the spool is. A catalog product says
+             its material and type itself; under Generic, for "Other…" or for a
+             product the catalog does not know, one Material list of precise
+             types ("ASA", "ASA-CF") says it instead, so a material is picked in
+             exactly one place. ↺ puts back what the spool's tag says, while the
+             lane differs from it. -->
         <lv_obj name="filament_row"
                 width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                 style_pad_gap="#space_xs" scrollable="false">
@@ -460,35 +463,17 @@
             <bind_flag_if_eq subject="ams_edit_product_hidden" flag="hidden" ref_value="1"/>
             <event_cb trigger="value_changed" callback="ams_edit_product_dd_cb"/>
           </lv_dropdown>
+          <lv_dropdown name="dropdown_material"
+                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
+            <bind_flag_if cond="ams_edit_product_hidden eq 0 and ams_edit_no_product eq 0" flag="hidden"/>
+            <event_cb trigger="value_changed" callback="ams_edit_material_dd_cb"/>
+          </lv_dropdown>
           <ui_button name="btn_reset_tag"
                      width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit" icon="undo"
                      icon_size="sm" variant="secondary" hidden="true">
             <bind_flag_if_eq subject="ams_edit_reset_tag_visible" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_edit_reset_tag_cb"/>
           </ui_button>
-        </lv_obj>
-
-        <!-- Material, where no product says it: under Generic, or a product
-             the catalog does not know. Type shows where the material has
-             variants. Firmware and slicers need the material. -->
-        <lv_obj name="material_row"
-                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
-                style_pad_gap="#space_xs" scrollable="false" hidden="true">
-          <bind_flag_if cond="ams_edit_product_hidden eq 0 and ams_edit_no_product eq 0" flag="hidden"/>
-          <lv_obj width="#ams_edit_label_w"
-                  height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
-            <text_body width="100%" text="Material" long_mode="dots"/>
-            <tag_badge subject="ams_edit_tag_material"/>
-          </lv_obj>
-          <lv_dropdown name="dropdown_material"
-                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
-            <event_cb trigger="value_changed" callback="ams_edit_material_dd_cb"/>
-          </lv_dropdown>
-          <lv_dropdown name="dropdown_variant"
-                       width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
-            <bind_flag_if_eq subject="ams_edit_has_variants" flag="hidden" ref_value="0"/>
-            <event_cb trigger="value_changed" callback="ams_edit_variant_dd_cb"/>
-          </lv_dropdown>
         </lv_obj>
 
         <!-- Color: the spool's own color first, then as many recents and
