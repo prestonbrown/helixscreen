@@ -167,6 +167,14 @@ class AmsOverviewPanel : public PanelBase {
     void show_overview();
 
     /**
+     * @brief Leave a unit view for the overview, at once; a no-op on the overview
+     *
+     * What closing the overlay does, and what the ultrawide side band does when
+     * the Filament panel leaves the screen: the next visit starts at the overview.
+     */
+    void return_to_overview();
+
+    /**
      * @brief Check if the unit view (rather than the overview) is on screen
      */
     [[nodiscard]] bool is_in_unit_view() const {

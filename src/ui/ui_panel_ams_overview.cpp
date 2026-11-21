@@ -415,9 +415,7 @@ void AmsOverviewPanel::on_closed() {
     helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Ams);
     sidebar_.reset();
     // The next open starts at the overview.
-    if (unit_view_active_) {
-        reset_to_overview();
-    }
+    return_to_overview();
     if (detail_path_canvas_) {
         helix::ui::filament_path_canvas_release_buffer(detail_path_canvas_);
     }
@@ -1359,6 +1357,12 @@ void AmsOverviewPanel::show_overview() {
         lv_anim_start(&fade_anim);
     } else {
         // No animation — instant swap
+        reset_to_overview();
+    }
+}
+
+void AmsOverviewPanel::return_to_overview() {
+    if (unit_view_active_) {
         reset_to_overview();
     }
 }

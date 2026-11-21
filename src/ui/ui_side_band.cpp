@@ -150,6 +150,14 @@ class AmsGuest final : public SideBandGuest {
         return get_existing_ams_panel();
     }
 
+    void on_host_left() override {
+        if (view_ == AmsView::Overview) {
+            if (auto* overview = lazy_global_if_exists<AmsOverviewPanel>()) {
+                overview->return_to_overview();
+            }
+        }
+    }
+
     bool stale() override {
         auto* backend = AmsState::instance().get_backend();
         return backend && ams_view_for(backend->get_system_info()) != view_;
@@ -388,6 +396,9 @@ void SideBand::on_host_activate() {
 
 void SideBand::on_host_deactivate(DeactivateReason reason) {
     host_active_ = false;
+    if (hosted_.get() && reason != DeactivateReason::Suspended) {
+        guest_->on_host_left();
+    }
     deactivate_guest(reason);
     // A rebuild deletes the host tree, band and all: hand the guest's tree back first.
     if (reason == DeactivateReason::Rebuild) {

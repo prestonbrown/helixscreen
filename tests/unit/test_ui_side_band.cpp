@@ -74,6 +74,7 @@ struct FakeGuestLog {
     int detaches = 0;
     bool refuse = false; ///< attach() answers "open elsewhere"
     bool stale = false;  ///< stale() answers "rebuild me"
+    int host_left = 0;   ///< on_host_left() calls
     lv_obj_t* root = nullptr;
 };
 
@@ -118,6 +119,9 @@ class FakeGuest : public SideBandGuest {
     }
     bool stale() override {
         return log_.stale;
+    }
+    void on_host_left() override {
+        ++log_.host_left;
     }
 
   private:
@@ -350,6 +354,28 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: a stale guest is rebuilt, now or
     CHECK(fx.band.hosted() == nullptr);
     fx.band.on_host_activate();
     CHECK(fx.log.attaches == 3);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "side band: leaving the host resets the guest, a suspend does not",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.band.hosted() != nullptr);
+
+    fx.band.on_host_deactivate(DeactivateReason::Suspended);
+    CHECK(fx.log.host_left == 0);
+    fx.band.on_host_activate();
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    CHECK(fx.log.host_left == 1);
+    // Nothing hosted (the tree is open as an overlay): nothing to reset.
+    CHECK_FALSE(SideBand::take_open_request(SideBandContent::Motion));
+    fx.log.refuse = true;
+    fx.band.on_host_activate();
+    REQUIRE(fx.band.hosted() == nullptr);
+    fx.band.on_host_deactivate(DeactivateReason::NavigateAway);
+    CHECK(fx.log.host_left == 1);
 }
 
 // The real Motion panel: its one tree lives in the band, and the overlay path

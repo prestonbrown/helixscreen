@@ -75,6 +75,10 @@ class SideBandGuest {
     /// The view's lifecycle; null once the singleton is gone.
     virtual IPanelLifecycle* lifecycle() = 0;
 
+    /// The host left the screen for real (not a screensaver suspend): the
+    /// guest drops any place it was holding, as its overlay does on close.
+    virtual void on_host_left() {}
+
     /// The tree attach() built is no longer the view this printer needs (the
     /// AMS view after the unit count changed sides). The band rebuilds it.
     virtual bool stale() {
