@@ -30,7 +30,7 @@ The vendor-abstraction rule applies: these files are the only place a firmware's
 mechanism is named.
 
 ```cpp
-enum class Mechanism { None, VendorScript, UsbAtBoot, SelfUpdating, ClosedTool, OwnerTool };
+enum class Mechanism { None, VendorScript, UsbAtBoot, SelfUpdating, VendorPackage, OwnerTool };
 enum class Readiness { Supported, NeedsDeviceVerification, NeedsVendorCooperation,
                        NotPossible, NoActionNeeded };
 
@@ -75,12 +75,50 @@ vendor script), and `LogTail` feeds the plan's log back through `parse_progress`
 | Creality K1 family (`K1`) | VendorScript | Needs device verification; no apply path this phase | `*.img` | (later) `/etc/ota_bin/local_ota_update.sh <img>` with `OTA_CB_APP` progress callback | Stock `/etc` restored afterwards, HelixScreen likely needs reinstalling (unverified). Simple AF needs pellcorp's view |
 | Creality K2 family (`K2`) | VendorScript | Needs device verification; no apply path this phase | `*.img` | (later) same script, which calls `swupdate_cmd.sh` | A/B + recovery; swupdate progress socket and signing unverified; `hooks-k2.sh` stops `upgrade-server` |
 | FlashForge AD5M / AD5X / Creator 5 (`Ad5m`, `Ad5x`, `Creator5`, `Creator5Pro`) | UsbAtBoot | Needs device verification; no apply path this phase | model-prefixed `*.tgz` (`Adventurer5M-`, `Adventurer5MPro-`, `AD5X-`, `Creator5-`, `Creator5Pro-`) | (later) "reboot with the stick in" | Which process scans the stick at boot is unconfirmed; a stock update disables ZMOD on AD5X/Creator 5 |
-| QIDI Q2 / Max 4 / Plus 5 (printer type starts with `QIDI`) | ClosedTool | Not possible | - | none | The apply lives inside the closed `qidiclient`. Valve Oil is a third-party updater worth asking. Separately: a stock QIDI update deletes `printer_data/config/helixscreen` (candidate bug, unverified) |
+| QIDI Q2 / Max 4 / Plus 5 (printer type starts with `QIDI`) | VendorPackage | **Needs vendor/community cooperation**; status only | zip with `firmware_manifest.json`, a SoC `.deb` (installed with `dpkg`) and board images, from QIDI's CDN or a USB `QD_Update/` folder | none | `qidiclient` applies it on stock. The community Valve Oil updater already does it outside `qidiclient` (pinned sha256, idle and all-heaters-0 gate, a detached systemd unit that resumes after power loss): the partner to agree a contract with |
 | Elegoo CC1 / COSMOS (`Cc1`) | SelfUpdating | No action needed | - | none | Updates arrive as Klipper action prompts HelixScreen already renders |
 | Everything else | - | - | - | - | No row: `provider_for()` returns nullptr |
 
 Only rows with an apply plan and `Supported` readiness (none yet), or `NeedsDeviceVerification`
 plus the runtime flag (U1 stock only), can reach `start_vendor_apply`.
+
+## Remote checks for new firmware
+
+USB is not the only source: a row may declare a remote **check source**
+(`include/firmware_update_check.h`): an exact URL, and JSON pointers to the offered
+version, download URL, size and sha256 in the answer, plus the file holding the
+installed version. `parse_check_response()` reads an answer through those pointers;
+it is pure and pinned by fixture answers in the tests.
+
+- **One scheduler.** `UpdateChecker`'s auto-check timer (15 s after start, then every
+  24 h) calls `fwupdate::on_update_check_tick()`. No second poller.
+- **Gates:** no check while `update_checks_suppressed()` (the existing firmware
+  opt-out `HELIX_DISABLE_AUTO_UPDATES`; it also stops the timer itself) or while a job
+  holds the machine; after failures the tick backs off (`backoff_ticks()`: 0, 1, 3,
+  then at most 6 skipped days).
+- **Privacy:** the URL is fetched as configured with HelixScreen's User-Agent and no
+  other identifying data. An endpoint that needs a device id (QIDI's
+  `upgrade-info?deviceId=<cpu serial>`) or an account (Snapmaker Cloud) is not
+  configured without a decision.
+- **Outcome:** a newly found version raises one notification and shows as the
+  Firmware Update row's description in Settings. Nothing downloads or flashes on its
+  own.
+- **Moonraker update_manager rows are never polled by us:** Moonraker refreshes on its
+  own schedule; the page reads `machine.update.status` and listens to
+  `notify_update_response`.
+- **Endpoints: none configured in phase 1, every row "needs endpoint verification".**
+  Candidates from the research: QIDI `api.qidimaker.com/backend/v1/fireware/upgrade-info`
+  (needs a device id), the Q2's `api.qidi3dprinter.com/code/x_q_2_version_info`,
+  Snapmaker's `id.snapmaker.com/api/device/firmware/latest` (signed-in only), PAXX's
+  channel mirror (needs paxx's agreement), Creality OTA (not documented).
+
+### Alerting model
+
+COSMOS (Centauri Carbon) is the reference for in-UI alerts: a `delayed_gcode` check at
+boot raises a Klipper `action:prompt` dialog with an "Update Now" button that runs the
+updater macro, and HelixScreen already renders those prompts. Its limit is that it
+needs Klipper up, which is not true during a U1 MCU flash or a QIDI service stop; there
+the page tails the flasher's log instead.
 
 ## Safety rules
 
@@ -135,6 +173,12 @@ loop, then completes and reports the entry as up to date.
 5. Cooperation rows: PAXX contract, ZMOD `ZFLASH`, Valve Oil on QIDI.
 
 ## Open questions
+
+- A stock QIDI update's pre-install script deletes every file under
+  `printer_data/config` that is not on its keep list. HelixScreen's settings live in
+  `printer_data/config/helixscreen` on QIDI, so any QIDI firmware update (from
+  `qidiclient` or anything else) may wipe them. Unverified on hardware; it is a risk
+  today, independent of this feature.
 
 - Does stock U1 HelixScreen run as root (needed by `systemUpgrade.sh`)? Does anything kill it
   when Klipper stops?

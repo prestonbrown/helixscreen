@@ -3,6 +3,7 @@
 #include "firmware_update.h"
 
 #include "app_globals.h"
+#include "firmware_update_check.h"
 #include "install_provenance.h"
 #include "printer_state.h"
 
@@ -149,6 +150,9 @@ struct Provider {
     std::vector<std::string> (*launch)(const char* script, const std::string& image,
                                        const std::string& log);
     ProgressEvent (*parse)(std::string_view line);
+
+    /// Where to look for new firmware remotely, or nullptr.
+    const CheckSource* check;
 };
 
 namespace {
@@ -174,6 +178,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     // Read from a third-party copy of the stock script, never run by us: the apply
     // stays behind unverified_apply_allowed(). The script deletes /oem/.debug before
@@ -194,7 +199,8 @@ const Provider kProviders[] = {
      "/tmp/.system_upgrade.lock",
      "/tmp",
      launch_snapmaker_u1,
-     parse_snapmaker_u1},
+     parse_snapmaker_u1,
+     nullptr},
     // /etc/ota_bin/local_ota_update.sh <img>, progress through OTA_CB_APP. No apply
     // path until it has run on a K1.
     {"creality_k1",
@@ -209,6 +215,7 @@ const Provider kProviders[] = {
      true,
      false,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -231,6 +238,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     // The stock firmware installs a model-prefixed .tgz from the stick at power-on.
     {"flashforge_ad5m",
@@ -245,6 +253,7 @@ const Provider kProviders[] = {
      true,
      true,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -266,6 +275,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     {"flashforge_creator5",
      "FlashForge",
@@ -283,6 +293,7 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
     {"flashforge_creator5_pro",
      "FlashForge",
@@ -296,6 +307,7 @@ const Provider kProviders[] = {
      true,
      true,
      false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -318,20 +330,26 @@ const Provider kProviders[] = {
      nullptr,
      nullptr,
      nullptr,
+     nullptr,
      nullptr},
-    // The apply lives inside the closed qidiclient screen app.
+    // qidiclient installs QIDI's zip (firmware_manifest.json, a SoC .deb through
+    // dpkg, board images) from QIDI's CDN or a USB QD_Update/ folder. The
+    // community Valve Oil updater already runs that outside qidiclient (pinned
+    // sha256, idle and heaters-off gate, resumable systemd unit): the partner to
+    // agree a contract with before HelixScreen offers it.
     {"qidi",
      "QIDI",
      is_qidi,
-     Mechanism::ClosedTool,
-     Readiness::NotPossible,
+     Mechanism::VendorPackage,
+     Readiness::NeedsVendorCooperation,
      nullptr,
      {nullptr},
      0,
+     true,
+     true,
      false,
      false,
-     false,
-     false,
+     nullptr,
      nullptr,
      nullptr,
      nullptr,
@@ -392,6 +410,10 @@ bool apply_enabled(const Provider& p, bool unverified_allowed) {
     }
     return p.readiness == Readiness::Supported ||
            (p.readiness == Readiness::NeedsDeviceVerification && unverified_allowed);
+}
+
+const CheckSource* check_source(const Provider& p) {
+    return p.check != nullptr && p.check->url != nullptr ? p.check : nullptr;
 }
 
 bool vendor_apply_available(const Provider* p) {

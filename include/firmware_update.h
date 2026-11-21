@@ -26,11 +26,11 @@ namespace helix::fwupdate {
 /// How a printer's own firmware gets updated.
 enum class Mechanism {
     None,
-    VendorScript, ///< a root script on the printer flashes an image now, in place
-    UsbAtBoot,    ///< the firmware installs an image from a USB stick at power-on
-    SelfUpdating, ///< the firmware updates itself through dialogs HelixScreen already renders
-    ClosedTool,   ///< only the vendor's closed screen app can apply one
-    OwnerTool,    ///< a firmware maintainer's own tool owns updates
+    VendorScript,  ///< a root script on the printer flashes an image now, in place
+    UsbAtBoot,     ///< the firmware installs an image from a USB stick at power-on
+    SelfUpdating,  ///< the firmware updates itself through dialogs HelixScreen already renders
+    VendorPackage, ///< the vendor's screen app installs a package; community updaters exist
+    OwnerTool,     ///< a firmware maintainer's own tool owns updates
 };
 
 /// How far HelixScreen's support for a row goes.

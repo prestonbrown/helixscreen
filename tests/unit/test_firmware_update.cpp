@@ -77,6 +77,8 @@ TEST_CASE("Firmware update: each host gets its own firmware's row", "[fwupdate]"
     CHECK(id_of(host(Board::Creator5Pro)) == "flashforge_creator5_pro");
     CHECK(id_of(host(Board::Cc1, "cosmos")) == "elegoo_cc1");
     CHECK(id_of(host(Board::Generic, "none", "QIDI Max 4")) == "qidi");
+    CHECK(provider_readiness(*provider_for(host(Board::Generic, "none", "QIDI Max 4"))) ==
+          Readiness::NeedsVendorCooperation);
     CHECK(id_of(host(Board::Generic, "none", "Voron 2.4")).empty());
 }
 

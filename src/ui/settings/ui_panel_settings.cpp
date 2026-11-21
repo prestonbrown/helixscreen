@@ -18,6 +18,8 @@
 #include "ui_settings_display.h"
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "ui_settings_firmware_update.h"
+
+#include "firmware_update_check.h"
 #endif
 #include "ui_settings_hardware.h"
 #include "ui_settings_hardware_health.h"
@@ -64,6 +66,7 @@
 #include "wifi_manager.h"
 #include "wizard_config_paths.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
@@ -169,6 +172,9 @@ void SettingsPanel::init_subjects() {
                               "settings_status_language_time", subjects_);
     UI_MANAGED_SUBJECT_STRING(settings_status_updates_subject_, settings_status_updates_buf_, "",
                               "settings_status_updates", subjects_);
+    UI_MANAGED_SUBJECT_STRING(settings_status_firmware_update_subject_,
+                              settings_status_firmware_update_buf_, "",
+                              "settings_status_firmware_update", subjects_);
 
     // Note: BedMeshPanel subjects are initialized in main.cpp during startup
 
@@ -309,6 +315,15 @@ void SettingsPanel::refresh_status_lines() {
                                   status_string_subject("update_new_version", ""), helix_version(),
                                   lv_subject_get_int(&updates_firmware_managed_subject_) != 0)
                               .c_str());
+
+#if !defined(HELIX_PLATFORM_ESP32)
+    // A remote check that found new printer firmware marks the Firmware Update row.
+    const auto firmware = helix::fwupdate::remote_update_found();
+    lv_subject_set_string(
+        &settings_status_firmware_update_subject_,
+        firmware ? fmt::format(fmt::runtime(lv_tr("{} available")), firmware->version).c_str()
+                 : "");
+#endif
 }
 
 void SettingsPanel::render_connection_status() {

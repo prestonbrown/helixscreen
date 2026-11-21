@@ -149,6 +149,7 @@ class SettingsPanel : public PanelBase {
     helix::Subject settings_status_connection_subject_{};
     helix::Subject settings_status_language_time_subject_{};
     helix::Subject settings_status_updates_subject_{};
+    helix::Subject settings_status_firmware_update_subject_{};
     char settings_status_display_buf_[64];
     char settings_status_appearance_buf_[64];
     char settings_status_sound_buf_[64];
@@ -156,6 +157,7 @@ class SettingsPanel : public PanelBase {
     char settings_status_connection_buf_[64];
     char settings_status_language_time_buf_[64];
     char settings_status_updates_buf_[64];
+    char settings_status_firmware_update_buf_[64] = {};
 
     // Ethernet's status probe blocks (sysfs scans, or a netd Unix-socket
     // round-trip on daemon-managed firmwares), so refresh_status_lines() never

@@ -24,6 +24,7 @@
 #include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
+#include "firmware_update_check.h"
 #include "helix_install_roots.h"
 #include "helix_thread.h"
 #include "helix_version.h"
@@ -3804,6 +3805,8 @@ void UpdateChecker::start_auto_check() {
                 return;
 
             spdlog::info("[UpdateChecker] Auto-check: performing initial check");
+            // Printer firmware checks share this cadence rather than a timer of their own.
+            helix::fwupdate::on_update_check_tick();
 
             self->check_for_updates([self](Status status, std::optional<ReleaseInfo> info) {
                 if (status != Status::UpdateAvailable || !info) {
