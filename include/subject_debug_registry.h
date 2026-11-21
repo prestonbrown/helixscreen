@@ -45,6 +45,15 @@
 #define HELIX_SUBJECT_DEBUG_REGISTER(subject_ptr, name, type) ((void)0)
 #endif
 
+/// The call-site arguments (file, line) the out-of-line publish helpers take:
+/// the macro's own location, or nothing when the registry is compiled out, so
+/// __FILE__ never becomes a string.
+#if HELIX_SUBJECT_DEBUG_REGISTRY_ENABLED
+#define HELIX_SUBJECT_SITE __FILE__, __LINE__
+#else
+#define HELIX_SUBJECT_SITE nullptr, 0
+#endif
+
 /**
  * @brief Debug information for a registered subject
  */
@@ -147,3 +156,17 @@ class SubjectDebugRegistry {
     std::unordered_map<std::string, lv_subject_t*> name_to_subject_; ///< Reverse lookup by name
     mutable std::mutex mutex_;                                       ///< Protects both maps
 };
+
+namespace helix {
+
+/**
+ * @brief Publish @p subject under @p name in the current XML scope and record it
+ *        in SubjectDebugRegistry
+ *
+ * The body of every UI_SUBJECT_INIT_AND_REGISTER_* site, out of line: inlined,
+ * the two std::string temporaries the registry takes cost each site ~100 bytes.
+ */
+void publish_subject(lv_subject_t* subject, const char* name, lv_subject_type_t type,
+                     const char* file, int line);
+
+} // namespace helix
