@@ -5,6 +5,46 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.11] - 2026-11-21
+
+### Fixed
+
+**Touch and display**
+
+- **Touch comes back after the touch controller drops off** (#2069) - when a USB touch controller resets, as some HDMI touchscreens do when the picture changes, HelixScreen now reopens it instead of losing touch until a restart. This works on both DRM and framebuffer screens, and a touch calibration in progress keeps its settings across the reopen.
+- **A touch panel lost while the screen is powered off wakes it** (#2069) - when the touch panel disappears while the display is off, the display now wakes so the screen can be used again.
+- **Touchscreens are found on builds without libinput** - DRM builds without libinput now find the touchscreen instead of skipping it.
+
+**Printing and calibration**
+
+- **The 3D preview no longer freezes boards without a GPU driver** - on boards that draw 3D in software, such as the Sonic Pad, opening a large file's 3D preview could freeze the screen for minutes, most often when reprinting a file. These boards now show the preview as 2D layers, and a preview whose graphics setup fails falls back to 2D layers instead of a blank view.
+- **Heater calibration survives the screensaver** - a PID calibration kept running when the screensaver came on, instead of turning the heaters and fan off, and a result that finishes behind the screensaver is still saved.
+- **Large files preview on boards with little memory** - on boards where a file's full 3D load would not fit in memory, the preview now streams the file instead of loading it all at once. The layer cache also adjusts its size on boards with less than 1 GB of RAM.
+- **Freed memory goes back to the system under memory pressure** - when free memory runs low, HelixScreen now returns memory it no longer uses, which helps on boards with 512 MB or less.
+
+**Settings**
+
+- **The About screen no longer crashes when the update checker shuts down** (#2145).
+
+**Filament**
+
+- **The runout guidance wakes the display** (#2137) - when the printer paused for a filament runout while the screen was asleep, the guidance now wakes the screen.
+- **AFC bypass stays loaded** - an engaged bypass no longer appears unloaded when AFC sends a status update about lanes only, and turning the bypass off releases it on screen.
+- **CFS operations end when the printer finishes them** - after a load or unload on a Creality CFS, the screen now picks up the finished state as soon as the printer's script completes.
+
+**Snapmaker U1**
+
+- **Restore Stock Screen works without SSH** (#2131) - the stock screen can be restored from Settings or by placing a trigger file from Fluidd or Mainsail, and it is restored at boot even without /userdata. It refuses while a print or other job is running, and waits until the printer's job state is known.
+- **The installer keeps SSH available** (#2131) - the installer no longer switches off the stock screen unless SSH will still start, and HelixScreen says clearly, in the system log and on screen, when Root access is on but SSH did not start. Uninstall removes the debug marker only when HelixScreen's installer created it.
+- **The camera service is restarted the way the firmware starts it** - when the U1's camera service (lmd) was not running, HelixScreen now restarts it through the firmware's own startup script. On stock firmware a stopped camera service now comes back as well.
+- **HelixPrint plugin installs on a U1 with PAXX firmware** (#2136) - when the PAXX Extended Firmware runs HelixScreen as its own package, installing the HelixPrint plugin from the screen failed with "Install script not found". HelixScreen now finds the package it runs from, links the plugin so it keeps working after PAXX updates the package, and never writes into the folder the firmware manages.
+
+**Installer**
+
+- **The installer no longer edits Z-Mod's own moonraker.conf on the AD5X** - on a FlashForge AD5X running Z-Mod, the installer now writes HelixScreen's update settings to the user moonraker.conf that Z-Mod includes, and leaves Z-Mod's own file alone, so Moonraker can keep updating Z-Mod. When an earlier install already edited it, the installer says which updates are blocked and how to restore the file.
+- **Moonraker is restarted after HelixScreen is added to its service list** - so Moonraker can manage the HelixScreen service right after the install, without a reboot.
+- **Services started by an in-app update keep normal memory priority** (#2121) - services the installer starts no longer inherit HelixScreen's low-memory kill priority.
+
 ## [1.0.10] - 2026-11-18
 
 ### Fixed
@@ -7339,6 +7379,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.0.11]: https://github.com/prestonbrown/helixscreen/compare/v1.0.10...v1.0.11
 [1.0.10]: https://github.com/prestonbrown/helixscreen/compare/v1.0.9...v1.0.10
 [1.0.9]: https://github.com/prestonbrown/helixscreen/compare/v1.0.8...v1.0.9
 [1.0.8]: https://github.com/prestonbrown/helixscreen/compare/v1.0.7...v1.0.8
