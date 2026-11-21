@@ -71,8 +71,8 @@ using BackupEligibleFn = std::function<helix::printer::BackupEligibility(int slo
 /// about that one tool number is not a refusal of the row.
 [[nodiscard]] std::string tool_row_refusal(const AmsBackend& backend, int slot, int assigned);
 
-/// The Assigned Tool dropdown's options: "None", then one tool per slot.
-[[nodiscard]] std::string tool_options(int tool_count);
+/// The Assigned Tool dropdown's options: "None" when @p offer_none, then one tool per slot.
+[[nodiscard]] std::string tool_options(int tool_count, bool offer_none = true);
 
 /// The tool that maps to @p slot, or -1. On a lane several tools route to, the
 /// one it is running.
