@@ -3438,6 +3438,25 @@ void AmsEditOverlay::handle_add_to_spoolman() {
     do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
 }
 
+void AmsEditOverlay::handle_link_to_spoolman() {
+    // The spool the lane holds, as it stands: the same find-or-create the
+    // Add New Spool path runs, then the summary shows it linked.
+    if (save_in_flight_ || !spoolman_set_up() || working_info_.spoolman_id > 0) {
+        return;
+    }
+    stage_selection_into_working();
+    stage_pending_color_into_working();
+    const helix::MissingFilamentFields missing =
+        helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
+    if (missing.any()) {
+        report_save_problem(true, missing_filament_message(missing));
+        return;
+    }
+    SaveCapture cap = capture_save();
+    cap.keep_editor = true;
+    run_spoolman_save(cap, helix::SpoolmanSlotSaver::LinkIntent::CreateAndRebind);
+}
+
 void AmsEditOverlay::handle_save() {
     // The editor stays open while an async Spoolman save runs; a second Save
     // from the prompt or the header would start a second find-or-create.
@@ -3789,6 +3808,29 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
         return;
     }
     save_in_flight_ = false;
+    if (outcome == helix::ams::PendingOutcome::Echoed && cap.keep_editor) {
+        remember_saved_colors(cap);
+        set_save_state(kSaveIdle);
+        SlotInfo settled = working_info_;
+        if (AmsBackend* backend = AmsState::instance().get_backend()) {
+            settled = backend->get_slot_info(cap.slot_index);
+        }
+        original_info_ = settled;
+        working_info_ = settled;
+        sel_ = selection_from_slot(working_info_);
+        selection_moved_ = false;
+        created_spool_id_ = 0;
+        reset_color_draft();
+        update_ui();
+        update_summary();
+        update_sync_button_state();
+        ToastManager::instance().show(
+            ToastSeverity::SUCCESS,
+            fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), settled.spoolman_id)
+                .c_str(),
+            2500);
+        return;
+    }
     if (outcome == helix::ams::PendingOutcome::Echoed) {
         remember_saved_colors(cap);
         set_save_state(kSaveIdle);
@@ -3948,13 +3990,16 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
             // to the UI thread before touching LVGL.
             token.defer([this, cap, result, intent]() {
                 const bool live = save_is_live(cap);
+                // The summary's one-tap add says what went wrong in a toast;
+                // the lane and the form were never touched.
+                const bool report_live = live && !cap.keep_editor;
                 if (cap.session == session_) {
                     save_in_flight_ = false;
                 }
                 if (result.missing.any()) {
                     spdlog::info("[AmsEditOverlay] Spoolman save stopped: the filament is "
                                  "missing a field it is identified by");
-                    report_save_problem(live, missing_filament_message(result.missing));
+                    report_save_problem(report_live, missing_filament_message(result.missing));
                     end_slot_save(cap.slot_index);
                     return;
                 }
@@ -3965,11 +4010,12 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     // edits, so both say so.
                     if (cap.more_saved) {
                         report_save_problem(
-                            live, lv_tr("Spoolman saved the price, location, lot and notes, but "
-                                        "not the rest. Nothing else changed on this printer."));
+                            report_live,
+                            lv_tr("Spoolman saved the price, location, lot and notes, but "
+                                  "not the rest. Nothing else changed on this printer."));
                     } else if (!live) {
                         report_save_problem(
-                            live,
+                            report_live,
                             lv_tr("Couldn't save to Spoolman. Nothing changed on this printer."));
                     } else {
                         stay_open_after_failed_save();
@@ -3981,12 +4027,12 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     spdlog::error("[AmsEditOverlay] Spoolman save failed; nothing written");
                     // A More PATCH that ran ahead of this save did land.
                     report_save_problem(
-                        live, cap.more_saved
-                                  ? lv_tr("Spoolman saved the price, location, lot and notes, "
-                                          "but not the rest. Nothing else changed on this "
-                                          "printer.")
-                                  : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
-                                          "printer."));
+                        report_live,
+                        cap.more_saved ? lv_tr("Spoolman saved the price, location, lot and notes, "
+                                               "but not the rest. Nothing else changed on this "
+                                               "printer.")
+                                       : lv_tr("Couldn't save to Spoolman. Nothing changed on this "
+                                               "printer."));
                     end_slot_save(cap.slot_index);
                     return;
                 }
@@ -4263,6 +4309,8 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_open_lane_cb", [](lv_event_t*) { get_ams_edit_overlay().set_page(kPageLane); }},
         {"ams_edit_open_details_cb",
          [](lv_event_t*) { get_ams_edit_overlay().set_page(kPageDetails); }},
+        {"ams_edit_link_spoolman_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_link_to_spoolman(); }},
         {"ams_edit_weight_slider_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_weight_slider(

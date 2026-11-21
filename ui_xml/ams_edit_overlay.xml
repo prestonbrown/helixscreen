@@ -291,29 +291,58 @@
           </lv_slider>
         </lv_obj>
 
-        <!-- The lane's settings, only where one can change. -->
-        <!-- "Lane Settings" over what they do now, "Feeds T0 · Pauses on runout",
-             clear of the drag bar above and a full row tall. -->
-        <lv_obj name="lane_line"
-                width="100%" height="content" style_min_height="#button_height" style_margin_top="#ams_edit_lane_gap"
-                flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false"
-                clickable="true" hidden="true">
-          <style name="nav_row"/>
-          <style name="styles.press_wash" selector="pressed"/>
-          <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
+        <!-- The rows that open more: the lane's settings, only where one can
+             change, and Add to Spoolman for a spool Spoolman does not track
+             yet. Side by side when both show, so the page still fits. -->
+        <lv_obj name="summary_links"
+                width="100%" height="content" style_margin_top="#ams_edit_lane_gap" flex_flow="row"
+                style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false">
+          <bind_flag_if cond="(ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))) and (printer_has_spoolman eq 0 or ams_edit_is_managed eq 1 or ams_edit_adding eq 1)"
                         flag="hidden"/>
-          <event_cb trigger="clicked" callback="ams_edit_open_lane_cb"/>
-          <lv_obj height="content"
-                  flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
-                  style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
-            <text_body name="lane_line_title"
-                       width="100%" bind_text="ams_edit_lane_title" long_mode="dots" clickable="false"
-                       event_bubble="true"/>
-            <text_small name="lane_line_text"
-                        width="100%" bind_text="ams_edit_lane_line" long_mode="dots" style_text_color="#text_muted"
-                        clickable="false" event_bubble="true"/>
+          <!-- "Lane Settings" over what they do now, "Feeds T0 · Pauses on runout". -->
+          <lv_obj name="lane_line"
+                  width="1" height="content" flex_grow="1" style_min_height="#button_height" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" clickable="true"
+                  hidden="true">
+            <style name="nav_row"/>
+            <style name="styles.press_wash" selector="pressed"/>
+            <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
+                          flag="hidden"/>
+            <event_cb trigger="clicked" callback="ams_edit_open_lane_cb"/>
+            <lv_obj height="content"
+                    flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                    style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+              <text_body name="lane_line_title"
+                         width="100%" bind_text="ams_edit_lane_title" long_mode="dots" clickable="false"
+                         event_bubble="true"/>
+              <text_small name="lane_line_text"
+                          width="100%" bind_text="ams_edit_lane_line" long_mode="dots" style_text_color="#text_muted"
+                          clickable="false" event_bubble="true"/>
+            </lv_obj>
+            <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
           </lv_obj>
-          <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+          <!-- One tap files the spool in Spoolman as the lane holds it and
+               links the lane. -->
+          <lv_obj name="add_spoolman_row"
+                  width="1" height="content" flex_grow="1" style_min_height="#button_height" flex_flow="row"
+                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false" clickable="true"
+                  hidden="true">
+            <style name="nav_row"/>
+            <style name="styles.press_wash" selector="pressed"/>
+            <bind_flag_if cond="printer_has_spoolman eq 0 or ams_edit_is_managed eq 1 or ams_edit_adding eq 1"
+                          flag="hidden"/>
+            <event_cb trigger="clicked" callback="ams_edit_link_spoolman_cb"/>
+            <lv_obj height="content"
+                    flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" style_bg_opa="0"
+                    style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+              <text_body width="100%" text="Add to Spoolman" long_mode="dots" clickable="false" event_bubble="true"/>
+              <text_small width="100%"
+                          text="Track this spool's weight there" long_mode="dots" style_text_color="#text_muted"
+                          clickable="false" event_bubble="true"/>
+            </lv_obj>
+            <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+          </lv_obj>
         </lv_obj>
 
         <lv_obj width="100%"

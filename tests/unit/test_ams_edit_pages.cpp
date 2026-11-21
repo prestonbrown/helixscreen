@@ -15,8 +15,10 @@
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/toast_log.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_catalog.h"
@@ -782,5 +784,101 @@ TEST_CASE_METHOD(PagesFixture,
         REQUIRE(access.page() == AmsEditOverlay::kPageEmpty);
         CHECK(access.subject_text("ams_edit_last_material") == color);
     }
+    close_editor_overlay();
+}
+
+namespace {
+/// A lane holding a described spool that Spoolman does not track.
+SlotInfo untracked_lane(AmsBackendMock& backend, int slot, const char* material) {
+    SlotInfo info = describe_lane(backend, slot, material);
+    info.spoolman_id = 0;
+    REQUIRE(helix::test::apply_edit(backend, slot, info).success());
+    return backend.get_slot_info(slot);
+}
+} // namespace
+
+TEST_CASE_METHOD(PagesFixture, "the summary offers Add to Spoolman only for an untracked spool",
+                 "[ams_edit_overlay][pages][link_spoolman]") {
+    SlotInfo lane = untracked_lane(*backend, 1, "ASA");
+    SECTION("untracked, Spoolman set up: the row") {
+        set_spoolman_available(true);
+        open(1, lane);
+        CHECK(access.shown("add_spoolman_row"));
+    }
+    SECTION("linked: no row") {
+        set_spoolman_available(true);
+        lane.spoolman_id = 22;
+        open(1, lane);
+        CHECK_FALSE(access.shown("add_spoolman_row"));
+    }
+    SECTION("no Spoolman: no row") {
+        set_spoolman_available(false);
+        open(1, lane);
+        CHECK_FALSE(access.shown("add_spoolman_row"));
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "Add to Spoolman files the lane's spool as it stands and links it",
+                 "[ams_edit_overlay][pages][link_spoolman]") {
+    set_spoolman_available(true);
+    client.spoolman_mock().get_mock_spools().clear();
+    client.spoolman_mock().next_created_filament_id = 117;
+    client.spoolman_mock().next_created_spool_id = 152;
+    SlotInfo lane = untracked_lane(*backend, 1, "ASA");
+    lane.color_rgb = 0x101010;
+    lane.remaining_weight_g = 640.0F;
+    lane.total_weight_g = 750.0F;
+    REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+    open(1, backend->get_slot_info(1));
+    REQUIRE(access.shown("add_spoolman_row"));
+    helix::test::ToastLog toasts;
+
+    access.click("add_spoolman_row");
+    settle();
+    settle();
+    REQUIRE_FALSE(toasts.shown.empty());
+    CHECK(toasts.shown.back().message.find("#152") != std::string::npos);
+
+    REQUIRE(client.spoolman_mock().created_spools.size() == 1U);
+    const auto& spool = client.spoolman_mock().created_spools[0];
+    CHECK(spool["remaining_weight"].get<double>() == Catch::Approx(640.0));
+    CHECK(spool["initial_weight"].get<double>() == Catch::Approx(750.0));
+    REQUIRE(client.spoolman_mock().created_filaments.size() == 1U);
+    const auto& filament = client.spoolman_mock().created_filaments[0];
+    CHECK(filament["material"] == "ASA");
+    CHECK(helix::text_io::to_lower(filament["color_hex"].get<std::string>()) == "101010");
+
+    // The lane is linked, and the editor stays on it, showing the link.
+    const SlotInfo now = backend->get_slot_info(1);
+    CHECK(now.spoolman_id == 152);
+    CHECK(now.remaining_weight_g == Catch::Approx(640.0F));
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.working_info().spoolman_id == 152);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_is_managed")) == 1);
+    CHECK_FALSE(access.shown("add_spoolman_row"));
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "a failed Add to Spoolman leaves the lane as it was",
+                 "[ams_edit_overlay][pages][link_spoolman]") {
+    set_spoolman_available(true);
+    const SlotInfo lane = untracked_lane(*backend, 1, "ASA");
+    REQUIRE(lane.spoolman_id == 0);
+    open(1, lane);
+    client.set_mock_spoolman_enabled(false);
+    helix::test::ToastLog toasts;
+
+    access.click("add_spoolman_row");
+    settle();
+    settle();
+    CHECK(toasts.shown.size() == 1U);
+
+    const SlotInfo now = backend->get_slot_info(1);
+    CHECK(now.spoolman_id == 0);
+    CHECK(now.material == lane.material);
+    CHECK(now.color_rgb == lane.color_rgb);
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.shown("add_spoolman_row"));
     close_editor_overlay();
 }

@@ -679,8 +679,9 @@ class AmsEditOverlay : public OverlayBase {
         CompletionCallback owed;
         nlohmann::json chained_spool_patch; ///< More fields riding the Update arm
         int chained_spool_id = 0;
-        bool more_saved = false; ///< a More PATCH ran ahead of this commit and landed
-        bool stay_open = false;  ///< commit the slot but keep the editor (unsaved More edits)
+        bool more_saved = false;  ///< a More PATCH ran ahead of this commit and landed
+        bool stay_open = false;   ///< commit the slot but keep the editor (unsaved More edits)
+        bool keep_editor = false; ///< once the lane holds the save, show it here rather than close
         std::vector<uint32_t> picked_colors; ///< the colors this save commits, if any were picked
     };
     SaveCapture capture_save() const;
@@ -717,10 +718,13 @@ class AmsEditOverlay : public OverlayBase {
     // === Event Handlers ===
     void handle_back(); ///< Header back: per-view routing
     void handle_save();
-    void prompt_unsaved_changes();          ///< Back with unsaved edits: Save/Discard
-    void handle_weight_tap();               ///< Weight pill → numeric keypad
-    void apply_weight(float grams);         ///< Keypad result → remaining weight
-    void handle_add_to_spoolman();          ///< Add to Spoolman & Assign
+    void prompt_unsaved_changes();  ///< Back with unsaved edits: Save/Discard
+    void handle_weight_tap();       ///< Weight pill → numeric keypad
+    void apply_weight(float grams); ///< Keypad result → remaining weight
+    void handle_add_to_spoolman();  ///< Add to Spoolman & Assign
+    /// The summary's Add to Spoolman: files the lane's untracked spool in
+    /// Spoolman as it stands and links the lane to it, keeping the editor.
+    void handle_link_to_spoolman();
     void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
     bool handle_clear_spool();              ///< Take the spool off the slot and close
     void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
