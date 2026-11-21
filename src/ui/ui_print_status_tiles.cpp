@@ -706,6 +706,17 @@ void PrintStatusTiles::update_now() {
         presenter_.apply(parts, image.regions, image.natural_w, image.natural_h, cfg);
     ++layout_count_;
     last_layout_ = out;
+    if (const int area_floor = presenter_.full_size_min_area_h(); area_floor > 0) {
+        lv_obj_t* tile = lv_obj_find_by_name(root, "ps_printer_tile");
+        const int chrome = tile ? lv_obj_get_height(tile) - lv_obj_get_content_height(area) : 0;
+        const int tile_floor = area_floor + std::max(0, chrome);
+        if (tile_floor != full_callouts_min_tile_h_) {
+            full_callouts_min_tile_h_ = tile_floor;
+            if (host_.callout_floor_changed) {
+                host_.callout_floor_changed();
+            }
+        }
+    }
     // After the layout sized the picture, so the copy is cut for its rect.
     exact_image_.apply(image.path);
 

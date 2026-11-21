@@ -79,6 +79,16 @@ class CalloutPresenter {
     /// True when the rect changed, so the owner can refresh the image for its new size.
     bool place_image(lv_obj_t* image, const CalloutRect* moved);
 
+    /// The shortest area height, at the last apply()'s width and chip budget,
+    /// whose mode draws chips at full size: neither callout_mode_is_compact()
+    /// nor ImageOnly. 0 before any apply(); kFullSizeSearchMaxH when no height
+    /// up to it does. apply() searches again only when the width or the
+    /// budget changed.
+    [[nodiscard]] int full_size_min_area_h() const {
+        return full_size_min_area_h_;
+    }
+    static constexpr int kFullSizeSearchMaxH = 2048;
+
     /// Whether the last apply() moved the image.
     [[nodiscard]] bool image_changed() const {
         return image_changed_;
@@ -92,6 +102,9 @@ class CalloutPresenter {
     /// lv_line keeps the pointer it is given, so each kind's points live here.
     std::array<std::array<lv_point_precise_t, 3>, kCalloutKindCount> line_pts_{};
     bool image_changed_ = false;
+    /// The input full_size_min_area_h_ was searched with.
+    std::optional<CalloutLayoutInput> floor_input_;
+    int full_size_min_area_h_ = 0;
 };
 
 } // namespace helix::ui

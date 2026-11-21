@@ -26,12 +26,10 @@ constexpr int32_t kPrinterFloorPct = 100;
 constexpr int32_t kReadoutsFloorPct = 75;
 constexpr int32_t kPreviewFloorPct = 75;
 
-// The stacked lane tray strip: its natural height, the smallest that still
-// reads as lanes, and the height the two stacked tiles keep for themselves
-// (with the gap between them) before giving any to it.
+// The stacked lane tray strip: its natural height, and the smallest that
+// still reads as lanes.
 constexpr int32_t kLaneTrayMaxHeight = 120;
 constexpr int32_t kLaneTrayMinHeight = 48;
-constexpr int32_t kTilesFloorWithTray = 320;
 
 bool is_compact_job(int32_t job_w, int32_t job_h) {
     return job_w < kCompactMinJobWidth || job_h < kCompactMinJobHeight;
@@ -40,7 +38,8 @@ bool is_compact_job(int32_t job_w, int32_t job_h) {
 
 PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t content_h,
                                                       int32_t gap, int32_t strip_row_h,
-                                                      int32_t strip_stacked_h, bool lane_tray) {
+                                                      int32_t strip_stacked_h, bool lane_tray,
+                                                      int32_t printer_floor_h) {
     PrintStatusTileLayout out;
     const bool stacked = content_h > content_w && content_h >= kStackedMinHeight;
     out.arrangement =
@@ -48,20 +47,30 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
     out.strip_stacked = stacked || content_w < kStackedStripMaxWidth;
     out.strip_h = out.strip_stacked ? strip_stacked_h : strip_row_h;
 
-    int32_t area_h = std::max<int32_t>(0, content_h - out.strip_h - gap);
-    if (stacked && lane_tray) {
-        const int32_t spare = area_h - gap - kTilesFloorWithTray;
-        if (spare >= kLaneTrayMinHeight) {
-            out.lane_tray = PrintStatusLaneTray::Strip;
-            out.lane_tray_h = std::min(spare, kLaneTrayMaxHeight);
-            area_h -= out.lane_tray_h + gap;
-        }
-    }
+    const int32_t area_h = std::max<int32_t>(0, content_h - out.strip_h - gap);
     if (stacked) {
         const int32_t usable = std::max<int32_t>(0, area_h - gap);
         out.job_w = out.printer_w = content_w;
         out.job_h = usable * kJobTileWeight / (kJobTileWeight + kPrinterTileWeight);
         out.printer_h = usable - out.job_h;
+        if (lane_tray) {
+            // The tray and its gap come from the preview first, down to where
+            // its checklist goes compact, then from the printer picture down
+            // to the height that still draws its chips at full size. An
+            // unknown floor gives nothing from the picture.
+            const int32_t job_spare = std::max<int32_t>(0, out.job_h - kCompactMinJobHeight);
+            const int32_t printer_spare =
+                printer_floor_h > 0 ? std::max<int32_t>(0, out.printer_h - printer_floor_h) : 0;
+            const int32_t tray_h = std::min(kLaneTrayMaxHeight, job_spare + printer_spare - gap);
+            if (tray_h >= kLaneTrayMinHeight) {
+                const int32_t take = tray_h + gap;
+                const int32_t from_job = std::min(take, job_spare);
+                out.job_h -= from_job;
+                out.printer_h -= take - from_job;
+                out.lane_tray = PrintStatusLaneTray::Strip;
+                out.lane_tray_h = tray_h;
+            }
+        }
     } else {
         const int32_t usable = std::max<int32_t>(0, content_w - gap);
         out.job_w = usable / 2;

@@ -232,17 +232,23 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
                 },
                 [this]() { return is_active_; }}),
       progress_text_(printer_state, lifecycle_),
-      layout_fitter_(
-          get_name(),
-          {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
-           &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
-           &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_},
-          {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
+      layout_fitter_(get_name(),
+                     {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
+                      &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
+                      &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
+                      &printer_tile_h_subject_},
+                     {[this]() { return overlay_root_; },
+                      [this]() { return subjects_initialized_; },
+                      [this]() { return tiles_.full_callouts_min_tile_h(); }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
                              [this]() { return lifecycle_.speed_percent(); },
                              [this]() { return lifecycle_.flow_percent(); },
-                             [this]() { return std::string(progress_text_.speed_text()); }}) {
+                             [this]() { return std::string(progress_text_.speed_text()); },
+                             [this]() {
+                                 lifetime_.defer("PrintStatusPanel::callout_floor_relayout",
+                                                 [this]() { layout_fitter_.recompute(); });
+                             }}) {
     preview_.set_api(api);
 #if HELIX_HAS_CAMERA
     // Another view taking the camera over; the card restarts on reactivation.
@@ -620,6 +626,7 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(uw_actions_w_subject_, 0, "ps_uw_actions_w", subjects_);
     UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "ps_lane_tray", subjects_);
     UI_MANAGED_SUBJECT_INT(lane_tray_h_subject_, 0, "ps_lane_tray_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(printer_tile_h_subject_, lv_pct(100), "ps_printer_tile_h", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -714,6 +721,21 @@ void PrintStatusPanel::init_subjects() {
                     self->relayout();
                 },
                 helix::ui::TargetTool::instance().get_subjects_lifetime());
+        }
+        // Whether the tray has lanes to draw follows the filament system's
+        // lanes. Most slot changes leave that alone, and the fitter publishes
+        // only what moved; the tiles follow their own size change.
+        auto& ams = AmsState::instance();
+        if (ams.are_subjects_initialized()) {
+            auto token = lifetime_.token();
+            lane_tray_slots_observer_ = observe<int>(
+                ams.get_slots_version_subject(), this,
+                [token](PrintStatusPanel* self, int) {
+                    if (token.expired())
+                        return;
+                    self->layout_fitter_.recompute();
+                },
+                ams.get_subjects_lifetime());
         }
     }
 
@@ -920,6 +942,7 @@ void PrintStatusPanel::deinit_subjects() {
     primary_fans_version_observer_.reset();
     breakpoint_observer_.reset();
     lane_tray_gate_observer_.reset();
+    lane_tray_slots_observer_.reset();
     scoped_runout_observer_.reset();
     scoped_runout_slots_observer_.reset();
     part_speed_lifetime_.reset();

@@ -40,15 +40,17 @@ struct PrintStatusTileLayout {
 
 /// `content_w` x `content_h` is the panel's content box, `gap` the token gap,
 /// `strip_row_h` / `strip_stacked_h` the strip heights the current tier's fonts need.
-/// With `lane_tray` (has_filament_system_or_multi_tool()), stacked tiles give
-/// the lane tray strip what they can spare above their floor, up to its
-/// natural height; too little room for its smallest shows none. Side by side
+/// With `lane_tray`, stacked tiles give the lane tray strip, up to its
+/// natural height, what the preview can spare above the height its checklist
+/// goes compact at, then what the printer tile can spare above
+/// `printer_floor_h`, the shortest tile that draws its chips at full size
+/// (PrintStatusTiles::full_callouts_min_tile_h(); 0 when unknown, which spares
+/// nothing). Too little room for the tray's smallest shows none. Side by side
 /// never shows it.
-[[nodiscard]] PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w,
-                                                                    int32_t content_h, int32_t gap,
-                                                                    int32_t strip_row_h,
-                                                                    int32_t strip_stacked_h,
-                                                                    bool lane_tray = false);
+[[nodiscard]] PrintStatusTileLayout
+decide_print_status_tile_layout(int32_t content_w, int32_t content_h, int32_t gap,
+                                int32_t strip_row_h, int32_t strip_stacked_h,
+                                bool lane_tray = false, int32_t printer_floor_h = 0);
 
 /// The ultrawide arrangement of a `content_w` x `content_h` box whose columns sit
 /// `gap` apart: the preview square at the full height, the printer picture at

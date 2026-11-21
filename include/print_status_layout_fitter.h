@@ -40,11 +40,16 @@ class PrintStatusLayoutFitter {
         // strip's height in px.
         lv_subject_t* lane_tray = nullptr;
         lv_subject_t* lane_tray_h = nullptr;
+        /// The stacked printer tile's height beside a lane tray strip, in px;
+        /// lv_pct(100) otherwise, where its flex share sets it.
+        lv_subject_t* printer_tile_h = nullptr;
     };
 
     struct Host {
         std::function<lv_obj_t*()> root;
         std::function<bool()> subjects_ready;
+        /// PrintStatusTiles::full_callouts_min_tile_h(); optional, 0 when unknown.
+        std::function<int32_t()> printer_floor_h;
     };
 
     PrintStatusLayoutFitter(std::string log_tag, Subjects subjects, Host host);

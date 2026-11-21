@@ -76,6 +76,8 @@ class PrintStatusTiles {
         std::function<int()> flow_pct;
         /// The speed/flow chip's text; required, the chip has no other source.
         std::function<std::string()> speed_text;
+        /// full_callouts_min_tile_h() moved; optional.
+        std::function<void()> callout_floor_changed;
     };
 
     PrintStatusTiles(PrinterState& printer_state, Host host);
@@ -122,6 +124,13 @@ class PrintStatusTiles {
     /// What the last layout pass decided, chip rects included.
     [[nodiscard]] const CalloutLayout& last_layout() const {
         return last_layout_;
+    }
+    /// The shortest printer tile that draws its chips at full size, at its
+    /// current width and this phase's chips (CalloutPresenter::
+    /// full_size_min_area_h() plus the tile's own padding). 0 before the
+    /// first layout.
+    [[nodiscard]] int full_callouts_min_tile_h() const {
+        return full_callouts_min_tile_h_;
     }
 
   private:
@@ -217,6 +226,7 @@ class PrintStatusTiles {
     lv_timer_t* update_timer_ = nullptr;
     int layout_count_ = 0;
     CalloutLayout last_layout_;
+    int full_callouts_min_tile_h_ = 0;
     bool subjects_ready_ = false;
 
     ObserverGuard led_version_observer_;

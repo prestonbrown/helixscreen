@@ -73,10 +73,12 @@ bool is_ultrawide() {
     return uw && lv_subject_get_int(uw) == 1;
 }
 
-/// has_filament_system_or_multi_tool(), as TargetTool publishes it.
+/// has_filament_system_or_multi_tool(), as TargetTool publishes it, and a
+/// tray with lanes to draw: several heads without a filament system leave it
+/// empty.
 bool has_lane_tray() {
     lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
-    return gate && lv_subject_get_int(gate) == 1;
+    return gate && lv_subject_get_int(gate) == 1 && ui_ams_mini_status_has_lanes_to_show();
 }
 
 /// The strip is a ui_card: its padding and border on both sides.
@@ -118,8 +120,10 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         last_ = decide_print_status_ultrawide_layout(w, h, gap, lane_tray);
     } else {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
+        const int32_t printer_floor = host_.printer_floor_h ? host_.printer_floor_h() : 0;
         last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
-                                                strip_stacked_height(progress), lane_tray);
+                                                strip_stacked_height(progress), lane_tray,
+                                                printer_floor);
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {
@@ -135,6 +139,8 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.actions_w, last_.columns.actions_w);
     set(subjects_.lane_tray, static_cast<int>(last_.lane_tray));
     set(subjects_.lane_tray_h, last_.lane_tray_h);
+    set(subjects_.printer_tile_h,
+        last_.lane_tray == PrintStatusLaneTray::Strip ? last_.printer_h : lv_pct(100));
     // The tray picks its spool or bar view from the width it is given.
     if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
         tray && ui_ams_mini_status_is_valid(tray)) {

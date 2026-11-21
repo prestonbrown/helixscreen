@@ -13,6 +13,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_geometry.h"
 #include "../test_helpers/scoped_portrait_layout.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -93,11 +94,19 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
 }
 
 /// The lane tray's ams_mini_status, which the app registers with AmsState
-/// standing, and the gate following AmsState as it does in the app.
-void enable_lane_tray_widget() {
-    AmsState::instance().init_subjects();
+/// standing, a four-lane filament system for it to draw, and the gate
+/// following AmsState as it does in the app. The returned token takes the
+/// filament system away again.
+std::shared_ptr<void> enable_lane_tray_widget() {
+    auto& ams = AmsState::instance();
+    ams.init_subjects();
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    REQUIRE(mock->start().success());
+    ams.set_backend(std::move(mock));
+    ams.sync_from_backend();
     ui_ams_mini_status_init();
     helix::ui::TargetTool::instance().attach(get_printer_state());
+    return std::shared_ptr<void>(nullptr, [](void*) { AmsState::instance().clear_backends(); });
 }
 
 /// The panel's own XML built at a screen size, with a tagged printer picture.
@@ -108,13 +117,12 @@ class TileFixture : public PrintStatusPanelFixture {
               // The chips read the light and tool-badge subjects their owners publish.
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
-              if (lane_tray) {
-                  enable_lane_tray_widget();
-              }
+              auto filament = lane_tray ? enable_lane_tray_widget() : nullptr;
               // The tile follows the image-changed subject, which exists
               // before any panel, as in the app.
               helix::PrinterImageManager::instance().init_subjects();
-              return std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
+              auto geometry = std::make_shared<helix::test::ScopedGeometry>(screen_w, screen_h);
+              return std::shared_ptr<void>(geometry.get(), [geometry, filament](void*) {});
           }) {
         lv_obj_remove_flag(root_, LV_OBJ_FLAG_HIDDEN);
         tile_ = lv_obj_find_by_name(root_, "ps_printer_tile");
@@ -156,15 +164,13 @@ class Ultrawide1480 : public PrintStatusPanelFixture {
         : PrintStatusPanelFixture([lane_tray]() -> std::shared_ptr<void> {
               helix::led::LedController::instance().init(nullptr, nullptr);
               ToolState::instance().init_subjects(false);
-              if (lane_tray) {
-                  enable_lane_tray_widget();
-              }
+              auto filament = lane_tray ? enable_lane_tray_widget() : nullptr;
               helix::PrinterImageManager::instance().init_subjects();
               auto layout =
                   std::make_shared<ScopedLayoutClass>("ultrawide", "ui_is_ultrawide", 1480, 320);
               REQUIRE(lv_xml_register_component_from_file(
                           "A:ui_xml/ultrawide/print_status_panel.xml") == LV_RESULT_OK);
-              return std::shared_ptr<void>(layout.get(), [layout](void*) {
+              return std::shared_ptr<void>(layout.get(), [layout, filament](void*) {
                   lv_xml_register_component_from_file("A:ui_xml/print_status_panel.xml");
               });
           }) {
@@ -1384,6 +1390,11 @@ bool shown(lv_obj_t* obj) {
 struct Portrait600 : TileFixture {
     Portrait600() : TileFixture(600, 1024, true) {}
 };
+/// Short enough that the preview cannot spare the whole tray, so the printer
+/// tile gives the rest down to its full-size floor.
+struct PortraitTrayAtFloor : TileFixture {
+    PortraitTrayAtFloor() : TileFixture(480, 680, true) {}
+};
 struct UltrawideTray : Ultrawide1480 {
     UltrawideTray() : Ultrawide1480(true) {}
 };
@@ -1425,6 +1436,7 @@ TEST_CASE_METHOD(Portrait600, "stacked tiles give the lane tray a strip under th
                  "[print_status_tray]") {
     ScopedLaneTrayGate gate(0);
     settle();
+    settle();
     lv_obj_t* tray = lv_obj_find_by_name(root_, "ps_lane_tray");
     lv_obj_t* strip = lv_obj_find_by_name(root_, "ps_strip");
     lv_obj_t* content = lv_obj_find_by_name(root_, "overlay_content");
@@ -1434,6 +1446,7 @@ TEST_CASE_METHOD(Portrait600, "stacked tiles give the lane tray a strip under th
     const int32_t tiles_h_plain = lv_obj_get_height(lv_obj_find_by_name(root_, "ps_tiles"));
 
     gate.set(1);
+    settle();
     settle();
     CHECK(shown(tray));
     const int tray_h = subject_int("ps_lane_tray_h");
@@ -1460,4 +1473,63 @@ TEST_CASE_METHOD(Landscape800, "side by side tiles show no lane tray even when g
     REQUIRE(subject_int("ps_arrangement") == static_cast<int>(PrintStatusArrangement::SideBySide));
     CHECK(subject_int("ps_lane_tray") == 0);
     CHECK_FALSE(shown(lv_obj_find_by_name(root_, "ps_lane_tray")));
+}
+
+namespace {
+/// The printer tile's chips draw at full size: not compact, not image only.
+bool full_size_callouts() {
+    const auto mode = static_cast<CalloutMode>(subject_int("ps_callout_mode"));
+    return mode != CalloutMode::ImageOnly && !callout_mode_is_compact(mode);
+}
+} // namespace
+
+TEST_CASE_METHOD(Portrait600, "the lane tray never pushes the printer tile below full-size chips",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(1);
+    settle();
+    settle();
+    const int floor = tiles().full_callouts_min_tile_h();
+    REQUIRE(floor > 0);
+    REQUIRE(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
+    // The tile stands at the height the fitter decided, not a flex share.
+    CHECK(lv_obj_get_height(tile_) == subject_int("ps_printer_tile_h"));
+    CHECK(lv_obj_get_height(tile_) >= floor);
+    CHECK(full_size_callouts());
+}
+
+TEST_CASE_METHOD(PortraitTrayAtFloor,
+                 "a short portrait panel keeps full-size chips with a lane tray gated",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(0);
+    settle();
+    settle();
+    REQUIRE(full_size_callouts());
+    gate.set(1);
+    settle();
+    settle();
+    const int floor = tiles().full_callouts_min_tile_h();
+    CAPTURE(floor, lv_obj_get_height(tile_), subject_int("ps_lane_tray_h"),
+            subject_int("ps_callout_mode"));
+    REQUIRE(floor > 0);
+    REQUIRE(subject_int("ps_lane_tray") == static_cast<int>(PrintStatusLaneTray::Strip));
+    CHECK(lv_obj_get_height(tile_) >= floor);
+    CHECK(full_size_callouts());
+}
+
+TEST_CASE_METHOD(UltrawideTray, "several heads with no lanes keep the readouts, not an empty tray",
+                 "[print_status_tray][ultrawide]") {
+    ScopedLaneTrayGate gate(1); // a multi-head printer
+    lv_subject_t* slots = AmsState::instance().get_slot_count_subject();
+    const int original = lv_subject_get_int(slots);
+    lv_subject_set_int(slots, 0);
+    PrintStatusPanelTestAccess::relayout(panel());
+    UpdateQueue::instance().drain();
+    lv_obj_update_layout(root_);
+    CHECK(subject_int("ps_lane_tray") == 0);
+    CHECK(shown(find("ps_uw_readouts")));
+    CHECK_FALSE(shown(find("ps_uw_lane_tray")));
+
+    lv_subject_set_int(slots, original);
+    PrintStatusPanelTestAccess::relayout(panel());
+    UpdateQueue::instance().drain();
 }
