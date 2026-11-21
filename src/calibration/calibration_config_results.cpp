@@ -88,8 +88,10 @@ void z_offset(const json& settings, ConfigResults& out) {
         other_probe = other_probe || (is_probe(name) && !hw::is_fallback_probe_section(name));
     }
     for (const auto& [name, body] : settings.items()) {
-        const bool modeled = std::any_of(std::begin(kModelOffsetRows), std::end(kModelOffsetRows),
-                                         [&name](const auto& row) { return row.probe == name; });
+        const std::string& section = name; // a lambda cannot capture a structured binding
+        const bool modeled =
+            std::any_of(std::begin(kModelOffsetRows), std::end(kModelOffsetRows),
+                        [&section](const auto& row) { return row.probe == section; });
         if (!body.is_object() || !is_probe(name) || modeled ||
             (other_probe && hw::is_fallback_probe_section(name))) {
             continue;
