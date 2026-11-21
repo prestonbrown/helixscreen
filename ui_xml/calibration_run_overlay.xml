@@ -180,7 +180,7 @@
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md"
                 style_flex_cross_place="center" scrollable="false">
           <ui_button name="btn_cal_run_stop"
-                     width="35%" style_min_height="#touch_target_min" text="Stop calibration" variant="danger">
+                     width="35%" style_min_height="#touch_target_min" icon="alert_octagon" text="Stop" variant="danger">
             <bind_flag_if_eq subject="cal_run_over" flag="hidden" ref_value="1"/>
             <event_cb trigger="clicked" callback="on_cal_run_stop"/>
           </ui_button>

@@ -156,8 +156,7 @@ class CalibrationRunOverlay : public OverlayBase {
 
 CalibrationRunOverlay& get_calibration_run_overlay();
 
-/// Registers the run's XML callbacks, including the Calibration screen's
-/// "Guided calibration" banner. Startup, before XML.
+/// Registers the run's XML callbacks. Startup, before XML.
 void init_calibration_run_handlers();
 
 } // namespace helix::ui

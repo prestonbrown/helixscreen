@@ -557,8 +557,6 @@ void CalibrationRunOverlay::done() {
 
 void init_calibration_run_handlers() {
     register_xml_callbacks({
-        {"on_guided_calibration_clicked",
-         [](lv_event_t*) { get_calibration_run_overlay().open(); }},
         {"on_cal_run_pick_toggle",
          [](lv_event_t* e) {
              const char* id = static_cast<const char*>(lv_event_get_user_data(e));

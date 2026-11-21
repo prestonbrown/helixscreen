@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_calibration_hub_overlay.h"
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_callback_helpers.h"
 
 #include "app_globals.h"
@@ -137,6 +138,13 @@ void init_calibration_hub_row_handler() {
     register_xml_callbacks({
         {"on_calibration_hub_clicked",
          [](lv_event_t*) { get_calibration_hub_overlay().show(lv_screen_active()); }},
+        // The firmware hides the banner: the guided run is not in its build.
+        {"on_guided_calibration_clicked",
+         [](lv_event_t*) {
+#if !defined(HELIX_PLATFORM_ESP32)
+             get_calibration_run_overlay().open();
+#endif
+         }},
     });
 }
 
