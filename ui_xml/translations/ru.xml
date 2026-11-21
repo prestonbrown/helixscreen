@@ -206,6 +206,9 @@
   <translation tag="A cold pull is already running." ru="Холодная протяжка уже выполняется."/>
   <translation tag="A command is malformed or names a device that does not exist." ru="Команда составлена неверно или указывает несуществующее устройство."/>
   <translation tag="A command is missing a value, or a value is out of its allowed range." ru="В команде не хватает значения, или значение вне допустимого диапазона."/>
+  <translation tag="A configuration file includes itself"/>
+  <translation tag="A configuration file includes itself, directly or through another file it includes."/>
+  <translation tag="A configuration file is missing"/>
   <translation tag="A controller board did not answer" ru="Плата управления не ответила"/>
   <translation tag="A controller board fell behind" ru="Плата управления не успевает"/>
   <translation tag="A controller board missed a timed update"/>
@@ -260,6 +263,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." ru="Насыщенный фильтр перестаёт задерживать пары и частицы."/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ru="Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд»."/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ru="Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры."/>
+  <translation tag="A setting has a value Klipper can&apos;t use"/>
   <translation tag="A setting or pin in the printer&apos;s configuration is invalid." ru="Параметр или пин в конфигурации принтера недопустим."/>
   <translation tag="A sheet of printer paper" ru="Лист бумаги для принтера"/>
   <translation tag="A shell on the machine running this screen" ru="Командная оболочка на машине, где работает этот экран"/>
@@ -278,6 +282,7 @@
   <translation tag="A toolhead&apos;s fan stopped reporting during the print, which points to the pogo pins." ru="Вентилятор печатающей головки перестал отвечать во время печати, что указывает на пого-контакты."/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." ru="Обнаружена верхняя крышка. Её вентиляторы и режимы воздуха находятся на экране «Вентиляторы»."/>
   <translation tag="A upper, B lower" ru="A сверху, B снизу"/>
+  <translation tag="A value in the printer&apos;s configuration has the wrong type or is outside the range the setting allows. Klipper&apos;s message names the setting and its section."/>
   <translation tag="ABS" ru="ABS"/>
   <translation tag="ACCELEROMETERS" ru="АКСЕЛЕРОМЕТРЫ"/>
   <translation tag="ACCEPT failed: {}" ru="Ошибка ACCEPT: {}"/>
@@ -323,6 +328,7 @@
   <translation tag="Accel to Decel" ru="Ускорение к торможению"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ru="Предел ускорения к торможению (мм/с²)"/>
   <translation tag="Accelerometer" ru="Акселерометр"/>
+  <translation tag="Accelerometer communication failed"/>
   <translation tag="Accelerometer communication failed. Try again." ru="Связь с акселерометром потеряна. Попробуйте снова."/>
   <translation tag="Accelerometer not connected"/>
   <translation tag="Accelerometer not responding" ru="Акселерометр не отвечает"/>
@@ -898,6 +904,7 @@
   <translation tag="Check the power cable and outlet. When power is back, resume the print if the printer offers it." ru="Проверьте кабель питания и розетку. Когда питание вернётся, продолжите печать, если принтер это предложит."/>
   <translation tag="Check the print. Resume only if it looks fine; otherwise cancel and clean the plate." ru="Проверьте печать. Продолжайте, только если всё в порядке; иначе отмените и очистите пластину."/>
   <translation tag="Check the provided value and try again" ru="Проверьте указанное значение и повторите попытку"/>
+  <translation tag="Check the sensor leads at the amplifier board and the amplifier&apos;s wiring to the controller, then restart the firmware."/>
   <translation tag="Check the sensor&apos;s wiring and connector, and that the room is not colder than the sensor&apos;s minimum. Let the printer cool, then restart the firmware."/>
   <translation tag="Check the spool and the filament path for a jam, then retry" ru="Проверьте катушку и путь филамента на замятие, затем повторите"/>
   <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again." ru="Проверьте катушку на запутывание, а трубку подачи на перегиб или ослабленный фитинг, затем снова загрузите головку."/>
@@ -1155,11 +1162,13 @@
   <translation tag="Copy failed - use SSH manually" ru="Ошибка копирования - используйте SSH вручную"/>
   <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." ru="Перепишите его в профиль слайсера для этого филамента. Принтер ничего не сохраняет."/>
   <translation tag="Copy layout from printer" ru="Копировать раскладку с принтера"/>
+  <translation tag="Copy the pin name from the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Copying from USB" ru="Копирование с USB"/>
   <translation tag="Copying from USB stopped responding" ru="Копирование с USB перестало отвечать"/>
   <translation tag="Copying from USB..." ru="Копирование с USB..."/>
   <translation tag="Corner roundness" ru="Скругление углов"/>
   <translation tag="Corners differ by {} mm" ru="Разница углов {} мм"/>
+  <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Correction (Ki)" ru="Коррекция (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." ru="Не удалось добавить плагин таймлапса в Moonraker."/>
   <translation tag="Could not add to queue" ru="Не удалось добавить в очередь"/>
@@ -1906,6 +1915,8 @@
   <translation tag="Fit how the part fan cools the nozzle" ru="Определить, как обдув охлаждает сопло"/>
   <translation tag="Fit the heater model with the part fan off" ru="Определить модель нагревателя при выключенном обдуве"/>
   <translation tag="Fit the induction heater&apos;s safety model" ru="Определить модель безопасности индукционного нагревателя"/>
+  <translation tag="Fix or remove that include line, then restart Klipper."/>
+  <translation tag="Fix the macro on that line, then restart Klipper."/>
   <translation tag="Fix the reason shown for the shutdown, then restart the firmware." ru="Устраните указанную причину отключения, затем перезапустите прошивку."/>
   <translation tag="Fix the spelling or remove the line from the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Fix: chmod 644 {}, then restart" ru="Исправление: chmod 644 {}, затем перезапустите"/>
@@ -1984,6 +1995,7 @@
   <translation tag="Getting Started" ru="Начало работы"/>
   <translation tag="Getting address…" ru="Получение адреса…"/>
   <translation tag="Getting ready..." ru="Подготовка..."/>
+  <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Glass Effects" ru="Эффекты стекла"/>
   <translation tag="Global" ru="Общий"/>
   <translation tag="Global Z offset" ru="Общее смещение Z"/>
@@ -2131,7 +2143,9 @@
   <translation tag="Home &amp; Continue" ru="Запарковать и продолжить"/>
   <translation tag="Home All" ru="Парковка всех осей"/>
   <translation tag="Home Selector" ru="Парковать селектор"/>
+  <translation tag="Home X and Y before Z"/>
   <translation tag="Home X and Y first" ru="Сначала запаркуйте X и Y"/>
+  <translation tag="Home X and Y first, or home all axes together."/>
   <translation tag="Home all axes to use the map" ru="Выполните парковку всех осей, чтобы использовать карту"/>
   <translation tag="Home all axes, then try again." ru="Выполните парковку всех осей и попробуйте снова."/>
   <translation tag="Home and park" ru="Домой и парковка"/>
@@ -2275,6 +2289,7 @@
   <translation tag="Install script not found. Use the remote install command instead." ru="Скрипт установки не найден. Используйте вместо этого команду удалённой установки."/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ru="Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:"/>
   <translation tag="Install the plugin it belongs to, or rename or remove the section, then restart Klipper."/>
+  <translation tag="Install the plugin, or remove the duplicate or unknown section, then restart Klipper."/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." ru="Установите плагин таймлапс через SSH,&#10;затем нажмите &quot;Проверить снова&quot;."/>
   <translation tag="Install timelapse plugin" ru="Установить плагин таймлапса"/>
   <translation tag="Install {} on this printer?" ru="Установить {} на этот принтер?"/>
@@ -2380,7 +2395,9 @@
   <translation tag="Klipper Error" ru="Ошибка Klipper"/>
   <translation tag="Klipper already reports the ACE slots." ru="Klipper уже сообщает слоты ACE."/>
   <translation tag="Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged."/>
+  <translation tag="Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice."/>
   <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." ru="Klipper не смог загрузить конфигурацию. Исправьте указанный ниже параметр в файлах конфигурации принтера, затем перезапустите Klipper."/>
+  <translation tag="Klipper could not read the template of {1}. Klipper&apos;s message names the line and the problem."/>
   <translation tag="Klipper disconnected" ru="Klipper отключён"/>
   <translation tag="Klipper does not know the section [{1}]: a typo, or a plugin that is not installed."/>
   <translation tag="Klipper does not know the setting &apos;{1}&apos; in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."/>
@@ -2623,6 +2640,7 @@
   <translation tag="Macro to purge/prime the nozzle" ru="Макрос для продувки/подготовки сопла"/>
   <translation tag="Macro to resume a paused print" ru="Макрос для возобновления приостановленной печати"/>
   <translation tag="Macro to unload filament from extruder" ru="Макрос для выгрузки филамента из экструдера"/>
+  <translation tag="Macro {1} has a syntax error"/>
   <translation tag="Macros" ru="Макросы"/>
   <translation tag="Macros installed - restart pending" ru="Макросы установлены - ожидается перезапуск"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ru="Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их."/>
@@ -3245,6 +3263,8 @@
   <translation tag="Picking up or parking the head failed while checking its dock position." ru="Не удалось взять или поставить головку при проверке положения её дока."/>
   <translation tag="Picking up tool" ru="Захват инструмента"/>
   <translation tag="Pill" ru="Овал"/>
+  <translation tag="Pin conflict in the configuration"/>
+  <translation tag="Pin name not valid for this board"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ru="Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)"/>
   <translation tag="Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels." ru="Поместите файлы изображений (PNG, JPEG, BMP, GIF) в config/custom_images/. Макс. размер: 2048×2048 пикселей."/>
   <translation tag="Place the PEI sheet back onto the heated bed." ru="Верните лист PEI на подогреваемый стол."/>
@@ -3703,6 +3723,7 @@
   <translation tag="Remove the bypass spool from the toolhead first" ru="Сначала извлеките катушку байпаса из печатающей головки"/>
   <translation tag="Remove the debris from the bed, then resume." ru="Уберите мусор со стола, затем продолжите."/>
   <translation tag="Remove the filter cover." ru="Снимите крышку фильтра."/>
+  <translation tag="Remove the include line that loops back, then restart Klipper."/>
   <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." ru="Удалите оставшийся филамент из печатающей головки вручную перед загрузкой другой катушки."/>
   <translation tag="Remove the spools" ru="Снимите катушки"/>
   <translation tag="Remove the spools from the bed" ru="Снимите катушки со стола"/>
@@ -4555,6 +4576,7 @@
   <translation tag="The Z offset paper test. Stay at the printer." ru="Проверка смещения Z листом бумаги. Оставайтесь у принтера."/>
   <translation tag="The accelerometer did not respond as expected, usually from a loose cable." ru="Акселерометр ответил не так, как ожидалось, обычно из-за отошедшего кабеля."/>
   <translation tag="The accelerometer is attached" ru="Акселерометр установлен"/>
+  <translation tag="The accelerometer stopped answering in the middle of a measurement."/>
   <translation tag="The active tool has no nozzle heater." ru="У активного инструмента нет нагревателя сопла."/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ru="Анимированная заставка была отключена на данном устройстве, чтобы она не мешала печати. Вы можете снова включить её в Настройки &gt; Дисплей."/>
   <translation tag="The automatic feeding setting could not be applied." ru="Не удалось применить настройку автоматической подачи."/>
@@ -4593,6 +4615,9 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." ru="Вентилятор циркуляции камеры включён, но скорость не определяется."/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ru="Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны."/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." ru="Изменение не применено: не удалось сохранить текущие настройки для отката."/>
+  <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file."/>
+  <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have."/>
+  <translation tag="The configuration needs a missing module"/>
   <translation tag="The connection to Klipper was lost" ru="Связь с Klipper потеряна"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ru="Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках."/>
@@ -4669,6 +4694,7 @@
   <translation tag="The load failed without a more specific reason." ru="Загрузка не удалась без более точной причины."/>
   <translation tag="The loaded slot is not known yet" ru="Загруженный слот пока неизвестен"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ru="Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла."/>
+  <translation tag="The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The measured offset between toolheads is outside the allowed range." ru="Измеренное смещение между печатающими головками вне допустимого диапазона."/>
   <translation tag="The message your printer&apos;s macros show (M117)" ru="Сообщение, которое показывают макросы принтера (M117)"/>
@@ -4792,6 +4818,7 @@
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." ru="Зонд так и не коснулся пластины: пластина PEI установлена неправильно."/>
   <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." ru="Зонд уже сработал до начала перемещения."/>
+  <translation tag="The probe was used before the printer was homed."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
@@ -4805,6 +4832,7 @@
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
+  <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ru="Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." ru="Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который не установлен на этом принтере."/>
@@ -4847,6 +4875,7 @@
   <translation tag="There is no cycle to stop" ru="Нет цикла для остановки"/>
   <translation tag="There is no filament in this head&apos;s feeder." ru="В фидере этой головки нет филамента."/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." ru="Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."/>
+  <translation tag="Thermocouple reader fault"/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." ru="Эти показания не повторяются, поэтому настройкой нельзя управлять. Сначала проверьте механику."/>
   <translation tag="These tools have a different filament grade loaded:" ru="В этих инструментах загружен филамент другой марки:"/>
   <translation tag="These tools have incompatible materials loaded:" ru="В этих инструментах загружены несовместимые материалы:"/>
@@ -5073,6 +5102,7 @@
   <translation tag="Troubleshooting:" ru="Устранение неполадок:"/>
   <translation tag="Try Again" ru="Повторить"/>
   <translation tag="Try adjusting your search or filters" ru="Попробуйте изменить поиск или фильтры"/>
+  <translation tag="Try again. If it keeps happening, reseat the accelerometer cable."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." ru="Повторите операцию. Если проблема не исчезает, проверьте механические неисправности."/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." ru="Попробуйте применить настройку снова и перезапустите принтер, если ошибка повторяется."/>
   <translation tag="Try {0} mm/s" ru="Попробуйте {0} mm/s"/>
@@ -5105,6 +5135,7 @@
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." ru="Поворачивает изображение в соответствии с положением экрана. Применяется после перезапуска."/>
   <translation tag="Turn the printer&apos;s lights on or off" ru="Включить или выключить подсветку"/>
   <translation tag="Two configuration sections define the same command." ru="Две секции конфигурации определяют одну и ту же команду."/>
+  <translation tag="Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper&apos;s message names the pin."/>
   <translation tag="Type" ru="Тип"/>
   <translation tag="Type to preview input field..." ru="Введите для предпросмотра поля ввода..."/>
   <translation tag="Type:" ru="Тип:"/>
@@ -5462,6 +5493,7 @@
   <translation tag="Z Tilt Adjust..." ru="Регулировка наклона Z..."/>
   <translation tag="Z axis" ru="Ось Z"/>
   <translation tag="Z homed before X and Y" ru="Z запаркована раньше X и Y"/>
+  <translation tag="Z homes at a safe spot over the bed, so X and Y have to be homed first."/>
   <translation tag="Z homing was asked for before X and Y were homed." ru="Парковка Z запрошена до парковки X и Y."/>
   <translation tag="Z is at its limit ({}mm)" ru="Z на пределе ({}mm)"/>
   <translation tag="Z jog feedrate" ru="Скорость перемещения по оси Z"/>

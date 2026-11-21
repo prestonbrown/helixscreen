@@ -185,6 +185,9 @@ translations:
   A cold pull is already running.: "Un cold pull è già in corso."
   A command is malformed or names a device that does not exist.: 'Un comando non è valido o indica un dispositivo che non esiste.'
   A command is missing a value, or a value is out of its allowed range.: 'A un comando manca un valore, oppure un valore è fuori dall''intervallo consentito.'
+  A configuration file includes itself: ''
+  A configuration file includes itself, directly or through another file it includes.: ''
+  A configuration file is missing: ''
   A controller board did not answer: 'Una scheda di controllo non ha risposto'
   A controller board fell behind: 'Una scheda di controllo è rimasta indietro'
   A controller board missed a timed update: ''
@@ -245,6 +248,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Un sensore che misura la distanza dal piano. HelixScreen lo usa per la calibrazione dello Z Offset e per i test della sonda nella schermata Sonda.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un sensore che legge la temperatura dell''aria dentro la camera. Controllala nella schermata della temperatura camera.'
+  A setting has a value Klipper can't use: ''
   A setting or pin in the printer's configuration is invalid.: 'Un''impostazione o un pin nella configurazione della stampante non è valido.'
   A sheet of printer paper: 'Un foglio di carta per stampante'
   A shell on the machine running this screen: 'Una shell sulla macchina che esegue questo schermo'
@@ -266,6 +270,8 @@ translations:
   A toolhead's fan stopped reporting during the print, which points to the pogo pins.: 'La ventola di una testina ha smesso di rispondere durante la stampa, il che indica i pin pogo.'
   A top cover was detected. Its fans and air modes are on the Fans screen.: 'È stata rilevata una copertura superiore. Le sue ventole e modalità aria sono nella schermata Ventole.'
   A upper, B lower: "A sopra, B sotto"
+  ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
+  : ''
   ABS: ABS
   ACCELEROMETERS: ACCELEROMETRI
   'ACCEPT failed: {}': 'ACCEPT fallito: {}'
@@ -308,6 +314,7 @@ translations:
   Accel to Decel: Accel. a Decel.
   Acceleration to deceleration limit (mm/s²): Limite accelerazione a decelerazione (mm/s²)
   Accelerometer: Accelerometro
+  Accelerometer communication failed: ''
   Accelerometer communication failed. Try again.: Comunicazione accelerometro fallita. Riprovare.
   Accelerometer not connected: ''
   Accelerometer not responding: 'Accelerometro non risponde'
@@ -888,6 +895,7 @@ translations:
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: 'Controlla il cavo di alimentazione e la presa. Al ritorno della corrente, riprendi la stampa se la stampante lo consente.'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: 'Controlla la stampa. Riprendi solo se sembra a posto; altrimenti annulla e pulisci il piano.'
   Check the provided value and try again: Controlla il valore fornito e riprova
+  Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.: ''
   ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   : ''
   Check the spool and the filament path for a jam, then retry: Controllare la bobina e il percorso del filamento, quindi riprovare
@@ -1150,11 +1158,13 @@ translations:
   Copy failed - use SSH manually: Copia fallita - usa SSH manualmente
   Copy it into this filament's slicer profile. The printer keeps nothing.: 'Copialo nel profilo slicer di questo filamento. La stampante non conserva nulla.'
   Copy layout from printer: "Copia layout dalla stampante"
+  Copy the pin name from the board's sample configuration, then restart Klipper.: ''
   Copying from USB: 'Copia da USB'
   Copying from USB stopped responding: 'La copia da USB non risponde più'
   Copying from USB...: 'Copia da USB...'
   Corner roundness: Arrotondamento angoli
   Corners differ by {} mm: "Gli angoli differiscono di {} mm"
+  Correct the value in the printer's configuration, then restart Klipper.: ''
   Correction (Ki): Correzione (Ki)
   Could not add the timelapse plugin to Moonraker.: 'Impossibile aggiungere il plugin timelapse a Moonraker.'
   Could not add to queue: Impossibile aggiungere alla coda
@@ -1948,6 +1958,8 @@ translations:
   Fit how the part fan cools the nozzle: Adatta il raffreddamento dell'ugello da parte della ventola pezzo
   Fit the heater model with the part fan off: Adatta il modello del riscaldatore con la ventola pezzo spenta
   Fit the induction heater's safety model: Adatta il modello di sicurezza del riscaldatore a induzione
+  Fix or remove that include line, then restart Klipper.: ''
+  Fix the macro on that line, then restart Klipper.: ''
   Fix the reason shown for the shutdown, then restart the firmware.: 'Risolvi la causa indicata per lo spegnimento, poi riavvia il firmware.'
   Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': 'Correzione: chmod 644 {}, poi riavvia'
@@ -2024,6 +2036,7 @@ translations:
   Get help and share feedback: Ottieni aiuto e condividi feedback
   Getting address…: Ottenimento indirizzo…
   Getting ready...: 'Preparazione...'
+  Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: ''
   Glass Effects: Effetti vetro
   Global: Globale
   Global Z offset: Offset Z globale
@@ -2174,7 +2187,9 @@ translations:
   Home: Home
   Home & Continue: Homing e continua
   Home All: "Homing tutto"
+  Home X and Y before Z: ''
   Home X and Y first: 'Esegui prima l''homing di X e Y'
+  Home X and Y first, or home all axes together.: ''
   Home all axes to use the map: Porta tutti gli assi in posizione per usare la mappa
   Home all axes, then try again.: 'Esegui l''homing di tutti gli assi, poi riprova.'
   Home and park: "Home e parcheggio"
@@ -2322,6 +2337,7 @@ translations:
   Install script not found. Use the remote install command instead.: Script di installazione non trovato. Usa invece il comando di installazione remota.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Installa il plugin HelixPrint per abilitare modifiche G-code rapide. Esegui questo comando via SSH sulla stampante:'
   Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
+  Install the plugin, or remove the duplicate or unknown section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Installare il plugin timelapse via SSH,\npoi toccare \"Ricontrolla\"."
   Install timelapse plugin: Installa plugin timelapse
@@ -2432,7 +2448,9 @@ translations:
   Klipper already reports the ACE slots.: "Klipper riporta già gli slot dell'ACE."
   ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   : ''
+  'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.': ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper non è riuscito a caricare la sua configurazione. Correggi l'impostazione indicata sotto nei file di configurazione della stampante, poi riavvia Klipper."
+  Klipper could not read the template of {1}. Klipper's message names the line and the problem.: ''
   Klipper disconnected: Klipper disconnesso
   'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
   ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
@@ -2669,6 +2687,7 @@ translations:
   Macro to purge/prime the nozzle: Macro per spurgare/preparare l'ugello
   Macro to resume a paused print: Macro per riprendere una stampa in pausa
   Macro to unload filament from extruder: Macro per scaricare filamento dall'estrusore
+  Macro {1} has a syntax error: ''
   Macros: Macro
   Macros installed - restart pending: 'Macro installate - riavvio in attesa'
   Macros installed. Restart Klipper after the print to activate them.: 'Macro installate. Riavvia Klipper dopo la stampa per attivarle.'
@@ -3306,6 +3325,8 @@ translations:
   Picking up or parking the head failed while checking its dock position.: 'Il prelievo o il parcheggio della testina non è riuscito durante la verifica della posizione del dock.'
   Picking up tool: Prelievo utensile
   Pill: Pillola
+  Pin conflict in the configuration: ''
+  Pin name not valid for this board: ''
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixel prima che una pressione diventi scorrimento (più basso = scorrimento più rapido)
   'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Posiziona file immagine (PNG, JPEG, BMP, GIF) in config/custom_images/. Dimensione max: 2048×2048 pixel.'
   Place the PEI sheet back onto the heated bed.: Rimetti il foglio PEI sul piano riscaldato.
@@ -3752,6 +3773,7 @@ translations:
   Remove the bypass spool from the toolhead first: 'Rimuovi prima la bobina di bypass dalla testina'
   Remove the debris from the bed, then resume.: 'Rimuovi i detriti dal piano, poi riprendi.'
   Remove the filter cover.: "Rimuovi il coperchio del filtro."
+  Remove the include line that loops back, then restart Klipper.: ''
   Remove the leftover filament from the toolhead by hand before loading another spool.: 'Rimuovi a mano il filamento rimasto dalla testina prima di caricare un''altra bobina.'
   Remove the spools: Togli le bobine
 
@@ -4617,6 +4639,7 @@ translations:
   The Z offset paper test. Stay at the printer.: 'Il test della carta per l''offset Z. Resta vicino alla stampante.'
   The accelerometer did not respond as expected, usually from a loose cable.: 'L''accelerometro non ha risposto come previsto, di solito per un cavo allentato.'
   The accelerometer is attached: 'L''accelerometro è collegato'
+  The accelerometer stopped answering in the middle of a measurement.: ''
   The active tool has no nozzle heater.: "L'utensile attivo non ha un riscaldatore dell'ugello."
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : Il salvaschermo animato è stato disattivato su questo dispositivo per evitare che interferisca con le stampe. Puoi riattivarlo in Impostazioni > Schermo.
@@ -4661,6 +4684,10 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : La modifica ha effetto dopo il riavvio di Klipper. Il firmware Klipper verrà riavviato. Le operazioni attive saranno interrotte.
   'The change was not applied: the current settings could not be saved for a revert.': 'La modifica non è stata applicata: impossibile salvare le impostazioni attuali per il ripristino.'
+  ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  : ''
+  The configuration names pin '{1}', which board '{2}' does not have.: ''
+  The configuration needs a missing module: ''
   The connection to Klipper was lost: 'La connessione a Klipper è stata persa'
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : ''
@@ -4747,6 +4774,8 @@ translations:
   The loaded slot is not known yet: "Lo slot caricato non è ancora noto"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : La bobina caricata è {}, ma questo file è stato sezionato per {}. Il filamento con cariche richiede un flusso più basso e un ugello indurito.
+  ? The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
+  : ''
   ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   : ''
   The measured offset between toolheads is outside the allowed range.: 'L''offset misurato tra le testine è fuori dall''intervallo consentito.'
@@ -4889,6 +4918,7 @@ translations:
   The speed of one fan you choose: La velocità di una ventola a scelta
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'La subnet mask non è valida. Usa una forma come 255.255.255.0 o 24.'
   The temperature was changed elsewhere.: "La temperatura è stata modificata altrove."
+  The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: Ora, data e tempo di attività
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."
   Timelapse did not start: 'Il timelapse non è partito'
@@ -4938,6 +4968,7 @@ translations:
   There is no filament in this head's feeder.: 'Non c''è filamento nell''alimentatore di questa testina.'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "Non c'è abbastanza memoria libera per questo test. L'analisi di Klipper esaurirebbe la memoria e bloccherebbe la stampante finché non viene spenta e riaccesa."
+  Thermocouple reader fault: ''
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "Queste letture non si ripetono, quindi la regolazione non può essere guidata. Controlla prima la meccanica."
   'These tools have a different filament grade loaded:': 'Questi utensili hanno un filamento di grado diverso caricato:'
   'These tools have incompatible materials loaded:': 'Questi strumenti hanno caricati materiali incompatibili:'
@@ -4950,6 +4981,7 @@ translations:
   : ''
   The probe was already triggered before the move started.: 'La sonda era già attivata prima dell''inizio del movimento.'
   The printer's status isn't known yet, so a print may be running.: 'Lo stato della stampante non è ancora noto, quindi potrebbe essere in corso una stampa.'
+  The probe was used before the printer was homed.: ''
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La coda stampa il piatto predefinito di questo .3mf. Stampa questo piatto da qui.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'I passaggi preliminari disattivati non possono essere applicati a questo .3mf. Riattivali per stamparlo.'
   Filament Mapping at print start: 'Mappatura filamento all''avvio della stampa'
@@ -5194,6 +5226,7 @@ translations:
   'Troubleshooting:': 'Risoluzione problemi:'
   Try adjusting your search or filters: Prova a modificare la ricerca o i filtri
   Try Again: 'Riprova'
+  Try again. If it keeps happening, reseat the accelerometer cable.: ''
   Try the operation again. If it persists, check for mechanical issues.: Riprova l'operazione. Se il problema persiste, controlla eventuali problemi meccanici.
   Try the setting again, and restart the printer if it keeps failing.: 'Riprova l''impostazione e riavvia la stampante se continua a fallire.'
   Try {0} mm/s: 'Prova {0} mm/s'
@@ -5226,6 +5259,7 @@ translations:
   Turn the picture to match how the screen is mounted. Applies after restart.: Ruota l'immagine in base a come è montato lo schermo. Ha effetto dopo il riavvio.
   Turn the printer's lights on or off: Accendi o spegni le luci
   Two configuration sections define the same command.: 'Due sezioni della configurazione definiscono lo stesso comando.'
+  Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: ''
   Type: Tipo
   Type to preview input field...: Digita per visualizzare anteprima campo input...
   'Type:': 'Tipo:'
@@ -5573,6 +5607,7 @@ translations:
   Z Tilt Adjust...: Regolazione inclinazione Z...
   Z axis: "Asse Z"
   Z homed before X and Y: 'Homing di Z prima di X e Y'
+  Z homes at a safe spot over the bed, so X and Y have to be homed first.: ''
   Z homing was asked for before X and Y were homed.: 'L''homing di Z è stato richiesto prima dell''homing di X e Y.'
   Z is at its limit ({}mm): Z è al suo limite ({}mm)
   Z jog feedrate: Velocità di avanzamento del movimento Z

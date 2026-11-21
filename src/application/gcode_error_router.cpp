@@ -279,9 +279,9 @@ std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
 //
 // MoonrakerRequestTracker::route_response() records the RAW Klipper-supplied
 // `error.message`, so the identity we look up is `raw_detail` — Klipper's
-// wording before clean_error_text() rewrote it. Matching on `detail` alone
-// misses every message the cleaner touches ("Must home axis first" ->
-// "Must home axes first"), which double-toasts a single rejection.
+// own wording. Matching on `detail` alone misses every message the wording
+// table rewords ("Must home axis first" reads as a cause and a fix), which
+// double-toasts a single rejection.
 //
 // `detail` stays as a fallback for classifiers that leave `raw_detail` empty
 // (the AMS backends, whose detail already IS the raw text). The match remains
@@ -728,7 +728,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // this record is the only signal that stops it adding a second
     // notification for the fault just shown. Both spellings are recorded: the
     // bridge holds the backend's operation_detail, which matches Klipper's raw
-    // wording, while clean_error_text() may have rewritten `detail`.
+    // wording, while the wording table may have reworded `detail`.
     fault_surface_correlation::record_surfaced(ev->detail);
     if (ev->raw_detail != ev->detail) {
         fault_surface_correlation::record_surfaced(ev->raw_detail);
@@ -845,23 +845,26 @@ void GcodeErrorRouter::on_connected() {
                         last_replayed_time_ = it->time;
                     }
 
-                    std::string clean =
-                        (raw.size() > 3 && raw[2] == ' ') ? raw.substr(3) : raw.substr(2);
-                    std::string code;
-                    clean_error_text(clean, code);
+                    // The same classification a live line gets, so a replayed
+                    // fault reads with the same title and wording.
+                    ClassifyContext replay_ctx;
+                    replay_ctx.hw = &get_printer_state().get_discovery();
+                    const auto ev = error_classify::classify(raw, replay_ctx);
+                    if (!ev) {
+                        return;
+                    }
 
                     spdlog::info(
                         "[GcodeError replay] Surfacing prior `!!` (age {:.0f}s, code={}): {}", age,
-                        code.empty() ? "-" : code, clean);
+                        ev->code.empty() ? "-" : ev->code, ev->detail);
 
                     // Replay is always modal -- the user was disconnected; a
                     // transient toast they can miss isn't enough on first
                     // reconnect. Modal dedup-by-title prevents the live
                     // notify_gcode_response (if Klippy re-emits) from
                     // duplicating.
-                    const char* table_title = printer::klipper_error_modal_title(code);
-                    const char* title = table_title ? table_title : lv_tr("Printer Error");
-                    ui_notification_printer_fault(title, clean.c_str());
+                    ui_notification_printer_fault(helix::ui::modal_title_for(*ev),
+                                                  ev->detail.c_str());
                     return;
                 }
             }),

@@ -185,6 +185,9 @@ translations:
   A cold pull is already running.: "冷拉清理已在运行。"
   A command is malformed or names a device that does not exist.: '命令格式错误，或指定了不存在的设备。'
   A command is missing a value, or a value is out of its allowed range.: '命令缺少数值，或数值超出允许范围。'
+  A configuration file includes itself: ''
+  A configuration file includes itself, directly or through another file it includes.: ''
+  A configuration file is missing: ''
   A controller board did not answer: '控制板无响应'
   A controller board fell behind: '控制板处理滞后'
   A controller board missed a timed update: ''
@@ -245,6 +248,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : '测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: '读取腔体内空气温度的传感器。在腔体温度界面查看。'
+  A setting has a value Klipper can't use: ''
   A setting or pin in the printer's configuration is invalid.: '打印机配置中的某项设置或引脚无效。'
   A sheet of printer paper: '一张打印纸'
   A shell on the machine running this screen: '运行此屏幕的机器上的 Shell'
@@ -266,6 +270,8 @@ translations:
   A toolhead's fan stopped reporting during the print, which points to the pogo pins.: '打印过程中工具头风扇停止上报，问题可能在弹簧针。'
   A top cover was detected. Its fans and air modes are on the Fans screen.: '检测到顶盖。其风扇和空气模式位于风扇界面。'
   A upper, B lower: "A 上,B 下"
+  ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
+  : ''
   ABS: ABS
   ACCELEROMETERS: 加速度计
   'ACCEPT failed: {}': 'ACCEPT 失败: {}'
@@ -308,6 +314,7 @@ translations:
   Accel to Decel: 加速到减速
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
+  Accelerometer communication failed: ''
   Accelerometer communication failed. Try again.: 加速度计通信失败，请重试。
   Accelerometer not connected: ''
   Accelerometer not responding: '加速度计无响应'
@@ -888,6 +895,7 @@ translations:
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: '请检查电源线和插座。恢复供电后，如打印机提供该选项，可恢复打印。'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: '请检查打印件。确认正常再恢复，否则取消并清理打印板。'
   Check the provided value and try again: 请检查所提供的值后重试
+  Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.: ''
   ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   : ''
   Check the spool and the filament path for a jam, then retry: 请检查料盘和耗材通路是否卡住，然后重试
@@ -1150,11 +1158,13 @@ translations:
   Copy failed - use SSH manually: 复制失败 - 请手动使用 SSH
   Copy it into this filament's slicer profile. The printer keeps nothing.: '请把它复制到该耗材的切片软件配置中。打印机不会保存任何内容。'
   Copy layout from printer: "从打印机复制布局"
+  Copy the pin name from the board's sample configuration, then restart Klipper.: ''
   Copying from USB: '正在从 USB 复制'
   Copying from USB stopped responding: '从 USB 复制已停止响应'
   Copying from USB...: '正在从 USB 复制...'
   Corner roundness: 圆角程度
   Corners differ by {} mm: "四角相差 {} mm"
+  Correct the value in the printer's configuration, then restart Klipper.: ''
   Correction (Ki): 校正 (Ki)
   Could not add the timelapse plugin to Moonraker.: '无法将延时摄影插件添加到 Moonraker。'
   Could not add to queue: 无法添加到队列
@@ -1948,6 +1958,8 @@ translations:
   Fit how the part fan cools the nozzle: 测定模型风扇对喷嘴的冷却效果
   Fit the heater model with the part fan off: 在模型风扇关闭时测定加热器模型
   Fit the induction heater's safety model: 测定感应加热器的安全模型
+  Fix or remove that include line, then restart Klipper.: ''
+  Fix the macro on that line, then restart Klipper.: ''
   Fix the reason shown for the shutdown, then restart the firmware.: '请修复显示的关机原因，然后重启固件。'
   Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': '修复：chmod 644 {}，然后重启'
@@ -2024,6 +2036,7 @@ translations:
   Get help and share feedback: 获取帮助和反馈
   Getting address…: 正在获取地址…
   Getting ready...: '正在准备...'
+  Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: ''
   Glass Effects: 玻璃效果
   Global: 全局
   Global Z offset: 全局Z偏移
@@ -2174,7 +2187,9 @@ translations:
   Home: 归位
   Home & Continue: 归位并继续
   Home All: "全部归位"
+  Home X and Y before Z: ''
   Home X and Y first: '请先将 X 和 Y 归位'
+  Home X and Y first, or home all axes together.: ''
   Home all axes to use the map: 请先归位所有轴以使用地图
   Home all axes, then try again.: '请将所有轴归位，然后重试。'
   Home and park: "归位并停放"
@@ -2322,6 +2337,7 @@ translations:
   Install script not found. Use the remote install command instead.: 未找到安装脚本。请改用远程安装命令。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令：
   Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
+  Install the plugin, or remove the duplicate or unknown section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "通过SSH安装延时摄影插件，\n然后点击\"重新检查\"。"
   Install timelapse plugin: 安装延时摄影插件
@@ -2432,7 +2448,9 @@ translations:
   Klipper already reports the ACE slots.: "Klipper 已在报告 ACE 槽位。"
   ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   : ''
+  'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.': ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper 无法加载其配置。请在打印机配置文件中修正下方所示的设置，然后重启 Klipper。"
+  Klipper could not read the template of {1}. Klipper's message names the line and the problem.: ''
   Klipper disconnected: Klipper已断开
   'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
   ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
@@ -2669,6 +2687,7 @@ translations:
   Macro to purge/prime the nozzle: 排料/预挤喷嘴的宏
   Macro to resume a paused print: 恢复暂停打印的宏
   Macro to unload filament from extruder: 从挤出机卸载耗材的宏
+  Macro {1} has a syntax error: ''
   Macros: 宏
   Macros installed - restart pending: '宏已安装 - 重启待执行'
   Macros installed. Restart Klipper after the print to activate them.: '宏已安装。打印结束后重启 Klipper 即可启用。'
@@ -3306,6 +3325,8 @@ translations:
   Picking up or parking the head failed while checking its dock position.: '检查停靠位置时，装上或停放工具头失败。'
   Picking up tool: 正在取用工具
   Pill: 胶囊
+  Pin conflict in the configuration: ''
+  Pin name not valid for this board: ''
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 按下转为滚动前的像素数(越低 = 滚动越快触发)
   'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '将图片文件 (PNG, JPEG, BMP, GIF) 放入 config/custom_images/。最大尺寸: 2048×2048 像素。'
   Place the PEI sheet back onto the heated bed.: 请将 PEI 板放回加热床。
@@ -3752,6 +3773,7 @@ translations:
   Remove the bypass spool from the toolhead first: '请先将旁路料盘从工具头中取出'
   Remove the debris from the bed, then resume.: '请清除热床上的杂物，然后恢复。'
   Remove the filter cover.: "取下滤网盖。"
+  Remove the include line that loops back, then restart Klipper.: ''
   Remove the leftover filament from the toolhead by hand before loading another spool.: '装载其他料盘前，请手动从工具头取出剩余耗材。'
   Remove the spools: 取下料盘
 
@@ -4617,6 +4639,7 @@ translations:
   The Z offset paper test. Stay at the printer.: 'Z 偏移纸张测试。请留在打印机旁。'
   The accelerometer did not respond as expected, usually from a loose cable.: '加速度计未按预期响应，通常是线缆松动所致。'
   The accelerometer is attached: '已安装加速度计'
+  The accelerometer stopped answering in the middle of a measurement.: ''
   The active tool has no nozzle heater.: "当前工具没有喷嘴加热器。"
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : 为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 > 显示中重新启用。
@@ -4661,6 +4684,10 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。
   'The change was not applied: the current settings could not be saved for a revert.': '未应用更改：无法保存当前设置以便还原。'
+  ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  : ''
+  The configuration names pin '{1}', which board '{2}' does not have.: ''
+  The configuration needs a missing module: ''
   The connection to Klipper was lost: '与 Klipper 的连接已断开'
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : ''
@@ -4747,6 +4774,8 @@ translations:
   The loaded slot is not known yet: "已加载的槽位尚未报告"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。
+  ? The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
+  : ''
   ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   : ''
   The measured offset between toolheads is outside the allowed range.: '测得的工具头间偏移超出允许范围。'
@@ -4889,6 +4918,7 @@ translations:
   The speed of one fan you choose: 所选风扇的转速
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
+  The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
   Timelapse did not start: '延时摄影未启动'
@@ -4938,6 +4968,7 @@ translations:
   There is no filament in this head's feeder.: '此工具头的送料器中没有耗材。'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "可用内存不足，无法运行此测试。Klipper 的分析会耗尽内存，使打印机卡住，直到断电重启。"
+  Thermocouple reader fault: ''
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "这些读数无法重复,因此无法引导调整。请先检查机械部分。"
   'These tools have a different filament grade loaded:': 以下工具装载的耗材等级不同：
   'These tools have incompatible materials loaded:': 这些工具加载了不兼容的材料：
@@ -4950,6 +4981,7 @@ translations:
   : ''
   The probe was already triggered before the move started.: '移动开始前探针已处于触发状态。'
   The printer's status isn't known yet, so a print may be running.: '打印机状态尚未确定，可能正在打印。'
+  The probe was used before the printer was homed.: ''
   The queue prints this .3mf's default plate. Print this plate from here instead.: '队列会打印此 .3mf 的默认板。请直接从这里打印此板。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: '你关闭的打印前步骤无法应用到此 .3mf。请重新打开它们后再打印。'
   Filament Mapping at print start: '打印开始时的耗材映射'
@@ -5194,6 +5226,7 @@ translations:
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
   Try Again: '重试'
+  Try again. If it keeps happening, reseat the accelerometer cable.: ''
   Try the operation again. If it persists, check for mechanical issues.: 请重试该操作。如果问题持续存在，请检查是否有机械故障。
   Try the setting again, and restart the printer if it keeps failing.: '请重新应用设置，如持续失败请重启打印机。'
   Try {0} mm/s: '尝试 {0} mm/s'
@@ -5226,6 +5259,7 @@ translations:
   Turn the picture to match how the screen is mounted. Applies after restart.: 旋转画面以匹配屏幕的安装方向。重启后生效。
   Turn the printer's lights on or off: 开启或关闭打印机灯光
   Two configuration sections define the same command.: '两个配置段定义了同一个命令。'
+  Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: ''
   Type: 类型
   Type to preview input field...: 输入以预览输入框...
   'Type:': '类型:'
@@ -5573,6 +5607,7 @@ translations:
   Z Tilt Adjust...: 正在调整Z倾斜...
   Z axis: "Z 轴"
   Z homed before X and Y: 'Z 在 X 和 Y 之前归位'
+  Z homes at a safe spot over the bed, so X and Y have to be homed first.: ''
   Z homing was asked for before X and Y were homed.: 'X 和 Y 归位前就请求了 Z 归位。'
   Z is at its limit ({}mm): Z 轴已到达限位 ({}mm)
   Z jog feedrate: Z 轴移动速度

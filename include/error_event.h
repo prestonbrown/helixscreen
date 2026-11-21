@@ -87,8 +87,8 @@ struct ErrorEvent {
     /// FULL, untruncated, UN-translated text exactly as Klipper sent it (the
     /// `!!`/`Error:` prefix stripped, nothing else). This is the cross-channel
     /// dedup identity: the RPC channel records Klipper's raw wording, while
-    /// `detail` may have been rewritten by clean_error_text() ("Must home axis
-    /// first" -> "Must home axes first"). Comparing raw-to-raw keeps both sides
+    /// `detail` may be the wording table's cause and fix for it
+    /// (error_wording). Comparing raw-to-raw keeps both sides
     /// in the same normalization. Empty when a classifier doesn't populate it,
     /// in which case `detail` is already the raw text.
     std::string raw_detail;

@@ -170,6 +170,9 @@
   <translation tag="A cold pull is already running." zh="冷拉清理已在运行。"/>
   <translation tag="A command is malformed or names a device that does not exist." zh="命令格式错误，或指定了不存在的设备。"/>
   <translation tag="A command is missing a value, or a value is out of its allowed range." zh="命令缺少数值，或数值超出允许范围。"/>
+  <translation tag="A configuration file includes itself"/>
+  <translation tag="A configuration file includes itself, directly or through another file it includes."/>
+  <translation tag="A configuration file is missing"/>
   <translation tag="A controller board did not answer" zh="控制板无响应"/>
   <translation tag="A controller board fell behind" zh="控制板处理滞后"/>
   <translation tag="A controller board missed a timed update"/>
@@ -224,6 +227,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." zh="饱和的滤网无法再吸附烟雾和颗粒。"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." zh="测量到热床距离的传感器。HelixScreen 用它进行 Z 偏移校准,并在探针界面进行探针测试。"/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." zh="读取腔体内空气温度的传感器。在腔体温度界面查看。"/>
+  <translation tag="A setting has a value Klipper can&apos;t use"/>
   <translation tag="A setting or pin in the printer&apos;s configuration is invalid." zh="打印机配置中的某项设置或引脚无效。"/>
   <translation tag="A sheet of printer paper" zh="一张打印纸"/>
   <translation tag="A shell on the machine running this screen" zh="运行此屏幕的机器上的 Shell"/>
@@ -242,6 +246,7 @@
   <translation tag="A toolhead&apos;s fan stopped reporting during the print, which points to the pogo pins." zh="打印过程中工具头风扇停止上报，问题可能在弹簧针。"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." zh="检测到顶盖。其风扇和空气模式位于风扇界面。"/>
   <translation tag="A upper, B lower" zh="A 上,B 下"/>
+  <translation tag="A value in the printer&apos;s configuration has the wrong type or is outside the range the setting allows. Klipper&apos;s message names the setting and its section."/>
   <translation tag="ABS" zh="ABS"/>
   <translation tag="ACCELEROMETERS" zh="加速度计"/>
   <translation tag="ACCEPT failed: {}" zh="ACCEPT 失败: {}"/>
@@ -287,6 +292,7 @@
   <translation tag="Accel to Decel" zh="加速到减速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" zh="加速到减速限制 (mm/s²)"/>
   <translation tag="Accelerometer" zh="加速度传感器"/>
+  <translation tag="Accelerometer communication failed"/>
   <translation tag="Accelerometer communication failed. Try again." zh="加速度计通信失败，请重试。"/>
   <translation tag="Accelerometer not connected"/>
   <translation tag="Accelerometer not responding" zh="加速度计无响应"/>
@@ -856,6 +862,7 @@
   <translation tag="Check the power cable and outlet. When power is back, resume the print if the printer offers it." zh="请检查电源线和插座。恢复供电后，如打印机提供该选项，可恢复打印。"/>
   <translation tag="Check the print. Resume only if it looks fine; otherwise cancel and clean the plate." zh="请检查打印件。确认正常再恢复，否则取消并清理打印板。"/>
   <translation tag="Check the provided value and try again" zh="请检查所提供的值后重试"/>
+  <translation tag="Check the sensor leads at the amplifier board and the amplifier&apos;s wiring to the controller, then restart the firmware."/>
   <translation tag="Check the sensor&apos;s wiring and connector, and that the room is not colder than the sensor&apos;s minimum. Let the printer cool, then restart the firmware."/>
   <translation tag="Check the spool and the filament path for a jam, then retry" zh="请检查料盘和耗材通路是否卡住，然后重试"/>
   <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again." zh="请检查料盘是否打结、送料管是否弯折或接头松动，然后重新装载该工具头。"/>
@@ -1110,11 +1117,13 @@
   <translation tag="Copy failed - use SSH manually" zh="复制失败 - 请手动使用 SSH"/>
   <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." zh="请把它复制到该耗材的切片软件配置中。打印机不会保存任何内容。"/>
   <translation tag="Copy layout from printer" zh="从打印机复制布局"/>
+  <translation tag="Copy the pin name from the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Copying from USB" zh="正在从 USB 复制"/>
   <translation tag="Copying from USB stopped responding" zh="从 USB 复制已停止响应"/>
   <translation tag="Copying from USB..." zh="正在从 USB 复制..."/>
   <translation tag="Corner roundness" zh="圆角程度"/>
   <translation tag="Corners differ by {} mm" zh="四角相差 {} mm"/>
+  <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Correction (Ki)" zh="校正 (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." zh="无法将延时摄影插件添加到 Moonraker。"/>
   <translation tag="Could not add to queue" zh="无法添加到队列"/>
@@ -1861,6 +1870,8 @@
   <translation tag="Fit how the part fan cools the nozzle" zh="测定模型风扇对喷嘴的冷却效果"/>
   <translation tag="Fit the heater model with the part fan off" zh="在模型风扇关闭时测定加热器模型"/>
   <translation tag="Fit the induction heater&apos;s safety model" zh="测定感应加热器的安全模型"/>
+  <translation tag="Fix or remove that include line, then restart Klipper."/>
+  <translation tag="Fix the macro on that line, then restart Klipper."/>
   <translation tag="Fix the reason shown for the shutdown, then restart the firmware." zh="请修复显示的关机原因，然后重启固件。"/>
   <translation tag="Fix the spelling or remove the line from the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Fix: chmod 644 {}, then restart" zh="修复：chmod 644 {}，然后重启"/>
@@ -1936,6 +1947,7 @@
   <translation tag="Getting Started" zh="入门"/>
   <translation tag="Getting address…" zh="正在获取地址…"/>
   <translation tag="Getting ready..." zh="正在准备..."/>
+  <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Glass Effects" zh="玻璃效果"/>
   <translation tag="Global" zh="全局"/>
   <translation tag="Global Z offset" zh="全局Z偏移"/>
@@ -2083,7 +2095,9 @@
   <translation tag="Home &amp; Continue" zh="归位并继续"/>
   <translation tag="Home All" zh="全部归位"/>
   <translation tag="Home Selector" zh="选择器归位"/>
+  <translation tag="Home X and Y before Z"/>
   <translation tag="Home X and Y first" zh="请先将 X 和 Y 归位"/>
+  <translation tag="Home X and Y first, or home all axes together."/>
   <translation tag="Home all axes to use the map" zh="请先归位所有轴以使用地图"/>
   <translation tag="Home all axes, then try again." zh="请将所有轴归位，然后重试。"/>
   <translation tag="Home and park" zh="归位并停放"/>
@@ -2227,6 +2241,7 @@
   <translation tag="Install script not found. Use the remote install command instead." zh="未找到安装脚本。请改用远程安装命令。"/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" zh="安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令："/>
   <translation tag="Install the plugin it belongs to, or rename or remove the section, then restart Klipper."/>
+  <translation tag="Install the plugin, or remove the duplicate or unknown section, then restart Klipper."/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." zh="通过SSH安装延时摄影插件，&#10;然后点击&quot;重新检查&quot;。"/>
   <translation tag="Install timelapse plugin" zh="安装延时摄影插件"/>
   <translation tag="Install {} on this printer?" zh="在此打印机上安装 {}?"/>
@@ -2332,7 +2347,9 @@
   <translation tag="Klipper Error" zh="Klipper 错误"/>
   <translation tag="Klipper already reports the ACE slots." zh="Klipper 已在报告 ACE 槽位。"/>
   <translation tag="Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged."/>
+  <translation tag="Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice."/>
   <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." zh="Klipper 无法加载其配置。请在打印机配置文件中修正下方所示的设置，然后重启 Klipper。"/>
+  <translation tag="Klipper could not read the template of {1}. Klipper&apos;s message names the line and the problem."/>
   <translation tag="Klipper disconnected" zh="Klipper已断开"/>
   <translation tag="Klipper does not know the section [{1}]: a typo, or a plugin that is not installed."/>
   <translation tag="Klipper does not know the setting &apos;{1}&apos; in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."/>
@@ -2575,6 +2592,7 @@
   <translation tag="Macro to purge/prime the nozzle" zh="排料/预挤喷嘴的宏"/>
   <translation tag="Macro to resume a paused print" zh="恢复暂停打印的宏"/>
   <translation tag="Macro to unload filament from extruder" zh="从挤出机卸载耗材的宏"/>
+  <translation tag="Macro {1} has a syntax error"/>
   <translation tag="Macros" zh="宏"/>
   <translation tag="Macros installed - restart pending" zh="宏已安装 - 重启待执行"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." zh="宏已安装。打印结束后重启 Klipper 即可启用。"/>
@@ -3197,6 +3215,8 @@
   <translation tag="Picking up or parking the head failed while checking its dock position." zh="检查停靠位置时，装上或停放工具头失败。"/>
   <translation tag="Picking up tool" zh="正在取用工具"/>
   <translation tag="Pill" zh="胶囊"/>
+  <translation tag="Pin conflict in the configuration"/>
+  <translation tag="Pin name not valid for this board"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" zh="按下转为滚动前的像素数(越低 = 滚动越快触发)"/>
   <translation tag="Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels." zh="将图片文件 (PNG, JPEG, BMP, GIF) 放入 config/custom_images/。最大尺寸: 2048×2048 像素。"/>
   <translation tag="Place the PEI sheet back onto the heated bed." zh="请将 PEI 板放回加热床。"/>
@@ -3643,6 +3663,7 @@
   <translation tag="Remove the bypass spool from the toolhead first" zh="请先将旁路料盘从工具头中取出"/>
   <translation tag="Remove the debris from the bed, then resume." zh="请清除热床上的杂物，然后恢复。"/>
   <translation tag="Remove the filter cover." zh="取下滤网盖。"/>
+  <translation tag="Remove the include line that loops back, then restart Klipper."/>
   <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." zh="装载其他料盘前，请手动从工具头取出剩余耗材。"/>
   <translation tag="Remove the spools" zh="取下料盘"/>
   <translation tag="Remove the spools from the bed" zh="从热床上取下料盘"/>
@@ -4489,6 +4510,7 @@
   <translation tag="The Z offset paper test. Stay at the printer." zh="Z 偏移纸张测试。请留在打印机旁。"/>
   <translation tag="The accelerometer did not respond as expected, usually from a loose cable." zh="加速度计未按预期响应，通常是线缆松动所致。"/>
   <translation tag="The accelerometer is attached" zh="已安装加速度计"/>
+  <translation tag="The accelerometer stopped answering in the middle of a measurement."/>
   <translation tag="The active tool has no nozzle heater." zh="当前工具没有喷嘴加热器。"/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." zh="为防止动画屏保干扰打印，已在此设备上将其关闭。您可以在设置 &gt; 显示中重新启用。"/>
   <translation tag="The automatic feeding setting could not be applied." zh="无法应用自动送料设置。"/>
@@ -4527,6 +4549,9 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." zh="腔体循环风扇已开启，但读不到转速。"/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." zh="更改在 Klipper 重启后生效。将重启 Klipper 固件。所有正在进行的操作将被中断。"/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." zh="未应用更改：无法保存当前设置以便还原。"/>
+  <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file."/>
+  <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have."/>
+  <translation tag="The configuration needs a missing module"/>
   <translation tag="The connection to Klipper was lost" zh="与 Klipper 的连接已断开"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." zh="运行 Klipper 的控制板。在系统设置中查看其负载。"/>
@@ -4603,6 +4628,7 @@
   <translation tag="The load failed without a more specific reason." zh="装载失败，无更具体的原因。"/>
   <translation tag="The loaded slot is not known yet" zh="已加载的槽位尚未报告"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." zh="当前装载的料盘是 {}，但此文件为 {} 切片。填充耗材需要以更低的流量运行，且需要硬化喷嘴。"/>
+  <translation tag="The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The measured offset between toolheads is outside the allowed range." zh="测得的工具头间偏移超出允许范围。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" zh="打印机宏显示的消息 (M117)"/>
@@ -4726,6 +4752,7 @@
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." zh="探针始终未接触到打印板：PEI 板未正确放置。"/>
   <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." zh="移动开始前探针已处于触发状态。"/>
+  <translation tag="The probe was used before the printer was homed."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." zh="队列会打印此 .3mf 的默认板。请直接从这里打印此板。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
@@ -4739,6 +4766,7 @@
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." zh="子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。"/>
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
+  <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。"/>
@@ -4781,6 +4809,7 @@
   <translation tag="There is no cycle to stop" zh="没有可停止的周期"/>
   <translation tag="There is no filament in this head&apos;s feeder." zh="此工具头的送料器中没有耗材。"/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." zh="可用内存不足，无法运行此测试。Klipper 的分析会耗尽内存，使打印机卡住，直到断电重启。"/>
+  <translation tag="Thermocouple reader fault"/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." zh="这些读数无法重复,因此无法引导调整。请先检查机械部分。"/>
   <translation tag="These tools have a different filament grade loaded:" zh="以下工具装载的耗材等级不同："/>
   <translation tag="These tools have incompatible materials loaded:" zh="这些工具加载了不兼容的材料："/>
@@ -5007,6 +5036,7 @@
   <translation tag="Troubleshooting:" zh="故障排除："/>
   <translation tag="Try Again" zh="重试"/>
   <translation tag="Try adjusting your search or filters" zh="尝试调整搜索或筛选条件"/>
+  <translation tag="Try again. If it keeps happening, reseat the accelerometer cable."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." zh="请重试该操作。如果问题持续存在，请检查是否有机械故障。"/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." zh="请重新应用设置，如持续失败请重启打印机。"/>
   <translation tag="Try {0} mm/s" zh="尝试 {0} mm/s"/>
@@ -5039,6 +5069,7 @@
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." zh="旋转画面以匹配屏幕的安装方向。重启后生效。"/>
   <translation tag="Turn the printer&apos;s lights on or off" zh="开启或关闭打印机灯光"/>
   <translation tag="Two configuration sections define the same command." zh="两个配置段定义了同一个命令。"/>
+  <translation tag="Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper&apos;s message names the pin."/>
   <translation tag="Type" zh="类型"/>
   <translation tag="Type to preview input field..." zh="输入以预览输入框..."/>
   <translation tag="Type:" zh="类型:"/>
@@ -5396,6 +5427,7 @@
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
   <translation tag="Z axis" zh="Z 轴"/>
   <translation tag="Z homed before X and Y" zh="Z 在 X 和 Y 之前归位"/>
+  <translation tag="Z homes at a safe spot over the bed, so X and Y have to be homed first."/>
   <translation tag="Z homing was asked for before X and Y were homed." zh="X 和 Y 归位前就请求了 Z 归位。"/>
   <translation tag="Z is at its limit ({}mm)" zh="Z 轴已到达限位 ({}mm)"/>
   <translation tag="Z jog feedrate" zh="Z 轴移动速度"/>

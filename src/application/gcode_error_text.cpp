@@ -75,17 +75,6 @@ void GcodeErrorRouter::clean_error_text(std::string& text, std::string& out_code
             text = env->text();
         }
     }
-
-    // Heuristic friendlier-text rewrites for common non-coded patterns.
-    if (text.find("Must home axis") != std::string::npos ||
-        text.find("must home") != std::string::npos) {
-        text = lv_tr("Must home axes first");
-        return;
-    }
-    if (text.find("spi_transfer_response") != std::string::npos) {
-        text = lv_tr("Accelerometer communication failed. Try again.");
-        return;
-    }
 }
 
 } // namespace helix

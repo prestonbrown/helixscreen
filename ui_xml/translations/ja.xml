@@ -170,6 +170,9 @@
   <translation tag="A cold pull is already running." ja="コールドプルはすでに実行中です。"/>
   <translation tag="A command is malformed or names a device that does not exist." ja="コマンドの形式が不正か、存在しないデバイスを指定しています。"/>
   <translation tag="A command is missing a value, or a value is out of its allowed range." ja="コマンドに値がないか、値が許容範囲外です。"/>
+  <translation tag="A configuration file includes itself"/>
+  <translation tag="A configuration file includes itself, directly or through another file it includes."/>
+  <translation tag="A configuration file is missing"/>
   <translation tag="A controller board did not answer" ja="制御ボードが応答しません"/>
   <translation tag="A controller board fell behind" ja="制御ボードの処理が遅れました"/>
   <translation tag="A controller board missed a timed update"/>
@@ -224,6 +227,7 @@
   <translation tag="A saturated filter stops trapping fumes and particles." ja="飽和したフィルターは煙や粒子を捕集できません。"/>
   <translation tag="A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen." ja="ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。"/>
   <translation tag="A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen." ja="チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。"/>
+  <translation tag="A setting has a value Klipper can&apos;t use"/>
   <translation tag="A setting or pin in the printer&apos;s configuration is invalid." ja="プリンター設定の項目またはピンが不正です。"/>
   <translation tag="A sheet of printer paper" ja="コピー用紙1枚"/>
   <translation tag="A shell on the machine running this screen" ja="この画面を動かしているマシンのシェル"/>
@@ -242,6 +246,7 @@
   <translation tag="A toolhead&apos;s fan stopped reporting during the print, which points to the pogo pins." ja="印刷中にツールヘッドのファンが応答しなくなりました。ポゴピンの不良が考えられます。"/>
   <translation tag="A top cover was detected. Its fans and air modes are on the Fans screen." ja="トップカバーを検出しました。ファンとエアモードはファン画面にあります。"/>
   <translation tag="A upper, B lower" ja="A上・B下"/>
+  <translation tag="A value in the printer&apos;s configuration has the wrong type or is outside the range the setting allows. Klipper&apos;s message names the setting and its section."/>
   <translation tag="ABS" ja="ABS"/>
   <translation tag="ACCELEROMETERS" ja="加速度センサー"/>
   <translation tag="ACCEPT failed: {}" ja="ACCEPT に失敗しました: {}"/>
@@ -287,6 +292,7 @@
   <translation tag="Accel to Decel" ja="加速から減速"/>
   <translation tag="Acceleration to deceleration limit (mm/s²)" ja="加速から減速の制限値 (mm/s²)"/>
   <translation tag="Accelerometer" ja="加速度センサー"/>
+  <translation tag="Accelerometer communication failed"/>
   <translation tag="Accelerometer communication failed. Try again." ja="加速度センサーとの通信に失敗しました。再試行してください。"/>
   <translation tag="Accelerometer not connected"/>
   <translation tag="Accelerometer not responding" ja="加速度センサーが応答しません"/>
@@ -856,6 +862,7 @@
   <translation tag="Check the power cable and outlet. When power is back, resume the print if the printer offers it." ja="電源ケーブルとコンセントを確認してください。電源が戻り、プリンターが再開を提示したら印刷を再開してください。"/>
   <translation tag="Check the print. Resume only if it looks fine; otherwise cancel and clean the plate." ja="印刷物を確認してください。問題なければ再開し、そうでなければキャンセルしてプレートを清掃してください。"/>
   <translation tag="Check the provided value and try again" ja="入力した値を確認してもう一度お試しください"/>
+  <translation tag="Check the sensor leads at the amplifier board and the amplifier&apos;s wiring to the controller, then restart the firmware."/>
   <translation tag="Check the sensor&apos;s wiring and connector, and that the room is not colder than the sensor&apos;s minimum. Let the printer cool, then restart the firmware."/>
   <translation tag="Check the spool and the filament path for a jam, then retry" ja="スプールとフィラメント経路の詰まりを確認してから再試行してください"/>
   <translation tag="Check the spool for a tangle and the feed tube for a kink or a loose fitting, then load the head again." ja="スプールの絡まりと、送りチューブの折れや接続の緩みを確認してから、ヘッドに再度装填してください。"/>
@@ -1110,11 +1117,13 @@
   <translation tag="Copy failed - use SSH manually" ja="コピー失敗 - SSHを手動で使用してください"/>
   <translation tag="Copy it into this filament&apos;s slicer profile. The printer keeps nothing." ja="この値をこのフィラメントのスライサー プロファイルに転記してください。プリンターには保存されません。"/>
   <translation tag="Copy layout from printer" ja="プリンターからレイアウトをコピー"/>
+  <translation tag="Copy the pin name from the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Copying from USB" ja="USB からコピー中"/>
   <translation tag="Copying from USB stopped responding" ja="USB からのコピーが応答しなくなりました"/>
   <translation tag="Copying from USB..." ja="USB からコピー中..."/>
   <translation tag="Corner roundness" ja="角の丸み"/>
   <translation tag="Corners differ by {} mm" ja="四隅の差 {} mm"/>
+  <translation tag="Correct the value in the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Correction (Ki)" ja="補正 (Ki)"/>
   <translation tag="Could not add the timelapse plugin to Moonraker." ja="タイムラプスプラグインをMoonrakerに追加できませんでした。"/>
   <translation tag="Could not add to queue" ja="キューに追加できませんでした"/>
@@ -1861,6 +1870,8 @@
   <translation tag="Fit how the part fan cools the nozzle" ja="パーツファンによるノズルの冷却を測定"/>
   <translation tag="Fit the heater model with the part fan off" ja="パーツファンをオフにしてヒーターモデルを測定"/>
   <translation tag="Fit the induction heater&apos;s safety model" ja="誘導ヒーターの安全モデルを測定"/>
+  <translation tag="Fix or remove that include line, then restart Klipper."/>
+  <translation tag="Fix the macro on that line, then restart Klipper."/>
   <translation tag="Fix the reason shown for the shutdown, then restart the firmware." ja="表示された停止理由を解決してから、ファームウェアを再起動してください。"/>
   <translation tag="Fix the spelling or remove the line from the printer&apos;s configuration, then restart Klipper."/>
   <translation tag="Fix: chmod 644 {}, then restart" ja="修正：chmod 644 {} を実行して再起動してください"/>
@@ -1936,6 +1947,7 @@
   <translation tag="Getting Started" ja="はじめに"/>
   <translation tag="Getting address…" ja="アドレス取得中…"/>
   <translation tag="Getting ready..." ja="準備中..."/>
+  <translation tag="Give each feature its own pin and check its spelling against the board&apos;s sample configuration, then restart Klipper."/>
   <translation tag="Glass Effects" ja="ガラス効果"/>
   <translation tag="Global" ja="グローバル"/>
   <translation tag="Global Z offset" ja="グローバルZオフセット"/>
@@ -2083,7 +2095,9 @@
   <translation tag="Home &amp; Continue" ja="ホーミングして続行"/>
   <translation tag="Home All" ja="全軸ホーミング"/>
   <translation tag="Home Selector" ja="セレクターをホーミング"/>
+  <translation tag="Home X and Y before Z"/>
   <translation tag="Home X and Y first" ja="先にXとYをホーミングしてください"/>
+  <translation tag="Home X and Y first, or home all axes together."/>
   <translation tag="Home all axes to use the map" ja="マップを使うには全軸をホーミングしてください"/>
   <translation tag="Home all axes, then try again." ja="全軸をホーミングしてから、もう一度お試しください。"/>
   <translation tag="Home and park" ja="ホームとパーキング"/>
@@ -2227,6 +2241,7 @@
   <translation tag="Install script not found. Use the remote install command instead." ja="インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。"/>
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ja="高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:"/>
   <translation tag="Install the plugin it belongs to, or rename or remove the section, then restart Klipper."/>
+  <translation tag="Install the plugin, or remove the duplicate or unknown section, then restart Klipper."/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." ja="SSHでタイムラプスプラグインをインストールし、&#10;「再確認」をタップしてください。"/>
   <translation tag="Install timelapse plugin" ja="タイムラプスプラグインをインストール"/>
   <translation tag="Install {} on this printer?" ja="このプリンターに {} をインストールしますか?"/>
@@ -2332,7 +2347,9 @@
   <translation tag="Klipper Error" ja="Klipper エラー"/>
   <translation tag="Klipper already reports the ACE slots." ja="KlipperがすでにACEのスロットを報告しています。"/>
   <translation tag="Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged."/>
+  <translation tag="Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice."/>
   <translation tag="Klipper could not load its configuration. Fix the setting below in the printer&apos;s config files, then restart Klipper." ja="Klipperが設定を読み込めませんでした。プリンターの設定ファイルで下記の設定を修正してから、Klipperを再起動してください。"/>
+  <translation tag="Klipper could not read the template of {1}. Klipper&apos;s message names the line and the problem."/>
   <translation tag="Klipper disconnected" ja="Klipper切断"/>
   <translation tag="Klipper does not know the section [{1}]: a typo, or a plugin that is not installed."/>
   <translation tag="Klipper does not know the setting &apos;{1}&apos; in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."/>
@@ -2575,6 +2592,7 @@
   <translation tag="Macro to purge/prime the nozzle" ja="ノズルをパージ/プライムするマクロ"/>
   <translation tag="Macro to resume a paused print" ja="一時停止した印刷を再開するマクロ"/>
   <translation tag="Macro to unload filament from extruder" ja="エクストルーダーからフィラメントを排出するマクロ"/>
+  <translation tag="Macro {1} has a syntax error"/>
   <translation tag="Macros" ja="マクロ"/>
   <translation tag="Macros installed - restart pending" ja="マクロをインストールしました - 再起動は保留中"/>
   <translation tag="Macros installed. Restart Klipper after the print to activate them." ja="マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。"/>
@@ -3197,6 +3215,8 @@
   <translation tag="Picking up or parking the head failed while checking its dock position." ja="ドック位置の確認中に、ヘッドの装着またはドックへの戻しに失敗しました。"/>
   <translation tag="Picking up tool" ja="ツールを取得中"/>
   <translation tag="Pill" ja="ピル"/>
+  <translation tag="Pin conflict in the configuration"/>
+  <translation tag="Pin name not valid for this board"/>
   <translation tag="Pixels before a press becomes a scroll (lower = scrolls engage sooner)" ja="押下がスクロールに変わるまでのピクセル数 (低いほどスクロールが早く開始)"/>
   <translation tag="Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels." ja="画像ファイル (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。"/>
   <translation tag="Place the PEI sheet back onto the heated bed." ja="PEIシートを加熱ベッドに戻してください。"/>
@@ -3643,6 +3663,7 @@
   <translation tag="Remove the bypass spool from the toolhead first" ja="先にバイパススプールをツールヘッドから取り外してください"/>
   <translation tag="Remove the debris from the bed, then resume." ja="ベッドの異物を取り除いてから再開してください。"/>
   <translation tag="Remove the filter cover." ja="フィルターカバーを外します。"/>
+  <translation tag="Remove the include line that loops back, then restart Klipper."/>
   <translation tag="Remove the leftover filament from the toolhead by hand before loading another spool." ja="別のスプールを装填する前に、ツールヘッドに残ったフィラメントを手で取り除いてください。"/>
   <translation tag="Remove the spools" ja="スプールを取り出す"/>
   <translation tag="Remove the spools from the bed" ja="ベッドからスプールを取り出す"/>
@@ -4489,6 +4510,7 @@
   <translation tag="The Z offset paper test. Stay at the printer." ja="Zオフセットの紙テストです。プリンターのそばにいてください。"/>
   <translation tag="The accelerometer did not respond as expected, usually from a loose cable." ja="加速度センサーが想定どおり応答しませんでした。多くはケーブルの緩みが原因です。"/>
   <translation tag="The accelerometer is attached" ja="加速度センサーが取り付けてある"/>
+  <translation tag="The accelerometer stopped answering in the middle of a measurement."/>
   <translation tag="The active tool has no nozzle heater." ja="アクティブなツールにノズルヒーターがありません。"/>
   <translation tag="The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings &gt; Display." ja="アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 &gt; ディスプレイで再度有効にできます。"/>
   <translation tag="The automatic feeding setting could not be applied." ja="自動供給の設定を適用できませんでした。"/>
@@ -4527,6 +4549,9 @@
   <translation tag="The chamber&apos;s circulation fan is on but reads no speed." ja="チャンバーの循環ファンはオンですが、回転数が検出されません。"/>
   <translation tag="The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted." ja="変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。"/>
   <translation tag="The change was not applied: the current settings could not be saved for a revert." ja="変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。"/>
+  <translation tag="The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper&apos;s message names the file."/>
+  <translation tag="The configuration names pin &apos;{1}&apos;, which board &apos;{2}&apos; does not have."/>
+  <translation tag="The configuration needs a missing module"/>
   <translation tag="The connection to Klipper was lost" ja="Klipperとの接続が切れました"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ja="Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。"/>
@@ -4603,6 +4628,7 @@
   <translation tag="The load failed without a more specific reason." ja="詳しい理由なしに装填が失敗しました。"/>
   <translation tag="The loaded slot is not known yet" ja="装填済みのスロットはまだ不明です"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ja="装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。"/>
+  <translation tag="The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have."/>
   <translation tag="The measured offset between toolheads is outside the allowed range." ja="測定したツールヘッド間のオフセットが許容範囲外です。"/>
   <translation tag="The message your printer&apos;s macros show (M117)" ja="プリンターのマクロが表示するメッセージ (M117)"/>
@@ -4726,6 +4752,7 @@
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." ja="プローブがプレートに触れませんでした: PEIプレートが正しく置かれていません。"/>
   <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." ja="移動開始前からプローブが反応していました。"/>
+  <translation tag="The probe was used before the printer was homed."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ja="キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ja="指定された位置はプリンターの可動範囲外です"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ja="この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります"/>
@@ -4739,6 +4766,7 @@
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ja="サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。"/>
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
+  <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" ja="時間、日付、稼働時間"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ja="タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." ja="タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。"/>
@@ -4781,6 +4809,7 @@
   <translation tag="There is no cycle to stop" ja="停止するサイクルがありません"/>
   <translation tag="There is no filament in this head&apos;s feeder." ja="このヘッドのフィーダーにフィラメントがありません。"/>
   <translation tag="There is not enough free memory to run this test. Klipper&apos;s analysis would run out of memory and leave the printer stuck until it is power-cycled." ja="このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"/>
+  <translation tag="Thermocouple reader fault"/>
   <translation tag="These readings aren&apos;t repeatable, so tuning can&apos;t be steered. Check the mechanics first." ja="測定値が再現しないため、調整を導けません。まず機構を確認してください。"/>
   <translation tag="These tools have a different filament grade loaded:" ja="次のツールには異なるフィラメントグレードが装填されています:"/>
   <translation tag="These tools have incompatible materials loaded:" ja="これらのツールには互換性のない素材がロードされています:"/>
@@ -5007,6 +5036,7 @@
   <translation tag="Troubleshooting:" ja="トラブルシューティング:"/>
   <translation tag="Try Again" ja="再試行"/>
   <translation tag="Try adjusting your search or filters" ja="検索やフィルターを調整してみてください"/>
+  <translation tag="Try again. If it keeps happening, reseat the accelerometer cable."/>
   <translation tag="Try the operation again. If it persists, check for mechanical issues." ja="もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。"/>
   <translation tag="Try the setting again, and restart the printer if it keeps failing." ja="もう一度設定し、失敗が続く場合はプリンターを再起動してください。"/>
   <translation tag="Try {0} mm/s" ja="{0} mm/s を試す"/>
@@ -5039,6 +5069,7 @@
   <translation tag="Turn the picture to match how the screen is mounted. Applies after restart." ja="画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。"/>
   <translation tag="Turn the printer&apos;s lights on or off" ja="プリンターのライトをオン/オフ"/>
   <translation tag="Two configuration sections define the same command." ja="2つの設定セクションが同じコマンドを定義しています。"/>
+  <translation tag="Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper&apos;s message names the pin."/>
   <translation tag="Type" ja="タイプ"/>
   <translation tag="Type to preview input field..." ja="入力フィールドをプレビューするには入力してください..."/>
   <translation tag="Type:" ja="タイプ:"/>
@@ -5396,6 +5427,7 @@
   <translation tag="Z Tilt Adjust..." ja="Zチルト調整中..."/>
   <translation tag="Z axis" ja="Z軸"/>
   <translation tag="Z homed before X and Y" ja="XとYより先にZをホーミングしました"/>
+  <translation tag="Z homes at a safe spot over the bed, so X and Y have to be homed first."/>
   <translation tag="Z homing was asked for before X and Y were homed." ja="XとYのホーミング前にZのホーミングが要求されました。"/>
   <translation tag="Z is at its limit ({}mm)" ja="Z軸は限界に達しています ({}mm)"/>
   <translation tag="Z jog feedrate" ja="Z軸のジョグ移動速度"/>

@@ -47,6 +47,7 @@ enum class Recovery {
 enum class Category {
     Heater,
     Mcu,
+    McuLost,    ///< a board that stopped answering while Klipper ran
     McuConnect, ///< a board Klipper could not reach at startup
     Driver,
     Homing,

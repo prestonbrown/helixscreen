@@ -37,6 +37,11 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
         if (const auto w = error_wording::word(*known)) {
             e.title = w->summary;
             e.detail = w->detail();
+            // A config error's wording points at the option, line or file
+            // Klipper's own text names.
+            if (known->category == error_wording::Category::Config) {
+                e.detail += "\n\n" + e.raw_detail;
+            }
         }
     }
 

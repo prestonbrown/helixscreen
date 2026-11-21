@@ -15,7 +15,8 @@ namespace helix::error_wording {
 
 /// One message: the anchored, case-sensitive prefix of its reason line, an
 /// optional second literal the reason must contain, and an optional capture
-/// pattern that must match too. errmap-klipper.md is the source of every key.
+/// pattern that must match too. Each key is read from Klipper's and Kalico's
+/// own raise sites (klippy/, src/).
 struct Row {
     const char* id;
     const char* prefix;
@@ -73,6 +74,37 @@ constexpr const char* kBltouchCause =
             "pin, a self-test fault (blinking red), loose wiring, or a clone that needs its "
             "touch-mode options.");
 
+constexpr const char* kConfigValueSummary = TR_NOOP("A setting has a value Klipper can't use");
+constexpr const char* kConfigValueCause =
+    TR_NOOP("A value in the printer's configuration has the wrong type or is outside the range "
+            "the setting allows. Klipper's message names the setting and its section.");
+constexpr const char* kConfigValueFix =
+    TR_NOOP("Correct the value in the printer's configuration, then restart Klipper.");
+constexpr const char* kPinSummary = TR_NOOP("Pin conflict in the configuration");
+constexpr const char* kPinCause =
+    TR_NOOP("Two features use the same pin, or a pin is written in a form Klipper does not "
+            "accept. Klipper's message names the pin.");
+constexpr const char* kPinFix =
+    TR_NOOP("Give each feature its own pin and check its spelling against the board's sample "
+            "configuration, then restart Klipper.");
+constexpr const char* kMissingFileSummary = TR_NOOP("A configuration file is missing");
+constexpr const char* kMissingFileCause =
+    TR_NOOP("The configuration includes or opens a file that is not there, often the include "
+            "line a removed plugin left behind. Klipper's message names the file.");
+constexpr const char* kMissingFileFix =
+    TR_NOOP("Fix or remove that include line, then restart Klipper.");
+constexpr const char* kModuleSummary = TR_NOOP("The configuration needs a missing module");
+constexpr const char* kModuleCause =
+    TR_NOOP("Klipper could not load a module the configuration asks for: a plugin that is not "
+            "installed, or a section defined twice.");
+constexpr const char* kModuleFix =
+    TR_NOOP("Install the plugin, or remove the duplicate or unknown section, then restart "
+            "Klipper.");
+
+constexpr const char* kMacroFix =
+    TR_NOOP("Pass the missing parameter from the slicer's start G-code, or give it a default in "
+            "the macro.");
+
 using C = Category;
 using S = Severity;
 using R = Recovery;
@@ -100,7 +132,8 @@ constexpr Row kKlipperRows[] = {
     {"MCU-3", "Stepper too far in past", nullptr, nullptr, false, C::Mcu, S::FollowPrint,
      R::FirmwareRestart, kStepRateSummary, kStepRateCause, kStepRateFix},
     {"MCU-4", "Lost communication with MCU '", nullptr, "^Lost communication with MCU '([^']+)'",
-     false, C::Mcu, S::FollowPrint, R::FirmwareRestart, TR_NOOP("Lost connection to board '{1}'"),
+     false, C::McuLost, S::FollowPrint, R::FirmwareRestart,
+     TR_NOOP("Lost connection to board '{1}'"),
      TR_NOOP("The host heard nothing from this board for several seconds: a loose or failed USB "
              "or CAN cable, the board losing power, or a CAN bus without termination."),
      TR_NOOP("Check the cable, connectors and power of that board (often the toolhead board) and "
@@ -154,6 +187,11 @@ constexpr Row kKlipperRows[] = {
      TR_NOOP("A temperature sensor read a value outside its configured minimum or maximum, so the "
              "firmware stopped every heater to be safe."),
      kAdcFix},
+    {"HT-3", "Thermocouple reader fault", nullptr, nullptr, false, C::Heater, S::FollowPrint,
+     R::FirmwareRestart, TR_NOOP("Thermocouple reader fault"),
+     TR_NOOP("The thermocouple or PT100 amplifier reported a fault or a reading out of range."),
+     TR_NOOP("Check the sensor leads at the amplifier board and the amplifier's wiring to the "
+             "controller, then restart the firmware.")},
     {"HT-4", "Requested temperature (", nullptr,
      "^Requested temperature \\(([-0-9.]+)\\) out of range \\(([-0-9.]+):([-0-9.]+)\\)", false,
      C::Heater, S::FollowPrint, R::None, TR_NOOP("Temperature outside the heater's limits"),
@@ -231,6 +269,12 @@ constexpr Row kKlipperRows[] = {
      kHomeSummary, kHomeCause, kHomeFix},
     {"MV-1", "Must home first", nullptr, nullptr, false, C::Homing, S::FollowPrint, R::Home,
      kHomeSummary, kHomeCause, kHomeFix},
+    {"MV-8", "Must home X and Y axes first", nullptr, nullptr, false, C::Homing, S::FollowPrint,
+     R::Home, TR_NOOP("Home X and Y before Z"),
+     TR_NOOP("Z homes at a safe spot over the bed, so X and Y have to be homed first."),
+     TR_NOOP("Home X and Y first, or home all axes together.")},
+    {"PR-3", "Must home before probe", nullptr, nullptr, false, C::Probe, S::FollowPrint, R::Home,
+     kHomeSummary, TR_NOOP("The probe was used before the printer was homed."), kHomeFix},
     {"MV-3", "No trigger on ", nullptr, "^No trigger on (\\S+) after full movement", false,
      C::Homing, S::FollowPrint, R::None, TR_NOOP("{1} never triggered"),
      TR_NOOP("The axis moved its full travel without {1} triggering: an unplugged or broken "
@@ -282,6 +326,12 @@ constexpr Row kKlipperRows[] = {
              "unplugged, its cable is damaged, or its SPI pins are wrong."),
      TR_NOOP("Check the accelerometer cable and the cs_pin in its configuration section, then run "
              "ACCELEROMETER_QUERY.")},
+    // The accelerometer's SPI transfer timed out; Klipper raises it inside
+    // wrappers such as "Error during homing move: ", so it is matched anywhere.
+    {"IS-5", "", "spi_transfer_response", nullptr, false, C::Accelerometer, S::FollowPrint,
+     R::Retry, TR_NOOP("Accelerometer communication failed"),
+     TR_NOOP("The accelerometer stopped answering in the middle of a measurement."),
+     TR_NOOP("Try again. If it keeps happening, reseat the accelerometer cable.")},
     {"BM-1", "bed_mesh: Unknown profile [", nullptr, "^bed_mesh: Unknown profile \\[([^\\]]+)\\]",
      false, C::Command, S::FollowPrint, R::None, TR_NOOP("Bed mesh profile not found"),
      TR_NOOP("The bed mesh profile '{1}' was never saved on this printer."),
@@ -308,6 +358,49 @@ constexpr Row kKlipperRows[] = {
              "installed."),
      TR_NOOP("Install the plugin it belongs to, or rename or remove the section, then restart "
              "Klipper.")},
+    {"CF-4", "Option '", " in section '", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kConfigValueSummary, kConfigValueCause, kConfigValueFix},
+    {"CF-4", "Unable to parse option '", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kConfigValueSummary, kConfigValueCause, kConfigValueFix},
+    {"CF-4", "Choice '", " in section '", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kConfigValueSummary, kConfigValueCause, kConfigValueFix},
+    {"CF-5", "Pin '", "' is not a valid pin name on mcu '",
+     "^Pin '([^']+)' is not a valid pin name on mcu '([^']+)'", false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, TR_NOOP("Pin name not valid for this board"),
+     TR_NOOP("The configuration names pin '{1}', which board '{2}' does not have."),
+     TR_NOOP("Copy the pin name from the board's sample configuration, then restart Klipper.")},
+    {"CF-6", "pin ", " used multiple times in config", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-6", "Pin ", " reserved for ", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-6", "pin ", " is reserved for ", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-6", "Shared pin ", " must have same polarity", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-6", "Invalid pin description '", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-6", "Unknown pin chip name '", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kPinSummary, kPinCause, kPinFix},
+    {"CF-7", "Include file '", "' does not exist", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kMissingFileSummary, kMissingFileCause, kMissingFileFix},
+    {"CF-7", "Unable to open config file ", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kMissingFileSummary, kMissingFileCause, kMissingFileFix},
+    {"CF-7", "Recursive include of config file '", nullptr, nullptr, false, C::Config,
+     S::FollowPrint, R::RestartAfterFix, TR_NOOP("A configuration file includes itself"),
+     TR_NOOP("A configuration file includes itself, directly or through another file it "
+             "includes."),
+     TR_NOOP("Remove the include line that loops back, then restart Klipper.")},
+    {"CF-8", "Unknown config object '", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kModuleSummary, kModuleCause, kModuleFix},
+    {"CF-8", "Unable to load module '", nullptr, nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kModuleSummary, kModuleCause, kModuleFix},
+    {"CF-8", "Printer object '", "' already created", nullptr, false, C::Config, S::FollowPrint,
+     R::RestartAfterFix, kModuleSummary, kModuleCause, kModuleFix},
+    {"CF-9", "Error loading template '", nullptr, "^Error loading template '([^']+)'", false,
+     C::Config, S::FollowPrint, R::RestartAfterFix, TR_NOOP("Macro {1} has a syntax error"),
+     TR_NOOP("Klipper could not read the template of {1}. Klipper's message names the line and "
+             "the problem."),
+     TR_NOOP("Fix the macro on that line, then restart Klipper.")},
     {"SC-1", "SAVE_CONFIG section '", "' conflicts with included value",
      "^SAVE_CONFIG section '([^']+)' option '([^']+)' conflicts with included value", false,
      C::Config, S::FollowPrint, R::None, TR_NOOP("Can't save: the value is set in another file"),
@@ -315,13 +408,27 @@ constexpr Row kKlipperRows[] = {
              "file already sets it."),
      TR_NOOP("Remove or comment out '{2}' under [{1}] in the included file, then save again.")},
 
-    // ---- Macros ----
+    // Runout carries no Klipper error text; macros and filament systems that
+    // report one lead with these words. Classify-only, for the journal.
+    {"FS-1", "Filament runout", nullptr, nullptr, false, C::Filament, S::FollowPrint, R::None,
+     nullptr, nullptr, nullptr},
+
+    // ---- Macros and G-code ----
+    // Both arrive as `//` info lines; they classify for the journal only.
+    {"GC-1", "Unknown command:\"", nullptr, nullptr, false, C::Command, S::Warning, R::None,
+     nullptr, nullptr, nullptr},
+    {"GC-3", "Malformed command '", nullptr, nullptr, false, C::Command, S::FollowPrint, R::None,
+     nullptr, nullptr, nullptr},
     {"GC-5", "Error evaluating '", nullptr, "^Error evaluating '([^']+)': (\\w+): (.*)", false,
      C::Command, S::FollowPrint, R::None, TR_NOOP("Error in macro {1}"),
      TR_NOOP("The macro failed while running: {3}. A macro usually fails like this when it uses "
              "a parameter the slicer did not pass or an object the printer does not have."),
-     TR_NOOP("Pass the missing parameter from the slicer's start G-code, or give it a default in "
-             "the macro.")},
+     kMacroFix},
+    {"GC-5", "Error evaluating '", nullptr, "^Error evaluating '([^']+)'", false, C::Command,
+     S::FollowPrint, R::None, TR_NOOP("Error in macro {1}"),
+     TR_NOOP("The macro failed while running. A macro usually fails like this when it uses a "
+             "parameter the slicer did not pass or an object the printer does not have."),
+     kMacroFix},
 };
 
 struct RowSet {
@@ -475,6 +582,7 @@ const char* journal_class(Category category) {
     case Category::Heater:
         return "heater";
     case Category::Mcu:
+    case Category::McuLost:
     case Category::McuConnect:
         return "mcu";
     case Category::Homing:

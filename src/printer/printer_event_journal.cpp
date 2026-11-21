@@ -2,6 +2,7 @@
 #include "printer_event_journal.h"
 
 #include "core/text_io.h"
+#include "error_wording.h"
 #include "json_utils.h"
 #include "translation_loader.h"
 
@@ -17,13 +18,6 @@ namespace helix {
 
 namespace {
 
-std::string lowercase(std::string s) {
-    for (auto& c : s) {
-        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    }
-    return s;
-}
-
 std::string trim(const std::string& s) {
     const auto first = s.find_first_not_of(" \t\r\n");
     if (first == std::string::npos) {
@@ -33,15 +27,6 @@ std::string trim(const std::string& s) {
     return s.substr(first, last - first + 1);
 }
 
-bool contains_any(const std::string& haystack, std::initializer_list<const char*> needles) {
-    for (const char* needle : needles) {
-        if (haystack.find(needle) != std::string::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool is_firmware_envelope(const std::string& text) {
     if (text.empty() || text.front() != '{') {
         return false;
@@ -49,25 +34,6 @@ bool is_firmware_envelope(const std::string& text) {
     const auto parsed = nlohmann::json::parse(text, nullptr, false);
     return parsed.is_object() && parsed.contains("code");
 }
-
-struct ClassMarkers {
-    const char* cls;
-    std::initializer_list<const char*> markers;
-};
-
-// Ordered: the first class with a matching marker wins. Heater faults come
-// before MCU ones because Klipper reports an ADC fault as an MCU shutdown.
-const ClassMarkers kClassMarkers[] = {
-    {"heater",
-     {"heater", "adc out of range", "thermocouple", "thermistor", "not heating at expected rate",
-      "thermal runaway"}},
-    {"mcu", {"mcu", "timer too close", "missed scheduling", "rescheduled timer"}},
-    {"homing", {"must home", "no trigger", "endstop", "probe triggered", "homing"}},
-    {"move",
-     {"move out of range", "move exceeds", "extrude below minimum", "extrude only move too long"}},
-    {"filament", {"filament", "runout"}},
-    {"command", {"unknown command", "error evaluating", "malformed command"}},
-};
 
 double latest_occurrence(const JournalEntry& e) {
     return e.count > 1 && e.last_time > e.time ? e.last_time : e.time;
@@ -112,8 +78,9 @@ std::string journal_error_text(const std::string& line) {
 }
 
 bool is_mcu_disconnect(const std::string& line) {
-    return contains_any(lowercase(journal_error_text(line)),
-                        {"lost communication with mcu", "unable to connect"});
+    const auto c = error_wording::classify(journal_error_text(line));
+    return c && (c->category == error_wording::Category::McuLost ||
+                 c->category == error_wording::Category::McuConnect);
 }
 
 std::string classify_journal_error(const std::string& line) {
@@ -121,16 +88,8 @@ std::string classify_journal_error(const std::string& line) {
     if (is_firmware_envelope(text)) {
         return "firmware";
     }
-    if (is_mcu_disconnect(text)) {
-        return "mcu";
-    }
-    const std::string lowered = lowercase(text);
-    for (const auto& entry : kClassMarkers) {
-        if (contains_any(lowered, entry.markers)) {
-            return entry.cls;
-        }
-    }
-    return "other";
+    const auto c = error_wording::classify(text);
+    return c ? error_wording::journal_class(c->category) : "other";
 }
 
 double wall_now_s() {

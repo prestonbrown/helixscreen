@@ -30,7 +30,7 @@ struct Case {
 } // namespace
 
 TEST_CASE("each Klipper message classifies by its own row", "[error-wording]") {
-    // Each line is the exact text Klipper or Kalico raises (errmap-klipper.md).
+    // Each line is the exact text a Klipper or Kalico raise site produces.
     const std::vector<Case> cases = {
         {"MCU 'mcu' shutdown: Timer too close", "MCU-1", {}},
         {"MCU 'EBBCan' shutdown: Missed scheduling of next digital out event", "MCU-2", {}},
@@ -102,6 +102,23 @@ TEST_CASE("each Klipper message classifies by its own row", "[error-wording]") {
          "SC-1",
          {"probe", "z_offset"}},
         {"bed_mesh: Unknown profile [default]", "BM-1", {"default"}},
+        {"Must home X and Y axes first", "MV-8", {}},
+        {"Must home before probe", "PR-3", {}},
+        {"Timeout on wait for 'spi_transfer_response' response", "IS-5", {}},
+        {"Pin 'PA99' is not a valid pin name on mcu 'mcu'", "CF-5", {"PA99", "mcu"}},
+        {"Option 'preload_length' in section 'filament_feed left' must have maximum of 1500.0",
+         "CF-4",
+         {}},
+        {"Include file '/home/pi/printer_data/config/KAMP/*.cfg' does not exist", "CF-7", {}},
+        {"Unknown config object 'tmc2209_autotune'", "CF-8", {}},
+        {"Error loading template 'gcode_macro PRINT_START:gcode': TemplateSyntaxError: unexpected "
+         "'}'",
+         "CF-9",
+         {"gcode_macro PRINT_START:gcode"}},
+        {"Unknown command:\"M600\"", "GC-1", {}},
+        {"Error evaluating 'gcode_macro PRINT_START:gcode': UndefinedError",
+         "GC-5",
+         {"gcode_macro PRINT_START:gcode"}},
     };
     for (const auto& c : cases) {
         CAPTURE(c.line);

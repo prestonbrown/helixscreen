@@ -233,6 +233,9 @@ translations:
   A cold pull is already running.: "Холодная протяжка уже выполняется."
   A command is malformed or names a device that does not exist.: 'Команда составлена неверно или указывает несуществующее устройство.'
   A command is missing a value, or a value is out of its allowed range.: 'В команде не хватает значения, или значение вне допустимого диапазона.'
+  A configuration file includes itself: ''
+  A configuration file includes itself, directly or through another file it includes.: ''
+  A configuration file is missing: ''
   A controller board did not answer: 'Плата управления не ответила'
   A controller board fell behind: 'Плата управления не успевает'
   A controller board missed a timed update: ''
@@ -293,6 +296,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'Датчик, измеряющий расстояние до стола. HelixScreen использует его для калибровки Z Offset и тестов зонда на экране «Зонд».'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Датчик, измеряющий температуру воздуха внутри камеры. Следите за ней на экране температуры камеры.'
+  A setting has a value Klipper can't use: ''
   A setting or pin in the printer's configuration is invalid.: 'Параметр или пин в конфигурации принтера недопустим.'
   A sheet of printer paper: 'Лист бумаги для принтера'
   A shell on the machine running this screen: 'Командная оболочка на машине, где работает этот экран'
@@ -314,6 +318,8 @@ translations:
   A toolhead's fan stopped reporting during the print, which points to the pogo pins.: 'Вентилятор печатающей головки перестал отвечать во время печати, что указывает на пого-контакты.'
   A top cover was detected. Its fans and air modes are on the Fans screen.: 'Обнаружена верхняя крышка. Её вентиляторы и режимы воздуха находятся на экране «Вентиляторы».'
   A upper, B lower: "A сверху, B снизу"
+  ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
+  : ''
   ABS: ABS
   ACCELEROMETERS: АКСЕЛЕРОМЕТРЫ
   'ACCEPT failed: {}': 'Ошибка ACCEPT: {}'
@@ -356,6 +362,7 @@ translations:
   Accel to Decel: Ускорение к торможению
   Acceleration to deceleration limit (mm/s²): Предел ускорения к торможению (мм/с²)
   Accelerometer: Акселерометр
+  Accelerometer communication failed: ''
   Accelerometer communication failed. Try again.: Связь с акселерометром потеряна. Попробуйте снова.
   Accelerometer not connected: ''
   Accelerometer not responding: 'Акселерометр не отвечает'
@@ -944,6 +951,7 @@ translations:
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: 'Проверьте кабель питания и розетку. Когда питание вернётся, продолжите печать, если принтер это предложит.'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: 'Проверьте печать. Продолжайте, только если всё в порядке; иначе отмените и очистите пластину.'
   Check the provided value and try again: Проверьте указанное значение и повторите попытку
+  Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.: ''
   ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   : ''
   Check the spool and the filament path for a jam, then retry: Проверьте катушку и путь филамента на замятие, затем повторите
@@ -1210,11 +1218,13 @@ translations:
   Copy failed - use SSH manually: Ошибка копирования - используйте SSH вручную
   Copy it into this filament's slicer profile. The printer keeps nothing.: 'Перепишите его в профиль слайсера для этого филамента. Принтер ничего не сохраняет.'
   Copy layout from printer: "Копировать раскладку с принтера"
+  Copy the pin name from the board's sample configuration, then restart Klipper.: ''
   Copying from USB: 'Копирование с USB'
   Copying from USB stopped responding: 'Копирование с USB перестало отвечать'
   Copying from USB...: 'Копирование с USB...'
   Corner roundness: Скругление углов
   Corners differ by {} mm: "Разница углов {} мм"
+  Correct the value in the printer's configuration, then restart Klipper.: ''
   Correction (Ki): Коррекция (Ki)
   Could not add the timelapse plugin to Moonraker.: 'Не удалось добавить плагин таймлапса в Moonraker.'
   Could not add to queue: Не удалось добавить в очередь
@@ -2008,6 +2018,8 @@ translations:
   Fit how the part fan cools the nozzle: Определить, как обдув охлаждает сопло
   Fit the heater model with the part fan off: Определить модель нагревателя при выключенном обдуве
   Fit the induction heater's safety model: Определить модель безопасности индукционного нагревателя
+  Fix or remove that include line, then restart Klipper.: ''
+  Fix the macro on that line, then restart Klipper.: ''
   Fix the reason shown for the shutdown, then restart the firmware.: 'Устраните указанную причину отключения, затем перезапустите прошивку.'
   Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': 'Исправление: chmod 644 {}, затем перезапустите'
@@ -2088,6 +2100,7 @@ translations:
   Get help and share feedback: Получить помощь и поделиться отзывом
   Getting address…: Получение адреса…
   Getting ready...: 'Подготовка...'
+  Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: ''
   Glass Effects: Эффекты стекла
   Global: Общий
   Global Z offset: Общее смещение Z
@@ -2238,7 +2251,9 @@ translations:
   Home: Главная
   Home & Continue: Запарковать и продолжить
   Home All: "Парковка всех осей"
+  Home X and Y before Z: ''
   Home X and Y first: 'Сначала запаркуйте X и Y'
+  Home X and Y first, or home all axes together.: ''
   Home all axes to use the map: Выполните парковку всех осей, чтобы использовать карту
   Home all axes, then try again.: 'Выполните парковку всех осей и попробуйте снова.'
   Home and park: "Домой и парковка"
@@ -2386,6 +2401,7 @@ translations:
   Install script not found. Use the remote install command instead.: Скрипт установки не найден. Используйте вместо этого команду удалённой установки.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Установите плагин HelixPrint для быстрой модификации G-code. Выполните эту команду через SSH на вашем принтере:'
   Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
+  Install the plugin, or remove the duplicate or unknown section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Установите плагин таймлапс через SSH,\nзатем нажмите \"Проверить снова\"."
   Install timelapse plugin: Установить плагин таймлапса
@@ -2496,7 +2512,9 @@ translations:
   Klipper already reports the ACE slots.: "Klipper уже сообщает слоты ACE."
   ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   : ''
+  'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.': ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipper не смог загрузить конфигурацию. Исправьте указанный ниже параметр в файлах конфигурации принтера, затем перезапустите Klipper."
+  Klipper could not read the template of {1}. Klipper's message names the line and the problem.: ''
   Klipper disconnected: Klipper отключён
   'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
   ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
@@ -2733,6 +2751,7 @@ translations:
   Macro to purge/prime the nozzle: Макрос для продувки/подготовки сопла
   Macro to resume a paused print: Макрос для возобновления приостановленной печати
   Macro to unload filament from extruder: Макрос для выгрузки филамента из экструдера
+  Macro {1} has a syntax error: ''
   Macros: Макросы
   Macros installed - restart pending: 'Макросы установлены - ожидается перезапуск'
   Macros installed. Restart Klipper after the print to activate them.: 'Макросы установлены. Перезапустите Klipper после печати, чтобы активировать их.'
@@ -3370,6 +3389,8 @@ translations:
   Picking up or parking the head failed while checking its dock position.: 'Не удалось взять или поставить головку при проверке положения её дока.'
   Picking up tool: Захват инструмента
   Pill: Овал
+  Pin conflict in the configuration: ''
+  Pin name not valid for this board: ''
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Пикселей до того, как нажатие станет прокруткой (меньше = прокрутка начинается раньше)
   'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Поместите файлы изображений (PNG, JPEG, BMP, GIF) в config/custom_images/. Макс. размер: 2048×2048 пикселей.'
   Place the PEI sheet back onto the heated bed.: Верните лист PEI на подогреваемый стол.
@@ -3832,6 +3853,7 @@ translations:
   Remove the bypass spool from the toolhead first: 'Сначала извлеките катушку байпаса из печатающей головки'
   Remove the debris from the bed, then resume.: 'Уберите мусор со стола, затем продолжите.'
   Remove the filter cover.: "Снимите крышку фильтра."
+  Remove the include line that loops back, then restart Klipper.: ''
   Remove the leftover filament from the toolhead by hand before loading another spool.: 'Удалите оставшийся филамент из печатающей головки вручную перед загрузкой другой катушки.'
   Remove the spools: Снимите катушки
 
@@ -4705,6 +4727,7 @@ translations:
   The Z offset paper test. Stay at the printer.: 'Проверка смещения Z листом бумаги. Оставайтесь у принтера.'
   The accelerometer did not respond as expected, usually from a loose cable.: 'Акселерометр ответил не так, как ожидалось, обычно из-за отошедшего кабеля.'
   The accelerometer is attached: 'Акселерометр установлен'
+  The accelerometer stopped answering in the middle of a measurement.: ''
   The active tool has no nozzle heater.: "У активного инструмента нет нагревателя сопла."
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : Анимированная заставка была отключена на данном устройстве, чтобы она не мешала печати. Вы можете снова включить её в Настройки > Дисплей.
@@ -4749,6 +4772,10 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : Изменение вступает в силу после перезапуска Klipper. Прошивка Klipper будет перезапущена. Активные операции будут прерваны.
   'The change was not applied: the current settings could not be saved for a revert.': 'Изменение не применено: не удалось сохранить текущие настройки для отката.'
+  ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  : ''
+  The configuration names pin '{1}', which board '{2}' does not have.: ''
+  The configuration needs a missing module: ''
   The connection to Klipper was lost: 'Связь с Klipper потеряна'
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : ''
@@ -4835,6 +4862,8 @@ translations:
   The loaded slot is not known yet: "Загруженный слот пока неизвестен"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла.
+  ? The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
+  : ''
   ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   : ''
   The measured offset between toolheads is outside the allowed range.: 'Измеренное смещение между печатающими головками вне допустимого диапазона.'
@@ -4977,6 +5006,7 @@ translations:
   The speed of one fan you choose: Скорость выбранного вентилятора
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
+  The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
   Timelapse did not start: 'Таймлапс не запустился'
@@ -5026,6 +5056,7 @@ translations:
   There is no filament in this head's feeder.: 'В фидере этой головки нет филамента.'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "Для этого теста недостаточно свободной памяти. Анализу Klipper не хватит памяти, и принтер зависнет, пока его не выключат и снова не включат."
+  Thermocouple reader fault: ''
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "Эти показания не повторяются, поэтому настройкой нельзя управлять. Сначала проверьте механику."
   'These tools have a different filament grade loaded:': 'В этих инструментах загружен филамент другой марки:'
   'These tools have incompatible materials loaded:': 'В этих инструментах загружены несовместимые материалы:'
@@ -5038,6 +5069,7 @@ translations:
   : ''
   The probe was already triggered before the move started.: 'Зонд уже сработал до начала перемещения.'
   The printer's status isn't known yet, so a print may be running.: 'Состояние принтера ещё неизвестно, возможно, идёт печать.'
+  The probe was used before the printer was homed.: ''
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Отключённые шаги подготовки нельзя применить к этому .3mf. Включите их снова, чтобы напечатать.'
   Filament Mapping at print start: 'Сопоставление филамента при запуске печати'
@@ -5282,6 +5314,7 @@ translations:
   'Troubleshooting:': 'Устранение неполадок:'
   Try adjusting your search or filters: Попробуйте изменить поиск или фильтры
   Try Again: 'Повторить'
+  Try again. If it keeps happening, reseat the accelerometer cable.: ''
   Try the operation again. If it persists, check for mechanical issues.: Повторите операцию. Если проблема не исчезает, проверьте механические неисправности.
   Try the setting again, and restart the printer if it keeps failing.: 'Попробуйте применить настройку снова и перезапустите принтер, если ошибка повторяется.'
   Try {0} mm/s: 'Попробуйте {0} mm/s'
@@ -5314,6 +5347,7 @@ translations:
   Turn the picture to match how the screen is mounted. Applies after restart.: Поворачивает изображение в соответствии с положением экрана. Применяется после перезапуска.
   Turn the printer's lights on or off: Включить или выключить подсветку
   Two configuration sections define the same command.: 'Две секции конфигурации определяют одну и ту же команду.'
+  Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: ''
   Type: Тип
   Type to preview input field...: Введите для предпросмотра поля ввода...
   'Type:': 'Тип:'
@@ -5661,6 +5695,7 @@ translations:
   Z Tilt Adjust...: Регулировка наклона Z...
   Z axis: "Ось Z"
   Z homed before X and Y: 'Z запаркована раньше X и Y'
+  Z homes at a safe spot over the bed, so X and Y have to be homed first.: ''
   Z homing was asked for before X and Y were homed.: 'Парковка Z запрошена до парковки X и Y.'
   Z is at its limit ({}mm): Z на пределе ({}mm)
   Z jog feedrate: Скорость перемещения по оси Z

@@ -185,6 +185,9 @@ translations:
   A cold pull is already running.: "コールドプルはすでに実行中です。"
   A command is malformed or names a device that does not exist.: 'コマンドの形式が不正か、存在しないデバイスを指定しています。'
   A command is missing a value, or a value is out of its allowed range.: 'コマンドに値がないか、値が許容範囲外です。'
+  A configuration file includes itself: ''
+  A configuration file includes itself, directly or through another file it includes.: ''
+  A configuration file is missing: ''
   A controller board did not answer: '制御ボードが応答しません'
   A controller board fell behind: '制御ボードの処理が遅れました'
   A controller board missed a timed update: ''
@@ -245,6 +248,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : 'ベッドまでの距離を測るセンサー。HelixScreenはZオフセットのキャリブレーションと、プローブ画面でのプローブテストに使います。'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'チャンバー内の空気温度を測るセンサー。チャンバー温度画面で確認できます。'
+  A setting has a value Klipper can't use: ''
   A setting or pin in the printer's configuration is invalid.: 'プリンター設定の項目またはピンが不正です。'
   A sheet of printer paper: 'コピー用紙1枚'
   A shell on the machine running this screen: 'この画面を動かしているマシンのシェル'
@@ -266,6 +270,8 @@ translations:
   A toolhead's fan stopped reporting during the print, which points to the pogo pins.: '印刷中にツールヘッドのファンが応答しなくなりました。ポゴピンの不良が考えられます。'
   A top cover was detected. Its fans and air modes are on the Fans screen.: 'トップカバーを検出しました。ファンとエアモードはファン画面にあります。'
   A upper, B lower: "A上・B下"
+  ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
+  : ''
   ABS: ABS
   ACCELEROMETERS: 加速度センサー
   'ACCEPT failed: {}': 'ACCEPT に失敗しました: {}'
@@ -308,6 +314,7 @@ translations:
   Accel to Decel: 加速から減速
   Acceleration to deceleration limit (mm/s²): 加速から減速の制限値 (mm/s²)
   Accelerometer: 加速度センサー
+  Accelerometer communication failed: ''
   Accelerometer communication failed. Try again.: 加速度センサーとの通信に失敗しました。再試行してください。
   Accelerometer not connected: ''
   Accelerometer not responding: '加速度センサーが応答しません'
@@ -888,6 +895,7 @@ translations:
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: '電源ケーブルとコンセントを確認してください。電源が戻り、プリンターが再開を提示したら印刷を再開してください。'
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: '印刷物を確認してください。問題なければ再開し、そうでなければキャンセルしてプレートを清掃してください。'
   Check the provided value and try again: 入力した値を確認してもう一度お試しください
+  Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.: ''
   ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   : ''
   Check the spool and the filament path for a jam, then retry: スプールとフィラメント経路の詰まりを確認してから再試行してください
@@ -1150,11 +1158,13 @@ translations:
   Copy failed - use SSH manually: コピー失敗 - SSHを手動で使用してください
   Copy it into this filament's slicer profile. The printer keeps nothing.: 'この値をこのフィラメントのスライサー プロファイルに転記してください。プリンターには保存されません。'
   Copy layout from printer: "プリンターからレイアウトをコピー"
+  Copy the pin name from the board's sample configuration, then restart Klipper.: ''
   Copying from USB: 'USB からコピー中'
   Copying from USB stopped responding: 'USB からのコピーが応答しなくなりました'
   Copying from USB...: 'USB からコピー中...'
   Corner roundness: 角の丸み
   Corners differ by {} mm: "四隅の差 {} mm"
+  Correct the value in the printer's configuration, then restart Klipper.: ''
   Correction (Ki): 補正 (Ki)
   Could not add the timelapse plugin to Moonraker.: 'タイムラプスプラグインをMoonrakerに追加できませんでした。'
   Could not add to queue: キューに追加できませんでした
@@ -1948,6 +1958,8 @@ translations:
   Fit how the part fan cools the nozzle: パーツファンによるノズルの冷却を測定
   Fit the heater model with the part fan off: パーツファンをオフにしてヒーターモデルを測定
   Fit the induction heater's safety model: 誘導ヒーターの安全モデルを測定
+  Fix or remove that include line, then restart Klipper.: ''
+  Fix the macro on that line, then restart Klipper.: ''
   Fix the reason shown for the shutdown, then restart the firmware.: '表示された停止理由を解決してから、ファームウェアを再起動してください。'
   Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: ''
   'Fix: chmod 644 {}, then restart': '修正：chmod 644 {} を実行して再起動してください'
@@ -2024,6 +2036,7 @@ translations:
   Get help and share feedback: ヘルプとフィードバック
   Getting address…: アドレス取得中…
   Getting ready...: '準備中...'
+  Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: ''
   Glass Effects: ガラス効果
   Global: グローバル
   Global Z offset: グローバルZオフセット
@@ -2174,7 +2187,9 @@ translations:
   Home: ホーム
   Home & Continue: ホーミングして続行
   Home All: "全軸ホーミング"
+  Home X and Y before Z: ''
   Home X and Y first: '先にXとYをホーミングしてください'
+  Home X and Y first, or home all axes together.: ''
   Home all axes to use the map: マップを使うには全軸をホーミングしてください
   Home all axes, then try again.: '全軸をホーミングしてから、もう一度お試しください。'
   Home and park: "ホームとパーキング"
@@ -2322,6 +2337,7 @@ translations:
   Install script not found. Use the remote install command instead.: インストールスクリプトが見つかりません。代わりにリモートインストールコマンドを使用してください。
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': '高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:'
   Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: ''
+  Install the plugin, or remove the duplicate or unknown section, then restart Klipper.: ''
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "SSHでタイムラプスプラグインをインストールし、\n「再確認」をタップしてください。"
   Install timelapse plugin: タイムラプスプラグインをインストール
@@ -2432,7 +2448,9 @@ translations:
   Klipper already reports the ACE slots.: "KlipperがすでにACEのスロットを報告しています。"
   ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   : ''
+  'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.': ''
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: "Klipperが設定を読み込めませんでした。プリンターの設定ファイルで下記の設定を修正してから、Klipperを再起動してください。"
+  Klipper could not read the template of {1}. Klipper's message names the line and the problem.: ''
   Klipper disconnected: Klipper切断
   'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': ''
   ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
@@ -2669,6 +2687,7 @@ translations:
   Macro to purge/prime the nozzle: ノズルをパージ/プライムするマクロ
   Macro to resume a paused print: 一時停止した印刷を再開するマクロ
   Macro to unload filament from extruder: エクストルーダーからフィラメントを排出するマクロ
+  Macro {1} has a syntax error: ''
   Macros: マクロ
   Macros installed - restart pending: 'マクロをインストールしました - 再起動は保留中'
   Macros installed. Restart Klipper after the print to activate them.: 'マクロをインストールしました。印刷後に Klipper を再起動すると有効になります。'
@@ -3306,6 +3325,8 @@ translations:
   Picking up or parking the head failed while checking its dock position.: 'ドック位置の確認中に、ヘッドの装着またはドックへの戻しに失敗しました。'
   Picking up tool: ツールを取得中
   Pill: ピル
+  Pin conflict in the configuration: ''
+  Pin name not valid for this board: ''
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): 押下がスクロールに変わるまでのピクセル数 (低いほどスクロールが早く開始)
   'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': '画像ファイル (PNG, JPEG, BMP, GIF) を config/custom_images/ に配置してください。最大サイズ: 2048×2048 ピクセル。'
   Place the PEI sheet back onto the heated bed.: PEIシートを加熱ベッドに戻してください。
@@ -3752,6 +3773,7 @@ translations:
   Remove the bypass spool from the toolhead first: '先にバイパススプールをツールヘッドから取り外してください'
   Remove the debris from the bed, then resume.: 'ベッドの異物を取り除いてから再開してください。'
   Remove the filter cover.: "フィルターカバーを外します。"
+  Remove the include line that loops back, then restart Klipper.: ''
   Remove the leftover filament from the toolhead by hand before loading another spool.: '別のスプールを装填する前に、ツールヘッドに残ったフィラメントを手で取り除いてください。'
   Remove the spools: スプールを取り出す
 
@@ -4617,6 +4639,7 @@ translations:
   The Z offset paper test. Stay at the printer.: 'Zオフセットの紙テストです。プリンターのそばにいてください。'
   The accelerometer did not respond as expected, usually from a loose cable.: '加速度センサーが想定どおり応答しませんでした。多くはケーブルの緩みが原因です。'
   The accelerometer is attached: '加速度センサーが取り付けてある'
+  The accelerometer stopped answering in the middle of a measurement.: ''
   The active tool has no nozzle heater.: "アクティブなツールにノズルヒーターがありません。"
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : アニメーション付きスクリーンセーバーが印刷に干渉しないよう、このデバイスではオフになっています。設定 > ディスプレイで再度有効にできます。
@@ -4661,6 +4684,10 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : 変更は Klipper の再起動後に反映されます。Klipperファームウェアを再起動します。実行中の操作は中断されます。
   'The change was not applied: the current settings could not be saved for a revert.': '変更は適用されませんでした: 復元用に現在の設定を保存できませんでした。'
+  ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  : ''
+  The configuration names pin '{1}', which board '{2}' does not have.: ''
+  The configuration needs a missing module: ''
   The connection to Klipper was lost: 'Klipperとの接続が切れました'
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : ''
@@ -4747,6 +4774,8 @@ translations:
   The loaded slot is not known yet: "装填済みのスロットはまだ不明です"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : 装填中のスプールは {} ですが、このファイルは {} 用にスライスされています。充填材入りフィラメントはフローレートが低くなり、硬化ノズルが必要です。
+  ? The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
+  : ''
   ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   : ''
   The measured offset between toolheads is outside the allowed range.: '測定したツールヘッド間のオフセットが許容範囲外です。'
@@ -4889,6 +4918,7 @@ translations:
   The speed of one fan you choose: 選んだファン1つの速度
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
+  The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   Timelapse did not start: 'タイムラプスが開始されませんでした'
@@ -4938,6 +4968,7 @@ translations:
   There is no filament in this head's feeder.: 'このヘッドのフィーダーにフィラメントがありません。'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : "このテストを実行するための空きメモリが足りません。Klipperの解析でメモリが不足し、電源を入れ直すまでプリンターが停止したままになります。"
+  Thermocouple reader fault: ''
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: "測定値が再現しないため、調整を導けません。まず機構を確認してください。"
   'These tools have a different filament grade loaded:': '次のツールには異なるフィラメントグレードが装填されています:'
   'These tools have incompatible materials loaded:': 'これらのツールには互換性のない素材がロードされています:'
@@ -4950,6 +4981,7 @@ translations:
   : ''
   The probe was already triggered before the move started.: '移動開始前からプローブが反応していました。'
   The printer's status isn't known yet, so a print may be running.: 'プリンターの状態がまだわかりません。印刷中の可能性があります。'
+  The probe was used before the printer was homed.: ''
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。'
   Filament Mapping at print start: '印刷開始時のフィラメントマッピング'
@@ -5194,6 +5226,7 @@ translations:
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
   Try Again: '再試行'
+  Try again. If it keeps happening, reseat the accelerometer cable.: ''
   Try the operation again. If it persists, check for mechanical issues.: もう一度お試しください。解決しない場合は機械的な問題がないか確認してください。
   Try the setting again, and restart the printer if it keeps failing.: 'もう一度設定し、失敗が続く場合はプリンターを再起動してください。'
   Try {0} mm/s: '{0} mm/s を試す'
@@ -5226,6 +5259,7 @@ translations:
   Turn the picture to match how the screen is mounted. Applies after restart.: 画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。
   Turn the printer's lights on or off: プリンターのライトをオン/オフ
   Two configuration sections define the same command.: '2つの設定セクションが同じコマンドを定義しています。'
+  Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: ''
   Type: タイプ
   Type to preview input field...: 入力フィールドをプレビューするには入力してください...
   'Type:': 'タイプ:'
@@ -5573,6 +5607,7 @@ translations:
   Z Tilt Adjust...: Zチルト調整中...
   Z axis: "Z軸"
   Z homed before X and Y: 'XとYより先にZをホーミングしました'
+  Z homes at a safe spot over the bed, so X and Y have to be homed first.: ''
   Z homing was asked for before X and Y were homed.: 'XとYのホーミング前にZのホーミングが要求されました。'
   Z is at its limit ({}mm): Z軸は限界に達しています ({}mm)
   Z jog feedrate: Z軸のジョグ移動速度

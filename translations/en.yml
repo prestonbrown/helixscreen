@@ -183,6 +183,9 @@ translations:
   A cold pull is already running.: A cold pull is already running.
   A command is malformed or names a device that does not exist.: A command is malformed or names a device that does not exist.
   A command is missing a value, or a value is out of its allowed range.: A command is missing a value, or a value is out of its allowed range.
+  A configuration file includes itself: A configuration file includes itself
+  A configuration file includes itself, directly or through another file it includes.: A configuration file includes itself, directly or through another file it includes.
+  A configuration file is missing: A configuration file is missing
   A controller board did not answer: A controller board did not answer
   A controller board fell behind: A controller board fell behind
   A controller board missed a timed update: A controller board missed a timed update
@@ -243,6 +246,7 @@ translations:
   ? A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   : A sensor that measures the distance to the bed. HelixScreen uses it for Z offset calibration and probe tests on the Probe screen.
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.
+  A setting has a value Klipper can't use: A setting has a value Klipper can't use
   A setting or pin in the printer's configuration is invalid.: A setting or pin in the printer's configuration is invalid.
   A sheet of printer paper: A sheet of printer paper
   A shell on the machine running this screen: A shell on the machine running this screen
@@ -264,6 +268,8 @@ translations:
   A toolhead's fan stopped reporting during the print, which points to the pogo pins.: A toolhead's fan stopped reporting during the print, which points to the pogo pins.
   A top cover was detected. Its fans and air modes are on the Fans screen.: A top cover was detected. Its fans and air modes are on the Fans screen.
   A upper, B lower: A upper, B lower
+  ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
+  : A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   ABS: ABS
   ACCELEROMETERS: ACCELEROMETERS
   'ACCEPT failed: {}': 'ACCEPT failed: {}'
@@ -308,6 +314,7 @@ translations:
   Accel to Decel: Accel to Decel
   Acceleration to deceleration limit (mm/s²): Acceleration to deceleration limit (mm/s²)
   Accelerometer: Accelerometer
+  Accelerometer communication failed: Accelerometer communication failed
   Accelerometer communication failed. Try again.: Accelerometer communication failed. Try again.
   Accelerometer not connected: Accelerometer not connected
   Accelerometer not responding: Accelerometer not responding
@@ -890,6 +897,7 @@ translations:
   Check the power cable and outlet. When power is back, resume the print if the printer offers it.: Check the power cable and outlet. When power is back, resume the print if the printer offers it.
   Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.: Check the print. Resume only if it looks fine; otherwise cancel and clean the plate.
   Check the provided value and try again: Check the provided value and try again
+  Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.: Check the sensor leads at the amplifier board and the amplifier's wiring to the controller, then restart the firmware.
   ? Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   : Check the sensor's wiring and connector, and that the room is not colder than the sensor's minimum. Let the printer cool, then restart the firmware.
   Check the spool and the filament path for a jam, then retry: Check the spool and the filament path for a jam, then retry
@@ -1150,11 +1158,13 @@ translations:
   Copy failed - use SSH manually: Copy failed - use SSH manually
   Copy it into this filament's slicer profile. The printer keeps nothing.: 'Copy it into this filament''s slicer profile. The printer keeps nothing.'
   Copy layout from printer: Copy layout from printer
+  Copy the pin name from the board's sample configuration, then restart Klipper.: Copy the pin name from the board's sample configuration, then restart Klipper.
   Copying from USB: Copying from USB
   Copying from USB stopped responding: Copying from USB stopped responding
   Copying from USB...: Copying from USB...
   Corner roundness: Corner roundness
   Corners differ by {} mm: Corners differ by {} mm
+  Correct the value in the printer's configuration, then restart Klipper.: Correct the value in the printer's configuration, then restart Klipper.
   Correction (Ki): Correction (Ki)
   Could not add the timelapse plugin to Moonraker.: Could not add the timelapse plugin to Moonraker.
   Could not add to queue: Could not add to queue
@@ -1937,6 +1947,8 @@ translations:
   Fit how the part fan cools the nozzle: Fit how the part fan cools the nozzle
   Fit the heater model with the part fan off: Fit the heater model with the part fan off
   Fit the induction heater's safety model: Fit the induction heater's safety model
+  Fix or remove that include line, then restart Klipper.: Fix or remove that include line, then restart Klipper.
+  Fix the macro on that line, then restart Klipper.: Fix the macro on that line, then restart Klipper.
   Fix the reason shown for the shutdown, then restart the firmware.: Fix the reason shown for the shutdown, then restart the firmware.
   Fix the spelling or remove the line from the printer's configuration, then restart Klipper.: Fix the spelling or remove the line from the printer's configuration, then restart Klipper.
   'Fix: chmod 644 {}, then restart': 'Fix: chmod 644 {}, then restart'
@@ -2012,6 +2024,7 @@ translations:
   Get help and share feedback: Get help and share feedback
   Getting address…: Getting address…
   Getting ready...: Getting ready...
+  Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.: Give each feature its own pin and check its spelling against the board's sample configuration, then restart Klipper.
   Glass Effects: Glass Effects
   Global: Global
   Global Z offset: Global Z offset
@@ -2161,7 +2174,9 @@ translations:
   Home: Home
   Home & Continue: Home & Continue
   Home All: Home All
+  Home X and Y before Z: Home X and Y before Z
   Home X and Y first: Home X and Y first
+  Home X and Y first, or home all axes together.: Home X and Y first, or home all axes together.
   Home all axes to use the map: Home all axes to use the map
   Home all axes, then try again.: Home all axes, then try again.
   Home and park: Home and park
@@ -2308,6 +2323,7 @@ translations:
   Install script not found. Use the remote install command instead.: Install script not found. Use the remote install command instead.
   'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:': 'Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:'
   Install the plugin it belongs to, or rename or remove the section, then restart Klipper.: Install the plugin it belongs to, or rename or remove the section, then restart Klipper.
+  Install the plugin, or remove the duplicate or unknown section, then restart Klipper.: Install the plugin, or remove the duplicate or unknown section, then restart Klipper.
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   Install timelapse plugin: Install timelapse plugin
@@ -2416,7 +2432,9 @@ translations:
   Klipper already reports the ACE slots.: Klipper already reports the ACE slots.
   ? 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
   : 'Klipper could not connect to this board at startup: a wrong serial path or CAN UUID in the configuration, the board unpowered or not flashed, or its cable unplugged.'
+  'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.': 'Klipper could not load a module the configuration asks for: a plugin that is not installed, or a section defined twice.'
   Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.: Klipper could not load its configuration. Fix the setting below in the printer's config files, then restart Klipper.
+  Klipper could not read the template of {1}. Klipper's message names the line and the problem.: Klipper could not read the template of {1}. Klipper's message names the line and the problem.
   Klipper disconnected: Klipper disconnected
   'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.': 'Klipper does not know the section [{1}]: a typo, or a plugin that is not installed.'
   ? "Klipper does not know the setting '{1}' in section [{2}]: a typo, an option renamed in a Klipper update, or an option from another firmware."
@@ -2652,6 +2670,7 @@ translations:
   Macro to purge/prime the nozzle: Macro to purge/prime the nozzle
   Macro to resume a paused print: Macro to resume a paused print
   Macro to unload filament from extruder: Macro to unload filament from extruder
+  Macro {1} has a syntax error: Macro {1} has a syntax error
   Macros: Macros
   Macros installed - restart pending: Macros installed - restart pending
   Macros installed. Restart Klipper after the print to activate them.: Macros installed. Restart Klipper after the print to activate them.
@@ -3288,6 +3307,8 @@ translations:
   Picking up or parking the head failed while checking its dock position.: Picking up or parking the head failed while checking its dock position.
   Picking up tool: Picking up tool
   Pill: Pill
+  Pin conflict in the configuration: Pin conflict in the configuration
+  Pin name not valid for this board: Pin name not valid for this board
   Pixels before a press becomes a scroll (lower = scrolls engage sooner): Pixels before a press becomes a scroll (lower = scrolls engage sooner)
   'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.': 'Place image files (PNG, JPEG, BMP, GIF) in config/custom_images/. Max size: 2048×2048 pixels.'
   Place the PEI sheet back onto the heated bed.: Place the PEI sheet back onto the heated bed.
@@ -3735,6 +3756,7 @@ translations:
   Remove the bypass spool from the toolhead first: Remove the bypass spool from the toolhead first
   Remove the debris from the bed, then resume.: Remove the debris from the bed, then resume.
   Remove the filter cover.: Remove the filter cover.
+  Remove the include line that loops back, then restart Klipper.: Remove the include line that loops back, then restart Klipper.
   Remove the leftover filament from the toolhead by hand before loading another spool.: Remove the leftover filament from the toolhead by hand before loading another spool.
   Remove the spools: Remove the spools
   Remove the spools from the bed: Remove the spools from the bed
@@ -4593,6 +4615,7 @@ translations:
   The Z offset paper test. Stay at the printer.: The Z offset paper test. Stay at the printer.
   The accelerometer did not respond as expected, usually from a loose cable.: The accelerometer did not respond as expected, usually from a loose cable.
   The accelerometer is attached: The accelerometer is attached
+  The accelerometer stopped answering in the middle of a measurement.: The accelerometer stopped answering in the middle of a measurement.
   The active tool has no nozzle heater.: The active tool has no nozzle heater.
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
@@ -4635,6 +4658,10 @@ translations:
   ? The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   : The change takes effect after Klipper restarts. This will restart Klipper firmware. Any active operations will be interrupted.
   'The change was not applied: the current settings could not be saved for a revert.': 'The change was not applied: the current settings could not be saved for a revert.'
+  ? The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  : The configuration includes or opens a file that is not there, often the include line a removed plugin left behind. Klipper's message names the file.
+  The configuration names pin '{1}', which board '{2}' does not have.: The configuration names pin '{1}', which board '{2}' does not have.
+  The configuration needs a missing module: The configuration needs a missing module
   The connection to Klipper was lost: The connection to Klipper was lost
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
@@ -4721,6 +4748,8 @@ translations:
   The loaded slot is not known yet: The loaded slot is not known yet
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
   : The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
+  ? The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
+  : The macro failed while running. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.
   ? 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   : 'The macro failed while running: {3}. A macro usually fails like this when it uses a parameter the slicer did not pass or an object the printer does not have.'
   The measured offset between toolheads is outside the allowed range.: The measured offset between toolheads is outside the allowed range.
@@ -4860,6 +4889,7 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
+  The thermocouple or PT100 amplifier reported a fault or a reading out of range.: The thermocouple or PT100 amplifier reported a fault or a reading out of range.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
   Timelapse did not start: Timelapse did not start
@@ -4909,6 +4939,7 @@ translations:
   There is no filament in this head's feeder.: There is no filament in this head's feeder.
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
   : There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
+  Thermocouple reader fault: Thermocouple reader fault
   These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.: These readings aren't repeatable, so tuning can't be steered. Check the mechanics first.
   'These tools have a different filament grade loaded:': 'These tools have a different filament grade loaded:'
   'These tools have incompatible materials loaded:': 'These tools have incompatible materials loaded:'
@@ -4921,6 +4952,7 @@ translations:
   : 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   The probe was already triggered before the move started.: The probe was already triggered before the move started.
   The printer's status isn't known yet, so a print may be running.: The printer's status isn't known yet, so a print may be running.
+  The probe was used before the printer was homed.: The probe was used before the printer was homed.
   The queue prints this .3mf's default plate. Print this plate from here instead.: The queue prints this .3mf's default plate. Print this plate from here instead.
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.
   Filament Mapping at print start: Filament Mapping at print start
@@ -5166,6 +5198,7 @@ translations:
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
   Try Again: Try Again
+  Try again. If it keeps happening, reseat the accelerometer cable.: Try again. If it keeps happening, reseat the accelerometer cable.
   Try the operation again. If it persists, check for mechanical issues.: Try the operation again. If it persists, check for mechanical issues.
   Try the setting again, and restart the printer if it keeps failing.: Try the setting again, and restart the printer if it keeps failing.
   Try {0} mm/s: Try {0} mm/s
@@ -5198,6 +5231,7 @@ translations:
   Turn the picture to match how the screen is mounted. Applies after restart.: Turn the picture to match how the screen is mounted. Applies after restart.
   Turn the printer's lights on or off: Turn the printer's lights on or off
   Two configuration sections define the same command.: Two configuration sections define the same command.
+  Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.
   Type: Type
   Type to preview input field...: Type to preview input field...
   'Type:': 'Type:'
@@ -5551,6 +5585,7 @@ translations:
   Z Tilt Adjust...: Z Tilt Adjust...
   Z axis: Z axis
   Z homed before X and Y: Z homed before X and Y
+  Z homes at a safe spot over the bed, so X and Y have to be homed first.: Z homes at a safe spot over the bed, so X and Y have to be homed first.
   Z homing was asked for before X and Y were homed.: Z homing was asked for before X and Y were homed.
   Z is at its limit ({}mm): Z is at its limit ({}mm)
   Z jog feedrate: Z jog feedrate

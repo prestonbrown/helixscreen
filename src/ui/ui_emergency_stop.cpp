@@ -902,18 +902,11 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
         message = lv_tr(content.message);
     } else if (worded) {
         // What went wrong and what to do, above Klipper's own text: a support
-        // thread still needs the firmware's exact words.
+        // thread still needs the firmware's exact words, and a config error's
+        // names the option and section to fix. The guidance goes first so a
+        // long reason cannot push it out of the subject buffer.
         lv_subject_set_string(&recovery_title_subject_, worded->summary.c_str());
         message = worded->detail() + "\n\n" + message;
-    } else if (is_klippy_config_error(message)) {
-        // Restarting reloads the same broken file, so say what has to change
-        // first. Klipper's text names the option and section; the guidance goes
-        // ahead of it so a long reason cannot push it out of the subject buffer.
-        lv_subject_set_string(&recovery_title_subject_, lv_tr("Klipper Config Error"));
-        message = std::string(lv_tr("Klipper could not load its configuration. Fix the "
-                                    "setting below in the printer's config files, then "
-                                    "restart Klipper.")) +
-                  "\n\n" + message;
     }
 
     // Update subjects — XML bindings in klipper_recovery_dialog.xml react automatically

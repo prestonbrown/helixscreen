@@ -13,19 +13,19 @@
  *   (b) the broadcast `!! <text>` line on the gcode-response stream -> routed
  *       by GcodeErrorRouter, which asks was_recently_handled() before toasting.
  *
- * Channel (b) runs its text through GcodeErrorRouter::clean_error_text(), which
- * REWRITES some messages ("Must home axis first" -> "Must home axes first").
+ * Channel (b) words what it recognizes through the error_wording table, which
+ * REPLACES the display text ("Must home axis first" reads as a cause and a fix).
  * Channel (a) records the raw text. The dedup match is exact-string by design
  * (see include/rpc_error_correlation.h -- substring would mask unrelated errors
- * sharing a phrase), so any message the cleaner rewrites can never match its RPC
- * twin, and the user sees TWO toasts for one rejection on real hardware.
+ * sharing a phrase), so a reworded message must dedup on its raw text or the
+ * user sees TWO toasts for one rejection on real hardware.
  *
  * These tests drive the REAL tracker and the REAL router -- not the mock's
  * inline gcode_script() dispatch -- so they exercise the production comparison.
  *
  * The router's toast is observed through the notification event hook
- * (tests/ui_test_utils.h), counting only error notifications titled
- * "Klipper Error", the router's title.
+ * (tests/ui_test_utils.h), counting error notifications with a title: the
+ * router's toast always carries one.
  */
 
 #include "../../include/moonraker_api.h"
@@ -110,7 +110,7 @@ class CorrelationFixture : public LVGLTestFixture {
         int error_notifications = 0;
         helix::ui::set_test_notification_event_hook(
             [&error_notifications](const helix::ui::NotificationEvent& e) {
-                if (e.severity == ToastSeverity::ERROR && e.title == "Klipper Error") {
+                if (e.severity == ToastSeverity::ERROR && !e.title.empty()) {
                     ++error_notifications;
                 }
             });
@@ -216,12 +216,12 @@ class CorrelationFixture : public LVGLTestFixture {
 } // namespace
 
 TEST_CASE_METHOD(CorrelationFixture,
-                 "cross-channel dedup survives clean_error_text rewriting the message",
+                 "cross-channel dedup survives the wording table rewording the message",
                  "[moonraker][tracker][dedup][errors]") {
-    // clean_error_text() rewrites this one: "Must home axis first" (Klipper's
-    // wording, sent identically on both channels) becomes "Must home axes
-    // first" on the router side only. The RPC side records Klipper's wording,
-    // so the exact-string dedup misses and BOTH toasts fire.
+    // The wording table rewords this one: "Must home axis first" (Klipper's
+    // wording, sent identically on both channels) becomes a cause and a fix
+    // on the router side only. The RPC side records Klipper's wording, so
+    // only a raw-to-raw match pairs the two.
     const std::string kRewritten = "Must home axis first";
 
     auto r = run_both_channels(kRewritten);
@@ -236,9 +236,9 @@ TEST_CASE_METHOD(CorrelationFixture,
 
 TEST_CASE_METHOD(CorrelationFixture, "cross-channel dedup still works for un-rewritten messages",
                  "[moonraker][tracker][dedup][errors]") {
-    // Regression guard: clean_error_text() leaves this text alone, so the two
-    // channels already match today. The normalization fix must not break it.
-    auto r = run_both_channels("Move out of range: X=400.000000");
+    // Regression guard: nothing rewords this text, so the two channels match
+    // on the display text as well.
+    auto r = run_both_channels("PRINT_START: chamber not at temperature");
 
     INFO("router toasts: " << r.router_toasts << " suppressions: " << r.suppressions);
     CHECK(r.caller_cb_fired);

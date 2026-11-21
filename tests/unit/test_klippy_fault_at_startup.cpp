@@ -16,6 +16,7 @@
 #include "../test_helpers/fake_connection_test.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
+#include "error_wording.h"
 #include "klippy_state.h"
 #include "moonraker_client_mock.h"
 #include "power_device_state.h"
@@ -128,17 +129,34 @@ TEST_CASE("Discovery onto an errored Klippy fetches its state and reason",
 }
 
 TEST_CASE("Klipper config errors are told apart from other faults",
-          "[klippy_startup_fault][config_error]") {
-    CHECK(is_klippy_config_error(kConfigError));
-    CHECK(is_klippy_config_error("Option 'max_temp' in section 'extruder' must be specified"));
-    CHECK(is_klippy_config_error("Section 'fan_generic foo' is not a valid config section"));
-    CHECK(is_klippy_config_error("Unable to open config file /home/pi/printer_data/printer.cfg"));
-    CHECK(is_klippy_config_error("Unknown pin chip name 'toolboard'"));
+          "[klippy_startup_fault][config_error][error-wording]") {
+    using helix::error_wording::Category;
+    const auto category = [](const char* msg) {
+        const auto c = helix::error_wording::classify(msg);
+        return c ? c->category : Category::Command;
+    };
+    for (const char* msg : {
+             kConfigError,
+             "Option 'max_temp' in section 'extruder' must be specified",
+             "Section 'fan_generic foo' is not a valid config section",
+             "Unable to open config file /home/pi/printer_data/printer.cfg",
+             "Unknown pin chip name 'toolboard'",
+             "Pin 'PA99' is not a valid pin name on mcu 'mcu'",
+             "pin PA1 used multiple times in config",
+             "Include file '/home/pi/printer_data/config/KAMP/*.cfg' does not exist",
+             "Unknown config object 'tmc2209_autotune'",
+             "Unable to load module 'beacon'",
+             "Error loading template 'gcode_macro PRINT_START:gcode': TemplateSyntaxError: "
+             "unexpected '}'",
+         }) {
+        CAPTURE(msg);
+        CHECK(category(msg) == Category::Config);
+    }
 
-    CHECK_FALSE(is_klippy_config_error(""));
-    CHECK_FALSE(is_klippy_config_error("MCU 'mcu' shutdown: Timer too close"));
-    CHECK_FALSE(is_klippy_config_error("Shutdown due to M112 command"));
-    CHECK_FALSE(is_klippy_config_error("mcu 'mcu': Unable to connect"));
+    CHECK_FALSE(helix::error_wording::classify("").has_value());
+    CHECK(category("MCU 'mcu' shutdown: Timer too close") != Category::Config);
+    CHECK(category("Shutdown due to M112 command") != Category::Config);
+    CHECK(category("mcu 'mcu': Unable to connect") != Category::Config);
 }
 
 TEST_CASE_METHOD(StartupFaultFixture, "Nothing shows before Klippy reports a state",
@@ -214,11 +232,13 @@ TEST_CASE_METHOD(StartupFaultFixture,
     report("error", kConfigError);
     REQUIRE(recovery_card() != nullptr);
 
-    CHECK(recovery_label("recovery_title") == lv_tr("Klipper Config Error"));
+    CHECK(recovery_label("recovery_title") == lv_tr("A setting has a value Klipper can't use"));
     const std::string message = recovery_label("recovery_message");
-    CHECK(message.find(lv_tr("Klipper could not load its configuration. Fix the setting below "
-                             "in the printer's config files, then restart Klipper.")) == 0);
-    CHECK(message.find(kConfigError) != std::string::npos);
+    CHECK(message.find(lv_tr("Correct the value in the printer's configuration, then restart "
+                             "Klipper.")) != std::string::npos);
+    const auto klipper_at = message.find(kConfigError);
+    REQUIRE(klipper_at != std::string::npos);
+    CHECK(klipper_at > 0);
 
     // Firmware Restart is what reloads the fixed file, so the row stays.
     lv_obj_t* actions = lv_obj_find_by_name(recovery_card(), "recovery_restart_actions");
@@ -338,7 +358,6 @@ TEST_CASE("Klipper's MCU connect failures are told apart from other faults",
     CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Unable to connect"));
     CHECK(is_klippy_mcu_connect_error("mcu 'toolboard': Unable to connect\nOnce the underlying "
                                       "issue is corrected, use the \"FIRMWARE_RESTART\" command"));
-    CHECK(is_klippy_mcu_connect_error("mcu 'mcu': Timeout on connect"));
 
     CHECK_FALSE(is_klippy_mcu_connect_error(""));
     CHECK_FALSE(is_klippy_mcu_connect_error("MCU 'mcu' shutdown: Timer too close"));
