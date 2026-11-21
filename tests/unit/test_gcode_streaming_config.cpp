@@ -165,3 +165,21 @@ TEST_CASE("gcode_viewer_should_stream: no opt-out defers to the size decision",
         }
     }
 }
+
+/**
+ * The software-GL probe initializes GL on the UI thread, so a load runs it only
+ * when it could full-load into a 3D render. A file that streams renders 2D and
+ * never needs GL.
+ */
+TEST_CASE("gcode_viewer_may_full_load: a file that streams by size skips the GL probe",
+          "[gcode][streaming]") {
+    CHECK_FALSE(helix::gcode_viewer_may_full_load(/*screen_opted_out=*/false,
+                                                  /*streaming_for_size=*/true));
+}
+
+TEST_CASE("gcode_viewer_may_full_load: a small file or a screen's opt-out may full-load",
+          "[gcode][streaming]") {
+    CHECK(helix::gcode_viewer_may_full_load(false, false));
+    CHECK(helix::gcode_viewer_may_full_load(true, false));
+    CHECK(helix::gcode_viewer_may_full_load(true, true));
+}

@@ -133,4 +133,21 @@ std::string get_streaming_config_description();
     return streaming_for_size;
 }
 
+/**
+ * @brief Whether a load could take the full-load path, before GL is probed.
+ *
+ * True when gcode_viewer_should_stream() would full-load given a viewer that
+ * renders 3D and a parse that fits. A load for which this is false streams and
+ * renders 2D whatever GL turns out to be, so it skips the software-GL check
+ * that initializes GL on the UI thread.
+ *
+ * @param screen_opted_out    The screen called ui_gcode_viewer_disable_streaming().
+ * @param streaming_for_size  should_use_gcode_streaming() for this file.
+ */
+[[nodiscard]] inline bool gcode_viewer_may_full_load(bool screen_opted_out,
+                                                     bool streaming_for_size) {
+    return !gcode_viewer_should_stream(screen_opted_out, /*renders_3d=*/true,
+                                       /*full_parse_fits=*/true, streaming_for_size);
+}
+
 } // namespace helix

@@ -1655,10 +1655,14 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         file_size = 0; // Fall through to full-load mode
     }
 
+    const bool streaming_for_size = helix::should_use_gcode_streaming(file_size);
 #ifdef ENABLE_3D_RENDERER
     // Before the streaming decision below and the worker's is_using_2d_mode()
-    // read: a software or failed GL renders 2D, so it must not full-load.
-    apply_software_gl_fallback(st);
+    // read: a software or failed GL renders 2D, so it must not full-load. A load
+    // that streams anyway renders 2D and never initializes GL.
+    if (helix::gcode_viewer_may_full_load(st->streaming_disabled_, streaming_for_size)) {
+        apply_software_gl_fallback(st);
+    }
     const bool renders_3d =
         st->render_settings_allow_3d() && !(st->renderer_ && st->renderer_->render_failed());
 #else
@@ -1666,7 +1670,6 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
 #endif
     // A screen's opt-out only counts when this viewer will render 3D and the
     // full parse fits RAM; see gcode_viewer_should_stream().
-    const bool streaming_for_size = helix::should_use_gcode_streaming(file_size);
     // Only priced when it can change the answer: it reads /proc/meminfo.
     const bool weighs_full_parse = st->streaming_disabled_ && renders_3d && streaming_for_size;
     const bool full_parse_fits =
