@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -799,6 +800,238 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     // ...and SAVE_CONFIG waits for the user's answer.
     CHECK_FALSE(any_sent(sent(), "SAVE_CONFIG"));
     CHECK(errors.empty());
+}
+
+// ============================================================================
+// Guided run: calibrate_for_run() and end_run()
+// ============================================================================
+
+namespace {
+
+/// The largest minus the smallest Z among @p points, worked out here.
+double points_spread(const json& points) {
+    double lo = 1e9;
+    double hi = -1e9;
+    for (const auto& row : points) {
+        for (const auto& z : row) {
+            lo = std::min(lo, z.get<double>());
+            hi = std::max(hi, z.get<double>());
+        }
+    }
+    return hi - lo;
+}
+
+class BedMeshRunFixture : public BedMeshPanelFlowFixture {
+  public:
+    BedMeshPanel panel;
+    std::vector<std::pair<std::string, std::optional<double>>> stored;
+    std::vector<std::pair<std::string, std::string>> failed;
+
+    BedMeshRunFixture() {
+        use_printer("");
+    }
+
+    BedMeshPanel::RunHooks hooks() {
+        BedMeshPanel::RunHooks h;
+        h.stored = [this](const std::string& profile, std::optional<double> range) {
+            stored.emplace_back(profile, range);
+        };
+        h.failed = [this](const std::string& why, const std::string& staged) {
+            failed.emplace_back(why, staged);
+        };
+        return h;
+    }
+
+    /// Heaters already at a probing target, so nothing is preheated.
+    static void heaters_on() {
+        set_nozzle(150.0);
+        set_bed(60.0, 60.0);
+    }
+
+    static void homed() {
+        get_printer_state().update_from_status({{"toolhead", {{"homed_axes", "xyz"}}}});
+    }
+
+    int queries() const {
+        return client.call_count("printer.objects.query");
+    }
+
+    int scripts() const {
+        return client.call_count("printer.gcode.script");
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(BedMeshRunFixture,
+                 "a guided run's mesh is handed to the run with its flatness, and nothing asks "
+                 "to save it",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    panel.calibrate_for_run(&api, hooks());
+    drain();
+
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    REQUIRE(stored.size() == 1);
+    CHECK(stored[0].first == "default");
+    const json points = client.bed_mesh_status()["profiles"]["default"]["points"];
+    REQUIRE(points.size() > 1);
+    const double spread = points_spread(points);
+    REQUIRE(spread > 0.0);
+    REQUIRE(stored[0].second.has_value());
+    CHECK(*stored[0].second == Catch::Approx(spread).margin(1e-6));
+    CHECK(failed.empty());
+    CHECK(successes.empty());
+    CHECK(errors.empty());
+    CHECK_FALSE(any_sent(sent(), "SAVE_CONFIG"));
+    CHECK(helix::ui::BedMeshPanelTestAccess::calibrate_state(panel) ==
+          static_cast<int>(BedMeshCalibrationState::IDLE));
+}
+
+TEST_CASE_METHOD(BedMeshRunFixture,
+                 "a guided run whose calibration stored nothing hears why, with no toast",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    client.force_next_mesh_calibration("BED_MESH_CALIBRATE", "adaptive");
+    panel.calibrate_for_run(&api, hooks());
+    drain();
+
+    REQUIRE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    CHECK(stored.empty());
+    REQUIRE(failed.size() == 1);
+    CHECK(mentions(failed[0].first, "default"));
+    CHECK(failed[0].second.empty());
+    CHECK(errors.empty());
+    CHECK(helix::ui::BedMeshPanelTestAccess::calibrate_state(panel) ==
+          static_cast<int>(BedMeshCalibrationState::IDLE));
+}
+
+TEST_CASE_METHOD(BedMeshRunFixture,
+                 "a cancelled run's preparation sends nothing more once its reply arrives",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    SECTION("cancelled while the stored meshes are read") {
+        set_bed(24.0, 0.0); // a cold bed is preheated first
+        client.defer_next("printer.objects.query");
+        panel.calibrate_for_run(&api, hooks());
+        drain();
+        REQUIRE(queries() == 1);
+        REQUIRE(scripts() == 0);
+
+        panel.end_run(BedMeshPanel::RunEnd::Cancelled);
+        client.fire_deferred("printer.objects.query");
+        drain();
+        CHECK(scripts() == 0);
+    }
+
+    SECTION("cancelled while the preheat waits") {
+        set_bed(24.0, 0.0);
+        client.defer_next("printer.gcode.script");
+        panel.calibrate_for_run(&api, hooks());
+        drain();
+        REQUIRE(mentions(client.last_send_script(), "TEMPERATURE_WAIT"));
+        const int before = scripts();
+
+        panel.end_run(BedMeshPanel::RunEnd::Cancelled);
+        drain();
+        const int after_cancel = scripts();
+        REQUIRE(after_cancel >= before);
+        client.fire_deferred("printer.gcode.script");
+        drain();
+        CHECK(scripts() == after_cancel);
+        CHECK_FALSE(any_sent(sent(), "G28"));
+    }
+
+    SECTION("cancelled while homing") {
+        heaters_on();
+        client.defer_next("printer.gcode.script");
+        panel.calibrate_for_run(&api, hooks());
+        drain();
+        REQUIRE(mentions(client.last_send_script(), "G28"));
+        REQUIRE(queries() == 1);
+
+        panel.end_run(BedMeshPanel::RunEnd::Cancelled);
+        client.fire_deferred("printer.gcode.script");
+        drain();
+        CHECK(queries() == 1);
+    }
+
+    SECTION("cancelled while the probe count is read") {
+        heaters_on();
+        homed();
+        panel.calibrate_for_run(&api, hooks());
+        // The stored meshes have been read; the next query is the probe count.
+        REQUIRE(queries() == 1);
+        client.defer_next("printer.objects.query");
+        drain();
+        REQUIRE(queries() == 2);
+
+        panel.end_run(BedMeshPanel::RunEnd::Cancelled);
+        client.fire_deferred("printer.objects.query");
+        drain();
+        CHECK_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+        CHECK_FALSE(panel.calibration_command_sent());
+    }
+
+    CHECK(stored.empty());
+    CHECK(failed.empty());
+    CHECK(errors.empty());
+}
+
+TEST_CASE_METHOD(BedMeshRunFixture,
+                 "a stopped run's calibration ignores what its command reports afterwards",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    heaters_on();
+    homed();
+    client.set_config_bed_mesh_probe_count(3, 3);
+    client.defer_next("printer.gcode.script");
+    panel.calibrate_for_run(&api, hooks());
+    drain();
+    REQUIRE(mentions(client.last_send_script(), "BED_MESH_CALIBRATE"));
+    REQUIRE(panel.calibration_command_sent());
+
+    panel.end_run(BedMeshPanel::RunEnd::Stopped);
+    drain();
+    lv_subject_t* progress = lv_xml_get_subject(nullptr, "bed_mesh_probe_progress");
+    REQUIRE(progress != nullptr);
+    REQUIRE(lv_subject_get_int(progress) == 0);
+    const int queries_at_stop = queries();
+
+    SECTION("a probe point") {
+        client.dispatch_gcode_response("// probe at 9.998,9.998 is z=0.265669");
+        drain();
+        CHECK(lv_subject_get_int(progress) == 0);
+    }
+
+    SECTION("the mesh finishing") {
+        client.dispatch_gcode_response("// Mesh Bed Leveling Complete");
+        drain();
+        CHECK(queries() == queries_at_stop);
+    }
+
+    SECTION("the command failing") {
+        client.fire_deferred_error("printer.gcode.script",
+                                   MoonrakerError::unknown("Printer is shutdown"));
+        drain();
+        CHECK(helix::ui::BedMeshPanelTestAccess::calibrate_state(panel) ==
+              static_cast<int>(BedMeshCalibrationState::IDLE));
+    }
+
+    CHECK(stored.empty());
+    CHECK(failed.empty());
+    CHECK(errors.empty());
+}
+
+TEST_CASE_METHOD(BedMeshRunFixture, "a calibration after a cancelled run probes as usual",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    client.defer_next("printer.objects.query");
+    panel.calibrate_for_run(&api, hooks());
+    panel.end_run(BedMeshPanel::RunEnd::Cancelled);
+    client.fire_deferred("printer.objects.query");
+    drain();
+    REQUIRE_FALSE(any_sent(sent(), "BED_MESH_CALIBRATE"));
+
+    panel.calibrate_for_run(&api, hooks());
+    drain();
+    CHECK(any_sent(sent(), "BED_MESH_CALIBRATE"));
+    CHECK(stored.size() == 1);
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "the mock printer's calibration runs the command it was given",
