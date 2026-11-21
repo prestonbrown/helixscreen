@@ -5083,6 +5083,7 @@ translations:
   TouchCalibration: Calibration tactile
   Trace: Trace
   Trigger: Déclencheur
+  Track this spool's weight there: 'Y suivre le poids de cette bobine'
   Trailing: En retard
   'Tried ports {} and {}.': "Ports {} et {} essayés."
   'Troubleshooting:': 'Dépannage :'

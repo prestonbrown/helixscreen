@@ -5071,6 +5071,7 @@ translations:
   TouchCalibration: Touch-Kalibrierung
   Trace: Trace
   Trigger: Auslöser
+  Track this spool's weight there: 'Gewicht dieser Spule dort verfolgen'
   Trailing: Nachlaufend
   'Tried ports {} and {}.': "Versucht: Ports {} und {}."
   'Troubleshooting:': 'Fehlerbehebung:'

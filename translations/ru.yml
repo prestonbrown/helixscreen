@@ -5159,6 +5159,7 @@ translations:
   TouchCalibration: Калибровка касания
   Trace: Трассировка
   Trigger: Триггер
+  Track this spool's weight there: 'Отслеживать там вес этой катушки'
   Trailing: Отставание
   'Tried ports {} and {}.': "Проверены порты {} и {}."
   'Troubleshooting:': 'Устранение неполадок:'

@@ -5071,6 +5071,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
+  Track this spool's weight there: 'このスプールの重量をそこで管理'
   Trailing: 遅延
   'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'

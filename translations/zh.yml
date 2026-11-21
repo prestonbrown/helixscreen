@@ -5071,6 +5071,7 @@ translations:
   TouchCalibration: 触摸校准
   Trace: 跟踪
   Trigger: 触发器
+  Track this spool's weight there: '在其中跟踪此料盘的重量'
   Trailing: 滞后
   'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
   'Troubleshooting:': 故障排除：
