@@ -188,7 +188,60 @@ void PrintTuneOverlay::on_deactivating(DeactivateReason) {
 void PrintTuneOverlay::setup_panel() {
     // Update Z-offset icons based on printer kinematics
     update_z_offset_icons(overlay_root_);
+    install_observers();
+    spdlog::debug("[PrintTuneOverlay] Panel setup complete");
+}
 
+void PrintTuneOverlay::prepare_inline(helix::IMoonrakerAPI* api, helix::PrinterState& printer_state,
+                                      lv_obj_t* parent_screen) {
+    api_ = api;
+    printer_state_ = &printer_state;
+    if (parent_screen) {
+        parent_screen_ = parent_screen;
+    }
+    if (!subjects_initialized_) {
+        init_subjects();
+        subjects_initialized_ = true;
+    }
+    register_callbacks();
+    install_observers();
+}
+
+void PrintTuneOverlay::activate_inline(lv_obj_t* host_root) {
+    if (!subjects_initialized_) {
+        return; // prepare_inline() never ran: nothing binds the section
+    }
+    inline_root_ = host_root;
+    // Kinematics are known only once the printer has connected, after the host
+    // view was built.
+    update_z_offset_icons(nullptr);
+    sync_to_state();
+#if !defined(HELIX_PLATFORM_ESP32)
+    lv_subject_set_int(&tune_pa_session_subject_,
+                       helix::ui::get_global_pa_tuning_overlay().session_active() ? 1 : 0);
+#endif
+}
+
+void PrintTuneOverlay::deactivate_inline(lv_obj_t* host_root) {
+    if (inline_root_.get() == host_root) {
+        inline_root_.reset();
+    }
+}
+
+template <typename Fn> void PrintTuneOverlay::for_each_z_indicator(Fn&& fn) {
+    if (overlay_root_) {
+        if (lv_obj_t* indicator =
+                helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
+            fn(indicator);
+        }
+    }
+    // The inline section may leave its indicator out (narrow layouts hide it).
+    if (lv_obj_t* indicator = helix::ui::find_optional(inline_root_, "z_offset_indicator")) {
+        fn(indicator);
+    }
+}
+
+void PrintTuneOverlay::install_observers() {
     // Observe speed-related subjects for the live speed/flow readouts
     if (printer_state_) {
         speed_observer_ = helix::ui::observe<int>(
@@ -237,8 +290,6 @@ void PrintTuneOverlay::setup_panel() {
             [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
             ts_lifetime);
     }
-
-    spdlog::debug("[PrintTuneOverlay] Panel setup complete");
 }
 
 void PrintTuneOverlay::sync_to_state() {
@@ -263,11 +314,8 @@ void PrintTuneOverlay::sync_to_state() {
     // Opening the overlay starts a new tuning session; travel is bounded from here.
     session_base_z_offset_ = current_z_offset_;
 
-    // Sync the visual indicator
-    if (lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
-        ui_z_offset_indicator_set_value(indicator, z_offset_microns);
-    }
+    for_each_z_indicator(
+        [&](lv_obj_t* indicator) { ui_z_offset_indicator_set_value(indicator, z_offset_microns); });
 
     update_pa_display();
 
@@ -388,6 +436,8 @@ void PrintTuneOverlay::update_z_offset_display(int microns) {
         // machine-wide value back under a T<n> label.
         update_tool_z_displays();
     }
+    for_each_z_indicator(
+        [&](lv_obj_t* indicator) { ui_z_offset_indicator_set_value(indicator, microns); });
 
     spdlog::trace("[PrintTuneOverlay] Z-offset display updated: {}um ({}mm)", microns,
                   current_z_offset_);
@@ -469,12 +519,11 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
     current_z_offset_ = r.new_offset_mm;
     update_tool_z_displays();
 
-    if (lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
+    for_each_z_indicator([&](lv_obj_t* indicator) {
         ui_z_offset_indicator_set_value(indicator,
                                         static_cast<int>(std::lround(current_z_offset_ * 1000.0)));
         ui_z_offset_indicator_flash_direction(indicator, r.applied_delta_mm > 0 ? 1 : -1);
-    }
+    });
 }
 
 void PrintTuneOverlay::handle_z_step_select(int idx) {
@@ -589,8 +638,7 @@ void PrintTuneOverlay::handle_tool_z_offset_changed(double delta) {
     }
     update_tool_z_displays();
 
-    if (lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
+    for_each_z_indicator([&](lv_obj_t* indicator) {
         ui_z_offset_indicator_flash_direction(indicator, delta > 0 ? 1 : -1);
-    }
+    });
 }

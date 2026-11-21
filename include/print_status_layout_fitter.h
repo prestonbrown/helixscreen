@@ -43,6 +43,8 @@ class PrintStatusLayoutFitter {
         /// The stacked printer tile's height beside a lane tray strip, in px;
         /// lv_pct(100) otherwise, where its flex share sets it.
         lv_subject_t* printer_tile_h = nullptr;
+        lv_subject_t* tune_w = nullptr;
+        lv_subject_t* tune_h = nullptr;
     };
 
     struct Host {

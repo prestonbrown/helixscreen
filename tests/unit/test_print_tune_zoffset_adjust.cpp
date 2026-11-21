@@ -23,6 +23,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "config.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_discovery.h"
@@ -34,6 +35,8 @@
 
 #include <array>
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -465,4 +468,100 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 
     state().capabilities_state().set_stepper_z_endstop_microns(0);
     SettingsManager::instance().set_z_offset_save_mode(save_mode);
+}
+
+// ============================================================================
+// Print Status's inline Tune section: the same controls, live without the
+// overlay ever being built.
+// ============================================================================
+
+namespace {
+
+/// Build the inline section the way PrintStatusPanel does: prepare before the
+/// XML, activate once it shows.
+lv_obj_t* build_inline_tune(MoonrakerAPI* api, PrinterState& printer_state) {
+    auto& tune = get_print_tune_overlay();
+    tune.prepare_inline(api, printer_state, lv_screen_active());
+    auto* section =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "print_status_tune", nullptr));
+    REQUIRE(section != nullptr);
+    lv_obj_update_layout(section);
+    tune.activate_inline(section);
+    helix::ui::UpdateQueue::instance().drain();
+    return section;
+}
+
+std::string tap_in(lv_obj_t* root, const char* name, MoonrakerClientMock& client) {
+    lv_obj_t* btn = lv_obj_find_by_name(root, name);
+    REQUIRE(btn != nullptr);
+    helix::ui::send_tap(btn);
+    helix::ui::UpdateQueue::instance().drain();
+    return client.last_send_script();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the inline section sends the overlay's commands without the overlay",
+                 "[ui_integration][print_tune][tune_inline]") {
+    state().update_from_status(json{{"extruder", json{{"pressure_advance", 0.04}}}});
+    set_live_offset(-0.1);
+    set_printing(true);
+    set_homed(true);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    auto& tune = get_print_tune_overlay();
+    REQUIRE(tune.get_panel() == nullptr);
+
+    // The same wire forms the overlay's buttons send (cases above).
+    CHECK(tap_in(section, "btn_speed_plus_5", mock_client) == "M220 S105");
+    CHECK(tap_in(section, "btn_flow_minus_1", mock_client) == "M221 S99");
+    CHECK(tap_in(section, "btn_pa_plus_1", mock_client) ==
+          "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0410");
+    tune.handle_z_step_select(2); // 0.010mm
+    CHECK(tap_in(section, "btn_z_closer", mock_client) ==
+          "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    mock_client.clear_gcode_script_history();
+    tap_in(section, "ps_tune_reset", mock_client);
+    CHECK(mock_client.gcode_script_history() == std::vector<std::string>{"M220 S100", "M221 S100"});
+
+    CHECK(tune.get_panel() == nullptr);
+    lv_obj_delete(section);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the inline section's readouts follow the printer without the overlay",
+                 "[ui_integration][print_tune][tune_inline]") {
+    set_live_offset(-0.15);
+    set_printing(true);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+
+    lv_obj_t* z = lv_obj_find_by_name(section, "z_offset_display");
+    REQUIRE(z != nullptr);
+    CHECK(std::string(lv_label_get_text(z)).find("0.150") != std::string::npos);
+
+    state().update_from_status(json{{"extruder", json{{"pressure_advance", 0.055}}}});
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* pa = lv_obj_find_by_name(section, "pa_display");
+    REQUIRE(pa != nullptr);
+    CHECK(std::string(lv_label_get_text(pa)) == "0.0550");
+    lv_obj_delete(section);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: a deleted inline section leaves adjusting and the overlay working",
+                 "[ui_integration][print_tune][tune_inline]") {
+    set_live_offset(0.0);
+    set_printing(true);
+    set_homed(true);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    REQUIRE(lv_obj_find_by_name(section, "z_offset_indicator") != nullptr);
+    lv_obj_delete(section);
+
+    // The overlay opening later reuses the subjects the section bound.
+    auto& overlay = show_overlay();
+    overlay.handle_z_step_select(2);
+    overlay.handle_z_adjust(-1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    CHECK(tap_in(overlay.get_panel(), "btn_speed_plus_10", mock_client) == "M220 S110");
 }

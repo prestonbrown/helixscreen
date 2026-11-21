@@ -91,6 +91,14 @@ int32_t checklist_height(lv_obj_t* root) {
            2 * theme_manager_get_spacing("space_sm");
 }
 
+/// The stacked inline Tune section's content height. Laid out even while
+/// hidden, so it is known before the fitter first shows it; 0 before the
+/// first layout.
+int32_t tune_section_height(lv_obj_t* root) {
+    lv_obj_t* tune = lv_obj_find_by_name(root, "ps_tune");
+    return tune ? lv_obj_get_height(tune) : 0;
+}
+
 /// The strip is a ui_card: its padding and border on both sides.
 int32_t strip_chrome() {
     return 2 * (theme_manager_get_spacing("space_sm") + theme_manager_get_spacing("border_width"));
@@ -132,7 +140,7 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         lv_obj_t* progress = lv_obj_find_by_name(root, "ps_strip_progress");
         last_ = decide_print_status_tile_layout(w, h, gap, strip_row_height(progress),
                                                 strip_stacked_height(progress), lane_tray,
-                                                checklist_height(root));
+                                                checklist_height(root), tune_section_height(root));
     }
     const auto set = [](lv_subject_t* s, int v) {
         if (s && lv_subject_get_int(s) != v) {
@@ -146,10 +154,13 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
     set(subjects_.printer_w, last_.columns.printer_w);
     set(subjects_.readouts_w, last_.columns.readouts_w);
     set(subjects_.actions_w, last_.columns.actions_w);
+    set(subjects_.tune_w, last_.columns.tune_w);
+    set(subjects_.tune_h, last_.tune_h);
     set(subjects_.lane_tray, static_cast<int>(last_.lane_tray));
     set(subjects_.lane_tray_h, last_.lane_tray_h);
     set(subjects_.printer_tile_h,
-        last_.lane_tray == PrintStatusLaneTray::Strip ? last_.printer_h : lv_pct(100));
+        last_.lane_tray == PrintStatusLaneTray::Strip || last_.tune_h > 0 ? last_.printer_h
+                                                                          : lv_pct(100));
     // The tray picks its spool or bar view from the width it is given.
     if (lv_obj_t* tray = lv_obj_find_by_name(root, "ps_lane_tray_status");
         tray && ui_ams_mini_status_is_valid(tray)) {
@@ -158,12 +169,13 @@ const PrintStatusTileLayout& PrintStatusLayoutFitter::recompute() {
         ui_ams_mini_status_set_width(tray, tray_w - 2 * theme_manager_get_spacing("space_sm"));
     }
     spdlog::debug("[{}] Content {}x{}: {} strip {} ({}px), job {}x{}, printer {}x{}, checklist {}, "
-                  "lane tray {} ({}px)",
+                  "lane tray {} ({}px), tune {}x{}",
                   log_tag_, w, h,
                   last_.arrangement == PrintStatusArrangement::Stacked ? "stacked" : "side by side",
                   last_.strip_stacked ? "stacked" : "row", last_.strip_h, last_.job_w, last_.job_h,
                   last_.printer_w, last_.printer_h, last_.checklist_compact ? "compact" : "list",
-                  static_cast<int>(last_.lane_tray), last_.lane_tray_h);
+                  static_cast<int>(last_.lane_tray), last_.lane_tray_h, last_.columns.tune_w,
+                  last_.tune_h);
     return last_;
 }
 

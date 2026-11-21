@@ -20,6 +20,14 @@ constexpr int32_t kCompactMinJobHeight = 170;
 constexpr int32_t kPrinterPct = 140;
 constexpr int32_t kReadoutsPct = 93;
 constexpr int32_t kActionsPct = 48;
+// The inline Tune column: flow stacked under speed and the Z-offset controls
+// on one row need about this much, and a taller screen would only spread the
+// same buttons wider. Its width comes from the readouts and the preview, down
+// to kFloorWithTunePct, never from the printer picture; the info column keeps
+// kFloorWithTunePct too. With less room the Tune button opens the overlay.
+constexpr int32_t kTunePct = 110;
+constexpr int32_t kTuneMaxWidth = 300;
+constexpr int32_t kFloorWithTunePct = 70;
 // The floors the printer, readouts and preview give width down to, in that
 // order, before the info column narrows below the height.
 constexpr int32_t kPrinterFloorPct = 100;
@@ -39,7 +47,7 @@ bool is_compact_job(int32_t job_w, int32_t job_h) {
 PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t content_h,
                                                       int32_t gap, int32_t strip_row_h,
                                                       int32_t strip_stacked_h, bool lane_tray,
-                                                      int32_t job_content_h) {
+                                                      int32_t job_content_h, int32_t tune_natural_h) {
     PrintStatusTileLayout out;
     const bool stacked = content_h > content_w && content_h >= kStackedMinHeight;
     out.arrangement =
@@ -53,7 +61,9 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
     //  3. extras come out of the job tile only, down to the height its
     //     checklist goes compact at or the height what it shows now needs,
     //     whichever is more. The printer tile keeps its step-2 height: the
-    //     picture is never squeezed to make room.
+    //     picture is never squeezed to make room. The lane tray goes first; the
+    //     inline Tune section takes what is left after it, or none, and the
+    //     Tune button stays.
     const int32_t area_h = std::max<int32_t>(0, content_h - out.strip_h - gap);
     if (stacked) {
         const int32_t usable = std::max<int32_t>(0, area_h - gap);
@@ -72,6 +82,11 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
                 out.lane_tray_h = tray_h;
             }
         }
+        const int32_t tune_room = out.job_h - std::max(kCompactMinJobHeight, job_content_h);
+        if (tune_natural_h > 0 && tune_natural_h + gap <= tune_room) {
+            out.job_h -= tune_natural_h + gap;
+            out.tune_h = tune_natural_h;
+        }
     } else {
         const int32_t usable = std::max<int32_t>(0, content_w - gap);
         out.job_w = usable / 2;
@@ -82,15 +97,17 @@ PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w, int32_t
     return out;
 }
 
-PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap) {
-    const int32_t h = std::max<int32_t>(0, content_h);
+namespace {
+PrintStatusColumns fit_columns(int32_t content_w, int32_t h, int32_t gap, bool tune) {
     PrintStatusColumns c;
     c.preview_w = h;
     c.printer_w = h * kPrinterPct / 100;
     c.readouts_w = h * kReadoutsPct / 100;
     c.actions_w = h * kActionsPct / 100;
+    c.tune_w = tune ? std::min(h * kTunePct / 100, kTuneMaxWidth) : 0;
+    const int32_t gaps = (tune ? 5 : 4) * gap;
     const auto rest = [&]() {
-        return content_w - 4 * gap - c.preview_w - c.printer_w - c.readouts_w - c.actions_w;
+        return content_w - gaps - c.preview_w - c.printer_w - c.readouts_w - c.actions_w - c.tune_w;
     };
     int32_t deficit = h - rest();
     const auto give = [&](int32_t& col, int32_t floor_pct) {
@@ -99,11 +116,26 @@ PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t conten
         col -= taken;
         deficit -= taken;
     };
-    give(c.printer_w, kPrinterFloorPct);
-    give(c.readouts_w, kReadoutsFloorPct);
-    give(c.preview_w, kPreviewFloorPct);
+    if (tune) {
+        give(c.readouts_w, kFloorWithTunePct);
+        give(c.preview_w, kFloorWithTunePct);
+    } else {
+        give(c.printer_w, kPrinterFloorPct);
+        give(c.readouts_w, kReadoutsFloorPct);
+        give(c.preview_w, kPreviewFloorPct);
+    }
     c.info_w = std::max<int32_t>(0, rest());
     return c;
+}
+} // namespace
+
+PrintStatusColumns decide_print_status_columns(int32_t content_w, int32_t content_h, int32_t gap) {
+    const int32_t h = std::max<int32_t>(0, content_h);
+    const PrintStatusColumns with_tune = fit_columns(content_w, h, gap, true);
+    if (with_tune.info_w >= h * kFloorWithTunePct / 100) {
+        return with_tune;
+    }
+    return fit_columns(content_w, h, gap, false);
 }
 
 PrintStatusTileLayout decide_print_status_ultrawide_layout(int32_t content_w, int32_t content_h,

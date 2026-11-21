@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_widget_ref.h"
+
 #include "lvgl/lvgl.h"
 #include "observer_factory.h"
 #include "overlay_base.h"
@@ -47,6 +49,32 @@ class PrintTuneOverlay : public OverlayBase {
      */
     void show(lv_obj_t* parent_screen, helix::IMoonrakerAPI* api,
               helix::PrinterState& printer_state);
+
+    /**
+     * @brief Make the tune subjects, callbacks and live readouts work without the overlay
+     *
+     * A Tune section embedded in another view (Print Status's inline Tune)
+     * binds the same subjects and callbacks; call this before that view's XML
+     * is created. Idempotent: the overlay opening later reuses the same
+     * subjects, and callbacks and observers are replaced, never stacked.
+     *
+     * @param parent_screen Where the pressure-advance tuner opens from the section
+     */
+    void prepare_inline(helix::IMoonrakerAPI* api, helix::PrinterState& printer_state,
+                        lv_obj_t* parent_screen);
+
+    /**
+     * @brief The view holding an inline Tune section is showing
+     *
+     * Re-syncs the readouts and starts a tuning session (the Z-offset travel
+     * guard measures from here). The section's Z indicator, if @p host_root
+     * holds one, follows adjustments until the tree is deleted or
+     * deactivate_inline() is called.
+     */
+    void activate_inline(lv_obj_t* host_root);
+
+    /// The view holding an inline Tune section is no longer showing.
+    void deactivate_inline(lv_obj_t* host_root);
 
     /**
      * @brief Handle reset button click - resets speed/flow to 100%
@@ -173,6 +201,9 @@ class PrintTuneOverlay : public OverlayBase {
 
   private:
     void setup_panel();
+    void install_observers();
+    /// Applies @p fn to each live Z indicator: the overlay's and the inline section's.
+    template <typename Fn> void for_each_z_indicator(Fn&& fn);
     /// Renders the speed/flow headlines and their live readouts, led by
     /// whichever units the speed/flow preference picks.
     void update_display();
@@ -185,6 +216,9 @@ class PrintTuneOverlay : public OverlayBase {
     helix::IMoonrakerAPI* api_ = nullptr;
 
     helix::PrinterState* printer_state_ = nullptr;
+
+    /// The tree holding the inline Tune section while it shows; cleared when deleted.
+    helix::ui::WidgetRef inline_root_;
 
     //
     // === Subject Management ===

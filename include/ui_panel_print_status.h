@@ -411,6 +411,8 @@ class PrintStatusPanel : public OverlayBase {
     lv_subject_t lane_tray_subject_{};
     lv_subject_t lane_tray_h_subject_{};
     lv_subject_t printer_tile_h_subject_{};
+    lv_subject_t uw_tune_w_subject_{};
+    lv_subject_t tune_h_subject_{};
 
     // Resolved fan object names (refreshed when fans_version ticks).
     std::string part_fan_name_;

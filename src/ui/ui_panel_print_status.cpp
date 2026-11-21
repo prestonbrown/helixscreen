@@ -237,7 +237,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
           {&arrangement_subject_, &strip_stacked_subject_, &checklist_compact_subject_,
            &uw_preview_w_subject_, &uw_printer_w_subject_, &uw_readouts_w_subject_,
            &uw_actions_w_subject_, &lane_tray_subject_, &lane_tray_h_subject_,
-           &printer_tile_h_subject_},
+           &printer_tile_h_subject_, &uw_tune_w_subject_, &tune_h_subject_},
           {[this]() { return overlay_root_; }, [this]() { return subjects_initialized_; }}),
       tiles_(printer_state, {[this]() { return overlay_root_; },
                              [this]() { return lifecycle_.state() != PrintState::Preparing; },
@@ -622,6 +622,8 @@ void PrintStatusPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(lane_tray_subject_, 0, "ps_lane_tray", subjects_);
     UI_MANAGED_SUBJECT_INT(lane_tray_h_subject_, 0, "ps_lane_tray_h", subjects_);
     UI_MANAGED_SUBJECT_INT(printer_tile_h_subject_, lv_pct(100), "ps_printer_tile_h", subjects_);
+    UI_MANAGED_SUBJECT_INT(uw_tune_w_subject_, 0, "ps_uw_tune_w", subjects_);
+    UI_MANAGED_SUBJECT_INT(tune_h_subject_, 0, "ps_tune_h", subjects_);
     tiles_.init_subjects(subjects_);
 
     // The camera subjects follow every input of their rule.
@@ -984,6 +986,9 @@ void PrintStatusPanel::deinit_subjects() {
 lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     parent_screen_ = parent;
 
+    // The inline Tune section binds the tune overlay's subjects and callbacks
+    get_print_tune_overlay().prepare_inline(api_, printer_state_, parent);
+
     // Create overlay root from XML
     overlay_root_ = helix::ui::create_xml_hidden(parent, xml_component());
     if (!overlay_root_) {
@@ -1297,6 +1302,11 @@ void PrintStatusPanel::on_activate() {
     // subject of its own.
     bind_fan_observers();
     tiles_.refresh_checklist();
+    // create() built the tune overlay for the inline section; it is gone only
+    // after a printer switch tore both down.
+    if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+        tune->activate_inline(overlay_root_);
+    }
 
     // This is the earliest point where overlay_root_ is visible, so LVGL
     // computes real sizes. Deferred so layout has a tick to settle.
@@ -1314,6 +1324,10 @@ void PrintStatusPanel::on_deactivating(DeactivateReason reason) {
     is_active_ = false;
     exclude_map_requested_ = false;
     spdlog::debug("[{}] on_deactivating()", get_name());
+    // Never builds the tune overlay: this also runs during shutdown, after it is gone.
+    if (auto* tune = helix::lazy_global_if_exists<PrintTuneOverlay>()) {
+        tune->deactivate_inline(overlay_root_);
+    }
 
     // The panel is no longer visible: drop the queued G-code load
     preview_.cancel_pending_load();
