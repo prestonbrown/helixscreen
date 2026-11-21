@@ -608,6 +608,10 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     }
     if (!ev)
         return;
+    if (ev->leftover) {
+        spdlog::info("[GcodeError] Not surfacing a fault left over from an ended job: {}", line);
+        return;
+    }
 
     // Every classifier's detail reaches the user, and a backend or an unknown
     // fault code passes the firmware's text through verbatim, so an envelope in

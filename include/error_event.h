@@ -105,6 +105,10 @@ struct ErrorEvent {
     /// one index. A runout dialog already on
     /// screen for that lane explains it, so its toast stands down.
     int runout_lane = -1;
+    /// The fault outlived the job it stopped and means nothing now. The
+    /// classifier that owns the fault claims the line, so no later classifier
+    /// reports it in the firmware's raw words, and nothing presents it.
+    bool leftover = false;
 };
 
 /// Inputs the classifier needs beyond the raw line. Kept as a plain struct

@@ -845,6 +845,65 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the runout toast leads with the head, not K
     get_printer_state().set_hardware(PrinterDiscovery{});
 }
 
+// The U1 keeps a runout standing in exception_manager after the print it paused
+// is cancelled, and every reconnect replays the list. Idle, the runout belongs
+// to no job, and the sensor's own "Filament removed" notice covers a live one.
+TEST_CASE_METHOD(LVGLUITestFixture, "a runout left standing after the print ended shows nothing",
+                 "[snapmaker][standing][runout_toast]") {
+    get_printer_state().set_hardware(coded_firmware());
+    get_printer_state().update_from_status({{"print_stats", {{"state", "cancelled"}}}});
+    AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
+    fault_surface_correlation::clear_for_test();
+    std::vector<std::string> titles;
+    ui::set_test_notification_event_hook(
+        [&titles](const ui::NotificationEvent& e) { titles.push_back(e.title); });
+    std::vector<std::string> alerts;
+    ui::set_test_notification_error_hook([&alerts](const std::string& m) { alerts.push_back(m); });
+    test::ToastLog toasts;
+    // The entry exactly as the U1 reported it hours after the cancel.
+    const nlohmann::json runout = {
+        {"id", 523}, {"index", 0}, {"code", 0}, {"level", 2}, {"message", "e0_filament runout"}};
+
+    {
+        helix::ui::RecoveryModalPresenter presenter(nullptr);
+        helix::GcodeErrorRouter router(nullptr, nullptr, presenter);
+        GcodeErrorRouterTestAccess::on_notify_status_update(router,
+                                                            notify_frame(standing_frame({runout})));
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        CHECK(GcodeErrorRouterTestAccess::standing_fed_count(router) == 1);
+
+        // The console copy on an idle machine is the same leftover.
+        GcodeErrorRouterTestAccess::process_line(router,
+                                                 "!! 0002-0523-0000-0000 e0_filament runout");
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+
+        CHECK(titles.empty());
+        CHECK(alerts.empty());
+        CHECK(toasts.shown.empty());
+        CHECK_FALSE(presenter.is_visible());
+
+        // The same standing runout while the job waits on it still reports.
+        get_printer_state().update_from_status(
+            {{"print_stats", {{"state", "paused"}}}, {"pause_resume", {{"is_paused", true}}}});
+        GcodeErrorRouterTestAccess::on_connected(router);
+        GcodeErrorRouterTestAccess::on_notify_status_update(router,
+                                                            notify_frame(standing_frame({runout})));
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(250);
+        REQUIRE(titles.size() == 1);
+        CHECK(titles[0] == "Toolhead 1 ran out of filament");
+    }
+
+    ui::set_test_notification_error_hook(nullptr);
+    ui::set_test_notification_event_hook(nullptr);
+    AmsState::instance().set_backend(nullptr);
+    get_printer_state().update_from_status(
+        {{"print_stats", {{"state", "standby"}}}, {"pause_resume", {{"is_paused", false}}}});
+    get_printer_state().set_hardware(PrinterDiscovery{});
+}
+
 #include "filament_sensor_manager.h"
 
 // The runout guidance on screen already says a head ran out; its toast would
@@ -853,7 +912,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "the runout toast stands down for the runout dialog of its head",
                  "[snapmaker][feed_failure][runout_toast]") {
     get_printer_state().set_hardware(coded_firmware());
-    get_printer_state().update_from_status({{"print_stats", {{"state", "paused"}}}});
+    get_printer_state().update_from_status(
+        {{"print_stats", {{"state", "paused"}}}, {"pause_resume", {{"is_paused", true}}}});
     AmsState::instance().set_backend(std::make_unique<AmsBackendSnapmaker>(nullptr, nullptr));
     fault_surface_correlation::clear_for_test();
     std::vector<std::string> titles;
@@ -908,6 +968,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     sensors.set_runout_explained(std::nullopt);
     ui::set_test_notification_event_hook(nullptr);
     AmsState::instance().set_backend(nullptr);
-    get_printer_state().update_from_status({{"print_stats", {{"state", "standby"}}}});
+    get_printer_state().update_from_status(
+        {{"print_stats", {{"state", "standby"}}}, {"pause_resume", {{"is_paused", false}}}});
     get_printer_state().set_hardware(PrinterDiscovery{});
 }
