@@ -71,6 +71,11 @@ struct ObjectClass {
 /// a few rules read fields (Beacon's onboard accelerometer).
 [[nodiscard]] ObjectClass classify_section(std::string_view section, const nlohmann::json& body);
 
+/// A probe config section that is the Z probe's config only when no other probe
+/// is configured: a K2's prtouch, which Jacobean's firmware keeps beside a
+/// Cartographer. Klipper allows one Z probe, so the other one is it.
+[[nodiscard]] bool is_fallback_probe_section(std::string_view section);
+
 /// A fixed list of status field names in static storage: nothing is built at boot.
 struct FieldList {
     const std::string_view* first = nullptr;

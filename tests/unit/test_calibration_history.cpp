@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_calibration_hub_overlay.h"
+#include "ui_calibration_run_overlay.h"
+#include "ui_nav_manager.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
@@ -10,6 +14,8 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
+#include <array>
+#include <cstdlib>
 #include <ctime>
 #include <string>
 
@@ -318,9 +324,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     auto& history = CalibrationHistory::instance();
     history.clear();
     auto& hub = helix::ui::get_calibration_hub_overlay();
-    if (!hub.are_subjects_initialized()) {
-        hub.init_subjects();
-    }
+    hub.ensure_subjects();
     drain();
     lv_subject_t* heaters = lv_xml_get_subject(nullptr, "cal_status_heaters");
     REQUIRE(heaters != nullptr);
@@ -331,6 +335,89 @@ TEST_CASE_METHOD(LVGLTestFixture,
     drain();
     CHECK(std::string(lv_subject_get_string(heaters)).find("Nozzle PID") != std::string::npos);
     history.clear();
+}
+
+namespace {
+
+/// The step count a "N step(s) never run" banner leads with, or -1.
+long banner_count(const char* text) {
+    char* end = nullptr;
+    const long n = std::strtol(text, &end, 10);
+    return end == text ? -1 : n;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the Calibration screen offers a guided run and counts the steps never run",
+                 "[calibration_history][calibration_hub]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    DatabaseAPI api(client, state);
+    helix::PrinterStateTestAccess::reset(get_printer_state());
+    get_printer_state().init_subjects(false);
+    auto& history = CalibrationHistory::instance();
+    history.clear();
+    auto& hub = helix::ui::get_calibration_hub_overlay();
+    hub.ensure_subjects();
+    drain();
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
+    lv_subject_t* text = lv_xml_get_subject(nullptr, "cal_run_banner_text");
+    REQUIRE(shown != nullptr);
+    REQUIRE(text != nullptr);
+    CHECK(lv_subject_get_int(shown) == 1);
+    const std::string before = lv_subject_get_string(text);
+    CHECK(before.find("never run") != std::string::npos);
+    const long never_run = banner_count(before.c_str());
+    REQUIRE(never_run >= 1);
+
+    // Heaters is a required step on every printer, so a run picks it.
+    history.record(api, "heaters", "Nozzle PID", json::object());
+    drain();
+    CHECK(lv_subject_get_int(shown) == 1);
+    const std::string after = lv_subject_get_string(text);
+    if (never_run == 1) {
+        CHECK(after.find("Run everything again") == 0);
+    } else {
+        CHECK(banner_count(after.c_str()) == never_run - 1);
+    }
+    history.clear();
+}
+
+namespace {
+int g_guided_clicks = 0;
+void count_guided_click(lv_event_t*) {
+    ++g_guided_clicks;
+}
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the guided run banner's button is bound to the guided run",
+                 "[calibration_hub]") {
+    helix::ui::init_calibration_hub_row_handler();
+    helix::ui::get_calibration_hub_overlay().ensure_subjects();
+    lv_event_cb_t on_guided = lv_xml_get_event_cb(nullptr, "on_guided_calibration_clicked");
+    REQUIRE(on_guided != nullptr);
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
+    REQUIRE(shown != nullptr);
+    lv_subject_set_int(shown, 1);
+
+    // A callback binds when its widget is created, so a stand-in registered
+    // around the creation counts the banner's clicks without opening the run.
+    g_guided_clicks = 0;
+    lv_xml_register_event_cb(nullptr, "on_guided_calibration_clicked", count_guided_click);
+    auto* hub = static_cast<lv_obj_t*>(
+        lv_xml_create(lv_screen_active(), "calibration_hub_overlay", nullptr));
+    lv_xml_register_event_cb(nullptr, "on_guided_calibration_clicked", on_guided);
+    REQUIRE(hub != nullptr);
+    lv_obj_t* banner = lv_obj_find_by_name(hub, "cal_guided_banner");
+    REQUIRE(banner != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(banner, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_send_event(banner, LV_EVENT_CLICKED, nullptr);
+    CHECK(g_guided_clicks == 1);
+    lv_obj_delete(hub);
+    drain();
 }
 
 TEST_CASE("results_in_config reads each step's tuned value from configfile.settings",
@@ -363,6 +450,19 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
         json s = settings;
         s["inductance_coil e0"] = {{"x_offset", 0.0}};
         CHECK(results_in_config(s).at("z_offset") == "-1.250 mm");
+    }
+    SECTION("Jacobean's K2 keeps z_offset in its prtouch section") {
+        json s = settings;
+        s.erase("probe");
+        s["prtouch"] = {{"z_offset", -0.125}, {"x_offset", 0.0}};
+        CHECK(results_in_config(s).at("z_offset") == "-0.125 mm");
+
+        // Jacobean's Cartographer build keeps the prtouch section; the
+        // Cartographer is the probe, so prtouch's offset never stands in.
+        s["cartographer"] = {{"x_offset", 0.0}};
+        CHECK(results_in_config(s).count("z_offset") == 0);
+        s["cartographer touch_model default"] = {{"z_offset", 0.05}};
+        CHECK(results_in_config(s).at("z_offset") == "0.050 mm");
     }
     SECTION("BTT Eddy keeps z_offset in its probe_eddy_current section") {
         json s = settings;

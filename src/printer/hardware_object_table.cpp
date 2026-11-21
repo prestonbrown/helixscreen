@@ -113,6 +113,11 @@ constexpr Row kRows[] = {
     // probe object. Its z_offset lives here; the probe object publishes none.
     {Match::Prefix, "inductance_coil ", ObjectKind::Probe, chip_of(ProbeSensorType::EDDY_CURRENT),
      Scope::SectionOnly},
+    // Creality's strain-gauge probe on Jacobean's K2 firmware: its offsets live
+    // here, behind the generic probe object. Another probe outranks it
+    // (is_fallback_probe_section).
+    {Match::Exact, "prtouch", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD),
+     Scope::SectionOnly},
 
     {Match::Prefix, "gcode_button ", ObjectKind::Input, 0, Scope::Both},
     {Match::Exact, "power_loss_check", ObjectKind::PowerLossMonitor, 0, Scope::Both},
@@ -274,6 +279,10 @@ template <size_t N> constexpr FieldList fields(const std::string_view (&list)[N]
 
 ObjectClass classify_object(std::string_view klipper_object) {
     return classify(klipper_object, false);
+}
+
+bool is_fallback_probe_section(std::string_view section) {
+    return section == "prtouch";
 }
 
 ObjectClass classify_section(std::string_view section, const nlohmann::json& body) {
