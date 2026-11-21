@@ -634,9 +634,15 @@ void LedControlOverlay::handle_custom_color() {
     if (focused_info() == nullptr || !overlay_root_) {
         return;
     }
-    // The light previews every pick while the picker is open; Cancel puts the
-    // color and brightness back as they were.
+    // The light previews every pick while the picker is open, which stops a
+    // running led_effect; Cancel puts the color, brightness and effects back.
     static helix::ui::ColorPickerModal color_picker;
+    std::vector<std::string> running_effects;
+    for (const auto& eff : LedController::instance().effects().effects_for_strip(focused_strip_)) {
+        if (eff.enabled) {
+            running_effects.push_back(eff.name);
+        }
+    }
     const uint32_t original_base = current_color_;
     const int original_brightness = current_brightness_;
     const double original_white = current_white_;
@@ -644,8 +650,8 @@ void LedControlOverlay::handle_custom_color() {
     double r = 0.0, g = 0.0, b = 0.0;
     unpack_rgb(original_base, r, g, b);
     const uint32_t original_rgb = pack_rgb(r * bf, g * bf, b * bf);
-    auto preview = [this, original_rgb, original_base, original_brightness,
-                    original_white](uint32_t rgb) {
+    auto preview = [this, original_rgb, original_base, original_brightness, original_white,
+                    running_effects](uint32_t rgb) {
         const auto* info = focused_info();
         if (info == nullptr || info->backend != LedBackendType::NATIVE) {
             return;
@@ -653,6 +659,7 @@ void LedControlOverlay::handle_custom_color() {
         if (rgb == original_rgb) {
             current_brightness_ = original_brightness;
             apply_look(original_base, original_white);
+            restart_effects(running_effects);
             return;
         }
         // The picked color splits into a full-brightness base and a brightness,
@@ -715,6 +722,20 @@ void LedControlOverlay::stop_focused_effects() {
         if (eff.enabled) {
             effects.stop_effect(eff.name);
         }
+    }
+}
+
+void LedControlOverlay::restart_effects(const std::vector<std::string>& names) {
+    auto& effects = LedController::instance().effects();
+    for (const auto& name : names) {
+        effects.activate_effect(
+            name, nullptr,
+            // Log-only handler, as for an effect chip: GcodeErrorRouter's `!!`
+            // broadcast is the user's report (include/rpc_error_policy.h).
+            [](const std::string& err) {
+                spdlog::error("[LedControlOverlay] Effect restart failed: {}", err);
+            },
+            /*on_queued=*/nullptr, /*caller_surfaces_errors=*/false);
     }
 }
 

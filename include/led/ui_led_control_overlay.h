@@ -135,6 +135,8 @@ class LedControlOverlay : public OverlayBase {
     /// stopping its effects first.
     void apply_current_color();
     void stop_focused_effects();
+    /// Start @p names again: the effects a color preview stopped.
+    void restart_effects(const std::vector<std::string>& names);
 
     SubjectManager subjects_;
 

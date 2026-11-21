@@ -104,6 +104,14 @@ class LedControlOverlayTestAccess {
     void tap_effects_none() {
         overlay_.handle_effects_none();
     }
+    /// Custom color needs a root whose parent hosts the picker.
+    void open_custom_color(lv_obj_t* root) {
+        overlay_.overlay_root_ = root;
+        overlay_.handle_custom_color();
+    }
+    void drop_root() {
+        overlay_.overlay_root_ = nullptr;
+    }
 
   private:
     helix::led::LedControlOverlay overlay_;
@@ -537,6 +545,35 @@ TEST_CASE_METHOD(LedApplyColorFixture, "overlay: the None chip stops the focused
     CHECK(wire_mentions("EFFECT=fire STOP=1"));
     CHECK_FALSE(wire_mentions("EFFECT=sparkle"));
     CHECK_FALSE(wire_mentions("EFFECT=breathe"));
+}
+
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: Cancel in Custom color restarts the effect a preview stopped",
+                 "[led][overlay][color_picker]") {
+    add_native("neopixel strip_a", true, false);
+    add_effect("led_effect fire", "neopixel strip_a", true);
+    add_effect("led_effect breathe", "neopixel strip_a", false);
+
+    helix::PrinterState ps;
+    LedControlOverlayTestAccess access;
+    access.activate("neopixel strip_a");
+    lv_obj_t* host = lv_obj_create(test_screen());
+    access.open_custom_color(lv_obj_create(host));
+    helix::ui::ColorPickerView* picker = helix::ui::ColorPickerView::active();
+    REQUIRE(picker != nullptr);
+    picker->pick_cell(3);
+    drain();
+    REQUIRE(wire_mentions("EFFECT=fire STOP=1"));
+    mock_client.clear_gcode_script_history();
+
+    lv_obj_send_event(lv_obj_find_by_name(test_screen(), "cpm_cancel"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    const auto h = mock_client.gcode_script_history();
+    INFO(h.size());
+    CHECK(std::any_of(h.begin(), h.end(),
+                      [](const std::string& s) { return s == "SET_LED_EFFECT EFFECT=fire"; }));
+    CHECK_FALSE(wire_mentions("EFFECT=breathe"));
+    access.drop_root();
 }
 
 TEST_CASE_METHOD(LedApplyColorFixture, "overlay: an effect chip activates that effect",
