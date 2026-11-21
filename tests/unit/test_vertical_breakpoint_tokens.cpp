@@ -53,6 +53,7 @@ constexpr HeightToken kHeightTokens[] = {
     {"button_height", "44", "52", "72", "96"},
     {"button_height_sm", "28", "40", "40", "56"},
     {"button_height_lg", "40", "70", "96", "128"},
+    {"modal_button_height", "44", "52", "72", "96"},
     {"header_height", "33", "56", "60", "80"},
     // The wizard dropdowns carry header_height's ladder under their own name, so
     // the four rows on a 272px-tall fan step fit; the same axis, the same values.

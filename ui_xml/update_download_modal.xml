@@ -96,7 +96,7 @@
       <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="1"/>
       <divider_horizontal/>
       <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+              height="#modal_button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
         <ui_button name="btn_cancel_confirm" text="Cancel" flex_grow="1">
           <event_cb trigger="clicked" callback="on_update_download_cancel"/>
         </ui_button>
@@ -114,7 +114,7 @@
       <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="2"/>
       <divider_horizontal/>
       <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+              height="#modal_button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
         <ui_button name="btn_cancel_download" text="Cancel" flex_grow="1">
           <event_cb trigger="clicked" callback="on_update_download_cancel"/>
         </ui_button>
@@ -130,7 +130,7 @@
       <bind_flag_if_not_eq subject="download_status" flag="hidden" ref_value="6"/>
       <divider_horizontal/>
       <lv_obj width="100%"
-              height="#button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
+              height="#modal_button_height" flex_flow="row" style_pad_all="0" style_pad_gap="0" style_border_width="0">
         <ui_button name="btn_close_error" text="Close" flex_grow="1">
           <event_cb trigger="clicked" callback="on_update_download_dismiss"/>
         </ui_button>

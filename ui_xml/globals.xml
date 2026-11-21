@@ -639,6 +639,19 @@
     <px name="button_height_xlarge" value="80"/>
     <px name="button_height_xxlarge" value="96"/>
 
+    <!-- modal_button_height: a dialog's footer button row (modal_button_row and
+         the hand-built footers shaped like it). A dialog's confirm/cancel pair is
+         the one control the user must hit, so at 480x272 it stands taller than
+         button_height (fit_dialog_to_screen shrinks the content scroll area to
+         make room). Elsewhere it follows button_height. -->
+    <px name="modal_button_height_micro" value="44"/>
+    <px name="modal_button_height_tiny" value="44"/>
+    <px name="modal_button_height_small" value="48"/>
+    <px name="modal_button_height_medium" value="52"/>
+    <px name="modal_button_height_large" value="72"/>
+    <px name="modal_button_height_xlarge" value="80"/>
+    <px name="modal_button_height_xxlarge" value="96"/>
+
     <!-- Chamber preset buttons (temp overlay, landscape column). The tallest
          fixed height that fits the widest strip state - faulted with the
          External marker shown and the fan device-driven - with the column's
