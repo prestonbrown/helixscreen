@@ -187,8 +187,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 //   → RecoveryFaultModal::show_fault(lv_screen_active(), title, detail, actions)
 //
 // Regression value: the two review-caught bugs lived right here — lost
-// severity styling (icon_error hidden) and stuck dedup (modal never reshows).
-// This locks the severity affordance (icon_error visible) and the title text.
+// severity styling (dialog_icon hidden) and stuck dedup (modal never reshows).
+// This locks the severity affordance (dialog_icon visible) and the title text.
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "AFC jam while paused drives the recovery modal to actually show",
                  "[error-center][routing][integration][ui_integration]") {
@@ -256,7 +256,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(title != nullptr);
 
     // Severity affordance: the fault dialog always shows the danger icon.
-    lv_obj_t* err_icon = lv_obj_find_by_name(screen, "icon_error");
+    lv_obj_t* err_icon = lv_obj_find_by_name(screen, "dialog_icon");
     REQUIRE(err_icon != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(err_icon));
 
@@ -374,7 +374,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Routing E2E: Happy Hare runout pause routes
     REQUIRE(title != nullptr);
 
     // Severity affordance: the error icon must be visible (not hidden).
-    lv_obj_t* err_icon = lv_obj_find_by_name(screen, "icon_error");
+    lv_obj_t* err_icon = lv_obj_find_by_name(screen, "dialog_icon");
     REQUIRE(err_icon != nullptr);
     REQUIRE_FALSE(lv_obj_is_hidden(err_icon));
 

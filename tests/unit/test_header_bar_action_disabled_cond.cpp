@@ -38,7 +38,23 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
-/// Pull action_button_disabled_cond="..." out of a panel's XML source.
+/// The quoted value that follows @p key in @p src, at or after @p from; empty if absent.
+std::string quoted_after(const std::string& src, const std::string& key, size_t from = 0) {
+    const size_t start = src.find(key, from);
+    if (start == std::string::npos) {
+        return {};
+    }
+    const size_t value_start = start + key.size();
+    const size_t end = src.find('"', value_start);
+    if (end == std::string::npos) {
+        return {};
+    }
+    return src.substr(value_start, end - value_start);
+}
+
+/// The expression that disables a panel's header Start button, from its XML
+/// source: the action_button_disabled_cond prop, or the cond of the first
+/// <bind_state_if ... state="disabled"/> inside the header's actions slot.
 /// Returns empty if absent — which is the regression this guards.
 std::string read_disabled_cond(const std::string& xml_path) {
     std::ifstream f(xml_path);
@@ -49,17 +65,23 @@ std::string read_disabled_cond(const std::string& xml_path) {
     ss << f.rdbuf();
     const std::string src = ss.str();
 
-    const std::string key = "action_button_disabled_cond=\"";
-    const size_t start = src.find(key);
-    if (start == std::string::npos) {
+    std::string cond = quoted_after(src, "action_button_disabled_cond=\"");
+    if (!cond.empty()) {
+        return cond;
+    }
+    const size_t actions = src.find("-actions>");
+    if (actions == std::string::npos) {
         return {};
     }
-    const size_t value_start = start + key.size();
-    const size_t end = src.find('"', value_start);
-    if (end == std::string::npos) {
-        return {};
+    const std::string bind = "<bind_state_if cond=\"";
+    for (size_t at = src.find(bind, actions); at != std::string::npos;
+         at = src.find(bind, at + bind.size())) {
+        const size_t tag_end = src.find("/>", at);
+        if (src.substr(at, tag_end - at).find("state=\"disabled\"") != std::string::npos) {
+            return quoted_after(src, bind, at);
+        }
     }
-    return src.substr(value_start, end - value_start);
+    return {};
 }
 
 } // namespace

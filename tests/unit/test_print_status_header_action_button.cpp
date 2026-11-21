@@ -75,13 +75,13 @@ struct PrintStatusHeaderFixture : public LVGLUITestFixture {
         return header ? lv_obj_find_by_name(header, "action_button") : nullptr;
     }
 
-    /// The header's icon-only action (the Files entry).
-    lv_obj_t* action_icon_button() const {
+    /// The Files entry: the round button in the header's actions slot.
+    lv_obj_t* files_button() const {
         if (!root_) {
             return nullptr;
         }
         lv_obj_t* header = lv_obj_find_by_name(root_, "overlay_header");
-        return header ? lv_obj_find_by_name(header, "action_icon_button") : nullptr;
+        return header ? lv_obj_find_by_name(header, "btn_files") : nullptr;
     }
 
     void set_print_state(PrintJobState s) {
@@ -113,11 +113,11 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
 
     lv_obj_t* action = action_button();
     REQUIRE(action != nullptr);
-    lv_obj_t* files = action_icon_button();
+    lv_obj_t* files = files_button();
     REQUIRE(files != nullptr);
 
     // Baseline: header_bar's hide_action_button default, untouched; the Files
-    // entry opts in via hide_action_icon="false".
+    // entry is the screen's own button in the actions slot.
     REQUIRE(lv_obj_is_hidden(action));
     CHECK_FALSE(lv_obj_is_hidden(files));
 
@@ -145,35 +145,29 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
 
 TEST_CASE("print_status_panel.xml passes no action-button props to header_bar",
           "[print_status][header_bar][1204][1395]") {
-    // Structural companion to the behavioural test above. The PRIMARY slot stays
-    // unconfigured (header_bar defaults: hidden, empty text/icon, no callback) so
-    // the empty-pill regression cannot return; the icon-only action is the Files
-    // entry and must name the folder icon and the navigation callback. One file
-    // serves every layout class: print_status_body carries the arrangement.
-    const std::string files[] = {"ui_xml/print_status_panel.xml"};
+    // Structural companion to the behavioural test above. The built-in PRIMARY
+    // slot stays unconfigured (header_bar defaults: hidden, empty text/icon, no
+    // callback) so the empty-pill regression cannot return; the Files entry is a
+    // button in the actions slot naming the folder icon and the navigation
+    // callback. One file serves every layout class: print_status_body carries
+    // the arrangement.
+    const std::string xml = read_xml("ui_xml/print_status_panel.xml");
 
-    for (const std::string& path : files) {
-        const std::string xml = read_xml(path);
-        CAPTURE(path);
+    const auto tag_start = xml.find("<header_bar");
+    REQUIRE(tag_start != std::string::npos);
+    const auto tag_end = xml.find('>', tag_start);
+    REQUIRE(tag_end != std::string::npos);
+    const std::string tag = xml.substr(tag_start, tag_end - tag_start);
+    CHECK(tag.find("action_") == std::string::npos);
 
-        const auto tag_start = xml.find("<header_bar");
-        REQUIRE(tag_start != std::string::npos);
-        const auto tag_end = xml.find('>', tag_start);
-        REQUIRE(tag_end != std::string::npos);
-        const std::string tag = xml.substr(tag_start, tag_end - tag_start);
-
-        // Primary slot bare: none of its props appear (the `_2` spellings do not
-        // match these searches because a `=` or `_2` follows the prefix).
-        CHECK(tag.find("action_button_icon=") == std::string::npos);
-        CHECK(tag.find("action_button_text=") == std::string::npos);
-        CHECK(tag.find("action_button_callback=") == std::string::npos);
-        CHECK(tag.find("hide_action_button=") == std::string::npos);
-
-        // The icon-only action fully configured as the Files entry.
-        CHECK(tag.find("hide_action_icon=\"false\"") != std::string::npos);
-        CHECK(tag.find("action_icon=\"folder\"") != std::string::npos);
-        CHECK(tag.find("action_icon_callback=\"on_print_status_files\"") != std::string::npos);
-    }
+    const auto actions = xml.find("<header_bar-actions>", tag_end);
+    REQUIRE(actions != std::string::npos);
+    const auto actions_end = xml.find("</header_bar-actions>", actions);
+    REQUIRE(actions_end != std::string::npos);
+    const std::string slot = xml.substr(actions, actions_end - actions);
+    CHECK(slot.find("name=\"btn_files\"") != std::string::npos);
+    CHECK(slot.find("icon=\"folder\"") != std::string::npos);
+    CHECK(slot.find("callback=\"on_print_status_files\"") != std::string::npos);
 }
 
 TEST_CASE_METHOD(PrintStatusHeaderFixture,
@@ -181,7 +175,7 @@ TEST_CASE_METHOD(PrintStatusHeaderFixture,
                  "[print_status][header_bar][1395]") {
     REQUIRE(root_ != nullptr);
 
-    lv_obj_t* files = action_icon_button();
+    lv_obj_t* files = files_button();
     REQUIRE(files != nullptr);
 
     // Pin the callback wiring: the XML name resolves, and the handler queues

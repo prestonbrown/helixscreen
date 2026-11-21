@@ -6,27 +6,16 @@
 <!-- User can restart now or dismiss and restart later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <!-- Dialog card (backdrop created programmatically) -->
   <view name="restart_prompt_dialog"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <lv_obj width="100%"
-            height="content" style_min_height="140" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Icon -->
-      <icon src="refresh" size="lg" variant="primary"/>
-      <!-- Title -->
-      <text_heading name="dialog_title" width="100%" text="Restart Required" style_text_align="center"/>
-      <!-- Message -->
-      <text_muted name="dialog_message"
-                  width="100%" text="Some settings will take effect after restart." long_mode="wrap"
-                  style_text_align="center"/>
-    </lv_obj>
-    <!-- Button row -->
-    <modal_button_row secondary_text="Later"
-                      secondary_callback="on_restart_later_clicked" primary_text="Restart Now"
-                      primary_callback="on_restart_now_clicked"/>
+        extends="dialog_frame" title="Restart Required" title_tag="Restart Required" icon="refresh">
+    <!-- Message -->
+    <text_muted name="dialog_message"
+                width="100%" text="Some settings will take effect after restart." long_mode="wrap"
+                style_text_align="left"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Later"
+                        secondary_callback="on_restart_later_clicked" primary_text="Restart Now"
+                        primary_callback="on_restart_now_clicked"/>
+    </dialog_frame-footer>
   </view>
 </component>

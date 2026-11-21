@@ -44,10 +44,15 @@
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
         style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
     <!-- Header Bar -->
-    <header_bar name="overlay_header"
-                title="Heater Calibration" hide_action_button="false" action_button_text="Start"
-                action_button_callback="on_pid_start"
-                action_button_disabled_cond="pid_cal_not_idle or nav_buttons_enabled eq 0"/>
+    <header_bar name="overlay_header" title="Heater Calibration">
+      <header_bar-actions>
+        <ui_button name="btn_start" height="content" text="Start" translation_tag="Start">
+          <style name="styles.header_action"/>
+          <bind_state_if cond="pid_cal_not_idle or nav_buttons_enabled eq 0" state="disabled"/>
+          <event_cb trigger="clicked" callback="on_pid_start"/>
+        </ui_button>
+      </header_bar-actions>
+    </header_bar>
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_lg"

@@ -5,25 +5,15 @@
   <!-- Print Cancel Confirmation Modal -->
   <!-- Note: Backdrop is created programmatically by Modal class in C++ -->
   <view name="print_cancel_confirm_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <!-- Content area -->
-    <lv_obj width="100%"
-            height="content" style_min_height="140" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_pad_gap="#space_md">
-      <!-- Warning icon -->
-      <icon src="alert_octagon" size="lg" variant="danger"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Stop Print?" style_text_align="center"/>
-      <!-- Warning message -->
-      <text_muted width="100%"
-                  text="Are you sure you want to cancel this print? All progress will be lost." long_mode="wrap"
-                  style_text_align="center"/>
-    </lv_obj>
-    <!-- Button row -->
+        extends="dialog_frame" title="Stop Print?" title_tag="Stop Print?" icon="alert_octagon" icon_variant="danger">
+    <!-- Warning message -->
+    <text_muted width="100%"
+                text="Are you sure you want to cancel this print? All progress will be lost." long_mode="wrap"
+                style_text_align="left"/>
     <!-- Buttons are wired in PrintCancelModal::on_show() via wire_ok_button()/
          wire_cancel_button(); no XML callback names to resolve. -->
-    <modal_button_row secondary_text="Keep Printing" primary_text="Stop" primary_variant="danger"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Keep Printing" primary_text="Stop" primary_variant="danger"/>
+    </dialog_frame-footer>
   </view>
 </component>

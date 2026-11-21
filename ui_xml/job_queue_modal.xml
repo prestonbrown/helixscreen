@@ -4,62 +4,44 @@
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
   <view name="job_queue_modal"
-        extends="ui_dialog" width="85%" height="90%" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-
-    <!-- Header row: icon + title + close button -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_md" style_pad_top="#space_lg"
-            style_pad_bottom="#space_sm" flex_flow="row" style_flex_main_place="space_between"
-            style_flex_cross_place="center" scrollable="false">
-      <lv_obj width="content"
-              height="content" flex_flow="row" style_pad_all="0" style_pad_gap="#space_sm"
-              style_flex_cross_place="center" style_bg_opa="0%" style_border_width="0" clickable="false"
-              scrollable="false">
-        <icon src="progress_clock" size="#icon_size" variant="accent"/>
-        <text_heading text="Job Queue"/>
+        extends="dialog_frame" width="85%" height="85%" title="Job Queue" title_tag="Job Queue" icon="progress_clock"
+        icon_variant="accent" hide_close="false" close_callback="on_jq_modal_close">
+    <!-- The card stands at the shared 85% cap and the body takes the rest of
+         it, so a long queue scrolls in the full card height. -->
+    <dialog_frame-body flex_grow="1" style_max_height="100%">
+      <!-- Queue state row: shows Ready/Paused with toggle button -->
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" style_bg_opa="0%" style_border_width="0" flex_flow="row"
+              style_flex_main_place="space_between" style_flex_cross_place="center" clickable="false" scrollable="false">
+        <!-- job_queue_run_state 3 is QueueRunState::Paused -->
+        <text_muted name="queue_state_label" text="Queue: Ready">
+          <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+        </text_muted>
+        <text_muted name="queue_paused_label" text="Queue: Paused">
+          <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+        </text_muted>
+        <ui_button name="btn_toggle_queue" height="#button_height_sm" text="Pause" variant="primary">
+          <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+          <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
+        </ui_button>
+        <ui_button name="btn_start_queue" height="#button_height_sm" text="Start" variant="primary">
+          <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+          <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
+        </ui_button>
       </lv_obj>
-      <ui_button name="btn_close" width="40" height="40" variant="ghost" icon="close" focusable="false">
-        <event_cb trigger="clicked" callback="on_jq_modal_close"/>
-      </ui_button>
-    </lv_obj>
 
-    <divider_horizontal/>
+      <!-- Job list: the dialog body scrolls it -->
+      <lv_obj name="modal_job_list"
+              width="100%" height="content" style_min_height="60" style_pad_all="0" style_bg_opa="0%"
+              style_border_width="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false" clickable="false"/>
 
-    <!-- Queue state row: shows Ready/Paused with toggle button -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
-            style_pad_bottom="#space_sm" style_bg_opa="0%" style_border_width="0" flex_flow="row"
-            style_flex_main_place="space_between" style_flex_cross_place="center" clickable="false" scrollable="false">
-      <!-- job_queue_run_state 3 is QueueRunState::Paused -->
-      <text_muted name="queue_state_label" text="Queue: Ready">
-        <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
+      <!-- Empty state -->
+      <text_muted name="modal_empty_state"
+                  width="100%" text="No jobs in queue" style_text_align="center" style_pad_top="#space_md"
+                  style_pad_bottom="#space_md">
+        <!-- Disconnected, the count is a stale fetch's: say so rather than show nothing. -->
+        <bind_flag_if cond="job_queue_loaded eq 1 and job_queue_count gt 0" flag="hidden"/>
       </text_muted>
-      <text_muted name="queue_paused_label" text="Queue: Paused">
-        <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
-      </text_muted>
-      <ui_button name="btn_toggle_queue" height="#button_height_sm" text="Pause" variant="primary">
-        <bind_flag_if_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
-        <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
-      </ui_button>
-      <ui_button name="btn_start_queue" height="#button_height_sm" text="Start" variant="primary">
-        <bind_flag_if_not_eq subject="job_queue_run_state" flag="hidden" ref_value="3"/>
-        <event_cb trigger="clicked" callback="on_jq_modal_toggle_queue"/>
-      </ui_button>
-    </lv_obj>
-
-    <!-- Scrollable job list container -->
-    <lv_obj name="modal_job_list"
-            width="100%" height="content" style_min_height="60" style_max_height="300" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_xs" style_pad_bottom="#space_sm" style_bg_opa="0%"
-            style_border_width="0" flex_flow="column" style_pad_gap="#space_xs" scrollbar_mode="auto" clickable="false"/>
-
-    <!-- Empty state -->
-    <text_muted name="modal_empty_state"
-                width="100%" text="No jobs in queue" style_text_align="center" style_pad_top="#space_md"
-                style_pad_bottom="#space_md">
-      <!-- Disconnected, the count is a stale fetch's: say so rather than show nothing. -->
-      <bind_flag_if cond="job_queue_loaded eq 1 and job_queue_count gt 0" flag="hidden"/>
-    </text_muted>
+    </dialog_frame-body>
   </view>
 </component>

@@ -4,7 +4,6 @@
 #include "ui_print_completion_modal.h"
 
 #include "ui_confetti.h"
-#include "ui_icon.h"
 #include "ui_modal.h"
 #include "ui_widget_ref.h"
 
@@ -204,7 +203,8 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
         });
 
     // Show modal - XML bind_text and bind_flag_if_eq resolve from subjects above
-    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal");
+    const char* attrs[] = {"icon", icon_src, "icon_variant", icon_variant, nullptr};
+    lv_obj_t* dialog = helix::ui::ComponentModal::show_owned("print_completion_modal", attrs);
 
     if (!dialog) {
         spdlog::error("[PrintComplete] Failed to create print_completion_modal");
@@ -212,13 +212,6 @@ static void show_rich_completion_modal(PrintJobState state, const char* filename
     }
 
     s_completion_modal = dialog;
-
-    // Icon src/variant must be set imperatively (no XML binding support for icon properties)
-    lv_obj_t* icon_widget = lv_obj_find_by_name(dialog, "status_icon");
-    if (icon_widget) {
-        helix::ui::icon::set_source(icon_widget, icon_src);
-        helix::ui::icon::set_variant(icon_widget, icon_variant);
-    }
 
     // Celebrate successful prints with confetti (respects animations setting)
     if (state == PrintJobState::COMPLETE &&
