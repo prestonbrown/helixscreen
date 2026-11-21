@@ -491,6 +491,12 @@ class PrinterPrintState {
         return &job_holds_machine_;
     }
 
+    /// True once a print_stats frame has been applied. Until then the job
+    /// state subjects hold their STANDBY defaults, not what Klipper is doing.
+    [[nodiscard]] bool print_stats_received() const {
+        return print_stats_frames_ > 0;
+    }
+
     lv_subject_t* get_print_start_phase_subject() {
         return &print_start_phase_;
     }
@@ -1003,6 +1009,8 @@ class PrinterPrintState {
     lv_subject_t print_lifecycle_{};      // Integer: PrintState enum (derived)
     lv_subject_t print_lifecycle_prev_{}; // Integer: PrintState enum, value before the current
     lv_subject_t job_holds_machine_{};    // Integer 0/1: job_holds_machine(print_lifecycle)
+    /// print_stats frames applied since start (print_stats_received()).
+    uint64_t print_stats_frames_ = 0;
 
     /// The job we are preparing; empty when none. See begin_preparing().
     PrintJobRef preparing_job_{};

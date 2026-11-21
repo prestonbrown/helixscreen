@@ -31,6 +31,7 @@ translations:
   Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
+  Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' 和 '{}' 已存在。替换已保存的网格？"
   (different grade): （等级不同）

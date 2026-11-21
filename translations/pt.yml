@@ -32,6 +32,7 @@ translations:
   Switch back to the Snapmaker screen: 'Voltar para a tela da Snapmaker'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'A impressora reinicia com a tela da Snapmaker e o HelixScreen deixa de iniciar. Suas configurações do HelixScreen permanecem na impressora; execute o instalador novamente para voltar.'
+  Waiting for the printer's status; try again once it is connected: 'Aguardando o status da impressora; tente novamente quando ela estiver conectada'
   "'{}' already exists. Replace the stored mesh?": "'{}' já existe. Substituir a malha salva?"
   "'{}' and '{}' already exist. Replace the stored meshes?": "'{}' e '{}' já existem. Substituir as malhas salvas?"
   (different grade): (grau diferente)

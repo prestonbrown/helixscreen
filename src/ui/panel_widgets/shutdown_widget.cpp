@@ -450,6 +450,15 @@ bool power_job_active() {
            0;
 }
 
+bool power_job_state_known() {
+    auto& ps = get_printer_state();
+    return lv_subject_get_int(ps.get_printer_connection_state_subject()) ==
+               static_cast<int>(ConnectionState::CONNECTED) &&
+           lv_subject_get_int(ps.get_klippy_state_subject()) ==
+               static_cast<int>(KlippyState::READY) &&
+           ps.print_state().print_stats_received();
+}
+
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
                           lv_obj_t* parent_screen) {
     // Backstop behind the UI gating (home-grid widget + Advanced POWER rows):

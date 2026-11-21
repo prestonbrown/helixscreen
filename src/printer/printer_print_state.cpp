@@ -363,6 +363,7 @@ void PrinterPrintState::update_from_status(const nlohmann::json& status) {
     // false mid-print detection and preventing the print start collector from activating.
     if (status.contains("print_stats")) {
         const auto& stats = status["print_stats"];
+        ++print_stats_frames_;
 
         // print_stats.power_loss — Creality-Klipper-fork Power-Loss-Recovery
         // capability marker. The key exists ONLY in that fork, so PRESENCE (not

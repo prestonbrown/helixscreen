@@ -89,6 +89,11 @@ HostPowerFollowUp host_power_follow_up(bool local_dispatched, bool api_connected
 /// outside the power dialog reads it. Main thread.
 bool power_job_active();
 
+/// True when power_job_active() reflects Klipper: Moonraker connected, Klipper
+/// ready, and a print_stats frame applied since start. Before that the job
+/// state reads its STANDBY default, so "no job" is not yet known. Main thread.
+bool power_job_state_known();
+
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
 /// is disconnected) and show it as a child of @p parent_screen.
