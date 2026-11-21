@@ -3145,7 +3145,8 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
                                                              on_error, std::move(on_progress));
     collector->start();
 
-    const std::string cmd = helix::pid::calibrate_command(api_.hardware(), heater, target_temp);
+    const std::string cmd = helix::pid::calibrate_command(
+        api_.hardware().pid_calibrate_takes_tolerance(), heater, target_temp);
 
     // silent=true: PID errors are handled by the collector and UI panel, not global toast
     api_.execute_gcode(

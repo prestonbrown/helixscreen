@@ -3,8 +3,6 @@
 
 #include "pid_calibrate_tolerance.h"
 
-#include "printer_discovery.h"
-
 #include <spdlog/fmt/fmt.h>
 
 namespace helix::pid {
@@ -17,16 +15,16 @@ constexpr double kHotendTolerance = 0.02;
 constexpr double kBedTolerance = 0.05;
 } // namespace
 
-std::optional<double> calibrate_tolerance(const PrinterDiscovery& hw, std::string_view heater) {
-    if (!hw.pid_calibrate_takes_tolerance()) {
+std::optional<double> calibrate_tolerance(bool takes_tolerance, std::string_view heater) {
+    if (!takes_tolerance) {
         return std::nullopt;
     }
     return heater == "heater_bed" ? kBedTolerance : kHotendTolerance;
 }
 
-std::string calibrate_command(const PrinterDiscovery& hw, std::string_view heater, int target_c) {
+std::string calibrate_command(bool takes_tolerance, std::string_view heater, int target_c) {
     std::string cmd = fmt::format("PID_CALIBRATE HEATER={} TARGET={}", heater, target_c);
-    if (const auto tolerance = calibrate_tolerance(hw, heater)) {
+    if (const auto tolerance = calibrate_tolerance(takes_tolerance, heater)) {
         cmd += fmt::format(" TOLERANCE={:.2f}", *tolerance);
     }
     return cmd;

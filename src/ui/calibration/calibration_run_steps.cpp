@@ -182,7 +182,8 @@ class HeatersStep : public CalibrationStep {
                             [this](const MoonrakerError& err) { fail(err.message); }),
             lifetime_.bg_cb(
                 "CalibrationRun.Heaters.pid_progress",
-                [this, target = helix::pid::calibrate_tolerance(ctx_->api.hardware(), h.name)](
+                [this, target = helix::pid::calibrate_tolerance(
+                           ctx_->api.hardware().pid_calibrate_takes_tolerance(), h.name)](
                     int sample, float tolerance) { report_pid_cycle(sample, tolerance, target); }));
     }
 

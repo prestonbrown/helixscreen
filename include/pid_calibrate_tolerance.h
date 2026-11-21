@@ -10,22 +10,19 @@
 #include <string>
 #include <string_view>
 
-namespace helix {
-class PrinterDiscovery;
-}
-
 namespace helix::pid {
 
-/// The TOLERANCE to calibrate @p heater with, or nothing on a firmware whose
-/// PID_CALIBRATE runs a fixed number of cycles. A bed gets a looser one than a
-/// hotend: each of its cycles takes minutes, and its readings rarely settle to
-/// the firmware's default.
-[[nodiscard]] std::optional<double> calibrate_tolerance(const PrinterDiscovery& hw,
+/// The TOLERANCE to calibrate @p heater with, or nothing when the firmware's
+/// PID_CALIBRATE runs a fixed number of cycles (@p takes_tolerance false; ask
+/// PrinterDiscovery::pid_calibrate_takes_tolerance()). A bed gets a looser one
+/// than a hotend: each of its cycles takes minutes, and its readings rarely
+/// settle to the firmware's default.
+[[nodiscard]] std::optional<double> calibrate_tolerance(bool takes_tolerance,
                                                         std::string_view heater);
 
 /// The PID_CALIBRATE command for @p heater at @p target_c, with its TOLERANCE
 /// where the firmware takes one.
-[[nodiscard]] std::string calibrate_command(const PrinterDiscovery& hw, std::string_view heater,
+[[nodiscard]] std::string calibrate_command(bool takes_tolerance, std::string_view heater,
                                             int target_c);
 
 } // namespace helix::pid

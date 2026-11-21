@@ -250,7 +250,6 @@ src/printer/material_z_offset_state.cpp
 src/printer/mount_feed_sequence.cpp
 src/printer/openams_status_parse.cpp
 src/printer/pause_cause.cpp
-src/printer/pid_calibrate_tolerance.cpp
 src/printer/print_start_params.cpp
 src/printer/printer_discovery.cpp
 src/printer/printer_discovery_parse.cpp
@@ -903,6 +902,7 @@ src/api/moonraker_error.cpp
 src/api/moonraker_error_rpc.cpp
 src/calibration/screws_tilt_parser.cpp
 src/api/moonraker_advanced_api.cpp
+src/api/pid_calibrate_tolerance.cpp
 src/api/moonraker_file_api.cpp
 src/api/moonraker_history_api.cpp
 src/api/moonraker_job_api.cpp
