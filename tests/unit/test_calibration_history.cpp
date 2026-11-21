@@ -444,6 +444,12 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
         s["inductance_coil e0"] = {{"x_offset", 0.0}};
         CHECK(results_in_config(s).at("z_offset") == "-1.250 mm");
     }
+    SECTION("Jacobean's K2 keeps z_offset in its prtouch section") {
+        json s = settings;
+        s.erase("probe");
+        s["prtouch"] = {{"z_offset", -0.125}, {"x_offset", 0.0}};
+        CHECK(results_in_config(s).at("z_offset") == "-0.125 mm");
+    }
     SECTION("BTT Eddy keeps z_offset in its probe_eddy_current section") {
         json s = settings;
         s.erase("probe");

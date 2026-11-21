@@ -113,6 +113,10 @@ constexpr Row kRows[] = {
     // probe object. Its z_offset lives here; the probe object publishes none.
     {Match::Prefix, "inductance_coil ", ObjectKind::Probe, chip_of(ProbeSensorType::EDDY_CURRENT),
      Scope::SectionOnly},
+    // Creality's strain-gauge probe on Jacobean's K2 firmware: its offsets live
+    // here, behind the generic probe object.
+    {Match::Exact, "prtouch", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD),
+     Scope::SectionOnly},
 
     {Match::Prefix, "gcode_button ", ObjectKind::Input, 0, Scope::Both},
     {Match::Exact, "power_loss_check", ObjectKind::PowerLossMonitor, 0, Scope::Both},
