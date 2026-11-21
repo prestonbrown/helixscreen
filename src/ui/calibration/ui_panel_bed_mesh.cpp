@@ -1776,11 +1776,15 @@ void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::stri
             helix::bed_mesh::profile_command("REMOVE", from),
             lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup",
                             [this, message]() { report_store_failure(message); }),
-            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup_error", [this, message, from](
-                                                                        const MoonrakerError& err) {
-                spdlog::warn("[BedMeshPanel] Could not remove '{}': {}", from, err.message);
-                report_store_failure(message, from);
-            }));
+            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup_error",
+                            [this, message, from](const MoonrakerError& err) {
+                                spdlog::warn("[BedMeshPanel] Could not remove '{}': {}", from,
+                                             err.message);
+                                report_store_failure(message, from);
+                            }),
+            // Klipper's own `!!` line about the removal reaches the console too.
+            /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
+            /*caller_surfaces_errors=*/false);
     };
     IMoonrakerAPI* api = api_;
     if (!api) {

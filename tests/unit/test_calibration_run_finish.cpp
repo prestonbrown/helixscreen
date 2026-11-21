@@ -229,4 +229,6 @@ TEST_CASE_METHOD(FinishFixture,
     CHECK(client.get_klippy_state() == MoonrakerClientMock::KlippyState::READY);
     CHECK_FALSE(sent_any(client, "BED_MESH_CALIBRATE"));
     CHECK(run->entries()[0].status == StepStatus::Aborted);
+    // The panel is process-wide; it must not keep this fixture's API.
+    panel.set_api(nullptr);
 }
