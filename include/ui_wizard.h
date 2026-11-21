@@ -164,9 +164,10 @@ void ui_wizard_complete();
 namespace helix::wizard {
 
 /**
- * ui_wizard_complete(), then @p then once the main UI is on Home, in place of
- * the first-run tour. The setup wizard's Calibration page opens the guided
- * run this way, so setup is complete before the run starts.
+ * ui_wizard_complete(), then @p then once the main UI is on Home. The first-run
+ * tour is held (FirstRunTour::hold_auto_start()) until what @p then opens calls
+ * FirstRunTour::release_auto_start(). The setup wizard's Calibration page opens
+ * the guided run this way, so setup is complete before the run starts.
  */
 void complete_then(std::function<void()> then);
 

@@ -42,6 +42,8 @@ class CalibrationRunOverlay : public OverlayBase {
 
     void init_subjects() override;
     void on_activate() override;
+    /// Lets the first-run tour go, which setup holds while it hands over to the run.
+    void on_dismissed() override;
 
     /// Open at the page the run is on: Pick when no run is under way.
     void open();

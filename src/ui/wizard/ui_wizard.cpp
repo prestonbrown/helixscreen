@@ -190,7 +190,7 @@ void helix::WizardCompletionTimers::arm_home_navigation() {
             helix::nav::set_active(PanelId::Home);
             if (auto then = std::move(g_after_complete)) {
                 g_after_complete = nullptr;
-                // The tour waits for Home's next activation.
+                // The tour is held until what this opens lets it go.
                 then();
                 return;
             }
@@ -1167,6 +1167,9 @@ void ui_wizard_complete() {
 }
 
 void helix::wizard::complete_then(std::function<void()> then) {
+    // Held before completion opens the tour's wizard gate, so neither the Home
+    // navigation below nor a printer-ready can start it over what @p then opens.
+    helix::tour::FirstRunTour::instance().hold_auto_start();
     ui_wizard_complete();
     g_after_complete = std::move(then);
 }

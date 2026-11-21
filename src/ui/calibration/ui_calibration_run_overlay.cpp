@@ -12,6 +12,7 @@
 #include "calibration_history_store.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "first_run_tour.h"
 #include "i_moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
@@ -235,6 +236,10 @@ void CalibrationRunOverlay::on_activate() {
     OverlayBase::on_activate();
     // Back from the Z offset screen, or reopened while a run waits.
     publish();
+}
+
+void CalibrationRunOverlay::on_dismissed() {
+    tour::FirstRunTour::instance().release_auto_start();
 }
 
 void CalibrationRunOverlay::prepare_pick() {

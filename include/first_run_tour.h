@@ -44,6 +44,15 @@ class FirstRunTour {
         return printer_ready_;
     }
 
+    /// Keep the tour from starting on its own while something setup handed the
+    /// screen to is up (the guided calibration run that "Calibrate now" opens).
+    /// Set before that handoff, so no trigger can win the race to the screen.
+    void hold_auto_start() {
+        held_ = true;
+    }
+    /// End a hold_auto_start() and offer the tour again.
+    void release_auto_start();
+
     /// Replay entry point — bypasses gate, starts immediately.
     void start();
 
@@ -70,6 +79,7 @@ class FirstRunTour {
 
     bool running_ = false;
     bool printer_ready_ = false;
+    bool held_ = false;
     // maybe_start() defers start_impl() by a tick, and start_impl() is what sets
     // running_. Both entry points (HomePanel::on_activate and wizard completion)
     // can fire in the same tick, so running_ alone would let both queue a start.

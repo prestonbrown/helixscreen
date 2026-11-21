@@ -69,6 +69,11 @@ bool FirstRunTour::should_auto_start() {
         return false;
     }
 
+    if (instance().held_) {
+        spdlog::debug("[FirstRunTour] gate: held_for_handoff");
+        return false;
+    }
+
     // Finishing the tour is final, so it waits until it knows whether the
     // printer has a filament system; on_printer_ready() offers it again.
     if (!instance().printer_ready_) {
@@ -136,6 +141,14 @@ void FirstRunTour::maybe_start() {
         start_impl(auto_start_seen_version(cfg->get<bool>("/tour/completed", false),
                                            cfg->get<int>("/tour/last_seen_version", 0)));
     });
+}
+
+void FirstRunTour::release_auto_start() {
+    if (!held_) {
+        return;
+    }
+    held_ = false;
+    maybe_start();
 }
 
 void FirstRunTour::on_printer_ready() {
