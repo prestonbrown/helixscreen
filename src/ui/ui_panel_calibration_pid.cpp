@@ -33,6 +33,7 @@
 #include <lvgl.h>
 #include <memory>
 #include <string>
+#include <utility>
 
 // ============================================================================
 // STATIC SUBJECT
@@ -317,6 +318,23 @@ void PIDCalibrationPanel::on_activate() {
 
     spdlog::debug("[PIDCal] on_activate()");
 
+    // A run still in flight owns this panel's state, and a wake from the
+    // screensaver resumes what the panel showed: a result that landed behind
+    // the screensaver stays on screen. Resetting under a live calibration
+    // would also make on_mpc_result() discard its result, since it only
+    // accepts one while the state says CALIBRATING.
+    const bool waking = std::exchange(suspended_, false);
+    if (waking || state_ == State::CALIBRATING || state_ == State::MIGRATING) {
+        spdlog::info("[PIDCal] Reactivated (wake={}) - keeping state {}", waking,
+                     static_cast<int>(state_));
+        // on_deactivate() stopped following the heater; the run did not stop.
+        if (state_ == State::CALIBRATING) {
+            setup_pid_graph();
+            attach_progress_tracking();
+        }
+        return;
+    }
+
     // Reset to idle state with default values
     set_state(State::IDLE);
     selected_heater_ = Heater::EXTRUDER;
@@ -381,6 +399,17 @@ void PIDCalibrationPanel::on_deactivate() {
     // Teardown graph before deactivating
     teardown_pid_graph();
 
+    // An idle screen is not a walk-away: this panel stays on the stack and is
+    // reactivated on the next touch, so the run keeps its fan curve and its
+    // heaters and goes on reporting here. A calibration runs for minutes with
+    // nobody touching the screen, which is exactly when the screensaver fires.
+    if (NavigationManager::instance().is_suspended()) {
+        suspended_ = true;
+        OverlayBase::on_deactivate();
+        return;
+    }
+    run_lifetime_.invalidate();
+
     // Klipper runs one command at a time, so a running print means any
     // calibration started here already ended, and the fan and heaters are the
     // print's. A paused print accepts commands, so a calibration may have been
@@ -416,6 +445,8 @@ void PIDCalibrationPanel::on_deactivate() {
 
 void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
+    run_lifetime_.invalidate();
+    suspended_ = false;
 
     // Stop progress tracking before cleanup
     stop_progress_tracking();
@@ -653,7 +684,7 @@ void PIDCalibrationPanel::send_pid_calibrate() {
 
     spdlog::info("[PIDCal] Starting PID calibration: {} at {}°C", heater_name, target_temp_);
 
-    auto token = lifetime_.token();
+    auto token = run_lifetime_.token();
     api_->advanced().start_pid_calibrate(
         heater_name, target_temp_,
         [this, token](float kp, float ki, float kd) {
@@ -1019,27 +1050,24 @@ void PIDCalibrationPanel::on_pid_progress(int sample, float tolerance) {
 // PHASE-AWARE PROGRESS TRACKING
 // ============================================================================
 
+lv_subject_t* PIDCalibrationPanel::progress_temp_subject() {
+    auto& state = get_printer_state();
+    return selected_heater_ == Heater::EXTRUDER
+               ? state.get_extruder_temp_subject("extruder", progress_temp_lifetime_)
+               : state.get_bed_temp_subject(progress_temp_lifetime_);
+}
+
 void PIDCalibrationPanel::start_progress_tracking() {
     stop_progress_tracking();
 
-    // Read current temperature as starting point
-    auto& state = get_printer_state();
-    lv_subject_t* temp_subj = nullptr;
-
-    auto heater_type = (selected_heater_ == Heater::EXTRUDER) ? PidProgressTracker::Heater::EXTRUDER
-                                                              : PidProgressTracker::Heater::BED;
-
-    if (selected_heater_ == Heater::EXTRUDER) {
-        temp_subj = state.get_extruder_temp_subject("extruder", progress_temp_lifetime_);
-    } else {
-        temp_subj = state.get_bed_temp_subject(progress_temp_lifetime_);
-    }
-
+    lv_subject_t* temp_subj = progress_temp_subject();
     if (!temp_subj) {
         spdlog::warn("[PIDCal] Could not get temperature subject for progress tracking");
         return;
     }
 
+    auto heater_type = (selected_heater_ == Heater::EXTRUDER) ? PidProgressTracker::Heater::EXTRUDER
+                                                              : PidProgressTracker::Heater::BED;
     float current_temp = helix::ui::temperature::deci_to_degrees_f(lv_subject_get_int(temp_subj));
     progress_tracker_.start(heater_type, target_temp_, current_temp);
 
@@ -1064,20 +1092,30 @@ void PIDCalibrationPanel::start_progress_tracking() {
         }
     }
 
-    // Observe temperature for phase tracking (both extruder and bed need lifetime tokens)
+    attach_progress_tracking();
+    spdlog::info("[PIDCal] Progress tracking started (target={}C, start={:.1f}C)", target_temp_,
+                 current_temp);
+}
+
+void PIDCalibrationPanel::attach_progress_tracking() {
+    // Reset lifetime BEFORE observer (CLAUDE.md mandatory ordering)
+    progress_temp_lifetime_.reset();
+    progress_temp_observer_.reset();
+    cancel_eta_timer();
+
+    lv_subject_t* temp_subj = progress_temp_subject();
+    if (!temp_subj) {
+        spdlog::warn("[PIDCal] Could not get temperature subject for progress tracking");
+        return;
+    }
     progress_temp_observer_ = helix::ui::observe_int_sync<PIDCalibrationPanel>(
         temp_subj, this,
         [](PIDCalibrationPanel* self, int value) { self->on_progress_temperature(value); },
         progress_temp_lifetime_);
 
-    // Start ETA refresh timer (every 3 seconds)
+    // Refresh the ETA between temperature reports.
     eta_update_timer_ = lv_timer_create(on_eta_timer_tick, 1000, this);
-
-    // Show initial ETA estimate immediately
     update_progress_display();
-
-    spdlog::info("[PIDCal] Progress tracking started (target={}C, start={:.1f}C)", target_temp_,
-                 current_temp);
 }
 
 void PIDCalibrationPanel::stop_progress_tracking() {
@@ -1296,7 +1334,7 @@ void PIDCalibrationPanel::start_migration() {
 
     EmergencyStopOverlay::instance().suppress_recovery_dialog(RecoverySuppression::EXTRA);
 
-    auto token = lifetime_.token();
+    auto token = run_lifetime_.token();
     config_editor_.safe_multi_edit(
         *api_, section, edits,
         [this, token]() {
@@ -1335,7 +1373,7 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
     spdlog::info("[PIDCal] Starting MPC calibration: {} at {}°C, fan_breakpoints={}", heater,
                  target_temp_, fan_breakpoints_);
 
-    auto token = lifetime_.token();
+    auto token = run_lifetime_.token();
     api_->advanced().start_mpc_calibrate(
         heater, target_temp_, fan_breakpoints_,
         [this, token](const MoonrakerAdvancedAPI::MPCResult& result) {

@@ -497,6 +497,10 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
 
     // Create filament runout handler (extracted from PrintStatusPanel)
     runout_handler_ = std::make_unique<helix::ui::FilamentRunoutHandler>(api_);
+    runout_handler_->set_wake([] {
+        if (auto* dm = DisplayManager::instance())
+            dm->wake_display();
+    });
     spdlog::debug("[{}] Created filament runout handler", get_name());
 }
 

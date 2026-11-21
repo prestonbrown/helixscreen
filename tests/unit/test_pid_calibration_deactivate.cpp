@@ -7,6 +7,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -59,6 +60,16 @@ struct PidDeactivateFixture : LVGLTestFixture {
         Access::deactivate(panel);
         helix::ui::UpdateQueue::instance().drain();
     }
+
+    /// The screensaver's deactivation: NavigationManager::suspend_active()
+    /// marks itself suspended, then deactivates the visible view.
+    void screensaver() {
+        auto& nav = NavigationManager::instance();
+        NavigationManagerTestAccess::set_suspended(nav, true);
+        Access::deactivate(panel);
+        NavigationManagerTestAccess::set_suspended(nav, false);
+        helix::ui::UpdateQueue::instance().drain();
+    }
 };
 
 } // namespace
@@ -94,4 +105,34 @@ TEST_CASE_METHOD(PidDeactivateFixture,
         CHECK(sent("M107"));
         CHECK_FALSE(sent("TURN_OFF_HEATERS"));
     }
+}
+
+// The screensaver deactivates the visible overlay, but the panel stays on the
+// stack and the printer goes on calibrating behind it.
+TEST_CASE_METHOD(PidDeactivateFixture,
+                 "The screensaver leaves a running calibration's heaters and fan on",
+                 "[pid][pid_deactivate][pid_progress]") {
+    Access::set_fan_speed(panel, 50);
+    Access::start_clicked(panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(sent("PID_CALIBRATE HEATER=extruder"));
+    client.clear_gcode_script_history();
+
+    screensaver();
+    CHECK_FALSE(sent("TURN_OFF_HEATERS"));
+    CHECK_FALSE(sent("M107"));
+}
+
+// A run that finishes behind the screensaver still saves its result.
+TEST_CASE_METHOD(PidDeactivateFixture, "A PID result that lands behind the screensaver is saved",
+                 "[pid][pid_deactivate][pid_progress]") {
+    Access::start_clicked(panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(sent("PID_CALIBRATE HEATER=extruder"));
+    client.clear_gcode_script_history();
+
+    screensaver();
+    client.dispatch_gcode_response("PID parameters: pid_Kp=22.865 pid_Ki=1.292 pid_Kd=101.178");
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(sent("SAVE_CONFIG"));
 }

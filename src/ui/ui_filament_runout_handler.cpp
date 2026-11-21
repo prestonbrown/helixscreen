@@ -314,6 +314,10 @@ void FilamentRunoutHandler::show_runout_guidance_modal() {
         // Just hide the modal - no action needed
     });
 
+    // The pause waits on the user; a sleeping screen or a screensaver would hide it.
+    if (wake_) {
+        wake_();
+    }
     if (!runout_modal_.show(lv_screen_active())) {
         spdlog::error("[FilamentRunoutHandler] Failed to create runout guidance modal");
         return;
@@ -604,18 +608,17 @@ void run_purge(FilamentOpTicket ticket) {
     if (!purge_info.is_empty()) {
         const std::string macro_name = purge_info.get_macro();
         spdlog::info("{} Using StandardMacros purge: {}", kLogTag, macro_name);
-        dispatch_filament_macro(
-            macro_name, ParamPolicy::Suppress,
-            [api, ticket, on_error](const helix::MacroParamResult& result) {
-                run_after_purge_preamble(
-                    api, kLogTag,
-                    [api, ticket, on_error, params = result.params]() {
-                        StandardMacros::instance().execute(StandardMacroSlot::Purge, api, params,
-                                                           op_done(kLogTag, ticket, "Purge"),
-                                                           on_error);
-                    },
-                    on_error);
-            });
+        dispatch_filament_macro(macro_name, ParamPolicy::Suppress,
+                                [api, ticket, on_error](const helix::MacroParamResult& result) {
+                                    run_after_purge_preamble(
+                                        api, kLogTag,
+                                        [api, ticket, on_error, params = result.params]() {
+                                            StandardMacros::instance().execute(
+                                                StandardMacroSlot::Purge, api, params,
+                                                op_done(kLogTag, ticket, "Purge"), on_error);
+                                        },
+                                        on_error);
+                                });
         return;
     }
 

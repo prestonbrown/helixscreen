@@ -622,6 +622,10 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     void parse_afc_state(const nlohmann::json& afc_data, std::string& deferred_error_event,
                          bool& current_slot_set_by_afc_state, bool& afc_stated_unloaded);
 
+    /// Engaged bypass: current_slot = -2 and filament_loaded. Called after every
+    /// writer that derives those two fields from lanes. Caller holds mutex_.
+    void apply_bypass_to_system_info();
+
     /**
      * @brief Apply an AFC state string to action + operation_detail
      *

@@ -353,6 +353,13 @@ class NavigationManager {
      */
     void resume_active();
 
+    /// True between suspend_active() and resume_active(): an on_deactivate()
+    /// seen now is the screensaver or display sleep, and the view stays on the
+    /// stack to be reactivated on the next touch.
+    bool is_suspended() const {
+        return suspended_;
+    }
+
     /**
      * @brief Get current active panel
      * @return Currently active panel identifier

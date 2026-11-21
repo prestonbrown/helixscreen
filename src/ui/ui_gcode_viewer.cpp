@@ -395,6 +395,15 @@ class GCodeViewerState {
     /// Disable streaming mode (detail panel uses full-load + budget instead)
     bool streaming_disabled_{false};
 
+#ifdef ENABLE_3D_RENDERER
+    /// The render mode and the GPU block leave 3D available. The per-file and
+    /// per-session 2D fallbacks (streaming, budget, a renderer that gave up)
+    /// are separate.
+    bool render_settings_allow_3d() const {
+        return render_mode_ != GcodeViewerRenderMode::Layer2D && !gpu_3d_blocked_;
+    }
+#endif
+
     /// Helper to check if currently using 2D layer renderer
     bool is_using_2d_mode() const {
 #ifdef ENABLE_3D_RENDERER
@@ -405,8 +414,7 @@ class GCodeViewerState {
             return true;
         }
         // With GPU-accelerated GLES: Auto defaults to 3D, only Layer2D forces 2D
-        return render_mode_ == GcodeViewerRenderMode::Layer2D || budget_forced_2d_ ||
-               gpu_3d_blocked_;
+        return !render_settings_allow_3d() || budget_forced_2d_;
 #else
         // Without a 3D renderer there is no 3D mode, full stop.
         //
@@ -1648,14 +1656,28 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
     }
 
 #ifdef ENABLE_3D_RENDERER
-    constexpr bool kBuildHas3D = true;
+    // Before the streaming decision below and the worker's is_using_2d_mode()
+    // read: a software or failed GL renders 2D, so it must not full-load.
+    apply_software_gl_fallback(st);
+    const bool renders_3d =
+        st->render_settings_allow_3d() && !(st->renderer_ && st->renderer_->render_failed());
 #else
-    constexpr bool kBuildHas3D = false;
+    constexpr bool renders_3d = false;
 #endif
-    // A screen's opt-out only counts when 3D is actually available to fall back
-    // on; see gcode_viewer_should_stream() for the K2 OOM this guards.
+    // A screen's opt-out only counts when this viewer will render 3D and the
+    // full parse fits RAM; see gcode_viewer_should_stream().
+    const bool streaming_for_size = helix::should_use_gcode_streaming(file_size);
+    // Only priced when it can change the answer: it reads /proc/meminfo.
+    const bool weighs_full_parse = st->streaming_disabled_ && renders_3d && streaming_for_size;
+    const bool full_parse_fits =
+        weighs_full_parse && helix::is_gcode_3d_render_safe(static_cast<size_t>(file_size));
     const bool use_streaming = helix::gcode_viewer_should_stream(
-        st->streaming_disabled_, kBuildHas3D, helix::should_use_gcode_streaming(file_size));
+        st->streaming_disabled_, renders_3d, full_parse_fits, streaming_for_size);
+    if (st->streaming_disabled_ && use_streaming) {
+        spdlog::info("[GCode Viewer] Streaming despite the screen's full-load request: {}",
+                     !renders_3d ? "this view renders 2D"
+                                 : "a full parse of this file would not fit in memory");
+    }
     spdlog::info("[GCode Viewer] File size: {}KB, streaming mode: {}", file_size / 1024,
                  use_streaming ? "ON" : "OFF");
 
@@ -1894,11 +1916,6 @@ static void ui_gcode_viewer_load_file_async(lv_obj_t* obj, const char* file_path
         lv_obj_set_style_text_color(st->loading_label, theme_manager_get_color("text"),
                                     LV_PART_MAIN);
     }
-
-#ifdef ENABLE_3D_RENDERER
-    // Before the worker reads is_using_2d_mode() to decide on a geometry build.
-    apply_software_gl_fallback(st);
-#endif
 
     // Launch worker thread via RAII-managed start_build()
     // Automatically cancels any existing build and joins the thread

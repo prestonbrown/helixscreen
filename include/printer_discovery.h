@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -775,6 +776,43 @@ class PrinterDiscovery {
     }
 
     /**
+     * @brief stepper_z's position_endstop from a configfile.settings object
+     *
+     * A number means Z homes on a switch: Klipper's stepper.py reads the option
+     * only when the endstop is not a probe's virtual endstop, and only then
+     * registers Z_ENDSTOP_CALIBRATE and Z_OFFSET_APPLY_ENDSTOP
+     * (klippy/extras/manual_probe.py). A virtual endstop leaves the key out or
+     * null, and a kinematics without a [stepper_z] (delta) has no section.
+     * 0.0 is a legal endstop, so absence is nullopt rather than a sentinel.
+     */
+    [[nodiscard]] static std::optional<double>
+    read_z_position_endstop(const nlohmann::json& settings) {
+        if (!settings.is_object()) {
+            return std::nullopt;
+        }
+        const auto section = settings.find("stepper_z");
+        if (section == settings.end() || !section->is_object()) {
+            return std::nullopt;
+        }
+        const auto value = section->find("position_endstop");
+        if (value == section->end() || !value->is_number()) {
+            return std::nullopt;
+        }
+        return value->get<double>();
+    }
+
+    /// Record read_z_position_endstop() for z_position_endstop().
+    void parse_z_position_endstop(const nlohmann::json& settings) {
+        z_position_endstop_ = read_z_position_endstop(settings);
+    }
+
+    /// stepper_z's position_endstop in mm; nullopt when Z homes on a probe or
+    /// the printer has no [stepper_z].
+    [[nodiscard]] std::optional<double> z_position_endstop() const {
+        return z_position_endstop_;
+    }
+
+    /**
      * @brief Derive the build volume from the configfile [stepper_*] sections
      *
      * The X/Y travel limits and the Z height are the most discriminating
@@ -834,6 +872,7 @@ class PrinterDiscovery {
      *       since it calls clear() internally.
      */
     void clear() {
+        z_position_endstop_.reset();
         // Hardware lists
         heaters_.clear();
         fans_.clear();
@@ -1799,6 +1838,7 @@ class PrinterDiscovery {
     std::string os_version_;
     std::string cpu_arch_;
     std::string kinematics_;
+    std::optional<double> z_position_endstop_; ///< stepper_z position_endstop (mm)
     BuildVolume build_volume_;
     std::string mcu_;
     std::vector<std::string> mcu_list_;
