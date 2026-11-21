@@ -279,6 +279,32 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         return true;
     }
 
+    if (name == "recovery-fault-u1-load") {
+        // The dialog a U1 raises when a head's load fails during a print, worded
+        // by the active filament backend from the console line a U1 printed when
+        // Toolhead 1's extruder never gripped. Needs the U1 mock
+        // (HELIX_MOCK_PRINTER=snapmaker_u1); its feeder never fails on its own.
+        AmsBackend* backend = AmsState::instance().get_backend();
+        ClassifyContext paused;
+        paused.is_paused = true;
+        const auto e = backend ? backend->classify_error(
+                                     "!! 0002-0525-0000-0051 extruder[0]: state: load_extruding, "
+                                     "error: move_extrude!raw msg:logic error!",
+                                     paused)
+                               : std::nullopt;
+        if (!e) {
+            spdlog::warn("[Demo] recovery-fault-u1-load needs the U1 mock's filament backend");
+            return true;
+        }
+        auto modal = std::make_unique<helix::ui::RecoveryFaultModal>();
+        // The stack frees the demo instance when the dialog closes.
+        if (modal->show_fault(screen, e->title, e->detail, e->recovery_actions)) {
+            lv_obj_t* backdrop = modal->backdrop();
+            ModalStack::instance().assume_ownership(backdrop, std::move(modal));
+        }
+        return true;
+    }
+
     if (name == "action-prompt-worst") {
         // Worst case for action_prompt_modal's chrome budget (#1277). This modal
         // carries MORE pinned chrome than ams_loading_error_modal: the AFC

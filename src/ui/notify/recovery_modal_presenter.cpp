@@ -19,6 +19,7 @@
 #include "core/temperature_units.h"
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "error_event.h"
 #include "error_modal_view.h"
 #include "i_moonraker_api.h"
@@ -195,6 +196,9 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
 
     active_actions_ = e.recovery_actions;
     shown_detail_ = e.detail;
+
+    // The fault waits on the user; a sleeping screen or a screensaver would hide it.
+    helix::request_display_wake();
 
     // modal_title_for falls back to "Printer Error" for an untitled event. Replacing
     // visible content hides the old dialog first, as a programmatic close, which

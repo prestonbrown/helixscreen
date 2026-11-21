@@ -330,6 +330,7 @@ void PrinterPrintState::apply_pause_cause(const nlohmann::json& stats, bool fram
         print_exception_id_ = cause->id;
         print_exception_code_ = cause->code;
         print_exception_message_ = std::move(cause->message);
+        print_exception_reason_ = std::move(cause->reason);
         print_exception_runout_lane_ = cause->runout_lane;
     }
     if (lv_subject_get_int(&print_exception_) != print_exception_code_) {

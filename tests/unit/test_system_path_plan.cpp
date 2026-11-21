@@ -1387,9 +1387,13 @@ float distance_to_box(pg::PathPoint p, const Box& b) {
 
 TEST_CASE("Overview plan: sensor bands on the mock rigs clear boxes and other lines",
           "[system_path][route_spacing]") {
+    int checked = 0;
     for (const Rig& rig : mock_rigs()) {
         CAPTURE(rig.name);
-        const SystemPathData& d = *rig.data;
+        // A hub sensor's band sits on its hub box, so only the toolhead sensor
+        // puts a band where the clearance applies.
+        SystemPathData d = *rig.data;
+        d.has_toolhead_sensor = true;
         const SysLayout L = compute_sys_layout(d, rig.area);
         PathPlan plan;
         OverviewBoxes boxes;
@@ -1407,6 +1411,7 @@ TEST_CASE("Overview plan: sensor bands on the mock rigs clear boxes and other li
             if (band.on_box_edge)
                 continue; // painted over its box on purpose
             CAPTURE(k, band.at.x, band.at.y);
+            ++checked;
             const auto [e1, e2] = band_ends(band, d.tube_gauge);
             for (const Box& b : meet) {
                 CHECK(distance_to_box(e1, b) >= box_gap);
@@ -1423,6 +1428,7 @@ TEST_CASE("Overview plan: sensor bands on the mock rigs clear boxes and other li
             }
         }
     }
+    REQUIRE(checked > 0);
 }
 
 TEST_CASE("Overview plan: every visible bend on the mock rigs is rounded",

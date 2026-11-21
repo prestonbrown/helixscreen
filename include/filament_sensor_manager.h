@@ -384,6 +384,12 @@ class FilamentSensorManager : public sensors::SensorManager {
     /// master switch. The value itself means nothing.
     [[nodiscard]] lv_subject_t* get_motion_signature_subject();
 
+    /// Changes whenever the sensor readings real_runout_lane() weighs change: a
+    /// runout-monitoring sensor going empty or refilling, or starting or stopping
+    /// monitoring. The value itself means nothing. Unlike any_runout, it moves
+    /// when one lane empties while another already reads empty.
+    [[nodiscard]] lv_subject_t* get_runout_signature_subject();
+
     /// Ticks when a sensor's role or enabled flag, or the master switch, changes.
     /// A reading that moves because of configuration is not a physical event.
     [[nodiscard]] lv_subject_t* get_config_revision_subject();
@@ -479,6 +485,19 @@ class FilamentSensorManager : public sensors::SensorManager {
 
     /// Fingerprint of every input clog_motion_sensor() reads. Caller holds the mutex.
     [[nodiscard]] int motion_signature() const;
+
+    /// A sensor reporting no filament that real_runout_lane() weighs.
+    struct RunoutCandidate {
+        std::string sensor_name;
+        FilamentSensorRole role;
+        int lane;
+        bool stood_down;
+    };
+    /// The runout-monitoring sensors reading empty. Caller holds the mutex.
+    [[nodiscard]] std::vector<RunoutCandidate> runout_candidates_locked() const;
+    /// Fingerprint of runout_candidates_locked() and the master switch. Caller
+    /// holds the mutex.
+    [[nodiscard]] int runout_signature() const;
     /// Fingerprint of every sensor's role and enabled flag and the master
     /// switch: config_revision ticks when it moves. Caller holds the mutex.
     [[nodiscard]] uint32_t config_signature() const;
@@ -537,6 +556,7 @@ class FilamentSensorManager : public sensors::SensorManager {
     helix::Subject entry_detected_{};
     helix::Subject any_runout_{};
     helix::Subject motion_signature_{};
+    helix::Subject runout_signature_{};
     helix::Subject master_enabled_subject_{};
     helix::Subject config_revision_{};
     /// config_signature() at the last refresh. Main thread only.

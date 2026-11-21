@@ -25,6 +25,7 @@
 
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
+#include "core/timer_guard.h"
 
 #include <functional>
 
@@ -190,6 +191,25 @@ class FilamentRunoutHandler {
     /// Resume block — non-auto-feed backends never gate Resume.
     bool autofeed_context_{false};
 
+    /// True from a pause that showed no guidance until the guidance shows or the
+    /// pause ends; the two observers below re-check while it holds.
+    bool watching_paused_{false};
+
+    /// Observes FilamentSensorManager::get_runout_signature_subject() while
+    /// watching_paused_: a sensor reading empty after the pause began.
+    ObserverGuard runout_signature_observer_;
+
+    /// Observes PrinterPrintState::get_print_exception_subject() while
+    /// watching_paused_: a pause cause naming the run-out lane after the pause.
+    ObserverGuard pause_cause_observer_;
+
+    /// The head the guidance offers "Use Another Toolhead" for; -1 while no
+    /// guidance is up.
+    int other_head_runout_head_{-1};
+
+    /// Re-checks that offer every second while the guidance is up.
+    LvglTimerGuard other_head_offer_timer_;
+
     /// Async callback safety guard
     helix::AsyncLifetimeGuard lifetime_;
 
@@ -204,6 +224,16 @@ class FilamentRunoutHandler {
      * is available and shows no filament - if so, displays guidance modal.
      */
     void check_and_show_runout_guidance();
+
+    /// While a pause has shown no guidance, re-check whenever a runout could
+    /// have become real since: a sensor reading changes, or the pause cause.
+    void watch_for_runout_while_paused();
+
+    /// Drop the re-check observers; the pause ended or its guidance showed.
+    void stop_watching_for_runout();
+
+    /// Offer "Use Another Toolhead" exactly while the printer's facts allow it.
+    void refresh_other_head_offer();
 
     /**
      * @brief Show the runout guidance modal

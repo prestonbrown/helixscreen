@@ -471,6 +471,16 @@ recorded as live-verified (#991) is the `AUTO_FEEDING` command itself - it block
 (`src/printer/ams_backend_snapmaker.cpp#prepare_for_resume`, `:722-724`). The full chain - runout pause ->
 runout dialog -> refeed -> RESUME -> print continues - is **not field-tested**.
 
+**A failed load explains itself.** The feeder raises every load, unload and hand-feed failure
+as module 525 with the head as index and the failure point as code (`<klipper>/klippy/extras/filament_feed.py`
+sets `exception_code[ch]`: 10-15 preload, 30-35 reaching the head, 50-51 at the nozzle, 70
+unload, 90 hand feed). `include/snapmaker_exceptions.h#word_fault` gives the cause and fix
+for each code (the full map is in `docs/devel/printers/SNAPMAKER_U1_SUPPORT.md`), with a generic load failure for a code it does not know, and the backend
+(`src/printer/ams_backend_snapmaker.cpp#classify_coded_fault`) titles it with the head
+("Toolhead 1 didn't load"). During a print it is a dialog with Open Filament, Cancel Print
+and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
+rather than the firmware's `channel_error` token.
+
 **Resume waits for a confirmed load.** `FEED_AUTO` answers OK without feeding when the
 port reads empty under `PRINTING=1`, and raises 525 (`extruder[N]: state: ..., error: ...!`)
 when its own test, `channel_state == load_finish` with `channel_error == ok`, fails at the
@@ -1053,22 +1063,71 @@ head, and `SET_PRINT_FILAMENT_CONFIG` on a head refreshes that backup (`backup_f
 The plan therefore writes the chosen head's record onto the empty head (multi-colour form, the
 vendor always quoted, `FORCE=1`), then sends `INNER_AUTO_REPLENISH_FILAMENT EXTRUDER=<empty>`,
 wrapped in `AUTO_REPLENISH_FILAMENT=1` and back to `0` when the switch was off. While the
-switch state is unreported nothing is offered. The firmware takes the first head, in order,
-whose record matches, so a lower head holding the identical spool record wins over the choice;
-the plan names it.
+switch state is unreported nothing is offered. The firmware walks the heads in index order and
+takes the first that its feeder loaded, whose nozzle diameter and volume type match and whose
+record matches exactly, so a lower head holding the identical spool record wins over the choice.
+The plan names that head (`continues_on`), passing over only a head whose nozzle is known to
+differ: the firmware knows every nozzle, HelixScreen sometimes does not.
+
+Nothing is offered or sent while the firmware is busy inside the pause:
+`machine_state_manager.action_code` other than IDLE (0) while paused, which INNER_RESUME holds at
+PRINT_RESUMING (130) or PRINT_REPLENISHING (131) through its heat, purge and clean, and which
+`RESUME` itself refuses. The firmware's own Auto-Replenish runs in that window. A routing that
+already moved every logical tool off the runout head counts the same, since its map write lands
+before the action code is set.
+
+The chooser's own material check is stricter than the shared Endless Spool rule: a material the
+filament database does not know, on either side, is not eligible, and a different type or
+subtype in the same group (PLA Silk for PLA Matte) is eligible with a warning that names both.
+The new head prints at the runout head's `last_extruder_temp`, not its own. A head whose record
+the plan cannot write (an unsafe vendor, an 8-character `RRGGBBAA` color as `FILAMENT_COLOR=`
+stores it, more than five colors) and every head while another one is active are listed with
+the reason, never as a tap that does nothing.
 
 `filament_info_backup` is not in the firmware's status, and by the frame reporting the pause the
 runout head's published record already reads `NONE` (`filament_exist` false). So the backend keeps
 each head's last record that named a filament while the print ran, freezes it when the pause
 begins (`src/printer/ams_backend_snapmaker.cpp#note_pause_records_locked`) and compares against
 that: a spool swapped in during the pause changes the live record only. The print ending forgets it.
+The records are also kept in the printer's settings (`snapmaker/running_records`) with the print's
+file and `print_stats.total_duration`, so a HelixScreen restarted during the pause still has them. A
+new process trusts them only for the same file with a `total_duration` that has not gone back, and
+clears them when it sees no print in progress.
 
 Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
-nothing. After sending, the chooser watches for the pause ending or `extruder_map_table`
-changing (`runout_other_head::judge_switch`); without either it reports the print still paused
-and the empty head relabelled, and sends the Auto-Replenish restore on its own. The send waits
-150 s, and a timed-out send is judged by the outcome up to three minutes. Source:
-Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`.
+nothing, and the pause ending proves nothing either (the firmware also resumes on the runout head
+when it refeeds in place). After sending, the chooser judges the switch by its target
+(`runout_other_head::judge_switch`): `extruder_map_table` moved every logical tool of the runout
+head onto `continues_on`, and the print left the pause. The routing moves before the RESUME, and
+the print stays paused through the heat and purge, so a moved routing waits for the reply. A
+RESUME that fails after the routing moved (its preconditions, `CHECK_FILAMENT_RUNOUT` on the new
+head, a feed that fails) leaves the print paused on the new head: the chooser says so, hides the
+runout dialog, whose advice is about the old head, and offers `RESUME REPLENISH=1
+REPLENISH_EXTRUDER=<new>`, the step the firmware's own replenish runs. Without a moved routing it
+reports the print still paused. The send waits 150 s, and a timed-out send is judged by the outcome
+up to three minutes. Source: Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`.
+
+The label does not outlive the switch. The firmware replaces a head's record only on an official
+RFID read or an edit (a tagless spool is ignored while the vendor is not `NONE`), so a borrowed
+label left on the empty head would match a later runout of the chosen head, or the next print.
+Once the print has moved off it, the chooser writes the firmware's own clear shape back (`NONE`
+vendor, type and subtype, one `FFFFFF` color), which no Auto-Replenish search matches and which
+leaves the backup alone. A switch that did not happen writes the original record back first, so
+the backup a later Resume compares is the original again, then the head's own record as it read
+before (usually `NONE`). Both are sent only while the head still carries the label;
+`SET_PRINT_FILAMENT_CONFIG` has no print-state check.
+
+When the plan turned Auto-Replenish on for the switch, the restore is stored in the printer's
+settings (`runout_other_head/pending_restore`) before sending, and settled whenever no switch is
+in flight: sent while the setting still reads on, forgotten once it reads off. The chooser settles
+it when a switch ends, at every print state change, and whenever the setting is re-reported (a
+reconnect), so a restart or a lost link mid-switch cannot leave it on. A switch started while one
+is pending plans from the user's own value (off), so it restores it too.
+
+The end-of-print unload follows the heads, not the switch: `SM_PRINT_END_AUTO_UNLOAD_FILAMENT`
+unloads a head the print used whose own "Unload at end" is ticked, and the switch moves
+`extruders_used` to the new head. A user who ticked it only for the head the print started on
+keeps the replacement loaded.
 
 **hw-verify** (none of this has run on a real U1 yet):
 - the record write and `INNER_AUTO_REPLENISH_FILAMENT` accepted while paused, sent by hand
@@ -1076,8 +1135,8 @@ Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`.
 - whether `SET_PRINT_PREFERENCES` persists the Auto-Replenish setting across a reboot;
 - how long `RESUME REPLENISH=1` really takes (heat, prime, clean) against the 150 s wait;
 - whether a filament-entangle pause opens the runout dialog, and so offers the switch;
-- the empty head keeps the borrowed filament label after the switch, until it is reloaded or
-  edited.
+- that `machine_state_manager.action_code` reaches the subscription during PRINT_REPLENISHING;
+- that the `NONE` record write is accepted while printing, as the source reads.
 
 #### Error-id convention
 Blocked-during-print errors all use `id=531` with a distinguishing `code` (15 = set map, 16 = used/prefs/params,

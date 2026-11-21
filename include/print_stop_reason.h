@@ -73,12 +73,15 @@ std::string recent_gcode_error(const PrinterPrintState& state, double now);
 
 /// The reason a print stopped as @p stop at @p stop_time: a pause's
 /// @p monitor announcement when it arrived is_recent_cause() of the stop, else
+/// the firmware's structured pause cause in a user's words (@p worded_cause,
+/// PrinterPrintState::get_print_exception_reason) for a pause, else
 /// @p print_message when Klipper set one, else the newest gcode_error among
 /// @p entries that is_recent_cause() of the stop. Empty unless @p stop is
 /// PAUSED, CANCELLED or ERROR, or when nothing explains it.
 std::string decide_print_stop_reason(PrintJobState stop, const std::string& print_message,
                                      const std::vector<JournalEntry>& entries, double stop_time,
-                                     const std::optional<JournalEntry>& monitor = std::nullopt);
+                                     const std::optional<JournalEntry>& monitor = std::nullopt,
+                                     const std::string& worded_cause = {});
 
 /// What to add to a time in @p store to put it on the screen's clock, given
 /// that the screen saw @p line arrive at @p seen_at: the newest response in
@@ -134,6 +137,12 @@ class PrintStopReasonTracker {
     std::string stop_message_;
     /// A pause's reason, kept when the paused print is then canceled.
     std::string carried_reason_;
+    /// The worded pause cause that explained this pause. The firmware clears
+    /// the cause in the frame that leaves the pause, so it is held here.
+    std::string stop_cause_;
+    /// The carried reason is that cause: it outranks whatever raw text the
+    /// cancel brings along.
+    bool carried_cause_ = false;
     std::optional<JournalEntry> last_error_;
     /// The newest monitor announcement, its text as shown, stamped on arrival.
     /// Kept while the display message moves on: a pause macro's own M117 can
@@ -147,6 +156,7 @@ class PrintStopReasonTracker {
     ObserverGuard job_state_observer_;
     ObserverGuard message_observer_;
     ObserverGuard display_message_observer_;
+    ObserverGuard pause_cause_observer_;
     AsyncLifetimeGuard lifetime_;
 };
 

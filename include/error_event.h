@@ -61,6 +61,13 @@ struct RecoveryAction {
     std::string guided_flow;
 };
 
+/// Guided flows any producer may name in RecoveryAction::guided_flow: the way on
+/// from a fault that is not one gcode. ui_guided_device_flow.cpp registers them.
+/// Opens the Filament panel, where each head's own Load and Unload live.
+inline constexpr const char* kOpenFilamentFlowId = "open_filament";
+/// Asks to cancel the print, through the same confirmation the Stop button raises.
+inline constexpr const char* kCancelPrintFlowId = "cancel_print";
+
 /// Result of classifying one gcode-response line. Produced by the pure
 /// `error_classify::classify()`; consumed by the router's presenter.
 struct ErrorEvent {

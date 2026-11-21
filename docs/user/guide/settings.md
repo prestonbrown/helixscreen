@@ -45,7 +45,7 @@ Some rows show a short line under their name, so you can check things without op
 
 | Row | What the line shows | Examples |
 |-----|---------------------|----------|
-| **Display** | Brightness and when the screen sleeps | *80% · sleep 20 min*, *80% · never sleeps*, *Sleep 20 min* (screens without brightness control) |
+| **Display** | Brightness and when the screen sleeps | *80% · sleep 60 min*, *80% · never sleeps*, *Sleep 60 min* (screens without brightness control) |
 | **Appearance** | Light or dark, and your theme | *Dark Mode · Nord* |
 | **Sound** | Your volume, or *Muted* when sounds are off or the volume is 0 | *Volume 60%*, *Muted* |
 | **Devices** | A hardware health check | *All healthy*, *Needs attention*, *Problem found* |
