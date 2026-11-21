@@ -28,7 +28,14 @@
             width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
             style_pad_bottom="#space_sm" flex_flow="column" style_pad_gap="#space_xs" scrollable="true"
             scrollbar_mode="active">
-      <!-- Rows populated dynamically in C++ -->
+      <!-- Auto-color mode: on, the rows follow the closest-color map and stop taking picks. -->
+      <setting_toggle_row name="auto_color_map_row"
+                          label="Map to closest colors with matching material" subject="filament_mapping_auto"
+                          callback="filament_mapping_auto_toggle_cb"/>
+      <!-- One filament_mapping_tool_row per tool, built by FilamentMappingModal -->
+      <lv_obj name="mapping_tool_rows"
+              width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+              style_pad_gap="#space_xs" scrollable="false"/>
     </lv_obj>
 
     <modal_button_row secondary_text="Cancel"
