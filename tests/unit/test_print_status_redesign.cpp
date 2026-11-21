@@ -93,6 +93,19 @@ PrintStatusTiles::Image tagged_image(const std::string& path) {
     return img;
 }
 
+/// A full start sequence: eight steps, the most the checklist lists, the fourth under way.
+std::optional<PreprintChecklistInput> eight_steps() {
+    PreprintChecklistInput in;
+    in.done_in_order = {PrintStartPhase::HOMING, PrintStartPhase::HEATING_BED,
+                        PrintStartPhase::SOAKING};
+    in.current = PrintStartPhase::HEATING_NOZZLE;
+    in.expected_order = {PrintStartPhase::HOMING,   PrintStartPhase::HEATING_BED,
+                         PrintStartPhase::SOAKING,  PrintStartPhase::HEATING_NOZZLE,
+                         PrintStartPhase::QGL,      PrintStartPhase::BED_MESH,
+                         PrintStartPhase::CLEANING, PrintStartPhase::PURGING};
+    return in;
+}
+
 /// The lane tray's ams_mini_status, which the app registers with AmsState
 /// standing, a four-lane filament system for it to draw, and the gate
 /// following AmsState as it does in the app. The returned token takes the
@@ -1544,4 +1557,50 @@ TEST_CASE_METHOD(UltrawideTray, "several heads with no lanes keep the readouts, 
     lv_subject_set_int(slots, original);
     PrintStatusPanelTestAccess::relayout(panel());
     UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(Portrait600, "the lane tray leaves the pre-print checklist every row",
+                 "[print_status_tray]") {
+    ScopedLaneTrayGate gate(1);
+    settle();
+    const int printing_tray_h = subject_int("ps_lane_tray_h");
+    REQUIRE(printing_tray_h > 0);
+
+    tiles().set_checklist_source(eight_steps);
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::HEATING_NOZZLE));
+    UpdateQueue::instance().drain();
+    process_lvgl(900); // the preparing view shows after its debounce
+    REQUIRE(subject_int("preparing_visible") == 1);
+    settle();
+    settle();
+    REQUIRE(subject_int("ps_checklist_compact") == 0);
+    const int rows = subject_int("ps_step_count");
+    REQUIRE(rows == 8);
+    lv_obj_t* job = lv_obj_find_by_name(root_, "ps_job_tile");
+    REQUIRE(job != nullptr);
+    lv_area_t job_a;
+    lv_obj_get_coords(job, &job_a);
+    for (int i = 0; i < rows; ++i) {
+        lv_obj_t* row = lv_obj_find_by_name(root_, ("ps_step_row_" + std::to_string(i)).c_str());
+        REQUIRE(row != nullptr);
+        REQUIRE(shown(row));
+        lv_area_t row_a;
+        lv_obj_get_coords(row, &row_a);
+        CAPTURE(i, row_a.y2, job_a.y2, subject_int("ps_lane_tray_h"));
+        CHECK(row_a.y2 <= job_a.y2);
+    }
+    const int preparing_tray_h = subject_int("ps_lane_tray_h");
+
+    // Printing frees the checklist's rows for the tray again.
+    tiles().set_checklist_source(
+        []() -> std::optional<PreprintChecklistInput> { return PreprintChecklistInput{}; });
+    set_int(state().print_state().get_print_start_phase_subject(),
+            static_cast<int>(PrintStartPhase::IDLE));
+    UpdateQueue::instance().drain();
+    REQUIRE(subject_int("preparing_visible") == 0);
+    settle();
+    settle();
+    CHECK(subject_int("ps_lane_tray_h") == printing_tray_h);
+    CHECK(preparing_tray_h <= printing_tray_h);
 }

@@ -44,14 +44,15 @@ struct PrintStatusTileLayout {
 /// the rest (236:196 stacked, halves side by side), then any extra comes out
 /// of the job tile alone. With `lane_tray`, stacked tiles give the lane tray
 /// strip, up to its natural height, what the job tile can spare above the
-/// height its checklist goes compact at. The printer tile keeps the height it
+/// height its checklist goes compact at, or above `job_content_h` (what the job
+/// tile shows now needs, the pre-print checklist in full) when that is more.
+/// The printer tile keeps the height it
 /// has without the tray: too little room shrinks the tray or shows none,
 /// never the picture. Side by side never shows the tray.
-[[nodiscard]] PrintStatusTileLayout decide_print_status_tile_layout(int32_t content_w,
-                                                                    int32_t content_h, int32_t gap,
-                                                                    int32_t strip_row_h,
-                                                                    int32_t strip_stacked_h,
-                                                                    bool lane_tray = false);
+[[nodiscard]] PrintStatusTileLayout
+decide_print_status_tile_layout(int32_t content_w, int32_t content_h, int32_t gap,
+                                int32_t strip_row_h, int32_t strip_stacked_h,
+                                bool lane_tray = false, int32_t job_content_h = 0);
 
 /// The ultrawide arrangement of a `content_w` x `content_h` box whose columns sit
 /// `gap` apart: the preview square at the full height, the printer picture at

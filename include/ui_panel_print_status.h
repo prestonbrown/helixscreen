@@ -720,6 +720,8 @@ class PrintStatusPanel : public OverlayBase {
     ObserverGuard job_queue_count_observer_;
     ObserverGuard lane_tray_gate_observer_;
     ObserverGuard lane_tray_slots_observer_;
+    ObserverGuard lane_tray_steps_observer_;
+    ObserverGuard lane_tray_preparing_observer_;
     ObserverGuard scoped_runout_observer_; ///< Recomputes scoped runout badge on sensor edge
     /// ...and on AMS lane change (slots_version), which also re-pushes the
     /// viewer's per-tool colors: ams_color_observer_ only sees the ACTIVE lane
