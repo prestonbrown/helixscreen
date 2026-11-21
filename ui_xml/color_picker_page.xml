@@ -7,7 +7,8 @@
      host's draft live; Back returns, and the host's own Save commits. -->
 <component>
   <view name="color_picker_page" extends="overlay_panel" title="" title_transform="none">
-    <header_bar-header_content flex_grow="1" style_pad_gap="#space_md">
+    <!-- The readout takes the header: the back region keeps only its arrow. -->
+    <header_bar-header_content flex_grow="20" style_pad_gap="#space_md">
       <color_picker_readout name="cpp_readout" flex_grow="1"/>
       <color_picker_tabs/>
     </header_bar-header_content>

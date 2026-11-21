@@ -20,12 +20,12 @@
     <px name="cpv_step_w_small" value="48"/>
     <px name="cpv_step_w_medium" value="56"/>
     <px name="cpv_step_w_large" value="60"/>
-    <px name="cpv_label_w_micro" value="72"/>
+    <px name="cpv_label_w_micro" value="60"/>
     <px name="cpv_label_w_tiny" value="80"/>
     <px name="cpv_label_w_small" value="84"/>
     <px name="cpv_label_w_medium" value="110"/>
     <px name="cpv_label_w_large" value="120"/>
-    <px name="cpv_value_w_micro" value="40"/>
+    <px name="cpv_value_w_micro" value="34"/>
     <px name="cpv_value_w_tiny" value="44"/>
     <px name="cpv_value_w_small" value="48"/>
     <px name="cpv_value_w_medium" value="56"/>

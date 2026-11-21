@@ -175,13 +175,14 @@ class ThemeEditorOverlay : public OverlayBase {
     helix::xml::IndexedSubjectPool swatch_color_pool_{"theme_editor_role_color",
                                                       helix::xml::IndexedSubjectPool::Type::Color};
 
-    /// The role bars' names, hexes and text colors (theme_role_bar.xml).
+    /// The role bars' names, hexes and light/dark flags (theme_role_bar.xml).
     helix::xml::IndexedSubjectPool role_name_pool_{"theme_editor_role_name",
                                                    helix::xml::IndexedSubjectPool::Type::String};
     helix::xml::IndexedSubjectPool role_hex_pool_{"theme_editor_role_hex",
                                                   helix::xml::IndexedSubjectPool::Type::String, 16};
-    helix::xml::IndexedSubjectPool role_text_pool_{"theme_editor_role_text",
-                                                   helix::xml::IndexedSubjectPool::Type::Color};
+    /// 1 when the role's color is light, so its bar's text is dark.
+    helix::xml::IndexedSubjectPool role_light_pool_{"theme_editor_role_light",
+                                                    helix::xml::IndexedSubjectPool::Type::Int};
     /// The inline picker editing the selected role.
     helix::ui::ColorPickerView picker_;
     /// The theme previews a moment after the last change, not on every drag step.

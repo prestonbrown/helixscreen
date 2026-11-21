@@ -1579,40 +1579,20 @@ writes nothing; `apply_family_change()` keeps the brand when it makes the new
 material, else Generic, resets the variant to Basic and drops the product.
 Re-picking the selected option is a no-op.
 
-**Layout.** Two layouts are always built and one is hidden by `bind_flag`: the
-split one (form left, colour column right) at the short landscape class, the
-stacked one elsewhere. They cannot be one `<if>`, because the engine refuses a
-`<repeat>` inside `<if>`. Each colour grid leads with `custom_color_swatch`
-(a count change rebuilds a `<repeat>` at the end of its row, so the fixed tile
-goes first), and `size_color_grids()` sets each grid's preset count from its
-measured width in whole rows: three in the split column, two in the stacked
-grid, one at the small class and below. It runs again from `on_activate()`,
-because the push sets the overlay's final width after the editor was built.
-Both grids size from the shared `swatch_grid_*` tokens and are padded by
-`swatch_grid_gap_half`, so every swatch, the edge rows included, has a 7 mm
-target (`COLOR_SWATCHES.md` § "Preset grids and touch targets"). A grid tap
-stages the colour; the custom tile and the summary swatch (the primary 44px
-colour entry) open the colour view. The ring follows `color_ring_index()`: the
-first visible preset that matches, else the custom tile (-2) for a colour none
-of the shown presets holds, else none. The split layout carries the
-temperature line under the form, where the colour column leaves room.
+**Layout.** Two layouts of the identity form are always built and one is hidden
+by `bind_flag`: the short landscape class carries the temperature line inside the
+form, the others show it above. The color section follows either: the Color line
+names the color (`ams_edit_color_name`), and one row holds the current color
+(1.25 x a chip, ringed), the newest filament recents other than it (four on the
+480-wide classes, six above; `color_row_recents()`) and an All colors pill. A
+recent chip stages its color in the editor's draft at once. The current color,
+All colors and the summary swatch push the color page (`ColorPickerPage`,
+`COLOR_SWATCHES.md` § "The color picker"), which edits the same draft live: Back
+keeps it and only Save commits it, adding it to the filament recents.
 Every non-swatch control reaches 44px: Reset to tag, More and the Add link sit
 in one short bar and reach it through `ext_click_area`, as the weight pill does.
 The editor fits without scrolling at 800x480, 480x320, 480x272 and 320x480,
 including the tag-badged worst case; only the opened More section scrolls.
-
-**The colour view** (`ams_edit_view` 2) holds the 30-swatch `color_swatch_grid`
-and the HSV picker (hex field, Select). `update_color_fit()` measures both panes
-with both shown against the overlay's content area, and `color_panes_fit()`
-(pure) says whether they fit side by side or stacked without scrolling
-(`ams_edit_color_fits`). Where they do (800x480 and larger) both show and the
-picker never covers a swatch. Where they do not (480x320, 480x272, 320x480)
-one pane fills the view at a time (`ams_edit_color_pane`): the presets lead
-with the grid's own custom tile (`lead_hidden="false"`), which swaps in the
-picker, and the picker's Presets button swaps back. Both panes are fixed-size,
-so the verdict is cached per room (`color_fit_room_w_`/`_h_`) and the subject
-moves only when it changes: each flip rebuilds the grid. A preset tap applies
-the colour and returns to the editor; Select applies the picker's.
 
 **Summary, temperatures, tags.** The summary line ("eSUN Silk PETG, Blue") and
 the temperature line follow the selection live: a picked product's range, else
@@ -3816,7 +3796,7 @@ Key patterns:
 | `ui_xml/create_filament_modal.xml` | New filament modal form |
 | `ui_xml/wizard_vendor_row.xml` | Selectable vendor row (lv_button with checked style) |
 | `ui_xml/wizard_filament_row.xml` | Selectable filament row (lv_button with checked style) |
-| `src/ui/components/ui_color_picker.cpp` | Color picker modal (used by filament creation) |
+| `src/ui/components/ui_color_picker_modal.cpp` | Color picker modal (used by filament creation) |
 
 The wizard steps above are the reference for the wizard's behaviour.
 

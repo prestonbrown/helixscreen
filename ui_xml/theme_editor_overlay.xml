@@ -6,13 +6,14 @@
 <component>
   <consts>
     <!-- The color editor's height: the roles and the picker beside or under
-         them. At 480x272 it is taller than the view, so the grid keeps touch-sized
-         rows and the content scrolls a little to reach the properties. -->
+         them, sized to the view above the pinned buttons. At 480x272 it is
+         taller than the view, so the grid keeps touch-sized rows and the content
+         scrolls a little to reach the properties. -->
     <px name="theme_colors_h_micro" value="236"/>
-    <px name="theme_colors_h_tiny" value="250"/>
-    <px name="theme_colors_h_small" value="300"/>
-    <px name="theme_colors_h_medium" value="330"/>
-    <px name="theme_colors_h_large" value="420"/>
+    <px name="theme_colors_h_tiny" value="230"/>
+    <px name="theme_colors_h_small" value="250"/>
+    <px name="theme_colors_h_medium" value="262"/>
+    <px name="theme_colors_h_large" value="380"/>
     <px name="theme_roles_w_micro" value="190"/>
     <px name="theme_roles_w_tiny" value="170"/>
     <px name="theme_roles_w_small" value="180"/>
@@ -20,9 +21,11 @@
     <px name="theme_roles_w_large" value="230"/>
   </consts>
   <styles>
-    <style name="colors_stacked" flex_flow="column"/>
-    <style name="roles_row" width="100%" height="content" flex_flow="row"/>
-    <style name="roles_column" width="#theme_roles_w" height="100%" flex_flow="column"/>
+    <!-- Bound, never inline: an inline flex_flow would outrank both. -->
+    <style name="colors_stacked" layout="flex" flex_flow="column"/>
+    <style name="colors_beside" layout="flex" flex_flow="row"/>
+    <style name="roles_row" width="100%" height="content" layout="flex" flex_flow="row"/>
+    <style name="roles_column" width="#theme_roles_w" height="100%" layout="flex" flex_flow="column"/>
     <style name="picker_below" width="100%" height="0"/>
     <style name="picker_beside" width="0" height="100%"/>
     <!-- 480x272 tightens every inset one step so the swatch grid and the
@@ -43,13 +46,13 @@
         extends="overlay_panel" title="Edit Theme Colors" title_subject="theme_editor_title" bg_color="#screen_bg"
         back_button_callback="on_theme_back_clicked">
     <!-- At 480x272 the picker's readout and switch sit in the header. -->
-    <header_bar-header_content flex_grow="4" style_pad_gap="#space_sm">
+    <header_bar-header_content style_pad_gap="#space_sm">
       <lv_obj name="theme_header_picker"
-              height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              width="content" height="100%" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
               style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
               clickable="false" hidden="true">
         <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-        <color_picker_readout flex_grow="1"/>
+        <color_picker_readout/>
         <color_picker_tabs/>
       </lv_obj>
     </header_bar-header_content>
@@ -68,9 +71,10 @@
            and switch sit in the header). Tapping a bar edits that role; the
            picker repaints it and the theme previews it live. -->
       <lv_obj name="theme_colors"
-              width="100%" height="#theme_colors_h" style_bg_opa="0" style_border_width="0" flex_flow="row"
-              scrollable="false" clickable="false">
+              width="100%" height="#theme_colors_h" style_bg_opa="0" style_border_width="0" scrollable="false"
+              clickable="false">
         <bind_style_if_eq name="colors_stacked" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if_ge name="colors_beside" subject="ui_breakpoint" ref_value="1"/>
         <bind_style_if_eq name="editor_swatches_micro" subject="ui_breakpoint" ref_value="0"/>
         <bind_style_if_ge name="editor_swatches" subject="ui_breakpoint" ref_value="1"/>
         <lv_obj name="theme_role_list"

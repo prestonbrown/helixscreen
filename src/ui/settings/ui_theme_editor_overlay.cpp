@@ -39,6 +39,8 @@ namespace {
 /// The role the editor opens on: Primary, the color a theme is known by.
 constexpr int kFirstEditedRole = 8;
 constexpr uint32_t kPreviewDelayMs = 150;
+/// A bar at or above this brightness (0-255) carries dark text.
+constexpr int kLightBarBrightness = 128;
 /// The role bars' names, in ModePalette::color_names() order.
 constexpr std::array<const char*, 16> kRoleNames = {
     "Screen",     "Overlay",     "Card",    "Elevated",  "Border",   "Text",
@@ -99,7 +101,7 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
     swatch_color_pool_.ensure_size(roles);
     role_name_pool_.ensure_size(roles);
     role_hex_pool_.ensure_size(roles);
-    role_text_pool_.ensure_size(roles);
+    role_light_pool_.ensure_size(roles);
     for (size_t i = 0; i < roles && i < kRoleNames.size(); ++i) {
         role_name_pool_.set_string(i, lv_tr(kRoleNames[i]));
     }
@@ -569,6 +571,9 @@ void ThemeEditorOverlay::select_role(int palette_index) {
     if (overlay_root_) {
         const std::string name = "role_" + std::to_string(palette_index);
         if (lv_obj_t* bar = lv_obj_find_by_name(overlay_root_, name.c_str())) {
+            // The list scrolls inside the page; measure it first, since a
+            // freshly built page has no layout yet.
+            lv_obj_update_layout(overlay_root_);
             lv_obj_scroll_to_view(bar, LV_ANIM_OFF);
         }
     }
@@ -600,8 +605,7 @@ void ThemeEditorOverlay::publish_role(size_t i) {
     swatch_color_pool_.set_color(i, lv_color_to_u32(color) & 0xFFFFFF);
     if (i < role_hex_pool_.size()) {
         role_hex_pool_.set_string(i, hex);
-        role_text_pool_.set_color(i, lv_color_to_u32(theme_manager_get_contrast_color(color)) &
-                                         0xFFFFFF);
+        role_light_pool_.set_int(i, theme_compute_brightness(color) >= kLightBarBrightness ? 1 : 0);
     }
 }
 

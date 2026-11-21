@@ -93,6 +93,16 @@ TEST_CASE_METHOD(ThemeEditorSwatchFixture,
               rgb(theme_manager_parse_hex_color(palette.at(i).c_str())));
     }
 
+    // A bar's text reads on its own color: dark on Text's light bar, light on
+    // Screen's dark one, after the theme preview's recolor pass.
+    auto text_of = [&](const char* bar) {
+        lv_obj_t* label = lv_obj_get_child(lv_obj_find_by_name(root, bar), 0);
+        REQUIRE(label != nullptr);
+        return theme_compute_brightness(lv_obj_get_style_text_color(label, LV_PART_MAIN));
+    };
+    CHECK(text_of("role_5") < 128);
+    CHECK(text_of("role_0") >= 128);
+
     // The picker sits in the page, editing Primary, with no modal.
     REQUIRE(ColorPickerView::active() != nullptr);
     auto* picker = ColorPickerView::active();

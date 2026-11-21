@@ -74,14 +74,15 @@
       </if>
     </lv_obj>
 
-    <!-- Sliders tab. -->
+    <!-- Sliders tab. The rows' wider gap keeps the knob, which overhangs the
+         track ends at 0 and 100, off the steppers. -->
     <lv_obj name="cp_sliders_tab"
             width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0"
             style_border_width="0" flex_flow="column" style_flex_main_place="space_between" scrollable="false"
             clickable="false" hidden="true">
       <bind_flag_if_not_eq subject="color_picker_tab" flag="hidden" ref_value="1"/>
       <lv_obj name="cp_row_h"
-              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
               style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
               clickable="false">
         <text_small width="#cpv_label_w" text="Hue" style_text_color="#text_muted"/>
@@ -106,7 +107,7 @@
                     bind_text="color_picker_hue_text" style_text_align="right" style_text_color="#text_muted"/>
       </lv_obj>
       <lv_obj name="cp_row_s"
-              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
               style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
               clickable="false">
         <text_small width="#cpv_label_w" text="Saturation" style_text_color="#text_muted"/>
@@ -133,7 +134,7 @@
                     bind_text="color_picker_sat_text" style_text_align="right" style_text_color="#text_muted"/>
       </lv_obj>
       <lv_obj name="cp_row_v"
-              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+              width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
               style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
               clickable="false">
         <text_small width="#cpv_label_w" text="Brightness" style_text_color="#text_muted"/>
