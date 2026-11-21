@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "env_knobs.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/spdlog.h>
@@ -134,6 +135,15 @@ MoonrakerClientMock::gcode_mpc_calibrate(const std::string& gcode) {
 // message, and klippy actually restarts. No "ok" is dispatched, because real
 // Klipper never sends one for this command.
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_save_config(const std::string& gcode) {
+    // Kalico's cmd_SAVE_CONFIG takes RESTART=0: it writes the file, answers the
+    // command, and leaves Klipper up. Mainline has no such parameter.
+    if (helix::env_flag("HELIX_MOCK_KALICO") && gcode.find("RESTART=0") != std::string::npos) {
+        spdlog::info("[MoonrakerClientMock] SAVE_CONFIG RESTART=0 - config written, no restart "
+                     "(as on Kalico)");
+        commit_pending_config();
+        dispatch_gcode_response("// Config update without restart successful");
+        return 0;
+    }
     spdlog::info("[MoonrakerClientMock] SAVE_CONFIG - config written; restarting, and its "
                  "RPC is dropped (as on real Klipper)");
     // Write the file BEFORE restarting, in that order, because the restart
@@ -162,6 +172,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_bed_mesh(const std::
             profile_name = gcode.substr(start, end == std::string::npos ? end : end - start);
         }
         calibrate_mock_mesh(profile_name);
+        stage_config_change("bed_mesh " + profile_name, "version", "1");
     } else if (gcode.find("BED_MESH_PROFILE") != std::string::npos) {
         // Parse LOAD= or SAVE= or REMOVE= parameter
         if (gcode.find("LOAD=") != std::string::npos) {
@@ -197,6 +208,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_bed_mesh(const std::
             // Store current mesh data under new name
             active_bed_mesh_.name = profile_name;
             stored_bed_mesh_profiles_[profile_name] = active_bed_mesh_;
+            stage_config_change("bed_mesh " + profile_name, "version", "1");
             spdlog::info("[MoonrakerClientMock] BED_MESH_PROFILE SAVE: saved profile '{}'",
                          profile_name);
             dispatch_bed_mesh_update();
@@ -212,6 +224,7 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_bed_mesh(const std::
             if (it != bed_mesh_profiles_.end()) {
                 bed_mesh_profiles_.erase(it);
                 stored_bed_mesh_profiles_.erase(profile_name);
+                stage_config_removal("bed_mesh " + profile_name);
                 spdlog::info("[MoonrakerClientMock] BED_MESH_PROFILE REMOVE: removed profile '{}'",
                              profile_name);
                 dispatch_bed_mesh_update();
@@ -471,8 +484,9 @@ MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_accept(const std::st
         spdlog::info("[MoonrakerClientMock] ACCEPT: Z-offset calibration complete, offset={:.3f}mm",
                      final_z);
 
-        // In real Klipper, this would update probe z_offset in config
-        // User typically follows with SAVE_CONFIG to persist
+        // As probe_calibrate_finalize does: stage the result for SAVE_CONFIG
+        // without touching the running value.
+        stage_config_change("probe", "z_offset", fmt::format("{:.3f}", final_z));
 
         // Dispatch manual probe state change (is_active=false)
         dispatch_manual_probe_update();

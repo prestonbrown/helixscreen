@@ -37,6 +37,7 @@ controls           navigate controls
 filament           navigate filament
 settings           navigate settings
 advanced           navigate advanced
+calibration        navigate advanced; click row_calibration
 print-select       navigate print-select
 
 # Printer image callouts (home widget, prestonbrown/helixscreen#1397).
@@ -81,7 +82,7 @@ bed-temp           navigate controls; click btn_bed_temp
 extrusion          navigate filament
 fan                navigate controls; click card_cooling
 bed-mesh           navigate controls; click btn_bed_mesh
-pid                navigate advanced; click row_pid_tuning
+pid                navigate advanced; click row_calibration; click cal_tile_heaters
 
 # Filament / AMS (the filament panel's AMS row no-ops without a configured
 # backend, so the dedicated management panel is reached via demo)
@@ -152,9 +153,9 @@ about              navigate settings; click row_help; click row_about
 help-qr            navigate settings; click row_help; click row_discord; click btn_ok
 
 # Advanced overlays
-input-shaper       navigate advanced; click row_input_shaping
+input-shaper       navigate advanced; click row_calibration; click cal_tile_input_shaper
 screws             navigate advanced; click row_bed_mesh
-zoffset            navigate advanced; click row_z_offset
+zoffset            navigate advanced; click row_calibration; click cal_tile_z_offset
 spoolman           navigate advanced; click row_spoolman
 history-dashboard  navigate advanced; click row_print_history
 macros             navigate advanced; click row_macros

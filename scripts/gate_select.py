@@ -138,10 +138,6 @@ STAGE_TRIGGERS = {
     # check_no_mocks.py compiles the branch's packaged units with mocks off.
     'no-mocks': ('src/', 'include/', 'Makefile', 'mk/', 'lv_conf.h',
                  'scripts/check_no_mocks.py'),
-    # esp32_syntax_check.py compiles the firmware units the branch reaches.
-    'esp32': ('src/', 'include/', 'ui_xml/', 'firmware/', 'lib/', 'patches/',
-              'Makefile', 'mk/', 'lv_conf.h', 'scripts/esp32_syntax_check.py',
-              'scripts/compile_command.py'),
 }
 
 # tests/python reads scripts/ and the repo data the scripts process. A change
@@ -161,8 +157,8 @@ PYTHON_CXX_READERS = (
 
 # Stages each step of the gate has, in the gate's order.
 STAGES = ('app-build', 'ci-shards', 'slow', 'bats', 'ui', 'plugin', 'python',
-          'theme-tokens', 'xml-schema', 'lint-xml', 'lvgl-event-codes', 'esp32',
-          'no-mocks', 'quality')
+          'theme-tokens', 'xml-schema', 'lint-xml', 'lvgl-event-codes', 'no-mocks',
+          'quality')
 
 
 

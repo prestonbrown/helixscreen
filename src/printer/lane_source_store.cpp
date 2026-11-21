@@ -383,6 +383,15 @@ void acknowledge_pending(LaneId lane) {
                                             PendingOutcome::Echoed);
 }
 
+void echo_pending(LaneId lane, const Observation& reading) {
+    if (!is_lane_id(lane)) {
+        return;
+    }
+    LaneSourceStore::instance().trim_pending(
+        lane, [&reading](Observation& pending) { strip_echoed_fields(pending, reading); },
+        PendingOutcome::Echoed);
+}
+
 std::uint64_t pending_filings(LaneId lane) {
     return is_lane_id(lane) ? LaneSourceStore::instance().filings(lane) : 0;
 }

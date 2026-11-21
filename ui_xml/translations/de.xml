@@ -509,6 +509,7 @@
   <translation tag="Bed mesh operation timed out" de="Bettnetz-Vorgang Zeitüberschreitung"/>
   <translation tag="Bed mesh..." de="Bettnetz..."/>
   <translation tag="Bed needs manual leveling" de="Bett muss manuell nivelliert werden"/>
+  <translation tag="Bed screws" de="Bettschrauben"/>
   <translation tag="Bed size unknown" de="Bettgröße unbekannt"/>
   <translation tag="Bed target set to {}" de="Bett-Zieltemperatur auf {} gesetzt"/>
   <translation tag="Bed temp must be %d-%s" de="Betttemperatur muss %d-%s betragen"/>
@@ -523,6 +524,7 @@
   <translation tag="Belt Tension" de="Riemenspannung"/>
   <translation tag="Belt Tension Check" de="Riemenspannungsprüfung"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." de="Die Riemenspannung benötigt einen CoreXY-Drucker. Dieser Drucker ist {}."/>
+  <translation tag="Belt compare" de="Riemenvergleich"/>
   <translation tag="Belt tension" de="Riemenspannung"/>
   <translation tag="Belt tension and cutter calibration" de="Riemenspannung und Schneider-Kalibrierung"/>
   <translation tag="Belt tensioning completed" de="Riemenspannung abgeschlossen"/>
@@ -647,6 +649,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" de="Input Shaping kalibrieren, um Ringing-Artefakte im Druck zu reduzieren"/>
   <translation tag="Calibrate now" de="Jetzt kalibrieren"/>
   <translation tag="Calibrate part fan" de="Bauteillüfter kalibrieren"/>
+  <translation tag="Calibrate this printer, step by step" de="Diesen Drucker Schritt für Schritt kalibrieren"/>
   <translation tag="Calibrate tool offsets?" de="Werkzeug-Offsets kalibrieren?"/>
   <translation tag="Calibrate with this tool?" de="Mit diesem Werkzeug kalibrieren?"/>
   <translation tag="Calibrate your touchscreen for accurate input" de="Touchscreen für präzise Eingabe kalibrieren"/>
@@ -1159,6 +1162,7 @@
   <translation tag="Cutter calibration completed" de="Schneider-Kalibrierung abgeschlossen"/>
   <translation tag="Cutter calibration failed: {}" de="Schneider-Kalibrierung fehlgeschlagen: {}"/>
   <translation tag="Cutter jam" de="Schneidestau"/>
+  <translation tag="Cutter position" de="Schneiderposition"/>
   <translation tag="Cutting" de="Schneiden"/>
   <translation tag="Cutting filament" de="Filament wird geschnitten"/>
   <translation tag="Cutting filament..." de="Filament wird geschnitten..."/>
@@ -1281,6 +1285,8 @@
   <translation tag="Don&apos;t Save" de="Nicht speichern"/>
   <translation tag="Don&apos;t ask again" de="Nicht erneut fragen"/>
   <translation tag="Done" de="Fertig"/>
+  <translation tag="Done {}" de="Erledigt {}"/>
+  <translation tag="Done {} · {}" de="Erledigt {} · {}"/>
   <translation tag="Door" de="Tür"/>
   <translation tag="Door Open" de="Tür offen"/>
   <translation tag="Door opened during print: {}" de="Tür während des Drucks geöffnet: {}"/>
@@ -1916,6 +1922,7 @@
   <translation tag="Heater over-temperature" de="Heizung überhitzt"/>
   <translation tag="Heater sensor fault" de="Heizungssensor-Fehler"/>
   <translation tag="HeaterSelect" de="Heizung auswählen"/>
+  <translation tag="Heaters" de="Heizungen"/>
   <translation tag="Heaters off" de="Heizungen aus"/>
   <translation tag="Heating" de="Aufheizen"/>
   <translation tag="Heating (%s below minimum)" de="Aufheizen (%s unter Minimum)"/>
@@ -2086,6 +2093,7 @@
   <translation tag="Imported {}" de="{} importiert"/>
   <translation tag="Importing {}..." de="{} wird importiert..."/>
   <translation tag="In Progress" de="In Bearbeitung"/>
+  <translation tag="In config · {}" de="In der Konfiguration · {}"/>
   <translation tag="Inactive" de="Inaktiv"/>
   <translation tag="Inch units not supported" de="Zoll-Einheiten nicht unterstützt"/>
   <translation tag="Include Klipper/Moonraker logs" de="Klipper/Moonraker-Protokolle einschließen"/>
@@ -2103,6 +2111,7 @@
   <translation tag="Input Shaper Calibration" de="Input-Shaper-Kalibrierung"/>
   <translation tag="Input Shaper Help" de="Input Shaper Hilfe"/>
   <translation tag="Input Shaping" de="Input Shaping"/>
+  <translation tag="Input shaper" de="Input Shaper"/>
   <translation tag="Input shaper calibration sensors" de="Input-Shaper-Kalibrierungssensoren"/>
   <translation tag="Input shaper calibration..." de="Input-Shaper-Kalibrierung..."/>
   <translation tag="Input shaper settings applied!" de="Input-Shaper-Einstellungen angewendet!"/>
@@ -2651,6 +2660,9 @@
   <translation tag="Neutral" de="Neutral"/>
   <translation tag="Neutralize Tension" de="Spannung ausgleichen"/>
   <translation tag="Never" de="Nie"/>
+  <translation tag="Never run" de="Nie ausgeführt"/>
+  <translation tag="Never run · optional" de="Nie ausgeführt · optional"/>
+  <translation tag="Never run · required" de="Nie ausgeführt · erforderlich"/>
   <translation tag="Never sleeps" de="Schläft nie"/>
   <translation tag="New Spool" de="Neue Spule"/>
   <translation tag="New Spool: Step 1 of 3" de="Neue Spule: Schritt 1 von 3"/>
@@ -3144,6 +3156,7 @@
   <translation tag="Pressure Advance Tuning" de="Pressure-Advance-Tuning"/>
   <translation tag="Pressure advance" de="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." de="Pressure Advance steigt mit der Turmhöhe. Beobachte die Ecken: Tippe jederzeit - oder +, dann stoppt die Rampe und du kannst deinen eigenen Wert beurteilen."/>
+  <translation tag="Pressure advance tuning" de="Pressure-Advance-Tuning"/>
   <translation tag="Pressure:" de="Druck:"/>
   <translation tag="Preview" de="Vorschau"/>
   <translation tag="Preview Sounds" de="Sounds vorhören"/>
@@ -3660,6 +3673,7 @@
   <translation tag="Run the MMU fans by temperature" de="MMU-Lüfter nach Temperatur betreiben"/>
   <translation tag="Run the chamber dryer too" de="Kammertrockner ebenfalls betreiben"/>
   <translation tag="Run the official firmware update again so every board is updated, then restart." de="Das offizielle Firmware-Update erneut ausführen, damit jede Platine aktualisiert wird, dann neu starten."/>
+  <translation tag="Run when needed" de="Bei Bedarf ausführen"/>
   <translation tag="Run {}?" de="{} ausführen?"/>
   <translation tag="Running loose" de="Läuft locker"/>
   <translation tag="Running over" de="Überzogen"/>
@@ -4721,6 +4735,7 @@
   <translation tag="Tool cycle finished" de="Werkzeugwechsel-Durchlauf abgeschlossen"/>
   <translation tag="Tool is seated" de="Werkzeug sitzt"/>
   <translation tag="Tool may be half seated" de="Werkzeug sitzt möglicherweise nur halb"/>
+  <translation tag="Tool offsets" de="Werkzeug-Offsets"/>
   <translation tag="Tool offsets (mm)" de="Werkzeug-Offsets (mm)"/>
   <translation tag="Tool offsets saved" de="Werkzeug-Offsets gespeichert"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
@@ -4948,6 +4963,8 @@
   <translation tag="Vertical" de="Vertikal"/>
   <translation tag="Vertical Artifact Check" de="Prüfung vertikaler Artefakte"/>
   <translation tag="Vertical Artifact Compensation" de="Kompensation vertikaler Artefakte"/>
+  <translation tag="Vertical artifact check" de="Prüfung vertikaler Artefakte"/>
+  <translation tag="Vertical artifact compensation" de="Kompensation vertikaler Artefakte"/>
   <translation tag="Vibration" de="Vibration"/>
   <translation tag="Vibration compensation active" de="Vibrationskompensation aktiv"/>
   <translation tag="Video playback speed" de="Videowiedergabegeschwindigkeit"/>
@@ -5135,6 +5152,7 @@
   <translation tag="Z is at its limit ({}mm)" de="Z ist an seinem Limit ({}mm)"/>
   <translation tag="Z jog feedrate" de="Vorschub für die Z-Bewegung"/>
   <translation tag="Z motor calibration failed" de="Kalibrierung des Z-Motors fehlgeschlagen"/>
+  <translation tag="Z offset" de="Z-Offset"/>
   <translation tag="Z offset by material" de="Z-Offset nach Material"/>
   <translation tag="Z probes for bed leveling and mesh generation" de="Z-Sonden für Bettnivellierung und Netzerzeugung"/>
   <translation tag="Z tilt" de="Z-Neigung"/>

@@ -1412,7 +1412,7 @@ Auto-start X-axis input shaper calibration when the panel loads.
 # Test input shaper panel with auto-start (drive the UI with helix-screen ctl —
 # see docs/devel/HELIXCTL.md)
 INPUT_SHAPER_AUTO_START=1 ./build/bin/helix-screen --test &
-./build/bin/helix-screen ctl navigate advanced; ./build/bin/helix-screen ctl click row_input_shaping
+./build/bin/helix-screen ctl navigate advanced; ./build/bin/helix-screen ctl click row_calibration; ./build/bin/helix-screen ctl click cal_tile_input_shaper
 ```
 
 ### `SCREWS_AUTO_START`

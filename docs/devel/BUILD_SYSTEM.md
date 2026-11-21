@@ -543,8 +543,8 @@ cd .worktrees/my-feature
 # Set up existing worktree without creating
 ./scripts/setup-worktree.sh --setup-only feature/i18n
 
-# Skip the initial build
-./scripts/setup-worktree.sh --no-build feature/quick-test
+# Build right after setup (off by default: the first make in the worktree builds)
+./scripts/setup-worktree.sh --build feature/quick-test
 ```
 
 A new branch is cut from the HEAD of **whichever tree you run the script in**,
@@ -673,7 +673,7 @@ But it only helps across worktrees if it is configured for it. The native build 
 | `sloppiness` | `pch_defines,time_macros` | Without it ccache refuses to cache any `-include include/lvgl_pch.h` compile — i.e. all of them. See the box above for the `__DATE__` tradeoff |
 | `max_size` | `25G` (raised, never lowered) | The default 5 GiB thrashes once several worktrees + cross-compile caches share it, re-causing cold misses |
 
-For the script's own initial build it also exports `CCACHE_BASEDIR` (the longest common ancestor of the main tree and the worktree, so it works even for out-of-tree paths like `/tmp/foo`), `CCACHE_NOHASHDIR=1`, and `CCACHE_SLOPPINESS`.
+For the initial build `--build` runs, it also exports `CCACHE_BASEDIR` (the longest common ancestor of the main tree and the worktree, so it works even for out-of-tree paths like `/tmp/foo`), `CCACHE_NOHASHDIR=1`, and `CCACHE_SLOPPINESS`.
 
 These are global ccache settings, so they apply to normal main-tree builds too, not just worktrees — running `setup-worktree.sh` once is enough to fix a whole machine. Worth doing on every machine you build on, including remote build hosts: an existing ccache install with `base_dir`/`hash_dir` already set can still be caching nothing if `sloppiness` was never configured.
 
@@ -709,7 +709,7 @@ prerequisite of all of them, independent of this hash.
 ### Typical worktree workflow
 
 ```bash
-# 1. Spin up an isolated workspace for a feature (builds automatically)
+# 1. Spin up an isolated workspace for a feature (no build; add --build for one)
 ./scripts/setup-worktree.sh feature/my-feature
 cd .worktrees/my-feature
 
@@ -968,7 +968,8 @@ components, or under a valve. build.yml runs the whole slice on every push to ma
 
 The other steps go by path: `no-mocks` runs when an app input changed, `plugin`
 when `moonraker-plugin/` did, `python` whole for `scripts/` and the data it reads and only
-its C++-reading files for a change to `src/` or `include/`, `esp32` for firmware inputs.
+its C++-reading files for a change to `src/` or `include/`. No step compiles the ESP32
+firmware: CI's `esp32-build` job (`.github/workflows/esp32-build.yml`) is the ESP32 check.
 bats runs with `BATS_GATE=1` (`scripts/bats_select.py --gate`): a change confined to the
 app's C++ and XML, the C++ and pytest suites and docs runs a product file only when the
 file names a changed path or drives the built app. A docs-only change builds nothing and
@@ -1108,12 +1109,11 @@ into the real tree's caches.
 
 - **The pushed commit passed `make land-gate`** (its stamp, `.githooks/lib/land-gate-stamp.sh`)
   - the quality sweep and its clang/GCC divergence gate are skipped: the gate ran them on that
-  commit. When every pushed ref is main and the pushed range lies inside the range the gate's
-  `esp32` row measured (`merge-base(HEAD, origin/main)..HEAD`, run with `--require`), the
-  ESP32 syntax check is skipped too and only patch drift runs, in seconds, with no throwaway
-  worktree. A push to `release/*` or a tag, or beside another ref, still runs the ESP32
-  check. Patch drift always runs: it describes this tree's `lib/`, not the commit.
+  commit, so only patch drift runs, in seconds, with no throwaway worktree. Patch drift
+  always runs: it describes this tree's `lib/`, not the commit.
   `HELIX_PREPUSH_FULL=1` runs everything anyway.
+
+No push compiles the ESP32 firmware: CI's `esp32-build` job is the ESP32 check.
 
 Escape hatches: `HELIX_PREPUSH_IN_PLACE=1` forces the old in-place sweep, and
 `git push --no-verify` skips the hook. Expect CI to find whatever you skipped.

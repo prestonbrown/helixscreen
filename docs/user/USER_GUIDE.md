@@ -22,9 +22,9 @@ This guide covers everything you can do from HelixScreen's touchscreen. New to i
 | Dry filament | **Filament**, then the temperature badge on a box, or **Advanced > Dry Filament** | [Filament Drying](guide/filament-drying.md) |
 | Heat the nozzle or bed | **Controls**, or tap a heater on the Home screen | [Temperature Control](guide/temperature.md) |
 | Move or home the print head | **Controls > Motion** | [Motion & Positioning](guide/motion.md) |
-| Level my bed | **Controls > Bed Mesh**, or **Advanced > Bed Leveling** | [Calibration](guide/calibration.md#bed-mesh) |
-| Tune input shaper | **Advanced > Input Shaping** | [Calibration](guide/calibration.md#input-shaper) |
-| PID-tune a heater | **Advanced > Heater Calibration** | [Calibration](guide/calibration.md#heater-calibration-pid--mpc) |
+| Level my bed | **Controls > Bed Mesh**, or **Advanced > Calibration > Bed Leveling** | [Calibration](guide/calibration.md#bed-mesh) |
+| Tune input shaper | **Advanced > Calibration > Input Shaping** | [Calibration](guide/calibration.md#input-shaper) |
+| PID-tune a heater | **Advanced > Calibration > Heater Calibration** | [Calibration](guide/calibration.md#heater-calibration-pid--mpc) |
 | Run a macro | **Advanced > Macro Browser**, or a **Macros** widget | [Advanced Features](guide/advanced.md#macro-execution) |
 | See past prints | **Advanced > Print History** | [Print History](guide/print-history.md) |
 | Rearrange the home screen | Long-press the widget grid | [Edit Mode](guide/home-edit-mode.md) |

@@ -515,6 +515,7 @@
   <translation tag="Bed mesh operation timed out" fr="Maillage du plateau — délai dépassé"/>
   <translation tag="Bed mesh..." fr="Maillage du plateau..."/>
   <translation tag="Bed needs manual leveling" fr="Le plateau doit être mis à niveau manuellement"/>
+  <translation tag="Bed screws" fr="Vis du plateau"/>
   <translation tag="Bed size unknown" fr="Taille du plateau inconnue"/>
   <translation tag="Bed target set to {}" fr="Cible plateau réglée à {}"/>
   <translation tag="Bed temp must be %d-%s" fr="La température du plateau doit être entre %d et %s"/>
@@ -529,6 +530,7 @@
   <translation tag="Belt Tension" fr="Tension de courroie"/>
   <translation tag="Belt Tension Check" fr="Vérification de tension de courroie"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." fr="La tension de courroie nécessite une imprimante CoreXY. Celle-ci est {}."/>
+  <translation tag="Belt compare" fr="Comparaison des courroies"/>
   <translation tag="Belt tension" fr="Tension de courroie"/>
   <translation tag="Belt tension and cutter calibration" fr="Tension des courroies et calibration du coupeur"/>
   <translation tag="Belt tensioning completed" fr="Tension des courroies terminée"/>
@@ -653,6 +655,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" fr="Calibrer l&apos;input shaping pour réduire les artefacts d&apos;ondulation"/>
   <translation tag="Calibrate now" fr="Calibrer maintenant"/>
   <translation tag="Calibrate part fan" fr="Calibrer le ventilateur de pièce"/>
+  <translation tag="Calibrate this printer, step by step" fr="Calibrer cette imprimante étape par étape"/>
   <translation tag="Calibrate tool offsets?" fr="Calibrer les offsets d&apos;outil ?"/>
   <translation tag="Calibrate with this tool?" fr="Calibrer avec cet outil ?"/>
   <translation tag="Calibrate your touchscreen for accurate input" fr="Calibrer votre écran tactile pour une saisie précise"/>
@@ -1165,6 +1168,7 @@
   <translation tag="Cutter calibration completed" fr="Calibration du coupeur terminée"/>
   <translation tag="Cutter calibration failed: {}" fr="Échec de la calibration du coupeur : {}"/>
   <translation tag="Cutter jam" fr="Bourrage du coupeur"/>
+  <translation tag="Cutter position" fr="Position du coupeur"/>
   <translation tag="Cutting" fr="Coupe"/>
   <translation tag="Cutting filament" fr="Coupe du filament"/>
   <translation tag="Cutting filament..." fr="Coupe du filament..."/>
@@ -1287,6 +1291,8 @@
   <translation tag="Don&apos;t Save" fr="Ne pas enregistrer"/>
   <translation tag="Don&apos;t ask again" fr="Ne plus demander"/>
   <translation tag="Done" fr="Terminé"/>
+  <translation tag="Done {}" fr="Fait le {}"/>
+  <translation tag="Done {} · {}" fr="Fait le {} · {}"/>
   <translation tag="Door" fr="Porte"/>
   <translation tag="Door Open" fr="Porte ouverte"/>
   <translation tag="Door opened during print: {}" fr="Porte ouverte pendant l&apos;impression : {}"/>
@@ -1922,6 +1928,7 @@
   <translation tag="Heater over-temperature" fr="Surchauffe du chauffage"/>
   <translation tag="Heater sensor fault" fr="Défaut du capteur de chauffage"/>
   <translation tag="HeaterSelect" fr="Sélection du chauffage"/>
+  <translation tag="Heaters" fr="Chauffages"/>
   <translation tag="Heaters off" fr="Chauffages éteints"/>
   <translation tag="Heating" fr="Chauffage"/>
   <translation tag="Heating (%s below minimum)" fr="Chauffe (%s sous le minimum)"/>
@@ -2092,6 +2099,7 @@
   <translation tag="Imported {}" fr="{} importé"/>
   <translation tag="Importing {}..." fr="Importation de {}..."/>
   <translation tag="In Progress" fr="En cours"/>
+  <translation tag="In config · {}" fr="Dans la configuration · {}"/>
   <translation tag="Inactive" fr="Inactif"/>
   <translation tag="Inch units not supported" fr="Unités en pouces non prises en charge"/>
   <translation tag="Include Klipper/Moonraker logs" fr="Inclure les journaux Klipper/Moonraker"/>
@@ -2109,6 +2117,7 @@
   <translation tag="Input Shaper Calibration" fr="Calibration Input Shaper"/>
   <translation tag="Input Shaper Help" fr="Aide Input Shaper"/>
   <translation tag="Input Shaping" fr="Input Shaping"/>
+  <translation tag="Input shaper" fr="Input Shaper"/>
   <translation tag="Input shaper calibration sensors" fr="Capteurs de calibration Input Shaper"/>
   <translation tag="Input shaper calibration..." fr="Calibration Input Shaper..."/>
   <translation tag="Input shaper settings applied!" fr="Paramètres Input Shaper appliqués !"/>
@@ -2657,6 +2666,9 @@
   <translation tag="Neutral" fr="Neutre"/>
   <translation tag="Neutralize Tension" fr="Neutraliser la tension"/>
   <translation tag="Never" fr="Jamais"/>
+  <translation tag="Never run" fr="Jamais exécuté"/>
+  <translation tag="Never run · optional" fr="Jamais exécuté · facultatif"/>
+  <translation tag="Never run · required" fr="Jamais exécuté · obligatoire"/>
   <translation tag="Never sleeps" fr="Ne dort jamais"/>
   <translation tag="New Spool" fr="Nouvelle bobine"/>
   <translation tag="New Spool: Step 1 of 3" fr="Nouvelle bobine : Étape 1 sur 3"/>
@@ -3150,6 +3162,7 @@
   <translation tag="Pressure Advance Tuning" fr="Réglage du Pressure Advance"/>
   <translation tag="Pressure advance" fr="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." fr="Le Pressure Advance augmente avec la hauteur de la tour. Observez les angles : touchez - ou + quand vous voulez et la rampe s&apos;arrête pour que vous jugiez votre propre valeur."/>
+  <translation tag="Pressure advance tuning" fr="Réglage du Pressure Advance"/>
   <translation tag="Pressure:" fr="Pression :"/>
   <translation tag="Preview" fr="Aperçu"/>
   <translation tag="Preview Sounds" fr="Aperçu des sons"/>
@@ -3666,6 +3679,7 @@
   <translation tag="Run the MMU fans by temperature" fr="Faire tourner les ventilateurs du MMU selon la température"/>
   <translation tag="Run the chamber dryer too" fr="Faire aussi tourner le séchoir de l&apos;enceinte"/>
   <translation tag="Run the official firmware update again so every board is updated, then restart." fr="Relancez la mise à jour officielle du firmware pour que chaque carte soit à jour, puis redémarrez."/>
+  <translation tag="Run when needed" fr="À lancer si besoin"/>
   <translation tag="Run {}?" fr="Exécuter {} ?"/>
   <translation tag="Running loose" fr="Détendu"/>
   <translation tag="Running over" fr="Dépassement"/>
@@ -4727,6 +4741,7 @@
   <translation tag="Tool cycle finished" fr="Rotation des outils terminée"/>
   <translation tag="Tool is seated" fr="L&apos;outil est en place"/>
   <translation tag="Tool may be half seated" fr="L&apos;outil est peut-être mal engagé"/>
+  <translation tag="Tool offsets" fr="Offsets d&apos;outil"/>
   <translation tag="Tool offsets (mm)" fr="Offsets d&apos;outil (mm)"/>
   <translation tag="Tool offsets saved" fr="Offsets d&apos;outil enregistrés"/>
   <translation tag="Tool swap" fr="Changement d&apos;outil"/>
@@ -4954,6 +4969,8 @@
   <translation tag="Vertical" fr="Vertical"/>
   <translation tag="Vertical Artifact Check" fr="Vérification des artefacts verticaux"/>
   <translation tag="Vertical Artifact Compensation" fr="Compensation des artefacts verticaux"/>
+  <translation tag="Vertical artifact check" fr="Vérification des artefacts verticaux"/>
+  <translation tag="Vertical artifact compensation" fr="Compensation des artefacts verticaux"/>
   <translation tag="Vibration" fr="Vibration"/>
   <translation tag="Vibration compensation active" fr="Compensation de vibration active"/>
   <translation tag="Video playback speed" fr="Vitesse de lecture vidéo"/>
@@ -5141,6 +5158,7 @@
   <translation tag="Z is at its limit ({}mm)" fr="Z est à sa limite ({}mm)"/>
   <translation tag="Z jog feedrate" fr="Vitesse d&apos;avance du déplacement Z"/>
   <translation tag="Z motor calibration failed" fr="Échec de l&apos;étalonnage du moteur Z"/>
+  <translation tag="Z offset" fr="Offset Z"/>
   <translation tag="Z offset by material" fr="Z-Offset par matériau"/>
   <translation tag="Z probes for bed leveling and mesh generation" fr="Sondes Z pour la mise à niveau du plateau et la génération de maillage"/>
   <translation tag="Z tilt" fr="Inclinaison Z"/>
