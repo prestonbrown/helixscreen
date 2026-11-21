@@ -8,6 +8,8 @@
  * which sees the strings the production notification channel receives.
  */
 
+#include "ui_update_queue.h"
+
 #include "../ui_test_utils.h"
 #include "test_helpers/unique_temp_dir.h"
 #include "u1_stock_screen.h"
@@ -53,6 +55,7 @@ template <typename Fn> std::vector<std::string> sticky_warnings(Fn&& fn) {
     helix::ui::set_test_notification_sticky_warning_hook(
         [&](const std::string& msg) { out.push_back(msg); });
     fn();
+    helix::ui::UpdateQueue::instance().drain();
     helix::ui::set_test_notification_sticky_warning_hook(nullptr);
     return out;
 }
