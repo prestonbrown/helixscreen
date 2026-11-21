@@ -15,6 +15,7 @@
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/registered_backend.h"
+#include "../test_helpers/scoped_env.h"
 #include "ams_backend_indx.h"
 #include "ams_state.h"
 #include "app_globals.h"
@@ -165,6 +166,26 @@ TEST_CASE_METHOD(IndxFlowFixture,
     api.hold_acks = false;
     api.ack_held();
     settle();
+}
+
+TEST_CASE_METHOD(IndxFlowFixture,
+                 "INDX flows: on Kalico the save offer promises no restart it will not make",
+                 "[indx][flows][save_watch]") {
+    ScopedEnv kalico{"HELIX_MOCK_KALICO", "1"};
+    api.hardware().apply_printer_info(json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
+    api.hold_acks = true;
+    start("indx_heater_calibration");
+    test::answer_top_modal("btn_primary");
+    settle();
+    api.ack_held();
+    REQUIRE(wait_until([] { return ModalStack::instance().top_dialog() != nullptr; }, 2000));
+    const std::string offer = test::top_modal_text();
+    CHECK_THAT(offer, Catch::Matchers::ContainsSubstring("printer.cfg"));
+    CHECK_THAT(offer, !Catch::Matchers::ContainsSubstring("estart"));
+
+    api.hold_acks = false;
+    test::answer_top_modal("btn_primary");
+    REQUIRE(wait_until([this] { return sent("SAVE_CONFIG RESTART=0"); }, 2000));
 }
 
 TEST_CASE_METHOD(IndxFlowFixture, "INDX flows: a timed-out calibration offers no save",

@@ -3811,6 +3811,7 @@
   <translation tag="Save offsets?" it="Salvare gli offset?"/>
   <translation tag="Save the Z-offset after the print: saving restarts Klipper." it="Salva lo Z-Offset dopo la stampa: il salvataggio riavvia Klipper."/>
   <translation tag="Save the changes to this spool?" it="Salvare le modifiche a questa bobina?"/>
+  <translation tag="Save the new heater values to printer.cfg?" it="Salvare i nuovi valori del riscaldatore in printer.cfg?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." it="Salvare i nuovi valori del riscaldatore in printer.cfg? Klipper si riavvia."/>
   <translation tag="Save to Spool" it="Salva sulla bobina"/>
   <translation tag="Save to Spoolman" it="Salva su Spoolman"/>

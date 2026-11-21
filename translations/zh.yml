@@ -3901,6 +3901,7 @@ translations:
   'Save failed: {}': '保存失败: {}'
   Save Offsets: 保存偏移
   Save offsets?: 保存偏移？
+  Save the new heater values to printer.cfg?: 将新的加热器参数保存到printer.cfg？
   Save the new heater values to printer.cfg? Klipper restarts.: 将新的加热器参数保存到printer.cfg？Klipper将重启。
   Save to Spool: 保存到料盘
   Save to Spoolman: 保存到 Spoolman

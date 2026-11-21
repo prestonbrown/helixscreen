@@ -16,6 +16,7 @@
 #include "../test_helpers/gcode_recording_api.h"
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/panel_widget_size_harness.h"
+#include "../test_helpers/scoped_env.h"
 #include "../test_helpers/tile_boxes.h"
 #include "app_globals.h"
 #include "material_z_offset_state.h"
@@ -675,4 +676,48 @@ TEST_CASE_METHOD(MaterialStateFixture,
     CHECK(api.get_uploaded_config("other.cfg").value_or("").find("variable_offset_PETG: 0.090") !=
           std::string::npos);
     set_moonraker_api(previous);
+}
+
+TEST_CASE_METHOD(MaterialStateFixture,
+                 "the shared Save confirms a restart only when the save will restart Klipper",
+                 "[zoffset][save_watch]") {
+    helix::zoffset::reset_shared_save();
+    // Each tool keeps its own Z here, so the shared Save shows only when asked for.
+    helix::SettingsManager::instance().set_z_offset_save_mode(
+        static_cast<int>(helix::zoffset::SaveMode::Show));
+    // klipper-toolchanger: a tool's offset is staged, and SAVE_CONFIG commits it.
+    auto discover_changer = [this](bool kalico) {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(json::array({"gcode_move", "toolhead", "extruder", "extruder1",
+                                      "toolchanger", "tool T0", "tool T1"}));
+        if (kalico) {
+            const json info{{"app", "Kalico"}, {"software_version", "v2025.1"}};
+            hw.apply_printer_info(info);
+            api.hardware().apply_printer_info(info);
+        }
+        get_printer_state().set_hardware(hw);
+        auto& ts = helix::ToolState::instance();
+        ts.init_tools(get_printer_state().get_discovery());
+        ts.set_tool_offset_local(1, helix::Axis::Z, 100);
+    };
+
+    SECTION("mainline Klipper: the restart is confirmed before anything is sent") {
+        discover_changer(false);
+        REQUIRE(helix::zoffset::save_available());
+        helix::zoffset::save_dirty_offsets_shared();
+        process_lvgl(50);
+        CHECK(ModalStack::instance().top_dialog() != nullptr);
+        CHECK(api.sent.empty());
+        helix::test::dismiss_top_modal();
+    }
+    SECTION("Kalico with nothing else pending: saved with RESTART=0 and no confirmation") {
+        helix::ScopedEnv env{"HELIX_MOCK_KALICO", "1"};
+        discover_changer(true);
+        REQUIRE(helix::zoffset::save_available());
+        helix::zoffset::save_dirty_offsets_shared();
+        REQUIRE(wait_until([this] { return api.contains("SAVE_CONFIG"); }, 3000));
+        CHECK(ModalStack::instance().top_dialog() == nullptr);
+        CHECK(api.contains("SAVE_CONFIG RESTART=0"));
+    }
+    helix::zoffset::reset_shared_save();
 }

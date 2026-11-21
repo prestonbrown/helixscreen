@@ -3811,6 +3811,7 @@
   <translation tag="Save offsets?" de="Offsets speichern?"/>
   <translation tag="Save the Z-offset after the print: saving restarts Klipper." de="Speichere den Z-Offset nach dem Druck: Speichern startet Klipper neu."/>
   <translation tag="Save the changes to this spool?" de="Änderungen an dieser Spule speichern?"/>
+  <translation tag="Save the new heater values to printer.cfg?" de="Die neuen Heizungswerte in printer.cfg speichern?"/>
   <translation tag="Save the new heater values to printer.cfg? Klipper restarts." de="Die neuen Heizungswerte in printer.cfg speichern? Klipper startet neu."/>
   <translation tag="Save to Spool" de="Auf Spule speichern"/>
   <translation tag="Save to Spoolman" de="In Spoolman speichern"/>

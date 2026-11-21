@@ -3901,6 +3901,7 @@ translations:
   'Save failed: {}': 'Speichern fehlgeschlagen: {}'
   Save Offsets: Offsets speichern
   Save offsets?: Offsets speichern?
+  Save the new heater values to printer.cfg?: Die neuen Heizungswerte in printer.cfg speichern?
   Save the new heater values to printer.cfg? Klipper restarts.: Die neuen Heizungswerte in printer.cfg speichern? Klipper startet neu.
   Save to Spool: Auf Spule speichern
   Save to Spoolman: In Spoolman speichern

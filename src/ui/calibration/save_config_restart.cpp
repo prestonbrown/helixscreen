@@ -55,54 +55,66 @@ void SaveConfigWatch::begin(IMoonrakerAPI* api, const char* initiation_message,
     latch_.reset(); // Never inherit a previous save's latch
     in_flight_ = true;
     restarts_klipper_ = true;
+    const unsigned save = ++save_;
 
-    if (!api->hardware().save_config_takes_restart_param()) {
-        begin_with_restart(api, initiation_message ? initiation_message : "");
-        return;
-    }
-
-    // The firmware can save without a restart, but only what is already live
-    // may skip it: ask what this save will write before choosing.
-    api->advanced().get_save_config_pending_items(
-        lifetime_.bg_cb(
-            "SaveConfigWatch::pending_items",
-            [this, api, message = std::string(initiation_message ? initiation_message : "")](
-                const nlohmann::json& items) {
-                if (!in_flight_) {
-                    return;
-                }
-                if (helix::save_config::restart_required(api->hardware(), items)) {
-                    spdlog::info("[SaveConfigWatch] Pending config needs a restart "
-                                 "to take effect: {}",
-                                 items.dump());
-                    begin_with_restart(api, message);
-                } else {
-                    restarts_klipper_ = false;
-                    begin_without_restart(api);
-                }
-            }),
-        lifetime_.bg_cb(
-            "SaveConfigWatch::pending_items_error",
-            [this, api, message = std::string(initiation_message ? initiation_message : "")](
-                const MoonrakerError& err) {
-                if (!in_flight_) {
-                    return;
-                }
-                spdlog::warn("[SaveConfigWatch] Could not read the pending config "
-                             "({}) - saving with a restart",
-                             err.message);
-                begin_with_restart(api, message);
-            }));
+    // Only what is already live may skip the restart, so the pending items
+    // decide: a firmware that takes RESTART=0 is asked what this save writes.
+    query_restarts(
+        api, [this, api, save,
+              message = std::string(initiation_message ? initiation_message : "")](bool restarts) {
+            if (!current(save)) {
+                return; // A reply for a save that has already settled
+            }
+            if (restarts) {
+                begin_with_restart(api, message, save);
+            } else {
+                restarts_klipper_ = false;
+                begin_without_restart(api, save);
+            }
+        });
 }
 
-void SaveConfigWatch::begin_with_restart(IMoonrakerAPI* api,
-                                         const std::string& initiation_message) {
+void SaveConfigWatch::query_restarts(IMoonrakerAPI* api,
+                                     helix::SharedCallback<void(bool)> on_answer) {
+    if (!api || !api->hardware().save_config_takes_restart_param()) {
+        if (on_answer) {
+            on_answer(true);
+        }
+        return;
+    }
+    api->advanced().get_save_config_pending_items(
+        lifetime_.bg_cb("SaveConfigWatch::pending_items",
+                        [api, on_answer](const nlohmann::json& items) {
+                            const bool restarts =
+                                helix::save_config::restart_required(api->hardware(), items);
+                            if (restarts) {
+                                spdlog::info("[SaveConfigWatch] Pending config needs a restart "
+                                             "to take effect: {}",
+                                             items.dump());
+                            }
+                            if (on_answer) {
+                                on_answer(restarts);
+                            }
+                        }),
+        lifetime_.bg_cb("SaveConfigWatch::pending_items_error",
+                        [on_answer](const MoonrakerError& err) {
+                            spdlog::warn("[SaveConfigWatch] Could not read the pending config "
+                                         "({}) - assuming a restart",
+                                         err.message);
+                            if (on_answer) {
+                                on_answer(true);
+                            }
+                        }));
+}
+
+void SaveConfigWatch::begin_with_restart(IMoonrakerAPI* api, const std::string& initiation_message,
+                                         unsigned save) {
     // Watch klippy for the whole save. This, not the rpc, is what tells us the
     // save worked: SAVE_CONFIG's reply is dropped by the restart it causes.
     klippy_observer_ = observe<int>(
         get_printer_state().network_state().get_klippy_state_subject(), this,
-        [](SaveConfigWatch* self, int state) {
-            if (!self->in_flight_) {
+        [save](SaveConfigWatch* self, int state) {
+            if (!self->current(save)) {
                 return; // Stale fire after this save settled
             }
             self->latch_.on_klippy_ready(static_cast<KlippyState>(state) == KlippyState::READY);
@@ -112,8 +124,11 @@ void SaveConfigWatch::begin_with_restart(IMoonrakerAPI* api,
                              "treating SAVE_CONFIG as succeeded (its rpc was dropped)");
                 // Settle on the next tick, not from inside this observer's own
                 // callback: settle_saved() resets the observer we are standing in.
-                self->lifetime_.defer("SaveConfigWatch::settle_after_restart",
-                                      [self]() { self->settle_saved(); });
+                self->lifetime_.defer("SaveConfigWatch::settle_after_restart", [self, save]() {
+                    if (self->current(save)) {
+                        self->settle_saved();
+                    }
+                });
             }
         },
         get_printer_state().get_subjects_lifetime());
@@ -126,14 +141,17 @@ void SaveConfigWatch::begin_with_restart(IMoonrakerAPI* api,
     // command persists the config is the network layer's business, not ours.
     api->advanced().save_config(
         lifetime_.bg_cb("SaveConfigWatch::rpc_ok",
-                        [this]() {
+                        [this, save]() {
+                            if (!current(save)) {
+                                return;
+                            }
                             // Rare: an ack that beat the restart. Either way the
                             // config is written by the time Klipper replies.
                             spdlog::debug("[SaveConfigWatch] SAVE_CONFIG acked before the restart");
                             settle_saved();
                         }),
-        lifetime_.bg_cb("SaveConfigWatch::rpc_error", [this](const MoonrakerError& err) {
-            if (!in_flight_) {
+        lifetime_.bg_cb("SaveConfigWatch::rpc_error", [this, save](const MoonrakerError& err) {
+            if (!current(save)) {
                 return;
             }
             // An expected restart may already be flagged even though no klippy
@@ -158,19 +176,26 @@ void SaveConfigWatch::begin_with_restart(IMoonrakerAPI* api,
         }));
 }
 
-void SaveConfigWatch::begin_without_restart(IMoonrakerAPI* api) {
+void SaveConfigWatch::begin_without_restart(IMoonrakerAPI* api, unsigned save) {
     // Klipper stays up, so the rpc itself is the outcome: no restart to
     // suppress the recovery dialog for, and no READY transition to wait on.
     api->advanced().save_config_without_restart(
         lifetime_.bg_cb("SaveConfigWatch::rpc_ok_no_restart",
-                        [this]() {
+                        [this, save]() {
+                            if (!current(save)) {
+                                return;
+                            }
                             spdlog::info("[SaveConfigWatch] Config saved without a restart");
                             settle_saved();
                         }),
-        lifetime_.bg_cb("SaveConfigWatch::rpc_error_no_restart", [this](const MoonrakerError& err) {
-            spdlog::error("[SaveConfigWatch] SAVE_CONFIG failed: {}", err.message);
-            settle_failed(err.message);
-        }));
+        lifetime_.bg_cb("SaveConfigWatch::rpc_error_no_restart",
+                        [this, save](const MoonrakerError& err) {
+                            if (!current(save)) {
+                                return;
+                            }
+                            spdlog::error("[SaveConfigWatch] SAVE_CONFIG failed: {}", err.message);
+                            settle_failed(err.message);
+                        }));
 }
 
 void SaveConfigWatch::begin_from_background(

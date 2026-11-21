@@ -164,6 +164,15 @@ class SaveConfigWatch {
                                helix::SharedCallback<void()> on_saved,
                                helix::SharedCallback<void(const std::string&)> on_failed);
 
+    /// Whether a SAVE_CONFIG sent now would restart Klipper, decided as begin()
+    /// decides it. @p on_answer runs once, on the main thread, unless this watch
+    /// is destroyed first. A firmware that always restarts answers true without
+    /// asking; so does a pending-items read that fails.
+    ///
+    /// For wording a confirmation before the save: begin() asks again, so a
+    /// change staged in between still gets the restart it needs.
+    void query_restarts(IMoonrakerAPI* api, helix::SharedCallback<void(bool)> on_answer);
+
     /// Drop the klippy watch and forget any in-flight save. Safe to call twice.
     void end();
 
@@ -186,10 +195,16 @@ class SaveConfigWatch {
 
   private:
     /// SAVE_CONFIG and its restart: settled by Klipper coming back READY.
-    void begin_with_restart(IMoonrakerAPI* api, const std::string& initiation_message);
+    void begin_with_restart(IMoonrakerAPI* api, const std::string& initiation_message,
+                            unsigned save);
     /// SAVE_CONFIG RESTART=0, when every pending item is already live: the
     /// rpc's own reply settles it.
-    void begin_without_restart(IMoonrakerAPI* api);
+    void begin_without_restart(IMoonrakerAPI* api, unsigned save);
+    /// Whether a callback from save @p save still speaks for the save in flight.
+    /// end() and the next begin() leave an older save's replies in the air.
+    bool current(unsigned save) const {
+        return in_flight_ && save == save_;
+    }
     void settle_saved();
     void settle_failed(const std::string& message);
 
@@ -199,6 +214,8 @@ class SaveConfigWatch {
     helix::SharedCallback<void(const std::string&)> on_failed_;
     bool in_flight_ = false;
     bool restarts_klipper_ = true;
+    /// Numbers each begin(); every callback a save sends carries its number.
+    unsigned save_ = 0;
 
     // The rpc callbacks land on the WebSocket thread. bg_cb() hops them to the
     // main thread and drops them if this watch died first, which is the guarded

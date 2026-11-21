@@ -19,6 +19,7 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <deque>
 #include <functional>
 #include <map>
 #include <memory>
@@ -2025,8 +2026,9 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     /// Test helper: the next send of @p method is held unanswered until
     /// fire_deferred() runs it through its handler or fire_deferred_error()
-    /// fails it. Until then the handler has not run. One-shot; firing with
-    /// nothing held is a no-op.
+    /// fails it. Until then the handler has not run. One-shot per call: calling
+    /// it twice holds the next two sends, and each fire answers the oldest one
+    /// still held. Firing with nothing held is a no-op.
     void defer_next(const std::string& method);
     void fire_deferred(const std::string& method);
     void fire_deferred_error(const std::string& method, const MoonrakerError& err);
@@ -2303,8 +2305,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         helix::SharedCallback<void(const MoonrakerError&)> error_cb;
     };
     std::map<std::string, MoonrakerError> fail_next_;
-    std::set<std::string> defer_next_;
-    std::map<std::string, HeldRequest> held_requests_;
+    std::map<std::string, int> defer_next_;
+    std::map<std::string, std::deque<HeldRequest>> held_requests_;
+    /// The oldest held send of @p method, removed from the queue. Caller holds fault_mutex_.
+    std::optional<HeldRequest> take_held_locked(const std::string& method);
     std::map<std::string, int> call_counts_;
     mutable std::mutex fault_mutex_;
 

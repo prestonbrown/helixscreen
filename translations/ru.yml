@@ -3981,6 +3981,7 @@ translations:
   'Save failed: {}': 'Ошибка сохранения: {}'
   Save Offsets: Сохранить смещения
   Save offsets?: Сохранить смещения?
+  Save the new heater values to printer.cfg?: Сохранить новые значения нагревателя в printer.cfg?
   Save the new heater values to printer.cfg? Klipper restarts.: Сохранить новые значения нагревателя в printer.cfg? Klipper перезапустится.
   Save to Spool: Сохранить на катушку
   Save to Spoolman: Сохранить в Spoolman
