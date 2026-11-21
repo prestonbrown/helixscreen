@@ -2333,7 +2333,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper hat die Zeitraffer-Makros nicht geladen, daher werden keine Bilder aufgenommen. Füge diese Zeile zur printer.cfg hinzu und starte Klipper neu:'
   Klipper is halted — restart firmware to continue: Klipper ist angehalten — Firmware neu starten, um fortzufahren
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper startet neu. Zeitraffer-Bilder werden ab dem nächsten Druck aufgenommen.'
-  Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes.: 'Klipper oder Moonraker können während des Updates neu starten. Schalte den Drucker nicht aus, bis das Update abgeschlossen ist.'
+  Klipper or Moonraker may restart while it updates.: 'Klipper oder Moonraker können während des Updates neu starten.'
   Klipper ready: Klipper bereit
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper reserviert 'default' für neue Kalibrierungen. Wählen Sie einen anderen Namen."
   Klipper restarting - macros activating: 'Klipper startet neu - Makros werden aktiviert'
@@ -4622,6 +4622,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "Der Drucker kann referenzieren und den Werkzeugkopf bewegen, dann stellen die motorisierten Spanner die X- und Y-Riemen ein. Bett und Portal freihalten."
   The printer moved the print to {}, not {}.: 'Der Drucker hat den Druck auf {} verlegt, nicht auf {}.'
+  The printer may need a reboot afterwards.: 'Danach kann ein Neustart des Druckers nötig sein.'
   The printer moves the toolhead and measures its motors.: 'Der Drucker bewegt den Druckkopf und vermisst seine Motoren.'
   The printer no longer has a print to resume.: Der Drucker hat keinen Druck mehr zum Fortsetzen.
   The printer reads the file up to the last saved position. A large file can take a minute.: Der Drucker liest die Datei bis zur letzten gespeicherten Position. Eine große Datei kann eine Minute dauern.
@@ -4809,8 +4810,7 @@ translations:
   This tool probes each bed screw and tells you how much to adjust.: Dieses Werkzeug tastet jede Bettschraube ab und zeigt Ihnen, wie viel Sie einstellen müssen.
   'This update asks for new permissions:': 'Dieses Update fragt nach neuen Berechtigungen:'
   This update removes HelixScreen from the printer.: 'Dieses Update entfernt HelixScreen vom Drucker.'
-  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
-  : 'Dies aktualisiert die Betriebssystempakete des Druckers. Danach kann ein Neustart des Druckers nötig sein. Schalte den Drucker nicht aus, bis das Update abgeschlossen ist.'
+  This upgrades the printer's operating system packages.: 'Dies aktualisiert die Betriebssystempakete des Druckers.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Dieses Warten endet erst bei seiner Temperatur: Abbrechen erfordert einen Notaus und einen Firmware-Neustart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Dies wendet den Z-offset auf Ihren Endschalter an und startet Klipper neu, um die Konfiguration zu speichern. Der Drucker wird kurz getrennt.

@@ -2249,7 +2249,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" es="Klipper no ha cargado las macros de timelapse, así que no se capturan fotogramas. Añade esta línea a printer.cfg y reinicia Klipper:"/>
   <translation tag="Klipper is halted — restart firmware to continue" es="Klipper está detenido — reinicia el firmware para continuar"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." es="Klipper se está reiniciando. Los fotogramas del timelapse se capturan a partir de la próxima impresión."/>
-  <translation tag="Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes." es="Klipper o Moonraker pueden reiniciarse durante la actualización. No apagues la impresora hasta que termine la actualización."/>
+  <translation tag="Klipper or Moonraker may restart while it updates." es="Klipper o Moonraker pueden reiniciarse durante la actualización."/>
   <translation tag="Klipper ready" es="Klipper listo"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." es="Klipper reserva &apos;default&apos; para nuevas calibraciones. Elija otro nombre."/>
   <translation tag="Klipper restarting - macros activating" es="Reiniciando Klipper - activando macros"/>
@@ -3472,6 +3472,8 @@
   <translation tag="Refresh RFID" es="Actualizar RFID"/>
   <translation tag="Refresh Spoolman" es="Actualizar Spoolman"/>
   <translation tag="Reheating..." es="Recalentando..."/>
+  <translation tag="Reinstall it afterwards by following {}." es="Vuelve a instalarlo después siguiendo {}."/>
+  <translation tag="Reinstall it afterwards." es="Vuelve a instalarlo después."/>
   <translation tag="Relative vibration" es="Vibración relativa"/>
   <translation tag="Release all stepper motors. Position will be lost." es="Liberar todos los motores paso a paso. Se perderá la posición."/>
   <translation tag="Release filament" es="Liberar filamento"/>
@@ -4499,6 +4501,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" es="La impresora perdió corriente mientras imprimía {}. ¿Reanudar donde se quedó?"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." es="La impresora perdió corriente mientras imprimía {}. La capa reanudada puede no alinearse con exactitud."/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." es="La impresora puede hacer home y mover el cabezal; luego los tensores motorizados ajustan las correas X e Y. Mantén despejados la cama y el pórtico."/>
+  <translation tag="The printer may need a reboot afterwards." es="Puede que la impresora necesite reiniciarse después."/>
   <translation tag="The printer moved the print to {}, not {}." es="La impresora pasó la impresión a {}, no a {}."/>
   <translation tag="The printer moves the toolhead and measures its motors." es="La impresora mueve el cabezal y mide sus motores."/>
   <translation tag="The printer no longer has a print to resume." es="La impresora ya no tiene una impresión para reanudar."/>
@@ -4661,7 +4664,8 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." es="Esta herramienta sondea cada tornillo de cama y le indica cuánto ajustar."/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." es="Este cabezal no tiene alimentador automático. Carga el filamento a mano."/>
   <translation tag="This update asks for new permissions:" es="Esta actualización pide nuevos permisos:"/>
-  <translation tag="This update removes HelixScreen from the printer. Reinstall it afterwards." es="Esta actualización elimina HelixScreen de la impresora. Vuelve a instalarlo después."/>
+  <translation tag="This update removes HelixScreen from the printer." es="Esta actualización elimina HelixScreen de la impresora."/>
+  <translation tag="This upgrades the printer&apos;s operating system packages." es="Esto actualiza los paquetes del sistema operativo de la impresora."/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." es="Esta espera solo termina al alcanzar su temperatura: cancelar requiere una parada de emergencia y un reinicio del firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." es="Esto aplicará el Z-offset a su endstop y reiniciará Klipper para guardar la configuración. La impresora se desconectará brevemente."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." es="Esto aplicará el Z-offset a su sonda y reiniciará Klipper para guardar la configuración. La impresora se desconectará brevemente."/>
@@ -4919,7 +4923,10 @@
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." es="Actualice el plugin HelixPrint a 1.5.0 para ocultar las llamadas antiguas de PRINT_START."/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." es="¿Actualizar también el modelo del calentador INDX? {} ahora tiene {}: densidad {:.2f}, capacidad calorífica {:.2f}."/>
   <translation tag="Update your security PIN" es="Actualice su PIN de seguridad en esta instalación."/>
-  <translation tag="Update {}: {}" es="Actualizar {}: {}"/>
+  <translation tag="Update {} from {} to {}?" es="¿Actualizar {} de {} a {}?"/>
+  <translation tag="Update {} system packages?" es="¿Actualizar {} paquetes del sistema?"/>
+  <translation tag="Update {} to {}?" es="¿Actualizar {} a {}?"/>
+  <translation tag="Update {}?" es="¿Actualizar {}?"/>
   <translation tag="Updates" es="Actualizaciones"/>
   <translation tag="Updates &amp; Data" es="Actualizaciones y datos"/>
   <translation tag="Updating Configuration..." es="Actualizando configuración..."/>
@@ -5373,6 +5380,7 @@
   <translation tag="{} firmware" es="Firmware de {}"/>
   <translation tag="{} firmware can only be updated from its own screen app." es="El firmware de {} solo se puede actualizar desde su propia aplicación de pantalla."/>
   <translation tag="{} firmware updates are managed by its own tools." es="Las actualizaciones del firmware de {} se gestionan con sus propias herramientas."/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." es="El firmware de {} {} está disponible. Abre Ajustes &gt; Actualización de firmware para instalarlo."/>
   <translation tag="{} free of {}" es="{} libres de {}"/>
   <translation tag="{} h" es="{} h"/>
   <translation tag="{} h of {} h" es="{} h de {} h"/>

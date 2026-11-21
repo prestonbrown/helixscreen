@@ -80,6 +80,14 @@ std::optional<UpdateStatus> parse_update_status(const nlohmann::json& result) {
     return status;
 }
 
+std::vector<ConfirmPoint> confirm_points(const ManagedEntry& e) {
+    if (e.kind == "system") {
+        return {ConfirmPoint::UpgradesOsPackages, ConfirmPoint::MayNeedReboot,
+                ConfirmPoint::StayOnUntilDone};
+    }
+    return {ConfirmPoint::ServicesRestart, ConfirmPoint::StayOnUntilDone};
+}
+
 std::optional<UpdateResponse> parse_update_response(const nlohmann::json& notification) {
     const nlohmann::json* payload = helix::json_util::notification_payload(notification);
     if (payload == nullptr) {

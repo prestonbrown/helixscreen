@@ -468,3 +468,28 @@ TEST_CASE("Update manager: the percentage in a progress message", "[fwupdate]") 
     CHECK_FALSE(percent_in_message("1000%").has_value());
     CHECK_FALSE(percent_in_message("% done").has_value());
 }
+
+TEST_CASE("Update manager: the system entry's confirm warns about the OS, a reboot and power",
+          "[fwupdate]") {
+    ManagedEntry system;
+    system.name = "system";
+    system.kind = "system";
+    system.package_count = 3;
+    system.update_available = true;
+    const auto os = confirm_points(system);
+    CHECK(os == std::vector<ConfirmPoint>{ConfirmPoint::UpgradesOsPackages,
+                                          ConfirmPoint::MayNeedReboot,
+                                          ConfirmPoint::StayOnUntilDone});
+    CHECK(confirm_is_destructive(os));
+
+    ManagedEntry klipper;
+    klipper.name = "klipper";
+    klipper.kind = "git_repo";
+    const auto service = confirm_points(klipper);
+    CHECK(service ==
+          std::vector<ConfirmPoint>{ConfirmPoint::ServicesRestart, ConfirmPoint::StayOnUntilDone});
+    CHECK_FALSE(confirm_is_destructive(service));
+
+    // Flashing the printer's own firmware is destructive too.
+    CHECK(confirm_is_destructive(confirm_points(u1_stock())));
+}

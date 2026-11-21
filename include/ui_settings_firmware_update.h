@@ -80,7 +80,8 @@ class FirmwareUpdateOverlay : public OverlayBase {
 
     void show_status(const std::optional<fwupdate::UpdateStatus>& status);
     void scan_images();
-    void confirm_and_start(Job job, std::string message);
+    /// @p destructive: the confirm button carries the danger style.
+    void confirm_and_start(Job job, std::string message, bool destructive);
     /// Re-query print_stats, then start @p job if nothing blocks.
     void check_and_start(Job job);
     void start_managed(const std::string& name);

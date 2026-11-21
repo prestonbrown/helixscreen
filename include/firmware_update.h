@@ -141,7 +141,15 @@ enum class ConfirmPoint {
     StopsKlipper, ///< the printer stops and is unusable until it finishes
     PrinterReboots,
     RemovesHelixScreen, ///< the update uninstalls HelixScreen; reinstall it afterwards
+    ServicesRestart,    ///< Klipper or Moonraker restart while it updates
+    UpgradesOsPackages, ///< the host's operating system packages are upgraded
+    MayNeedReboot,      ///< the printer may need a reboot afterwards
+    StayOnUntilDone,    ///< do not turn the printer off until the update finishes
 };
+
+/// Whether a confirm listing @p points carries the danger style: it flashes the
+/// printer, upgrades its operating system or removes HelixScreen.
+bool confirm_is_destructive(const std::vector<ConfirmPoint>& points);
 
 /// The row's confirm points, in the order the dialog lists them.
 std::vector<ConfirmPoint> confirm_points(const Provider& p);

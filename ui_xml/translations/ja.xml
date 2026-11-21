@@ -2249,7 +2249,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" ja="Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:"/>
   <translation tag="Klipper is halted — restart firmware to continue" ja="Klipper が停止しています — 続行するにはファームウェアを再起動してください"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." ja="Klipper を再起動しています。タイムラプスのフレームは次の印刷から撮影されます。"/>
-  <translation tag="Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes." ja="更新中に Klipper または Moonraker が再起動する場合があります。更新が完了するまでプリンターの電源を切らないでください。"/>
+  <translation tag="Klipper or Moonraker may restart while it updates." ja="更新中に Klipper または Moonraker が再起動する場合があります。"/>
   <translation tag="Klipper ready" ja="Klipper準備完了"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
@@ -3472,6 +3472,8 @@
   <translation tag="Refresh RFID" ja="RFIDを再読み込み"/>
   <translation tag="Refresh Spoolman" ja="Spoolmanを再読み込み"/>
   <translation tag="Reheating..." ja="再加熱中..."/>
+  <translation tag="Reinstall it afterwards by following {}." ja="更新後に {} の手順で再インストールしてください。"/>
+  <translation tag="Reinstall it afterwards." ja="更新後に再インストールしてください。"/>
   <translation tag="Relative vibration" ja="相対振動"/>
   <translation tag="Release all stepper motors. Position will be lost." ja="すべてのステッピングモーターを解放します。位置情報は失われます。"/>
   <translation tag="Release filament" ja="フィラメントを解放"/>
@@ -4499,6 +4501,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." ja="プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"/>
+  <translation tag="The printer may need a reboot afterwards." ja="更新後にプリンターの再起動が必要になる場合があります。"/>
   <translation tag="The printer moved the print to {}, not {}." ja="プリンターは印刷を {} に移しました ({} ではありません)。"/>
   <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
@@ -4661,7 +4664,8 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ja="このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"/>
   <translation tag="This update asks for new permissions:" ja="この更新は新しい権限を要求します："/>
-  <translation tag="This update removes HelixScreen from the printer. Reinstall it afterwards." ja="この更新はプリンターから HelixScreen を削除します。更新後に再インストールしてください。"/>
+  <translation tag="This update removes HelixScreen from the printer." ja="この更新はプリンターから HelixScreen を削除します。"/>
+  <translation tag="This upgrades the printer&apos;s operating system packages." ja="プリンターのOSパッケージを更新します。"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." ja="この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をプローブに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
@@ -4919,7 +4923,10 @@
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ja="PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ja="INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。"/>
   <translation tag="Update your security PIN" ja="セキュリティ PIN を更新"/>
-  <translation tag="Update {}: {}" ja="{} を更新: {}"/>
+  <translation tag="Update {} from {} to {}?" ja="{} を {} から {} に更新しますか?"/>
+  <translation tag="Update {} system packages?" ja="{} 件のシステムパッケージを更新しますか?"/>
+  <translation tag="Update {} to {}?" ja="{} を {} に更新しますか?"/>
+  <translation tag="Update {}?" ja="{} を更新しますか?"/>
   <translation tag="Updates" ja="更新"/>
   <translation tag="Updates &amp; Data" ja="更新とデータ"/>
   <translation tag="Updating Configuration..." ja="設定を更新中..."/>
@@ -5373,6 +5380,7 @@
   <translation tag="{} firmware" ja="{} ファームウェア"/>
   <translation tag="{} firmware can only be updated from its own screen app." ja="{} のファームウェアは専用の画面アプリからのみ更新できます。"/>
   <translation tag="{} firmware updates are managed by its own tools." ja="{} のファームウェア更新は専用のツールで管理されます。"/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; Firmware Update to install it." ja="{} のファームウェア {} が利用可能です。設定 &gt; ファームウェア更新 からインストールしてください。"/>
   <translation tag="{} free of {}" ja="空き {} / {}"/>
   <translation tag="{} h" ja="{} 時間"/>
   <translation tag="{} h of {} h" ja="{} / {} 時間"/>

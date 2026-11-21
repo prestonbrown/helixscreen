@@ -5,6 +5,7 @@
 // machine.update.status reports and the notify_update_response stream an upgrade
 // produces. Pure parsing; no vendor knowledge (that is firmware_update.h).
 
+#include "firmware_update.h"
 #include "json_fwd.h"
 
 #include <optional>
@@ -44,6 +45,11 @@ struct UpdateResponse {
     std::string message;
     bool complete = false;
 };
+
+/// What the confirm for updating @p e must say. The `system` entry upgrades the
+/// host's operating system packages (apt) and may need a reboot; every other entry
+/// restarts its Klipper or Moonraker service.
+std::vector<ConfirmPoint> confirm_points(const ManagedEntry& e);
 
 /// The payload of a notify_update_response notification (the full JSON-RPC message).
 /// nullopt when it is not one.

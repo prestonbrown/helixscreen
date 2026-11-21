@@ -114,6 +114,14 @@ const char* confirm_point_text(ConfirmPoint p) {
         return lv_tr("The printer restarts when the update finishes.");
     case ConfirmPoint::RemovesHelixScreen:
         return lv_tr("This update removes HelixScreen from the printer.");
+    case ConfirmPoint::ServicesRestart:
+        return lv_tr("Klipper or Moonraker may restart while it updates.");
+    case ConfirmPoint::UpgradesOsPackages:
+        return lv_tr("This upgrades the printer's operating system packages.");
+    case ConfirmPoint::MayNeedReboot:
+        return lv_tr("The printer may need a reboot afterwards.");
+    case ConfirmPoint::StayOnUntilDone:
+        return lv_tr("Do not turn the printer off until the update finishes.");
     }
     return "";
 }
@@ -369,15 +377,14 @@ void FirmwareUpdateOverlay::request_entry_update(std::size_t index) {
     }
     const ManagedEntry& e = entries_[index];
     std::string message = confirm_question(e);
+    const std::vector<ConfirmPoint> points = confirm_points(e);
     message += "\n\n";
-    // The system entry upgrades the host's OS packages (apt), not a Klipper service.
-    message += e.kind == "system"
-                   ? lv_tr("This upgrades the printer's operating system packages. The printer may "
-                           "need a reboot afterwards. Do not turn the printer off until the update "
-                           "finishes.")
-                   : lv_tr("Klipper or Moonraker may restart while it updates. Do not turn the "
-                           "printer off until the update finishes.");
-    confirm_and_start({Job::Kind::Managed, e.name}, std::move(message));
+    for (std::size_t i = 0; i < points.size(); ++i) {
+        message += i == 0 ? "" : " ";
+        message += confirm_point_text(points[i]);
+    }
+    confirm_and_start({Job::Kind::Managed, e.name}, std::move(message),
+                      confirm_is_destructive(points));
 }
 
 void FirmwareUpdateOverlay::request_image_install(std::size_t index) {
@@ -407,13 +414,14 @@ void FirmwareUpdateOverlay::request_image_install(std::size_t index) {
                     : std::string(lv_tr("Reinstall it afterwards."));
         }
     }
-    confirm_and_start({Job::Kind::Vendor, images_[index].path}, std::move(message));
+    confirm_and_start({Job::Kind::Vendor, images_[index].path}, std::move(message),
+                      confirm_is_destructive(confirm_points(*provider_)));
 }
 
-void FirmwareUpdateOverlay::confirm_and_start(Job job, std::string message) {
+void FirmwareUpdateOverlay::confirm_and_start(Job job, std::string message, bool destructive) {
     helix::ui::ConfirmOptions options;
     options.owner_token = lifetime_.token();
-    options.destructive = job.kind == Job::Kind::Vendor;
+    options.destructive = destructive;
     helix::ui::modal_confirm(
         lv_tr("Firmware Update"), message.c_str(), ModalSeverity::Warning,
         job.kind == Job::Kind::Vendor ? lv_tr("Install") : lv_tr("Update"),

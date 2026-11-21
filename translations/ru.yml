@@ -2397,7 +2397,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper не загрузил макросы таймлапса, поэтому кадры не снимаются. Добавьте эту строку в printer.cfg и перезапустите Klipper:'
   Klipper is halted — restart firmware to continue: Klipper остановлен — перезапустите прошивку, чтобы продолжить
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper перезапускается. Кадры таймлапса будут сниматься со следующей печати.'
-  Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes.: 'Во время обновления Klipper или Moonraker могут перезапуститься. Не выключайте принтер до завершения обновления.'
+  Klipper or Moonraker may restart while it updates.: 'Во время обновления Klipper или Moonraker могут перезапуститься.'
   Klipper ready: Klipper готов
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
@@ -4710,6 +4710,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "Принтер может выполнить парковку и переместить печатающую головку, затем моторизованные натяжители натянут ремни X и Y. Освободите стол и портал."
   The printer moved the print to {}, not {}.: 'Принтер перенёс печать на {}, а не на {}.'
+  The printer may need a reboot afterwards.: 'После этого может потребоваться перезагрузка принтера.'
   The printer moves the toolhead and measures its motors.: 'Принтер перемещает печатающую головку и измеряет моторы.'
   The printer no longer has a print to resume.: У принтера больше нет печати для продолжения.
   The printer reads the file up to the last saved position. A large file can take a minute.: Принтер читает файл до последней сохранённой позиции. Большой файл может занять минуту.
@@ -4897,8 +4898,7 @@ translations:
   This tool probes each bed screw and tells you how much to adjust.: Этот инструмент проверяет каждый винт стола и показывает, насколько его нужно отрегулировать.
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
   This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
-  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
-  : 'Будут обновлены пакеты операционной системы принтера. После этого может потребоваться перезагрузка. Не выключайте принтер до завершения обновления.'
+  This upgrades the printer's operating system packages.: 'Будут обновлены пакеты операционной системы принтера.'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится.

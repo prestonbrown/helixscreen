@@ -168,9 +168,11 @@ the page tails the flasher's log instead.
 3. **The row lives in Settings > System**, not under Printer.
 4. **Moonraker's `system` (apt) entry is offered**, behind a stronger confirm: it says the
    printer's operating system packages are upgraded, a reboot may be needed, and not to
-   turn the printer off.
+   turn the printer off. Its confirm button carries the danger style, as the firmware
+   flash's does (`include/update_manager_status.h#confirm_points`, `include/firmware_update.h#confirm_is_destructive`).
 5. **Stock U1 flashing will be offered once device-verified**, behind a confirm that says
    the update removes HelixScreen and points to the U1 install guide
+   (helixscreen.org docs, page `guide/install-u1/`; the dialog prints the link)
    (`guide/install-u1/`, the row's `reinstall_guide`) to reinstall it. Until verification
    `HELIX_FWUPDATE_UNVERIFIED_APPLY=1` stays the gate.
 

@@ -530,6 +530,13 @@ std::vector<ConfirmPoint> confirm_points(const Provider& p) {
     return points;
 }
 
+bool confirm_is_destructive(const std::vector<ConfirmPoint>& points) {
+    return std::any_of(points.begin(), points.end(), [](ConfirmPoint c) {
+        return c == ConfirmPoint::KeepPowerOn || c == ConfirmPoint::UpgradesOsPackages ||
+               c == ConfirmPoint::RemovesHelixScreen;
+    });
+}
+
 ApplyPlan apply_plan(const Provider& p, const std::string& image_path,
                      const std::string& log_path) {
     ApplyPlan plan;

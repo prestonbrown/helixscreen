@@ -2333,7 +2333,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper：'
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。'
-  Klipper or Moonraker may restart while it updates. Do not turn the printer off until the update finishes.: '更新期间 Klipper 或 Moonraker 可能会重启。更新完成之前请勿关闭打印机。'
+  Klipper or Moonraker may restart while it updates.: '更新期间 Klipper 或 Moonraker 可能会重启。'
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
@@ -4622,6 +4622,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "打印机可能会归零并移动工具头，然后电动张紧器调整X和Y皮带。请清空热床和龙门周围的物品。"
   The printer moved the print to {}, not {}.: '打印机将打印转移到了 {}，而不是 {}。'
+  The printer may need a reboot afterwards.: '之后打印机可能需要重启。'
   The printer moves the toolhead and measures its motors.: '打印机将移动打印头并测量电机。'
   The printer no longer has a print to resume.: 打印机已没有可恢复的打印。
   The printer reads the file up to the last saved position. A large file can take a minute.: 打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。
@@ -4809,8 +4810,7 @@ translations:
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   'This update asks for new permissions:': '此更新请求新的权限：'
   This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
-  ? This upgrades the printer's operating system packages. The printer may need a reboot afterwards. Do not turn the printer off until the update finishes.
-  : '这将升级打印机的操作系统软件包。之后打印机可能需要重启。更新完成之前请勿关闭打印机。'
+  This upgrades the printer's operating system packages.: '这将升级打印机的操作系统软件包。'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : 这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。
