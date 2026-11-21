@@ -167,6 +167,12 @@ class AmsEditOverlayViewTestAccess {
         FAIL("spool " << spool_id << " is not listed");
     }
     /// The spool ids the list shows, in order.
+    static constexpr int kSaveIdle = AmsEditOverlay::kSaveIdle;
+    static constexpr int kSaveWaiting = AmsEditOverlay::kSaveWaiting;
+    static constexpr int kSaveFailed = AmsEditOverlay::kSaveFailed;
+    void call_set_save_state(int state, const std::string& error) {
+        overlay_.set_save_state(state, error);
+    }
     std::vector<int> listed_ids() {
         std::vector<int> ids;
         for (const auto& r : overlay_.listed_) {
@@ -5674,9 +5680,25 @@ TEST_CASE_METHOD(
                 return lv_obj_get_scroll_bottom(content);
             };
 
+            // A save waiting or refused says so in the subtitle's line, so the
+            // page fits in those states too.
+            const auto fits_while_saving = [&] {
+                for (const int state : {AmsEditOverlayViewTestAccess::kSaveWaiting,
+                                        AmsEditOverlayViewTestAccess::kSaveFailed}) {
+                    CAPTURE(state);
+                    access.call_set_save_state(
+                        state, "Not saved: AFC has no Spoolman configured. Try again.");
+                    CHECK(page_scroll() <= 0);
+                    CHECK_FALSE(access.shown("subtitle"));
+                }
+                access.call_set_save_state(AmsEditOverlayViewTestAccess::kSaveIdle, "");
+                CHECK(access.shown("subtitle"));
+            };
+
             show_editor_on_lane(*this, *backend, 1);
             REQUIRE(access.mode() == AmsEditOverlay::kModeEdit);
             CHECK(page_scroll() <= 0);
+            fits_while_saving();
 
             // Assign with a full list: the list scrolls inside itself, not the page.
             access.call_different_spool();
@@ -5695,6 +5717,7 @@ TEST_CASE_METHOD(
             REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
             REQUIRE(access.listed_ids().size() == 12);
             CHECK(page_scroll() <= 0);
+            fits_while_saving();
 
             // A fresh install: the common spools grid instead of the list.
             access.set_cached_spools({});
