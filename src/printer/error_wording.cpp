@@ -2,6 +2,7 @@
 #include "error_wording.h"
 
 #include "core/text_io.h"
+#include "error_wording_rows.h"
 #include "exception_policy.h"
 #include "helix_regex.h"
 #include "lvgl.h"
@@ -12,31 +13,6 @@
 #include <array>
 
 namespace helix::error_wording {
-
-/// One message: the anchored, case-sensitive prefix of its reason line, an
-/// optional second literal the reason must contain, and an optional capture
-/// pattern that must match too. Each key is read from Klipper's and Kalico's
-/// own raise sites (klippy/, src/).
-struct Row {
-    const char* id;
-    const char* prefix;
-    /// nullptr, or a literal the reason line must also contain.
-    const char* contains;
-    /// nullptr, or a helix::Regex whose groups become captures 1..n. The row
-    /// matches only where it matches.
-    const char* capture;
-    /// Search @ref capture over the whole message rather than the reason line:
-    /// for a detail Klipper adds on a later line.
-    bool capture_in_body;
-    Category category;
-    Severity severity;
-    Recovery recovery;
-    /// English source; summary nullptr for a row that only classifies. "{0}"
-    /// is the shutdown prefix's board, "{1}" on the row's captures.
-    const char* summary;
-    const char* cause;
-    const char* fix;
-};
 
 namespace {
 
@@ -431,14 +407,12 @@ constexpr Row kKlipperRows[] = {
      kMacroFix},
 };
 
-struct RowSet {
-    const Row* rows;
-    size_t count;
-    /// nullptr: every printer. Otherwise only printers it detects.
-    bool (*detect)(const PrinterDiscovery& hw);
-};
-
-const std::array<RowSet, 1> kRowSets{{
+/// Every row set, firmware sets first: a firmware's own wording of a message
+/// outranks the generic row that shares its prefix.
+const std::array<RowSet, 4> kRowSets{{
+    flashforge::zmod_rows(),
+    flashforge::forge_x_rows(),
+    flashforge::opencreator_rows(),
     {kKlipperRows, std::size(kKlipperRows), nullptr},
 }};
 

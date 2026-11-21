@@ -29,10 +29,13 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
     e.code = code;
 
     // Klipper's own prose: a row that knows the message leads with its
-    // summary and says what went wrong and what to do. A firmware code is the
-    // identity when there is one, so only uncoded text asks.
-    const auto known = code.empty() ? error_wording::classify(e.raw_detail, ctx.hw)
-                                    : std::optional<error_wording::Classification>{};
+    // summary and says what went wrong and what to do. An error-table code is
+    // the identity when there is one; an opaque code's envelope carries prose
+    // (FlashForge's `coded` errors quote Klipper's own sentence), so that
+    // prose asks too.
+    const bool prose = code.empty() || scheme == FirmwareCodeScheme::Opaque;
+    const auto known = prose ? error_wording::classify(code.empty() ? e.raw_detail : text, ctx.hw)
+                             : std::optional<error_wording::Classification>{};
     if (known) {
         if (const auto w = error_wording::word(*known)) {
             e.title = w->summary;

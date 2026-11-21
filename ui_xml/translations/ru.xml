@@ -216,6 +216,7 @@
   <translation tag="A cooling fan stopped while its heater was on, so the firmware turned the heater off."/>
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." ru="Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."/>
   <translation tag="A different toolhead than the one asked for is on the carriage." ru="На каретке не та печатающая головка, которая была запрошена."/>
+  <translation tag="A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." ru="Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." ru="Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз."/>
   <translation tag="A first-layer offset and bed mesh for each material" ru="Смещение первого слоя и сетка стола для каждого материала"/>
@@ -392,6 +393,7 @@
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." ru="После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати."/>
   <translation tag="After parking, the head does not read as docked." ru="После парковки головка не числится в доке."/>
   <translation tag="After running the commands, tap Check Again below." ru="После выполнения команд нажмите «Проверить снова» ниже."/>
+  <translation tag="After the cut and retract, the toolhead sensor still sees filament: the cut failed, the tip is stuck in the gears, or the sensor is dirty."/>
   <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." ru="После этого «Проверка вертикальных артефактов» в этом меню покажет, насколько это помогло."/>
   <translation tag="Air filter" ru="Воздушный фильтр"/>
   <translation tag="Alert" ru="Оповещение"/>
@@ -883,6 +885,7 @@
   <translation tag="Check for Updates" ru="Проверить обновления"/>
   <translation tag="Check slot failed" ru="Ошибка проверки слота"/>
   <translation tag="Check slots failed" ru="Ошибка проверки слотов"/>
+  <translation tag="Check that every head is seated in its dock and that the dock and grab switches work."/>
   <translation tag="Check that fan and its connector. If the printer shut down, restart the firmware."/>
   <translation tag="Check that fan for a loose plug, debris or a failed motor."/>
   <translation tag="Check that motor power is on and its connectors are tight, then restart the firmware."/>
@@ -896,13 +899,16 @@
   <translation tag="Check that the cutter mechanism is properly installed" ru="Проверьте правильность установки режущего механизма"/>
   <translation tag="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge."/>
   <translation tag="Check that the printer is powered on and connected to the network" ru="Проверьте, что принтер включён и подключён к сети"/>
+  <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" ru="Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера"/>
   <translation tag="Check the PTFE tube from the Box to the toolhead and the toolhead entry, and clear any cut tip, then retry."/>
   <translation tag="Check the RS-485 cable between printer and CFS" ru="Проверьте кабель RS-485 между принтером и CFS"/>
   <translation tag="Check the USB or CAN cable and its termination, keep it away from motor wires, check the host&apos;s load, then restart the firmware."/>
   <translation tag="Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY."/>
+  <translation tag="Check the active spool and its tube. If the slot is wrong, set it with SET_EXTRUDER_SLOT. For false alarms, raise detection_length of the IFS motion sensor (8 to 17)."/>
   <translation tag="Check the bed temperature in the slicer&apos;s profile." ru="Проверьте температуру стола в профиле слайсера."/>
   <translation tag="Check the belts and rails for debris or looseness, then home again." ru="Проверьте ремни и направляющие на мусор и люфт, затем снова выполните парковку."/>
   <translation tag="Check the board&apos;s power and cable, and the serial or canbus_uuid setting in the printer&apos;s configuration, then restart the firmware."/>
@@ -914,6 +920,7 @@
   <translation tag="Check the fan for obstructions and its cable, then resume." ru="Проверьте вентилятор на препятствия и его кабель, затем продолжите."/>
   <translation tag="Check the filament path and try again." ru="Проверьте путь филамента и попробуйте снова."/>
   <translation tag="Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware."/>
+  <translation tag="Check the lane&apos;s tube and the toolhead entry for a jam. For a load, check that the toolhead sensor works."/>
   <translation tag="Check the motor cable, the driver&apos;s cooling and the motor power, then restart the firmware."/>
   <translation tag="Check the nozzle temperature in the slicer&apos;s filament profile." ru="Проверьте температуру сопла в профиле филамента в слайсере."/>
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" ru="Проверьте путь от слота до хаба на запутывание или трение. Если слот подаёт свободно, возможно, неисправен датчик хаба или подающий двигатель"/>
@@ -983,6 +990,7 @@
   <translation tag="Clean the nozzle tip and the build plate, then run the calibration again." ru="Очистите кончик сопла и печатную пластину, затем снова запустите калибровку."/>
   <translation tag="Clean the nozzle, then resume." ru="Очистите сопло, затем продолжите."/>
   <translation tag="Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries)."/>
+  <translation tag="Clean the plate and run a new bed mesh, or let ZMOD measure before each print (SAVE_ZMOD_DATA MESH_TEST)."/>
   <translation tag="Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry." ru="Очистите пого-контакты на печатающей головке и каретке, заново установите головку, затем повторите."/>
   <translation tag="Clean up" ru="Очистить"/>
   <translation tag="Clean {}" ru="Очистите {}"/>
@@ -1003,8 +1011,13 @@
   <translation tag="Clear every Endless Spool backup" ru="Очистить все резервы бесконечной катушки"/>
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>
   <translation tag="Clear failed" ru="Ошибка очистки"/>
+  <translation tag="Clear head T{1}&apos;s filament path (a cold pull works), then resume."/>
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." ru="Освободите место над столом и под ним. Положите катушки на стол, накройте их коробкой (напечатанной крышкой или упаковкой филамента) и закройте дверцу."/>
+  <translation tag="Clear the bed and the nozzle, then restart the firmware."/>
+  <translation tag="Clear the bed and the nozzle, then try again."/>
+  <translation tag="Clear the clog in head T{1} (a cold pull works), then resume."/>
   <translation tag="Clear the extruder?" ru="Очистить экструдер?"/>
+  <translation tag="Clear the nozzle and the part, then restart the firmware."/>
   <translation tag="Clear the nozzle and the purge chute, load {}, then resume."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ru="Освободите стол и загрузите {}. Башня печатается в центре стола."/>
   <translation tag="Cleared" ru="Очищено"/>
@@ -1017,6 +1030,7 @@
   <translation tag="Clog Manual" ru="Засор: вручную"/>
   <translation tag="Clog and flow health while printing" ru="Засоры и поток во время печати"/>
   <translation tag="Clog detection" ru="Обнаружение засора"/>
+  <translation tag="Clog in head T{1}"/>
   <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." ru="Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."/>
   <translation tag="Close" ru="Закрыть"/>
   <translation tag="Close feeder" ru="Закрыть фидер"/>
@@ -1209,6 +1223,7 @@
   <translation tag="Could not move the plate" ru="Не удалось переместить стол"/>
   <translation tag="Could not open a browser for the update" ru="Не удалось открыть браузер для обновления"/>
   <translation tag="Could not parse tips database" ru="Не удалось разобрать базу данных советов"/>
+  <translation tag="Could not pick up head T{1}"/>
   <translation tag="Could not prepare a folder for the update log" ru="Не удалось подготовить папку для журнала обновления"/>
   <translation tag="Could not reach Spoolman at" ru="Не удалось связаться со Spoolman по адресу"/>
   <translation tag="Could not read the current IPv4 settings." ru="Не удалось прочитать текущие настройки IPv4."/>
@@ -1875,6 +1890,7 @@
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" ru="После реза филамент остался. Возможно, лезвие затупилось или смещено"/>
   <translation tag="Filament is tangled"/>
   <translation tag="Filament jam detected" ru="Обнаружен затор филамента"/>
+  <translation tag="Filament jam in the IFS"/>
   <translation tag="Filament jammed at the extruder gear" ru="Филамент застрял в шестерне экструдера"/>
   <translation tag="Filament left the Box but never reached the toolhead&apos;s filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."/>
   <translation tag="Filament move too long"/>
@@ -1890,6 +1906,8 @@
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." ru="Филамент закончился - у печатающей головки ничего нет, печать приостановлена."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." ru="Филамент закончился, и CFS не нашла подходящей катушки для замены. Загрузите катушку того же материала и цвета и продолжите печать."/>
   <translation tag="Filament ran out at the toolhead" ru="Филамент закончился у печатающей головки"/>
+  <translation tag="Filament ran out on head T{1}"/>
+  <translation tag="Filament ran out or jammed"/>
   <translation tag="Filament ran out. Auto-Refill is off, so the CFS will not switch spools on its own. Load filament, then resume." ru="Филамент закончился. Автопополнение выключено, поэтому CFS не сменит катушку сам. Загрузите филамент и продолжите печать."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." ru="Филамент закончился. CFS знает, какие катушки подходят, но эти слоты пусты. Загрузите одну из них, затем продолжите печать."/>
   <translation tag="Filament reload failed" ru="Не удалось повторно подать филамент"/>
@@ -1901,8 +1919,10 @@
   <translation tag="Filament slot menu" ru="Меню слота филамента"/>
   <translation tag="Filament snapped inside CFS" ru="Филамент сломался внутри CFS"/>
   <translation tag="Filament stalled between CFS hub and extruder sensor" ru="Филамент остановился между хабом CFS и датчиком экструдера"/>
+  <translation tag="Filament stalled in IFS lane {1}"/>
   <translation tag="Filament still feeding" ru="Филамент ещё подаётся"/>
   <translation tag="Filament stuck in connector during unload" ru="Филамент застрял в разъёме при выгрузке"/>
+  <translation tag="Filament stuck in the extruder"/>
   <translation tag="Filament stuck inside the CFS hub" ru="Филамент застрял внутри хаба CFS"/>
   <translation tag="Filament stuck on the nozzle" ru="Филамент налип на сопло"/>
   <translation tag="Filament tracking &amp; label printing" ru="Учёт филамента и печать этикеток"/>
@@ -2067,6 +2087,12 @@
   <translation tag="Hardware was present in previous session but is now missing" ru="Оборудование было в прошлом сеансе, но сейчас отсутствует"/>
   <translation tag="Have a piece of paper ready." ru="Подготовьте лист бумаги."/>
   <translation tag="Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn&apos;t adjusted with thumb wheels or some other built-in mechanism." ru="Подготовьте инструмент для регулировки стола (отвёртку, шестигранник и т.д.), если стол не регулируется                              барашками или другим встроенным механизмом."/>
+  <translation tag="Head T{1} did not seat in its dock, so it was not released and its heaters are off. X and Y may have lost steps."/>
+  <translation tag="Head T{1} has filament, but its filament wheel stopped moving."/>
+  <translation tag="Head T{1} has filament, but its motion sensor stopped seeing it move."/>
+  <translation tag="Head T{1} is not seated in its dock"/>
+  <translation tag="Head T{1} stayed in its dock after {2} tries, and its heaters were turned off."/>
+  <translation tag="Head T{1}&apos;s filament sensor went empty."/>
   <translation tag="Heading" ru="Заголовок"/>
   <translation tag="Healthy" ru="В порядке"/>
   <translation tag="Heat Capacity" ru="Теплоёмкость"/>
@@ -2082,7 +2108,10 @@
   <translation tag="Heat the extruder to at least {} before loading filament" ru="Перед загрузкой филамента нагрейте экструдер минимум до {}"/>
   <translation tag="Heat the head to the filament&apos;s temperature and check that it heats at all." ru="Нагрейте головку до температуры филамента и проверьте, греется ли она вообще."/>
   <translation tag="Heat the hotend." ru="Нагрейте хотенд."/>
+  <translation tag="Heat the nozzle before resuming"/>
   <translation tag="Heat the nozzle to the filament&apos;s printing temperature, wait for it to get there, then try again."/>
+  <translation tag="Heat the nozzle to the print temperature, then resume."/>
+  <translation tag="Heat the nozzle, pull the filament out by hand at the toolhead and check the cutter blade, then try again."/>
   <translation tag="Heat to at least %s for filament operations" ru="Нагрейте минимум до %s для операций с филаментом"/>
   <translation tag="Heat {} above {} before resuming" ru="Перед возобновлением нагрейте {} выше {}"/>
   <translation tag="Heatbed Temperature" ru="Температура стола"/>
@@ -2175,6 +2204,7 @@
   <translation tag="Home X and Y before Z"/>
   <translation tag="Home X and Y first" ru="Сначала запаркуйте X и Y"/>
   <translation tag="Home X and Y first, or home all axes together."/>
+  <translation tag="Home X and Y, then dock the head again."/>
   <translation tag="Home all axes to use the map" ru="Выполните парковку всех осей, чтобы использовать карту"/>
   <translation tag="Home all axes, then try again." ru="Выполните парковку всех осей и попробуйте снова."/>
   <translation tag="Home and park" ru="Домой и парковка"/>
@@ -2187,6 +2217,7 @@
   <translation tag="Home the printer again so a toolhead is picked up, then retry." ru="Снова запаркуйте принтер, чтобы печатающая головка была взята, затем повторите."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." ru="Снова запаркуйте принтер, чтобы он обнаружил печатающие головки, затем повторите."/>
   <translation tag="Home the printer so every toolhead is docked, then retry." ru="Запаркуйте принтер, чтобы все печатающие головки были в доках, затем повторите."/>
+  <translation tag="Home the printer, check that the head moves freely in its dock, then try again."/>
   <translation tag="Homing" ru="Парковка"/>
   <translation tag="Homing AFC system..." ru="Парковка системы AFC..."/>
   <translation tag="Homing Failed" ru="Ошибка парковки"/>
@@ -2250,6 +2281,7 @@
   <translation tag="I understand" ru="Я понимаю"/>
   <translation tag="ID (optional)" ru="ID (необязательно)"/>
   <translation tag="IFS driver error" ru="Ошибка драйвера IFS"/>
+  <translation tag="IFS driver failure"/>
   <translation tag="IFS updates without polling" ru="Обновления IFS без опроса"/>
   <translation tag="IFS: loading" ru="IFS: загрузка"/>
   <translation tag="IFS: unloading" ru="IFS: выгрузка"/>
@@ -2304,6 +2336,7 @@
   <translation tag="Insert a USB stick with the {} firmware file in its top folder." ru="Вставьте USB-накопитель с файлом прошивки {} в корневой папке."/>
   <translation tag="Insert filament" ru="Вставить филамент"/>
   <translation tag="Insert filament before resuming" ru="Вставьте филамент перед возобновлением"/>
+  <translation tag="Insert filament into lane {1} until the IFS grabs it, then load again."/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." ru="Вставьте филамент в фидер этой головки до захвата, затем снова загрузите головку."/>
   <translation tag="Insert the filament again and read the tag again."/>
   <translation tag="Inspecting bed..." ru="Осмотр стола..."/>
@@ -2482,6 +2515,8 @@
   <translation tag="Lane Settings" ru="Настройки канала"/>
   <translation tag="Lane name contains invalid characters" ru="Имя канала содержит недопустимые символы"/>
   <translation tag="Lane tests and motor resets" ru="Тесты каналов и сброс моторов"/>
+  <translation tag="Lane {1}&apos;s motor turns but its motion sensor sees no movement: a tangle on the spool, a kinked PTFE tube, or a slipping drive roller."/>
+  <translation tag="Lane {1}&apos;s sensor lost the filament while feeding: the spool is empty, the filament broke, or it never went in past the sensor."/>
   <translation tag="Lanes" ru="Каналы"/>
   <translation tag="Language" ru="Язык"/>
   <translation tag="Language &amp; Time" ru="Язык и время"/>
@@ -2564,11 +2599,17 @@
   <translation tag="Load complete" ru="Загрузка завершена"/>
   <translation tag="Load failed" ru="Ошибка загрузки"/>
   <translation tag="Load filament" ru="Загрузка филамента"/>
+  <translation tag="Load filament before resuming"/>
   <translation tag="Load filament by hand and resume."/>
   <translation tag="Load filament first" ru="Сначала загрузите филамент"/>
+  <translation tag="Load filament into head T{1}, then resume."/>
+  <translation tag="Load filament into the empty lane or another one, then resume."/>
   <translation tag="Load filament into this head, then resume. If filament is there, check for a break between the spool and the head." ru="Загрузите филамент в эту головку, затем продолжите. Если филамент есть, проверьте, нет ли обрыва между катушкой и головкой."/>
   <translation tag="Load filament into {}, then resume."/>
+  <translation tag="Load filament or clear the jam, then resume. For false alarms, tune detection_length (8 to 17)."/>
   <translation tag="Load filament to the toolhead, then tap Resume." ru="Загрузите филамент в печатающую головку, затем нажмите «Продолжить»."/>
+  <translation tag="Load filament, then resume."/>
+  <translation tag="Load filament, then start the print again."/>
   <translation tag="Load into which tool?" ru="В какой инструмент загрузить?"/>
   <translation tag="Load it in the filament panel, then tap Resume." ru="Загрузите его на панели филамента, затем нажмите «Продолжить»."/>
   <translation tag="Load or unload filament." ru="Загружайте или выгружайте филамент."/>
@@ -2945,6 +2986,8 @@
   <translation tag="No feeder attached" ru="Фидер не подключён"/>
   <translation tag="No filament" ru="Нет филамента"/>
   <translation tag="No filament environment sensors" ru="Нет датчиков среды филамента"/>
+  <translation tag="No filament in IFS lane {1}"/>
+  <translation tag="No filament loaded"/>
   <translation tag="No filament loaded to unload" ru="Нет загруженного филамента для выгрузки"/>
   <translation tag="No filament sensor detected" ru="Датчик филамента не обнаружен"/>
   <translation tag="No filament type is set for a toolhead this print uses." ru="Для печатающей головки, используемой в этой печати, не задан тип филамента."/>
@@ -3347,6 +3390,7 @@
   <translation tag="Power off the printer." ru="Выключите принтер."/>
   <translation tag="Power off, let the printer cool, check that nothing blocks the axis, then restart." ru="Выключите питание, дайте принтеру остыть, убедитесь, что ничто не мешает оси, затем перезапустите."/>
   <translation tag="Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing." ru="Выключите питание, заново установите печатающую головку и проверьте её разъём. Если повторится, датчик хотэнда нужно заменить."/>
+  <translation tag="Power the printer off and on and reseat the IFS cable. IFS_F15 resets the driver."/>
   <translation tag="Power the printer off and on, and check the toolhead cables and their connectors." ru="Выключите и включите принтер, проверьте кабели печатающих головок и их разъёмы."/>
   <translation tag="Power the printer off and on. Check that every toolhead is seated and its cable is connected." ru="Выключите и включите принтер. Убедитесь, что все печатающие головки установлены и их кабели подключены."/>
   <translation tag="Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware."/>
@@ -3405,6 +3449,7 @@
   <translation tag="Pressure advance" ru="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ru="Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение."/>
   <translation tag="Pressure advance tuning" ru="Настройка Pressure Advance"/>
+  <translation tag="Pressure on the bed"/>
   <translation tag="Pressure:" ru="Давление:"/>
   <translation tag="Preview" ru="Предпросмотр"/>
   <translation tag="Preview Sounds" ru="Предпросмотр звуков"/>
@@ -3756,6 +3801,7 @@
   <translation tag="Remove HelixScreen&apos;s include lines from printer.cfg; a resume then uses the printer&apos;s default mesh profile" ru="Удаляет строки include HelixScreen из printer.cfg; при возобновлении будет использоваться стандартный профиль сетки принтера"/>
   <translation tag="Remove PIN" ru="Удалить PIN"/>
   <translation tag="Remove Spoolman?" ru="Удалить Spoolman?"/>
+  <translation tag="Remove any loose part and clear the nozzle, then resume. For false alarms, raise the limit with NOZZLE_CONTROL WEIGHT=."/>
   <translation tag="Remove or comment out &apos;{2}&apos; under [{1}] in the included file, then save again."/>
   <translation tag="Remove plugin from printer" ru="Удалить плагин с принтера"/>
   <translation tag="Remove the PEI Sheet" ru="Снимите лист PEI"/>
@@ -3770,6 +3816,7 @@
   <translation tag="Remove the spools from the bed" ru="Снимите катушки со стола"/>
   <translation tag="Remove the spools now?" ru="Снять катушки сейчас?"/>
   <translation tag="Remove tool" ru="Снять инструмент"/>
+  <translation tag="Remove whatever blocks the axis and home again before resuming."/>
   <translation tag="Remove your tags for this image?" ru="Удалить ваши отметки для этого изображения?"/>
   <translation tag="Remove your tags for this image? Its chips go back to the shipped positions." ru="Удалить ваши отметки для этого изображения? Метки вернутся на исходные места."/>
   <translation tag="Rename" ru="Переименовать"/>
@@ -4294,6 +4341,7 @@
   <translation tag="Some settings will take effect after restart." ru="Некоторые настройки вступят в силу после перезапуска."/>
   <translation tag="Something is on the build plate" ru="На печатной пластине что-то есть"/>
   <translation tag="Something on the bed?" ru="Что-то на столе?"/>
+  <translation tag="Something rests on the bed, the nozzle is touching it, or the load cell has a fault."/>
   <translation tag="Sound" ru="Звук"/>
   <translation tag="Sound Theme" ru="Звуковая тема"/>
   <translation tag="Sounds" ru="Звуки"/>
@@ -4615,6 +4663,12 @@
   <translation tag="The DNS server is not a valid address." ru="DNS-сервер не является допустимым адресом."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ru="Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток."/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." ru="Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена."/>
+  <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port."/>
+  <translation tag="The IFS board reported a driver error on every retry."/>
+  <translation tag="The IFS did not answer"/>
+  <translation tag="The IFS did not finish moving filament"/>
+  <translation tag="The IFS did not reach the state it was waiting for in time, so the filament is not moving: usually a jam in that lane&apos;s tube or at the toolhead entry."/>
+  <translation tag="The IFS motion sensor saw no filament movement while printing: a tangled spool, a kinked tube, the wrong slot recorded as loaded, or old filament still in the head."/>
   <translation tag="The IFS state file can&apos;t be read." ru="Не удаётся прочитать файл состояния IFS."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." ru="IP-адрес не может быть сетевым или широковещательным адресом подсети."/>
   <translation tag="The IP address is not a valid address." ru="IP-адрес не является допустимым адресом."/>
@@ -4641,10 +4695,13 @@
   <translation tag="The bed is too small for settling laps." ru="Стол слишком мал для кругов приработки."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." ru="Стол слишком мал для тестовой башни, или его размер неизвестен."/>
   <translation tag="The bed mesh profile &apos;{1}&apos; was never saved on this printer."/>
+  <translation tag="The bed no longer matches the saved mesh"/>
   <translation tag="The bed temperature asked for is outside the allowed range." ru="Запрошенная температура стола вне допустимого диапазона."/>
   <translation tag="The bed temperature reading is out of range: its sensor is loose or damaged." ru="Показание температуры стола вне диапазона: датчик отошёл или повреждён."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." ru="Стол выключится. Катушки считаются лежащими на столе, пока вы не подтвердите, что сняли их."/>
   <translation tag="The bed was reported dirty, so this print cannot resume." ru="Стол помечен как загрязнённый, поэтому печать не может быть продолжена."/>
+  <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself."/>
+  <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" ru="Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" ru="Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер"/>
@@ -4694,19 +4751,25 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" ru="Возможно, филамент втянут не полностью. Повторите или вытяните вручную"/>
   <translation tag="The filament ran out or slipped out of the feeder during the load." ru="Во время загрузки филамент закончился или выскользнул из фидера."/>
   <translation tag="The filament reached the nozzle, but purging it failed." ru="Филамент дошёл до сопла, но продувка не удалась."/>
+  <translation tag="The filament sensor reads empty."/>
+  <translation tag="The filament sensor saw the filament stop: the spool is empty, or the filament is not moving."/>
+  <translation tag="The filament sensor still reads empty, so the firmware refused to resume."/>
   <translation tag="The filament stopped moving on its way to the head." ru="Филамент остановился на пути к головке."/>
   <translation tag="The filament system needs attention" ru="Системе подачи филамента требуется внимание"/>
   <translation tag="The filament system reported an error" ru="Система филамента сообщила об ошибке"/>
   <translation tag="The filament took too long to reach the feeder&apos;s sensor." ru="Филамент слишком долго шёл до датчика фидера."/>
   <translation tag="The filament went into the toolhead past its feeder. Load it by hand." ru="Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."/>
   <translation tag="The file asks for more extrusion than the head allows." ru="Файл требует большей экструзии, чем допускает головка."/>
+  <translation tag="The file contains G2 and G3 arc moves, which this firmware refuses."/>
   <translation tag="The file could not be read part way through the print." ru="Не удалось прочитать файл в середине печати."/>
   <translation tag="The file is missing, renamed or damaged." ru="Файл отсутствует, переименован или повреждён."/>
   <translation tag="The file list could not be read from storage." ru="Не удалось прочитать список файлов из хранилища."/>
   <translation tag="The file uses an arc move the printer does not support." ru="В файле есть дуговое перемещение, которое принтер не поддерживает."/>
+  <translation tag="The file uses arc moves"/>
   <translation tag="The file uses inches (G20)." ru="В файле используются дюймы (G20)."/>
   <translation tag="The file was sliced for a different nozzle size than one the print uses." ru="Файл нарезан под другой диаметр сопла, чем используемый в печати."/>
   <translation tag="The file was sliced for a different nozzle type than the one installed." ru="Файл нарезан под другой тип сопла, чем установленный."/>
+  <translation tag="The file&apos;s checksum does not match its contents, so the upload was corrupted. The print was canceled."/>
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it."/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." ru="Разница не сократилась (сдвиг {:.1f} Гц). Поверните сильнее."/>
@@ -4742,6 +4805,8 @@
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The linked spool says {}." ru="Привязанная катушка указывает: {}."/>
+  <translation tag="The load cell read {1} g on the bed: the nozzle hit the print or a part came loose. During a print the firmware stops the printer."/>
+  <translation tag="The load cell would not zero"/>
   <translation tag="The load failed without a more specific reason." ru="Загрузка не удалась без более точной причины."/>
   <translation tag="The loaded slot is not known yet" ru="Загруженный слот пока неизвестен"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." ru="Загружена катушка {}, но файл нарезан для {}. Филамент с наполнителем печатается с меньшим потоком и требует закалённого сопла."/>
@@ -4752,10 +4817,12 @@
   <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." ru="Установленное сопло нагреется до {} и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут."/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." ru="Не удалось отметить новые настройки IPv4 как сохранённые, поэтому при следующем запуске они будут отменены."/>
   <translation tag="The new dock position is too far from the current one." ru="Новое положение дока слишком далеко от текущего."/>
+  <translation tag="The nozzle cooled during the pause, so the firmware refused to resume."/>
   <translation tag="The nozzle did not heat up at the expected rate." ru="Сопло грелось медленнее ожидаемого."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." ru="Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." ru="Сопло не двигалось с момента отключения питания. Убедитесь, что оно чуть выше верха печати, затем продолжите."/>
   <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." ru="Сопло нагреется до {}, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут."/>
+  <translation tag="The nozzle hit the print or the bed"/>
   <translation tag="The nozzle is below the lowest temperature allowed for extruding." ru="Температура сопла ниже минимально допустимой для экструзии."/>
   <translation tag="The nozzle is clear of the print" ru="Сопло не касается печати"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." ru="Сопло горячее. Очистите его металлической щёткой из комплекта, держите место парковки чистым и нажмите «Далее»."/>
@@ -4784,6 +4851,7 @@
   <translation tag="The previous settings come back in %d seconds unless you keep these." ru="Прежние настройки вернутся через %d с, если вы не оставите эти."/>
   <translation tag="The print already moved to another toolhead" ru="Печать уже перешла на другую печатающую головку"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." ru="Печать завершилась до первого слоя. Ничего не изменено."/>
+  <translation tag="The print file is damaged"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." ru="Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного."/>
   <translation tag="The print is no longer paused" ru="Печать больше не на паузе"/>
   <translation tag="The print is on its last layer." ru="Печатается последний слой."/>
@@ -4867,6 +4935,7 @@
   <translation tag="The printer&apos;s computer fell behind"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." ru="Состояние принтера ещё неизвестно, возможно, идёт печать."/>
+  <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." ru="Зонд так и не коснулся пластины: пластина PEI установлена неправильно."/>
   <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." ru="Зонд уже сработал до начала перемещения."/>
@@ -4876,6 +4945,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ru="Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>
+  <translation tag="The runout sensor reads empty, so the print did not start."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ru="Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." ru="Экран потеряет связь с принтером на несколько секунд."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" ru="Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание"/>
@@ -4904,6 +4974,7 @@
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." ru="Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" ru="Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" ru="Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?"/>
+  <translation tag="The toolhead sensor went empty, and no other lane holds the same type and color, or backup is off."/>
   <translation tag="The toolhead&apos;s pogo pins are not making contact." ru="Пого-контакты печатающей головки не замыкаются."/>
   <translation tag="The toolheads have changed enough times since their last maintenance." ru="С последнего обслуживания печатающие головки сменились достаточно раз."/>
   <translation tag="The toolheads&apos; docked and picked-up states do not add up." ru="Состояния «в доке» и «на каретке» печатающих головок не сходятся."/>
@@ -4920,6 +4991,8 @@
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ru="Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="The {0} motor was not measured: {1}." ru="Мотор {0} не измерен: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
+  <translation tag="The {1} motor lost steps"/>
+  <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe."/>
   <translation tag="Theme" ru="Тема"/>
   <translation tag="Theme Colors" ru="Цвета темы"/>
@@ -5135,6 +5208,7 @@
   <translation tag="Toolhead offsets out of range" ru="Смещения головок вне диапазона"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" ru="Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"/>
   <translation tag="Toolhead position unknown" ru="Положение печатающей головки неизвестно"/>
+  <translation tag="Toolhead sensors disagree"/>
   <translation tag="Toolheads" ru="Печатающие головки"/>
   <translation tag="Tools" ru="Инструменты"/>
   <translation tag="Tools Used" ru="Использовано инструментов"/>
@@ -5181,6 +5255,7 @@
   <translation tag="Turn On" ru="Включить"/>
   <translation tag="Turn On LEDs" ru="Включить LED"/>
   <translation tag="Turn On Toolhead LED" ru="Включить LED печатающей головки"/>
+  <translation tag="Turn off arc fitting in the slicer and slice the file again."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ru="Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново."/>
   <translation tag="Turn off bed check" ru="Отключить проверку стола"/>
   <translation tag="Turn off detection" ru="Отключить обнаружение"/>
@@ -5318,6 +5393,7 @@
   <translation tag="Upload files from the slicer or app, and remove the command from the file." ru="Загружайте файлы из слайсера или приложения и удалите эту команду из файла."/>
   <translation tag="Upload gcode files to get started" ru="Загрузите gcode-файлы для начала"/>
   <translation tag="Upload the file again and start it again." ru="Загрузите файл снова и снова запустите его."/>
+  <translation tag="Upload the file again."/>
   <translation tag="Upload the file again. If it happens again, the storage may be failing." ru="Загрузите файл снова. Если повторится, возможно, хранилище выходит из строя."/>
   <translation tag="Upload unavailable in this build" ru="Отправка недоступна в этой сборке"/>
   <translation tag="Upper belt" ru="Верхний ремень"/>

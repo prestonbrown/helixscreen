@@ -180,6 +180,7 @@
   <translation tag="A cooling fan stopped while its heater was on, so the firmware turned the heater off."/>
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." pt="Uma impressora delta não consegue fazer home de X e Y sem mover Z, então uma impressão não pode ser retomada."/>
   <translation tag="A different toolhead than the one asked for is on the carriage." pt="Há no carro um cabeçote diferente do solicitado."/>
+  <translation tag="A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." pt="Uma ventoinha que puxa o ar da câmara por um filtro. Controle-a na tela de temperatura da câmara."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." pt="Alguns minutos, quase todo aquecendo. Você não julga nada a olho."/>
   <translation tag="A first-layer offset and bed mesh for each material" pt="Um offset de primeira camada e uma malha da mesa para cada material"/>
@@ -356,6 +357,7 @@
   <translation tag="After connecting the {}, we recommend recalibrating input shaping to ensure print quality." pt="Depois de ligar {}, recomendamos recalibrar o Input Shaping para garantir a qualidade de impressão."/>
   <translation tag="After parking, the head does not read as docked." pt="Após estacionar, o cabeçote não aparece na doca."/>
   <translation tag="After running the commands, tap Check Again below." pt="Após executar os comandos, toque em Verificar Novamente abaixo."/>
+  <translation tag="After the cut and retract, the toolhead sensor still sees filament: the cut failed, the tip is stuck in the gears, or the sensor is dirty."/>
   <translation tag="Afterwards, Vertical Artifact Check in this menu shows how much it helped." pt="Depois, a Verificação de artefatos verticais neste menu mostra o quanto ajudou."/>
   <translation tag="Air filter" pt="Filtro de ar"/>
   <translation tag="Alert" pt="Alerta"/>
@@ -841,6 +843,7 @@
   <translation tag="Check for Updates" pt="Verificar Atualizações"/>
   <translation tag="Check slot failed" pt="Falha ao verificar slot"/>
   <translation tag="Check slots failed" pt="Falha ao verificar slots"/>
+  <translation tag="Check that every head is seated in its dock and that the dock and grab switches work."/>
   <translation tag="Check that fan and its connector. If the printer shut down, restart the firmware."/>
   <translation tag="Check that fan for a loose plug, debris or a failed motor."/>
   <translation tag="Check that motor power is on and its connectors are tight, then restart the firmware."/>
@@ -854,13 +857,16 @@
   <translation tag="Check that the cutter mechanism is properly installed" pt="Verifique se o mecanismo de corte está instalado corretamente"/>
   <translation tag="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge."/>
   <translation tag="Check that the printer is powered on and connected to the network" pt="Verifique se a impressora está ligada e conectada à rede"/>
+  <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller."/>
   <translation tag="Check that the toolhead is really empty, then resume."/>
+  <translation tag="Check the IFS cable, make sure the native screen is off, and power the printer off and on."/>
   <translation tag="Check the PTFE tube"/>
   <translation tag="Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor" pt="Verifique se o tubo PTFE ao longo da esteira está dobrado, e a curva na entrada do sensor do extrusor"/>
   <translation tag="Check the PTFE tube from the Box to the toolhead and the toolhead entry, and clear any cut tip, then retry."/>
   <translation tag="Check the RS-485 cable between printer and CFS" pt="Verifique o cabo RS-485 entre a impressora e o CFS"/>
   <translation tag="Check the USB or CAN cable and its termination, keep it away from motor wires, check the host&apos;s load, then restart the firmware."/>
   <translation tag="Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY."/>
+  <translation tag="Check the active spool and its tube. If the slot is wrong, set it with SET_EXTRUDER_SLOT. For false alarms, raise detection_length of the IFS motion sensor (8 to 17)."/>
   <translation tag="Check the bed temperature in the slicer&apos;s profile." pt="Verifique a temperatura da mesa no perfil do fatiador."/>
   <translation tag="Check the belts and rails for debris or looseness, then home again." pt="Verifique se há sujeira ou folga nas correias e trilhos e faça home novamente."/>
   <translation tag="Check the board&apos;s power and cable, and the serial or canbus_uuid setting in the printer&apos;s configuration, then restart the firmware."/>
@@ -872,6 +878,7 @@
   <translation tag="Check the fan for obstructions and its cable, then resume." pt="Verifique se o ventilador está obstruído e seu cabo, e retome."/>
   <translation tag="Check the filament path and try again." pt="Verifique o caminho do filamento e tente novamente."/>
   <translation tag="Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware."/>
+  <translation tag="Check the lane&apos;s tube and the toolhead entry for a jam. For a load, check that the toolhead sensor works."/>
   <translation tag="Check the motor cable, the driver&apos;s cooling and the motor power, then restart the firmware."/>
   <translation tag="Check the nozzle temperature in the slicer&apos;s filament profile." pt="Verifique a temperatura do bico no perfil de filamento do fatiador."/>
   <translation tag="Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed" pt="Verifique o percurso do slot até o hub quanto a emaranhados ou atrito. Se o slot alimenta livremente, o sensor do hub ou o motor de alimentação podem ter falhado"/>
@@ -941,6 +948,7 @@
   <translation tag="Clean the nozzle tip and the build plate, then run the calibration again." pt="Limpe a ponta do bico e a placa e execute a calibração novamente."/>
   <translation tag="Clean the nozzle, then resume." pt="Limpe o bico e retome."/>
   <translation tag="Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries)."/>
+  <translation tag="Clean the plate and run a new bed mesh, or let ZMOD measure before each print (SAVE_ZMOD_DATA MESH_TEST)."/>
   <translation tag="Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry." pt="Limpe os pinos pogo do cabeçote e do carro, encaixe o cabeçote novamente e tente outra vez."/>
   <translation tag="Clean up" pt="Limpar"/>
   <translation tag="Clean {}" pt="Limpar {}"/>
@@ -961,8 +969,13 @@
   <translation tag="Clear every Endless Spool backup" pt="Limpar todas as reservas do carretel infinito"/>
   <translation tag="Clear extruder only" pt="Esvaziar apenas o extrusor"/>
   <translation tag="Clear failed" pt="Falha ao limpar"/>
+  <translation tag="Clear head T{1}&apos;s filament path (a cold pull works), then resume."/>
   <translation tag="Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament&apos;s packaging) and close the door." pt="Libere a área acima e abaixo da mesa. Coloque os carretéis sobre a mesa, cubra-os com uma caixa (uma tampa impressa ou a embalagem do filamento) e feche a porta."/>
+  <translation tag="Clear the bed and the nozzle, then restart the firmware."/>
+  <translation tag="Clear the bed and the nozzle, then try again."/>
+  <translation tag="Clear the clog in head T{1} (a cold pull works), then resume."/>
   <translation tag="Clear the extruder?" pt="Esvaziar o extrusor?"/>
+  <translation tag="Clear the nozzle and the part, then restart the firmware."/>
   <translation tag="Clear the nozzle and the purge chute, load {}, then resume."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." pt="Limpe a mesa e carregue {}. A torre é impressa no centro da mesa."/>
   <translation tag="Cleared" pt="Liberado"/>
@@ -975,6 +988,7 @@
   <translation tag="Clog Manual" pt="Obstrução Manual"/>
   <translation tag="Clog and flow health while printing" pt="Obstrução e fluxo durante a impressão"/>
   <translation tag="Clog detection" pt="Detecção de obstrução"/>
+  <translation tag="Clog in head T{1}"/>
   <translation tag="Clogged nozzle? Extruding is optional: tap Done to go on." pt="Bico entupido? Extrudar é opcional: toque em Concluído para continuar."/>
   <translation tag="Close" pt="Fechar"/>
   <translation tag="Close feeder" pt="Fechar alimentador"/>
@@ -1164,6 +1178,7 @@
   <translation tag="Could not move the plate" pt="Não foi possível mover a mesa"/>
   <translation tag="Could not open a browser for the update" pt="Não foi possível abrir um navegador para a atualização"/>
   <translation tag="Could not parse tips database" pt="Não foi possível analisar o banco de dados de dicas"/>
+  <translation tag="Could not pick up head T{1}"/>
   <translation tag="Could not prepare a folder for the update log" pt="Não foi possível preparar uma pasta para o registro da atualização"/>
   <translation tag="Could not reach Spoolman at" pt="Não foi possível alcançar o Spoolman em"/>
   <translation tag="Could not read the current IPv4 settings." pt="Não foi possível ler as configurações IPv4 atuais."/>
@@ -1830,6 +1845,7 @@
   <translation tag="Filament is still present after the cut — the blade may be dull or misaligned" pt="Ainda há filamento após o corte. A lâmina pode estar cega ou desalinhada"/>
   <translation tag="Filament is tangled"/>
   <translation tag="Filament jam detected" pt="Entupimento de filamento detectado"/>
+  <translation tag="Filament jam in the IFS"/>
   <translation tag="Filament jammed at the extruder gear" pt="Filamento preso na engrenagem do extrusor"/>
   <translation tag="Filament left the Box but never reached the toolhead&apos;s filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."/>
   <translation tag="Filament move too long"/>
@@ -1845,6 +1861,8 @@
   <translation tag="Filament ran out - nothing at the toolhead and the print is paused." pt="O filamento acabou - não há nada no cabeçote e a impressão está pausada."/>
   <translation tag="Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume." pt="O filamento acabou e o CFS não encontrou um carretel compatível para trocar. Carregue um carretel do mesmo material e cor e retome."/>
   <translation tag="Filament ran out at the toolhead" pt="O filamento acabou no cabeçote"/>
+  <translation tag="Filament ran out on head T{1}"/>
+  <translation tag="Filament ran out or jammed"/>
   <translation tag="Filament ran out. Auto-Refill is off, so the CFS will not switch spools on its own. Load filament, then resume." pt="O filamento acabou. O reabastecimento automático está desligado, então o CFS não trocará de carretel sozinho. Carregue filamento e retome."/>
   <translation tag="Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume." pt="O filamento acabou. O CFS sabe quais carretéis correspondem, mas esses slots estão vazios. Carregue um deles e depois retome."/>
   <translation tag="Filament reload failed" pt="Falha ao recarregar o filamento"/>
@@ -1856,8 +1874,10 @@
   <translation tag="Filament slot menu" pt="Menu do slot de filamento"/>
   <translation tag="Filament snapped inside CFS" pt="O filamento partiu dentro do CFS"/>
   <translation tag="Filament stalled between CFS hub and extruder sensor" pt="O filamento parou entre o hub do CFS e o sensor do extrusor"/>
+  <translation tag="Filament stalled in IFS lane {1}"/>
   <translation tag="Filament still feeding" pt="Filamento ainda alimentando"/>
   <translation tag="Filament stuck in connector during unload" pt="Filamento preso no conector durante a descarga"/>
+  <translation tag="Filament stuck in the extruder"/>
   <translation tag="Filament stuck inside the CFS hub" pt="Filamento preso dentro do hub do CFS"/>
   <translation tag="Filament stuck on the nozzle" pt="Filamento grudado no bico"/>
   <translation tag="Filament tracking &amp; label printing" pt="Rastreamento de filamento e impressão de etiquetas"/>
@@ -2019,6 +2039,12 @@
   <translation tag="Hardware was present in previous session but is now missing" pt="O hardware estava presente na sessão anterior, mas agora está ausente"/>
   <translation tag="Have a piece of paper ready." pt="Tenha uma folha de papel pronta."/>
   <translation tag="Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn&apos;t adjusted with thumb wheels or some other built-in mechanism." pt="Tenha sua ferramenta de ajuste da mesa (chave de fenda, chave Allen, etc.) pronta se sua mesa não for ajustada com                              rodas manuais ou algum outro mecanismo embutido."/>
+  <translation tag="Head T{1} did not seat in its dock, so it was not released and its heaters are off. X and Y may have lost steps."/>
+  <translation tag="Head T{1} has filament, but its filament wheel stopped moving."/>
+  <translation tag="Head T{1} has filament, but its motion sensor stopped seeing it move."/>
+  <translation tag="Head T{1} is not seated in its dock"/>
+  <translation tag="Head T{1} stayed in its dock after {2} tries, and its heaters were turned off."/>
+  <translation tag="Head T{1}&apos;s filament sensor went empty."/>
   <translation tag="Heading" pt="Título"/>
   <translation tag="Healthy" pt="Em ordem"/>
   <translation tag="Heat Capacity" pt="Capacidade Calorífica"/>
@@ -2034,7 +2060,10 @@
   <translation tag="Heat the extruder to at least {} before loading filament" pt="Aqueça o extrusor a pelo menos {} antes de carregar filamento"/>
   <translation tag="Heat the head to the filament&apos;s temperature and check that it heats at all." pt="Aqueça o cabeçote na temperatura do filamento e verifique se ele aquece."/>
   <translation tag="Heat the hotend." pt="Aqueça o hotend."/>
+  <translation tag="Heat the nozzle before resuming"/>
   <translation tag="Heat the nozzle to the filament&apos;s printing temperature, wait for it to get there, then try again."/>
+  <translation tag="Heat the nozzle to the print temperature, then resume."/>
+  <translation tag="Heat the nozzle, pull the filament out by hand at the toolhead and check the cutter blade, then try again."/>
   <translation tag="Heat to at least %s for filament operations" pt="Aqueça até pelo menos %s para operações de filamento"/>
   <translation tag="Heat {} above {} before resuming" pt="Aqueça {} acima de {} antes de retomar"/>
   <translation tag="Heatbed Temperature" pt="Temperatura da Mesa Aquecida"/>
@@ -2127,6 +2156,7 @@
   <translation tag="Home X and Y before Z"/>
   <translation tag="Home X and Y first" pt="Faça home de X e Y primeiro"/>
   <translation tag="Home X and Y first, or home all axes together."/>
+  <translation tag="Home X and Y, then dock the head again."/>
   <translation tag="Home all axes to use the map" pt="Referencie todos os eixos para usar o mapa"/>
   <translation tag="Home all axes, then try again." pt="Faça home de todos os eixos e tente novamente."/>
   <translation tag="Home and park" pt="Origem e estacionar"/>
@@ -2139,6 +2169,7 @@
   <translation tag="Home the printer again so a toolhead is picked up, then retry." pt="Faça home da impressora novamente para que um cabeçote seja pego e tente outra vez."/>
   <translation tag="Home the printer again so it detects the toolheads, then retry." pt="Faça home da impressora novamente para que ela detecte os cabeçotes e tente outra vez."/>
   <translation tag="Home the printer so every toolhead is docked, then retry." pt="Faça home da impressora para que todos os cabeçotes fiquem na doca e tente outra vez."/>
+  <translation tag="Home the printer, check that the head moves freely in its dock, then try again."/>
   <translation tag="Homing" pt="Posicionando"/>
   <translation tag="Homing AFC system..." pt="Homing do sistema AFC..."/>
   <translation tag="Homing Failed" pt="Falha ao referenciar"/>
@@ -2202,6 +2233,7 @@
   <translation tag="I understand" pt="Entendi"/>
   <translation tag="ID (optional)" pt="ID (opcional)"/>
   <translation tag="IFS driver error" pt="Erro do driver do IFS"/>
+  <translation tag="IFS driver failure"/>
   <translation tag="IFS updates without polling" pt="Atualizações do IFS sem consulta periódica"/>
   <translation tag="IFS: loading" pt="IFS: carregando"/>
   <translation tag="IFS: unloading" pt="IFS: descarregando"/>
@@ -2256,6 +2288,7 @@
   <translation tag="Insert a USB stick with the {} firmware file in its top folder." pt="Insira um pendrive com o arquivo de firmware da {} na pasta principal."/>
   <translation tag="Insert filament" pt="Inserir filamento"/>
   <translation tag="Insert filament before resuming" pt="Insira filamento antes de retomar"/>
+  <translation tag="Insert filament into lane {1} until the IFS grabs it, then load again."/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." pt="Insira o filamento no alimentador deste cabeçote até ele prender e carregue o cabeçote novamente."/>
   <translation tag="Insert the filament again and read the tag again."/>
   <translation tag="Inspecting bed..." pt="Inspecionando a mesa..."/>
@@ -2434,6 +2467,8 @@
   <translation tag="Lane Settings" pt="Configurações da Lane"/>
   <translation tag="Lane name contains invalid characters" pt="O nome do lane contém caracteres inválidos"/>
   <translation tag="Lane tests and motor resets" pt="Testes de lane e reinícios de motor"/>
+  <translation tag="Lane {1}&apos;s motor turns but its motion sensor sees no movement: a tangle on the spool, a kinked PTFE tube, or a slipping drive roller."/>
+  <translation tag="Lane {1}&apos;s sensor lost the filament while feeding: the spool is empty, the filament broke, or it never went in past the sensor."/>
   <translation tag="Lanes" pt="Lanes"/>
   <translation tag="Language" pt="Idioma"/>
   <translation tag="Language &amp; Time" pt="Idioma e hora"/>
@@ -2516,11 +2551,17 @@
   <translation tag="Load complete" pt="Carregamento concluído"/>
   <translation tag="Load failed" pt="Falha ao carregar"/>
   <translation tag="Load filament" pt="Carregar filamento"/>
+  <translation tag="Load filament before resuming"/>
   <translation tag="Load filament by hand and resume."/>
   <translation tag="Load filament first" pt="Carregue filamento primeiro"/>
+  <translation tag="Load filament into head T{1}, then resume."/>
+  <translation tag="Load filament into the empty lane or another one, then resume."/>
   <translation tag="Load filament into this head, then resume. If filament is there, check for a break between the spool and the head." pt="Carregue filamento neste cabeçote e retome. Se houver filamento, verifique se ele rompeu entre o carretel e o cabeçote."/>
   <translation tag="Load filament into {}, then resume."/>
+  <translation tag="Load filament or clear the jam, then resume. For false alarms, tune detection_length (8 to 17)."/>
   <translation tag="Load filament to the toolhead, then tap Resume." pt="Carregue filamento até o cabeçote e toque em Retomar."/>
+  <translation tag="Load filament, then resume."/>
+  <translation tag="Load filament, then start the print again."/>
   <translation tag="Load into which tool?" pt="Carregar em qual ferramenta?"/>
   <translation tag="Load it in the filament panel, then tap Resume." pt="Carregue-o no painel de filamento e toque em Retomar."/>
   <translation tag="Load or unload filament." pt="Carregue ou descarregue o filamento."/>
@@ -2897,6 +2938,8 @@
   <translation tag="No feeder attached" pt="Nenhum alimentador conectado"/>
   <translation tag="No filament" pt="Sem filamento"/>
   <translation tag="No filament environment sensors" pt="Nenhum sensor ambiental de filamento"/>
+  <translation tag="No filament in IFS lane {1}"/>
+  <translation tag="No filament loaded"/>
   <translation tag="No filament loaded to unload" pt="Nenhum filamento carregado para descarregar"/>
   <translation tag="No filament sensor detected" pt="Nenhum sensor de filamento detectado"/>
   <translation tag="No filament type is set for a toolhead this print uses." pt="Nenhum tipo de filamento definido para um cabeçote usado nesta impressão."/>
@@ -3299,6 +3342,7 @@
   <translation tag="Power off the printer." pt="Desligue a impressora."/>
   <translation tag="Power off, let the printer cool, check that nothing blocks the axis, then restart." pt="Desligue, deixe a impressora esfriar, verifique se nada bloqueia o eixo e reinicie."/>
   <translation tag="Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing." pt="Desligue, encaixe o cabeçote novamente e verifique o conector. Se acontecer de novo, o sensor do hotend precisa ser substituído."/>
+  <translation tag="Power the printer off and on and reseat the IFS cable. IFS_F15 resets the driver."/>
   <translation tag="Power the printer off and on, and check the toolhead cables and their connectors." pt="Desligue e ligue a impressora e verifique os cabos dos cabeçotes e seus conectores."/>
   <translation tag="Power the printer off and on. Check that every toolhead is seated and its cable is connected." pt="Desligue e ligue a impressora. Verifique se todos os cabeçotes estão encaixados e com o cabo conectado."/>
   <translation tag="Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware."/>
@@ -3351,6 +3395,7 @@
   <translation tag="Pressure advance" pt="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." pt="O Pressure Advance sobe à medida que a torre cresce. Observe os cantos: toque em - ou + quando quiser e a rampa para, para você julgar seu próprio valor."/>
   <translation tag="Pressure advance tuning" pt="Ajuste de Pressure Advance"/>
+  <translation tag="Pressure on the bed"/>
   <translation tag="Pressure:" pt="Pressão:"/>
   <translation tag="Preview" pt="Pré-visualização"/>
   <translation tag="Preview Sounds" pt="Visualizar Sons"/>
@@ -3696,6 +3741,7 @@
   <translation tag="Remove HelixScreen&apos;s include lines from printer.cfg; a resume then uses the printer&apos;s default mesh profile" pt="Remove as linhas include do HelixScreen do printer.cfg; uma retomada usará então o perfil de malha padrão da impressora"/>
   <translation tag="Remove PIN" pt="Remover PIN"/>
   <translation tag="Remove Spoolman?" pt="Remover Spoolman?"/>
+  <translation tag="Remove any loose part and clear the nozzle, then resume. For false alarms, raise the limit with NOZZLE_CONTROL WEIGHT=."/>
   <translation tag="Remove or comment out &apos;{2}&apos; under [{1}] in the included file, then save again."/>
   <translation tag="Remove plugin from printer" pt="Remover plugin da impressora"/>
   <translation tag="Remove the PEI Sheet" pt="Retirar a folha PEI"/>
@@ -3710,6 +3756,7 @@
   <translation tag="Remove the spools from the bed" pt="Retire os carretéis da mesa"/>
   <translation tag="Remove the spools now?" pt="Retirar os carretéis agora?"/>
   <translation tag="Remove tool" pt="Remover ferramenta"/>
+  <translation tag="Remove whatever blocks the axis and home again before resuming."/>
   <translation tag="Remove your tags for this image?" pt="Remover suas marcações desta imagem?"/>
   <translation tag="Remove your tags for this image? Its chips go back to the shipped positions." pt="Remover suas marcações desta imagem? As etiquetas voltam às posições de fábrica."/>
   <translation tag="Rename" pt="Renomear"/>
@@ -4234,6 +4281,7 @@
   <translation tag="Some settings will take effect after restart." pt="Algumas configurações terão efeito após reiniciar."/>
   <translation tag="Something is on the build plate" pt="Há algo na placa"/>
   <translation tag="Something on the bed?" pt="Algo na mesa?"/>
+  <translation tag="Something rests on the bed, the nozzle is touching it, or the load cell has a fault."/>
   <translation tag="Sound" pt="Som"/>
   <translation tag="Sound Theme" pt="Tema de Som"/>
   <translation tag="Sounds" pt="Sons"/>
@@ -4549,6 +4597,12 @@
   <translation tag="The DNS server is not a valid address." pt="O servidor DNS não é um endereço válido."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." pt="O plugin HelixPrint permite modificações rápidas de G-code diretamente na sua impressora—como pular malha da mesa para reimpressões rápidas."/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." pt="O plugin HelixPrint passa as chamadas antigas do PRINT_START para os nomes ocultos."/>
+  <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port."/>
+  <translation tag="The IFS board reported a driver error on every retry."/>
+  <translation tag="The IFS did not answer"/>
+  <translation tag="The IFS did not finish moving filament"/>
+  <translation tag="The IFS did not reach the state it was waiting for in time, so the filament is not moving: usually a jam in that lane&apos;s tube or at the toolhead entry."/>
+  <translation tag="The IFS motion sensor saw no filament movement while printing: a tangled spool, a kinked tube, the wrong slot recorded as loaded, or old filament still in the head."/>
   <translation tag="The IFS state file can&apos;t be read." pt="Não é possível ler o arquivo de estado do IFS."/>
   <translation tag="The IP address cannot be the subnet&apos;s network or broadcast address." pt="O endereço IP não pode ser o endereço de rede ou de broadcast da sub-rede."/>
   <translation tag="The IP address is not a valid address." pt="O endereço IP não é um endereço válido."/>
@@ -4575,10 +4629,13 @@
   <translation tag="The bed is too small for settling laps." pt="A mesa é pequena demais para as voltas de assentamento."/>
   <translation tag="The bed is too small for the test tower, or its size is unknown." pt="A mesa é pequena demais para a torre de teste, ou seu tamanho é desconhecido."/>
   <translation tag="The bed mesh profile &apos;{1}&apos; was never saved on this printer."/>
+  <translation tag="The bed no longer matches the saved mesh"/>
   <translation tag="The bed temperature asked for is outside the allowed range." pt="A temperatura da mesa pedida está fora da faixa permitida."/>
   <translation tag="The bed temperature reading is out of range: its sensor is loose or damaged." pt="A leitura da temperatura da mesa está fora da faixa: o sensor está solto ou danificado."/>
   <translation tag="The bed turns off. The spools stay latched on the bed until you confirm they are off." pt="A mesa desliga. Os carretéis continuam registrados na mesa até você confirmar que foram retirados."/>
   <translation tag="The bed was reported dirty, so this print cannot resume." pt="A mesa foi reportada como suja, portanto esta impressão não pode ser retomada."/>
+  <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself."/>
+  <translation tag="The bed&apos;s load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."/>
   <translation tag="The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire."/>
   <translation tag="The buffer may be disconnected, stuck, or faulty. Check it before retrying" pt="O buffer pode estar desconectado, travado ou com defeito. Verifique antes de tentar novamente"/>
   <translation tag="The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer" pt="O buffer não detectou movimento por 16 segundos. Verifique se há obstrução entre o CFS e o extrusor, ou um buffer travado"/>
@@ -4628,19 +4685,25 @@
   <translation tag="The filament may not have fully retracted — try again or manually pull" pt="O filamento pode não ter recuado totalmente. Tente novamente ou puxe à mão"/>
   <translation tag="The filament ran out or slipped out of the feeder during the load." pt="O filamento acabou ou escapou do alimentador durante o carregamento."/>
   <translation tag="The filament reached the nozzle, but purging it failed." pt="O filamento chegou ao bico, mas a purga falhou."/>
+  <translation tag="The filament sensor reads empty."/>
+  <translation tag="The filament sensor saw the filament stop: the spool is empty, or the filament is not moving."/>
+  <translation tag="The filament sensor still reads empty, so the firmware refused to resume."/>
   <translation tag="The filament stopped moving on its way to the head." pt="O filamento parou de se mover a caminho do cabeçote."/>
   <translation tag="The filament system needs attention" pt="O sistema de filamento precisa de atenção"/>
   <translation tag="The filament system reported an error" pt="O sistema de filamento reportou um erro"/>
   <translation tag="The filament took too long to reach the feeder&apos;s sensor." pt="O filamento demorou demais para chegar ao sensor do alimentador."/>
   <translation tag="The filament went into the toolhead past its feeder. Load it by hand." pt="O filamento entrou no cabeçote sem passar pelo alimentador. Carregue-o manualmente."/>
   <translation tag="The file asks for more extrusion than the head allows." pt="O arquivo pede mais extrusão do que o cabeçote permite."/>
+  <translation tag="The file contains G2 and G3 arc moves, which this firmware refuses."/>
   <translation tag="The file could not be read part way through the print." pt="Não foi possível ler o arquivo no meio da impressão."/>
   <translation tag="The file is missing, renamed or damaged." pt="O arquivo está ausente, renomeado ou danificado."/>
   <translation tag="The file list could not be read from storage." pt="Não foi possível ler a lista de arquivos do armazenamento."/>
   <translation tag="The file uses an arc move the printer does not support." pt="O arquivo usa um movimento em arco que a impressora não suporta."/>
+  <translation tag="The file uses arc moves"/>
   <translation tag="The file uses inches (G20)." pt="O arquivo usa polegadas (G20)."/>
   <translation tag="The file was sliced for a different nozzle size than one the print uses." pt="O arquivo foi fatiado para um tamanho de bico diferente de um usado na impressão."/>
   <translation tag="The file was sliced for a different nozzle type than the one installed." pt="O arquivo foi fatiado para um tipo de bico diferente do instalado."/>
+  <translation tag="The file&apos;s checksum does not match its contents, so the upload was corrupted. The print was canceled."/>
   <translation tag="The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it."/>
   <translation tag="The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong."/>
   <translation tag="The gap didn&apos;t close (moved {:.1f} Hz). Try a bigger turn." pt="A diferença não diminuiu (moveu {:.1f} Hz). Tente uma volta maior."/>
@@ -4676,6 +4739,8 @@
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>
   <translation tag="The left RFID reader in this CFS unit may need service" pt="O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção"/>
   <translation tag="The linked spool says {}." pt="O carretel vinculado indica {}."/>
+  <translation tag="The load cell read {1} g on the bed: the nozzle hit the print or a part came loose. During a print the firmware stops the printer."/>
+  <translation tag="The load cell would not zero"/>
   <translation tag="The load failed without a more specific reason." pt="O carregamento falhou sem um motivo mais específico."/>
   <translation tag="The loaded slot is not known yet" pt="O slot carregado ainda não é conhecido"/>
   <translation tag="The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle." pt="O carretel carregado é {}, mas este arquivo foi fatiado para {}. Filamento composto funciona com fluxo menor e precisa de um bico endurecido."/>
@@ -4686,10 +4751,12 @@
   <translation tag="The mounted nozzle heats to {} and cools again while the heater&apos;s safety model is fitted. Keep the part fan off and flammable material away from the head. This takes several minutes." pt="O bico montado aquece até {} e esfria de novo enquanto o modelo de segurança do aquecedor é ajustado. Mantenha a ventoinha da peça desligada e material inflamável longe do cabeçote. Isso leva vários minutos."/>
   <translation tag="The new IPv4 settings could not be marked as kept, so the next start undoes them." pt="Não foi possível marcar as novas configurações IPv4 como mantidas, então a próxima inicialização as desfaz."/>
   <translation tag="The new dock position is too far from the current one." pt="A nova posição da doca está longe demais da atual."/>
+  <translation tag="The nozzle cooled during the pause, so the firmware refused to resume."/>
   <translation tag="The nozzle did not heat up at the expected rate." pt="O bico não aqueceu no ritmo esperado."/>
   <translation tag="The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself." pt="O bico faz alguns movimentos curtos de teste num canto, longe da área de impressão, e repete até os valores convergirem."/>
   <translation tag="The nozzle hasn&apos;t moved since the power went out. Check that it sits just above the top of the print, then resume." pt="O bico não se moveu desde a queda de energia. Confira se ele está logo acima do topo da impressão e depois retome."/>
   <translation tag="The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes." pt="O bico aquece até {} enquanto a ventoinha da peça percorre suas velocidades. Para um ajuste preciso, monte o duto como você imprime com ele. Isso leva vários minutos."/>
+  <translation tag="The nozzle hit the print or the bed"/>
   <translation tag="The nozzle is below the lowest temperature allowed for extruding." pt="O bico está abaixo da temperatura mínima permitida para extrudar."/>
   <translation tag="The nozzle is clear of the print" pt="O bico não está tocando a impressão"/>
   <translation tag="The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next." pt="O bico está quente. Limpe-o com a escova de arame que acompanha a impressora, mantenha limpa a posição de encaixe e toque em Próximo."/>
@@ -4718,6 +4785,7 @@
   <translation tag="The previous settings come back in %d seconds unless you keep these." pt="As configurações anteriores voltam em %d segundos, a menos que você mantenha estas."/>
   <translation tag="The print already moved to another toolhead" pt="A impressão já passou para outro cabeçote"/>
   <translation tag="The print ended before any layer was printed. Nothing was changed." pt="A impressão terminou antes de qualquer camada ser impressa. Nada foi alterado."/>
+  <translation tag="The print file is damaged"/>
   <translation tag="The print is canceled and you pick the best band from what has printed so far." pt="A impressão é cancelada e você escolhe a melhor faixa do que foi impresso até agora."/>
   <translation tag="The print is no longer paused" pt="A impressão não está mais pausada"/>
   <translation tag="The print is on its last layer." pt="A impressão está na última camada."/>
@@ -4801,6 +4869,7 @@
   <translation tag="The printer&apos;s computer fell behind"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" pt="O firmware da impressora escolhe para onde trocar ao acabar"/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." pt="O estado da impressora ainda não é conhecido, então pode haver uma impressão em andamento."/>
+  <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." pt="A sonda nunca tocou a placa: a placa PEI não está colocada corretamente."/>
   <translation tag="The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted."/>
   <translation tag="The probe was already triggered before the move started." pt="A sonda já estava acionada antes do movimento começar."/>
@@ -4810,6 +4879,7 @@
   <translation tag="The right RFID reader in this CFS unit may need service" pt="O leitor RFID direito desta unidade CFS pode precisar de manutenção"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." pt="A etapa em andamento para na hora e a impressora reinicia, o que também descarta os resultados das etapas concluídas."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" pt="O sensor de fim de filamento indica que não há filamento carregado. Iniciar a impressão mesmo assim?"/>
+  <translation tag="The runout sensor reads empty, so the print did not start."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." pt="A posição salva é mantida. Reconecte ou reinicie a tela para que a retomada seja oferecida de novo."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." pt="A tela perderá a conexão com a impressora por alguns segundos."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" pt="Não é possível ler o sensor desta unidade CFS. Verifique a conexão, ou a unidade pode precisar de manutenção"/>
@@ -4838,6 +4908,7 @@
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." pt="O cabeçote se move para frente e para trás em velocidades de 20 a 300 mm/s enquanto o acelerômetro mede o quanto cada motor vibra. Leva cerca de {0} minutos e é barulhento. As velocidades que mais vibram são as que suas paredes externas devem evitar."/>
   <translation tag="The toolhead sensor indicates filament is already loaded. Proceed with load anyway?" pt="O sensor do cabeçote indica que o filamento já está carregado. Prosseguir com o carregamento mesmo assim?"/>
   <translation tag="The toolhead sensor indicates no filament is present. Proceed with unload anyway?" pt="O sensor do cabeçote indica que não há filamento presente. Prosseguir com o descarregamento mesmo assim?"/>
+  <translation tag="The toolhead sensor went empty, and no other lane holds the same type and color, or backup is off."/>
   <translation tag="The toolhead&apos;s pogo pins are not making contact." pt="Os pinos pogo do cabeçote não estão fazendo contato."/>
   <translation tag="The toolheads have changed enough times since their last maintenance." pt="Os cabeçotes já trocaram vezes suficientes desde a última manutenção."/>
   <translation tag="The toolheads&apos; docked and picked-up states do not add up." pt="Os estados na doca e pego dos cabeçotes não batem."/>
@@ -4854,6 +4925,8 @@
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." pt="O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." pt="O motor {0} não foi medido: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
+  <translation tag="The {1} motor lost steps"/>
+  <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe."/>
   <translation tag="Theme" pt="Tema"/>
   <translation tag="Theme Colors" pt="Cores do Tema"/>
@@ -5069,6 +5142,7 @@
   <translation tag="Toolhead offsets out of range" pt="Offsets dos cabeçotes fora da faixa"/>
   <translation tag="Toolhead position and homing, with a plate view and Home All" pt="Posição e posicionamento do cabeçote, com vista da mesa e Posicionar tudo"/>
   <translation tag="Toolhead position unknown" pt="Posição do cabeçote desconhecida"/>
+  <translation tag="Toolhead sensors disagree"/>
   <translation tag="Toolheads" pt="Cabeçotes"/>
   <translation tag="Tools" pt="Ferramentas"/>
   <translation tag="Tools Used" pt="Ferramentas Usadas"/>
@@ -5115,6 +5189,7 @@
   <translation tag="Turn On" pt="Ligar"/>
   <translation tag="Turn On LEDs" pt="Ligar os LEDs"/>
   <translation tag="Turn On Toolhead LED" pt="Ligar o LED do cabeçote"/>
+  <translation tag="Turn off arc fitting in the slicer and slice the file again."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." pt="Desligue o ajuste de arcos no fatiador e fatie o arquivo novamente."/>
   <translation tag="Turn off bed check" pt="Desligar verificação da mesa"/>
   <translation tag="Turn off detection" pt="Desligar detecção"/>
@@ -5252,6 +5327,7 @@
   <translation tag="Upload files from the slicer or app, and remove the command from the file." pt="Envie os arquivos pelo fatiador ou pelo app e remova o comando do arquivo."/>
   <translation tag="Upload gcode files to get started" pt="Faça upload de arquivos gcode para começar"/>
   <translation tag="Upload the file again and start it again." pt="Envie o arquivo novamente e inicie de novo."/>
+  <translation tag="Upload the file again."/>
   <translation tag="Upload the file again. If it happens again, the storage may be failing." pt="Envie o arquivo novamente. Se acontecer de novo, o armazenamento pode estar falhando."/>
   <translation tag="Upload unavailable in this build" pt="Envio indisponível nesta compilação"/>
   <translation tag="Upper belt" pt="Correia superior"/>

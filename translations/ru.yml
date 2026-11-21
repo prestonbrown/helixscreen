@@ -243,6 +243,8 @@ translations:
   A cooling fan stopped while its heater was on, so the firmware turned the heater off.: ''
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."
   A different toolhead than the one asked for is on the carriage.: 'На каретке не та печатающая головка, которая была запрошена.'
+  ? 'A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head.'
+  : ''
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Вентилятор, который прогоняет воздух камеры через фильтр. Управляйте им на экране температуры камеры.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Несколько минут, почти всё время нагрев. Ничего не нужно оценивать на глаз.'
   A first-layer offset and bed mesh for each material: "Смещение первого слоя и сетка стола для каждого материала"
@@ -425,6 +427,8 @@ translations:
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'После подключения {} рекомендуем заново откалибровать компенсацию вибраций для качества печати.'
   After parking, the head does not read as docked.: 'После парковки головка не числится в доке.'
   After running the commands, tap Check Again below.: После выполнения команд нажмите «Проверить снова» ниже.
+  ? 'After the cut and retract, the toolhead sensor still sees filament: the cut failed, the tip is stuck in the gears, or the sensor is dirty.'
+  : ''
   Afterwards, Vertical Artifact Check in this menu shows how much it helped.: 'После этого «Проверка вертикальных артефактов» в этом меню покажет, насколько это помогло.'
   Air filter: "Воздушный фильтр"
   Alert: Оповещение
@@ -923,6 +927,7 @@ translations:
   Check slot failed: Ошибка проверки слота
   Check Slots: Проверить
   Check slots failed: Ошибка проверки слотов
+  Check that every head is seated in its dock and that the dock and grab switches work.: ''
   Check that fan and its connector. If the printer shut down, restart the firmware.: ''
   Check that fan for a loose plug, debris or a failed motor.: ''
   Check that motor power is on and its connectors are tight, then restart the firmware.: ''
@@ -938,7 +943,9 @@ translations:
   ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
   : ''
   Check that the printer is powered on and connected to the network: Проверьте, что принтер включён и подключён к сети
+  Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: ''
   Check that the toolhead is really empty, then resume.: ''
+  Check the IFS cable, make sure the native screen is off, and power the printer off and on.: ''
   Check the PTFE tube: ''
   Check the PTFE tube along the drag chain for kinks, and the bend where it enters the extruder sensor: Проверьте трубку PTFE вдоль кабель-канала на перегибы, а также изгиб на входе в датчик экструдера
   Check the PTFE tube from the Box to the toolhead and the toolhead entry, and clear any cut tip, then retry.: ''
@@ -946,6 +953,8 @@ translations:
   ? Check the USB or CAN cable and its termination, keep it away from motor wires, check the host's load, then restart the firmware.
   : ''
   Check the accelerometer cable and the cs_pin in its configuration section, then run ACCELEROMETER_QUERY.: ''
+  ? Check the active spool and its tube. If the slot is wrong, set it with SET_EXTRUDER_SLOT. For false alarms, raise detection_length of the IFS motion sensor (8 to 17).
+  : ''
   Check the bed temperature in the slicer's profile.: 'Проверьте температуру стола в профиле слайсера.'
   Check the belts and rails for debris or looseness, then home again.: 'Проверьте ремни и направляющие на мусор и люфт, затем снова выполните парковку.'
   ? Check the board's power and cable, and the serial or canbus_uuid setting in the printer's configuration, then restart the firmware.
@@ -960,6 +969,7 @@ translations:
   Check the filament path and try again.: Проверьте путь филамента и попробуйте снова.
   ? Check the heater and thermistor wiring and that the thermistor is seated, keep fans off the heater block and run PID tuning again, then restart the firmware.
   : ''
+  Check the lane's tube and the toolhead entry for a jam. For a load, check that the toolhead sensor works.: ''
   Check the motor cable, the driver's cooling and the motor power, then restart the firmware.: ''
   Check the nozzle temperature in the slicer's filament profile.: 'Проверьте температуру сопла в профиле филамента в слайсере.'
   ? Check the path from the slot to the hub for a tangle or drag. If the slot feeds freely, the hub sensor or the feeder motor may have failed
@@ -1033,6 +1043,7 @@ translations:
   Clean the nozzle tip and the build plate, then run the calibration again.: 'Очистите кончик сопла и печатную пластину, затем снова запустите калибровку.'
   Clean the nozzle, then resume.: 'Очистите сопло, затем продолжите.'
   Clean the nozzle, tighten the probe mount, lower the probing speed, or allow more retries (samples_tolerance_retries).: ''
+  Clean the plate and run a new bed mesh, or let ZMOD measure before each print (SAVE_ZMOD_DATA MESH_TEST).: ''
   Clean the pogo pins on the toolhead and the carriage, seat the toolhead again, then retry.: 'Очистите пого-контакты на печатающей головке и каретке, заново установите головку, затем повторите.'
   Clean up: 'Очистить'
   Clean {}: Очистите {}
@@ -1053,11 +1064,16 @@ translations:
   Clear every Endless Spool backup: Очистить все резервы бесконечной катушки
   Clear extruder only: 'Только очистить экструдер'
   Clear failed: Ошибка очистки
+  Clear head T{1}'s filament path (a cold pull works), then resume.: ''
   ? Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
 
   : Освободите место над столом и под ним. Положите катушки на стол, накройте их коробкой (напечатанной крышкой или упаковкой филамента) и закройте дверцу.
 
+  Clear the bed and the nozzle, then restart the firmware.: ''
+  Clear the bed and the nozzle, then try again.: ''
+  Clear the clog in head T{1} (a cold pull works), then resume.: ''
   Clear the extruder?: 'Очистить экструдер?'
+  Clear the nozzle and the part, then restart the firmware.: ''
   Clear the nozzle and the purge chute, load {}, then resume.: ''
   Clear the plate and load {}. The tower prints in the middle of the bed.: Освободите стол и загрузите {}. Башня печатается в центре стола.
   Cleared: Очищено
@@ -1069,6 +1085,7 @@ translations:
   Clog Manual: 'Засор: вручную'
   Clog and flow health while printing: Засоры и поток во время печати
   Clog detection: Обнаружение засора
+  Clog in head T{1}: ''
   'Clogged nozzle? Extruding is optional: tap Done to go on.': "Сопло забито? Экструзия необязательна: нажмите «Готово», чтобы продолжить."
   Close: Закрыть
   Close feeder: Закрыть фидер
@@ -1304,6 +1321,7 @@ translations:
 
   Could not open a browser for the update: Не удалось открыть браузер для обновления
   Could not parse tips database: Не удалось разобрать базу данных советов
+  Could not pick up head T{1}: ''
   Could not prepare a folder for the update log: 'Не удалось подготовить папку для журнала обновления'
   Could not reach Spoolman at: Не удалось связаться со Spoolman по адресу
   Could not read the current IPv4 settings.: 'Не удалось прочитать текущие настройки IPv4.'
@@ -1980,6 +1998,7 @@ translations:
   Filament is still present after the cut — the blade may be dull or misaligned: После реза филамент остался. Возможно, лезвие затупилось или смещено
   Filament is tangled: ''
   Filament jam detected: Обнаружен затор филамента
+  Filament jam in the IFS: ''
   Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
   ? "Filament left the Box but never reached the toolhead's filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."
   : ''
@@ -1997,6 +2016,8 @@ translations:
   ? Filament ran out and the CFS found no matching spool to switch to. Load a spool of the same material and color, then resume.
   : 'Филамент закончился, и CFS не нашла подходящей катушки для замены. Загрузите катушку того же материала и цвета и продолжите печать.'
   Filament ran out at the toolhead: 'Филамент закончился у печатающей головки'
+  Filament ran out on head T{1}: ''
+  Filament ran out or jammed: ''
   Filament ran out. Auto-Refill is off, so the CFS will not switch spools on its own. Load filament, then resume.: 'Филамент закончился. Автопополнение выключено, поэтому CFS не сменит катушку сам. Загрузите филамент и продолжите печать.'
   Filament ran out. The CFS knows which spools match, but those slots are empty. Load one of them, then resume.: Филамент закончился. CFS знает, какие катушки подходят, но эти слоты пусты. Загрузите одну из них, затем продолжите печать.
   Filament reload failed: Не удалось повторно подать филамент
@@ -2008,8 +2029,10 @@ translations:
   Filament slot menu: 'Меню слота филамента'
   Filament snapped inside CFS: Филамент сломался внутри CFS
   Filament stalled between CFS hub and extruder sensor: Филамент остановился между хабом CFS и датчиком экструдера
+  Filament stalled in IFS lane {1}: ''
   Filament still feeding: 'Филамент ещё подаётся'
   Filament stuck in connector during unload: Филамент застрял в разъёме при выгрузке
+  Filament stuck in the extruder: ''
   Filament stuck inside the CFS hub: Филамент застрял внутри хаба CFS
   Filament stuck on the nozzle: 'Филамент налип на сопло'
   Filament tracking & label printing: Учёт филамента и печать этикеток
@@ -2177,6 +2200,12 @@ translations:
   Have a piece of paper ready.: Подготовьте лист бумаги.
   ? Have your bed adjustment tool (screwdriver, hex-key, etc.) ready if your bed isn't adjusted with thumb wheels or some other built-in mechanism.
   : Подготовьте инструмент для регулировки стола (отвёртку, шестигранник и т.д.), если стол не регулируется                              барашками или другим встроенным механизмом.
+  Head T{1} did not seat in its dock, so it was not released and its heaters are off. X and Y may have lost steps.: ''
+  Head T{1} has filament, but its filament wheel stopped moving.: ''
+  Head T{1} has filament, but its motion sensor stopped seeing it move.: ''
+  Head T{1} is not seated in its dock: ''
+  Head T{1} stayed in its dock after {2} tries, and its heaters were turned off.: ''
+  Head T{1}'s filament sensor went empty.: ''
   Heading: Заголовок
   Healthy: 'В порядке'
   Heat Capacity: Теплоёмкость
@@ -2193,7 +2222,10 @@ translations:
   Heat the extruder to at least {} before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}
   Heat the head to the filament's temperature and check that it heats at all.: 'Нагрейте головку до температуры филамента и проверьте, греется ли она вообще.'
   Heat the hotend.: "Нагрейте хотенд."
+  Heat the nozzle before resuming: ''
   Heat the nozzle to the filament's printing temperature, wait for it to get there, then try again.: ''
+  Heat the nozzle to the print temperature, then resume.: ''
+  Heat the nozzle, pull the filament out by hand at the toolhead and check the cutter blade, then try again.: ''
   Heat to at least %s for filament operations: Нагрейте минимум до %s для операций с филаментом
   Heat {} above {} before resuming: Перед возобновлением нагрейте {} выше {}
   Heatbed Temperature: Температура стола
@@ -2286,6 +2318,7 @@ translations:
   Home X and Y before Z: ''
   Home X and Y first: 'Сначала запаркуйте X и Y'
   Home X and Y first, or home all axes together.: ''
+  Home X and Y, then dock the head again.: ''
   Home all axes to use the map: Выполните парковку всех осей, чтобы использовать карту
   Home all axes, then try again.: 'Выполните парковку всех осей и попробуйте снова.'
   Home and park: "Домой и парковка"
@@ -2299,6 +2332,7 @@ translations:
   Home the printer again so a toolhead is picked up, then retry.: 'Снова запаркуйте принтер, чтобы печатающая головка была взята, затем повторите.'
   Home the printer again so it detects the toolheads, then retry.: 'Снова запаркуйте принтер, чтобы он обнаружил печатающие головки, затем повторите.'
   Home the printer so every toolhead is docked, then retry.: 'Запаркуйте принтер, чтобы все печатающие головки были в доках, затем повторите.'
+  Home the printer, check that the head moves freely in its dock, then try again.: ''
   Homing: Парковка
   Homing AFC system...: Парковка системы AFC...
   Homing Failed: 'Ошибка парковки'
@@ -2365,6 +2399,7 @@ translations:
 
   ID (optional): ID (необязательно)
   IFS driver error: "Ошибка драйвера IFS"
+  IFS driver failure: ''
   IFS updates without polling: 'Обновления IFS без опроса'
   'IFS: loading': "IFS: загрузка"
   'IFS: unloading': "IFS: выгрузка"
@@ -2419,6 +2454,7 @@ translations:
   Insert a USB stick with the {} firmware file in its top folder.: 'Вставьте USB-накопитель с файлом прошивки {} в корневой папке.'
   Insert filament: 'Вставить филамент'
   Insert filament before resuming: Вставьте филамент перед возобновлением
+  Insert filament into lane {1} until the IFS grabs it, then load again.: ''
   Insert filament into this head's feeder until it grabs, then load the head again.: 'Вставьте филамент в фидер этой головки до захвата, затем снова загрузите головку.'
   Insert the filament again and read the tag again.: ''
   Inspecting bed...: Осмотр стола...
@@ -2604,6 +2640,10 @@ translations:
   Lane Settings: Настройки канала
   Lane name contains invalid characters: 'Имя канала содержит недопустимые символы'
   Lane tests and motor resets: 'Тесты каналов и сброс моторов'
+  ? "Lane {1}'s motor turns but its motion sensor sees no movement: a tangle on the spool, a kinked PTFE tube, or a slipping drive roller."
+  : ''
+  ? "Lane {1}'s sensor lost the filament while feeding: the spool is empty, the filament broke, or it never went in past the sensor."
+  : ''
   Lanes: Каналы
   Language: Язык
   Language & Time: Язык и время
@@ -2681,11 +2721,17 @@ translations:
   Load complete: 'Загрузка завершена'
   Load failed: Ошибка загрузки
   Load filament: 'Загрузка филамента'
+  Load filament before resuming: ''
   Load filament by hand and resume.: ''
   Load filament first: Сначала загрузите филамент
+  Load filament into head T{1}, then resume.: ''
+  Load filament into the empty lane or another one, then resume.: ''
   Load filament into this head, then resume. If filament is there, check for a break between the spool and the head.: 'Загрузите филамент в эту головку, затем продолжите. Если филамент есть, проверьте, нет ли обрыва между катушкой и головкой.'
   Load filament into {}, then resume.: ''
+  Load filament or clear the jam, then resume. For false alarms, tune detection_length (8 to 17).: ''
   Load filament to the toolhead, then tap Resume.: 'Загрузите филамент в печатающую головку, затем нажмите «Продолжить».'
+  Load filament, then resume.: ''
+  Load filament, then start the print again.: ''
   Load into which tool?: 'В какой инструмент загрузить?'
   Push filament into the toolhead by hand, then tap Resume.: "Вставьте филамент в печатающую головку вручную, затем нажмите «Продолжить»."
   Load it in the filament panel, then tap Resume.: 'Загрузите его на панели филамента, затем нажмите «Продолжить».'
@@ -3062,6 +3108,8 @@ translations:
   No feeder attached: "Фидер не подключён"
   No filament: Нет филамента
   No filament environment sensors: Нет датчиков среды филамента
+  No filament in IFS lane {1}: ''
+  No filament loaded: ''
   No filament loaded to unload: Нет загруженного филамента для выгрузки
   No filament sensor detected: 'Датчик филамента не обнаружен'
   No filament. Load filament and retry.: Нет филамента. Загрузите филамент и повторите попытку.
@@ -3477,6 +3525,7 @@ translations:
   Power off the printer.: "Выключите принтер."
   Power off, let the printer cool, check that nothing blocks the axis, then restart.: 'Выключите питание, дайте принтеру остыть, убедитесь, что ничто не мешает оси, затем перезапустите.'
   Power off, seat the toolhead again and check its connector. If it happens again, the hotend sensor needs replacing.: 'Выключите питание, заново установите печатающую головку и проверьте её разъём. Если повторится, датчик хотэнда нужно заменить.'
+  Power the printer off and on and reseat the IFS cable. IFS_F15 resets the driver.: ''
   Power the printer off and on, and check the toolhead cables and their connectors.: 'Выключите и включите принтер, проверьте кабели печатающих головок и их разъёмы.'
   Power the printer off and on. Check that every toolhead is seated and its cable is connected.: 'Выключите и включите принтер. Убедитесь, что все печатающие головки установлены и их кабели подключены.'
   ? Power the printer off, inspect the motor cable and connector for {1}, swap the motor to test it, then restart the firmware.
@@ -3536,6 +3585,7 @@ translations:
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение.'
   Pressure advance tuning: 'Настройка Pressure Advance'
+  Pressure on the bed: ''
   'Pressure:': 'Давление:'
   Pressed: Нажата
   Pressure Adv.: 'Pressure Adv.'
@@ -3890,6 +3940,7 @@ translations:
   Remove HelixScreen's include lines from printer.cfg; a resume then uses the printer's default mesh profile: Удаляет строки include HelixScreen из printer.cfg; при возобновлении будет использоваться стандартный профиль сетки принтера
   Remove PIN: Удалить PIN
   Remove Spoolman?: Удалить Spoolman?
+  Remove any loose part and clear the nozzle, then resume. For false alarms, raise the limit with NOZZLE_CONTROL WEIGHT=.: ''
   Remove or comment out '{2}' under [{1}] in the included file, then save again.: ''
   Remove plugin from printer: Удалить плагин с принтера
   Remove the PEI Sheet: Снимите лист PEI
@@ -3907,6 +3958,7 @@ translations:
   Remove the spools now?: Снять катушки сейчас?
 
   Remove tool: Снять инструмент
+  Remove whatever blocks the axis and home again before resuming.: ''
   Remove your tags for this image?: Удалить ваши отметки для этого изображения?
   Remove your tags for this image? Its chips go back to the shipped positions.: Удалить ваши отметки для этого изображения? Метки вернутся на исходные места.
   Rename: Переименовать
@@ -4439,6 +4491,7 @@ translations:
   Some settings will take effect after restart.: Некоторые настройки вступят в силу после перезапуска.
   Something is on the build plate: 'На печатной пластине что-то есть'
   Something on the bed?: 'Что-то на столе?'
+  Something rests on the bed, the nozzle is touching it, or the load cell has a fault.: ''
   Sound: Звук
   Sound Theme: Звуковая тема
   Sounds: Звуки
@@ -4770,6 +4823,14 @@ translations:
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток.
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена.'
+  'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': ''
+  The IFS board reported a driver error on every retry.: ''
+  The IFS did not answer: ''
+  The IFS did not finish moving filament: ''
+  ? "The IFS did not reach the state it was waiting for in time, so the filament is not moving: usually a jam in that lane's tube or at the toolhead entry."
+  : ''
+  ? 'The IFS motion sensor saw no filament movement while printing: a tangled spool, a kinked tube, the wrong slot recorded as loaded, or old filament still in the head.'
+  : ''
   The IFS state file can't be read.: "Не удаётся прочитать файл состояния IFS."
   The IP address cannot be the subnet's network or broadcast address.: 'IP-адрес не может быть сетевым или широковещательным адресом подсети.'
   The IP address is not a valid address.: 'IP-адрес не является допустимым адресом.'
@@ -4800,11 +4861,15 @@ translations:
   The bed heater. Set its temperature and watch its graph on the bed temperature screen.: 'Нагреватель стола. Температура задается, а график виден на экране температуры стола.'
   The bed is too small for the test tower, or its size is unknown.: Стол слишком мал для тестовой башни, или его размер неизвестен.
   The bed mesh profile '{1}' was never saved on this printer.: ''
+  The bed no longer matches the saved mesh: ''
   The bed temperature asked for is outside the allowed range.: 'Запрошенная температура стола вне допустимого диапазона.'
   'The bed temperature reading is out of range: its sensor is loose or damaged.': 'Показание температуры стола вне диапазона: датчик отошёл или повреждён.'
   The bed turns off. The spools stay latched on the bed until you confirm they are off.: Стол выключится. Катушки считаются лежащими на столе, пока вы не подтвердите, что сняли их.
 
   The bed was reported dirty, so this print cannot resume.: 'Стол помечен как загрязнённый, поэтому печать не может быть продолжена.'
+  The bed's load cell read {1} g, above the {2} g limit, at Z {3}, and the printer shut down to protect itself.: ''
+  ? "The bed's load cell read {1} g, above the {2} g limit, at Z {3}: the nozzle is dragging on the part, a part came loose, or the print warped. The print paused."
+  : ''
   The board rebooted by itself, usually from a dip in its power supply or a short on a fan or heater wire.: ''
   The buffer may be disconnected, stuck, or faulty. Check it before retrying: Буфер может быть отключён, заклинен или неисправен. Проверьте его перед повтором
   The buffer saw no movement for 16 seconds. Check for a blockage between the CFS and the extruder, or a stuck buffer: Буфер не фиксировал движение 16 секунд. Проверьте засор между CFS и экструдером или заклинивший буфер
@@ -4862,17 +4927,23 @@ translations:
   The filament may not have fully retracted — try again or manually pull: Возможно, филамент втянут не полностью. Повторите или вытяните вручную
   The filament ran out or slipped out of the feeder during the load.: 'Во время загрузки филамент закончился или выскользнул из фидера.'
   The filament reached the nozzle, but purging it failed.: 'Филамент дошёл до сопла, но продувка не удалась.'
+  The filament sensor reads empty.: ''
+  'The filament sensor saw the filament stop: the spool is empty, or the filament is not moving.': ''
+  The filament sensor still reads empty, so the firmware refused to resume.: ''
   The filament stopped moving on its way to the head.: 'Филамент остановился на пути к головке.'
   The filament system needs attention: 'Системе подачи филамента требуется внимание'
   The filament system reported an error: Система филамента сообщила об ошибке
   The file asks for more extrusion than the head allows.: 'Файл требует большей экструзии, чем допускает головка.'
+  The file contains G2 and G3 arc moves, which this firmware refuses.: ''
   The file could not be read part way through the print.: 'Не удалось прочитать файл в середине печати.'
   The file is missing, renamed or damaged.: 'Файл отсутствует, переименован или повреждён.'
   The file list could not be read from storage.: 'Не удалось прочитать список файлов из хранилища.'
   The file uses an arc move the printer does not support.: 'В файле есть дуговое перемещение, которое принтер не поддерживает.'
+  The file uses arc moves: ''
   The file uses inches (G20).: 'В файле используются дюймы (G20).'
   The file was sliced for a different nozzle size than one the print uses.: 'Файл нарезан под другой диаметр сопла, чем используемый в печати.'
   The file was sliced for a different nozzle type than the one installed.: 'Файл нарезан под другой тип сопла, чем установленный.'
+  The file's checksum does not match its contents, so the upload was corrupted. The print was canceled.: ''
   ? The firmware could not read or write the driver for {1}. Motor power being off (UART drivers need it), a driver not seated or a wrong pin in the configuration can cause it.
   : ''
   ? The gantry needs a {1} mm correction, more than the {2} mm allowed. It is far out of level (after a crash, or sagging while powered off), or the probe points or the Z motor order are wrong.
@@ -4914,6 +4985,9 @@ translations:
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание
   'The linked spool says {}.': 'Привязанная катушка указывает: {}.'
+  ? 'The load cell read {1} g on the bed: the nozzle hit the print or a part came loose. During a print the firmware stops the printer.'
+  : ''
+  The load cell would not zero: ''
   The load failed without a more specific reason.: 'Загрузка не удалась без более точной причины.'
   The loaded slot is not known yet: "Загруженный слот пока неизвестен"
   ? The loaded spool is {}, but this file was sliced for {}. Filled filament runs at a lower flow rate and needs a hardened nozzle.
@@ -4928,11 +5002,13 @@ translations:
   : Установленное сопло нагреется до {} и снова остынет, пока определяется модель безопасности нагревателя. Держите обдув выключенным, а горючие материалы подальше от головки. Это займёт несколько минут.
   The new IPv4 settings could not be marked as kept, so the next start undoes them.: 'Не удалось отметить новые настройки IPv4 как сохранённые, поэтому при следующем запуске они будут отменены.'
   The new dock position is too far from the current one.: 'Новое положение дока слишком далеко от текущего.'
+  The nozzle cooled during the pause, so the firmware refused to resume.: ''
   The nozzle did not heat up at the expected rate.: 'Сопло грелось медленнее ожидаемого.'
   The nozzle extrudes a few short test moves in a corner, away from the print area, and repeats until it agrees with itself.: 'Сопло делает несколько коротких тестовых перемещений в углу, в стороне от зоны печати, и повторяет их до сходимости.'
   "The nozzle hasn't moved since the power went out. Check that it sits just above the top of the print, then resume.": "Сопло не двигалось с момента отключения питания. Убедитесь, что оно чуть выше верха печати, затем продолжите."
   ? The nozzle heats to {} while the part fan steps through its speeds. For an accurate fit, fit the duct as you print with it. This takes several minutes.
   : Сопло нагреется до {}, пока обдув перебирает скорости. Для точного результата установите воздуховод так же, как при печати. Это займёт несколько минут.
+  The nozzle hit the print or the bed: ''
   The nozzle is below the lowest temperature allowed for extruding.: 'Температура сопла ниже минимально допустимой для экструзии.'
   The nozzle is clear of the print: Сопло не касается печати
   ? The nozzle is hot. Brush it clean with the wire brush that came with the printer and keep the docking position clean, then tap Next.
@@ -4962,6 +5038,7 @@ translations:
   The previous settings come back in %d seconds unless you keep these.: 'Прежние настройки вернутся через %d с, если вы не оставите эти.'
   The print already moved to another toolhead: 'Печать уже перешла на другую печатающую головку'
   The print ended before any layer was printed. Nothing was changed.: Печать завершилась до первого слоя. Ничего не изменено.
+  The print file is damaged: ''
   The print is canceled and you pick the best band from what has printed so far.: Печать будет отменена, и вы выберете лучшую полосу из уже напечатанного.
   The print is no longer paused: 'Печать больше не на паузе'
   The print is on its last layer.: 'Печатается последний слой.'
@@ -5055,6 +5132,7 @@ translations:
   The right RFID reader in this CFS unit may need service: Правому RFID-считывателю этого блока CFS может требоваться обслуживание
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны.'
   The runout sensor indicates no filament is loaded. Start print anyway?: Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?
+  The runout sensor reads empty, so the print did not start.: ''
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить.
   The screen will lose its connection to the printer for a few seconds.: "Экран потеряет связь с принтером на несколько секунд."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Не удаётся считать датчик этого блока CFS. Проверьте подключение, иначе блоку требуется обслуживание
@@ -5088,6 +5166,7 @@ translations:
   : 'Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок.'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: Датчик печатающей головки показывает, что филамент уже загружен. Всё равно продолжить загрузку?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: Датчик печатающей головки показывает, что филамент отсутствует. Всё равно продолжить выгрузку?
+  The toolhead sensor went empty, and no other lane holds the same type and color, or backup is off.: ''
   The toolhead's pogo pins are not making contact.: 'Пого-контакты печатающей головки не замыкаются.'
   The toolheads have changed enough times since their last maintenance.: 'С последнего обслуживания печатающие головки сменились достаточно раз.'
   The toolheads' docked and picked-up states do not add up.: 'Состояния «в доке» и «на каретке» печатающих головок не сходятся.'
@@ -5105,6 +5184,8 @@ translations:
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : ''
+  The {1} motor lost steps: ''
+  'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': ''
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: ''
   Theme: Тема
   Theme Colors: Цвета темы
@@ -5125,6 +5206,8 @@ translations:
   'These tools have no matching filament loaded:': 'В этих инструментах нет подходящего филамента:'
   This .3mf has no sliced plate to print.: 'В этом .3mf нет нарезанной пластины для печати.'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Этот .3mf нужно преобразовать в G-code, прежде чем ставить в очередь. Напечатайте его отсюда.'
+  ? 'The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed.'
+  : ''
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'Зонд так и не коснулся пластины: пластина PEI установлена неправильно.'
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : ''
@@ -5352,6 +5435,7 @@ translations:
   Toolhead offsets out of range: 'Смещения головок вне диапазона'
   Toolhead position and homing, with a plate view and Home All: "Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"
   Toolhead position unknown: Положение печатающей головки неизвестно
+  Toolhead sensors disagree: ''
   Toolheads: Печатающие головки
   Tools: Инструменты
   Tools Used: Использовано инструментов
@@ -5398,6 +5482,7 @@ translations:
   Turn On: Включить
   Turn On LEDs: 'Включить LED'
   Turn On Toolhead LED: "Включить LED печатающей головки"
+  Turn off arc fitting in the slicer and slice the file again.: ''
   Turn off arc fitting in the slicer, then slice the file again.: 'Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново.'
   Turn off bed check: 'Отключить проверку стола'
   Turn off detection: Отключить обнаружение
@@ -5529,6 +5614,7 @@ translations:
   Upload files from the slicer or app, and remove the command from the file.: 'Загружайте файлы из слайсера или приложения и удалите эту команду из файла.'
   Upload gcode files to get started: Загрузите gcode-файлы для начала
   Upload the file again and start it again.: 'Загрузите файл снова и снова запустите его.'
+  Upload the file again.: ''
   Upload the file again. If it happens again, the storage may be failing.: 'Загрузите файл снова. Если повторится, возможно, хранилище выходит из строя.'
   Upload unavailable in this build: Отправка недоступна в этой сборке
   Upper belt: "Верхний ремень"

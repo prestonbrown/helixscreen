@@ -147,9 +147,11 @@ TEST_CASE("an opaque firmware code is shown but classifies like an uncoded !!",
     auto e = classify(line, printing);
     REQUIRE(e.has_value());
     CHECK(e->code == "0003-0522-0002-0008");
-    CHECK(e->source == helix::ErrorSource::GENERIC);
+    CHECK(e->source != helix::ErrorSource::CFS);
     CHECK(e->severity == helix::ErrorSeverity::CRITICAL);
-    CHECK(e->detail == "Lost communication with MCU 'e0'");
+    // The envelope's prose is Klipper's own sentence, so it reads worded.
+    CHECK(e->detail != "Lost communication with MCU 'e0'");
+    CHECK(e->title.find("e0") != std::string::npos);
     CHECK(e->raw_detail.find("\"coded\"") != std::string::npos);
 
     ClassifyContext paused;

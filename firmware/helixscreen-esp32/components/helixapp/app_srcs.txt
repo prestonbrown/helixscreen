@@ -236,6 +236,7 @@ src/printer/filament_mapping_plan.cpp
 src/printer/filament_variants.cpp
 src/printer/firmware_error_envelope.cpp
 src/printer/firmware_fault_codes.cpp
+src/printer/flashforge_error_wording.cpp
 src/printer/hardware_object_table.cpp
 src/printer/hardware_role_registry.cpp
 src/printer/hardware_validator.cpp
