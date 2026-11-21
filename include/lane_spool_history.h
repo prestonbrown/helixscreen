@@ -4,11 +4,11 @@
 #pragma once
 
 #include "ams_types.h"
+#include "helix_shared_callback.h"
 #include "spoolman_types.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <string>
 #include <vector>
@@ -68,7 +68,7 @@ inline constexpr size_t kMaxEntries = 12;
 /// Read this printer's history, most recent first. @p on_loaded runs once, on
 /// the reply's thread, with an empty list when nothing is stored or the read
 /// fails.
-void load(IMoonrakerAPI& api, std::function<void(std::vector<Entry>)> on_loaded);
+void load(IMoonrakerAPI& api, helix::SharedCallback<void(std::vector<Entry>)> on_loaded);
 
 /// The history a record builds on, from what the read of the stored value
 /// answered: the stored list, an empty one when nothing is stored yet
