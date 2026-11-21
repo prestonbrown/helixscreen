@@ -13,11 +13,13 @@
 
      Props, fixed per instance:
        palette       0 filament, 1 LED, 2 theme (helix::ColorPalette)
-       tabs_in_body  1 shows the readout and switch above the body -->
+       tabs_in_body  1 shows the readout and switch above the body
+       chip_size     the strip's chip size (#cpv_chip_compact for a thin strip) -->
 <component>
   <api>
     <prop name="palette" type="string" default="0"/>
     <prop name="tabs_in_body" type="string" default="0"/>
+    <prop name="chip_size" type="string" default="#cpv_chip"/>
   </api>
   <consts>
     <px name="cpv_knob_pad_ver" value="3"/>
@@ -182,10 +184,10 @@
               style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="true" scroll_dir="hor"
               scrollbar_mode="off" clickable="false">
         <repeat count="color_picker_chip_count">
-          <color_picker_chip index="${i}" size="#cpv_chip"/>
+          <color_picker_chip index="${i}" size="$chip_size"/>
         </repeat>
       </lv_obj>
-      <ui_button name="cp_strip_done" height="#cpv_chip" text="Done" variant="ghost" hidden="true">
+      <ui_button name="cp_strip_done" height="$chip_size" text="Done" variant="ghost" hidden="true">
         <bind_flag_if_eq subject="color_picker_strip_editing" flag="hidden" ref_value="0"/>
         <event_cb trigger="clicked" callback="color_picker_strip_done_cb"/>
       </ui_button>

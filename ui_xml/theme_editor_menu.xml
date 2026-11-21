@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The theme editor's more menu: the actions Save leaves out of the header -->
+  <view name="theme_editor_menu" extends="context_menu_backdrop">
+    <context_menu_card title="Theme" pad_gap="#space_xs">
+      <ui_button name="btn_theme_reset"
+                 height="#button_height_sm" icon="refresh" text="Reset" variant="ghost" style_flex_main_place="start">
+        <event_cb trigger="clicked" callback="theme_editor_menu_reset_cb"/>
+      </ui_button>
+      <ui_button name="btn_theme_save_as"
+                 height="#button_height_sm" icon="content_copy" text="Save As New" variant="ghost"
+                 style_flex_main_place="start">
+        <event_cb trigger="clicked" callback="theme_editor_menu_save_as_cb"/>
+      </ui_button>
+    </context_menu_card>
+  </view>
+</component>

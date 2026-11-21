@@ -5,15 +5,6 @@
 <!-- Navigation: Settings → Appearance → Theme Colors → Edit Colors → (this) -->
 <component>
   <consts>
-    <!-- The color editor's height: the roles and the picker beside or under
-         them, sized to the view above the pinned buttons. At 480x272 it is
-         taller than the view, so the grid keeps touch-sized rows and the content
-         scrolls a little to reach the properties. -->
-    <px name="theme_colors_h_micro" value="236"/>
-    <px name="theme_colors_h_tiny" value="230"/>
-    <px name="theme_colors_h_small" value="250"/>
-    <px name="theme_colors_h_medium" value="262"/>
-    <px name="theme_colors_h_large" value="380"/>
     <px name="theme_roles_w_micro" value="190"/>
     <px name="theme_roles_w_tiny" value="170"/>
     <px name="theme_roles_w_small" value="180"/>
@@ -37,42 +28,28 @@
            pad_left="#space_md" pad_right="#space_md" pad_top="#space_xs" pad_bottom="#space_sm" pad_gap="#space_xs"/>
     <style name="editor_swatches_micro"
            pad_left="#space_xs" pad_right="#space_xs" pad_top="0" pad_bottom="#space_xs" pad_gap="#space_xxs"/>
-    <style name="editor_actions"
-           pad_left="#space_lg" pad_right="#space_lg" pad_top="#space_lg" pad_bottom="#space_lg" pad_gap="#space_md"/>
-    <style name="editor_actions_micro"
-           pad_left="#space_sm" pad_right="#space_sm" pad_top="#space_xs" pad_bottom="#space_xs" pad_gap="#space_xs"/>
   </styles>
   <view name="theme_editor_overlay"
         extends="overlay_panel" title="Edit Theme Colors" title_subject="theme_editor_title" bg_color="#screen_bg"
-        back_button_callback="on_theme_back_clicked">
-    <!-- At 480x272 the picker's readout and switch sit in the header. -->
+        back_button_callback="on_theme_back_clicked" hide_action_button="false" action_button_text="Save"
+        action_button_callback="on_theme_save_clicked" action_button_disabled_cond="theme_editor_dirty eq 0"
+        action_icon="dots_vertical" action_icon_callback="on_theme_more_clicked" hide_action_icon="false">
+    <!-- The picker's Grid | Sliders switch. The selected role bar is the
+         readout (name, hex and color), so the picker shows none. Save is the
+         header's action; Reset and Save As New are behind the more button. -->
     <header_bar-header_content style_pad_gap="#space_sm">
-      <lv_obj name="theme_header_picker"
-              width="content" height="100%" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
-              style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false"
-              clickable="false" hidden="true">
-        <bind_flag_if_gt subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-        <color_picker_readout/>
-        <color_picker_tabs/>
-      </lv_obj>
+      <color_picker_tabs name="theme_header_tabs"/>
     </header_bar-header_content>
     <!-- Content Area - no padding, rows handle their own -->
     <overlay_panel-overlay_content style_pad_top="0" scrollable="true" flex_flow="column">
       <bind_style_if_eq name="editor_content_micro" subject="ui_breakpoint" ref_value="0"/>
       <bind_style_if_ge name="editor_content" subject="ui_breakpoint" ref_value="1"/>
-      <!-- ================================================================== -->
-      <!-- THEME COLORS -->
-      <!-- ================================================================== -->
-      <setting_section_header title="THEME COLORS" icon="tune">
-        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-      </setting_section_header>
       <!-- The theme's 16 roles as color bars beside the picker (a column from the
-           small class up; a sideways row above it at 480x272, where the readout
-           and switch sit in the header). Tapping a bar edits that role; the
-           picker repaints it and the theme previews it live. -->
+           small class up; a sideways row above it at 480x272). It fills the
+           view; the style properties follow below it. Tapping a bar edits that
+           role; the picker repaints it and the theme previews it live. -->
       <lv_obj name="theme_colors"
-              width="100%" height="#theme_colors_h" style_bg_opa="0" style_border_width="0" scrollable="false"
-              clickable="false">
+              width="100%" height="100%" style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
         <bind_style_if_eq name="colors_stacked" subject="ui_breakpoint" ref_value="0"/>
         <bind_style_if_ge name="colors_beside" subject="ui_breakpoint" ref_value="1"/>
         <bind_style_if_eq name="editor_swatches_micro" subject="ui_breakpoint" ref_value="0"/>
@@ -120,29 +97,6 @@
                           max_icon="plus" callback="on_theme_property_changed" user_data="shadow"/>
 
     </overlay_panel-overlay_content>
-    <!-- ================================================================== -->
-    <!-- ACTION BUTTONS: pinned below the scroller, so Reset / Save As / Save
-         stay reachable however long the colour list above scrolls. -->
-    <!-- ================================================================== -->
-    <overlay_panel-overlay_footer>
-      <lv_obj name="action_buttons" width="100%" height="content" flex_flow="row" scrollable="false">
-        <bind_style_if_eq name="editor_actions_micro" subject="ui_breakpoint" ref_value="0"/>
-        <bind_style_if_ge name="editor_actions" subject="ui_breakpoint" ref_value="1"/>
-
-        <ui_button name="btn_reset" height="#button_height" text="Reset" variant="secondary" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_theme_reset_clicked"/>
-        </ui_button>
-
-        <ui_button name="btn_save_as" height="#button_height" text="Save As New" variant="secondary" flex_grow="1">
-          <event_cb trigger="clicked" callback="on_theme_save_as_clicked"/>
-        </ui_button>
-
-        <ui_button name="btn_save" height="#button_height" text="Save" variant="primary" flex_grow="1">
-          <bind_state_if_eq subject="theme_editor_dirty" state="disabled" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
-        </ui_button>
-      </lv_obj>
-    </overlay_panel-overlay_footer>
 
   </view>
 </component>

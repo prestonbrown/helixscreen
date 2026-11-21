@@ -726,6 +726,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/telemetry_opt_in_row.xml",
     "ui_xml/text_edit_menu.xml",
     "ui_xml/text_entry_modal.xml",
+    "ui_xml/theme_editor_menu.xml",
     "ui_xml/theme_editor_overlay.xml",
     "ui_xml/theme_preview_overlay.xml",
     "ui_xml/theme_save_as_modal.xml",

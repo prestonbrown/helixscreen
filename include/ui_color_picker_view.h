@@ -54,6 +54,8 @@ struct ColorPickerConfig {
     std::function<std::vector<uint32_t>()> custom_strip;
     /// Show the readout and the switch above the body: a host with no header.
     bool tabs_in_body = false;
+    /// A thin strip of small chips, leaving the grid the height (the theme editor).
+    bool compact_strip = false;
 };
 
 class ColorPickerView {

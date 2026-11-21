@@ -117,17 +117,16 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
     // Find panel widget (content container)
     panel_ = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
 
-    // The picker sits in the page. At 480x272 its readout and switch are in the
-    // header (theme_editor_overlay.xml); elsewhere they head the picker.
+    // The picker sits in the page with no readout (the selected role bar is
+    // one) and its switch in the header (theme_editor_overlay.xml).
     lv_obj_t* picker_host = helix::ui::find_required(overlay_root_, "theme_picker", get_name());
     if (picker_host) {
-        lv_subject_t* bp = theme_manager_get_breakpoint_subject();
         helix::ui::ColorPickerConfig cfg;
         cfg.palette = helix::ColorPalette::Theme;
         cfg.strip = helix::ui::ColorStrip::Custom;
         cfg.strip_caption = lv_tr("This theme");
         cfg.custom_strip = [this] { return theme_colors(); };
-        cfg.tabs_in_body = !bp || lv_subject_get_int(bp) > static_cast<int>(UiBreakpoint::Micro);
+        cfg.compact_strip = true;
         picker_.attach(picker_host, 0x808080, cfg);
         picker_.on_change([this](uint32_t rgb) { handle_role_color(rgb); });
     }
@@ -137,6 +136,7 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
 }
 
 void ThemeEditorOverlay::register_callbacks() {
+    helix::ui::ThemeEditorMenu::register_callbacks();
     register_xml_callbacks({
         // Swatch click callback for color editing
         {"on_theme_swatch_clicked",
@@ -168,10 +168,10 @@ void ThemeEditorOverlay::register_callbacks() {
         // Action button callbacks
         {"on_theme_save_clicked",
          [](lv_event_t*) { get_theme_editor_overlay().handle_save_clicked(); }},
-        {"on_theme_save_as_clicked",
-         [](lv_event_t*) { get_theme_editor_overlay().handle_save_as_clicked(); }},
-        {"on_theme_reset_clicked",
-         [](lv_event_t*) { get_theme_editor_overlay().handle_reset_clicked(); }},
+        {"on_theme_more_clicked",
+         [](lv_event_t* e) {
+             get_theme_editor_overlay().handle_more_clicked(lv_event_get_current_target_obj(e));
+         }},
         // Save As dialog callbacks
         {"on_theme_save_as_confirm",
          [](lv_event_t*) { get_theme_editor_overlay().handle_save_as_confirm(); }},
@@ -197,10 +197,18 @@ void ThemeEditorOverlay::on_activate() {
     spdlog::debug("[{}] Activated", get_name());
 }
 
+void ThemeEditorOverlay::on_deactivating(DeactivateReason reason) {
+    // The menu hangs off the screen, not the overlay: left up, its Reset would
+    // act on an editor no longer on screen.
+    hide_more_menu();
+    OverlayBase::on_deactivating(reason);
+}
+
 void ThemeEditorOverlay::cleanup() {
     spdlog::debug("[{}] Cleanup", get_name());
 
     cancel_preview_timer();
+    hide_more_menu();
     picker_.detach();
 
     // Clean up discard confirmation dialog if showing
@@ -225,6 +233,7 @@ void ThemeEditorOverlay::on_ui_destroyed() {
     // The tree is gone: nothing may reach the role bars, and a dialog opened
     // from them has no owner left.
     cancel_preview_timer();
+    hide_more_menu();
     picker_.detach();
     if (discard_dialog_) {
         Modal::hide(discard_dialog_);
@@ -480,6 +489,25 @@ void ThemeEditorOverlay::handle_save_clicked() {
 void ThemeEditorOverlay::handle_save_as_clicked() {
     // Show save as dialog to get new filename
     show_save_as_dialog();
+}
+
+void ThemeEditorOverlay::handle_more_clicked(lv_obj_t* anchor) {
+    if (!anchor || more_menu_.is_visible()) {
+        return;
+    }
+    more_menu_.set_action_callback([this](int action, int /*item*/) {
+        if (action == helix::ui::ThemeEditorMenu::kActionReset) {
+            handle_reset_clicked();
+        } else if (action == helix::ui::ThemeEditorMenu::kActionSaveAs) {
+            handle_save_as_clicked();
+        }
+    });
+    more_menu_.show_below_widget(lv_obj_get_screen(anchor), anchor);
+}
+
+void ThemeEditorOverlay::hide_more_menu() {
+    more_menu_.set_action_callback(nullptr);
+    more_menu_.hide();
 }
 
 void ThemeEditorOverlay::handle_reset_clicked() {

@@ -315,8 +315,11 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     publish();
 
     const std::string palette_attr = std::to_string(static_cast<int>(config_.palette));
-    const char* attrs[] = {"palette", palette_attr.c_str(), "tabs_in_body",
-                           config_.tabs_in_body ? "1" : "0", nullptr};
+    const char* attrs[] = {
+        "palette",      palette_attr.c_str(),
+        "tabs_in_body", config_.tabs_in_body ? "1" : "0",
+        "chip_size",    config_.compact_strip ? "#cpv_chip_compact" : "#cpv_chip",
+        nullptr};
     root_.reset(static_cast<lv_obj_t*>(lv_xml_create(container, "color_picker_view", attrs)));
     if (!root_) {
         spdlog::error("[ColorPickerView] color_picker_view failed to build");

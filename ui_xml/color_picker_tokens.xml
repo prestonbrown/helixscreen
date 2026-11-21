@@ -35,6 +35,11 @@
     <px name="cpv_chip_small" value="48"/>
     <px name="cpv_chip_medium" value="60"/>
     <px name="cpv_chip_large" value="64"/>
+    <px name="cpv_chip_compact_micro" value="28"/>
+    <px name="cpv_chip_compact_tiny" value="28"/>
+    <px name="cpv_chip_compact_small" value="30"/>
+    <px name="cpv_chip_compact_medium" value="32"/>
+    <px name="cpv_chip_compact_large" value="32"/>
     <px name="cpv_knob_pad_hor_micro" value="-8"/>
     <px name="cpv_knob_pad_hor_tiny" value="-10"/>
     <px name="cpv_knob_pad_hor_small" value="-11"/>

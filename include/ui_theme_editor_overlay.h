@@ -9,6 +9,7 @@
 #pragma once
 
 #include "ui_color_picker_view.h"
+#include "ui_theme_editor_menu.h"
 #include "ui_widget_ref.h"
 
 #include "core/static_panel_registry.h"
@@ -70,6 +71,7 @@ class ThemeEditorOverlay : public OverlayBase {
      * @brief Called when overlay becomes visible
      */
     void on_activate() override;
+    void on_deactivating(DeactivateReason reason) override;
 
     /**
      * @brief Clean up resources for async-safe destruction
@@ -132,6 +134,9 @@ class ThemeEditorOverlay : public OverlayBase {
     void handle_save_clicked();
     void handle_save_as_clicked();
     void handle_reset_clicked();
+    /// The header's more button: raise the Reset / Save As New menu under it
+    void handle_more_clicked(lv_obj_t* anchor);
+    void hide_more_menu();
     void perform_reset_to_default();
 
     void handle_swatch_click(int palette_index);
@@ -185,6 +190,7 @@ class ThemeEditorOverlay : public OverlayBase {
                                                     helix::xml::IndexedSubjectPool::Type::Int};
     /// The inline picker editing the selected role.
     helix::ui::ColorPickerView picker_;
+    helix::ui::ThemeEditorMenu more_menu_;
     /// The theme previews a moment after the last change, not on every drag step.
     lv_timer_t* preview_timer_ = nullptr;
 
