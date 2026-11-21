@@ -713,6 +713,7 @@
   <translation tag="Cannot reprint: not connected to printer" ru="Невозможно перепечатать: не подключено к принтеру"/>
   <translation tag="Cannot restart Moonraker while printing" ru="Нельзя перезапустить Moonraker во время печати"/>
   <translation tag="Cannot restart — no filename" ru="Не удалось перезапустить — нет имени файла"/>
+  <translation tag="Cannot restore the stock screen while printing" ru="Нельзя вернуть штатный экран во время печати"/>
   <translation tag="Cannot run filament operation while printing" ru="Во время печати нельзя выполнять операции с филаментом"/>
   <translation tag="Cannot save offsets while printing" ru="Нельзя сохранить смещения во время печати"/>
   <translation tag="Cannot schedule a pause: printer not connected" ru="Невозможно запланировать паузу: принтер не подключён"/>
@@ -1057,8 +1058,10 @@
   <translation tag="Could not remove the job from the queue" ru="Не удалось удалить задание из очереди"/>
   <translation tag="Could not reset the printer image tags" ru="Не удалось сбросить отметки изображения"/>
   <translation tag="Could not resolve printer RFCOMM channel" ru="Не удалось определить RFCOMM-канал принтера"/>
+  <translation tag="Could not restart the printer; the stock screen was not restored" ru="Не удалось перезапустить принтер; штатный экран не восстановлен"/>
   <translation tag="Could not restore the previous IPv4 settings" ru="Не удалось восстановить прежние настройки IPv4"/>
   <translation tag="Could not restore the previous IPv4 settings yet. Retrying for up to two minutes." ru="Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут."/>
+  <translation tag="Could not restore the stock screen" ru="Не удалось вернуть штатный экран"/>
   <translation tag="Could not save filament" ru="Не удалось сохранить филамент"/>
   <translation tag="Could not save the drying state" ru="Не удалось сохранить состояние сушки"/>
   <translation tag="Could not save the drying state: nothing was heated" ru="Не удалось сохранить состояние сушки: ничего не нагревалось"/>
@@ -3470,14 +3473,18 @@
   <translation tag="Restart print" ru="Перезапустить печать"/>
   <translation tag="Restart the display application" ru="Перезапустить приложение дисплея"/>
   <translation tag="Restart the printer or screen" ru="Перезапустить принтер или экран"/>
+  <translation tag="Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide" ru="Перезапустите принтер. Если SSH по-прежнему отклоняет подключение, см. руководство по установке Snapmaker U1"/>
   <translation tag="Restarting HelixScreen..." ru="Перезапуск HelixScreen..."/>
   <translation tag="Restarting Klipper..." ru="Перезапуск Klipper..."/>
   <translation tag="Restarting Moonraker..." ru="Перезапуск Moonraker..."/>
   <translation tag="Restarting printer..." ru="Перезапуск принтера..."/>
   <translation tag="Restarting screen..." ru="Перезапуск экрана..."/>
+  <translation tag="Restarting the printer..." ru="Перезапуск принтера..."/>
   <translation tag="Restarting with the new version..." ru="Перезапуск с новой версией..."/>
   <translation tag="Restarting..." ru="Перезапуск..."/>
+  <translation tag="Restore" ru="Восстановить"/>
   <translation tag="Restore Defaults" ru="Восстановить по умолчанию"/>
+  <translation tag="Restore Stock Screen" ru="Вернуть штатный экран"/>
   <translation tag="Restore tool" ru="Вернуть инструмент"/>
   <translation tag="Restoring position" ru="Восстановление позиции"/>
   <translation tag="Restoring the print settings" ru="Восстановление настроек печати"/>
@@ -3564,6 +3571,7 @@
   <translation tag="SETTINGS" ru="НАСТРОЙКИ"/>
   <translation tag="SHIPPED IMAGES" ru="ВСТРОЕННЫЕ ИЗОБРАЖЕНИЯ"/>
   <translation tag="SOFTWARE" ru="ПО"/>
+  <translation tag="SSH did not start although Root access is on" ru="SSH не запустился, хотя root-доступ включён"/>
   <translation tag="STANDARD MACROS" ru="СТАНДАРТНЫЕ МАКРОСЫ"/>
   <translation tag="STARTUP" ru="ЗАПУСК"/>
   <translation tag="STOP" ru="СТОП"/>
@@ -4014,6 +4022,7 @@
   <translation tag="Switch Printer" ru="Переключить принтер"/>
   <translation tag="Switch Sensors" ru="Датчики-переключатели"/>
   <translation tag="Switch a power device on or off" ru="Включить или выключить питание"/>
+  <translation tag="Switch back to the Snapmaker screen" ru="Вернуться к экрану Snapmaker"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
   <translation tag="Switch spools at each tool change" ru="Переключать катушку при каждой смене инструмента"/>
   <translation tag="Switch the active tool or extruder" ru="Смена активного инструмента"/>
@@ -4294,6 +4303,7 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ru="Принтер не сообщает запись канала, поэтому выгрузить можно только очисткой экструдера."/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" ru="Принтер требует зашифрованного соединения, но отклонил зашифрованное задание: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ru="Принтер требует зашифрованного соединения, но зашифрованное подключение к {}:{} не удалось"/>
+  <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ru="Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
@@ -4766,6 +4776,7 @@
   <translation tag="Waiting for the chamber to heat" ru="Ожидание нагрева камеры"/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
+  <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ru="Ожидание состояния принтера; повторите попытку после подключения"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>
   <translation tag="Wall Speed Shakes This Printer" ru="Скорость стенок вызывает тряску принтера"/>
   <translation tag="Warm" ru="Тёплый"/>
