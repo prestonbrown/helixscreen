@@ -205,12 +205,9 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture,
     lv_subject_t* ip = lv_xml_get_subject(nullptr, "change_host_ip");
     REQUIRE(ip != nullptr);
     CHECK(std::string(lv_subject_get_string(ip)).empty());
-    lv_obj_t* add_title = lv_obj_find_by_name(dialog, "title_add_printer");
-    lv_obj_t* change_title = lv_obj_find_by_name(dialog, "title_change_host");
-    REQUIRE(add_title != nullptr);
-    REQUIRE(change_title != nullptr);
-    CHECK_FALSE(lv_obj_is_hidden(add_title));
-    CHECK(lv_obj_is_hidden(change_title));
+    lv_obj_t* title = lv_obj_find_by_name(dialog, "dialog_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == lv_tr("Add Printer"));
 
     net_.answer("10.9.9.9:7125");
     lv_subject_set_string(ip, "10.9.9.9");
@@ -244,9 +241,9 @@ TEST_CASE_METHOD(ChangeHostRestoreFixture, "Change Host after Add shows the save
     REQUIRE(dialog != nullptr);
     CHECK(std::string(lv_subject_get_string(lv_xml_get_subject(nullptr, "change_host_ip"))) ==
           kSavedHost);
-    lv_obj_t* change_title = lv_obj_find_by_name(dialog, "title_change_host");
-    REQUIRE(change_title != nullptr);
-    CHECK_FALSE(lv_obj_is_hidden(change_title));
+    lv_obj_t* title = lv_obj_find_by_name(dialog, "dialog_title");
+    REQUIRE(title != nullptr);
+    CHECK(std::string(lv_label_get_text(title)) == lv_tr("Change Printer Host"));
 }
 
 namespace {

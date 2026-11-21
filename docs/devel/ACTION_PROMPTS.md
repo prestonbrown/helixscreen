@@ -181,10 +181,10 @@ Rules worth knowing before writing a macro or a test:
 modal directly. The manager's state and the modal's visibility change together, with no queued
 step between them.
 
-`ActionPromptModal::show_prompt()` stores the data and calls `Modal::show()`; `on_show()` runs
-`populate_content()`, which sets the title through `kModalTitleWidgetName` (the name the
-duplicate-title toast suppression looks up), shows `icon_error` only when `severity == "error"`,
-adds one `action_prompt_text_line` per text line, and builds the buttons from the
+`ActionPromptModal::show_prompt()` stores the data and calls `Modal::show()` with the severity's
+icon props (the danger octagon for `severity == "error"`, the info glyph otherwise); `on_show()`
+runs `populate_content()`, which sets the title through `kModalTitleWidgetName` (the name the
+duplicate-title toast suppression looks up), adds one `action_prompt_text_line` per text line, and builds the buttons from the
 `action_prompt_button` and `action_prompt_swatch` components. One `ActionPromptModal` instance is
 reused for every prompt. Every button's click goes to `on_button_cb`, which finds the modal with
 `Modal::from_event` and the button by its `index` in `PromptData::buttons`, and ignores a button
@@ -201,8 +201,8 @@ Button layout (`src/ui/notify/action_prompt_modal.cpp#create_buttons`):
   Five or more labelled buttons make a grid of equal cells, three across, or two when the widest
   label does not fit a third; a label wider than its cell ends in an ellipsis. Swatch rows keep
   one line of tiles.
-- Text, the AFC diagram and the button rows sit in one scroll area, `prompt_scroll`.
-  `fit_rows()` sizes grid cells and swatch tiles, then caps `prompt_scroll` at the 85% card cap
+- Text, the AFC diagram and the button rows sit in one scroll area, the frame's `dialog_body`.
+  `fit_rows()` sizes grid cells and swatch tiles, then caps `dialog_body` at the 85% card cap
   less the header and footer, so a prompt with more buttons than the screen holds scrolls and
   its footer stays on the card.
 - Footer buttons go in `footer_container`, full height, flex-grow 1, with a 1px divider between

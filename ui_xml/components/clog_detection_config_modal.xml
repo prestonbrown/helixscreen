@@ -12,16 +12,8 @@
        Opened from grid edit mode gear icon on the clog detection widget.
        Source selection, detection mode, and danger threshold. -->
   <view name="clog_detection_config_modal"
-        extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-
-    <!-- Header -->
-    <modal_header icon_src="cog" icon_variant="accent" title="Clog Detection"/>
-
-    <!-- Content -->
-    <lv_obj width="100%"
-            height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
-            style_pad_bottom="#space_lg" flex_flow="column" style_pad_gap="#space_md">
+        extends="dialog_frame" title="Clog Detection" title_tag="Clog Detection" icon="cog" icon_variant="accent">
+    <dialog_frame-body>
 
       <!-- Source row -->
       <lv_obj width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
@@ -118,11 +110,13 @@
           <text_tiny text="0 = computed" style_text_color="#text_muted"/>
         </lv_obj>
       </lv_obj>
-    </lv_obj>
+    </dialog_frame-body>
 
     <!-- Buttons -->
-    <modal_button_row secondary_text="Cancel"
-                      secondary_callback="on_modal_cancel_clicked" primary_text="Save"
-                      primary_callback="on_modal_ok_clicked"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel"
+                        secondary_callback="on_modal_cancel_clicked" primary_text="Save"
+                        primary_callback="on_modal_ok_clicked"/>
+    </dialog_frame-footer>
   </view>
 </component>

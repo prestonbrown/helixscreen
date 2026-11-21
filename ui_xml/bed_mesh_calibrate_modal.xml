@@ -6,19 +6,15 @@
 <component>
   <!-- Dialog card (backdrop created programmatically) -->
   <view name="bed_mesh_calibrate_modal"
-        extends="ui_dialog" width="75%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
+        extends="dialog_frame" width="75%" title="Bed Mesh" title_tag="Bed Mesh" icon="grid_large">
     <!-- ============================================================ -->
     <!-- STATE: PROBING (state=1) - Progress bar + E-Stop -->
     <!-- ============================================================ -->
     <lv_obj name="probing_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
             style_flex_main_place="start" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
       <!-- Show only when state=1 -->
       <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="1"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Probing Bed Mesh" style_text_align="center"/>
       <!-- Progress text -->
       <text_muted name="probe_progress_text"
                   width="100%" bind_text="bed_mesh_probe_text" text="Initializing..." translation_tag="Initializing..."
@@ -36,15 +32,12 @@
     <!-- STATE: NAMING (state=2) - Name the profile the new mesh is probed into -->
     <!-- ============================================================ -->
     <lv_obj name="naming_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
-            style_flex_main_place="start" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
+            style_pad_gap="#space_md" hidden="true">
       <!-- Show only when state=2 -->
       <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="2"/>
-      <!-- Title -->
-      <text_heading width="100%" text="Bed Mesh" style_text_align="center"/>
       <!-- Instructions -->
-      <text_small width="100%" text="Enter a name for this profile" style_text_align="center"/>
+      <text_small width="100%" text="Enter a name for this profile" style_text_align="left"/>
       <!-- Profile name input -->
       <text_input name="calibrate_profile_name_input"
                   width="100%" height="#input_height" bind_text="bed_mesh_calibrate_name"
@@ -55,46 +48,47 @@
     <!-- STATE: ERROR (state=3) - Error message -->
     <!-- ============================================================ -->
     <lv_obj name="error_container"
-            width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="#space_lg" style_pad_bottom="#space_lg" flex_flow="column" style_flex_cross_place="center"
+            width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
             style_flex_main_place="start" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true">
       <!-- Show only when state=3 -->
       <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="3"/>
       <!-- Error icon -->
       <icon src="alert_circle" size="lg" variant="danger"/>
       <!-- Title -->
-      <text_heading width="100%" text="Calibration Failed" style_text_align="center"/>
+      <text_heading text="Calibration Failed"/>
       <!-- Error message (bound to subject) -->
       <text_muted name="error_message_label"
                   width="100%" bind_text="bed_mesh_error_message" text="An error occurred during calibration."
-                  translation_tag="An error occurred during calibration." long_mode="wrap" style_text_align="center"/>
+                  translation_tag="An error occurred during calibration." long_mode="wrap" style_text_align="left"/>
     </lv_obj>
     <!-- Button rows, one per state; each carries its own top divider. -->
-    <!-- PROBING state (state=1): Emergency Stop only -->
-    <modal_button_row name="probing_button_row"
-                      hidden="true" hide_secondary="true" primary_name="btn_emergency_stop" primary_variant="danger"
-                      primary_icon="alert_octagon" primary_text="EMERGENCY STOP"
-                      primary_callback="on_bed_mesh_emergency_stop">
-      <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="1"/>
-    </modal_button_row>
-    <!-- Warning text about emergency stop (probing state only) -->
-    <text_small width="100%"
-                text="Stops all motion. Requires firmware restart." style_text_align="center" style_pad_top="#space_sm"
-                style_pad_bottom="#space_sm" hidden="true">
-      <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="1"/>
-    </text_small>
-    <!-- NAMING state (state=2): Cancel | Start -->
-    <modal_button_row name="naming_button_row"
-                      hidden="true" secondary_name="btn_cancel" secondary_text="Cancel"
-                      secondary_callback="on_bed_mesh_calibrate_cancel" primary_name="btn_start" primary_text="Start"
-                      primary_callback="on_bed_mesh_calibrate_start">
-      <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="2"/>
-    </modal_button_row>
-    <!-- ERROR state (state=3): Close only -->
-    <modal_button_row name="error_button_row"
-                      hidden="true" hide_secondary="true" primary_name="btn_close" primary_text="Close"
-                      primary_callback="on_bed_mesh_calibrate_cancel">
-      <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="3"/>
-    </modal_button_row>
+    <dialog_frame-footer>
+      <!-- PROBING state (state=1): Emergency Stop only -->
+      <modal_button_row name="probing_button_row"
+                        hidden="true" hide_secondary="true" primary_name="btn_emergency_stop" primary_variant="danger"
+                        primary_icon="alert_octagon" primary_text="EMERGENCY STOP"
+                        primary_callback="on_bed_mesh_emergency_stop">
+        <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="1"/>
+      </modal_button_row>
+      <!-- Warning text about emergency stop (probing state only) -->
+      <text_small width="100%"
+                  text="Stops all motion. Requires firmware restart." style_text_align="center"
+                  style_pad_top="#space_sm" style_pad_bottom="#space_sm" hidden="true">
+        <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="1"/>
+      </text_small>
+      <!-- NAMING state (state=2): Cancel | Start -->
+      <modal_button_row name="naming_button_row"
+                        hidden="true" secondary_name="btn_cancel" secondary_text="Cancel"
+                        secondary_callback="on_bed_mesh_calibrate_cancel" primary_name="btn_start" primary_text="Start"
+                        primary_callback="on_bed_mesh_calibrate_start">
+        <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="2"/>
+      </modal_button_row>
+      <!-- ERROR state (state=3): Close only -->
+      <modal_button_row name="error_button_row"
+                        hidden="true" hide_secondary="true" primary_name="btn_close" primary_text="Close"
+                        primary_callback="on_bed_mesh_calibrate_cancel">
+        <bind_flag_if_not_eq subject="bed_mesh_calibrate_state" flag="hidden" ref_value="3"/>
+      </modal_button_row>
+    </dialog_frame-footer>
   </view>
 </component>

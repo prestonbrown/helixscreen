@@ -43,8 +43,14 @@
          bar instead of clipping. -->
     <header_bar name="overlay_header"
                 title="" title_subject="keypad_title" title_transform="none" title_font="#keypad_title_font"
-                title_long_mode="dots" title_max_lines="2" action_button_text="Set " hide_action_button="false"
-                action_button_callback="on_keypad_confirm"/>
+                title_long_mode="dots" title_max_lines="2">
+      <header_bar-actions>
+        <ui_button name="btn_set" height="content" text="Set " translation_tag="Set ">
+          <style name="styles.header_action"/>
+          <event_cb trigger="clicked" callback="on_keypad_confirm"/>
+        </ui_button>
+      </header_bar-actions>
+    </header_bar>
     <!-- Content -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column" style_pad_gap="0"

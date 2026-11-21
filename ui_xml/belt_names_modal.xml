@@ -20,13 +20,9 @@
     <style name="status_error" text_color="#danger"/>
   </styles>
   <view name="belt_names_modal"
-        extends="ui_dialog" width="80%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
-        style_pad_gap="0">
-    <lv_obj name="belt_names_content"
-            width="100%" height="content" style_max_height="#dialog_content_max" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column"
-            style_pad_gap="#space_sm" scrollable="true">
-      <text_heading width="100%" text="Which belt is which?" long_mode="wrap"/>
+        extends="dialog_frame" width="80%" title="Which belt is which?" title_tag="Which belt is which?"
+        icon="help_circle">
+    <dialog_frame-body style_pad_gap="#space_sm">
       <!-- Path A -->
       <lv_obj width="100%"
               height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
@@ -91,8 +87,10 @@
           </ui_button>
         </responsive_grid>
       </lv_obj>
-    </lv_obj>
-    <modal_button_row hide_secondary="true"
-                      primary_name="btn_names_done" primary_text="Done" primary_callback="on_modal_ok_clicked"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+      <modal_button_row hide_secondary="true"
+                        primary_name="btn_names_done" primary_text="Done" primary_callback="on_modal_ok_clicked"/>
+    </dialog_frame-footer>
   </view>
 </component>

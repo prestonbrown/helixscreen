@@ -38,18 +38,8 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
-/// Pull action_button_disabled_cond="..." out of a panel's XML source.
-/// Returns empty if absent — which is the regression this guards.
-std::string read_disabled_cond(const std::string& xml_path) {
-    std::ifstream f(xml_path);
-    if (!f) {
-        return {};
-    }
-    std::stringstream ss;
-    ss << f.rdbuf();
-    const std::string src = ss.str();
-
-    const std::string key = "action_button_disabled_cond=\"";
+/// The quoted value after @p key in @p src, or empty when @p key is absent.
+std::string quoted_after(const std::string& src, const std::string& key) {
     const size_t start = src.find(key);
     if (start == std::string::npos) {
         return {};
@@ -60,6 +50,30 @@ std::string read_disabled_cond(const std::string& xml_path) {
         return {};
     }
     return src.substr(value_start, end - value_start);
+}
+
+/// Pull a panel's header action disabled expression out of its XML source: the
+/// action_button_disabled_cond="..." prop, or the cond of the first
+/// <bind_state_if cond="..." state="disabled"/> on a button in its header's actions slot.
+/// Returns empty if absent — which is the regression this guards.
+std::string read_disabled_cond(const std::string& xml_path) {
+    std::ifstream f(xml_path);
+    if (!f) {
+        return {};
+    }
+    std::stringstream ss;
+    ss << f.rdbuf();
+    const std::string src = ss.str();
+
+    std::string cond = quoted_after(src, "action_button_disabled_cond=\"");
+    if (!cond.empty()) {
+        return cond;
+    }
+    const size_t actions = src.find("-actions>");
+    if (actions == std::string::npos) {
+        return {};
+    }
+    return quoted_after(src.substr(actions), "<bind_state_if cond=\"");
 }
 
 } // namespace

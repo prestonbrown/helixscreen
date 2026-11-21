@@ -4,12 +4,12 @@
 <!-- Bed Mesh Rename Modal - Rename the active mesh profile -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="bed_mesh_rename_modal" extends="dialog_frame" title="Rename Mesh Profile" title_tag="Rename Mesh Profile">
-    <dialog_frame-body style_flex_cross_place="center">
+  <view name="bed_mesh_rename_modal"
+        extends="dialog_frame" title="Rename Mesh Profile" title_tag="Rename Mesh Profile" icon="pencil">
+    <dialog_frame-body>
       <!-- Current name display -->
       <lv_obj width="100%"
-              height="content" flex_flow="row" style_flex_main_place="center" style_pad_all="0"
-              style_pad_gap="#space_xs">
+              height="content" flex_flow="row" style_flex_main_place="start" style_pad_all="0" style_pad_gap="#space_xs">
         <text_small text="Current name:"/>
         <text_small name="rename_current_name" bind_text="bed_mesh_rename_old_name" style_text_color="#success"/>
       </lv_obj>
@@ -19,7 +19,7 @@
                   placeholder_tag="New profile name" translation_tag="New profile name" style_margin_top="#space_sm"/>
       <!-- Status message (hidden by default) -->
       <text_small name="rename_status"
-                  width="100%" text="" style_text_align="center" style_text_color="#danger" hidden="true"/>
+                  width="100%" text="" style_text_align="left" style_text_color="#danger" hidden="true"/>
     </dialog_frame-body>
     <dialog_frame-footer>
       <modal_button_row primary_text="Rename"
