@@ -914,6 +914,20 @@ class SettingsManager {
     bool hidden_macros_key_exists() const;
 
     // =========================================================================
+    // COLOR PICKER RECENTS (global, not per printer; see color_recents.h)
+    // =========================================================================
+
+    /**
+     * @brief The stored "#RRGGBB" list for one recents kind ("filament", "led"),
+     *        newest first, or nullopt when it has never been written (a fresh
+     *        install, which the caller seeds).
+     */
+    std::optional<std::vector<std::string>> get_color_recents(const std::string& kind) const;
+
+    /** @brief Replace one recents list. Persists immediately. */
+    void set_color_recents(const std::string& kind, const std::vector<std::string>& hexes);
+
+    // =========================================================================
     // SPAGHETTI DETECTION (owned by SettingsManager — master toggle + per-source policy)
     // =========================================================================
 
