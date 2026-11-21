@@ -820,9 +820,6 @@ _refuse_if_firmware_managed() {
 
 # Main installation flow
 main() {
-    # Before any service starts, so none inherits helix-screen's OOM score.
-    reset_inherited_oom_score_adj
-
     # Probe the host once, before anything consults it: the mod-ownership
     # guard backs set_install_paths' install-dir gate (and detect_tmp_dir's
     # override branch), so HOST_MOD_ROOT must already be probed by then.
@@ -1035,6 +1032,10 @@ download_step() {
 # left it out of the count, or the [n/N] numbering is wrong.
 apply_install() {
     local uis stopping seed_pid
+
+    # Before any service starts, so none inherits helix-screen's OOM score.
+    # Not earlier: everything before confirm_point only reads (--dry-run).
+    reset_inherited_oom_score_adj
 
     if [ "${platform:-}" = "x86-desktop" ]; then
         apply_desktop_install

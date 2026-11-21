@@ -45,8 +45,8 @@ setup() {
     [ -z "$output" ]
 }
 
-@test "main resets the score before anything else runs" {
-    first=$(sed -n '/^main() {/,/^}/p' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" \
-        | grep -v '^\s*#' | sed -n '2p')
+@test "apply_install resets the score before anything else runs" {
+    first=$(sed -n '/^apply_install() {/,/^}/p' "$WORKTREE_ROOT/scripts/lib/installer/main.sh" \
+        | grep -v '^\s*#' | grep -v '^\s*local ' | grep -v '^\s*$' | sed -n '2p')
     [[ "$first" == *reset_inherited_oom_score_adj* ]]
 }
