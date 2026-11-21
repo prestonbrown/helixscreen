@@ -76,6 +76,8 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+from path_scope import in_skipped_dir
+
 SCAN_DIRS = ('ui_xml',)
 
 # android/app/src/main/assets/ui_xml/ is a gradle copy of ui_xml/, not a source
@@ -257,7 +259,7 @@ def iter_xml_files(repo_root):
         if not base.is_dir():
             continue
         for path in sorted(base.rglob('*.xml')):
-            if any(part in SKIP_PARTS for part in path.parts):
+            if in_skipped_dir(path, repo_root, SKIP_PARTS):
                 continue
             yield path
 

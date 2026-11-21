@@ -889,3 +889,14 @@ run_mk_fragment() {
     shift 3
     (cd "$dir" && make --no-print-directory -f Makefile "$@")
 }
+
+# Create a git repository whose root sits below a `.worktrees/` directory, the
+# way every worktree of this repo does, and print its path. A whole-tree gate
+# run from there must still see the repository's own files; a `.worktrees/`
+# nested INSIDE it is a peer's tree and stays skipped.
+make_worktree_root() {
+    local root="$BATS_TEST_TMPDIR/main/.worktrees/peer"
+    mkdir -p "$root/ui_xml"
+    git -C "$root" init -q
+    printf '%s\n' "$root"
+}

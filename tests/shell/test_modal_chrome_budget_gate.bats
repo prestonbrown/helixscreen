@@ -10,6 +10,8 @@
 # ones — a gate that fires on correct markup gets switched off, and then it
 # protects nothing.
 
+load helpers
+
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/../.." && pwd)"
     GATE="${REPO_ROOT}/scripts/check_modal_chrome_budget.py"
@@ -241,4 +243,24 @@ EOF
 EOF
     run python3 "${GATE}" --repo-root "${FIXTURE}"
     [ "$status" -eq 0 ]
+}
+
+@test "a tree whose root sits under .worktrees/ is scanned; a nested .worktrees/ is not" {
+    local root
+    root="$(make_worktree_root)"
+    local bad='<component>
+  <view name="bad_modal" extends="ui_dialog" height="content" style_max_height="85%">
+    <lv_obj name="content" height="content" style_max_height="#dialog_content_max"/>
+    <lv_obj name="pinned_graphic" height="content"/>
+    <divider_horizontal/>
+    <lv_obj height="#button_height" flex_flow="row"/>
+  </view>
+</component>'
+    printf '%s\n' "$bad" > "$root/ui_xml/own_modal.xml"
+    mkdir -p "$root/ui_xml/.worktrees/other/ui_xml"
+    printf '%s\n' "$bad" > "$root/ui_xml/.worktrees/other/ui_xml/peer_modal.xml"
+    run python3 "${GATE}" --repo-root "$root"
+    [ "$status" -eq 1 ]
+    contains "ui_xml/own_modal.xml" "$output"
+    lacks "peer_modal.xml" "$output"
 }
