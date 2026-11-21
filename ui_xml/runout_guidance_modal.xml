@@ -86,6 +86,8 @@
          sensors (autofeed==0). On autofeed backends (autofeed==1) Resume alone
          recovers the runout, so the manual Load/Unload/Purge row is hidden
          entirely and the dialog reduces to message + Cancel/Resume (#991). -->
+    <!-- The recovery actions stand as tall as the dialog's own button row: at
+         480x272 button_height is too short to hit reliably. -->
     <lv_obj name="manual_action_row"
             width="100%" height="content" style_pad_all="#space_lg" style_pad_top="#space_sm" flex_flow="row"
             style_flex_main_place="space_between" style_pad_gap="#space_sm">
@@ -94,11 +96,11 @@
            print. Paused (2) deliberately keeps them: that is the runout case. -->
       <bind_flag_if cond="runout_autofeed_capable eq 1 or print_state_enum eq 1" flag="hidden"/>
       <!-- Load button (wired programmatically by RunoutGuidanceModal::on_show → wire_ok_button) -->
-      <ui_button name="btn_load_filament" flex_grow="1" icon="arrow_down" text="Load"/>
+      <ui_button name="btn_load_filament" height="#modal_button_height" flex_grow="1" icon="arrow_down" text="Load"/>
       <!-- Unload button (wired programmatically by RunoutGuidanceModal::on_show → wire_quaternary_button) -->
-      <ui_button name="btn_unload_filament" flex_grow="1" icon="arrow_up" text="Unload"/>
+      <ui_button name="btn_unload_filament" height="#modal_button_height" flex_grow="1" icon="arrow_up" text="Unload"/>
       <!-- Purge button (wired programmatically by RunoutGuidanceModal::on_show → wire_quinary_button) -->
-      <ui_button name="btn_purge" flex_grow="1" icon="nozzle" text="Purge"/>
+      <ui_button name="btn_purge" height="#modal_button_height" flex_grow="1" icon="nozzle" text="Purge"/>
     </lv_obj>
     <!-- CLOSE BUTTON ROW (only when NOT paused - hidden when print_state_enum == 2).
          Close is wired programmatically by RunoutGuidanceModal::on_show → wire_senary_button. -->
@@ -113,7 +115,8 @@
             width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
             style_pad_bottom="#space_md" flex_flow="row">
       <bind_flag_if cond="runout_other_head_offered ne 1 or print_state_enum ne 2" flag="hidden"/>
-      <ui_button name="btn_other_head" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
+      <ui_button name="btn_other_head"
+                 height="#modal_button_height" flex_grow="1" icon="swap_horizontal" text="Use Another Toolhead"/>
     </lv_obj>
     <!-- PAUSED BUTTONS ROW (only when paused - hidden when print_state_enum != 2).
          Wired programmatically by RunoutGuidanceModal::on_show: Cancel Print →
