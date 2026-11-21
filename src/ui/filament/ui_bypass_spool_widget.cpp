@@ -241,7 +241,7 @@ BypassSpoolWidgets bypass_spool_create(lv_obj_t* parent, lv_event_cb_t on_click,
         lv_obj_add_event_cb(w.box, on_click, LV_EVENT_CLICKED, user_data);
     }
 
-    const char* bypass_attrs[] = {"text", "Bypass", nullptr};
+    const char* bypass_attrs[] = {"text", lv_tr("Bypass"), nullptr};
     w.bypass_label =
         static_cast<lv_obj_t*>(lv_xml_create(parent, "bypass_spool_label", bypass_attrs));
     if (w.bypass_label) {
