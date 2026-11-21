@@ -4507,6 +4507,7 @@
   <translation tag="The heater was turned off at the heater." fr="Le chauffage a été éteint sur l&apos;appareil lui-même."/>
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
+  <translation tag="The label didn&apos;t print: {}" fr="L&apos;étiquette ne s&apos;est pas imprimée : {}"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." fr="La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." fr="Le verrou s&apos;ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" fr="Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention"/>

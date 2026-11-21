@@ -4567,6 +4567,7 @@
   <translation tag="The heater was turned off at the heater." ru="Нагреватель был выключен на самом нагревателе."/>
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
+  <translation tag="The label didn&apos;t print: {}" ru="Этикетка не напечатана: {}"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ru="Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>

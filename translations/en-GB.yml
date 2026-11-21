@@ -4587,6 +4587,7 @@ translations:
   The heater was turned off at the heater.: ''
   The heater will cycle on and off several times.: ''
   The helper macros are installed and activate after Klipper restarts.: ''
+  "The label didn't print: {}": ''
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: ''
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ''
   The left RFID reader in this CFS unit may need service: ''

@@ -14,6 +14,7 @@
 #include "core/subject.h"
 #include "filament_catalog.h"
 #include "helix/xml/indexed_subject_pool.h"
+#include "label_outcome_hold.h"
 #include "lane_source_store.h"
 #include "lane_spool_history.h"
 #include "overlay_base.h"
@@ -761,6 +762,17 @@ class AmsEditOverlay : public OverlayBase {
     /// The spool record a label for the lane's spool prints.
     [[nodiscard]] SpoolInfo label_spool() const;
     static void print_label_for(const SpoolInfo& spool_info);
+    /// The standalone toasts a label print the user asked for reports with.
+    static void label_outcome_toasts(bool success, const std::string& error);
+    /// The line a new spool's closing toast adds for its label print.
+    [[nodiscard]] static std::string
+    new_spool_label_note(const helix::LabelOutcomeHold::Outcome& outcome);
+    /// Print a just-created spool's label; the closing toast reports it.
+    void print_new_spool_label();
+    /// Hand a held label outcome back to its own toasts (no closing toast
+    /// will report it).
+    void release_new_spool_label();
+    std::shared_ptr<helix::LabelOutcomeHold> new_spool_label_;
 #endif
     void handle_scan_qr();
 };

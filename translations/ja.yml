@@ -4610,6 +4610,7 @@ translations:
   The heater was turned off at the heater.: 'ヒーター本体で電源がオフにされました。'
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
+  "The label didn't print: {}": "ラベルを印刷できませんでした: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最後のプリントがまだベッドに残っている可能性があります。ツールヘッドが動く前に取り除き、「クリア済み」をタップしてください。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります

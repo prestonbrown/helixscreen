@@ -4610,6 +4610,7 @@ translations:
   The heater was turned off at the heater.: 'Die Heizung wurde am Gerät ausgeschaltet.'
   The heater will cycle on and off several times.: Die Heizung wird mehrmals ein- und ausschalten.
   The helper macros are installed and activate after Klipper restarts.: 'Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv.'
+  "The label didn't print: {}": "Das Etikett wurde nicht gedruckt: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Der letzte Druck liegt möglicherweise noch auf dem Heizbett. Entfernen Sie ihn, bevor sich der Werkzeugkopf bewegt, und tippen Sie dann auf Geräumt."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock.
   The left RFID reader in this CFS unit may need service: Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden

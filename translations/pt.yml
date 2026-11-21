@@ -4610,6 +4610,7 @@ translations:
   The heater was turned off at the heater.: 'O aquecedor foi desligado no próprio aquecedor.'
   The heater will cycle on and off several times.: O aquecedor ligará e desligará várias vezes.
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
+  "The label didn't print: {}": "A etiqueta não foi impressa: {}"
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca.
   The left RFID reader in this CFS unit may need service: O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção
