@@ -857,6 +857,11 @@ inline bool try_line_modes(const CalloutLayoutInput& in, CalloutLayout& out,
     return false;
 }
 
+/// Below this area width staggered chips stand over the picture, not beside it,
+/// so they leave off the chips showing only an expected value (portrait
+/// 272x480 and 320x480 Print Status tiles are 115 and 139 wide; 800x480 is 317).
+inline constexpr int kStaggeredShedMaxAreaW = 200;
+
 /// Compact chips beside the contain-fit picture: each in the band on its
 /// point's side, against the area edge and spread down it near its point, over
 /// the picture's edge where the margin is narrower than the chip. The picture
@@ -957,22 +962,29 @@ inline bool try_staggered(const CalloutLayoutInput& in_full, CalloutLayout& out)
                 }
             }
         }
-        // Past the line modes every chip lands on or over the picture, so a
-        // chip showing only an expected value is not worth the pixels it hides.
+        // Past the line modes chips land on or over the picture. Pinned ones
+        // always do, and staggered ones do on a small tile, where a chip
+        // showing only an expected value is not worth the pixels it hides.
         CalloutLayoutInput unlined = base;
         for (auto* v : {&unlined.budget, &unlined.active})
             v->erase(std::remove_if(v->begin(), v->end(),
                                     [](const CalloutChipIn& c) { return c.expendable; }),
                      v->end());
-        for (const auto& c : base.active)
-            if (c.expendable)
-                out.dropped.push_back(c.kind);
+        const auto drop_expected = [&] {
+            for (const auto& c : base.active)
+                if (c.expendable)
+                    out.dropped.push_back(c.kind);
+        };
+        const bool small_tile = in.area_w < kStaggeredShedMaxAreaW;
         // Compact chips in the side margins before any lands on the picture's
         // middle, when every chip fits there: pinning sheds nothing it can keep.
-        if (try_staggered(unlined, out)) {
+        if (try_staggered(small_tile ? unlined : base, out)) {
+            if (small_tile)
+                drop_expected();
             out.unlabeled = can_unlabel;
             return out;
         }
+        drop_expected();
         // Pinned chips sit on their parts, so their place names them: no labels.
         out.unlabeled = can_unlabel;
         chips = unlined.active;

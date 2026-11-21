@@ -572,29 +572,28 @@ void fans_part_spinning_aux_stopped(TileFixture& fx) {
 
 } // namespace
 
-TEST_CASE_METHOD(Portrait272, "the smallest tile keeps the unusual chips and dims a stopped fan",
+TEST_CASE_METHOD(Portrait272,
+                 "the smallest tile keeps the unusual chips and leaves off expected ones",
                  "[print_status]") {
     state().update_from_status({{"print_stats", {{"state", "printing"}}}});
     fans_part_spinning_aux_stopped(*this);
 
-    // Which expendable chip a tight tile drops first is the engine's rule
-    // ([callout_layout] "hotend fan drops first when chips do not fit").
+    // Staggered chips stand over the picture's edges, so the stopped aux fan
+    // and speed/flow at 100% give way; the spinning part fan stays.
     REQUIRE(subject_int("ps_callout_mode") == static_cast<int>(CalloutMode::Staggered));
     CHECK(subject_int("ps_chip_part_fan_shown") == 1);
-    CHECK(subject_int("ps_chip_speed_flow_shown") == 1);
-    if (subject_int("ps_chip_aux_fan_shown") == 1) {
-        CHECK(subject_int("ps_chip_aux_fan_tone") == static_cast<int>(ChipTone::Dim));
-    }
+    CHECK(subject_int("ps_chip_speed_flow_shown") == 0);
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
-TEST_CASE_METHOD(Portrait320, "fan at 0 stays, dimmed, while the tile has room for it",
+TEST_CASE_METHOD(Portrait320, "a stopped fan stays off a tile whose chips land on the picture",
                  "[print_status]") {
     fans_part_spinning_aux_stopped(*this);
 
     REQUIRE(subject_int("ps_callout_mode") != static_cast<int>(CalloutMode::ImageOnly));
-    CHECK(subject_int("ps_chip_aux_fan_shown") == 1);
-    CHECK(subject_int("ps_chip_aux_fan_tone") == static_cast<int>(ChipTone::Dim));
+    CHECK(subject_int("ps_chip_part_fan_shown") == 1);
+    CHECK(subject_int("ps_chip_aux_fan_shown") == 0);
     PrinterStateTestAccess::get_fan_state(state()).init_fans({});
 }
 
