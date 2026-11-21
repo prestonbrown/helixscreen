@@ -43,6 +43,7 @@
 #include "config.h"
 #include "core/data_root_resolver.h"
 #include "core/error_reporting.h"
+#include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "display_manager.h"
 #include "helix_sparkline.h"
@@ -78,8 +79,10 @@
 #include <lvgl/src/misc/cache/instance/lv_image_cache.h>
 #include <spdlog/spdlog.h>
 
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <memory>
 #include <optional>
 #include <string>
 
@@ -499,6 +502,30 @@ void Application::init_monitoring_services() {
             });
         }
     });
+
+    // Return the heap those responders freed to the OS, once per rise to
+    // warning or critical. Freed heap stays in glibc's arenas otherwise, so RSS
+    // barely moves and the box gains nothing. Registered after the two above so
+    // its UI-queue hop runs behind theirs; the trim itself walks every arena
+    // under its lock, so it runs on a worker.
+    if (helix::heap_trim_supported()) {
+        helix::MemoryMonitor::instance().add_pressure_responder(
+            // Shared, not captured by value: the monitor copies its responder
+            // list for every dispatch. Responders run only on the monitor
+            // thread, so the state needs no lock.
+            [state =
+                 std::make_shared<helix::HeapReleaseState>()](helix::MemoryPressureLevel level) {
+                const auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now().time_since_epoch())
+                                        .count();
+                if (!helix::should_release_heap_on_pressure(*state, level, now_ms))
+                    return;
+                helix::ui::queue_update("Application::heap_release", []() {
+                    crash_handler::breadcrumb::note("heap", "pressure_trim");
+                    helix::http::HttpExecutor::fast().submit([] { helix::release_free_heap(); });
+                });
+            });
+    }
 }
 
 void Application::check_wifi_availability() {

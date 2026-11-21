@@ -733,6 +733,7 @@ translations:
   'Cannot reprint: not connected to printer': 'No se puede reimprimir: no conectado a la impresora'
   Cannot restart Moonraker while printing: "No se puede reiniciar Moonraker durante la impresión"
   Cannot restart — no filename: No se puede reiniciar — sin nombre de archivo
+  Cannot restore the stock screen while printing: 'No se puede restaurar la pantalla original durante una impresión'
   Cannot run filament operation while printing: No se puede realizar la operación de filamento mientras se imprime
   'Cannot schedule a pause: printer not connected': 'No se puede programar una pausa: impresora no conectada'
   'Cannot start print: internal error': 'No se puede iniciar impresión: error interno'
@@ -1147,8 +1148,10 @@ translations:
   Could not remove the job from the queue: No se pudo eliminar el trabajo de la cola
   Could not reset the printer image tags: Error al restablecer las marcas de la imagen
   Could not resolve printer RFCOMM channel: No se pudo resolver el canal RFCOMM de la impresora
+  Could not restart the printer; the stock screen was not restored: 'No se pudo reiniciar la impresora; la pantalla original no se restauró'
   Could not restore the previous IPv4 settings: 'No se pudo restaurar la configuración IPv4 anterior'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Aún no se pudo restaurar la configuración IPv4 anterior. Se reintentará durante hasta dos minutos.'
+  Could not restore the stock screen: 'No se pudo restaurar la pantalla original'
   Could not save filament: No se pudo guardar el filamento
   Could not save the drying state: No se pudo guardar el estado del secado
 
@@ -3661,14 +3664,18 @@ translations:
   Restart the printer or screen: Reiniciar la impresora o pantalla
   Restart the printer, and check that storage has free space.: 'Reinicia la impresora y comprueba que el almacenamiento tenga espacio libre.'
   Restart, seat the toolhead again and check that the hotend is fully inserted.: 'Reinicia, vuelve a asentar el cabezal y comprueba que el hotend esté totalmente insertado.'
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Reinicie la impresora. Si SSH sigue rechazando la conexión, consulte la guía de instalación del Snapmaker U1'
   Restarting HelixScreen...: Reiniciando HelixScreen...
   Restarting Klipper...: Reiniciando Klipper...
   Restarting Moonraker...: Reiniciando Moonraker...
   Restarting printer...: Reiniciando impresora...
   Restarting screen...: Reiniciando pantalla...
+  Restarting the printer...: 'Reiniciando la impresora...'
   Restarting with the new version...: Reiniciando con la nueva versión...
   Restarting...: Reiniciando...
+  Restore: 'Restaurar'
   Restore Defaults: Restaurar valores predeterminados
+  Restore Stock Screen: 'Restaurar pantalla original'
   Restore tool: 'Restaurar herramienta'
   Restoring position: Restaurando posición
   Restoring the print settings: Restaurando los ajustes de impresión
@@ -3759,6 +3766,7 @@ translations:
   SETTINGS: AJUSTES
   SHIPPED IMAGES: IMÁGENES INCLUIDAS
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: 'SSH no se inició aunque el acceso root está activado'
   STANDARD MACROS: MACROS ESTÁNDAR
   STARTUP: INICIO
   STOP: DETENER
@@ -4234,6 +4242,7 @@ translations:
   Switch Printer: Cambiar Impresora
   Switch a power device on or off: Encender o apagar un dispositivo
   Switch Sensors: Sensores de interruptor
+  Switch back to the Snapmaker screen: 'Volver a la pantalla de Snapmaker'
   Switch between light and dark themes: Cambiar entre temas claro y oscuro
   Switch spools at each tool change: 'Cambiar de bobina en cada cambio de herramienta'
   Switch the active tool or extruder: Cambiar la herramienta o extrusor activo
@@ -4604,6 +4613,8 @@ translations:
   The printer shut down: 'La impresora se apagó'
   The printer shut down while homing or probing.: 'La impresora se apagó al referenciar o sondear.'
   The printer stopped itself for safety; the firmware gave no specific reason.: 'La impresora se detuvo por seguridad; el firmware no dio un motivo concreto.'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'La impresora cambia entre varios cabezales. Gestiona las herramientas en la pantalla del sistema de filamento.'
   The printer was stopped: 'La impresora se detuvo'
   The printer's firmware chooses where to switch on runout: El firmware de la impresora elige a dónde cambiar al agotarse
@@ -4666,6 +4677,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Este .3mf debe convertirse a G-code antes de poder ponerse en cola. Imprímelo desde aquí.'
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'La sonda nunca tocó la placa: la placa PEI no está bien colocada.'
   The probe was already triggered before the move started.: 'La sonda ya estaba activada antes de que empezara el movimiento.'
+  The printer's status isn't known yet, so a print may be running.: 'El estado de la impresora aún no se conoce, así que puede haber una impresión en curso.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Los pasos previos que desactivaste no se pueden aplicar a este .3mf. Vuelve a activarlos para imprimirlo.'
   Filament Mapping at print start: 'Mapeo de Filamento al iniciar la impresión'
@@ -5122,6 +5134,7 @@ translations:
   Waiting for the chamber to heat: Esperando a que la cámara se caliente
   Waiting for the filament system to report its state: Esperando que el sistema de filamento informe su estado
   Waiting for the printer: Esperando a la impresora
+  Waiting for the printer's status; try again once it is connected: 'Esperando el estado de la impresora; inténtelo de nuevo cuando esté conectada'
   Waiting to read the printer's configuration from Klipper.: "Esperando para leer la configuración de la impresora desde Klipper."
   Wall Speed Shakes This Printer: 'La velocidad de pared hace vibrar esta impresora'
   Warm: Cálido

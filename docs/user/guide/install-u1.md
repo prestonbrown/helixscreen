@@ -49,6 +49,7 @@ The installer recognizes the U1 on its own. It shows a plan of what it will inst
 - installs HelixScreen to `/userdata/helixscreen`
 - sets it to start at boot instead of the stock screen
 - switches off the stock screen program (`/usr/bin/gui`). That program sits in a read-only part of the firmware, so it is only disabled, never deleted, and the uninstaller switches it back on
+- on stock firmware, first checks that SSH will keep working without the stock screen: **Root access** must be on and SSH running. If not, it stops before changing anything, the stock screen stays, and it tells you to turn on **Root access** (**Settings > Maintenance** on the stock screen) and run it again
 - on stock firmware, keeps SSH working. There the stock screen is what starts SSH at boot while **Root access** is on, so HelixScreen does that job instead each time it starts. The **Root access** switch itself lives on the stock screen: to change it, uninstall HelixScreen, flip the switch, then install again
 
 The installer's log is saved as `helixscreen-install.log` in the printer's logs folder, so Mainsail and Fluidd list it with the other logs.
@@ -126,7 +127,7 @@ curl -sSL https://releases.helixscreen.org/install.sh | sh -s -- --uninstall
 reboot
 ```
 
-It switches the stock screen program back on, puts back the firmware's own startup scripts, removes HelixScreen, and turns off the setting that kept the changes across restarts. After the restart the printer runs exactly as it did before HelixScreen.
+It switches the stock screen program back on, puts back the firmware's own startup scripts, removes HelixScreen, and turns off the setting that kept the changes across restarts if HelixScreen's installer turned it on. Another mod, such as multiACE, may have turned that setting on first; then it stays on, so that mod keeps its files. After the restart the printer runs the way it did before HelixScreen.
 
 If you cannot run the uninstaller, undo it by hand:
 
@@ -154,6 +155,15 @@ If the uninstaller cannot run, this command returns the printer to a clean stock
 ```bash
 rm -f /oem/.debug && rm -rf /oem/overlay/* && rm -rf /userdata/helixscreen && sync && reboot
 ```
+
+## Going back to the stock screen without SSH
+
+On stock firmware the stock screen is also where firmware updates start, so there are two ways back to it that need no SSH. Both switch the stock screen program back on, put back the firmware's startup scripts, and restart the printer into the stock screen. HelixScreen's files and settings stay on the printer, and the installer brings it back.
+
+- **On the HelixScreen screen:** **Settings > System > Restore Stock Screen**, then confirm. The printer restarts into the stock screen. The row appears only on stock firmware, and it refuses while a print is running.
+- **From Mainsail or Fluidd:** in the configuration files (where `printer.cfg` is), create an empty file named `helixscreen-restore-stock`, then restart the printer. It comes up with the stock screen. What it did is written to `helixscreen-restore-stock.log` in the printer's logs folder.
+
+If HelixScreen's own files are missing or damaged, the printer also switches the stock screen back on by itself at the next restart.
 
 ## SSH refused after installing on stock firmware
 

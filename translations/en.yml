@@ -734,6 +734,7 @@ translations:
   'Cannot reprint: not connected to printer': 'Cannot reprint: not connected to printer'
   Cannot restart Moonraker while printing: Cannot restart Moonraker while printing
   Cannot restart — no filename: Cannot restart — no filename
+  Cannot restore the stock screen while printing: Cannot restore the stock screen while printing
   Cannot run filament operation while printing: Cannot run filament operation while printing
   'Cannot schedule a pause: printer not connected': 'Cannot schedule a pause: printer not connected'
   'Cannot start print: internal error': 'Cannot start print: internal error'
@@ -1145,8 +1146,10 @@ translations:
   Could not remove the job from the queue: Could not remove the job from the queue
   Could not reset the printer image tags: Could not reset the printer image tags
   Could not resolve printer RFCOMM channel: Could not resolve printer RFCOMM channel
+  Could not restart the printer; the stock screen was not restored: Could not restart the printer; the stock screen was not restored
   Could not restore the previous IPv4 settings: Could not restore the previous IPv4 settings
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.
+  Could not restore the stock screen: Could not restore the stock screen
   Could not save filament: Could not save filament
   Could not save the drying state: Could not save the drying state
   'Could not save the drying state: nothing was heated': 'Could not save the drying state: nothing was heated'
@@ -3641,14 +3644,18 @@ translations:
   Restart the printer or screen: Restart the printer or screen
   Restart the printer, and check that storage has free space.: Restart the printer, and check that storage has free space.
   Restart, seat the toolhead again and check that the hotend is fully inserted.: Restart, seat the toolhead again and check that the hotend is fully inserted.
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide
   Restarting HelixScreen...: Restarting HelixScreen...
   Restarting Klipper...: Restarting Klipper...
   Restarting Moonraker...: Restarting Moonraker...
   Restarting printer...: Restarting printer...
   Restarting screen...: Restarting screen...
+  Restarting the printer...: Restarting the printer...
   Restarting with the new version...: Restarting with the new version...
   Restarting...: Restarting...
+  Restore: Restore
   Restore Defaults: Restore Defaults
+  Restore Stock Screen: Restore Stock Screen
   Restore tool: Restore tool
   Restoring position: Restoring position
   Restoring the print settings: Restoring the print settings
@@ -3738,6 +3745,7 @@ translations:
   SETTINGS: SETTINGS
   SHIPPED IMAGES: SHIPPED IMAGES
   SOFTWARE: SOFTWARE
+  SSH did not start although Root access is on: SSH did not start although Root access is on
   STANDARD MACROS: STANDARD MACROS
   STARTUP: STARTUP
   STOP: STOP
@@ -4209,6 +4217,7 @@ translations:
   Switch Printer: Switch Printer
   Switch a power device on or off: Switch a power device on or off
   Switch Sensors: Switch Sensors
+  Switch back to the Snapmaker screen: Switch back to the Snapmaker screen
   Switch between light and dark themes: Switch between light and dark themes
   Switch spools at each tool change: Switch spools at each tool change
   Switch the active tool or extruder: Switch the active tool or extruder
@@ -4574,6 +4583,8 @@ translations:
   The printer shut down: The printer shut down
   The printer shut down while homing or probing.: The printer shut down while homing or probing.
   The printer stopped itself for safety; the firmware gave no specific reason.: The printer stopped itself for safety; the firmware gave no specific reason.
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: The printer swaps between several toolheads. Manage the tools on the filament system screen.
   The printer was stopped: The printer was stopped
   The printer's firmware chooses where to switch on runout: The printer's firmware chooses where to switch on runout
@@ -4636,6 +4647,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: This .3mf has to be converted to G-code before it can be queued. Print it from here instead.
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'The probe never touched the plate: the PEI plate is not placed correctly.'
   The probe was already triggered before the move started.: The probe was already triggered before the move started.
+  The printer's status isn't known yet, so a print may be running.: The printer's status isn't known yet, so a print may be running.
   The queue prints this .3mf's default plate. Print this plate from here instead.: The queue prints this .3mf's default plate. Print this plate from here instead.
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.
   Filament Mapping at print start: Filament Mapping at print start
@@ -5098,6 +5110,7 @@ translations:
   Waiting for the chamber to heat: Waiting for the chamber to heat
   Waiting for the filament system to report its state: Waiting for the filament system to report its state
   Waiting for the printer: Waiting for the printer
+  Waiting for the printer's status; try again once it is connected: Waiting for the printer's status; try again once it is connected
   Waiting to read the printer's configuration from Klipper.: "Waiting to read the printer's configuration from Klipper."
   Wall Speed Shakes This Printer: Wall Speed Shakes This Printer
   Warm: Warm

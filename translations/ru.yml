@@ -789,6 +789,7 @@ translations:
   'Cannot reprint: not connected to printer': 'Невозможно перепечатать: не подключено к принтеру'
   Cannot restart Moonraker while printing: "Нельзя перезапустить Moonraker во время печати"
   Cannot restart — no filename: Не удалось перезапустить — нет имени файла
+  Cannot restore the stock screen while printing: 'Нельзя вернуть штатный экран во время печати'
   Cannot run filament operation while printing: Во время печати нельзя выполнять операции с филаментом
   'Cannot schedule a pause: printer not connected': 'Невозможно запланировать паузу: принтер не подключён'
   'Cannot start print: internal error': 'Невозможно начать печать: внутренняя ошибка'
@@ -1207,8 +1208,10 @@ translations:
   Could not remove the job from the queue: Не удалось удалить задание из очереди
   Could not reset the printer image tags: Не удалось сбросить отметки изображения
   Could not resolve printer RFCOMM channel: Не удалось определить RFCOMM-канал принтера
+  Could not restart the printer; the stock screen was not restored: 'Не удалось перезапустить принтер; штатный экран не восстановлен'
   Could not restore the previous IPv4 settings: 'Не удалось восстановить прежние настройки IPv4'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Пока не удалось восстановить прежние настройки IPv4. Повторные попытки в течение двух минут.'
+  Could not restore the stock screen: 'Не удалось вернуть штатный экран'
   Could not save filament: Не удалось сохранить филамент
   Could not save the drying state: Не удалось сохранить состояние сушки
 
@@ -3741,14 +3744,18 @@ translations:
   Restart the printer or screen: Перезапустить принтер или экран
   Restart the printer, and check that storage has free space.: 'Перезапустите принтер и проверьте, есть ли свободное место в хранилище.'
   Restart, seat the toolhead again and check that the hotend is fully inserted.: 'Перезапустите, заново установите печатающую головку и проверьте, что хотэнд вставлен до конца.'
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Перезапустите принтер. Если SSH по-прежнему отклоняет подключение, см. руководство по установке Snapmaker U1'
   Restarting HelixScreen...: Перезапуск HelixScreen...
   Restarting Klipper...: Перезапуск Klipper...
   Restarting Moonraker...: Перезапуск Moonraker...
   Restarting printer...: Перезапуск принтера...
   Restarting screen...: Перезапуск экрана...
+  Restarting the printer...: 'Перезапуск принтера...'
   Restarting with the new version...: Перезапуск с новой версией...
   Restarting...: Перезапуск...
+  Restore: 'Восстановить'
   Restore Defaults: Восстановить по умолчанию
+  Restore Stock Screen: 'Вернуть штатный экран'
   Restore tool: 'Вернуть инструмент'
   Restoring position: Восстановление позиции
   Restoring the print settings: Восстановление настроек печати
@@ -3839,6 +3846,7 @@ translations:
   SETTINGS: НАСТРОЙКИ
   SHIPPED IMAGES: ВСТРОЕННЫЕ ИЗОБРАЖЕНИЯ
   SOFTWARE: ПО
+  SSH did not start although Root access is on: 'SSH не запустился, хотя root-доступ включён'
   STANDARD MACROS: СТАНДАРТНЫЕ МАКРОСЫ
   STARTUP: ЗАПУСК
   STOP: СТОП
@@ -4322,6 +4330,7 @@ translations:
   Switch Printer: Переключить принтер
   Switch a power device on or off: Включить или выключить питание
   Switch Sensors: Датчики-переключатели
+  Switch back to the Snapmaker screen: 'Вернуться к экрану Snapmaker'
   Switch between light and dark themes: Переключение между светлой и тёмной темами
   Switch spools at each tool change: 'Переключать катушку при каждой смене инструмента'
   Switch the active tool or extruder: Смена активного инструмента
@@ -4692,6 +4701,8 @@ translations:
   The printer shut down: 'Принтер отключился'
   The printer shut down while homing or probing.: 'Принтер отключился во время парковки или измерения.'
   The printer stopped itself for safety; the firmware gave no specific reason.: 'Принтер остановился ради безопасности; прошивка не указала конкретной причины.'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'Принтер перезапустится со штатным экраном Snapmaker, и HelixScreen больше не будет запускаться. Настройки HelixScreen останутся на принтере; чтобы вернуться, снова запустите установщик.'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента.'
   The printer was stopped: 'Принтер был остановлен'
   The printer's firmware chooses where to switch on runout: Прошивка принтера сама выбирает, на что переключиться при обрыве
@@ -4754,6 +4765,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Этот .3mf нужно преобразовать в G-code, прежде чем ставить в очередь. Напечатайте его отсюда.'
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'Зонд так и не коснулся пластины: пластина PEI установлена неправильно.'
   The probe was already triggered before the move started.: 'Зонд уже сработал до начала перемещения.'
+  The printer's status isn't known yet, so a print may be running.: 'Состояние принтера ещё неизвестно, возможно, идёт печать.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'Отключённые шаги подготовки нельзя применить к этому .3mf. Включите их снова, чтобы напечатать.'
   Filament Mapping at print start: 'Сопоставление филамента при запуске печати'
@@ -5210,6 +5222,7 @@ translations:
   Waiting for the chamber to heat: Ожидание нагрева камеры
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
+  Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
   Wall Speed Shakes This Printer: 'Скорость стенок вызывает тряску принтера'
   Warm: Тёплый

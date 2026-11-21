@@ -733,6 +733,7 @@ translations:
   'Cannot reprint: not connected to printer': '再印刷できません: プリンター未接続'
   Cannot restart Moonraker while printing: "印刷中はMoonrakerを再起動できません"
   Cannot restart — no filename: 再起動できません — ファイル名がありません
+  Cannot restore the stock screen while printing: '印刷中は標準画面に戻せません'
   Cannot run filament operation while printing: 印刷中はフィラメント操作を実行できません
   'Cannot schedule a pause: printer not connected': '一時停止を予約できません: プリンターが接続されていません'
   'Cannot start print: internal error': '印刷を開始できません: 内部エラー'
@@ -1147,8 +1148,10 @@ translations:
   Could not remove the job from the queue: キューからジョブを削除できませんでした
   Could not reset the printer image tags: プリンター画像のタグのリセットに失敗しました
   Could not resolve printer RFCOMM channel: プリンターの RFCOMM チャンネルを解決できませんでした
+  Could not restart the printer; the stock screen was not restored: 'プリンターを再起動できませんでした。標準画面には戻っていません'
   Could not restore the previous IPv4 settings: '以前のIPv4設定を復元できませんでした'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '以前のIPv4設定をまだ復元できていません。最大2分間再試行します。'
+  Could not restore the stock screen: '標準画面に戻せませんでした'
   Could not save filament: フィラメントを保存できませんでした
   Could not save the drying state: 乾燥の状態を保存できませんでした
 
@@ -3661,14 +3664,18 @@ translations:
   Restart the printer or screen: プリンターまたは画面を再起動します
   Restart the printer, and check that storage has free space.: 'プリンターを再起動し、ストレージに空き容量があるか確認してください。'
   Restart, seat the toolhead again and check that the hotend is fully inserted.: '再起動し、ツールヘッドを装着し直して、ホットエンドが奥まで挿入されているか確認してください。'
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'プリンターを再起動してください。それでもSSHが接続を拒否する場合は、Snapmaker U1のインストールガイドを参照してください'
   Restarting HelixScreen...: HelixScreenを再起動中...
   Restarting Klipper...: Klipper を再起動中...
   Restarting Moonraker...: Moonrakerを再起動中...
   Restarting printer...: プリンターを再起動中...
   Restarting screen...: 画面を再起動中...
+  Restarting the printer...: 'プリンターを再起動しています...'
   Restarting with the new version...: 新しいバージョンで再起動中...
   Restarting...: 再起動中...
+  Restore: '復元'
   Restore Defaults: デフォルトに戻す
+  Restore Stock Screen: '標準画面に戻す'
   Restore tool: 'ツールを元に戻す'
   Restoring position: 位置を復元中
   Restoring the print settings: 印刷設定を復元中
@@ -3759,6 +3766,7 @@ translations:
   SETTINGS: 設定
   SHIPPED IMAGES: 付属画像
   SOFTWARE: ソフトウェア
+  SSH did not start although Root access is on: 'ルートアクセスがオンですが、SSHが起動しませんでした'
   STANDARD MACROS: 標準マクロ
   STARTUP: 起動
   STOP: 停止
@@ -4234,6 +4242,7 @@ translations:
   Switch Printer: プリンターを切り替え
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
   Switch Sensors: スイッチセンサー
+  Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch spools at each tool change: 'ツール交換ごとにスプールを切り替える'
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
@@ -4604,6 +4613,8 @@ translations:
   The printer shut down: 'プリンターが停止しました'
   The printer shut down while homing or probing.: 'ホーミングまたはプローブ中にプリンターが停止しました。'
   The printer stopped itself for safety; the firmware gave no specific reason.: 'プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: 'プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。'
   The printer was stopped: 'プリンターが停止されました'
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
@@ -4666,6 +4677,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'この .3mf はキューに追加する前に G-code に変換する必要があります。ここから印刷してください。'
   'The probe never touched the plate: the PEI plate is not placed correctly.': 'プローブがプレートに触れませんでした: PEIプレートが正しく置かれていません。'
   The probe was already triggered before the move started.: '移動開始前からプローブが反応していました。'
+  The printer's status isn't known yet, so a print may be running.: 'プリンターの状態がまだわかりません。印刷中の可能性があります。'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。'
   Filament Mapping at print start: '印刷開始時のフィラメントマッピング'
@@ -5122,6 +5134,7 @@ translations:
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
+  Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
   Wall Speed Shakes This Printer: '壁の速度でこのプリンターが揺れます'
   Warm: ウォーム

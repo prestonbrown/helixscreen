@@ -292,9 +292,9 @@ PATCH_MARKER_DEPS := $(wildcard $(shell awk -F'\t' 'NR>1 && !seen[$$4"/"$$5]++ {
 
 # Patches applied outside this file. Keep this list empty if you can; an entry
 # here means something applies the patch by hand, so nothing verifies it.
-# libnl-socket-time-include.patch (65d0ba93a, GCC 14+ libnl build fix) has no
-# applier anywhere in the tree — it is dead, kept only pending a decision to
-# either wire it up or delete it.
+# libnl-socket-time-include.patch (GCC 14+ libnl build fix) is applied by
+# libnl-build in mk/deps.mk, which builds libnl only for the cross targets that
+# need it.
 PATCH_EXEMPT := libnl-socket-time-include.patch
 
 # Submodule HEAD files - the stamp is stale once a submodule is moved to another

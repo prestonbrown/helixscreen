@@ -733,6 +733,7 @@ translations:
   'Cannot reprint: not connected to printer': '无法重新打印: 未连接打印机'
   Cannot restart Moonraker while printing: "打印时无法重启 Moonraker"
   Cannot restart — no filename: 无法重启 — 没有文件名
+  Cannot restore the stock screen while printing: '打印期间无法恢复原厂屏幕'
   Cannot run filament operation while printing: 打印期间无法执行耗材操作
   'Cannot schedule a pause: printer not connected': '无法设置暂停：打印机未连接'
   'Cannot start print: internal error': '无法开始打印: 内部错误'
@@ -1147,8 +1148,10 @@ translations:
   Could not remove the job from the queue: 无法从队列中移除任务
   Could not reset the printer image tags: 重置打印机图片标记失败
   Could not resolve printer RFCOMM channel: 无法解析打印机 RFCOMM 通道
+  Could not restart the printer; the stock screen was not restored: '无法重启打印机；未恢复原厂屏幕'
   Could not restore the previous IPv4 settings: '无法恢复之前的 IPv4 设置'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: '暂时无法恢复之前的 IPv4 设置。将在最多两分钟内重试。'
+  Could not restore the stock screen: '无法恢复原厂屏幕'
   Could not save filament: 无法保存耗材
   Could not save the drying state: 无法保存烘干状态
 
@@ -3661,14 +3664,18 @@ translations:
   Restart the printer or screen: 重启打印机或屏幕
   Restart the printer, and check that storage has free space.: '请重启打印机，并检查存储是否有剩余空间。'
   Restart, seat the toolhead again and check that the hotend is fully inserted.: '请重启，重新安装工具头并检查热端已完全插入。'
+  Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: '请重启打印机。如果 SSH 仍然拒绝连接，请参阅 Snapmaker U1 安装指南'
   Restarting HelixScreen...: 正在重启 HelixScreen…
   Restarting Klipper...: 正在重启 Klipper...
   Restarting Moonraker...: 正在重启 Moonraker...
   Restarting printer...: 正在重启打印机...
   Restarting screen...: 正在重启屏幕...
+  Restarting the printer...: '正在重启打印机...'
   Restarting with the new version...: 正在以新版本重启...
   Restarting...: 正在重启...
+  Restore: '恢复'
   Restore Defaults: 恢复默认设置
+  Restore Stock Screen: '恢复原厂屏幕'
   Restore tool: '恢复工具'
   Restoring position: 正在恢复位置
   Restoring the print settings: 正在恢复打印设置
@@ -3759,6 +3766,7 @@ translations:
   SETTINGS: 设置
   SHIPPED IMAGES: 内置图片
   SOFTWARE: 软件
+  SSH did not start although Root access is on: 'Root 访问已开启，但 SSH 未能启动'
   STANDARD MACROS: 标准宏
   STARTUP: 启动
   STOP: 停止
@@ -4234,6 +4242,7 @@ translations:
   Switch Printer: 切换打印机
   Switch a power device on or off: 开启或关闭电源设备
   Switch Sensors: 开关传感器
+  Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   Switch between light and dark themes: 切换浅色和深色主题
   Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
@@ -4604,6 +4613,8 @@ translations:
   The printer shut down: '打印机已关闭'
   The printer shut down while homing or probing.: '打印机在归位或探测时关闭。'
   The printer stopped itself for safety; the firmware gave no specific reason.: '打印机出于安全自行停止；固件未给出具体原因。'
+  ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
+  : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: '打印机在多个工具头之间切换。在耗材系统界面管理工具。'
   The printer was stopped: '打印机已停止'
   The printer's firmware chooses where to switch on runout: 耗材用尽时切换到哪里由打印机固件自行选择
@@ -4666,6 +4677,7 @@ translations:
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: '此 .3mf 需要先转换为 G-code 才能加入队列。请直接从这里打印。'
   'The probe never touched the plate: the PEI plate is not placed correctly.': '探针始终未接触到打印板：PEI 板未正确放置。'
   The probe was already triggered before the move started.: '移动开始前探针已处于触发状态。'
+  The printer's status isn't known yet, so a print may be running.: '打印机状态尚未确定，可能正在打印。'
   The queue prints this .3mf's default plate. Print this plate from here instead.: '队列会打印此 .3mf 的默认板。请直接从这里打印此板。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: '你关闭的打印前步骤无法应用到此 .3mf。请重新打开它们后再打印。'
   Filament Mapping at print start: '打印开始时的耗材映射'
@@ -5122,6 +5134,7 @@ translations:
   Waiting for the chamber to heat: 正在等待腔室加热
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Waiting for the printer: 正在等待打印机
+  Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"
   Wall Speed Shakes This Printer: '外墙速度会使此打印机抖动'
   Warm: 暖色
