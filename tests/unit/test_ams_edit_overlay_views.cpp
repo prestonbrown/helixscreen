@@ -5590,3 +5590,32 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(stored[0].material == "PETG");
     CHECK(stored[1].material == "PLA");
 }
+
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "Undo after a printer switch leaves the new printer alone",
+                 "[ams_edit_overlay][spool-assign][undo]") {
+    set_spoolman_available(false);
+    std::vector<std::string> toasts;
+    helix::ui::set_test_toast_hook(
+        [&](ToastSeverity, const std::string& msg, uint32_t) { toasts.push_back(msg); });
+    use_on_lane(*this, 0, 22);
+
+    // Another printer connects: its backend holds the same spool on lane 0,
+    // so only the printer says the lane is not the one saved.
+    auto& ams = AmsState::instance();
+    auto other = std::make_unique<AmsBackendMock>(4);
+    AmsBackendMock* other_backend = other.get();
+    REQUIRE(helix::test::apply_edit(*other_backend, 0, backend->get_slot_info(0)).success());
+    const SlotInfo held = other_backend->get_slot_info(0);
+    ams.set_backend(std::move(other));
+    backend = other_backend;
+    UpdateQueue::instance().drain();
+
+    REQUIRE(helix::ui::fire_last_toast_action());
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(other_backend->get_slot_info(0).spoolman_id == held.spoolman_id);
+    REQUIRE_FALSE(toasts.empty());
+    CHECK(toasts.back().find("printer changed") != std::string::npos);
+    helix::ui::set_test_toast_hook(nullptr);
+}

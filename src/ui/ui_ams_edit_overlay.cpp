@@ -1340,6 +1340,9 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
         SlotInfo before;
         SlotInfo after;
         SpoolInfo label; ///< the spool Print Label prints
+        /// The backend the save went to, compared by address only: another
+        /// printer's backend means the slot index names a different lane.
+        const AmsBackend* backend = nullptr;
     };
     // Each toast gets its own payload: toasts stack, and Undo or Print Label on
     // an older one must act on its own lane. Payloads outlive their toasts (a
@@ -1352,6 +1355,7 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
         s_payloads.pop_front();
     }
     Payload* payload = s_payloads.back().get();
+    payload->backend = AmsState::instance().get_backend();
 
     const std::string lane =
         slot_index_ == -2 ? std::string(lv_tr("External Filament"))
@@ -1397,7 +1401,13 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
         [](void* user_data) {
             const auto* undo = static_cast<Payload*>(user_data);
             AmsBackend* backend = AmsState::instance().get_backend();
-            if (undo->slot_index == -1 || (undo->slot_index >= 0 && !backend)) {
+            if (undo->slot_index == -1) {
+                return;
+            }
+            if (undo->slot_index >= 0 && backend != undo->backend) {
+                ToastManager::instance().show(
+                    ToastSeverity::WARNING,
+                    lv_tr("Not undone: the printer changed since that save."), 4000);
                 return;
             }
             // Undo puts back what was there only while the lane still holds
