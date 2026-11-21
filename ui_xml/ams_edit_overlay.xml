@@ -326,7 +326,7 @@
         <ams_edit_spool_card card_name="empty_card"
                              spool_name="empty_last_spool" title_subject="ams_edit_empty_title"
                              line1_subject="ams_edit_last_product" line2_subject="ams_edit_last_material"
-                             hide_badge="true" hide_chevron="true"/>
+                             hide_badge="true" hide_chevron="true" spool_opa="70"/>
         <ui_button name="btn_same_filament"
                    width="100%" height="#button_height" text="Same Filament, New Spool" variant="primary" hidden="true">
           <bind_flag_if_eq subject="ams_edit_has_last" flag="hidden" ref_value="0"/>
@@ -334,7 +334,7 @@
           <event_cb trigger="clicked" callback="ams_edit_same_filament_cb"/>
         </ui_button>
         <ui_button name="btn_choose_spool"
-                   width="100%" height="#button_height" text="Choose a Different Spool" variant="secondary">
+                   width="100%" height="#button_height" text="Choose a Different Spool" variant="outline">
           <event_cb trigger="clicked" callback="ams_edit_choose_spool_cb"/>
         </ui_button>
       </lv_obj>
