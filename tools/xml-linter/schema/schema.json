@@ -2010,6 +2010,9 @@
         },
         "edge": {
           "type": "string"
+        },
+        "blend": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"

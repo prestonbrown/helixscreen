@@ -1226,15 +1226,6 @@ void AmsEditOverlay::update_summary() {
     snprintf(summary_buf_, sizeof(summary_buf_), "%s", label.c_str());
     lv_subject_set_string(&summary_text_subject_, summary_buf_);
 
-    // Colour dot: multi-colour spools paint the split; a picked colour paints
-    // plain. Multi-colour shows read-only in the grid (the ring has no
-    // multi-cell); picking replaces.
-    lv_obj_t* dot = find_widget("summary_color_swatch");
-    if (dot) {
-        apply_swatch_color(dot, details_color_set_ ? details_color_ : working_info_.color_rgb,
-                           details_color_set_ ? std::string() : working_info_.multi_color_hexes);
-    }
-
     update_color_row();
 
     // Weight pill: "750 g" + "of 1000 g".
@@ -1729,6 +1720,10 @@ void AmsEditOverlay::update_color_row() {
     lv_subject_set_color(&color_current_subject_, lv_color_hex(current));
     const std::string list = multi ? join_color_list(colors) : std::string();
     lv_subject_set_string(&color_current_multi_subject_, list.c_str());
+    // The summary dot paints the draft: every color of a multi-color spool.
+    if (lv_obj_t* dot = find_widget("summary_color_swatch")) {
+        apply_swatch_color(dot, colors.front(), list);
+    }
     const bool color_set = details_color_set_ || slot_has_colour(working_info_);
     const std::string name = !color_set ? std::string(lv_tr("None"))
                              : details_color_set_
@@ -1755,15 +1750,12 @@ void AmsEditOverlay::update_color_row() {
                                     : std::string();
     lv_subject_set_string(&seg_label_subject_, label.c_str());
 
-    // Room beside the dots: fewer recents where a "+" or more dots take it.
+    // Room in the recents' row: one dot and its "+" share it, so the "+"
+    // takes a recent's place; several dots have a row of their own.
     lv_subject_t* bp = theme_manager_get_breakpoint_subject();
     const bool roomy = bp && lv_subject_get_int(bp) >= static_cast<int>(UiBreakpoint::Medium);
-    const size_t room = roomy     ? (multi     ? 2
-                                     : capable ? kMaxRowRecents - 1
-                                               : kMaxRowRecents)
-                        : multi   ? 0
-                        : capable ? kNarrowRowRecents - 1
-                                  : kNarrowRowRecents;
+    const size_t row_max = roomy ? kMaxRowRecents : kNarrowRowRecents;
+    const size_t room = capable && !multi ? row_max - 1 : row_max;
     color_row_ = color_row_recents(helix::ColorRecents::list(helix::ColorRecents::Kind::Filament),
                                    current, room);
     s_recent_colors.ensure_size(kMaxRowRecents);

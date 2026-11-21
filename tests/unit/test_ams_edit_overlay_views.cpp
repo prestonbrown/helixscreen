@@ -5003,13 +5003,34 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         UpdateQueue::instance().drain();
         process_lvgl(400);
     };
+    auto dots_bottom = [&] {
+        lv_obj_t* dots = access.widget("color_dots");
+        return lv_obj_get_y(dots) + lv_obj_get_height(dots);
+    };
     for (int n = 2; n <= 4; ++n) {
         access.call_add_color();
         back_from_page();
         CHECK(access.draft_colors().size() == static_cast<size_t>(n));
+        if (n == 2) {
+            // Even with room beside them, the spool's dots keep their row; the
+            // recents and All colors start the next.
+            lv_obj_update_layout(access.widget("color_row"));
+            CHECK(lv_obj_get_y(access.widget("color_recents")) >= dots_bottom());
+            CHECK(lv_obj_get_y(access.widget("btn_all_colors")) >= dots_bottom());
+        }
     }
     CHECK(subject_value("ams_edit_multi") == 1);
     CHECK(subject_value("ams_edit_seg_count") == 4);
+    // The summary dot shows every color of the draft.
+    auto summary_colors = [&] {
+        return helix::ui::swatch_paint_colors(
+                   lv_obj_find_by_name(access.widget("summary_color_swatch"), "color_swatch_disc"))
+            .size();
+    };
+    CHECK(summary_colors() == 4);
+    // Gradient blends along the bar; Coaxial shows bands.
+    CHECK_FALSE(lv_obj_is_hidden(access.widget("color_preview_bar")));
+    CHECK(lv_obj_is_hidden(access.widget("color_preview_bands")));
     access.call_add_color(); // a fifth is refused
     CHECK(access.draft_colors().size() == 4);
     CHECK(access.draft_colors().front() == 0xD4AF37);
@@ -5020,6 +5041,9 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors()[2] == 0x00FF00);
     access.call_color_mode(1);
+    process_lvgl(5);
+    CHECK(lv_obj_is_hidden(access.widget("color_preview_bar")));
+    CHECK_FALSE(lv_obj_is_hidden(access.widget("color_preview_bands")));
 
     // Save writes the list and the mode; the slot's color is the first.
     lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
@@ -5043,6 +5067,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     }
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
     CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(summary_colors() == 1);
+    // One color: its dot, the recents and All colors share a row.
+    lv_obj_update_layout(access.widget("color_row"));
+    CHECK(lv_obj_get_y(access.widget("btn_all_colors")) < dots_bottom());
     access.call_seg_hold(0); // the last color stays
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
     lv_obj_send_event(access.widget("action_button"), LV_EVENT_CLICKED, nullptr);
