@@ -81,3 +81,30 @@ setup() {
     grep -q 'scripts/release-make-latest.sh' "$WORKFLOW"
     grep -qE '^ +make_latest: \$\{\{ steps\.latest\.outputs\.make_latest \}\}' "$WORKFLOW"
 }
+
+@test "the published release takes make_latest from the decision" {
+    grep -qE '^ +make_latest: \$\{\{ steps\.latest\.outputs\.make_latest \}\}' "$WORKFLOW"
+    grep -qE -- '--latest="\$MAKE_LATEST"' "$WORKFLOW"
+}
+
+@test "nothing public happens before the release-signing approval" {
+    run python3 - "$WORKFLOW" <<'PY'
+import sys, yaml
+jobs = yaml.safe_load(open(sys.argv[1]))["jobs"]
+problems = []
+create = [s for s in jobs["release"]["steps"] if "softprops/action-gh-release" in str(s.get("uses", ""))]
+if not create or create[0]["with"].get("draft") is not True:
+    problems.append("Create Release does not leave a draft")
+if "upload-r2" not in (jobs["publish-release"].get("needs") or []):
+    problems.append("publish-release does not wait on upload-r2")
+for job in ("verify-release-assets", "publish-android", "notify-website"):
+    if "publish-release" not in (jobs[job].get("needs") or []):
+        problems.append(job + " does not wait on publish-release")
+if any("Discord" in str(s.get("name", "")) for s in jobs["release"]["steps"]):
+    problems.append("Create Release still posts to Discord")
+for p in problems:
+    print(p, file=sys.stderr)
+sys.exit(1 if problems else 0)
+PY
+    [ "$status" -eq 0 ]
+}
