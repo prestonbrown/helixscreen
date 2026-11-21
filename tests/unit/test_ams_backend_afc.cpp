@@ -24,6 +24,7 @@
 #include "filament_op_router.h"
 #include "filament_slot_override_store.h"
 #include "gcode_footer_summary.h"
+#include "lane_source_store.h"
 #include "lane_translation.h"
 #include "lvgl_ui_test_fixture.h"
 #include "moonraker_api.h"
@@ -73,6 +74,9 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
     }
 
     AmsBackendAfcTestHelper() : AmsBackendAfc(nullptr, nullptr) {}
+    // Over an API, for paths that read and write the lane records.
+    AmsBackendAfcTestHelper(helix::IMoonrakerAPI* api, helix::IMoonrakerClient* client)
+        : AmsBackendAfc(api, client) {}
     // With a client, for paths that watch the console while a macro runs.
     explicit AmsBackendAfcTestHelper(helix::IMoonrakerClient* client)
         : AmsBackendAfc(nullptr, client) {}
@@ -8002,6 +8006,58 @@ TEST_CASE("AFC can_recover_lane_position requires filament at the hub", "[ams][a
 // AFC firmware also structurally cannot hold brand / spool_name /
 // total_weight_g / colour name / filament+vendor ids — verified against a live
 // lane payload and its lane_data record — so those only ever live here.
+
+// A fresh lane given a weight states a total too. AFC holds the remaining
+// weight on its lane's meter and has no command for a total, so the total lands
+// only in HelixScreen's own record: the edit settles once AFC's meter and that
+// record both state what was saved.
+TEST_CASE("AFC edit on a fresh unlinked lane settles once AFC echoes what it holds",
+          "[ams][afc][override][afc-edit-echo]") {
+    // A save's re-read of the records queues behind the write it follows.
+    const auto settle = [] {
+        for (int i = 0; i < 4; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+    };
+    MockPrinter printer;
+    helix::test::RegisteredBackend<AmsBackendAfcTestHelper> afc_reg(&printer.api, nullptr);
+    auto& afc = *afc_reg;
+    afc.initialize_test_lanes_with_slots(2);
+    AfcTestAccess::open_lane_records(afc);
+    settle();
+    afc.feed_afc_stepper("lane1", {{"status", "Loaded"}, {"weight", 0.0}});
+
+    const SlotInfo original = afc.get_slot_info(0);
+    SlotInfo edit = original;
+    edit.material = "PLA";
+    edit.color_rgb = 0xFFFFFF;
+    edit.remaining_weight_g = 1000.0f;
+    edit.total_weight_g = 1000.0f;
+    REQUIRE(afc.commit_user_edit(0, original, edit).success());
+    settle();
+
+    // A weight AFC reports that is not the edit's leaves the edit waiting.
+    afc.feed_afc_stepper("lane1", {{"material", "PLA"}, {"color", "#FFFFFF"}, {"weight", 990.0}});
+    settle();
+    {
+        const auto waiting = helix::ams::lane_sources(afc_reg.lane(0)).pending;
+        REQUIRE(waiting.has_value());
+        CHECK(waiting->remaining_weight_g.has_value());
+    }
+
+    afc.feed_afc_stepper("lane1", {{"material", "PLA"}, {"color", "#FFFFFF"}, {"weight", 1000.0}});
+    settle();
+
+    const auto pending = helix::ams::lane_sources(afc_reg.lane(0)).pending;
+    CHECK_FALSE((pending && pending->remaining_weight_g.has_value()));
+    CHECK_FALSE((pending && pending->total_weight_g.has_value()));
+    CHECK_FALSE(pending.has_value());
+    CHECK(afc.get_slot_info(0).total_weight_g == Catch::Approx(1000.0f));
+    const nlohmann::json record =
+        printer.client.mock_db_get(AfcTestAccess::override_namespace(), "lane1");
+    REQUIRE(record.contains("total_weight_g"));
+    CHECK(record["total_weight_g"].get<double>() == Catch::Approx(1000.0));
+}
 
 TEST_CASE("AFC override survives an eject that clears firmware fields", "[ams][afc][override]") {
     helix::test::RegisteredBackend<AmsBackendAfcTestHelper> helper_reg;
