@@ -25,6 +25,7 @@
 #include <chrono>
 #include <functional>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -248,6 +249,25 @@ class MemoryMonitor {
 };
 
 const char* pressure_level_to_string(MemoryPressureLevel level);
+
+/// Gap between two warning-or-worse dispatches past which the pressure is taken
+/// to have let go in between: while it holds, the monitor re-dispatches each
+/// level every 5 minutes.
+constexpr int64_t kHeapReleaseRearmMs = 10 * 60 * 1000;
+
+/// The highest level that has already returned freed heap in this episode.
+struct HeapReleaseState {
+    MemoryPressureLevel released = MemoryPressureLevel::none;
+    std::optional<int64_t> last_dispatch_ms; ///< Last warning-or-worse dispatch
+};
+
+/// Decide whether a pressure dispatch at @p level should return freed heap to
+/// the OS. Each rise to warning or critical releases once; the same level
+/// re-dispatched while it holds does not. A dispatch below warning, or a gap
+/// of more than kHeapReleaseRearmMs since the last warning-or-worse dispatch,
+/// ends the episode so the next rise releases again.
+bool should_release_heap_on_pressure(HeapReleaseState& state, MemoryPressureLevel level,
+                                     int64_t now_ms);
 
 /// Compute pressure level from stats — extracted for testability
 /// @param sustained_warning_secs How long the level has already been at
