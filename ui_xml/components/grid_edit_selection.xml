@@ -1,0 +1,112 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- Home-grid edit mode's selection chrome: an L-bracket at each corner of
+       the selected tile and, for a resizable tile, a faint bar along each
+       edge between the brackets. GridEditMode creates it once per selection,
+       places and sizes it over the tile, and moves it with a drag. Every part
+       lets touches through to the grid handlers. accent is the theme's accent
+       color (the more saturated of primary and secondary), computed in C++ and
+       passed as "0xRRGGBB". C++ pulses the brackets' bg_opa, and hides an
+       edge bar the tile is too short for by comparing its size against
+       edge_inset. The sizes are fixed pixels on every screen, as the drag outline's
+       are. -->
+  <api>
+    <prop name="accent" type="color" default="0xFFFFFF"/>
+    <!-- A resizable tile shows the edge bars its size leaves room for. -->
+    <prop name="hide_left_right" type="boolean" default="true"/>
+    <prop name="hide_top_bottom" type="boolean" default="true"/>
+  </api>
+  <consts>
+    <px name="bracket_len" value="16"/>
+    <px name="bracket_thick" value="3"/>
+    <!-- The bracket's length plus a gap: where the edge bars start. -->
+    <px name="edge_inset" value="20"/>
+    <px name="edge_inset_neg" value="-20"/>
+  </consts>
+  <styles>
+    <style name="bare" bg_opa="0" border_width="0" radius="0" pad_all="0"/>
+    <style name="bracket" bg_opa="255"/>
+    <style name="edge" bg_opa="20%"/>
+    <style name="edge_pad" pad_all="#edge_inset"/>
+  </styles>
+  <view extends="lv_obj"
+        floating="true" clickable="false" scrollable="false" style_bg_opa="0" style_border_width="0"
+        style_radius="#border_radius" style_pad_all="0">
+    <!-- Two bars per corner, the horizontal one first. -->
+    <lv_obj name="selection_corners" width="100%" height="100%" clickable="false" scrollable="false">
+      <style name="bare"/>
+      <lv_obj width="#bracket_len"
+              height="#bracket_thick" align="top_left" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_thick"
+              height="#bracket_len" align="top_left" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_len"
+              height="#bracket_thick" align="top_right" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_thick"
+              height="#bracket_len" align="top_right" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_len"
+              height="#bracket_thick" align="bottom_left" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_thick"
+              height="#bracket_len" align="bottom_left" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_len"
+              height="#bracket_thick" align="bottom_right" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+      <lv_obj width="#bracket_thick"
+              height="#bracket_len" align="bottom_right" clickable="false" scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="bracket"/>
+      </lv_obj>
+    </lv_obj>
+    <!-- 1px resize handles. Each bar spans the padded content area and is
+         offset by the padding back onto the tile's outer edge. -->
+    <lv_obj name="selection_edges" width="100%" height="100%" clickable="false" scrollable="false">
+      <style name="bare"/>
+      <style name="edge_pad"/>
+      <lv_obj name="selection_edge_right"
+              width="1" height="100%" hidden="$hide_left_right" align="right_mid" x="#edge_inset" clickable="false"
+              scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="edge"/>
+      </lv_obj>
+      <lv_obj name="selection_edge_left"
+              width="1" height="100%" hidden="$hide_left_right" align="left_mid" x="#edge_inset_neg" clickable="false"
+              scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="edge"/>
+      </lv_obj>
+      <lv_obj name="selection_edge_bottom"
+              width="100%" height="1" hidden="$hide_top_bottom" align="bottom_mid" y="#edge_inset" clickable="false"
+              scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="edge"/>
+      </lv_obj>
+      <lv_obj name="selection_edge_top"
+              width="100%" height="1" hidden="$hide_top_bottom" align="top_mid" y="#edge_inset_neg" clickable="false"
+              scrollable="false" style_bg_color="$accent">
+        <style name="bare"/>
+        <style name="edge"/>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>
