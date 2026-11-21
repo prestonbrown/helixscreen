@@ -62,8 +62,10 @@ void ColorPickerModal::on_show() {
     }
     ColorPickerConfig cfg = config_;
     cfg.tabs_in_body = false;
+    previewed_ = false;
     view_.attach(body, original_, cfg);
     view_.on_change([this](uint32_t rgb) {
+        previewed_ = true;
         if (preview_callback_) {
             preview_callback_(rgb);
         }
@@ -89,8 +91,15 @@ void ColorPickerModal::done() {
 }
 
 void ColorPickerModal::restore_original() {
+    if (!previewed_) {
+        return;
+    }
+    previewed_ = false;
     if (preview_callback_ && view_.color() != original_) {
         preview_callback_(original_);
+    }
+    if (restore_callback_) {
+        restore_callback_();
     }
 }
 

@@ -134,15 +134,17 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
         j["color"] = nullptr;
     }
     // Lane spec `colors` and `color_mode`: the list only for two or more
-    // colors, and the mode beside any color ("solid" for one).
+    // colors, and the mode beside it. "solid" only where a write knew the
+    // count: a firmware mirror names a color, never how many the spool has.
     const std::vector<std::string> colors = split_colors(o.multi_color_hexes);
     if (o.color_set && colors.size() >= 2) {
         j["colors"] = colors;
         j["color_mode"] = std::string(color_mode::to_spec(o.color_mode));
     } else {
         j["colors"] = nullptr;
-        j["color_mode"] =
-            o.color_set ? nlohmann::json(std::string(color_mode::kSolid)) : nlohmann::json(nullptr);
+        j["color_mode"] = o.color_set && o.colors_stated
+                              ? nlohmann::json(std::string(color_mode::kSolid))
+                              : nlohmann::json(nullptr);
     }
     // Two strings. OrcaSlicer matches `material` by exact equality against its
     // library and falls back to a PLA preset on a miss, so `material` carries
@@ -842,6 +844,14 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
         if (has_color && (!ovr.color_set || ovr.color_rgb != firmware_color)) {
             ovr.color_rgb = firmware_color;
             ovr.color_set = true;
+            // Another color is another filament: a list the record held is
+            // stale, so it states one color in its place. A record that named
+            // no list stays silent, leaving a tag's or Spoolman's list standing.
+            if (!ovr.multi_color_hexes.empty()) {
+                ovr.multi_color_hexes.clear();
+                ovr.color_mode.clear();
+                ovr.colors_stated = true;
+            }
             changed = true;
         }
         if (ovr.material != firmware_material) {

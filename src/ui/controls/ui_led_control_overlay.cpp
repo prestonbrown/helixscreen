@@ -635,7 +635,8 @@ void LedControlOverlay::handle_custom_color() {
         return;
     }
     // The light previews every pick while the picker is open, which stops a
-    // running led_effect; Cancel puts the color, brightness and effects back.
+    // running led_effect; Cancel puts the color and brightness back, then
+    // starts those effects again.
     static helix::ui::ColorPickerModal color_picker;
     std::vector<std::string> running_effects;
     for (const auto& eff : LedController::instance().effects().effects_for_strip(focused_strip_)) {
@@ -650,8 +651,8 @@ void LedControlOverlay::handle_custom_color() {
     double r = 0.0, g = 0.0, b = 0.0;
     unpack_rgb(original_base, r, g, b);
     const uint32_t original_rgb = pack_rgb(r * bf, g * bf, b * bf);
-    auto preview = [this, original_rgb, original_base, original_brightness, original_white,
-                    running_effects](uint32_t rgb) {
+    auto preview = [this, original_rgb, original_base, original_brightness,
+                    original_white](uint32_t rgb) {
         const auto* info = focused_info();
         if (info == nullptr || info->backend != LedBackendType::NATIVE) {
             return;
@@ -659,7 +660,6 @@ void LedControlOverlay::handle_custom_color() {
         if (rgb == original_rgb) {
             current_brightness_ = original_brightness;
             apply_look(original_base, original_white);
-            restart_effects(running_effects);
             return;
         }
         // The picked color splits into a full-brightness base and a brightness,
@@ -679,6 +679,8 @@ void LedControlOverlay::handle_custom_color() {
     color_picker.set_config(cfg);
     color_picker.set_remember_on_done(true);
     color_picker.set_preview_callback(preview);
+    color_picker.set_restore_callback(
+        [this, running_effects] { restart_effects(running_effects); });
     color_picker.set_color_callback([this, preview](uint32_t rgb, const std::string& name) {
         spdlog::info("[{}] Custom color selected: 0x{:06X} ({})", get_name(), rgb, name);
         preview(rgb);

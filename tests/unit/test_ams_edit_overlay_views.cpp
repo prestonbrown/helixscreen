@@ -613,6 +613,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
+                 "the color page's header Grid | Sliders switch reaches its picker",
+                 "[ams_edit_overlay][color_picker]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    access.call_open_color_page();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    auto& page = helix::ui::get_color_picker_page();
+    REQUIRE(page.view().attached());
+    // The switch sits in the page's header, outside the picker's own tree.
+    lv_obj_t* header = lv_obj_find_by_name(page.get_root(), "overlay_header");
+    REQUIRE(header != nullptr);
+    lv_obj_t* sliders = lv_obj_find_by_name(header, "cp_tab_sliders");
+    REQUIRE(sliders != nullptr);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_picker_tab")) == 0);
+    lv_obj_send_event(sliders, LV_EVENT_CLICKED, nullptr);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_picker_tab")) == 1);
+    NavigationManager::instance().go_back();
+    UpdateQueue::instance().drain();
+    process_lvgl(400);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
                  "the color page opens on the slot's black, not the gray sentinel",
                  "[ams_edit_overlay][color][1608][color_picker]") {
     auto& overlay = get_ams_edit_overlay();

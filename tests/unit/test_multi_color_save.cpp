@@ -26,6 +26,7 @@
 #include "spoolman_types.h"
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -165,6 +166,92 @@ TEST_CASE("A lane record's colors reach the slot until a stronger source names a
     CHECK(replaced.color_rgb == 0x00FF00);
     CHECK(replaced.multi_color_hexes.empty());
     CHECK(replaced.color_mode.empty());
+}
+
+TEST_CASE("A firmware mirror's lane record leaves a tag's or Spoolman's color list standing",
+          "[multi_color][lane_data]") {
+    using helix::ams::Observation;
+    using helix::ams::ObservationSource;
+    // The mirror bootstraps a colored record for a loaded lane.
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    REQUIRE(helix::ams::mirror_firmware_to_lane_data(nullptr, overrides, 0, 0xD4AF37, "PLA", true,
+                                                     helix::ams::MirrorPolicy::OverwriteAlways,
+                                                     "test"));
+    const json written = helix::ams::to_lane_data_record(0, overrides.at(0));
+    CHECK(written["color_mode"].is_null());
+    const auto read = helix::ams::from_lane_data_record(written);
+    REQUIRE(read.has_value());
+
+    // A multi-color tag already laid its list on the slot.
+    SlotInfo tagged;
+    tagged.color_rgb = 0xD4AF37;
+    tagged.multi_color_hexes = "#D4AF37,#C0C0C0";
+    helix::ams::LaneSources sources;
+    sources.record = helix::ams::record_observation(read->second);
+    helix::ams::apply_resolved(tagged, helix::ams::resolve(sources));
+    CHECK(tagged.multi_color_hexes == "#D4AF37,#C0C0C0");
+
+    // A lane linked to a multi-color Spoolman spool shows its list.
+    Observation firmware(ObservationSource::Firmware);
+    firmware.spoolman_id = 7;
+    Observation spool(ObservationSource::Spoolman);
+    spool.spoolman_id = 7;
+    spool.color_rgb = 0xD4AF37;
+    spool.multi_color_hexes = "#D4AF37,#B87333";
+    spool.color_mode = "gradient";
+    sources.firmware = firmware;
+    sources.spoolman = spool;
+    SlotInfo linked;
+    helix::ams::apply_resolved(linked, helix::ams::resolve(sources));
+    CHECK(linked.multi_color_hexes == "#D4AF37,#B87333");
+}
+
+TEST_CASE("A list stays with the palette color a backend snapped its first color to",
+          "[multi_color][lane_data]") {
+    using helix::ams::Observation;
+    using helix::ams::ObservationSource;
+    // A QIDI Box holds the palette row nearest the pick; the record states
+    // that row beside the user's exact colors, and the firmware echoes it.
+    Observation record(ObservationSource::Record);
+    record.color_rgb = 0xFFD700;
+    record.multi_color_hexes = "#D4AF37,#C0C0C0";
+    record.color_mode = "gradient";
+    Observation firmware(ObservationSource::Firmware);
+    firmware.color_rgb = 0xFFD700;
+    helix::ams::LaneSources sources;
+    sources.record = record;
+    sources.firmware = firmware;
+    SlotInfo slot;
+    helix::ams::apply_resolved(slot, helix::ams::resolve(sources));
+    CHECK(slot.color_rgb == 0xFFD700);
+    CHECK(slot.multi_color_hexes == "#D4AF37,#C0C0C0");
+}
+
+TEST_CASE("An external color change replaces the list a mirrored lane record held",
+          "[multi_color][lane_data]") {
+    std::unordered_map<int, FilamentSlotOverride> overrides;
+    FilamentSlotOverride& o = overrides[0];
+    o.color_rgb = 0xFF0000;
+    o.color_set = true;
+    o.multi_color_hexes = "#FF0000,#FFFFFF";
+    o.color_mode = "gradient";
+    o.colors_stated = true;
+    o.material = "PLA";
+
+    REQUIRE(helix::ams::mirror_firmware_to_lane_data(nullptr, overrides, 0, 0x0000FF, "PLA", true,
+                                                     helix::ams::MirrorPolicy::OverwriteAlways,
+                                                     "test"));
+    json record = helix::ams::to_lane_data_record(0, overrides.at(0));
+    CHECK(record["color"] == "#0000FF");
+    CHECK(record["colors"].is_null());
+    CHECK(record["color_mode"] == "solid");
+
+    // The firmware going back to red does not bring the old split back.
+    (void)helix::ams::mirror_firmware_to_lane_data(nullptr, overrides, 0, 0xFF0000, "PLA", true,
+                                                   helix::ams::MirrorPolicy::OverwriteAlways,
+                                                   "test");
+    record = helix::ams::to_lane_data_record(0, overrides.at(0));
+    CHECK(record["colors"].is_null());
 }
 
 TEST_CASE("Back to one color clears the Spoolman list and sends the color",

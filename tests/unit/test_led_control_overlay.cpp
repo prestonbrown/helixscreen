@@ -576,6 +576,42 @@ TEST_CASE_METHOD(LedApplyColorFixture,
     access.drop_root();
 }
 
+TEST_CASE_METHOD(LedApplyColorFixture,
+                 "overlay: a preview back on the original color does not restart the effect",
+                 "[led][overlay][color_picker]") {
+    add_native("neopixel strip_a", true, false);
+    add_effect("led_effect fire", "neopixel strip_a", true);
+
+    helix::PrinterState ps;
+    LedControlOverlayTestAccess access;
+    access.activate("neopixel strip_a");
+    lv_obj_t* host = lv_obj_create(test_screen());
+    access.open_custom_color(lv_obj_create(host));
+    helix::ui::ColorPickerView* picker = helix::ui::ColorPickerView::active();
+    REQUIRE(picker != nullptr);
+    const uint32_t original = picker->color();
+    picker->pick_cell(3);
+    drain();
+    mock_client.clear_gcode_script_history();
+
+    // Typing the original color back previews it; the picker stays open.
+    char hex[8];
+    std::snprintf(hex, sizeof(hex), "%06X", original);
+    picker->open_keypad();
+    for (const char* c = hex; *c; ++c) {
+        picker->keypad_key(*c);
+    }
+    picker->keypad_ok();
+    drain();
+    const auto h = mock_client.gcode_script_history();
+    CHECK_FALSE(std::any_of(h.begin(), h.end(), [](const std::string& s) {
+        return s == "SET_LED_EFFECT EFFECT=fire";
+    }));
+    lv_obj_send_event(lv_obj_find_by_name(test_screen(), "cpm_cancel"), LV_EVENT_CLICKED, nullptr);
+    drain();
+    access.drop_root();
+}
+
 TEST_CASE_METHOD(LedApplyColorFixture, "overlay: an effect chip activates that effect",
                  "[led][overlay]") {
     add_native("neopixel strip_a", true, false);

@@ -47,6 +47,11 @@ class ColorPickerModal : public Modal {
     void set_preview_callback(std::function<void(uint32_t rgb)> callback) {
         preview_callback_ = std::move(callback);
     }
+    /// Fires when Cancel, a backdrop tap or ESC puts the original back after
+    /// a pick previewed: what the preview stopped can start again here.
+    void set_restore_callback(std::function<void()> callback) {
+        restore_callback_ = std::move(callback);
+    }
     /// Fires on every close, after the color or preview callback.
     void set_dismiss_callback(std::function<void()> callback) {
         dismiss_callback_ = std::move(callback);
@@ -82,9 +87,11 @@ class ColorPickerModal : public Modal {
     ColorPickerView view_;
     uint32_t original_ = 0;
     bool remember_on_done_ = false;
+    bool previewed_ = false; ///< a pick has previewed since the picker opened
     ColorCallback color_callback_;
     std::function<void(uint32_t)> preview_callback_;
     std::function<void()> dismiss_callback_;
+    std::function<void()> restore_callback_;
 };
 
 } // namespace helix::ui
