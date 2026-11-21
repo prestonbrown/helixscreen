@@ -66,6 +66,9 @@
     <prop name="title_badge_subject" type="string" default=""/>
     <!-- Back button callback - defaults to standard navigation go_back -->
     <prop name="back_button_callback" type="string" default="on_header_back_clicked"/>
+    <!-- 1 hides the back arrow and makes the title inert: the view is embedded
+         beside a panel (an ultrawide side band), with nothing to go back to. -->
+    <prop name="back_hidden_subject" type="string" default=""/>
     <!-- Text-based action button (use action_button_text) -->
     <prop name="action_button_text" type="string" default=""/>
     <prop name="action_button_text_tag" type="string" default=""/>
@@ -142,8 +145,11 @@
             height="100%" flex_grow="1" style_pad_left="#space_sm" style_pad_right="0" style_pad_top="0"
             style_pad_bottom="0" scrollable="false" clickable="true" style_flex_cross_place="center"
             style_flex_track_place="center" flex_flow="row" style_pad_gap="#space_xs">
+      <bind_flag_if_eq subject="$back_hidden_subject" flag="clickable" ref_value="0"/>
       <event_cb trigger="clicked" callback="$back_button_callback"/>
-      <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true"/>
+      <icon src="back" size="lg" variant="text" clickable="false" event_bubble="true">
+        <bind_flag_if_eq subject="$back_hidden_subject" flag="hidden" ref_value="1"/>
+      </icon>
       <!-- bind_text is deliberately FIRST. An unsupplied title_subject resolves to the
            empty name, which is a registered no-op INT subject, and binding to that
            stamps "0" over the title. Applying text/translation_tag afterwards puts the

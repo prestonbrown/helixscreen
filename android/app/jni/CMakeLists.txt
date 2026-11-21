@@ -349,6 +349,8 @@ target_compile_definitions(main PRIVATE
     HELIX_HAS_IMAGE_TAGGER=1
     # The home Toolhead widget; only the ESP32 firmware leaves it out.
     HELIX_HAS_TOOLHEAD_WIDGET=1
+    # The ultrawide side band; only the ESP32 firmware leaves it out.
+    HELIX_HAS_SIDE_BAND=1
     # FONT_SOURCES above globs every face under assets/fonts/*.c with no tier
     # filtering, so the 48/64pt and 32/40pt hi-DPI CJK rungs are linked into
     # libmain.so same as every other tier. Left undefined, HELIX_HAS_HIDPI_FONTS

@@ -12,6 +12,7 @@
 #include "ui_panel_common.h"
 #include "ui_panel_controls.h"
 #include "ui_settings_motion.h"
+#include "ui_side_band.h"
 #include "ui_subject_registry.h"
 #include "ui_utils.h"
 
@@ -717,6 +718,15 @@ void MotionPanel::on_ui_destroyed() {
     move_sender_.reset();
     stop_hold_repeat();
     end_bed_gesture();
+    // A side band waiting for the tree may build its own now.
+    helix::ui::SideBand::notify_released(helix::ui::SideBandContent::Motion);
+}
+
+void helix::open_motion_panel(lv_obj_t* parent_screen) {
+    if (helix::ui::SideBand::take_open_request(helix::ui::SideBandContent::Motion)) {
+        return;
+    }
+    get_global_motion_panel().show(parent_screen);
 }
 
 // ============================================================================

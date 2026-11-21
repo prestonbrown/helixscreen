@@ -346,6 +346,7 @@ FilamentPanel::~FilamentPanel() {
 
 void FilamentPanel::init_subjects() {
     init_subjects_guarded([this]() {
+        side_band_.init_subjects();
         // Initialize subjects with default values
         UI_MANAGED_SUBJECT_STRING(temp_display_subject_, temp_display_buf_, temp_display_buf_,
                                   "filament_temp_display", subjects_);
@@ -438,6 +439,7 @@ void FilamentPanel::deinit_subjects() {
     // cases — must be released alongside the AmsState guards above.
     print_active_observer_.reset();
     temp_observers_.clear();
+    side_band_.deinit_subjects();
     deinit_subjects_base(subjects_);
 }
 
@@ -546,6 +548,7 @@ void FilamentPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // at startup).
     bind_widgets();
     setup_orientation_rewire_observer();
+    side_band_.bind(panel_);
 
     // AMS mini status widget is now created declaratively via XML <ams_mini_status/>
 
@@ -945,7 +948,13 @@ void FilamentPanel::drop_pending_pickup(const char* why) {
     NOTIFY_WARNING(lv_tr("Pick-up step cancelled; nothing was sent"));
 }
 
+void FilamentPanel::on_activate() {
+    PanelBase::on_activate();
+    side_band_.on_host_activate();
+}
+
 void FilamentPanel::on_deactivating(DeactivateReason reason) {
+    side_band_.on_host_deactivate(reason);
     // A step waiting on a pickup must not run on a screen the user has left.
     // Suspended keeps the panel on the stack (a keypad over it), so it stays.
     if (reason != DeactivateReason::Suspended) {

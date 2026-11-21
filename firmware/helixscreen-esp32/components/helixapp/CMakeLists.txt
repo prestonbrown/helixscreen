@@ -136,6 +136,8 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     # The Motion panel covers what the Toolhead widget offers; leaving the
     # widget out saves its flash.
     HELIX_HAS_TOOLHEAD_WIDGET=0
+    # The K-Touch panel is never ultrawide, so the side band could never show.
+    HELIX_HAS_SIDE_BAND=0
     HELIX_HAS_GCODE_VIEWER=0
     HELIX_HAS_BED_MESH_3D=0
     HELIX_HAS_LABEL_PRINTER=0

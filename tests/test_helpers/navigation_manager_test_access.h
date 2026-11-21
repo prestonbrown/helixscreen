@@ -9,6 +9,12 @@
 
 class NavigationManagerTestAccess {
   public:
+    /// Stand in for push_overlay() covering the main panel (or its activation
+    /// clearing that again).
+    static void set_main_panel_covered(NavigationManager& nav, bool covered) {
+        nav.main_panel_deactivated_for_overlay_ = covered;
+    }
+
     /// Stand in for a panel switch whose loading pill is up.
     static void set_nav_scrim_active(NavigationManager& nav, bool active) {
         nav.nav_scrim_active_ = active;

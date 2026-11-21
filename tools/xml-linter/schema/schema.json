@@ -1842,6 +1842,9 @@
         "card": {
           "type": "bool"
         },
+        "fill": {
+          "type": "string"
+        },
         "bars_align": {
           "type": "string"
         }

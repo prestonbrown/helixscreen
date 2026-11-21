@@ -1281,7 +1281,7 @@ void ToolheadWidget::invalidate_plate() {
 }
 
 void ToolheadWidget::open_motion_panel() {
-    get_global_motion_panel().show(parent_screen_);
+    helix::open_motion_panel(parent_screen_);
 }
 
 void ToolheadWidget::clicked_cb(lv_event_t* e) {
