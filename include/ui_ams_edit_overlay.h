@@ -479,17 +479,16 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t page_subject_{};          ///< kPage* ("ams_edit_page")
     lv_subject_t product_line_subject_{};  ///< "Polymaker PolyTerra" ("ams_edit_product_line")
     lv_subject_t material_line_subject_{}; ///< "PLA · Charcoal Black" ("ams_edit_material_line")
-    lv_subject_t lane_line_subject_{}; ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
-    lv_subject_t lane_line_visible_subject_{}; ///< 1 = a lane setting can change here
-    lv_subject_t weight_pct_subject_{};        ///< the drag bar, 0..100 of the spool's size
-    lv_subject_t empty_title_subject_{};       ///< "Lane 3 is empty" ("ams_edit_empty_title")
-    lv_subject_t has_last_subject_{};          ///< 1 = the empty lane records what it last held
-    lv_subject_t last_product_subject_{};      ///< what it last held, product line
-    lv_subject_t last_material_subject_{};     ///< what it last held, material · color
-    lv_subject_t add_to_spoolman_subject_{};   ///< the Add to Spoolman checkbox
-    lv_subject_t tag_text_subject_{};          ///< "Tag says PLA · Bambu · Black"
-    lv_subject_t clear_archive_subject_{};     ///< the Clear Lane archive checkbox
-    lv_subject_t clear_title_subject_{};       ///< "Clear Lane 3?" ("ams_edit_clear_title")
+    lv_subject_t lane_line_subject_{};    ///< "Tool T0 · Runout → Lane 3" ("ams_edit_lane_line")
+    lv_subject_t weight_pct_subject_{};   ///< the drag bar, 0..100 of the spool's size
+    lv_subject_t empty_title_subject_{};  ///< "Lane 3 is empty" ("ams_edit_empty_title")
+    lv_subject_t has_last_subject_{};     ///< 1 = the empty lane records what it last held
+    lv_subject_t last_product_subject_{}; ///< what it last held, product line
+    lv_subject_t last_material_subject_{};   ///< what it last held, material · color
+    lv_subject_t add_to_spoolman_subject_{}; ///< the Add to Spoolman checkbox
+    lv_subject_t tag_text_subject_{};        ///< "Tag says PLA · Bambu · Black"
+    lv_subject_t clear_archive_subject_{};   ///< the Clear Lane archive checkbox
+    lv_subject_t clear_title_subject_{};     ///< "Clear Lane 3?" ("ams_edit_clear_title")
     char product_line_buf_[128] = {0};
     char material_line_buf_[128] = {0};
     char lane_line_buf_[128] = {0};
@@ -508,8 +507,8 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_slider(int pct);
     void handle_same_filament();
     void show_clear_confirm();
-    void handle_clear_confirm(lv_event_t* e);
-    void handle_clear_cancel(lv_event_t* e);
+    void handle_clear_confirm();
+    void handle_clear_cancel();
     void handle_new_spool();
     void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
