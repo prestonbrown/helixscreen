@@ -3709,7 +3709,6 @@
   <translation tag="Recycled" de="Recycelt"/>
   <translation tag="Reduce Sensitivity" de="Empfindlichkeit verringern"/>
   <translation tag="Reduce ringing and ghosting artifacts" de="Klingel- und Geisterartefakte reduzieren"/>
-  <translation tag="Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Reduce vibration artifacts like ringing and ghosting" de="Vibrationsartefakte wie Klingeln und Geisterbilder reduzieren"/>
   <translation tag="Reducing the fan speed may affect filtration performance. Do you want to continue?" de="Eine niedrigere Lüfterdrehzahl kann die Filterleistung beeinträchtigen. Fortfahren?"/>
   <translation tag="Reducing the fan speed may affect print quality. Do you want to continue?" de="Eine niedrigere Lüfterdrehzahl kann die Druckqualität beeinträchtigen. Fortfahren?"/>

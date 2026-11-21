@@ -3828,8 +3828,6 @@ translations:
   'Recovery failed: {}': 'Wiederherstellung fehlgeschlagen: {}'
   Reduce Sensitivity: Empfindlichkeit verringern
   Reduce ringing and ghosting artifacts: Klingel- und Geisterartefakte reduzieren
-  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
-  : ''
   Reduce vibration artifacts like ringing and ghosting: Vibrationsartefakte wie Klingeln und Geisterbilder reduzieren
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Eine niedrigere Lüfterdrehzahl kann die Filterleistung beeinträchtigen. Fortfahren?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Eine niedrigere Lüfterdrehzahl kann die Druckqualität beeinträchtigen. Fortfahren?'

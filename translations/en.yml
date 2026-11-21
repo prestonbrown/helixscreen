@@ -3810,8 +3810,6 @@ translations:
   'Recovery failed: {}': 'Recovery failed: {}'
   Reduce Sensitivity: Reduce Sensitivity
   Reduce ringing and ghosting artifacts: Reduce ringing and ghosting artifacts
-  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
-  : Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   Reduce vibration artifacts like ringing and ghosting: Reduce vibration artifacts like ringing and ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: Reducing the fan speed may affect filtration performance. Do you want to continue?
   Reducing the fan speed may affect print quality. Do you want to continue?: Reducing the fan speed may affect print quality. Do you want to continue?

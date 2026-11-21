@@ -3840,8 +3840,6 @@ translations:
   'Recovery failed: {}': 'Échec de la récupération : {}'
   Reduce Sensitivity: Réduire la sensibilité
   Reduce ringing and ghosting artifacts: Réduire les artefacts d'ondulation et de ghosting
-  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
-  : ''
   Reduce vibration artifacts like ringing and ghosting: Réduire les artefacts de vibration comme l'ondulation et le ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Réduire la vitesse du ventilateur peut nuire à la filtration. Voulez-vous continuer ?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Réduire la vitesse du ventilateur peut nuire à la qualité d''impression. Voulez-vous continuer ?'

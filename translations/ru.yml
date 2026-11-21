@@ -3908,8 +3908,6 @@ translations:
   'Recovery failed: {}': 'Восстановление не удалось: {}'
   Reduce Sensitivity: Снизить чувствительность
   Reduce ringing and ghosting artifacts: Уменьшить артефакты звона и двоения
-  ? Reduce the load on the host (stop webcams, timelapses and extra services), check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
-  : ''
   Reduce vibration artifacts like ringing and ghosting: Уменьшить артефакты вибрации, такие как звон и двоение
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить фильтрацию. Продолжить?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить качество печати. Продолжить?'
