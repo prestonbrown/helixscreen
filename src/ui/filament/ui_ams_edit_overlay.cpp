@@ -24,6 +24,7 @@
 #include "color_recents.h"
 #include "color_utils.h"
 #include "core/observer_factory.h"
+#include "core/run_after.h"
 #include "core/static_panel_registry.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -472,6 +473,10 @@ lv_obj_t* AmsEditOverlay::create(lv_obj_t* parent) {
 void AmsEditOverlay::on_ui_destroyed() {}
 
 void AmsEditOverlay::on_dismissed() {
+#if HELIX_HAS_LABEL_PRINTER
+    // A save still waiting on its echo closes with no toast to carry the label.
+    release_new_spool_label();
+#endif
     // Idempotent: Save and Back have already fired it on their own paths.
     fire_completion(false);
 }
@@ -1551,6 +1556,18 @@ void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo&
         hold->when_settled([present](const helix::LabelOutcomeHold::Outcome& outcome) {
             present(new_spool_label_note(outcome));
         });
+        // A printer that is slow to answer (a sleeping Bluetooth one takes
+        // ~25 s) must not hold back the save's toast and its Undo: past a short
+        // grace the toast shows alone and the label reports on its own.
+        if (!hold->settled()) {
+            helix::run_after_ms(kNewSpoolLabelGraceMs, [hold, present]() {
+                if (hold->stop_waiting([](const helix::LabelOutcomeHold::Outcome& outcome) {
+                        label_outcome_toasts(outcome.printed, outcome.error);
+                    })) {
+                    present({});
+                }
+            });
+        }
         return;
     }
 #endif
@@ -3152,6 +3169,10 @@ void AmsEditOverlay::remember_saved_colors(const SaveCapture& cap) {
 
 void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& committed) {
     if (cap.stay_open && save_is_live(cap)) {
+#if HELIX_HAS_LABEL_PRINTER
+        // The editor stays open: no closing toast will carry the label.
+        release_new_spool_label();
+#endif
         remember_saved_colors(cap);
         // Commit the slot and keep the editor, holding the edits that could
         // not be saved.
@@ -3177,6 +3198,9 @@ void AmsEditOverlay::deliver_commit(const SaveCapture& cap, const SlotInfo& comm
         commit_then_await(cap, committed);
         return;
     }
+#if HELIX_HAS_LABEL_PRINTER
+    release_new_spool_label();
+#endif
     if (cap.owed) {
         spdlog::info("[AmsEditOverlay] Save for slot {} finished after the editor closed; "
                      "committing it",
@@ -3309,6 +3333,9 @@ void AmsEditOverlay::commit_then_await(const SaveCapture& cap, const SlotInfo& c
 void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::PendingOutcome outcome,
                                          const std::string& reason) {
     if (cap.session != session_ || completion_fired_) {
+#if HELIX_HAS_LABEL_PRINTER
+        release_new_spool_label();
+#endif
         return;
     }
     save_in_flight_ = false;

@@ -773,6 +773,8 @@ class AmsEditOverlay : public OverlayBase {
     /// will report it).
     void release_new_spool_label();
     std::shared_ptr<helix::LabelOutcomeHold> new_spool_label_;
+    /// How long a new spool's closing toast waits for its label print.
+    static constexpr uint32_t kNewSpoolLabelGraceMs = 1500;
 #endif
     void handle_scan_qr();
 };

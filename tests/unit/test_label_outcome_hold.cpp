@@ -45,3 +45,21 @@ TEST_CASE("one label outcome reaches one presentation", "[label_outcome]") {
     CHECK(closing == 1);
     CHECK(fallback == 0);
 }
+
+TEST_CASE("a presentation that stops waiting hands the outcome to its fallback",
+          "[label_outcome]") {
+    LabelOutcomeHold hold;
+    std::vector<std::string> closing;
+    std::vector<std::string> own;
+    hold.when_settled([&closing](const auto& o) { closing.push_back(describe(o)); });
+    REQUIRE(hold.stop_waiting([&own](const auto& o) { own.push_back(describe(o)); }));
+    hold.settle(true, "");
+    CHECK(closing.empty());
+    CHECK(own == std::vector<std::string>{"printed"});
+
+    // Once the closing presentation has run there is nothing left to stop.
+    LabelOutcomeHold answered;
+    answered.when_settled([](const auto&) {});
+    answered.settle(true, "");
+    CHECK_FALSE(answered.stop_waiting([](const auto&) {}));
+}

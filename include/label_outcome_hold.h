@@ -40,6 +40,17 @@ class LabelOutcomeHold {
         run();
     }
 
+    /// The waiting presentation stops waiting and @p fallback reports the
+    /// outcome instead, when it comes. False when the presentation already ran
+    /// (or none was waiting), so the caller knows not to present without it.
+    bool stop_waiting(Present fallback) {
+        if (done_ || !present_) {
+            return false;
+        }
+        present_ = std::move(fallback);
+        return true;
+    }
+
     [[nodiscard]] bool settled() const {
         return outcome_.has_value();
     }
