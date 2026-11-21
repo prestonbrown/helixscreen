@@ -29,7 +29,9 @@
 #include "filament_variants.h"
 #include "format_utils.h"
 #include "label_printer_settings.h"
+#include "lane_spool_history.h"
 #include "lane_translation.h"
+#include "spool_assign.h"
 #include "spoolman_manager.h"
 #include "static_panel_registry.h"
 #include "text_io.h"
@@ -39,7 +41,9 @@
 #include "label_printer_utils.h"
 #endif
 #include "ui_breakpoint.h"
+#include "ui_format_utils.h"
 #include "ui_overlay_qr_scanner.h"
+#include "ui_spool_canvas.h"
 #include "ui_toast_manager.h"
 
 #include "i_moonraker_api.h"
@@ -54,6 +58,8 @@
 #include <algorithm>
 #include <cctype>
 #include <cmath>
+#include <cstring>
+#include <ctime>
 #include <map>
 #include <set>
 
@@ -176,9 +182,6 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     original_info_ = initial_info;
     working_info_ = initial_info;
     note_action_form_.reset();
-    // Picker-entry mode: a selection commits + closes. Cleared when the picker
-    // is later re-entered via the header Spoolman button.
-    opened_on_picker_ = open_on_picker;
     api_ = api ? api : get_moonraker_api();
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
@@ -200,7 +203,13 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     reseed_details_for_spool();
     cached_spools_.clear();
     cached_searchables_.clear();
+    listed_.clear();
+    spools_from_spoolman_ = false;
     picker_search_debounce_.cancel();
+    size_chip_ = 0;
+    size_remaining_g_ = spool_assign::kDefaultSpoolGrams;
+    size_total_g_ = spool_assign::kDefaultSpoolGrams;
+    created_spool_id_ = 0;
 
     // Always prefer the active screen so the overlay renders above everything
     lv_obj_t* screen = lv_screen_active();
@@ -213,12 +222,20 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     load_lane_settings();
 
     // Reset per-session view state HERE (covered-safe — on_deactivate must not
-    // touch it, since it also fires when the QR scanner merely covers us).
-    if (open_on_picker) {
-        set_view(kViewSpoolPicker);
+    // touch it, since it also fires when the QR scanner merely covers us). A
+    // lane holding a spool opens on Edit Spool; an empty one, or a request to
+    // pick a spool, on Assign Spool.
+    const bool edit = !open_on_picker &&
+                      spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit;
+    lv_subject_set_int(&mode_subject_, edit ? kModeEdit : kModeAssign);
+    lv_subject_set_int(&size_chip_subject_, size_chip_);
+    if (!edit && spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit) {
+        // Asked to pick a spool for a lane that holds one.
+        begin_fresh_assign();
+    }
+    enter_editor();
+    if (!edit) {
         populate_picker();
-    } else {
-        enter_editor();
     }
 
     spdlog::info("[AmsEditOverlay] Shown for slot {} (spoolman_id={}, brand={}, material={})",
@@ -356,6 +373,17 @@ void AmsEditOverlay::return_to_editor() {
     set_view(kViewEditor);
 }
 
+void AmsEditOverlay::apply_scanned_spool(const SpoolInfo& spool) {
+    SlotInfo scanned;
+    apply_spool_to_slot(scanned, spool);
+    scanned.slot_index = working_info_.slot_index;
+    scanned.global_index = working_info_.global_index;
+    working_info_ = scanned;
+    // A scanned spool is known whole: it opens on Edit Spool for review.
+    set_mode(kModeEdit);
+    load_swapped_spool();
+}
+
 void AmsEditOverlay::load_swapped_spool() {
     // The More section now describes the NEW spool: blank until its record
     // lands, so Save cannot write the previous spool's fields onto it.
@@ -466,27 +494,37 @@ void AmsEditOverlay::init_subjects() {
     init_subjects_guarded([this]() {
         lv_subject_init_string(&title_subject_, title_buf_, nullptr, sizeof(title_buf_), "--");
         subjects_.register_subject(&title_subject_);
+        UI_MANAGED_SUBJECT_STRING(subtitle_subject_, subtitle_buf_, "", "ams_edit_subtitle",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_INT(mode_subject_, kModeAssign, "ams_edit_mode", subjects_);
+        UI_MANAGED_SUBJECT_STRING(list_title_subject_, list_title_buf_, "", "ams_edit_list_title",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_INT(common_visible_subject_, 0, "ams_edit_common_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(bottom_action_subject_,
+                               static_cast<int>(spool_assign::BottomAction::AssignLocal),
+                               "ams_edit_bottom_action", subjects_);
+        UI_MANAGED_SUBJECT_INT(size_chip_subject_, 0, "ams_edit_size_chip", subjects_);
+        UI_MANAGED_SUBJECT_STRING(partial_text_subject_, partial_text_buf_, "",
+                                  "ams_edit_partial_text", subjects_);
+        UI_MANAGED_SUBJECT_STRING(saves_to_subject_, saves_to_buf_, "", "ams_edit_saves_to",
+                                  subjects_);
 
         // View state (kViewEditor..kViewColor) - registered globally
         UI_MANAGED_SUBJECT_INT(view_mode_subject_, 0, "ams_edit_view", subjects_);
 
-        // Picker state (0=loading, 1=empty, 2=content) - registered globally
+        // The spools list's state (picker_state_subject_) - registered globally
         UI_MANAGED_SUBJECT_INT(picker_state_subject_, 0, "edit_picker_state", subjects_);
 
         // Header Save button dirty gate (1=disabled). Starts disabled — nothing
         // is dirty when the editor opens.
         UI_MANAGED_SUBJECT_INT(save_disabled_subject_, 1, "ams_edit_save_disabled", subjects_);
 
-        // Header Save button visibility gate (1=hidden). Save applies to the
-        // editor view only; picker and color views hide it. Written
-        // exclusively from set_view().
-        UI_MANAGED_SUBJECT_INT(save_hidden_subject_, 0, "ams_edit_save_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(save_state_subject_, kSaveIdle, "ams_edit_save_state", subjects_);
         UI_MANAGED_SUBJECT_STRING(save_error_subject_, save_error_buf_, "", "ams_edit_save_error",
                                   subjects_);
 
         // Managed-vs-untracked signal: drives the header Spoolman badge, the
-        // More section's Spoolman-owned fields and the Add-link's absence.
+        // More section's Spoolman-owned fields and the "Saves to" line.
         UI_MANAGED_SUBJECT_INT(is_managed_subject_, 0, "ams_edit_is_managed", subjects_);
         UI_MANAGED_SUBJECT_INT(spool_disagrees_subject_, 0, "ams_edit_spool_disagrees", subjects_);
         UI_MANAGED_SUBJECT_STRING(spool_disagreement_text_subject_, spool_disagreement_buf_, "",
@@ -499,16 +537,13 @@ void AmsEditOverlay::init_subjects() {
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(color_selected_subject_, -1, "ams_edit_color_selected", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_col_count_subject_, 8, "ams_edit_color_col_count", subjects_);
-        UI_MANAGED_SUBJECT_INT(color_row_count_subject_, 29, "ams_edit_color_row_count", subjects_);
+        UI_MANAGED_SUBJECT_INT(color_row_count_subject_, 7, "ams_edit_color_row_count", subjects_);
         // Colour view: both panes at once where they fit (update_color_fit),
         // else one at a time, switched by the custom swatch and Presets.
         UI_MANAGED_SUBJECT_INT(color_fits_subject_, 1, "ams_edit_color_fits", subjects_);
         UI_MANAGED_SUBJECT_INT(color_pane_subject_, 0, "ams_edit_color_pane", subjects_);
 
-        // Summary line, temperatures, weight pill, badges, disclosure.
-        UI_MANAGED_SUBJECT_STRING(summary_text_subject_, summary_buf_, "", "ams_edit_summary_text",
-                                  subjects_);
+        // Temperatures, remaining weight, badges, disclosure.
         UI_MANAGED_SUBJECT_INT(tag_badge_visible_subject_, 0, "ams_edit_tag_badge_visible",
                                subjects_);
         // Per-field "from tag" badges: the value the form shows is the tag's.
@@ -524,8 +559,6 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(weight_hint_subject_, weight_hint_buf_, "",
                                   "ams_edit_weight_hint", subjects_);
         UI_MANAGED_SUBJECT_INT(reset_tag_visible_subject_, 0, "ams_edit_reset_tag_visible",
-                               subjects_);
-        UI_MANAGED_SUBJECT_INT(add_spoolman_visible_subject_, 0, "ams_edit_add_spoolman_visible",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(clear_visible_subject_, 0, "ams_edit_clear_visible", subjects_);
         UI_MANAGED_SUBJECT_INT(more_open_subject_, 0, "ams_edit_more_open", subjects_);
@@ -563,8 +596,7 @@ void AmsEditOverlay::deinit_subjects() {
 // Identity dropdowns
 // ============================================================================
 
-void AmsEditOverlay::fill_dropdown(const char* stacked_name, const char* split_name,
-                                   const std::vector<Option>& options_list,
+void AmsEditOverlay::fill_dropdown(const char* name, const std::vector<Option>& options_list,
                                    const std::string& selected_payload) {
     std::string options;
     int selected = -1;
@@ -578,25 +610,25 @@ void AmsEditOverlay::fill_dropdown(const char* stacked_name, const char* split_n
             selected = static_cast<int>(i);
         }
     }
-    for (const char* name : {stacked_name, split_name}) {
-        if (lv_obj_t* dd = name && name[0] ? find_widget(name) : nullptr) {
-            if (options_list.empty()) {
-                // No lines for this brand: an empty list, and no phantom
-                // first-item selection.
-                lv_dropdown_set_options(dd, "");
-                continue;
-            }
-            lv_dropdown_set_options(dd, options.c_str());
-            lv_dropdown_set_selected(dd, selected < 0 ? 0 : selected);
-        }
+    lv_obj_t* dd = find_widget(name);
+    if (!dd) {
+        return;
     }
+    if (options_list.empty()) {
+        // No lines for this brand: an empty list, and no phantom first-item
+        // selection.
+        lv_dropdown_set_options(dd, "");
+        return;
+    }
+    lv_dropdown_set_options(dd, options.c_str());
+    lv_dropdown_set_selected(dd, selected < 0 ? 0 : selected);
 }
 
 void AmsEditOverlay::refresh_dropdowns() {
-    fill_dropdown("dropdown_material", "dropdown_material_split", material_options_, sel_.family);
-    fill_dropdown("dropdown_variant", "dropdown_variant_split", variant_options_, sel_.variant);
-    fill_dropdown("dropdown_brand", "dropdown_brand_split", brand_options_, sel_.brand);
-    fill_dropdown("dropdown_product", "dropdown_product_split", product_options_, sel_.product_id);
+    fill_dropdown("dropdown_material", material_options_, sel_.family);
+    fill_dropdown("dropdown_variant", variant_options_, sel_.variant);
+    fill_dropdown("dropdown_brand", brand_options_, sel_.brand);
+    fill_dropdown("dropdown_product", product_options_, sel_.product_id);
 }
 
 void AmsEditOverlay::rebuild_option_lists() {
@@ -818,61 +850,109 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
 // ============================================================================
 
 void AmsEditOverlay::set_view(int view) {
-    // Leaving the picker with a search still settling: the debounced rebuild
-    // would re-render the now-hidden spool list mid-transition.
-    if (lv_subject_get_int(&view_mode_subject_) == kViewSpoolPicker && view != kViewSpoolPicker) {
-        picker_search_debounce_.cancel();
-    }
     lv_subject_set_int(&view_mode_subject_, view);
-    // Header Save is visible on the editor view only; the picker and the color
-    // view hide it.
-    lv_subject_set_int(&save_hidden_subject_, view == kViewEditor ? 0 : 1);
     update_sync_button_state();
 }
 
-void AmsEditOverlay::switch_to_picker() {
-    if (!subjects_initialized_) {
-        spdlog::warn("[AmsEditOverlay] switch_to_picker() aborted: subjects not initialized");
+void AmsEditOverlay::set_mode(int mode) {
+    lv_subject_set_int(&mode_subject_, mode);
+    update_header_and_panel();
+}
+
+void AmsEditOverlay::handle_different_spool() {
+    if (!subjects_initialized_ || save_in_flight_) {
         return;
     }
-    // Reaching the picker via the header button is the two-step flow — a
-    // selection returns to the editor for review.
-    opened_on_picker_ = false;
-    set_view(kViewSpoolPicker);
+    begin_fresh_assign();
+    set_view(kViewEditor);
+    set_mode(kModeAssign);
+    update_ui();
+    rebuild_option_lists();
+    update_summary();
+    update_temp_display();
+    update_sync_button_state();
     populate_picker();
 }
 
-void AmsEditOverlay::populate_picker() {
-    if (!api_) {
-        api_ = get_moonraker_api();
+void AmsEditOverlay::begin_fresh_assign() {
+    // Assign Spool describes the spool going in, not the one coming out: the
+    // form starts empty, so the list opens on the recent spools. The lane's
+    // own settings (tool, backup) are not the spool's and stay.
+    SlotInfo fresh;
+    fresh.slot_index = working_info_.slot_index;
+    fresh.global_index = working_info_.global_index;
+    fresh.color_rgb = kAmsDefaultSlotColor;
+    fresh.remaining_weight_g = -1.0f;
+    fresh.total_weight_g = -1.0f;
+    working_info_ = fresh;
+    sel_ = selection_from_slot(working_info_);
+    selection_moved_ = false;
+    details_color_ = working_info_.color_rgb;
+    details_color_set_ = false;
+    reseed_details_for_spool();
+    apply_size_chip(0, spool_assign::kDefaultSpoolGrams, spool_assign::kDefaultSpoolGrams);
+}
+
+bool AmsEditOverlay::back_to_edit_spool() {
+    // Assign Spool reached from a lane that holds a spool (Different Spool, or
+    // a pick-a-spool entry): Back returns to that spool, unchanged.
+    if (lv_subject_get_int(&mode_subject_) != kModeAssign ||
+        spool_assign::screen_for_lane(original_info_) != spool_assign::LaneScreen::Edit) {
+        return false;
     }
-    if (!overlay_root_ || !api_) {
-        spdlog::warn("[AmsEditOverlay] populate_picker() aborted: overlay_root_={}, api_={}",
-                     static_cast<void*>(overlay_root_), static_cast<void*>(api_));
-        lv_subject_set_int(&picker_state_subject_, 1);
+    working_info_ = original_info_;
+    sel_ = selection_from_slot(working_info_);
+    selection_moved_ = false;
+    details_color_ = working_info_.color_rgb;
+    details_color_set_ = false;
+    reseed_details_for_spool();
+    set_mode(kModeEdit);
+    update_ui();
+    rebuild_option_lists();
+    update_summary();
+    update_temp_display();
+    populate_detail_fields();
+    update_sync_button_state();
+    fetch_linked_spool();
+    return true;
+}
+
+void AmsEditOverlay::populate_picker() {
+    if (!overlay_root_) {
         return;
     }
-
     picker_search_debounce_.cancel();
     cached_spools_.clear();
     cached_searchables_.clear();
-    lv_subject_set_int(&picker_state_subject_, 0);
+    listed_.clear();
 
-    lv_obj_t* search = helix::ui::find_required(overlay_root_, "picker_search", get_name());
-    if (search) {
+    if (lv_obj_t* search = find_widget("picker_search")) {
         lv_textarea_set_text(search, "");
     }
 
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    const bool has_spoolman = spoolman_subj && lv_subject_get_int(spoolman_subj) == 1;
+    if (!api_) {
+        api_ = get_moonraker_api();
+    }
+    if (!has_spoolman || !api_) {
+        // Without Spoolman the list is what this printer's lanes have held.
+        spools_from_spoolman_ = false;
+        for (const auto& entry : lane_spool_history::load()) {
+            cached_spools_.push_back(lane_spool_history::as_spool(entry));
+        }
+        render_spool_list("");
+        return;
+    }
+
+    spools_from_spoolman_ = true;
+    lv_subject_set_int(&picker_state_subject_, 0);
     auto token = lifetime_.token();
     api_->spoolman().get_spoolman_spools(
         [this, token](const std::vector<SpoolInfo>& spools) {
             spdlog::debug("[AmsEditOverlay] Spoolman returned {} spools", spools.size());
             token.defer([this, spools]() {
                 if (!overlay_root_ || !subjects_initialized_) {
-                    return;
-                }
-                if (spools.empty()) {
-                    lv_subject_set_int(&picker_state_subject_, 1);
                     return;
                 }
                 // Spools arrive ordered by most recent activity first
@@ -888,14 +968,45 @@ void AmsEditOverlay::populate_picker() {
         },
         [this, token](const MoonrakerError& err) {
             spdlog::warn("[AmsEditOverlay] Spoolman fetch error: {}", err.message);
-            token.defer([this, msg = err.message]() {
+            token.defer([this]() {
                 if (!overlay_root_ || !subjects_initialized_) {
                     return;
                 }
-                spdlog::warn("[AmsEditOverlay] Failed to fetch spools: {}", msg);
                 lv_subject_set_int(&picker_state_subject_, 1);
+                lv_subject_set_int(&bottom_action_subject_,
+                                   static_cast<int>(spool_assign::bottom_action(true, 0)));
             });
         });
+}
+
+spool_assign::SpoolQuery AmsEditOverlay::current_query() const {
+    spool_assign::SpoolQuery query;
+    // An empty lane opened with nothing picked says nothing yet: the dropdowns'
+    // resting values (PLA, Generic) are not a description.
+    if (!selection_moved_ && !details_color_set_ && working_info_.material.empty()) {
+        return query;
+    }
+    const SlotInfo shown = shown_slot();
+    query.material = shown.material;
+    query.brand = shown.brand;
+    query.product = shown.product_name;
+    const bool colour_set =
+        details_color_set_ || (shown.multi_color_hexes.empty() && slot_has_colour(shown));
+    if (colour_set) {
+        query.color = shown.color_rgb;
+    }
+    return query;
+}
+
+void AmsEditOverlay::refresh_spool_list() {
+    if (!overlay_root_ || lv_subject_get_int(&mode_subject_) != kModeAssign ||
+        lv_subject_get_int(&picker_state_subject_) == 0 ||
+        lv_subject_get_int(&picker_state_subject_) == 1) {
+        return;
+    }
+    lv_obj_t* search = find_widget("picker_search");
+    const char* text = search ? lv_textarea_get_text(search) : nullptr;
+    render_spool_list(text ? text : "");
 }
 
 void AmsEditOverlay::render_spool_list(const std::string& filter) {
@@ -908,7 +1019,30 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
     // lv_obj_clean in that context corrupts LVGL's event linked list (#776).
     helix::ui::safe_clean_children(spool_list);
 
-    auto filtered = filter_spools(cached_spools_, filter, cached_searchables_);
+    // The search narrows by text first; the form then ranks what is left.
+    std::vector<SpoolInfo> searched =
+        spools_from_spoolman_ && !filter.empty()
+            ? filter_spools(cached_spools_, filter, cached_searchables_)
+            : cached_spools_;
+    const spool_assign::SpoolQuery query = current_query();
+    const auto ranked = spool_assign::rank_spools(query, searched);
+    listed_.clear();
+    // Rows index cached_spools_. A search keeps Spoolman spools, found again
+    // by id; the lane history is never searched, so its indices stand.
+    for (const auto& r : ranked) {
+        if (!spools_from_spoolman_) {
+            listed_.push_back(r);
+            continue;
+        }
+        const int id = searched[r.index].id;
+        for (size_t i = 0; i < cached_spools_.size(); ++i) {
+            if (cached_spools_[i].id == id) {
+                listed_.push_back({i, r.match});
+                break;
+            }
+        }
+    }
+
     // Spools another lane links are taken. The external spool feeds through no
     // lane, so every lane's spool is taken for it.
     std::set<int> in_use;
@@ -922,86 +1056,224 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         }
     }
 
-    lv_subject_t* bp_subj = theme_manager_get_breakpoint_subject();
-    UiBreakpoint bp = bp_subj ? as_breakpoint(lv_subject_get_int(bp_subj)) : UiBreakpoint::Medium;
-    const bool is_compact = bp <= UiBreakpoint::Medium;
-    const char* flow = is_compact ? "row" : "column";
-    const char* name_grow = is_compact ? "1" : "0";
-    const char* attrs_plain[] = {"detail_flow", flow, "name_grow", name_grow, nullptr, nullptr};
-    const char* attrs_current[] = {"detail_flow",      flow,    "name_grow", name_grow,
-                                   "hide_edit_pencil", "false", nullptr,     nullptr};
-
-    for (const auto& spool : filtered) {
-        // Tapping a row selects it, so the checked row and its check mark carry
-        // one meaning only: the spool linked to this slot. No link, no mark.
-        const bool is_current_spool =
-            (working_info_.spoolman_id > 0 && spool.id == working_info_.spoolman_id);
-        lv_obj_t* item = static_cast<lv_obj_t*>(lv_xml_create(
-            spool_list, "spoolman_spool_item", is_current_spool ? attrs_current : attrs_plain));
+    const std::string colour_word = lv_tr("color");
+    for (size_t row = 0; row < listed_.size(); ++row) {
+        const SpoolInfo& spool = cached_spools_[listed_[row].index];
+        lv_obj_t* item =
+            static_cast<lv_obj_t*>(lv_xml_create(spool_list, "spool_assign_row", nullptr));
         if (!item) {
             continue;
         }
+        // DECLARATIVE_OK: per-row payload on a generated collection.
+        lv_obj_set_user_data(item, reinterpret_cast<void*>(static_cast<intptr_t>(row)));
 
-        lv_obj_set_user_data(item, reinterpret_cast<void*>(static_cast<intptr_t>(spool.id)));
-
-        lv_obj_t* name_label = helix::ui::find_required(item, "spool_name", get_name());
-        if (name_label) {
-            const std::string name = "#" + std::to_string(spool.id) + " " + spool.display_name();
-            lv_label_set_text(name_label, name.c_str());
+        // DECLARATIVE_OK: generated row text (user data, may start with '#').
+        if (lv_obj_t* name = lv_obj_find_by_name(item, "row_name")) {
+            lv_label_set_text(name, spool.display_name().c_str());
         }
-
-        lv_obj_t* weight_label = helix::ui::find_required(item, "spool_weight", get_name());
-        if (weight_label && spool.remaining_weight_g > 0) {
-            char buf[32];
-            snprintf(buf, sizeof(buf), "%.0fg", spool.remaining_weight_g);
-            lv_label_set_text(weight_label, buf);
+        std::string detail;
+        if (spool.id > 0) {
+            detail = "#" + std::to_string(spool.id);
         }
-
-        lv_obj_t* swatch = helix::ui::find_required(item, "spool_swatch", get_name());
-        if (swatch) {
-            uint32_t rgb = helix::parse_hex_color(spool.color_hex).value_or(0x808080);
-            helix::ui::apply_swatch_color(swatch, rgb, spool.multi_color_hexes,
-                                          helix::ui::swatch_finish(spool.finish()));
+        if (spool.remaining_weight_g > 0) {
+            detail += (detail.empty() ? "" : " · ") +
+                      fmt::format(fmt::runtime(lv_tr("{:.0f} g left")), spool.remaining_weight_g);
         }
-
-        const bool disabled = in_use.count(spool.id) > 0;
-        if (disabled) {
-            lv_obj_add_state(item, LV_STATE_DISABLED);
-            lv_obj_remove_flag(item, LV_OBJ_FLAG_CLICKABLE);
-        }
-
-        if (is_current_spool) {
-            lv_obj_set_state(item, LV_STATE_CHECKED, true);
-            lv_obj_t* check_icon = helix::ui::find_required(item, "selected_icon", get_name());
-            if (check_icon) {
-                lv_obj_remove_flag(check_icon, LV_OBJ_FLAG_HIDDEN);
+#if !defined(HELIX_PLATFORM_ESP32)
+        // spoolman_types.cpp is scoped out of the ESP32 image; rows there
+        // carry no age.
+        if (const auto used = parse_spool_timestamp(spool.last_used)) {
+            const int64_t now = static_cast<int64_t>(std::time(nullptr));
+            if (now > *used) {
+                detail += (detail.empty() ? "" : " · ") +
+                          format_relative_time(static_cast<uint64_t>(now - *used) * 1000);
             }
-        } else {
-            lv_obj_set_state(item, LV_STATE_CHECKED, false);
+        }
+#endif
+        if (lv_obj_t* line = lv_obj_find_by_name(item, "row_detail")) {
+            lv_label_set_text(line, detail.c_str()); // DECLARATIVE_OK: generated row text
+        }
+        if (listed_[row].match.kind == spool_assign::MatchKind::Close) {
+            if (lv_obj_t* note = lv_obj_find_by_name(item, "row_close")) {
+                const std::string text =
+                    spool_assign::close_note(listed_[row].match.differs, spool, colour_word);
+                lv_label_set_text(note, text.c_str());        // DECLARATIVE_OK: generated row text
+                lv_obj_remove_flag(note, LV_OBJ_FLAG_HIDDEN); // DECLARATIVE_OK: per-row state
+            }
+        }
+        if (lv_obj_t* canvas = lv_obj_find_by_name(item, "row_spool")) {
+            const uint32_t rgb = helix::parse_hex_color(spool.color_hex).value_or(0x808080);
+            spool_canvas_set_filament(canvas, rgb, spool.multi_color_hexes,
+                                      helix::ui::swatch_finish(spool.finish()));
+            const double total = spool.initial_weight_g;
+            ui_spool_canvas_set_fill_level(
+                canvas, total > 0 ? static_cast<float>(spool.remaining_weight_g / total) : 1.0f);
+        }
+        if (spool.id > 0 && in_use.count(spool.id) > 0) {
+            if (lv_obj_t* use = lv_obj_find_by_name(item, "row_use")) {
+                lv_obj_add_state(use, LV_STATE_DISABLED); // DECLARATIVE_OK: per-row state
+            }
         }
     }
 
-    lv_subject_set_int(&picker_state_subject_, filtered.empty() ? 3 : 2);
+    const size_t spool_count = cached_spools_.size();
+    int state = 2;
+    if (spool_count == 0) {
+        state = 4;
+    } else if (listed_.empty()) {
+        state = 3;
+    }
+    lv_subject_set_int(&picker_state_subject_, state);
+    lv_subject_set_int(&common_visible_subject_,
+                       spool_assign::show_common_spools(spool_count) ? 1 : 0);
+    lv_subject_set_int(&bottom_action_subject_, static_cast<int>(spool_assign::bottom_action(
+                                                    spools_from_spoolman_, listed_.size())));
+
+    const char* title = nullptr;
+    if (!query.empty()) {
+        title = lv_tr("Matching Spools");
+    } else if (spools_from_spoolman_) {
+        title = lv_tr("Recent Spools");
+    } else {
+        title = lv_tr("Spools Used on This Printer");
+    }
+    snprintf(list_title_buf_, sizeof(list_title_buf_), "%s", title);
+    lv_subject_copy_string(&list_title_subject_, list_title_buf_);
 }
 
-void AmsEditOverlay::handle_spool_selected(int spool_id) {
-    spdlog::info("[AmsEditOverlay] Spool {} selected for slot {}", spool_id, slot_index_);
-
-    for (const auto& spool : cached_spools_) {
-        if (spool.id == spool_id) {
-            apply_spool_to_slot(working_info_, spool);
-            break;
-        }
-    }
-
-    if (opened_on_picker_) {
-        spdlog::debug("[AmsEditOverlay] Picker-entry selection - committing and closing");
-        commit_and_close();
+void AmsEditOverlay::handle_row_use(size_t row) {
+    if (save_in_flight_ || row >= listed_.size()) {
         return;
     }
+    const SpoolInfo spool = cached_spools_[listed_[row].index];
+    spdlog::info("[AmsEditOverlay] Use spool {} ('{}') for slot {}", spool.id, spool.display_name(),
+                 slot_index_);
+    if (spool.id > 0) {
+        apply_spool_to_slot(working_info_, spool);
+    } else {
+        // A lane-history spool: describe the lane with it, linked to nothing.
+        working_info_.clear_spoolman_link();
+        working_info_.material = spool.material;
+        working_info_.brand = spool.vendor.empty() ? std::string("Generic") : spool.vendor;
+        working_info_.product_name = spool.filament_name;
+        working_info_.spool_name.clear();
+        if (const auto rgb = helix::parse_hex_color(spool.color_hex)) {
+            working_info_.color_rgb = *rgb;
+            working_info_.color_name.clear();
+            working_info_.multi_color_hexes.clear();
+        }
+        apply_material_defaults(spool.material);
+        working_info_.product_name = spool.filament_name;
+        working_info_.total_weight_g = static_cast<float>(spool.initial_weight_g);
+        working_info_.remaining_weight_g = static_cast<float>(spool.initial_weight_g);
+        spool_assign::apply_new_spool_default_weight(working_info_);
+        lane_spool_history::record(working_info_);
+    }
+    commit_and_close();
+}
 
-    // Two-step flow: return to the editor with the picked spool loaded.
-    load_swapped_spool();
+void AmsEditOverlay::handle_common_spool(size_t index) {
+    const auto& common = spool_assign::common_spools();
+    if (index >= common.size() || !catalog_) {
+        return;
+    }
+    const auto& pick = common[index];
+    SpoolEditSelection picked = apply_family_change(sel_, pick.material, *catalog_);
+    picked.brand = "Generic";
+    sel_ = picked;
+    selection_moved_ = true;
+    details_color_ = pick.rgb;
+    details_color_set_ = true;
+    rebuild_option_lists();
+    update_summary();
+    update_temp_display();
+    update_sync_button_state();
+}
+
+void AmsEditOverlay::handle_size_chip(int chip) {
+    if (chip == spool_assign::kPartialChip) {
+        handle_weight_tap();
+        return;
+    }
+    if (chip < 0 || chip >= spool_assign::kPartialChip) {
+        return;
+    }
+    const float grams = spool_assign::kSizeChipGrams[chip];
+    apply_size_chip(chip, grams, grams);
+}
+
+void AmsEditOverlay::apply_size_chip(int chip, float remaining_g, float total_g) {
+    size_chip_ = chip;
+    size_remaining_g_ = remaining_g;
+    size_total_g_ = total_g;
+    lv_subject_set_int(&size_chip_subject_, chip);
+    update_summary();
+}
+
+void AmsEditOverlay::stage_size_into_working() {
+    if (lv_subject_get_int(&mode_subject_) != kModeAssign) {
+        return;
+    }
+    working_info_.total_weight_g = size_total_g_;
+    working_info_.remaining_weight_g = size_remaining_g_;
+}
+
+void AmsEditOverlay::handle_remaining_step(float delta_g) {
+    if (save_in_flight_) {
+        return;
+    }
+    const float from = std::max(0.0f, working_info_.remaining_weight_g);
+    apply_weight(spool_assign::step_remaining(from, delta_g, working_info_.total_weight_g));
+}
+
+void AmsEditOverlay::handle_assign_local() {
+    if (save_in_flight_) {
+        return;
+    }
+    stage_selection_into_working();
+    stage_pending_color_into_working();
+    stage_size_into_working();
+    // The lane leaves whatever Spoolman spool it held: it now holds a spool
+    // Spoolman does not know.
+    if (working_info_.spoolman_id > 0) {
+        working_info_.clear_spoolman_link();
+    }
+    lane_spool_history::record(working_info_);
+    commit_and_close();
+}
+
+void AmsEditOverlay::show_assigned_toast(const SlotInfo& before, const SlotInfo& after,
+                                         bool created) {
+    struct Undo {
+        int slot_index = -1;
+        SlotInfo before;
+        SlotInfo after;
+    };
+    // One undo at a time: a newer assign replaces the older one's payload.
+    static Undo s_undo;
+    s_undo = {slot_index_, before, after};
+
+    const std::string lane =
+        slot_index_ == -2 ? std::string(lv_tr("External Filament"))
+                          : helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_);
+    const std::string name =
+        helix::compose_filament_label(after.brand, after.spool_name, after.material, " ");
+    std::string message = lane + ": " + name;
+    if (created && after.spoolman_id > 0) {
+        message +=
+            " · " + fmt::format(fmt::runtime(lv_tr("Added to Spoolman as #{}")), after.spoolman_id);
+    }
+    ToastManager::instance().show_with_action(
+        ToastSeverity::SUCCESS, message.c_str(), lv_tr("Undo"),
+        [](void* user_data) {
+            const auto* undo = static_cast<Undo*>(user_data);
+            if (undo->slot_index == -1) {
+                return;
+            }
+            spdlog::info("[AmsEditOverlay] Undo assign on slot {}", undo->slot_index);
+            AmsState::instance().commit_slot_edit(undo->slot_index, undo->after, undo->before);
+        },
+        &s_undo, 6000);
 }
 
 void AmsEditOverlay::fetch_recents() {
@@ -1157,13 +1429,7 @@ int AmsEditOverlay::color_ring_index(uint32_t rgb, bool colour_set, int visible_
 }
 
 int AmsEditOverlay::visible_preset_count() {
-    // The split layout shows at the short landscape class, the stacked one
-    // everywhere else (the XML's bind_flag conditions).
-    lv_subject_t* bp = theme_manager_get_breakpoint_subject();
-    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
-    const bool split =
-        bp && lv_subject_get_int(bp) == 0 && !(portrait && lv_subject_get_int(portrait) == 1);
-    return lv_subject_get_int(split ? &color_col_count_subject_ : &color_row_count_subject_);
+    return lv_subject_get_int(&color_row_count_subject_);
 }
 
 int AmsEditOverlay::grid_preset_count(int grid_width, int tile, int gap, int rows,
@@ -1177,38 +1443,29 @@ int AmsEditOverlay::grid_preset_count(int grid_width, int tile, int gap, int row
 }
 
 void AmsEditOverlay::size_color_grids() {
-    // The colour areas are subject-counted (a literal <repeat> inside <if> is
-    // refused by the engine), sized here from the measured grid width: whole
-    // rows only, two in the split column and one in the stacked grid, which
-    // leaves the lane's settings in view. The rainbow tile opens the rest.
+    // The grid is subject-counted (a literal <repeat> inside <if> is refused
+    // by the engine), sized here from its measured width: one whole row, the
+    // Custom swatch its last tile (Custom opens the rest).
     if (!overlay_root_) {
         return;
     }
     lv_obj_update_layout(overlay_root_);
-    const int palette = static_cast<int>(swatch_palette(ColorPicker::Palette::General).size());
-    const struct {
-        const char* grid;
-        const char* custom;
-        int rows;
-        lv_subject_t* count;
-    } grids[] = {
-        {"color_grid_split", "btn_custom_color_split", 2, &color_col_count_subject_},
-        {"color_grid", "btn_custom_color", 1, &color_row_count_subject_},
-    };
-    for (const auto& g : grids) {
-        lv_obj_t* grid = find_widget(g.grid);
-        lv_obj_t* custom = find_widget(g.custom);
-        if (!grid || !custom) {
-            continue;
-        }
-        const int count =
-            grid_preset_count(lv_obj_get_content_width(grid), lv_obj_get_width(custom),
-                              lv_obj_get_style_pad_column(grid, LV_PART_MAIN), g.rows, palette);
-        // A hidden layout measures 0 wide; it keeps the count it has.
-        if (lv_obj_get_content_width(grid) > 0 && lv_subject_get_int(g.count) != count) {
-            lv_subject_set_int(g.count, count);
-        }
+    lv_obj_t* grid = find_widget("color_grid");
+    lv_obj_t* custom = find_widget("btn_custom_color");
+    if (!grid || !custom) {
+        return;
     }
+    const int palette = static_cast<int>(swatch_palette(ColorPicker::Palette::General).size());
+    const int count =
+        grid_preset_count(lv_obj_get_content_width(grid), lv_obj_get_width(custom),
+                          lv_obj_get_style_pad_column(grid, LV_PART_MAIN), 1, palette);
+    // A hidden grid measures 0 wide; it keeps the count it has.
+    if (lv_obj_get_content_width(grid) > 0 &&
+        lv_subject_get_int(&color_row_count_subject_) != count) {
+        lv_subject_set_int(&color_row_count_subject_, count);
+    }
+    // The repeat rebuilds its swatches at the end of the grid; Custom closes it.
+    lv_obj_move_to_index(custom, -1);
 }
 
 void AmsEditOverlay::populate_editor_view() {
@@ -1229,9 +1486,6 @@ void AmsEditOverlay::repopulate() {
     // not survive is the content each view populates on entry.
     const int view = lv_subject_get_int(&view_mode_subject_);
     switch (view) {
-    case kViewSpoolPicker:
-        populate_picker();
-        break;
     case kViewColor:
         populate_color_view();
         update_color_fit();
@@ -1240,6 +1494,9 @@ void AmsEditOverlay::repopulate() {
     default:
         populate_editor_view();
         refresh_tag_state();
+        if (lv_subject_get_int(&mode_subject_) == kModeAssign) {
+            refresh_spool_list();
+        }
         break;
     }
     spdlog::debug("[AmsEditOverlay] Repopulated view {}", view);
@@ -1251,28 +1508,6 @@ void AmsEditOverlay::repopulate() {
 
 void AmsEditOverlay::update_summary() {
     update_spool_disagreement();
-    // Identity: "eSUN Silk PETG, Blue" — brand + the selected type + colour
-    // name. The type comes from the SELECTION (live per tap), not the slot.
-    const std::string type = catalog_ ? selected_type(sel_, *catalog_) : working_info_.material;
-    const std::string color = details_color_set_
-                                  ? helix::get_color_name_from_hex(details_color_)
-                                  : helix::ams::slot_color_name(working_info_.color_rgb);
-    std::string label =
-        helix::compose_filament_label(sel_.brand, working_info_.spool_name, type, " ");
-    if (!color.empty()) {
-        label += ", " + color;
-    }
-    snprintf(summary_buf_, sizeof(summary_buf_), "%s", label.c_str());
-    lv_subject_copy_string(&summary_text_subject_, summary_buf_);
-
-    // Colour dot: multi-colour spools paint the split; a picked colour paints
-    // plain. Multi-colour shows read-only in the grid (the ring has no
-    // multi-cell); picking replaces.
-    lv_obj_t* dot = find_widget("summary_color_swatch");
-    if (dot) {
-        apply_swatch_color(dot, details_color_set_ ? details_color_ : working_info_.color_rgb,
-                           details_color_set_ ? std::string() : working_info_.multi_color_hexes);
-    }
 
     // Ring the visible preset the pending colour matches. A real colour no
     // visible preset holds rings the custom swatch (index -2); no colour, or
@@ -1284,21 +1519,97 @@ void AmsEditOverlay::update_summary() {
                        color_ring_index(pending, colour_set, visible_preset_count(),
                                         swatch_palette(ColorPicker::Palette::General)));
 
-    // Weight pill: "750 g" + "of 1000 g".
+    // Edit Spool: the remaining weight and the spool it is left on.
     if (working_info_.remaining_weight_g >= 0) {
         snprintf(weight_buf_, sizeof(weight_buf_), "%.0f g", working_info_.remaining_weight_g);
     } else {
         snprintf(weight_buf_, sizeof(weight_buf_), "—");
     }
     lv_subject_copy_string(&weight_text_subject_, weight_buf_);
-    if (working_info_.total_weight_g > 0) {
-        snprintf(weight_hint_buf_, sizeof(weight_hint_buf_), "%s %.0f g", lv_tr("of"),
-                 working_info_.total_weight_g);
-    } else {
-        weight_hint_buf_[0] = '\0';
+    if (lv_obj_t* spool = find_widget("edit_spool")) {
+        SlotInfo drawn = working_info_;
+        if (details_color_set_) {
+            drawn.color_rgb = details_color_;
+            drawn.multi_color_hexes.clear();
+        }
+        spool_canvas_set_filament(spool, drawn);
+        const float total = working_info_.total_weight_g;
+        ui_spool_canvas_set_fill_level(
+            spool,
+            total > 0 ? std::clamp(working_info_.remaining_weight_g / total, 0.0f, 1.0f) : 1.0f);
     }
-    lv_subject_copy_string(&weight_hint_subject_, weight_hint_buf_);
+
+    // Assign Spool: the Partial chip names a part-used spool's weight.
+    if (size_chip_ == spool_assign::kPartialChip) {
+        snprintf(partial_text_buf_, sizeof(partial_text_buf_), "%.0f g", size_remaining_g_);
+    } else {
+        snprintf(partial_text_buf_, sizeof(partial_text_buf_), "%s", lv_tr("Partial…"));
+    }
+    lv_subject_copy_string(&partial_text_subject_, partial_text_buf_);
+
+    update_header_and_panel();
     update_tag_badges();
+    refresh_spool_list();
+}
+
+void AmsEditOverlay::update_header_and_panel() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const bool edit = lv_subject_get_int(&mode_subject_) == kModeEdit;
+    snprintf(title_buf_, sizeof(title_buf_), "%s",
+             edit ? lv_tr("Edit Spool") : lv_tr("Assign Spool"));
+    lv_subject_copy_string(&title_subject_, title_buf_);
+
+    // "Lane 3 · Turtle 1", and on Edit Spool the spool: "· PolyTerra PLA · #12".
+    std::string subtitle;
+    if (slot_index_ == -2) {
+        subtitle = lv_tr("External Filament");
+    } else {
+        subtitle = helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_);
+        if (const AmsBackend* backend = AmsState::instance().get_backend()) {
+            const AmsSystemInfo info = backend->get_system_info();
+            if (const AmsUnit* unit = info.get_unit_for_slot(slot_index_)) {
+                const std::string& unit_name =
+                    unit->display_name.empty() ? unit->name : unit->display_name;
+                if (!unit_name.empty()) {
+                    subtitle += " · " + unit_name;
+                }
+            }
+        }
+    }
+    if (edit) {
+        const std::string name = helix::compose_filament_label(
+            working_info_.brand, working_info_.spool_name, working_info_.material, " ");
+        if (!name.empty()) {
+            subtitle += " · " + name;
+        }
+        if (working_info_.spoolman_id > 0) {
+            subtitle += " · #" + std::to_string(working_info_.spoolman_id);
+        }
+    }
+    snprintf(subtitle_buf_, sizeof(subtitle_buf_), "%s", subtitle.c_str());
+    lv_subject_copy_string(&subtitle_subject_, subtitle_buf_);
+
+    // "of 1000 g · Nozzle 200–220 °C" under the remaining weight.
+    std::string hint;
+    if (working_info_.total_weight_g > 0) {
+        hint = fmt::format("{} {:.0f} g", lv_tr("of"), working_info_.total_weight_g);
+    }
+    if (temp_buf_[0] != '\0') {
+        hint += (hint.empty() ? "" : " · ") + std::string(temp_buf_);
+    }
+    snprintf(weight_hint_buf_, sizeof(weight_hint_buf_), "%s", hint.c_str());
+    lv_subject_copy_string(&weight_hint_subject_, weight_hint_buf_);
+
+    if (working_info_.spoolman_id > 0) {
+        const std::string saves = fmt::format(fmt::runtime(lv_tr("Saves to Spoolman spool #{}")),
+                                              working_info_.spoolman_id);
+        snprintf(saves_to_buf_, sizeof(saves_to_buf_), "%s", saves.c_str());
+    } else {
+        saves_to_buf_[0] = '\0';
+    }
+    lv_subject_copy_string(&saves_to_subject_, saves_to_buf_);
 }
 
 void AmsEditOverlay::update_temp_display() {
@@ -1345,6 +1656,7 @@ void AmsEditOverlay::update_temp_display() {
         temp_buf_[0] = '\0';
     }
     lv_subject_copy_string(&temp_text_subject_, temp_buf_);
+    update_header_and_panel();
     shown_nozzle_min_ = nozzle_min;
     shown_nozzle_max_ = nozzle_max;
     shown_bed_temp_ = bed_temp;
@@ -1372,10 +1684,6 @@ void AmsEditOverlay::update_ui() {
 #endif
     lv_subject_set_int(&scan_enabled_subject_, scan_ok ? 1 : 0);
 
-    // The quiet Add link: untracked slots reach Spoolman only through it.
-    lv_subject_set_int(&add_spoolman_visible_subject_,
-                       (has_spoolman && working_info_.spoolman_id == 0) ? 1 : 0);
-
     // Clear acts on what the slot holds now, not on the edits staged over it.
     // A slot whose link another program owns has no Clear here; the slot menu
     // greys its own with the reason.
@@ -1385,15 +1693,6 @@ void AmsEditOverlay::update_ui() {
     lv_subject_set_int(
         &clear_visible_subject_,
         AmsContextMenu::should_show_clear_spool(original_info_) && !clear_refused ? 1 : 0);
-
-    // Title: the slot's own name in the backend's lane noun ("Gate 3").
-    if (slot_index_ == -2) {
-        snprintf(title_buf_, sizeof(title_buf_), "%s", lv_tr("External Filament"));
-    } else {
-        snprintf(title_buf_, sizeof(title_buf_), "%s",
-                 helix::ui::lane_label(helix::ui::active_lane_noun(), slot_index_).c_str());
-    }
-    lv_subject_copy_string(&title_subject_, title_buf_);
 
     // Spool number beside the tracked mark.
     if (managed) {
@@ -1788,6 +2087,13 @@ void AmsEditOverlay::handle_weight_tap() {
 }
 
 void AmsEditOverlay::apply_weight(float grams) {
+    if (lv_subject_get_int(&mode_subject_) == kModeAssign) {
+        // Assign Spool's Partial...: a part-used spool of the default size.
+        apply_size_chip(spool_assign::kPartialChip, grams,
+                        std::max(grams, spool_assign::kDefaultSpoolGrams));
+        update_sync_button_state();
+        return;
+    }
     working_info_.remaining_weight_g = grams;
     // A spool weighed for the first time: the same number is the honest total
     // until something better is known.
@@ -1860,22 +2166,14 @@ void AmsEditOverlay::handle_scan_qr() {
             // queue and re-validate on the singleton, which lives for the
             // process. No direct backend write: the editor repopulates and the
             // user confirms with Save.
-            SlotInfo scanned;
-            apply_spool_to_slot(scanned, spool);
-            helix::ui::queue_update(
-                "AmsEditOverlay::handle_scan_qr", [scanned = std::move(scanned)]() {
-                    auto& editor = get_ams_edit_overlay();
-                    if (!editor.get_root()) {
-                        return;
-                    }
-                    int keep_slot = editor.working_info_.slot_index;
-                    int keep_global = editor.working_info_.global_index;
-                    editor.working_info_ = scanned;
-                    editor.working_info_.slot_index = keep_slot;
-                    editor.working_info_.global_index = keep_global;
-                    editor.load_swapped_spool();
-                    NOTIFY_INFO("{} {} scanned — review and Save", scanned.brand, scanned.material);
-                });
+            helix::ui::queue_update("AmsEditOverlay::handle_scan_qr", [spool]() {
+                auto& editor = get_ams_edit_overlay();
+                if (!editor.get_root()) {
+                    return;
+                }
+                editor.apply_scanned_spool(spool);
+                NOTIFY_INFO("{} {} scanned — review and Save", spool.vendor, spool.material);
+            });
         },
         []() { spdlog::debug("[AmsEditOverlay] QR scan cancelled - editor resumes"); });
 #endif
@@ -2068,12 +2366,14 @@ void AmsEditOverlay::handle_back() {
         return; // the save's completion closes the editor
     }
     switch (view) {
-    case kViewSpoolPicker:
     case kViewColor:
         return_to_editor();
         break;
     case kViewEditor:
     default:
+        if (back_to_edit_spool()) {
+            return;
+        }
         if (is_dirty()) {
             prompt_unsaved_changes();
             return;
@@ -2232,11 +2532,15 @@ void AmsEditOverlay::stage_pending_color_into_working() {
 }
 
 void AmsEditOverlay::handle_add_to_spoolman() {
-    // The quiet link: create a Spoolman spool from what the slot holds (then
-    // print its label). Stages the selection first so the created spool
-    // carries the dropdowns' identity, not the pre-edit one.
+    // Add to Spoolman & Assign: create a Spoolman spool from what the form
+    // describes and link the lane to it. Stages the selection first so the
+    // created spool carries the dropdowns' identity, not the pre-edit one.
+    if (save_in_flight_) {
+        return;
+    }
     stage_selection_into_working();
     stage_pending_color_into_working();
+    stage_size_into_working();
     const helix::MissingFilamentFields missing =
         helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
     if (missing.any()) {
@@ -2529,6 +2833,7 @@ void AmsEditOverlay::finish_awaited_save(const SaveCapture& cap, helix::ams::Pen
         // The callback already has the edit: close without firing it again.
         completion_fired_ = true;
         helix::nav::go_back();
+        show_assigned_toast(original_info_, working_info_, created_spool_id_ > 0);
         return;
     }
     spdlog::warn("[AmsEditOverlay] Save for slot {} did not stick: {}", cap.slot_index,
@@ -2744,19 +3049,15 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
 #endif
                     }
                 }
-                if (result.created_new_spool) {
-                    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Added to Spoolman"),
-                                                  2500);
-                }
                 if (live) {
                     working_info_ = committed;
-#if HELIX_HAS_LABEL_PRINTER
-                    // "Add to Spoolman + label": the new spool's label.
-                    if (result.created_new_spool &&
-                        helix::LabelPrinterSettingsManager::instance().is_configured()) {
-                        handle_print_label();
+                    // The closing toast names the spool this save created.
+                    if (result.created_new_spool) {
+                        created_spool_id_ = committed.spoolman_id;
                     }
-#endif
+                } else if (result.created_new_spool) {
+                    ToastManager::instance().show(ToastSeverity::INFO, lv_tr("Added to Spoolman"),
+                                                  2500);
                 }
 
                 // Close the editor that is still showing this save, or hand the
@@ -2896,9 +3197,45 @@ void AmsEditOverlay::offer_similar_filament(
 void AmsEditOverlay::register_callbacks() {
     register_xml_callbacks({
         {"ams_edit_back_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_back(); }},
-        {"ams_edit_choose_spoolman_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().switch_to_picker(); }},
-        {"ams_edit_setup_entry_cb", [](lv_event_t*) { get_ams_edit_overlay().return_to_editor(); }},
+        {"ams_edit_different_spool_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_different_spool(); }},
+        {"ams_edit_assign_local_cb",
+         [](lv_event_t*) { get_ams_edit_overlay().handle_assign_local(); }},
+        {"ams_edit_remaining_minus_cb",
+         [](lv_event_t*) {
+             get_ams_edit_overlay().handle_remaining_step(-spool_assign::kRemainingStepGrams);
+         }},
+        {"ams_edit_remaining_plus_cb",
+         [](lv_event_t*) {
+             get_ams_edit_overlay().handle_remaining_step(spool_assign::kRemainingStepGrams);
+         }},
+        {"ams_edit_size_chip_cb",
+         [](lv_event_t* e) {
+             // size_chip_<n>
+             const char* name = lv_obj_get_name(lv_event_get_current_target_obj(e));
+             const char* digit = name ? std::strrchr(name, '_') : nullptr;
+             if (digit) {
+                 get_ams_edit_overlay().handle_size_chip(std::atoi(digit + 1));
+             }
+         }},
+        {"ams_edit_common_spool_cb",
+         [](lv_event_t* e) {
+             // common_spool_<n>
+             const char* name = lv_obj_get_name(lv_event_get_current_target_obj(e));
+             const char* digit = name ? std::strrchr(name, '_') : nullptr;
+             if (digit) {
+                 get_ams_edit_overlay().handle_common_spool(
+                     static_cast<size_t>(std::atoi(digit + 1)));
+             }
+         }},
+        {"ams_edit_row_use_cb",
+         [](lv_event_t* e) {
+             // The Use button sits in its row; the row carries its position.
+             lv_obj_t* row = lv_obj_get_parent(lv_event_get_current_target_obj(e));
+             const auto index =
+                 static_cast<size_t>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(row)));
+             get_ams_edit_overlay().handle_row_use(index);
+         }},
         {"ams_edit_quick_swatch_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_quick_swatch(lv_event_get_target_obj(e));
@@ -2973,21 +3310,6 @@ void AmsEditOverlay::register_callbacks() {
              spdlog::info("[AmsEditOverlay] Picker retry requested by user");
              get_ams_edit_overlay().populate_picker();
          }},
-        // Shared spool_item component callbacks.
-        {"spoolman_spool_item_clicked_cb",
-         [](lv_event_t* e) {
-             lv_obj_t* item = lv_event_get_current_target_obj(e);
-             auto spool_id =
-                 static_cast<int>(reinterpret_cast<intptr_t>(lv_obj_get_user_data(item)));
-             if (spool_id <= 0) {
-                 spdlog::warn("[AmsEditOverlay] Spool item clicked with invalid spool_id={}",
-                              spool_id);
-                 return;
-             }
-             get_ams_edit_overlay().handle_spool_selected(spool_id);
-         }},
-        {"spoolman_spool_item_edit_cb",
-         [](lv_event_t*) { get_ams_edit_overlay().return_to_editor(); }},
     });
 }
 

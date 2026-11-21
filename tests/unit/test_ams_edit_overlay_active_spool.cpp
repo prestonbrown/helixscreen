@@ -73,6 +73,9 @@ class AmsEditOverlayTestAccess {
     int get_view_mode() {
         return lv_subject_get_int(&overlay_.view_mode_subject_);
     }
+    int get_mode() {
+        return lv_subject_get_int(&overlay_.mode_subject_);
+    }
     void call_handle_save() {
         overlay_.handle_save();
     }
@@ -676,27 +679,30 @@ TEST_CASE("AmsEditOverlay::is_material_identity_change flags different-spool edi
 // ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "show_for_slot opens on the Spoolman picker when requested (#1071)",
+                 "show_for_slot opens on Assign Spool when asked to pick a spool (#1071)",
                  "[ams_edit_overlay][spoolman][ui_integration][1071]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayTestAccess access(overlay);
 
+    // A lane that holds a spool still opens on Assign Spool when asked to pick.
     SlotInfo info;
     info.slot_index = 0;
+    info.material = "PLA";
 
     REQUIRE(overlay.show_for_slot(test_screen(), 0, info, api(), nullptr,
                                   /*open_on_picker=*/true));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    CHECK(access.get_view_mode() == AmsEditOverlay::kViewSpoolPicker);
+    CHECK(access.get_view_mode() == AmsEditOverlay::kViewEditor);
+    CHECK(access.get_mode() == AmsEditOverlay::kModeAssign);
 
     NavigationManager::instance().go_back();
     UpdateQueue::instance().drain();
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "show_for_slot opens on the editor by default (#1071)",
+TEST_CASE_METHOD(LVGLUITestFixture, "show_for_slot opens a lane with a spool on Edit Spool (#1071)",
                  "[ams_edit_overlay][spoolman][ui_integration][1071]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayTestAccess access(overlay);
@@ -704,11 +710,14 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show_for_slot opens on the editor by defaul
     SlotInfo info;
     info.slot_index = 0;
 
+    info.material = "PLA";
+
     REQUIRE(overlay.show_for_slot(test_screen(), 0, info, api(), nullptr));
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
     CHECK(access.get_view_mode() == AmsEditOverlay::kViewEditor);
+    CHECK(access.get_mode() == AmsEditOverlay::kModeEdit);
 
     NavigationManager::instance().go_back();
     UpdateQueue::instance().drain();

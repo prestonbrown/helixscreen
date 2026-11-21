@@ -1,6 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "lane_spool_history.h"
 #include "spool_assign.h"
 
 #include "../catch_amalgamated.hpp"
@@ -107,7 +108,7 @@ TEST_CASE("close_note names what the spool says differently", "[spool-assign]") 
           "close: Polar White");
 }
 
-TEST_CASE("common spools: four materials by three colours, until a few spools exist",
+TEST_CASE("common spools: four materials by three colors, until a few spools exist",
           "[spool-assign]") {
     const auto& common = common_spools();
     REQUIRE(common.size() == 12);
@@ -174,4 +175,50 @@ TEST_CASE("a new spool with no weight starts as a full 1 kg spool", "[spool-assi
     apply_new_spool_default_weight(weighed);
     CHECK(weighed.total_weight_g == 750);
     CHECK(weighed.remaining_weight_g == 300);
+}
+
+TEST_CASE("lane history keeps the latest filament first, once, and caps its length",
+          "[spool-assign]") {
+    using helix::lane_spool_history::Entry;
+    using helix::lane_spool_history::with_recent;
+    const Entry pla{"PLA", "Polymaker", "", "", 0xFFFFFF, 1000};
+    const Entry petg{"PETG", "eSUN", "", "", 0x1E4FD8, 1000};
+    const Entry pla_again{"pla", "polymaker", "", "", 0xFFFFFF, 750};
+
+    auto list = with_recent({}, pla);
+    list = with_recent(list, petg);
+    REQUIRE(list.size() == 2);
+    CHECK(list[0].material == "PETG");
+
+    list = with_recent(list, pla_again);
+    REQUIRE(list.size() == 2);
+    CHECK(list[0].material == "pla");
+    CHECK(list[0].total_weight_g == 750);
+    CHECK(list[1].material == "PETG");
+
+    // Same material and brand in another color is another filament.
+    const Entry pla_black{"PLA", "Polymaker", "", "", 0x1A1A1A, 1000};
+    CHECK(with_recent(list, pla_black).size() == 3);
+
+    std::vector<Entry> full;
+    for (int i = 0; i < 12; ++i) {
+        full.push_back({"PLA", "Brand" + std::to_string(i), "", "", 0, 0});
+    }
+    const auto capped = with_recent(full, petg);
+    REQUIRE(capped.size() == 12);
+    CHECK(capped.front().material == "PETG");
+    CHECK(capped.back().brand == "Brand10");
+}
+
+TEST_CASE("lane history records only a lane holding a material", "[spool-assign]") {
+    SlotInfo empty;
+    CHECK_FALSE(helix::lane_spool_history::entry_from_slot(empty).has_value());
+    SlotInfo lane;
+    lane.material = "ASA";
+    lane.brand = "Generic";
+    lane.color_rgb = 0x7F7F7F;
+    const auto entry = helix::lane_spool_history::entry_from_slot(lane);
+    REQUIRE(entry.has_value());
+    CHECK(entry->brand.empty());
+    CHECK(entry->color_rgb == 0x7F7F7F);
 }

@@ -14,6 +14,7 @@
 #include "helix/xml/indexed_subject_pool.h"
 #include "lane_source_store.h"
 #include "overlay_base.h"
+#include "spool_assign.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 #include "static_panel_registry.h"
@@ -41,16 +42,22 @@ namespace helix::ui {
  * @brief NavigationManager overlay for editing AMS filament slot properties
  *
  * Single overlay hosting internal views selected by the ams_edit_view int
- * subject: 0=editor (the identity form; the entry view), 1=Spoolman spool picker,
- * 2=color. Header back button routes per-view; header Save action is
- * dirty-gated via the ams_edit_save_disabled subject.
+ * subject: 0=editor (the entry view), 2=color. The editor does two jobs,
+ * picked by the ams_edit_mode subject (helix::spool_assign::screen_for_lane):
  *
- * The editor view is a cascading dropdown form: Material family, Variant,
- * Brand, Product (each list ends in a
- * browse-the-catalog entry), plus a colour
- * grid, a weight pill (numeric keypad) and a collapsed More section. Below
- * them sit the lane's own settings, Assigned Tool and the Endless Spool
- * backup, each shown only where the backend supports it.
+ * - Assign Spool (kModeAssign, a lane with no spool): the describe form on the
+ *   left, the user's spools on the right (recents, or the ones matching the
+ *   form, exact before close), each with Use; at the bottom Add to Spoolman &
+ *   Assign (or Assign without Spoolman), and common spools on a fresh install.
+ * - Edit Spool (kModeEdit, a lane holding one): the same form, prefilled, and
+ *   the spool with its remaining weight, Save and Clear Lane on the right.
+ *   Different Spool switches to Assign.
+ *
+ * The describe form is a cascading dropdown grid: Material family, Type,
+ * Brand, Product (each list ends in a browse-the-catalog entry), a color grid
+ * ending in Custom, and the spool size chips. Below them sit the lane's own
+ * settings, Assigned Tool and the Endless Spool backup, each shown only where
+ * the backend supports it, and the collapsed More section of a linked spool.
  * Selection state lives in SpoolEditSelection; Save stages it into the
  * working SlotInfo. Tag-sourced fields show a badge and reset through
  * helix::ams::reset_to_tag.
@@ -84,8 +91,10 @@ class AmsEditOverlay : public OverlayBase {
 
     // View states for the ams_edit_view subject
     static constexpr int kViewEditor = 0;
-    static constexpr int kViewSpoolPicker = 1;
     static constexpr int kViewColor = 2;
+    // The editor's job, the ams_edit_mode subject.
+    static constexpr int kModeAssign = 0;
+    static constexpr int kModeEdit = 1;
     /// ams_edit_color_selected value that rings the grid's custom swatch.
     static constexpr int kCustomColorIndex = -2;
 
@@ -148,7 +157,7 @@ class AmsEditOverlay : public OverlayBase {
      * @param initial_info Initial slot info to populate the editor
      * @param api IMoonrakerAPI for Spoolman sync (may be nullptr)
      * @param on_complete Fired exactly once when the editor closes
-     * @param open_on_picker Open directly on the Spoolman picker (#1071)
+     * @param open_on_picker Open on Assign Spool whatever the lane holds (#1071)
      * @return true if the overlay was pushed
      */
     bool show_for_slot(lv_obj_t* parent, int slot_index, const SlotInfo& initial_info,
@@ -219,9 +228,13 @@ class AmsEditOverlay : public OverlayBase {
     /// Spoolman): first-seen order over the recency-sorted spool list.
     std::vector<std::string> recent_families_;
     std::vector<std::string> recent_brands_;
-    /// True while the editor was opened directly on the Spoolman picker: a
-    /// selection there is a one-tap commit.
-    bool opened_on_picker_ = false;
+    /// Assign Spool's spool size: the chip lit (spool_assign size chips) and
+    /// the grams it stands for, staged onto the lane by an assign.
+    int size_chip_ = 0;
+    float size_remaining_g_ = spool_assign::kDefaultSpoolGrams;
+    float size_total_g_ = spool_assign::kDefaultSpoolGrams;
+    /// The Spoolman spool this session's save created, for the closing toast.
+    int created_spool_id_ = 0;
     IMoonrakerAPI* api_ = nullptr;
     CompletionCallback completion_callback_;
     bool completion_fired_ = false; ///< Guards single-fire completion
@@ -269,8 +282,10 @@ class AmsEditOverlay : public OverlayBase {
     /// The editor view after the picker or colour view: entered on first use,
     /// otherwise shown with the staged edits intact.
     void return_to_editor();
-    /// After a relink or a QR scan put a different spool under the editor.
+    /// After a QR scan put a different spool under the editor.
     void load_swapped_spool();
+    /// A scanned spool's record staged onto the lane, for review on Edit Spool.
+    void apply_scanned_spool(const SpoolInfo& spool);
     /// The logistics PATCH rides an Update-in-Spoolman save when the identity
     /// prompt owns this save: set by handle_save, consumed by
     /// do_spoolman_save's success path.
@@ -302,10 +317,9 @@ class AmsEditOverlay : public OverlayBase {
     std::vector<Option> variant_options_;
     std::vector<Option> brand_options_;
     std::vector<Option> product_options_;
-    /// Fill both layouts' dropdown widgets from the option vectors.
+    /// Fill the dropdown widgets from the option vectors.
     void refresh_dropdowns();
-    void fill_dropdown(const char* stacked_name, const char* split_name,
-                       const std::vector<Option>& options_list,
+    void fill_dropdown(const char* name, const std::vector<Option>& options_list,
                        const std::string& selected_payload);
     void rebuild_option_lists();
     void handle_option_selected(int row, int index);
@@ -338,24 +352,35 @@ class AmsEditOverlay : public OverlayBase {
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
-    lv_subject_t title_subject_{};     ///< "Gate 3" (lane label)
-    lv_subject_t view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    lv_subject_t title_subject_{};          ///< "Assign Spool" / "Edit Spool"
+    lv_subject_t subtitle_subject_{};       ///< "Lane 3 · Turtle 1" ("ams_edit_subtitle")
+    lv_subject_t mode_subject_{};           ///< kMode* ("ams_edit_mode")
+    lv_subject_t list_title_subject_{};     ///< "Recent Spools" ("ams_edit_list_title")
+    lv_subject_t common_visible_subject_{}; ///< 1 = the common spools grid shows
     lv_subject_t
-        picker_state_subject_{}; ///< 0=loading, 1=fetch error (retry), 2=content, 3=no match
+        bottom_action_subject_{};         ///< spool_assign::BottomAction ("ams_edit_bottom_action")
+    lv_subject_t size_chip_subject_{};    ///< the lit size chip ("ams_edit_size_chip")
+    lv_subject_t partial_text_subject_{}; ///< "Partial…" or "400 g" ("ams_edit_partial_text")
+    lv_subject_t saves_to_subject_{};     ///< "Saves to Spoolman spool #12" ("ams_edit_saves_to")
+    char subtitle_buf_[128] = {0};
+    char list_title_buf_[48] = {0};
+    char partial_text_buf_[24] = {0};
+    char saves_to_buf_[64] = {0};
+    lv_subject_t view_mode_subject_{}; ///< kView* ("ams_edit_view")
+    /// The spools list: 0=loading, 1=fetch error (retry), 2=content, 3=nothing
+    /// matches, 4=no spools at all ("edit_picker_state").
+    lv_subject_t picker_state_subject_{};
     lv_subject_t save_disabled_subject_{};   ///< 1=Save disabled ("ams_edit_save_disabled")
-    lv_subject_t save_hidden_subject_{};     ///< 1=header Save hidden ("ams_edit_save_hidden")
     lv_subject_t is_managed_subject_{};      ///< 1=linked Spoolman spool ("ams_edit_is_managed")
     lv_subject_t scan_enabled_subject_{};    ///< 1=QR button may show ("ams_edit_scan_enabled")
     lv_subject_t product_hidden_subject_{};  ///< 1 while Generic selected
     lv_subject_t color_selected_subject_{};  ///< ringed preset index (-1 none)
-    lv_subject_t color_col_count_subject_{}; ///< split-column presets (size_color_grids)
-    lv_subject_t color_row_count_subject_{}; ///< stacked-grid presets (size_color_grids)
+    lv_subject_t color_row_count_subject_{}; ///< presets the grid shows (size_color_grids)
     lv_subject_t color_fits_subject_{};      ///< 1=presets and picker shown together
     lv_subject_t color_pane_subject_{};      ///< one-pane form: 0=presets, 1=picker
     int color_fit_room_w_ = -1;              ///< room update_color_fit last measured
     int color_fit_room_h_ = -1;
-    bool color_fit_ = true; ///< that room's verdict
-    lv_subject_t summary_text_subject_{};
+    bool color_fit_ = true;                    ///< that room's verdict
     lv_subject_t tag_badge_visible_subject_{}; ///< any shown field is the tag's
     lv_subject_t tag_material_subject_{};
     lv_subject_t tag_brand_subject_{};
@@ -370,7 +395,6 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t weight_text_subject_{};
     lv_subject_t weight_hint_subject_{};
     lv_subject_t reset_tag_visible_subject_{};
-    lv_subject_t add_spoolman_visible_subject_{};
     lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
     lv_subject_t more_open_subject_{};
     lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
@@ -382,7 +406,6 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t backup_editable_subject_{};    ///< 0 = backup shown read-only
     lv_subject_t backup_label_subject_{};       ///< "Backup Gate", in the backend's noun
     char title_buf_[96] = {0};
-    char summary_buf_[96] = {0};
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
     /// kSaveFailed with save_error_subject_ saying why.
@@ -403,13 +426,20 @@ class AmsEditOverlay : public OverlayBase {
     char save_error_buf_[192] = {0};
     char temp_buf_[96] = {0};
     char weight_buf_[24] = {0};
-    char weight_hint_buf_[32] = {0};
+    char weight_hint_buf_[128] = {0};
     char spoolman_id_buf_[16] = {0};
     char backup_label_buf_[64] = {0};
     char tool_refusal_buf_[160] = {0};
 
-    // === Picker state (Spoolman spool selection) ===
+    // === The spools list (Assign Spool's right column) ===
+    /// The user's spools, recency first: Spoolman's, or without it the lane
+    /// history's (spools with no id).
     std::vector<SpoolInfo> cached_spools_;
+    /// What cached_spools_ were read from: false = the lane history.
+    bool spools_from_spoolman_ = false;
+    /// The rows the list shows, into cached_spools_; a row's user_data is
+    /// its position here.
+    std::vector<spool_assign::RankedSpool> listed_;
     /// cached_spools_' searchable text, built once per fetch so a debounced
     /// re-filter does not rebuild+lowercase every spool's string again.
     std::vector<std::string> cached_searchables_;
@@ -422,6 +452,10 @@ class AmsEditOverlay : public OverlayBase {
     void deinit_subjects();
     void update_ui();
     void update_summary();
+    /// Title, subtitle and the Edit panel's lines for the current mode.
+    void update_header_and_panel();
+    /// What the describe form says now, as a spool query.
+    [[nodiscard]] spool_assign::SpoolQuery current_query() const;
     void update_sync_button_state();
     void update_temp_display();
     bool is_dirty() const;
@@ -430,10 +464,35 @@ class AmsEditOverlay : public OverlayBase {
 
     // === View switching ===
     void set_view(int view);
-    void switch_to_picker();
+    void set_mode(int mode);
+    /// Edit Spool's header Different Spool: the same lane, on Assign Spool.
+    void handle_different_spool();
+    /// Start Assign Spool from an empty form, whatever the lane held.
+    void begin_fresh_assign();
+    /// Back on an Assign Spool opened over a lane's spool returns to Edit
+    /// Spool on it. False when there is no such spool to return to.
+    bool back_to_edit_spool();
+    /// Load the user's spools for the list: Spoolman's, else the lane history.
     void populate_picker();
+    /// Rebuild the list from the cached spools, the form and the search text.
     void render_spool_list(const std::string& filter);
-    void handle_spool_selected(int spool_id);
+    /// Re-rank the list after a form change, keeping the search text.
+    void refresh_spool_list();
+    /// Use on the listed row @p row: link (or, from the lane history, describe)
+    /// the lane with that spool and close.
+    void handle_row_use(size_t row);
+    /// A common spool tile: fill the form with its material and color.
+    void handle_common_spool(size_t index);
+    void handle_size_chip(int chip);
+    void apply_size_chip(int chip, float remaining_g, float total_g);
+    void handle_remaining_step(float delta_g);
+    /// Assign without Spoolman, or without adding the spool to it.
+    void handle_assign_local();
+    /// Stage the size chips' grams onto the lane (Assign Spool only).
+    void stage_size_into_working();
+    /// The toast an assign or edit closes with: "Lane 2: Polymaker PLA" and
+    /// Undo, with the Spoolman id when the save created one.
+    void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created);
     void enter_editor();
     /// Apply the editor view's non-XML content (dropdown options, colour ring,
     /// summary, logistics fields) from state this object already holds.
@@ -509,7 +568,7 @@ class AmsEditOverlay : public OverlayBase {
     void handle_weight_tap();       ///< Weight pill → numeric keypad
     void apply_weight(float grams); ///< Keypad result → remaining weight
     void handle_more_toggle();
-    void handle_add_to_spoolman();          ///< Quiet link: create + label
+    void handle_add_to_spoolman();          ///< Add to Spoolman & Assign
     void handle_reset_to_tag();             ///< Reset every tag-stated field to the tag
     void handle_clear_spool();              ///< Take the spool off the slot and close
     void handle_reapply_linked_spool();     ///< Write the linked spool's identity to the lane
