@@ -435,6 +435,11 @@ SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, int t
         if (!now.paused) {
             return onto == target ? SwitchStep::Done : SwitchStep::Diverted;
         }
+        // The firmware's own replenish is still heating, loading or purging the
+        // new head: neither the reply nor the clock says how it ends.
+        if (now.printer_busy && ms_since_send < kSwitchBusyGiveUpMs) {
+            return SwitchStep::Wait;
+        }
         // Still paused: the resume after the routing write is heating and
         // purging, or it failed. A refused reply is the script stopping there.
         if (reply == SendReply::Refused || settled || given_up) {
@@ -443,6 +448,11 @@ SwitchStep judge_switch(const RunoutFacts& before, const RunoutFacts& now, int t
         return SwitchStep::Wait;
     }
     return settled || given_up ? SwitchStep::Fail : SwitchStep::Wait;
+}
+
+bool load_failed_on(const RunoutFacts& facts, int head) {
+    const HeadFacts* h = find_head(facts, head);
+    return h != nullptr && h->load_failed;
 }
 
 bool label_written(const RunoutFacts& now, const FilamentRecord& label) {

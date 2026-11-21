@@ -103,6 +103,11 @@ void send_quiet(const std::string& gcode, const char* what) {
     }
 }
 
+/// The send's own timeout. Auto-Replenish heats, primes and cleans the new head
+/// inside its RESUME, which outlasts the default. The send is silent: a load that
+/// retries can outlast any timeout, and the watch, not the reply, reports the outcome.
+constexpr uint32_t kSwitchSendTimeoutMs = 150000;
+
 /// The print moved to @p target_name but stayed paused: say so, and offer
 /// @p resume, which resumes it there.
 void show_stranded_dialog(const std::string& target_name, const std::string& resume) {
@@ -114,7 +119,8 @@ void show_stranded_dialog(const std::string& target_name, const std::string& res
                   lv_tr("Resume"), [resume]() {
                       spdlog::info("[RunoutOtherHead] resuming on the new head: {}", resume);
                       if (IMoonrakerAPI* api = get_moonraker_api()) {
-                          api->execute_gcode(resume, nullptr, nullptr, 0);
+                          api->execute_gcode(resume, nullptr, nullptr, kSwitchSendTimeoutMs,
+                                             /*silent=*/true);
                       }
                   });
 }
@@ -214,7 +220,6 @@ class SwitchWatch {
             spdlog::warn("[RunoutOtherHead] head {} moved to head {} but the print is still "
                          "paused (reply {})",
                          job_.before.runout_head, job_.target, static_cast<int>(reply_));
-            show_stranded();
             break;
         case roh::SwitchStep::Fail:
             fail(*now, labelled);
@@ -231,6 +236,12 @@ class SwitchWatch {
             }
         } else {
             not_moved();
+        }
+        // After on_moved has closed the runout dialog, so the new one opens over
+        // the print rather than over a dialog on its way out. A load that failed
+        // on the new head is the firmware's own fault, reported with its retry.
+        if (step == roh::SwitchStep::Stranded && !roh::load_failed_on(*now, job_.target)) {
+            show_stranded();
         }
         RunoutOtherHeadModal::settle_pending_restore();
     }
@@ -297,10 +308,6 @@ ObserverGuard& pending_restore_observer() {
     static ObserverGuard guard;
     return guard;
 }
-
-/// The send's own timeout. Auto-Replenish heats, primes and cleans the new head
-/// inside its RESUME, which outlasts the default.
-constexpr uint32_t kSwitchSendTimeoutMs = 150000;
 
 /// Why a plan was refused, for the toast at pick time. Never empty: a tap
 /// always gets an answer.
@@ -620,7 +627,7 @@ void RunoutOtherHeadModal::start(int head) {
             reply(err.is_transport_loss() ? roh::SendReply::TransportLost
                                           : roh::SendReply::Refused);
         },
-        kSwitchSendTimeoutMs);
+        kSwitchSendTimeoutMs, /*silent=*/true);
     hide();
 }
 

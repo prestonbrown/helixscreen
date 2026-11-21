@@ -180,6 +180,14 @@ TEST_CASE("snapmaker backend reports the facts a runout switch to another head n
     CHECK(facts->heads[3].feeder_can_supply);
     CHECK_FALSE(facts->heads[1].feeder_can_supply); // finished a load; no port reading
     CHECK_FALSE(backend.runout_other_head_facts(4).has_value());
+    CHECK_FALSE(facts->heads[3].load_failed);
+
+    // A load that failed on a head: the switch onto it is the filament system's fault.
+    nlohmann::json failed_load;
+    failed_load["filament_feed right"] = {
+        {"extruder3", {{"channel_state", "load_fail"}, {"channel_error", "move_extrude"}}}};
+    backend.fire_status(failed_load);
+    CHECK(backend.runout_other_head_facts(0)->heads[3].load_failed);
 
     // A spool swapped in during the pause changes the live record only: the
     // firmware still compares against what ran out.

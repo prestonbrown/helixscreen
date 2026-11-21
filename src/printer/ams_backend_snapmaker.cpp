@@ -56,6 +56,16 @@ namespace helix {
 
 namespace {
 
+/// The firmware's full load of @p head: heat, pick, feed, extrude and purge.
+std::string load_head_gcode(int head) {
+    return fmt::format("AUTO_FEEDING EXTRUDER={} LOAD=1", head);
+}
+
+/// The firmware's full unload of @p head, through the same state machine as a load.
+std::string unload_head_gcode(int head) {
+    return fmt::format("AUTO_FEEDING EXTRUDER={} UNLOAD=1", head);
+}
+
 /// Parses a pending insert verdict may hold while waiting for the tag
 /// reader's filament_detect.info entry. Status frames arrive about once a
 /// second, so eight parses is roughly eight seconds: long enough for a read to
@@ -653,8 +663,7 @@ AmsError AmsBackendSnapmaker::do_load_filament(int slot_index) {
     default:
         break;
     }
-    return dispatch_feed(fmt::format("AUTO_FEEDING EXTRUDER={} LOAD=1", slot_index),
-                         kEventLoadComplete, slot_index);
+    return dispatch_feed(load_head_gcode(slot_index), kEventLoadComplete, slot_index);
 }
 
 bool AmsBackendSnapmaker::unload_heats_hotend(int slot_index) const {
@@ -698,8 +707,7 @@ AmsError AmsBackendSnapmaker::do_unload_filament(int slot_index) {
     if (err.result != AmsResult::SUCCESS)
         return err;
 
-    return dispatch_feed(fmt::format("AUTO_FEEDING EXTRUDER={} UNLOAD=1", extruder),
-                         kEventUnloadComplete);
+    return dispatch_feed(unload_head_gcode(extruder), kEventUnloadComplete);
 }
 
 AmsError AmsBackendSnapmaker::dispatch_feed(std::string gcode, const char* complete_event,
@@ -3685,15 +3693,26 @@ AmsBackendSnapmaker::classify_coded_fault(const std::string& raw_line,
         snapmaker::severity_of(code->level) == snapmaker::ExceptionSeverity::Informational) {
         return e;
     }
-    // Loading again is the Filament panel's, which keeps its own guards for a
-    // paused print; Resume refuses until the head reports a finished load.
-    helix::RecoveryAction open_filament{lv_tr("Open Filament"), "",
-                                        "ams_backend_snapmaker::feed_open_filament", "primary"};
-    open_filament.guided_flow = helix::kOpenFilamentFlowId;
+    // The way on is the failed operation again, which the firmware heats and picks
+    // for itself; Resume refuses until the head reports a finished load. A fault
+    // with no retry, or naming no head, leaves the choice to the Filament panel.
+    const auto retry = snapmaker::feed_retry(*code);
+    const bool head_known = code->index >= 0 && code->index < kNumTools;
+    helix::RecoveryAction load_again{lv_tr("Open Filament"), "",
+                                     "ams_backend_snapmaker::feed_retry", "primary"};
+    if (head_known && retry == snapmaker::FeedRetry::Load) {
+        load_again.label = lv_tr("Load");
+        load_again.gcode = load_head_gcode(code->index);
+    } else if (head_known && retry == snapmaker::FeedRetry::Unload) {
+        load_again.label = lv_tr("Unload");
+        load_again.gcode = unload_head_gcode(code->index);
+    } else {
+        load_again.guided_flow = helix::kOpenFilamentFlowId;
+    }
     helix::RecoveryAction cancel{lv_tr("Cancel Print"), "",
                                  "ams_backend_snapmaker::feed_cancel_print", "danger"};
     cancel.guided_flow = helix::kCancelPrintFlowId;
-    e->recovery_actions = {std::move(open_filament),
+    e->recovery_actions = {std::move(load_again),
                            std::move(cancel),
                            {lv_tr("Close"), "", "ams_backend_snapmaker::feed_dismiss"}};
     e->severity = helix::ErrorSeverity::CRITICAL;
@@ -4438,6 +4457,7 @@ AmsBackendSnapmaker::runout_other_head_facts(int runout_head) const {
         h.feeder_can_supply = snap.module_exist && !snap.disable_auto && snap.filament_detected &&
                               snap.sensor_enabled;
         h.loaded_by_feeder = snap.state == "load_finish" || h.feeder_can_supply;
+        h.load_failed = snap.state == "load_fail";
         h.record = task_record_locked(i);
         facts.heads.push_back(std::move(h));
     }

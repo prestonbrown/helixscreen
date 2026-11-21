@@ -658,6 +658,16 @@ bool has_flow(const ErrorEvent& e, const char* flow) {
                        [flow](const RecoveryAction& a) { return a.guided_flow == flow; });
 }
 
+/// The primary way on: its label, and the gcode it sends (empty for a flow).
+std::pair<std::string, std::string> primary_action(const ErrorEvent& e) {
+    for (const auto& a : e.recovery_actions) {
+        if (a.style == "primary") {
+            return {a.label, a.gcode};
+        }
+    }
+    return {};
+}
+
 } // namespace
 
 TEST_CASE("each feeder code reads its own cause and fix", "[snapmaker][feed_failure]") {
@@ -695,9 +705,22 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(e->detail.find("logic error") == std::string::npos);
     CHECK(e->detail.find("load_extruding") == std::string::npos);
     CHECK(e->severity == ErrorSeverity::CRITICAL);
-    CHECK(has_flow(*e, kOpenFilamentFlowId));
+    // The way on loads the failed head again, in place.
+    CHECK(primary_action(*e) ==
+          std::pair<std::string, std::string>{"Load", "AUTO_FEEDING EXTRUDER=0 LOAD=1"});
     CHECK(has_flow(*e, kCancelPrintFlowId));
     CHECK(e->code == "0002-0525-0000-0051");
+
+    auto unload = backend.classify_error("!! 0002-0525-0003-0070 extruder[3]: state: unload_doing",
+                                         printing_ctx());
+    REQUIRE(unload.has_value());
+    CHECK(primary_action(*unload) ==
+          std::pair<std::string, std::string>{"Unload", "AUTO_FEEDING EXTRUDER=3 UNLOAD=1"});
+    // A hand feed has no one-tap retry: the Filament panel offers the choices.
+    auto hand = backend.classify_error("!! 0002-0525-0002-0090 extruder[2]: state: manual_feed",
+                                       printing_ctx());
+    REQUIRE(hand.has_value());
+    CHECK(has_flow(*hand, kOpenFilamentFlowId));
 
     auto third = backend.classify_error("!! 0002-0525-0002-0013 extruder[2]: state: load_prepare",
                                         printing_ctx());
