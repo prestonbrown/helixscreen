@@ -2290,7 +2290,14 @@ void AmsBackendAfc::parse_afc_state(const nlohmann::json& afc_data,
     // Parse bypass state (AFC exposes this via printer.AFC.bypass_state)
     // When bypass is active, current_slot = -2 (convention from Happy Hare)
     if (afc_data.contains("bypass_state") && afc_data["bypass_state"].is_boolean()) {
+        const bool was_bypass = bypass_active_;
         bypass_active_ = afc_data["bypass_state"].get<bool>();
+        // A lone bypass_state:false delta carries no lane data, and nothing else
+        // would release the bypass sentinel until the next lane frame.
+        if (was_bypass && !bypass_active_ && system_info_.current_slot == -2) {
+            system_info_.current_slot = -1;
+            system_info_.filament_loaded = false;
+        }
         apply_bypass_to_system_info();
     }
 

@@ -5316,6 +5316,24 @@ TEST_CASE("AFC bypass survives a lane-only status frame", "[ams][afc][bypass][by
     CHECK(sys.filament_loaded);
 }
 
+// Moonraker sends deltas, so disengaging can arrive as bypass_state alone, with
+// no lane frame to recount the toolhead.
+TEST_CASE("AFC bypass disengaged by a lone delta releases the toolhead",
+          "[ams][afc][bypass][bypass-lane-frame]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_running(true);
+    helper.set_supports_bypass(true);
+    helper.feed_afc_state({{"bypass_state", true}});
+    REQUIRE(helper.get_system_info().current_slot == -2);
+
+    helper.feed_afc_state({{"bypass_state", false}});
+
+    const auto sys = helper.get_system_info();
+    CHECK(sys.current_slot == -1);
+    CHECK_FALSE(sys.filament_loaded);
+}
+
 // Bypass: the external spool feeds the toolhead with no lane behind it, so
 // slots_.name_of(-2) resolves to "" and AFC unloads whatever is at the head via
 // its own user-configured macro. The backend has always done this correctly —
