@@ -2487,38 +2487,50 @@ TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
     close_editor_overlay();
 }
 
+// An unweighed lane with no material opens on Assign Spool, whose size chips
+// say what the spool going in weighs: 1 kg until another chip or a typed
+// weight says otherwise. Back's Save commits the same form.
 TEST_CASE_METHOD(EditorFixture, "a new spool on an unweighed lane saves as 1 kg",
-                 "[ams_edit_overlay][weight][afc-edit-echo]") {
+                 "[ams_edit_overlay][weight][afc-edit-echo][spool-assign]") {
+    auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
+    REQUIRE(spoolman_subj != nullptr);
+    lv_subject_set_int(spoolman_subj, 0); // the local commit, no Spoolman save
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
 
     SlotInfo fresh = untracked_slot_without_weights();
     fresh.material.clear();
-    REQUIRE(overlay.show_for_slot(test_screen(), 0, fresh, nullptr, nullptr));
+    bool fired = false;
+    AmsEditOverlay::EditResult result;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, fresh, nullptr,
+                                  [&](const AmsEditOverlay::EditResult& r) {
+                                      fired = true;
+                                      result = r;
+                                  }));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.mode() == AmsEditOverlay::kModeAssign);
+
+    float want_remaining = 1000.0f;
+    SECTION("a material on a lane with none: a 1 kg spool") {
+        REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
+    }
+    SECTION("a weight typed beside it stands") {
+        REQUIRE(access.pick_dropdown("dropdown_material", "PLA"));
+        access.call_apply_weight(0);
+        want_remaining = 0.0f;
+    }
+    SECTION("a colour alone is a spool of the material the form shows") {
+        access.call_apply_color(0x00FF00);
+    }
+    access.call_handle_save();
     UpdateQueue::instance().drain();
     process_lvgl(10);
 
-    SlotInfo edited = access.working_info();
-    SECTION("a material on a lane with none: a 1 kg spool") {
-        edited.material = "PLA";
-        access.set_working_info(edited);
-        const SlotInfo saving = access.saving();
-        CHECK(saving.remaining_weight_g == Catch::Approx(1000.0f));
-        CHECK(saving.total_weight_g == Catch::Approx(1000.0f));
-    }
-    SECTION("a weight typed beside it stands") {
-        edited.material = "PLA";
-        edited.remaining_weight_g = 0.0f;
-        access.set_working_info(edited);
-        CHECK(access.saving().remaining_weight_g == Catch::Approx(0.0f));
-    }
-    SECTION("a colour alone sets up no spool") {
-        edited.color_rgb = 0x00FF00;
-        access.set_working_info(edited);
-        CHECK(access.saving().remaining_weight_g < 0.0f);
-        CHECK(access.saving().total_weight_g < 0.0f);
-    }
-    close_editor_overlay();
+    REQUIRE(fired);
+    CHECK(result.slot_info.material == "PLA");
+    CHECK(result.slot_info.remaining_weight_g == Catch::Approx(want_remaining));
+    CHECK(result.slot_info.total_weight_g == Catch::Approx(1000.0f));
 }
 
 TEST_CASE_METHOD(EditorFixture, "relabelling a lane that already had a material keeps its weight",

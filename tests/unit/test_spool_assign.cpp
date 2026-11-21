@@ -163,22 +163,6 @@ TEST_CASE("remaining steps stay between empty and the spool's total", "[spool-as
     CHECK(step_remaining(1200, 10, 0) == 1210); // no known total, no ceiling
 }
 
-TEST_CASE("a new spool with no weight starts as a full 1 kg spool", "[spool-assign]") {
-    SlotInfo fresh;
-    fresh.total_weight_g = 0;
-    fresh.remaining_weight_g = -1;
-    apply_new_spool_default_weight(fresh);
-    CHECK(fresh.total_weight_g == 1000);
-    CHECK(fresh.remaining_weight_g == 1000);
-
-    SlotInfo weighed;
-    weighed.total_weight_g = 750;
-    weighed.remaining_weight_g = 300;
-    apply_new_spool_default_weight(weighed);
-    CHECK(weighed.total_weight_g == 750);
-    CHECK(weighed.remaining_weight_g == 300);
-}
-
 TEST_CASE("lane history keeps the latest filament first, once, and caps its length",
           "[spool-assign]") {
     using helix::lane_spool_history::Entry;

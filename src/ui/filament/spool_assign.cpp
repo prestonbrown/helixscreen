@@ -252,14 +252,4 @@ bool save_changed_lane(const SlotInfo& before, const SlotInfo& after) {
            std::fabs(before.total_weight_g - after.total_weight_g) > kWeightEpsilonG;
 }
 
-void apply_new_spool_default_weight(SlotInfo& slot) {
-    if (slot.total_weight_g > 0) {
-        return;
-    }
-    slot.total_weight_g = kDefaultSpoolGrams;
-    if (slot.remaining_weight_g <= 0) {
-        slot.remaining_weight_g = kDefaultSpoolGrams;
-    }
-}
-
 } // namespace helix::spool_assign

@@ -152,7 +152,4 @@ inline constexpr float kRemainingStepGrams = 10.0f;
 /// Undo could put back.
 [[nodiscard]] bool save_changed_lane(const SlotInfo& before, const SlotInfo& after);
 
-/// A new spool with no weight yet holds a full default spool.
-void apply_new_spool_default_weight(SlotInfo& slot);
-
 } // namespace helix::spool_assign
