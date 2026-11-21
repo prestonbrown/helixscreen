@@ -314,9 +314,11 @@
               </lv_obj>
             </lv_obj>
 
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+            <!-- At the short landscape class the swatches speak for themselves. -->
+            <lv_obj name="color_label_row"
+                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
                     style_flex_cross_place="center" scrollable="false">
+              <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
               <text_small text="Color" style_text_color="#text_muted"/>
               <tag_badge subject="ams_edit_tag_color"/>
             </lv_obj>
@@ -343,16 +345,21 @@
                     width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                     scrollable="false">
               <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
-              <!-- The label shares its line with the temperatures. -->
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+              <!-- The label shares its line with the temperatures; the short
+                   landscape class shows the chips alone. -->
+              <lv_obj name="size_label_row"
+                      width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
                       style_pad_gap="#space_sm" scrollable="false">
-                <text_small text="Spool Size" style_text_color="#text_muted"/>
+                <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
+                <text_small name="size_label" text="Spool Size" style_text_color="#text_muted">
+                  <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
+                </text_small>
                 <lv_obj name="temp_row"
                         height="content" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
                         style_pad_gap="#space_xs" scrollable="false">
-                  <!-- Edit Spool shows the temperatures under the remaining weight. -->
-                  <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
+                  <!-- Edit Spool shows the temperatures under the remaining weight;
+                       the short landscape class leaves them to the chosen spool. -->
+                  <bind_flag_if cond="ams_edit_mode eq 1 or (ui_breakpoint eq 0 and ui_is_portrait eq 0)" flag="hidden"/>
                   <text_small name="temp_line" bind_text="ams_edit_temp_text" style_text_color="#text_muted"/>
                   <tag_badge subject="ams_edit_tag_temps"/>
                 </lv_obj>
@@ -543,9 +550,9 @@
               <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="2"/>
             </lv_obj>
 
-            <!-- Fresh install: common spools to start from, a row per material in
-                 black, white and gray (the dot names the color). A tap fills
-                 the form. -->
+            <!-- Fresh install: common spools to start from, PLA/PETG/ABS/ASA
+                 across, a row each of black, white and gray (the dot names the
+                 color). A tap fills the form. -->
             <lv_obj name="common_spools"
                     width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                     scrollable="false" hidden="true">
@@ -555,16 +562,16 @@
                       height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                       style_pad_row="#space_xxs" scrollable="false">
                 <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="general_swatch_color_2"/>
                 <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="general_swatch_color_2"/>
                 <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="general_swatch_color_2"/>
                 <common_spool_tile tile_name="common_spool_9" label="ASA" color_subject="general_swatch_color_0"/>
+                <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="general_swatch_color_1"/>
                 <common_spool_tile tile_name="common_spool_10" label="ASA" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="general_swatch_color_2"/>
                 <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="general_swatch_color_2"/>
               </lv_obj>
             </lv_obj>
@@ -673,13 +680,31 @@
         </lv_obj>
         <!-- The lane's own settings, written to the backend on save: which
              tool it feeds and its Endless Spool backup. Full width under both
-             columns, so the two rows share a line and sit in view on open.
+             columns, so the two rows share a line and sit in view on open
+             (behind the disclosure above at the two smallest classes).
              Each row shows only where the backend supports it; the status
              line under them says what a runout will do. -->
+        <!-- The two smallest classes fold the lane's settings behind a
+             disclosure, so the screen fits without scrolling. -->
+        <lv_obj name="lane_toggle"
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" hidden="true"
+                style_pad_hor="#space_sm" style_pad_ver="#ams_edit_more_pad" style_pad_gap="#space_sm"
+                style_radius="#border_radius" style_bg_opa="0" style_border_width="0" scrollable="false"
+                clickable="true" ext_click_area="#ams_edit_bar_hit">
+          <bind_flag_if cond="ams_edit_lane_visible eq 0 or ui_breakpoint gt 1" flag="hidden"/>
+          <style name="styles.press_wash" selector="pressed"/>
+          <event_cb trigger="clicked" callback="ams_edit_lane_toggle_cb"/>
+          <icon src="chevron_down" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+          <text_body text="Lane Settings" clickable="false" event_bubble="true"/>
+          <text_small text="Tool, runout backup"
+                      flex_grow="1" long_mode="dots" style_text_color="#text_muted" clickable="false"
+                      event_bubble="true"/>
+        </lv_obj>
         <lv_obj name="lane_section"
                 width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#ams_edit_vgap"
                 scrollable="false" hidden="true">
-          <bind_flag_if_eq subject="ams_edit_lane_visible" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="ams_edit_lane_visible eq 0 or (ui_breakpoint le 1 and ams_edit_lane_open eq 0)"
+                        flag="hidden"/>
           <lv_obj name="lane_row"
                   width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_flex_cross_place="center"
                   style_pad_column="#space_lg" style_pad_row="#ams_edit_vgap" scrollable="false">

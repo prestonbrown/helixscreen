@@ -531,12 +531,19 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
     const bool with_second = with_action && second.text && *second.text && second.callback;
     const char* action2_text_safe = with_second ? second.text : "";
     const char* hide_action2_str = with_second ? "false" : "true";
+    // Two actions sit on a row under the text; the side button hides.
+    if (with_second) {
+        hide_action_str = "true";
+    }
+    const char* message_long_mode = with_second ? "dots" : "wrap";
     // lv_xml_create's attrs are key/value pairs terminated by a null entry.
-    const char* attrs[] = {"message",      message,          "icon_glyph",   icon_glyph,
-                           "icon_color",   icon_color,       "action_text",  action_text_safe,
-                           "hide_action",  hide_action_str,  "detail",       detail_safe,
-                           "hide_detail",  hide_detail_str,  "action2_text", action2_text_safe,
-                           "hide_action2", hide_action2_str, nullptr};
+    const char* attrs[] = {"message",           message,           "icon_glyph",
+                           icon_glyph,          "icon_color",      icon_color,
+                           "action_text",       action_text_safe,  "hide_action",
+                           hide_action_str,     "detail",          detail_safe,
+                           "hide_detail",       hide_detail_str,   "action2_text",
+                           action2_text_safe,   "hide_action2",    hide_action2_str,
+                           "message_long_mode", message_long_mode, nullptr};
 
     lv_obj_t* widget = helix::ui::create_xml_laid_out(toast_stack_, "toast_notification", attrs);
     if (!widget) {
@@ -568,10 +575,11 @@ void ToastManager::create_toast_internal(ToastSeverity severity, const char* mes
         }
     }
     if (with_second) {
-        if (lv_obj_t* action2_btn =
-                helix::ui::find_required(widget, "toast_action2_btn", "ToastManager")) {
-            // DECLARATIVE_OK: per-toast button wiring, as the action button's above.
-            lv_obj_add_event_cb(action2_btn, action_btn_clicked, LV_EVENT_CLICKED, nullptr);
+        for (const char* name : {"toast_action2_btn", "toast_action_below_btn"}) {
+            if (lv_obj_t* btn = helix::ui::find_required(widget, name, "ToastManager")) {
+                // DECLARATIVE_OK: per-toast button wiring, as the action button's above.
+                lv_obj_add_event_cb(btn, action_btn_clicked, LV_EVENT_CLICKED, nullptr);
+            }
         }
     }
 
@@ -615,7 +623,7 @@ void ToastManager::detach_from_input(lv_obj_t* widget) {
 
     // A dying toast's action button must not latch a fresh press once teardown
     // has begun (CLICKABLE gates indev hit-testing).
-    for (const char* name : {"toast_action_btn", "toast_action2_btn"}) {
+    for (const char* name : {"toast_action_btn", "toast_action2_btn", "toast_action_below_btn"}) {
         if (lv_obj_t* btn = lv_obj_find_by_name(widget, name)) {
             lv_obj_remove_flag(btn, LV_OBJ_FLAG_CLICKABLE);
         }

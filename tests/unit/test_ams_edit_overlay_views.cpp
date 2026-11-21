@@ -373,6 +373,11 @@ class AmsEditOverlayViewTestAccess {
         const char* t = lv_textarea_get_text(w);
         return t ? t : "";
     }
+    /// Forget the session's completion callback: it captures the test's
+    /// locals, which are gone by the time a fixture tears the editor down.
+    void drop_completion() {
+        overlay_.completion_callback_ = nullptr;
+    }
     void click(const char* name) {
         lv_obj_t* w = overlay_.find_widget(name);
         REQUIRE(w != nullptr);
@@ -394,6 +399,19 @@ void close_editor_overlay() {
     UpdateQueue::instance().drain();
     lv_timer_handler(); // the overlay close callback runs on the next tick
 }
+
+/// Closes an editor a test left open (a failed REQUIRE ends the test before
+/// its own close), so the next test never inherits a live session.
+struct EditorFixture : LVGLUITestFixture {
+    ~EditorFixture() override {
+        auto& overlay = get_ams_edit_overlay();
+        lv_obj_t* root = overlay.get_root();
+        if (root && NavigationManager::instance().is_panel_in_stack(root)) {
+            AmsEditOverlayViewTestAccess(overlay).drop_completion();
+            close_editor_overlay();
+        }
+    }
+};
 
 SlotInfo untracked_slot() {
     SlotInfo info;
@@ -526,7 +544,7 @@ void poll_lane_once(helix::ams::LaneId lane) {
 
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "show_for_slot skips the identity-sync fetch when Spoolman is unavailable",
                  "[ams_edit_overlay][card][spoolman]") {
     // A Spoolman-less printer must not fire a doomed identity-sync fetch (one
@@ -588,7 +606,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "color view from spool-edit stages the pending color and returns there",
                  "[ams_edit_overlay][color_view]") {
     auto& overlay = get_ams_edit_overlay();
@@ -620,7 +638,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "custom color view opens on the slot's black, not the grey sentinel",
                  "[ams_edit_overlay][color][1608]") {
     auto& overlay = get_ams_edit_overlay();
@@ -720,7 +738,7 @@ std::vector<int> unusable_spool_ids(lv_obj_t* list, const std::vector<int>& list
 // commit_slot_edit persists nothing (AmsBackendMock ignores the persist flag).
 // ============================================================================
 
-struct OverlayConsumerCommitFixture : LVGLUITestFixture {
+struct OverlayConsumerCommitFixture : EditorFixture {
     MoonrakerClientMock client;
     MoonrakerAPIMock api;
     AmsBackendMock* backend = nullptr;
@@ -1092,7 +1110,7 @@ TEST_CASE_METHOD(BoxWinsFixture, "moving a box-held lane to a third filament sti
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every listed spool is usable on a lane with no spool",
+TEST_CASE_METHOD(EditorFixture, "every listed spool is usable on a lane with no spool",
                  "[ams_edit_overlay][picker][preselect]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1123,7 +1141,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every listed spool is usable on a lane with
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament name",
+TEST_CASE_METHOD(EditorFixture, "picker row names a spool by its filament name",
                  "[ams_edit_overlay][picker][spool_label]") {
     // Two spools of one vendor and material differ only by Spoolman's filament
     // name, so the row's primary label (the only text a compact row shows)
@@ -1231,7 +1249,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker row names a spool by its filament na
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker search burst renders once, after the pause",
+TEST_CASE_METHOD(EditorFixture, "picker search burst renders once, after the pause",
                  "[ams_edit_overlay][picker][search]") {
     // Regression: every value_changed used to rebuild the whole spool list
     // synchronously - at a few hundred spools that froze the keyboard for the
@@ -1280,7 +1298,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker search burst renders once, after the
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not fetch-error retry",
+TEST_CASE_METHOD(EditorFixture, "picker zero-match shows no-match state, not fetch-error retry",
                  "[ams_edit_overlay][picker][search]") {
     // The empty-filter result and the failed fetch used to share state 1, so
     // a term that matches nothing flashed "No spools found - tap to retry"
@@ -1314,7 +1332,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picker zero-match shows no-match state, not
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picker-entry spool selection commits and closes the editor",
+TEST_CASE_METHOD(EditorFixture, "picker-entry spool selection commits and closes the editor",
                  "[ams_edit_overlay][picker][header_save]") {
     // Task #13: when the editor is opened directly on the picker (context-menu
     // "Select spool"), choosing a spool is a one-tap commit — apply + close the
@@ -1579,7 +1597,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     REQUIRE(client.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "editing the linked spool's identity (same spool) still prompts to confirm",
                  "[ams_edit_overlay][filament_picker]") {
     // Contrast with the relink cases: when spoolman_id is UNCHANGED and the
@@ -1645,7 +1663,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     get_printer_state().capabilities_state().set_spoolman_available(false); // restore clean slate
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot still saves a color while Spoolman is offline",
+TEST_CASE_METHOD(EditorFixture, "a linked slot still saves a color while Spoolman is offline",
                  "[ams_edit_overlay][spool_edit][1653]") {
     // Colour is the lane's own, not the spool's, so the read-only identity does
     // not reach it: a swatch picked with Spoolman down still saves.
@@ -1688,7 +1706,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot still saves a color while Spo
     CHECK(captured.slot_info.brand == tracked_slot().brand);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Use after Different Spool links the lane and closes",
+TEST_CASE_METHOD(EditorFixture, "Use after Different Spool links the lane and closes",
                  "[ams_edit_overlay][picker]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1724,7 +1742,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Use after Different Spool links the lane an
     CHECK(captured.slot_info.material == "PETG");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Assign Spool always offers a way to add the spool",
+TEST_CASE_METHOD(EditorFixture, "Assign Spool always offers a way to add the spool",
                  "[ams_edit_overlay][picker][setup_entry]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1770,7 +1788,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Assign Spool always offers a way to add the
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "an empty lane opens on Assign Spool and a filled one on Edit Spool",
                  "[ams_edit_overlay][views]") {
     // The Save gate reads the lane-records subject, which must exist when the
@@ -1812,7 +1830,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "weightless slot opens clean — no fabricated weights",
+TEST_CASE_METHOD(EditorFixture, "weightless slot opens clean — no fabricated weights",
                  "[ams_edit_overlay][dirty]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -1877,8 +1895,7 @@ TEST_CASE("build_spool_patches splits spool-level vs filament-level fields",
     CHECK(empty_filament.empty());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a failed Spoolman save keeps the editor open and commits nothing",
+TEST_CASE_METHOD(EditorFixture, "a failed Spoolman save keeps the editor open and commits nothing",
                  "[ams_edit_overlay][spool_edit]") {
     // A save that did not reach Spoolman has changed nothing anywhere, so the
     // editor stays on the user's edit rather than closing on a local commit
@@ -1931,8 +1948,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a failed Spoolman write keeps the editor open on the staged edit",
+TEST_CASE_METHOD(EditorFixture, "a failed Spoolman write keeps the editor open on the staged edit",
                  "[ams_edit_overlay][spoolman][failure]") {
     // A weight-only edit (spool-level, no identity move) reaches the Spoolman
     // write with no prompt - and with every request failing, nothing is
@@ -1987,7 +2003,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "an incomplete new spool keeps the editor open and names what is missing",
                  "[ams_edit_overlay][spool_edit]") {
     // "It's a new spool" creates a filament, and Spoolman identifies one by
@@ -2208,7 +2224,7 @@ TEST_CASE("selection_from_slot splits family/variant/brand", "[ams_edit_overlay]
     CHECK(blank.brand == "Generic");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "apply_family_change pins the brand/variant reset rules",
+TEST_CASE_METHOD(EditorFixture, "apply_family_change pins the brand/variant reset rules",
                  "[ams_edit_overlay][dropdown]") {
     auto catalog = helix::printer::FilamentCatalog::load_full();
 
@@ -2250,8 +2266,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "apply_family_change pins the brand/variant 
     CHECK(dropped.variant == "Basic");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "editor dropdowns publish families, variants, Generic-first brands",
+TEST_CASE_METHOD(EditorFixture, "editor dropdowns publish families, variants, Generic-first brands",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2295,7 +2310,7 @@ std::vector<std::string> split_options(const std::string& options) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick through value_changed",
+TEST_CASE_METHOD(EditorFixture, "every identity dropdown stages its pick through value_changed",
                  "[ams_edit_overlay][dropdown][callback]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2337,7 +2352,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every identity dropdown stages its pick thr
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "unknown material shows as its own selected family option",
+TEST_CASE_METHOD(EditorFixture, "unknown material shows as its own selected family option",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2366,7 +2381,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "unknown material shows as its own selected 
 
 // Firmware that reports a product by name and carries no catalog id (the CFS
 // fork's NAME) opens on that product, not the brand's first line.
-TEST_CASE_METHOD(LVGLUITestFixture, "a product named without a catalog id opens selected",
+TEST_CASE_METHOD(EditorFixture, "a product named without a catalog id opens selected",
                  "[ams_edit_overlay][dropdown][product]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2396,7 +2411,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a product named without a catalog id opens 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
+TEST_CASE_METHOD(EditorFixture, "weight pill keypad stages remaining grams",
                  "[ams_edit_overlay][weight]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2429,7 +2444,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "weight pill keypad stages remaining grams",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Reset to tag restores identity, not just the colour",
+TEST_CASE_METHOD(EditorFixture, "Reset to tag restores identity, not just the colour",
                  "[ams_edit_overlay][dropdown][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2491,7 +2506,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Reset to tag restores identity, not just th
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a dropdown pick refreshes the temperature line",
+TEST_CASE_METHOD(EditorFixture, "a dropdown pick refreshes the temperature line",
                  "[ams_edit_overlay][dropdown][r10]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2519,7 +2534,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a dropdown pick refreshes the temperature l
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a More-section edit lights Save and stages on it",
+TEST_CASE_METHOD(EditorFixture, "a More-section edit lights Save and stages on it",
                  "[ams_edit_overlay][more]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -2546,7 +2561,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a More-section edit lights Save and stages 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, unclipped",
+TEST_CASE_METHOD(EditorFixture, "the open More section scrolls into reach, unclipped",
                  "[ams_edit_overlay][more]") {
     // The More toggle exists only on a Spoolman-linked slot.
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
@@ -2597,7 +2612,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the open More section scrolls into reach, u
     process_lvgl(10);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a scanned relink reseeds the More section to the new spool",
+TEST_CASE_METHOD(EditorFixture, "a scanned relink reseeds the More section to the new spool",
                  "[ams_edit_overlay][more][relink]") {
     // The More fields must describe the spool the slot NOW names, and the
     // Save PATCH must target that spool's record, never the one the editor
@@ -2659,7 +2674,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a scanned relink reseeds the More section t
     UpdateQueue::instance().drain();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a combined material+notes save loses neither",
+TEST_CASE_METHOD(EditorFixture, "a combined material+notes save loses neither",
                  "[ams_edit_overlay][more][combined]") {
     // The identity prompt owns the save, and the Notes edit rides the
     // Update arm instead of being dropped.
@@ -2730,7 +2745,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a combined material+notes save loses neithe
     UpdateQueue::instance().drain();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a linked slot's family change refreshes the temps line",
+TEST_CASE_METHOD(EditorFixture, "a linked slot's family change refreshes the temps line",
                  "[ams_edit_overlay][r10][linked]") {
     // A linked slot carries its spool's stored range; a family pick must
     // show the picked family's range, not the stored one.
@@ -2810,7 +2825,7 @@ void set_spoolman_available(bool available) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a relink never carries the old spool's More fields over",
+TEST_CASE_METHOD(EditorFixture, "a relink never carries the old spool's More fields over",
                  "[ams_edit_overlay][more][relink]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -2865,7 +2880,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a relink never carries the old spool's More
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a late spool record never overwrites a relink or a pick",
+TEST_CASE_METHOD(EditorFixture, "a late spool record never overwrites a relink or a pick",
                  "[ams_edit_overlay][more][relink]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -2903,7 +2918,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a late spool record never overwrites a reli
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "pick-a-spool entry then Back builds Edit Spool from this slot alone",
                  "[ams_edit_overlay][picker][session]") {
     auto& overlay = get_ams_edit_overlay();
@@ -2944,7 +2959,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is still sliding out",
+TEST_CASE_METHOD(EditorFixture, "the editor reopens while its last close is still sliding out",
                  "[ams_edit_overlay][session]") {
     // Overlays slide out only on the full-effects tier with animations on.
     ScopedTier tier(helix::PlatformTier::STANDARD);
@@ -2992,7 +3007,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the editor reopens while its last close is 
     display.set_animations_enabled(animations_were_enabled);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a save in flight holds Back and the keypad shut",
+TEST_CASE_METHOD(EditorFixture, "a save in flight holds Back and the keypad shut",
                  "[ams_edit_overlay][save][session]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3024,7 +3039,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a save in flight holds Back and the keypad 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a Spoolman save completes even if the editor was covered",
+TEST_CASE_METHOD(EditorFixture, "a Spoolman save completes even if the editor was covered",
                  "[ams_edit_overlay][save][session]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -3060,7 +3075,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a Spoolman save completes even if the edito
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Edit Spool shows Spoolman's parts only for a linked spool",
+TEST_CASE_METHOD(EditorFixture, "Edit Spool shows Spoolman's parts only for a linked spool",
                  "[ams_edit_overlay][more][add_link]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3093,7 +3108,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Edit Spool shows Spoolman's parts only for 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the editor dirty",
+TEST_CASE_METHOD(EditorFixture, "a price the field rounds does not make the editor dirty",
                  "[ams_edit_overlay][more][price]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3116,7 +3131,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a price the field rounds does not make the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the brand list names Generic once",
+TEST_CASE_METHOD(EditorFixture, "the brand list names Generic once",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3131,7 +3146,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the brand list names Generic once",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic once",
+TEST_CASE_METHOD(EditorFixture, "a material with few makers lists Generic once",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3160,7 +3175,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a material with few makers lists Generic on
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picking Browse catalog opens the catalog sheet",
+TEST_CASE_METHOD(EditorFixture, "picking Browse catalog opens the catalog sheet",
                  "[ams_edit_overlay][dropdown][callback]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3244,7 +3259,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "a Material dropdown pick reaches
     CHECK(backend->get_slot_info(0).color_rgb == 0x1E88E5);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the selected entry",
+TEST_CASE_METHOD(EditorFixture, "a variant the catalog lacks shows as the selected entry",
                  "[ams_edit_overlay][dropdown]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3261,8 +3276,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a variant the catalog lacks shows as the se
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "Browse catalog leaves the row intact and a pick sets the temps",
+TEST_CASE_METHOD(EditorFixture, "Browse catalog leaves the row intact and a pick sets the temps",
                  "[ams_edit_overlay][dropdown][browse]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3311,8 +3325,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a catalog pick files the product's recommended nozzle temperature",
+TEST_CASE_METHOD(EditorFixture, "a catalog pick files the product's recommended nozzle temperature",
                  "[ams_edit_overlay][spoolman][2029]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3352,7 +3365,7 @@ int subject_int(const char* name) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "each field the tag states carries its own badge",
+TEST_CASE_METHOD(EditorFixture, "each field the tag states carries its own badge",
                  "[ams_edit_overlay][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3417,7 +3430,7 @@ lv_obj_t* tag_pill_beside(AmsEditOverlayViewTestAccess& access, const char* drop
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from-tag pill",
+TEST_CASE_METHOD(EditorFixture, "the material and brand rows show their from-tag pill",
                  "[ams_edit_overlay][tag]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3451,7 +3464,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the material and brand rows show their from
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "picking another colour drops the colour's from-tag badge",
+TEST_CASE_METHOD(EditorFixture, "picking another colour drops the colour's from-tag badge",
                  "[ams_edit_overlay][tag][color]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3481,7 +3494,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "picking another colour drops the colour's f
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a colour no visible preset holds rings the custom tile",
+TEST_CASE_METHOD(EditorFixture, "a colour no visible preset holds rings the custom tile",
                  "[ams_edit_overlay][color]") {
     auto& overlay = get_ams_edit_overlay();
     SlotInfo info = untracked_slot();
@@ -3493,7 +3506,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a colour no visible preset holds rings the 
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the More section opens collapsed in every session",
+TEST_CASE_METHOD(EditorFixture, "the More section opens collapsed in every session",
                  "[ams_edit_overlay][more][session]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3516,7 +3529,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the More section opens collapsed in every s
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a cover that drops the open-time fetches re-runs them once",
+TEST_CASE_METHOD(EditorFixture, "a cover that drops the open-time fetches re-runs them once",
                  "[ams_edit_overlay][more][session]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -3564,7 +3577,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a cover that drops the open-time fetches re
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the editor's non-swatch targets reach 44px",
+TEST_CASE_METHOD(EditorFixture, "the editor's non-swatch targets reach 44px",
                  "[ams_edit_overlay][touch]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3634,8 +3647,7 @@ int y_centre(lv_obj_t* obj) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "the header's labeled buttons are full targets on the title's line",
+TEST_CASE_METHOD(EditorFixture, "the header's labeled buttons are full targets on the title's line",
                  "[ams_edit_overlay][touch][header]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3680,7 +3692,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "every colour swatch's reach is inside the grid and its own",
+TEST_CASE_METHOD(EditorFixture, "every colour swatch's reach is inside the grid and its own",
                  "[ams_edit_overlay][touch][color][grid]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3713,7 +3725,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "every colour swatch's reach is inside the g
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "colour swatches keep a 7mm pitch on every class's panel",
+TEST_CASE_METHOD(EditorFixture, "colour swatches keep a 7mm pitch on every class's panel",
                  "[ams_edit_overlay][touch][color][grid]") {
     struct Panel {
         int32_t w;
@@ -3811,7 +3823,7 @@ void check_color_view_static(AmsEditOverlayViewTestAccess& access) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "the colour view shows presets and picker together only where both fit",
                  "[ams_edit_overlay][color][touch]") {
     struct Size {
@@ -3886,7 +3898,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "reopening the colour view keeps its preset grid instead of rebuilding it",
                  "[ams_edit_overlay][color]") {
     // 480x320 is a one-pane size: the fit verdict is 0, the subject's
@@ -3937,7 +3949,7 @@ TEST_CASE("grid_preset_count fills whole rows less the custom tile",
     CHECK(AmsEditOverlay::grid_preset_count(132, 0, 14, 3, 30) == 0);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "the colour grid wraps inside the editor's width",
+TEST_CASE_METHOD(EditorFixture, "the colour grid wraps inside the editor's width",
                  "[ams_edit_overlay][color][grid]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -3971,8 +3983,7 @@ TEST_CASE("format_spool_price shows two decimals and blanks no price",
     CHECK(format_spool_price(-1).empty());
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a Spoolman save commits the slot even if the editor closed first",
+TEST_CASE_METHOD(EditorFixture, "a Spoolman save commits the slot even if the editor closed first",
                  "[ams_edit_overlay][save][session]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4014,7 +4025,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record never loaded",
+TEST_CASE_METHOD(EditorFixture, "Save keeps More edits whose spool record never loaded",
                  "[ams_edit_overlay][more][save]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4051,7 +4062,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Save keeps More edits whose spool record ne
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a spool record landing after Reset to tag keeps the reset",
+TEST_CASE_METHOD(EditorFixture, "a spool record landing after Reset to tag keeps the reset",
                  "[ams_edit_overlay][tag][relink]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4100,8 +4111,7 @@ TEST_CASE("color_ring_index rings custom only for a set colour no visible preset
     CHECK(AmsEditOverlay::slot_has_colour(bare_black)); // black PLA is a colour
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
-                 "[ams_edit_overlay][color]") {
+TEST_CASE_METHOD(EditorFixture, "an unset slot rings no colour tile", "[ams_edit_overlay][color]") {
     auto& overlay = get_ams_edit_overlay();
     SlotInfo info = untracked_slot();
     info.material.clear();
@@ -4114,7 +4124,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "an unset slot rings no colour tile",
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "a More-field save commits the slot's other edits even if the editor closed first",
                  "[ams_edit_overlay][save][session]") {
     PrinterState state;
@@ -4187,8 +4197,7 @@ void settle(LVGLUITestFixture& fixture) {
 }
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a slot with a save still running does not reopen until it lands",
+TEST_CASE_METHOD(EditorFixture, "a slot with a save still running does not reopen until it lands",
                  "[ams_edit_overlay][save][session]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4226,7 +4235,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a chained More PATCH that fails says so and still commits",
+TEST_CASE_METHOD(EditorFixture, "a chained More PATCH that fails says so and still commits",
                  "[ams_edit_overlay][save][more]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4266,8 +4275,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a chained More PATCH that fails says so and
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "a save that fails after its More PATCH landed says what did save",
+TEST_CASE_METHOD(EditorFixture, "a save that fails after its More PATCH landed says what did save",
                  "[ams_edit_overlay][save][more]") {
     PrinterState state;
     MoonrakerClientMock client;
@@ -4300,7 +4308,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     set_spoolman_available(false);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "with Spoolman offline Save commits the slot and keeps the More edits",
                  "[ams_edit_overlay][save][more]") {
     PrinterState state;
@@ -4660,7 +4668,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when the editor opens",
+TEST_CASE_METHOD(OverlayConsumerCommitFixture,
+                 "the lane rows sit in view on open, or behind Lane Settings when small",
                  "[ams_edit_overlay][lane_settings][layout]") {
     lv_display_t* disp = lv_display_get_default();
     auto& overlay = get_ams_edit_overlay();
@@ -4678,6 +4687,14 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
             lv_obj_get_coords(content, &box);
             CAPTURE(w, h);
             CHECK(lv_obj_get_scroll_right(content) <= 0);
+            // The two smallest classes fold the rows behind Lane Settings.
+            const bool folded = access.shown("lane_toggle");
+            CHECK(folded == (w < 800));
+            if (folded) {
+                CHECK_FALSE(access.shown("lane_section"));
+                access.click("lane_toggle");
+                lv_obj_update_layout(content);
+            }
             for (const char* name : {"tool_dropdown", "backup_dropdown"}) {
                 INFO(name);
                 REQUIRE(access.shown(name));
@@ -4687,8 +4704,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
                 CHECK(dd.x2 <= box.x2);
                 // Reachable by scrolling, never past the scroller's extent.
                 CHECK(dd.y2 <= box.y2 + lv_obj_get_scroll_bottom(content));
-                // In view when the editor opens wherever one row holds both.
-                if (w > h) {
+                // In view when the editor opens wherever they are not folded.
+                if (!folded) {
                     CHECK(dd.y2 <= box.y2);
                 }
             }
@@ -4700,7 +4717,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "the lane rows sit in view when t
 
 // A spool that ran out has to come off the slot even while Spoolman is down,
 // and a printer with no filament system has no lane menu to do it from.
-TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off with Spoolman offline",
+TEST_CASE_METHOD(EditorFixture, "Clear takes a linked external spool off with Spoolman offline",
                  "[ams_edit_overlay][spool_edit][clear_spool]") {
     auto* spoolman_subj = lv_xml_get_subject(nullptr, "printer_has_spoolman");
     REQUIRE(spoolman_subj != nullptr);
@@ -4744,7 +4761,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear takes a linked external spool off wit
     CHECK((!ext || (ext->spoolman_id == 0 && ext->material.empty())));
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothing on it",
+TEST_CASE_METHOD(EditorFixture, "Clear is not offered for a slot with nothing on it",
                  "[ams_edit_overlay][spool_edit][clear_spool]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -4762,7 +4779,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Clear is not offered for a slot with nothin
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "a new spool close to an existing Spoolman filament asks before filing another",
                  "[ams_edit_overlay][spoolman][similar_filament]") {
     PrinterState state;
@@ -4896,7 +4913,7 @@ void settle() {
     }
 }
 
-struct SaveAckFixture : LVGLUITestFixture {
+struct SaveAckFixture : EditorFixture {
     MoonrakerClientMock client;
     MoonrakerAPIMock api;
     RecordBackedChanger* backend = nullptr;
@@ -5127,7 +5144,7 @@ struct AssignCapture {
 };
 } // namespace
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a new spool is assigned at the size its chip says",
+TEST_CASE_METHOD(EditorFixture, "a new spool is assigned at the size its chip says",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
     auto& overlay = get_ams_edit_overlay();
@@ -5165,7 +5182,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a new spool is assigned at the size its chi
     CHECK(done.result.slot_info.total_weight_g == want_total);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "a common spool tile fills the form",
+TEST_CASE_METHOD(EditorFixture, "a common spool tile fills the form",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);
     auto& overlay = get_ams_edit_overlay();
@@ -5233,7 +5250,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(done.result.slot_info.spoolman_id == 0);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "Edit Spool's - and + step what is left, within the spool",
+TEST_CASE_METHOD(EditorFixture, "Edit Spool's - and + step what is left, within the spool",
                  "[ams_edit_overlay][spool-assign]") {
     auto& overlay = get_ams_edit_overlay();
     AmsEditOverlayViewTestAccess access(overlay);
@@ -5289,7 +5306,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     helix::ui::set_test_toast_hook(nullptr);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
+TEST_CASE_METHOD(EditorFixture,
                  "a color pick on an empty lane describes a spool of the shown material",
                  "[ams_edit_overlay][spool-assign]") {
     set_spoolman_available(false);

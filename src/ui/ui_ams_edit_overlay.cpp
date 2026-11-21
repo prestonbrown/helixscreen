@@ -218,6 +218,7 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
         return false;
     }
     lv_subject_set_int(&more_open_subject_, 0);
+    lv_subject_set_int(&lane_open_subject_, 0);
     // After show(): the first one initialises the subjects this writes.
     load_lane_settings();
 
@@ -562,6 +563,8 @@ void AmsEditOverlay::init_subjects() {
                                subjects_);
         UI_MANAGED_SUBJECT_INT(clear_visible_subject_, 0, "ams_edit_clear_visible", subjects_);
         UI_MANAGED_SUBJECT_INT(more_open_subject_, 0, "ams_edit_more_open", subjects_);
+        // The two smallest classes fold the lane's settings behind a disclosure.
+        UI_MANAGED_SUBJECT_INT(lane_open_subject_, 0, "ams_edit_lane_open", subjects_);
 
         // Spoolman spool number for the header badge ("#19").
         UI_MANAGED_SUBJECT_STRING(spoolman_id_subject_, spoolman_id_buf_, "",
@@ -3333,6 +3336,12 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_save_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_save(); }},
         {"ams_edit_more_toggle_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_more_toggle(); }},
+        {"ams_edit_lane_toggle_cb",
+         [](lv_event_t*) {
+             auto& editor = get_ams_edit_overlay();
+             lv_subject_set_int(&editor.lane_open_subject_,
+                                lv_subject_get_int(&editor.lane_open_subject_) ? 0 : 1);
+         }},
         {"ams_edit_weight_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_weight_tap(); }},
         {"ams_edit_add_to_spoolman_cb",
          [](lv_event_t*) { get_ams_edit_overlay().handle_add_to_spoolman(); }},

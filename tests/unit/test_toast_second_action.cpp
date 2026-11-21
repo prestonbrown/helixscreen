@@ -82,12 +82,21 @@ TEST_CASE_METHOD(SecondActionFixture, "an action toast's second button runs its 
     drain();
     REQUIRE(tm.is_visible());
 
-    lv_obj_t* first = lv_obj_find_by_name(lv_layer_top(), "toast_action_btn");
+    // Both buttons sit on a row under the text, which keeps the toast's width
+    // for a one-line headline; the side button hides.
+    lv_obj_t* side = lv_obj_find_by_name(lv_layer_top(), "toast_action_btn");
+    lv_obj_t* first = lv_obj_find_by_name(lv_layer_top(), "toast_action_below_btn");
     lv_obj_t* second = lv_obj_find_by_name(lv_layer_top(), "toast_action2_btn");
+    lv_obj_t* row = lv_obj_find_by_name(lv_layer_top(), "toast_actions_below");
     REQUIRE(second != nullptr);
-    CHECK_FALSE(lv_obj_has_flag(second, LV_OBJ_FLAG_HIDDEN));
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_has_flag(side, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
     CHECK(label_of(first) == "Undo");
     CHECK(label_of(second) == "Print Label");
+    lv_obj_t* headline = lv_obj_find_by_name(lv_layer_top(), "toast_message");
+    REQUIRE(headline != nullptr);
+    CHECK(lv_label_get_long_mode(headline) == LV_LABEL_LONG_MODE_DOTS);
 
     lv_obj_send_event(second, LV_EVENT_CLICKED, nullptr);
     drain();
@@ -95,6 +104,16 @@ TEST_CASE_METHOD(SecondActionFixture, "an action toast's second button runs its 
     CHECK(g_second_data == data_7());
     CHECK(g_first == 0);
     CHECK_FALSE(tm.is_visible());
+
+    // The row's main button runs the main action.
+    tm.show_with_action(ToastSeverity::SUCCESS, "Lane 3: Sunlu PETG", "Undo", first_cb, nullptr, 0,
+                        nullptr, ToastAction{"Print Label", second_cb, data_7()});
+    drain();
+    lv_obj_send_event(lv_obj_find_by_name(lv_layer_top(), "toast_action_below_btn"),
+                      LV_EVENT_CLICKED, nullptr);
+    drain();
+    CHECK(g_first == 1);
+    CHECK(g_second == 1);
 }
 
 TEST_CASE_METHOD(SecondActionFixture, "an action toast without a second action shows one button",
@@ -102,9 +121,11 @@ TEST_CASE_METHOD(SecondActionFixture, "an action toast without a second action s
     auto& tm = ToastManager::instance();
     tm.show_with_action(ToastSeverity::SUCCESS, "Saved", "Undo", first_cb, nullptr, 0);
     drain();
-    lv_obj_t* second = lv_obj_find_by_name(lv_layer_top(), "toast_action2_btn");
-    REQUIRE(second != nullptr);
-    CHECK(lv_obj_has_flag(second, LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* row = lv_obj_find_by_name(lv_layer_top(), "toast_actions_below");
+    REQUIRE(row != nullptr);
+    CHECK(lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(lv_layer_top(), "toast_action_btn"),
+                                LV_OBJ_FLAG_HIDDEN));
 
     lv_obj_send_event(lv_obj_find_by_name(lv_layer_top(), "toast_action_btn"), LV_EVENT_CLICKED,
                       nullptr);

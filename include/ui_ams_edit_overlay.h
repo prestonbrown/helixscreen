@@ -397,8 +397,9 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t reset_tag_visible_subject_{};
     lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
     lv_subject_t more_open_subject_{};
-    lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
-    lv_subject_t lane_visible_subject_{};       ///< 1 = the slot is a backend lane
+    lv_subject_t lane_open_subject_{};    ///< 1 = Lane Settings disclosed ("ams_edit_lane_open")
+    lv_subject_t spoolman_id_subject_{};  ///< "#19" for the header badge
+    lv_subject_t lane_visible_subject_{}; ///< 1 = the slot is a backend lane
     lv_subject_t tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
     lv_subject_t tool_editable_subject_{};      ///< 0 = tool shown read-only
     lv_subject_t tool_refusal_subject_{};       ///< why the tool cannot be changed here

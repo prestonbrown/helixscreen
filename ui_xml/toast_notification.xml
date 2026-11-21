@@ -19,8 +19,13 @@
          default, so every existing caller renders exactly as before. -->
     <prop name="detail" type="string" default=""/>
     <prop name="hide_detail" type="string" default="true"/>
+    <!-- A second action. A toast with two puts both buttons on a row under its
+         text (toast_actions_below), so the text keeps the toast's width, and
+         its message is a one-line headline ("dots"); the side action button
+         hides. -->
     <prop name="action2_text" type="string" default=""/>
     <prop name="hide_action2" type="string" default="true"/>
+    <prop name="message_long_mode" type="string" default="wrap"/>
   </api>
   <!-- Toast card - floating appearance with shadow. Width comes from the parent
        stack container (sized in C++ based on screen width); height tight to
@@ -42,14 +47,20 @@
             height="content" flex_grow="1" flex_flow="column" style_pad_all="0" style_pad_row="#space_xxs"
             style_pad_column="0" style_pad_left="#space_sm" style_pad_right="#space_sm" style_bg_opa="0"
             style_border_width="0" style_radius="0" scrollable="false" clickable="false" event_bubble="true">
-      <text_body name="toast_message" width="100%" text="$message" long_mode="wrap"/>
+      <text_body name="toast_message" width="100%" text="$message" long_mode="$message_long_mode"/>
       <text_small name="toast_detail"
                   width="100%" text="$detail" long_mode="wrap" style_text_color="#text_muted" hidden="$hide_detail"/>
+      <lv_obj name="toast_actions_below"
+              width="100%" height="content" flex_flow="row" style_flex_main_place="end" style_pad_all="0"
+              style_pad_top="#space_xs" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0"
+              scrollable="false" hidden="$hide_action2">
+        <ui_button name="toast_action2_btn"
+                   width="content" height="#button_height_sm" text="$action2_text" variant="secondary"
+                   style_min_width="72"/>
+        <ui_button name="toast_action_below_btn"
+                   width="content" height="#button_height_sm" text="$action_text" variant="success" style_min_width="72"/>
+      </lv_obj>
     </lv_obj>
-    <!-- The optional second action, before the main one. -->
-    <ui_button name="toast_action2_btn"
-               width="content" height="#button_height_sm" text="$action2_text" variant="secondary" style_min_width="72"
-               hidden="$hide_action2"/>
     <ui_button name="toast_action_btn"
                width="content" height="#button_height_sm" text="$action_text" variant="success" style_min_width="72"
                hidden="$hide_action"/>
