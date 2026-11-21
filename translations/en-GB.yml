@@ -61,8 +61,6 @@ translations:
   Auto Belt Tension: ''
   Both belts: ''
   Cutter Calibration: ''
-  cycle {}: ''
-  'cycle {}, {:.2f} (needs {:.2f})': ''
   Find the filament cutter's position: ''
   Let the printer's tensioners set the belts: ''
   ? The printer homes X and Y if needed, then drives the toolhead into the cutter to find its position. Unload the filament first.
@@ -5466,6 +5464,8 @@ translations:
   color differs: colour differs
   complete: ''
   cores: ''
+  cycle {}: ''
+  cycle {}, {:.2f} (needs {:.2f}): ''
   direct drive: ''
   disable: ''
   disabled: ''

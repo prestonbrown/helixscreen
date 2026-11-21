@@ -1180,8 +1180,6 @@ translations:
   "Every screen and setting explained": "Описание всех экранов и настроек"
   "Getting Started": "Начало работы"
   "Here's a quick look at what changed since your last version.": "Краткий обзор изменений с вашей последней версии."
-  cycle {}: 'цикл {}'
-  'cycle {}, {:.2f} (needs {:.2f})': 'цикл {}, {:.2f} (цель {:.2f})'
   'Klipper has not come up. It may not be running on the printer.': 'Klipper не запустился. Возможно, он не работает на принтере.'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "Основы: мастер настройки, переход между экранами и жесты касания."
@@ -5574,6 +5572,8 @@ translations:
   color differs: 'другой цвет'
   complete: завершено
   cores: ядер
+  cycle {}: цикл {}
+  cycle {}, {:.2f} (needs {:.2f}): цикл {}, {:.2f} (цель {:.2f})
   direct drive: с прямой подачей
   disable: отключить
   disabled: отключено

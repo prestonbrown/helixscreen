@@ -1120,8 +1120,6 @@ translations:
   "Every screen and setting explained": "すべての画面と設定の説明"
   "Getting Started": "はじめに"
   "Here's a quick look at what changed since your last version.": "前回のバージョンからの変更点を簡単に説明します。"
-  cycle {}: 'サイクル {}'
-  'cycle {}, {:.2f} (needs {:.2f})': 'サイクル {}、{:.2f}（目標 {:.2f}）'
   'Klipper has not come up. It may not be running on the printer.': 'Klipper が起動していません。プリンターで実行されていない可能性があります。'
   'Klipper: {}': "Klipper: {}"
   "Learn the basics: the setup wizard, moving around the screens, and touch gestures.": "基本：セットアップウィザード、画面の移動、タッチ操作。"
@@ -5486,6 +5484,8 @@ translations:
   color differs: '色が異なる'
   complete: 完了
   cores: コア
+  cycle {}: サイクル {}
+  cycle {}, {:.2f} (needs {:.2f}): サイクル {}、{:.2f}（目標 {:.2f}）
   direct drive: ダイレクトドライブ
   disable: 無効化
   disabled: 無効
