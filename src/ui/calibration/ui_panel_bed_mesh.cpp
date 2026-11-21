@@ -32,6 +32,7 @@
 #include "bed_mesh_profile_name.h"
 #include "bed_mesh_stats.h"
 #include "bed_plate_context.h"
+#include "calibration_config_results.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
@@ -1121,6 +1122,8 @@ void BedMeshPanel::submit_calibration_name(std::string_view typed) {
 }
 
 void BedMeshPanel::begin_calibration(const std::string& name) {
+    calibration_cancelled_ = false;
+    command_sent_ = false;
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::PROBING));
     lv_subject_set_int(&bed_mesh_probe_progress_, 0);
@@ -1146,6 +1149,9 @@ void BedMeshPanel::begin_calibration(const std::string& name) {
 }
 
 void BedMeshPanel::prepare_and_probe() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1210,6 +1216,9 @@ void BedMeshPanel::prepare_and_probe() {
 }
 
 void BedMeshPanel::start_home_and_probe() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1240,6 +1249,9 @@ void BedMeshPanel::start_home_and_probe() {
 }
 
 void BedMeshPanel::start_calibration_probing() {
+    if (calibration_cancelled_) {
+        return;
+    }
     IMoonrakerAPI* api = api_;
     if (!api) {
         on_calibration_error("API not available");
@@ -1338,6 +1350,10 @@ BedMeshPanel::plan_calibration_into(const std::string& name) const {
 }
 
 void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, int probe_samples) {
+    if (calibration_cancelled_) {
+        return;
+    }
+    command_sent_ = true;
     // Start calibration with progress tracking. All three callbacks fire on the
     // WebSocket thread; bg_cb defers the body to main and re-checks the lifetime
     // generation atomically before invoking.
@@ -1577,6 +1593,9 @@ void BedMeshPanel::execute_save_config() {
 // ============================================================================
 
 void BedMeshPanel::on_probe_progress(int current, int total) {
+    if (calibration_cancelled_) {
+        return;
+    }
     if (total > 0) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 0);
         // Cap at 99% — completion signal handles the final transition.
@@ -1601,6 +1620,9 @@ void BedMeshPanel::on_probe_progress(int current, int total) {
 }
 
 void BedMeshPanel::on_calibration_complete() {
+    if (calibration_cancelled_) {
+        return;
+    }
     cooldown_after_probing();
     // A command reporting success proves nothing was stored where it was asked to
     // store it: judge by what the printer's profiles now hold.
@@ -1608,6 +1630,8 @@ void BedMeshPanel::on_calibration_complete() {
         [this](const helix::bed_mesh::StoredMeshes& after) {
             const auto result =
                 helix::bed_mesh::check_calibration(calibration_plan_, meshes_before_, after);
+            const auto held = after.find(result.from.empty() ? result.to : result.from);
+            calibrated_points_ = held != after.end() ? held->second : json();
             switch (result.outcome) {
             case helix::bed_mesh::CalibrationOutcome::Stored:
                 finish_calibration(result.to);
@@ -1621,16 +1645,17 @@ void BedMeshPanel::on_calibration_complete() {
                 spdlog::error("[BedMeshPanel] Calibration finished, but no stored profile holds a "
                               "new mesh (expected '{}')",
                               calibration_plan_.writes_profile);
-                NOTIFY_ERROR(lv_tr("No new mesh was stored as '{}'"), calibration_plan_.name);
-                hide_all_modals();
+                report_store_failure(fmt::format(
+                    fmt::runtime(lv_tr("No new mesh was stored as '{}'")), calibration_plan_.name));
                 return;
             }
         },
         [this](const std::string& why) {
             spdlog::error("[BedMeshPanel] Could not read the stored meshes after calibrating: {}",
                           why);
-            NOTIFY_ERROR(lv_tr("Could not save the mesh as '{}': {}"), calibration_plan_.name, why);
-            hide_all_modals();
+            report_store_failure(
+                fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")),
+                            calibration_plan_.name, why));
         });
 }
 
@@ -1663,7 +1688,19 @@ void BedMeshPanel::read_stored_meshes(std::function<void(helix::bed_mesh::Stored
 }
 
 void BedMeshPanel::finish_calibration(const std::string& profile) {
+    if (calibration_cancelled_) {
+        return;
+    }
     spdlog::info("[BedMeshPanel] Calibration complete, mesh stored as '{}'", profile);
+    if (in_run_) {
+        // The run saves everything at once; nothing here asks or saves.
+        lv_subject_set_int(&bed_mesh_calibrate_state_,
+                           static_cast<int>(BedMeshCalibrationState::IDLE));
+        if (run_hooks_.stored) {
+            run_hooks_.stored(profile, helix::calibration::mesh_points_range(calibrated_points_));
+        }
+        return;
+    }
     NOTIFY_SUCCESS(lv_tr("Mesh saved as '{}'"), profile);
     hide_all_modals();
     // The profile lives in Klipper's memory until SAVE_CONFIG writes it out.
@@ -1720,10 +1757,34 @@ bool BedMeshPanel::offer_material_mesh() {
 }
 
 void BedMeshPanel::copy_calibrated_mesh(const std::string& from, const std::string& to) {
-    auto fail = [this, to](const std::string& why) {
+    if (calibration_cancelled_) {
+        return;
+    }
+    auto fail = [this, from, to](const std::string& why) {
         spdlog::error("[BedMeshPanel] Could not save the mesh as '{}': {}", to, why);
-        NOTIFY_ERROR(lv_tr("Could not save the mesh as '{}': {}"), to, why);
-        hide_all_modals();
+        const std::string message =
+            fmt::format(fmt::runtime(lv_tr("Could not save the mesh as '{}': {}")), to, why);
+        IMoonrakerAPI* remove_api = api_;
+        if (!in_run_ || !remove_api) {
+            report_store_failure(message);
+            return;
+        }
+        // The mesh is still pending under the profile it was calibrated into,
+        // which a guided run's Save all would write without a label.
+        spdlog::info("[BedMeshPanel] Guided run: removing the pending profile '{}'", from);
+        remove_api->execute_gcode(
+            helix::bed_mesh::profile_command("REMOVE", from),
+            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup",
+                            [this, message]() { report_store_failure(message); }),
+            lifetime_.bg_cb("BedMeshPanel::run_copy_cleanup_error",
+                            [this, message, from](const MoonrakerError& err) {
+                                spdlog::warn("[BedMeshPanel] Could not remove '{}': {}", from,
+                                             err.message);
+                                report_store_failure(message, from);
+                            }),
+            // Klipper's own `!!` line about the removal reaches the console too.
+            /*timeout_ms=*/0, /*silent=*/false, /*on_queued=*/nullptr,
+            /*caller_surfaces_errors=*/false);
     };
     IMoonrakerAPI* api = api_;
     if (!api) {
@@ -1802,6 +1863,9 @@ void BedMeshPanel::save_profile_as(const std::string& name, std::function<void()
 }
 
 void BedMeshPanel::on_calibration_error(const std::string& message) {
+    if (calibration_cancelled_) {
+        return;
+    }
     cooldown_after_probing();
     spdlog::error("[BedMeshPanel] Calibration error: {}", message);
     std::string clean = MoonrakerError::friendly_error_line(message);
@@ -1810,6 +1874,51 @@ void BedMeshPanel::on_calibration_error(const std::string& message) {
     lv_subject_set_string(&bed_mesh_error_message_, error_message_buf_);
     lv_subject_set_int(&bed_mesh_calibrate_state_,
                        static_cast<int>(BedMeshCalibrationState::ERROR));
+    if (in_run_ && run_hooks_.failed) {
+        run_hooks_.failed(clean, {});
+    }
+}
+
+void BedMeshPanel::report_store_failure(const std::string& user_message,
+                                        const std::string& staged_profile) {
+    if (in_run_) {
+        lv_subject_set_int(&bed_mesh_calibrate_state_,
+                           static_cast<int>(BedMeshCalibrationState::IDLE));
+        if (run_hooks_.failed) {
+            run_hooks_.failed(user_message, staged_profile);
+        }
+        return;
+    }
+    NOTIFY_ERROR("{}", user_message);
+    hide_all_modals();
+}
+
+void BedMeshPanel::calibrate_for_run(IMoonrakerAPI* api, RunHooks hooks) {
+    if (api) {
+        set_api(api);
+    }
+    init_subjects();
+    run_hooks_ = std::move(hooks);
+    in_run_ = true;
+    spdlog::info("[BedMeshPanel] Guided run: calibrating into '{}'",
+                 helix::bed_mesh::kDefaultProfile);
+    begin_calibration(helix::bed_mesh::kDefaultProfile);
+}
+
+void BedMeshPanel::end_run(RunEnd how) {
+    in_run_ = false;
+    run_hooks_ = {};
+    if (how == RunEnd::Finished) {
+        return;
+    }
+    calibration_cancelled_ = true;
+    if (how == RunEnd::Stopped) {
+        // The stop turned every heater off; there is nothing left to restore.
+        heat_.forget();
+    } else {
+        cooldown_after_probing();
+    }
+    lv_subject_set_int(&bed_mesh_calibrate_state_, static_cast<int>(BedMeshCalibrationState::IDLE));
 }
 
 void BedMeshPanel::handle_emergency_stop() {

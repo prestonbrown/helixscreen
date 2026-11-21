@@ -3,11 +3,11 @@
 
 #include "ui_wizard_ams_identify.h"
 #include "ui_wizard_appearance.h"
+#include "ui_wizard_calibration.h"
 #include "ui_wizard_connection.h"
 #include "ui_wizard_fan_select.h"
 #include "ui_wizard_filament_sensor_select.h"
 #include "ui_wizard_heater_select.h"
-#include "ui_wizard_input_shaper.h"
 #include "ui_wizard_language_chooser.h"
 #include "ui_wizard_led_select.h"
 #include "ui_wizard_preferences.h"
@@ -46,10 +46,10 @@ std::vector<Step*> steps() {
     v.push_back(get_wizard_ams_identify_step());                // AmsIdentify
     v.push_back(get_wizard_led_select_step());                  // LedSelect
     v.push_back(get_wizard_filament_sensor_select_step());      // FilamentSensor
-    v.push_back(get_wizard_input_shaper_step());                // InputShaper
     v.push_back(helix::wizard::get_wizard_preferences_step());  // Preferences
     v.push_back(get_wizard_summary_step());                     // Summary
     v.push_back(get_wizard_telemetry_step());                   // Telemetry
+    v.push_back(helix::wizard::get_wizard_calibration_step());  // Calibration
     return v;
 }
 

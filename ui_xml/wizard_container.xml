@@ -68,15 +68,27 @@
         </ui_button>
       </lv_obj>
 
-      <!-- FINISH BUTTON - visible ONLY on final step -->
-      <ui_button name="btn_finish" width="#wizard_button_width" height="#button_height" text="Finish">
-        <event_cb trigger="clicked" callback="on_next_clicked"/>
-        <!-- Button is enabled when connection_test_passed == 1 (disabled otherwise) -->
-        <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
-        <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
-        <!-- Hide when NOT on final step -->
+      <!-- FINISH / SKIP FOR NOW - visible ONLY on final step. A last page that offers its own
+           action (Calibration's "Calibrate now") sets wizard_show_skip, so finishing reads as
+           skipping that action. Grouped for the same reason as next_skip_group. -->
+      <lv_obj name="finish_group"
+              width="#wizard_button_width" height="#button_height" style_pad_all="0" style_border_width="0"
+              style_bg_opa="0" scrollable="false">
         <bind_flag_if_not_eq subject="wizard_is_final_step" flag="hidden" ref_value="1"/>
-      </ui_button>
+        <ui_button name="btn_finish" width="100%" height="100%" text="Finish">
+          <event_cb trigger="clicked" callback="on_next_clicked"/>
+          <!-- Button is enabled when connection_test_passed == 1 (disabled otherwise) -->
+          <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
+          <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
+          <bind_flag_if_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
+        </ui_button>
+        <ui_button name="btn_finish_skip" width="100%" height="100%" text="Skip for now" variant="secondary">
+          <event_cb trigger="clicked" callback="on_next_clicked"/>
+          <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
+          <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
+          <bind_flag_if_not_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
+        </ui_button>
+      </lv_obj>
 
     </lv_obj>
   </view>

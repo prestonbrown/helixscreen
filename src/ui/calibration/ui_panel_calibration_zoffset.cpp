@@ -94,6 +94,7 @@ void ZOffsetCalibrationPanel::init_subjects() {
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
                               subjects_);
+    UI_MANAGED_SUBJECT_INT(run_mode_subject_, 0, "zoffset_cal_run_mode", subjects_);
 
     subjects_initialized_ = true;
 
@@ -110,6 +111,8 @@ void ZOffsetCalibrationPanel::init_subjects() {
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_done_clicked(); }},
             {"on_zoffset_retry_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_retry_clicked(); }},
+            {"on_zoffset_continue_clicked",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_continue_clicked(); }},
             {"on_zoffset_z_adjust",
              [](lv_event_t* e) {
                  const char* delta_str = static_cast<const char*>(lv_event_get_user_data(e));
@@ -445,7 +448,8 @@ void ZOffsetCalibrationPanel::end_saving_restart_watch() {
 }
 
 void ZOffsetCalibrationPanel::arm_saving_timeout() {
-    operation_guard_.begin(kSavingTimeoutMs, [this] {
+    // In a run, SAVING waits on ACCEPT alone, which a scan probe answers late.
+    operation_guard_.begin(run_done_ ? IAdvancedAPI::kProbingTimeoutMs : kSavingTimeoutMs, [this] {
         // Fold in the suppression window as a second latch source, in case the
         // klippy observer never saw the dip. Monotonic within this save.
         save_restart_latch_.note_restart_expected(
@@ -501,7 +505,65 @@ static std::string per_head_refusal() {
 }
 
 void ZOffsetCalibrationPanel::start_calibration() {
+    if (run_done_) {
+        // The run's "Before you start" page already had the bed cleared.
+        start_once_bed_clear();
+        return;
+    }
     ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
+}
+
+void ZOffsetCalibrationPanel::open_for_run(
+    IMoonrakerAPI* api,
+    std::function<void(bool accepted, float z, ZOffsetCalibrationStrategy strategy)> on_done) {
+    set_api(api);
+    init_subjects();
+    run_done_ = std::move(on_done);
+    lv_subject_set_int(&run_mode_subject_, 1);
+    spdlog::info("[ZOffsetCal] Opened for a guided run");
+    show(lv_screen_active());
+}
+
+void ZOffsetCalibrationPanel::finish_run(bool accepted) {
+    auto done = std::move(run_done_);
+    run_done_ = nullptr;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&run_mode_subject_, 0);
+    }
+    if (done) {
+        spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
+        // A firmware-managed run applied the offset itself; the others report
+        // the Z position ACCEPT took, which the run reads the staged value for.
+        const auto strategy = run_strategy();
+        done(accepted,
+             strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? cumulative_z_delta_
+                                                                      : final_offset_,
+             strategy);
+    }
+}
+
+void ZOffsetCalibrationPanel::abort_run() {
+    run_done_ = nullptr;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&run_mode_subject_, 0);
+    }
+    if (state_ == State::PROBING || state_ == State::ADJUSTING || state_ == State::WARMING) {
+        spdlog::info("[ZOffsetCal] Guided run stopped: aborting the calibration");
+        send_abort();
+    }
+    if (is_visible()) {
+        helix::nav::go_back();
+    }
+}
+
+void ZOffsetCalibrationPanel::handle_continue_clicked() {
+    finish_run(state_ == State::COMPLETE);
+    helix::nav::go_back();
+}
+
+void ZOffsetCalibrationPanel::on_dismissed() {
+    // Leaving a run's Z offset without accepting it skips the step.
+    finish_run(false);
 }
 
 void ZOffsetCalibrationPanel::start_once_bed_clear() {
@@ -868,14 +930,9 @@ void ZOffsetCalibrationPanel::send_accept() {
         // Calibration is an idle activity; the print gate still holds in case
         // an accept ever fires under a running print, where the subtraction
         // excludes the live transient and is correct.
-        std::string cmd = fmt::format("SET_GCODE_OFFSET Z={:.3f}", cumulative_z_delta_);
-        if (lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) == 0) {
-            std::string clear =
-                helix::zoffset::stale_probe_delta_clear_gcode(get_printer_state().get_discovery());
-            if (!clear.empty()) {
-                cmd = clear + "\n" + cmd;
-            }
-        }
+        const std::string cmd = helix::zoffset::firmware_managed_offset_gcode(
+            cumulative_z_delta_, get_printer_state().get_discovery(),
+            lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0);
         spdlog::info("[ZOffsetCal] Applying gcode_offset: {}", cmd);
 
         auto tok = lifetime_.token();
@@ -894,10 +951,16 @@ void ZOffsetCalibrationPanel::send_accept() {
                     on_calibration_result(false, lv_tr("Failed to set Z-offset"));
                 });
             });
-    } else if (!helix::zoffset::save_enabled()) {
-        // Saving is off for this printer: ACCEPT stages the result for Klipper's
-        // next SAVE_CONFIG and nothing here sends one. The complete state says so.
-        spdlog::info("[ZOffsetCal] Z-offset saving is off - sending ACCEPT without saving");
+    } else if (run_done_ || !helix::zoffset::save_enabled()) {
+        // Saving is off for this printer, or a guided run saves everything at its
+        // end: ACCEPT stages the result for Klipper's next SAVE_CONFIG and nothing
+        // here sends one. The complete state says so.
+        spdlog::info("[ZOffsetCal] Sending ACCEPT without saving ({})",
+                     run_done_ ? "guided run" : "Z-offset saving is off");
+        if (run_done_) {
+            // A run's Continue appears only once ACCEPT has answered.
+            set_state(State::SAVING);
+        }
         auto tok = lifetime_.token();
         api_->execute_gcode(
             "ACCEPT",
@@ -912,7 +975,9 @@ void ZOffsetCalibrationPanel::send_accept() {
                                   false, fmt::format(fmt::runtime(lv_tr("ACCEPT failed: {}")),
                                                      err.localized_message()));
                           });
-            });
+            },
+            // A scan-probe ACCEPT replies only after its post-test sweep.
+            IAdvancedAPI::kProbingTimeoutMs);
     } else {
         // Probe/endstop: ACCEPT then apply+save
         spdlog::info("[ZOffsetCal] Sending ACCEPT");

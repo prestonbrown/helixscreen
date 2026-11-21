@@ -132,6 +132,7 @@ void CalibrationHistory::merge_loaded(IMoonrakerAPI& api, History loaded) {
     loaded_ = true;
     history_ = std::move(loaded);
     spdlog::debug("[CalibrationHistory] Loaded {} step result(s)", history_.size());
+    bump();
     if (pending_.empty()) {
         return;
     }
@@ -147,6 +148,7 @@ void CalibrationHistory::record(IMoonrakerAPI& api, const std::string& step_id,
     HistoryEntry e{iso_date(std::time(nullptr)), summary,
                    values.is_object() ? values : json::object()};
     history_[step_id] = e;
+    bump();
     if (!loaded_) {
         // Writing before a load succeeds would replace the stored history
         // with this one entry.
@@ -168,6 +170,24 @@ void CalibrationHistory::clear() {
     loaded_ = false;
     history_.clear();
     pending_.clear();
+    bump();
+}
+
+lv_subject_t* CalibrationHistory::version_subject() {
+    if (!version_.is_live()) {
+        if (!lv_is_initialized()) {
+            return nullptr;
+        }
+        version_.init_int(0);
+        subjects_.register_subject(&version_);
+    }
+    return &version_;
+}
+
+void CalibrationHistory::bump() {
+    if (version_.is_live()) {
+        lv_subject_set_int(&version_, lv_subject_get_int(&version_) + 1);
+    }
 }
 
 const HistoryEntry* CalibrationHistory::entry(const std::string& step_id) const {

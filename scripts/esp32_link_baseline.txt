@@ -46,7 +46,7 @@ src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_connection.cpp
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_fan_select.cpp  get_wizard_fan_select_step
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_filament_sensor_select.cpp  get_wizard_filament_sensor_select_step
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_heater_select.cpp  get_wizard_heater_select_step
-src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_input_shaper.cpp  get_wizard_input_shaper_step
+src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_calibration.cpp  helix::wizard::get_wizard_calibration_step
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_language_chooser.cpp  get_wizard_language_chooser_step
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_led_select.cpp  get_wizard_led_select_step
 src/ui/wizard/wizard_step_registry.cpp -> src/ui/wizard/ui_wizard_printer_identify.cpp  get_wizard_printer_identify_step

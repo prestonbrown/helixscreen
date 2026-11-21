@@ -226,6 +226,38 @@ void InputShaperCalibrator::run_calibration(char axis, ProgressCallback on_progr
         });
 }
 
+void InputShaperCalibrator::run_both_axes(AxisProgressCallback on_progress,
+                                          BothAxesCallback on_complete, ErrorCallback on_error) {
+    results_ = {};
+    auto progress_for = [on_progress](char axis) {
+        return [on_progress, axis](int percent, ShaperCalibrationPhase phase, float) {
+            if (on_progress) {
+                on_progress(axis, percent, phase);
+            }
+        };
+    };
+    // Each next axis starts on the main thread, and not at all once this
+    // calibrator is gone.
+    auto run_y = lifetime_->bg_cb("InputShaperCalibrator::run_y",
+                                  [this, progress_for, on_complete, on_error]() {
+                                      run_calibration(
+                                          'Y', progress_for('Y'),
+                                          [this, on_complete](const InputShaperResult&) {
+                                              if (on_complete) {
+                                                  on_complete(results_);
+                                              }
+                                          },
+                                          on_error);
+                                  });
+    auto run_x = lifetime_->bg_cb(
+        "InputShaperCalibrator::run_x", [this, progress_for, run_y, on_error]() mutable {
+            run_calibration(
+                'X', progress_for('X'), [run_y](const InputShaperResult&) mutable { run_y(); },
+                on_error);
+        });
+    check_accelerometer([run_x](float) mutable { run_x(); }, on_error);
+}
+
 void InputShaperCalibrator::emergency_abort() {
     state_ = State::IDLE;
     helix::emergency_stop_and_restart(api_, "InputShaperCalibrator");

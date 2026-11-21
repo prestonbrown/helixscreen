@@ -20,7 +20,6 @@
 #include "ui_settings_label_printer.h"
 #include "ui_settings_material_temps.h"
 #include "ui_spoolman_overlay.h"
-#include "ui_wizard_input_shaper.h"
 #include "ui_wizard_language_chooser.h"
 
 #include "../test_fixtures.h"
@@ -42,7 +41,6 @@ namespace helix::ui {
 SpoolmanOverlay& get_spoolman_overlay();
 } // namespace helix::ui
 
-WizardInputShaperStep* get_wizard_input_shaper_step();
 WizardLanguageChooserStep* get_wizard_language_chooser_step();
 
 namespace {
@@ -129,15 +127,6 @@ TEST_CASE_METHOD(XMLTestFixture, "Converted overlays withdraw their subject name
              step->init_subjects();
          },
          {"wizard_welcome_text", "wizard_language_choice"}},
-        {"WizardInputShaper",
-         []() {
-             WizardInputShaperStep* step = get_wizard_input_shaper_step();
-             REQUIRE(step != nullptr);
-             step->init_subjects();
-         },
-         {"wizard_input_shaper_status", "wizard_input_shaper_progress",
-          "wizard_input_shaper_started", "wizard_input_shaper_active",
-          "wizard_input_shaper_indeterminate"}},
         {"AmsDeviceOperations",
          []() { helix::ui::get_ams_device_operations_overlay().init_subjects(); },
          {"ams_device_ops_system_info", "ams_device_ops_supports_bypass",

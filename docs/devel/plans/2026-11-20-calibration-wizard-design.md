@@ -255,6 +255,46 @@ run, or on request.
 7. Firmware routines through `ScriptedStep`: motor calibration, extruder two-stage with
    power cycle, belt-sensor recalibration, probe scan calibration.
 
+## Phase 2 plan (2026-11-21)
+
+Decisions the implementer cannot make alone. Everything else is theirs.
+
+**Steps in a guided run.** Only Z offset, Heaters, Bed mesh and Input shaper, where
+`applicable_steps()` has them and their tier is not `OnRequest`. Belt tension and the
+cutter are firmware routines that save on their own; they join in phase 7 through
+`ScriptedStep`. Every other step stays on the Calibration screen.
+
+**Run order.** Hands-on first: Z offset, then Heaters (nozzle, then bed), Bed mesh, Input
+shaper. A step never sends `SAVE_CONFIG` inside a run.
+
+**Step interface** (`include/calibration_step.h`): as in § Step interface, with
+`StepContext` carrying `IMoonrakerAPI&` and two callbacks, progress and done
+(`StepOutcome`: finished with a `StepResult`, failed with a message, aborted). Each
+step wraps the code that already runs it; no step reimplements a calibration.
+- Heaters: `PID_CALIBRATE` per heater at a material temperature (PLA nozzle 210, bed
+  60; the pick screen may offer the material chips), or `MPC_CALIBRATE` where the heater
+  already runs MPC. No PID to MPC migration in a run (phase 4).
+- Bed mesh: `BED_MESH_CALIBRATE` then the default profile save, as the bed mesh panel
+  does.
+- Input shaper: `SHAPER_CALIBRATE` through the existing calibrator, both axes.
+- Z offset: the existing Z offset panel, opened from the run in a run mode that turns
+  its own Save into "Continue": it accepts (stages) and returns; the run then asks
+  nothing more. Leaving the panel without accepting is a skipped step.
+
+**Results.** "Save all": one `SAVE_CONFIG` through `SaveConfigWatch` (which already picks
+`RESTART=0` on Kalico when everything pending is live), then each finished step's result
+goes into the calibration history. "Discard all": a host `RESTART`, which drops every
+pending change, through the expected-restart contract; nothing goes into the history.
+Stop calibration aborts the current step (`calibration_abort`) and goes to the results
+screen with what finished.
+
+**Setup wizard.** `StepId::InputShaper` becomes `StepId::Calibration`, the last page
+after Telemetry. Setup is marked complete before the run starts. The page offers
+"Calibrate now" (opens the guided run) and "Skip for now".
+
+**Screens** follow the canvas (Pick, Before you start, Running, Results) at 800x480,
+480x272 and 480x800, and the layout rules above.
+
 ## Testing
 
 - Unit: `applicable_steps()` per printer persona (tiers, order, Z offset needs paper or
@@ -279,6 +319,14 @@ run, or on request.
      both firmwares which steps leave pending entries.
    - Any step that restarts Klipper (MPC migration) runs before steps that leave
      pending changes.
+   - **Decided 2026-11-21: a guided run saves all or nothing.** The results screen shows
+     every step's before and after, then "Save all" or "Discard all". Per-step keep and
+     discard can come later.
+   - **Kalico applies only some results live.** Bed mesh profiles, heater PID, input
+     shaper (with an `[input_shaper]` section) and tool offsets are live; probe
+     `z_offset`, `position_endstop` and MPC take effect only after a restart.
+     `save_config::restart_required()` (`src/printer/save_config_live.cpp`) decides, so
+     a run that includes Z offset or MPC still restarts on Kalico.
 2. **Tiers** come from a `calibration` block per printer in `printer_database.json`,
    with capability-based defaults for printers without one.
 3. **Setup placement**: calibration is the very last setup page, after Telemetry.

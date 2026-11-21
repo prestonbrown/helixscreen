@@ -113,6 +113,8 @@ translations:
   1 more tap to {} beta features: 1 tocco per {} funzioni beta
   1 print: '1 stampa'
   1 profile: '1 profilo'
+  1 step never run · about {} min: '1 passaggio mai eseguito · circa {} min'
+  1 step · about {} min: '1 passaggio · circa {} min'
   '1 unit': '1 unità'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Ogni ugello viene riscaldato, pulito e parcheggiato davanti perché tu lo spazzoli
@@ -234,6 +236,7 @@ translations:
   : 'Un sensore che misura la distanza dal piano. HelixScreen lo usa per la calibrazione dello Z Offset e per i test della sonda nella schermata Sonda.'
   A sensor that reads the air temperature inside the enclosure. Watch it on the chamber temperature screen.: 'Un sensore che legge la temperatura dell''aria dentro la camera. Controllala nella schermata della temperatura camera.'
   A setting or pin in the printer's configuration is invalid.: 'Un''impostazione o un pin nella configurazione della stampante non è valido.'
+  A sheet of printer paper: 'Un foglio di carta per stampante'
   A shell on the machine running this screen: 'Una shell sulla macchina che esegue questo schermo'
   A spool may be tangled or the drive gear is jammed: Una bobina potrebbe essere aggrovigliata o l'ingranaggio di trascinamento è bloccato
   A spool's own price in Spoolman is used when it has one. These prices cover every other spool.: "Si usa il prezzo della bobina in Spoolman quando ne ha uno. Questi prezzi valgono per ogni altra bobina."
@@ -286,6 +289,7 @@ translations:
   Aborting AFC operation...: Interruzione operazione AFC...
   Aborting...: Interruzione...
   About: Info
+  About {} min. You are needed for the first {} min.: 'Circa {} min. Servi tu per i primi {} min.'
   Above target: Sopra il target
   Accel to Decel: Accel. a Decel.
   Acceleration to deceleration limit (mm/s²): Limite accelerazione a decelerazione (mm/s²)
@@ -296,6 +300,8 @@ translations:
   Accept: Accetta
   'Accepted Z Position: 0.000': 'Posizione Z accettata: 0.000'
   'Accepted Z Position: {:.3f}': 'Posizione Z accettata: {:.3f}'
+  Accepted at Z {:.3f} mm: 'Accettato a Z {:.3f} mm'
+  Accepting the Z offset...: 'Accettazione dell''offset Z...'
   Accessories: 'Accessori'
   Accuracy: Precisione
   Action Required: Azione richiesta
@@ -338,6 +344,7 @@ translations:
   Adjusts individual characteristics of your heaters for optimal control: Regola le caratteristiche individuali dei riscaldatori per un controllo ottimale
   Advanced: Avanzate
   Advancing: In avanzamento
+  After: 'Dopo'
   After an error: Dopo un errore
   After connecting the {}, we recommend recalibrating input shaping to ensure print quality.: 'Dopo aver collegato {}, consigliamo di ricalibrare l''Input Shaping per garantire la qualità di stampa.'
   After parking, the head does not read as docked.: 'Dopo il parcheggio, la testina non risulta agganciata.'
@@ -357,6 +364,7 @@ translations:
   All fields are required: Tutti i campi sono obbligatori
   All healthy: Tutto a posto
   All lights: Tutte le luci
+  All steps done: 'Tutti i passaggi completati'
   All time: 'Da sempre'
   All toolheads must be docked for this step.: 'Per questo passaggio tutte le testine devono essere agganciate.'
   Allow: 'Consenti'
@@ -393,6 +401,7 @@ translations:
   An update is available: È disponibile un aggiornamento
   Analyzing data...: Analisi dei dati...
   Analyzing data... {}s: Analisi dei dati... {}s
+  Analyzing the {} axis: 'Analisi dell''asse {}'
   Android logcat: Android logcat
   Animated light effects configured on the printer. Turn them on and off from the LED controls.: 'Effetti di luce animati configurati sulla stampante. Attivali e disattivali dai controlli LED.'
   Animations: Animazioni
@@ -541,6 +550,7 @@ translations:
   Bed {}: Piano {}
   Bed {} / {}: Piano {} / {}
   Bed {} °C: "Piano {} °C"
+  Before: 'Prima'
   Before starting: 'Prima di iniziare'
   Below target: Sotto il target
   Belt Tension: Tensione cinghia
@@ -676,6 +686,7 @@ translations:
   Calibrate part fan: Calibra ventola pezzo
   Calibrate this printer, step by step: 'Calibra questa stampante passo dopo passo'
   Calibrate tool offsets?: Calibrare gli offset degli strumenti?
+  Calibrate your printer: 'Calibra la tua stampante'
   Calibrate your touchscreen for accurate input: Calibra il touchscreen per un input preciso
   Calibrated: Calibrato
   Calibrating Probe...: Calibrazione sonda...
@@ -857,6 +868,7 @@ translations:
   Checking plugin: Verifica plugin
   Checking slots...: Controllo slot...
   Checking the PEI sheet is off...: Verifica che il foglio PEI sia stato rimosso...
+  Checking the accelerometer: 'Verifica dell''accelerometro'
   Checking the printer...: "Verifica della stampante..."
   Checking timelapse plugin...: Verifica plugin timelapse...
   Checking webcam: Verifica webcam
@@ -1168,6 +1180,7 @@ translations:
   Could not restore the previous IPv4 settings: 'Impossibile ripristinare le impostazioni IPv4 precedenti'
   Could not restore the previous IPv4 settings yet. Retrying for up to two minutes.: 'Non è ancora stato possibile ripristinare le impostazioni IPv4 precedenti. Nuovi tentativi per un massimo di due minuti.'
   Could not restore the stock screen: 'Impossibile ripristinare lo schermo originale'
+  'Could not restore: {}': 'Impossibile ripristinare: {}'
   Could not save filament: Impossibile salvare il filamento
   Could not save the drying state: Impossibile salvare lo stato dell'essiccazione
 
@@ -1295,6 +1308,7 @@ translations:
   Details: 'Dettagli'
   Detect automatically: 'Rileva automaticamente'
   'Detect filament tangles': 'Rileva grovigli del filamento'
+  Detected: 'Rilevato'
   Detecting plate...: Rilevamento piano...
   Detecting printer type...: Rilevamento tipo stampante...
   Detecting...: Rilevamento in corso...
@@ -1330,6 +1344,7 @@ translations:
   Disarmed: 'Disattivato'
   Discard: Scarta
   Discard Changes?: Scartare le modifiche?
+  Discard all: 'Scarta tutto'
   Disconnected: Disconnesso
   Disconnected Time: Tempo disconnesso
   Disconnects: Disconnessioni
@@ -1351,6 +1366,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "Non eseguire un cold pull su un ugello rivestito. Il cold pull viene eseguito sull'utensile attivo."
   Do not power off your printer.: Non spegnere la stampante.
   Do not touch the filament yet.: "Non toccare ancora il filamento."
+  Do not touch the nozzle or the bed.: 'Non toccare l''ugello né il piano.'
   Do not touch the printer during calibration: Non toccare la stampante durante la calibrazione
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Non spegnere la stampante finché non ha finito. Un''interruzione di corrente durante il flash può impedire l''avvio della stampante.'
   Do not turn the printer off until the update finishes.: 'Non spegnere la stampante finché l''aggiornamento non è terminato.'
@@ -1380,6 +1396,7 @@ translations:
   Draw a ripple at each touch — helps diagnose offsets: Disegna un'onda a ogni tocco — aiuta a diagnosticare gli scostamenti
   Drive Cal: Cal. drive
   Drop shadow strength (0 = disabled): Intensità ombra (0 = disabilitata)
+  Dropped when the printer restarted: 'Perso al riavvio della stampante'
   Dry: Essicca
   Dry Filament: Essicca filamento
 
@@ -1548,6 +1565,7 @@ translations:
   Every object is set to skip, so there is nothing to print: 'Tutti gli oggetti sono da saltare, non c''è niente da stampare'
   Every tool is picked up and parked in turn. The head ends empty. This takes a few minutes.: Ogni strumento viene preso e riposto a turno. Alla fine la testina resta vuota. Richiede alcuni minuti.
   Every tool's offsets are measured again and replace the current ones. Save afterwards to keep the result.: Gli offset di tutti gli strumenti vengono misurati di nuovo e sostituiscono quelli attuali. Salva in seguito per conservare il risultato.
+  Everything's ready: 'Tutto pronto'
   Excellent Accuracy: Precisione eccellente
   'Exception: {}': 'Eccezione: {}'
   Exclude: Escludi
@@ -1722,6 +1740,8 @@ translations:
   'Failed to upload modified G-code: {}': 'Impossibile caricare G-code modificato: {}'
   'Failed to upload the extracted G-code: {}': 'Impossibile caricare il G-code estratto: {}'
   'Failed to upload the rewritten G-code: {}': 'Caricamento del G-code riscritto fallito: {}'
+  'Failed: {}': 'Non riuscito: {}'
+  'Failed: {}. Saves {}': 'Non riuscito: {}. Salva {}'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Linee tenui: compensazione disattivata. Linee brillanti: compensazione attivata.'
   Fair match: "Corrispondenza discreta"
   Fan: Ventola
@@ -1796,6 +1816,7 @@ translations:
   Filament is clear of the toolhead. Pull it out the rest of the way.: Il filamento non è più nella testina. Estrailo del tutto.
   Filament is dragging: Il filamento oppone resistenza
   Filament is in the toolhead, but no lane is loaded.: "C'è filamento nella testina, ma nessuna corsia è caricata."
+  Filament is loaded: 'Il filamento è caricato'
   Filament is loaded at the toolhead. Unload it before enabling bypass.: 'Il filamento è caricato nella testina. Scaricalo prima di attivare il bypass.'
   Filament is loaded at the toolhead. Unload it first, so it does not soften in the extruder while the bed heats.: C'è filamento caricato nella testina. Scaricalo prima, così non si ammorbidisce nell'estrusore mentre il piano si scalda.
 
@@ -1899,6 +1920,7 @@ translations:
   'For a first Z home: claim the tool you put on the head': 'Per il primo homing Z: registra lo strumento messo sulla testina'
   For materials that need a warm enclosure, like ABS or ASA: 'Per materiali che richiedono un''enclosure calda, come ABS o ASA'
   For prices that do not come from Spoolman: "Per i prezzi che non provengono da Spoolman"
+  'For: {}': 'Per: {}'
   Force the MMU fans off or on, or follow Fan Control: "Forza le ventole MMU spente o accese, o segui il controllo ventola"
   Force/weight sensors: 'Sensori di forza/peso'
   Forget: Dimentica
@@ -1959,6 +1981,7 @@ translations:
   Grip the filament: Afferra il filamento
   Groups follow each slot's material and color: "I gruppi seguono materiale e colore di ogni slot"
   Guide the toolhead to the chute's extrude position: Portare la testina alla posizione di estrusione del condotto
+  Guided calibration: 'Calibrazione guidata'
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Calibrazione guidata: sensore all''ugello, scarico e retrazione della taglierina'
   H: H
   HE: HE
@@ -2288,6 +2311,9 @@ translations:
   It has not reported its slots yet. Try again in a moment.: Non ha ancora segnalato i suoi slot. Riprova tra un momento.
   It homes and heats on its own (no start macro found).: Esegue l'homing e scalda da sola (nessuna macro di avvio trovata).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: È inceppato tra il sensore dell'hub e il relativo ingranaggio. Aprire il CFS e liberare l'hub prima di riprovare
+  It is loud. This is normal.: 'È rumoroso. È normale.'
+  It is saved with the other results at the end of the calibration.: 'Viene salvato con gli altri risultati alla fine della calibrazione.'
+  It runs on its own: 'Procede da solo'
   It saves the result and restarts Klipper when it finishes.: 'Al termine salva il risultato e riavvia Klipper.'
   It starts with your {} macro.: Inizia con la tua macro {}.
   It's a new spool: È una nuova bobina
@@ -2948,6 +2974,7 @@ translations:
   Not loaded by its feeder: 'Non caricato dal suo alimentatore'
   Not now: Non ora
   Not turned: 'Non girato'
+  Not run: 'Non eseguito'
   'Not saved: {}. Try again.': "Non salvato: {}. Riprova."
   Not set: Non impostato
   'Not undone: the lane changed since that save.': 'Non annullato: la corsia è cambiata da quel salvataggio.'
@@ -2964,6 +2991,7 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Niente ancora tra i preferiti. Tocca la stella di un filamento per aggiungerlo qui.'
   Nothing to clean up: 'Niente da pulire'
   Nothing to remap: Niente da rimappare
+  Nothing to save.: 'Niente da salvare.'
   Nothing to tune here: "Niente da regolare qui"
   'Nothing to unload: no filament at the nozzle': 'Niente da scaricare: nessun filamento all''ugello'
   Whether the Z arrows follow the bed or the Z value: "Se le frecce Z seguono il piano o il valore Z"
@@ -2974,6 +3002,7 @@ translations:
   'Choose which lane is in the toolhead to unload it': 'Scegli quale corsia è nella testina per scaricarla'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Nulla è stato modificato. Temperatura e materiale restano, riprovare è un tocco.'
   Nothing was saved and the heaters are off.: Non è stato salvato nulla e i riscaldatori sono spenti.
+  Nothing was saved.: 'Non è stato salvato nulla.'
   Notification: Notifica
   Notification History: Cronologia notifiche
   Notifications: Notifiche
@@ -3046,6 +3075,7 @@ translations:
   'On:': 'On:'
   ? Once a day, deletes print copies older than a week and logs older than a month. Your files, photos and timelapse videos are kept.
   : 'Una volta al giorno elimina le copie di stampa più vecchie di una settimana e i log più vecchi di un mese. I tuoi file, le foto e i video timelapse vengono mantenuti.'
+  One save for everything. Klipper may restart.: 'Un unico salvataggio per tutto. Klipper potrebbe riavviarsi.'
   One tap runs this macro. Dangerous macros still ask.: 'Un tocco esegue questa macro. Le macro pericolose chiedono comunque conferma.'
   One-time setup: "Configurazione iniziale"
   'Only on {0}: {1} Hz': "Solo su {0}: {1} Hz"
@@ -3188,6 +3218,7 @@ translations:
   Pick up tool: Preleva utensile
   Pick up which tool?: 'Quale utensile montare?'
   Pick up...: 'Monta...'
+  Pick what to run. The steps that need you come first, then the rest runs on its own.: 'Scegli cosa eseguire. Prima i passaggi che richiedono te, poi il resto procede da solo.'
   Pick-up step cancelled; nothing was sent: 'Passaggio di prelievo annullato; non è stato inviato nulla'
   Picking up or parking the head failed while checking its dock position.: 'Il prelievo o il parcheggio della testina non è riuscito durante la verifica della posizione del dock.'
   Picking up tool: Prelievo utensile
@@ -3443,12 +3474,14 @@ translations:
   Probing point {} of {}: 'Punto di sondaggio {} di {}'
   Probing stopped at {}: 'Sondaggio interrotto su {}'
   'Probing stopped: toolhead state': 'Sondaggio interrotto: stato della testina'
+  Probing the bed: 'Tastatura del piano'
   Probing was asked for before homing.: 'Il sondaggio è stato richiesto prima dell''homing.'
   Probing... ({} points): 'Sondaggio in corso... ({} punti)'
   Problem found: Problema rilevato
   Proceed: Procedi
   # Source: abort_progress_modal.xml:20
   Processing...: 'Elaborazione in corso...'
+  Profile '{}': 'Profilo ''{}'''
   Profile deleted: Profilo eliminato
   Profile name (e.g., default): Nome profilo (es. default)
   Profile names cannot contain ';': "I nomi dei profili non possono contenere ';'"
@@ -3725,6 +3758,7 @@ translations:
   Restart, seat the toolhead again and check that the hotend is fully inserted.: 'Riavvia, riposiziona la testina e verifica che l''hotend sia inserito a fondo.'
   Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide: 'Riavvia la stampante. Se SSH rifiuta ancora la connessione, consulta la guida di installazione dello Snapmaker U1'
   Restarting HelixScreen...: Riavvio HelixScreen...
+  Restarting Klipper to drop the results...: 'Riavvio di Klipper per scartare i risultati...'
   Restarting Klipper...: Riavvio Klipper...
   Restarting Moonraker...: Riavvio Moonraker...
   Restarting printer...: Riavvio stampante...
@@ -3737,6 +3771,7 @@ translations:
   Restore Defaults: Ripristina predefiniti
   Restore Stock Screen: 'Ripristina schermo originale'
   Restore tool: 'Ripristina strumento'
+  Restored to {:.3f} mm: 'Ripristinato a {:.3f} mm'
   Restoring position: Ripristino posizione
   Restoring the print settings: Ripristino delle impostazioni di stampa
   Resume: Riprendi
@@ -3781,6 +3816,7 @@ translations:
   Revert now: 'Ripristina ora'
   Review: Rivedi
   Review detected hardware validation issues: Rivedi problemi di validazione hardware rilevati
+  Review the results, then save them all at once.: 'Controlla i risultati, poi salvali tutti insieme.'
   Review your configuration below, then click Finish to save: Rivedi la configurazione qui sotto, poi tocca Fine per salvare
   Rewinding: Riavvolgimento
   Right: 'Destra'
@@ -3802,11 +3838,13 @@ translations:
   Run a cold pull or replace the nozzle: Eseguire un cold pull o sostituire l'ugello
   Run a macro you choose, in one tap: Esegui una macro scelta con un tocco
   Run brush cleaning sequence: 'Esegui la sequenza di pulizia con spazzola'
+  Run everything again · about {} min: 'Esegui di nuovo tutto · circa {} min'
   Run filament load/unload even when the nozzle is cold (for macros that heat the nozzle themselves): Esegui caricamento/scaricamento filamento anche quando l'ugello è freddo (per macro che riscaldano l'ugello autonomamente)
   Run stopped: 'Esecuzione fermata'
   Run test sequence on all lanes: 'Esegui la sequenza di test su tutte le corsie'
   Run the HelixScreen installer with --update from a terminal on this printer. Scan for the command for your platform.: Esegui l'installer di HelixScreen con --update da un terminale su questa stampante. Scansiona per il comando della tua piattaforma.
   Run the MMU fans by temperature: "Aziona le ventole MMU in base alla temperatura"
+  Run the calibrations this printer needs now, or later from Advanced, Calibration.: 'Esegui ora le calibrazioni di cui questa stampante ha bisogno, o più tardi da Avanzate, Calibrazione.'
   Run the chamber dryer too: Usa anche l'essiccatore della camera
 
   Run when needed: 'Esegui quando serve'
@@ -3856,6 +3894,7 @@ translations:
   Save Z-Offset: Salva Z-Offset
   Save Z-Offset Buttons: 'Pulsanti salva Z-Offset'
   Save Z-Offset?: Salvare Z-Offset?
+  Save all: 'Salva tutto'
   Save as {} mesh?: "Salvare come mesh {}?"
   Save calibration: Salva calibrazione
   Save changes to persist them across restarts?: Salvare le modifiche per mantenerle dopo i riavvii?
@@ -3878,6 +3917,7 @@ translations:
   Saved to {}. It applies whenever this filament becomes active.: Salvato su {}. Viene applicato ogni volta che questo filamento diventa attivo.
   Saved values, and whether to ask before running: 'Valori salvati e se chiedere prima di eseguire'
   Saved. Spoolman is offline, so price, location, lot and notes stay here unsaved.: 'Salvato. Spoolman è offline, quindi prezzo, posizione, lotto e note restano qui non salvati.'
+  Saved. The Calibration screen shows the new results.: 'Salvato. La schermata Calibrazione mostra i nuovi risultati.'
   Saves a camera photo after layer 2 and when each print ends, shown in print history.: 'Salva una foto della telecamera dopo lo strato 2 e alla fine di ogni stampa, visibile nella cronologia stampe.'
   Saves the print position about once a second so a print can resume after a power cut. On an SD card this adds wear.: Salva la posizione di stampa circa una volta al secondo, così una stampa può riprendere dopo un'interruzione di corrente. Su una scheda SD questo aumenta l'usura.
   Saves to Klipper config and restarts firmware.: Salva nella configurazione Klipper e riavvia il firmware.
@@ -3892,6 +3932,7 @@ translations:
   Saving Z-offset...: Salvataggio Z-offset...
   Saving and finishing...: Salvataggio e completamento...
   Saving calibration: Salvataggio calibrazione
+  Saving calibration results...: 'Salvataggio dei risultati della calibrazione...'
   Saving calibration...: Salvataggio calibrazione...
   Saving config... Klipper will restart.: Salvataggio config... Klipper si riavvierà.
   Saving offsets...: Salvataggio offset...
@@ -3958,6 +3999,7 @@ translations:
   Section Detail: Dettaglio sezione
   Security: Sicurezza
   See exactly what data will be sent: Vedi esattamente quali dati verranno inviati
+  See results: 'Vedi risultati'
   See the log: 'Controlla il log'
   See the quick tour of HelixScreen again: Rivedi il tour rapido di HelixScreen
   Select: Seleziona
@@ -4056,6 +4098,7 @@ translations:
   Shadow Intensity: Intensità ombra
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Scuote la testina lungo ciascuna diagonale e sovrappone le due risposte. Cinghie bilanciate hanno il picco insieme.
+  Shaking the {} axis: 'Vibrazione dell''asse {}'
   Share Screen: 'Condividi schermo'
   Share Usage Data: Condividi dati d'uso
   'Share this code in Discord or support:': 'Condividi questo codice su Discord o al supporto:'
@@ -4103,6 +4146,7 @@ translations:
   Size: Dimensione
   Skip: Salta
   Skip Objects...: 'Salta oggetti...'
+  Skip for now: 'Salta per ora'
   Skip the rest of this layer and resume at the next one: Saltare il resto di questo strato e riprendere dal successivo
   Skipped: 'Saltato'
   Sleep While Printing: Sospensione Durante Stampa
@@ -4267,6 +4311,7 @@ translations:
   Step: Passaggio
   Step 1 of 3: Passaggio 1 di 3
   Step {} of {}: Passo {} di {}
+  Step {} of {} · about {} min left: 'Passaggio {} di {} · circa {} min rimanenti'
   Stepper driver {} is overheating: 'Il driver del motore passo-passo {} si sta surriscaldando'
   Stepper driver {} overheated and shut down: 'Il driver del motore passo-passo {} si è surriscaldato e si è spento'
   Still reading the printer's lane record. Try again in a moment.: 'Lettura del registro delle corsie della stampante in corso. Riprova tra un momento.'
@@ -4275,6 +4320,7 @@ translations:
   Stop: Ferma
   Stop Drying: Ferma essiccazione
   Stop Print?: Fermare stampa?
+  Stop calibration?: 'Fermare la calibrazione?'
   Stop drying?: Fermare l'essiccazione?
 
   Stop failed: Arresto fallito
@@ -4290,6 +4336,7 @@ translations:
   Stopped between Spool and Lane: Fermo tra bobina e corsia
   Stopped drying %s: 'Essiccazione interrotta: %s'
   Stopping after the current test line.: 'Arresto dopo la linea di prova corrente.'
+  Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: 'L''arresto ha riavviato la stampante, perdendo i risultati dei passaggi completati. Non si può salvare nulla.'
   Stops all motion. Requires firmware restart.: Ferma tutto il movimento. Richiede riavvio firmware.
   Storage: 'Archiviazione'
   Storage report: 'Rapporto archiviazione'
@@ -4459,7 +4506,9 @@ translations:
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'Il plugin timelapse di Moonraker è installato. Imposta come registra nelle impostazioni del timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: Il foglio PEI è ancora sul piatto. Rimuovilo, poi tocca Avanti.
   The Spoolman spool currently loaded: La bobina Spoolman caricata
+  The Z offset paper test. Stay at the printer.: 'Il test della carta per l''offset Z. Resta vicino alla stampante.'
   The accelerometer did not respond as expected, usually from a loose cable.: 'L''accelerometro non ha risposto come previsto, di solito per un cavo allentato.'
+  The accelerometer is attached: 'L''accelerometro è collegato'
   The active tool has no nozzle heater.: "L'utensile attivo non ha un riscaldatore dell'ugello."
   ? The animated screensaver has been turned off on this device to prevent it from interfering with prints. You can re-enable it in Settings > Display.
   : Il salvaschermo animato è stato disattivato su questo dispositivo per evitare che interferisca con le stampe. Puoi riattivarlo in Impostazioni > Schermo.
@@ -4469,6 +4518,7 @@ translations:
   The bed did not heat at the expected rate.: 'Il piano non si è scaldato alla velocità prevista.'
   The bed has cooled. Take the spools off the plate, then confirm.: Il piano si è raffreddato. Togli le bobine dal piano, poi conferma.
 
+  The bed is clear: 'Il piano è libero'
   The bed is not heating: 'Il piano non si scalda'
   The bed is too far out of level for automatic compensation.: 'Il piano è troppo fuori livello per la compensazione automatica.'
   The bed is too small for settling laps.: 'Il piano è troppo piccolo per i giri di assestamento.'
@@ -4695,6 +4745,7 @@ translations:
   The printer's firmware chooses where to switch on runout: Il firmware della stampante sceglie dove passare a filamento esaurito
   The requested position is outside the printer's bounds: 'La posizione richiesta è fuori dai limiti della stampante'
   The right RFID reader in this CFS unit may need service: Il lettore RFID destro di questa unità CFS potrebbe richiedere assistenza
+  The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Il passaggio in corso si ferma subito e la stampante si riavvia, perdendo anche i risultati dei passaggi completati.'
   The runout sensor indicates no filament is loaded. Start print anyway?: Il sensore di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La posizione salvata viene mantenuta. Riconnetti o riavvia lo schermo per vederti proporre di nuovo la ripresa.
   The screen will lose its connection to the printer for a few seconds.: "Lo schermo perderà la connessione alla stampante per alcuni secondi."
@@ -4716,7 +4767,9 @@ translations:
   ? The toolhead has filament but no AMS slot reports it loaded. The printer may refuse to load a slot until it is cleared. Start anyway?
   : La testina contiene filamento ma nessuno slot AMS lo riporta come caricato. La stampante potrebbe rifiutare il caricamento di uno slot finché non viene svuotata. Avviare comunque?
   The toolhead is not homed, so this would home into the print: 'La testina non ha eseguito l''homing, l''homing finirebbe contro la stampa'
+  The toolhead is unloaded: 'La testina è scarica'
   'The toolhead may still be at the chute. Move it away before printing.': 'La testina potrebbe trovarsi ancora sullo scivolo. Allontanala prima di stampare.'
+  The toolhead moves. Keep hands clear.: 'La testina si muove. Tieni le mani lontane.'
   The toolhead on the carriage is not the one the printer expected.: 'La testina sul carrello non è quella che la stampante si aspettava.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
   : 'La testina si muove avanti e indietro a velocità da 20 a 300 mm/s mentre l''accelerometro misura quanto vibra ogni motore. Richiede circa {0} minuti ed è rumoroso. Le velocità che vibrano di più sono quelle da cui tenere lontane le pareti esterne.'
@@ -4743,6 +4796,7 @@ translations:
   Theme changes apply after restart.: Le modifiche al tema si applicano dopo il riavvio.
   Theme reset to defaults: Tema ripristinato ai valori predefiniti
   'Theme: ': 'Tema: '
+  Then walk away, about {} min: 'Poi puoi allontanarti, circa {} min'
   There is no cycle to stop: 'Nessun ciclo da interrompere'
   There is no filament in this head's feeder.: 'Non c''è filamento nell''alimentatore di questa testina.'
   ? There is not enough free memory to run this test. Klipper's analysis would run out of memory and leave the printer stuck until it is power-cycled.
@@ -5235,6 +5289,7 @@ translations:
   Waiting for the filament system to report its state: In attesa dello stato del sistema filamento
   Waiting for the printer: In attesa della stampante
   Waiting for the printer's status; try again once it is connected: 'In attesa dello stato della stampante; riprova quando è connessa'
+  Waiting for you at the Z offset screen: 'In attesa di te nella schermata dell''offset Z'
   Waiting to read the printer's configuration from Klipper.: "In attesa di leggere la configurazione della stampante da Klipper."
   Wall Speed Shakes This Printer: 'La velocità delle pareti fa vibrare questa stampante'
   Warm: Caldo
@@ -5259,6 +5314,7 @@ translations:
   Went past {} by {:.1f} Hz. Back it off a little.: "Superata {} di {:.1f} Hz. Torna un po' indietro."
   What We Collect: Cosa raccogliamo
   What fills the printer's disk, and cleanup: 'Cosa occupa il disco della stampante, e pulizia'
+  What happens next: 'Cosa succede dopo'
   What happens when a print ends: 'Cosa succede al termine di una stampa'
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Quando uno slicer carica e avvia un file che va oltre la corsa di questa stampante, scalda oltre i suoi limiti o usa uno strumento mancante, mantieni il file ma non avviarlo.'
@@ -5343,6 +5399,8 @@ translations:
   'Yes': Sì
   You can skip this and calibrate later in Settings.: Puoi saltare e calibrare più tardi nelle Impostazioni.
   You have unsaved changes. Discard them?: Hai modifiche non salvate. Scartarle?
+  You, about {} min: 'Tu, circa {} min'
+  'You: about {} min at the start, then it runs on its own': 'Tu: circa {} min all''inizio, poi procede da solo'
   Your completed prints will appear here: Le stampe completate appariranno qui
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'Il file richiede pareti esterne a {0:.0f} mm/s. Nell''ultima Verifica artefatti verticali questa stampante ha vibrato di più a {1:.0f}-{2:.0f} mm/s, il che può lasciare sottili linee verticali sulle pareti lungo X o Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
@@ -5352,6 +5410,7 @@ translations:
   Your printer has an automatic filament changer: La stampante ha un cambio filamento automatico
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: La stampante era offline durante la configurazione, quindi le opzioni hardware sono state saltate. Configurarle ora?
   Your printer's manual has the parts and lubricant for your model.: "Il manuale della stampante indica ricambi e lubrificante per il tuo modello."
+  Your usual build plate is on: 'Il tuo piatto di stampa abituale è montato'
   Your {0} is set up for {1}, but it looks stock.: 'La tua {0} è configurata per {1}, ma sembra di serie.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'La tua {0} sembra avere {1}, ma è configurata per {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'La tua {0} sembra avere {1}, ma è configurata di serie.'
@@ -5406,16 +5465,20 @@ translations:
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] non ha probe_points, quindi la testina non ha un''altezza sicura per i giri di assestamento.'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] trovato {} volte nei file di configurazione caricati da printer.cfg, previsto una volta"
   a newer version: 'una versione più recente'
+  a temporary mesh profile '{}': 'un profilo mesh temporaneo ''{}'''
+  about {} min: 'circa {} min'
   already loaded: 'già caricato'
   assign without adding to Spoolman: assegna senza aggiungere a Spoolman
   attempt {}: 'tentativo {}'
   auto: auto
+  automatic: 'automatico'
   bed: piano
   buffer|Neutral: Centrato
   busy: 'occupato'
   by: 'di'
   by Preston Brown: di Preston Brown
   chamber heater: riscaldatore camera
+  checking: 'verifica'
   'close: {}': 'simile: {}'
   color differs: 'colore diverso'
   complete: completato
@@ -5448,6 +5511,7 @@ translations:
   feeder not in automatic mode: 'alimentatore non in modalità automatica'
   filament sensor disabled: 'sensore filamento disattivato'
   heated bed: piano riscaldato
+  heats: 'riscalda'
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignorato: di proprietà dell''uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignorato: catena di collegamenti simbolici non affidabile'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignorato: scrivibile da altri utenti'
@@ -5464,6 +5528,7 @@ translations:
   left: rimanente
   loaded: 'caricato'
   locked: 'bloccato'
+  loud: 'rumoroso'
   matched: bilanciate
   material differs: 'materiale diverso'
   mm: mm
@@ -5471,6 +5536,7 @@ translations:
   mm before clog: mm prima dell'intasamento
   needs: richiede
   needs approval: richiede approvazione
+  needs you: 'richiede te'
   never sleeps: non va mai in sospensione
   not detected: non rilevato
   not loaded: 'non caricato'
@@ -5486,6 +5552,7 @@ translations:
   on unit {}: 'sull''unità {}'
   or type a macro name: oppure digita un nome di macro
   over memory budget: oltre il budget di memoria
+  paper test: 'test della carta'
   passive: passivo
   preparing: preparazione
   printer default: predefinito stampante
@@ -5544,6 +5611,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulazione {0}x a {1:.0f} mm/s: {2:.0f} prima, {3:.0f} dopo ({4}% in più)'
   '{:.0f} g left': restano {:.0f} g
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · circa {} min'
+  '{:.2f} mm range': '{:.2f} mm di escursione'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} estrusori'
   '{} Hardware Issues': '{} problemi hardware'
@@ -5613,6 +5681,7 @@ translations:
   '{} is not heating': '{} non si scalda'
   '{} is not set up on this printer': '{} non è configurato su questa stampante'
   '{} left': '{} rimanenti'
+  '{} left to check': 'ancora {} da controllare'
   '{} lines in helixscreen.env were ignored': '{} righe di helixscreen.env sono state ignorate'
   '{} kept crashing the panel; switched back to {}': '{} ha bloccato ripetutamente lo schermo; tornato a {}'
   '{} is tighter': "{} è più tesa"
@@ -5638,6 +5707,7 @@ translations:
   '{} new hardware available': '{} nuovo hardware disponibile'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nuovi plugin disponibili. Abilitali in Impostazioni > Plugin.'
   '{} nozzle sensor fault': '{} guasto del sensore dell''ugello'
+  '{} of {} steps finished. Review them, then save them all at once.': '{} passaggi su {} completati. Controllali, poi salvali tutti insieme.'
   '{} packages to update': '{} pacchetti da aggiornare'
   '{} preset': '{} preset'
   '{} presets': '{} preset'
@@ -5652,6 +5722,8 @@ translations:
   '{} slots': '{} slot'
   '{} spool cleared': '{}: bobina rimossa'
   '{} started': '{} avviato'
+  '{} steps never run · about {} min': '{} passaggi mai eseguiti · circa {} min'
+  '{} steps · about {} min': '{} passaggi · circa {} min'
   '{} target set to {}°C': Obiettivo {} impostato a {}°C
   '{} temperature reading failed': '{} lettura temperatura non riuscita'
   '{} turn': "{} giro"
@@ -5668,6 +5740,7 @@ translations:
   "{}'s nozzle is still heating": 'L''ugello di {} si sta ancora riscaldando'
   '{}, {}': '{}, {}'
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: il tag indica la bobina Spoolman #{}, che non esiste'
+  '{}: {} at {}°C': '{}: {} a {}°C'
   '{}:{:02} elapsed': '{}:{:02} trascorso'
   '{}% left': '{}% rimanente'
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} è montato. Con una sonda condivisa, calibra con {1}. Continuare con {0}?'

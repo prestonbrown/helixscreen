@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_calibration_hub_overlay.h"
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_callback_helpers.h"
 
 #include "app_globals.h"
 #include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
+#include "calibration_run.h"
+#include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "locale_formats.h"
@@ -45,6 +48,16 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
     return {lv_tr("Run when needed"), TileTone::Idle};
 }
 
+std::string guided_banner_text(int never_run, int minutes) {
+    if (never_run == 1) {
+        return fmt::format(lv_tr("1 step never run · about {} min"), minutes);
+    }
+    if (never_run > 1) {
+        return fmt::format(lv_tr("{} steps never run · about {} min"), never_run, minutes);
+    }
+    return fmt::format(lv_tr("Run everything again · about {} min"), minutes);
+}
+
 CalibrationHubOverlay& get_calibration_hub_overlay() {
     return helix::lazy_global<CalibrationHubOverlay>("CalibrationHubOverlay");
 }
@@ -60,10 +73,19 @@ void CalibrationHubOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(status_[i], status_bufs_[i], "", names_[i * 3 + 2].c_str(),
                                   subjects_);
     }
+    UI_MANAGED_SUBJECT_INT(banner_shown_, 0, "cal_run_banner_shown", subjects_);
+    UI_MANAGED_SUBJECT_STRING(banner_text_, banner_text_buf_, "", "cal_run_banner_text", subjects_);
     // Runs from StaticSubjectRegistry::deinit_all(), which may come after
     // StaticPanelRegistry has destroyed the overlay.
+    // The history loads asynchronously and a guided run records into it, both
+    // possibly while this screen is open.
+    auto& history = calibration::CalibrationHistory::instance();
+    history_obs_ = observe<int>(
+        history.version_subject(), this, [](CalibrationHubOverlay* self, int) { self->refresh(); },
+        history.version_lifetime());
     StaticSubjectRegistry::instance().register_deinit("CalibrationHubOverlay", []() {
         if (auto* self = helix::lazy_global_if_exists<CalibrationHubOverlay>()) {
+            self->history_obs_.reset();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;
         }
@@ -102,6 +124,21 @@ void CalibrationHubOverlay::refresh() {
         lv_subject_set_int(&tone_[i], static_cast<int>(status.tone));
         lv_subject_set_string(&status_[i], status.text.c_str());
     }
+    std::vector<calibration::StepInfo> picked;
+    int never_run = 0;
+    for (const auto& s : calibration::guided_run_steps(steps)) {
+        if (calibration::picked_by_default(s)) {
+            picked.push_back(s);
+            never_run += history.entry(s.id) ? 0 : 1;
+        }
+    }
+#if defined(HELIX_PLATFORM_ESP32)
+    // The guided run is not in the firmware: its steps drive excluded panels.
+    picked.clear();
+#endif
+    lv_subject_set_int(&banner_shown_, picked.empty() ? 0 : 1);
+    lv_subject_set_string(
+        &banner_text_, guided_banner_text(never_run, calibration::total_minutes(picked)).c_str());
     spdlog::debug("[{}] {} calibration step(s)", get_name(), steps.size());
 }
 
@@ -109,6 +146,13 @@ void init_calibration_hub_row_handler() {
     register_xml_callbacks({
         {"on_calibration_hub_clicked",
          [](lv_event_t*) { get_calibration_hub_overlay().show(lv_screen_active()); }},
+        // The firmware hides the banner: the guided run is not in its build.
+        {"on_guided_calibration_clicked",
+         [](lv_event_t*) {
+#if !defined(HELIX_PLATFORM_ESP32)
+             get_calibration_run_overlay().open();
+#endif
+         }},
     });
 }
 

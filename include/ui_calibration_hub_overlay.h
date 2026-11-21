@@ -5,6 +5,7 @@
 // what each last measured and when. Each tile opens the step's own screen.
 
 #include "calibration_catalog.h"
+#include "core/observer_guard.h"
 #include "core/subject.h"
 #include "overlay_base.h"
 #include "subject_managed_panel.h"
@@ -43,7 +44,8 @@ class CalibrationHubOverlay : public OverlayBase {
         return true;
     }
 
-    /// Per step id: cal_shown_<id>, cal_tone_<id>, cal_status_<id>.
+    /// Per step id: cal_shown_<id>, cal_tone_<id>, cal_status_<id>; and the
+    /// guided calibration banner's cal_run_banner_shown, cal_run_banner_text.
     void init_subjects() override;
 
     /// Back from a step's screen: its result may have just landed.
@@ -63,7 +65,16 @@ class CalibrationHubOverlay : public OverlayBase {
     std::array<helix::Subject, calibration::kStepCount> tone_{};
     std::array<helix::Subject, calibration::kStepCount> status_{};
     char status_bufs_[calibration::kStepCount][kStatusLen]{};
+    /// Refreshes the tiles when the history changes under an open screen.
+    ObserverGuard history_obs_;
+    helix::Subject banner_shown_{};
+    helix::Subject banner_text_{};
+    char banner_text_buf_[kStatusLen]{};
 };
+
+/// The guided calibration banner's line: how many of the steps a run would
+/// tick never ran, and how long the run takes. @p never_run counts those.
+[[nodiscard]] std::string guided_banner_text(int never_run, int minutes);
 
 CalibrationHubOverlay& get_calibration_hub_overlay();
 

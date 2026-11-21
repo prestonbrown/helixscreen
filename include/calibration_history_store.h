@@ -6,6 +6,9 @@
 // later steps can estimate from it.
 
 #include "async_lifetime_guard.h"
+#include "core/observer_guard.h"
+#include "core/subject.h"
+#include "subject_managed_panel.h"
 
 #include <ctime>
 #include <map>
@@ -70,7 +73,17 @@ class CalibrationHistory {
         return history_;
     }
 
+    /// Changes whenever entries() does: a load answered, a result recorded, a
+    /// clear. Screens showing the history observe it. Created on first call;
+    /// nullptr without LVGL.
+    lv_subject_t* version_subject();
+    /// The token an observer of version_subject() carries.
+    [[nodiscard]] SubjectLifetime version_lifetime() const {
+        return subjects_.get_subjects_lifetime();
+    }
+
   private:
+    void bump();
     void save(IMoonrakerAPI& api);
     void merge_loaded(IMoonrakerAPI& api, History loaded);
 
@@ -80,6 +93,8 @@ class CalibrationHistory {
     /// A load() has answered with the stored history, or that there is none.
     bool loaded_ = false;
     uint64_t generation_ = 0;
+    helix::Subject version_;
+    SubjectManager subjects_;
     helix::AsyncLifetimeGuard lifetime_;
 };
 

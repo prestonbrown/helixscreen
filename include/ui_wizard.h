@@ -161,6 +161,22 @@ std::vector<helix::wizard::StepId> ui_wizard_deferred_hardware_steps();
  */
 void ui_wizard_complete();
 
+namespace helix::wizard {
+
+/**
+ * ui_wizard_complete(), then @p then once the main UI is on Home. The first-run
+ * tour is held (FirstRunTour::hold_auto_start()) until what @p then opens calls
+ * FirstRunTour::release_auto_start(). The setup wizard's Calibration page opens
+ * the guided run this way, so setup is complete before the run starts.
+ */
+void complete_then(std::function<void()> then);
+
+/// On the last page, the footer's Finish reads "Skip for now" while @p skips:
+/// for a last page whose own action finishing would skip.
+void set_finish_skips(bool skips);
+
+} // namespace helix::wizard
+
 /**
  * Create a targeted (subset) wizard session
  *

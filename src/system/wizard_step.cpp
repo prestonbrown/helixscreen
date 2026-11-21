@@ -29,14 +29,14 @@ const char* to_string(StepId id) {
         return "LedSelect";
     case StepId::FilamentSensor:
         return "FilamentSensor";
-    case StepId::InputShaper:
-        return "InputShaper";
     case StepId::Preferences:
         return "Preferences";
     case StepId::Summary:
         return "Summary";
     case StepId::Telemetry:
         return "Telemetry";
+    case StepId::Calibration:
+        return "Calibration";
     }
     return "Unknown";
 }

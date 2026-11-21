@@ -4085,6 +4085,19 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
         tool_offsets_ = tool_offsets_saved_;
     }
 
+    // What the running Klipper staged for SAVE_CONFIG lives only in it: a
+    // restart drops everything no SAVE_CONFIG wrote.
+    bool dropped = false;
+    {
+        std::lock_guard<std::mutex> lock(pending_config_mutex_);
+        dropped = !pending_config_items_.empty() || !pending_removed_sections_.empty();
+        pending_config_items_.clear();
+        pending_removed_sections_.clear();
+    }
+    if (dropped) {
+        dispatch_configfile_update();
+    }
+
     // Dispatch klippy state change notification
     json status = {{"webhooks",
                     {{"state", "startup"},

@@ -1030,4 +1030,16 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
     on_saved();
 }
 
+std::string firmware_managed_offset_gcode(double z_mm, const PrinterDiscovery& hw,
+                                          bool print_active) {
+    std::string cmd = fmt::format("SET_GCODE_OFFSET Z={:.3f}", z_mm);
+    if (!print_active) {
+        const std::string clear = stale_probe_delta_clear_gcode(hw);
+        if (!clear.empty()) {
+            cmd = clear + "\n" + cmd;
+        }
+    }
+    return cmd;
+}
+
 } // namespace helix::zoffset

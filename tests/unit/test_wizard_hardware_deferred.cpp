@@ -340,14 +340,13 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
                  "[wizard][hardware][deferred][steps]") {
     auto steps = helix::wizard_deferred_hardware_steps(all_visible());
 
-    REQUIRE(steps.size() == 7);
+    REQUIRE(steps.size() == 6);
     CHECK(steps[0] == StepId::PrinterIdentify);
     CHECK(steps[1] == StepId::HeaterSelect);
     CHECK(steps[2] == StepId::FanSelect);
     CHECK(steps[3] == StepId::AmsIdentify);
     CHECK(steps[4] == StepId::LedSelect);
     CHECK(steps[5] == StepId::FilamentSensor);
-    CHECK(steps[6] == StepId::InputShaper);
 }
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
@@ -363,12 +362,11 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
 
     auto steps = helix::wizard_deferred_hardware_steps(v);
 
-    CHECK(steps.size() == 4);
+    CHECK(steps.size() == 3);
     CHECK_FALSE(contains(steps, StepId::AmsIdentify));
     CHECK_FALSE(contains(steps, StepId::LedSelect));
     CHECK_FALSE(contains(steps, StepId::FilamentSensor));
     CHECK(contains(steps, StepId::PrinterIdentify));
-    CHECK(contains(steps, StepId::InputShaper));
 }
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
@@ -384,6 +382,7 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     CHECK_FALSE(contains(steps, StepId::Connection));
     CHECK_FALSE(contains(steps, StepId::Summary));
     CHECK_FALSE(contains(steps, StepId::Telemetry));
+    CHECK_FALSE(contains(steps, StepId::Calibration));
 }
 
 TEST_CASE_METHOD(DeferredHardwareFixture,
@@ -392,9 +391,8 @@ TEST_CASE_METHOD(DeferredHardwareFixture,
     // ctx.preset.skip_hardware marks all of these skipped. The caller settles
     // the debt silently rather than showing a dialog that leads nowhere.
     auto v = all_visible();
-    for (StepId id :
-         {StepId::PrinterIdentify, StepId::HeaterSelect, StepId::FanSelect, StepId::AmsIdentify,
-          StepId::LedSelect, StepId::FilamentSensor, StepId::InputShaper}) {
+    for (StepId id : {StepId::PrinterIdentify, StepId::HeaterSelect, StepId::FanSelect,
+                      StepId::AmsIdentify, StepId::LedSelect, StepId::FilamentSensor}) {
         skip(v, id);
     }
 

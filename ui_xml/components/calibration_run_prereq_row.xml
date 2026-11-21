@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One prerequisite on the guided run's "Before you start" page: a tick the owner gives,
+     what it is and the picked steps it is for. CalibrationRunOverlay publishes, per
+     prerequisite id:
+       cal_prereq_shown_<prereq>     1 when a picked step needs it
+       cal_prereq_checked_<prereq>   1 when ticked
+       cal_prereq_detected_<prereq>  1 when the printer measured it, so it is ticked already
+       cal_prereq_for_<prereq>       "For: Z offset, bed mesh" -->
+<component>
+  <api>
+    <prop name="prereq" type="string" default=""/>
+    <prop name="label" type="string" default=""/>
+  </api>
+  <view extends="lv_button"
+        width="100%" height="content" style_min_height="#touch_target_min" style_bg_color="#card_bg" style_bg_opa="100%"
+        style_border_width="0" style_shadow_width="0" style_radius="#border_radius" style_pad_left="#space_md"
+        style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_gap="#space_md"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
+    <bind_flag_if_eq subject="cal_prereq_shown_${prereq}" flag="hidden" ref_value="0"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <lv_checkbox name="prereq_check" text="" style_pad_all="0" clickable="false" event_bubble="true">
+      <bind_state_if_eq subject="cal_prereq_checked_${prereq}" state="checked" ref_value="1"/>
+    </lv_checkbox>
+    <lv_obj width="0"
+            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+            scrollable="false" clickable="false" event_bubble="true">
+      <text_body name="prereq_name" width="100%" text="$label" long_mode="wrap" clickable="false" event_bubble="true"/>
+      <text_small name="prereq_for"
+                  width="100%" bind_text="cal_prereq_for_${prereq}" long_mode="wrap" style_text_color="#text_muted"
+                  clickable="false" event_bubble="true"/>
+    </lv_obj>
+    <text_small name="prereq_detected" text="Detected" style_text_color="#success" clickable="false" event_bubble="true">
+      <bind_flag_if_eq subject="cal_prereq_detected_${prereq}" flag="hidden" ref_value="0"/>
+    </text_small>
+    <event_cb trigger="clicked" callback="on_cal_run_prereq_toggle" user_data="$prereq"/>
+  </view>
+</component>

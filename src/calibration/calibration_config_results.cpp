@@ -3,9 +3,11 @@
 
 #include "core/text_io.h"
 #include "hardware_object_table.h"
+#include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 
+#include <algorithm>
 #include <string_view>
 
 #include "hv/json.hpp"
@@ -85,7 +87,7 @@ void z_offset(const json& settings, ConfigResults& out) {
             value = number_in(&body, "z_offset");
         }
         if (value && value->get<double>() != 0.0) {
-            out["z_offset"] = fmt::format("{:.3f} mm", value->get<double>());
+            out["z_offset"] = format_z_offset(value->get<double>());
             return;
         }
     }
@@ -145,17 +147,118 @@ void input_shaper(const json& settings, ConfigResults& out) {
                 break;
             }
         }
-        return fmt::format("{} {:.1f}", text_io::to_upper(type), freq->get<double>());
+        return format_shaper_axis(type, freq->get<double>());
     };
-    const std::string x = axis('x');
-    const std::string y = axis('y');
-    if (x.empty() && y.empty()) {
-        return;
+    const std::string joined = join_shaper_axes(axis('x'), axis('y'));
+    if (!joined.empty()) {
+        out["input_shaper"] = joined;
     }
-    out["input_shaper"] = (x.empty() ? y : y.empty() ? x : fmt::format("{} · {}", x, y)) + " Hz";
+}
+
+/// Three significant figures, without an exponent for large values.
+std::string sig3(double v) {
+    const double a = v < 0 ? -v : v;
+    if (a >= 100.0) {
+        return fmt::format("{:.0f}", v);
+    }
+    if (a >= 10.0) {
+        return fmt::format("{:.1f}", v);
+    }
+    return fmt::format("{:.2f}", v);
+}
+
+/// A pending value: Klipper stages each as the text it will write.
+std::optional<double> pending_number(const json& section, const char* option) {
+    if (!section.is_object()) {
+        return std::nullopt;
+    }
+    const auto it = section.find(option);
+    if (it == section.end()) {
+        return std::nullopt;
+    }
+    if (it->is_number()) {
+        return it->get<double>();
+    }
+    return it->is_string() ? text_io::parse_double(it->get<std::string>()) : std::nullopt;
 }
 
 } // namespace
+
+std::string format_z_offset(double mm) {
+    return fmt::format("{:.3f} mm", mm);
+}
+
+std::string format_shaper_axis(std::string_view type, double freq_hz) {
+    return fmt::format("{} {:.1f}", text_io::to_upper(type), freq_hz);
+}
+
+std::string join_shaper_axes(const std::string& x, const std::string& y) {
+    if (x.empty() && y.empty()) {
+        return {};
+    }
+    return (x.empty() ? y : y.empty() ? x : fmt::format("{} · {}", x, y)) + " Hz";
+}
+
+std::string format_pid(double kp, double ki, double kd) {
+    return fmt::format("{} / {} / {}", sig3(kp), sig3(ki), sig3(kd));
+}
+
+std::string format_mpc(double block_heat_capacity) {
+    return fmt::format("MPC {:.1f} J/K", block_heat_capacity);
+}
+
+std::string format_mesh_range(double range_mm) {
+    return fmt::format(fmt::runtime(lv_tr("{:.2f} mm range")), range_mm);
+}
+
+std::optional<double> mesh_points_range(const json& points) {
+    std::optional<double> lo;
+    std::optional<double> hi;
+    if (!points.is_array()) {
+        return std::nullopt;
+    }
+    for (const auto& row : points) {
+        if (!row.is_array()) {
+            continue;
+        }
+        for (const auto& z : row) {
+            if (!z.is_number()) {
+                continue;
+            }
+            const double v = z.get<double>();
+            lo = lo ? std::min(*lo, v) : v;
+            hi = hi ? std::max(*hi, v) : v;
+        }
+    }
+    if (!lo) {
+        return std::nullopt;
+    }
+    return *hi - *lo;
+}
+
+std::optional<double> staged_z_offset(const json& pending_items) {
+    if (!pending_items.is_object()) {
+        return std::nullopt;
+    }
+    static const json kNameOnly = json::object();
+    for (const auto& [name, body] : pending_items.items()) {
+        const bool probe = hw::classify_section(name, kNameOnly).kind == hw::ObjectKind::Probe;
+        bool model = false;
+        for (const auto& row : kModelOffsetRows) {
+            model = model || name.rfind(std::string(row.model_prefix), 0) == 0;
+        }
+        if (probe || model) {
+            for (const char* option : {"z_offset", "model_offset"}) {
+                if (const auto v = pending_number(body, option)) {
+                    return v;
+                }
+            }
+        }
+    }
+    const auto stepper = pending_items.find("stepper_z");
+    return stepper != pending_items.end() ? pending_number(*stepper, "position_endstop")
+                                          : std::nullopt;
+}
 
 ConfigResults results_in_config(const json& settings) {
     ConfigResults out;

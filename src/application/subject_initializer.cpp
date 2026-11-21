@@ -6,6 +6,7 @@
 #include "ui_bed_drying_modal.h"
 #include "ui_belt_cutter_cal.h"
 #include "ui_calibration_hub_overlay.h"
+#include "ui_calibration_run_overlay.h"
 #include "ui_chamber_air_notices.h"
 #include "ui_component_keypad.h"
 #include "ui_emergency_stop.h"
@@ -352,6 +353,10 @@ void SubjectInitializer::init_panel_subjects(helix::IMoonrakerAPI* api) {
     helix::ui::init_belt_cutter_cal_row_handlers();
     helix::ui::init_motor_ripple_row_handler();
     helix::ui::init_calibration_hub_row_handler();
+#if !defined(HELIX_PLATFORM_ESP32)
+    // The guided run drives the calibration panels, none in the ESP32 cut.
+    helix::ui::init_calibration_run_handlers();
+#endif
     init_zoffset_event_callbacks();
     init_probe_row_handler();
     helix::ui::init_chamber_air_notices();

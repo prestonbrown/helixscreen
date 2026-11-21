@@ -39,8 +39,8 @@ APP_FIELDS = ("recipe", "steps", "env", "size", "crop", "margin", "markers", "wi
 WIZARD_STEPS = (
     "touch_calibration", "language", "appearance", "screen_power", "wifi", "connection", "printer_identify",
     "heater_select",
-    "fan_select", "ams_identify", "led_select", "filament_sensor", "input_shaper", "preferences",
-    "summary", "telemetry",
+    "fan_select", "ams_identify", "led_select", "filament_sensor", "preferences",
+    "summary", "telemetry", "calibration",
 )
 DEFAULT_SIZE = (800, 480)
 DEFAULT_MARGIN = 12

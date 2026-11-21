@@ -488,3 +488,28 @@ TEST_CASE("FirstRunTour: the Filament step target exists in both layouts", "[tou
     REQUIRE(first != std::string::npos);
     CHECK(xml.find(tag, first + 1) != std::string::npos);
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "FirstRunTour: Calibrate now gets the screen and the tour waits for it",
+                 "[tour][wizard][calibration_run]") {
+    reset_tour_settings();
+    Config::get_instance()->set<bool>("/wizard_completed", false);
+    auto& tour = FirstRunTour::instance();
+    REQUIRE_FALSE(tour.is_running());
+
+    bool opened = false;
+    helix::wizard::complete_then([&opened]() { opened = true; });
+    // Every trigger the completion fires: the Home navigation, and a printer
+    // that becomes ready meanwhile.
+    tour.on_printer_ready();
+    process_lvgl(200);
+    CHECK(opened);
+    CHECK_FALSE(tour.is_running());
+    CHECK_FALSE(FirstRunTour::should_auto_start());
+
+    // The run closes: the tour is offered again.
+    tour.release_auto_start();
+    process_lvgl(50);
+    CHECK(tour.is_running());
+    tour.skip();
+}

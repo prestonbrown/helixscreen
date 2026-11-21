@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One step on the guided run's Pick page: a tick, its name, what it needs and what it last
+     measured. CalibrationRunOverlay publishes, per step id:
+       cal_run_shown_<step>   1 when the run offers the step
+       cal_run_picked_<step>  1 when it is ticked
+       cal_run_locked_<step>  1 when the printer requires it, so it stays ticked
+       cal_run_meta_<step>    "5 min · needs you · paper test"
+       cal_run_last_<step>    what it last measured, or that it never ran -->
+<component>
+  <api>
+    <prop name="step" type="string" default=""/>
+    <prop name="label" type="string" default=""/>
+  </api>
+  <view extends="lv_button"
+        width="100%" height="content" style_min_height="#touch_target_min" style_bg_color="#card_bg" style_bg_opa="100%"
+        style_border_width="0" style_shadow_width="0" style_radius="#border_radius" style_pad_left="#space_md"
+        style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_gap="#space_md"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
+    <bind_flag_if_eq subject="cal_run_shown_${step}" flag="hidden" ref_value="0"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <lv_checkbox name="pick_check" text="" style_pad_all="0" clickable="false" event_bubble="true">
+      <bind_state_if_eq subject="cal_run_picked_${step}" state="checked" ref_value="1"/>
+      <bind_state_if_eq subject="cal_run_locked_${step}" state="disabled" ref_value="1"/>
+    </lv_checkbox>
+    <lv_obj width="0"
+            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+            scrollable="false" clickable="false" event_bubble="true">
+      <text_body name="pick_name" width="100%" text="$label" long_mode="dots" clickable="false" event_bubble="true"/>
+      <text_small name="pick_meta"
+                  width="100%" bind_text="cal_run_meta_${step}" long_mode="dots" style_text_color="#text_muted"
+                  clickable="false" event_bubble="true"/>
+    </lv_obj>
+    <text_small name="pick_last"
+                width="35%" bind_text="cal_run_last_${step}" long_mode="dots" style_text_align="right"
+                style_text_color="#text_muted" clickable="false" event_bubble="true">
+      <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+    </text_small>
+    <icon name="pick_lock" src="lock" size="xs" variant="secondary" clickable="false" event_bubble="true">
+      <bind_flag_if_eq subject="cal_run_locked_${step}" flag="hidden" ref_value="0"/>
+    </icon>
+    <event_cb trigger="clicked" callback="on_cal_run_pick_toggle" user_data="$step"/>
+  </view>
+</component>

@@ -23,6 +23,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -105,6 +106,31 @@ class BedMeshPanel : public OverlayBase {
 
     /** @brief Force redraw of bed mesh visualization */
     void redraw();
+
+    /// Where a guided calibration run hears how its mesh calibration ended. Both
+    /// run on the main thread, and at most one of them once per calibration.
+    struct RunHooks {
+        /// @p range: the stored mesh's flatness, when its points could be read.
+        std::function<void(const std::string& profile, std::optional<double> range)> stored;
+        /// @p staged_profile: a profile the calibration left pending that could
+        /// not be removed again, which a save would write; empty when none.
+        std::function<void(const std::string& why, const std::string& staged_profile)> failed;
+    };
+    /// Calibrate into the default profile for a guided run: the same plan,
+    /// preheat, homing and probing as the panel's own, without the panel's
+    /// questions, its toasts or its SAVE_CONFIG prompt. The panel need not be open.
+    void calibrate_for_run(helix::IMoonrakerAPI* api, RunHooks hooks);
+    /// How a guided run let go of its calibration.
+    enum class RunEnd {
+        Finished,  ///< it reported; nothing more to do
+        Cancelled, ///< stopped before BED_MESH_CALIBRATE was sent: end the preparation, heaters off
+        Stopped,   ///< stopped with M112, which already turned every heater off
+    };
+    void end_run(RunEnd how);
+    /// The calibration's BED_MESH_CALIBRATE has been sent.
+    [[nodiscard]] bool calibration_command_sent() const {
+        return command_sent_;
+    }
 
     // Profile operations (called from XML event callbacks)
     void load_profile(int index);
@@ -301,6 +327,19 @@ class BedMeshPanel : public OverlayBase {
     // Pending mesh data - stored until build_volume is available
     std::vector<std::vector<float>> pending_mesh_data_;
     bool has_pending_mesh_data_ = false;
+
+    /// Set while a guided run's calibration is under way.
+    RunHooks run_hooks_;
+    bool in_run_ = false;
+    bool command_sent_ = false;
+    /// A stopped run's calibration: every later link of its chain does nothing.
+    bool calibration_cancelled_ = false;
+    /// The points of the mesh the last calibration stored, for the run's result.
+    nlohmann::json calibrated_points_;
+    /// A calibration that probed but stored nothing usable: tell the run, or
+    /// the owner. @p user_message is translated.
+    void report_store_failure(const std::string& user_message,
+                              const std::string& staged_profile = {});
 
     /// What begin_calibration() planned: launch_calibration() sends its command,
     /// and on_calibration_complete() finishes where it says the mesh went.

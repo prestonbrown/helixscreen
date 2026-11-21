@@ -61,7 +61,7 @@ Klipper SHAPER_CALIBRATE
 | `include/ui_panel_input_shaper.h` | Input shaper panel (overlay) |
 | `src/ui/calibration/ui_panel_input_shaper.cpp` | Panel implementation |
 | `ui_xml/input_shaper_panel.xml` | XML layout with subject bindings |
-| `include/ui_shaper_sweep_chart.h`, `src/ui/calibration/ui_shaper_sweep_chart.cpp` | `ShaperSweepChart`: the live chart shared by the panel's MEASURING view and the wizard step |
+| `include/ui_shaper_sweep_chart.h`, `src/ui/calibration/ui_shaper_sweep_chart.cpp` | `ShaperSweepChart`: the live chart in the panel's MEASURING view |
 | `include/live_sweep_preview.h`, `include/sweep_response_estimator.h` | The stream-to-points pipeline behind every live sweep chart (`BELT_TENSION.md` § Live preview) |
 | `include/ui_panel_calibration_pid.h` | PID calibration panel |
 | `src/ui/calibration/ui_panel_calibration_pid.cpp` | PID panel implementation |
@@ -81,7 +81,6 @@ Klipper SHAPER_CALIBRATE
 | `tests/unit/test_input_shaper_chart.cpp` | Chart-specific integration tests |
 | `tests/unit/test_moonraker_api_input_shaper.cpp` | Moonraker API shaper endpoints |
 | `tests/unit/test_pid_calibrate_collector.cpp` | PID calibration data collection |
-| `tests/unit/test_wizard_input_shaper_step.cpp` | Wizard step integration |
 
 ---
 
@@ -348,8 +347,7 @@ IDLE (0)          Shows instructions, current config, Calibrate X/Y/All buttons
   v
 MEASURING (1)     Progress bar, step labels, Stop button, and the live response chart (§ Live sweep chart)
 
-Both the panel and the first-run wizard step use the same analysis-phase
-treatment: the sweep shows a determinate bar; the offline analysis reports no
+The analysis phase: the sweep shows a determinate bar; the offline analysis reports no
 percent, so the bar hides, a spinner takes over, and a 1 Hz
 `helix::ui::ElapsedLabelTimer` (core/timer_guard.h) refreshes the status label
 with "Analyzing data... Ns" on the virtual clock. `PIDCalibrationPanel`'s eta
@@ -378,14 +376,12 @@ State visibility is controlled entirely through XML subject bindings:
 ### Live sweep chart
 
 While `SHAPER_CALIBRATE` sweeps, MEASURING draws the measured response as it arrives, in
-`chart_container_measuring` (`ui_xml/input_shaper_panel.xml`). The wizard step draws the same
-chart in `wizard_input_shaper_chart_host`. Both own a
+`chart_container_measuring` (`ui_xml/input_shaper_panel.xml`). The panel owns a
 `include/ui_shaper_sweep_chart.h#ShaperSweepChart`, which wraps a `LiveSweepPreview`
 (`BELT_TENSION.md` § Live preview covers the signals, the drive lock, why the console timing
 is not drawn, and the threading crossing).
 
-- **Arming.** `InputShaperPanel::begin_axis_preview` and
-  `WizardInputShaperStep::begin_axis_preview` build a target with
+- **Arming.** `InputShaperPanel::begin_axis_preview` builds a target with
   `live_sweep_target(preview_facts_, SweepAxis::X or Y)`. The facts (socket path,
   reachability, `[resonance_tester]`) are queried once on entry (`query_preview_facts`). A
   per-axis `accel_chip_x` / `accel_chip_y` picks that axis's chip.
@@ -400,14 +396,12 @@ is not drawn, and the threading crossing).
   the panel keeps X's CSV curve on screen until Y's first preview points replace it, so the
   chart never blanks between axes. Anywhere else the panel clears the chart on completion.
 - **Visibility.** The layout decides whether the chart fits: the XML publishes
-  `is_measuring_chart_fits` (panel) and `wizard_input_shaper_chart_fits` (wizard) from the
-  breakpoint, and `live_chart_layout_fits` reads them. Where it is hidden nothing arms, so
+  `is_measuring_chart_fits` from the breakpoint, and `live_chart_layout_fits` reads them. Where it is hidden nothing arms, so
   nothing streams for a chart nobody sees.
 - **Rebuild.** A hot-reload rebuild frees the widget tree without `on_ui_destroyed()`, so
   `InputShaperPanel::on_deactivating` calls it on `DeactivateReason::Rebuild` while the tree
   is still alive: the live chart and both results charts are destroyed with their hosts,
-  `create()` makes the results charts again, and the next sweep makes the live chart. The
-  wizard step destroys its chart in `cleanup()`, before the wizard deletes the screen.
+  `create()` makes the results charts again, and the next sweep makes the live chart.
 - **No stream, no chart.** Without a reachable socket, a single chip, or with
   `HELIX_SWEEP_PREVIEW_OFF`, MEASURING shows the progress bar alone.
 - **Never a verdict.** Recommendations, the comparison table and the residual scoring read
@@ -415,7 +409,7 @@ is not drawn, and the threading crossing).
 
 ### Stop Behavior
 
-The Stop button (`ui_xml/input_shaper_panel.xml#btn_abort`, the wizard's `ui_xml/wizard_input_shaper.xml#cancel_calibration_btn`) sends `M112` (emergency stop) followed by `FIRMWARE_RESTART`. This is necessary because `SHAPER_CALIBRATE` blocks the G-code queue and cannot be cancelled through normal means. Recovery dialog suppression is applied for 15 seconds. Every control that performs this stop is labelled "Stop" with the `alert_octagon` icon and `variant="danger"`: Input Shaper, the wizard step, PID, Tool Offsets and Belt Tension.
+The Stop button (`ui_xml/input_shaper_panel.xml#btn_abort`) sends `M112` (emergency stop) followed by `FIRMWARE_RESTART`. This is necessary because `SHAPER_CALIBRATE` blocks the G-code queue and cannot be cancelled through normal means. Recovery dialog suppression is applied for 15 seconds. Every control that performs this stop is labelled "Stop" with the `alert_octagon` icon and `variant="danger"`: Input Shaper, PID, Tool Offsets, Belt Tension and the guided calibration run.
 
 ### Klipper Commands
 
@@ -646,4 +640,4 @@ Test tags:
 - `[input_shaper]` -- Combined input shaper tests
 - `[platform]` -- Platform tier detection and adaptation
 - `[downsampling]` -- Data downsampling behavior
-- Live sweep chart: `tests/unit/test_shaper_sweep_chart.cpp`, `test_live_sweep_preview.cpp`, `test_sweep_response_estimator.cpp`, `test_mock_accel_batch_source.cpp`; the wizard step's wiring is in `test_wizard_input_shaper_step.cpp`
+- Live sweep chart: `tests/unit/test_shaper_sweep_chart.cpp`, `test_live_sweep_preview.cpp`, `test_sweep_response_estimator.cpp`, `test_mock_accel_batch_source.cpp`

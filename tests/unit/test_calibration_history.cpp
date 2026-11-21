@@ -2,6 +2,7 @@
 #include "ui_calibration_hub_overlay.h"
 
 #include "../lvgl_test_fixture.h"
+#include "app_globals.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
 #include "core/update_queue.h"
@@ -282,6 +283,54 @@ TEST_CASE_METHOD(LVGLTestFixture,
     s = helix::ui::tile_status(step, &done, &in_config);
     CHECK(s.text == "Done Nov 20 · -1.300 mm");
     CHECK(s.tone == helix::ui::TileTone::Done);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "every change to the calibration history moves its version",
+                 "[calibration_history]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    DatabaseAPI api(client, state);
+    CalibrationHistory history;
+    lv_subject_t* version = history.version_subject();
+    REQUIRE(version != nullptr);
+    const auto at = [&] { return lv_subject_get_int(version); };
+
+    const int start = at();
+    api.stored = history_to_json(sample_history());
+    history.load(api);
+    drain();
+    CHECK(at() == start + 1);
+    history.record(api, "bed_mesh", "0.18 mm range", json::object());
+    CHECK(at() == start + 2);
+    history.clear();
+    CHECK(at() == start + 3);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "an open Calibration screen shows a result recorded while it is open",
+                 "[calibration_history]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    DatabaseAPI api(client, state);
+    get_printer_state().init_subjects(false);
+    auto& history = CalibrationHistory::instance();
+    history.clear();
+    auto& hub = helix::ui::get_calibration_hub_overlay();
+    if (!hub.are_subjects_initialized()) {
+        hub.init_subjects();
+    }
+    drain();
+    lv_subject_t* heaters = lv_xml_get_subject(nullptr, "cal_status_heaters");
+    REQUIRE(heaters != nullptr);
+    CHECK(std::string(lv_subject_get_string(heaters)).find("Nozzle PID") == std::string::npos);
+
+    // Heaters apply on every printer, so its tile is on the screen.
+    history.record(api, "heaters", "Nozzle PID", json::object());
+    drain();
+    CHECK(std::string(lv_subject_get_string(heaters)).find("Nozzle PID") != std::string::npos);
+    history.clear();
 }
 
 TEST_CASE("results_in_config reads each step's tuned value from configfile.settings",

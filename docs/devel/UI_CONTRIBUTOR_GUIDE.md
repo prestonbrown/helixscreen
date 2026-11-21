@@ -454,7 +454,7 @@ of width: `stacked_if_bp_lte="N"` on the breakpoint, or `stacked_subject` + `sta
 on any int subject (a `<subject_expr>` for conditions like orientation and tier together).
 The full attribute table is in [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md) under `ui_button`.
 
-**Stop buttons.** A control that ends a running operation with an emergency stop (`M112` plus `FIRMWARE_RESTART`) reads "Stop", carries `icon="alert_octagon"` and `variant="danger"`: `<ui_button icon="alert_octagon" text="Stop" variant="danger"/>`. Do not label it "Abort" or "Cancel" (it cannot cancel cleanly) and do not use the `close` icon. Examples: `ui_xml/input_shaper_panel.xml#btn_abort`, `ui_xml/calibration_pid_panel.xml#btn_abort`, `ui_xml/calibration_tool_offset_panel.xml#tool_cal_stop_btn`, `ui_xml/wizard_input_shaper.xml#cancel_calibration_btn`, `ui_xml/panel_belt_tension.xml#btn_stop`.
+**Stop buttons.** A control that ends a running operation with an emergency stop (`M112` plus `FIRMWARE_RESTART`) reads "Stop", carries `icon="alert_octagon"` and `variant="danger"`: `<ui_button icon="alert_octagon" text="Stop" variant="danger"/>`. Do not label it "Abort" or "Cancel" (it cannot cancel cleanly) and do not use the `close` icon. Examples: `ui_xml/input_shaper_panel.xml#btn_abort`, `ui_xml/calibration_pid_panel.xml#btn_abort`, `ui_xml/calibration_tool_offset_panel.xml#tool_cal_stop_btn`, `ui_xml/calibration_run_overlay.xml#btn_cal_run_stop`, `ui_xml/panel_belt_tension.xml#btn_stop`.
 
 ### icon
 
