@@ -986,10 +986,16 @@ spool_assign::SpoolQuery AmsEditOverlay::current_query() const {
     if (!selection_moved_ && !details_color_set_ && working_info_.material.empty()) {
         return query;
     }
+    // Once the user says anything, the form says all it shows: a color pick
+    // on an empty lane describes a spool of the material the dropdown names.
     const SlotInfo shown = shown_slot();
     query.material = shown.material;
     query.brand = shown.brand;
     query.product = shown.product_name;
+    if (!selection_moved_ && shown.material.empty() && catalog_) {
+        query.material = selected_type(sel_, *catalog_);
+        query.brand = sel_.brand;
+    }
     const bool colour_set =
         details_color_set_ || (shown.multi_color_hexes.empty() && slot_has_colour(shown));
     if (colour_set) {
@@ -1210,6 +1216,18 @@ void AmsEditOverlay::apply_size_chip(int chip, float remaining_g, float total_g)
     update_summary();
 }
 
+void AmsEditOverlay::stage_assign_form() {
+    // Assign Spool's form describes the spool going in, the values it rests
+    // on included: an empty lane assigned with only a color picked is a spool
+    // of the material the dropdown shows.
+    if (lv_subject_get_int(&mode_subject_) == kModeAssign && working_info_.material.empty()) {
+        selection_moved_ = true;
+    }
+    stage_selection_into_working();
+    stage_pending_color_into_working();
+    stage_size_into_working();
+}
+
 void AmsEditOverlay::stage_size_into_working() {
     if (lv_subject_get_int(&mode_subject_) != kModeAssign) {
         return;
@@ -1230,9 +1248,7 @@ void AmsEditOverlay::handle_assign_local() {
     if (save_in_flight_) {
         return;
     }
-    stage_selection_into_working();
-    stage_pending_color_into_working();
-    stage_size_into_working();
+    stage_assign_form();
     // The lane leaves whatever Spoolman spool it held: it now holds a spool
     // Spoolman does not know.
     if (working_info_.spoolman_id > 0) {
@@ -1636,8 +1652,11 @@ void AmsEditOverlay::update_temp_display() {
     // A moved selection names a material the stored temps may not describe
     // (a linked slot carries ITS spool's range), so the database answer wins
     // once the user has picked a family with no product attached.
+    // A lane with no material holds no temperatures of its own either: any it
+    // still carries belong to the spool that left.
     if (!from_catalog && !type.empty() &&
-        (selection_moved_ || (nozzle_min == 0 && nozzle_max == 0 && bed_temp == 0))) {
+        (selection_moved_ || working_info_.material.empty() ||
+         (nozzle_min == 0 && nozzle_max == 0 && bed_temp == 0))) {
         if (auto mat = filament::find_material(type)) {
             nozzle_min = mat->nozzle_min;
             nozzle_max = mat->nozzle_max;
@@ -2538,9 +2557,7 @@ void AmsEditOverlay::handle_add_to_spoolman() {
     if (save_in_flight_) {
         return;
     }
-    stage_selection_into_working();
-    stage_pending_color_into_working();
-    stage_size_into_working();
+    stage_assign_form();
     const helix::MissingFilamentFields missing =
         helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
     if (missing.any()) {

@@ -488,7 +488,9 @@
                   height="content" flex_grow="1" style_min_width="#assign_right_min_w" style_pad_all="0"
                   flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
             <bind_flag_if_eq subject="ams_edit_mode" flag="hidden" ref_value="1"/>
-            <text_small name="list_title" bind_text="ams_edit_list_title" style_text_color="#text_muted"/>
+            <text_small name="list_title" bind_text="ams_edit_list_title" style_text_color="#text_muted">
+              <bind_flag_if_eq subject="edit_picker_state" flag="hidden" ref_value="4"/>
+            </text_small>
             <!-- Search matches name, brand, color or #ID; Spoolman only. -->
             <text_input name="picker_search"
                         width="100%" placeholder_text="Search spools..." placeholder_tag="Search spools..."
@@ -528,7 +530,9 @@
               <bind_flag_if_not_eq subject="edit_picker_state" flag="hidden" ref_value="2"/>
             </lv_obj>
 
-            <!-- Fresh install: common spools to start from. A tap fills the form. -->
+            <!-- Fresh install: common spools to start from, a row per material in
+                 black, white and gray (the dot names the color). A tap fills
+                 the form. -->
             <lv_obj name="common_spools"
                     width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs"
                     scrollable="false" hidden="true">
@@ -537,18 +541,18 @@
               <lv_obj width="100%"
                       height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                       style_pad_row="#space_xxs" scrollable="false">
-                <common_spool_tile tile_name="common_spool_0" label="PLA Black" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_1" label="PLA White" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_2" label="PLA Gray" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_3" label="PETG Black" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_4" label="PETG White" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_5" label="PETG Gray" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_6" label="ABS Black" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_7" label="ABS White" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_8" label="ABS Gray" color_subject="general_swatch_color_2"/>
-                <common_spool_tile tile_name="common_spool_9" label="ASA Black" color_subject="general_swatch_color_0"/>
-                <common_spool_tile tile_name="common_spool_10" label="ASA White" color_subject="general_swatch_color_1"/>
-                <common_spool_tile tile_name="common_spool_11" label="ASA Gray" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="general_swatch_color_0"/>
+                <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="general_swatch_color_0"/>
+                <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="general_swatch_color_0"/>
+                <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="general_swatch_color_2"/>
+                <common_spool_tile tile_name="common_spool_9" label="ASA" color_subject="general_swatch_color_0"/>
+                <common_spool_tile tile_name="common_spool_10" label="ASA" color_subject="general_swatch_color_1"/>
+                <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="general_swatch_color_2"/>
               </lv_obj>
             </lv_obj>
 

@@ -490,6 +490,8 @@ class AmsEditOverlay : public OverlayBase {
     void handle_assign_local();
     /// Stage the size chips' grams onto the lane (Assign Spool only).
     void stage_size_into_working();
+    /// Stage everything Assign Spool's form says onto the lane.
+    void stage_assign_form();
     /// The toast an assign or edit closes with: "Lane 2: Polymaker PLA" and
     /// Undo, with the Spoolman id when the save created one.
     void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created);

@@ -5293,3 +5293,40 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     helix::ui::set_test_toast_hook(nullptr);
     clear_lane_history();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a color pick on an empty lane describes a spool of the shown material",
+                 "[ams_edit_overlay][spool-assign]") {
+    set_spoolman_available(false);
+    clear_lane_history();
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    AssignCapture done;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, SlotInfo{}, nullptr, done.callback(),
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(access.dropdown_selected("dropdown_material") == "PLA");
+
+    // The list matches the material the dropdown shows, not the color alone.
+    SpoolInfo pla_white;
+    pla_white.id = 1;
+    pla_white.material = "PLA";
+    pla_white.color_hex = "FFFFFF";
+    SpoolInfo tpu_clear;
+    tpu_clear.id = 2;
+    tpu_clear.material = "TPU";
+    tpu_clear.color_hex = "F0F0F0";
+    access.set_cached_spools({pla_white, tpu_clear});
+    access.call_apply_color(0xFFFFFF);
+    access.call_render_spool_list("");
+    CHECK(access.listed_ids() == std::vector<int>{1});
+
+    access.call_assign_local();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE(done.fired);
+    CHECK(done.result.slot_info.material == "PLA");
+    CHECK(done.result.slot_info.color_rgb == 0xFFFFFF);
+    clear_lane_history();
+}
