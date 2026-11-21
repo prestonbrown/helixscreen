@@ -382,6 +382,7 @@
   <translation tag="Another filament operation is heating the nozzle." zh="其他耗材操作正在加热喷嘴。"/>
   <translation tag="Another print is in progress." zh="另一个打印正在进行。"/>
   <translation tag="Another toolhead is active" zh="另一个工具头正在使用"/>
+  <translation tag="Another update is already running" zh="另一个更新正在进行"/>
   <translation tag="Any notes..." zh="备注..."/>
   <translation tag="Any other material" zh="其他所有材料"/>
   <translation tag="App Background" zh="应用背景"/>
@@ -825,6 +826,7 @@
   <translation tag="Checking file…" zh="正在检查文件…"/>
   <translation tag="Checking for ffmpeg..." zh="正在检查 ffmpeg..."/>
   <translation tag="Checking for plugin..." zh="正在检查插件..."/>
+  <translation tag="Checking for updates..." zh="正在检查更新..."/>
   <translation tag="Checking for webcam..." zh="正在检查摄像头..."/>
   <translation tag="Checking plugin" zh="正在检查插件"/>
   <translation tag="Checking slots..." zh="正在检查槽位..."/>
@@ -1080,10 +1082,13 @@
   <translation tag="Could not move the plate" zh="无法移动热床"/>
   <translation tag="Could not open a browser for the update" zh="无法打开浏览器进行更新"/>
   <translation tag="Could not parse tips database" zh="无法解析提示数据库"/>
+  <translation tag="Could not prepare a folder for the update log" zh="无法为更新日志准备文件夹"/>
   <translation tag="Could not reach Spoolman at" zh="无法连接 Spoolman："/>
   <translation tag="Could not read the current IPv4 settings." zh="无法读取当前的 IPv4 设置。"/>
+  <translation tag="Could not read the free space on the printer" zh="无法读取打印机的可用空间"/>
   <translation tag="Could not read the printer&apos;s limits: {}" zh="无法读取打印机的限制：{}"/>
   <translation tag="Could not read the printer&apos;s storage" zh="无法读取打印机存储"/>
+  <translation tag="Could not read the printer&apos;s update status" zh="无法读取打印机的更新状态"/>
   <translation tag="Could not read the screw adjustments from the printer" zh="无法从打印机读取螺丝调整数据"/>
   <translation tag="Could not remove the job from the queue" zh="无法从队列中移除任务"/>
   <translation tag="Could not reset the printer image tags" zh="重置打印机图片标记失败"/>
@@ -1273,6 +1278,8 @@
   <translation tag="Do not power off your printer." zh="请勿关闭打印机电源。"/>
   <translation tag="Do not touch the filament yet." zh="请暂时不要触碰耗材。"/>
   <translation tag="Do not touch the printer during calibration" zh="校准期间请勿触碰打印机"/>
+  <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." zh="完成之前请勿关闭打印机。刷写过程中断电可能导致打印机无法启动。"/>
+  <translation tag="Do not turn the printer off until the update finishes." zh="更新完成之前请勿关闭打印机。"/>
   <translation tag="Dock" zh="归位"/>
   <translation tag="Dock every toolhead first" zh="请先停靠所有工具头"/>
   <translation tag="Dock position change too large" zh="停靠位置变化过大"/>
@@ -1772,6 +1779,7 @@
   <translation tag="Fireflies" zh="萤火虫"/>
   <translation tag="Fireworks" zh="烟花"/>
   <translation tag="Firmware Restart" zh="固件重启"/>
+  <translation tag="Firmware Update" zh="固件更新"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" zh="固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项"/>
   <translation tag="Firmware restart" zh="固件重启"/>
   <translation tag="Firmware restart failed: {}" zh="固件重启失败: {}"/>
@@ -2119,6 +2127,7 @@
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." zh="输入整形可减少打印件中的振动伪影（振纹）。"/>
   <translation tag="Input: " zh="输入: "/>
   <translation tag="InputShaper" zh="InputShaper"/>
+  <translation tag="Insert a USB stick with the {} firmware file in its top folder." zh="请插入在顶层文件夹中存有 {} 固件文件的 U 盘。"/>
   <translation tag="Insert filament" zh="插入耗材"/>
   <translation tag="Insert filament before resuming" zh="恢复前请插入耗材"/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." zh="请将耗材插入此工具头的送料器直到被咬住，然后重新装载。"/>
@@ -2136,6 +2145,7 @@
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" zh="安装 HelixPrint 插件以启用快速 G-code 修改。通过 SSH 在打印机上运行此命令："/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." zh="通过SSH安装延时摄影插件，&#10;然后点击&quot;重新检查&quot;。"/>
   <translation tag="Install timelapse plugin" zh="安装延时摄影插件"/>
+  <translation tag="Install {} on this printer?" zh="在此打印机上安装 {}?"/>
   <translation tag="Installation Failed" zh="安装失败"/>
   <translation tag="Installation failed" zh="安装失败"/>
   <translation tag="Installation failed. Check logs for details." zh="安装失败。请查看日志了解详情。"/>
@@ -2144,8 +2154,11 @@
   <translation tag="Installation timed out" zh="安装超时"/>
   <translation tag="Installation timed out. The script may be stuck." zh="安装超时。脚本可能已卡住。"/>
   <translation tag="Installed" zh="已安装"/>
+  <translation tag="Installing firmware is not enabled on this printer" zh="此打印机未启用固件安装"/>
+  <translation tag="Installing printer firmware" zh="正在安装打印机固件"/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." zh="安装会重启 Moonraker，因此会等到打印完成或取消后再进行。"/>
   <translation tag="Installing the timelapse plugin..." zh="正在安装延时摄影插件..."/>
+  <translation tag="Installing {} firmware from this screen is not available yet." zh="暂不支持从此屏幕安装 {} 固件。"/>
   <translation tag="Installing..." zh="正在安装..."/>
   <translation tag="Intensity" zh="强度"/>
   <translation tag="Interactive calibration for all lanes" zh="所有耗材通道的交互式校准"/>
@@ -2246,6 +2259,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" zh="Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper："/>
   <translation tag="Klipper is halted — restart firmware to continue" zh="Klipper 已停止 — 请重启固件以继续"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." zh="Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。"/>
+  <translation tag="Klipper or Moonraker may restart while it updates." zh="更新期间 Klipper 或 Moonraker 可能会重启。"/>
   <translation tag="Klipper ready" zh="Klipper就绪"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." zh="Klipper 将 &apos;default&apos; 保留用于新的校准。请选择其他名称。"/>
   <translation tag="Klipper restarting - macros activating" zh="正在重启 Klipper - 正在启用宏"/>
@@ -2413,6 +2427,7 @@
   <translation tag="Lost connection during print — try again" zh="打印过程中连接丢失 — 请重试"/>
   <translation tag="Lost connection to CFS unit" zh="与 CFS 单元的连接已断开"/>
   <translation tag="Lost contact with a controller board" zh="与控制板失去连接"/>
+  <translation tag="Lost contact with the printer. The update may still be running." zh="与打印机的连接已断开。更新可能仍在进行。"/>
   <translation tag="Lost the connection to the printer." zh="与打印机的连接已断开。"/>
   <translation tag="Lost the printer." zh="与打印机失去连接。"/>
   <translation tag="Lot # (optional)" zh="批号（可选）"/>
@@ -2645,6 +2660,7 @@
   <translation tag="Needs a newer Moonraker to hold uploads." zh="需要更新的 Moonraker 才能暂缓上传。"/>
   <translation tag="Needs attention" zh="需要处理"/>
   <translation tag="Needs file analysis, which isn&apos;t running." zh="需要文件分析，但它未在运行。"/>
+  <translation tag="Needs repair from a web interface" zh="需要通过网页界面修复"/>
   <translation tag="Needs the {} package to switch spools" zh="切换料盘需要 {} 插件"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" zh="需要 {}x{} 空位。请先移除或缩小小组件"/>
   <translation tag="Net Weight (g)" zh="净重（克）"/>
@@ -2825,6 +2841,7 @@
   <translation tag="Not detected" zh="未检测到"/>
   <translation tag="Not drying" zh="未在烘干"/>
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." zh="打印机上的可用空间不足以存放此文件。请在设置 &gt; 系统 &gt; 存储中释放空间。"/>
+  <translation tag="Not enough free space on the printer to unpack the firmware" zh="打印机可用空间不足，无法解压固件"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." zh="扫频得到的频率数据不足，请重试。"/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." zh="没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。"/>
   <translation tag="Not enough room to put the widget back. It stays removed." zh="没有足够的空间恢复此小组件。它仍处于移除状态。"/>
@@ -2983,6 +3000,8 @@
   <translation tag="POWER" zh="电源"/>
   <translation tag="PRINT OPTIONS" zh="打印选项"/>
   <translation tag="PRINTER" zh="打印机"/>
+  <translation tag="PRINTER FIRMWARE" zh="打印机固件"/>
+  <translation tag="PRINTER SOFTWARE" zh="打印机软件"/>
   <translation tag="PRINTER VISUALS" zh="打印机外观"/>
   <translation tag="PRINTERS" zh="打印机"/>
   <translation tag="PRINTING" zh="打印"/>
@@ -3468,6 +3487,8 @@
   <translation tag="Refresh RFID" zh="刷新 RFID"/>
   <translation tag="Refresh Spoolman" zh="刷新 Spoolman"/>
   <translation tag="Reheating..." zh="正在重新加热..."/>
+  <translation tag="Reinstall it afterwards by following {}." zh="更新后请按照 {} 重新安装。"/>
+  <translation tag="Reinstall it afterwards." zh="更新后请重新安装。"/>
   <translation tag="Relative vibration" zh="相对振动"/>
   <translation tag="Release all stepper motors. Position will be lost." zh="释放所有步进电机。位置信息将丢失。"/>
   <translation tag="Release filament" zh="松开耗材"/>
@@ -3594,6 +3615,7 @@
   <translation tag="Restarting Moonraker..." zh="正在重启 Moonraker..."/>
   <translation tag="Restarting printer..." zh="正在重启打印机..."/>
   <translation tag="Restarting screen..." zh="正在重启屏幕..."/>
+  <translation tag="Restarting the printer" zh="正在重启打印机"/>
   <translation tag="Restarting the printer..." zh="正在重启打印机..."/>
   <translation tag="Restarting with the new version..." zh="正在以新版本重启..."/>
   <translation tag="Restarting..." zh="正在重启..."/>
@@ -4097,6 +4119,7 @@
   <translation tag="Starting nozzle clean..." zh="正在开始清洁喷嘴..."/>
   <translation tag="Starting print..." zh="正在启动打印..."/>
   <translation tag="Starting the print" zh="正在开始打印"/>
+  <translation tag="Starting the update" zh="正在开始更新"/>
   <translation tag="Starting {}…" zh="正在开始 {}…"/>
   <translation tag="Starting..." zh="正在启动..."/>
   <translation tag="Starts after the current print" zh="当前打印完成后开始"/>
@@ -4462,6 +4485,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." zh="打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。"/>
   <translation tag="The printer did not report its toolhead limits." zh="打印机未报告其工具头限制。"/>
   <translation tag="The printer did not reset the filter" zh="打印机未重置滤网"/>
+  <translation tag="The printer did not say whether it is printing. Try again." zh="打印机未报告是否正在打印。请重试。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" zh="打印机已停止此打印且无法恢复。从头重新开始？"/>
@@ -4482,6 +4506,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." zh="打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。"/>
   <translation tag="The printer is not ready." zh="打印机未就绪。"/>
   <translation tag="The printer is not reporting its toolheads" zh="打印机未上报其工具头"/>
+  <translation tag="The printer is restarting into the new firmware." zh="打印机正在以新固件重启。"/>
   <translation tag="The printer is shut down." zh="打印机已关机。"/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." zh="打印机会使用此值直到 Klipper 重启。如需保留，请将其作为 pressure_advance 添加到 printer.cfg 中此工具的挤出机段。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." zh="打印机正在等待腔体达到某个温度，只有紧急停止并重启固件才能结束此等待。打印将立即停止且无法恢复。"/>
@@ -4492,6 +4517,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" zh="打印机在打印 {} 时断电。是否从中断处继续？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." zh="打印机在打印 {} 时断电。恢复后的层可能无法完全对准。"/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." zh="打印机可能会归零并移动工具头，然后电动张紧器调整X和Y皮带。请清空热床和龙门周围的物品。"/>
+  <translation tag="The printer may need a reboot afterwards." zh="之后打印机可能需要重启。"/>
   <translation tag="The printer moved the print to {}, not {}." zh="打印机将打印转移到了 {}，而不是 {}。"/>
   <translation tag="The printer moves the toolhead and measures its motors." zh="打印机将移动打印头并测量电机。"/>
   <translation tag="The printer no longer has a print to resume." zh="打印机已没有可恢复的打印。"/>
@@ -4504,10 +4530,12 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." zh="打印机没有耗材通道记录，所以只能通过清空挤出机来卸载。"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" zh="打印机要求加密连接，但拒绝了加密的任务：HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" zh="打印机要求加密连接，但与 {}:{} 的加密连接失败"/>
+  <translation tag="The printer restarts when the update finishes." zh="更新完成后打印机将重启。"/>
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." zh="打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。"/>
   <translation tag="The printer shut down" zh="打印机已关闭"/>
   <translation tag="The printer shut down while homing or probing." zh="打印机在归位或探测时关闭。"/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." zh="打印机出于安全自行停止；固件未给出具体原因。"/>
+  <translation tag="The printer stops and cannot print until the update is done." zh="更新完成之前打印机会停止，无法打印。"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." zh="打印机在多个工具头之间切换。在耗材系统界面管理工具。"/>
   <translation tag="The printer was stopped" zh="打印机已停止"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" zh="耗材用尽时切换到哪里由打印机固件自行选择"/>
@@ -4548,6 +4576,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." zh="更新已结束，但打印机仍提示有此更新。使用前请检查打印机。"/>
+  <translation tag="The update failed" zh="更新失败"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." zh="更新已停止报告进度。结果未知：使用前请检查打印机。"/>
+  <translation tag="The update&apos;s result is unknown" zh="更新结果未知"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." zh="视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。"/>
   <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="Theme" zh="主题"/>
@@ -4628,6 +4660,7 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." zh="此打印机的 Moonraker 要求登录。请在 设置 &gt; 连接 中添加其 API 密钥。"/>
   <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." zh="此打印机的加速度传感器最高测量 {0:.0f} Hz，因此不显示更快的纹波。"/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." zh="此打印机的固件自带断电恢复。"/>
+  <translation tag="This printer&apos;s firmware offers updates by itself when one is available." zh="此打印机的固件会在有可用更新时自行提供更新。"/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." zh="此打印机的龙门在断电时会下落，因此无法恢复打印。"/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." zh="此打印机的 homing override 会在 X 和 Y 轴归零时一并将 Z 轴归零，因此无法恢复打印。"/>
   <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." zh="此打印机的 homing override 会运行可能移动 Z 轴的命令，因此无法恢复打印。"/>
@@ -4650,6 +4683,8 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." zh="此工具探测每个热床螺丝并告诉您需要调整多少。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." zh="此工具头没有自动送料器。请手动装入耗材。"/>
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
+  <translation tag="This update removes HelixScreen from the printer." zh="此更新会从打印机上移除 HelixScreen。"/>
+  <translation tag="This upgrades the printer&apos;s operating system packages." zh="这将升级打印机的操作系统软件包。"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." zh="此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到探针并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
@@ -4882,6 +4917,7 @@
   <translation tag="Unlock" zh="解锁"/>
   <translation tag="Unmapped" zh="未映射"/>
   <translation tag="Unmount" zh="卸下"/>
+  <translation tag="Unpacking the firmware" zh="正在解压固件"/>
   <translation tag="Unretract Extra" zh="回抽恢复额外量"/>
   <translation tag="Unretract Speed" zh="回抽恢复速度"/>
   <translation tag="Unsaved changes" zh="未保存的更改"/>
@@ -4890,6 +4926,7 @@
   <translation tag="Up next: {}" zh="下一个：{}"/>
   <translation tag="Up next: {} (+{})" zh="下一个：{}（+{}）"/>
   <translation tag="Up to date" zh="已是最新"/>
+  <translation tag="Up to date ({})" zh="已是最新 ({})"/>
   <translation tag="Up: %s" zh="运行时长：%s"/>
   <translation tag="Update" zh="更新"/>
   <translation tag="Update Available" zh="有可用更新"/>
@@ -4898,16 +4935,26 @@
   <translation tag="Update Helper Macros" zh="更新帮助宏"/>
   <translation tag="Update Helper Macros?" zh="更新帮助宏？"/>
   <translation tag="Update Success" zh="更新成功"/>
+  <translation tag="Update complete" zh="更新完成"/>
   <translation tag="Update from a Terminal" zh="通过终端更新"/>
   <translation tag="Update heater model?" zh="更新加热器模型？"/>
   <translation tag="Update in Spoolman" zh="在 Spoolman 中更新"/>
   <translation tag="Update installed!" zh="更新已安装！"/>
+  <translation tag="Update printer software and firmware" zh="更新打印机软件和固件"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." zh="将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." zh="同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。"/>
   <translation tag="Update your security PIN" zh="更新您的安全 PIN"/>
+  <translation tag="Update {} from {} to {}?" zh="将 {} 从 {} 更新到 {}?"/>
+  <translation tag="Update {} system packages?" zh="更新 {} 个系统软件包?"/>
+  <translation tag="Update {} to {}?" zh="将 {} 更新到 {}?"/>
+  <translation tag="Update {}?" zh="更新 {}?"/>
   <translation tag="Updates" zh="更新"/>
   <translation tag="Updates &amp; Data" zh="更新与数据"/>
   <translation tag="Updating Configuration..." zh="正在更新配置..."/>
+  <translation tag="Updating the main board" zh="正在更新主板"/>
+  <translation tag="Updating the system" zh="正在更新系统"/>
+  <translation tag="Updating toolhead {}" zh="正在更新工具头 {}"/>
+  <translation tag="Updating {}" zh="正在更新 {}"/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." zh="升级到 AFC 1.2.0 或更高版本即可使用多色料盘。它还会添加耗材名称，否则需要 Spoolman 提供。"/>
   <translation tag="Upload" zh="上传"/>
   <translation tag="Upload Debug Bundle" zh="上传调试捆绑包"/>
@@ -5181,6 +5228,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" zh="区间 {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." zh="[resonance_tester] 没有 probe_points，因此打印头没有进行稳定绕圈的安全高度。"/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" zh="在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"/>
+  <translation tag="a newer version" zh="更新的版本"/>
   <translation tag="already loaded" zh="已加载"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
@@ -5354,6 +5402,9 @@
   <translation tag="{} filament sensors available" zh="{} 个耗材传感器可用"/>
   <translation tag="{} filament • {}" zh="耗材 {} • {}"/>
   <translation tag="{} firmware" zh="{} 固件"/>
+  <translation tag="{} firmware can only be updated from its own screen app." zh="{} 固件只能通过其自带的屏幕应用更新。"/>
+  <translation tag="{} firmware updates are managed by its own tools." zh="{} 固件更新由其自带的工具管理。"/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." zh="{} 固件 {} 已可用。请打开 设置 &gt; 系统 &gt; 固件更新 进行安装。"/>
   <translation tag="{} free of {}" zh="可用 {} / 共 {}"/>
   <translation tag="{} h" zh="{} 小时"/>
   <translation tag="{} h of {} h" zh="{} / {} 小时"/>
@@ -5400,6 +5451,7 @@
   <translation tag="{} new hardware available" zh="{} 个新硬件可用"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." zh="{} 个新插件可用。请在设置 &gt; 插件中启用。"/>
   <translation tag="{} nozzle sensor fault" zh="{} 喷嘴传感器故障"/>
+  <translation tag="{} packages to update" zh="{} 个软件包待更新"/>
   <translation tag="{} preset" zh="{} 个预设"/>
   <translation tag="{} presets" zh="{} 个预设"/>
   <translation tag="{} prints" zh="{} 次打印"/>

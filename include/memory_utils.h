@@ -6,6 +6,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #if defined(__linux__)
 #include <features.h> // defines __GLIBC__ / __UCLIBC__ whatever was included first
@@ -89,6 +92,51 @@ struct SmapsRollup {
  * @return true if successful (always false on macOS)
  */
 bool read_smaps_rollup(SmapsRollup& rollup);
+
+// ============================================================================
+// Per-process memory, for telemetry that has to name another process
+// ============================================================================
+
+/// The fields of a /proc/<pid>/stat line telemetry reads.
+struct ProcStat {
+    std::string comm;          ///< executable name the kernel keeps, up to 15 chars
+    uint64_t major_faults = 0; ///< majflt: faults that read a page from storage
+    int64_t rss_pages = 0;     ///< resident set, in pages
+};
+
+/// Parse one /proc/<pid>/stat line. comm runs from the first '(' to the LAST
+/// ')', since a comm may hold either. False when the line is cut short.
+bool parse_proc_stat(const std::string& line, ProcStat& out);
+
+/// The name telemetry gives a process: never a path or an argument.
+///
+/// An interpreter (python*, node, bash, sh, dash, ash) runs most printer-host
+/// services, so its comm alone names nothing. For those, the arguments in
+/// @p cmdline (NUL-separated, as /proc/<pid>/cmdline holds them; argv[0] is
+/// skipped) are matched against a fixed allowlist of services, and the
+/// service's fixed label is the name ("klipper", "moonraker", "obico", ...),
+/// else the interpreter's own name. Any other process is named only when its
+/// comm is a program on a fixed list (HelixScreen, the Klipper stack, camera
+/// streamers, stock vendor UIs, system daemons); everything else is "other",
+/// since a comm is free text and may carry a username or hostname.
+std::string telemetry_process_name(const std::string& comm, std::string_view cmdline = {});
+
+struct ProcessRss {
+    std::string name; ///< telemetry_process_name() of its comm
+    int64_t rss_mb = 0;
+};
+
+/// The @p count processes holding the most resident memory, largest first,
+/// from <proc_root>/<pid>/stat. Processes with no resident pages (kernel
+/// threads) are left out. Empty off Linux or when nothing can be read.
+std::vector<ProcessRss> top_processes_by_rss(size_t count, const char* proc_root,
+                                             long page_size_kb);
+/// The same over /proc with the system page size.
+std::vector<ProcessRss> top_processes_by_rss(size_t count);
+
+/// This process's major page-fault count, nullopt when @p stat_path cannot be
+/// read or parsed. A main loop stalled on page-ins climbs it; a CPU hang does not.
+std::optional<uint64_t> read_self_major_faults(const char* stat_path = "/proc/self/stat");
 
 // ============================================================================
 // System memory info (for resource management decisions)

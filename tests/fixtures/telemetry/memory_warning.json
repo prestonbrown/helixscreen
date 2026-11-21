@@ -22,6 +22,12 @@
   "system_available_mb": 0,
   "system_total_mb": 0,
   "timestamp": "<timestamp>",
+  "top_processes": [
+    {
+      "name": "<host>",
+      "rss_mb": 0
+    }
+  ],
   "uptime_sec": 0,
   "vm_hwm_kb": 0,
   "vm_size_kb": 0,

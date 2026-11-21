@@ -720,23 +720,25 @@ those explicitly, so the stamped `app_version` never overwrites the update's tar
 
 | Event | Description | Key Fields |
 |-------|-------------|------------|
-| `session` | App startup | platform, board, version, printer_model, kinematics, display, ram, cpu_cores |
+| `session` | App startup | platform, board, version, printer_model, kinematics, display, ram, cpu_cores, gcode_render_mode, gpu_3d_blocked, gl_renderer + gl_software (once a GL context has existed this process) |
 | `print_outcome` | Print completed/failed | outcome, filament_type, duration, temps, filament_used |
 | `crash` | App crash | signal_name, version, platform, board, uptime, backtrace_depth |
 | `update_failed` | Update attempt failed | reason, version, from_version, platform, http_code |
 | `update_success` | Update completed | version, from_version, platform |
 | `memory_snapshot` | Periodic memory check | trigger, uptime_sec, rss_kb, vm_size_kb, vm_peak_kb, vm_hwm_kb, private_dirty_kb, private_clean_kb, shared_clean_kb, pss_kb, system_total_mb, system_available_mb |
-| `memory_warning` | Memory threshold breach | level, reason, rss_kb, vm_size_kb, vm_hwm_kb, vm_swap_kb, system_total_mb, system_available_mb, growth_5min_kb, private_dirty_kb, pss_kb |
+| `memory_warning` | Memory threshold breach | level, reason, rss_kb, vm_size_kb, vm_hwm_kb, vm_swap_kb, system_total_mb, system_available_mb, growth_5min_kb, private_dirty_kb, pss_kb; top_processes[] (name, rss_mb) at warning and critical |
 | `hardware_profile` | Hardware/feature inventory | printer.*, mcus.*, extruders.*, fans.*, steppers.*, leds.*, sensors.*, probe.*, capabilities.*, ams.*, tools.*, macros.*, printer_objects[] |
 | `settings_snapshot` | User configuration | theme, theme_name, brightness_pct, screensaver_timeout_sec, screen_blank_timeout_sec, screensaver_type, locale, sound_enabled, auto_update_channel, animations_enabled, time_format, home_widgets[], spoolman_configured, theme_changed, multi_printer |
 | `panel_usage` | Navigation delta for one window | boot_id, snapshot_seq, session_duration_sec (window length), panel_time_sec.*, panel_visits.*, widget_interactions.*, overlay_visits.*, overlay_open_count |
 | `screensaver_usage` | Screensaver delta for one window | boot_id, snapshot_seq, saver_shown_sec.*, saver_starts.*, saver_woke_by_touch.*, saver_stopped_other.*, saver_too_heavy.*, saver_settled_levels.* |
 | `connection_stability` | Connection delta for one window | boot_id, snapshot_seq, session_duration_sec, connect_count, disconnect_count, total_connected_sec, total_disconnected_sec, longest_disconnect_sec, klippy_error_count, klippy_shutdown_count |
 | `print_start_context` | Print metadata at start | source, has_thumbnail, file_size_bucket, slicer, ams_active |
-| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec |
-| `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel |
+| `error_encountered` | Rate-limited error log | category, code, context, uptime_sec; `ui`/`main_loop_hang` adds active_panel, active_overlay, gl_renderer, gl_software, mem_available_mb, pressure_level, major_faults |
+| `performance_snapshot` | Frame-time percentiles and dropped-frame counts for the window | frame_time_p50/p95/p99_ms, dropped_frame_count, total_frame_count, worst_panel, gl_renderer + gl_software (once a GL context has existed) |
 | `settings_changes` | Batched setting diffs | changes[]: setting, old_value, new_value |
 | `async_lifetime_skips` | Deferred async work skipped at shutdown | skips[], window stats |
+
+A `main_loop_hang`'s three doubles in Analytics Engine are stored as the value **plus one**, so that 0 means absent: the writer stores a missing double as 0, and Home is panel 0. `double9` is `active_panel + 1` (0 for every other error, and for a hang before any panel was shown, which the client sends as -1), `double10` is `mem_available_mb + 1`, `double11` is `major_faults + 1`. A query keeps the rows where the column is above 0 and subtracts one. R2 keeps the raw values.
 
 ### Event Trigger Summary
 
@@ -867,8 +869,15 @@ Fired when `MemoryMonitor` detects a threshold breach. Rate-limited to at most o
   "shared_clean_kb": 15000,
   "shared_dirty_kb": 1000,
   "pss_kb": 170000,
-  "swap_pss_kb": 0
+  "swap_pss_kb": 0,
+  "top_processes": [
+    { "name": "klipper", "rss_mb": 210 },
+    { "name": "helix-screen", "rss_mb": 48 },
+    { "name": "crowsnest", "rss_mb": 12 }
+  ]
 }
 ```
+
+`top_processes` is present at `warning` and `critical` only: each process named by `telemetry_process_name()` and its RSS. A comm is free text chosen by whoever built the binary, so it is sent only when it names a program on the fixed list in `kKnownPrograms` (`src/system/memory_utils.cpp#telemetry_process_name`) (HelixScreen, the Klipper stack, camera streamers, stock vendor UIs, the daemons of printer-host images), matched on the first 15 characters as the kernel keeps them; any other process is `other`. An interpreter (python, python3, python3.11, node, bash, sh, dash, ash) has its arguments after argv[0] matched against a second fixed list (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), and keeps its interpreter name when none matches. Arguments and paths are never sent. Analytics Engine stores it as `blob13` (`name:MB` joined by commas) and the largest RSS as `double9`.
 
 **Implementation:** `MemoryMonitor` (background thread, 5s sampling) → `WarningCallback` → `TelemetryManager::record_memory_warning()`. Growth tracking uses a circular buffer of 10 RSS samples at 30s intervals (5-minute window).

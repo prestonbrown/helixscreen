@@ -138,6 +138,7 @@ class SettingsPanel : public PanelBase {
     helix::Subject updates_unavailable_subject_{};
     // 1 once a plugin host exists: unhides the Plugins row (settings_panel.xml)
     helix::Subject plugins_available_subject_{};
+    helix::Subject firmware_update_subject_{};
 
     // Live status line shown under each stateful root row (settings_panel.xml),
     // refreshed by refresh_status_lines().
@@ -148,6 +149,7 @@ class SettingsPanel : public PanelBase {
     helix::Subject settings_status_connection_subject_{};
     helix::Subject settings_status_language_time_subject_{};
     helix::Subject settings_status_updates_subject_{};
+    helix::Subject settings_status_firmware_update_subject_{};
     char settings_status_display_buf_[64];
     char settings_status_appearance_buf_[64];
     char settings_status_sound_buf_[64];
@@ -155,6 +157,7 @@ class SettingsPanel : public PanelBase {
     char settings_status_connection_buf_[64];
     char settings_status_language_time_buf_[64];
     char settings_status_updates_buf_[64];
+    char settings_status_firmware_update_buf_[160] = {};
 
     // Ethernet's status probe blocks (sysfs scans, or a netd Unix-socket
     // round-trip on daemon-managed firmwares), so refresh_status_lines() never

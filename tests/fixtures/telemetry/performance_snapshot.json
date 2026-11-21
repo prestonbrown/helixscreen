@@ -9,6 +9,8 @@
   "frame_time_p50_ms": 8,
   "frame_time_p95_ms": 8,
   "frame_time_p99_ms": 8,
+  "gl_renderer": "llvmpipe",
+  "gl_software": true,
   "is_shutdown": false,
   "panels": {
     "controls": {

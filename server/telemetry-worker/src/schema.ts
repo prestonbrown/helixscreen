@@ -57,6 +57,8 @@ export const MAX_SLOT = 20;
 // for a missing marker.
 const INSTALL_SOURCES = ["helix-installer", "kiauh", "helper-script", "curl", "other", "unknown"];
 const HOST_MODS = ["forge_x", "zmod", "klipper_mod", "cosmos", "paxx", "simple_af", "rinkhals", "none"];
+// Mirrors src/system/telemetry_manager.cpp#gcode_render_mode_name.
+const GCODE_RENDER_MODES = ["auto", "3d", "2d", "thumbnail"];
 
 // ---------- Readers ----------
 
@@ -106,6 +108,17 @@ const firstOf = (...readers: Reader[]): Reader =>
   );
 
 const flat = (key: string): Reader => reads([key], (e) => e[key], true);
+
+/**
+ * A count or id where 0 is a real value, stored as value + 1 so that 0 means
+ * absent: the writer stores a missing double as 0. A negative value (the
+ * client's "none yet") is stored as absent too.
+ */
+const plusOne = (key: string): Reader =>
+  reads([key], (e) => {
+    const v = e[key];
+    return typeof v === "number" && v >= 0 ? v + 1 : undefined;
+  });
 
 /** `item[key]`, where the fan-out built the item from the client fields `paths`. */
 const fromItem = (key: string, ...paths: string[]): Reader =>
@@ -255,6 +268,20 @@ const crashBacktraceDepth: Reader = reads(
   true,
 );
 
+type ProcessRow = { name?: unknown; rss_mb?: unknown };
+const processRows = (e: EventRecord): ProcessRow[] =>
+  Array.isArray(e.top_processes) ? (e.top_processes as ProcessRow[]) : [];
+
+const topProcesses: Reader = reads(["top_processes[].name", "top_processes[].rss_mb"], (e) => {
+  const rows = processRows(e);
+  return rows.length ? rows.map((p) => `${String(p.name ?? "")}:${Number(p.rss_mb ?? 0)}`).join(",") : undefined;
+});
+
+const topProcessRss: Reader = reads(["top_processes[].rss_mb"], (e) => {
+  const rows = processRows(e);
+  return rows.length ? Number(rows[0].rss_mb ?? 0) : undefined;
+});
+
 // ---------- Column constructors ----------
 
 const column = (type: FieldType, slot: number, field: string, read?: Reader): ColumnDef =>
@@ -309,6 +336,12 @@ const KINDS: PointKind[] = [
     blob(11, "app_board", appBoard),
     blob(13, "install_source", allowlisted(nested("app", "install_source"), INSTALL_SOURCES)),
     blob(14, "host_mod", allowlisted(nested("app", "host_mod"), HOST_MODS)),
+    // The 3D G-code preview's inputs, so a software-GL draw stall can be told
+    // from other hangs. gl_renderer is absent until a GL context has existed.
+    blob(15, "gl_renderer", nested("app", "gl_renderer")),
+    blob(16, "gl_software", triState(nested("app", "gl_software"))),
+    blob(17, "gcode_render_mode", allowlisted(nested("app", "gcode_render_mode"), GCODE_RENDER_MODES)),
+    blob(18, "gpu_3d_blocked", triState(nested("app", "gpu_3d_blocked"))),
     dbl(1, "ram_total_mb", nested("host", "ram_total_mb", "ram_total_mb")),
     dbl(2, "cpu_cores", nested("host", "cpu_cores", "cpu_cores")),
     dbl(3, "extruder_count", nested("printer", "extruder_count", "extruder_count")),
@@ -393,6 +426,9 @@ const KINDS: PointKind[] = [
     dbl(6, "private_dirty_kb"),
     dbl(7, "pss_kb"),
     dbl(8, "system_total_mb"),
+    // Who holds the memory, at warning and critical: "name:MB" joined by commas, largest first.
+    blob(13, "top_processes", topProcesses),
+    dbl(9, "top_process_rss_mb", topProcessRss),
   ]),
 
   kind("hardware_profile", [
@@ -544,7 +580,17 @@ const KINDS: PointKind[] = [
     blob(5, "code"),
     blob(6, "context"),
     blob(13, "app_board", appBoard),
+    // A main_loop_hang names the screen and the GL renderer; other errors leave these empty.
+    blob(14, "gl_renderer"),
+    blob(15, "gl_software", triState(flat("gl_software"))),
+    blob(16, "active_overlay"),
+    blob(17, "pressure_level"),
     dbl(1, "uptime_sec"),
+    // A main_loop_hang's doubles, each stored + 1 (0 = absent): panel 0 is
+    // Home, and 0 MB available or 0 major faults are real readings.
+    dbl(9, "active_panel", plusOne("active_panel")),
+    dbl(10, "mem_available_mb", plusOne("mem_available_mb")),
+    dbl(11, "major_faults", plusOne("major_faults")),
   ]),
 
   kind("performance_snapshot", [
@@ -560,6 +606,9 @@ const KINDS: PointKind[] = [
     dbl(7, "worst_panel_p95_ms"),
     // No current client sends it; kept so stored rows stay readable.
     dbl(8, "task_handler_max_ms"),
+    // The renderer the session event usually misses: it is learned at the first 3D preview.
+    blob(13, "gl_renderer"),
+    blob(14, "gl_software", triState(flat("gl_software"))),
   ]),
 
   kind("feature_adoption", [

@@ -46,6 +46,10 @@ Recorded once per application launch. Helps us understand the hardware landscape
 | `app.locale` | Language setting | `"en"` |
 | `app.install_source` | Channel that installed HelixScreen, from a fixed list (`helix-installer`, `kiauh`, `helper-script`, `curl`, `other`, `unknown`) | `"kiauh"` |
 | `app.host_mod` | Firmware mod running on the printer, from a fixed list (`forge_x`, `zmod`, `klipper_mod`, `cosmos`, `paxx`, `simple_af`, `rinkhals`, `none`) | `"none"` |
+| `app.gcode_render_mode` | G-code preview setting, from a fixed list (`auto`, `3d`, `2d`, `thumbnail`) | `"auto"` |
+| `app.gpu_3d_blocked` | Whether the 3D preview is turned off after a graphics driver crash | `false` |
+| `app.gl_renderer` | Graphics renderer name, with driver and version detail removed; only once a 3D preview has been shown | `"V3D 4.2"` |
+| `app.gl_software` | Whether that renderer draws on the CPU instead of a GPU | `false` |
 | `printer.detected_model` | Auto-detected printer model | `"Voron 2.4"` |
 
 ### Print Outcome Events
@@ -87,6 +91,14 @@ Recorded periodically (hourly) and at startup. Helps detect memory leaks on diff
 | `uptime_sec` | Seconds since app started | `7200` |
 | `rss_kb` | Physical memory used (KB) | `48320` |
 | `vm_size_kb` | Virtual memory mapped (KB) | `142000` |
+
+### Memory Warnings
+
+Recorded when free memory runs low or HelixScreen's own memory grows quickly (at most one per level every 5 minutes). They carry the same memory figures as a snapshot. At the `warning` and `critical` levels they also name the three processes using the most memory, since on a printer that shares its board with Klipper, HelixScreen is often not the one using it:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `top_processes` | Each program's name and its memory in MB. Names come only from fixed lists of known programs (HelixScreen, Klipper, Moonraker, camera streamers, printer makers' own screen programs, standard system services). Any other program is sent as `other`, because a program's name can be anything, including a person's or a computer's name. For a Python, Node or shell program, whose system name is just the interpreter, the name comes from a fixed list of printer services (`klipper`, `moonraker`, `obico`, `klipperscreen`, `crowsnest`, `octoapp`, `spoolman`), or is the interpreter's name (`python3`, `node`) when it is none of those. Arguments and paths are never sent | `[{"name": "klipper", "rss_mb": 210}]` |
 
 ### Hardware Profile
 
@@ -171,6 +183,7 @@ Recorded every hour, and once more when HelixScreen closes. Measures UI responsi
 | `dropped_frame_count` | Frames slower than 33ms | `42` |
 | `total_frame_count` | Frames sampled in the same window as the dropped count | `1024` |
 | `worst_panel` | Panel with highest frame times | `"temperature"` |
+| `gl_renderer`, `gl_software` | The graphics renderer, as in session events, once a 3D preview has been shown (session events are usually sent before that) | `"V3D 4.2"`, `false` |
 
 No user content is included — just timing data about how smoothly the UI renders.
 
@@ -229,6 +242,18 @@ Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). H
 | `code` | Error code | `"timeout"` |
 | `context` | What was being attempted | `"get_printer_objects"` |
 
+When the screen freezes (`ui` / `main_loop_hang`), the event also says what was on screen and which graphics renderer was drawing:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| `active_panel` | The main panel shown, as a number | `3` |
+| `active_overlay` | The screen open on top of it, if any, by its internal name | `"print_file_detail"` |
+| `gl_renderer` | Graphics renderer name, as in session events, once one has been used | `"llvmpipe"` |
+| `gl_software` | Whether that renderer draws on the CPU | `true` |
+| `mem_available_mb` | Memory the system had free (MB) | `19` |
+| `pressure_level` | HelixScreen's memory pressure level (`none`, `elevated`, `warning`, `critical`) | `"critical"` |
+| `major_faults` | How many times HelixScreen has had to read memory back from storage since it started; a fast climb means the system is short of memory rather than busy | `81234` |
+
 ---
 
 ## What Is NOT Collected
@@ -236,6 +261,7 @@ Recorded when a non-fatal error occurs (rate-limited to avoid excessive data). H
 HelixScreen **never** collects any of the following:
 
 - **Filenames** or file paths (print jobs, G-code files, thumbnails)
+- **Command lines** of other programs (a memory warning names a program by its short name or a name from a fixed list)
 - **G-code content** (sliced files, macros, custom commands)
 - **IP addresses** (local or public)
 - **MAC addresses** or other network identifiers

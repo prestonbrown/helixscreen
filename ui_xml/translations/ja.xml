@@ -382,6 +382,7 @@
   <translation tag="Another filament operation is heating the nozzle." ja="別のフィラメント操作がノズルを加熱しています。"/>
   <translation tag="Another print is in progress." ja="別の印刷が進行中です。"/>
   <translation tag="Another toolhead is active" ja="別のツールヘッドが使用中です"/>
+  <translation tag="Another update is already running" ja="別の更新が既に実行中です"/>
   <translation tag="Any notes..." ja="メモ..."/>
   <translation tag="Any other material" ja="その他の素材"/>
   <translation tag="App Background" ja="アプリ背景"/>
@@ -825,6 +826,7 @@
   <translation tag="Checking file…" ja="ファイルを確認中…"/>
   <translation tag="Checking for ffmpeg..." ja="ffmpegを確認中..."/>
   <translation tag="Checking for plugin..." ja="プラグインを確認中..."/>
+  <translation tag="Checking for updates..." ja="更新を確認しています..."/>
   <translation tag="Checking for webcam..." ja="ウェブカメラを確認中..."/>
   <translation tag="Checking plugin" ja="プラグインを確認中"/>
   <translation tag="Checking slots..." ja="スロットを確認中..."/>
@@ -1080,10 +1082,13 @@
   <translation tag="Could not move the plate" ja="ベッドを動かせませんでした"/>
   <translation tag="Could not open a browser for the update" ja="更新用のブラウザを開けませんでした"/>
   <translation tag="Could not parse tips database" ja="ヒントデータベースを解析できませんでした"/>
+  <translation tag="Could not prepare a folder for the update log" ja="更新ログ用のフォルダーを作成できませんでした"/>
   <translation tag="Could not reach Spoolman at" ja="Spoolman に接続できません:"/>
   <translation tag="Could not read the current IPv4 settings." ja="現在のIPv4設定を読み取れませんでした。"/>
+  <translation tag="Could not read the free space on the printer" ja="プリンターの空き容量を読み取れませんでした"/>
   <translation tag="Could not read the printer&apos;s limits: {}" ja="プリンターの限界値を読み取れませんでした: {}"/>
   <translation tag="Could not read the printer&apos;s storage" ja="プリンターのストレージを読み取れませんでした"/>
+  <translation tag="Could not read the printer&apos;s update status" ja="プリンターの更新状態を読み取れませんでした"/>
   <translation tag="Could not read the screw adjustments from the printer" ja="プリンターからネジ調整を読み取れませんでした"/>
   <translation tag="Could not remove the job from the queue" ja="キューからジョブを削除できませんでした"/>
   <translation tag="Could not reset the printer image tags" ja="プリンター画像のタグのリセットに失敗しました"/>
@@ -1273,6 +1278,8 @@
   <translation tag="Do not power off your printer." ja="プリンターの電源を切らないでください。"/>
   <translation tag="Do not touch the filament yet." ja="まだフィラメントに触れないでください。"/>
   <translation tag="Do not touch the printer during calibration" ja="キャリブレーション中はプリンターに触れないでください"/>
+  <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." ja="完了するまでプリンターの電源を切らないでください。書き込み中に電源が切れると、プリンターが起動しなくなる可能性があります。"/>
+  <translation tag="Do not turn the printer off until the update finishes." ja="更新が完了するまでプリンターの電源を切らないでください。"/>
   <translation tag="Dock" ja="ドック"/>
   <translation tag="Dock every toolhead first" ja="先にすべてのツールヘッドをドックに戻してください"/>
   <translation tag="Dock position change too large" ja="ドック位置の変更が大きすぎます"/>
@@ -1772,6 +1779,7 @@
   <translation tag="Fireflies" ja="ホタル"/>
   <translation tag="Fireworks" ja="花火"/>
   <translation tag="Firmware Restart" ja="ファームウェア再起動"/>
+  <translation tag="Firmware Update" ja="ファームウェア更新"/>
   <translation tag="Firmware reports no bypass. Enable if you feed filament straight to the extruder" ja="ファームウェアはバイパスがないと報告しています。フィラメントをエクストルーダーに直接送っている場合は有効にしてください"/>
   <translation tag="Firmware restart" ja="ファームウェア再起動"/>
   <translation tag="Firmware restart failed: {}" ja="ファームウェア再起動に失敗しました: {}"/>
@@ -2119,6 +2127,7 @@
   <translation tag="Input shaping reduces vibration artifacts (ringing) in your prints." ja="インプットシェーピングは印刷物の振動アーティファクト（リンギング）を軽減します。"/>
   <translation tag="Input: " ja="入力: "/>
   <translation tag="InputShaper" ja="InputShaper"/>
+  <translation tag="Insert a USB stick with the {} firmware file in its top folder." ja="{} のファームウェアファイルを最上位フォルダーに入れたUSBメモリを挿入してください。"/>
   <translation tag="Insert filament" ja="フィラメントを差し込む"/>
   <translation tag="Insert filament before resuming" ja="再開前にフィラメントを挿入してください"/>
   <translation tag="Insert filament into this head&apos;s feeder until it grabs, then load the head again." ja="このヘッドのフィーダーがつかむまでフィラメントを挿入してから、再度装填してください。"/>
@@ -2136,6 +2145,7 @@
   <translation tag="Install the HelixPrint plugin to enable fast G-code modifications. Run this command via SSH on your printer:" ja="高速 G-code 修正を有効にするために HelixPrint プラグインをインストールしてください。プリンターで SSH 経由でこのコマンドを実行してください:"/>
   <translation tag="Install the timelapse plugin via SSH,&#10;then tap &quot;Check Again&quot;." ja="SSHでタイムラプスプラグインをインストールし、&#10;「再確認」をタップしてください。"/>
   <translation tag="Install timelapse plugin" ja="タイムラプスプラグインをインストール"/>
+  <translation tag="Install {} on this printer?" ja="このプリンターに {} をインストールしますか?"/>
   <translation tag="Installation Failed" ja="インストール失敗"/>
   <translation tag="Installation failed" ja="インストールに失敗しました"/>
   <translation tag="Installation failed. Check logs for details." ja="インストールに失敗しました。詳細はログを確認してください。"/>
@@ -2144,8 +2154,11 @@
   <translation tag="Installation timed out" ja="インストールがタイムアウトしました"/>
   <translation tag="Installation timed out. The script may be stuck." ja="インストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Installed" ja="インストール済み"/>
+  <translation tag="Installing firmware is not enabled on this printer" ja="このプリンターではファームウェアのインストールが有効になっていません"/>
+  <translation tag="Installing printer firmware" ja="プリンターのファームウェアをインストールしています"/>
   <translation tag="Installing restarts Moonraker, so it waits until the print is finished or cancelled." ja="インストールするとMoonrakerが再起動するため、印刷の終了またはキャンセルまで待機します。"/>
   <translation tag="Installing the timelapse plugin..." ja="タイムラプスプラグインをインストール中..."/>
+  <translation tag="Installing {} firmware from this screen is not available yet." ja="この画面からの {} ファームウェアのインストールはまだ利用できません。"/>
   <translation tag="Installing..." ja="インストール中..."/>
   <translation tag="Intensity" ja="強度"/>
   <translation tag="Interactive calibration for all lanes" ja="全レーンの対話式キャリブレーション"/>
@@ -2246,6 +2259,7 @@
   <translation tag="Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:" ja="Klipper がタイムラプスマクロを読み込んでいないため、フレームは撮影されません。この行を printer.cfg に追加して Klipper を再起動してください:"/>
   <translation tag="Klipper is halted — restart firmware to continue" ja="Klipper が停止しています — 続行するにはファームウェアを再起動してください"/>
   <translation tag="Klipper is restarting. Timelapse frames are captured from the next print." ja="Klipper を再起動しています。タイムラプスのフレームは次の印刷から撮影されます。"/>
+  <translation tag="Klipper or Moonraker may restart while it updates." ja="更新中に Klipper または Moonraker が再起動する場合があります。"/>
   <translation tag="Klipper ready" ja="Klipper準備完了"/>
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ja="Klipper は &apos;default&apos; を新しいキャリブレーション用に予約しています。別の名前を選んでください。"/>
   <translation tag="Klipper restarting - macros activating" ja="Klipper を再起動しています - マクロを有効化中"/>
@@ -2413,6 +2427,7 @@
   <translation tag="Lost connection during print — try again" ja="印刷中に接続が切断されました — もう一度お試しください"/>
   <translation tag="Lost connection to CFS unit" ja="CFS ユニットとの接続が切断されました"/>
   <translation tag="Lost contact with a controller board" ja="制御ボードとの接続が切れました"/>
+  <translation tag="Lost contact with the printer. The update may still be running." ja="プリンターとの接続が切れました。更新はまだ実行中の可能性があります。"/>
   <translation tag="Lost the connection to the printer." ja="プリンターとの接続が切れました。"/>
   <translation tag="Lost the printer." ja="プリンターとの接続が失われました。"/>
   <translation tag="Lot # (optional)" ja="ロット番号（オプション）"/>
@@ -2645,6 +2660,7 @@
   <translation tag="Needs a newer Moonraker to hold uploads." ja="アップロードを保留するには新しいMoonrakerが必要です。"/>
   <translation tag="Needs attention" ja="対応が必要"/>
   <translation tag="Needs file analysis, which isn&apos;t running." ja="ファイル解析が必要ですが、実行されていません。"/>
+  <translation tag="Needs repair from a web interface" ja="Webインターフェースからの修復が必要です"/>
   <translation tag="Needs the {} package to switch spools" ja="スプール切り替えには {} プラグインが必要です"/>
   <translation tag="Needs {}x{} free: remove or shrink a widget first" ja="空き {}x{} が必要です。先にウィジェットを削除または縮小してください"/>
   <translation tag="Net Weight (g)" ja="正味重量（g）"/>
@@ -2825,6 +2841,7 @@
   <translation tag="Not detected" ja="検出されません"/>
   <translation tag="Not drying" ja="乾燥していません"/>
   <translation tag="Not enough free space on the printer for this file. Free some in Settings &gt; System &gt; Storage." ja="このファイルを置く空き容量がプリンターにありません。設定 &gt; システム &gt; ストレージで空き容量を確保してください。"/>
+  <translation tag="Not enough free space on the printer to unpack the firmware" ja="ファームウェアを展開するための空き容量がプリンターにありません"/>
   <translation tag="Not enough frequency data from the sweeps. Try again." ja="測定から十分な周波数データが得られませんでした。再試行してください。"/>
   <translation tag="Not enough room for this widget. Rearrange or remove widgets to make space." ja="このウィジェットを配置するスペースが足りません。スペースを確保するためにウィジェットを整理または削除してください。"/>
   <translation tag="Not enough room to put the widget back. It stays removed." ja="ウィジェットを元に戻すスペースが足りません。削除されたままです。"/>
@@ -2983,6 +3000,8 @@
   <translation tag="POWER" ja="電源"/>
   <translation tag="PRINT OPTIONS" ja="印刷オプション"/>
   <translation tag="PRINTER" ja="プリンター"/>
+  <translation tag="PRINTER FIRMWARE" ja="プリンターのファームウェア"/>
+  <translation tag="PRINTER SOFTWARE" ja="プリンターのソフトウェア"/>
   <translation tag="PRINTER VISUALS" ja="プリンター表示"/>
   <translation tag="PRINTERS" ja="プリンター"/>
   <translation tag="PRINTING" ja="印刷"/>
@@ -3468,6 +3487,8 @@
   <translation tag="Refresh RFID" ja="RFIDを再読み込み"/>
   <translation tag="Refresh Spoolman" ja="Spoolmanを再読み込み"/>
   <translation tag="Reheating..." ja="再加熱中..."/>
+  <translation tag="Reinstall it afterwards by following {}." ja="更新後に {} の手順で再インストールしてください。"/>
+  <translation tag="Reinstall it afterwards." ja="更新後に再インストールしてください。"/>
   <translation tag="Relative vibration" ja="相対振動"/>
   <translation tag="Release all stepper motors. Position will be lost." ja="すべてのステッピングモーターを解放します。位置情報は失われます。"/>
   <translation tag="Release filament" ja="フィラメントを解放"/>
@@ -3594,6 +3615,7 @@
   <translation tag="Restarting Moonraker..." ja="Moonrakerを再起動中..."/>
   <translation tag="Restarting printer..." ja="プリンターを再起動中..."/>
   <translation tag="Restarting screen..." ja="画面を再起動中..."/>
+  <translation tag="Restarting the printer" ja="プリンターを再起動しています"/>
   <translation tag="Restarting the printer..." ja="プリンターを再起動しています..."/>
   <translation tag="Restarting with the new version..." ja="新しいバージョンで再起動中..."/>
   <translation tag="Restarting..." ja="再起動中..."/>
@@ -4097,6 +4119,7 @@
   <translation tag="Starting nozzle clean..." ja="ノズル清掃を開始中..."/>
   <translation tag="Starting print..." ja="印刷開始中..."/>
   <translation tag="Starting the print" ja="印刷を開始中"/>
+  <translation tag="Starting the update" ja="更新を開始しています"/>
   <translation tag="Starting {}…" ja="{} を開始中…"/>
   <translation tag="Starting..." ja="開始中..."/>
   <translation tag="Starts after the current print" ja="現在の印刷が終わったら開始します"/>
@@ -4462,6 +4485,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ja="プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。"/>
   <translation tag="The printer did not report its toolhead limits." ja="プリンターがツールヘッドの限界値を報告しませんでした。"/>
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
+  <translation tag="The printer did not say whether it is printing. Try again." ja="プリンターが印刷中かどうかを返しませんでした。もう一度お試しください。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>
@@ -4482,6 +4506,7 @@
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ja="プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。"/>
   <translation tag="The printer is not ready." ja="プリンターの準備ができていません。"/>
   <translation tag="The printer is not reporting its toolheads" ja="プリンターがツールヘッドの情報を報告していません"/>
+  <translation tag="The printer is restarting into the new firmware." ja="プリンターは新しいファームウェアで再起動しています。"/>
   <translation tag="The printer is shut down." ja="プリンターはシャットダウンしています。"/>
   <translation tag="The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool&apos;s extruder section of printer.cfg." ja="この値はKlipperが再起動するまで使われます。保持するには、printer.cfgのこのツールのエクストルーダーセクションにpressure_advanceとして追加してください。"/>
   <translation tag="The printer is waiting for the chamber to reach a temperature, and only an emergency stop and a firmware restart end that wait. The print stops at once and cannot be resumed." ja="プリンターはチャンバーが温度に達するのを待っており、この待機を終わらせるには緊急停止とファームウェアの再起動しかありません。印刷はすぐに停止し、再開できません。"/>
@@ -4492,6 +4517,7 @@
   <translation tag="The printer lost power while printing {}. Resume where it left off?" ja="{} の印刷中にプリンターの電源が失われました。中断した箇所から再開しますか？"/>
   <translation tag="The printer lost power while printing {}. The resumed layer may not line up exactly." ja="{} の印刷中にプリンターの電源が失われました。再開したレイヤーがわずかにずれる可能性があります。"/>
   <translation tag="The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear." ja="プリンターがホーミングしてツールヘッドを動かした後、電動テンショナーがXとYのベルトを調整します。ベッドとガントリーの周りを空けてください。"/>
+  <translation tag="The printer may need a reboot afterwards." ja="更新後にプリンターの再起動が必要になる場合があります。"/>
   <translation tag="The printer moved the print to {}, not {}." ja="プリンターは印刷を {} に移しました ({} ではありません)。"/>
   <translation tag="The printer moves the toolhead and measures its motors." ja="プリンターがツールヘッドを動かし、モーターを測定します。"/>
   <translation tag="The printer no longer has a print to resume." ja="プリンターに再開できる印刷がありません。"/>
@@ -4504,10 +4530,12 @@
   <translation tag="The printer reports no lane record, so only clearing the extruder can unload it." ja="プリンターにレーン記録がないため、取り出すにはエクストルーダーを空にするしかありません。"/>
   <translation tag="The printer requires an encrypted connection, but it rejected the encrypted job: HTTP {} {}" ja="プリンターは暗号化接続を必要としますが、暗号化されたジョブを拒否しました: HTTP {} {}"/>
   <translation tag="The printer requires an encrypted connection, but the encrypted connection to {}:{} failed" ja="プリンターは暗号化接続を必要としますが、{}:{} への暗号化接続に失敗しました"/>
+  <translation tag="The printer restarts when the update finishes." ja="更新が完了するとプリンターは再起動します。"/>
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." ja="プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。"/>
   <translation tag="The printer shut down" ja="プリンターが停止しました"/>
   <translation tag="The printer shut down while homing or probing." ja="ホーミングまたはプローブ中にプリンターが停止しました。"/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." ja="プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。"/>
+  <translation tag="The printer stops and cannot print until the update is done." ja="更新が完了するまでプリンターは停止し、印刷できません。"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ja="プリンターは複数のツールヘッドを切り替えます。ツールはフィラメントシステム画面で管理できます。"/>
   <translation tag="The printer was stopped" ja="プリンターが停止されました"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ja="フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます"/>
@@ -4548,6 +4576,10 @@
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ja="ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です"/>
   <translation tag="The unload did not start: unload by hand, then start again" ja="排出が始まりませんでした: 手で排出してから、もう一度始めてください"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ja="排出はそのまま完了しますが、ベッドは移動しません。"/>
+  <translation tag="The update ended, but the printer still offers it. Check the printer before using it." ja="更新は終了しましたが、プリンターはまだ更新を提示しています。使用する前にプリンターを確認してください。"/>
+  <translation tag="The update failed" ja="更新に失敗しました"/>
+  <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." ja="更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。"/>
+  <translation tag="The update&apos;s result is unknown" ja="更新の結果は不明です"/>
   <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ja="このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
   <translation tag="The {0} motor was not measured: {1}." ja="{0} モーターは測定されませんでした: {1}。"/>
   <translation tag="Theme" ja="テーマ"/>
@@ -4628,6 +4660,7 @@
   <translation tag="This printer&apos;s Moonraker requires a login. Add its API key in Settings &gt; Connection." ja="このプリンターのMoonrakerはログインを要求しています。設定 &gt; 接続 でAPIキーを追加してください。"/>
   <translation tag="This printer&apos;s accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown." ja="このプリンターの加速度センサーは {0:.0f} Hz までしか測定できないため、それより速いリップルは表示されません。"/>
   <translation tag="This printer&apos;s firmware has its own power-loss recovery." ja="このプリンターのファームウェアには独自の停電からの復帰機能があります。"/>
+  <translation tag="This printer&apos;s firmware offers updates by itself when one is available." ja="このプリンターのファームウェアは、更新があるときに自ら更新を提示します。"/>
   <translation tag="This printer&apos;s gantry drops when the power is cut, so a print can&apos;t be resumed." ja="このプリンターのガントリーは電源が切れると落下するため、印刷を再開できません。"/>
   <translation tag="This printer&apos;s homing override homes Z along with X and Y, so a print can&apos;t be resumed." ja="このプリンターのhoming overrideはXとYと同時にZもホーミングするため、印刷を再開できません。"/>
   <translation tag="This printer&apos;s homing override runs commands that may move Z, so a print can&apos;t be resumed." ja="このプリンターのhoming overrideはZを動かす可能性のあるコマンドを実行するため、印刷を再開できません。"/>
@@ -4650,6 +4683,8 @@
   <translation tag="This tool probes each bed screw and tells you how much to adjust." ja="このツールは各ベッドネジをプローブし、どのくらい調整が必要かを教えます。"/>
   <translation tag="This toolhead has no automatic feeder. Load the filament by hand." ja="このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"/>
   <translation tag="This update asks for new permissions:" ja="この更新は新しい権限を要求します："/>
+  <translation tag="This update removes HelixScreen from the printer." ja="この更新はプリンターから HelixScreen を削除します。"/>
+  <translation tag="This upgrades the printer&apos;s operating system packages." ja="プリンターのOSパッケージを更新します。"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." ja="この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." ja="Z-offset をプローブに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。"/>
@@ -4882,6 +4917,7 @@
   <translation tag="Unlock" ja="ロック解除"/>
   <translation tag="Unmapped" ja="未割当"/>
   <translation tag="Unmount" ja="取り外し"/>
+  <translation tag="Unpacking the firmware" ja="ファームウェアを展開しています"/>
   <translation tag="Unretract Extra" ja="アンリトラクト追加量"/>
   <translation tag="Unretract Speed" ja="アンリトラクト速度"/>
   <translation tag="Unsaved changes" ja="未保存の変更"/>
@@ -4890,6 +4926,7 @@
   <translation tag="Up next: {}" ja="次の印刷：{}"/>
   <translation tag="Up next: {} (+{})" ja="次の印刷：{}（+{}）"/>
   <translation tag="Up to date" ja="最新の状態です"/>
+  <translation tag="Up to date ({})" ja="最新 ({})"/>
   <translation tag="Up: %s" ja="稼働時間: %s"/>
   <translation tag="Update" ja="更新"/>
   <translation tag="Update Available" ja="更新あり"/>
@@ -4898,16 +4935,26 @@
   <translation tag="Update Helper Macros" ja="ヘルパーマクロを更新"/>
   <translation tag="Update Helper Macros?" ja="ヘルパーマクロを更新しますか？"/>
   <translation tag="Update Success" ja="更新成功"/>
+  <translation tag="Update complete" ja="更新が完了しました"/>
   <translation tag="Update from a Terminal" ja="ターミナルから更新"/>
   <translation tag="Update heater model?" ja="ヒーターモデルを更新しますか？"/>
   <translation tag="Update in Spoolman" ja="Spoolman で更新"/>
   <translation tag="Update installed!" ja="アップデートをインストールしました！"/>
+  <translation tag="Update printer software and firmware" ja="プリンターのソフトウェアとファームウェアを更新"/>
   <translation tag="Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls." ja="PRINT_START の古いコマンドを非表示にするには、HelixPrint プラグインを 1.5.0 に更新してください。"/>
   <translation tag="Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}." ja="INDXヒーターモデルも更新しますか？{}は{}になりました：密度 {:.2f}、熱容量 {:.2f}。"/>
   <translation tag="Update your security PIN" ja="セキュリティ PIN を更新"/>
+  <translation tag="Update {} from {} to {}?" ja="{} を {} から {} に更新しますか?"/>
+  <translation tag="Update {} system packages?" ja="{} 件のシステムパッケージを更新しますか?"/>
+  <translation tag="Update {} to {}?" ja="{} を {} に更新しますか?"/>
+  <translation tag="Update {}?" ja="{} を更新しますか?"/>
   <translation tag="Updates" ja="更新"/>
   <translation tag="Updates &amp; Data" ja="更新とデータ"/>
   <translation tag="Updating Configuration..." ja="設定を更新中..."/>
+  <translation tag="Updating the main board" ja="メインボードを更新しています"/>
+  <translation tag="Updating the system" ja="システムを更新しています"/>
+  <translation tag="Updating toolhead {}" ja="ツールヘッド {} を更新しています"/>
+  <translation tag="Updating {}" ja="{} を更新しています"/>
   <translation tag="Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman." ja="マルチカラースプールにはAFC 1.2.0以降へのアップグレードが必要です。フィラメント名にも対応し、これまではSpoolmanが別途必要でした。"/>
   <translation tag="Upload" ja="アップロード"/>
   <translation tag="Upload Debug Bundle" ja="デバッグバンドルをアップロード"/>
@@ -5181,6 +5228,7 @@
   <translation tag="Zone {:.0f}-{:.0f} Hz" ja="ゾーン {:.0f}-{:.0f} Hz"/>
   <translation tag="[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps." ja="[resonance_tester] に probe_points がないため、なじませ周回を行う安全な高さがありません。"/>
   <translation tag="[{}] was found {} times in the config files printer.cfg loads, expected once" ja="[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"/>
+  <translation tag="a newer version" ja="新しいバージョン"/>
   <translation tag="already loaded" ja="装填済み"/>
   <translation tag="attempt {}" ja="試行 {}"/>
   <translation tag="auto" ja="自動"/>
@@ -5354,6 +5402,9 @@
   <translation tag="{} filament sensors available" ja="{} 個のフィラメントセンサーが利用可能です"/>
   <translation tag="{} filament • {}" ja="フィラメント {} • {}"/>
   <translation tag="{} firmware" ja="{} ファームウェア"/>
+  <translation tag="{} firmware can only be updated from its own screen app." ja="{} のファームウェアは専用の画面アプリからのみ更新できます。"/>
+  <translation tag="{} firmware updates are managed by its own tools." ja="{} のファームウェア更新は専用のツールで管理されます。"/>
+  <translation tag="{} firmware {} is available. Open Settings &gt; System &gt; Firmware Update to install it." ja="{} のファームウェア {} が利用可能です。設定 &gt; システム &gt; ファームウェア更新 からインストールしてください。"/>
   <translation tag="{} free of {}" ja="空き {} / {}"/>
   <translation tag="{} h" ja="{} 時間"/>
   <translation tag="{} h of {} h" ja="{} / {} 時間"/>
@@ -5400,6 +5451,7 @@
   <translation tag="{} new hardware available" ja="{} 個の新しいハードウェアが利用可能です"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ja="{} 個の新しいプラグインが利用可能です。設定 &gt; プラグインで有効化してください。"/>
   <translation tag="{} nozzle sensor fault" ja="{} のノズルセンサー異常"/>
+  <translation tag="{} packages to update" ja="更新するパッケージ {} 件"/>
   <translation tag="{} preset" ja="{} 個のプリセット"/>
   <translation tag="{} presets" ja="{} 個のプリセット"/>
   <translation tag="{} prints" ja="{} 件"/>

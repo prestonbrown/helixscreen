@@ -399,6 +399,7 @@ translations:
   Another filament operation is heating the nozzle.: "其他耗材操作正在加热喷嘴。"
   Another print is in progress.: '另一个打印正在进行。'
   Another toolhead is active: '另一个工具头正在使用'
+  Another update is already running: '另一个更新正在进行'
   Any notes...: 备注...
   Any other material: "其他所有材料"
   App Background: 应用背景
@@ -847,6 +848,7 @@ translations:
   Checking filament...: 正在检查耗材……
   Checking for ffmpeg...: '正在检查 ffmpeg...'
   Checking for plugin...: 正在检查插件...
+  Checking for updates...: '正在检查更新...'
   Checking for webcam...: 正在检查摄像头...
   Checking plugin: 正在检查插件
   Checking slots...: 正在检查槽位...
@@ -1143,10 +1145,13 @@ translations:
 
   Could not open a browser for the update: 无法打开浏览器进行更新
   Could not parse tips database: 无法解析提示数据库
+  Could not prepare a folder for the update log: '无法为更新日志准备文件夹'
   Could not reach Spoolman at: 无法连接 Spoolman：
   Could not read the current IPv4 settings.: '无法读取当前的 IPv4 设置。'
+  Could not read the free space on the printer: '无法读取打印机的可用空间'
   "Could not read the printer's limits: {}": '无法读取打印机的限制：{}'
   Could not read the printer's storage: '无法读取打印机存储'
+  Could not read the printer's update status: '无法读取打印机的更新状态'
   Could not read the screw adjustments from the printer: 无法从打印机读取螺丝调整数据
   Could not remove the job from the queue: 无法从队列中移除任务
   Could not reset the printer image tags: 重置打印机图片标记失败
@@ -1336,6 +1341,8 @@ translations:
   Do not power off your printer.: 请勿关闭打印机电源。
   Do not touch the filament yet.: "请暂时不要触碰耗材。"
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
+  Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完成之前请勿关闭打印机。刷写过程中断电可能导致打印机无法启动。'
+  Do not turn the printer off until the update finishes.: '更新完成之前请勿关闭打印机。'
   Dock: 归位
   Dock every toolhead first: '请先停靠所有工具头'
   Dock position change too large: '停靠位置变化过大'
@@ -1844,6 +1851,7 @@ translations:
   Fireflies: 萤火虫
   Fireworks: 烟花
   Firmware Restart: 固件重启
+  Firmware Update: '固件更新'
   Firmware reports no bypass. Enable if you feed filament straight to the extruder: 固件报告未配置旁路。如果您将耗材直接送入挤出机，请启用此选项
   Firmware restart: 固件重启
   'Firmware restart failed: {}': '固件重启失败: {}'
@@ -2199,6 +2207,7 @@ translations:
   Input shaping reduces vibration artifacts (ringing) in your prints.: 输入整形可减少打印件中的振动伪影（振纹）。
   'Input: ': '输入: '
   InputShaper: InputShaper
+  Insert a USB stick with the {} firmware file in its top folder.: '请插入在顶层文件夹中存有 {} 固件文件的 U 盘。'
   Insert filament: '插入耗材'
   Insert filament before resuming: 恢复前请插入耗材
   Insert filament into this head's feeder until it grabs, then load the head again.: '请将耗材插入此工具头的送料器直到被咬住，然后重新装载。'
@@ -2217,6 +2226,7 @@ translations:
   ? "Install the timelapse plugin via SSH,\nthen tap \"Check Again\"."
   : "通过SSH安装延时摄影插件，\n然后点击\"重新检查\"。"
   Install timelapse plugin: 安装延时摄影插件
+  Install {} on this printer?: '在此打印机上安装 {}?'
   Installation Failed: 安装失败
   Installation failed: 安装失败
   Installation failed. Check logs for details.: 安装失败。请查看日志了解详情。
@@ -2225,8 +2235,11 @@ translations:
   Installation timed out: 安装超时
   Installation timed out. The script may be stuck.: 安装超时。脚本可能已卡住。
   Installed: '已安装'
+  Installing firmware is not enabled on this printer: '此打印机未启用固件安装'
+  Installing printer firmware: '正在安装打印机固件'
   Installing restarts Moonraker, so it waits until the print is finished or cancelled.: '安装会重启 Moonraker，因此会等到打印完成或取消后再进行。'
   Installing the timelapse plugin...: '正在安装延时摄影插件...'
+  Installing {} firmware from this screen is not available yet.: '暂不支持从此屏幕安装 {} 固件。'
   Installing...: 正在安装...
   Intensity: 强度
   Interactive calibration for all lanes: '所有耗材通道的交互式校准'
@@ -2330,6 +2343,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper：'
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。'
+  Klipper or Moonraker may restart while it updates.: '更新期间 Klipper 或 Moonraker 可能会重启。'
   Klipper ready: Klipper就绪
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
@@ -2491,6 +2505,7 @@ translations:
   Lost connection during print — try again: 打印过程中连接丢失 — 请重试
   Lost connection to CFS unit: 与 CFS 单元的连接已断开
   Lost contact with a controller board: '与控制板失去连接'
+  Lost contact with the printer. The update may still be running.: '与打印机的连接已断开。更新可能仍在进行。'
   Lost the connection to the printer.: 与打印机的连接已断开。
   Lost the printer.: "与打印机失去连接。"
   'Lot # (optional)': 批号（可选）
@@ -2725,6 +2740,7 @@ translations:
   ? Naming the part fan lets MPC account for its cooling. Klipper restarts, then this heater is calibrated. That takes several minutes at temperature.
   : '指定模型风扇后,MPC 可以计入其冷却效果。Klipper 重启后将校准此加热器。在工作温度下需要几分钟。'
   Needs attention: 需要处理
+  Needs repair from a web interface: '需要通过网页界面修复'
   Needs the {} package to switch spools: '切换料盘需要 {} 插件'
   'Needs {}x{} free: remove or shrink a widget first': 需要 {}x{} 空位。请先移除或缩小小组件
   Net Weight (g): 净重（克）
@@ -2905,6 +2921,7 @@ translations:
   Not detected: 未检测到
   Not drying: 未在烘干
   Not enough free space on the printer for this file. Free some in Settings > System > Storage.: '打印机上的可用空间不足以存放此文件。请在设置 > 系统 > 存储中释放空间。'
+  Not enough free space on the printer to unpack the firmware: '打印机可用空间不足，无法解压固件'
   Not enough frequency data from the sweeps. Try again.: '扫频得到的频率数据不足，请重试。'
   Not enough room for this widget. Rearrange or remove widgets to make space.: 没有足够的空间放置此小组件。请重新排列或移除小组件以腾出空间。
   Not enough room to put the widget back. It stays removed.: '没有足够的空间恢复此小组件。它仍处于移除状态。'
@@ -3073,6 +3090,8 @@ translations:
   POWER: 电源
   PRINT OPTIONS: 打印选项
   PRINTER: 打印机
+  PRINTER FIRMWARE: '打印机固件'
+  PRINTER SOFTWARE: '打印机软件'
   PRINTER VISUALS: 打印机外观
   PRINTERS: 打印机
   PRINTING: '打印'
@@ -3554,6 +3573,8 @@ translations:
   Refresh: 刷新
   Refresh Interval: 刷新间隔
   Refresh RFID: '刷新 RFID'
+  Reinstall it afterwards by following {}.: '更新后请按照 {} 重新安装。'
+  Reinstall it afterwards.: '更新后请重新安装。'
   Relative vibration: 相对振动
   Refresh Spoolman: '刷新 Spoolman'
   Reheating...: 正在重新加热...
@@ -3684,6 +3705,7 @@ translations:
   Restarting printer...: 正在重启打印机...
   Restarting screen...: 正在重启屏幕...
   Restarting the printer...: '正在重启打印机...'
+  Restarting the printer: '正在重启打印机'
   Restarting with the new version...: 正在以新版本重启...
   Restarting...: 正在重启...
   Restore: '恢复'
@@ -4197,6 +4219,7 @@ translations:
   Starting nozzle clean...: 正在开始清洁喷嘴...
   Starting print...: 正在启动打印...
   Starting the print: 正在开始打印
+  Starting the update: '正在开始更新'
   Starting {}…: '正在开始 {}…'
   Starting...: 正在启动...
   Starts after the current print: 当前打印完成后开始
@@ -4577,6 +4600,7 @@ translations:
   'The printer did not confirm the print started ({}). It may still start: check the printer before starting it again.': '打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。'
   The printer did not report its toolhead limits.: '打印机未报告其工具头限制。'
   The printer did not reset the filter: '打印机未重置滤网'
+  The printer did not say whether it is printing. Try again.: '打印机未报告是否正在打印。请重试。'
   The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye.: '打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。'
   The printer finishes this measurement on its own.: '打印机会自行完成这次测量。'
   The printer halted this print and cannot resume it. Restart from the beginning?: 打印机已停止此打印且无法恢复。从头重新开始？
@@ -4599,6 +4623,7 @@ translations:
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: 打印机尚未归位。继续将对所有轴执行归位操作，移动工具头。请确保热床上没有障碍物。
   The printer is not ready.: "打印机未就绪。"
   The printer is not reporting its toolheads: '打印机未上报其工具头'
+  The printer is restarting into the new firmware.: '打印机正在以新固件重启。'
   The printer is shut down.: '打印机已关机。'
   ? The printer is using this value until Klipper restarts. To keep it, add it as pressure_advance in this tool's extruder section of printer.cfg.
   : '打印机会使用此值直到 Klipper 重启。如需保留，请将其作为 pressure_advance 添加到 printer.cfg 中此工具的挤出机段。'
@@ -4613,6 +4638,7 @@ translations:
   ? The printer may home and move the toolhead, then the motorized tensioners set the X and Y belts. Keep the bed and gantry clear.
   : "打印机可能会归零并移动工具头，然后电动张紧器调整X和Y皮带。请清空热床和龙门周围的物品。"
   The printer moved the print to {}, not {}.: '打印机将打印转移到了 {}，而不是 {}。'
+  The printer may need a reboot afterwards.: '之后打印机可能需要重启。'
   The printer moves the toolhead and measures its motors.: '打印机将移动打印头并测量电机。'
   The printer no longer has a print to resume.: 打印机已没有可恢复的打印。
   The printer reads the file up to the last saved position. A large file can take a minute.: 打印机正在读取文件直到最后保存的位置。大文件可能需要一分钟。
@@ -4629,6 +4655,8 @@ translations:
   The printer stopped itself for safety; the firmware gave no specific reason.: '打印机出于安全自行停止；固件未给出具体原因。'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : '打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。'
+  The printer restarts when the update finishes.: '更新完成后打印机将重启。'
+  The printer stops and cannot print until the update is done.: '更新完成之前打印机会停止，无法打印。'
   The printer swaps between several toolheads. Manage the tools on the filament system screen.: '打印机在多个工具头之间切换。在耗材系统界面管理工具。'
   The printer was stopped: '打印机已停止'
   The printer's firmware chooses where to switch on runout: 耗材用尽时切换到哪里由打印机固件自行选择
@@ -4670,7 +4698,11 @@ translations:
   The unit's onboard storage has failed. The CFS mainboard needs replacing: 该单元的板载存储已损坏。需更换 CFS 主板
   'The unload did not start: unload by hand, then start again': 卸载未开始:请手动卸载,然后重新开始
   The unload finishes on its own, but the plate will not move.: '卸载会自行完成,但热床不会移动。'
+  The update ended, but the printer still offers it. Check the printer before using it.: '更新已结束，但打印机仍提示有此更新。使用前请检查打印机。'
+  The update failed: '更新失败'
   'The {0} motor was not measured: {1}.': '{0} 电机未测量：{1}。'
+  'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新已停止报告进度。结果未知：使用前请检查打印机。'
+  The update's result is unknown: '更新结果未知'
   The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: '视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。'
   Theme: 主题
   Theme Colors: 主题颜色
@@ -4771,6 +4803,7 @@ translations:
   This printer's Moonraker requires a login. Add its API key in Settings > Connection.: '此打印机的 Moonraker 要求登录。请在 设置 > 连接 中添加其 API 密钥。'
   This printer's accelerometer measures up to {0:.0f} Hz, so faster ripples are not shown.: '此打印机的加速度传感器最高测量 {0:.0f} Hz，因此不显示更快的纹波。'
   This printer's firmware has its own power-loss recovery.: "此打印机的固件自带断电恢复。"
+  This printer's firmware offers updates by itself when one is available.: '此打印机的固件会在有可用更新时自行提供更新。'
   This printer's gantry drops when the power is cut, so a print can't be resumed.: "此打印机的龙门在断电时会下落，因此无法恢复打印。"
   This printer's homing override homes Z along with X and Y, so a print can't be resumed.: "此打印机的 homing override 会在 X 和 Y 轴归零时一并将 Z 轴归零，因此无法恢复打印。"
   This printer's homing override sets the Z position when it homes X and Y, so a print can't be resumed.: "此打印机的 homing override 在 X 和 Y 轴归零时会设定 Z 轴位置，因此无法恢复打印。"
@@ -4795,6 +4828,8 @@ translations:
   This system does not support bypass mode: '此系统不支持旁通模式'
   This tool probes each bed screw and tells you how much to adjust.: 此工具探测每个热床螺丝并告诉您需要调整多少。
   'This update asks for new permissions:': '此更新请求新的权限：'
+  This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
+  This upgrades the printer's operating system packages.: '这将升级打印机的操作系统软件包。'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : 这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。
@@ -5031,6 +5066,7 @@ translations:
   Unlock: 解锁
   Unmapped: 未映射
   Unmount: 卸下
+  Unpacking the firmware: '正在解压固件'
   Unretract Extra: 回抽恢复额外量
   Unretract Speed: 回抽恢复速度
   Unsupported tape width: 不支持的标签带宽度
@@ -5038,6 +5074,7 @@ translations:
   'Up next: {}': '下一个：{}'
   'Up next: {} (+{})': '下一个：{}（+{}）'
   Up to date: 已是最新
+  Up to date ({}): '已是最新 ({})'
   'Up: %s': '运行时长：%s'
   Update: 更新
   Update Available: 有可用更新
@@ -5046,14 +5083,24 @@ translations:
   Update Helper Macros: '更新帮助宏'
   Update Helper Macros?: '更新帮助宏？'
   Update Success: 更新成功
+  Update complete: '更新完成'
   Update from a Terminal: 通过终端更新
   Update installed!: 更新已安装！
+  Update printer software and firmware: '更新打印机软件和固件'
   Update the HelixPrint plugin to 1.5.0 to hide old PRINT_START calls.: '将 HelixPrint 插件更新到 1.5.0 以隐藏 PRINT_START 中的旧调用。'
   'Update the INDX heater model too? {} now holds {}: density {:.2f}, heat capacity {:.2f}.': 同时更新INDX加热器模型？{}现在装的是{}：密度 {:.2f}，热容 {:.2f}。
   Update your security PIN: 更新您的安全 PIN
+  Update {} from {} to {}?: '将 {} 从 {} 更新到 {}?'
+  Update {} system packages?: '更新 {} 个系统软件包?'
+  Update {} to {}?: '将 {} 更新到 {}?'
+  Update {}?: '更新 {}?'
   Updates: 更新
   Updates & Data: '更新与数据'
   Updating Configuration...: 正在更新配置...
+  Updating the main board: '正在更新主板'
+  Updating the system: '正在更新系统'
+  Updating toolhead {}: '正在更新工具头 {}'
+  Updating {}: '正在更新 {}'
   Upgrade to AFC 1.2.0 or newer for multi-color spools. It also adds filament names, which otherwise need Spoolman.: 升级到 AFC 1.2.0 或更高版本即可使用多色料盘。它还会添加耗材名称，否则需要 Spoolman 提供。
   Upload: 上传
   Upload Debug Bundle: 上传调试捆绑包
@@ -5322,6 +5369,7 @@ translations:
   Zone {:.0f}-{:.0f} Hz: "区间 {:.0f}-{:.0f} Hz"
   '[resonance_tester] has no probe_points, so the toolhead has no safe height for the settling laps.': '[resonance_tester] 没有 probe_points，因此打印头没有进行稳定绕圈的安全高度。'
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "在 printer.cfg 加载的配置文件中找到 [{}] {} 次，应只有一次"
+  a newer version: '更新的版本'
   already loaded: '已加载'
   attempt {}: '第 {} 次尝试'
   auto: 自动
@@ -5501,6 +5549,9 @@ translations:
   '{} filament sensors available': '{} 个耗材传感器可用'
   '{} filament • {}': '耗材 {} • {}'
   '{} firmware': '{} 固件'
+  '{} firmware can only be updated from its own screen app.': '{} 固件只能通过其自带的屏幕应用更新。'
+  '{} firmware updates are managed by its own tools.': '{} 固件更新由其自带的工具管理。'
+  '{} firmware {} is available. Open Settings > System > Firmware Update to install it.': '{} 固件 {} 已可用。请打开 设置 > 系统 > 固件更新 进行安装。'
   '{} free of {}': '可用 {} / 共 {}'
   '{} h': '{} 小时'
   '{} h of {} h': '{} / {} 小时'
@@ -5547,6 +5598,7 @@ translations:
   '{} new hardware available': '{} 个新硬件可用'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 个新插件可用。请在设置 > 插件中启用。'
   '{} nozzle sensor fault': '{} 喷嘴传感器故障'
+  '{} packages to update': '{} 个软件包待更新'
   '{} preset': '{} 个预设'
   '{} presets': '{} 个预设'
   '{} prints': '{} 次打印'

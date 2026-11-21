@@ -1079,8 +1079,38 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
            helix::SharedCallback<void(const json&)> success_cb,
            helix::SharedCallback<void(const MoonrakerError&)> /*error_cb*/) -> bool {
         json version_info = json::object();
-        for (const auto& [name, channel] : self->update_manager_entries())
-            version_info[name] = json{{"channel", channel}};
+        for (const auto& [name, e] : self->update_manager_entries()) {
+            if (e.type == "system") {
+                json packages = json::array();
+                for (int i = 0; i < e.package_count; ++i)
+                    packages.push_back("mock-package-" + std::to_string(i + 1));
+                version_info[name] = {{"package_count", e.package_count},
+                                      {"package_list", packages}};
+                continue;
+            }
+            json info = {{"channel", e.channel}};
+            if (!e.type.empty()) {
+                info["configured_type"] = e.type;
+                info["is_valid"] = true;
+                info["version"] = e.version;
+                info["remote_version"] = e.remote_version;
+                info["rollback_version"] = e.version;
+                info["info_tags"] = json::array();
+                info["warnings"] = json::array();
+                info["anomalies"] = json::array();
+            }
+            if (e.type == "git_repo") {
+                info["corrupt"] = false;
+                info["is_dirty"] = false;
+                info["detached"] = false;
+                info["commits_behind_count"] = e.commits_behind;
+                json behind = json::array();
+                for (int i = 0; i < e.commits_behind; ++i)
+                    behind.push_back({{"sha", "0"}, {"subject", "mock commit"}});
+                info["commits_behind"] = behind;
+            }
+            version_info[name] = info;
+        }
         json response = {{"jsonrpc", "2.0"},
                          {"result",
                           {{"busy", self->update_manager_busy()},
@@ -1088,6 +1118,24 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                            {"version_info", version_info}}}};
         if (success_cb) {
             success_cb(response);
+        }
+        return true;
+    };
+
+    // machine.update.upgrade - upgrade one update_manager entry. Moonraker answers
+    // once the update is done; the simulation loop streams notify_update_response
+    // meanwhile. https://moonraker.readthedocs.io/en/latest/web_api/#upgrade-endpoint
+    registry["machine.update.upgrade"] =
+        [](MoonrakerClientMock* self, const json& params,
+           helix::SharedCallback<void(const json&)> success_cb,
+           helix::SharedCallback<void(const MoonrakerError&)> error_cb) -> bool {
+        const std::string name = helix::json_util::safe_string(params, "name");
+        if (!self->start_update_manager_job(name, success_cb)) {
+            if (error_cb) {
+                MoonrakerError err;
+                err.message = "Update Refused: " + name + " is unknown or an update is running";
+                error_cb(err);
+            }
         }
         return true;
     };
@@ -1152,4 +1200,106 @@ void MoonrakerClientMock::mock_db_set(const std::string& ns, const std::string& 
 json MoonrakerClientMock::mock_db_get(const std::string& ns, const std::string& key) {
     json* value = mock_internal::find_db_value(mock_db_, ns, key);
     return value ? *value : json();
+}
+
+// ============================================================================
+// Simulated update_manager upgrade
+// ============================================================================
+
+namespace {
+/// What one simulated upgrade reports, one line per step.
+const std::vector<std::string>& mock_update_lines(const std::string& type) {
+    static const std::vector<std::string> kGit = {
+        "Updating Repo...",
+        "Receiving objects:  20% (412/2061)",
+        "Receiving objects:  55% (1134/2061)",
+        "Receiving objects:  85% (1752/2061)",
+        "Receiving objects: 100% (2061/2061), done.",
+        "Updating Python Packages...",
+        "Restarting service",
+    };
+    static const std::vector<std::string> kWeb = {
+        "Downloading Client...",
+        "Download Complete",
+        "Extracting Release...",
+    };
+    static const std::vector<std::string> kSystem = {
+        "Updating Application Cache...",
+        "Upgrading System Packages...",
+        "System Update Complete",
+    };
+    if (type == "system")
+        return kSystem;
+    return type == "git_repo" ? kGit : kWeb;
+}
+constexpr double kMockUpdateStepSeconds = 1.5;
+} // namespace
+
+void MoonrakerClientMock::seed_update_manager_demo() {
+    std::lock_guard<std::mutex> lock(update_manager_mutex_);
+    update_manager_entries_ = {
+        {"klipper", {"dev", "git_repo", "v0.13.0-148-g1f3c2e9", "v0.13.0-152-gd04a7b1", 4}},
+        {"moonraker", {"dev", "git_repo", "v0.9.3-61-g8a1d2f0", "v0.9.3-61-g8a1d2f0", 0}},
+        {"mainsail", {"stable", "web", "v2.13.1", "v2.14.0", 0}},
+        {"fluidd", {"stable", "web", "v1.34.3", "v1.34.3", 0}},
+        {"system", {"", "system", "", "", 0, 3}},
+    };
+}
+
+bool MoonrakerClientMock::start_update_manager_job(const std::string& name,
+                                                   helix::SharedCallback<void(const json&)> done) {
+    std::lock_guard<std::mutex> lock(update_manager_mutex_);
+    if (update_job_ || update_manager_entries_.count(name) == 0) {
+        return false;
+    }
+    update_job_ = MockUpdateJob{name, 0.0, 0, std::move(done)};
+    update_manager_busy_ = true;
+    spdlog::info("[MoonrakerClientMock] machine.update.upgrade {} (simulated)", name);
+    return true;
+}
+
+void MoonrakerClientMock::service_update_job(double dt) {
+    std::string name;
+    std::string line;
+    bool complete = false;
+    helix::SharedCallback<void(const json&)> done;
+    {
+        std::lock_guard<std::mutex> lock(update_manager_mutex_);
+        if (!update_job_) {
+            return;
+        }
+        MockUpdateJob& job = *update_job_;
+        job.elapsed += dt;
+        if (job.elapsed < kMockUpdateStepSeconds * static_cast<double>(job.step + 1)) {
+            return;
+        }
+        MockUpdateEntry& entry = update_manager_entries_[job.name];
+        const auto& lines = mock_update_lines(entry.type);
+        name = job.name;
+        if (job.step < lines.size()) {
+            line = name + ": " + lines[job.step];
+        } else {
+            line = "Update Finished...";
+            complete = true;
+            entry.version = entry.remote_version;
+            entry.commits_behind = 0;
+            entry.package_count = 0;
+            done = std::move(job.done);
+            update_job_.reset();
+            update_manager_busy_ = false;
+        }
+        if (!complete) {
+            ++job.step;
+        }
+    }
+    const json msg = {{"jsonrpc", "2.0"},
+                      {"method", "notify_update_response"},
+                      {"params", json::array({{{"application", name},
+                                               {"proc_id", 1},
+                                               {"message", line},
+                                               {"complete", complete}}})}};
+    dispatch_method_callback("notify_update_response", msg);
+    if (complete && done) {
+        done(json{{"jsonrpc", "2.0"}, {"result", "ok"}});
+    }
 }

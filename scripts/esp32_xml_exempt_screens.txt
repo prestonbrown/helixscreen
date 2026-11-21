@@ -23,6 +23,8 @@ components/barcode_scanner_device_row.xml
 components/bed_check_modal.xml
 components/camera_config_modal.xml
 components/camera_fullscreen.xml
+components/firmware_update_entry_row.xml
+components/firmware_update_image_row.xml
 components/panel_widget_camera.xml
 components/panel_widget_gcode_console.xml
 components/panel_widget_toolhead.xml
@@ -46,6 +48,7 @@ qr_scanner_overlay.xml
 rotation_probe_screen.xml
 screws_tilt_panel.xml
 screws_tilt_share_modal.xml
+settings_firmware_update_overlay.xml
 spoolman_context_menu.xml
 spoolman_edit_modal.xml
 spoolman_panel.xml
