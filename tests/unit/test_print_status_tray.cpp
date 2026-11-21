@@ -173,10 +173,10 @@ TEST_CASE("side by side tiles never show the lane tray", "[print_status_tray]") 
 }
 
 TEST_CASE("the tray draws lanes only with some lane present", "[print_status_tray][ams_mini]") {
-    CHECK_FALSE(ui_ams_mini_status_shows_lanes(0, 0));
-    CHECK_FALSE(ui_ams_mini_status_shows_lanes(4, 0)); // every unit absent
-    CHECK(ui_ams_mini_status_shows_lanes(4, 4));
-    CHECK(ui_ams_mini_status_shows_lanes(8, 4));
+    CHECK_FALSE(helix::ui::ams_mini_status_shows_lanes(0, 0));
+    CHECK_FALSE(helix::ui::ams_mini_status_shows_lanes(4, 0)); // every unit absent
+    CHECK(helix::ui::ams_mini_status_shows_lanes(4, 4));
+    CHECK(helix::ui::ams_mini_status_shows_lanes(8, 4));
 }
 
 namespace {
@@ -192,7 +192,7 @@ std::vector<lv_obj_t*> tray_spools(lv_obj_t* screen, int32_t w, int32_t h, bool 
     lv_obj_set_size(tray, lv_pct(100), lv_pct(100));
     ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(host);
-    ui_ams_mini_status_set_fill(tray, fill);
+    helix::ui::ams_mini_status_set_fill(tray, fill);
     ui_ams_mini_status_set_slot_count(tray, 4);
     for (int i = 0; i < 4; ++i) {
         ui_ams_mini_status_set_slot_label(tray, i, "PLA", 50);

@@ -78,7 +78,7 @@ bool is_ultrawide() {
 /// empty.
 bool has_lane_tray() {
     lv_subject_t* gate = lv_xml_get_subject(nullptr, "has_filament_system_or_multi_tool");
-    return gate && lv_subject_get_int(gate) == 1 && ui_ams_mini_status_has_lanes_to_show();
+    return gate && lv_subject_get_int(gate) == 1 && helix::ui::ams_mini_status_has_lanes_to_show();
 }
 
 /// The strip is a ui_card: its padding and border on both sides.

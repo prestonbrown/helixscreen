@@ -724,8 +724,8 @@ static void rebuild_bars(AmsMiniStatusData* data) {
     lv_obj_update_layout(data->container);
 
     // Hide entire widget if no slots
-    if (!ui_ams_mini_status_shows_lanes(data->slot_count,
-                                        static_cast<int>(data->spool_cells.size()))) {
+    if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count,
+                                                static_cast<int>(data->spool_cells.size()))) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
     } else {
         lv_obj_remove_flag(data->container, LV_OBJ_FLAG_HIDDEN);
@@ -1273,7 +1273,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     spool_size = std::max(spool_size, kMinSpoolImgPx);
 
     const int n = static_cast<int>(data->spool_cells.size());
-    if (!ui_ams_mini_status_shows_lanes(data->slot_count, n)) {
+    if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count, n)) {
         lv_obj_add_flag(data->container, LV_OBJ_FLAG_HIDDEN);
         drop_spool_cells(data);
         return;
@@ -1719,7 +1719,7 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj) {
     }
 }
 
-void ui_ams_mini_status_set_fill(lv_obj_t* obj, bool fill) {
+void helix::ui::ams_mini_status_set_fill(lv_obj_t* obj, bool fill) {
     auto* data = get_data(obj);
     if (!data || data->fill == fill)
         return;
@@ -1744,11 +1744,11 @@ void ui_ams_mini_status_set_width(lv_obj_t* obj, int width_px) {
         rebuild(data);
 }
 
-bool ui_ams_mini_status_shows_lanes(int slot_count, int present_lanes) {
+bool helix::ui::ams_mini_status_shows_lanes(int slot_count, int present_lanes) {
     return slot_count > 0 && present_lanes > 0;
 }
 
-bool ui_ams_mini_status_has_lanes_to_show(void) {
+bool helix::ui::ams_mini_status_has_lanes_to_show() {
     auto& ams = helix::AmsState::instance();
     if (!ams.are_subjects_initialized() || !ams.get_backend())
         return false;
@@ -1759,7 +1759,7 @@ bool ui_ams_mini_status_has_lanes_to_show(void) {
         if (!snapshot->slot_absent(i))
             ++present;
     }
-    return ui_ams_mini_status_shows_lanes(slot_count, present);
+    return helix::ui::ams_mini_status_shows_lanes(slot_count, present);
 }
 
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
@@ -2030,7 +2030,7 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
     }
 
     if (const char* fill_str = lv_xml_get_value_of(attrs, "fill")) {
-        ui_ams_mini_status_set_fill(obj, lv_xml_to_bool(fill_str));
+        helix::ui::ams_mini_status_set_fill(obj, lv_xml_to_bool(fill_str));
     }
 
     const char* bars_align_str = lv_xml_get_value_of(attrs, "bars_align");

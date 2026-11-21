@@ -109,39 +109,12 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj);
 void ui_ams_mini_status_set_width(lv_obj_t* obj, int width_px);
 
 /**
- * @brief Size the spool view from the widget's height as well as its width
- *
- * The XML attribute `fill`. Lanes wrap into the rows that give the largest
- * spool, which grows past the home tray's cap. Off (the default), one row of
- * spools at the home tray's size.
- *
- * @param obj The ams_mini_status widget
- * @param fill true to fill the widget's height
- */
-void ui_ams_mini_status_set_fill(lv_obj_t* obj, bool fill);
-
-/**
  * @brief Check if this is an ams_mini_status widget
  *
  * @param obj Object to check
  * @return true if this is an ams_mini_status widget
  */
 bool ui_ams_mini_status_is_valid(lv_obj_t* obj);
-
-/**
- * @brief Whether the tray draws anything: some lanes, and at least one of
- * them in a unit that is present. With nothing to draw the widget hides.
- *
- * @param slot_count The filament system's lane count (ams_slot_count)
- * @param present_lanes Lanes not in an absent unit
- */
-bool ui_ams_mini_status_shows_lanes(int slot_count, int present_lanes);
-
-/**
- * @brief ui_ams_mini_status_shows_lanes() over AmsState as it stands now,
- * which is what a tray would draw. False without a backend.
- */
-bool ui_ams_mini_status_has_lanes_to_show(void);
 
 /**
  * @brief Register ams_mini_status as an XML widget
@@ -154,4 +127,37 @@ void ui_ams_mini_status_init(void);
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef __cplusplus
+namespace helix::ui {
+
+/**
+ * @brief Size the spool view from the widget's height as well as its width
+ *
+ * The XML attribute `fill`. Lanes wrap into the rows that give the largest
+ * spool, which grows past the home tray's cap. Off (the default), one row of
+ * spools at the home tray's size.
+ *
+ * @param obj The ams_mini_status widget
+ * @param fill true to fill the widget's height
+ */
+void ams_mini_status_set_fill(lv_obj_t* obj, bool fill);
+
+/**
+ * @brief Whether the tray draws anything: some lanes, and at least one of
+ * them in a unit that is present. With nothing to draw the widget hides.
+ *
+ * @param slot_count The filament system's lane count (ams_slot_count)
+ * @param present_lanes Lanes not in an absent unit
+ */
+bool ams_mini_status_shows_lanes(int slot_count, int present_lanes);
+
+/**
+ * @brief ams_mini_status_shows_lanes() over AmsState as it stands now,
+ * which is what a tray would draw. False without a backend.
+ */
+bool ams_mini_status_has_lanes_to_show();
+
+} // namespace helix::ui
 #endif
