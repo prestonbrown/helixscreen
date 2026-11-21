@@ -461,7 +461,7 @@ ShutdownDialogPlan plan_shutdown_dialog(bool api_connected, bool live_moonraker_
 
 PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation,
                                    const ShutdownDialogPlan& plan, PowerTarget target,
-                                   bool job_active) {
+                                   PowerJobState job) {
     const bool dual = plan.mode == ShutdownDialogMode::Dual;
     ShutdownScope scope = plan.dual_default;
     if (dual && target == PowerTarget::Printer) {
@@ -470,9 +470,9 @@ PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation
         scope = ShutdownScope::Screen;
     }
     const bool scope_settled = !dual || target != PowerTarget::Ask;
-    const bool run_now =
-        intent != PowerIntent::Choose && !require_confirmation && !job_active && scope_settled;
-    return {run_now, scope};
+    const bool run_now = intent != PowerIntent::Choose && !require_confirmation &&
+                         job == PowerJobState::Idle && scope_settled;
+    return {run_now, scope, job == PowerJobState::Unknown};
 }
 
 bool power_job_active() {
@@ -487,6 +487,13 @@ bool power_job_state_known() {
            lv_subject_get_int(ps.network_state().get_klippy_state_subject()) ==
                static_cast<int>(KlippyState::READY) &&
            ps.print_state().print_stats_received();
+}
+
+PowerJobState classify_power_job(bool job_state_known, bool job_active) {
+    if (!job_state_known) {
+        return PowerJobState::Unknown;
+    }
+    return job_active ? PowerJobState::Active : PowerJobState::Idle;
 }
 
 void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetimeGuard& lifetime,
@@ -511,9 +518,9 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
         plan_shutdown_dialog(connected, get_printer_state().is_moonraker_remote(),
                              helix::is_moonraker_on_same_host(host), helix::host_runs_systemd());
     const auto& safety = SafetySettingsManager::instance();
-    const PowerDecision decision =
-        decide_power_request(intent, safety.get_power_require_confirmation(), plan,
-                             safety.get_power_target(), power_job_active());
+    const PowerDecision decision = decide_power_request(
+        intent, safety.get_power_require_confirmation(), plan, safety.get_power_target(),
+        classify_power_job(power_job_state_known(), power_job_active()));
     switch (plan.mode) {
     case ShutdownDialogMode::SingleViaMoonraker:
         // Moonraker's machine.shutdown brings the whole device down. Moonraker
@@ -549,6 +556,7 @@ void show_shutdown_dialog(IMoonrakerAPI* api, ShutdownModal& modal, AsyncLifetim
         break;
     }
 
+    modal.set_status_unknown(decision.warn_status_unknown);
     modal.show(parent_screen);
 
     if (decision.run_now) {

@@ -4409,6 +4409,7 @@ translations:
   'These tools have no matching filament loaded:': 'これらのツールに一致するフィラメントが装填されていません:'
   This .3mf has no sliced plate to print.: 'この .3mf には印刷できるスライス済みプレートがありません。'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'この .3mf はキューに追加する前に G-code に変換する必要があります。ここから印刷してください。'
+  The printer's status isn't known yet, so a print may be running.: 'プリンターの状態がまだわかりません。印刷中の可能性があります。'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'オフにした印刷前の手順はこの .3mf に適用できません。印刷するにはオンに戻してください。'
   Filament Mapping at print start: '印刷開始時のフィラメントマッピング'

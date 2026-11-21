@@ -4240,6 +4240,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." zh="打印机将以 Snapmaker 屏幕重新启动，HelixScreen 不再启动。HelixScreen 设置会保留在打印机上；再次运行安装程序即可恢复。"/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." zh="打印机在多个工具头之间切换。在耗材系统界面管理工具。"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" zh="耗材用尽时切换到哪里由打印机固件自行选择"/>
+  <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." zh="打印机状态尚未确定，可能正在打印。"/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." zh="队列会打印此 .3mf 的默认板。请直接从这里打印此板。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>

@@ -18,7 +18,13 @@
 
 #include "../../src/ui/panel_widgets/shutdown_widget.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/printer_state_test_access.h"
+#include "app_globals.h"
 #include "async_lifetime_guard.h"
+#include "core/static_subject_registry.h"
+#include "core/update_queue.h"
+#include "platform_info.h"
+#include "printer_state.h"
 #include "system_power.h"
 
 #include <string>
@@ -240,8 +246,9 @@ TEST_CASE("A power request runs at once only with its scope settled and nothing 
     const ShutdownDialogPlan dual{M::Dual, S::Screen};
     constexpr bool kConfirm = true;
     constexpr bool kNoConfirm = false;
-    constexpr bool kJob = true;
-    constexpr bool kIdle = false;
+    constexpr auto kJob = PowerJobState::Active;
+    constexpr auto kIdle = PowerJobState::Idle;
+    constexpr auto kUnknown = PowerJobState::Unknown;
     const auto run = [](PowerDecision d) { return d.run_now; };
 
     SECTION("single host: confirmation alone decides, the target does not matter") {
@@ -287,5 +294,118 @@ TEST_CASE("A power request runs at once only with its scope settled and nothing 
             run(decide_power_request(PowerIntent::Shutdown, kNoConfirm, single, T::Ask, kJob)));
         CHECK_FALSE(
             run(decide_power_request(PowerIntent::Reboot, kNoConfirm, dual, T::Printer, kJob)));
+    }
+
+    SECTION("an unknown job state asks, with the warning, instead of acting or refusing") {
+        const auto single_reboot =
+            decide_power_request(PowerIntent::Reboot, kNoConfirm, local, T::Ask, kUnknown);
+        CHECK_FALSE(single_reboot.run_now);
+        CHECK(single_reboot.warn_status_unknown);
+        const auto dual_shutdown =
+            decide_power_request(PowerIntent::Shutdown, kNoConfirm, dual, T::Printer, kUnknown);
+        CHECK_FALSE(dual_shutdown.run_now);
+        CHECK(dual_shutdown.scope == S::Printer);
+        CHECK(dual_shutdown.warn_status_unknown);
+        // The Home power button's dialog carries the warning too.
+        CHECK(decide_power_request(PowerIntent::Choose, kConfirm, single, T::Ask, kUnknown)
+                  .warn_status_unknown);
+    }
+
+    SECTION("a known job state carries no warning") {
+        CHECK_FALSE(decide_power_request(PowerIntent::Reboot, kNoConfirm, single, T::Ask, kIdle)
+                        .warn_status_unknown);
+        CHECK_FALSE(decide_power_request(PowerIntent::Reboot, kNoConfirm, single, T::Ask, kJob)
+                        .warn_status_unknown);
+    }
+}
+
+TEST_CASE("The job state is unknown until it is known, whatever the job flag reads",
+          "[shutdown][power][safety]") {
+    CHECK(classify_power_job(/*known=*/true, /*active=*/false) == PowerJobState::Idle);
+    CHECK(classify_power_job(/*known=*/true, /*active=*/true) == PowerJobState::Active);
+    CHECK(classify_power_job(/*known=*/false, /*active=*/false) == PowerJobState::Unknown);
+    CHECK(classify_power_job(/*known=*/false, /*active=*/true) == PowerJobState::Unknown);
+}
+
+namespace {
+
+/// The global PrinterState as a fresh start leaves it: nothing from Moonraker yet.
+class FreshPrinterStateFixture : public XMLTestFixture {
+  public:
+    FreshPrinterStateFixture() {
+        PrinterStateTestAccess::reset(get_printer_state());
+        get_printer_state().init_subjects(false);
+        set_platform_override(0);
+    }
+    ~FreshPrinterStateFixture() override {
+        set_platform_override(-1);
+        PrinterStateTestAccess::reset(get_printer_state());
+    }
+
+    static void connect_ready() {
+        get_printer_state().set_printer_connection_state(
+            static_cast<int>(ConnectionState::CONNECTED), nullptr);
+        helix::ui::UpdateQueue::instance().drain();
+        get_printer_state().set_klippy_state_sync(KlippyState::READY);
+    }
+    static void apply_print_stats(const char* state) {
+        get_printer_state().update_from_status({{"print_stats", {{"state", state}}}});
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(FreshPrinterStateFixture,
+                 "The job state is known only once Klipper is ready and print_stats arrived",
+                 "[shutdown][power][safety]") {
+    CHECK_FALSE(power_job_state_known());
+
+    connect_ready();
+    REQUIRE(lv_subject_get_int(
+                get_printer_state().network_state().get_printer_connection_state_subject()) ==
+            static_cast<int>(ConnectionState::CONNECTED));
+    // Connected and ready, but the job subjects still hold their STANDBY defaults.
+    CHECK_FALSE(power_job_state_known());
+
+    apply_print_stats("printing");
+    CHECK(power_job_state_known());
+    CHECK(power_job_active());
+
+    get_printer_state().set_klippy_state_sync(KlippyState::SHUTDOWN);
+    CHECK_FALSE(power_job_state_known());
+}
+
+TEST_CASE_METHOD(FreshPrinterStateFixture,
+                 "The power dialog warns while the printer's status is not known",
+                 "[shutdown][power][safety]") {
+    // Registering the component makes a fresh scope; the modal's subjects
+    // must register into it, not into the scope an earlier test left behind.
+    StaticSubjectRegistry::instance().deinit_one("ShutdownModal");
+    REQUIRE(register_component("shutdown_modal"));
+    ui_split_button_init();
+    const auto note_visible = [](ShutdownModal& modal) {
+        lv_obj_t* note = lv_obj_find_by_name(modal.dialog(), "status_unknown_note");
+        REQUIRE(note != nullptr);
+        return !lv_obj_is_hidden(note);
+    };
+
+    // PowerIntent::Choose never acts without a button press, so nothing here
+    // powers down the machine running the tests.
+    SECTION("before Moonraker reports, the warning shows") {
+        ShutdownModal modal;
+        helix::AsyncLifetimeGuard lifetime;
+        helix::show_shutdown_dialog(&api(), modal, lifetime, test_screen());
+        REQUIRE(modal.is_visible());
+        CHECK(note_visible(modal));
+    }
+
+    SECTION("once the job state is known, it does not") {
+        connect_ready();
+        apply_print_stats("standby");
+        ShutdownModal modal;
+        helix::AsyncLifetimeGuard lifetime;
+        helix::show_shutdown_dialog(&api(), modal, lifetime, test_screen());
+        REQUIRE(modal.is_visible());
+        CHECK_FALSE(note_visible(modal));
     }
 }

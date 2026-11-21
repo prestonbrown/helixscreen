@@ -4240,6 +4240,7 @@
   <translation tag="The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back." es="La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." es="La impresora cambia entre varios cabezales. Gestiona las herramientas en la pantalla del sistema de filamento."/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" es="El firmware de la impresora elige a dónde cambiar al agotarse"/>
+  <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." es="El estado de la impresora aún no se conoce, así que puede haber una impresión en curso."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." es="La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" es="La posición solicitada está fuera de los límites de la impresora"/>
   <translation tag="The right RFID reader in this CFS unit may need service" es="Puede que el lector RFID derecho de esta unidad CFS necesite servicio"/>

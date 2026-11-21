@@ -16,6 +16,9 @@ class PrinterPrintStateTestAccess {
   public:
     static void reset_extra(PrinterPrintState& pps) {
         pps.estimated_print_time_ = 0;
+        // A fresh session has applied no print_stats frame yet.
+        pps.print_stats_frames_ = 0;
+        pps.print_exception_frame_ = 0;
         // File-scoped slice geometry + per-print Z cache used by the Z-height
         // layer derivation. Like estimated_print_time_ these survive
         // reset_for_new_print() in production; the test reset() simulates a fresh

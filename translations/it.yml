@@ -4409,6 +4409,7 @@ translations:
   'These tools have no matching filament loaded:': 'Questi strumenti non hanno filamento corrispondente caricato:'
   This .3mf has no sliced plate to print.: 'Questo .3mf non contiene alcun piatto sezionato da stampare.'
   This .3mf has to be converted to G-code before it can be queued. Print it from here instead.: 'Questo .3mf deve essere convertito in G-code prima di poter essere messo in coda. Stampalo da qui.'
+  The printer's status isn't known yet, so a print may be running.: 'Lo stato della stampante non è ancora noto, quindi potrebbe essere in corso una stampa.'
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La coda stampa il piatto predefinito di questo .3mf. Stampa questo piatto da qui.'
   The pre-print steps you turned off cannot be applied to this .3mf. Turn them back on to print it.: 'I passaggi preliminari disattivati non possono essere applicati a questo .3mf. Riattivali per stamparlo.'
   Filament Mapping at print start: 'Mappatura filamento all''avvio della stampa'
