@@ -61,7 +61,7 @@ void fill_band(lv_obj_t* root, lv_obj_t* band) {
     // size and visibility are what NavigationManager would otherwise set on push.
     lv_obj_set_size(root, lv_pct(100), lv_pct(100));
     lv_obj_set_align(root, LV_ALIGN_TOP_LEFT);
-    lv_obj_remove_flag(root, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_hidden(root, false);
     if (const lv_xml_style_t* xs = lv_xml_get_style_by_name(nullptr, "styles.side_band_guest")) {
         lv_obj_add_style(root, const_cast<lv_style_t*>(&xs->style), LV_PART_MAIN);
     }

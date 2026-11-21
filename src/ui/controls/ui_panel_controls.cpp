@@ -698,7 +698,7 @@ void ControlsPanel::handle_save_z_offset() {
 // ============================================================================
 
 void ControlsPanel::handle_quick_actions_clicked() {
-    open_motion_panel(parent_screen_);
+    helix::open_motion_panel(parent_screen_);
 }
 
 void ControlsPanel::handle_cooling_clicked() {

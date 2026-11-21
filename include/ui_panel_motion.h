@@ -567,4 +567,6 @@ inline MotionPanel& get_global_motion_panel() {
 
 /// Open the Motion overlay on @p parent_screen. Nothing opens while the Controls
 /// panel on screen already shows Motion in its ultrawide side band.
+namespace helix {
 void open_motion_panel(lv_obj_t* parent_screen);
+} // namespace helix

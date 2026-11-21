@@ -1799,7 +1799,7 @@ class ScopedLaneTrayGate {
 };
 
 bool shown(lv_obj_t* obj) {
-    return obj && !lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN);
+    return obj && !lv_obj_is_hidden(obj);
 }
 
 struct Portrait600 : TileFixture {
@@ -1848,7 +1848,7 @@ TEST_CASE_METHOD(UltrawideTray, "ultrawide shows the lane tray in the readouts' 
     // The tray widget itself, which opens the filament system's panel on a tap.
     lv_obj_t* status = lv_obj_find_by_name(tray, "ps_lane_tray_status");
     REQUIRE(status != nullptr);
-    CHECK(lv_obj_has_flag(status, LV_OBJ_FLAG_CLICKABLE));
+    CHECK(lv_obj_is_clickable(status));
 
     gate.set(0);
     lv_obj_update_layout(root_);
