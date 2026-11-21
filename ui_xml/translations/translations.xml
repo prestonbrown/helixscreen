@@ -5435,6 +5435,8 @@
   <translation tag="color differs" de="Farbe abweichend" en="color differs" en-GB="colour differs" es="color distinto" fr="couleur différente" it="colore diverso" ja="色が異なる" pt="cor diferente" ru="другой цвет" zh="颜色不同"/>
   <translation tag="complete" de="abgeschlossen" en="complete" es="completo" fr="terminé" it="completato" ja="完了" pt="concluído" ru="завершено" zh="完成"/>
   <translation tag="cores" de="Kerne" en="cores" es="núcleos" fr="cœurs" it="core" ja="コア" pt="núcleos" ru="ядер" zh="核心"/>
+  <translation tag="cycle {}" de="Zyklus {}" en="cycle {}" es="ciclo {}" fr="cycle {}" it="ciclo {}" ja="サイクル {}" pt="ciclo {}" ru="цикл {}" zh="循环 {}"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" de="Zyklus {}, {:.2f} (Ziel {:.2f})" en="cycle {}, {:.2f} (needs {:.2f})" es="ciclo {}, {:.2f} (objetivo {:.2f})" fr="cycle {}, {:.2f} (objectif {:.2f})" it="ciclo {}, {:.2f} (obiettivo {:.2f})" ja="サイクル {}、{:.2f}（目標 {:.2f}）" pt="ciclo {}, {:.2f} (meta {:.2f})" ru="цикл {}, {:.2f} (цель {:.2f})" zh="循环 {}，{:.2f}（目标 {:.2f}）"/>
   <translation tag="direct drive" de="Direct-Drive" en="direct drive" es="de accionamiento directo" fr="à entraînement direct" it="direct drive" ja="ダイレクトドライブ" pt="de acionamento direto" ru="с прямой подачей" zh="直驱"/>
   <translation tag="disable" de="deaktivieren" en="disable" es="deshabilitar" fr="désactiver" it="disabilita" ja="無効化" pt="desabilitar" ru="отключить" zh="禁用"/>
   <translation tag="disabled" de="deaktiviert" en="disabled" es="desactivado" fr="désactivé" it="disabilitato" ja="無効" pt="desabilitado" ru="отключено" zh="已禁用"/>

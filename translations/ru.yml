@@ -5596,6 +5596,8 @@ translations:
   color differs: 'другой цвет'
   complete: завершено
   cores: ядер
+  cycle {}: цикл {}
+  cycle {}, {:.2f} (needs {:.2f}): цикл {}, {:.2f} (цель {:.2f})
   direct drive: с прямой подачей
   disable: отключить
   disabled: отключено

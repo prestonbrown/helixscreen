@@ -5435,6 +5435,8 @@
   <translation tag="color differs" ru="другой цвет"/>
   <translation tag="complete" ru="завершено"/>
   <translation tag="cores" ru="ядер"/>
+  <translation tag="cycle {}" ru="цикл {}"/>
+  <translation tag="cycle {}, {:.2f} (needs {:.2f})" ru="цикл {}, {:.2f} (цель {:.2f})"/>
   <translation tag="direct drive" ru="с прямой подачей"/>
   <translation tag="disable" ru="отключить"/>
   <translation tag="disabled" ru="отключено"/>

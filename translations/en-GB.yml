@@ -5489,6 +5489,8 @@ translations:
   color differs: colour differs
   complete: ''
   cores: ''
+  cycle {}: ''
+  cycle {}, {:.2f} (needs {:.2f}): ''
   direct drive: ''
   disable: ''
   disabled: ''

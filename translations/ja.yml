@@ -5508,6 +5508,8 @@ translations:
   color differs: '色が異なる'
   complete: 完了
   cores: コア
+  cycle {}: サイクル {}
+  cycle {}, {:.2f} (needs {:.2f}): サイクル {}、{:.2f}（目標 {:.2f}）
   direct drive: ダイレクトドライブ
   disable: 無効化
   disabled: 無効

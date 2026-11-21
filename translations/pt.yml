@@ -5508,6 +5508,8 @@ translations:
   color differs: 'cor diferente'
   complete: concluído
   cores: núcleos
+  cycle {}: ciclo {}
+  cycle {}, {:.2f} (needs {:.2f}): ciclo {}, {:.2f} (meta {:.2f})
   direct drive: de acionamento direto
   disable: desabilitar
   disabled: desabilitado

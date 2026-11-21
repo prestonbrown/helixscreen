@@ -5508,6 +5508,8 @@ translations:
   color differs: 'Farbe abweichend'
   complete: abgeschlossen
   cores: Kerne
+  cycle {}: Zyklus {}
+  cycle {}, {:.2f} (needs {:.2f}): Zyklus {}, {:.2f} (Ziel {:.2f})
   direct drive: Direct-Drive
   disable: deaktivieren
   disabled: deaktiviert

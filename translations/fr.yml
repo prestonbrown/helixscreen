@@ -5520,6 +5520,8 @@ translations:
   color differs: 'couleur différente'
   complete: terminé
   cores: cœurs
+  cycle {}: cycle {}
+  cycle {}, {:.2f} (needs {:.2f}): cycle {}, {:.2f} (objectif {:.2f})
   direct drive: 'à entraînement direct'
   disable: désactiver
   disabled: désactivé

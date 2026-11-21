@@ -5508,6 +5508,8 @@ translations:
   color differs: '颜色不同'
   complete: 完成
   cores: 核心
+  cycle {}: 循环 {}
+  cycle {}, {:.2f} (needs {:.2f}): 循环 {}，{:.2f}（目标 {:.2f}）
   direct drive: 直驱
   disable: 禁用
   disabled: 已禁用

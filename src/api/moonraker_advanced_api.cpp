@@ -18,6 +18,7 @@
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_validation.h"
+#include "pid_calibrate_tolerance.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "resonance_console.h"
@@ -714,9 +715,10 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
         const std::string& line = *line_param;
         spdlog::trace("[PIDCalibrateCollector] Received: {}", line);
 
-        // Check for progress: "sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a"
+        // Check for progress: "sample:1 pwm:0.5 asymmetry:0.2 tolerance:n/a"; asymmetry
+        // goes negative when the heater loses heat faster than it gains it.
         static const helix::Regex sample_regex(
-            R"(sample:(\d+)\s+pwm:[\d.]+\s+asymmetry:[\d.]+\s+tolerance:(\S+))");
+            R"(sample:(\d+)\s+pwm:[\d.]+\s+asymmetry:-?[\d.]+\s+tolerance:(\S+))");
         helix::RegexMatch progress_match;
         if (helix::regex_search(line, progress_match, sample_regex)) {
             int sample_num = text_io::parse_leading<int>(progress_match[1].str()).value_or(0);
@@ -3143,8 +3145,8 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
                                                              on_error, std::move(on_progress));
     collector->start();
 
-    char cmd[64];
-    snprintf(cmd, sizeof(cmd), "PID_CALIBRATE HEATER=%s TARGET=%d", heater.c_str(), target_temp);
+    const std::string cmd = helix::pid::calibrate_command(
+        api_.hardware().pid_calibrate_takes_tolerance(), heater, target_temp);
 
     // silent=true: PID errors are handled by the collector and UI panel, not global toast
     api_.execute_gcode(
