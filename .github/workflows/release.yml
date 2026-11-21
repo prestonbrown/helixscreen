@@ -567,7 +567,7 @@ jobs:
         serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
         packageName: org.helixscreen.app
         releaseFiles: release-aab/*.aab
-        track: production
+        tracks: production
         status: completed
         whatsNewDirectory: release-whatsnew
         releaseName: ${{ steps.version.outputs.version }}
