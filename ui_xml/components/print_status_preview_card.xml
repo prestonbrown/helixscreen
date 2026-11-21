@@ -64,12 +64,16 @@
          prints only), the camera toggle (a webcam, on a remote screen) and the
          view-mode toggle (a G-code render, not the camera). The row lays them out, so a
          hidden objects button gives its slot back to the toggle. The row
-         itself takes no taps; drags on bare art reach the viewer below. -->
+         itself takes no taps; drags on bare art reach the viewer below.
+         An ended print's badge and reason take the art's center, which on a
+         small card reaches up to this row, so the row steps aside until that
+         overlay is dismissed. -->
     <lv_obj name="preview_corner_buttons"
             width="content" height="content" ignore_layout="true" align="top_left" style_translate_x="#space_md"
             style_translate_y="#space_md" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
             style_border_width="0" clickable="false" scrollable="false">
-      <bind_flag_if_eq subject="preparing_visible" flag="hidden" ref_value="1"/>
+      <bind_flag_if cond="preparing_visible eq 1 or show_complete_overlay eq 1 or show_cancelled_overlay eq 1 or show_error_overlay eq 1"
+                    flag="hidden"/>
       <!-- Skip-objects button, visible only for a multi-object print -->
       <exclude_objects_button name="btn_objects"
                               callback="on_print_status_objects" hidden_when="exclude_objects_available eq 0"/>

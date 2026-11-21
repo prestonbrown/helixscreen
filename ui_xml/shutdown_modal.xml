@@ -7,7 +7,8 @@
          2 = screen shutdown,       3 = screen reboot,
          4 = printer shutdown,      5 = printer reboot,
          6 = both shutting down,    7 = both rebooting
-       Owned by ShutdownModal C++ class, registered into component scope. -->
+       shutdown_status_unknown: 1 while the printer's job state is not known.
+       Both owned by the ShutdownModal C++ class, registered into component scope. -->
   <view name="shutdown_modal"
         extends="ui_dialog" width="70%" height="content" align="center" flex_flow="column" style_flex_main_place="start"
         style_pad_gap="0">
@@ -38,6 +39,17 @@
             style_pad_top="0" style_pad_bottom="#space_lg">
       <bind_flag_if_not_eq subject="shutdown_view_state" flag="hidden" ref_value="1"/>
       <text_body width="100%" text="Choose what to power off or restart." style_text_align="left" long_mode="wrap"/>
+    </lv_obj>
+
+    <!-- Warning in either confirm view while the printer's job state is not known -->
+    <lv_obj width="100%" height="content" style_pad_all="0">
+      <bind_flag_if_gt subject="shutdown_view_state" flag="hidden" ref_value="1"/>
+      <text_body name="status_unknown_note"
+                 width="100%" text="The printer's status isn't known yet, so a print may be running."
+                 style_text_align="left" style_text_color="#warning" long_mode="wrap" hidden="true"
+                 style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_bottom="#space_lg">
+        <bind_flag_if_not_eq subject="shutdown_status_unknown" flag="hidden" ref_value="1"/>
+      </text_body>
     </lv_obj>
 
     <!-- Progress: screen shutting down -->

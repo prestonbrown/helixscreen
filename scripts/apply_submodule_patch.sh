@@ -41,8 +41,8 @@
 #
 # A submodule that is not its own git checkout (unpacked from a source
 # tarball) gets the same three-way verdict from the same engine: `git apply`
-# run inside the directory with repository discovery stopped at it, so an
-# enclosing repository cannot claim the paths and skip them. With no git
+# through an empty repository whose work tree is the directory, so neither an
+# enclosing repository nor a stale .git gitfile can claim the paths. With no git
 # installed, GNU `patch -p1 --fuzz=0` stands in; it allows the same line
 # offsets git does and no more. Such a tree can never back the from-clean
 # claim, because nothing records what its pristine bytes were.
@@ -88,6 +88,8 @@ case $patch_file in
   *) abs_patch=$PWD/$patch_file ;;
 esac
 
+empty_git_dir=
+
 # apply_patch [--check] [--reverse]: one apply question, asked of the backend.
 apply_patch() {
   case $backend in
@@ -95,9 +97,18 @@ apply_patch() {
       git_submodule apply "$@" "$patch_file"
       ;;
     git-dir)
+      # An empty repository whose work tree is the submodule: nothing is
+      # discovered, so neither an enclosing repository nor a .git gitfile
+      # pointing at a missing module dir (Buildroot's tarball keeps those)
+      # can take the question.
+      if [ -z "$empty_git_dir" ]; then
+        empty_git_dir=$(mktemp -d "${TMPDIR:-/tmp}/helix-patch-git.XXXXXX") || return 1
+        trap 'rm -rf "$empty_git_dir"' EXIT
+        git init -q --bare "$empty_git_dir" || return 1
+      fi
       ( cd "$submodule" &&
-        GIT_CEILING_DIRECTORIES=$(dirname "$(pwd -P)") \
-          env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+        env -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+          GIT_DIR="$empty_git_dir" GIT_WORK_TREE="$(pwd -P)" \
           git apply "$@" "$abs_patch" )
       ;;
     patch)

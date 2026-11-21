@@ -253,17 +253,62 @@ _root_access_enabled() {
         grep -Eq '"open_root":(true|-?[0-9]*[1-9])'
 }
 
+# Who keeps SSH up with the stock UI disabled. Prints one word:
+#   ungated    S50dropbear has no live --force gate (PAXX, or no S50dropbear):
+#              SSH does not depend on the stock UI, so nothing here is needed
+#   no_config  gated, and gui_config.json is not where this hook reads it
+#   off        gated, and Root Access is off
+#   down       gated, Root Access on, dropbear not running
+#   ok         gated, Root Access on, dropbear running
+# The one rule both ensure_root_ssh and the installer's pre-flight
+# (snapmaker-u1-setup-autostart.sh) act on.
+u1_root_ssh_state() {
+    if [ ! -f "$HELIX_DROPBEAR_INIT" ] || \
+       ! grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null; then
+        echo ungated
+    elif [ ! -f "$HELIX_GUI_CONFIG" ]; then
+        echo no_config
+    elif ! _root_access_enabled; then
+        echo off
+    elif pidof dropbear >/dev/null 2>&1; then
+        echo ok
+    else
+        echo down
+    fi
+}
+
 # Start dropbear with --force when Root Access is on and it is not running.
 # Idempotent; never fails the caller.
+#
+# When it still is not running afterwards, SSH is gone until something changes,
+# and with the stock screen disabled SSH is how the user gets back to it. So
+# say so loudly: syslog, this hook's output (the
+# launcher log), and HELIX_U1_ROOT_SSH_DOWN=1, which the app turns into an
+# on-screen notification. The launcher's own platform_pre_start call is the one
+# whose environment reaches helix-screen, and it re-runs this check.
 ensure_root_ssh() {
-    [ -f "$HELIX_DROPBEAR_INIT" ] || return 0
-    grep -q '^[^#]*custom_misc vertype' "$HELIX_DROPBEAR_INIT" 2>/dev/null || return 0
-    _root_access_enabled || return 0
-    if pidof dropbear >/dev/null 2>&1; then
-        return 0
-    fi
+    # A status this function computes, never a setting: drop any inherited
+    # value first, so only this run's check can set it.
+    unset HELIX_U1_ROOT_SSH_DOWN
+    [ "$(u1_root_ssh_state)" = down ] || return 0
     echo "Root Access is enabled: starting SSH (dropbear)"
     "$HELIX_DROPBEAR_INIT" start --force || true
+    _ssh_wait=0
+    while [ "$_ssh_wait" -lt "${HELIX_ROOT_SSH_WAIT:-2}" ]; do
+        [ "$(u1_root_ssh_state)" = down ] || { unset _ssh_wait; return 0; }
+        sleep 1
+        _ssh_wait=$((_ssh_wait + 1))
+    done
+    unset _ssh_wait
+    if [ "$(u1_root_ssh_state)" = down ]; then
+        _ssh_msg="Root Access is on but SSH (dropbear) did not start: '$HELIX_DROPBEAR_INIT start --force' left no dropbear running"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: $_ssh_msg" >&2
+        if command -v logger >/dev/null 2>&1; then
+            logger -p user.err -t helixscreen -- "$_ssh_msg" 2>/dev/null || true
+        fi
+        unset _ssh_msg
+        export HELIX_U1_ROOT_SSH_DOWN="${HELIX_U1_ROOT_SSH_DOWN:-1}"
+    fi
     return 0
 }
 
@@ -436,6 +481,15 @@ platform_pre_start() {
     # Serve the live UI to Mainsail/Fluidd via the firmware's fb-http tool when
     # the PAXX `web remote_screen` toggle is on (no-op otherwise).
     start_remote_screen
+
+    # Stock firmware: tell the app where the restore trigger goes, which is
+    # what offers Settings > System > Restore Stock Screen. The boot delegate
+    # autostart installs over S99input-event-daemon acts on that file at boot
+    # (snapmaker-u1-setup-autostart.sh step 4c). PAXX firmware has its own way
+    # back to its screen.
+    if [ "$(u1_root_ssh_state)" != ungated ]; then
+        export HELIX_U1_RESTORE_TRIGGER="${HELIX_U1_RESTORE_TRIGGER:-/home/lava/printer_data/config/helixscreen-restore-stock}"
+    fi
 
     # Opt into the launcher's boot-time respawn self-heal (busybox init does
     # not respawn S99 children). Supplied here, not at file scope: the init

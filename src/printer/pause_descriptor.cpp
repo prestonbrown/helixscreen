@@ -5,6 +5,7 @@
 #include "firmware_error_envelope.h"
 #include "json_utils.h"
 #include "printer_discovery.h"
+#include "snapmaker_exceptions.h"
 
 #include <array>
 
@@ -30,6 +31,8 @@ struct Provider {
     bool (*present)(const PrinterDiscovery& hw);
     /// The lane a populated descriptor names as run out, or -1.
     int (*runout_lane)(const json& cause);
+    /// A populated descriptor's cause in a user's words, or "".
+    std::string (*reason)(const json& cause);
 };
 
 constexpr std::array<Provider, 1> kProviders = {{
@@ -39,6 +42,12 @@ constexpr std::array<Provider, 1> kProviders = {{
     {[](const PrinterDiscovery& hw) { return hw.has_snapmaker(); },
      [](const json& cause) {
          return int_member(cause, "id") == kU1RunoutExceptionId ? int_member(cause, "index") : -1;
+     },
+     [](const json& cause) {
+         const snapmaker::ExceptionCode code{int_member(cause, "level"), int_member(cause, "id"),
+                                             int_member(cause, "index"), int_member(cause, "code")};
+         const auto worded = snapmaker::word_fault(code);
+         return worded ? worded->summary : std::string();
      }},
 }};
 
@@ -76,6 +85,12 @@ std::optional<PauseDescriptor> read(const json& print_stats) {
     for (const Provider& p : kProviders) {
         if (const int lane = p.runout_lane(*exc); lane >= 0) {
             cause.runout_lane = lane;
+            break;
+        }
+    }
+    for (const Provider& p : kProviders) {
+        if (std::string reason = p.reason(*exc); !reason.empty()) {
+            cause.reason = std::move(reason);
             break;
         }
     }

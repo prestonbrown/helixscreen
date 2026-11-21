@@ -140,7 +140,9 @@ TEST_CASE("runout other head: every refusal has text, None has none", "[runout_o
     for (auto r :
          {HeadRefusal::IsRunoutHead, HeadRefusal::NozzleUnknown, HeadRefusal::NozzleSize,
           HeadRefusal::NozzleFlow, HeadRefusal::NotFedByFeeder, HeadRefusal::NoFilamentRecord,
-          HeadRefusal::MaterialMismatch, HeadRefusal::RunoutHeadStillFeeds}) {
+          HeadRefusal::MaterialMismatch, HeadRefusal::RunoutHeadStillFeeds,
+          HeadRefusal::MaterialUnknown, HeadRefusal::PrinterBusy, HeadRefusal::AlreadyMoved,
+          HeadRefusal::RunoutHeadNotActive, HeadRefusal::RecordNotWritable}) {
         CHECK_FALSE(std::string(refusal_text(r)).empty());
     }
 }
@@ -194,12 +196,15 @@ TEST_CASE("runout other head: U1 always quotes the vendor", "[runout_other_head]
 }
 
 TEST_CASE("runout other head: U1 refuses a record it cannot write", "[runout_other_head]") {
+    // The chooser lists such a head as refused, so a plan for it is refused too.
     auto f = paused_runout_on_head0();
     f.heads[3].record->colors = {"blue"};
-    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::UnsafeRecord);
+    CHECK(verdict(assess(AmsType::SNAPMAKER, f), 3).refusal == HeadRefusal::RecordNotWritable);
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::HeadNotEligible);
     f = paused_runout_on_head0();
     f.heads[3].record->subtype = "Basic\nG28";
-    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::UnsafeRecord);
+    CHECK(verdict(assess(AmsType::SNAPMAKER, f), 3).refusal == HeadRefusal::RecordNotWritable);
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::HeadNotEligible);
 }
 
 TEST_CASE("runout other head: U1 turns Auto-Replenish on for this switch only",
@@ -239,60 +244,229 @@ TEST_CASE("runout other head: a runout head its feeder can still supply offers n
     CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::HeadNotEligible);
 }
 
-TEST_CASE("runout other head: the switch is seen by the pause ending or the routing changing",
+TEST_CASE("runout other head: the routing moving onto one head is what a switch looks like",
           "[runout_other_head]") {
     auto before = paused_runout_on_head0();
-    before.routing = {0, 1, 2, 3};
+    before.routing = {0, 1, 2, 3, 0};
     auto now = before;
-    CHECK_FALSE(switch_happened(before, now)); // declined: nothing moved
-    now.routing = {3, 1, 2, 3};
-    CHECK(switch_happened(before, now));
-    now = before;
-    now.paused = false;
-    CHECK(switch_happened(before, now));
+    CHECK(moved_onto(before, now) == -1); // declined: nothing moved
+    now.routing = {3, 1, 2, 3, 3};
+    CHECK(moved_onto(before, now) == 3);
+    CHECK(moved_to(before, now, 3));
+    CHECK_FALSE(moved_to(before, now, 1));
+    now.routing = {3, 1, 2, 3, 1}; // split across two heads: not one switch
+    CHECK(moved_onto(before, now) == -1);
     // No routing seen before sending: the first routing frame is no evidence.
     before.routing.clear();
-    now = before;
-    now.routing = {3, 1, 2, 3};
-    CHECK_FALSE(switch_happened(before, now));
+    now.routing = {3, 1, 2, 3, 3};
+    CHECK(moved_onto(before, now) == -1);
+}
+
+namespace {
+
+/// The frames a sent switch to head 3 produces, in order, as the firmware's
+/// INNER_AUTO_REPLENISH_FILAMENT runs: it rewrites the routing, then its
+/// RESUME heats and purges with the print still paused, then prints.
+struct SwitchFrames {
+    RunoutFacts sent = paused_runout_on_head0();
+    RunoutFacts rerouted;
+    RunoutFacts printing;
+    SwitchFrames() {
+        sent.routing = {0, 1, 2, 3};
+        rerouted = sent;
+        rerouted.routing = {3, 1, 2, 3};
+        rerouted.printer_busy = true; // PRINT_REPLENISHING
+        printing = rerouted;
+        printing.paused = false;
+        printing.printer_busy = false;
+        printing.active_head = 3;
+    }
+};
+
+} // namespace
+
+TEST_CASE("runout other head: a switch is done when the print moved to the target and resumed",
+          "[runout_other_head]") {
+    const SwitchFrames f;
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::None, 0, 100) == SwitchStep::Wait);
+    // Heating and purging on the new head: the print is still paused.
+    CHECK(judge_switch(f.sent, f.rerouted, 3, SendReply::None, 0, 60000) == SwitchStep::Wait);
+    CHECK(judge_switch(f.sent, f.printing, 3, SendReply::None, 0, 90000) == SwitchStep::Done);
+    CHECK(judge_switch(f.sent, f.printing, 3, SendReply::Ok, 0, 90000) == SwitchStep::Done);
+    // A timed-out send may still be heating and purging: wait for the outcome.
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::TransportLost, 60000, 150000) ==
+          SwitchStep::Wait);
+    CHECK(judge_switch(f.sent, f.printing, 3, SendReply::TransportLost, 60000, 170000) ==
+          SwitchStep::Done);
+}
+
+TEST_CASE("runout other head: the pause ending alone is not the switch", "[runout_other_head]") {
+    // The firmware's own Auto-Replenish refed the runout head in place, or the
+    // user resumed it: printing again, routing untouched.
+    const SwitchFrames f;
+    auto resumed_in_place = f.sent;
+    resumed_in_place.paused = false;
+    CHECK(judge_switch(f.sent, resumed_in_place, 3, SendReply::None, 0, 1000) == SwitchStep::Wait);
+    CHECK(judge_switch(f.sent, resumed_in_place, 3, SendReply::Ok, kSwitchSettleMs, 9000) ==
+          SwitchStep::Fail);
+    // Without a routing reported before sending, only the pause ending counts.
+    auto blind = f.sent;
+    blind.routing.clear();
+    CHECK(judge_switch(blind, resumed_in_place, 3, SendReply::None, 0, 1000) == SwitchStep::Done);
+}
+
+TEST_CASE("runout other head: a switch onto another head than the target is diverted",
+          "[runout_other_head]") {
+    const SwitchFrames f;
+    auto elsewhere = f.printing;
+    elsewhere.routing = {1, 1, 2, 3};
+    CHECK(judge_switch(f.sent, elsewhere, 3, SendReply::Ok, 0, 9000) == SwitchStep::Diverted);
 }
 
 TEST_CASE("runout other head: a silent decline fails once the reply has settled",
           "[runout_other_head]") {
-    auto before = paused_runout_on_head0();
-    before.routing = {0, 1, 2, 3};
-    auto switched = before;
-    switched.paused = false;
-    CHECK(judge_switch(before, before, false, SendReply::Ok, 100, 100) == SwitchStep::Wait);
-    CHECK(judge_switch(before, before, false, SendReply::Ok, kSwitchSettleMs, 9000) ==
+    const SwitchFrames f;
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::Ok, 100, 100) == SwitchStep::Wait);
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::Ok, kSwitchSettleMs, 9000) ==
           SwitchStep::Fail);
-    CHECK(judge_switch(before, before, false, SendReply::Refused, kSwitchSettleMs, 9000) ==
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::Refused, kSwitchSettleMs, 9000) ==
           SwitchStep::Fail);
-    // A timed-out send may still be heating and purging: wait for the outcome.
-    CHECK(judge_switch(before, before, false, SendReply::TransportLost, 60000, 150000) ==
-          SwitchStep::Wait);
-    CHECK(judge_switch(before, switched, false, SendReply::TransportLost, 60000, 170000) ==
-          SwitchStep::Done);
-    CHECK(judge_switch(before, before, false, SendReply::None, 0, kSwitchGiveUpMs) ==
-          SwitchStep::Fail);
+    CHECK(judge_switch(f.sent, f.sent, 3, SendReply::None, 0, kSwitchGiveUpMs) == SwitchStep::Fail);
 }
 
-TEST_CASE("runout other head: a switch whose script stopped after it still restores",
+TEST_CASE("runout other head: a resume that fails after the routing moved strands the print",
           "[runout_other_head]") {
-    // Auto-Replenish rewrites the routing before its RESUME; a RESUME that
-    // fails stops the script ahead of its restore line.
-    auto before = paused_runout_on_head0();
-    before.routing = {0, 1, 2, 3};
-    auto rerouted = before;
-    rerouted.routing = {3, 1, 2, 3};
-    CHECK(judge_switch(before, rerouted, true, SendReply::None, 0, 1000) == SwitchStep::Wait);
-    CHECK(judge_switch(before, rerouted, true, SendReply::Ok, 0, 1000) == SwitchStep::Done);
-    CHECK(judge_switch(before, rerouted, true, SendReply::Refused, 0, 1000) == SwitchStep::Restore);
-    CHECK(judge_switch(before, rerouted, true, SendReply::TransportLost, 0, 1000) ==
-          SwitchStep::Restore);
-    CHECK(judge_switch(before, rerouted, true, SendReply::None, 0, kSwitchGiveUpMs) ==
-          SwitchStep::Restore);
-    CHECK(judge_switch(before, rerouted, false, SendReply::None, 0, 1000) == SwitchStep::Done);
+    // INNER_AUTO_REPLENISH rewrote the routing, then its RESUME raised
+    // (CHECK_FILAMENT_RUNOUT on the new head, a feed that failed): the script
+    // stops with an error and the print stays paused on the moved routing.
+    const SwitchFrames f;
+    auto failed = f.rerouted;
+    failed.printer_busy = false; // the RESUME error path sets IDLE
+    CHECK(judge_switch(f.sent, failed, 3, SendReply::Refused, 0, 30000) == SwitchStep::Stranded);
+    CHECK(judge_switch(f.sent, failed, 3, SendReply::Ok, 100, 30000) == SwitchStep::Wait);
+    CHECK(judge_switch(f.sent, failed, 3, SendReply::Ok, kSwitchSettleMs, 30000) ==
+          SwitchStep::Stranded);
+    CHECK(judge_switch(f.sent, failed, 3, SendReply::None, 0, kSwitchGiveUpMs) ==
+          SwitchStep::Stranded);
+    // The way out resumes on the new head, as the firmware's own replenish does.
+    const auto plan = build_plan(AmsType::SNAPMAKER, f.sent, 3);
+    REQUIRE(plan.ok());
+    CHECK(plan.resume_gcode == "RESUME REPLENISH=1 REPLENISH_EXTRUDER=3");
+    // A moved routing is not offered again.
+    CHECK_FALSE(worth_offering(failed));
+    CHECK(build_plan(AmsType::SNAPMAKER, failed, 1).refusal == PlanRefusal::PrinterBusy);
+}
+
+TEST_CASE("runout other head: nothing is offered or sent while the firmware switches by itself",
+          "[runout_other_head]") {
+    // Auto-Replenish on: the sensor's PAUSE runs INNER_AUTO_REPLENISH, which
+    // finds a match and RESUMEs with PRINT_REPLENISHING held, still paused.
+    auto f = paused_runout_on_head0();
+    CHECK(worth_offering(f));
+    f.printer_busy = true;
+    CHECK_FALSE(worth_offering(f));
+    const auto all = assess(f);
+    CHECK(verdict(all, 1).refusal == HeadRefusal::PrinterBusy);
+    CHECK(verdict(all, 3).refusal == HeadRefusal::PrinterBusy);
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).refusal == PlanRefusal::PrinterBusy);
+    // Its routing write lands before PRINT_REPLENISHING is set.
+    f = paused_runout_on_head0();
+    f.routing = {1, 1, 2, 3};
+    CHECK_FALSE(worth_offering(f));
+    CHECK(verdict(assess(f), 3).refusal == HeadRefusal::AlreadyMoved);
+}
+
+TEST_CASE("runout other head: U1 clears the borrowed label once the print left the empty head",
+          "[runout_other_head]") {
+    const auto plan = build_plan(AmsType::SNAPMAKER, paused_runout_on_head0(), 3);
+    REQUIRE(plan.ok());
+    // The firmware's own clear shape: never an Auto-Replenish candidate.
+    CHECK(plan.clear_label_gcode ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"NONE\" FILAMENT_TYPE=NONE "
+          "FILAMENT_SUBTYPE=NONE COLOR_NUMS=1 COLORS=FFFFFF MULTI_MODE=0 ALPHA=255 FORCE=1");
+}
+
+TEST_CASE("runout other head: U1 puts the empty head's record back after a failed switch",
+          "[runout_other_head]") {
+    // The firmware cleared the runout head at the runout; its backup still
+    // holds the original, which the label write replaced.
+    auto f = paused_runout_on_head0();
+    f.heads[0].record.reset();
+    const auto plan = build_plan(AmsType::SNAPMAKER, f, 3);
+    REQUIRE(plan.ok());
+    CHECK(plan.unlabel_gcode ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"Snapmaker\" FILAMENT_TYPE=PLA "
+          "FILAMENT_SUBTYPE=Basic COLOR_NUMS=1 COLORS=FF0000 MULTI_MODE=0 ALPHA=255 FORCE=1\n"
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=0 VENDOR=\"NONE\" FILAMENT_TYPE=NONE "
+          "FILAMENT_SUBTYPE=NONE COLOR_NUMS=1 COLORS=FFFFFF MULTI_MODE=0 ALPHA=255 FORCE=1");
+}
+
+TEST_CASE("runout other head: a restore left pending is applied once nothing is in flight",
+          "[runout_other_head]") {
+    CHECK(pending_restore_step(false, false, true) == PendingRestoreStep::Keep);
+    // The switch's own script turns it off; never race it.
+    CHECK(pending_restore_step(true, true, true) == PendingRestoreStep::Keep);
+    CHECK(pending_restore_step(true, false, std::nullopt) == PendingRestoreStep::Keep);
+    CHECK(pending_restore_step(true, false, true) == PendingRestoreStep::Send);
+    CHECK(pending_restore_step(true, false, false) == PendingRestoreStep::Clear);
+}
+
+TEST_CASE("runout other head: an unknown material is not eligible on either side",
+          "[runout_other_head]") {
+    auto f = paused_runout_on_head0();
+    f.heads[3].record->type = "Unobtainium";
+    CHECK(verdict(assess(f), 3).refusal == HeadRefusal::MaterialUnknown);
+    f = paused_runout_on_head0();
+    f.original->type = "Unobtainium";
+    f.heads[1].record->type = "Unobtainium";
+    CHECK(verdict(assess(f), 1).refusal == HeadRefusal::MaterialUnknown);
+}
+
+TEST_CASE("runout other head: a different variant is eligible with a warning",
+          "[runout_other_head]") {
+    const auto all = assess(paused_runout_on_head0());
+    CHECK(verdict(all, 1).eligible()); // PLA Matte for PLA Basic
+    CHECK(verdict(all, 1).variant_differs);
+    CHECK_FALSE(verdict(all, 3).variant_differs); // PLA Basic, another color
+    // Support stands in only for itself.
+    auto f = paused_runout_on_head0();
+    f.original->type = "HIPS";
+    f.heads[1].record->type = "ABS";
+    CHECK(verdict(assess(f), 1).refusal == HeadRefusal::MaterialMismatch);
+}
+
+TEST_CASE("runout other head: U1 marks a head whose record it cannot write",
+          "[runout_other_head]") {
+    auto f = paused_runout_on_head0();
+    f.heads[1].record->colors = {"FF0000FF"}; // FILAMENT_COLOR= stores RRGGBBAA
+    f.heads[3].record->colors = {"0000FF", "0000FF", "0000FF", "0000FF", "0000FF", "0000FF"};
+    const auto all = assess(AmsType::SNAPMAKER, f);
+    CHECK(verdict(all, 1).refusal == HeadRefusal::RecordNotWritable);
+    CHECK(verdict(all, 3).refusal == HeadRefusal::RecordNotWritable);
+    CHECK(verdict(assess(f), 1).eligible()); // the generic rule has no opinion
+    f = paused_runout_on_head0();
+    f.heads[3].record->vendor = "Bad;Vendor";
+    CHECK(verdict(assess(AmsType::SNAPMAKER, f), 3).refusal == HeadRefusal::RecordNotWritable);
+}
+
+TEST_CASE("runout other head: every head reads why another active head blocks it",
+          "[runout_other_head]") {
+    auto f = paused_runout_on_head0();
+    f.active_head = 2;
+    CHECK(verdict(assess(f), 1).refusal == HeadRefusal::RunoutHeadNotActive);
+    CHECK(verdict(assess(f), 3).refusal == HeadRefusal::RunoutHeadNotActive);
+}
+
+TEST_CASE("runout other head: U1 predicts the firmware's choice in head order",
+          "[runout_other_head]") {
+    // A lower twin whose nozzle is not reported here still wins at the
+    // firmware, which knows it; a twin with a known other nozzle does not.
+    auto f = paused_runout_on_head0();
+    f.heads[1].record = record("PLA", "0000FF");
+    f.heads[1].nozzle_flow.clear();
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).continues_on == 1);
+    f.heads[1].nozzle_flow = "high_flow";
+    CHECK(build_plan(AmsType::SNAPMAKER, f, 3).continues_on == 3);
 }
 
 TEST_CASE("runout other head: what a failed switch left behind and when to offer one",

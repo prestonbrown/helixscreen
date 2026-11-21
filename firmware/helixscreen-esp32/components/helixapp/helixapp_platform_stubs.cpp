@@ -102,6 +102,7 @@ static helix::Subject g_platform_extras_subject;
 static helix::Subject g_camera_supported_subject;
 static helix::Subject g_console_supported_subject;
 static helix::Subject g_host_terminal_supported_subject;
+static helix::Subject g_u1_restore_stock_offered_subject;
 static bool g_subjects_initialized = false;
 
 // Namespace-scope Subjects get their node at app_globals_init_subjects(), which app_boot_ui()
@@ -162,6 +163,10 @@ void app_globals_init_subjects() {
     g_host_terminal_supported_subject.init_int(0);
     lv_xml_register_subject(nullptr, "platform_host_terminal_supported",
                             &g_host_terminal_supported_subject);
+    // Restore Stock Screen is a Snapmaker U1 row: the firmware hides it.
+    g_u1_restore_stock_offered_subject.init_int(0);
+    lv_xml_register_subject(nullptr, "u1_restore_stock_offered",
+                            &g_u1_restore_stock_offered_subject);
     // The shutdown home widget's hardware gate reads it by name.
     g_host_power_supported_subject.init_int(helix::platform_host_power_supported() ? 1 : 0);
     lv_xml_register_subject(nullptr, "platform_host_power_supported",

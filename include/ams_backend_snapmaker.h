@@ -396,6 +396,11 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::ErrorEvent>
     classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
 
+    /// A coded fault in @p raw_line that the U1 table words, worded with the
+    /// head named and a feeder failure's ways on; nullopt for any other line.
+    [[nodiscard]] std::optional<helix::ErrorEvent>
+    classify_coded_fault(const std::string& raw_line, const helix::ClassifyContext& ctx) const;
+
     // True when the motion sensor reports runout but the port sensor still
     // reads filament present: the encoder is stale (it never saw the
     // start-of-print purge) but physical filament is in the buffer. No caller:
@@ -780,6 +785,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         bool check_used_heads = false;
         std::string check_used_heads_file;
         uint32_t check_used_heads_print = 0;
+        /// persisted_records_ changed: written to the store outside mutex_.
+        bool persist_running_records = false;
     };
 
     void dispatch_effects(const FrameEffects& fx);
@@ -1091,7 +1098,32 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     [[nodiscard]] std::optional<helix::runout_other_head::FilamentRecord>
     task_record_locked(int head) const;
     /// Keep pause_records_ in step with the print state. Under mutex_.
-    void note_pause_records_locked();
+    void note_pause_records_locked(FrameEffects& fx);
+
+    /// running_records_ as the settings store holds them, so a process that
+    /// starts into a paused print still knows what the runout head printed.
+    /// Trusted only for the print they were taken from: the same file, and a
+    /// print_stats.total_duration that has not gone back.
+    struct PersistedRunningRecords {
+        std::string file;
+        double total_duration = 0.0;
+        std::array<std::optional<helix::runout_other_head::FilamentRecord>, kNumTools> records{};
+    };
+    /// What the store holds, as this process last read or wrote it; read on the
+    /// first frame. Under mutex_.
+    std::optional<PersistedRunningRecords> persisted_records_;
+    bool persisted_records_read_ = false;
+    /// Write persisted_records_ to the store (clearing it when empty). Main
+    /// thread, without mutex_.
+    void write_persisted_running_records();
+    /// The per-printer settings entry behind persisted_records_. Main thread.
+    [[nodiscard]] static std::optional<PersistedRunningRecords> read_persisted_running_records();
+    static void
+    store_persisted_running_records(const std::optional<PersistedRunningRecords>& saved);
+
+    /// print_stats.total_duration from this backend's own frames; unset until a
+    /// frame carries it. Under mutex_.
+    std::optional<double> print_total_duration_;
 
     /// Per head: an official-flag repair has been sent this session. Under
     /// mutex_.
@@ -1172,6 +1204,13 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// machine_state_manager.main_state from this backend's own status frames;
     /// unset until a frame carries it. Under mutex_.
     std::optional<int> main_state_;
+
+    /// machine_state_manager.action_code, the same way: what the firmware is
+    /// doing inside its main state (PRINT_REPLENISHING = 131 while its own
+    /// Auto-Replenish resumes on another head). Under mutex_.
+    std::optional<int> action_code_;
+    /// ActionCode.IDLE (machine_state_manager.py).
+    static constexpr int kActionCodeIdle = 0;
 
     /// The temperatures and spool weight the last tag reading on each channel
     /// wrote onto SlotInfo, which no lane record carries. Unset until a tag is

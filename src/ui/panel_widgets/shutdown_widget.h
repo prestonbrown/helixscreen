@@ -119,19 +119,45 @@ struct PowerDecision {
     /// The scope acted on when run_now, else the scope a dual-host dialog's
     /// split buttons open on. Read only in Dual mode.
     ShutdownScope scope;
+    /// The dialog says the printer's status is not known, so a print may be running.
+    bool warn_status_unknown;
 };
+
+/// True while a job holds the machine (printing, paused, spools on the bed),
+/// so powering it down would ruin the job. The job_active input of
+/// classify_power_job(), and of every other path that reboots the printer.
+/// Main thread.
+bool power_job_active();
+
+/// True when power_job_active() reflects Klipper: Moonraker connected, Klipper
+/// ready, and a print_stats frame applied since start. Before that the job
+/// state reads its STANDBY default, so "no job" is not yet known. Main thread.
+bool power_job_state_known();
+
+/// What a power request knows about a job holding the machine.
+enum class PowerJobState {
+    Idle,    ///< Klipper reports no job.
+    Active,  ///< A job holds the machine.
+    Unknown, ///< Not connected, Klipper not ready, or no print_stats yet: a print may be running.
+};
+
+/// Pure. Until the job state is known, @p job_active reads a default and says
+/// nothing, so the state is Unknown whatever it holds.
+PowerJobState classify_power_job(bool job_state_known, bool job_active);
 
 /// Decide a power request. Pure.
 ///
 /// A dual-host screen with a target chosen in Settings (@p target) opens its
 /// dialog on that target instead of @p plan's default. A request runs without
 /// the dialog only when its entry point already names the action, the
-/// confirmation setting is off, no job holds the machine (powering down ruins
+/// confirmation setting is off, @p job is Idle (powering down ruins
 /// it), and the scope is settled: a single-host screen has one, a dual-host
-/// screen needs a target other than Ask.
+/// screen needs a target other than Ask. An Unknown @p job never runs at once
+/// and puts the status warning in the dialog: Klipper in error still has to
+/// be rebootable, so the request asks instead of refusing.
 PowerDecision decide_power_request(PowerIntent intent, bool require_confirmation,
                                    const ShutdownDialogPlan& plan, PowerTarget target,
-                                   bool job_active);
+                                   PowerJobState job);
 
 /// Configure @p modal with single-/dual-scope callbacks for @p api (matching
 /// the home-panel widget's behavior — including local-fallback when Moonraker
