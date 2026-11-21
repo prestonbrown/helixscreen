@@ -122,6 +122,17 @@ std::unordered_set<const lv_obj_t*>& live_ui_buttons() {
     return s;
 }
 
+// A button showing its icon and no label carries this state, so XML styles
+// with selector="user_4" can give the icon-only shape (header_action's circle)
+// while the same button with its label showing keeps its pill.
+constexpr lv_state_t kIconOnlyState = LV_STATE_USER_4;
+
+void sync_icon_only_state(lv_obj_t* btn, const UiButtonData* data) {
+    const bool icon_shown = data->icon && !lv_obj_is_hidden(data->icon);
+    const bool label_shown = data->label && !lv_obj_is_hidden(data->label);
+    lv_obj_set_state(btn, kIconOnlyState, icon_shown && !label_shown);
+}
+
 /**
  * @brief Resolve an icon font by XML const name (e.g. icon_font_sm/md/lg)
  *
@@ -1335,7 +1346,12 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
         label_hidden_subject = "ui_breakpoint";
         label_hidden_ref = label_hidden_bp;
     }
-    if (data && data->magic == UiButtonData::kMagic && data->label) {
+    // Hiding the label collapses the button to its icon, so a button with no
+    // icon, static or bound, takes no label-hiding binding: it would go blank.
+    const char* bind_icon_attr = lv_xml_get_value_of(attrs, "bind_icon");
+    const bool can_collapse = data && data->magic == UiButtonData::kMagic && data->label &&
+                              (data->icon || (bind_icon_attr && bind_icon_attr[0] != '\0'));
+    if (can_collapse) {
         bind_part_hidden(state, btn, label_hidden_subject, label_hidden_ref, "label",
                          [](lv_observer_t* o, lv_subject_t* s) {
                              auto* target = static_cast<lv_obj_t*>(lv_observer_get_target_obj(o));
@@ -1348,8 +1364,7 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
     // The expression spelling: label_hidden_cond="ui_is_portrait and ui_breakpoint lt 3"
     // hides the label while the condition holds, resolved in this button's scope.
     const char* label_hidden_cond = lv_xml_get_value_of(attrs, "label_hidden_cond");
-    if (label_hidden_cond && label_hidden_cond[0] != '\0' && data &&
-        data->magic == UiButtonData::kMagic && data->label) {
+    if (label_hidden_cond && label_hidden_cond[0] != '\0' && can_collapse) {
         lv_xml_expr_t* expr = lv_xml_expr_compile(
             label_hidden_cond,
             [](void* ctx, const char* name) -> lv_subject_t* {
@@ -1437,6 +1452,10 @@ void ui_button_apply(lv_xml_parser_state_t* state, const char** attrs) {
                          subject ? "has no stacked_if_eq" : "not found");
         }
     }
+
+    if (data && data->magic == UiButtonData::kMagic) {
+        sync_icon_only_state(btn, data);
+    }
 }
 
 } // namespace
@@ -1517,6 +1536,7 @@ void ui_button_set_label_hidden(lv_obj_t* btn, bool hidden) {
     if (data->min_width_content) {
         fit_column_min_width(btn, data);
     }
+    sync_icon_only_state(btn, data);
 }
 
 // NAMESPACE_OK: joins this header's global ui_button_* free-function API
@@ -1536,6 +1556,7 @@ void ui_button_set_icon_hidden(lv_obj_t* btn, bool hidden) {
     if (data->min_width_content) {
         fit_column_min_width(btn, data);
     }
+    sync_icon_only_state(btn, data);
 }
 
 // NAMESPACE_OK: joins this header's global ui_button_* free-function API

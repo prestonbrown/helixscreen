@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One button in a screen's header: the only element header_bar's actions slot
+     takes (<header_bar-actions>, <overlay_panel-actions>; scripts/check_header_actions.py).
+     It owns the whole look, so every header button is the same height, shape and
+     color scheme:
+       - icon only: a circle, as wide as it is tall
+       - text, with or without an icon: a pill
+       - role: primary (the screen's one main action), neutral (default), danger
+       - collapse="auto" (default): icon + text from the small breakpoint up, the icon
+         alone on micro and tiny; a text-only action keeps its text. "never" keeps it.
+     Callers give it a name, content, role and callback, never a size or color.
+     Bindings written as its children (bind_flag_if*, bind_state_if*) act on the
+     button itself, so a Save that greys out while nothing is dirty is one
+     header_action with role primary, its callback, and a bind_state_if_eq child. -->
+<component>
+  <api>
+    <prop name="icon" type="string" default=""/>
+    <prop name="text" type="string" default=""/>
+    <!-- Implied from text (text="Save" reads as text_tag="Save"); pass it only
+         when the translation key differs from the English text. -->
+    <prop name="text_tag" type="string" default=""/>
+    <prop name="role" type="string" default="neutral"/>
+    <prop name="collapse" type="string" default="auto"/>
+    <prop name="callback" type="string" default=""/>
+  </api>
+  <subjects>
+    <!-- The label-hiding rule each collapse value names; ui_button binds it only
+         when the action has an icon to collapse to. -->
+    <subject_expr name="header_action_collapse_auto" expr="ui_breakpoint le 1"/>
+    <subject name="header_action_collapse_never" type="int" value="0"/>
+  </subjects>
+  <styles>
+    <!-- A pill: radius past half the height, padded so the text clears the curve. -->
+    <style name="shape" radius="9999" pad_left="#space_lg" pad_right="#space_lg" pad_top="0" pad_bottom="0"/>
+    <!-- ui_button sets user_4 while it shows only its icon: then a circle. -->
+    <style name="icon_only" width="#header_button_height" pad_left="0" pad_right="0"/>
+    <style name="role_primary" bg_color="#primary"/>
+    <style name="role_neutral" bg_color="#elevated_bg"/>
+    <style name="role_danger" bg_color="#danger"/>
+  </styles>
+  <view extends="ui_button"
+        width="content" height="#header_button_height" style_min_width="#header_button_height" icon="$icon"
+        icon_size="sm" text="$text" translation_tag="$text_tag"
+        label_hidden_subject="header_action_collapse_${collapse}" label_hidden_if_eq="1">
+    <style name="shape"/>
+    <style name="icon_only" selector="user_4"/>
+    <style name="role_${role}"/>
+    <event_cb trigger="clicked" callback="$callback"/>
+  </view>
+</component>

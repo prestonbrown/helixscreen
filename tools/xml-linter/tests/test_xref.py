@@ -112,6 +112,24 @@ class TestCrossRefStyleRefs:
         ]
         assert style_errors == []
 
+    def test_composed_param_style_ref_not_flagged(
+        self, schema: Schema, tmp_path: Path
+    ) -> None:
+        """A style name composed from a prop (header_action's `role_${role}`)."""
+        xml = tmp_path / "composed_style.xml"
+        xml.write_text(
+            '<component><api><prop name="role" type="string" default="neutral"/></api>'
+            '<styles><style name="role_neutral" bg_opa="255"/></styles>'
+            '<view extends="lv_obj"><style name="role_${role}"/></view></component>',
+            encoding="utf-8",
+        )
+        linter = Linter(schema, LinterConfig(enable_xref=True))
+        result = linter.lint_file(xml)
+        style_errors = [
+            d for d in result.diagnostics if d.check == CheckType.UNKNOWN_STYLE_REF
+        ]
+        assert style_errors == []
+
     def test_dotted_style_ref_resolves_across_files(
         self, schema: Schema, tmp_path: Path
     ) -> None:

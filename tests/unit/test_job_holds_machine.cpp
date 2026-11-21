@@ -622,6 +622,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/filament_product_edit_modal.xml",
     "ui_xml/form_field.xml",
     "ui_xml/hardware_issue_row.xml",
+    "ui_xml/header_action.xml",
     "ui_xml/hidden_network_modal.xml",
     "ui_xml/history_dashboard_panel.xml",
     "ui_xml/history_detail_overlay.xml",

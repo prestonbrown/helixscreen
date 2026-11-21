@@ -264,10 +264,11 @@ class CrossRefValidator:
         # Check style block references (<bind_style>, <lv_obj-style>, aliases).
         if elem.tag in _STYLE_REF_TAGS and "name" in elem.attributes:
             style_name = elem.attributes["name"]
-            # A `$param` reference resolves at runtime from the component's
-            # <api> default or the instantiating element, so it cannot be
-            # statically resolved — same skip as subject references.
-            if not style_name.startswith("$") and not self._style_exists(style_name):
+            # A `$param` reference, or a name composed from one (`role_${role}`),
+            # resolves at runtime from the component's <api> default or the
+            # instantiating element, so it cannot be statically resolved — same
+            # skip as subject references.
+            if "$" not in style_name and not self._style_exists(style_name):
                 diagnostics.append(
                     Diagnostic(
                         file=elem.source_file,

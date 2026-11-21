@@ -60,6 +60,12 @@ typedef struct _lv_obj_t lv_obj_t;
  * - Icon only: Centered icon
  * - Text only: Centered text
  *
+ * Icon-only state: while a button shows its icon and no label (it has no text,
+ * or a label-hiding rule has collapsed it), it carries LV_STATE_USER_4, so an
+ * XML style with selector="user_4" shapes the icon-only form (header_action's
+ * circle). The label-hiding attributes bind only on a button with an icon,
+ * static or bound: hiding the label of a text-only button would leave it blank.
+ *
  * Auto-contrast is computed using luminance formula:
  *   L = (299*R + 587*G + 114*B) / 1000
  * If L < 128 (dark bg): light text/icon (ThemeManager text contrast helpers)
