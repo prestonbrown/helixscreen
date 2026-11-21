@@ -262,7 +262,7 @@ summary, a cause and a fix, filling in the slot label (`1A`..`4D`) or fan the me
 | `// Code:...` (respond_info) | 004_005-007, 009, 011, 013, 015-018, 022, 023, 002_001, 005_001 | Every Box code that pauses a print arrives here. A `//` line classifies only when it carries a QD code |
 | `Code:...` with no prefix | 002_002 (chamber fan) | Same rule as `//` |
 | Klipper shutdown | 002_002 (hotend fan) | The coded text is `state_message`; the recovery dialog words it |
-| `save_variables.retry_step` | `QDE_004_<idx>_<slot>` | Set beside most Box raises, persisted, cleared only by `TRY_MOVE_AGAIN`. `AmsBackendQidi` offers `TRY_MOVE_AGAIN` as Retry when `retry_step` names the fault, and words its blocked-slot fault from it only while a slot reads blocked |
+| `save_variables.retry_step` | `QDE_004_<idx>_<slot>` | Set beside most Box raises, persisted, cleared only by `TRY_MOVE_AGAIN`. `AmsBackendQidi` words its blocked-slot fault from it while the slot it names (1-based; `_00` is none) reads blocked, and offers `TRY_MOVE_AGAIN` as Retry only while the print is paused and the step's slot is the one the dialog names. The action carries that slot, so a fault cause about another slot drops it. Both values persist, so at boot or idle the fault shows with OK only |
 
 Pause codes (004_005, 006, 007, 009, 017) block while a print runs or is paused. 004_016 (slot ran
 out) is a toast naming the slot as the runout's lane: the Box raises no runout fault of its own, so
