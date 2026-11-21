@@ -498,6 +498,7 @@ src/ui/scroll_blit.cpp
 src/ui/setting_group.cpp
 src/ui/settings_root_status.cpp
 src/ui/shared_font_style.cpp
+src/ui/spool_assign.cpp
 src/ui/text_metrics.cpp
 src/ui/style_configs.cpp
 src/ui/target_tool.cpp
