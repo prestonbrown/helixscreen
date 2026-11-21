@@ -4534,6 +4534,8 @@ translations:
   Stop reloading the saved bed mesh?: ''
   Stop the check?: ''
   Stop the running cycle before starting another: ''
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: ''
   Stopped: ''
   Stopped between Hub and Toolhead: ''

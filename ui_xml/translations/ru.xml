@@ -4485,6 +4485,7 @@
   <translation tag="Stop reloading the saved bed mesh?" ru="Больше не загружать сохранённую сетку?"/>
   <translation tag="Stop the check?" ru="Остановить проверку?"/>
   <translation tag="Stop the running cycle before starting another" ru="Остановите текущий цикл, прежде чем запускать новый"/>
+  <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Stop with an emergency stop?" ru="Остановить аварийной остановкой?"/>
   <translation tag="Stopped" ru="Остановлено"/>
   <translation tag="Stopped between Hub and Toolhead" ru="Остановка между хабом и печатающей головкой"/>

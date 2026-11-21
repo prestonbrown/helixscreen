@@ -314,7 +314,7 @@ HELIX_MOCK_DISPLAY_MESSAGE="Nozzle wiped, ready" ./build/bin/helix-screen --test
 
 ### `HELIX_MOCK_KLIPPY_ERROR`
 
-Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a config-style message gets the "Klipper Config Error" wording). Restart Klipper or Firmware Restart brings the mock up as usual.
+Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a message the error wording table knows gets its summary as the title and its cause and fix above Klipper's text). Restart Klipper or Firmware Restart brings the mock up as usual.
 
 | Property | Value |
 |----------|-------|

@@ -4555,6 +4555,8 @@ translations:
   Stop reloading the saved bed mesh?: Das Laden des gespeicherten Bettnetzes beenden?
   Stop the check?: Prüfung beenden?
   Stop the running cycle before starting another: 'Beenden Sie den laufenden Zyklus, bevor Sie einen neuen starten'
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: 'Mit Notaus stoppen?'
   Stopped: Gestoppt
   Stopped between Hub and Toolhead: Zwischen Hub und Werkzeugkopf gestoppt

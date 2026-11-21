@@ -4555,6 +4555,8 @@ translations:
   Stop reloading the saved bed mesh?: 保存されたベッドメッシュの再読み込みを停止しますか？
   Stop the check?: チェックを停止しますか？
   Stop the running cycle before starting another: '新しく開始する前に、実行中のサイクルを停止してください'
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: '緊急停止で停止しますか？'
   Stopped: 停止しました
   Stopped between Hub and Toolhead: ハブとツールヘッドの間で停止

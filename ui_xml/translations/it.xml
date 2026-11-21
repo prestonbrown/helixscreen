@@ -4419,6 +4419,7 @@
   <translation tag="Stop reloading the saved bed mesh?" it="Non ricaricare più la mesh salvata?"/>
   <translation tag="Stop the check?" it="Fermare il controllo?"/>
   <translation tag="Stop the running cycle before starting another" it="Interrompi il ciclo in corso prima di avviarne un altro"/>
+  <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Stop with an emergency stop?" it="Fermare con un arresto di emergenza?"/>
   <translation tag="Stopped" it="Fermato"/>
   <translation tag="Stopped between Hub and Toolhead" it="Fermo tra Hub e testina"/>

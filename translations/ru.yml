@@ -4643,6 +4643,8 @@ translations:
   Stop reloading the saved bed mesh?: Больше не загружать сохранённую сетку?
   Stop the check?: Остановить проверку?
   Stop the running cycle before starting another: 'Остановите текущий цикл, прежде чем запускать новый'
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: 'Остановить аварийной остановкой?'
   Stopped: Остановлено
   Stopped between Hub and Toolhead: Остановка между хабом и печатающей головкой

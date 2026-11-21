@@ -4555,6 +4555,8 @@ translations:
   Stop reloading the saved bed mesh?: 停止重新加载已保存的热床网格？
   Stop the check?: 停止检查？
   Stop the running cycle before starting another: '请先停止当前周期，再启动新的周期'
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: '要用紧急停止来停止吗？'
   Stopped: 已停止
   Stopped between Hub and Toolhead: 停在集线器与工具头之间

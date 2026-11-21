@@ -4555,6 +4555,8 @@ translations:
   Stop reloading the saved bed mesh?: ¿Dejar de cargar la malla guardada?
   Stop the check?: ¿Detener la comprobación?
   Stop the running cycle before starting another: 'Detenga el ciclo en curso antes de iniciar otro'
+  ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  : ''
   Stop with an emergency stop?: '¿Detener con una parada de emergencia?'
   Stopped: Detenido
   Stopped between Hub and Toolhead: Detenido entre el Hub y el cabezal

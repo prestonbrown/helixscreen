@@ -94,9 +94,9 @@ constexpr Row kKlipperRows[] = {
      TR_NOOP("The host computer did not send moves to the controller board in time, usually "
              "because it is overloaded: high CPU or swap use, a slow SD card, an unstable power "
              "supply, or a webcam stream."),
-     TR_NOOP("Reduce the load on the host (stop webcams, timelapses and extra services), check "
-             "its power supply and SD card, then restart the firmware. If it happens at the same "
-             "spot again, lower the speed or the microsteps.")},
+     TR_NOOP("Stop webcams, timelapses and extra services on the host, check its power supply "
+             "and SD card, then restart the firmware. If it happens at the same spot again, "
+             "lower the speed or the microsteps.")},
     {"MCU-2", "Missed scheduling of next ", nullptr, nullptr, false, C::Mcu, S::FollowPrint,
      R::FirmwareRestart, TR_NOOP("A controller board missed a timed update"),
      TR_NOOP("A heater or fan update from the host arrived too late. The USB or CAN connection to "

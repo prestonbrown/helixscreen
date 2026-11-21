@@ -4419,6 +4419,7 @@
   <translation tag="Stop reloading the saved bed mesh?" zh="停止重新加载已保存的热床网格？"/>
   <translation tag="Stop the check?" zh="停止检查？"/>
   <translation tag="Stop the running cycle before starting another" zh="请先停止当前周期，再启动新的周期"/>
+  <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Stop with an emergency stop?" zh="要用紧急停止来停止吗？"/>
   <translation tag="Stopped" zh="已停止"/>
   <translation tag="Stopped between Hub and Toolhead" zh="停在集线器与工具头之间"/>

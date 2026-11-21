@@ -4419,6 +4419,7 @@
   <translation tag="Stop reloading the saved bed mesh?" ja="保存されたベッドメッシュの再読み込みを停止しますか？"/>
   <translation tag="Stop the check?" ja="チェックを停止しますか？"/>
   <translation tag="Stop the running cycle before starting another" ja="新しく開始する前に、実行中のサイクルを停止してください"/>
+  <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps."/>
   <translation tag="Stop with an emergency stop?" ja="緊急停止で停止しますか？"/>
   <translation tag="Stopped" ja="停止しました"/>
   <translation tag="Stopped between Hub and Toolhead" ja="ハブとツールヘッドの間で停止"/>
