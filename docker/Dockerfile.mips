@@ -21,10 +21,9 @@
 #     shipping K1 screen binary is musl on this very kernel. FP64 o32 on
 #     4.4.94 is proven by a static double-math probe.
 #
-# Derived from Dockerfile.k1-dynamic (same ct-ng build); differences are
-# the config file (musl instead of glibc) and the dropped k1-sysroot
-# overlay, which existed only to supply firmware .so files for dynamic
-# linking. This toolchain links -static.
+# Stage 1 builds the toolchain with crosstool-NG from mips-ct-ng.config;
+# stage 2 adds the static libraries the build links. Every binary it
+# produces links -static, so no firmware library is needed at runtime.
 
 # ==============================================================================
 # Stage 1: Build crosstool-NG toolchain from source

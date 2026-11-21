@@ -32,7 +32,7 @@ const RELEASE_PLATFORMS = [
 
 /** Keys no current build returns but deployed binaries still report. */
 const RETIRED_PLATFORMS = [
-  "k1", // k1-series and k1-dynamic pre-unification builds; now "mips"
+  "k1", // pre-unification K1 series builds; now "mips"
   "ad5x", // pre-unification AD5X builds; now "mips"
 ];
 
@@ -63,7 +63,7 @@ describe("isKnownPlatform", () => {
     expect(isKnownPlatform("linux")).toBe(false);
     expect(isKnownPlatform("raspberry-pi")).toBe(false);
     // A build target name is not a platform key.
-    expect(isKnownPlatform("k1-dynamic")).toBe(false);
+    expect(isKnownPlatform("mips-docker")).toBe(false);
     expect(isKnownPlatform("k1c")).toBe(false);
   });
 

@@ -29,9 +29,6 @@ make mips-docker          # Or: make k1-docker (alias)
 # Build for FlashForge AD5X (MIPS32r5, glibc)
 make ad5x-docker
 
-# Build for Creality K1 series (MIPS32, dynamic/glibc)
-make k1-dynamic-docker
-
 # Build for FlashForge Creator 5 Pro (MIPS32r2, static/musl, shares the K1 image)
 make creator5-docker
 
@@ -45,7 +42,6 @@ file build/ad5m/bin/helix-screen   # ELF 32-bit LSB, ARM, EABI5
 file build/cc1/bin/helix-screen    # ELF 32-bit LSB, ARM, EABI5
 file build/mips/bin/helix-screen   # ELF 32-bit LSB, MIPS32 (static)
 file build/ad5x/bin/helix-screen  # ELF 32-bit LSB, MIPS32r5 (dynamic)
-file build/k1-dynamic/bin/helix-screen  # ELF 32-bit LSB, MIPS32 (dynamic)
 file build/k2/bin/helix-screen     # ELF 32-bit LSB, ARM, EABI5
 ```
 
@@ -61,7 +57,6 @@ Docker images are **automatically built** on first use - no manual setup require
 | **Centauri Carbon 1** | `make cc1-docker` | armv7-a (hard-float) | fbdev | `build/cc1/` |
 | **Creality K1** | `make mips-docker` | MIPS32r2 (musl) | fbdev | `build/mips/` |
 | **FlashForge AD5X** | `make ad5x-docker` | MIPS32r5 (glibc) | fbdev | `build/ad5x/` |
-| **Creality K1 (dynamic)** | `make k1-dynamic-docker` | MIPS32r2 (glibc) | fbdev | `build/k1-dynamic/` |
 | **Creality K2** | `make k2-docker` | armv7-a (musl) | fbdev | `build/k2/` |
 | **x86_64 SBC / mini PC (kiosk)** | `make x86-all-docker` | x86_64 (glibc 2.31) | DRM/fbdev | `build/x86/`, `build/x86-fbdev/` |
 | **x86_64 Linux desktop (window)** | `make x86-desktop-docker` | x86_64 (glibc 2.31) | SDL2 | `build/x86-desktop/` |
@@ -142,7 +137,6 @@ make pi32-all-docker     # Raspberry Pi 32-bit — both DRM + fbdev (single pass
 make ad5m-docker         # Adventurer 5M via Docker
 make cc1-docker          # Centauri Carbon 1 via Docker
 make k1-docker           # Creality K1 series via Docker (static/musl)
-make k1-dynamic-docker   # Creality K1 series via Docker (dynamic/glibc)
 make k2-docker           # Creality K2 series via Docker (tested on K2 Plus)
 make x86-all-docker      # x86_64 kiosk — both DRM + fbdev (single pass)
 make x86-desktop-docker  # x86_64 Linux desktop — SDL window, no service
@@ -154,7 +148,6 @@ make pi32                # Raspberry Pi 32-bit (needs arm-linux-gnueabihf-gcc)
 make ad5m                # Adventurer 5M (needs arm-linux-gnueabihf-gcc)
 make cc1                 # Centauri Carbon 1 (needs arm-linux-gnueabihf-gcc)
 make k1                  # Creality K1 static (needs Bootlin mips32el-musl toolchain)
-make k1-dynamic          # Creality K1 dynamic (needs custom NaN2008 GCC 7.5 toolchain)
 make k2                  # Creality K2 (needs Bootlin armv7-eabihf-musl toolchain)
 
 # Information
@@ -205,18 +198,6 @@ make cross-info          # Show cross-compilation help
 - **RAM**: 256MB
 - **Docker Image**: `helixscreen/toolchain-k1` (Debian Bookworm)
 
-#### Creality K1 Series — Dynamic (K1C, K1 Max)
-- **CPU**: Ingenic X2000E (MIPS32r2 dual-core @ 1.2 GHz)
-- **Toolchain**: Custom `mipsel-k1-linux-gnu-` (GCC 7.5 built via crosstool-NG, NaN2008+FP64 ABI)
-- **Display**: 480×400 framebuffer
-- **Input**: evdev for touch
-- **C Library**: glibc 2.29 (links dynamically against K1's native system libraries)
-- **Linking**: Mixed — project libraries (libhv, libnl, wpa) static; system libraries (libc, libstdc++, libm, libpthread) dynamic
-- **RAM**: 256MB
-- **Docker Image**: `helixscreen/toolchain-k1-dynamic` (custom, builds toolchain from source)
-- **GCC 7.5 constraints**: See [GCC 7.5 Compatibility](#gcc-75-compatibility-k1-dynamic-target) section above
-- **Why two K1 targets?** Static/musl is simpler and more portable. Dynamic/glibc produces smaller binaries (shared system libs) and avoids musl edge cases, but requires the custom NaN2008 toolchain.
-
 #### FlashForge Creator 5 Pro
 - **CPU**: Ingenic X2000 (XBurst2, MIPS32r2 dual-core @ 1.2 GHz)
 - **Build**: the unified `mips` target (`make creator5` / `make creator5-docker`) — same binary and toolchain as the K1/AD5X (`mipsel-k1-linux-musl-`, GCC 13 + musl, NaN2008/FP64, fully static, LTO on)
@@ -266,7 +247,6 @@ docker/
 ├── Dockerfile.ad5m        # AD5M toolchain (Debian Buster, GCC 8)
 ├── Dockerfile.cc1         # CC1 toolchain (Debian Bookworm, ARM GCC 10.3)
 ├── Dockerfile.k1          # K1 static toolchain (Bootlin mips32el-musl, GCC 12)
-├── Dockerfile.k1-dynamic  # K1 dynamic toolchain (crosstool-NG, GCC 7.5, glibc 2.29)
 ├── Dockerfile.k2          # K2 toolchain (Bootlin armv7-eabihf-musl, GCC 12)
 ├── Dockerfile.snapmaker-u1 # Snapmaker U1 toolchain
 └── Dockerfile.x86         # x86 native/container build
@@ -283,7 +263,7 @@ The Dockerfiles handle:
 Cross-compilation is handled by `mk/cross.mk`, which defines:
 
 ```makefile
-# Set target platform (native, pi, pi32, ad5m, cc1, k1, k1-dynamic, k2)
+# Set target platform (native, pi, pi32, ad5m, cc1, mips, k1, ad5x, k2, ...)
 PLATFORM_TARGET ?= native
 
 # Cross-compiler configuration
@@ -298,32 +278,6 @@ TARGET_LDFLAGS := -lstdc++fs  # GCC 8 requires this for std::filesystem
 # Display backend selection
 DISPLAY_BACKEND := fbdev  # or drm, sdl
 ```
-
-### GCC 7.5 Compatibility (K1 Dynamic Target)
-
-The K1 dynamic build uses a custom GCC 7.5 toolchain targeting the K1's native glibc 2.29. GCC 7.5 only supports C++17 partially, so code must avoid certain features. This applies to **all code in the codebase** — even native builds should stay compatible.
-
-**What works:**
-- Most of C++17 (`std::optional`, `std::string_view`, structured bindings, `if constexpr`, etc.)
-- `<filesystem>` via the compat shim at `include/compat/filesystem` (aliases `std::experimental::filesystem` → `std::filesystem`)
-
-**Gotchas to avoid:**
-
-| Feature | GCC 7 Status | Workaround | Example |
-|---------|-------------|------------|---------|
-| **`std::from_chars` (integers)** | Not available | Use `std::strtol` / `std::strtod` | `src/util/version.cpp` |
-| **`std::atomic<time_point>`** | Doesn't compile | Store as `std::atomic<int64_t>` (nanoseconds) | `include/gcode_streaming_controller.h` |
-| **C++20 designated initializers** | Not supported (`{.foo = 1}`) | Initialize struct explicitly, then assign fields | `src/ui/controls/ui_fan_control_overlay.cpp` |
-| **`directory_entry` member functions** | `.is_regular_file()`, `.file_size()`, `.last_write_time()` missing | Use free functions: `std::filesystem::is_regular_file(entry.path())` | `src/print/thumbnail_cache.cpp` |
-| **`-lstdc++fs`** | Required for `<experimental/filesystem>` | Added automatically for `k1-dynamic` in `mk/cross.mk` and `mk/watchdog.mk` | — |
-| **LTO (`-flto`)** | GCC 7.5 static toolchain lacks `liblto_plugin.so` | Disabled for `k1-dynamic`; uses plain `ar`/`ranlib` instead of `gcc-ar`/`gcc-ranlib` | `mk/cross.mk` |
-
-**Filesystem compat shim** (`include/compat/filesystem`):
-- For GCC < 8: includes `<experimental/filesystem>` and aliases it into `std::filesystem`
-- For GCC 8+/Clang/MSVC: passes through to the real `<filesystem>` via `#include_next`
-- Activated by `-isystem include/compat` in the K1 dynamic target flags
-
-**When adding new code:** Always use `std::filesystem::is_regular_file(path)` (free function) rather than `entry.is_regular_file()` (member function). The free-function forms work on both GCC 7 and modern compilers.
 
 ### Troubleshooting
 
@@ -2007,7 +1961,7 @@ Usually invoked after editing icons/images. See **[Font Generation](#font-genera
 
 These get their own deep section above — see **[Cross-Compilation](#cross-compilation-embedded-targets)**. Shape of it:
 
-- **Build:** `make <target>-docker` (recommended, no local toolchain) or `make <target>` (needs host toolchain). Targets: `pi`, `pi32`, `ad5m`, `ad5x`, `cc1`, `k1`, `k1-dynamic`, `k2`, `snapmaker-u1`, `x86`, `x86-desktop`.
+- **Build:** `make <target>-docker` (recommended, no local toolchain) or `make <target>` (needs host toolchain). Targets: `pi`, `pi32`, `ad5m`, `ad5x`, `cc1`, `k1`, `k2`, `snapmaker-u1`, `x86`, `x86-desktop`.
 - **Deploy + run on device:** `make <target>-test` (build + deploy + run fg), `make deploy-<target>` (background), `deploy-<target>-fg` (foreground), `deploy-<target>-bin` (binaries only, fast iteration), `<target>-ssh`.
 - **Host override:** `make deploy-pi PI_HOST=192.168.1.50`. Defaults live in `mk/cross.mk` — note `PI_HOST` actually defaults to `192.168.1.113` (the `make help-cross` text saying `helixpi.local` is stale, and `helixpi.local` does not resolve). `K2_HOST` has **no** default and must be supplied.
 - **Remote build:** two transports, and the choice matters on a slow link.
@@ -2352,7 +2306,7 @@ target in `mk/cross.mk`:
 | `pi`, `pi-fbdev`, `pi-both`, `pi32`, `pi32-fbdev`, `pi32-both` | `all` |
 | `x86`, `x86-fbdev`, `x86-both`, `x86-desktop`, `native` | `all` |
 | `ad5m`, `ad5m-br`, `ad5x` | `medium large` |
-| `mips` / `k1`, `k1-dynamic` | `small medium` |
+| `mips` / `k1` | `small medium` |
 | `k2` | `large xlarge` |
 | `snapmaker-u1` | `tiny small` |
 | `cc1`, `yocto` | `micro tiny` |
@@ -2408,8 +2362,6 @@ Linux native   -lSDL2 -lhv -lwpa_client -lusb-1.0 -lssl -lcrypto -ldl -lstdc++fs
 Pi (aarch64)   -L/usr/lib/aarch64-linux-gnu -lhv -lwpa_client -lnl-genl-3 -lnl-3
                -ldrm -linput -lEGL -lGLESv2 -lgbm -lusb-1.0 -lssl -lcrypto -lasound …
 K1 static      -lhv -lwpa_client -lnl-genl-3 -lnl-3 -latomic -ldl -lz -lm -lpthread
-K1 dynamic     -Wl,-Bstatic -lhv -lwpa_client -lnl-genl-3 -lnl-3 -lstdc++fs
-               -Wl,-Bdynamic -lstdc++ -lz -lm -lpthread -lrt -ldl -latomic -lgcc_s
 K2 (ARM musl)  -lhv -lwpa_client -lnl-genl-3 -lnl-3 -ldl -lz -lm -lpthread
 Yocto          preserves bitbake LDFLAGS, appends the project libs
 ```

@@ -2806,10 +2806,10 @@ TEST_CASE("compare_channel_version: prerelease suffixes order by precedence",
 // ============================================================================
 //
 // A release carries one tarball per platform key, and some keys are prefixes
-// of others (k1 and k1-dynamic). Selection must anchor the version's 'v'
+// of others (x86 and x86-desktop). Selection must anchor the version's 'v'
 // directly after this build's platform key, or the shorter key grabs the
 // longer platform's tarball. The host test build reports platform "pi"; the
-// decoy below extends it exactly the way k1-dynamic extends k1.
+// decoy below extends it exactly the way x86-desktop extends x86.
 
 TEST_CASE("parse_github_release: a platform prefix does not select a longer platform's tarball",
           "[update_checker][github]") {
@@ -2818,7 +2818,7 @@ TEST_CASE("parse_github_release: a platform prefix does not select a longer plat
     REQUIRE_FALSE(platform.empty());
 
     const std::string mine = platform_tarball("1.2.3");
-    const std::string decoy = "helixscreen-" + platform + "-dynamic-v0.99.0.tar.gz";
+    const std::string decoy = "helixscreen-" + platform + "-desktop-v0.99.0.tar.gz";
     // Decoy first: it also sorts first alphabetically, which is how the real
     // release listing serves it.
     const std::string body = R"({"tag_name": "v1.2.3", "assets": [)" + asset_json(decoy) + ", " +

@@ -22,7 +22,6 @@
 #   ad5m          FlashForge Adventurer 5M (armv7-a)
 #   cc1           Centauri Carbon 1 (armv7-a)
 #   k1            Creality K1
-#   k1-dynamic    Creality K1 (dynamic linking)
 #   k2            Creality K2
 #   snapmaker-u1  Snapmaker U1
 #
@@ -124,7 +123,7 @@ BUMP=1
 CONFIGURE_REMOTE=0
 PLATFORM=pi
 
-VALID_PLATFORMS="pi pi32 ad5m cc1 k1 k1-dynamic k2 snapmaker-u1"
+VALID_PLATFORMS="pi pi32 ad5m cc1 k1 k2 snapmaker-u1"
 
 # ── Args ──────────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -138,7 +137,7 @@ while [[ $# -gt 0 ]]; do
             sed -n '2,/^set -/p' "$0" | grep '^#' | sed 's/^# \?//'
             exit 0
             ;;
-        pi|pi32|ad5m|cc1|k1|k1-dynamic|k2|snapmaker-u1) PLATFORM=$1; shift ;;
+        pi|pi32|ad5m|cc1|k1|k2|snapmaker-u1) PLATFORM=$1; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done

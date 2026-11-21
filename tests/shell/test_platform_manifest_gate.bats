@@ -792,7 +792,7 @@ make_ui_font_stage() {
 }
 
 @test "prune: every filename size a label reaches at any UI scale ships in every package" {
-    for platform in pi pi32 ad5m cc1 mips k1-dynamic k2 snapmaker-u1 x86 x86-desktop; do
+    for platform in pi pi32 ad5m cc1 mips k2 snapmaker-u1 x86 x86-desktop; do
         tier=$(scratch_make -s PLATFORM_TARGET="$platform" print-var-HELIX_MAX_FONT_TIER | tail -n1)
         make_ui_font_stage
         run python3 "$DERIVE" prune-assets "$platform" "$STAGE" "$tier"

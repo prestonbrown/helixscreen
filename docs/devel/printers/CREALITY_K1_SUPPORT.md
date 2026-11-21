@@ -111,21 +111,17 @@ The K1 target uses MIPS32r2 with fully static musl linking. There is also an adv
 ```bash
 # Static build: the unified mips binary (K1 series, AD5X, Creator 5); k1-docker is an alias
 make mips-docker
-
-# Dynamic build — links against K1's glibc 2.29 (advanced)
-make k1-dynamic-docker
 ```
 
 ### Build Directly (Requires Toolchain)
 
 ```bash
 make mips                           # Static (musl); `k1` and `ad5x` are aliases
-make PLATFORM_TARGET=k1-dynamic     # Dynamic (glibc)
 ```
 
 ### Build Configuration
 
-#### Static Build (PLATFORM_TARGET=mips), recommended
+#### Static Build (PLATFORM_TARGET=mips)
 
 | Setting | Value |
 |---------|-------|
@@ -137,18 +133,6 @@ make PLATFORM_TARGET=k1-dynamic     # Dynamic (glibc)
 | SSL | Enabled (static OpenSSL) |
 | Platform define | `HELIX_PLATFORM_MIPS` |
 | Output | `build/mips/bin/helix-screen` (~8-10 MB stripped) |
-
-#### Dynamic Build (PLATFORM_TARGET=k1-dynamic) — Advanced
-
-| Setting | Value |
-|---------|-------|
-| Toolchain | Custom crosstool-NG with NaN2008+FP64 ABI |
-| Linking | Dynamic (glibc 2.29, must match K1 firmware) |
-| Critical flags | `-mnan=2008 -mfp64` (NaN2008 ABI compatibility) |
-| Dynamic linker | `/lib/ld-linux-mipsn8.so.1` |
-| Output | `build/k1-dynamic/bin/helix-screen` (~3-5 MB stripped) |
-
-The static build is recommended for its simplicity — no ABI compatibility concerns.
 
 ### CI/Release Status
 

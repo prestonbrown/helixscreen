@@ -118,7 +118,6 @@ font tiers, and `-DHELIX_HAS_*` / `-DHELIX_PLATFORM_*` gates that code checks at
 | `ad5m`, `ad5m-br` | FlashForge AD5M (armv7) | fbdev | Fully static; release tarballs installed onto Forge-X, Klipper Mod or ZMOD; `-br` is the buildroot variant built inside AD5M Klipper Mod ([`printers/FLASHFORGE_AD5M_SUPPORT.md`](../printers/FLASHFORGE_AD5M_SUPPORT.md)) |
 | `cc1` | Elegoo Centauri Carbon (armv7) | fbdev | Static, tested; also the fallback binary for old-glibc armv7 boxes generally |
 | `mips` (also spelled `k1`, `ad5x`; `make creator5` builds it) | Creality K1 series, FlashForge AD5X, FlashForge Creator 5 Pro (Ingenic MIPS32) | fbdev | One static musl binary for all three boards, built at the shared `mips32r2` + `-mnan=2008 -mfp64` ABI; the board is told apart at runtime |
-| `k1-dynamic` | Creality K1 series (MIPS32) | fbdev | Mixed static/dynamic against the device's glibc and GCC 7 libstdc++ |
 | `k2` | Creality K2 series (armv7, Tina Linux) | fbdev | Static musl on a glibc rootfs; tested on K2 Plus |
 | `snapmaker-u1` | Snapmaker U1 (aarch64, Debian) | DRM | Tested; DRM keepalive holds the CRTC across stock-UI takeover |
 | `yocto` | Any Yocto/BSP build (ships in OpenCentauri COSMOS) | fbdev | Bitbake supplies toolchain + all vendored libs |
@@ -137,7 +136,7 @@ The per-target gates are where devices differ in features, not just flags: font 
 compiled font payload from `micro tiny` (cc1, yocto, both 112MB RAM) to `all` (pi, x86); the label-printer,
 CFS, and IFS gates are off on AD5M ([`mk/cross.mk`](../../../mk/cross.mk)). Sound is gated in the top-level `Makefile`
 (`Makefile#"HELIX_HAS_SOUND:   Pi"`): full, with the tracker player, on Pi, x86, x86-desktop, native and the unified MIPS build;
-tone-only on AD5M; compiled out on K2, CC1, k1-dynamic, the Snapmaker U1 and Yocto. The camera gate,
+tone-only on AD5M; compiled out on K2, CC1, the Snapmaker U1 and Yocto. The camera gate,
 `HELIX_HAS_CAMERA`, is derived from the platform defines in `lv_conf.h` rather than set in `mk/cross.mk`.
 
 ### Board identity
@@ -337,7 +336,7 @@ end-user installer - modular POSIX shell with KIAUH and Moonraker-updater integr
 
 ## Going deeper
 
-- [`../BUILD_SYSTEM.md`](../BUILD_SYSTEM.md) - the reference manual: full target specifications, Docker image architecture, deploy and logging-on-target recipes, worktree and ccache detail, GCC 7.5 compatibility notes.
+- [`../BUILD_SYSTEM.md`](../BUILD_SYSTEM.md) - the reference manual: full target specifications, Docker image architecture, deploy and logging-on-target recipes, worktree and ccache detail.
 - [`patches/README.md`](../../../patches/README.md) - every patch's purpose and files, upstream PR status (a patch is droppable only when its PR is *merged*), and the pristine-file method for regenerating a patch whose file is shared.
 - [`../printers/CREALITY_K1_SUPPORT.md`](../printers/CREALITY_K1_SUPPORT.md) (and the K2, AD5X, QIDI, Snapmaker U1 siblings) - per-device hardware notes, firmware requirements, tested models.
 - [`../printers/FLASHFORGE_AD5M_SUPPORT.md`](../printers/FLASHFORGE_AD5M_SUPPORT.md) - the AD5M targets, including the native package built inside the AD5M Klipper Mod firmware.
