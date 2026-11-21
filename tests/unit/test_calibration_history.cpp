@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "ui_calibration_hub_overlay.h"
+#include "ui_calibration_run_overlay.h"
+#include "ui_nav_manager.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
@@ -10,6 +13,8 @@
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
 
+#include <array>
+#include <cstdlib>
 #include <ctime>
 #include <string>
 
@@ -331,6 +336,76 @@ TEST_CASE_METHOD(LVGLTestFixture,
     drain();
     CHECK(std::string(lv_subject_get_string(heaters)).find("Nozzle PID") != std::string::npos);
     history.clear();
+}
+
+namespace {
+
+/// The step count a "N step(s) never run" banner leads with, or -1.
+long banner_count(const char* text) {
+    char* end = nullptr;
+    const long n = std::strtol(text, &end, 10);
+    return end == text ? -1 : n;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "the Calibration screen offers a guided run and counts the steps never run",
+                 "[calibration_history][calibration_hub]") {
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    helix::PrinterState state;
+    state.init_subjects(false);
+    DatabaseAPI api(client, state);
+    get_printer_state().init_subjects(false);
+    auto& history = CalibrationHistory::instance();
+    history.clear();
+    auto& hub = helix::ui::get_calibration_hub_overlay();
+    if (!hub.are_subjects_initialized()) {
+        hub.init_subjects();
+    }
+    drain();
+    lv_subject_t* shown = lv_xml_get_subject(nullptr, "cal_run_banner_shown");
+    lv_subject_t* text = lv_xml_get_subject(nullptr, "cal_run_banner_text");
+    REQUIRE(shown != nullptr);
+    REQUIRE(text != nullptr);
+    CHECK(lv_subject_get_int(shown) == 1);
+    const std::string before = lv_subject_get_string(text);
+    CHECK(before.find("never run") != std::string::npos);
+    const long never_run = banner_count(before.c_str());
+    REQUIRE(never_run >= 1);
+
+    // Heaters is a required step on every printer, so a run picks it.
+    history.record(api, "heaters", "Nozzle PID", json::object());
+    drain();
+    CHECK(lv_subject_get_int(shown) == 1);
+    const std::string after = lv_subject_get_string(text);
+    if (never_run == 1) {
+        CHECK(after.find("Run everything again") == 0);
+    } else {
+        CHECK(banner_count(after.c_str()) == never_run - 1);
+    }
+    history.clear();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "the guided run banner's button opens the guided run",
+                 "[calibration_hub]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+    helix::ui::init_calibration_hub_row_handler();
+    lv_event_cb_t on_guided = lv_xml_get_event_cb(nullptr, "on_guided_calibration_clicked");
+    REQUIRE(on_guided != nullptr);
+
+    auto& run = helix::ui::get_calibration_run_overlay();
+    REQUIRE(run.get_root() == nullptr);
+    on_guided(nullptr);
+    drain();
+    CHECK(run.get_root() != nullptr);
+    NavigationManager::instance().go_back();
+    drain();
+    process_lvgl(50);
 }
 
 TEST_CASE("results_in_config reads each step's tuned value from configfile.settings",
