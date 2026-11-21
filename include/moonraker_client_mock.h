@@ -1878,6 +1878,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void stage_config_change(const std::string& section, const std::string& option,
                              const std::string& value);
 
+    /// Klipper's configfile.remove_section(): stage a section's removal, which
+    /// save_config_pending_items reports as null.
+    void stage_config_removal(const std::string& section);
+
     /// Klipper's cmd_SAVE_CONFIG: fold the staged options into the durable
     /// stores and clear the pending set. The restart is the caller's, matching
     /// Klipper, where writing the file and restarting are separate steps.
@@ -2501,6 +2505,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     /// value}}, values stringified as configfile.set() does.
     mutable std::mutex pending_config_mutex_;
     std::map<std::string, std::map<std::string, std::string>> pending_config_items_;
+    std::set<std::string> pending_removed_sections_;
 
     // Manual probe state (for Z-offset calibration: PROBE_CALIBRATE, TESTZ, ACCEPT, ABORT)
     std::atomic<bool> manual_probe_active_{false}; // true when in probe mode

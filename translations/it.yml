@@ -525,6 +525,7 @@ translations:
   'Bed mesh calibration failed: {}': 'Calibrazione della mesh del piano non riuscita: {}'
   Bed mesh operation timed out: Mesh piano — tempo scaduto
   Bed mesh...: Mesh piano...
+  Bed screws: 'Viti piano'
   Bed needs manual leveling: 'Il piano richiede livellamento manuale'
   Bed size unknown: 'Dimensione del piatto sconosciuta'
   Bed target set to {}: Obiettivo piano impostato a {}
@@ -540,6 +541,7 @@ translations:
   Belt Tension: Tensione cinghia
   Belt Tension Check: Controllo tensione cinghia
   Belt Tension needs a CoreXY printer. This one is {}.: 'La tensione cinghia richiede una stampante CoreXY. Questa è {}.'
+  Belt compare: 'Confronto cinghie'
   Belt tension: "Tensione cinghia"
   Belt tension and cutter calibration: "Tensione cinghie e calibrazione taglierina"
   Belt tensioning completed: "Tensionamento cinghie completato"
@@ -667,6 +669,7 @@ translations:
   Calibrate input shaping to reduce ringing artifacts in prints: Calibra input shaping per ridurre artefatti di ringing nelle stampe
   Calibrate now: 'Calibra ora'
   Calibrate part fan: Calibra ventola pezzo
+  Calibrate this printer, step by step: 'Calibra questa stampante passo dopo passo'
   Calibrate tool offsets?: Calibrare gli offset degli strumenti?
   Calibrate your touchscreen for accurate input: Calibra il touchscreen per un input preciso
   Calibrated: Calibrato
@@ -1221,6 +1224,7 @@ translations:
   Cutter calibration completed: Calibrazione taglierina completata
   'Cutter calibration failed: {}': 'Calibrazione taglierina non riuscita: {}'
   Cutter jam: Inceppamento taglierina
+  Cutter position: 'Posizione taglierina'
   Cutting: Taglio
   Cutting filament: "Taglio filamento"
   Cutting filament...: Taglio filamento...
@@ -1344,6 +1348,8 @@ translations:
   Don't Save: Non salvare
   Don't ask again: Non chiedere più
   Done: Fatto
+  Done {}: 'Fatto {}'
+  Done {} · {}: 'Fatto {} · {}'
   Door: Porta
   Door Open: Porta aperta
   'Door opened during print: {}': 'Porta aperta durante la stampa: {}'
@@ -1992,6 +1998,7 @@ translations:
   Heater over-temperature: Sovratemperatura del riscaldatore
   Heater sensor fault: Guasto al sensore del riscaldatore
   HeaterSelect: Seleziona riscaldatore
+  Heaters: 'Riscaldatori'
   Heaters off: Riscaldatori spenti
   Heating: Riscaldamento
   Heating (%s below minimum): Riscaldamento (%s sotto il minimo)
@@ -2166,6 +2173,7 @@ translations:
   Imported {}: Importato {}
   Importing {}...: 'Importazione di {}...'
   In Progress: In corso
+  In config · {}: 'Nella configurazione · {}'
   Inactive: Inattivo
   Inch units not supported: 'Unità in pollici non supportate'
   Include Klipper/Moonraker logs: Includi log Klipper/Moonraker
@@ -2183,6 +2191,7 @@ translations:
   Input Shaper Calibration: 'Calibrazione input shaper'
   Input Shaper Help: Guida Input Shaper
   Input Shaping: Input Shaping
+  Input shaper: 'Input Shaper'
   Input shaper calibration sensors: Sensori calibrazione input shaper
   Input shaper calibration...: Calibrazione input shaper...
   Input shaper settings applied!: Impostazioni input shaper applicate!
@@ -2731,6 +2740,9 @@ translations:
   Neutral: Neutro
   Neutralize Tension: "Neutralizza tensione"
   Never: Mai
+  Never run: 'Mai eseguito'
+  Never run · optional: 'Mai eseguito · facoltativo'
+  Never run · required: 'Mai eseguito · obbligatorio'
   Never sleeps: Non va mai in sospensione
   New Spool: Nuova bobina
   'New Spool: Step 1 of 3': 'Nuova bobina: Passo 1 di 3'
@@ -3234,6 +3246,7 @@ translations:
   Pressure advance: Pressure Advance
   ? 'Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value.'
   : 'Il Pressure Advance sale man mano che la torre cresce. Osserva gli angoli: tocca - o + quando vuoi e la rampa si ferma così puoi valutare il tuo valore.'
+  Pressure advance tuning: 'Taratura Pressure Advance'
   'Pressure:': 'Pressione:'
   Pressed: Premuto
   Pressure Adv.: 'Pressure Adv.'
@@ -3749,6 +3762,7 @@ translations:
   Run the MMU fans by temperature: "Aziona le ventole MMU in base alla temperatura"
   Run the chamber dryer too: Usa anche l'essiccatore della camera
 
+  Run when needed: 'Esegui quando serve'
   Run the official firmware update again so every board is updated, then restart.: 'Esegui di nuovo l''aggiornamento firmware ufficiale in modo che ogni scheda sia aggiornata, poi riavvia.'
   Run {}?: Eseguire {}?
   Running loose: 'Allentato'
@@ -4870,6 +4884,7 @@ translations:
   Tool cycle finished: Ciclo degli strumenti completato
   Tool is seated: Lo strumento è inserito
   Tool may be half seated: "Lo strumento potrebbe essere inserito a metà"
+  Tool offsets: 'Offset strumenti'
   Tool offsets (mm): Offset strumenti (mm)
   Tool offsets saved: Offset strumenti salvati
   Tool swap: Cambio utensile
@@ -5089,6 +5104,8 @@ translations:
   Vertical: Verticale
   Vertical Artifact Check: 'Verifica artefatti verticali'
   Vertical Artifact Compensation: 'Compensazione artefatti verticali'
+  Vertical artifact check: 'Verifica artefatti verticali'
+  Vertical artifact compensation: 'Compensazione artefatti verticali'
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video
@@ -5274,6 +5291,7 @@ translations:
   Z is at its limit ({}mm): Z è al suo limite ({}mm)
   Z jog feedrate: Velocità di avanzamento del movimento Z
   Z motor calibration failed: Calibrazione del motore Z non riuscita
+  Z offset: 'Offset Z'
   Z offset by material: "Z-Offset per materiale"
   Z probes for bed leveling and mesh generation: Sonde Z per livellamento piano e generazione mesh
   Z tilt: Inclinazione Z

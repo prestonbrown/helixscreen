@@ -551,6 +551,7 @@
   <translation tag="Bed mesh operation timed out" ru="Сетка стола — время ожидания истекло"/>
   <translation tag="Bed mesh..." ru="Сетка стола..."/>
   <translation tag="Bed needs manual leveling" ru="Стол требует ручного выравнивания"/>
+  <translation tag="Bed screws" ru="Винты стола"/>
   <translation tag="Bed size unknown" ru="Размер стола неизвестен"/>
   <translation tag="Bed target set to {}" ru="Целевая температура стола {}"/>
   <translation tag="Bed temp must be %d-%s" ru="Температура стола должна быть %d-%s"/>
@@ -565,6 +566,7 @@
   <translation tag="Belt Tension" ru="Натяжение ремня"/>
   <translation tag="Belt Tension Check" ru="Проверка натяжения ремня"/>
   <translation tag="Belt Tension needs a CoreXY printer. This one is {}." ru="Для натяжения ремня нужен принтер CoreXY. Этот принтер: {}."/>
+  <translation tag="Belt compare" ru="Сравнение ремней"/>
   <translation tag="Belt tension" ru="Натяжение ремня"/>
   <translation tag="Belt tension and cutter calibration" ru="Натяжение ремней и калибровка резака"/>
   <translation tag="Belt tensioning completed" ru="Натяжение ремней завершено"/>
@@ -689,6 +691,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate now" ru="Откалибровать"/>
   <translation tag="Calibrate part fan" ru="Калибровать обдув модели"/>
+  <translation tag="Calibrate this printer, step by step" ru="Пошаговая калибровка принтера"/>
   <translation tag="Calibrate tool offsets?" ru="Калибровать смещения инструментов?"/>
   <translation tag="Calibrate with this tool?" ru="Калибровать с этим инструментом?"/>
   <translation tag="Calibrate your touchscreen for accurate input" ru="Калибровка сенсорного экрана для точного ввода"/>
@@ -1204,6 +1207,7 @@
   <translation tag="Cutter calibration completed" ru="Калибровка резака завершена"/>
   <translation tag="Cutter calibration failed: {}" ru="Не удалось калибровать резак: {}"/>
   <translation tag="Cutter jam" ru="Замятие резака"/>
+  <translation tag="Cutter position" ru="Положение резака"/>
   <translation tag="Cutting" ru="Резка"/>
   <translation tag="Cutting filament" ru="Обрезка филамента"/>
   <translation tag="Cutting filament..." ru="Обрезка филамента..."/>
@@ -1326,6 +1330,8 @@
   <translation tag="Don&apos;t Save" ru="Не сохранять"/>
   <translation tag="Don&apos;t ask again" ru="Больше не спрашивать"/>
   <translation tag="Done" ru="Готово"/>
+  <translation tag="Done {}" ru="Выполнено {}"/>
+  <translation tag="Done {} · {}" ru="Выполнено {} · {}"/>
   <translation tag="Door" ru="Дверь"/>
   <translation tag="Door Open" ru="Дверь открыта"/>
   <translation tag="Door opened during print: {}" ru="Дверь открыта во время печати: {}"/>
@@ -1964,6 +1970,7 @@
   <translation tag="Heater over-temperature" ru="Перегрев нагревателя"/>
   <translation tag="Heater sensor fault" ru="Неисправность датчика нагревателя"/>
   <translation tag="HeaterSelect" ru="Выбрать нагреватель"/>
+  <translation tag="Heaters" ru="Нагреватели"/>
   <translation tag="Heaters off" ru="Нагреватели выключены"/>
   <translation tag="Heating" ru="Нагрев"/>
   <translation tag="Heating (%s below minimum)" ru="Нагрев (%s ниже минимума)"/>
@@ -2134,6 +2141,7 @@
   <translation tag="Imported {}" ru="Импортировано {}"/>
   <translation tag="Importing {}..." ru="Импорт {}..."/>
   <translation tag="In Progress" ru="В процессе"/>
+  <translation tag="In config · {}" ru="В конфигурации · {}"/>
   <translation tag="Inactive" ru="Неактивно"/>
   <translation tag="Inch units not supported" ru="Дюймы не поддерживаются"/>
   <translation tag="Include Klipper/Moonraker logs" ru="Включить логи Klipper/Moonraker"/>
@@ -2151,6 +2159,7 @@
   <translation tag="Input Shaper Calibration" ru="Калибровка Input Shaper&apos;а"/>
   <translation tag="Input Shaper Help" ru="Справка по Input Shaper"/>
   <translation tag="Input Shaping" ru="Компенсация вибраций"/>
+  <translation tag="Input shaper" ru="Input Shaper"/>
   <translation tag="Input shaper calibration sensors" ru="Датчики калибровки Input Shaper&apos;а"/>
   <translation tag="Input shaper calibration..." ru="Калибровка Input Shaper&apos;а..."/>
   <translation tag="Input shaper settings applied!" ru="Настройки компенсатора вибраций применены!"/>
@@ -2699,6 +2708,9 @@
   <translation tag="Neutral" ru="Нейтральный"/>
   <translation tag="Neutralize Tension" ru="Выровнять натяжение"/>
   <translation tag="Never" ru="Никогда"/>
+  <translation tag="Never run" ru="Ни разу не выполнялось"/>
+  <translation tag="Never run · optional" ru="Ни разу не выполнялось · необязательно"/>
+  <translation tag="Never run · required" ru="Ни разу не выполнялось · обязательно"/>
   <translation tag="Never sleeps" ru="Никогда не спит"/>
   <translation tag="New Spool" ru="Новая катушка"/>
   <translation tag="New Spool: Step 1 of 3" ru="Новая катушка: Шаг 1 из 3"/>
@@ -3198,6 +3210,7 @@
   <translation tag="Pressure Advance Tuning" ru="Настройка Pressure Advance"/>
   <translation tag="Pressure advance" ru="Pressure Advance"/>
   <translation tag="Pressure advance climbs as the tower grows. Watch the corners: tap - or + whenever you like and the ramp stops so you can judge your own value." ru="Pressure Advance растёт вместе с башней. Следите за углами: нажмите - или + в любой момент, и рампа остановится, чтобы вы оценили своё значение."/>
+  <translation tag="Pressure advance tuning" ru="Настройка Pressure Advance"/>
   <translation tag="Pressure:" ru="Давление:"/>
   <translation tag="Preview" ru="Предпросмотр"/>
   <translation tag="Preview Sounds" ru="Предпросмотр звуков"/>
@@ -3720,6 +3733,7 @@
   <translation tag="Run the MMU fans by temperature" ru="Включать вентиляторы MMU по температуре"/>
   <translation tag="Run the chamber dryer too" ru="Включить и сушилку камеры"/>
   <translation tag="Run the official firmware update again so every board is updated, then restart." ru="Снова запустите официальное обновление прошивки, чтобы обновить все платы, затем перезапустите."/>
+  <translation tag="Run when needed" ru="Запускать при необходимости"/>
   <translation tag="Run {}?" ru="Запустить {}?"/>
   <translation tag="Running loose" ru="Ослаблен"/>
   <translation tag="Running over" ru="Превышено"/>
@@ -4785,6 +4799,7 @@
   <translation tag="Tool cycle finished" ru="Перебор инструментов завершён"/>
   <translation tag="Tool is seated" ru="Инструмент установлен"/>
   <translation tag="Tool may be half seated" ru="Инструмент может быть установлен не полностью"/>
+  <translation tag="Tool offsets" ru="Смещения инструментов"/>
   <translation tag="Tool offsets (mm)" ru="Смещения инструментов (мм)"/>
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
@@ -5012,6 +5027,8 @@
   <translation tag="Vertical" ru="Вертикально"/>
   <translation tag="Vertical Artifact Check" ru="Проверка вертикальных артефактов"/>
   <translation tag="Vertical Artifact Compensation" ru="Компенсация вертикальных артефактов"/>
+  <translation tag="Vertical artifact check" ru="Проверка вертикальных артефактов"/>
+  <translation tag="Vertical artifact compensation" ru="Компенсация вертикальных артефактов"/>
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
   <translation tag="Video playback speed" ru="Скорость воспроизведения видео"/>
@@ -5199,6 +5216,7 @@
   <translation tag="Z is at its limit ({}mm)" ru="Z на пределе ({}mm)"/>
   <translation tag="Z jog feedrate" ru="Скорость перемещения по оси Z"/>
   <translation tag="Z motor calibration failed" ru="Не удалась калибровка двигателя Z"/>
+  <translation tag="Z offset" ru="Смещение Z"/>
   <translation tag="Z offset by material" ru="Z-Offset по материалу"/>
   <translation tag="Z probes for bed leveling and mesh generation" ru="Z-зонды для выравнивания стола и создания сетки"/>
   <translation tag="Z tilt" ru="Наклон Z"/>

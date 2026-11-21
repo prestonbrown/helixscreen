@@ -14,6 +14,7 @@
  */
 
 #include "ams_type.h"
+#include "calibration_config_results.h"
 #include "core/text_io.h" // helix::text_io::to_upper
 #include "fan_heaters.h"
 #include "fan_tachometers.h"
@@ -475,6 +476,14 @@ class PrinterDiscovery {
         is_kalico_ = kalico;
     }
 
+    /// Whether this firmware's SAVE_CONFIG takes RESTART=0 (Kalico): write the
+    /// file and stay up. Mainline Klipper has no such parameter. Whether a
+    /// given save may use it depends on what is pending:
+    /// save_config::restart_required() (include/save_config_live.h).
+    [[nodiscard]] bool save_config_takes_restart_param() const {
+        return save_config_takes_restart_param_;
+    }
+
     /// The firmware's own name, as people know it: "Kalico" for that fork, else "Klipper".
     [[nodiscard]] const char* firmware_name() const {
         return is_kalico_ ? "Kalico" : "Klipper";
@@ -809,6 +818,17 @@ class PrinterDiscovery {
     /// the printer has no [stepper_z].
     [[nodiscard]] std::optional<double> z_position_endstop() const {
         return z_position_endstop_;
+    }
+
+    /// Record the calibration results the config already holds
+    /// (calibration::results_in_config).
+    void parse_calibration_in_config(const nlohmann::json& settings) {
+        calibration_in_config_ = calibration::results_in_config(settings);
+    }
+
+    /// Step id to the result its config holds; empty before discovery.
+    [[nodiscard]] const calibration::ConfigResults& calibration_in_config() const {
+        return calibration_in_config_;
     }
 
     /// Read whether the firmware runs its print-start macro before streaming
@@ -1275,6 +1295,7 @@ class PrinterDiscovery {
     std::optional<FitMachine> fit_machine_;                 ///< configfile limits for the fit check
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset
+    calibration::ConfigResults calibration_in_config_;      ///< From configfile.settings
     std::optional<double> z_position_endstop_;              ///< stepper_z position_endstop (mm)
     bool firmware_runs_start_macro_before_file_ = false;    ///< start_macro_injection.h
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
@@ -1303,6 +1324,7 @@ class PrinterDiscovery {
     bool has_speaker_ = false;
     bool has_fan_feedback_ = false;
     bool is_kalico_ = false;
+    bool save_config_takes_restart_param_ = false;
     AmsType mmu_type_ = AmsType::NONE;
     std::vector<DetectedAmsSystem> detected_ams_systems_;
 
