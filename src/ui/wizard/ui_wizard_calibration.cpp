@@ -16,7 +16,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
-extern helix::Subject wizard_show_skip;
+namespace helix::wizard {
 
 WizardCalibrationStep* get_wizard_calibration_step() {
     return &helix::lazy_global<WizardCalibrationStep>("WizardCalibrationStep");
@@ -52,7 +52,7 @@ void WizardCalibrationStep::register_callbacks() {
         {"on_wizard_calibrate_now",
          [](lv_event_t*) {
              spdlog::info("[WizardCalibration] Calibrate now: finishing setup first");
-             ui_wizard_complete_then([]() { helix::ui::get_calibration_run_overlay().open(); });
+             complete_then([]() { helix::ui::get_calibration_run_overlay().open(); });
          }},
     });
 }
@@ -60,15 +60,16 @@ void WizardCalibrationStep::register_callbacks() {
 lv_obj_t* WizardCalibrationStep::create(lv_obj_t* parent) {
     init_subjects();
     // The footer's Finish reads "Skip for now": finishing here skips the run.
-    lv_subject_set_int(&wizard_show_skip, 1);
-    root_ = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_calibration", nullptr));
-    if (!root_) {
+    set_finish_skips(true);
+    auto* root = static_cast<lv_obj_t*>(lv_xml_create(parent, "wizard_calibration", nullptr));
+    if (!root) {
         spdlog::error("[{}] Failed to create screen from XML", log_name());
     }
-    return root_;
+    return root;
 }
 
 void WizardCalibrationStep::cleanup() {
-    lv_subject_set_int(&wizard_show_skip, 0);
-    root_ = nullptr;
+    set_finish_skips(false);
 }
+
+} // namespace helix::wizard

@@ -1166,9 +1166,13 @@ void ui_wizard_complete() {
     spdlog::info("[Wizard] Wizard complete, transitioning to main UI");
 }
 
-void ui_wizard_complete_then(std::function<void()> then) {
+void helix::wizard::complete_then(std::function<void()> then) {
     ui_wizard_complete();
     g_after_complete = std::move(then);
+}
+
+void helix::wizard::set_finish_skips(bool skips) {
+    lv_subject_set_int(&wizard_show_skip, skips ? 1 : 0);
 }
 
 void ui_wizard_complete_targeted() {

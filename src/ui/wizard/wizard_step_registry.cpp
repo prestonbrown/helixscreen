@@ -49,7 +49,7 @@ std::vector<Step*> steps() {
     v.push_back(helix::wizard::get_wizard_preferences_step());  // Preferences
     v.push_back(get_wizard_summary_step());                     // Summary
     v.push_back(get_wizard_telemetry_step());                   // Telemetry
-    v.push_back(get_wizard_calibration_step());                 // Calibration
+    v.push_back(helix::wizard::get_wizard_calibration_step());  // Calibration
     return v;
 }
 
