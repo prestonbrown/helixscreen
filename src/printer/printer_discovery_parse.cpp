@@ -431,6 +431,8 @@ void PrinterDiscovery::parse_objects(const nlohmann::json& objects) {
             has_indx_ = true;
         } else if (name == "save_variables") {
             has_save_variables_ = true;
+        } else if (name == "mod_params") {
+            has_mod_params_ = true;
         } else if (name == "spoollink") {
             has_spoollink_ = true;
         }
@@ -1105,6 +1107,7 @@ void PrinterDiscovery::clear() {
     medusahc_object_name_.clear();
     has_indx_ = false;
     has_save_variables_ = false;
+    has_mod_params_ = false;
     has_spoollink_ = false;
     has_chamber_heater_ = false;
     has_chamber_sensor_ = false;

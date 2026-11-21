@@ -295,6 +295,12 @@ class PrinterDiscovery {
         return has_save_variables_;
     }
 
+    /// The `mod_params` object exists: Forge-X's klippy plugin, which registers
+    /// SET_MOD and its siblings as plain commands, never as gcode macros.
+    [[nodiscard]] bool has_mod_params() const {
+        return has_mod_params_;
+    }
+
     /// A `spoollink` object, or a `[spoollink]` configfile section. What it
     /// means is helix::printer_switches_active_spool()'s business.
     [[nodiscard]] bool has_spoollink() const {
@@ -1243,6 +1249,7 @@ class PrinterDiscovery {
     std::string medusahc_object_name_;
     bool has_indx_ = false;
     bool has_save_variables_ = false;
+    bool has_mod_params_ = false;
     bool has_spoollink_ = false;
     bool has_chamber_heater_ = false;
     bool has_chamber_sensor_ = false;
