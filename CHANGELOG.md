@@ -5,6 +5,35 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.5] - 2026-11-21
+
+### Added
+- **Ultrawide side panels** - on an ultrawide screen, Controls shows the Motion panel in the space to its right, and Filament shows the filament system there (the overview when there are several units) whenever the printer has a filament system or more than one toolhead. The Motion and Manage buttons hide while their panel is already on screen.
+- **Lane tray on Print Status** - with a filament system, Print Status shows its lanes: in place of the readouts column on an ultrawide screen, and as a strip below the print controls on a tall portrait screen. The printer picture keeps its full size, and the pre-print checklist keeps all of its rows.
+- **Tune without leaving Print Status** - on ultrawide and tall portrait screens, the speed, flow and Z-offset controls sit right on Print Status while a print runs. Other screens open one Print Tuning screen from the Tune button.
+- **Assign and edit spools from the lane editor** (#2095) - Assign Spool lists the spools that match the lane's material, with the lane's linked spool first and marked Current, and Edit Spool changes the spool in place. Each save shows a toast with Undo and Print Label, and the lane's spool history is kept in Moonraker.
+- **Bypass spool on the filament strip** - when an AFC bypass is engaged, the filament status strip shows the bypass spool past a divider, pinned in view when the lanes scroll.
+- **Snapmaker U1: restore the stock screen without SSH** (#2131) - Settings, or a trigger file dropped from Fluidd or Mainsail, brings the stock screen back at the next boot. It refuses while a job holds the machine.
+- **Creality K1: SSH state log** (#2121) - the installer and every launch record whether SSH is running, in a log Mainsail, Fluidd and debug bundles can reach.
+
+### Changed
+- **Screen sleep after an hour** - the display now sleeps after an hour by default, and a configuration still at the old 20-minute default moves to an hour.
+- **Moonraker's update manager lists HelixScreen on the stable channel only** (#2147) - the installer and the app add HelixScreen's entry to Moonraker's update manager when you follow the stable channel and remove it on beta or dev, and Moonraker restarts only when that changes what it lists, never during a print. Forge-X installs appear there too.
+
+### Fixed
+- **FlashForge AD5M: Z offset saves to the probe** - a stock AD5M or AD5M Pro saves the Z offset to its probe, the CC1 keeps saving to its endstop, and Forge-X is recognized by its mod settings.
+- **Creality K1: SSH after an update** (#2121) - the installer no longer passes HelixScreen's low memory priority on to SSH and the Creality services it restarts, so they are not the first thing the system stops when memory runs short.
+- **Snapmaker U1: the stock screen stays safe** (#2131) - the installer refuses to switch off the stock screen unless SSH will survive it, says loudly on screen and in the system log when Root access is on but SSH did not start, never starts HelixScreen next to the stock screen, and the uninstaller removes only what the installer created.
+- **Touch comes back after the panel powers off** (#2069) - a touch panel that drops off the bus when the display powers off is reopened, wakes the display so it can return, and keeps its calibration.
+- **Creality K2 Pro on Jacobean firmware** (#2148) - it is detected as a K2 Pro.
+- **HelixPrint plugin** (#2144) - edited config and print files arrive as sent, the install runs off the UI thread, and a restart waits for the job to finish.
+- **ACE and AFC** - spool tags reach the right lane on an ACE, the dryer timer reads its seconds correctly and follows the preset shown, an engaged bypass stays loaded through lane updates, and a colorless lane is no longer called Medium Gray.
+- **Timelapse** - a video with no preview image shows a frame taken from it, a video with no working player is offered to a phone, and checking the player never stalls the screen.
+- **Memory on small boards** - the G-code layer cache and 3D preview size themselves to the board's memory and measured render speed, a large file streams instead of loading at once, and freed memory goes back to the system under pressure.
+- **Printer picture readings** - on small tiles the readings sit in the margins beside the picture without crossing, and the speed and flow reading shows only while a job runs.
+- **Layout fixes** - Motion's jog buttons, the filament Operations card, the spool screens, the LED sliders, fan cards, toast buttons and dialogs fit at every screen size, from 480x272 up.
+- **Runout guidance wakes the display** (#2137), and the screensaver clock no longer counts back up.
+
 ## [1.1.0-rc.4] - 2026-11-18
 
 ### Added
@@ -10469,6 +10498,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-rc.5]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.2...v1.1.0-rc.3
 [1.1.0-rc.2]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.1...v1.1.0-rc.2
