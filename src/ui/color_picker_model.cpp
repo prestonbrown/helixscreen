@@ -177,4 +177,11 @@ std::optional<uint32_t> HexKeypad::result() const {
     return v;
 }
 
+int whole_chips_in(int avail_w, int chip_w, int gap) {
+    if (chip_w <= 0) {
+        return 0;
+    }
+    return std::max(0, (avail_w + gap) / (chip_w + gap));
+}
+
 } // namespace helix

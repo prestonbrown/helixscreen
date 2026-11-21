@@ -134,6 +134,9 @@ class ColorPickerView {
     void publish_all();
     void publish_keypad();
     void load_strip();
+    /// Shows only the recents that fit the strip whole. A custom strip keeps
+    /// every color and scrolls, since each one must stay reachable.
+    void fit_strip_to_row();
     void publish_strip_selection();
     bool strip_removable() const;
 

@@ -32,6 +32,9 @@ const std::vector<uint32_t>& color_palette(ColorPalette palette);
 /// How many columns the palette's grid has.
 int color_palette_columns(ColorPalette palette);
 
+/// How many chips `chip_w` wide and `gap` apart fit whole in a row `avail_w` wide.
+int whole_chips_in(int avail_w, int chip_w, int gap);
+
 /// A color in the Sliders tab's units: hue in whole degrees [0, 359],
 /// saturation and brightness (value) in whole percent [0, 100].
 struct Hsv {
