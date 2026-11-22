@@ -1428,7 +1428,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     REQUIRE(toasts.messages.size() == 1);
-    CHECK(toasts.messages.front().find("Gate 1") != std::string::npos);
+    // Happy Hare counts its gates from 0.
+    CHECK(toasts.messages.front().find("Gate 0") != std::string::npos);
     // Asking changes nothing: the declared details stand until answered.
     const auto resolved = helix::ams::resolved_lane(harness.lane(0));
     REQUIRE(resolved.material.has_value());

@@ -129,15 +129,18 @@ struct AmsTypeTraits {
     /// The clog meter's name for this system's buffer fault counter; nullptr
     /// for the generic wording. Translated at the point of use.
     const char* buffer_fault_label;
+    /// The system counts its lanes from 0 in its own tools, so the screen does
+    /// too until the user picks a numbering for the printer.
+    bool lanes_count_from_zero = false;
 };
 
 // i18n: do not translate - the names below are product names
 inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
     {AmsType::NONE, "None", "", "unknown", "", AmsBufferRows::None, nullptr},
     {AmsType::HAPPY_HARE, "Happy Hare", "Happy Hare MMU", "happy_hare", "mmu",
-     AmsBufferRows::SyncDrive, nullptr},
+     AmsBufferRows::SyncDrive, nullptr, true},
     {AmsType::AFC, "AFC", "AFC (Armored Turtle)", "afc", "AFC", AmsBufferRows::UnitBuffer,
-     TR_NOOP("AFC buffer")},
+     TR_NOOP("AFC buffer"), true},
     {AmsType::ACE, "ACE", "ACE", "ace", "ace", AmsBufferRows::None, nullptr},
     {AmsType::TOOL_CHANGER, "Tool Changer", "Tool Changer", "tool_changer", "toolchanger",
      AmsBufferRows::None, nullptr},

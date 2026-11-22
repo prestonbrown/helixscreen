@@ -47,6 +47,8 @@ void init_setting(const PersistedSetting& s, lv_subject_t& subject, SubjectManag
 void reload_setting(const PersistedSetting& s, lv_subject_t& subject);
 int get_setting(const PersistedSetting& s, const lv_subject_t& subject);
 void set_setting(const PersistedSetting& s, lv_subject_t& subject, int value);
+bool setting_stored(const PersistedSetting& s);
+void show_setting(const PersistedSetting& s, lv_subject_t& subject, int value);
 } // namespace detail
 
 /// A fixed set of settings indexed by an enum whose values are the table's
@@ -80,6 +82,17 @@ template <typename Key, size_t N> class PersistedSettings {
     /// Clamp, update the subject, persist, and report telemetry if keyed.
     void set(Key k, int value) {
         detail::set_setting(table_[idx(k)], subjects_[idx(k)], value);
+    }
+
+    /// Whether settings.json holds a value for @p k: someone chose it.
+    bool stored(Key k) const {
+        return detail::setting_stored(table_[idx(k)]);
+    }
+
+    /// Show @p value in the subject without persisting it: a default that
+    /// depends on the printer, and stays one until the setting is chosen.
+    void show_default(Key k, int value) {
+        detail::show_setting(table_[idx(k)], subjects_[idx(k)], value);
     }
 
     lv_subject_t* subject(Key k) {

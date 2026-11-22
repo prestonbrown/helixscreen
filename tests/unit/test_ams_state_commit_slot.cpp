@@ -542,7 +542,9 @@ TEST_CASE("context-menu clear names the position in the backend's own word",
     helix::ui::set_test_notification_info_hook(nullptr);
 
     REQUIRE(notes.size() == 1);
-    CHECK(notes[0] == "Gate 3 spool cleared");
+    // Happy Hare counts its gates from 0, and so does the screen until the
+    // user picks a numbering.
+    CHECK(notes[0] == "Gate 2 spool cleared");
 }
 
 TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
