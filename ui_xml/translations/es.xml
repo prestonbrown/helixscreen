@@ -3850,6 +3850,8 @@
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." es="El CFS se quedó sin filamento en {}. La impresión continúa con lo que queda en el tubo."/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." es="El CFS se quedó sin filamento. La impresión continúa con lo que queda en el tubo."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." es="El plugin HelixPrint permite modificaciones rápidas de G-code directamente en su impresora, como omitir la malla de cama para reimpresiones rápidas."/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." es="El plugin HelixPrint debe venir del firmware de tu impresora, que gestiona el software de HelixScreen."/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." es="El plugin HelixPrint lo gestiona el firmware de tu impresora."/>
   <translation tag="The IFS state file can&apos;t be read." es="No se puede leer el archivo de estado del IFS."/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." es="El plugin de timelapse de Moonraker está instalado. Define cómo graba en los ajustes de timelapse."/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." es="La lámina PEI sigue en la cama. Retírala y pulsa Siguiente."/>
@@ -4518,6 +4520,7 @@
   <translation tag="Your printer at a glance" es="Tu impresora de un vistazo"/>
   <translation tag="Your printer has an automatic filament changer" es="Tu impresora tiene un cambiador de filamento automático"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" es="Su impresora estaba desconectada durante la configuración, por lo que se omitieron las opciones de hardware. ¿Configurarlas ahora?"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." es="El firmware de tu impresora gestiona el software de HelixScreen, así que el plugin HelixPrint debe proporcionarlo el firmware. No se puede instalar desde esta pantalla."/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." es="Tu {0} está configurada para {1}, pero parece de serie."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." es="Tu {0} parece tener {1}, pero está configurada como de serie."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." es="Tu {0} parece tener {1}, pero está configurada para {2}."/>
