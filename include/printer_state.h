@@ -257,6 +257,18 @@ class PrinterState {
     void deinit_subjects();
 
     /**
+     * @brief Forget the printer this state described
+     *
+     * Clears every plain (non-subject) member of PrinterState and its domains,
+     * which deinit_subjects() runs last: a printer switch rebuilds the UI on
+     * this same object before the next printer's discovery and type arrive.
+     * Touches no subject. capability_overrides_ is not cleared: the
+     * per-printer cache invalidator has already loaded the next printer's.
+     * The fan and extruder lists go with their subjects in deinit_subjects().
+     */
+    void clear_printer_data();
+
+    /**
      * @brief Update state from raw status data
      *
      * Updates subjects from a printer status object. Can be called directly

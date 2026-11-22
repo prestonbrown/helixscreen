@@ -71,6 +71,14 @@ class PrinterNetworkState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        klippy_state_message_.clear();
+        was_ever_connected_ = false;
+        last_unknown_klippy_state_.clear();
+    }
+
     // ========================================================================
     // Setters
     // ========================================================================
@@ -255,8 +263,6 @@ class PrinterNetworkState {
     void update_nav_buttons_enabled();
 
   private:
-    friend class PrinterNetworkStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 

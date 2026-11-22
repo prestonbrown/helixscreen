@@ -58,6 +58,14 @@ class PrinterCompositeVisibilityState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        last_log_state_initialized_ = false;
+        last_any_ = -1;
+        last_plugin_ = false;
+    }
+
     /**
      * @brief Recalculate `has_any_preprint_options`
      *
@@ -103,8 +111,6 @@ class PrinterCompositeVisibilityState {
     }
 
   private:
-    friend class PrinterCompositeVisibilityStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 

@@ -68,6 +68,15 @@ class PrinterExcludedObjectsState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        excluded_objects_.clear();
+        defined_objects_.clear();
+        current_object_.clear();
+        object_geometry_.clear();
+    }
+
     // ========================================================================
     // Setters
     // ========================================================================
@@ -250,8 +259,6 @@ class PrinterExcludedObjectsState {
     }
 
   private:
-    friend class PrinterExcludedObjectsStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 

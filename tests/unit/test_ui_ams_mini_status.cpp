@@ -11,6 +11,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/backend_user_edit.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/zero_lane_numbering.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
@@ -31,6 +32,46 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams registry: scalable to 4x wide",
     // of width is 4 * TRACKS_PER_CELL. Derived rather than written out so the
     // widget's authored reach stays four cells if the track resolution changes.
     REQUIRE(def->max_colspan == 4 * helix::GridLayout::TRACKS_PER_CELL);
+}
+
+// The Filament panel embeds the strip with clickable="false" inside a row whose
+// own handler opens the AMS panel. A press on the bars bubbles through the
+// frame to that row, so only one of the two may open the panel.
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: one tap on an embedded strip is one open",
+                 "[ui][ams_mini][tap]") {
+    ui_ams_mini_status_init();
+    helix::AmsState::instance().clear_backends();
+
+    lv_obj_t* host = lv_obj_create(test_screen());
+    int host_taps = 0;
+    lv_obj_add_event_cb(
+        host, [](lv_event_t* e) { ++*static_cast<int*>(lv_event_get_user_data(e)); },
+        LV_EVENT_CLICKED, &host_taps);
+    const char* embedded[] = {"clickable", "false", "event_bubble", "true", nullptr};
+    auto* strip = static_cast<lv_obj_t*>(lv_xml_create(host, "ams_mini_status", embedded));
+    REQUIRE(strip != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* bars = UITest::find_by_name(strip, "ams_bars_container");
+    REQUIRE(bars != nullptr);
+    REQUIRE(lv_obj_has_flag(bars, LV_OBJ_FLAG_CLICKABLE));
+
+    {
+        helix::LogCapture capture;
+        lv_obj_send_event(bars, LV_EVENT_CLICKED, nullptr);
+        CHECK(host_taps == 1);
+        CHECK(capture.count_containing("[AmsMiniStatus] Clicked") == 0);
+    }
+
+    // A strip standing on its own still opens the panel itself.
+    auto* standalone =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_mini_status", nullptr));
+    REQUIRE(standalone != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+    lv_obj_t* own_bars = UITest::find_by_name(standalone, "ams_bars_container");
+    REQUIRE(own_bars != nullptr);
+    helix::LogCapture capture;
+    lv_obj_send_event(own_bars, LV_EVENT_CLICKED, nullptr);
+    CHECK(capture.count_containing("[AmsMiniStatus] Clicked") == 1);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argument",

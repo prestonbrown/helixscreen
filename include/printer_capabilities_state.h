@@ -109,6 +109,15 @@ class PrinterCapabilitiesState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        // Values latched while the subjects were down are replayed by the next
+        // init_subjects(), so a latched answer would seed the next printer's.
+        pending_capability_values_.fill(std::nullopt);
+        stepper_z_endstop_microns_ = 0;
+    }
+
     // ========================================================================
     // Hardware update methods
     // ========================================================================
@@ -395,8 +404,6 @@ class PrinterCapabilitiesState {
     }
 
   private:
-    friend class PrinterCapabilitiesStateTestAccess;
-
     /// Update combined printer_has_chamber_ from sensor and heater flags
     void update_has_chamber();
 
