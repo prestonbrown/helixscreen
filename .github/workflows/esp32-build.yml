@@ -41,7 +41,7 @@ jobs:
     # pull, which would otherwise hold a runner for the 6h default.
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           submodules: recursive
       - name: Apply submodule patches
