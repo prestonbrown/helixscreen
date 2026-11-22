@@ -5,6 +5,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_panel_calibration_zoffset.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -24,6 +25,8 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "sound_manager.h"
+#include "temperature_rules.h"
+#include "thermal_rate_model.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -411,8 +414,16 @@ std::vector<StepInfo> CalibrationRunOverlay::picked_steps() const {
 
 calibration::RunOptions CalibrationRunOverlay::run_options() const {
     calibration::RunOptions options;
-    options.zoffset_warm_bed =
-        zoffset_warm_bed_ && get_printer_state().get_discovery().has_heater_bed();
+    auto& ps = get_printer_state();
+    options.zoffset_warm_bed = zoffset_warm_bed_ && ps.get_discovery().has_heater_bed();
+    if (options.zoffset_warm_bed) {
+        // The shared thermal model prices every other warm-up in the app.
+        const float bed_c = temperature_rules::deci_to_degrees_f(
+            lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()));
+        options.zoffset_warm_bed_minutes =
+            calibration::heating_minutes(ThermalRateManager::instance().estimate_heating_seconds(
+                "heater_bed", bed_c, static_cast<float>(zoffset_warm_bed_target_c())));
+    }
     return options;
 }
 

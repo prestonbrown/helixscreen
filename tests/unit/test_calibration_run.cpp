@@ -205,21 +205,34 @@ TEST_CASE("the hands-on Z offset runs first whatever order the steps arrive in",
           std::vector<std::string>{"z_offset", "heaters", "bed_mesh", "input_shaper"});
 }
 
-TEST_CASE("warming the bed first adds its warm-up to the Z offset step only", "[calibration_run]") {
+TEST_CASE("warming the bed first adds its priced warm-up to the Z offset step only",
+          "[calibration_run]") {
     StepInfo zoffset = step(StepKind::ZOffset, "z_offset");
     zoffset.minutes = 5;
     StepInfo heaters = step(StepKind::Heaters, "heaters");
     heaters.minutes = 10;
     RunOptions warm;
     warm.zoffset_warm_bed = true;
+    warm.zoffset_warm_bed_minutes = 4;
 
     const StepInfo warmed = with_run_options(zoffset, warm);
-    CHECK(warmed.minutes == 5 + kZOffsetWarmBedMinutes);
+    CHECK(warmed.minutes == 9);
     CHECK(warmed.heats);
     CHECK(with_run_options(heaters, warm).minutes == 10);
-    CHECK(with_run_options(zoffset, RunOptions{}).minutes == 5);
-    CHECK_FALSE(with_run_options(zoffset, RunOptions{}).heats);
-    CHECK(total_minutes({warmed, heaters}) == 15 + kZOffsetWarmBedMinutes);
+    CHECK(total_minutes({warmed, heaters}) == 19);
+    // The minutes count only while warming is on.
+    RunOptions off = warm;
+    off.zoffset_warm_bed = false;
+    CHECK(with_run_options(zoffset, off).minutes == 5);
+    CHECK_FALSE(with_run_options(zoffset, off).heats);
+}
+
+TEST_CASE("a warm-up's seconds round up to whole minutes", "[calibration_run]") {
+    CHECK(heating_minutes(0.0f) == 0);
+    CHECK(heating_minutes(-5.0f) == 0);
+    CHECK(heating_minutes(1.0f) == 1);
+    CHECK(heating_minutes(60.0f) == 1);
+    CHECK(heating_minutes(61.0f) == 2);
 }
 
 TEST_CASE("before you start lists each prerequisite once with the steps that need it",

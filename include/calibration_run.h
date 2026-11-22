@@ -32,10 +32,13 @@ struct RunOptions {
     /// The Z offset step warms the bed before it homes and probes, as the Z
     /// offset screen's Warm Bed switch does.
     bool zoffset_warm_bed = false;
+    /// The warm-up's minutes, which the caller prices from the shared thermal
+    /// model (ThermalRateManager) for the bed as it is now.
+    int zoffset_warm_bed_minutes = 0;
 };
 
-/// The minutes a Z offset step's bed warm-up adds to its estimate.
-inline constexpr int kZOffsetWarmBedMinutes = 3;
+/// Whole minutes for @p heating_seconds of heating; 0 when nothing is left to heat.
+[[nodiscard]] int heating_minutes(float heating_seconds);
 
 /// @p step as a run with @p options runs it: a warmed Z offset takes the
 /// warm-up's minutes longer and heats the bed.

@@ -752,8 +752,7 @@ void ZOffsetCalibrationPanel::close_tool_confirm() {
 
 void ZOffsetCalibrationPanel::begin_calibration() {
     if (wants_warm_bed()) {
-        auto* cfg = Config::get_instance();
-        int temp = cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp);
+        const int temp = zoffset_warm_bed_target_c();
         warm_bed_target_deci_ =
             helix::temperature_rules::degrees_to_deci(temp); // Convert °C to decidegrees
 
@@ -805,6 +804,12 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         // No warming, go straight to probing
         begin_probe_sequence();
     }
+}
+
+int zoffset_warm_bed_target_c() {
+    const Config* cfg = Config::get_instance();
+    return cfg ? cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp)
+               : kDefaultWarmBedTemp;
 }
 
 ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {

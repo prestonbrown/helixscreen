@@ -4,6 +4,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <cmath>
 
 namespace helix::calibration {
 
@@ -74,9 +75,16 @@ bool picked_by_default(const StepInfo& step) {
     return step.tier == Tier::Required || step.tier == Tier::Recommended;
 }
 
+int heating_minutes(float heating_seconds) {
+    if (!(heating_seconds > 0.0f)) {
+        return 0;
+    }
+    return static_cast<int>(std::ceil(heating_seconds / 60.0f));
+}
+
 StepInfo with_run_options(StepInfo step, const RunOptions& options) {
     if (step.kind == StepKind::ZOffset && options.zoffset_warm_bed) {
-        step.minutes += kZOffsetWarmBedMinutes;
+        step.minutes += std::max(0, options.zoffset_warm_bed_minutes);
         step.heats = true;
     }
     return step;

@@ -390,6 +390,10 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 // Defined out of line: the ESP32 build, which excludes this panel, supplies its own.
 ZOffsetCalibrationPanel& get_global_zoffset_cal_panel();
 
+/// The bed temperature (°C) the Warm Bed warm-up heats to: the config's
+/// /calibration/warm_bed_temp, 45 when unset.
+[[nodiscard]] int zoffset_warm_bed_target_c();
+
 /**
  * @brief Initialize row click callback for opening from Advanced panel
  *
