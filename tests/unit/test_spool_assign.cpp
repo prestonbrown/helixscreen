@@ -383,3 +383,38 @@ TEST_CASE("a spool tile names its vendor once", "[spool-assign][favorites]") {
     CHECK(spool_tile_label("Polymaker", "Polymaker PolyLite") == "Polymaker PolyLite");
     CHECK(spool_tile_label("", "PLA") == "PLA");
 }
+
+TEST_CASE("a firmware-kept backup becomes one runout line", "[spool-assign][lane_runout]") {
+    using helix::printer::EndlessSpoolAvailability;
+    using helix::printer::EndlessSpoolCapabilities;
+    using helix::printer::EndlessSpoolEnabled;
+    EndlessSpoolCapabilities caps;
+    caps.availability = EndlessSpoolAvailability::Available;
+    caps.enabled = EndlessSpoolEnabled::On;
+    // Stock CFS, refill on, a matching spool loaded in slot 2.
+    CHECK(runout_line(caps, 2) == RunoutLine::Continues);
+    // On, but no matching spool.
+    CHECK(runout_line(caps, -1) == RunoutLine::NoMatch);
+    caps.enabled = EndlessSpoolEnabled::OnWithoutBackup;
+    CHECK(runout_line(caps, std::nullopt) == RunoutLine::NoMatch);
+    // Off.
+    caps.enabled = EndlessSpoolEnabled::Off;
+    CHECK(runout_line(caps, 2) == RunoutLine::Off);
+    // The firmware chooses at runout time (the U1): no per-slot answer.
+    caps.enabled = EndlessSpoolEnabled::On;
+    CHECK(runout_line(caps, std::nullopt) == RunoutLine::FirmwareChooses);
+    // Nothing to say: unknown, or no such feature.
+    caps.enabled = EndlessSpoolEnabled::Unknown;
+    CHECK(runout_line(caps, 2) == RunoutLine::None);
+    caps.enabled = EndlessSpoolEnabled::On;
+    caps.availability = EndlessSpoolAvailability::Unsupported;
+    CHECK(runout_line(caps, 2) == RunoutLine::None);
+}
+
+TEST_CASE("the lane row opens the lane's settings, else the refill switch, else nothing",
+          "[spool-assign][lane_runout]") {
+    CHECK(lane_tap(true, true) == LaneTap::LanePage);
+    CHECK(lane_tap(true, false) == LaneTap::LanePage);
+    CHECK(lane_tap(false, true) == LaneTap::RefillToggle);
+    CHECK(lane_tap(false, false) == LaneTap::None);
+}

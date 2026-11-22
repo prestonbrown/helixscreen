@@ -1025,3 +1025,53 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     state().print_state().set_last_gcode_error("", 0.0);
     uninstall(*this);
 }
+
+namespace {
+
+/// A backend that is already loading when it comes up.
+class LoadingBackend : public AmsBackendMock {
+  public:
+    explicit LoadingBackend(int slots) : AmsBackendMock(slots) {}
+    AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = AmsBackendMock::get_system_info();
+        info.action = AmsAction::LOADING;
+        return info;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "A backend switch mid-pause starts the pause's operation tracking clean",
+                 "[ams-standing-fault][ams]") {
+    const std::string kRunout = "Toolhead 1 ran out of filament";
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    ams.set_action(AmsAction::IDLE);
+    test::set_wire_state(state(), PrintJobState::PRINTING);
+    state().print_state().set_last_gcode_error("", 0.0);
+    ams.set_backend(std::make_unique<AmsBackendMock>(4));
+    pump(*this);
+
+    // The first printer's pause is seen with nothing running.
+    state().print_state().set_print_stop_reason(kRunout);
+    pump(*this);
+    test::set_wire_state(state(), PrintJobState::PAUSED);
+    pump(*this);
+    ams.refresh_fault_cause();
+
+    // The next backend is already loading when it comes up, so its load is
+    // not one the user started in the pause: the stop reason still explains
+    // the fault it ends in.
+    ams.set_backend(std::make_unique<LoadingBackend>(4));
+    pump(*this);
+    ams.sync_from_backend();
+    REQUIRE(lv_subject_get_int(ams.get_ams_action_subject()) ==
+            static_cast<int>(AmsAction::LOADING));
+    ams.refresh_fault_cause();
+    ams.set_action(AmsAction::ERROR);
+    pump(*this);
+    CHECK(ams.fault_cause() == kRunout);
+
+    uninstall(*this);
+}

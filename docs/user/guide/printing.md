@@ -109,7 +109,7 @@ Which tiles you see depends on your printer. HelixScreen shows a tile only when 
 | **Cleaning nozzle** | Runs your nozzle cleaning macro |
 | **Purge** | Draws the purge line that primes the nozzle |
 | **Heat soak** | Runs your printer's heat soak macro (`HEAT_SOAK`, `CHAMBER_SOAK` or `SOAK`) before the print starts, so the enclosure can warm up. It is off by default, because a soak adds minutes to a print. The tile is hidden when your start macro already soaks by itself, when the sliced file soaks, and when Heat Soak is turned off in the macro settings (see [Settings > Printing](settings/printing.md)). It runs the macro with its own default values |
-| **Timelapse** or **Record Timelapse** | Records a timelapse of this print. Shown when timelapse recording is available |
+| **Timelapse** or **Record Timelapse** | Records a timelapse of this print. Shown when timelapse recording is available. In Layer mode, a file with no frame calls gets a warning when you press Print ([Timelapse](timelapse.md#the-no-timelapse-frames-warning)) |
 | **AI detection** | Switches the printer's camera-based failure detection on or off for this print. Shown on printers that have it |
 | **Pressure Advance Calibration** | Snapmaker U1 only: measures each toolhead's pressure advance before the print (see [Snapmaker U1: flow calibration](#snapmaker-u1-flow-calibration)) |
 
@@ -263,6 +263,10 @@ The Print Status panel shows:
 - **The lane tray.** On a printer with a multi-material system or several toolheads, a card shows your slots with their filament colors and follows the active slot through the print. Tap it to open the Filament System panel. On an ultrawide screen it takes the place of the readings column, since the chips on the printer picture already show those readings. On a portrait screen it sits as a strip under the progress strip, using only height the job tile can spare. While the pre-print steps are showing, the checklist keeps the room it needs for every step, so the tray may be smaller or hidden until printing begins. On a screen too short for it, there is no tray.
 - **Tune on the screen.** While a print runs, if there is room, the Print Tuning controls (Print Speed, Flow Rate, PA and Z-Offset) appear right on the Print Status panel, and the **Tune** button disappears because you no longer need it. On an ultrawide screen they are a column just left of the buttons. On a tall portrait screen they are a card under the lane tray, without the help lines. Where there is not enough room, the **Tune** button stays and opens the overlay as usual. See [Print Tune Overlay](#print-tune-overlay) for what each control does.
 
+![Print Status during a print on a 1920x440 ultrawide screen: the lane tray in place of the readings and the Tune column left of the buttons](../../images/user/print-status-ultrawide.png)
+
+![Print Status during a print on a 480x1920 portrait screen: the lane tray strip under the progress strip and the Tune card below it](../../images/user/print-status-portrait.png)
+
 > **Note:** Exact layer counts and the most accurate time-remaining estimate require your slicer to report layer info to Klipper via `SET_PRINT_STATS_INFO`. If the count or ETA looks off, see [Troubleshooting → Layer count is wrong, stuck at 0, or total layers missing](../TROUBLESHOOTING.md#layer-count-is-wrong-stuck-at-0-or-total-layers-missing).
 
 > **If Klipper errors mid-print:** HelixScreen automatically shows a full-screen recovery dialog when the printer shuts down, errors, or disconnects. See [Troubleshooting → When the Printer Errors or Disconnects (Recovery Dialog)](../TROUBLESHOOTING.md#when-the-printer-errors-or-disconnects-recovery-dialog) for what each button does and when to use it.
@@ -333,6 +337,8 @@ If the print contains multiple objects, an **objects button** (a skip-objects ic
 If the Moonraker-Timelapse plugin is installed, a **Timelapse** item appears in the **More** menu of the print controls. Tap it to enable or disable recording for the current print. Its video camera icon is crossed out while recording is off.
 
 During printing, frame captures happen automatically based on your timelapse settings (per-layer or time-based). When the print finishes, the video renders automatically if auto-render is enabled.
+
+Layer mode takes a frame only when the file calls `TIMELAPSE_TAKE_FRAME`. When a file you start has no such call, HelixScreen shows **No Timelapse Frames** and offers Hyperlapse for that print, timelapse off for that print, or printing anyway. See [Timelapse](timelapse.md#the-no-timelapse-frames-warning).
 
 ---
 

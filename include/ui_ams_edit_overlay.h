@@ -471,12 +471,15 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject temp_text_subject_{};
     helix::Subject weight_text_subject_{};
     helix::Subject reset_tag_visible_subject_{};
-    helix::Subject clear_visible_subject_{};      ///< 1 = the slot holds a spool to clear
-    helix::Subject spoolman_id_subject_{};        ///< "#19" for the header badge
-    helix::Subject lane_visible_subject_{};       ///< 1 = the slot is a backend lane
-    helix::Subject tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
-    helix::Subject tool_editable_subject_{};      ///< 0 = tool shown read-only
-    helix::Subject tool_refusal_subject_{};       ///< why the tool cannot be changed here
+    helix::Subject clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
+    helix::Subject spoolman_id_subject_{};   ///< "#19" for the header badge
+    helix::Subject lane_visible_subject_{};  ///< 1 = the slot is a backend lane
+    /// 1 = the lane row states what a runout does though nothing is editable.
+    helix::Subject runout_stated_subject_{};
+    helix::Subject lane_tap_subject_{};         ///< spool_assign::LaneTap: what the lane row opens
+    helix::Subject tool_row_visible_subject_{}; ///< 1 = Assigned Tool row shows
+    helix::Subject tool_editable_subject_{};    ///< 0 = tool shown read-only
+    helix::Subject tool_refusal_subject_{};     ///< why the tool cannot be changed here
     helix::Subject backup_row_visible_subject_{}; ///< 1 = Endless Spool row shows
     helix::Subject backup_editable_subject_{};    ///< 0 = backup shown read-only
     char title_buf_[96] = {0};
@@ -517,6 +520,8 @@ class AmsEditOverlay : public OverlayBase {
     void set_page(int page);
     void update_page_title();
     void update_lane_line();
+    /// The summary's lane row tapped: what ams_edit_lane_tap says it opens.
+    void handle_lane_row();
     void update_empty_page();
     void update_tag_reset();
     void handle_weight_slider(int pct);

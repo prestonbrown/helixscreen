@@ -9,15 +9,24 @@
   <view name="layer_pause_modal" extends="dialog_frame" title="Pause at Layer" icon="pause">
     <text_body name="layer_pause_status"
                width="100%" bind_text="layer_pause_status_text" long_mode="wrap" style_text_align="left"/>
-    <ui_button name="btn_layer_pause_next" width="100%" icon="pause" text="Next Layer">
-      <bind_state_if_not_eq subject="layer_pause_availability" state="disabled" ref_value="3"/>
-      <event_cb trigger="clicked" callback="on_layer_pause_next"/>
-    </ui_button>
-    <ui_button name="btn_layer_pause_choose" width="100%" icon="layers" text="Choose Layer">
-      <bind_state_if_not_eq subject="layer_pause_availability" state="disabled" ref_value="3"/>
-      <event_cb trigger="clicked" callback="on_layer_pause_choose"/>
-    </ui_button>
-    <ui_button name="btn_layer_pause_cancel" width="100%" variant="danger" icon="close" text="Cancel Scheduled Pause">
+    <!-- The two ways to schedule share a row, so a scheduled pause's Cancel
+         fits under them on a 480x272 card without scrolling. -->
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_pad_gap="#space_sm" scrollable="false">
+      <ui_button name="btn_layer_pause_next"
+                 width="0" height="#modal_button_height" flex_grow="1" icon="pause" text="Next Layer">
+        <bind_state_if_not_eq subject="layer_pause_availability" state="disabled" ref_value="3"/>
+        <event_cb trigger="clicked" callback="on_layer_pause_next"/>
+      </ui_button>
+      <ui_button name="btn_layer_pause_choose"
+                 width="0" height="#modal_button_height" flex_grow="1" icon="layers" text="Choose Layer">
+        <bind_state_if_not_eq subject="layer_pause_availability" state="disabled" ref_value="3"/>
+        <event_cb trigger="clicked" callback="on_layer_pause_choose"/>
+      </ui_button>
+    </lv_obj>
+    <ui_button name="btn_layer_pause_cancel"
+               width="100%" height="#modal_button_height" variant="danger" icon="close" text="Cancel Scheduled Pause">
       <bind_flag_if_eq subject="layer_pause_layer" flag="hidden" ref_value="0"/>
       <event_cb trigger="clicked" callback="on_layer_pause_cancel"/>
     </ui_button>

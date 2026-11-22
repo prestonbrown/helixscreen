@@ -21,6 +21,8 @@ The Z column stays on the right on the Move and Bed tabs. On the Jog tab it is p
 
 On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), the Motion screen sits beside the Controls panel instead of opening over it:
 
+![The Controls panel on a 1920x440 ultrawide screen, with the Motion screen beside its cards](../../images/user/controls-ultrawide.png)
+
 1. Tap **Controls** in the navigation bar. The Controls cards fill the left part of the screen and the Motion screen, with its tabs, fills the space to their right.
 2. Jog, move or tap the bed map as usual. Both halves work at the same time, so you can watch a temperature or switch a fan on the left while you move the toolhead on the right.
 
@@ -65,21 +67,22 @@ Under the jog pad (beside the Fine / Coarse / Turbo buttons in landscape) is a r
 
 | Button | What it does |
 |--------|--------------|
-| **All** | Homes X, Y and Z. |
+| **All** | Homes X, Y and Z. Shown when the bar is wide enough for five buttons. |
 | **X** | Homes X only. |
 | **Y** | Homes Y only. |
+| **XY** | Homes X and Y together. |
 | **Z** | Homes Z only. |
 
 Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed. The buttons are disabled while a homing, leveling or other action started from the Controls panel is running. A home started from this bar or from the jog pad's center does not lock them, so wait for the "homed" message before tapping again, or a second home is sent. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
 
-On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar that adds an **XY** button (see [Homing](#homing)).
+On an 800x480 screen the bar has room for four buttons, so **All** is left out; the house in the middle of the jog pad homes every axis. On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar (see [Homing](#homing)).
 
 The home bar belongs to the Jog Pad layout. The other [Jog layouts](#jog-layouts) have their own home keys.
 
 ![The home bar under the jog pad](../../images/user/motion-home-bar.png)
 
-1. Home all axes.
-2. Home X (Y sits between X and Z).
+1. Home X (Y sits next to it).
+2. Home X and Y together.
 3. Home Z.
 
 ### Z-Axis Controls
@@ -258,7 +261,9 @@ The Motion screen has its own home buttons: the [Home Bar](#home-bar) and the jo
 
 ## Calibration Buttons on the Controls Panel
 
-The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, as on a 480x800 portrait screen, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them.
+The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them.
+
+![The Controls panel on a 480x800 portrait screen: Position beside Temperature, Cooling across the width, Calibration & Tools beside Quick Actions](../../images/user/controls-portrait.png)
 
 - **Bed Mesh** and **Z Calibration**
 - **QGL** (Quad Gantry Level, shown only when `quad_gantry_level` is configured)

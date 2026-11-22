@@ -295,7 +295,7 @@ There is nothing to switch on: Printer Events is always recorded.
 
 ## Timelapse
 
-Record timelapse videos of your prints automatically using the [moonraker-timelapse](https://github.com/mainsail-crew/moonraker-timelapse) plugin.
+Record timelapse videos of your prints automatically using the [moonraker-timelapse](https://github.com/mainsail-crew/moonraker-timelapse) plugin. Layer mode, the plugin's default, needs one line added to your slicer before it records anything: [Timelapse](timelapse.md) explains the recording modes, the slicer setup and the warning HelixScreen shows when a file would record no frames.
 
 ### Setup
 
@@ -312,7 +312,7 @@ If the timelapse plugin is not installed, HelixScreen detects this and offers a 
 Navigate to **Settings > Printing > Timelapse** to configure:
 
 - **Enable/disable** timelapse recording
-- **Recording mode**: Layer Macro (snapshot at each layer) or Hyperlapse (time-based)
+- **Recording mode**: Layer (a frame at each layer change, which needs one line in your slicer) or Hyperlapse (a frame on a timer). See [Timelapse](timelapse.md) for the slicer line and what each mode trades
 - **Framerate**: 15, 24, 30, or 60 fps
 - **Auto-render**: Automatically create videos when prints finish
 
@@ -324,7 +324,8 @@ Navigate to **Advanced > Timelapse Videos** to browse your recorded timelapses:
 
 - **Thumbnail grid** with responsive card sizing that adapts to your screen
 - Each card shows a **video thumbnail**, filename, file size, and date
-- **Tap** a card to play the video fullscreen (requires mpv or ffplay on your device)
+- **Tap** a card to play the video full screen, right on the printer's display. Tap the video to show the controls: play and pause, a scrub bar to jump anywhere, and replay at the end. Playback needs `ffmpeg` on the device running HelixScreen.
+- Without `ffmpeg`, on very small boards (under 512 MB of memory or a single core), or while a print is running, a tap shows a **QR code** instead: scan it with your phone to watch the video there.
 - **Long-press** a card to delete it (with confirmation)
 - Videos are stored on your printer and managed by the timelapse plugin
 

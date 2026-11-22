@@ -448,7 +448,6 @@ void AmsState::reset_backend_subjects() {
     // printer's filament system on the next one.
     lv_subject_set_int(&backend_count_, 0);
     fault_cause_.clear();
-    stop_reason_before_op_.reset();
 
     // System, action and current-tool state: the sync path with an empty system.
     sync_system_subjects(AmsSystemInfo{});
@@ -514,6 +513,12 @@ void AmsState::reset_backend_subjects() {
     sync_dryer_from_backend();
     sync_clog_meter_from_info(AmsSystemInfo{});
     sync_endless_spool_from_backend(nullptr);
+
+    // After the syncs above, which run update_fault_cause() on the empty
+    // system: the next backend's first update sees the pause for the first time.
+    stop_reason_before_op_.reset();
+    pause_seen_ = false;
+    action_held_ = false;
 }
 
 bool AmsState::any_bypass_active() const {

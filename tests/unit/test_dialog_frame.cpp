@@ -16,11 +16,14 @@
 #include "ui_print_completion_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_geometry.h"
+#include "core/data_root_resolver.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "notice.h"
 #include "printer_state.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <cstring>
 #include <string>
 
@@ -194,6 +197,87 @@ TEST_CASE_METHOD(LVGLUITestFixture, "dialog_frame hides an unfilled footer and h
     REQUIRE(dlg != nullptr);
     CHECK(lv_obj_is_hidden(lv_xml_component_get_slot(dlg, "footer")));
     CHECK(lv_obj_is_hidden(lv_xml_component_get_slot(dlg, "header_extra")));
+}
+
+// The close X keeps its small glyph on the smallest screens, but its touch area
+// reaches a full touch target, and a tap at the target's edge finds the X, not
+// the title beside it.
+TEST_CASE_METHOD(LVGLUITestFixture, "dialog_frame's close X takes a full touch target",
+                 "[dialog_frame][xml]") {
+    static bool registered = false;
+    if (!registered) {
+        REQUIRE(lv_xml_register_component_from_data(
+                    "dialog_frame_test_close_dialog",
+                    "<component><view extends=\"dialog_frame\" title=\"A long dialog title\" "
+                    "icon=\"alert\" hide_close=\"false\">"
+                    "<text_body text=\"Body\"/>"
+                    "</view></component>") == LV_RESULT_OK);
+        registered = true;
+    }
+    constexpr int32_t kTarget = 44;
+    auto check_at = [](int32_t w, int32_t h) {
+        helix::test::ScopedGeometry geometry(w, h);
+        auto* dlg = static_cast<lv_obj_t*>(
+            lv_xml_create(lv_screen_active(), "dialog_frame_test_close_dialog", nullptr));
+        REQUIRE(dlg != nullptr);
+        lv_obj_update_layout(lv_screen_active());
+        lv_obj_t* close = lv_obj_find_by_name(dlg, "btn_close");
+        REQUIRE(close != nullptr);
+        REQUIRE_FALSE(lv_obj_is_hidden(close));
+
+        lv_area_t btn;
+        lv_obj_get_coords(close, &btn);
+        CAPTURE(w, h, lv_area_get_width(&btn), lv_area_get_height(&btn));
+        REQUIRE(lv_area_get_width(&btn) < kTarget);
+        const int32_t cx = (btn.x1 + btn.x2) / 2;
+        const int32_t cy = (btn.y1 + btn.y2) / 2;
+        // Across, the full target. Up and down it reaches as far as the header
+        // row it sits in; past that the tap belongs to the backdrop or the body.
+        lv_area_t header;
+        lv_obj_get_coords(lv_obj_find_by_name(dlg, "dialog_header"), &header);
+        const int32_t half = kTarget / 2 - 1;
+        lv_point_t points[] = {{cx - half, cy},
+                               {cx + half, cy},
+                               {cx, std::max(cy - half, header.y1)},
+                               {cx, std::min(cy + half, header.y2)}};
+        for (lv_point_t& p : points) {
+            CAPTURE(p.x, p.y);
+            CHECK(lv_indev_search_obj(lv_screen_active(), &p) == close);
+        }
+        lv_obj_delete(dlg);
+    };
+    SECTION("480x272") {
+        check_at(480, 272);
+    }
+    SECTION("480x320") {
+        check_at(480, 320);
+    }
+}
+
+// The abort dialog's E-STOP is the way out of a cancel that hangs: on a
+// 480x272 screen it sits whole on the card, with nothing to scroll to.
+TEST_CASE_METHOD(LVGLUITestFixture, "the abort dialog shows its whole E-STOP at 480x272",
+                 "[dialog_frame][xml][abort]") {
+    helix::test::ScopedGeometry micro(480, 272);
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/abort_progress_modal.xml").c_str());
+    auto* dlg =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "abort_progress_modal", nullptr));
+    REQUIRE(dlg != nullptr);
+    lv_obj_update_layout(lv_screen_active());
+
+    lv_obj_t* body = lv_obj_find_by_name(dlg, "dialog_body");
+    lv_obj_t* estop = lv_obj_find_by_name(dlg, "abort_estop_btn");
+    REQUIRE(body != nullptr);
+    REQUIRE(estop != nullptr);
+    CHECK(lv_obj_get_height(estop) >= theme_manager_get_spacing("modal_button_height"));
+    CHECK(lv_obj_get_scroll_bottom(body) <= 0);
+    lv_area_t body_a, estop_a;
+    lv_obj_get_coords(body, &body_a);
+    lv_obj_get_coords(estop, &estop_a);
+    CAPTURE(lv_obj_get_height(body), estop_a.y1, estop_a.y2, body_a.y2);
+    CHECK(estop_a.y2 <= body_a.y2);
+    lv_obj_delete(dlg);
 }
 
 // modal_confirm's card: title, message and the one severity icon.

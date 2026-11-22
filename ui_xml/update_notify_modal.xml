@@ -17,7 +17,8 @@
             height="content" style_pad_all="0" style_border_width="0" flex_flow="row" style_flex_main_place="center"
             scrollable="false">
       <bind_flag_if_eq subject="update_changelog_visible" flag="hidden" ref_value="1"/>
-      <ui_button name="btn_toggle_changelog" width="content" text="View Changelog" variant="outline">
+      <ui_button name="btn_toggle_changelog"
+                 width="content" height="#modal_button_height" text="View Changelog" variant="outline">
         <event_cb trigger="clicked" callback="on_update_toggle_changelog"/>
       </ui_button>
     </lv_obj>

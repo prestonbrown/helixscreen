@@ -100,7 +100,7 @@ static const HelpEntry HELP[] = {
      "too heavy for the board runs its fallback. `off` is wake"},
     {nullptr, "demo <name>", "Show a sample-data overlay unreachable in mock mode",
      "preflight-check, runout-modal, lock-screen, print-status,\n"
-     "print-tune, ams, camera"},
+     "print-live, print-tune, ams, camera"},
 
     {"Subjects", "get <subject>", "Read current value of named subject", nullptr},
     {nullptr, "set <subject> <value>", "Set subject value", nullptr},
@@ -307,6 +307,19 @@ static bool send_request(int fd, const nlohmann::json& request) {
         return false;
     }
     return true;
+}
+
+/// The --timeout a request carries in its params, in whole seconds; 0 when it has none.
+static int requested_timeout(const nlohmann::json& request) {
+    const auto params = request.find("params");
+    if (params == request.end() || !params->is_object()) {
+        return 0;
+    }
+    const auto t = params->find("timeout");
+    if (t == params->end() || !t->is_number()) {
+        return 0;
+    }
+    return static_cast<int>(t->get<double>());
 }
 
 static std::string read_response(int fd, int timeout_sec = 30) {
@@ -1472,10 +1485,8 @@ static int run_repl(const std::string& socket_path) {
             continue;
         }
 
-        // Use longer timeout for the blocking commands — the caller's own
-        // --timeout can exceed the default socket read window otherwise.
-        int timeout = (tokens[0] == "wait_for" || tokens[0] == "wait_idle") ? 120 : 30;
-        auto raw = read_response(fd, timeout);
+        auto raw =
+            read_response(fd, helix::reply_window_secs(tokens[0], requested_timeout(request)));
         close(fd);
 
         last_result = handle_response(raw);
@@ -1586,10 +1597,8 @@ int helix::remote_client_main(int argc, char** argv) {
         return 1;
     }
 
-    // Use longer timeout for the blocking commands — the caller's own
-    // --timeout can exceed the default socket read window otherwise.
-    int timeout = (command == "wait_for" || command == "wait_idle") ? 120 : 30;
-    std::string response = read_response(fd, timeout);
+    std::string response =
+        read_response(fd, helix::reply_window_secs(command, requested_timeout(request)));
     close(fd);
 
     return handle_response(response);

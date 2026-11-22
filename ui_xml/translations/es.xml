@@ -1242,6 +1242,7 @@
   <translation tag="Could not set the material: {}" es="No se pudo asignar el material: {}"/>
   <translation tag="Could not skip {}" es="No se pudo omitir {}"/>
   <translation tag="Could not start Bluetooth discovery" es="No se pudo iniciar el descubrimiento Bluetooth"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" es="No se pudo cambiar el timelapse a Hyperlapse"/>
   <translation tag="Could not turn the heaters off" es="No se pudieron apagar los calentadores"/>
   <translation tag="Could not update filaments" es="No se pudieron actualizar los filamentos"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." es="No se pudo verificar el estado de Spoolman. Moonraker puede estar reiniciándose."/>
@@ -1446,6 +1447,7 @@
   <translation tag="Download update?" es="¿Descargar actualización?"/>
   <translation tag="Download v{}?" es="¿Descargar v{}?"/>
   <translation tag="Downloading the timelapse plugin..." es="Descargando el plugin de timelapse..."/>
+  <translation tag="Downloading the timelapse..." es="Descargando el timelapse..."/>
   <translation tag="Downloading..." es="Descargando..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" es="Descargando... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" es="Dibuja una onda en cada toque — ayuda a diagnosticar desfases"/>
@@ -2285,7 +2287,7 @@
   <translation tag="Humidity Sensors" es="Sensores de humedad"/>
   <translation tag="Humidity inside the enclosure" es="Humedad dentro de la cámara"/>
   <translation tag="Hyperlapse" es="Hyperlapse"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." es="Hyperlapse captura fotogramas a intervalos de tiempo fijos. Bueno para impresiones muy largas."/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." es="Hyperlapse toma un fotograma cada cierto tiempo. No requiere configurar el laminador, pero el cabezal aparece donde esté."/>
   <translation tag="Hyperspace" es="Hiperespacio"/>
   <translation tag="I understand" es="Lo entiendo"/>
   <translation tag="ID (optional)" es="ID (opcional)"/>
@@ -2551,9 +2553,9 @@
   <translation tag="Layer" es="Capa"/>
   <translation tag="Layer 2" es="Capa 2"/>
   <translation tag="Layer Height" es="Altura de Capa"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." es="Layer Macro captura un fotograma por cada cambio de capa. Lo mejor para la mayoría de impresiones."/>
   <translation tag="Layer Pause" es="Pausa por capa"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." es="El modo de capa captura un cuadro por cambio de capa. Mejor para la mayoría de las impresiones."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" es="Capa toma un fotograma en cada cambio de capa. El G-code de cambio de capa de tu laminador debe ejecutar:&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." es="Capa toma un fotograma en cada cambio de capa, pero solo cuando la impresión ejecuta la macro de abajo; sin ella, el vídeo queda casi vacío.&#10;Añádela al G-code de cambio de capa de tu laminador:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse toma un fotograma cada cierto tiempo y no requiere configurar el laminador, pero cada fotograma capta el cabezal donde esté."/>
   <translation tag="Layer {} of {} · {:.2f} mm" es="Capa {} de {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." es="Capa {} de {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" es="Capa {}, Z {:.2f} mm"/>
@@ -2996,6 +2998,7 @@
   <translation tag="No Power Devices" es="Sin Dispositivos de Energía"/>
   <translation tag="No Spool" es="Sin bobina"/>
   <translation tag="No Spools" es="Sin Bobinas"/>
+  <translation tag="No Timelapse Frames" es="Sin fotogramas de timelapse"/>
   <translation tag="No USB printer detected" es="No se detectó impresora USB"/>
   <translation tag="No USB printers found" es="No se encontraron impresoras USB"/>
   <translation tag="No accelerometer" es="Sin acelerómetro"/>
@@ -3101,7 +3104,6 @@
   <translation tag="No vendors found" es="No se encontraron proveedores"/>
   <translation tag="No verified bypass command for this CFS firmware" es="No hay un comando de bypass verificado para este firmware del CFS"/>
   <translation tag="No video player installed - showing the timelapse library" es="No hay reproductor de vídeo instalado: se muestra la biblioteca de timelapse"/>
-  <translation tag="No video player on this printer" es="No hay reproductor de vídeo en esta impresora"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." es="No se detectó webcam.&#10;Se necesita webcam para timelapse."/>
   <translation tag="No widgets found" es="No se encontraron widgets"/>
   <translation tag="No width sensor detected" es="No se detectó sensor de ancho"/>
@@ -3219,6 +3221,7 @@
   <translation tag="Objects" es="Objetos"/>
   <translation tag="Objects in the print, with a tap to open the skip map" es="Objetos de la impresión, con un toque abre el mapa para omitir"/>
   <translation tag="Off" es="Apagado"/>
+  <translation tag="Off for This Print" es="Sin timelapse"/>
   <translation tag="Off:" es="Apagado:"/>
   <translation tag="Off: runs with these values without asking" es="Desactivado: ejecuta con estos valores sin preguntar"/>
   <translation tag="Offer to save Z-offset changes to the printer config" es="Ofrecer guardar los cambios de Z-Offset en la configuración de la impresora"/>
@@ -3363,6 +3366,8 @@
   <translation tag="Paused by {}: {}" es="Pausado por {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." es="Pausa una impresión en una capa elegida, para cambiar filamento o colocar una pieza. Durante la impresión, elige la capa en la tarjeta de vista previa de la pantalla de estado."/>
   <translation tag="Pauses on runout" es="Pausa al agotarse"/>
+  <translation tag="Pauses on runout (no matching spool)" es="Pausa al agotarse (sin bobina compatible)"/>
+  <translation tag="Pauses on runout ({} off)" es="Pausa al agotarse ({} desactivado)"/>
   <translation tag="Pausing at layer {}." es="Pausa en la capa {}."/>
   <translation tag="Pausing..." es="Pausando..."/>
   <translation tag="Peak Freq" es="Frec Pico"/>
@@ -5039,6 +5044,7 @@
   <translation tag="The tensioners pull each belt to its target" es="Los tensores llevan cada correa a su tensión objetivo"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." es="El amplificador del termopar o PT100 informó de un fallo o de una lectura fuera de rango."/>
   <translation tag="The time, date, and system uptime" es="Hora, fecha y tiempo de actividad"/>
+  <translation tag="The timelapse could not be downloaded" es="No se pudo descargar el timelapse"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." es="La carpeta de timelapse o de registros se solapa con una carpeta protegida, por eso la limpieza está desactivada."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." es="El plugin de timelapse está instalado. Para crear vídeos también se necesita ffmpeg, que no está instalado en esta impresora."/>
   <translation tag="The tool change under way finished, and the tool was not parked" es="El cambio de herramienta en curso terminó y la herramienta no se aparcó"/>
@@ -5070,7 +5076,6 @@
   <translation tag="The update failed" es="La actualización falló"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." es="La actualización dejó de informar. Su resultado es desconocido: revisa la impresora antes de usarla."/>
   <translation tag="The update&apos;s result is unknown" es="El resultado de la actualización es desconocido"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." es="El reproductor de vídeo no pudo iniciarse en esta impresora ({}). Escanea el código con tu teléfono para ver el timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." es="El motor {0} no se midió: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." es="El acelerómetro {1} no respondió con su ID esperado. Lo más probable es que esté desconectado, que su cable esté dañado o que sus pines SPI sean incorrectos."/>
   <translation tag="The {1} motor lost steps" es="El motor {1} perdió pasos"/>
@@ -5120,6 +5125,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." es="Este archivo imprime {0} y {1} juntos. El calor de cámara y cama que necesita {1} puede ablandar {0} y atascar su boquilla."/>
   <translation tag="This file was sliced for {} but {} is loaded." es="Este archivo fue laminado para {} pero se ha cargado {}."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." es="Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." es="Este archivo no capturará fotogramas de timelapse. El modo de capa solo toma un fotograma cuando el archivo ejecuta esta línea en cada cambio de capa, y tu laminador no la añadió:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse toma fotogramas cada cierto tiempo."/>
   <translation tag="This firmware can only switch slots by loading them" es="Este firmware solo puede cambiar de ranura cargándola"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." es="Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." es="Esto instala las macros de ayuda de HelixScreen en la impresora, las añade a printer.cfg y reinicia Klipper."/>
@@ -5149,7 +5155,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." es="Esta impresora aún no tiene un almacén [save_variables]. Actualiza las macros de ayuda para añadirlo y reinicia Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." es="Esta impresora no tiene descarga automática. Corte el filamento en el cabezal y sáquelo a mano."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." es="Esta impresora no tiene zona horaria, así que su reloj marca UTC. Elige la tuya."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." es="Esta impresora no tiene reproductor de vídeo. Escanea el código con tu teléfono para ver el timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." es="Esta impresora no tiene el comando {}, así que no se puede guardar el Z-offset."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." es="Esta impresora parece una {} ({}% de confianza), pero está configurada como {}. Un tipo erróneo aplica opciones y preajustes de preimpresión incorrectos."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" es="A las macros de INDX de esta impresora les falta: {}"/>
@@ -5173,6 +5178,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." es="Esto reemplaza el diseño de la pantalla de inicio de esta pantalla para esta impresora por el de la pantalla de la propia impresora."/>
   <translation tag="This resume needs a newer version of HelixScreen." es="Esta reanudación necesita una versión más reciente de HelixScreen."/>
   <translation tag="This screen" es="Esta pantalla"/>
+  <translation tag="This screen can&apos;t play videos" es="Esta pantalla no puede reproducir vídeos"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." es="Esta pantalla no puede reproducir vídeos. Escanea el código con tu teléfono para ver el timelapse."/>
   <translation tag="This slot feeds no tool" es="Esta ranura no alimenta ninguna herramienta"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." es="Esta bobina se agotó, así que el CFS no puede retraer el filamento sobrante."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." es="Los detalles de esta bobina aún no se han cargado desde Spoolman. Vuelve a pulsar Guardar."/>
@@ -5183,6 +5190,7 @@
   <translation tag="This update asks for new permissions:" es="Esta actualización pide nuevos permisos:"/>
   <translation tag="This update removes HelixScreen from the printer." es="Esta actualización elimina HelixScreen de la impresora."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." es="Esto actualiza los paquetes del sistema operativo de la impresora."/>
+  <translation tag="This video could not be played" es="No se pudo reproducir este vídeo"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." es="Esta espera solo termina al alcanzar su temperatura: cancelar requiere una parada de emergencia y un reinicio del firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." es="Esto aplicará el Z-offset a su endstop y reiniciará Klipper para guardar la configuración. La impresora se desconectará brevemente."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." es="Esto aplicará el Z-offset a su sonda y reiniciará Klipper para guardar la configuración. La impresora se desconectará brevemente."/>
@@ -5218,6 +5226,7 @@
   <translation tag="Timelapse Videos" es="Videos timelapse"/>
   <translation tag="Timelapse did not start" es="El timelapse no se inició"/>
   <translation tag="Timelapse frames start after Klipper restarts." es="Los fotogramas del timelapse empiezan después de reiniciar Klipper."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." es="El timelapse sigue en modo Hyperlapse. Vuelve a cambiarlo en Ajustes &gt; Impresión &gt; Timelapse."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." es="La carpeta de timelapse o de registros se solapa con una protegida."/>
   <translation tag="Timelapse plugin installed successfully!" es="¡Plugin de timelapse instalado correctamente!"/>
   <translation tag="Timelapse plugin installed!" es="¡Plugin de timelapse instalado!"/>
@@ -5491,6 +5500,7 @@
   <translation tag="Use Another Toolhead" es="Usar otro cabezal"/>
   <translation tag="Use DHCP" es="Usar DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" es="Usar retracción de firmware G10/G11"/>
+  <translation tag="Use Hyperlapse" es="Usar Hyperlapse"/>
   <translation tag="Use New Address" es="Usar nueva dirección"/>
   <translation tag="Use Scan" es="Usar escaneo"/>
   <translation tag="Use Unload before Eject" es="Use Descargar antes de Expulsar"/>
@@ -5533,8 +5543,6 @@
   <translation tag="Vibration" es="Vibración"/>
   <translation tag="Vibration compensation active" es="Compensación de vibración activa"/>
   <translation tag="Video playback speed" es="Velocidad de reproducción de video"/>
-  <translation tag="Video player failed to start" es="No se pudo iniciar el reproductor de vídeo"/>
-  <translation tag="Video player failed to start ({})" es="No se pudo iniciar el reproductor de vídeo ({})"/>
   <translation tag="View" es="Ver"/>
   <translation tag="View Changelog" es="Ver registro de cambios"/>
   <translation tag="View Full History" es="Ver Historial Completo"/>
@@ -5794,6 +5802,7 @@
   <translation tag="attempt {}" es="intento {}"/>
   <translation tag="auto" es="auto"/>
   <translation tag="automatic" es="automático"/>
+  <translation tag="automatic refill" es="recarga automática"/>
   <translation tag="bed" es="cama"/>
   <translation tag="bed further below" es="cama más abajo"/>
   <translation tag="bed: distance unknown" es="cama: distancia desconocida"/>

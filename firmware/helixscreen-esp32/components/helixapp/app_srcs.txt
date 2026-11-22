@@ -285,6 +285,7 @@ src/printer/fit_check.cpp
 src/printer/helix_plugin_features.cpp
 src/printer/vendor_state_push.cpp
 src/printer/printer_event_journal.cpp
+src/printer/printer_pending_restore.cpp
 src/printer/printer_print_state.cpp
 src/printer/printer_print_state_status.cpp
 src/printer/printer_profile_state.cpp
@@ -752,6 +753,7 @@ src/ui/print/ui_pre_print_options_renderer.cpp
 src/ui/print/ui_print_exclude_object_manager.cpp
 src/ui/print/ui_print_light_timelapse.cpp
 src/ui/print/ui_print_layer_pause.cpp
+src/ui/print/ui_print_gate_choice_modal.cpp
 src/ui/print/ui_print_preparation_manager.cpp
 src/ui/print/ui_print_select_card_view.cpp
 src/ui/print/ui_print_select_archive.cpp
@@ -941,6 +943,7 @@ src/rendering/nozzle_renderer_stealthburner.cpp
 #     ui_print_preparation_manager and print-start analysis.
 src/rendering/gcode_parser.cpp
 src/rendering/gcode_ops_detector.cpp
+src/rendering/timelapse_frame_check.cpp
 src/rendering/gcode_footer_summary.cpp
 src/rendering/gcode_edit_list.cpp
 src/rendering/gcode_file_modifier.cpp

@@ -466,20 +466,31 @@ TEST_CASE_METHOD(ActionPromptLayoutFixture,
 }
 
 // Labelled buttons are not swatches: a 480x272 prompt of them keeps the
-// standard card width and button height.
+// standard card width and a dialog's button height, footer included.
 TEST_CASE_METHOD(ActionPromptLayoutFixture,
                  "ActionPromptModal: labelled buttons at 480x272 keep the standard card",
                  "[action_prompt][layout][ui_integration][hex_color][1806]") {
     helix::test::ScopedGeometry micro(480, 272);
-    REQUIRE(modal_.show_prompt(test_screen(), make_regular_prompt(4)));
+    helix::PromptData data = make_regular_prompt(4);
+    helix::PromptButton cancel;
+    cancel.label = "Cancel";
+    cancel.is_footer = true;
+    data.buttons.push_back(cancel);
+    REQUIRE(modal_.show_prompt(test_screen(), data));
     lv_obj_t* dialog = modal_.dialog();
     REQUIRE(dialog != nullptr);
     lv_obj_update_layout(test_screen());
 
     CHECK(lv_obj_get_width(dialog) == 480 * 70 / 100);
+    REQUIRE(ActionPromptModalTestAccess::buttons(modal_).size() == 5);
+    const int32_t modal_button_h = theme_manager_get_spacing("modal_button_height");
+    REQUIRE(modal_button_h > theme_manager_get_spacing("button_height"));
     for (lv_obj_t* btn : ActionPromptModalTestAccess::buttons(modal_)) {
-        CHECK(lv_obj_get_height(btn) == theme_manager_get_spacing("button_height"));
+        CHECK(lv_obj_get_height(btn) == modal_button_h);
     }
+    lv_obj_t* footer = lv_obj_find_by_name(dialog, "footer_container");
+    REQUIRE(footer != nullptr);
+    CHECK(lv_obj_get_height(footer) == modal_button_h);
 
     modal_.hide();
 }

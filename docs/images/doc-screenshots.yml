@@ -156,7 +156,17 @@ images:
     recipe: screws
   - path: docs/images/user/advanced-shaper.png
     kind: app
-    recipe: input-shaper
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_tile_input_shaper
+      - wait_idle
+      - click btn_calibrate_x
+      - wait_idle
+      - click btn_primary
+      - wait_for is_results_has_x 1 --timeout 300
+      - wait_idle
+      - scroll chip_row_x
   - path: docs/images/user/advanced-spoolman.png
     kind: app
     recipe: spoolman
@@ -191,9 +201,9 @@ images:
     kind: app
     recipe: advanced
   - path: docs/images/user/ams-portrait.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    recipe: ams
+    size: 480x800
   - path: docs/images/user/ams.png
     kind: app
     recipe: ams
@@ -382,7 +392,12 @@ images:
     recipe: print-select
   - path: docs/images/user/print-status.png
     kind: app
-    recipe: print-status
+    steps:
+      - demo print-live
+      - wait_for print_progress 10 --timeout 120
+      - demo print-status
+      - wait_idle
+      - freeze
   - path: docs/images/user/print-tune.png
     kind: app
     recipe: print-tune
@@ -495,7 +510,7 @@ images:
       - navigate settings
       - click row_system
       - wait_idle
-      - scroll overlay_content 0 -200
+      - scroll overlay_content 0 -294
     markers:
       - {n: 1, widget: row_telemetry, at: top_right}
       - {n: 2, widget: row_factory_reset, at: top_right}
@@ -576,7 +591,12 @@ images:
       - {n: 2, widget: nav_btn_edit_done, at: top_right}
   - path: docs/images/user/print-status-controls.png
     kind: app
-    recipe: print-status
+    steps:
+      - demo print-live
+      - wait_for print_progress 10 --timeout 120
+      - demo print-status
+      - wait_idle
+      - freeze
     crop: ps_strip_buttons
     margin: 12
     markers:
@@ -627,8 +647,8 @@ images:
     crop: motion_home_bar
     margin: 12
     markers:
-      - {n: 1, widget: btn_home_all, at: top_right}
-      - {n: 2, widget: btn_home_x, at: top_right}
+      - {n: 1, widget: btn_home_x, at: top_right}
+      - {n: 2, widget: btn_home_xy, at: top_right}
       - {n: 3, widget: btn_home_z, at: top_right}
   - path: docs/images/user/motion-z-column.png
     kind: app
@@ -738,8 +758,7 @@ images:
     markers:
       - {n: 1, widget: row_toolhead_style, at: top_right}
       - {n: 2, widget: row_gcode_mode, at: top_right}
-      - {n: 3, widget: row_z_movement_style, at: top_right}
-      - {n: 4, widget: row_bed_mesh_mode, at: top_right}
+      - {n: 3, widget: row_bed_mesh_mode, at: top_right}
   - path: docs/images/user/settings-theme-actions.png
     kind: app
     recipe: theme
@@ -771,10 +790,17 @@ images:
       - {n: 5, widget: btn_save_material, at: top_right}
   - path: docs/images/user/printing-filament-rows.png
     kind: app
-    recipe: printing-2
+    env:
+      HELIX_MOCK_AMS: toolchanger
+    steps:
+      - navigate settings
+      - click row_printing
+      - wait_idle
+      - scroll overlay_content 0 -1068
     markers:
-      - {n: 1, widget: row_material_temps, at: top_right}
-      - {n: 2, widget: row_filament_auto_open_editor, at: top_right}
+      - {n: 1, widget: row_filament_auto_open_editor, at: top_right}
+      - {n: 2, widget: row_number_lanes_from_zero, at: top_right}
+      - {n: 3, widget: row_tool_change_confirm, at: top_right}
   - path: docs/images/user/led-settings-startup.png
     kind: app
     steps:
@@ -879,3 +905,50 @@ images:
       - {n: 1, widget: row_motors_off_confirm, at: top_right}
       - {n: 2, widget: row_power_confirm, at: top_right}
       - {n: 3, widget: row_power_target, at: top_right}
+  # Ultrawide shots use 1920x440, the size the home grid docs cite; portrait
+  # shots use 480x800, and Print Status 480x1920, the shortest portrait screen
+  # whose job tile has room for the lane tray strip and the inline Tune card.
+  - path: docs/images/user/home-ultrawide.png
+    kind: app
+    recipe: home
+    size: 1920x440
+  - path: docs/images/user/controls-ultrawide.png
+    kind: app
+    steps:
+      - navigate controls
+    size: 1920x440
+  - path: docs/images/user/filament-ultrawide.png
+    kind: app
+    steps:
+      - navigate filament
+    size: 1920x440
+  - path: docs/images/user/print-status-ultrawide.png
+    kind: app
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+    size: 1920x440
+  - path: docs/images/user/home-portrait.png
+    kind: app
+    recipe: home
+    size: 480x800
+  - path: docs/images/user/controls-portrait.png
+    kind: app
+    steps:
+      - navigate controls
+    size: 480x800
+  - path: docs/images/user/filament-portrait.png
+    kind: app
+    steps:
+      - navigate filament
+    size: 480x800
+  - path: docs/images/user/print-status-portrait.png
+    kind: app
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+    size: 480x1920

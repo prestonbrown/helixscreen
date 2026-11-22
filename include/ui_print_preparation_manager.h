@@ -183,6 +183,12 @@ class PrintPreparationManager {
         start_option_override_ = std::move(provider);
     }
 
+    /// Turn option @p id off for the next start_print() alone, ahead of every
+    /// provider. start_print() drops it on return, like the start override.
+    void force_start_option_off(std::string id) {
+        forced_off_option_ = std::move(id);
+    }
+
     /**
      * @brief Read the user-intent state for a pre-print option by id.
      *
@@ -321,6 +327,10 @@ class PrintPreparationManager {
      * @param key The file's scan_key()
      */
     [[nodiscard]] helix::PrinterStopCheck printer_stop_check_for(const std::string& key) const;
+
+    /// What the scan kept under @p key found about timelapse frame calls.
+    /// Unknown until that scan answers for the printer's current macros.
+    [[nodiscard]] helix::timelapse::FrameCalls timelapse_frames_for(const std::string& key) const;
 
     /// Whether the scan kept under @p key (a scan_key()) has answered for the
     /// printer's current macros, whatever the answer: an answer computed
@@ -781,6 +791,7 @@ class PrintPreparationManager {
     // know about their LVGL pointers.
     OptionStateProvider option_state_provider_;
     OptionStateProvider start_option_override_;
+    std::string forced_off_option_;
 
     // === when_ready_to_start() waiter ===
     struct StartWaiter {

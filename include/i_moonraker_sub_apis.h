@@ -44,6 +44,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace helix::three_mf {
@@ -723,6 +724,13 @@ class ITimelapseAPI {
 
     virtual void set_timelapse_enabled(bool enabled, SuccessCallback on_success,
                                        ErrorCallback on_error) = 0;
+
+    /// Set only the named settings, in one write: `{"mode", "hyperlapse"}`,
+    /// `{"parkhead", "False"}`. A mode other than "layermacro" or "hyperlapse"
+    /// is refused.
+    virtual void
+    set_timelapse_values(const std::vector<std::pair<std::string, std::string>>& values,
+                         SuccessCallback on_success, ErrorCallback on_error) = 0;
 
     virtual void render_timelapse(SuccessCallback on_success, ErrorCallback on_error) = 0;
 

@@ -76,6 +76,35 @@ Key patterns:
 
 Settings are read via `GET /machine/timelapse/settings` and saved via `POST /machine/timelapse/settings?param=value` (query string format, not JSON body).
 
+The Recording Mode row's (i) (`info_callback="on_timelapse_mode_info"`) opens an alert explaining that Layer mode needs `TIMELAPSE_TAKE_FRAME` in the slicer's layer change G-code. Every fetch and save, and discovery's `machine.timelapse.get_settings`, records the mode in `TimelapseState::set_mode()`, which the print-start check reads.
+
+---
+
+## Print-Start Frame Check
+
+Layer mode ("layermacro") captures a frame only when the print runs `TIMELAPSE_TAKE_FRAME`. The `timelapse_frames` gate (`gate_timelapse_frames` in `src/printer/print_start_checks.cpp`, last in `default_print_start_gates()`) warns before a print whose file never calls it.
+
+**Detection** (`include/timelapse_frame_check.h`) runs inside the existing bounded head scan (`PrintPreparationManager::request_scan`, `kPrinterStopScanBytes`, off the UI thread) and lands in `ScanResult::timelapse_frames`:
+
+| Verdict | Rule |
+|---------|------|
+| Present | A line's command word is `TIMELAPSE_TAKE_FRAME` or a macro that runs it, directly or through macros it calls (`MacroParamCache::macros_running()`, via `frame_taking_commands()`) |
+| Missing | No such line, and the head reaches an extruding move after the second layer-change comment (`;LAYER_CHANGE`, `; CHANGE_LAYER`, `;LAYER:<n>`, `; layer <n>`), so one complete layer change, wherever the slicer puts its per-layer code, lies inside the head |
+| Unknown | Macros unread, or the head ends sooner. The gate stays silent |
+
+`PrintPreparationManager::timelapse_frames_for()` answers Unknown unless the scan's printer-stop answer is current for the macro set, since both read the same macros.
+
+**The gate** warns only when the `timelapse` pre-print option is on, `TimelapseState::layer_mode()` is true and the verdict is Missing. Its `CheckResult::alternatives` (Use Hyperlapse, Off for This Print) make the controller show `PrintGateChoiceModal` (`ui_xml/components/print_gate_choice_modal.xml`) instead of the two-button confirm.
+
+**The choices** are carried by `PrintStartController::timelapse_choice_` into the start:
+
+- **Off for This Print**: before `start_print()`, `TimelapseState::begin_print_without_timelapse()` owes `enabled` back, then `PrintPreparationManager::force_start_option_off("timelapse")` makes that one start send the usual `timelapse:off` write.
+- **Use Hyperlapse**: once Moonraker accepts the start, `TimelapseState::record_print_as_hyperlapse()` reads the plugin's settings and switches `mode` to hyperlapse and, when it is on, `parkhead` off (parking would stop the print at every timed frame). The plugin has no per-print settings, but a mode POST during a print starts or stops its HYPERLAPSE loop at once (`webrequest_settings` in the plugin's component, [timelapse.py](https://github.com/mainsail-crew/moonraker-timelapse/blob/main/component/timelapse.py)), so switching after the start is safe.
+
+**What is owed back** is one record per printer (`helix::pending_restore`, key `timelapse/pending_mode_restore`, the store the U1 runout switch uses), written before the switch is sent: each changed setting with the user's value and the value the switch set (`timelapse::OwedSetting`). The print's end is watched with a `PrintEndLatch` (only Printing/Paused count as running, since Preparing can show over the previous job's end). At that end, or at a `start_ended_without_print()` for a start that never ran, or at the `timelapse_mode_restore` discovery step after a restart, `settle_mode_restore()` follows `timelapse::mode_restore_step()`: kept while a print runs or nothing is reported (a watch counts only once it has seen its print run); once idle, it reads the plugin and writes back every owed setting that still holds the switched value (`settings_to_restore()`); a setting the user changed since is left alone. A mode picked in the settings overlay calls `forget_mode_restore()`.
+
+Every plugin read and write from `TimelapseState` goes through one queue (`queue_plugin_op()`), so a switch can neither land before an earlier switch-back nor read settings a write in flight is about to change, and a generation counter keeps a late switch-back answer from clearing a newer record.
+
 ---
 
 ## Print Status Toggle
@@ -99,6 +128,7 @@ The timelapse methods are on the `ITimelapseAPI` sub-API (`api->timelapse()`, de
 | `get_timelapse_settings()` | GET | `/machine/timelapse/settings` |
 | `set_timelapse_settings()` | POST | `/machine/timelapse/settings?params...` |
 | `set_timelapse_enabled()` | POST | `/machine/timelapse/settings?enabled=True/False` |
+| `set_timelapse_values()` | POST | `/machine/timelapse/settings?mode=...&parkhead=...` |
 | `get_webcam_list()` | GET | `/server/webcams/list` |
 | `restart_moonraker()` | POST | `/server/restart` |
 | `render_timelapse()` | POST | `/machine/timelapse/render` |
@@ -166,29 +196,78 @@ The timelapse settings overlay manages videos:
 - **Companion thumbnails** - the preview moonraker-timelapse renders as `<name>.jpg` beside each video (`<name>.thumb.jpg` is also accepted), fetched from the `timelapse` root
 - **Thumbnail caching** - uses the shared `ThumbnailCache` (`get_thumbnail_cache()`, keyed by `thumbnail_cache_id()`)
 - **Render controls** - frame count with capture info (filename + date), progress bar with inline status text, Render Now button
-- **Video playback** - a tap plays the video in an external player where one can show, else hands it to a phone by QR code (see "What a tap does" below)
+- **Video playback** - the in-app player (below) when ffmpeg is installed and the board can decode, else a QR code a phone scans to watch
 - **Delete with confirmation** - long-press card for delete option, confirmation dialog before removal
 - **Generation-based stale rejection** - `nav_generation_` and `thumb_generation_` counters prevent stale async callbacks from modifying UI after navigation changes
 
-**Playback arguments:**
-| Player | Arguments |
-|--------|-----------|
-| `mpv` | `--fs --keep-open=no` |
-| `ffplay` | `-autoexit -exitonmousedown -fs` |
+**What a tap does** is one pure rule, `helix::timelapse::choose_video_open_action()`
+(`include/timelapse_playback.h`), which the card tap and History's open both follow:
 
-**What a tap does.** `choose_video_open_action()` (`src/print/timelapse_thumbnailer.cpp#choose_video_open_action`) is the one rule every entry point follows: the library's card tap and a History job's timelapse (`helix::ui::open_timelapse_video()`) both go through `TimelapseVideosOverlay::open_video()`.
+| ffmpeg on PATH, the board decodes, no print running | Moonraker | Action |
+|---|---|---|
+| yes | same host | play the file in place |
+| yes | remote | download to the runtime dir, then play the copy |
+| no | any | QR code of the video's URL for a phone, else a toast |
 
-| Condition | `VideoOpenAction` | Result |
-|-----------|-------------------|--------|
-| An external player can show on this screen | `Play` | Launch mpv or ffplay fullscreen |
-| No player that can show, and a phone URL exists | `PhoneQr` | "Watch on Your Phone" QR modal (`InfoQrModal`) of the video's Moonraker URL |
-| Neither | `NoPlayerToast` | Warning toast: no video player on this printer |
+"The board decodes" is `inapp_player_supported()`: every PlatformTier but EMBEDDED. While a
+print holds the machine a tap goes to the phone, the same rule that holds back thumbnail
+extraction: a full-length decode is CPU Klipper needs. Each card's badge says which (`tap_badge_for()`).
 
-An installed player counts only when the display can host another program's window: `external_player_can_show(player_installed, screen_hosts_windows)` (`src/print/timelapse_thumbnailer.cpp#external_player_can_show`), fed by `helix::ui::display_hosts_other_windows()` (`include/display_backend.h#display_hosts_other_windows`), which is true only for the SDL backend. mpv and ffplay open a window of their own; on DRM or the framebuffer HelixScreen holds the display, so a player there would draw nowhere and exit cleanly. Printer screens therefore always take the QR path, and a desktop SDL build with mpv or ffplay on `PATH` plays in place. `detect_playback_capability()` (`src/ui/print/ui_overlay_timelapse_videos.cpp#detect_playback_capability`) caches the answer once per process and sets `tap_badge_subject_` so each card's badge says which of the two a tap will do.
+### In-app player
+
+`TimelapsePlayerOverlay` (`include/ui_overlay_timelapse_player.h`,
+`ui_xml/timelapse_player_overlay.xml`) plays a video on the app's own screen, on every
+display backend. It never links libav: `PlayerDecoder` (`include/timelapse_player_decoder.h`)
+runs `ffmpeg` as a child with its stdout on a pipe.
+
+- **Probe** - `ffprobe` for size, frame rate and duration; ffmpeg's own stderr header when
+  ffprobe is missing.
+- **Decode** - `ffmpeg -ss <t> -i <file> -an -vf scale=WxH -pix_fmt <fmt> -f rawvideo -`, the
+  size fitted to the screen with the video's aspect (`fit_frame()`), the format the display's
+  own: `rgb565le` for a 16-bit display, `bgr24` for 24, `bgra` (LVGL XRGB8888) for 32. One
+  thread for the decoder, the filters and the raw encoder: each defaults to one thread per
+  core, every thread holding its own frames, which more than doubled ffmpeg's memory. A
+  small `-probesize`/`-analyzeduration` (a local file's header says enough); never
+  `-fflags nobuffer`, which ends an MP4 early. The child runs at nice 10 and dies with the
+  app (`PR_SET_PDEATHSIG`). It starts through `helix::spawn_child()`
+  (`include/system/child_process.h`), the one fork-and-exec the plugin installer's shell
+  runs use too: signals blocked across the fork and reset in the child, every inherited fd
+  above stderr closed.
+- **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and queues
+  each in `FrameExchange` one frame period before it is due, stamped with its due time on
+  the monotonic clock (`pace_frame()`). A main-thread timer looking every quarter period
+  (`present_poll_ms()`, 4 to 10 ms) copies the newest due frame (`pick_due_frame()`) into
+  one draw buffer and invalidates the image; it stops while paused. Neither side waits on
+  the other: a UI more than a period late skips frames, and a full queue drops its oldest.
+- **Controls** - tap toggles the bars, which hide after 3 s while playing; play/pause (pause
+  stops reading, so ffmpeg blocks on the pipe); a scrub bar that seeks on release by
+  replacing the child with one started at `-ss`; at the end the last frame stays with a
+  replay button.
+- **Seeks** - every seek starts a new decode run with a higher generation. The exchange
+  discards frames from older runs (`begin_generation()`), and the overlay ignores an end
+  report from one, so a run that ended just as a seek landed cannot leave the player on
+  its Replay screen.
+- **Lifetime** - leaving the overlay, destroying it and seeking each kill and reap the child
+  (`terminate_and_reap()`); the worker is joined before the decoder goes away.
+
+Measured on the desktop mock (headless SDL, XRGB8888), 20 s testsrc clips at 30 fps, on a
+32-thread host running other builds (load average 18 to 46):
+
+| Clip | Screen | Decoded at | Added RSS | Main thread | Whole app | ffmpeg CPU | ffmpeg peak RSS | Dropped of 600 |
+|---|---|---|---|---|---|---|---|---|
+| 1280x720 H.264 | 800x480 | 800x450 | ~12 MB | 3.2% | 6.1% | 9.7% | 80 MB | 1 |
+| 640x480 H.264 | 800x480 | 640x480 | ~10 MB | 2.4% | 4.6% | 3.4% | 71 MB | 1 |
+| 1280x720 H.264 | 480x272 | 480x270 | ~6 MB | 2.2% | 3.8% | 7.1% | 69 MB | 1 |
+| 640x480 H.264 | 480x272 | 362x272 | ~5 MB | 2.2% | 3.6% | 3.6% | 61 MB | 1 |
+
+CPU is percent of one core on a desktop x86 host; a printer's board costs several times
+more. ffmpeg's peak RSS includes about 50 MB that this host's ffmpeg maps for its libraries
+before decoding anything; with the threads defaulted, the 1280x720 decode peaked at 125 MB
+on 32 cores and 86 MB on 4. The stats line at close puts every frame in one bucket: shown,
+skipped or pushed out because the UI was late, pushed out because the decoder ran ahead,
+or discarded unshown at a seek or close.
 
 The phone URL comes from `phone_video_url()` (`src/print/timelapse_thumbnailer.cpp#phone_video_url`): `<http base>/server/files/timelapse/<file>`, percent-encoded. A loopback base (Moonraker reached as `localhost`) has its host swapped for the screen's LAN IPv4; with no LAN address the URL is empty and the tap falls to the toast.
-
-A player that does launch is watched for `kPlayerWatchMs` (2 s). If it exits with a failure inside that window, `poll_player_watches()` offers the same QR modal with the exit reason in its message, so a broken player install still reaches a phone.
 
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`
@@ -203,11 +282,8 @@ A player that does launch is watched for `kPlayerWatchMs` (2 s). If it exits wit
 |----------|---------|
 | `find_companion_thumbnail(video, listing)` | The preview beside a video: moonraker-timelapse's `video.jpg`, else `video.thumb.jpg` |
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
+| `ffmpeg_lean_input_args()` / `ffmpeg_lean_output_args()` | The one-thread, small-probe options every viewer ffmpeg (thumbnails and the player) runs with |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
-| `build_player_args(player, path)` | Builds player-specific argument list |
-| `external_player_can_show(installed, hosts_windows)` | Whether an installed player can put a picture on this screen |
-| `choose_video_open_action(can_play, phone_url)` | Play, phone QR, or toast for a tap |
-| `phone_video_url(base, file, lan_ipv4)` | The URL a phone on the LAN downloads the video from |
 
 Local vs remote playback is decided by the `moonraker_is_remote` subject
 (`PrinterState::is_moonraker_remote()`) - the live websocket endpoint's verdict -
@@ -234,6 +310,13 @@ not by a hostname check in the thumbnailer.
 | `src/api/moonraker_timelapse_api.cpp` | HTTP API methods for timelapse |
 | `src/api/moonraker_api_controls.cpp` | Contains `restart_moonraker()` |
 | `tests/unit/test_timelapse_install.cpp` | Config parsing tests |
+| `include/timelapse_frame_check.h` | File-head frame-call check for the print-start gate |
+| `src/rendering/timelapse_frame_check.cpp` | Its implementation |
+| `include/ui_print_gate_choice_modal.h` | Four-button print-start gate dialog |
+| `tests/unit/test_timelapse_frame_check.cpp` | Frame check, gate decision and Hyperlapse restore latch tests |
+| `include/printer_pending_restore.h` | Per-printer store for a setting the app owes back (Hyperlapse switch-back, U1 runout switch) |
+| `tests/unit/test_timelapse_mode_restore.cpp` | Owed settings: restart mid-print, user's own changes, in-session switch and switch-back, failed start, ordering |
+| `tests/unit/test_timelapse_gate_choice.cpp` | The choice dialog's close semantics and the controller's handling of its buttons |
 | `ui_xml/advanced_panel.xml` | Timelapse/Setup rows (capability-gated on `printer_has_timelapse`) |
 | `include/timelapse_state.h` | TimelapseState singleton class |
 | `src/printer/timelapse_state.cpp` | Event dispatch, subject management, render notifications |
@@ -244,6 +327,12 @@ not by a hostname check in the thumbnailer.
 | `ui_xml/timelapse_video_card.xml` | Individual video card component (thumbnail, gradient, labels) |
 | `include/timelapse_thumbnailer.h` | Thumbnail extraction and playback utilities |
 | `src/print/timelapse_thumbnailer.cpp` | Utility function implementations |
-| `tests/unit/test_timelapse_videos.cpp` | Playback argument construction tests |
+| `tests/unit/test_timelapse_videos.cpp` | Phone URL tests |
+| `include/timelapse_playback.h` | Open-action rule, probe parsing, ffmpeg arguments, frame math, pacing, frame assembly and handoff |
+| `include/timelapse_player_decoder.h` | ffmpeg child + worker thread that feeds the player |
+| `include/ui_overlay_timelapse_player.h` | The in-app player overlay |
+| `ui_xml/timelapse_player_overlay.xml` | Player layout (frame, bars, scrub, E-stop) |
+| `tests/unit/test_timelapse_playback.cpp` | Tests for the pure player rules |
+| `tests/unit/test_timelapse_player_decoder.cpp` | Decoder lifetime: stop, seek, pause, end, reaping |
 | `include/display_format.h` | `format_short_date()` for smart date display |
 | `src/system/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |

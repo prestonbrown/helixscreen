@@ -778,6 +778,7 @@ translations:
   CONNECTION TYPE: ТИП ПОДКЛЮЧЕНИЯ
   CONTROLLABLE FANS: УПРАВЛЯЕМЫЕ ВЕНТИЛЯТОРЫ
   Calibrate with this tool?: 'Калибровать с этим инструментом?'
+  Could not switch timelapse to Hyperlapse: 'Не удалось переключить таймлапс на гиперлапс'
   Could not turn the heaters off: 'Не удалось выключить нагреватели'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1588,6 +1589,7 @@ translations:
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
   Downloading the timelapse plugin...: 'Загрузка плагина таймлапса...'
+  Downloading the timelapse...: 'Загрузка таймлапса...'
   Downloading...: Загрузка...
   Downloading... {:.1f}/{:.1f} MB: Загрузка... {:.1f}/{:.1f} МБ
   Draw a ripple at each touch — helps diagnose offsets: Рисовать круг при каждом касании — помогает диагностировать смещения
@@ -2449,7 +2451,7 @@ translations:
   Humidity inside the enclosure: Влажность внутри камеры
   Humidity Sensors: Датчики влажности
   Hyperlapse: Гиперлапс
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Гиперлапс захватывает кадры через фиксированные интервалы времени. Подходит для очень долгих печатей.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Гиперлапс снимает кадр по таймеру. Настраивать слайсер не нужно, но голова видна там, где окажется.'
   Hyperspace: Гиперпространство
   I understand: Я понимаю
 
@@ -2726,9 +2728,20 @@ translations:
   Layer: Слой
   Layer 2: 'Слой 2'
   Layer Height: Высота слоя
-  Layer Macro captures one frame per layer change. Best for most prints.: Слоевой макрос захватывает один кадр при смене слоя. Подходит для большинства печатей.
   Layer Pause: 'Пауза на слое'
-  Layer mode captures one frame per layer change. Best for most prints.: Послойный режим захватывает один кадр на каждую смену слоя. Лучший выбор для большинства печатей.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Послойный режим снимает кадр при каждой смене слоя. G-код смены слоя в слайсере должен выполнять:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Послойный режим снимает один кадр при каждой смене слоя, но только когда печать выполняет макрос ниже; без него видео останется почти пустым.
+
+    Добавьте его в G-код смены слоя слайсера:
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    Гиперлапс снимает кадр по таймеру и не требует настройки слайсера, но в каждом кадре голова там, где окажется.'
   Layer {} of {} · {:.2f} mm: Слой {} из {} · {:.2f} мм
   Layer {} of {}.: 'Слой {} из {}.'
   Layer {}, Z {:.2f} mm: Слой {}, Z {:.2f} мм
@@ -3165,6 +3178,7 @@ translations:
   No Power Devices: Нет устройств питания
   No Spool: Нет катушки
   No Spools: Нет катушек
+  No Timelapse Frames: 'Нет кадров таймлапса'
   No USB printer detected: USB-принтер не обнаружен
   No USB printers found: USB-принтеры не найдены
   No accelerometer: Нет акселерометра
@@ -3270,7 +3284,6 @@ translations:
   No vendors found: Производители не найдены
   No verified bypass command for this CFS firmware: 'Нет проверенной команды обхода для этой прошивки CFS'
   No video player installed - showing the timelapse library: 'Видеоплеер не установлен – показана библиотека таймлапсов'
-  No video player on this printer: 'На этом принтере нет видеоплеера'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Веб-камера не обнаружена.\nДля таймлапса необходима веб-камера."
   No widgets found: Виджеты не найдены
@@ -3394,6 +3407,7 @@ translations:
   Objects: Объекты
   Objects in the print, with a tap to open the skip map: 'Объекты печати, касание открывает карту пропуска'
   'Off': Выкл
+  Off for This Print: 'Без таймлапса'
   'Off:': 'Выкл:'
   'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offer to save Z-offset changes to the printer config: 'Предлагать сохранить изменения Z-Offset в конфигурации принтера'
@@ -3544,6 +3558,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати.'
   Pauses on runout: 'Пауза при окончании'
+  Pauses on runout (no matching spool): 'Пауза при окончании (нет подходящей катушки)'
+  Pauses on runout ({} off): 'Пауза при окончании ({} выкл.)'
   Pausing at layer {}.: 'Пауза на слое {}.'
   Pausing...: Приостановка...
   Peak Freq: Пиковая частота
@@ -5293,9 +5309,11 @@ translations:
   The tensioners pull each belt to its target: 'Натяжители тянут каждый ремень до целевого натяжения'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона.
   The time, date, and system uptime: Время, дата и время работы системы
+  The timelapse could not be downloaded: 'Не удалось загрузить таймлапс'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
   Timelapse did not start: 'Таймлапс не запустился'
   Timelapse frames start after Klipper restarts.: 'Кадры таймлапса начнут сниматься после перезапуска Klipper.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Таймлапс всё ещё в режиме гиперлапса. Верните его в Настройки > Печать > Таймлапс.'
   Timelapse or logs folder overlaps a protected one.: "Папка таймлапсов или журналов пересекается с защищённой."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Плагин таймлапса установлен. Для создания видео также нужен ffmpeg, который не установлен на этом принтере.'
   The tool change under way finished, and the tool was not parked: 'Текущая смена инструмента завершена, инструмент не припаркован'
@@ -5330,7 +5348,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием.'
   The update's result is unknown: 'Результат обновления неизвестен'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Акселерометр {1} не ответил ожидаемым ID. Скорее всего, он отключён, его кабель повреждён или неверно заданы пины SPI.
   The {1} motor lost steps: Мотор {1} потерял шаги
@@ -5398,6 +5415,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Этот файл печатает {0} и {1} вместе. Нагрев камеры и стола, нужный для {1}, может размягчить {0} и забить его сопло.'
   This file was sliced for {} but {} is loaded.: Файл нарезан для {}, но загружен {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке.
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Этот файл не снимет кадры таймлапса. Послойный режим снимает кадр, только когда файл выполняет эту строку при каждой смене слоя, а слайсер её не добавил:
+
+    TIMELAPSE_TAKE_FRAME
+
+    Гиперлапс снимает кадры по таймеру.'
   This firmware can only switch slots by loading them: 'Эта прошивка может переключать слоты только загрузкой'
   The filament took too long to reach the feeder's sensor.: 'Филамент слишком долго шёл до датчика фидера.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."
@@ -5434,7 +5457,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
@@ -5462,6 +5484,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
   This screen: 'Этот экран'
+  This screen can't play videos: 'Этот экран не может воспроизводить видео'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'
@@ -5471,6 +5495,7 @@ translations:
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
   This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
   This upgrades the printer's operating system packages.: 'Будут обновлены пакеты операционной системы принтера.'
+  This video could not be played: 'Не удалось воспроизвести это видео'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится.
@@ -5779,6 +5804,7 @@ translations:
   Use Another Toolhead: 'Другая печатающая головка'
   Use DHCP: 'Использовать DHCP'
   Use G10/G11 firmware retraction: Использовать аппаратный ретракт G10/G11
+  Use Hyperlapse: 'Гиперлапс'
   Use New Address: 'Использовать новый адрес'
   Use Unload before Eject: 'Используйте «Выгрузить» перед «Извлечь»'
   Use as bypass: "Использовать как обход"
@@ -5818,8 +5844,6 @@ translations:
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
-  Video player failed to start: 'Не удалось запустить видеоплеер'
-  Video player failed to start ({}): 'Не удалось запустить видеоплеер ({})'
   View: Просмотр
   View Changelog: Просмотр изменений
   View Full History: Просмотреть полную историю
@@ -6079,6 +6103,7 @@ translations:
   attempt {}: 'попытка {}'
   auto: авто
   automatic: 'автоматически'
+  automatic refill: 'автоподача'
   bed: стол
   bed further below: "стол ниже"
   'bed: distance unknown': "стол: расстояние неизвестно"

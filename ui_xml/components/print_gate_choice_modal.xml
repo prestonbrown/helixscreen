@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- A print-start warning with more answers than start or cancel: the gate's
+     own ways around the problem, then starting as is. Every text arrives
+     translated from the gate. -->
+<!-- NOTE: Backdrop is created programmatically by the Modal class in C++. -->
+<!-- Buttons are wired programmatically in PrintGateChoiceModal::on_show(). -->
+<component>
+  <api>
+    <prop name="title" type="string" default=""/>
+    <prop name="message" type="string" default=""/>
+    <prop name="first_choice" type="string" default=""/>
+    <prop name="second_choice" type="string" default=""/>
+    <prop name="proceed" type="string" default=""/>
+    <prop name="cancel" type="string" default="Cancel"/>
+  </api>
+  <view name="print_gate_choice_modal"
+        extends="dialog_frame" width="90%" style_max_height="90%" title="$title" icon="alert" icon_variant="warning">
+    <dialog_frame-body style_pad_gap="#space_sm">
+      <text_body name="gate_choice_message" width="100%" long_mode="wrap" text="$message"/>
+    </dialog_frame-body>
+    <!-- Left to right: Cancel (btn_quaternary), start as is (btn_tertiary), the
+         second way around (btn_secondary), the first way around (btn_primary).
+         ESC and a backdrop tap cancel, like the Cancel button. -->
+    <dialog_frame-footer>
+      <modal_button_row hide_quaternary="false"
+                        quaternary_name="btn_quaternary" quaternary_text="$cancel" hide_tertiary="false"
+                        tertiary_name="btn_tertiary" tertiary_text="$proceed" secondary_text="$second_choice"
+                        primary_text="$first_choice"/>
+    </dialog_frame-footer>
+  </view>
+</component>

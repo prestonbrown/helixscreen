@@ -4168,6 +4168,36 @@ helix::printer::EndlessSpoolConfig AmsBackendCfs::get_endless_spool_config() con
     return endless_spool_config_from_edges(*flat_backup_edges_);
 }
 
+std::optional<int> AmsBackendCfs::runout_backup_for(int slot) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!system_info_.endless_spool_enabled || slot < 0) {
+        return -1;
+    }
+    if (flat_backup_edges_) {
+        return endless_spool_backup_for(endless_spool_config_from_edges(*flat_backup_edges_), slot);
+    }
+    if (!system_info_.endless_spool_groups_reported) {
+        return std::nullopt;
+    }
+    // The box refills from a same_material-identical spool that is in its
+    // slot: the first other loaded member of this slot's group.
+    const auto& ids = system_info_.endless_spool_group_ids;
+    if (static_cast<size_t>(slot) >= ids.size() || ids[static_cast<size_t>(slot)] < 0) {
+        return -1;
+    }
+    const int group = ids[static_cast<size_t>(slot)];
+    for (int other = 0; other < static_cast<int>(ids.size()); ++other) {
+        if (other == slot || ids[static_cast<size_t>(other)] != group) {
+            continue;
+        }
+        const SlotInfo* info = system_info_.get_slot_global(other);
+        if (info && slot_status_reports_filament(info->status).value_or(false)) {
+            return other;
+        }
+    }
+    return -1;
+}
+
 void AmsBackendCfs::record_auto_refill_sent(bool enable) {
     // The box resends the bit only when it changes, so a send it accepts as
     // a no-op is never confirmed, and the status line and switch would go on

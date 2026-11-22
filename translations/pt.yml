@@ -722,6 +722,7 @@ translations:
   CONNECTION TYPE: TIPO DE CONEXÃO
   CONTROLLABLE FANS: VENTOINHAS CONTROLÁVEIS
   Calibrate with this tool?: 'Calibrar com esta ferramenta?'
+  Could not switch timelapse to Hyperlapse: 'Não foi possível mudar o timelapse para Hyperlapse'
   Could not turn the heaters off: 'Não foi possível desligar os aquecedores'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1528,6 +1529,7 @@ translations:
   Download update?: Baixar atualização?
   Download v{}?: Baixar v{}?
   Downloading the timelapse plugin...: 'Baixando o plugin de timelapse...'
+  Downloading the timelapse...: 'Baixando o timelapse...'
   Downloading...: Baixando...
   Downloading... {:.1f}/{:.1f} MB: Baixando... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Desenha uma onda em cada toque — ajuda a diagnosticar deslocamentos
@@ -2385,7 +2387,7 @@ translations:
   Humidity inside the enclosure: Umidade dentro da câmara
   Humidity Sensors: Sensores de umidade
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: O Hyperlapse captura quadros em intervalos de tempo fixos. Bom para impressões muito longas.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse tira um quadro em intervalos fixos. Sem configurar o fatiador, mas a cabeça aparece onde estiver.'
   Hyperspace: Hiperespaço
   I understand: Entendi
 
@@ -2662,9 +2664,20 @@ translations:
   Layer: Camada
   Layer 2: 'Camada 2'
   Layer Height: Altura da Camada
-  Layer Macro captures one frame per layer change. Best for most prints.: A Macro de Camada captura um quadro por mudança de camada. Melhor para a maioria das impressões.
   Layer Pause: 'Pausa por camada'
-  Layer mode captures one frame per layer change. Best for most prints.: O modo por camada captura um quadro por mudança de camada. Melhor para a maioria das impressões.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Camada tira um quadro a cada mudança de camada. O G-code de mudança de camada do seu fatiador deve executar:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Camada tira um quadro a cada mudança de camada, mas só quando a impressão executa a macro abaixo; sem ela, o vídeo fica quase vazio.
+
+    Adicione-a ao G-code de mudança de camada do seu fatiador:
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    Hyperlapse tira um quadro em intervalos fixos e não exige configurar o fatiador, mas cada quadro pega a cabeça onde ela estiver.'
   Layer {} of {} · {:.2f} mm: Camada {} de {} · {:.2f} mm
   Layer {} of {}.: 'Camada {} de {}.'
   Layer {}, Z {:.2f} mm: Camada {}, Z {:.2f} mm
@@ -3101,6 +3114,7 @@ translations:
   No Power Devices: Sem Dispositivos de Energia
   No Spool: Sem bobina
   No Spools: Sem Carretéis
+  No Timelapse Frames: 'Sem Quadros de Timelapse'
   No USB printer detected: Nenhuma impressora USB detectada
   No USB printers found: Nenhuma impressora USB encontrada
   No accelerometer: Sem acelerômetro
@@ -3206,7 +3220,6 @@ translations:
   No vendors found: Nenhum fornecedor encontrado
   No verified bypass command for this CFS firmware: 'Nenhum comando de bypass verificado para este firmware do CFS'
   No video player installed - showing the timelapse library: 'Nenhum reprodutor de vídeo instalado – mostrando a biblioteca de timelapse'
-  No video player on this printer: 'Nenhum reprodutor de vídeo nesta impressora'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Nenhuma webcam detectada.\nUma webcam é necessária para timelapse."
   No widgets found: Nenhum widget encontrado
@@ -3330,6 +3343,7 @@ translations:
   Objects: Objetos
   Objects in the print, with a tap to open the skip map: 'Objetos da impressão, toque para abrir o mapa de exclusão'
   'Off': Desligado
+  Off for This Print: 'Sem timelapse'
   'Off:': 'Desligado:'
   'Off: runs with these values without asking': 'Desativado: executa com estes valores sem perguntar'
   Offer to save Z-offset changes to the printer config: 'Oferecer salvar alterações de Z-Offset na configuração da impressora'
@@ -3480,6 +3494,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Pausa uma impressão numa camada escolhida, para trocar o filamento ou colocar um inserto. Durante a impressão, defina a camada no cartão de pré-visualização da tela de status.'
   Pauses on runout: 'Pausa no fim de filamento'
+  Pauses on runout (no matching spool): 'Pausa no fim de filamento (nenhum carretel correspondente)'
+  Pauses on runout ({} off): 'Pausa no fim de filamento ({} desligado)'
   Pausing at layer {}.: 'Pausando na camada {}.'
   Pausing...: Pausando...
   Peak Freq: Freq Pico
@@ -5205,9 +5221,11 @@ translations:
   The tensioners pull each belt to its target: 'Os tensores puxam cada correia até a tensão alvo'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: O amplificador do termopar ou do PT100 relatou uma falha ou uma leitura fora da faixa.
   The time, date, and system uptime: Hora, data e tempo ativo
+  The timelapse could not be downloaded: 'Não foi possível baixar o timelapse'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."
   Timelapse did not start: 'O timelapse não começou'
   Timelapse frames start after Klipper restarts.: 'Os quadros do timelapse começam depois que o Klipper reinicia.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'O timelapse ainda está no modo Hyperlapse. Volte-o em Configurações > Impressão > Timelapse.'
   Timelapse or logs folder overlaps a protected one.: "A pasta de timelapse ou de logs se sobrepõe a uma protegida."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'O plugin de timelapse está instalado. Para criar vídeos também é preciso o ffmpeg, que não está instalado nesta impressora.'
   The tool change under way finished, and the tool was not parked: 'A troca de ferramenta em andamento terminou e a ferramenta não foi estacionada'
@@ -5242,7 +5260,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'O motor {0} não foi medido: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'A atualização parou de informar. O resultado é desconhecido: verifique a impressora antes de usá-la.'
   The update's result is unknown: 'O resultado da atualização é desconhecido'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : O acelerômetro {1} não respondeu com o ID esperado. Provavelmente está desconectado, o cabo está danificado ou os pinos SPI estão errados.
   The {1} motor lost steps: O motor {1} perdeu passos
@@ -5310,6 +5327,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Este arquivo imprime {0} e {1} juntos. O calor da câmara e da mesa de que {1} precisa pode amolecer {0} e entupir seu bico.'
   This file was sliced for {} but {} is loaded.: Este arquivo foi fatiado para {} mas {} está carregado.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este arquivo foi fatiado para {}, mas {} está carregado. A impressão será mais lenta e mais quente do que o carretel carregado precisa.
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Este arquivo não vai capturar quadros de timelapse. O modo por camada só tira um quadro quando o arquivo executa esta linha a cada mudança de camada, e seu fatiador não a adicionou:
+
+    TIMELAPSE_TAKE_FRAME
+
+    O Hyperlapse tira quadros em intervalos fixos.'
   This firmware can only switch slots by loading them: 'Este firmware só pode trocar de slot carregando-o'
   The filament took too long to reach the feeder's sensor.: 'O filamento demorou demais para chegar ao sensor do alimentador.'
   The filament went into the toolhead past its feeder. Load it by hand.: "O filamento entrou no cabeçote sem passar pelo alimentador. Carregue-o manualmente."
@@ -5346,7 +5369,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Esta impressora ainda não tem um armazenamento [save_variables]. Atualize as macros de ajuda para adicioná-lo e reinicie o Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Esta impressora não tem descarga automática. Corte o filamento no cabeçote e retire-o à mão.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Esta impressora não tem fuso horário, então o relógio mostra UTC. Escolha o seu."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Esta impressora não tem reprodutor de vídeo. Escaneie o código com seu celular para assistir ao timelapse.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Esta impressora não tem o comando {}, então o Z-offset não pode ser salvo.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Esta impressora parece ser uma {} ({}% de confiança), mas está configurada como {}. Um tipo errado aplica opções de pré-impressão e predefinições incorretas.
@@ -5374,6 +5396,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Isso substitui o layout da tela inicial desta tela para esta impressora pelo layout da tela da própria impressora."
   This resume needs a newer version of HelixScreen.: Esta retomada precisa de uma versão mais nova do HelixScreen.
   This screen: 'Esta tela'
+  This screen can't play videos: 'Esta tela não pode reproduzir vídeos'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Esta tela não pode reproduzir vídeos. Escaneie o código com seu celular para assistir ao timelapse.'
   This slot feeds no tool: 'Este slot não alimenta nenhuma ferramenta'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Este carretel acabou, então o CFS não consegue recolher o filamento restante.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Os detalhes deste carretel ainda não foram carregados do Spoolman. Toque em Salvar novamente.'
@@ -5383,6 +5407,7 @@ translations:
   'This update asks for new permissions:': 'Esta atualização pede novas permissões:'
   This update removes HelixScreen from the printer.: 'Esta atualização remove o HelixScreen da impressora.'
   This upgrades the printer's operating system packages.: 'Isto atualiza os pacotes do sistema operacional da impressora.'
+  This video could not be played: 'Não foi possível reproduzir este vídeo'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Esta espera só termina na sua temperatura: cancelar exige uma parada de emergência e uma reinicialização do firmware.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Isso aplicará o Z-offset ao seu endstop e reiniciará o Klipper para salvar a configuração. A impressora será brevemente desconectada.
@@ -5691,6 +5716,7 @@ translations:
   Use Another Toolhead: 'Usar outro cabeçote'
   Use DHCP: 'Usar DHCP'
   Use G10/G11 firmware retraction: Usar retração de firmware G10/G11
+  Use Hyperlapse: 'Usar Hyperlapse'
   Use New Address: 'Usar novo endereço'
   Use Unload before Eject: 'Use Descarregar antes de Ejetar'
   Use as bypass: "Usar como bypass"
@@ -5730,8 +5756,6 @@ translations:
   Vibration: Vibração
   Vibration compensation active: Compensação de vibração ativa
   Video playback speed: Velocidade de reprodução do vídeo
-  Video player failed to start: 'Falha ao iniciar o reprodutor de vídeo'
-  Video player failed to start ({}): 'Falha ao iniciar o reprodutor de vídeo ({})'
   View: Visualizar
   View Changelog: Ver Registro de Alterações
   View Full History: Ver Histórico Completo
@@ -5991,6 +6015,7 @@ translations:
   attempt {}: 'tentativa {}'
   auto: auto
   automatic: 'automático'
+  automatic refill: 'recarga automática'
   bed: mesa
   bed further below: "mesa mais abaixo"
   'bed: distance unknown': "mesa: distância desconhecida"

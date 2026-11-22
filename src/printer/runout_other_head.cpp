@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "runout_other_head.h"
 
-#include "config.h"
 #include "filament_database.h"
 #include "filament_mapper.h"
 #include "filament_variants.h"
 #include "i_moonraker_api.h"
+#include "printer_pending_restore.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -498,26 +498,11 @@ constexpr const char* kPendingRestoreKey = "runout_other_head/pending_restore";
 } // namespace
 
 std::string read_pending_restore() {
-    const Config* config = Config::get_instance();
-    if (config == nullptr) {
-        return {};
-    }
-    const nlohmann::json* j = config->try_get_json(config->df() + kPendingRestoreKey);
-    return j != nullptr && j->is_string() ? j->get<std::string>() : std::string{};
+    return pending_restore::read(kPendingRestoreKey);
 }
 
 void write_pending_restore(const std::string& gcode) {
-    Config* config = Config::get_instance();
-    if (config == nullptr || read_pending_restore() == gcode) {
-        return;
-    }
-    const std::string key = config->df() + kPendingRestoreKey;
-    if (gcode.empty()) {
-        config->set<nlohmann::json>(key, nullptr);
-    } else {
-        config->set<nlohmann::json>(key, gcode);
-    }
-    config->save();
+    pending_restore::write(kPendingRestoreKey, gcode);
 }
 
 } // namespace helix::runout_other_head

@@ -877,10 +877,13 @@ void MoonrakerDiscoverySequence::query_timelapse_settings(uint64_t seq) {
             if (is_stale() || !is_current_sequence(seq))
                 return;
             bool enabled = false;
+            std::string mode;
             if (const json* result = helix::json_util::find_member(response, "result")) {
                 enabled = result->value("enabled", false);
+                mode = helix::json_util::safe_string(*result, "mode", "");
             }
-            spdlog::info("[Moonraker Client] Timelapse global enabled={}", enabled);
+            spdlog::info("[Moonraker Client] Timelapse global enabled={} mode={}", enabled, mode);
+            get_printer_state().set_timelapse_mode(mode);
             get_printer_state().set_timelapse_default_enabled(enabled);
         },
         [](const MoonrakerError& err) {

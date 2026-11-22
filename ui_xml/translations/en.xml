@@ -1242,6 +1242,7 @@
   <translation tag="Could not set the material: {}" en="Could not set the material: {}"/>
   <translation tag="Could not skip {}" en="Could not skip {}"/>
   <translation tag="Could not start Bluetooth discovery" en="Could not start Bluetooth discovery"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" en="Could not switch timelapse to Hyperlapse"/>
   <translation tag="Could not turn the heaters off" en="Could not turn the heaters off"/>
   <translation tag="Could not update filaments" en="Could not update filaments"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." en="Could not verify Spoolman status. Moonraker may still be restarting."/>
@@ -1446,6 +1447,7 @@
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading the timelapse plugin..." en="Downloading the timelapse plugin..."/>
+  <translation tag="Downloading the timelapse..." en="Downloading the timelapse..."/>
   <translation tag="Downloading..." en="Downloading..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" en="Downloading... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" en="Draw a ripple at each touch — helps diagnose offsets"/>
@@ -2285,7 +2287,7 @@
   <translation tag="Humidity Sensors" en="Humidity Sensors"/>
   <translation tag="Humidity inside the enclosure" en="Humidity inside the enclosure"/>
   <translation tag="Hyperlapse" en="Hyperlapse"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." en="Hyperlapse captures frames at fixed time intervals. Good for very long prints."/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." en="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is."/>
   <translation tag="Hyperspace" en="Hyperspace"/>
   <translation tag="I understand" en="I understand"/>
   <translation tag="ID (optional)" en="ID (optional)"/>
@@ -2551,9 +2553,9 @@
   <translation tag="Layer" en="Layer"/>
   <translation tag="Layer 2" en="Layer 2"/>
   <translation tag="Layer Height" en="Layer Height"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." en="Layer Macro captures one frame per layer change. Best for most prints."/>
   <translation tag="Layer Pause" en="Layer Pause"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." en="Layer mode captures one frame per layer change. Best for most prints."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" en="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." en="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."/>
   <translation tag="Layer {} of {} · {:.2f} mm" en="Layer {} of {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." en="Layer {} of {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" en="Layer {}, Z {:.2f} mm"/>
@@ -2996,6 +2998,7 @@
   <translation tag="No Power Devices" en="No Power Devices"/>
   <translation tag="No Spool" en="No Spool"/>
   <translation tag="No Spools" en="No Spools"/>
+  <translation tag="No Timelapse Frames" en="No Timelapse Frames"/>
   <translation tag="No USB printer detected" en="No USB printer detected"/>
   <translation tag="No USB printers found" en="No USB printers found"/>
   <translation tag="No accelerometer" en="No accelerometer"/>
@@ -3101,7 +3104,6 @@
   <translation tag="No vendors found" en="No vendors found"/>
   <translation tag="No verified bypass command for this CFS firmware" en="No verified bypass command for this CFS firmware"/>
   <translation tag="No video player installed - showing the timelapse library" en="No video player installed - showing the timelapse library"/>
-  <translation tag="No video player on this printer" en="No video player on this printer"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." en="No webcam detected.&#10;A webcam is required for timelapse."/>
   <translation tag="No widgets found" en="No widgets found"/>
   <translation tag="No width sensor detected" en="No width sensor detected"/>
@@ -3219,6 +3221,7 @@
   <translation tag="Objects" en="Objects"/>
   <translation tag="Objects in the print, with a tap to open the skip map" en="Objects in the print, with a tap to open the skip map"/>
   <translation tag="Off" en="Off"/>
+  <translation tag="Off for This Print" en="Off for This Print"/>
   <translation tag="Off:" en="Off:"/>
   <translation tag="Off: runs with these values without asking" en="Off: runs with these values without asking"/>
   <translation tag="Offer to save Z-offset changes to the printer config" en="Offer to save Z-offset changes to the printer config"/>
@@ -3363,6 +3366,8 @@
   <translation tag="Paused by {}: {}" en="Paused by {}: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." en="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen."/>
   <translation tag="Pauses on runout" en="Pauses on runout"/>
+  <translation tag="Pauses on runout (no matching spool)" en="Pauses on runout (no matching spool)"/>
+  <translation tag="Pauses on runout ({} off)" en="Pauses on runout ({} off)"/>
   <translation tag="Pausing at layer {}." en="Pausing at layer {}."/>
   <translation tag="Pausing..." en="Pausing..."/>
   <translation tag="Peak Freq" en="Peak Freq"/>
@@ -5039,6 +5044,7 @@
   <translation tag="The tensioners pull each belt to its target" en="The tensioners pull each belt to its target"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." en="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
+  <translation tag="The timelapse could not be downloaded" en="The timelapse could not be downloaded"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." en="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer."/>
   <translation tag="The tool change under way finished, and the tool was not parked" en="The tool change under way finished, and the tool was not parked"/>
@@ -5070,7 +5076,6 @@
   <translation tag="The update failed" en="The update failed"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." en="The update stopped reporting. Its result is unknown: check the printer before using it."/>
   <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." en="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
   <translation tag="The {1} motor lost steps" en="The {1} motor lost steps"/>
@@ -5120,6 +5125,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." en="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle."/>
   <translation tag="This file was sliced for {} but {} is loaded." en="This file was sliced for {} but {} is loaded."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." en="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." en="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead."/>
   <translation tag="This firmware can only switch slots by loading them" en="This firmware can only switch slots by loading them"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." en="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." en="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper."/>
@@ -5149,7 +5155,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." en="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." en="This printer has no automatic unload. Cut the filament at the head and pull it out by hand."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." en="This printer has no timezone, so its clock reads UTC. Pick yours."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." en="This printer has no video player. Scan the code with your phone to watch the timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." en="This printer has no {} command, so the Z-offset cannot be saved."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." en="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" en="This printer&apos;s INDX macros are missing: {}"/>
@@ -5173,6 +5178,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." en="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen."/>
   <translation tag="This resume needs a newer version of HelixScreen." en="This resume needs a newer version of HelixScreen."/>
   <translation tag="This screen" en="This screen"/>
+  <translation tag="This screen can&apos;t play videos" en="This screen can&apos;t play videos"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." en="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse."/>
   <translation tag="This slot feeds no tool" en="This slot feeds no tool"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." en="This spool ran out, so the CFS cannot pull the leftover filament back."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." en="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again."/>
@@ -5183,6 +5190,7 @@
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>
   <translation tag="This update removes HelixScreen from the printer." en="This update removes HelixScreen from the printer."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." en="This upgrades the printer&apos;s operating system packages."/>
+  <translation tag="This video could not be played" en="This video could not be played"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect."/>
@@ -5218,6 +5226,7 @@
   <translation tag="Timelapse Videos" en="Timelapse Videos"/>
   <translation tag="Timelapse did not start" en="Timelapse did not start"/>
   <translation tag="Timelapse frames start after Klipper restarts." en="Timelapse frames start after Klipper restarts."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." en="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." en="Timelapse or logs folder overlaps a protected one."/>
   <translation tag="Timelapse plugin installed successfully!" en="Timelapse plugin installed successfully!"/>
   <translation tag="Timelapse plugin installed!" en="Timelapse plugin installed!"/>
@@ -5491,6 +5500,7 @@
   <translation tag="Use Another Toolhead" en="Use Another Toolhead"/>
   <translation tag="Use DHCP" en="Use DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" en="Use G10/G11 firmware retraction"/>
+  <translation tag="Use Hyperlapse" en="Use Hyperlapse"/>
   <translation tag="Use New Address" en="Use New Address"/>
   <translation tag="Use Scan" en="Use Scan"/>
   <translation tag="Use Unload before Eject" en="Use Unload before Eject"/>
@@ -5533,8 +5543,6 @@
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
   <translation tag="Video playback speed" en="Video playback speed"/>
-  <translation tag="Video player failed to start" en="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})" en="Video player failed to start ({})"/>
   <translation tag="View" en="View"/>
   <translation tag="View Changelog" en="View Changelog"/>
   <translation tag="View Full History" en="View Full History"/>
@@ -5794,6 +5802,7 @@
   <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="auto" en="auto"/>
   <translation tag="automatic" en="automatic"/>
+  <translation tag="automatic refill" en="automatic refill"/>
   <translation tag="bed" en="bed"/>
   <translation tag="bed further below" en="bed further below"/>
   <translation tag="bed: distance unknown" en="bed: distance unknown"/>

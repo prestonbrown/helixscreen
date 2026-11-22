@@ -8,7 +8,7 @@
 
 Rows for things your printer doesn't have are hidden, so your list may be shorter than the one pictured.
 
-Looking for how the printer is *drawn* (toolhead picture, G-code preview, Z button labels, bed mesh view)? That's in [Appearance](appearance.md#printer-visuals).
+Looking for how the printer is *drawn* (toolhead picture, G-code preview, bed mesh view)? That's in [Appearance](appearance.md#printer-visuals).
 
 ![Printing settings, the Machine section](../../../images/user/settings-printing.png)
 
@@ -278,10 +278,9 @@ This covers every material preset: the PLA, PETG, ABS/ASA and TPU buttons and th
 
 ![The Filament section on a multi-tool printer](../../../images/user/printing-filament-rows.png)
 
-1. Material Temperatures opens the preset editor.
-2. Edit filament on insert opens the editor when a spool is detected.
-
-Below them, Number slots from 0 changes how slots are labelled, and Confirm tool changes asks before a tool change, on multi-tool printers only.
+1. Edit filament on insert opens the editor when a spool is detected.
+2. Number slots from 0 changes how slots are labelled.
+3. Confirm tool changes asks before a tool change, on multi-tool printers only.
 
 Only the display changes. Tool names such as T0 and T1 stay as they are. See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
 
@@ -318,7 +317,7 @@ Sets up how HelixScreen records timelapse videos of your prints.
 | Setting | Options | What it does |
 |---------|---------|--------------|
 | **Enable Timelapse** | On or off | Turns recording on or off |
-| **Recording Mode** | Layer or Hyperlapse | **Layer** takes one frame per layer, best for most prints. **Hyperlapse** takes frames at a fixed time interval, better for very long prints |
+| **Recording Mode** | Layer or Hyperlapse | **Layer** takes one frame at each layer change, but only when your slicer adds `TIMELAPSE_TAKE_FRAME` to its layer change G-code. **Hyperlapse** takes a frame on a timer and needs no slicer setup, but catches the head wherever it is. The (i) next to the row explains both. See [Timelapse](../timelapse.md) |
 | **Framerate** | 15, 24, 30 or 60 fps | How fast the finished video plays. 30 fps is the default |
 | **Auto-render video** | On or off | Makes the video file automatically when the print finishes |
 

@@ -722,6 +722,7 @@ translations:
   CONNECTION TYPE: 连接类型
   CONTROLLABLE FANS: 可控风扇
   Calibrate with this tool?: '用这个工具校准？'
+  Could not switch timelapse to Hyperlapse: '无法将延时摄影切换为超延时'
   Could not turn the heaters off: '无法关闭加热'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -1528,6 +1529,7 @@ translations:
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
   Downloading the timelapse plugin...: '正在下载延时摄影插件...'
+  Downloading the timelapse...: '正在下载延时摄影...'
   Downloading...: 下载中...
   Downloading... {:.1f}/{:.1f} MB: 下载中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: 在每次触摸时绘制涟漪 — 有助于诊断偏移
@@ -2384,8 +2386,8 @@ translations:
   Humidity: 湿度
   Humidity inside the enclosure: 腔体内的湿度
   Humidity Sensors: 湿度传感器
-  Hyperlapse: 延时摄影
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: 延时拍摄以固定时间间隔捕获帧。适合超长时间打印。
+  Hyperlapse: 超延时
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: '超延时按固定时间间隔拍摄。无需设置切片软件，但喷头会出现在当时所在的位置。'
   Hyperspace: 超空间
   I understand: 我已了解
 
@@ -2662,9 +2664,20 @@ translations:
   Layer: 层
   Layer 2: '第 2 层'
   Layer Height: 层高
-  Layer Macro captures one frame per layer change. Best for most prints.: 层变化宏在每次层变化时捕获一帧。适合大多数打印。
   Layer Pause: '层暂停'
-  Layer mode captures one frame per layer change. Best for most prints.: 层模式在每次换层时捕获一帧。适用于大多数打印。
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : '层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : '层模式在每次换层时拍摄一帧，但只有打印执行下面的宏时才会拍摄；没有它，视频几乎是空的。
+
+    请将它添加到切片软件的换层 G-code 中：
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。'
   Layer {} of {} · {:.2f} mm: 第 {} / {} 层 · {:.2f} mm
   Layer {} of {}.: '第 {} 层，共 {} 层。'
   Layer {}, Z {:.2f} mm: 第 {} 层，Z {:.2f} mm
@@ -3101,6 +3114,7 @@ translations:
   No Power Devices: 无电源设备
   No Spool: 无料盘
   No Spools: 无料盘
+  No Timelapse Frames: '没有延时摄影画面'
   No USB printer detected: 未检测到 USB 打印机
   No USB printers found: 未找到 USB 打印机
   No accelerometer: 无加速度传感器
@@ -3206,7 +3220,6 @@ translations:
   No vendors found: 未找到供应商
   No verified bypass command for this CFS firmware: '此 CFS 固件没有经验证的旁通命令'
   No video player installed - showing the timelapse library: '未安装视频播放器 – 显示延时摄影库'
-  No video player on this printer: '此打印机没有视频播放器'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "未检测到摄像头。\n延时摄影需要摄像头。"
   No widgets found: 未找到小组件
@@ -3330,6 +3343,7 @@ translations:
   Objects: 对象
   Objects in the print, with a tap to open the skip map: '打印中的对象，点按打开跳过地图'
   'Off': 关
+  Off for This Print: '本次打印关闭'
   'Off:': '关:'
   'Off: runs with these values without asking': '关: 不询问,直接以这些值运行'
   Offer to save Z-offset changes to the printer config: '提供将 Z 偏移更改保存到打印机配置的选项'
@@ -3480,6 +3494,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。'
   Pauses on runout: '用尽时暂停'
+  Pauses on runout (no matching spool): '用尽时暂停（无匹配料盘）'
+  Pauses on runout ({} off): '用尽时暂停（{}已关闭）'
   Pausing at layer {}.: '将在第 {} 层暂停。'
   Pausing...: 暂停中...
   Peak Freq: 峰值频率
@@ -5205,9 +5221,11 @@ translations:
   The tensioners pull each belt to its target: '张紧器将每条皮带拉到目标张力'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 热电偶或 PT100 放大器报告故障或读数超出范围。
   The time, date, and system uptime: 时间、日期和系统运行时长
+  The timelapse could not be downloaded: '无法下载延时摄影'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
   Timelapse did not start: '延时摄影未启动'
   Timelapse frames start after Klipper restarts.: 'Klipper 重启后开始拍摄延时摄影帧。'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: '延时摄影仍处于超延时模式。请在 设置 > 打印 > 延时摄影 中改回来。'
   Timelapse or logs folder overlaps a protected one.: "延时摄影或日志文件夹与受保护的文件夹重叠。"
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: '延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。'
   The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
@@ -5242,7 +5260,6 @@ translations:
   'The {0} motor was not measured: {1}.': '{0} 电机未测量：{1}。'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新已停止报告进度。结果未知：使用前请检查打印机。'
   The update's result is unknown: '更新结果未知'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: '视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : '{1} 加速度计未返回预期的 ID。很可能是未插好、线缆损坏，或 SPI 引脚错误。'
   The {1} motor lost steps: '{1} 电机丢步'
@@ -5310,6 +5327,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : '此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行这一行时拍摄，而你的切片软件没有添加它：
+
+    TIMELAPSE_TAKE_FRAME
+
+    超延时则按固定时间间隔拍摄。'
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'
   The filament took too long to reach the feeder's sensor.: '耗材到达送料器传感器用时过长。'
   The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"
@@ -5346,7 +5369,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: '此打印机没有视频播放器。用手机扫描二维码观看延时摄影。'
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
@@ -5374,6 +5396,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"
   This resume needs a newer version of HelixScreen.: 此恢复需要更新版本的 HelixScreen。
   This screen: '此屏幕'
+  This screen can't play videos: '此屏幕无法播放视频'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: '此屏幕无法播放视频。用手机扫描二维码观看延时摄影。'
   This slot feeds no tool: '此槽位不向任何工具供料'
   This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'
@@ -5383,6 +5407,7 @@ translations:
   'This update asks for new permissions:': '此更新请求新的权限：'
   This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
   This upgrades the printer's operating system packages.: '这将升级打印机的操作系统软件包。'
+  This video could not be played: '无法播放此视频'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : 这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。
@@ -5691,6 +5716,7 @@ translations:
   Use Another Toolhead: '使用另一个工具头'
   Use DHCP: '使用 DHCP'
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽
+  Use Hyperlapse: '使用超延时'
   Use New Address: '使用新地址'
   Use Unload before Eject: '请先使用“卸载”，再使用“弹出”'
   Use as bypass: "用作旁路"
@@ -5730,8 +5756,6 @@ translations:
   Vibration: 振动
   Vibration compensation active: 振动补偿已启用
   Video playback speed: 视频播放速度
-  Video player failed to start: '视频播放器启动失败'
-  Video player failed to start ({}): '视频播放器启动失败（{}）'
   View: 查看
   View Changelog: 查看更新日志
   View Full History: 查看完整历史
@@ -5991,6 +6015,7 @@ translations:
   attempt {}: '第 {} 次尝试'
   auto: 自动
   automatic: '自动'
+  automatic refill: '自动补料'
   bed: 热床
   bed further below: "热床在更下方"
   'bed: distance unknown': "热床：距离未知"
