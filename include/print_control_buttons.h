@@ -240,6 +240,9 @@ class PrintControlButtons {
     /// waits on them.
     ObserverGuard preparing_start_observer_;
     ObserverGuard preparing_epoch_observer_;
+    /// The primary label is translated when it is set, so a language switch
+    /// sets it again.
+    ObserverGuard language_observer_;
     PrintCancelModal cancel_modal_;
 
     friend struct PrintControlButtonsTestAccess;

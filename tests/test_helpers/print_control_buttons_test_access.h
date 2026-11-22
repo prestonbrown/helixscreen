@@ -15,6 +15,7 @@ struct PrintControlButtonsTestAccess {
         s.print_state_observer_.reset();
         s.preparing_start_observer_.reset();
         s.preparing_epoch_observer_.reset();
+        s.language_observer_.reset();
         if (s.pending_action_timeout_) {
             lv_timer_delete(s.pending_action_timeout_);
             s.pending_action_timeout_ = nullptr;
