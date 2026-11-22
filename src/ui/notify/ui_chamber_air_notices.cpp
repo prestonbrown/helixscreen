@@ -15,6 +15,7 @@
 #include "exception_policy.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "printer_state.h"
+#include "runtime_config.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -132,7 +133,8 @@ void handle(bool present, bool at_startup) {
     if (!copy) {
         return;
     }
-    const bool shown = first_fit_shown();
+    const bool shown =
+        first_fit_shown() || !get_runtime_config()->should_show_chamber_air_first_fit();
     const bool printing = print_active();
     switch (decide_chamber_air_notice(present, at_startup, shown, printing)) {
     case ChamberAirNotice::FirstFit:

@@ -18,7 +18,7 @@
          height is its content over a minimum. -->
     <style name="manage_full" min_height="#button_height" pad_left="#space_md" pad_right="#space_md"/>
     <style name="manage_compact"
-           min_height="#button_height_sm" min_width="#touch_target_min" pad_left="#space_sm" pad_right="#space_sm"/>
+           min_height="#touch_target_min" min_width="#touch_target_min" pad_left="#space_sm" pad_right="#space_sm"/>
   </styles>
   <view name="spool_card"
         extends="ui_card" width="100%" height="0" flex_grow="1" style_radius="#border_radius" style_pad_all="#space_sm"

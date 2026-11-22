@@ -5991,6 +5991,7 @@
   <translation tag="mm" de="mm" en="mm" es="mm" fr="mm" it="mm" ja="mm" pt="mm" ru="мм" zh="mm"/>
   <translation tag="mm Z-offset" de="mm Z-Offset" en="mm Z-offset" es="mm Z-Offset" fr="mm Z-Offset" it="mm Z-Offset" ja="mm Z-Offset" pt="mm Z-Offset" ru="мм Z-смещение" zh="mm Z 偏移"/>
   <translation tag="mm before clog" de="mm vor Verstopfung" en="mm before clog" es="mm antes de obstrucción" fr="mm avant bouchon" it="mm prima dell&apos;intasamento" ja="詰まりまでの距離 (mm)" pt="mm antes da obstrução" ru="мм до засора" zh="毫米后堵料"/>
+  <translation tag="mm:" de="mm:" en="mm:" es="mm:" fr="mm :" it="mm:" ja="mm:" pt="mm:" ru="мм:" zh="mm:"/>
   <translation tag="needs" de="benötigt" en="needs" es="necesita" fr="nécessite" it="richiede" ja="必要" pt="precisa" ru="требуется" zh="需要"/>
   <translation tag="needs approval" de="Genehmigung erforderlich" en="needs approval" es="requiere aprobación" fr="approbation requise" it="richiede approvazione" ja="承認が必要" pt="requer aprovação" ru="требует подтверждения" zh="需要批准"/>
   <translation tag="needs you" de="braucht dich" en="needs you" es="te necesita" fr="a besoin de vous" it="richiede te" ja="操作が必要" pt="precisa de você" ru="нужны вы" zh="需要您参与"/>

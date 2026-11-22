@@ -1903,6 +1903,14 @@ Force the K2 spaghetti-detection source's capability probe, so the Settings > Sa
 HELIX_MOCK_DETECTION_CAPABLE=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_CHAMBER_AIR_NOTICE`
+
+Show a chamber air accessory's first-fit notice in a `--test` run. A mock run starts from an empty config and a mock such as the Snapmaker U1 reports its top module fitted, so every run would open the "detected" and "Recalibrate input shaping?" dialogs over whatever a screenshot or ctl script drives; test mode therefore counts the notice as already shown unless this is set to a truthy value. Real printers are unaffected (`RuntimeConfig::should_show_chamber_air_first_fit()`, `src/ui/notify/ui_chamber_air_notices.cpp`).
+
+```bash
+HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_CHAMBER_AIR_NOTICE=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_CHAMBER_TARGET`
 
 Start the mock's chamber heater at this target, in whole degrees C, as if it had been set
