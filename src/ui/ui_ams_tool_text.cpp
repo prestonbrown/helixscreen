@@ -31,7 +31,8 @@ static void update_tool_badge(helix::ToolState* ts) {
         // is a bold subscript digit beside the nozzle glyph; digit-only is the
         // display convention everywhere (the "T" spelling is the 0-based
         // G-code form, see include/display_numbering.h).
-        const std::string label = helix::ui::lane_number_text(tool->index);
+        const std::string label =
+            helix::ui::lane_number_text(ts->head_identity_for_tool(tool->index).index);
         lv_subject_copy_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);
     } else {

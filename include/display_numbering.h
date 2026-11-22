@@ -106,13 +106,21 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
 std::string tool_label_in_form(LaneNoun noun, std::string_view name, int index, ToolLabelForm form);
 
 /**
+ * @brief A head with no tool of its own, by its extruder: "E5", in the
+ *        display numbering (lane_number()), as the filament path names it.
+ * @return empty when @p index is negative
+ */
+std::string extruder_label(int index);
+
+/**
  * @brief tool_name_label(), tool_label_in_form() and tool_number_or_name() for
  *        a head (helix::head_identity()).
  *
  * A head with a name is labeled as the tool of that name would be. A head
- * without one has no G-code name, since none selects it, so every form spells
- * its number: the name label and Full give lane_label() ("Tool 2"), and Code
- * and the number give lane_number_text() ("2").
+ * without one has no G-code name, since none selects it, so its short identity
+ * is extruder_label() ("E6"), never a T number: Code is that, Full is
+ * "Tool 6 (E6)" as "Tool 1 (T0)" reads, the name label "Tool 6" and the number
+ * "6".
  *
  * @return empty when the head's index is negative
  */

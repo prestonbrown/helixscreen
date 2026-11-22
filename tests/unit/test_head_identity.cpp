@@ -102,15 +102,15 @@ TEST_CASE("A hub-fed head with no name of its own goes by its number, its lane b
     CHECK(second.lane_code == "T3");
     // No G-code name selects the head: T1 would load lane T1, so no form
     // spells one.
-    CHECK(label(second, ToolLabelForm::Code) == "2");
-    CHECK(label(second, ToolLabelForm::Full) == "Tool 2");
+    CHECK(label(second, ToolLabelForm::Code) == "E2");
+    CHECK(label(second, ToolLabelForm::Full) == "Tool 2 (E2)");
     CHECK(helix::ui::head_name_label(LaneNoun::Tool, second) == "Tool 2");
     CHECK(helix::ui::head_number_or_name(second) == "2");
 
     // A head fed by one lane is still a head of lanes: the third head is not "T4".
     const HeadIdentity third = helix::head_identity(tools, heads, 2, 3, true);
     CHECK(third.lane_code == "T4");
-    CHECK(label(third, ToolLabelForm::Code) == "3");
+    CHECK(label(third, ToolLabelForm::Code) == "E3");
 }
 
 TEST_CASE("A hub-fed head behind a changer tool is named by that tool, its lane beside it",
@@ -139,8 +139,8 @@ TEST_CASE("A single head fed by lanes is head 1 whichever lane it holds", "[head
     CHECK(head.name.empty());
     CHECK(head.index == 0);
     CHECK(head.lane_code == "T2");
-    CHECK(label(head, ToolLabelForm::Full) == "Tool 1");
-    CHECK(label(head, ToolLabelForm::Code) == "1");
+    CHECK(label(head, ToolLabelForm::Full) == "Tool 1 (E1)");
+    CHECK(label(head, ToolLabelForm::Code) == "E1");
 
     CHECK(helix::head_identity(tools, heads, 1, 2, true).index == -1);
 }
@@ -200,14 +200,14 @@ TEST_CASE_METHOD(ToolStateFixture,
     const auto& model = helix::ui::ToolHeadsModel::instance();
     REQUIRE(model.head_count() == 7);
     REQUIRE(ts.tools()[9].head_name.empty());
-    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "6");
+    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "E6");
     CHECK(model.picker_lines(5, ToolLabelForm::Code).second == "T9");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).first == "Tool 6");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).second == "T9");
     CHECK(model.row_label(5, true) == "Tool 6");
     CHECK(model.row_label(5, false) == "6");
     // A head of one lane on the same printer is numbered as a head too.
-    CHECK(model.picker_lines(1, ToolLabelForm::Code).first == "2");
+    CHECK(model.picker_lines(1, ToolLabelForm::Code).first == "E2");
     CHECK(model.picker_lines(1, ToolLabelForm::Code).second == "T1");
 }
 
@@ -317,22 +317,31 @@ TEST_CASE_METHOD(ToolStateFixture,
     // would name another head: it goes by its place on the machine alone.
     const HeadIdentity sixth = ts.head_identity(heads[5]);
     CHECK(sixth.name.empty());
-    CHECK(label(sixth, ToolLabelForm::Code) == "6");
-    CHECK(label(sixth, ToolLabelForm::Full) == "Tool 6");
+    CHECK(label(sixth, ToolLabelForm::Code) == "E6");
+    CHECK(label(sixth, ToolLabelForm::Full) == "Tool 6 (E6)");
 
     const auto& model = helix::ui::ToolHeadsModel::instance();
     CHECK(model.picker_lines(2, ToolLabelForm::Code).first == "T2");
     CHECK(model.picker_lines(2, ToolLabelForm::Code).second == "T0");
-    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "6");
+    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "E6");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).first == "Tool 6");
     CHECK(model.mounted_head() == 2);
+
+    // Every other surface naming the mounted nozzle or a head by its
+    // extruder names the head: lane T0 is mounted, on Tool 3 (T2).
+    CHECK(ts.nozzle_label() == "Nozzle 3");
+    CHECK(ts.display_label_for_extruder("extruder2") == "Tool 3");
+    CHECK(ts.display_label_for_extruder("extruder5") == "Tool 6");
+    CHECK(ts.tool_name_for_extruder("extruder2") == "T2");
+    CHECK(ts.tool_name_for_extruder("extruder5").empty());
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
                  "One lane per head still names each head by the head when tool numbers name lanes",
                  "[head-identity][tool-state][ams-topology][physical-heads]") {
-    // Four lanes on four changer heads, lane T2 mapped to the head on
-    // extruder3 and T3 to extruder2: T2 loads the extruder3 head.
+    // Four lanes on four changer heads (tool objects T0..T3, so every head has
+    // a T code of its own), lane T2 mapped to the head on extruder3 and T3 to
+    // extruder2: T2 loads the extruder3 head.
     auto& ts = ToolState::instance();
     ts.init_tools(helix::test::make_head_discovery(4));
     helix::ToolTopology topo = helix::test::make_head_topology(4, 2);
@@ -367,5 +376,39 @@ TEST_CASE_METHOD(ToolStateFixture,
         CHECK(third.name == "T2");
         CHECK(third.index == 2);
         CHECK(third.lane_code.empty());
+    }
+}
+
+TEST_CASE("Every head label in each numbering, with and without a changer tool",
+          "[head-identity]") {
+    struct Row {
+        bool from_zero;
+        bool named;
+        const char* code;
+        const char* full;
+        const char* name;
+        const char* number;
+    };
+    // The second head: changer tool T1, or no tool of its own on extruder1.
+    // A head without a T code is E<n> in the screen's numbering, never T<n>.
+    const Row rows[] = {
+        {false, true, "T1", "Tool 2 (T1)", "Tool 2", "2"},
+        {true, true, "T1", "Tool 1", "Tool 1", "1"},
+        {false, false, "E2", "Tool 2 (E2)", "Tool 2", "2"},
+        {true, false, "E1", "Tool 1 (E1)", "Tool 1", "1"},
+    };
+    struct NumberingReset {
+        ~NumberingReset() {
+            helix::ui::set_lane_numbering_from_zero(false);
+        }
+    } reset;
+    for (const Row& r : rows) {
+        CAPTURE(r.from_zero, r.named);
+        helix::ui::set_lane_numbering_from_zero(r.from_zero);
+        const HeadIdentity head{r.named ? "T1" : "", 1, "T7"};
+        CHECK(label(head, ToolLabelForm::Code) == r.code);
+        CHECK(label(head, ToolLabelForm::Full) == r.full);
+        CHECK(helix::ui::head_name_label(LaneNoun::Tool, head) == r.name);
+        CHECK(helix::ui::head_number_or_name(head) == r.number);
     }
 }

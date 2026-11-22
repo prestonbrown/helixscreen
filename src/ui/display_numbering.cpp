@@ -88,11 +88,20 @@ std::string head_name_label(LaneNoun noun, const HeadIdentity& head) {
     return tool_name_label(noun, head.name, head.index);
 }
 
+std::string extruder_label(int index) {
+    const int n = lane_number(index);
+    return n < 0 ? std::string() : "E" + std::to_string(n);
+}
+
 std::string head_label_in_form(LaneNoun noun, const HeadIdentity& head, ToolLabelForm form) {
-    if (head.name.empty())
-        return form == ToolLabelForm::Code ? lane_number_text(head.index)
-                                           : lane_label(noun, head.index);
-    return tool_label_in_form(noun, head.name, head.index, form);
+    if (!head.name.empty())
+        return tool_label_in_form(noun, head.name, head.index, form);
+    const std::string code = extruder_label(head.index);
+    if (form == ToolLabelForm::Code || code.empty())
+        return code;
+    // Never shortened to the label alone, as a counted-from-zero "Tool 0 (T0)"
+    // is: "Tool 5" there reads as T5, which on a lane rig loads some lane.
+    return fmt::format(lv_tr("{} ({})"), lane_label(noun, head.index), code);
 }
 
 std::string head_number_or_name(const HeadIdentity& head) {

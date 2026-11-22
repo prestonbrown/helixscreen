@@ -560,7 +560,8 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         // One heater, several nozzles: the row is the mounted nozzle, named
         // exactly as every other nozzle readout names it.
         long_name = tool_state.nozzle_label();
-    } else if (helix::ui::is_generated_tool_name(gcode_name)) {
+    } else if (helix::ui::is_generated_tool_name(gcode_name) ||
+               (gcode_name.empty() && tool_state.tools_are_lanes())) {
         const auto& exts = printer_state_.temperature_state().extruders();
         auto it = exts.find(row.name);
         if (it != exts.end() && !it->second.display_name.empty())
