@@ -411,7 +411,8 @@ TEST_CASE_METHOD(XMLTestFixture, "step progress: a vertical row puts its label b
     CHECK(r1.y1 - r0.y2 - 1 == theme_manager_get_spacing("step_row_gap"));
 }
 
-TEST_CASE_METHOD(XMLTestFixture, "calibration run row: an unnumbered dot in all four states",
+TEST_CASE_METHOD(XMLTestFixture,
+                 "calibration run row: an unnumbered dot in all four states, no row highlight",
                  "[ui][step][step_state][calibration_run]") {
     // Static: the XML registry keeps the pointers after the test.
     static helix::Subject in_run;
@@ -462,6 +463,8 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration run row: an unnumbered dot in all 
             CAPTURE(glyph);
             CHECK(shown(part(row, glyph)) == (std::string(glyph) == look.glyph));
         }
+        // The running dot marks the current step; the row itself stays unpainted.
+        CHECK(lv_obj_get_style_bg_opa(row, LV_PART_MAIN) == LV_OPA_TRANSP);
         CHECK(lv_obj_get_style_text_font(name, LV_PART_MAIN) ==
               theme_manager_get_font(look.state == 1 ? "cal_font_name_bold" : "cal_font_name"));
     }

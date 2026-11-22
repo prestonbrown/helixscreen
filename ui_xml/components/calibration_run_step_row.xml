@@ -5,7 +5,6 @@
      step row, unnumbered, with no connector. Its dot is an empty ring while
      waiting, blue with a dot while running, green with a check once done and
      amber with a cross when it did not finish; its name and one line under it.
-     The running row is washed in primary.
      CalibrationRunOverlay publishes, per step id:
        cal_run_in_run_<step>  1 when the step is part of this run
        cal_run_state_<step>   0 waiting, 1 running, 2 finished, 3 did not finish
@@ -16,17 +15,13 @@
     <prop name="label" type="string" default=""/>
     <prop name="label_tag" type="string" default=""/>
   </api>
-  <consts>
-    <px name="row_radius" value="8"/>
-  </consts>
   <view extends="step_progress_step_v"
         state_subject="cal_run_state_${step}" label="$label" label_tag="$label_tag"
         detail_subject="cal_run_detail_${step}" label_font="#cal_font_name" label_font_active="#cal_font_name_bold"
         label_color="#text_muted" label_pending_opa="204" detail_font="#cal_font_detail" dot_size="#cal_box"
         glyph_font="#icon_font_xs" done_icon="check_bold" pending_fill_opa="0" pending_border="#elevated_bg"
         style_min_height="#cal_button_h" style_pad_left="#space_md" style_pad_right="#space_md"
-        style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_gap="#space_lg" style_radius="#row_radius"
-        style_bg_color-user_1="#primary" style_bg_opa-user_1="38">
+        style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_gap="#space_lg">
     <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
   </view>
 </component>
