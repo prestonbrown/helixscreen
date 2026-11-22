@@ -22,6 +22,6 @@
     <style name="warm" selector="checked"/>
     <text_small name="badge_text"
                 text="$text" bind_text="$bind" style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"
-                style_text_color-checked="#warning" clickable="false"/>
+                style_text_color-checked="#warning" checked="$warm" clickable="false"/>
   </view>
 </component>

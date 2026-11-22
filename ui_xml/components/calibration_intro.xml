@@ -48,9 +48,7 @@
               scrollable="false">
         <bind_style_if_eq name="left_fixed" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="left_full" subject="ui_is_portrait" ref_value="1"/>
-        <text_small name="cal_intro_left_label"
-                    text="$left_label" text_transform="uppercase" style_text_font="#cal_intro_font_label"
-                    style_text_letter_space="1" style_text_color="#text_muted"/>
+        <cal_intro_section_label name="cal_intro_left_label" text="$left_label"/>
         <lv_obj name="cal_intro_now"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="column" scrollable="false"/>
@@ -60,9 +58,7 @@
               scrollable="false">
         <bind_style_if_eq name="right_grow" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="right_full" subject="ui_is_portrait" ref_value="1"/>
-        <text_small name="cal_intro_right_label"
-                    text="$right_label" text_transform="uppercase" style_text_font="#cal_intro_font_label"
-                    style_text_letter_space="1" style_text_color="#text_muted"/>
+        <cal_intro_section_label name="cal_intro_right_label" text="$right_label"/>
         <lv_obj name="cal_intro_settings"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="column" scrollable="false"/>
@@ -75,22 +71,8 @@
                 style_bg_opa="0" style_border_width="0" flex_flow="row_wrap" scrollable="false" clickable="false"/>
       </lv_obj>
     </lv_obj>
-    <lv_obj name="cal_intro_footer"
-            width="100%" height="content" style_pad_top="#space_sm" style_pad_bottom="#space_md"
-            style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_gap="#space_lg" style_bg_opa="0"
-            style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false">
-      <lv_obj name="cal_intro_footer_left"
-              width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
-              scrollable="false" clickable="false"/>
-      <lv_obj name="cal_intro_footer_note"
-              width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-              flex_flow="row" style_flex_main_place="center" scrollable="false" clickable="false"/>
-      <ui_button name="cal_intro_primary"
-                 width="#cal_intro_primary_w" height="#cal_intro_btn_h" variant="primary" text="$primary_text"
-                 style_min_width="content" style_text_font="#cal_intro_font_primary">
-        <bind_state_if cond="$disabled_cond" state="disabled"/>
-        <event_cb trigger="clicked" callback="$primary_callback"/>
-      </ui_button>
-    </lv_obj>
+    <calibration_intro_footer name="cal_intro_footer"
+                              primary_text="$primary_text" primary_callback="$primary_callback"
+                              disabled_cond="$disabled_cond"/>
   </view>
 </component>
