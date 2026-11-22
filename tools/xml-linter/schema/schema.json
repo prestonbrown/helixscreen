@@ -1975,6 +1975,14 @@
       "attributes": {},
       "inherits": "lv_obj"
     },
+    "heater_response_sketch": {
+      "attributes": {
+        "method": {
+          "type": "string"
+        }
+      },
+      "inherits": "lv_obj"
+    },
     "helix_sparkline": {
       "attributes": {
         "source": {
@@ -3081,6 +3089,7 @@
     "z_offset_indicator",
     "belt_gap_gauge",
     "belt_path_sketch",
+    "heater_response_sketch",
     "helix_sparkline",
     "leader_line",
     "plate_glow",

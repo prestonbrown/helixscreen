@@ -94,6 +94,14 @@ std::vector<std::string> first_listed(const json& objects) {
 
 } // namespace
 
+std::string MoonrakerClientMock::kalico_extruder_control() const {
+    if (!extruder_control_.empty()) {
+        return extruder_control_;
+    }
+    const char* env = std::getenv("HELIX_MOCK_KALICO_CONTROL");
+    return (env && *env) ? std::string(env) : std::string("mpc");
+}
+
 bool MoonrakerClientMock::is_stepper_z_endstop_null() const {
     return stepper_z_endstop_null_.value_or(mock_internal::mock_probe_type(printer_type_) !=
                                             "none");

@@ -411,6 +411,7 @@ translations:
   Already connecting — wait a moment and try again: Already connecting — wait a moment and try again
   Already mounted: Already mounted
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: Also keep this mesh for {}. Its prints that do not mesh load it at the start.
+  Also measure part-fan cooling: Also measure part-fan cooling
   Always Show Bypass Spool: Always Show Bypass Spool
   Always show Android navigation bar instead of using gestures: Always show Android navigation bar instead of using gestures
   Ambient Transfer: Ambient Transfer
@@ -728,9 +729,12 @@ translations:
   Calibrate X: Calibrate X
   Calibrate Y: Calibrate Y
   Calibrate All Tools: Calibrate All Tools
+  Calibrate at: Calibrate at
+  Calibrate bed: Calibrate bed
   Calibrate heater: Calibrate heater
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping to reduce ringing artifacts in prints
   Calibrate now: Calibrate now
+  Calibrate nozzle: Calibrate nozzle
   Calibrate part fan: Calibrate part fan
   Calibrate this printer, step by step: Calibrate this printer, step by step
   Calibrate tool offsets?: Calibrate tool offsets?
@@ -764,6 +768,7 @@ translations:
   Calibration may still be running — response timed out: Calibration may still be running — response timed out
   Calibration move may still be running — printer connection was interrupted: Calibration move may still be running — printer connection was interrupted
   Calibration request not valid: Calibration request not valid
+  Calibration runs at {}, about {} min: Calibration runs at {}, about {} min
   Calibration saved: Calibration saved
   Calibration saved but cannot apply on SDL display: Calibration saved but cannot apply on SDL display
   Calibration succeeded, but the frequency chart data couldn't be read.: Calibration succeeded, but the frequency chart data couldn't be read.
@@ -859,6 +864,7 @@ translations:
   Change tool: Change tool
   Changes apply immediately. Adjust during print for tuning.: Changes apply immediately. Adjust during print for tuning.
   Changes are temporary and reset on printer reboot: Changes are temporary and reset on printer reboot
+  Changes printer.cfg and restarts Klipper first: Changes printer.cfg and restarts Klipper first
   Changing filament: Changing filament
   Check AFC configuration: Check AFC configuration
   Check Again: Check Again
@@ -1858,6 +1864,7 @@ translations:
   Fan available but not assigned to any role: Fan available but not assigned to any role
   Fan control: Fan control
   'Fan control failed: {}': 'Fan control failed: {}'
+  Fan points: Fan points
   Fan {} is not spinning: Fan {} is not spinning
   Fan {} stopped: Fan {} stopped
   FanSelect: FanSelect
@@ -2175,6 +2182,8 @@ translations:
   Heater not heating as expected: Heater not heating as expected
   Heater offline: Heater offline
   Heater over-temperature: 'Heater over-temperature'
+  Heater power: Heater power
+  Heater power needed: Heater power needed
   Heater sensor fault: 'Heater sensor fault'
   Heater {1} is not heating as expected: Heater {1} is not heating as expected
   HeaterSelect: HeaterSelect
@@ -2247,6 +2256,7 @@ translations:
   Hold slicer prints that do not fit: Hold slicer prints that do not fit
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.
   Holding nozzle at {} to purge previous filament.: Holding nozzle at {} to purge previous filament.
+  Holds temperature better when the fan changes · +3 min: Holds temperature better when the fan changes · +3 min
   Home: Home
   Home & Continue: Home & Continue
   Home All: Home All
@@ -2490,6 +2500,7 @@ translations:
   Keep: Keep
   Keep %s?: Keep %s?
   Keep Navigation Bar: Keep Navigation Bar
+  Keep PID: Keep PID
   Keep Printing: Keep Printing
   Keep Spool Info on Eject: Keep Spool Info on Eject
   Keep clear of the printer while the toolhead is moving: Keep clear of the printer while the toolhead is moving
@@ -2542,6 +2553,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: Klipper reserves 'default' for new calibrations. Choose another name.
   Klipper restarting - macros activating: Klipper restarting - macros activating
   Klipper restarts before calibrating.: Klipper restarts before calibrating.
+  Klipper restarts, about 20 s: Klipper restarts, about 20 s
   Klipper shut down: Klipper shut down
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
@@ -2591,6 +2603,7 @@ translations:
   Last measured: Last measured
   Last print canceled: Last print canceled
   Last print failed: Last print failed
+  Last tuned {}: Last tuned {}
   Later: Later
   Layer: Layer
   Layer 2: Layer 2
@@ -3320,6 +3333,8 @@ translations:
   PC: PC
   PETG: PETG
   PID: PID
+  ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
+  : 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
   PIN must be 4-6 digits: PIN must be 4-6 digits
   PIN removed: PIN removed
   PIN set: PIN set
@@ -3357,6 +3372,7 @@ translations:
   Part: Part
   Part Cooling Fan: Part Cooling Fan
   Part Fan: Part Fan
+  Part fan: Part fan
   Part of the plugin failed to load. Reinstall the plugin.: Part of the plugin failed to load. Reinstall the plugin.
   Part of the plugin is missing. Reinstall the plugin.: Part of the plugin is missing. Reinstall the plugin.
   Part, hotend, and auxiliary fan speeds: Part, hotend, and auxiliary fan speeds
@@ -4093,6 +4109,7 @@ translations:
   Safety & Alerts: Safety & Alerts
   Same Filament, New Spool: Same Filament, New Spool
   Same filament: Same filament
+  Same part-fan change, both methods: Same part-fan change, both methods
   Same spool in {}? Tap Clear if it is a new one.: Same spool in {}? Tap Clear if it is a new one.
   Sample: Sample
   Sample %d/%d: Sample %d/%d
@@ -4525,6 +4542,8 @@ translations:
   Static: Static
   Status: Status
   Status icons: Status icons
+  Stays on MPC: Stays on MPC
+  Stays on PID: Stays on PID
   Std Deviation: Std Deviation
   Stealth: Stealth
   Stealth is quiet, Sport is fastest: Stealth is quiet, Sport is fastest
@@ -4584,10 +4603,12 @@ translations:
   Switch Printer: Switch Printer
   Switch a power device on or off: Switch a power device on or off
   Switch Sensors: Switch Sensors
+  Switch and calibrate: Switch and calibrate
   Switch back to the Snapmaker screen: Switch back to the Snapmaker screen
   Switch between light and dark themes: Switch between light and dark themes
   Switch spools at each tool change: Switch spools at each tool change
   Switch the active tool or extruder: Switch the active tool or extruder
+  Switch the nozzle to MPC?: Switch the nozzle to MPC?
   Switch to a backup slot on runout: Switch to a backup slot on runout
   Switch to a matching slot on runout: Switch to a matching slot on runout
   Switch to a matching spool when one runs out: Switch to a matching spool when one runs out
@@ -5299,6 +5320,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   To use the lanes, pull the filament out of the toolhead by hand.: To use the lanes, pull the filament out of the toolhead by hand.
+  'Today: {} · last tuned {}': 'Today: {} · last tuned {}'
   Toggle: Toggle
   Toggle (fire-and-forget): Toggle (fire-and-forget)
   Toggle AFC LED strip: Toggle AFC LED strip
@@ -5643,6 +5665,7 @@ translations:
   Watch on Your Phone: Watch on Your Phone
   Watch the camera during a print for failed prints: Watch the camera during a print for failed prints
   Watch which motor turns: Watch which motor turns
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.
   Weak battery: Weak battery
   Webcam: Webcam
   Website (optional): Website (optional)
@@ -5702,6 +5725,8 @@ translations:
   Width Sensors: Width Sensors
   Wifi: Wifi
   Will not switch spools on runout: Will not switch spools on runout
+  Will switch to MPC (more stable): Will switch to MPC (more stable)
+  Will switch to PID: Will switch to PID
   Wipe each rail or rod clean with a lint-free cloth.: Wipe each rail or rod clean with a lint-free cloth.
   Wipe nozzle on silicone cleaning strip: Wipe nozzle on silicone cleaning strip
   With exhaust cooling on, the recirculation fan cannot be turned on: With exhaust cooling on, the recirculation fan cannot be turned on
@@ -5747,6 +5772,7 @@ translations:
   You have unsaved changes. Discard them?: You have unsaved changes. Discard them?
   You, about {} min: You, about {} min
   'You: about {} min at the start, then it runs on its own': 'You: about {} min at the start, then it runs on its own'
+  Your PID values are kept. You can switch back here any time.: Your PID values are kept. You can switch back here any time.
   Your completed prints will appear here: Your completed prints will appear here
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
@@ -5816,6 +5842,7 @@ translations:
   a temporary mesh profile '{}': a temporary mesh profile '{}'
   about {} min: about {} min
   already loaded: already loaded
+  and the heater power: and the heater power
   assign without adding to Spoolman: assign without adding to Spoolman
   attempt {}: attempt {}
   auto: auto
@@ -5830,6 +5857,7 @@ translations:
   'close: {}': 'close: {}'
   color differs: color differs
   complete: complete
+  'control: mpc': 'control: mpc'
   cores: cores
   cycle {}: cycle {}
   cycle {}, {:.2f} (needs {:.2f}): cycle {}, {:.2f} (needs {:.2f})
@@ -5861,8 +5889,10 @@ translations:
   feeder not in automatic mode: feeder not in automatic mode
   filament sensor disabled: filament sensor disabled
   from tag: from tag
+  gets: gets
   heated bed: heated bed
   heats: heats
+  heats to {}: heats to {}
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignored: owned by uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignored: untrusted symlink chain'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignored: writable by other users'
@@ -5884,12 +5914,14 @@ translations:
   loud: loud
   matched: matched
   material differs: material differs
+  'method: {}': 'method: {}'
   mm: mm
   mm Z-offset: mm Z-offset
   mm before clog: mm before clog
   needs: needs
   needs approval: needs approval
   needs you: needs you
+  never: never
   never sleeps: never sleeps
   not detected: not detected
   not loaded: not loaded
@@ -5903,6 +5935,7 @@ translations:
   passive: passive
   preparing: preparing
   printer default: printer default
+  printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: printer.cfg loads more than {} config files; [{}] was not searched for in all of them
   prints: prints
   ready to load: ready to load

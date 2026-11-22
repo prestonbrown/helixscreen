@@ -21,6 +21,7 @@
 #include "ui_fault_path.h"
 #include "ui_fonts.h"
 #include "ui_gcode_viewer.h"
+#include "ui_heater_response_sketch.h"
 #include "ui_icon_codepoints.h"
 #include "ui_leader_line.h"
 #include "ui_lock_screen.h"
@@ -417,6 +418,10 @@ void register_xml_components() {
     helix::ui::register_belt_gap_gauge_widget();
 #endif
     helix::ui::register_cold_pull_tip_sketch_widget(); // before the cold pull overlay XML
+#if !defined(HELIX_PLATFORM_ESP32)
+    // Heater calibration is not in the ESP32 cut, and a reference here would link it.
+    helix::ui::register_heater_response_sketch_widget(); // before the heater calibration XML
+#endif
 
     register_settings_panel_callbacks(); // Register callbacks before XML parse [L013]
 

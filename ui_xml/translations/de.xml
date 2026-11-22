@@ -386,6 +386,7 @@
   <translation tag="Already connecting — wait a moment and try again" de="Verbindung wird bereits hergestellt — bitte einen Moment warten und erneut versuchen"/>
   <translation tag="Already mounted" de="Bereits montiert"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." de="Dieses Netz auch für {} behalten? Dessen Drucke ohne eigenes Netz laden es beim Start."/>
+  <translation tag="Also measure part-fan cooling"/>
   <translation tag="Always Show Bypass Spool" de="Bypass-Spule immer anzeigen"/>
   <translation tag="Always show Android navigation bar instead of using gestures" de="Android-Navigationsleiste immer anzeigen statt Gesten zu nutzen"/>
   <translation tag="Ambient Transfer" de="Umgebungswärmeübertragung"/>
@@ -698,9 +699,12 @@
   <translation tag="Calibrate Toolhead Offsets" de="Werkzeugkopf-Offsets kalibrieren"/>
   <translation tag="Calibrate X" de="X kalibrieren"/>
   <translation tag="Calibrate Y" de="Y kalibrieren"/>
+  <translation tag="Calibrate at"/>
+  <translation tag="Calibrate bed"/>
   <translation tag="Calibrate heater" de="Heizung kalibrieren"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" de="Input Shaping kalibrieren, um Ringing-Artefakte im Druck zu reduzieren"/>
   <translation tag="Calibrate now" de="Jetzt kalibrieren"/>
+  <translation tag="Calibrate nozzle"/>
   <translation tag="Calibrate part fan" de="Bauteillüfter kalibrieren"/>
   <translation tag="Calibrate this printer, step by step" de="Diesen Drucker Schritt für Schritt kalibrieren"/>
   <translation tag="Calibrate tool offsets?" de="Werkzeug-Offsets kalibrieren?"/>
@@ -735,6 +739,7 @@
   <translation tag="Calibration may still be running — response timed out" de="Kalibrierung läuft möglicherweise noch — Zeitüberschreitung der Antwort"/>
   <translation tag="Calibration move may still be running — printer connection was interrupted" de="Kalibrierungsbewegung läuft möglicherweise noch — Druckerverbindung wurde unterbrochen"/>
   <translation tag="Calibration request not valid" de="Kalibrierungsanfrage ungültig"/>
+  <translation tag="Calibration runs at {}, about {} min"/>
   <translation tag="Calibration saved" de="Kalibrierung gespeichert"/>
   <translation tag="Calibration saved but cannot apply on SDL display" de="Kalibrierung gespeichert, kann aber auf SDL-Display nicht angewendet werden"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." de="Kalibrierung erfolgreich, aber die Frequenzdiagramm-Daten konnten nicht gelesen werden."/>
@@ -829,6 +834,7 @@
   <translation tag="Change tool" de="Werkzeug wechseln"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." de="Änderungen werden sofort angewendet. Während des Drucks zur Feinabstimmung anpassen."/>
   <translation tag="Changes are temporary and reset on printer reboot" de="Änderungen sind temporär und werden beim Neustart des Druckers zurückgesetzt"/>
+  <translation tag="Changes printer.cfg and restarts Klipper first"/>
   <translation tag="Changing filament" de="Filament wird gewechselt"/>
   <translation tag="Check AFC configuration" de="Prüfen Sie die AFC-Konfiguration"/>
   <translation tag="Check Again" de="Erneut prüfen"/>
@@ -1776,6 +1782,7 @@
   <translation tag="Fan available but not assigned to any role" de="Lüfter verfügbar, aber keiner Rolle zugewiesen"/>
   <translation tag="Fan control" de="Lüftersteuerung"/>
   <translation tag="Fan control failed: {}" de="Lüftersteuerung fehlgeschlagen: {}"/>
+  <translation tag="Fan points"/>
   <translation tag="Fan {} is not spinning" de="Lüfter {} dreht sich nicht"/>
   <translation tag="Fan {} stopped" de="Lüfter {} ist stehen geblieben"/>
   <translation tag="FanSelect" de="Lüfter auswählen"/>
@@ -2090,6 +2097,8 @@
   <translation tag="Heater not heating as expected" de="Heizung heizt nicht wie erwartet"/>
   <translation tag="Heater offline" de="Heizung getrennt"/>
   <translation tag="Heater over-temperature" de="Heizung überhitzt"/>
+  <translation tag="Heater power"/>
+  <translation tag="Heater power needed"/>
   <translation tag="Heater sensor fault" de="Heizungssensor-Fehler"/>
   <translation tag="Heater {1} is not heating as expected" de="Heizung {1} heizt nicht wie erwartet"/>
   <translation tag="HeaterSelect" de="Heizung auswählen"/>
@@ -2161,6 +2170,7 @@
   <translation tag="Hold slicer prints that do not fit" de="Slicer-Drucke zurückhalten, die nicht passen"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." de="Halten Sie {} vollständig an den Werkzeugkopf. Die Verriegelung rastet ein und es wird zum montierten Werkzeug."/>
   <translation tag="Holding nozzle at {} to purge previous filament." de="Düse wird bei {} gehalten, um vorheriges Filament auszuspülen."/>
+  <translation tag="Holds temperature better when the fan changes · +3 min"/>
   <translation tag="Home" de="Home"/>
   <translation tag="Home &amp; Continue" de="Referenzieren &amp; Fortfahren"/>
   <translation tag="Home All" de="Alle referenzieren"/>
@@ -2401,6 +2411,7 @@
   <translation tag="Keep" de="Behalten"/>
   <translation tag="Keep %s?" de="%s behalten?"/>
   <translation tag="Keep Navigation Bar" de="Navigationsleiste behalten"/>
+  <translation tag="Keep PID"/>
   <translation tag="Keep Printing" de="Weiter drucken"/>
   <translation tag="Keep Spool Info on Eject" de="Spuleninfo beim Auswerfen behalten"/>
   <translation tag="Keep Tuning" de="Weiter einstellen"/>
@@ -2449,6 +2460,7 @@
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." de="Klipper reserviert &apos;default&apos; für neue Kalibrierungen. Wählen Sie einen anderen Namen."/>
   <translation tag="Klipper restarting - macros activating" de="Klipper startet neu - Makros werden aktiviert"/>
   <translation tag="Klipper restarts before calibrating." de="Klipper startet vor dem Kalibrieren neu."/>
+  <translation tag="Klipper restarts, about 20 s"/>
   <translation tag="Klipper shut down" de="Klipper heruntergefahren"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." de="Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen und Klipper blockieren, sodass ein Firmware-Neustart es nicht erreicht. Schalten Sie den Drucker aus und wieder ein (oder starten Sie Klipper per SSH neu) und versuchen Sie es dann erneut."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." de="Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen; starten Sie Klipper neu und versuchen Sie es erneut."/>
@@ -2495,6 +2507,7 @@
   <translation tag="Last measured" de="Zuletzt gemessen"/>
   <translation tag="Last print canceled" de="Letzter Druck abgebrochen"/>
   <translation tag="Last print failed" de="Letzter Druck fehlgeschlagen"/>
+  <translation tag="Last tuned {}"/>
   <translation tag="Later" de="Später"/>
   <translation tag="Layer" de="Schicht"/>
   <translation tag="Layer 2" de="Schicht 2"/>
@@ -3221,6 +3234,7 @@
   <translation tag="PC" de="PC"/>
   <translation tag="PETG" de="PETG"/>
   <translation tag="PID" de="PID"/>
+  <translation tag="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."/>
   <translation tag="PIN must be 4-6 digits" de="PIN muss 4-6 Ziffern haben"/>
   <translation tag="PIN removed" de="PIN entfernt"/>
   <translation tag="PIN set" de="PIN gesetzt"/>
@@ -3258,6 +3272,7 @@
   <translation tag="Part" de="Teile"/>
   <translation tag="Part Cooling Fan" de="Teile-Kühllüfter"/>
   <translation tag="Part Fan" de="Teile-Lüfter"/>
+  <translation tag="Part fan"/>
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." de="Ein Teil des Plugins konnte nicht geladen werden. Installiere das Plugin neu."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." de="Ein Teil des Plugins fehlt. Installiere das Plugin neu."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" de="Bauteil-, Hotend- und Zusatzlüftergeschwindigkeiten"/>
@@ -3987,6 +4002,7 @@
   <translation tag="Safety &amp; Alerts" de="Sicherheit &amp; Alarme"/>
   <translation tag="Same Filament, New Spool" de="Gleiches Filament, neue Spule"/>
   <translation tag="Same filament" de="Gleiches Filament"/>
+  <translation tag="Same part-fan change, both methods"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." de="Dieselbe Spule in {}? Tippen Sie auf Löschen, wenn es eine neue ist."/>
   <translation tag="Sample" de="Messung"/>
   <translation tag="Sample %d/%d" de="Messung %d/%d"/>
@@ -4415,6 +4431,8 @@
   <translation tag="Static" de="Statisch"/>
   <translation tag="Status" de="Status"/>
   <translation tag="Status icons" de="Status-Icons"/>
+  <translation tag="Stays on MPC"/>
+  <translation tag="Stays on PID"/>
   <translation tag="Std Deviation" de="Std.-Abweichung"/>
   <translation tag="Stealth" de="Leise"/>
   <translation tag="Stealth is quiet, Sport is fastest" de="Leise ist am leisesten, Sport am schnellsten"/>
@@ -4473,10 +4491,12 @@
   <translation tag="Switch Printer" de="Drucker wechseln"/>
   <translation tag="Switch Sensors" de="Schalter-Sensoren"/>
   <translation tag="Switch a power device on or off" de="Stromgerät ein- oder ausschalten"/>
+  <translation tag="Switch and calibrate"/>
   <translation tag="Switch back to the Snapmaker screen" de="Zurück zum Snapmaker-Bildschirm wechseln"/>
   <translation tag="Switch between light and dark themes" de="Zwischen Hell- und Dunkelthemen wechseln"/>
   <translation tag="Switch spools at each tool change" de="Spulen bei jedem Werkzeugwechsel umschalten"/>
   <translation tag="Switch the active tool or extruder" de="Aktives Werkzeug oder Extruder wechseln"/>
+  <translation tag="Switch the nozzle to MPC?"/>
   <translation tag="Switch to a backup slot on runout" de="Bei Filamentende zu einem Ersatz-Slot wechseln"/>
   <translation tag="Switch to a matching slot on runout" de="Bei Filamentende zu einem passenden Slot wechseln"/>
   <translation tag="Switch to a matching spool when one runs out" de="Bei Filamentende zu einer passenden Spule wechseln"/>
@@ -5122,6 +5142,7 @@
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." de="Für die Filament-Zuordnung schreibt HelixScreen die Druckdatei vor dem Drucken um. Das Moonraker dieses Druckers ist zu alt, damit das HelixPrint-Plugin den ursprünglichen Dateinamen danach wiederherstellen kann; der abgeschlossene Auftrag wird daher unter dem umgeschriebenen Namen aufgeführt. Die Filament-Zuordnung selbst funktioniert normal."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." de="Für die Filament-Zuordnung schreibt HelixScreen die Druckdatei vor dem Drucken um. Ohne das HelixPrint-Plugin landet die umgeschriebene Kopie in Ihrem Druckverlauf, sodass abgeschlossene Drucke unter Namen wie modified_1730824_benchy.gcode statt unter der gewählten Datei aufgelistet werden.&#10;&#10;Die Installation des Plugins dauert einen Moment und erfordert keinen Neustart."/>
   <translation tag="To use the lanes, pull the filament out of the toolhead by hand." de="Um die Spuren zu nutzen, zieh das Filament von Hand aus dem Werkzeugkopf."/>
+  <translation tag="Today: {} · last tuned {}"/>
   <translation tag="Toggle" de="Umschalten"/>
   <translation tag="Toggle (fire-and-forget)" de="Umschalten (fire-and-forget)"/>
   <translation tag="Toggle AFC LED strip" de="AFC-LED-Streifen umschalten"/>
@@ -5469,6 +5490,7 @@
   <translation tag="Watch on Your Phone" de="Auf dem Telefon ansehen"/>
   <translation tag="Watch the camera during a print for failed prints" de="Überwacht die Kamera während des Drucks auf fehlgeschlagene Drucke"/>
   <translation tag="Watch which motor turns" de="Achte darauf, welcher Motor sich dreht"/>
+  <translation tag="We don&apos;t know this hotend&apos;s heater. It is printed on the cartridge or its wires, usually 40 to 70 W."/>
   <translation tag="Weak battery" de="Schwache Batterie"/>
   <translation tag="Webcam" de="Webcam"/>
   <translation tag="Website (optional)" de="Webseite (optional)"/>
@@ -5531,6 +5553,8 @@
   <translation tag="Width Sensors" de="Breitensensoren"/>
   <translation tag="Wifi" de="WLAN"/>
   <translation tag="Will not switch spools on runout" de="Wechselt bei leerer Spule nicht die Spule"/>
+  <translation tag="Will switch to MPC (more stable)"/>
+  <translation tag="Will switch to PID"/>
   <translation tag="Wipe each rail or rod clean with a lint-free cloth." de="Jede Schiene oder Stange mit fusselfreiem Tuch abwischen."/>
   <translation tag="Wipe nozzle on silicone cleaning strip" de="Düse am Silikon-Reinigungsstreifen abwischen"/>
   <translation tag="Wipe the Z screws and guides clean." de="Z-Spindeln und -Führungen sauber wischen."/>
@@ -5576,6 +5600,7 @@
   <translation tag="You have unsaved changes. Discard them?" de="Sie haben ungespeicherte Änderungen. Verwerfen?"/>
   <translation tag="You, about {} min" de="Du, etwa {} Min."/>
   <translation tag="You: about {} min at the start, then it runs on its own" de="Du: etwa {} Min. am Anfang, dann läuft es von selbst"/>
+  <translation tag="Your PID values are kept. You can switch back here any time."/>
   <translation tag="Your completed prints will appear here" de="Ihre abgeschlossenen Drucke werden hier angezeigt"/>
   <translation tag="Your filament system" de="Ihr Filamentsystem"/>
   <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." de="Deine Datei verlangt Außenwände mit {0:.0f} mm/s. Dieser Drucker vibrierte bei seiner letzten Prüfung vertikaler Artefakte am stärksten bei {1:.0f}-{2:.0f} mm/s, was feine vertikale Linien auf Wänden entlang X oder Y erzeugen kann. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
@@ -5643,6 +5668,7 @@
   <translation tag="a temporary mesh profile &apos;{}&apos;" de="ein temporäres Netzprofil &apos;{}&apos;"/>
   <translation tag="about {} min" de="etwa {} Min."/>
   <translation tag="already loaded" de="bereits geladen"/>
+  <translation tag="and the heater power"/>
   <translation tag="assign without adding to Spoolman" de="ohne Spoolman zuweisen"/>
   <translation tag="attempt {}" de="Versuch {}"/>
   <translation tag="auto" de="auto"/>
@@ -5657,6 +5683,7 @@
   <translation tag="close: {}" de="ähnlich: {}"/>
   <translation tag="color differs" de="Farbe abweichend"/>
   <translation tag="complete" de="abgeschlossen"/>
+  <translation tag="control: mpc"/>
   <translation tag="cores" de="Kerne"/>
   <translation tag="cycle {}" de="Zyklus {}"/>
   <translation tag="cycle {}, {:.2f} (needs {:.2f})" de="Zyklus {}, {:.2f} (Ziel {:.2f})"/>
@@ -5688,8 +5715,10 @@
   <translation tag="feeder not in automatic mode" de="Zuführung nicht im Automatikmodus"/>
   <translation tag="filament sensor disabled" de="Filamentsensor deaktiviert"/>
   <translation tag="from tag" de="vom Tag"/>
+  <translation tag="gets"/>
   <translation tag="heated bed" de="Heizbett"/>
   <translation tag="heats" de="heizt"/>
+  <translation tag="heats to {}"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" de="helixscreen.env ignoriert: gehört uid {}"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" de="helixscreen.env ignoriert: nicht vertrauenswürdige Symlink-Kette"/>
   <translation tag="helixscreen.env ignored: writable by other users" de="helixscreen.env ignoriert: von anderen Benutzern beschreibbar"/>
@@ -5711,12 +5740,14 @@
   <translation tag="loud" de="laut"/>
   <translation tag="matched" de="abgestimmt"/>
   <translation tag="material differs" de="Material abweichend"/>
+  <translation tag="method: {}"/>
   <translation tag="mm" de="mm"/>
   <translation tag="mm Z-offset" de="mm Z-Offset"/>
   <translation tag="mm before clog" de="mm vor Verstopfung"/>
   <translation tag="needs" de="benötigt"/>
   <translation tag="needs approval" de="Genehmigung erforderlich"/>
   <translation tag="needs you" de="braucht dich"/>
+  <translation tag="never"/>
   <translation tag="never sleeps" de="schläft nie"/>
   <translation tag="not detected" de="nicht erkannt"/>
   <translation tag="not loaded" de="nicht geladen"/>
@@ -5730,6 +5761,7 @@
   <translation tag="passive" de="passiv"/>
   <translation tag="preparing" de="Vorbereitung"/>
   <translation tag="printer default" de="Druckerstandard"/>
+  <translation tag="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" de="printer.cfg lädt mehr als {} Konfigurationsdateien; [{}] wurde nicht in allen gesucht"/>
   <translation tag="prints" de="Drucke"/>
   <translation tag="ready to load" de="bereit zum Laden"/>

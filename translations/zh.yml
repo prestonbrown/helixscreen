@@ -408,6 +408,7 @@ translations:
   Already connecting — wait a moment and try again: 正在连接中 — 请稍候再试
   Already mounted: '已装上'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"
+  Also measure part-fan cooling: ''
   Always Show Bypass Spool: 始终显示旁路料盘
   Always show Android navigation bar instead of using gestures: 始终显示 Android 导航栏而不使用手势
   Ambient Transfer: 环境传热
@@ -725,9 +726,12 @@ translations:
   Calibrate X: 校准 X 轴
   Calibrate Y: 校准 Y 轴
   Calibrate All Tools: 校准所有工具
+  Calibrate at: ''
+  Calibrate bed: ''
   Calibrate heater: 校准加热器
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
   Calibrate now: '立即校准'
+  Calibrate nozzle: ''
   Calibrate part fan: 校准模型风扇
   Calibrate this printer, step by step: '分步校准此打印机'
   Calibrate tool offsets?: 校准工具偏移？
@@ -761,6 +765,7 @@ translations:
   Calibration may still be running — response timed out: '校准可能仍在运行 — 响应超时'
   Calibration move may still be running — printer connection was interrupted: '校准移动可能仍在运行 — 打印机连接已中断'
   Calibration request not valid: '校准请求无效'
+  Calibration runs at {}, about {} min: ''
   Calibration saved: 校准已保存
   Calibration saved but cannot apply on SDL display: 校准已保存，但无法在 SDL 显示上应用
   Calibration succeeded, but the frequency chart data couldn't be read.: 校准成功，但无法读取频率图表数据。
@@ -856,6 +861,7 @@ translations:
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
+  Changes printer.cfg and restarts Klipper first: ''
   Changing filament: "正在更换耗材"
   Check AFC configuration: '请检查 AFC 配置'
   Check Again: 重新检查
@@ -1867,6 +1873,7 @@ translations:
   Fan available but not assigned to any role: '风扇可用，但未分配任何角色'
   Fan control: '风扇控制'
   'Fan control failed: {}': '风扇控制失败: {}'
+  Fan points: ''
   Fan {} is not spinning: 风扇 {} 未转动
   Fan {} stopped: 风扇 {} 已停转
   FanSelect: 选择风扇
@@ -2187,6 +2194,8 @@ translations:
   Heater not heating as expected: '加热器未按预期加热'
   Heater offline: 加热器已断开
   Heater over-temperature: 加热器过热
+  Heater power: ''
+  Heater power needed: ''
   Heater sensor fault: 加热器传感器故障
   Heater {1} is not heating as expected: 加热器 {1} 未按预期升温
   HeaterSelect: 选择加热器
@@ -2259,6 +2268,7 @@ translations:
   Hold slicer prints that do not fit: '暂缓不适合的切片软件打印'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: 将{}完全按在打印头上。锁定装置会锁住它，它将成为已安装的工具。
   Holding nozzle at {} to purge previous filament.: 将喷嘴保持在 {} 以清洗之前的耗材。
+  Holds temperature better when the fan changes · +3 min: ''
   Home: 归位
   Home & Continue: 归位并继续
   Home All: "全部归位"
@@ -2504,6 +2514,7 @@ translations:
   Keep: '保留'
   Keep %s?: '保留 %s？'
   Keep Navigation Bar: 保留导航栏
+  Keep PID: ''
   Keep Printing: 继续打印
   Keep Spool Info on Eject: 弹出时保留料盘信息
   Keep clear of the printer while the toolhead is moving: 工具头移动时请远离打印机
@@ -2557,6 +2568,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
   Klipper restarts before calibrating.: '校准前 Klipper 将重启。'
+  Klipper restarts, about 20 s: ''
   Klipper shut down: Klipper已关闭
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"
@@ -2606,6 +2618,7 @@ translations:
   Last measured: '上次测量'
   Last print canceled: 上次打印已取消
   Last print failed: 上次打印失败
+  Last tuned {}: ''
   Later: 稍后
   Layer: 层
   Layer 2: '第 2 层'
@@ -3337,6 +3350,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
+  : ''
   PIN must be 4-6 digits: PIN 码必须为 4-6 位数字
   PIN removed: PIN 码已移除
   PIN set: PIN 码已设置
@@ -3374,6 +3389,7 @@ translations:
   Part: 零件
   Part Cooling Fan: 零件冷却风扇
   Part Fan: 零件风扇
+  Part fan: ''
   Part of the plugin failed to load. Reinstall the plugin.: "插件的一部分加载失败。请重新安装插件。"
   Part of the plugin is missing. Reinstall the plugin.: "插件缺少一部分。请重新安装插件。"
   Part, hotend, and auxiliary fan speeds: '零件、热端与辅助风扇速度'
@@ -4112,6 +4128,7 @@ translations:
   Safety & Alerts: 安全与警报
   Same Filament, New Spool: '相同耗材，新料盘'
   Same filament: '相同耗材'
+  Same part-fan change, both methods: ''
   Same spool in {}? Tap Clear if it is a new one.: '{} 是同一个料盘吗？如果是新料盘，请点击清除。'
   Sample: 样本
   Sample %d/%d: 样本 %d/%d
@@ -4547,6 +4564,8 @@ translations:
   Static: '静态'
   Status: 状态
   Status icons: 状态图标
+  Stays on MPC: ''
+  Stays on PID: ''
   Std Deviation: 标准差
   Stealth: 静音
   Stealth is quiet, Sport is fastest: 静音最安静，运动最快
@@ -4607,10 +4626,12 @@ translations:
   Switch Printer: 切换打印机
   Switch a power device on or off: 开启或关闭电源设备
   Switch Sensors: 开关传感器
+  Switch and calibrate: ''
   Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   Switch between light and dark themes: 切换浅色和深色主题
   Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
+  Switch the nozzle to MPC?: ''
   Switch to a backup slot on runout: 耗材用尽时切换到备用槽位
   Switch to a matching slot on runout: 耗材用尽时切换到匹配的槽位
   Switch to a matching spool when one runs out: '料盘用尽时切换到匹配的料盘'
@@ -5326,6 +5347,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。\n\n安装插件很快，无需重启。"
   To use the lanes, pull the filament out of the toolhead by hand.: "要使用耗材通道，请用手将耗材从工具头中拔出。"
+  'Today: {} · last tuned {}': ''
   Toggle: 切换
   Toggle (fire-and-forget): 切换（无状态跟踪）
   Toggle AFC LED strip: '切换 AFC LED 灯带'
@@ -5664,6 +5686,7 @@ translations:
   Watch on Your Phone: '在手机上观看'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
   Watch which motor turns: "看看哪个电机在转动"
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: ''
   Weak battery: 电池电量低
   Webcam: 摄像头
   Website (optional): 网站（可选）
@@ -5723,6 +5746,8 @@ translations:
   Width Sensors: 宽度传感器
   Wifi: Wi-Fi
   Will not switch spools on runout: 耗材用尽时不会切换料盘
+  Will switch to MPC (more stable): ''
+  Will switch to PID: ''
   Wipe each rail or rod clean with a lint-free cloth.: "用无绒布擦净每根导轨或光杆。"
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
   With exhaust cooling on, the recirculation fan cannot be turned on: '外循环冷却时无法开启循环风扇'
@@ -5768,6 +5793,7 @@ translations:
   You have unsaved changes. Discard them?: 您有未保存的更改。是否丢弃？
   You, about {} min: '需要您约 {} 分钟'
   'You: about {} min at the start, then it runs on its own': '开始时需要您约 {} 分钟，之后自动运行'
+  Your PID values are kept. You can switch back here any time.: ''
   Your completed prints will appear here: 您完成的打印将显示在此处
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : '您的文件要求外墙速度为 {0:.0f} mm/s。此打印机在上次垂直纹路检查中于 {1:.0f}-{2:.0f} mm/s 抖动最强，这可能会在沿 X 或 Y 的墙面上印出细小的竖线。{3}（Orca: Outer wall speed; PrusaSlicer: External perimeters）。'
@@ -5837,6 +5863,7 @@ translations:
   a temporary mesh profile '{}': '临时网格配置 ''{}'''
   about {} min: '约 {} 分钟'
   already loaded: '已加载'
+  and the heater power: ''
   assign without adding to Spoolman: 分配但不添加到 Spoolman
   attempt {}: '第 {} 次尝试'
   auto: 自动
@@ -5851,6 +5878,7 @@ translations:
   'close: {}': 相近：{}
   color differs: '颜色不同'
   complete: 完成
+  'control: mpc': ''
   cores: 核心
   cycle {}: 循环 {}
   cycle {}, {:.2f} (needs {:.2f}): 循环 {}，{:.2f}（目标 {:.2f}）
@@ -5881,8 +5909,10 @@ translations:
   feeder error: '送料器错误'
   feeder not in automatic mode: '送料器未处于自动模式'
   filament sensor disabled: '耗材传感器已禁用'
+  gets: ''
   heated bed: 热床
   heats: '会加热'
+  heats to {}: ''
   'helixscreen.env ignored: owned by uid {}': '已忽略 helixscreen.env：属主为 uid {}'
   'helixscreen.env ignored: untrusted symlink chain': '已忽略 helixscreen.env：符号链接链不受信任'
   'helixscreen.env ignored: writable by other users': '已忽略 helixscreen.env：其他用户可写入'
@@ -5904,12 +5934,14 @@ translations:
   loud: '噪音大'
   matched: 匹配
   material differs: '材料不同'
+  'method: {}': ''
   mm: mm
   mm Z-offset: mm Z 偏移
   mm before clog: 毫米后堵料
   needs: 需要
   needs approval: 需要批准
   needs you: '需要您参与'
+  never: ''
   never sleeps: 从不休眠
   not detected: 未检测到
   not loaded: '未加载'
@@ -5929,6 +5961,7 @@ translations:
   passive: 被动
   preparing: 准备中
   printer default: 打印机默认
+  printer.cfg: ''
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"
   prints: 打印次数
   ready to load: '可加载'

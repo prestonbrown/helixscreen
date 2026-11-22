@@ -408,6 +408,7 @@ translations:
   Already connecting — wait a moment and try again: 接続処理中です — 少し待ってからもう一度お試しください
   Already mounted: '装着済み'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "このメッシュを {} 用にも保存しますか？その素材のメッシュを取らない印刷は開始時にこれを読み込みます。"
+  Also measure part-fan cooling: ''
   Always Show Bypass Spool: バイパススプールを常に表示
   Always show Android navigation bar instead of using gestures: ジェスチャーの代わりにAndroidナビゲーションバーを常に表示
   Ambient Transfer: 環境熱伝達
@@ -725,9 +726,12 @@ translations:
   Calibrate X: X軸をキャリブレート
   Calibrate Y: Y軸をキャリブレート
   Calibrate All Tools: すべてのツールをキャリブレート
+  Calibrate at: ''
+  Calibrate bed: ''
   Calibrate heater: ヒーターを校正
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate now: '今すぐキャリブレーション'
+  Calibrate nozzle: ''
   Calibrate part fan: パーツファンを校正
   Calibrate this printer, step by step: 'このプリンターを順番にキャリブレーション'
   Calibrate tool offsets?: ツールオフセットをキャリブレートしますか？
@@ -761,6 +765,7 @@ translations:
   Calibration may still be running — response timed out: 'キャリブレーションがまだ実行中の可能性があります — 応答タイムアウト'
   Calibration move may still be running — printer connection was interrupted: 'キャリブレーション移動がまだ実行中の可能性があります — プリンター接続が中断されました'
   Calibration request not valid: 'キャリブレーション要求が不正です'
+  Calibration runs at {}, about {} min: ''
   Calibration saved: 校正を保存しました
   Calibration saved but cannot apply on SDL display: キャリブレーションは保存されましたが SDL ディスプレイには適用できません
   Calibration succeeded, but the frequency chart data couldn't be read.: キャリブレーションは成功しましたが、周波数グラフのデータを読み取れませんでした。
@@ -856,6 +861,7 @@ translations:
   Change tool: ツールを交換
   Changes apply immediately. Adjust during print for tuning.: 変更は即座に適用されます。印刷中に調整して最適化できます。
   Changes are temporary and reset on printer reboot: 変更は一時的で、プリンター再起動時にリセットされます
+  Changes printer.cfg and restarts Klipper first: ''
   Changing filament: "フィラメント交換中"
   Check AFC configuration: 'AFC 設定を確認してください'
   Check Again: 再確認
@@ -1867,6 +1873,7 @@ translations:
   Fan available but not assigned to any role: 'ファンは使用可能ですが役割が割り当てられていません'
   Fan control: 'ファン制御'
   'Fan control failed: {}': 'ファン制御に失敗しました: {}'
+  Fan points: ''
   Fan {} is not spinning: ファン {} が回転していません
   Fan {} stopped: ファン {} が停止しました
   FanSelect: ファンを選択
@@ -2187,6 +2194,8 @@ translations:
   Heater not heating as expected: 'ヒーターが想定どおり加熱しません'
   Heater offline: ヒーター切断
   Heater over-temperature: ヒーター過昇温
+  Heater power: ''
+  Heater power needed: ''
   Heater sensor fault: ヒーターセンサー異常
   Heater {1} is not heating as expected: ヒーター {1} が想定どおりに加熱されていません
   HeaterSelect: ヒーターを選択
@@ -2259,6 +2268,7 @@ translations:
   Hold slicer prints that do not fit: '合わないスライサーの印刷を保留'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: '{}をヘッドにしっかり押し当ててください。ラッチがロックし、装着中のツールになります。'
   Holding nozzle at {} to purge previous filament.: 前のフィラメントをパージするためノズルを {} に保持しています。
+  Holds temperature better when the fan changes · +3 min: ''
   Home: ホーム
   Home & Continue: ホーミングして続行
   Home All: "全軸ホーミング"
@@ -2504,6 +2514,7 @@ translations:
   Keep: '保持'
   Keep %s?: '%s を保持しますか?'
   Keep Navigation Bar: ナビゲーションバーを維持
+  Keep PID: ''
   Keep Printing: 印刷を続行
   Keep Spool Info on Eject: 取り出し時にスプール情報を保持
   Keep clear of the printer while the toolhead is moving: ツールヘッドが動いている間はプリンターから離れてください
@@ -2557,6 +2568,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper は 'default' を新しいキャリブレーション用に予約しています。別の名前を選んでください。"
   Klipper restarting - macros activating: 'Klipper を再起動しています - マクロを有効化中'
   Klipper restarts before calibrating.: 'キャリブレーション前にKlipperが再起動します。'
+  Klipper restarts, about 20 s: ''
   Klipper shut down: Klipperシャットダウン
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足し、Klipperが停止したままになることがあり、その場合はファームウェア再起動では復旧できません。プリンターの電源を入れ直して（またはSSHでKlipperを再起動して）から再試行してください。"
@@ -2606,6 +2618,7 @@ translations:
   Last measured: '前回の測定値'
   Last print canceled: 前回の印刷がキャンセルされました
   Last print failed: 前回の印刷が失敗しました
+  Last tuned {}: ''
   Later: 後で
   Layer: レイヤー
   Layer 2: 'レイヤー2'
@@ -3337,6 +3350,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
+  : ''
   PIN must be 4-6 digits: PIN は 4〜6 桁にしてください
   PIN removed: PIN を削除しました
   PIN set: PIN を設定しました
@@ -3374,6 +3389,7 @@ translations:
   Part: パーツ
   Part Cooling Fan: パーツ冷却ファン
   Part Fan: パーツファン
+  Part fan: ''
   Part of the plugin failed to load. Reinstall the plugin.: "プラグインの一部を読み込めませんでした。プラグインを再インストールしてください。"
   Part of the plugin is missing. Reinstall the plugin.: "プラグインの一部が見つかりません。プラグインを再インストールしてください。"
   Part, hotend, and auxiliary fan speeds: 'パーツ・ホットエンド・補助ファンの速度'
@@ -4112,6 +4128,7 @@ translations:
   Safety & Alerts: 安全とアラート
   Same Filament, New Spool: '同じフィラメント、新規スプール'
   Same filament: '同じフィラメント'
+  Same part-fan change, both methods: ''
   Same spool in {}? Tap Clear if it is a new one.: '{} は同じスプールですか？新しいスプールならクリアをタップしてください。'
   Sample: サンプル
   Sample %d/%d: サンプル %d/%d
@@ -4547,6 +4564,8 @@ translations:
   Static: '固定'
   Status: ステータス
   Status icons: ステータスアイコン
+  Stays on MPC: ''
+  Stays on PID: ''
   Std Deviation: 標準偏差
   Stealth: 静音
   Stealth is quiet, Sport is fastest: 静音は静か、スポーツは最速
@@ -4607,10 +4626,12 @@ translations:
   Switch Printer: プリンターを切り替え
   Switch a power device on or off: 電源デバイスのオン/オフ切り替え
   Switch Sensors: スイッチセンサー
+  Switch and calibrate: ''
   Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
   Switch spools at each tool change: 'ツール交換ごとにスプールを切り替える'
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
+  Switch the nozzle to MPC?: ''
   Switch to a backup slot on runout: フィラメント切れ時に予備スロットへ切り替え
   Switch to a matching slot on runout: フィラメント切れ時に一致するスロットへ切り替え
   Switch to a matching spool when one runs out: 'スプールが切れたら一致するスプールに切り替え'
@@ -5326,6 +5347,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "フィラメントをマッピングするため、HelixScreenは印刷前にジョブファイルを書き換えます。HelixPrintプラグインがない場合、書き換えられたコピーが印刷履歴に残るため、完了したジョブは選んだファイルではなくmodified_1730824_benchy.gcodeのような名前で表示されます。\n\nプラグインのインストールはすぐに完了し、再起動は必要ありません。"
   To use the lanes, pull the filament out of the toolhead by hand.: "レーンを使うには、ツールヘッドからフィラメントを手で引き抜いてください。"
+  'Today: {} · last tuned {}': ''
   Toggle: トグル
   Toggle (fire-and-forget): トグル（状態追跡なし）
   Toggle AFC LED strip: 'AFC LEDストリップを切り替え'
@@ -5664,6 +5686,7 @@ translations:
   Watch on Your Phone: 'スマートフォンで見る'
   Watch the camera during a print for failed prints: 印刷中にカメラで印刷失敗を監視します
   Watch which motor turns: "どのモーターが回るか見てください"
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: ''
   Weak battery: バッテリー残量低下
   Webcam: ウェブカメラ
   Website (optional): ウェブサイト（オプション）
@@ -5723,6 +5746,8 @@ translations:
   Width Sensors: 幅センサー
   Wifi: Wi-Fi
   Will not switch spools on runout: フィラメント切れ時にスプールを切り替えません
+  Will switch to MPC (more stable): ''
+  Will switch to PID: ''
   Wipe each rail or rod clean with a lint-free cloth.: "各レールまたはロッドを糸くずの出ない布で拭きます。"
   Wipe nozzle on silicone cleaning strip: 'シリコン清掃ストリップでノズルを拭く'
   With exhaust cooling on, the recirculation fan cannot be turned on: '排気冷却中は循環ファンをオンにできません'
@@ -5768,6 +5793,7 @@ translations:
   You have unsaved changes. Discard them?: 保存されていない変更があります。破棄しますか？
   You, about {} min: 'あなたの操作、約{}分'
   'You: about {} min at the start, then it runs on its own': '最初の約{}分だけ操作が必要で、その後は自動で進みます'
+  Your PID values are kept. You can switch back here any time.: ''
   Your completed prints will appear here: 完了した印刷がここに表示されます
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'このファイルは外壁を {0:.0f} mm/s で印刷します。このプリンターは前回の垂直アーティファクトチェックで {1:.0f}-{2:.0f} mm/s で最も強く揺れました。これは X または Y に沿った壁に細い縦線を生じさせることがあります。{3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)。'
@@ -5837,6 +5863,7 @@ translations:
   a temporary mesh profile '{}': '一時的なメッシュプロファイル ''{}'''
   about {} min: '約{}分'
   already loaded: '装填済み'
+  and the heater power: ''
   assign without adding to Spoolman: Spoolmanに追加せずに割り当て
   attempt {}: '試行 {}'
   auto: 自動
@@ -5851,6 +5878,7 @@ translations:
   'close: {}': '近い: {}'
   color differs: '色が異なる'
   complete: 完了
+  'control: mpc': ''
   cores: コア
   cycle {}: サイクル {}
   cycle {}, {:.2f} (needs {:.2f}): サイクル {}、{:.2f}（目標 {:.2f}）
@@ -5881,8 +5909,10 @@ translations:
   feeder error: 'フィーダーエラー'
   feeder not in automatic mode: 'フィーダーが自動モードではありません'
   filament sensor disabled: 'フィラメントセンサーが無効'
+  gets: ''
   heated bed: ヒートベッド
   heats: '加熱あり'
+  heats to {}: ''
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env は無視されました：uid {} が所有しています'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env は無視されました：他のユーザーが書き込み可能です'
@@ -5904,12 +5934,14 @@ translations:
   loud: '大きな音'
   matched: 一致
   material differs: '素材が異なる'
+  'method: {}': ''
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: 詰まりまでの距離 (mm)
   needs: 必要
   needs approval: 承認が必要
   needs you: '操作が必要'
+  never: ''
   never sleeps: スリープしない
   not detected: 未検出
   not loaded: '未装填'
@@ -5929,6 +5961,7 @@ translations:
   passive: パッシブ
   preparing: 準備中
   printer default: プリンター既定
+  printer.cfg: ''
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"
   prints: 印刷
   ready to load: '装填可能'

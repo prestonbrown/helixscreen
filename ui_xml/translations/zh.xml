@@ -386,6 +386,7 @@
   <translation tag="Already connecting — wait a moment and try again" zh="正在连接中 — 请稍候再试"/>
   <translation tag="Already mounted" zh="已装上"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." zh="也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"/>
+  <translation tag="Also measure part-fan cooling"/>
   <translation tag="Always Show Bypass Spool" zh="始终显示旁路料盘"/>
   <translation tag="Always show Android navigation bar instead of using gestures" zh="始终显示 Android 导航栏而不使用手势"/>
   <translation tag="Ambient Transfer" zh="环境传热"/>
@@ -698,9 +699,12 @@
   <translation tag="Calibrate Toolhead Offsets" zh="校准工具头偏移"/>
   <translation tag="Calibrate X" zh="校准 X 轴"/>
   <translation tag="Calibrate Y" zh="校准 Y 轴"/>
+  <translation tag="Calibrate at"/>
+  <translation tag="Calibrate bed"/>
   <translation tag="Calibrate heater" zh="校准加热器"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" zh="校准输入整形以减少打印中的振纹"/>
   <translation tag="Calibrate now" zh="立即校准"/>
+  <translation tag="Calibrate nozzle"/>
   <translation tag="Calibrate part fan" zh="校准模型风扇"/>
   <translation tag="Calibrate this printer, step by step" zh="分步校准此打印机"/>
   <translation tag="Calibrate tool offsets?" zh="校准工具偏移？"/>
@@ -735,6 +739,7 @@
   <translation tag="Calibration may still be running — response timed out" zh="校准可能仍在运行 — 响应超时"/>
   <translation tag="Calibration move may still be running — printer connection was interrupted" zh="校准移动可能仍在运行 — 打印机连接已中断"/>
   <translation tag="Calibration request not valid" zh="校准请求无效"/>
+  <translation tag="Calibration runs at {}, about {} min"/>
   <translation tag="Calibration saved" zh="校准已保存"/>
   <translation tag="Calibration saved but cannot apply on SDL display" zh="校准已保存，但无法在 SDL 显示上应用"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." zh="校准成功，但无法读取频率图表数据。"/>
@@ -829,6 +834,7 @@
   <translation tag="Change tool" zh="切换工具"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." zh="更改立即生效。可在打印时调整进行调优。"/>
   <translation tag="Changes are temporary and reset on printer reboot" zh="更改是临时的，打印机重启后会重置"/>
+  <translation tag="Changes printer.cfg and restarts Klipper first"/>
   <translation tag="Changing filament" zh="正在更换耗材"/>
   <translation tag="Check AFC configuration" zh="请检查 AFC 配置"/>
   <translation tag="Check Again" zh="重新检查"/>
@@ -1776,6 +1782,7 @@
   <translation tag="Fan available but not assigned to any role" zh="风扇可用，但未分配任何角色"/>
   <translation tag="Fan control" zh="风扇控制"/>
   <translation tag="Fan control failed: {}" zh="风扇控制失败: {}"/>
+  <translation tag="Fan points"/>
   <translation tag="Fan {} is not spinning" zh="风扇 {} 未转动"/>
   <translation tag="Fan {} stopped" zh="风扇 {} 已停转"/>
   <translation tag="FanSelect" zh="选择风扇"/>
@@ -2090,6 +2097,8 @@
   <translation tag="Heater not heating as expected" zh="加热器未按预期加热"/>
   <translation tag="Heater offline" zh="加热器已断开"/>
   <translation tag="Heater over-temperature" zh="加热器过热"/>
+  <translation tag="Heater power"/>
+  <translation tag="Heater power needed"/>
   <translation tag="Heater sensor fault" zh="加热器传感器故障"/>
   <translation tag="Heater {1} is not heating as expected" zh="加热器 {1} 未按预期升温"/>
   <translation tag="HeaterSelect" zh="选择加热器"/>
@@ -2161,6 +2170,7 @@
   <translation tag="Hold slicer prints that do not fit" zh="暂缓不适合的切片软件打印"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." zh="将{}完全按在打印头上。锁定装置会锁住它，它将成为已安装的工具。"/>
   <translation tag="Holding nozzle at {} to purge previous filament." zh="将喷嘴保持在 {} 以清洗之前的耗材。"/>
+  <translation tag="Holds temperature better when the fan changes · +3 min"/>
   <translation tag="Home" zh="归位"/>
   <translation tag="Home &amp; Continue" zh="归位并继续"/>
   <translation tag="Home All" zh="全部归位"/>
@@ -2401,6 +2411,7 @@
   <translation tag="Keep" zh="保留"/>
   <translation tag="Keep %s?" zh="保留 %s？"/>
   <translation tag="Keep Navigation Bar" zh="保留导航栏"/>
+  <translation tag="Keep PID"/>
   <translation tag="Keep Printing" zh="继续打印"/>
   <translation tag="Keep Spool Info on Eject" zh="弹出时保留料盘信息"/>
   <translation tag="Keep Tuning" zh="继续调整"/>
@@ -2449,6 +2460,7 @@
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." zh="Klipper 将 &apos;default&apos; 保留用于新的校准。请选择其他名称。"/>
   <translation tag="Klipper restarting - macros activating" zh="正在重启 Klipper - 正在启用宏"/>
   <translation tag="Klipper restarts before calibrating." zh="校准前 Klipper 将重启。"/>
+  <translation tag="Klipper restarts, about 20 s"/>
   <translation tag="Klipper shut down" zh="Klipper已关闭"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存；请重启 Klipper 后重试。"/>
@@ -2495,6 +2507,7 @@
   <translation tag="Last measured" zh="上次测量"/>
   <translation tag="Last print canceled" zh="上次打印已取消"/>
   <translation tag="Last print failed" zh="上次打印失败"/>
+  <translation tag="Last tuned {}"/>
   <translation tag="Later" zh="稍后"/>
   <translation tag="Layer" zh="层"/>
   <translation tag="Layer 2" zh="第 2 层"/>
@@ -3221,6 +3234,7 @@
   <translation tag="PC" zh="PC"/>
   <translation tag="PETG" zh="PETG"/>
   <translation tag="PID" zh="PID"/>
+  <translation tag="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."/>
   <translation tag="PIN must be 4-6 digits" zh="PIN 码必须为 4-6 位数字"/>
   <translation tag="PIN removed" zh="PIN 码已移除"/>
   <translation tag="PIN set" zh="PIN 码已设置"/>
@@ -3258,6 +3272,7 @@
   <translation tag="Part" zh="零件"/>
   <translation tag="Part Cooling Fan" zh="零件冷却风扇"/>
   <translation tag="Part Fan" zh="零件风扇"/>
+  <translation tag="Part fan"/>
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." zh="插件的一部分加载失败。请重新安装插件。"/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." zh="插件缺少一部分。请重新安装插件。"/>
   <translation tag="Part, hotend, and auxiliary fan speeds" zh="零件、热端与辅助风扇速度"/>
@@ -3987,6 +4002,7 @@
   <translation tag="Safety &amp; Alerts" zh="安全与警报"/>
   <translation tag="Same Filament, New Spool" zh="相同耗材，新料盘"/>
   <translation tag="Same filament" zh="相同耗材"/>
+  <translation tag="Same part-fan change, both methods"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." zh="{} 是同一个料盘吗？如果是新料盘，请点击清除。"/>
   <translation tag="Sample" zh="样本"/>
   <translation tag="Sample %d/%d" zh="样本 %d/%d"/>
@@ -4415,6 +4431,8 @@
   <translation tag="Static" zh="静态"/>
   <translation tag="Status" zh="状态"/>
   <translation tag="Status icons" zh="状态图标"/>
+  <translation tag="Stays on MPC"/>
+  <translation tag="Stays on PID"/>
   <translation tag="Std Deviation" zh="标准差"/>
   <translation tag="Stealth" zh="静音"/>
   <translation tag="Stealth is quiet, Sport is fastest" zh="静音最安静，运动最快"/>
@@ -4473,10 +4491,12 @@
   <translation tag="Switch Printer" zh="切换打印机"/>
   <translation tag="Switch Sensors" zh="开关传感器"/>
   <translation tag="Switch a power device on or off" zh="开启或关闭电源设备"/>
+  <translation tag="Switch and calibrate"/>
   <translation tag="Switch back to the Snapmaker screen" zh="切换回 Snapmaker 屏幕"/>
   <translation tag="Switch between light and dark themes" zh="切换浅色和深色主题"/>
   <translation tag="Switch spools at each tool change" zh="每次换工具时切换料盘"/>
   <translation tag="Switch the active tool or extruder" zh="切换当前工具或挤出机"/>
+  <translation tag="Switch the nozzle to MPC?"/>
   <translation tag="Switch to a backup slot on runout" zh="耗材用尽时切换到备用槽位"/>
   <translation tag="Switch to a matching slot on runout" zh="耗材用尽时切换到匹配的槽位"/>
   <translation tag="Switch to a matching spool when one runs out" zh="料盘用尽时切换到匹配的料盘"/>
@@ -5122,6 +5142,7 @@
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。此打印机的 Moonraker 版本过旧，HelixPrint 插件无法在之后恢复原始文件名，因此完成的任务将以改写后的名称显示。耗材映射本身可正常工作。"/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." zh="为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。&#10;&#10;安装插件很快，无需重启。"/>
   <translation tag="To use the lanes, pull the filament out of the toolhead by hand." zh="要使用耗材通道，请用手将耗材从工具头中拔出。"/>
+  <translation tag="Today: {} · last tuned {}"/>
   <translation tag="Toggle" zh="切换"/>
   <translation tag="Toggle (fire-and-forget)" zh="切换（无状态跟踪）"/>
   <translation tag="Toggle AFC LED strip" zh="切换 AFC LED 灯带"/>
@@ -5469,6 +5490,7 @@
   <translation tag="Watch on Your Phone" zh="在手机上观看"/>
   <translation tag="Watch the camera during a print for failed prints" zh="打印期间监视摄像头以发现打印失败"/>
   <translation tag="Watch which motor turns" zh="看看哪个电机在转动"/>
+  <translation tag="We don&apos;t know this hotend&apos;s heater. It is printed on the cartridge or its wires, usually 40 to 70 W."/>
   <translation tag="Weak battery" zh="电池电量低"/>
   <translation tag="Webcam" zh="摄像头"/>
   <translation tag="Website (optional)" zh="网站（可选）"/>
@@ -5531,6 +5553,8 @@
   <translation tag="Width Sensors" zh="宽度传感器"/>
   <translation tag="Wifi" zh="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" zh="耗材用尽时不会切换料盘"/>
+  <translation tag="Will switch to MPC (more stable)"/>
+  <translation tag="Will switch to PID"/>
   <translation tag="Wipe each rail or rod clean with a lint-free cloth." zh="用无绒布擦净每根导轨或光杆。"/>
   <translation tag="Wipe nozzle on silicone cleaning strip" zh="在硅胶清洁条上擦拭喷嘴"/>
   <translation tag="Wipe the Z screws and guides clean." zh="擦净 Z 丝杆和导向件。"/>
@@ -5576,6 +5600,7 @@
   <translation tag="You have unsaved changes. Discard them?" zh="您有未保存的更改。是否丢弃？"/>
   <translation tag="You, about {} min" zh="需要您约 {} 分钟"/>
   <translation tag="You: about {} min at the start, then it runs on its own" zh="开始时需要您约 {} 分钟，之后自动运行"/>
+  <translation tag="Your PID values are kept. You can switch back here any time."/>
   <translation tag="Your completed prints will appear here" zh="您完成的打印将显示在此处"/>
   <translation tag="Your filament system" zh="您的耗材系统"/>
   <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." zh="您的文件要求外墙速度为 {0:.0f} mm/s。此打印机在上次垂直纹路检查中于 {1:.0f}-{2:.0f} mm/s 抖动最强，这可能会在沿 X 或 Y 的墙面上印出细小的竖线。{3}（Orca: Outer wall speed; PrusaSlicer: External perimeters）。"/>
@@ -5643,6 +5668,7 @@
   <translation tag="a temporary mesh profile &apos;{}&apos;" zh="临时网格配置 &apos;{}&apos;"/>
   <translation tag="about {} min" zh="约 {} 分钟"/>
   <translation tag="already loaded" zh="已加载"/>
+  <translation tag="and the heater power"/>
   <translation tag="assign without adding to Spoolman" zh="分配但不添加到 Spoolman"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
@@ -5657,6 +5683,7 @@
   <translation tag="close: {}" zh="相近：{}"/>
   <translation tag="color differs" zh="颜色不同"/>
   <translation tag="complete" zh="完成"/>
+  <translation tag="control: mpc"/>
   <translation tag="cores" zh="核心"/>
   <translation tag="cycle {}" zh="循环 {}"/>
   <translation tag="cycle {}, {:.2f} (needs {:.2f})" zh="循环 {}，{:.2f}（目标 {:.2f}）"/>
@@ -5688,8 +5715,10 @@
   <translation tag="feeder not in automatic mode" zh="送料器未处于自动模式"/>
   <translation tag="filament sensor disabled" zh="耗材传感器已禁用"/>
   <translation tag="from tag" zh="来自标签"/>
+  <translation tag="gets"/>
   <translation tag="heated bed" zh="热床"/>
   <translation tag="heats" zh="会加热"/>
+  <translation tag="heats to {}"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" zh="已忽略 helixscreen.env：属主为 uid {}"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" zh="已忽略 helixscreen.env：符号链接链不受信任"/>
   <translation tag="helixscreen.env ignored: writable by other users" zh="已忽略 helixscreen.env：其他用户可写入"/>
@@ -5711,12 +5740,14 @@
   <translation tag="loud" zh="噪音大"/>
   <translation tag="matched" zh="匹配"/>
   <translation tag="material differs" zh="材料不同"/>
+  <translation tag="method: {}"/>
   <translation tag="mm" zh="mm"/>
   <translation tag="mm Z-offset" zh="mm Z 偏移"/>
   <translation tag="mm before clog" zh="毫米后堵料"/>
   <translation tag="needs" zh="需要"/>
   <translation tag="needs approval" zh="需要批准"/>
   <translation tag="needs you" zh="需要您参与"/>
+  <translation tag="never"/>
   <translation tag="never sleeps" zh="从不休眠"/>
   <translation tag="not detected" zh="未检测到"/>
   <translation tag="not loaded" zh="未加载"/>
@@ -5730,6 +5761,7 @@
   <translation tag="passive" zh="被动"/>
   <translation tag="preparing" zh="准备中"/>
   <translation tag="printer default" zh="打印机默认"/>
+  <translation tag="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" zh="printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"/>
   <translation tag="prints" zh="打印次数"/>
   <translation tag="ready to load" zh="可加载"/>

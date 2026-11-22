@@ -420,6 +420,7 @@ translations:
   Already connecting — wait a moment and try again: Connexion déjà en cours — patientez un instant et réessayez
   Already mounted: 'Déjà monté'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Garder aussi ce maillage pour {} ? Ses impressions sans maillage le chargent au démarrage."
+  Also measure part-fan cooling: ''
   Always Show Bypass Spool: Toujours afficher la bobine de bypass
   Always show Android navigation bar instead of using gestures: Toujours afficher la barre de navigation Android au lieu des gestes
   Ambient Transfer: Transfert ambiant
@@ -737,9 +738,12 @@ translations:
   Calibrate X: Calibrer X
   Calibrate Y: Calibrer Y
   Calibrate All Tools: Calibrer tous les outils
+  Calibrate at: ''
+  Calibrate bed: ''
   Calibrate heater: Calibrer le chauffage
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrer l'input shaping pour réduire les artefacts d'ondulation
   Calibrate now: 'Calibrer maintenant'
+  Calibrate nozzle: ''
   Calibrate part fan: Calibrer le ventilateur de pièce
   Calibrate this printer, step by step: 'Calibrer cette imprimante étape par étape'
   Calibrate tool offsets?: Calibrer les offsets d'outil ?
@@ -773,6 +777,7 @@ translations:
   Calibration may still be running — response timed out: Calibration peut-être encore en cours — délai de réponse dépassé
   Calibration move may still be running — printer connection was interrupted: 'Mouvement de calibration peut-être encore en cours — connexion à l''imprimante interrompue'
   Calibration request not valid: 'Demande de calibration invalide'
+  Calibration runs at {}, about {} min: ''
   Calibration saved: Calibration enregistrée
   Calibration saved but cannot apply on SDL display: Calibration enregistrée mais impossible à appliquer sur un écran SDL
   Calibration succeeded, but the frequency chart data couldn't be read.: Calibration réussie, mais les données du graphique de fréquence n'ont pas pu être lues.
@@ -868,6 +873,7 @@ translations:
   Change tool: Changer d'outil
   Changes apply immediately. Adjust during print for tuning.: Les modifications s'appliquent immédiatement. Ajustez pendant l'impression pour le réglage.
   Changes are temporary and reset on printer reboot: Les modifications sont temporaires et réinitialisées au redémarrage de l'imprimante
+  Changes printer.cfg and restarts Klipper first: ''
   Changing filament: "Changement de filament"
   Check AFC configuration: 'Vérifiez la configuration d''AFC'
   Check Again: Revérifier
@@ -1879,6 +1885,7 @@ translations:
   Fan available but not assigned to any role: 'Ventilateur disponible mais attribué à aucun rôle'
   Fan control: 'Contrôle des ventilateurs'
   'Fan control failed: {}': 'Échec du contrôle ventilateur : {}'
+  Fan points: ''
   Fan {} is not spinning: Le ventilateur {} ne tourne pas
   Fan {} stopped: Le ventilateur {} s'est arrêté
   FanSelect: Sélection du ventilateur
@@ -2199,6 +2206,8 @@ translations:
   Heater not heating as expected: 'L''élément chauffant ne chauffe pas comme prévu'
   Heater offline: Chauffage déconnecté
   Heater over-temperature: Surchauffe du chauffage
+  Heater power: ''
+  Heater power needed: ''
   Heater sensor fault: Défaut du capteur de chauffage
   Heater {1} is not heating as expected: Le chauffage {1} ne chauffe pas comme prévu
   HeaterSelect: Sélection du chauffage
@@ -2271,6 +2280,7 @@ translations:
   Hold slicer prints that do not fit: 'Retenir les impressions du trancheur qui ne conviennent pas'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Maintenez {} bien en place sur la tête. Le verrou se ferme dessus et il devient l'outil monté.
   Holding nozzle at {} to purge previous filament.: Maintien de la buse à {} pour purger le filament précédent.
+  Holds temperature better when the fan changes · +3 min: ''
   Home: Origine
   Home & Continue: Référencer et continuer
   Home All: "Tout référencer"
@@ -2516,6 +2526,7 @@ translations:
   Keep: 'Conserver'
   Keep %s?: 'Conserver %s ?'
   Keep Navigation Bar: Conserver la barre de navigation
+  Keep PID: ''
   Keep Printing: Continuer l'impression
   Keep Spool Info on Eject: Garder les informations de bobine lors de l'éjection
   Keep clear of the printer while the toolhead is moving: Restez à l'écart de l'imprimante pendant que la tête d'outil se déplace
@@ -2569,6 +2580,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper réserve 'default' aux nouvelles calibrations. Choisissez un autre nom."
   Klipper restarting - macros activating: 'Redémarrage de Klipper - activation des macros'
   Klipper restarts before calibrating.: 'Klipper redémarre avant la calibration.'
+  Klipper restarts, about 20 s: ''
   Klipper shut down: Klipper arrêté
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes et bloquer Klipper, qu'un redémarrage firmware ne peut alors plus atteindre. Éteignez puis rallumez l'imprimante (ou redémarrez Klipper via SSH), puis réessayez."
@@ -2618,6 +2630,7 @@ translations:
   Last measured: 'Dernière mesure'
   Last print canceled: Dernière impression annulée
   Last print failed: Dernière impression échouée
+  Last tuned {}: ''
   Later: Plus tard
   Layer: Couche
   Layer 2: 'Couche 2'
@@ -3349,6 +3362,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
+  : ''
   PIN must be 4-6 digits: Le code PIN doit comporter 4 à 6 chiffres
   PIN removed: Code PIN supprimé
   PIN set: Code PIN défini
@@ -3386,6 +3401,7 @@ translations:
   Part: Pièce
   Part Cooling Fan: Ventilateur de refroidissement pièce
   Part Fan: Ventilateur pièce
+  Part fan: ''
   Part of the plugin failed to load. Reinstall the plugin.: "Une partie du plugin n'a pas pu se charger. Réinstallez le plugin."
   Part of the plugin is missing. Reinstall the plugin.: "Une partie du plugin est manquante. Réinstallez le plugin."
   Part, hotend, and auxiliary fan speeds: 'Vitesses des ventilateurs de pièce, de hotend et auxiliaire'
@@ -4124,6 +4140,7 @@ translations:
   Safety & Alerts: Sécurité et alertes
   Same Filament, New Spool: 'Même filament, nouvelle bobine'
   Same filament: 'Même filament'
+  Same part-fan change, both methods: ''
   Same spool in {}? Tap Clear if it is a new one.: 'Même bobine dans {} ? Touchez Effacer s''il s''agit d''une nouvelle.'
   Sample: Échantillon
   Sample %d/%d: Échantillon %d/%d
@@ -4559,6 +4576,8 @@ translations:
   Static: 'Statique'
   Status: État
   Status icons: Icônes d'état
+  Stays on MPC: ''
+  Stays on PID: ''
   Std Deviation: Écart type
   Stealth: Silencieux
   Stealth is quiet, Sport is fastest: Silencieux est discret, Sport est le plus rapide
@@ -4619,10 +4638,12 @@ translations:
   Switch Printer: Changer d'imprimante
   Switch a power device on or off: Allumer ou éteindre un appareil
   Switch Sensors: Capteurs à interrupteur
+  Switch and calibrate: ''
   Switch back to the Snapmaker screen: 'Revenir à l''écran Snapmaker'
   Switch between light and dark themes: Basculer entre les thèmes clair et sombre
   Switch spools at each tool change: 'Changer de bobine à chaque changement d''outil'
   Switch the active tool or extruder: Changer d'outil ou d'extrudeur actif
+  Switch the nozzle to MPC?: ''
   Switch to a backup slot on runout: Passer à un slot de secours en fin de filament
   Switch to a matching slot on runout: Passer à un slot correspondant en fin de filament
   Switch to a matching spool when one runs out: 'Passer à une bobine correspondante quand l''une est vide'
@@ -5338,6 +5359,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Pour mapper le filament, HelixScreen réécrit le fichier d'impression avant de l'imprimer. Sans le plugin HelixPrint, la copie réécrite est celle qui arrive dans votre historique d'impression, donc les travaux terminés sont listés sous des noms comme modified_1730824_benchy.gcode au lieu du fichier choisi.\n\nL'installation du plugin prend un instant et ne nécessite aucun redémarrage."
   To use the lanes, pull the filament out of the toolhead by hand.: "Pour utiliser les voies, retirez le filament de la tête d'outil à la main."
+  'Today: {} · last tuned {}': ''
   Toggle: Basculer
   Toggle (fire-and-forget): Bascule (fire-and-forget)
   Toggle AFC LED strip: 'Basculer le ruban LED AFC'
@@ -5676,6 +5698,7 @@ translations:
   Watch on Your Phone: 'Regarder sur votre téléphone'
   Watch the camera during a print for failed prints: Surveille la caméra pendant une impression pour détecter les impressions échouées
   Watch which motor turns: "Regardez quel moteur tourne"
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: ''
   Weak battery: Batterie faible
   Webcam: Webcam
   Website (optional): Site web (facultatif)
@@ -5735,6 +5758,8 @@ translations:
   Width Sensors: Capteurs de largeur
   Wifi: Wi-Fi
   Will not switch spools on runout: Ne changera pas de bobine en fin de filament
+  Will switch to MPC (more stable): ''
+  Will switch to PID: ''
   Wipe each rail or rod clean with a lint-free cloth.: "Essuyez chaque rail ou tige avec un chiffon non pelucheux."
   Wipe nozzle on silicone cleaning strip: 'Essuyer la buse sur la bande de nettoyage en silicone'
   With exhaust cooling on, the recirculation fan cannot be turned on: 'Avec le refroidissement par extraction, le ventilateur de recirculation ne peut pas être allumé'
@@ -5780,6 +5805,7 @@ translations:
   You have unsaved changes. Discard them?: Vous avez des modifications non enregistrées. Les abandonner ?
   You, about {} min: 'Vous, environ {} min'
   'You: about {} min at the start, then it runs on its own': 'Vous : environ {} min au début, puis tout se déroule seul'
+  Your PID values are kept. You can switch back here any time.: ''
   Your completed prints will appear here: Vos impressions terminées apparaîtront ici
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'Votre fichier demande des parois externes à {0:.0f} mm/s. Lors de sa dernière Vérification des artefacts verticaux, cette imprimante a le plus vibré à {1:.0f}-{2:.0f} mm/s, ce qui peut imprimer de fines lignes verticales sur les parois le long de X ou Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
@@ -5849,6 +5875,7 @@ translations:
   a temporary mesh profile '{}': 'un profil de maillage temporaire ''{}'''
   about {} min: 'environ {} min'
   already loaded: 'déjà chargé'
+  and the heater power: ''
   assign without adding to Spoolman: attribuer sans ajouter à Spoolman
   attempt {}: 'essai {}'
   auto: auto
@@ -5863,6 +5890,7 @@ translations:
   'close: {}': 'proche : {}'
   color differs: 'couleur différente'
   complete: terminé
+  'control: mpc': ''
   cores: cœurs
   cycle {}: cycle {}
   cycle {}, {:.2f} (needs {:.2f}): cycle {}, {:.2f} (objectif {:.2f})
@@ -5893,8 +5921,10 @@ translations:
   feeder error: 'erreur d''alimentateur'
   feeder not in automatic mode: 'alimentateur pas en mode automatique'
   filament sensor disabled: 'capteur de filament désactivé'
+  gets: ''
   heated bed: plateau chauffant
   heats: 'chauffe'
+  heats to {}: ''
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignoré : appartient à l''uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignoré : chaîne de liens symboliques non fiable'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignoré : accessible en écriture aux autres utilisateurs'
@@ -5916,12 +5946,14 @@ translations:
   loud: 'bruyant'
   matched: équilibrées
   material differs: 'matériau différent'
+  'method: {}': ''
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: mm avant bouchon
   needs: nécessite
   needs approval: approbation requise
   needs you: 'a besoin de vous'
+  never: ''
   never sleeps: ne dort jamais
   not detected: non détecté
   not loaded: 'non chargé'
@@ -5941,6 +5973,7 @@ translations:
   passive: passif
   preparing: préparation
   printer default: par défaut de l’imprimante
+  printer.cfg: ''
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg charge plus de {} fichiers de configuration ; [{}] n'a pas été cherché dans tous"
   prints: impressions
   ready to load: 'prêt à charger'

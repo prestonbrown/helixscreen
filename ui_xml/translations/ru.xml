@@ -422,6 +422,7 @@
   <translation tag="Already connecting — wait a moment and try again" ru="Подключение уже выполняется — подождите и попробуйте снова"/>
   <translation tag="Already mounted" ru="Уже установлен"/>
   <translation tag="Also keep this mesh for {}. Its prints that do not mesh load it at the start." ru="Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."/>
+  <translation tag="Also measure part-fan cooling"/>
   <translation tag="Always Show Bypass Spool" ru="Всегда показывать катушку байпаса"/>
   <translation tag="Always show Android navigation bar instead of using gestures" ru="Всегда показывать панель навигации Android вместо жестов"/>
   <translation tag="Ambient Transfer" ru="Теплообмен с окружающей средой"/>
@@ -740,9 +741,12 @@
   <translation tag="Calibrate Toolhead Offsets" ru="Калибровать смещения головок"/>
   <translation tag="Calibrate X" ru="Калибровать X"/>
   <translation tag="Calibrate Y" ru="Калибровать Y"/>
+  <translation tag="Calibrate at"/>
+  <translation tag="Calibrate bed"/>
   <translation tag="Calibrate heater" ru="Калибровать нагреватель"/>
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" ru="Калибровка компенсации вибраций для уменьшения артефактов звона"/>
   <translation tag="Calibrate now" ru="Откалибровать"/>
+  <translation tag="Calibrate nozzle"/>
   <translation tag="Calibrate part fan" ru="Калибровать обдув модели"/>
   <translation tag="Calibrate this printer, step by step" ru="Пошаговая калибровка принтера"/>
   <translation tag="Calibrate tool offsets?" ru="Калибровать смещения инструментов?"/>
@@ -777,6 +781,7 @@
   <translation tag="Calibration may still be running — response timed out" ru="Калибровка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Calibration move may still be running — printer connection was interrupted" ru="Движение калибровки может ещё выполняться — соединение с принтером прервано"/>
   <translation tag="Calibration request not valid" ru="Недопустимый запрос калибровки"/>
+  <translation tag="Calibration runs at {}, about {} min"/>
   <translation tag="Calibration saved" ru="Калибровка сохранена"/>
   <translation tag="Calibration saved but cannot apply on SDL display" ru="Калибровка сохранена, но не может быть применена на SDL дисплее"/>
   <translation tag="Calibration succeeded, but the frequency chart data couldn&apos;t be read." ru="Калибровка завершена успешно, но не удалось прочитать данные графика частот."/>
@@ -871,6 +876,7 @@
   <translation tag="Change tool" ru="Сменить инструмент"/>
   <translation tag="Changes apply immediately. Adjust during print for tuning." ru="Изменения применяются немедленно. Корректируйте во время печати."/>
   <translation tag="Changes are temporary and reset on printer reboot" ru="Изменения временные и сбрасываются при перезагрузке принтера"/>
+  <translation tag="Changes printer.cfg and restarts Klipper first"/>
   <translation tag="Changing filament" ru="Смена филамента"/>
   <translation tag="Check AFC configuration" ru="Проверьте конфигурацию AFC"/>
   <translation tag="Check Again" ru="Проверить снова"/>
@@ -1821,6 +1827,7 @@
   <translation tag="Fan available but not assigned to any role" ru="Вентилятор доступен, но не назначен ни на одну роль"/>
   <translation tag="Fan control" ru="Управление вентиляторами"/>
   <translation tag="Fan control failed: {}" ru="Ошибка управления вентилятором: {}"/>
+  <translation tag="Fan points"/>
   <translation tag="Fan {} is not spinning" ru="Вентилятор {} не вращается"/>
   <translation tag="Fan {} stopped" ru="Вентилятор {} остановился"/>
   <translation tag="FanSelect" ru="Выбрать вентилятор"/>
@@ -2138,6 +2145,8 @@
   <translation tag="Heater not heating as expected" ru="Нагреватель греет не так, как ожидалось"/>
   <translation tag="Heater offline" ru="Нагреватель отключён"/>
   <translation tag="Heater over-temperature" ru="Перегрев нагревателя"/>
+  <translation tag="Heater power"/>
+  <translation tag="Heater power needed"/>
   <translation tag="Heater sensor fault" ru="Неисправность датчика нагревателя"/>
   <translation tag="Heater {1} is not heating as expected" ru="Нагреватель {1} греет не так, как ожидалось"/>
   <translation tag="HeaterSelect" ru="Выбрать нагреватель"/>
@@ -2209,6 +2218,7 @@
   <translation tag="Hold slicer prints that do not fit" ru="Задерживать печать из слайсера, если файл не подходит"/>
   <translation tag="Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool." ru="Удерживайте {} плотно на головке. Защелка зафиксирует его, и он станет установленным инструментом."/>
   <translation tag="Holding nozzle at {} to purge previous filament." ru="Удержание сопла при {} для очистки от предыдущего филамента."/>
+  <translation tag="Holds temperature better when the fan changes · +3 min"/>
   <translation tag="Home" ru="Главная"/>
   <translation tag="Home &amp; Continue" ru="Запарковать и продолжить"/>
   <translation tag="Home All" ru="Парковка всех осей"/>
@@ -2449,6 +2459,7 @@
   <translation tag="Keep" ru="Оставить"/>
   <translation tag="Keep %s?" ru="Оставить %s?"/>
   <translation tag="Keep Navigation Bar" ru="Сохранить панель навигации"/>
+  <translation tag="Keep PID"/>
   <translation tag="Keep Printing" ru="Продолжить печать"/>
   <translation tag="Keep Spool Info on Eject" ru="Сохранять данные катушки при извлечении"/>
   <translation tag="Keep Tuning" ru="Продолжить"/>
@@ -2497,6 +2508,7 @@
   <translation tag="Klipper reserves &apos;default&apos; for new calibrations. Choose another name." ru="Klipper резервирует &apos;default&apos; для новых калибровок. Выберите другое имя."/>
   <translation tag="Klipper restarting - macros activating" ru="Перезапуск Klipper - активация макросов"/>
   <translation tag="Klipper restarts before calibrating." ru="Klipper перезапустится перед калибровкой."/>
+  <translation tag="Klipper restarts, about 20 s"/>
   <translation tag="Klipper shut down" ru="Klipper остановлен"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти; перезапустите Klipper и повторите попытку."/>
@@ -2543,6 +2555,7 @@
   <translation tag="Last measured" ru="Последний замер"/>
   <translation tag="Last print canceled" ru="Последняя печать отменена"/>
   <translation tag="Last print failed" ru="Последняя печать не удалась"/>
+  <translation tag="Last tuned {}"/>
   <translation tag="Later" ru="Позже"/>
   <translation tag="Layer" ru="Слой"/>
   <translation tag="Layer 2" ru="Слой 2"/>
@@ -3269,6 +3282,7 @@
   <translation tag="PC" ru="PC"/>
   <translation tag="PETG" ru="PETG"/>
   <translation tag="PID" ru="PID"/>
+  <translation tag="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."/>
   <translation tag="PIN must be 4-6 digits" ru="PIN должен содержать 4-6 цифр"/>
   <translation tag="PIN removed" ru="PIN удалён"/>
   <translation tag="PIN set" ru="PIN установлен"/>
@@ -3306,6 +3320,7 @@
   <translation tag="Part" ru="Деталь"/>
   <translation tag="Part Cooling Fan" ru="Вентилятор охлаждения детали"/>
   <translation tag="Part Fan" ru="Вент. детали"/>
+  <translation tag="Part fan"/>
   <translation tag="Part of the plugin failed to load. Reinstall the plugin." ru="Часть плагина не загрузилась. Переустановите плагин."/>
   <translation tag="Part of the plugin is missing. Reinstall the plugin." ru="Часть плагина отсутствует. Переустановите плагин."/>
   <translation tag="Part, hotend, and auxiliary fan speeds" ru="Скорости вентиляторов обдува, хотэнда и дополнительного"/>
@@ -4047,6 +4062,7 @@
   <translation tag="Safety &amp; Alerts" ru="Безопасность и оповещения"/>
   <translation tag="Same Filament, New Spool" ru="Тот же филамент, новая катушка"/>
   <translation tag="Same filament" ru="Тот же филамент"/>
+  <translation tag="Same part-fan change, both methods"/>
   <translation tag="Same spool in {}? Tap Clear if it is a new one." ru="Та же катушка в {}? Нажмите «Очистить», если это новая."/>
   <translation tag="Sample" ru="Образец"/>
   <translation tag="Sample %d/%d" ru="Образец %d/%d"/>
@@ -4481,6 +4497,8 @@
   <translation tag="Static" ru="Статический"/>
   <translation tag="Status" ru="Статус"/>
   <translation tag="Status icons" ru="Иконки статуса"/>
+  <translation tag="Stays on MPC"/>
+  <translation tag="Stays on PID"/>
   <translation tag="Std Deviation" ru="Станд. отклонение"/>
   <translation tag="Stealth" ru="Тихий"/>
   <translation tag="Stealth is quiet, Sport is fastest" ru="Тихий самый тихий, Спорт самый быстрый"/>
@@ -4539,10 +4557,12 @@
   <translation tag="Switch Printer" ru="Переключить принтер"/>
   <translation tag="Switch Sensors" ru="Датчики-переключатели"/>
   <translation tag="Switch a power device on or off" ru="Включить или выключить питание"/>
+  <translation tag="Switch and calibrate"/>
   <translation tag="Switch back to the Snapmaker screen" ru="Вернуться к экрану Snapmaker"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
   <translation tag="Switch spools at each tool change" ru="Переключать катушку при каждой смене инструмента"/>
   <translation tag="Switch the active tool or extruder" ru="Смена активного инструмента"/>
+  <translation tag="Switch the nozzle to MPC?"/>
   <translation tag="Switch to a backup slot on runout" ru="Переключаться на резервный слот при окончании филамента"/>
   <translation tag="Switch to a matching slot on runout" ru="Переключаться на подходящий слот при окончании филамента"/>
   <translation tag="Switch to a matching spool when one runs out" ru="Переключаться на подходящую катушку, когда одна закончится"/>
@@ -5188,6 +5208,7 @@
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. This printer&apos;s Moonraker is too old for the HelixPrint plugin to restore the original filename afterwards, so the finished job is listed under the rewritten name. Filament Mapping itself works normally." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Moonraker этого принтера слишком старый, чтобы плагин HelixPrint потом восстановил исходное имя файла, поэтому выполненное задание отображается под изменённым именем. Само сопоставление филамента работает нормально."/>
   <translation tag="To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.&#10;&#10;Installing the plugin takes a moment and needs no restart." ru="Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Без плагина HelixPrint в историю печати попадает изменённая копия, поэтому выполненные задания отображаются под именами вроде modified_1730824_benchy.gcode вместо выбранного файла.&#10;&#10;Установка плагина занимает немного времени и не требует перезапуска."/>
   <translation tag="To use the lanes, pull the filament out of the toolhead by hand." ru="Чтобы использовать каналы, вытяните филамент из печатающей головки вручную."/>
+  <translation tag="Today: {} · last tuned {}"/>
   <translation tag="Toggle" ru="Переключить"/>
   <translation tag="Toggle (fire-and-forget)" ru="Переключение (без отслеживания)"/>
   <translation tag="Toggle AFC LED strip" ru="Переключить LED-ленту AFC"/>
@@ -5535,6 +5556,7 @@
   <translation tag="Watch on Your Phone" ru="Смотреть на телефоне"/>
   <translation tag="Watch the camera during a print for failed prints" ru="Следит за камерой во время печати, выявляя неудачные печати"/>
   <translation tag="Watch which motor turns" ru="Смотрите, какой двигатель вращается"/>
+  <translation tag="We don&apos;t know this hotend&apos;s heater. It is printed on the cartridge or its wires, usually 40 to 70 W."/>
   <translation tag="Weak battery" ru="Слабый заряд"/>
   <translation tag="Webcam" ru="Веб-камера"/>
   <translation tag="Website (optional)" ru="Веб-сайт (необязательно)"/>
@@ -5597,6 +5619,8 @@
   <translation tag="Width Sensors" ru="Датчики ширины"/>
   <translation tag="Wifi" ru="Wi-Fi"/>
   <translation tag="Will not switch spools on runout" ru="При обрыве катушка не переключится"/>
+  <translation tag="Will switch to MPC (more stable)"/>
+  <translation tag="Will switch to PID"/>
   <translation tag="Wipe each rail or rod clean with a lint-free cloth." ru="Протрите каждый рельс или вал безворсовой тканью."/>
   <translation tag="Wipe nozzle on silicone cleaning strip" ru="Очистить сопло о силиконовую полоску"/>
   <translation tag="Wipe the Z screws and guides clean." ru="Протрите винты и направляющие Z."/>
@@ -5642,6 +5666,7 @@
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>
   <translation tag="You, about {} min" ru="Вы, около {} мин"/>
   <translation tag="You: about {} min at the start, then it runs on its own" ru="Вы: около {} мин в начале, затем всё идёт само"/>
+  <translation tag="Your PID values are kept. You can switch back here any time."/>
   <translation tag="Your completed prints will appear here" ru="Ваши завершённые печати появятся здесь"/>
   <translation tag="Your filament system" ru="Ваша система филамента"/>
   <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." ru="В файле внешние стенки печатаются на {0:.0f} mm/s. При последней проверке вертикальных артефактов этот принтер сильнее всего трясло на {1:.0f}-{2:.0f} mm/s, что может оставлять тонкие вертикальные линии на стенках вдоль X или Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
@@ -5709,6 +5734,7 @@
   <translation tag="a temporary mesh profile &apos;{}&apos;" ru="временный профиль сетки &apos;{}&apos;"/>
   <translation tag="about {} min" ru="около {} мин"/>
   <translation tag="already loaded" ru="уже загружен"/>
+  <translation tag="and the heater power"/>
   <translation tag="assign without adding to Spoolman" ru="назначить без добавления в Spoolman"/>
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
@@ -5723,6 +5749,7 @@
   <translation tag="close: {}" ru="похоже: {}"/>
   <translation tag="color differs" ru="другой цвет"/>
   <translation tag="complete" ru="завершено"/>
+  <translation tag="control: mpc"/>
   <translation tag="cores" ru="ядер"/>
   <translation tag="cycle {}" ru="цикл {}"/>
   <translation tag="cycle {}, {:.2f} (needs {:.2f})" ru="цикл {}, {:.2f} (цель {:.2f})"/>
@@ -5757,8 +5784,10 @@
   <translation tag="feeder not in automatic mode" ru="фидер не в автоматическом режиме"/>
   <translation tag="filament sensor disabled" ru="датчик филамента отключён"/>
   <translation tag="from tag" ru="с метки"/>
+  <translation tag="gets"/>
   <translation tag="heated bed" ru="подогреваемый стол"/>
   <translation tag="heats" ru="нагрев"/>
+  <translation tag="heats to {}"/>
   <translation tag="helixscreen.env ignored: owned by uid {}" ru="helixscreen.env проигнорирован: принадлежит uid {}"/>
   <translation tag="helixscreen.env ignored: untrusted symlink chain" ru="helixscreen.env проигнорирован: недоверенная цепочка символических ссылок"/>
   <translation tag="helixscreen.env ignored: writable by other users" ru="helixscreen.env проигнорирован: доступен на запись другим пользователям"/>
@@ -5780,12 +5809,14 @@
   <translation tag="loud" ru="громко"/>
   <translation tag="matched" ru="совпадают"/>
   <translation tag="material differs" ru="другой материал"/>
+  <translation tag="method: {}"/>
   <translation tag="mm" ru="мм"/>
   <translation tag="mm Z-offset" ru="мм Z-смещение"/>
   <translation tag="mm before clog" ru="мм до засора"/>
   <translation tag="needs" ru="требуется"/>
   <translation tag="needs approval" ru="требует подтверждения"/>
   <translation tag="needs you" ru="нужны вы"/>
+  <translation tag="never"/>
   <translation tag="never sleeps" ru="никогда не спит"/>
   <translation tag="not detected" ru="не обнаружено"/>
   <translation tag="not loaded" ru="не загружен"/>
@@ -5799,6 +5830,7 @@
   <translation tag="passive" ru="пассивно"/>
   <translation tag="preparing" ru="подготовка"/>
   <translation tag="printer default" ru="по умолчанию для принтера"/>
+  <translation tag="printer.cfg"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" ru="printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"/>
   <translation tag="prints" ru="печатей"/>
   <translation tag="ready to load" ru="готов к загрузке"/>
