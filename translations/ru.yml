@@ -4846,6 +4846,8 @@ translations:
   The DNS server is not a valid address.: 'DNS-сервер не является допустимым адресом.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'Плагин HelixPrint должен поставляться прошивкой принтера, которая управляет программным обеспечением HelixScreen.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'Плагином HelixPrint управляет прошивка принтера.'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена.'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'Плата IFS не ответила вовремя: проблема с кабелем, плата зависла или родной экран использует тот же порт.'
   The IFS board reported a driver error on every retry.: Плата IFS сообщала об ошибке драйвера при каждой повторной попытке.
@@ -5864,6 +5866,8 @@ translations:
   Your printer at a glance: Ваш принтер одним взглядом
   Your printer has an automatic filament changer: Ваш принтер оснащён автоматическим сменщиком филамента
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'
