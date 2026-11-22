@@ -1586,14 +1586,17 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         // record; type and colour go to print_task_config below, and the
         // record copies them from the firmware's echo.
         persist_record_beside_firmware_locked(slot_index, info);
+        const auto idx = static_cast<size_t>(slot_index);
         if (record_write) {
-            const auto idx = static_cast<size_t>(slot_index);
             // This write is the record's restore until the firmware echoes it,
-            // and it is never repeated: a restore is built from the override,
-            // which keeps the pre-edit type and color until that echo.
+            // and a restore before that echo writes this edit again.
+            record_restores_made_[idx] = 0;
             note_record_written_locked(idx);
-            record_restores_made_[idx] = kMaxRecordRestores;
-            sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu};
+            sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu,
+                                           /*unechoed=*/true, task_type_[idx].value_or("")};
+        } else if (task_type_[idx].has_value()) {
+            // The record already states this edit, or a tag owns it.
+            forget_unechoed_edit_locked(idx);
         }
     }
 
@@ -2139,6 +2142,7 @@ void AmsBackendSnapmaker::apply_port_presence_locked(int i, bool detected, Frame
             pending_insert_passes_[i] = 1;
             insert_verdict_[i] = InsertIdentity::NotRead;
             insert_since_declaration_[i] = true;
+            forget_unechoed_edit_locked(i);
         } else if (!detected) {
             pending_insert_passes_[i] = 0;
         }
@@ -2502,6 +2506,9 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
                 slot->color_rgb = *rgb;
             }
             fx.changed = true;
+        }
+        if (ptc.filament_type[i] || ptc.filament_color_rgba[i]) {
+            settle_unechoed_edit_locked(static_cast<size_t>(i));
         }
     }
 }
@@ -3018,6 +3025,7 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, &slot);
+    forget_unechoed_edit_locked(static_cast<size_t>(slot_index));
     slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
@@ -3053,6 +3061,7 @@ void AmsBackendSnapmaker::clear_slot_override(int slot_index) {
         }
         spdlog::info("{} Slot {} override cleared by user request", backend_log_tag(), slot_index);
         clear_override_locked(slot_index, slot);
+        forget_unechoed_edit_locked(static_cast<size_t>(slot_index));
         slot->spool_name = tag_product_line(lane_id(slot_index));
     }
 
@@ -3514,11 +3523,14 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         // The record copies every type the firmware states, so a type alone
         // is no reason to rewrite the head (each write resets its flow
         // calibration): only a record that also names the spool, which only
-        // an edit or a Spoolman link puts there.
-        const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() || ovr->second.material.empty() ||
-            !record_names_spool(ovr->second)) {
-            continue;
+        // an edit or a Spoolman link puts there, or an edit the firmware has
+        // not stated yet.
+        if (unechoed_edit_locked(head) == nullptr) {
+            const auto ovr = overrides_.find(head);
+            if (ovr == overrides_.end() || ovr->second.material.empty() ||
+                !record_names_spool(ovr->second)) {
+                continue;
+            }
         }
         std::string gcode = unset_record_restore_locked(head);
         if (gcode.empty()) {
@@ -3542,6 +3554,36 @@ void AmsBackendSnapmaker::note_record_written_locked(size_t idx) {
     ++record_restores_made_[idx];
 }
 
+const AmsBackendSnapmaker::SentRecord* AmsBackendSnapmaker::unechoed_edit_locked(int head) const {
+    const auto& sent = sent_record_[static_cast<size_t>(head)];
+    return sent && sent->unechoed ? &*sent : nullptr;
+}
+
+void AmsBackendSnapmaker::settle_unechoed_edit_locked(size_t idx) {
+    auto& sent = sent_record_[idx];
+    if (!sent || !sent->unechoed || !task_type_[idx] || is_unset_task_field(*task_type_[idx])) {
+        return;
+    }
+    const std::string& type = *task_type_[idx];
+    if (helix::text_io::equals_ignore_case(type, sent->material)) {
+        if (!task_color_[idx] || *task_color_[idx] == sent->color_rgb) {
+            sent->unechoed = false;
+        }
+        return;
+    }
+    if (!helix::text_io::equals_ignore_case(type, sent->replaced_material)) {
+        spdlog::debug("{} head {} record names {} over the unechoed edit {}; the edit stands down",
+                      backend_log_tag(), idx, type, sent->material);
+        sent->unechoed = false;
+    }
+}
+
+void AmsBackendSnapmaker::forget_unechoed_edit_locked(size_t idx) {
+    if (auto& sent = sent_record_[idx]) {
+        sent->unechoed = false;
+    }
+}
+
 std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     const auto idx = static_cast<size_t>(head);
     if (!task_type_[idx].has_value() || !is_unset_task_field(*task_type_[idx])) {
@@ -3556,10 +3598,14 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     if (!slot) {
         return {};
     }
-    // The type and colour written back are the record's: the last ones the
-    // firmware itself stated, which the record copied before the reset.
+    // The type and color written back are the edit the firmware has not
+    // stated yet, else the record's: the last ones the firmware itself
+    // stated, which the record copied before the reset.
     SlotInfo restore = *slot;
-    if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
+    if (const SentRecord* edit = unechoed_edit_locked(head)) {
+        restore.material = edit->material;
+        restore.color_rgb = edit->color_rgb;
+    } else if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
         if (!ovr->second.material.empty()) {
             restore.material = ovr->second.material;
         }
