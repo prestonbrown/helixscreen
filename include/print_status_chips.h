@@ -54,14 +54,15 @@ struct ChipContent {
                                       bool show_power, std::string_view badge, int start_deci,
                                       bool reading_alone_shows = false);
 
-/// A head the other-tools chip lists: the tool that stands for it and the
-/// extruder it heats.
+/// A head the other-tools chip lists: the tool that stands for it, the
+/// extruder it heats and its index into the heads it was found among.
 struct OtherHead {
     int tool = -1;
     std::string extruder;
+    int head = -1;
 };
 
-/// The heads besides the one printing, in head order, each named by its
+/// The heads besides the one printing, in head order, each standing for its
 /// representative tool. The printing head is the one holding `active_tool`, or
 /// heating `active_extruder` (the toolhead's extruder) when no tool is active.
 /// Lanes feeding one extruder are one head, and a head naming no extruder has no
@@ -83,9 +84,10 @@ struct OtherToolReading {
     std::string number;
 };
 
-/// The badge and fallback number of tool `index` in `style`, the readings left at zero.
-[[nodiscard]] OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name,
-                                                int index);
+/// The badge and fallback number of `head` in `style` (ui::head_badge_label()),
+/// the readings left at zero.
+[[nodiscard]] OtherToolReading other_tool_label(ui::ToolNumberStyle style,
+                                                const HeadIdentity& head);
 
 /// The chip listing the other heads that have a target, pre-heating or holding:
 /// "3 184 / 220° · 2 150°". Heads with no target are left out, and with none

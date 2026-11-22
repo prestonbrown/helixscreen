@@ -22,7 +22,7 @@ The slot view shows all your filament slots in a visual tray layout:
 - **Spool icons**: Each slot displays a 3D spool visualization with its filament color
 - **Spool labels**: Above each spool. With four slots or fewer, the label shows the spool's name (for example "Bone White") over its material (PLA, PETG, ABS, etc.). When the name already says the material, as in "PLA+ Bone White", only the name is shown, and a slot with no name shows just the material. With five or more slots there is only room for the material, shortened to its first four letters. On smaller screens five or more labels alternate between two rows, so neighbors never overlap, and a thin line leads from a raised label down to its spool.
 - **Status badge**: Slot number with color-coded background (green = loaded, gray = empty, red = error)
-- **Slot numbers**: Slots count from 1 unless you turn on **Number slots from 0** under **Settings > Printing**, which counts slots, lanes, gates and tools from 0, so gate 0 on Happy Hare reads as Gate 0 next to T0. Only the display changes; tool names stay T0, T1 and so on.
+- **Slot numbers**: On AFC and Happy Hare, slots count from 0 as those systems do, so gate 0 on Happy Hare reads as Gate 0 next to T0; on every other system they count from 1. **Number slots from 0** under **Settings > Printing** shows which applies and changes it for the printer, counting slots, lanes, gates and tools from 0 or from 1. Only the display changes; tool names stay T0, T1 and so on.
 - **Tool badge**: A small badge (T0, T1, etc.) on a slot shows which tool prints from it. When every tool feeds the slot of its own number (T0 the first slot, T1 the second, and so on), the badges would only repeat the slot numbers, so they are hidden. They appear when the tools are mapped any other way, for example after you change a slot's [Assigned Tool](#assigned-tool) or when two tools share a slot. A badge in the warning color marks a mapping you set yourself rather than the one your system reports.
 - **Environment pill**: On a box that reports temperature or humidity, a pill stands at the right end of the box: a thermometer with the temperature over a water drop with the humidity. The drop fills to the humidity reading, so a wet box shows a full drop at a glance; a box whose sensor gives no reading shows an empty outline. While the box dries, the temperature line shows the heat icon and the time left. Tap the pill to open that box's drying and humidity screen (see [Filament Drying and Humidity](filament-drying.md)). Boxes with no readings have no pill, and the box takes the full width.
 
@@ -191,7 +191,7 @@ Tapping the mounted toolhead, or any slot's filament tube or spool, opens the sl
 
 - **Runout Backup**: Choose where to switch to if this spool runs out mid-print. The backup must hold a compatible material; a slot holding something else is marked **(incompatible)** and can't be picked. A slot holding the *same* material in a different grade, PLA-CF behind PLA, say, is marked **(different grade)** and *can* be picked: the swap will work, but filled filaments print slower and wear a brass nozzle, and this one happens mid-print without you there, so the label tells you before you choose it. This picker appears on **AFC (Box Turtle)** and on **single-unit Happy Hare** setups; a multi-unit Happy Hare shows its groups read-only, because the command that edits them acts on whichever unit is selected.
 
-**Feeds Tool** - On systems where HelixScreen can set which tool a slot feeds, the same page has a **Feeds Tool** dropdown: pick the tool this slot should feed. See [Assigned Tool](#assigned-tool) below.
+**Assigned Tool** - On systems where HelixScreen can set which tool number a slot answers to, the same page has an **Assigned Tool** dropdown: pick the tool number (the `T0` a slicer or console sends) that loads this slot. See [Assigned Tool](#assigned-tool) below.
 
 Both are saved with the spool: pick them, go back to the summary and tap **Save**. A line under them says what a runout will do. To get there, tap a slot, choose **Edit Spool**, and tap the **Lane Settings** row on the slot's summary.
 
@@ -199,7 +199,7 @@ Both are saved with the spool: pick them, go back to the summary and tap **Save*
 
 > **Clearing every backup at once:** To remove every Endless Spool backup in one step (back to "a runout just stops the print"), open the Multi-Filament System Management screen and tap **Reset Endless Spool**. See [Multi-Filament System Management](#multi-filament-system-management) below.
 
-> **Assigning tools:** Which tool a slot feeds is set in two places. For one print, use the **Filament Mapping** card that appears when you select a multi-tool file: see [Filament Mapping](filament-mapping.md#filament-mapping). To change the printer's own standing assignment, pick the slot's **Feeds Tool** on its editor's **Lane Settings** page: see [Assigned Tool](#assigned-tool) below.
+> **Assigning tools:** Which tool a slot feeds is set in two places. For one print, use the **Filament Mapping** card that appears when you select a multi-tool file: see [Filament Mapping](filament-mapping.md#filament-mapping). To change the printer's own standing assignment, pick the slot's **Assigned Tool** on its editor's **Lane Settings** page: see [Assigned Tool](#assigned-tool) below.
 
 ## Editing Filament Properties
 
@@ -215,7 +215,7 @@ The summary shows:
 
 - **The spool card** shows the spool drawn in its color and filled to how much is left, with its brand and product (for example **Polymaker PolyTerra**), its material and color (**PLA · Charcoal Black**) and its nozzle and bed temperatures. Tap the card to change what the spool is: see [The Filament page](#the-filament-page).
 - **The weight** reads, for example, **850 g of 1 kg · 85%**: the grams left, the spool's size and the percent left.
-- **Lane Settings** (named for your system, such as **Gate Settings**) says which tool the slot feeds and what happens when it runs out, for example **Feeds T0 · Pauses on runout**. Tap it to change either: see [Lane Settings](#lane-settings). It only appears where one of them can be changed.
+- **Lane Settings** (named for your system, such as **Gate Settings**) says which tool number loads the slot and what happens when it runs out, for example **Assigned T0 · Pauses on runout**. Tap it to change either: see [Lane Settings](#lane-settings). It only appears where one of them can be changed.
 - **Add to Spoolman** appears when Spoolman is set up and the slot isn't linked to a Spoolman spool: see [Adding a slot's spool to Spoolman](#adding-a-slots-spool-to-spoolman).
 - **Clear Lane** and **Save** sit at the bottom.
 
@@ -303,7 +303,7 @@ Favorites belong to the screen, not the printer, so they are the same on every p
 
 Tap the **Lane Settings** row on a slot's summary to set what the slot does. Your picks are saved with the spool when you tap **Save** on the summary; leaving without saving keeps the slot's settings as they were. If the printer refuses a change, HelixScreen says why, puts that setting back, and leaves your spool changes unsaved so you can tap **Save** again.
 
-- **Feeds Tool** is the toolhead this slot loads into. It appears where HelixScreen can set it, such as on AFC, Happy Hare and the QIDI Box. See [Assigned Tool](#assigned-tool).
+- **Assigned Tool** is the tool number that loads this slot. On a printer with several toolheads, which head the slot feeds is set by its hardware, not by this number. It appears where HelixScreen can set it, such as on AFC, Happy Hare and the QIDI Box. See [Assigned Tool](#assigned-tool).
 - **Runout Backup** is the slot that takes over when this one runs out mid-print (Endless Spool). See [Endless Spool](#slot-context-menu) above for which slots can be picked.
 - A line under them says what a runout of this slot will do, for example **When this spool runs out, printing continues from Lane 4.**, and why the printer won't switch spools when it can't.
 
@@ -382,7 +382,7 @@ Separately from Filament Mapping, some filament systems keep their own table of 
 
 1. Tap a slot and choose **Edit Spool**.
 2. Tap the **Lane Settings** row on the slot's summary.
-3. Pick the tool in **Feeds Tool**.
+3. Pick the tool number in **Assigned Tool**.
 4. Go back to the summary and tap **Save**.
 
 The row is left out where the system keeps no table HelixScreen can write, such as the Snapmaker U1 and the ACE. If your system refuses the change, the row is grayed out with the reason under it. The tool badges in the slot view show the result.

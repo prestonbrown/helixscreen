@@ -1048,8 +1048,10 @@ void FilamentPanel::with_target_mounted(std::function<void()> then) {
                 return;
             }
             tool_arrival_.start(target, helix::ui::kToolArrivalTimeoutMs, then, [target]() {
+                // The head that was asked for, not the lane that stands for it.
                 NOTIFY_WARNING(lv_tr("{} did not arrive; nothing was sent"),
-                               helix::ui::tool_label(target));
+                               helix::ui::active_head_name_label(
+                                   ToolState::instance().head_identity_for_tool(target)));
             });
         });
     hooks.owner_token = object_lifetime_.token();

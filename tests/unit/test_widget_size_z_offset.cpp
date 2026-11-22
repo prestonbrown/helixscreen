@@ -21,6 +21,7 @@
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
+#include "../test_helpers/tool_topologies.h"
 #include "app_globals.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
@@ -419,6 +420,25 @@ TEST_CASE_METHOD(ZOffsetFixture,
     // The machine-wide offset does not move the tool's value.
     set_offset_microns(-500);
     CHECK(subject_text("z_offset_value_text") == "-0.100");
+}
+
+TEST_CASE_METHOD(ZOffsetFixture, "z_offset: a lane rig shows the mounted head's offset and name",
+                 "[widget_size][z_offset][head-identity]") {
+    // LB6LEZ44: lane T0 is mounted, in extruder2, whose printer tool is T2.
+    state().set_hardware(helix::test::make_lb6lez44_discovery());
+    ToolState::instance().init_tools(state().get_discovery());
+    ToolState::instance().set_ams_topology(helix::test::make_lb6lez44_topology());
+    lv_subject_set_int(ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z), 1);
+    ToolState::instance().set_tool_offset_local(2, Axis::Z, -150);
+    ToolState::instance().set_tool_offset_local(0, Axis::Z, -900);
+    drain();
+    PanelWidgetHarness<ZOffsetWidget> h(test_screen(), state());
+    h.resize(1, 1, 234, 260);
+    REQUIRE(rung_subject() == static_cast<int>(SizeRung::Full));
+    CHECK(subject_text("z_offset_value_text") == "-0.150");
+    CHECK(subject_text("z_offset_tool_text") == "Tool 3");
+    ToolState::instance().clear_ams_topology();
+    drain();
 }
 
 TEST_CASE_METHOD(ZOffsetFixture, "z_offset: a tool that has reported nothing reads --",

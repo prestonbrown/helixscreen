@@ -8,11 +8,11 @@
 <!-- What the macro measures against, and how it heats, is its own business -->
 <!-- - nothing here names a reference tool. -->
 <component>
-  <!-- The mounted tool's row gets an accent border while a run is in
-       flight, reusing the active_tool subject the toolchanger already
-       publishes for tool selection - no per-tool progress state of its own to
-       leak or wedge. Mounted is not the same as being probed: the tool the
-       others are measured against is mounted without being probed. -->
+  <!-- The mounted head's row gets an accent border while a run is in
+       flight, from the per-row tool_cal_mounted_N the panel derives from the
+       mounted tool - no per-tool progress state of its own to leak or wedge.
+       Mounted is not the same as being probed: the head the others are
+       measured against is mounted without being probed. -->
   <styles>
     <style name="tool_offset_row_idle" bg_color="#elevated_bg" bg_opa="255" border_color="#border" border_width="1"/>
     <style name="tool_offset_row_measuring"
@@ -62,14 +62,14 @@
                     width="100%" height="content" flex_flow="row" style_flex_cross_place="center"
                     style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_pad_gap="#space_sm"
                     style_radius="#border_radius_small" scrollable="false">
-              <bind_style_if name="tool_offset_row_idle" cond="tool_cal_active eq 0 or active_tool ne ${i}"/>
-              <bind_style_if name="tool_offset_row_measuring" cond="tool_cal_active eq 1 and active_tool eq ${i}"/>
+              <bind_style_if name="tool_offset_row_idle" cond="tool_cal_active eq 0 or tool_cal_mounted_${i} eq 0"/>
+              <bind_style_if name="tool_offset_row_measuring" cond="tool_cal_active eq 1 and tool_cal_mounted_${i} eq 1"/>
               <lv_obj width="content"
                       height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_bg_opa="255"
                       style_bg_color="#card_bg" style_radius="#border_radius_small" style_border_width="1"
                       style_border_color="#border" flex_flow="row" style_flex_main_place="center"
                       style_flex_cross_place="center" scrollable="false">
-                <text_body text="T${i}"/>
+                <text_body bind_text="tool_cal_label_${i}"/>
               </lv_obj>
 
               <!-- The tool's current offsets. -->

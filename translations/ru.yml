@@ -541,6 +541,7 @@ translations:
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
   Assign a slot first: 'Сначала назначьте слот'
   Assigned Tool: Назначенный инструмент
+  Assigned {}: 'Назначен {}'
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
@@ -1985,9 +1986,6 @@ translations:
   Feeders: Фидеры
   Feeding filament to nozzle: "Подача филамента к соплу"
   Feeding the head by hand did not finish.: 'Ручная подача в головку не завершилась.'
-  Feeds Tool: 'Подаёт в инструмент'
-  Feeds no tool: 'Не подаёт ни в один инструмент'
-  Feeds {}: 'Подаёт в {}'
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
@@ -3268,6 +3266,7 @@ translations:
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
   No timelapse videos found: Таймлапс-видео не найдены
+  No tool assigned: 'Инструмент не назначен'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?'
   No tool is mounted: 'Инструмент не установлен'
   No tool mounted: 'Инструмент не установлен'

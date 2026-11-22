@@ -681,23 +681,29 @@ void ZOffsetCalibrationPanel::start_once_bed_clear() {
     // A tool changer's probe offset can belong to one tool. Asking rather than
     // mounting it keeps a calibration entry from starting a tool change.
     PrinterState& ps = get_printer_state();
+    // Compared as heads: the reference is a printer tool, and where tools are
+    // lanes the mounted lane stands for the head it sits in.
     const auto reference = tool_offsets::probe_reference_tool(ps.get_discovery());
-    const int active = ToolState::instance().active_tool_index();
-    if (zoffset_cal::reference_tool_gate(run_strategy(), reference, active) ==
+    const auto& tools = ToolState::instance();
+    if (zoffset_cal::mounted_reference_gate(run_strategy(), reference, tools) ==
         zoffset_cal::ToolGate::ConfirmFirst) {
-        confirm_tool_then_start(*reference, active);
+        confirm_tool_then_start(*reference, tools.active_tool_index());
         return;
     }
     begin_calibration();
 }
 
 void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int active_tool) {
-    const std::string reference = helix::ui::tool_label(reference_tool);
+    const auto& tools = ToolState::instance();
+    const std::string reference =
+        helix::ui::active_head_name_label(tools.head_identity_for_offset_tool(reference_tool));
     const std::string message =
         active_tool >= 0
-            ? fmt::format(fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
-                                             "with {1}. Continue with {0}?")),
-                          helix::ui::tool_label(active_tool), reference)
+            ? fmt::format(
+                  fmt::runtime(lv_tr("{0} is mounted. With one shared probe, calibrate "
+                                     "with {1}. Continue with {0}?")),
+                  helix::ui::active_head_name_label(tools.head_identity_for_tool(active_tool)),
+                  reference)
             : fmt::format(fmt::runtime(lv_tr("No tool is known to be mounted. With one shared "
                                              "probe, calibrate with {}. Continue anyway?")),
                           reference);

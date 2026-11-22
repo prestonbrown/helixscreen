@@ -61,7 +61,7 @@ Other keys in the same section:
 
 | Key | Default | What it does |
 |-----|---------|--------------|
-| `number_lanes_from_zero` | `false` | Numbers slots from 0 instead of 1. **Settings > Printing > Number slots from 0**. |
+| `number_lanes_from_zero` | per filament system | Numbers slots from 0 instead of 1. **Settings > Printing > Number slots from 0**. Until you set it for a printer, it follows the filament system: on for AFC and Happy Hare, which count their lanes and gates from 0, and off for everything else. Once set, your choice is stored and kept. |
 | `end_of_print_unload_tools` | `0` | A bit mask of the tools that unload when a print ends: bit N set means tool N unloads. Written by the standing print options. |
 | `eject_distance` | `0` | How far, in mm (`0` to `2000`), a backend that ejects a lane pushes the filament out. `0` means the backend's own default. |
 | `eject_velocity` | `0` | The eject speed in mm/s (`0` to `300`). `0` means the backend's own default. |

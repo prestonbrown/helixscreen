@@ -74,21 +74,23 @@ std::vector<OtherHead> other_heads(const std::vector<PhysicalHead>& heads, int a
     // With nothing mounted a lone head is not "another" head either.
     if (heads_share_heater || heads.size() < 2)
         return out;
-    for (const PhysicalHead& head : heads) {
+    for (size_t i = 0; i < heads.size(); ++i) {
+        const PhysicalHead& head = heads[i];
         // The toolhead's extruder is the printing head even while no tool reads as
         // active (between jobs), and the nozzle chip already shows it.
         if (!head.extruder_name || head.holds_tool(active_tool) ||
             *head.extruder_name == active_extruder)
             continue;
-        out.push_back({head.representative_tool(active_tool), *head.extruder_name});
+        out.push_back(
+            {head.representative_tool(active_tool), *head.extruder_name, static_cast<int>(i)});
     }
     return out;
 }
 
-OtherToolReading other_tool_label(ui::ToolNumberStyle style, std::string_view name, int index) {
+OtherToolReading other_tool_label(ui::ToolNumberStyle style, const HeadIdentity& head) {
     OtherToolReading r;
-    r.badge = ui::tool_badge_label(style, name, index);
-    if (std::string number = ui::tool_number_text(style, name, index); number != r.badge) {
+    r.badge = ui::head_badge_label(style, head);
+    if (std::string number = ui::head_number_text(style, head); number != r.badge) {
         r.number = std::move(number);
     }
     return r;

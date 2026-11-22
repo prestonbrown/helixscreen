@@ -254,6 +254,21 @@ TEST_CASE_METHOD(TunerFixture, "after the tower is done the Tune row sends on it
     CHECK_FALSE(overlay.nudge_by(0.001f));
 }
 
+TEST_CASE("the tower refuses a tool whose head nothing can mount", "[pa_tune][pa_tuner]") {
+    pa::TestPrintParams p;
+    p.tool = 2;
+    p.select_head_gcode.clear();
+    CHECK_FALSE(PaTuningOverlay::head_mount_refusal(p).empty());
+
+    p.select_head_gcode = "AFC_SELECT_TOOL TOOL=extruder2";
+    CHECK(PaTuningOverlay::head_mount_refusal(p).empty());
+
+    // No tool chosen: a single head needs no mount command.
+    p.tool = -1;
+    p.select_head_gcode.clear();
+    CHECK(PaTuningOverlay::head_mount_refusal(p).empty());
+}
+
 TEST_CASE("the tower's pre-print routing is its own tool on its own head", "[pa_tune][pa_tuner]") {
     CHECK(PaTuningOverlay::tower_routing(2) == std::map<int, int>{{2, 2}});
     CHECK(PaTuningOverlay::tower_routing(-1) == std::map<int, int>{{0, 0}});

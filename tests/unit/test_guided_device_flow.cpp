@@ -486,14 +486,15 @@ TEST_CASE_METHOD(GuidedFlowFixture, "a per-tool action names its tool in the app
                  "[ams][device-section]") {
     DeviceAction unload = DeviceAction::toggle("unload_t1", "Unload at end", "prefs", false);
     unload.tool_index = 1;
-    CHECK(helix::ui::device_action_label(unload) == "Unload at end - Tool 2 (T1)");
+    // The mock speaks Happy Hare, which counts from 0, so "Tool 1" is T1.
+    CHECK(helix::ui::device_action_label(unload) == "Unload at end - Tool 1");
     CHECK(helix::ui::device_action_label(DeviceAction::toggle("x", "Plain", "prefs", false)) ==
           "Plain");
 
     lv_obj_t* root = open_prefs({unload});
     lv_obj_t* row = lv_obj_find_by_name(root, "unload_t1");
     REQUIRE(row != nullptr);
-    CHECK(text_of(row, "label") == "Unload at end - Tool 2 (T1)");
+    CHECK(text_of(row, "label") == "Unload at end - Tool 1");
 }
 
 TEST_CASE_METHOD(GuidedFlowFixture, "an enabled action's row and label read as enabled",

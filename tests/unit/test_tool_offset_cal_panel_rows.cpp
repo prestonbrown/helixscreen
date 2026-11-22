@@ -15,6 +15,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../toolchanger_panel_fixture.h"
 #include "core/update_queue.h"
+#include "test_helpers/tool_topologies.h"
 #include "tool_state.h"
 
 #include <string>
@@ -56,6 +57,11 @@ TEST_CASE_METHOD(ToolCalRowsFixture, "tool offset panel: the repeat builds one r
         CHECK(lv_obj_find_by_name(root, ("tool_cal_row_" + std::to_string(i)).c_str()) != nullptr);
     }
     CHECK(lv_obj_find_by_name(root, "tool_cal_row_4") == nullptr);
+    // Each row is labeled as the head it is: a tool changer's tools are its heads.
+    std::vector<std::string> labels;
+    collect_labels(lv_obj_find_by_name(root, "tool_cal_row_2"), labels);
+    REQUIRE_FALSE(labels.empty());
+    CHECK(labels.front() == "T2");
 
     panel.cleanup();
     helix::ui::UpdateQueue::instance().drain();
@@ -145,5 +151,38 @@ TEST_CASE_METHOD(ToolCalRowsFixture, "tool offset panel: the rows stop following
     CHECK(lv_subject_get_int(panel.get_tool_count_subject()) == 0);
 
     panel.cleanup();
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+TEST_CASE_METHOD(ToolCalRowsFixture,
+                 "tool offset panel: a lane rig gets one row per head, with its head's offsets",
+                 "[ui_integration][tool_offset_cal][head-identity]") {
+    // LB6LEZ44: twelve lanes on six heads; tool T2's offsets are extruder2's.
+    helix::ToolState& ts = helix::ToolState::instance();
+    ts.init_tools(helix::test::make_lb6lez44_discovery());
+    ts.set_ams_topology(helix::test::make_lb6lez44_topology());
+    helix::ui::UpdateQueue::instance().drain();
+    ts.set_tool_offset_local(2, helix::Axis::X, 250);
+
+    helix::ui::ToolOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    lv_obj_t* root = panel.create(lv_screen_active());
+    REQUIRE(root != nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(lv_subject_get_int(panel.get_tool_count_subject()) == 6);
+    std::vector<std::string> labels;
+    collect_labels(lv_obj_find_by_name(root, "tool_cal_row_2"), labels);
+    REQUIRE(labels.size() == 7);
+    CHECK(labels[0] == "3"); // the head, never the lane's "T0"
+    CHECK(labels[2] == "+0.250");
+    // extruder5 has no printer tool, so nothing to show.
+    labels.clear();
+    collect_labels(lv_obj_find_by_name(root, "tool_cal_values_5"), labels);
+    REQUIRE(labels.size() == 6);
+    CHECK(labels[1] == "--");
+
+    panel.cleanup();
+    ts.clear_ams_topology();
     helix::ui::UpdateQueue::instance().drain();
 }
