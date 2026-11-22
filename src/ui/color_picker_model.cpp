@@ -44,7 +44,20 @@ const std::vector<uint32_t>& color_palette(ColorPalette palette) {
         0x7AA2F7, 0xBB9AF7, 0xD9455F, 0xD79921, 0x689D6A, 0x2AA198, 0x268BD2, 0x8839EF,
         0xA02030, 0x8F6A0A, 0x40A02B, 0x0F7B78, 0x1E4FA8, 0x5B3FBF,
     };
+    // Rows 1 and 3: Filament's grays and vivid tone, unchanged. Row 2: the OKLab
+    // average of its pastel and muted tones per hue. Row 4: the same average of
+    // its deep and dark tones. The ten hue columns stay: averaging neighboring
+    // hues instead turns yellow olive and merges the two blues.
+    static const std::vector<uint32_t> filament_compact = {
+        0xFFFFFF, 0xDEDEDE, 0xBEBEBE, 0x9E9E9E, 0x7F7F7F, 0x636363, 0x4A4A4A, 0x353535,
+        0x222222, 0x0F0F0F, 0xE6AEA7, 0xE2B293, 0xD1BD86, 0xB2C792, 0x9CCCA4, 0x83CEC8,
+        0x92C6E4, 0xACBDE8, 0xC8B3E3, 0xE2ACC4, 0xF1453F, 0xD36C00, 0xAB8700, 0x769C00,
+        0x00A84D, 0x00A19B, 0x0097D2, 0x5B81FF, 0xAB61F0, 0xE2459E, 0x7E1A18, 0x6B3400,
+        0x564300, 0x394D00, 0x005523, 0x00514D, 0x004C6B, 0x263D8C, 0x562C7E, 0x761A4F,
+    };
     switch (palette) {
+    case ColorPalette::FilamentCompact:
+        return filament_compact;
     case ColorPalette::Led:
         return led;
     case ColorPalette::Theme:
@@ -53,6 +66,13 @@ const std::vector<uint32_t>& color_palette(ColorPalette palette) {
         break;
     }
     return filament;
+}
+
+ColorPalette grid_palette_for(ColorPalette asked, UiBreakpoint bp) {
+    if (asked == ColorPalette::Filament && bp <= UiBreakpoint::Tiny) {
+        return ColorPalette::FilamentCompact;
+    }
+    return asked;
 }
 
 int color_palette_columns(ColorPalette palette) {

@@ -1,15 +1,25 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- The color picker's filament (10 x 6) grid: 6 rows of 10 touching cells filling its
-     host, corners rounded by clipping. Colors: color_palette() in
-     color_picker_model.h, published by ui_color_picker_view.cpp. -->
+<!-- The color picker's filament grid: rows of 10 touching cells filling its host,
+     corners rounded by clipping. 6 rows, the last two hidden at Micro and Tiny so
+     the other four grow finger-tall; grid_palette_for() in color_picker_model.h
+     picks the colors to match. Colors: published by ui_color_picker_view.cpp. -->
 <component>
   <view extends="lv_obj"
         width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
         style_radius="#border_radius" style_clip_corner="true" flex_flow="column" scrollable="false" clickable="false">
-    <repeat count="6">
+    <repeat count="4">
       <color_picker_grid_row10 row="$i"/>
     </repeat>
+    <!-- Rows 5 and 6, grown as two rows' worth so every row stays one height. -->
+    <lv_obj width="100%"
+            flex_grow="2" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+            scrollable="false" clickable="false">
+      <bind_flag_if cond="ui_breakpoint le 1" flag="hidden"/>
+      <repeat count="2">
+        <color_picker_grid_row10 row="${i + 4}"/>
+      </repeat>
+    </lv_obj>
   </view>
 </component>
