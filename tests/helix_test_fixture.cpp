@@ -18,6 +18,7 @@
 #include "app_globals.h"
 #include "async_lifetime_guard.h"
 #include "audio_settings_manager.h"
+#include "bed_mesh_state.h"
 #include "board_identity.h"
 #include "config.h"
 #include "core/http_executor.h"
@@ -455,6 +456,7 @@ void HelixTestFixture::reset_all(bool case_start) {
     helix::SettingsManager::instance().init_subjects();
     helix::PrinterImageManager::instance().init_subjects();
     StandardMacros::instance().init_subjects();
+    helix::BedMeshState::instance().init_subjects();
     for (auto* manager : helix::sensors::sensor_managers()) {
         manager->init_subjects();
     }

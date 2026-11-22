@@ -217,6 +217,62 @@ static const lv_font_t* resolve_base_font(lv_display_t* display) {
     return base_font;
 }
 
+/// The theme change subject starts at generation 0 and, once live, keeps its value.
+static void publish_changed_subject() {
+    if (!subjects().changed.is_live()) {
+        publish_int_subject(subjects().changed, 0, nullptr);
+    }
+}
+
+/// The breakpoint and orientation subjects, published from the display's geometry.
+static void publish_layout_subjects(lv_display_t* display) {
+    // Initialize ui_breakpoint subject for reactive responsive visibility
+    {
+        int32_t resp_res = responsive_dimension(display);
+        UiBreakpoint bp = breakpoint_for(resp_res);
+
+        publish_int_subject(subjects().breakpoint, to_int(bp), "ui_breakpoint");
+        spdlog::debug("[Theme] Registered ui_breakpoint subject: {} (min_dim={})", to_int(bp),
+                      resp_res);
+    }
+
+    // Vertical companion. ui_breakpoint deliberately keeps the cramped tier --
+    // every ref_value in ui_xml/ is written against it -- so height-aware layout
+    // binds to this instead of changing what the old subject means.
+    {
+        int32_t vert_res = responsive_vertical_dimension(display);
+        UiBreakpoint vbp = breakpoint_for(vert_res);
+
+        publish_int_subject(subjects().breakpoint_v, to_int(vbp), "ui_breakpoint_v");
+        spdlog::debug("[Theme] Registered ui_breakpoint_v subject: {} (vert_dim={})", to_int(vbp),
+                      vert_res);
+    }
+
+    // Startup SEED only. LayoutManager (Phase 8b) is not initialized yet, so
+    // the override-aware value cannot be computed here; detect_layout_type() of
+    // the live display gives the right physical answer, and Application
+    // republishes via theme_manager_refresh_orientation() once LayoutManager
+    // resolves any --layout override (#1255). The rotation path
+    // (theme_manager_refresh_layout_constants) goes through the same helper.
+    {
+        int32_t hor_res = lv_display_get_horizontal_resolution(display);
+        int32_t ver_res = lv_display_get_vertical_resolution(display);
+        const LayoutType type = detect_layout_type(hor_res, ver_res);
+        int is_portrait = is_portrait_layout(type) ? 1 : 0;
+        int is_ultrawide = type == LayoutType::ULTRAWIDE ? 1 : 0;
+
+        publish_int_subject(subjects().is_portrait, is_portrait, "ui_is_portrait");
+        publish_int_subject(subjects().is_ultrawide, is_ultrawide, "ui_is_ultrawide");
+        spdlog::debug("[Theme] Registered ui_is_portrait/ui_is_ultrawide subjects: {}/{} ({}x{})",
+                      is_portrait, is_ultrawide, hor_res, ver_res);
+    }
+}
+
+void helix::theme_manager_init_subjects(lv_display_t* display) {
+    publish_changed_subject();
+    publish_layout_subjects(display);
+}
+
 void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     auto tm_init_start = std::chrono::steady_clock::now();
 
@@ -259,9 +315,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     runtime().full_init_count++;
 
     // Initialize theme change notification subject
-    if (!subjects().changed.is_live()) {
-        publish_int_subject(subjects().changed, 0, nullptr);
-    }
+    publish_changed_subject();
 
     // Override runtime theme constants based on light/dark mode preference
     lv_xml_component_scope_t* scope = lv_xml_component_get_scope("globals");
@@ -297,46 +351,7 @@ void theme_manager_init(lv_display_t* display, bool use_dark_mode_param) {
     theme_manager_register_responsive_spacing(display);
     theme_manager_register_responsive_fonts(display);
 
-    // Initialize ui_breakpoint subject for reactive responsive visibility
-    {
-        int32_t resp_res = responsive_dimension(display);
-        UiBreakpoint bp = breakpoint_for(resp_res);
-
-        publish_int_subject(subjects().breakpoint, to_int(bp), "ui_breakpoint");
-        spdlog::debug("[Theme] Registered ui_breakpoint subject: {} (min_dim={})", to_int(bp),
-                      resp_res);
-    }
-
-    // Vertical companion. ui_breakpoint deliberately keeps the cramped tier --
-    // every ref_value in ui_xml/ is written against it -- so height-aware layout
-    // binds to this instead of changing what the old subject means.
-    {
-        int32_t vert_res = responsive_vertical_dimension(display);
-        UiBreakpoint vbp = breakpoint_for(vert_res);
-
-        publish_int_subject(subjects().breakpoint_v, to_int(vbp), "ui_breakpoint_v");
-        spdlog::debug("[Theme] Registered ui_breakpoint_v subject: {} (vert_dim={})", to_int(vbp),
-                      vert_res);
-    }
-
-    // Startup SEED only. LayoutManager (Phase 8b) is not initialized yet, so
-    // the override-aware value cannot be computed here; detect_layout_type() of
-    // the live display gives the right physical answer, and Application
-    // republishes via theme_manager_refresh_orientation() once LayoutManager
-    // resolves any --layout override (#1255). The rotation path
-    // (theme_manager_refresh_layout_constants) goes through the same helper.
-    {
-        int32_t hor_res = lv_display_get_horizontal_resolution(display);
-        int32_t ver_res = lv_display_get_vertical_resolution(display);
-        const LayoutType type = detect_layout_type(hor_res, ver_res);
-        int is_portrait = is_portrait_layout(type) ? 1 : 0;
-        int is_ultrawide = type == LayoutType::ULTRAWIDE ? 1 : 0;
-
-        publish_int_subject(subjects().is_portrait, is_portrait, "ui_is_portrait");
-        publish_int_subject(subjects().is_ultrawide, is_ultrawide, "ui_is_ultrawide");
-        spdlog::debug("[Theme] Registered ui_is_portrait/ui_is_ultrawide subjects: {}/{} ({}x{})",
-                      is_portrait, is_ultrawide, hor_res, ver_res);
-    }
+    publish_layout_subjects(display);
 
     // Validate critical color pairs were registered (fail-fast if missing)
     static const char* required_colors[] = {"screen_bg", "text", "text_muted", nullptr};

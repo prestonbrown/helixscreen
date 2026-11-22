@@ -365,6 +365,20 @@ class ThemeManager {
  */
 void theme_manager_init(lv_display_t* display, bool use_dark_mode);
 
+namespace helix {
+/**
+ * @brief Bring up the subjects the theme publishes, without registering any token
+ *
+ * The theme change generation, ui_breakpoint, ui_breakpoint_v, ui_is_portrait and
+ * ui_is_ultrawide, from @p display's geometry. theme_manager_init() publishes them
+ * this way; code binds them at any time after startup, so a process that has not run
+ * theme_manager_init() (a test case) calls this to have them live.
+ *
+ * @param display LVGL display the layout subjects are derived from
+ */
+void theme_manager_init_subjects(lv_display_t* display);
+} // namespace helix
+
 /**
  * @brief How many times theme_manager_init() performed a full rebuild
  *
