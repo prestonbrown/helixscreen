@@ -13,17 +13,17 @@
             width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
             scrollable="false"/>
     <lv_obj name="cal_live_heat_readout"
-            width="32%" height="100%" style_bg_opa="0" style_border_width="1" style_border_color="#border"
-            style_radius="#border_radius" style_pad_all="#space_xs" flex_flow="column" style_pad_gap="#space_xs"
-            style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
-            scrollable="false">
+            width="content" height="100%" style_min_width="32%" style_bg_opa="0" style_border_width="1"
+            style_border_color="#border" style_radius="#border_radius" style_pad_ver="#space_xs"
+            style_pad_hor="#space_md" flex_flow="column" style_pad_gap="#space_xs" style_flex_main_place="center"
+            style_flex_cross_place="center" style_flex_track_place="center" scrollable="false">
       <heater_icon src="heater" glyph_name="cal_live_nozzle_glyph" size="lg">
         <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="1"/>
       </heater_icon>
       <heater_icon src="radiator" glyph_name="cal_live_bed_glyph" size="lg">
         <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="0"/>
       </heater_icon>
-      <text_xs text="Current / Target" style_text_color="#text_muted"/>
+      <text_xs text="Current / Target" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"/>
       <temp_display name="cal_live_nozzle_temp"
                     size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target">
         <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="1"/>

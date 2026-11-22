@@ -24,8 +24,9 @@
         <lv_obj width="100%"
                 height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
                 style_flex_main_place="space_between" scrollable="false">
-          <text_small bind_text="cal_live_belt_name_${i}" style_text_color="#text"/>
-          <text_small bind_text="cal_live_belt_state_${i}" style_text_color="#text_muted"/>
+          <text_small bind_text="cal_live_belt_name_${i}" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
+          <text_small bind_text="cal_live_belt_state_${i}"
+                      style_text_font="#cal_font_subtitle" style_text_color="#text_muted"/>
         </lv_obj>
         <lv_obj width="100%"
                 height="content" style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_left="0"
@@ -43,6 +44,7 @@
         </lv_obj>
       </lv_obj>
     </repeat>
-    <text_xs text="Green mark: the tension the printer aims for" style_text_color="#text_muted"/>
+    <text_xs text="Green mark: the tension the printer aims for"
+             style_text_font="#cal_font_detail" style_text_color="#text_muted"/>
   </view>
 </component>

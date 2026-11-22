@@ -19,6 +19,7 @@
               style_bg_opa-indicator="65%" style_radius-indicator="0"/>
     </lv_obj>
     <text_xs name="cal_live_mesh_count"
-             align="bottom_right" bind_text="cal_live_mesh_count" style_text_color="#text_muted"/>
+             align="bottom_right" bind_text="cal_live_mesh_count" style_text_font="#cal_font_detail"
+             style_text_color="#text_muted"/>
   </view>
 </component>

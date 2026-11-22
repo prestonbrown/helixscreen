@@ -14,7 +14,7 @@
     </lv_obj>
     <text_xs name="cal_live_shaper_waiting"
              width="100%" align="center" long_mode="wrap" style_text_align="center" bind_text="cal_live_shaper_note"
-             style_text_color="#text_muted">
+             style_text_font="#cal_font_subtitle" style_text_color="#text_muted">
       <bind_flag_if_eq subject="cal_live_shaper_has_curve" flag="hidden" ref_value="1"/>
     </text_xs>
   </view>
