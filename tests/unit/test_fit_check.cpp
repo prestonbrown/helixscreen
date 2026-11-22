@@ -243,6 +243,30 @@ TEST_CASE("a nozzle's flow type reads the same in every spelling", "[plugin_fitc
     }
 }
 
+TEST_CASE("a lane rig's file tools are judged on the heads their lanes feed",
+          "[plugin_fitcheck][head-identity]") {
+    // LB6LEZ44: lane T0 feeds extruder2, which has a 0.6 nozzle; lane T11
+    // feeds extruder3; lane T6 feeds extruder5.
+    FitMachine m;
+    m.nozzle_diameters = {0.4, 0.4, 0.6, 0.4, 0.4, 0.4};
+    m.tool_extruder = {2, 0, 1, 3, 0, 4, 5, 2, 0, 3, 3, 3};
+    FitFile f;
+    f.tools = {0, 6, 11};
+    f.nozzle_diameters.assign(12, 0.4);
+    f.nozzle_diameters[11] = 0.8;
+
+    const auto findings = check_fit(m, f);
+    std::vector<int> mismatched;
+    for (const FitFinding& finding : findings) {
+        if (finding.kind == FitKind::NozzleMismatch) {
+            mismatched.push_back(finding.tool);
+            CHECK(finding.limit == (finding.tool == 0 ? 0.6 : 0.4));
+        }
+    }
+    // T0 is judged on extruder2's 0.6, and T11, past the six extruders, is judged too.
+    CHECK(mismatched == std::vector<int>{0, 11});
+}
+
 TEST_CASE("the nozzles the extruders report replace the config's", "[plugin_fitcheck]") {
     FitMachine base;
     base.nozzle_diameters = {0.4, 0.4};
