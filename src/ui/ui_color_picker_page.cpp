@@ -12,7 +12,7 @@ namespace helix::ui {
 
 namespace {
 /// 1 while the page carries a host's controls ("color_picker_host_controls").
-lv_subject_t s_host_controls_shown;
+lv_subject_t s_host_controls_shown{};
 bool s_host_controls_live = false;
 
 void ensure_page_subjects() {
