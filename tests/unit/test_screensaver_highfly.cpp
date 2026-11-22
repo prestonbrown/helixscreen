@@ -1064,6 +1064,31 @@ TEST_CASE("a tower's colors follow the palette, and the day palette keeps its da
     }
 }
 
+TEST_CASE("billboard shade halves by coverage, and an empty cell takes its neighbour's",
+          "[screensaver][highfly]") {
+    using helix::ui::HighFlyTexture;
+    // Two cells side by side. The left one's texels: shade 200 fully covering, shade 100 at a
+    // third, and two empty texels at shade 0; the right one is empty.
+    HighFlyTexture t;
+    t.w = 4;
+    t.h = 2;
+    t.rgba.assign(4 * 2 * 4, 0);
+    std::vector<uint8_t> full(4 * 2, 0);
+    full[0] = 200;
+    t.rgba[0 * 4 + 3] = 255;
+    full[4] = 100;
+    t.rgba[4 * 4 + 3] = 85;
+    helix::ui::highfly_pack_shade(full, false, t);
+    REQUIRE(t.sw == 2);
+    REQUIRE(t.sh == 1);
+    // (255 x 200 + 85 x 100) / 340, where a plain mean of the four texels gives 75.
+    CHECK(static_cast<int>(t.shade[0]) == 175);
+    CHECK(static_cast<int>(t.shade[1]) == 175);
+    // A covered texel next to the empty cell keeps its cell's shade.
+    CHECK(static_cast<int>(t.shade_at(0, 0)) == 175);
+    CHECK(static_cast<int>(t.shade_at(1, 0)) == 175);
+}
+
 TEST_CASE("a print's palette recolors the towers and the far band, and the day palette restores "
           "them",
           "[screensaver][highfly][clock]") {

@@ -165,10 +165,9 @@ void tint_texture(HighFlyTexture& t, const CloudRamp& ramp) {
     }
 }
 
-/// Stores `full` (one shade per texel of `t`) in `t.shade` at half resolution: each cell the
-/// coverage-weighted mean of its 2 x 2 texels. An empty cell takes its covered neighbours'
-/// mean, twice over, so upsampling at a cloud's edge never pulls toward the shadow end.
-void pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t) {
+} // namespace
+
+void highfly_pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t) {
     t.wrap = wrap_x;
     t.sw = (t.w + 1) / 2;
     t.sh = (t.h + 1) / 2;
@@ -233,6 +232,8 @@ void pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t
         filled.swap(next);
     }
 }
+
+namespace {
 
 // ---------- Grid helpers ----------
 
@@ -381,7 +382,7 @@ void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wi
             out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
-    pack_shade(full, wrap_x, out);
+    highfly_pack_shade(full, wrap_x, out);
 }
 
 void make_band(std::minstd_rand& rng, HighFlyTexture& out) {
@@ -490,7 +491,7 @@ void shade_tower(std::vector<float>& d, int32_t w, int32_t h, HighFlyTexture& ou
             out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
-    pack_shade(full, false, out);
+    highfly_pack_shade(full, false, out);
 }
 
 void make_tower(std::minstd_rand& rng, HighFlyTexture& out) {

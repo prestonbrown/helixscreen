@@ -89,6 +89,12 @@ struct HighFlyTexture {
     void release();
 };
 
+/// Stores `full` (one shade per texel of `t`, t.w x t.h) in `t.shade` at half resolution, with
+/// `t.rgba`'s alpha already set: each cell the coverage-weighted mean of its 2 x 2 texels. An
+/// empty cell takes its covered neighbours' mean, twice over, so upsampling at a cloud's edge
+/// never pulls toward the shadow end. `wrap_x` for a texture that tiles across x.
+void highfly_pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t);
+
 /// Field texels per world unit: a world height is the stored height / kHighflyTexelsPerUnit.
 inline constexpr float kHighflyTexelsPerUnit = 2.0f;
 
