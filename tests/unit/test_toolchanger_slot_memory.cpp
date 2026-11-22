@@ -40,6 +40,7 @@
 #include "moonraker_api_mock.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
+#include "spool_remaining_format.h"
 #include "test_helpers/registered_backend.h"
 #include "test_helpers/seeded_override.h"
 
@@ -403,7 +404,7 @@ TEST_CASE_METHOD(PublishedToolChanger, "a meter tick on a tool changer reaches t
     REQUIRE(h.is_filament_loaded());
     REQUIRE(h.get_current_slot() == 0);
     REQUIRE(lv_subject_get_int(ams.get_slot_fill_subject(0)) == 50);
-    REQUIRE(std::string(lv_subject_get_string(ams.get_current_weight_text_subject())) == "500g");
+    REQUIRE(std::string(lv_subject_get_string(ams.get_current_weight_text_subject())) == "50%");
 
     helix::AmsSlotSink sink(0, 0);
     sink.snapshot(0.0F);
@@ -418,10 +419,9 @@ TEST_CASE_METHOD(PublishedToolChanger, "a meter tick on a tool changer reaches t
     CHECK(lv_subject_get_int(ams.get_slot_fill_subject(0)) == metered.display_fill_pct());
     CHECK(std::string(lv_subject_get_string(ams.get_slot_remaining_subject(0))) ==
           metered.remaining_length_display());
-    char loaded_weight[32];
-    snprintf(loaded_weight, sizeof(loaded_weight), "%.0fg", metered.remaining_weight_g);
+    // The loaded card's narrow line: the percent alone.
     CHECK(std::string(lv_subject_get_string(ams.get_current_weight_text_subject())) ==
-          loaded_weight);
+          helix::format_spool_remaining_short(metered.remaining_weight_g, metered.total_weight_g));
 }
 
 TEST_CASE_METHOD(PublishedToolChanger,

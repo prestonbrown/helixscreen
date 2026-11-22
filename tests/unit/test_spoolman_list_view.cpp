@@ -228,16 +228,15 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - refresh_content rewrites
 
     // Asserting the pre-refresh text is what makes the post-refresh assertion
     // mean something: it proves refresh_content changed the label rather than
-    // the label having read "42g" all along.
-    REQUIRE(std::string(lv_label_get_text(weight_label)) == "1000g");
+    // the label having read "42 g" all along.
+    REQUIRE(std::string(lv_label_get_text(weight_label)) == "1000 g");
 
     spools[0].remaining_weight_g = 42.0;
     view.refresh_content(spools, 1);
     process_lvgl(50);
 
-    // "%.0fg" in configure_row (src/ui/ui_spoolman_list_view.cpp:211-215).
     // Rows are recycled in place, so the label pointer stays valid.
-    REQUIRE(std::string(lv_label_get_text(weight_label)) == "42g");
+    REQUIRE(std::string(lv_label_get_text(weight_label)) == "42 g");
 }
 
 // ============================================================================
