@@ -977,6 +977,7 @@ translations:
   Print hours this week and lifetime totals: '今週の印刷時間と累計'
   "Setup, navigation and gestures": "セットアップ、操作、ジェスチャー"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "スロットをタップすると、装填や排出、スプールの選択、詳細の編集ができます。編集内容はプリンターおよび Spoolman と同期されます。"
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。
   Unload stopped: 'アンロードを停止しました'
   "User Guide": "ユーザーガイド"
   "Your filament system": "フィラメントシステム"

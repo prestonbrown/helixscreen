@@ -1019,6 +1019,7 @@ translations:
   Print hours this week and lifetime totals: Print hours this week and lifetime totals
   "Setup, navigation and gestures": "Setup, navigation and gestures"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.
   Unload stopped: Unload stopped
   "User Guide": "User Guide"
   "Your filament system": "Your filament system"

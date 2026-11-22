@@ -3947,6 +3947,7 @@
   <translation tag="The printer did not change its bed check: {}" pt="A impressora não alterou a verificação da mesa: {}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." pt="A impressora não confirmou o início da impressão ({}). Ela ainda pode começar: verifique a impressora antes de iniciar de novo."/>
   <translation tag="The printer did not reset the filter" pt="A impressora não repôs o filtro"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." pt="A impressora ainda não informou como pegar este cabeçote. Tente novamente quando o sistema de filamento terminar de se conectar."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." pt="A impressora extruda num canto e repete até as leituras coincidirem. Você não julga nada a olho."/>
   <translation tag="The printer finishes this measurement on its own." pt="A impressora conclui esta medição por conta própria."/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" pt="A impressora parou esta impressão e não pode retomá-la. Reiniciar do início?"/>

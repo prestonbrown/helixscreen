@@ -1039,6 +1039,7 @@ translations:
   Print hours this week and lifetime totals: 'Ore di stampa di questa settimana e totali complessivi'
   "Setup, navigation and gestures": "Configurazione, navigazione e gesti"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Tocca uno slot per caricarlo o scaricarlo, scegliere una bobina o modificarne i dati. Le tue modifiche restano allineate con la stampante e Spoolman."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: La stampante non ha ancora indicato come prelevare questa testina. Riprova quando il suo sistema di filamento avrà finito di connettersi.
   Unload stopped: Scaricamento interrotto
   "User Guide": "Guida utente"
   "Your filament system": "Il tuo sistema filamento"

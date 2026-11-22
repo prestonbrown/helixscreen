@@ -1088,6 +1088,7 @@ translations:
   Print hours this week and lifetime totals: 'Часы печати за неделю и общие итоги'
   "Setup, navigation and gestures": "Настройка, навигация и жесты"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "Нажмите на слот, чтобы загрузить или выгрузить его, выбрать катушку или изменить данные. Ваши правки остаются согласованными с принтером и Spoolman."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение.
   Unload stopped: 'Выгрузка остановлена'
   "User Guide": "Руководство пользователя"
   "Your filament system": "Ваша система филамента"

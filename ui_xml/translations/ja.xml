@@ -3947,6 +3947,7 @@
   <translation tag="The printer did not change its bed check: {}" ja="プリンターはベッドチェックを変更しませんでした：{}"/>
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ja="プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。"/>
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." ja="このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
   <translation tag="The printer halted this print and cannot resume it. Restart from the beginning?" ja="プリンターはこの印刷を停止し、再開できません。最初からやり直しますか？"/>

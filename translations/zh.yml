@@ -975,6 +975,7 @@ translations:
   Print hours this week and lifetime totals: '本周打印时长和累计总数'
   "Setup, navigation and gestures": "设置、导航和手势"
   "Tap a slot to load or unload it, pick a spool, or edit its details. Your edits stay in step with the printer and Spoolman.": "点击槽位可加载或卸载、选择料盘或编辑详情。您的编辑会与打印机和 Spoolman 保持同步。"
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: 打印机尚未告知如何切换到此打印头。请在其耗材系统完成连接后重试。
   Unload stopped: '卸载已停止'
   "User Guide": "用户指南"
   "Your filament system": "您的耗材系统"
