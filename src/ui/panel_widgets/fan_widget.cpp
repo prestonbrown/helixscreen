@@ -274,12 +274,17 @@ void FanWidget::FanPicker::on_created(lv_obj_t* menu_obj) {
     // scrolls the list instead of growing the card past the panel.
     lv_obj_set_style_max_height(fan_list, screen_height_pct(66), 0);
 
-    for (const auto& fan : fans) {
+    constexpr const char* kFanChoice = "fan_widget_fan_choice";
+    helix::ui::set_choice(kFanChoice, -1);
+    for (std::size_t i = 0; i < fans.size(); ++i) {
+        const auto& fan = fans[i];
         char speed[16];
         snprintf(speed, sizeof(speed), "%d%%", fan.speed_percent);
         const std::string fan_name = fan.object_name;
-        helix::ui::create_picker_option_row(fan_list, fan.display_name.c_str(),
-                                            fan_name == owner_.selected_fan_,
+        if (fan_name == owner_.selected_fan_)
+            helix::ui::set_choice(kFanChoice, static_cast<int>(i));
+        helix::ui::create_picker_option_row(fan_list, fan.display_name.c_str(), kFanChoice,
+                                            static_cast<int>(i),
                                             [this, fan_name]() {
                                                 owner_.select_fan(fan_name);
                                                 hide();

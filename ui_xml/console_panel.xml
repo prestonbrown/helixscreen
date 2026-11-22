@@ -18,15 +18,9 @@
               scrollable="true" flex_flow="column" style_pad_gap="#space_xxs">
         <!-- Console entries populated dynamically by C++ (text_small labels) -->
         <!-- Empty state (shown when no history available, inside console bg) -->
-        <lv_obj name="empty_state"
-                width="100%" height="100%" flex_flow="column" style_flex_main_place="center"
-                style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md"
-                scrollable="false">
-          <bind_flag_if_eq subject="console_has_entries" flag="hidden" ref_value="1"/>
-          <icon src="console" size="xl" variant="secondary"/>
-          <text_heading width="content" text="No History" style_text_align="center"/>
-          <text_muted width="content" text="G-code commands will appear here" style_text_align="center"/>
-        </lv_obj>
+        <empty_state name="empty_state"
+                     icon="console" icon_size="xl" title="No History" text="G-code commands will appear here"
+                     shown_subject="console_has_entries"/>
       </lv_obj>
       <!-- G-code composer: one recessed field with the actions living inside it.
            The row itself carries the input background; the textarea is transparent

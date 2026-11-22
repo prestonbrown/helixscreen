@@ -617,8 +617,8 @@ void LedSettingsOverlay::populate_led_chips() {
     if (!overlay_root_)
         return;
 
-    // SAFETY: Defer the clean+rebuild. Called from handle_led_chip_toggle() where
-    // the clicked chip is a child of chip_container being cleaned (issue #80).
+    // SAFETY: Defer the clean+rebuild, so a caller running inside an event of a
+    // chip in chip_container never cleans that chip under itself (issue #80).
     lifetime_.defer("LedSettingsOverlay::populate_led_chips", [this]() {
         if (cleanup_called())
             return;
@@ -645,28 +645,43 @@ void LedSettingsOverlay::populate_led_chips_impl() {
     // Chip list spans all backends (native + WLED + macros); selection is
     // Automatic LED Control's current targets.
     auto& led_ctrl = helix::led::LedController::instance();
-    const auto targets = helix::led::LedAutoState::instance().targets();
-
-    size_t selected_count = 0;
+    const auto strips = led_ctrl.all_selectable_strips();
     chip_strip_ids_.clear();
-    for (const auto& strip : led_ctrl.all_selectable_strips()) {
-        bool selected = std::find(targets.begin(), targets.end(), strip.id) != targets.end();
-        selected_count += selected ? 1 : 0;
-        const std::string index = std::to_string(chip_strip_ids_.size());
+    for (const auto& strip : strips) {
         chip_strip_ids_.push_back(strip.id);
-        const char* attrs[] = {"index",    index.c_str(),
-                               "selected", selected ? "true" : "false",
-                               "callback", "led_applies_to_chip_cb",
+    }
+    chip_selected_pool_.ensure_size(chip_strip_ids_.size());
+    sync_led_chip_selection();
+
+    for (size_t i = 0; i < strips.size(); ++i) {
+        const std::string index = std::to_string(i);
+        const std::string selected_subject = "led_applies_to_sel_" + index;
+        const char* attrs[] = {"index",
+                               index.c_str(),
+                               "selected_subject",
+                               selected_subject.c_str(),
+                               "callback",
+                               "led_applies_to_chip_cb",
                                nullptr};
-        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container, "toggle_chip", attrs));
+        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container, "choice_chip", attrs));
         // Strip names are user text: set after creation, never as a prop.
         if (chip) {
             helix::ui::set_row_label_text(chip, "chip_label",
-                                          helix::led::device_display_name(strip).c_str());
+                                          helix::led::device_display_name(strips[i]).c_str());
         }
     }
 
-    spdlog::debug("[{}] Applies-to chips populated ({} selected)", get_name(), selected_count);
+    spdlog::debug("[{}] Applies-to chips populated ({} strips)", get_name(), strips.size());
+}
+
+void LedSettingsOverlay::sync_led_chip_selection() {
+    const auto targets = helix::led::LedAutoState::instance().targets();
+    const size_t count = std::min(chip_strip_ids_.size(), chip_selected_pool_.size());
+    for (size_t i = 0; i < count; ++i) {
+        const bool selected =
+            std::find(targets.begin(), targets.end(), chip_strip_ids_[i]) != targets.end();
+        chip_selected_pool_.set_int(i, selected ? 1 : 0);
+    }
 }
 
 void LedSettingsOverlay::handle_led_chip_clicked(const std::string& led_name) {
@@ -677,7 +692,7 @@ void LedSettingsOverlay::handle_led_chip_clicked(const std::string& led_name) {
     as.save_config();
     as.evaluate();
 
-    populate_led_chips();
+    sync_led_chip_selection();
     populate_auto_state_rows();
 }
 

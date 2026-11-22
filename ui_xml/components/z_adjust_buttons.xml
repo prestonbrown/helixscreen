@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The Z adjuster's Raise / Lower pair, named for what moves on Z: the
+       nozzle, or the bed where printer_bed_moves is 1. The up button sits
+       first either way. Every button calls `callback` with user_data "1" for
+       +Z (nozzle away from the bed) or "-1" for -Z, so Raise bed sends -1.
+       Between the two sits the toolhead (or the bed glyph) unless
+       head_hidden. The owner decides what a step does: the Z offset
+       calibration's manual probe, Print Tune's live babystep, the resume
+       wizard's jog. -->
+  <api>
+    <prop name="callback" type="string" default=""/>
+    <!-- "row" puts the pair side by side (set btn_w="0" btn_grow="1" for halves) -->
+    <prop name="flow" type="string" default="column"/>
+    <prop name="gap" type="string" default="#zo_ctrl_gap"/>
+    <prop name="btn_w" type="string" default="100%"/>
+    <prop name="btn_grow" type="string" default="0"/>
+    <prop name="btn_h" type="string" default="#zo_ctrl_h"/>
+    <prop name="radius" type="string" default="#zo_ctrl_radius"/>
+    <prop name="font" type="string" default="#cal_font_button"/>
+    <!-- An expression that leaves the buttons icon-only while it holds; the
+         default never does. -->
+    <prop name="label_hidden_cond" type="string" default="ui_breakpoint lt 0"/>
+    <prop name="head_hidden" type="string" default="false"/>
+    <prop name="head_h" type="string" default="#zo_head_box"/>
+    <!-- "1" lets the toolhead take the height the buttons leave (with head_h="0") -->
+    <prop name="head_grow" type="string" default="0"/>
+    <prop name="head_icon_size" type="string" default="lg"/>
+    <prop name="moves_machine" type="string" default="false"/>
+  </api>
+  <view extends="lv_obj"
+        height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_pad_gap="$gap"
+        flex_flow="$flow" scrollable="false">
+    <ui_button name="btn_z_raise_nozzle"
+               width="$btn_w" height="$btn_h" flex_grow="$btn_grow" variant="secondary" icon="chevron_up"
+               text="Raise nozzle" style_radius="$radius" style_bg_color="#elevated_bg" style_text_font="$font"
+               label_hidden_cond="$label_hidden_cond" moves_machine="$moves_machine">
+      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="1"/>
+    </ui_button>
+    <ui_button name="btn_z_raise_bed"
+               width="$btn_w" height="$btn_h" flex_grow="$btn_grow" variant="secondary" icon="arrow_expand_up"
+               text="Raise bed" style_radius="$radius" style_bg_color="#elevated_bg" style_text_font="$font"
+               label_hidden_cond="$label_hidden_cond" moves_machine="$moves_machine">
+      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="-1"/>
+    </ui_button>
+    <lv_obj name="z_adjust_head"
+            width="100%" height="$head_h" flex_grow="$head_grow" style_pad_all="0" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+            style_flex_track_place="center" scrollable="false" hidden="$head_hidden">
+      <toolhead_view width="100%" height="100%">
+        <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+      </toolhead_view>
+      <icon src="bed" size="$head_icon_size" variant="secondary">
+        <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+      </icon>
+    </lv_obj>
+    <ui_button name="btn_z_lower_nozzle"
+               width="$btn_w" height="$btn_h" flex_grow="$btn_grow" variant="secondary" icon="chevron_down"
+               text="Lower nozzle" style_radius="$radius" style_bg_color="#elevated_bg" style_text_font="$font"
+               label_hidden_cond="$label_hidden_cond" moves_machine="$moves_machine">
+      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="-1"/>
+    </ui_button>
+    <ui_button name="btn_z_lower_bed"
+               width="$btn_w" height="$btn_h" flex_grow="$btn_grow" variant="secondary" icon="arrow_expand_down"
+               text="Lower bed" style_radius="$radius" style_bg_color="#elevated_bg" style_text_font="$font"
+               label_hidden_cond="$label_hidden_cond" moves_machine="$moves_machine">
+      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="1"/>
+    </ui_button>
+  </view>
+</component>

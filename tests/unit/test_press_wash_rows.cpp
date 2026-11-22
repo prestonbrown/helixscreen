@@ -13,6 +13,8 @@
  * test_widget_catalog_categories.cpp and test_material_temps_chamber.cpp.
  */
 
+#include "ui_choice_subject.h"
+
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/job_queue_modal_test_access.h"
 #include "../test_helpers/power_device_widget_test_access.h"
@@ -27,6 +29,7 @@
 
 #include <cstring>
 #include <memory>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -49,7 +52,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Per-item list and picker rows press with th
     JobQueueModalTestAccess::register_callbacks();
 
     for (const char* component : {"printer_switch_row", "job_queue_row", "picker_option_row",
-                                  "picker_chip", "exclude_object_row"}) {
+                                  "choice_chip", "exclude_object_row"}) {
         INFO("component: " << component);
         lv_obj_t* row = create_row(test_screen(), component);
         REQUIRE(row != nullptr);
@@ -62,22 +65,40 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "A selected picker choice is primary-tinted at rest and still washes when pressed",
                  "[press_wash][1297]") {
     const lv_color_t primary = theme_manager_get_color("primary");
+    constexpr const char* kChoice = "press_wash_test_choice";
+    helix::ui::set_choice(kChoice, 3);
 
-    for (const char* component : {"picker_option_row", "picker_chip"}) {
+    // The list row, and the outlined chip the power device picker passes.
+    const std::vector<std::vector<const char*>> looks = {
+        {"picker_option_row"},
+        {"choice_chip", "idle_style", "outline_idle", "selected_style", "outline_selected"},
+    };
+    for (const auto& look : looks) {
+        const char* component = look[0];
         INFO("component: " << component);
-        const char* selected_attrs[] = {"selected", "true", nullptr};
-        lv_obj_t* selected = create_row(test_screen(), component, selected_attrs);
+        auto attrs_for = [&](const char* value) {
+            std::vector<const char*> attrs = {"selected_subject", kChoice, "selected_value", value};
+            attrs.insert(attrs.end(), look.begin() + 1, look.end());
+            attrs.push_back(nullptr);
+            return attrs;
+        };
+        auto selected_attrs = attrs_for("3");
+        lv_obj_t* selected = create_row(test_screen(), component, selected_attrs.data());
         REQUIRE(selected != nullptr);
-        REQUIRE(lv_obj_has_state(selected, LV_STATE_CHECKED));
         CHECK(lv_color_eq(lv_obj_get_style_bg_color(selected, LV_PART_MAIN), primary));
         CHECK(lv_obj_get_style_bg_opa(selected, LV_PART_MAIN) > LV_OPA_TRANSP);
         CHECK(paints_press_wash(selected));
 
-        const char* plain_attrs[] = {"selected", "false", nullptr};
-        lv_obj_t* plain = create_row(test_screen(), component, plain_attrs);
+        auto plain_attrs = attrs_for("4");
+        lv_obj_t* plain = create_row(test_screen(), component, plain_attrs.data());
         REQUIRE(plain != nullptr);
-        CHECK_FALSE(lv_obj_has_state(plain, LV_STATE_CHECKED));
         CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) == LV_OPA_TRANSP);
+
+        // The selection follows the subject: moving it lights the other row.
+        helix::ui::set_choice(kChoice, 4);
+        CHECK(lv_obj_get_style_bg_opa(selected, LV_PART_MAIN) == LV_OPA_TRANSP);
+        CHECK(lv_obj_get_style_bg_opa(plain, LV_PART_MAIN) > LV_OPA_TRANSP);
+        helix::ui::set_choice(kChoice, 3);
     }
 }
 

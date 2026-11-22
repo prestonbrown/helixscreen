@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <functional>
+#include <iterator>
 #include <lvgl.h>
 #include <optional>
 #include <string>
@@ -94,6 +95,14 @@ inline constexpr double kZOffsetMaxSessionTravelMm = 2.0;
 /// Z baby-step increments, largest first. Index 2 (0.01mm) is the default.
 inline constexpr double kZStepAmountsMm[] = {0.05, 0.025, 0.01, 0.005};
 inline constexpr int kZStepDefaultIndex = 2;
+
+/// Microns of the baby-step at @p idx; an index out of range is the default.
+constexpr int step_microns(int idx) {
+    if (idx < 0 || idx >= static_cast<int>(std::size(kZStepAmountsMm))) {
+        idx = kZStepDefaultIndex;
+    }
+    return static_cast<int>(kZStepAmountsMm[idx] * 1000.0 + 0.5);
+}
 
 /// Read the user's last-chosen step index from Config, clamped to a valid
 /// index. Out-of-range or unset returns kZStepDefaultIndex.

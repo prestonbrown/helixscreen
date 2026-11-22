@@ -24,7 +24,6 @@
 #include "ui_panel_print_select.h"
 #include "ui_plate_glow.h"
 #include "ui_severity_card.h"
-#include "ui_status_pill.h"
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_tile_rung.h"
@@ -93,7 +92,6 @@ using namespace helix;
 bool Application::register_widgets() {
     helix::ui::icon::register_widget();
     helix::ui::register_tile_rung_binding();
-    ui_status_pill_register_widget();
     ui_switch_register();
     ui_card_register();
     setting_group_register();
@@ -232,7 +230,6 @@ bool Application::run_wizard() {
     }
 
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
 
     lv_obj_t* wizard = ui_wizard_create(m_screen);
     if (!wizard) {

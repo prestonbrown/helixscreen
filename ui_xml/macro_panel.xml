@@ -53,15 +53,9 @@
         </lv_obj>
       </lv_obj>
       <!-- Empty state (shown when no macros available) -->
-      <lv_obj name="empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md" hidden="true"
-              scrollable="false">
-        <bind_flag_if_not_eq subject="macro_row_count" flag="hidden" ref_value="0"/>
-        <icon src="code_tags" size="xl" variant="secondary"/>
-        <text_heading width="content" text="No Macros Found" style_text_align="center"/>
-        <text_muted width="content" text="Define macros in your printer.cfg" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="empty_state"
+                   flex_grow="1" icon="code_tags" icon_size="xl" title="No Macros Found"
+                   text="Define macros in your printer.cfg" shown_subject="macro_row_count"/>
     </overlay_panel-overlay_content>
   </view>
 </component>

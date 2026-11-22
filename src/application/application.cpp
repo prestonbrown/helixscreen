@@ -146,7 +146,6 @@
 #include "ui_settings_sensors.h"
 #include "ui_severity_card.h"
 #include "ui_spaghetti_detection_modal.h"
-#include "ui_status_pill.h"
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_theme_editor_overlay.h"

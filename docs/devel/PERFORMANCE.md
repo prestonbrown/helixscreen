@@ -115,6 +115,41 @@ Mock print at `--sim-speed 3` on the print status panel, a 1.2-dev build.
 `-O2` on the draw code adds 116 KB and only helps with animations on. A 1.40x
 AD5X-against-K1C render factor measured earlier did not show up here.
 
+### Whole-build `-O2` against `-Os`, Aqua screensaver, AD5M and AD5X, 2026-11-22
+
+The same main source (591285c7c3, with prestonbrown/helixscreen#2156's per-pixel paths) built
+both ways for each board, the whole build including LVGL and the other submodules. Each binary
+ran as the board's app with `HELIX_SCREENSAVER_LEVEL` pinned (the CPU gate off), Aqua started
+through `ctl screensaver aqua`, 15 s of settling, then 30 s sampled. Resident memory is
+`VmRSS`/`VmHWM` after a level 3 run and a wake. The AD5M builds came from the
+`helixscreen/toolchain-ad5m` image and both MIPS builds from zeus's `helixscreen/toolchain-mips`.
+
+| | AD5M `-Os` | AD5M `-O2` | AD5X `-Os` | AD5X `-O2` |
+|---|---:|---:|---:|---:|
+| Level 3 (100 ms frames), runs | 63.0, 62.6 | 45.8, 45.4, 45.8 | 84.3, 83.3, 83.0 | 45.3, 45.1 |
+| Level 2 (50 ms frames) | 97.6 | 90.6 | 97.1 | 88.5 |
+| Stripped binary | 16.5 MB | 21.5 MB (+30.6%) | 30.9 MB | 37.1 MB (+20.3%) |
+| `VmRSS` (`VmHWM`) | 23.3 (26.3) MB | 27.7 (30.9) MB | 36.9 (40.7) MB | 41.2 (45.0) MB |
+
+At level 3 `-O2` cuts Aqua's CPU by 27% on the AD5M (Cortex-A7) and by 46% on the AD5X
+(XBurst2); why the MIPS core gains so much more is not measured. Level 2 saturates the main thread on
+both boards at `-Os` and nearly so at `-O2`. The cost is about 4.4 MB of resident memory on
+both, mostly the larger text.
+
+The MIPS target (K1, AD5X, Creator 5) builds at `-O2`: the AD5X has 474 MB, about 320 MB of it
+available. The AD5M (108 MB, about 46 MB available) stays at `-Os`, since 4.4 MB more resident
+is too much there.
+
+`-O2` on `src/ui/screensaver/*.cpp` alone, over an `-Os` build of the same commit (a
+target-specific `override CXXFLAGS += -O2` on those objects), gets the AD5M nearly all of the
+speed for none of the memory:
+
+| AD5M, Aqua level 3 | `-Os` | Screensavers `-O2` | Whole build `-O2` |
+|---|---:|---:|---:|
+| CPU, runs | 63.0, 62.6, 63.7 | 47.9, 48.0 | 45.8, 45.4, 45.8 |
+| Stripped binary | 16.47 MB | 16.57 MB (+102 KB) | 21.5 MB |
+| `VmRSS` (`VmHWM`) | 23.3-23.5 (26.3-26.7) MB | 23.4 (26.4) MB | 27.7 (30.9) MB |
+
 ### LVGL style cache, K1C and AD5M, 2026-11-16
 
 `LV_OBJ_STYLE_CACHE` 1 against 0 on the same source, mock print at `--sim-speed 3`, three

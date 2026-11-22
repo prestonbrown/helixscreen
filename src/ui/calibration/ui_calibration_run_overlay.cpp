@@ -218,14 +218,9 @@ int dot_state(StepStatus status) {
 std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
     switch (e.status) {
     case StepStatus::Pending:
-        return fmt::format(fmt::runtime(lv_tr("about {} min")), e.step->info().minutes);
-    case StepStatus::Running: {
-        const int minutes = e.step->info().minutes;
-        const int left = e.progress.percent < 0
-                             ? minutes
-                             : std::max(1, (minutes * (100 - e.progress.percent) + 99) / 100);
-        return fmt::format(fmt::runtime(lv_tr("about {} min left")), left);
-    }
+        return fmt::format(fmt::runtime(lv_tr("about {} min")), calibration::minutes_left(e));
+    case StepStatus::Running:
+        return fmt::format(fmt::runtime(lv_tr("about {} min left")), calibration::minutes_left(e));
     case StepStatus::Finished:
         return e.result.brief.empty() ? e.result.summary : e.result.brief;
     case StepStatus::Failed:
@@ -644,7 +639,6 @@ void CalibrationRunOverlay::publish_run() {
     }
     int total_min = 0;
     int done_min_x100 = 0;
-    int remaining_min = 0;
     int saving = 0;
     bool any_unfinished = false;
     for (const auto& e : entries) {
@@ -654,9 +648,6 @@ void CalibrationRunOverlay::publish_run() {
             done_min_x100 += minutes * std::max(0, e.progress.percent);
         } else if (e.status != StepStatus::Pending) {
             done_min_x100 += minutes * 100;
-        }
-        if (e.status == StepStatus::Pending || e.status == StepStatus::Running) {
-            remaining_min += minutes;
         }
         any_unfinished =
             any_unfinished || e.status == StepStatus::Failed || e.status == StepStatus::Aborted;
@@ -694,7 +685,7 @@ void CalibrationRunOverlay::publish_run() {
     set_text(header_title_, over ? lv_tr("Calibration finished") : lv_tr("Calibrating"));
     set_text(eta_, over ? std::string(lv_tr("all done"))
                         : fmt::format(fmt::runtime(lv_tr("about {} min left · you can leave")),
-                                      std::max(1, remaining_min)));
+                                      std::max(1, calibration::minutes_left(entries))));
     set_text(footer_, over ? lv_tr("Next, review the results and save them once")
                            : lv_tr("Results are saved together at the end"));
     if (current >= 0) {

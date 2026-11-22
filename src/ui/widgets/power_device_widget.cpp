@@ -4,6 +4,7 @@
 
 #include "ui_callback_helpers.h"
 #include "ui_carousel.h"
+#include "ui_choice_subject.h"
 #include "ui_emergency_stop.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
@@ -38,6 +39,7 @@
 
 #include <algorithm>
 #include <set>
+#include <vector>
 
 namespace helix {
 void register_power_device_widget() {
@@ -53,6 +55,9 @@ void register_power_device_widget() {
 } // namespace helix
 
 namespace {
+
+constexpr const char* kDeviceChoice = "power_device_pick_device";
+constexpr const char* kSensorChoice = "power_device_pick_sensor";
 
 // Power-related icons for the picker grid
 static const char* const kPowerIcons[] = {
@@ -436,22 +441,37 @@ void PowerDeviceWidget::show_device_picker() {
                               helix::ui::ContextMenu::AnchorAlign::Center);
 }
 
-void PowerDeviceWidget::DevicePicker::add_row(lv_obj_t* parent, const char* component,
-                                              const char* label_name, const std::string& label,
-                                              const std::string& value, bool selected,
-                                              PickFn on_pick) {
-    const std::string index = std::to_string(rows_.size());
-    const char* attrs[] = {
-        "selected", selected ? "true" : "false",
-        "callback", "power_device_pick_cb",
-        "index",    index.c_str(),
-        nullptr,
+void PowerDeviceWidget::DevicePicker::add_row(lv_obj_t* parent, RowKind kind,
+                                              const std::string& label, const std::string& value,
+                                              bool selected, PickFn on_pick) {
+    const bool chip = kind == RowKind::Sensor;
+    const char* choice = chip ? kSensorChoice : kDeviceChoice;
+    // One index space across both lists: it is the tap's user data and each row's
+    // selected_value, so either list's subject holds the index of its lit row.
+    const int row_index = static_cast<int>(rows_.size());
+    if (selected) {
+        helix::ui::set_choice(choice, row_index);
+    }
+    const std::string index = std::to_string(row_index);
+    std::vector<const char*> attrs = {
+        "selected_subject",     choice,  "selected_value", index.c_str(), "callback",
+        "power_device_pick_cb", "index", index.c_str(),
     };
-    lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(parent, component, attrs));
+    if (chip) {
+        // The picker's compact outlined chip, in a wrap-flow grid.
+        attrs.insert(attrs.end(),
+                     {"idle_style", "outline_idle", "selected_style", "outline_selected", "height",
+                      "content", "radius", "#border_radius", "min_width", "0", "pad_hor",
+                      "#space_sm", "pad_ver", "#space_xs", "ext_click", "0", "font",
+                      "noto_sans_14"});
+    }
+    attrs.push_back(nullptr);
+    lv_obj_t* row = static_cast<lv_obj_t*>(
+        lv_xml_create(parent, chip ? "choice_chip" : "picker_option_row", attrs.data()));
     if (!row) {
         return;
     }
-    helix::ui::set_row_label_text(row, label_name, label.c_str());
+    helix::ui::set_row_label_text(row, chip ? "chip_label" : "option_label", label.c_str());
     rows_.push_back({value, on_pick});
 }
 
@@ -475,15 +495,17 @@ void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
     // scrolls the list instead of growing the card past the panel.
     lv_obj_set_style_max_height(device_list, screen_height_pct(50), 0);
     rows_.clear();
+    helix::ui::set_choice(kDeviceChoice, -1);
+    helix::ui::set_choice(kSensorChoice, -1);
 
     auto pick_device = [](PowerDeviceWidget& w, const std::string& v) { w.select_device(v); };
-    add_row(device_list, "picker_option_row", "option_label", lv_tr("All Devices"), "__all__",
-            owner_.is_all_devices(), pick_device);
+    add_row(device_list, RowKind::Device, lv_tr("All Devices"), "__all__", owner_.is_all_devices(),
+            pick_device);
 
     auto device_names = PowerDeviceState::instance().device_names();
     std::sort(device_names.begin(), device_names.end());
     for (const auto& name : device_names) {
-        add_row(device_list, "picker_option_row", "option_label",
+        add_row(device_list, RowKind::Device,
                 helix::get_display_name(name, helix::DeviceType::POWER_DEVICE), name,
                 name == owner_.device_name_, pick_device);
     }
@@ -505,11 +527,11 @@ void PowerDeviceWidget::DevicePicker::on_created(lv_obj_t* backdrop) {
     } else {
         std::sort(energy_ids.begin(), energy_ids.end());
         auto pick_sensor = [](PowerDeviceWidget& w, const std::string& v) { w.select_sensor(v); };
-        add_row(sensor_grid, "picker_chip", "chip_label", lv_tr("None"), "",
-                owner_.sensor_id_.empty(), pick_sensor);
+        add_row(sensor_grid, RowKind::Sensor, lv_tr("None"), "", owner_.sensor_id_.empty(),
+                pick_sensor);
         for (const auto& sid : energy_ids) {
             const auto info = SensorState::instance().get_sensor_info(sid);
-            add_row(sensor_grid, "picker_chip", "chip_label", info ? info->friendly_name : sid, sid,
+            add_row(sensor_grid, RowKind::Sensor, info ? info->friendly_name : sid, sid,
                     sid == owner_.sensor_id_, pick_sensor);
         }
     }

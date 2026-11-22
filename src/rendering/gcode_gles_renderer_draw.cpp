@@ -132,9 +132,9 @@ bool GCodeGLESRenderer::setup_frame(const GCodeCamera& camera, float scale, bool
     // Material
     glUniform1f(u_specular_intensity_, specular_intensity_);
     glUniform1f(u_specular_shininess_, specular_shininess_);
-    // Matches depth_shading::kLiftStrength on the 2D path, so the same model in
-    // the same filament reads the same way in either renderer.
-    glUniform1f(u_lift_strength_, helix::gcode::depth_shading::kLiftStrength);
+    glUniform1f(u_lift_strength_, kLiftStrength);
+    glUniform1f(u_rim_strength_, kOuterWallRimStrength);
+    glUniform1f(u_rim_power_, kOuterWallRimPower);
 
     // Per-vertex color mode: use vertex colors when geometry has a color palette.
     // With per-tool AMS overrides, the palette is updated in-place so vertex colors

@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One button of a row of mutually exclusive choices. It is checked while
+       `subject` equals `value`, and `look` names the styles.choice_<look>_*
+       pair it wears: fill (solid when chosen, a primary wash otherwise),
+       raised (idle on the raised surface), outline (with variant="outline")
+       or tab (with variant="ghost"). A tap calls `callback` with `user_data`,
+       which is usually `value` again; a row that publishes one 0/1 subject
+       per option passes value="1" and its own index here.
+       The button lays out its icon and text when it is created, so those and
+       the variant are props; everything else (size, name, moves_machine,
+       bind_text, long_mode) goes on the instance as on any ui_button. -->
+  <api>
+    <prop name="subject" type="subject" default=""/>
+    <prop name="value" type="string" default="0"/>
+    <prop name="callback" type="string" default=""/>
+    <prop name="user_data" type="string" default=""/>
+    <prop name="look" type="string" default="fill"/>
+    <prop name="text" type="string" default=""/>
+    <prop name="text_tag" type="string" default=""/>
+    <prop name="icon" type="string" default=""/>
+    <prop name="icon_position" type="string" default="left"/>
+    <prop name="variant" type="string" default="primary"/>
+    <prop name="focusable" type="string" default="true"/>
+  </api>
+  <view extends="ui_button"
+        text="$text" translation_tag="$text_tag" icon="$icon" icon_position="$icon_position" variant="$variant"
+        focusable="$focusable">
+    <style name="styles.choice_${look}_idle"/>
+    <style name="styles.choice_${look}_selected" selector="checked"/>
+    <bind_state_if_eq subject="$subject" state="checked" ref_value="$value"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$user_data"/>
+  </view>
+</component>

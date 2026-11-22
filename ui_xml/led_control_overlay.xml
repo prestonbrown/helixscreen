@@ -249,13 +249,9 @@
         </lv_obj>
       </lv_obj>
 
-      <lv_obj name="led_empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
-        <bind_flag_if_not_eq subject="led_tab_count" flag="hidden" ref_value="0"/>
-        <icon src="lightbulb_outline" size="xl" variant="muted"/>
-        <text_muted width="content" text="No LEDs found" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="led_empty_state"
+                   flex_grow="1" style_pad_all="0" icon="lightbulb_outline" icon_size="xl" icon_variant="muted"
+                   text="No LEDs found" shown_subject="led_tab_count"/>
     </overlay_panel-overlay_content>
   </view>
 </component>

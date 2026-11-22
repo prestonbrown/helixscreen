@@ -96,40 +96,40 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Subjects are registered by name in ui_wizard_init_subjects() and are
     // accessible globally via lv_xml_get_subject(nullptr, "<name>").
-    // wizard_step_current / wizard_step_total are STRING subjects (e.g., "1", "2").
+    // wizard_step_text is the header's counter. A targeted session always shows
+    // "of N": the subset IS the settled denominator.
     // wizard_is_final_step is an INT subject (0 = not final, 1 = final).
     // wizard_back_visible is an INT subject (0 = hidden, 1 = visible).
-    // wizard_total_visible stays 1 in a targeted session: the subset IS the
-    // settled denominator, so "of N" must not hide.
-    lv_subject_t* step_cur = lv_xml_get_subject(nullptr, "wizard_step_current");
-    lv_subject_t* step_tot = lv_xml_get_subject(nullptr, "wizard_step_total");
+    // wizard_next_text / wizard_skip_text caption the footer's primary and Skip.
+    lv_subject_t* step_text = lv_xml_get_subject(nullptr, "wizard_step_text");
     lv_subject_t* is_final = lv_xml_get_subject(nullptr, "wizard_is_final_step");
     lv_subject_t* back_vis = lv_xml_get_subject(nullptr, "wizard_back_visible");
-    lv_subject_t* total_vis = lv_xml_get_subject(nullptr, "wizard_total_visible");
+    lv_subject_t* next_text = lv_xml_get_subject(nullptr, "wizard_next_text");
+    lv_subject_t* skip_text = lv_xml_get_subject(nullptr, "wizard_skip_text");
 
-    REQUIRE(step_cur != nullptr);
-    REQUIRE(step_tot != nullptr);
+    REQUIRE(step_text != nullptr);
     REQUIRE(is_final != nullptr);
     REQUIRE(back_vis != nullptr);
-    REQUIRE(total_vis != nullptr);
+    REQUIRE(next_text != nullptr);
+    REQUIRE(skip_text != nullptr);
 
-    // At HeaterSelect (subset index 0): step "1" of "2", NOT final.
+    // At HeaterSelect (subset index 0): step 1 of 2, NOT final.
     // Back button hidden: first subset step with no cancel callback registered.
-    REQUIRE(std::string(lv_subject_get_string(step_cur)) == "1");
-    REQUIRE(std::string(lv_subject_get_string(step_tot)) == "2");
+    REQUIRE(std::string(lv_subject_get_string(step_text)) == "Step 1 of 2");
     REQUIRE(lv_subject_get_int(is_final) == 0);
     REQUIRE(lv_subject_get_int(back_vis) == 0);
-    REQUIRE(lv_subject_get_int(total_vis) == 1);
+    REQUIRE(std::string(lv_subject_get_string(next_text)) == "Next");
+    REQUIRE(std::string(lv_subject_get_string(skip_text)) == "Skip");
 
     // Navigate to the second (and last) subset step — exercises the
     // !g_step_subset.empty() branch of ui_wizard_navigate_to_step directly.
     ui_wizard_navigate_to_step(StepId::FanSelect);
 
-    // At FanSelect (subset index 1): step "2" of "2", IS final.
-    REQUIRE(std::string(lv_subject_get_string(step_cur)) == "2");
-    REQUIRE(std::string(lv_subject_get_string(step_tot)) == "2");
+    // At FanSelect (subset index 1): step 2 of 2, IS final.
+    REQUIRE(std::string(lv_subject_get_string(step_text)) == "Step 2 of 2");
     REQUIRE(lv_subject_get_int(is_final) == 1);
-    REQUIRE(lv_subject_get_int(total_vis) == 1);
+    REQUIRE(std::string(lv_subject_get_string(next_text)) == "Finish");
+    REQUIRE(std::string(lv_subject_get_string(skip_text)) == "Skip for now");
 
     // Tear down.
     ui_wizard_complete_targeted();
@@ -148,8 +148,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
                  "[1550][wizard]") {
     ui_wizard_init_subjects();
 
-    lv_subject_t* total_vis = lv_xml_get_subject(nullptr, "wizard_total_visible");
-    REQUIRE(total_vis != nullptr);
+    lv_subject_t* step_text = lv_xml_get_subject(nullptr, "wizard_step_text");
+    REQUIRE(step_text != nullptr);
+    auto shows_total = [step_text]() {
+        return std::string(lv_subject_get_string(step_text)).find(" of ") != std::string::npos;
+    };
 
     // "The connection settles it" means Klipper actually reported hardware —
     // wizard_total_is_settled() requires that signal past Connection, not just
@@ -171,14 +174,146 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Language and Wifi sit before Connection: total hidden.
     ui_wizard_navigate_to_step(StepId::Language);
-    REQUIRE(lv_subject_get_int(total_vis) == 0);
+    REQUIRE_FALSE(shows_total());
     ui_wizard_navigate_to_step(StepId::Wifi);
-    REQUIRE(lv_subject_get_int(total_vis) == 0);
+    REQUIRE_FALSE(shows_total());
 
     // Past the connection the printer is discovered and the denominator holds.
     ui_wizard_navigate_to_step(StepId::PrinterIdentify);
-    REQUIRE(lv_subject_get_int(total_vis) == 1);
+    REQUIRE(shows_total());
 
     // No deinit: other wizard tests in this shard reuse these process-wide
     // subjects, and init_subjects() is idempotent for the next one.
+}
+
+namespace {
+
+/// The text of the first label under @p obj, or empty.
+std::string first_label_text(lv_obj_t* obj) {
+    if (lv_obj_check_type(obj, &lv_label_class)) {
+        return lv_label_get_text(obj);
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+        const std::string text = first_label_text(lv_obj_get_child(obj, static_cast<int32_t>(i)));
+        if (!text.empty()) {
+            return text;
+        }
+    }
+    return {};
+}
+
+} // namespace
+
+// The wizard's footer is the calibration frame's: Back, Skip and the primary
+// (Next / Finish), each driven by the wizard's subjects.
+TEST_CASE_METHOD(LVGLUITestFixture, "setup wizard footer follows the step's subjects",
+                 "[wizard][wizard_frame]") {
+    lv_obj_t* root = ui_wizard_create_targeted(test_screen(),
+                                               {StepId::HeaterSelect, StepId::FanSelect}, []() {});
+    REQUIRE(root != nullptr);
+
+    lv_obj_t* back = lv_obj_find_by_name(root, "btn_back");
+    lv_obj_t* skip = lv_obj_find_by_name(root, "btn_skip");
+    lv_obj_t* next = lv_obj_find_by_name(root, "btn_next");
+    REQUIRE(back != nullptr);
+    REQUIRE(skip != nullptr);
+    REQUIRE(next != nullptr);
+    lv_subject_t* passed = lv_xml_get_subject(nullptr, "connection_test_passed");
+    lv_subject_t* show_skip = lv_xml_get_subject(nullptr, "wizard_show_skip");
+    lv_subject_t* nav = lv_xml_get_subject(nullptr, "nav_buttons_enabled");
+    REQUIRE(passed != nullptr);
+    REQUIRE(show_skip != nullptr);
+    REQUIRE(nav != nullptr);
+
+    // First step, no cancel callback: no Back; Next, not Skip.
+    lv_subject_set_int(passed, 1);
+    lv_subject_set_int(show_skip, 0);
+    process_lvgl(10);
+    CHECK(lv_obj_is_hidden(back));
+    CHECK(lv_obj_is_hidden(skip));
+    CHECK_FALSE(lv_obj_is_hidden(next));
+    CHECK(first_label_text(next) == "Next");
+    CHECK_FALSE(lv_obj_has_state(next, LV_STATE_DISABLED));
+
+    // The step's verdict gates Next.
+    lv_subject_set_int(passed, 0);
+    process_lvgl(10);
+    CHECK(lv_obj_has_state(next, LV_STATE_DISABLED));
+    lv_subject_set_int(passed, 1);
+
+    // The wizard runs before Moonraker is up: an unreachable printer does not.
+    const int nav_was = lv_subject_get_int(nav);
+    lv_subject_set_int(nav, 0);
+    process_lvgl(10);
+    CHECK_FALSE(lv_obj_has_state(next, LV_STATE_DISABLED));
+    lv_subject_set_int(nav, nav_was);
+
+    // A step offering its own action shows Skip in Next's place.
+    lv_subject_set_int(show_skip, 1);
+    process_lvgl(10);
+    CHECK(lv_obj_is_hidden(next));
+    CHECK_FALSE(lv_obj_is_hidden(skip));
+    CHECK(first_label_text(skip) == "Skip");
+    lv_subject_set_int(show_skip, 0);
+
+    // Last step: Back, and Finish / Skip for now.
+    ui_wizard_navigate_to_step(StepId::FanSelect);
+    lv_subject_set_int(passed, 1);
+    process_lvgl(10);
+    CHECK_FALSE(lv_obj_is_hidden(back));
+    CHECK(first_label_text(back) == "Back");
+    CHECK(first_label_text(next) == "Finish");
+    lv_subject_set_int(show_skip, 1);
+    process_lvgl(10);
+    CHECK(first_label_text(skip) == "Skip for now");
+    lv_subject_set_int(show_skip, 0);
+
+    ui_wizard_complete_targeted();
+}
+
+// equal_width gives the footer's buttons one width; a calibration footer
+// without it keeps the canvas look, Back sized to its caption.
+TEST_CASE_METHOD(LVGLUITestFixture, "wizard frame footer equal_width gives its buttons one width",
+                 "[wizard][wizard_frame]") {
+    auto make_footer = [this](const char* equal) {
+        const char* attrs[] = {"back_callback",
+                               "on_back_clicked",
+                               "back_name",
+                               "eq_back",
+                               "skip_callback",
+                               "on_next_clicked",
+                               "skip_name",
+                               "eq_skip",
+                               "primary_callback",
+                               "on_next_clicked",
+                               "primary_name",
+                               "eq_next",
+                               "primary_text",
+                               "Next",
+                               "equal_width",
+                               equal,
+                               nullptr};
+        auto* footer =
+            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "wizard_frame_footer", attrs));
+        REQUIRE(footer != nullptr);
+        lv_obj_update_layout(footer);
+        return footer;
+    };
+    auto width_of = [](lv_obj_t* footer, const char* name) {
+        lv_obj_t* btn = lv_obj_find_by_name(footer, name);
+        REQUIRE(btn != nullptr);
+        REQUIRE_FALSE(lv_obj_is_hidden(btn));
+        return lv_obj_get_width(btn);
+    };
+
+    lv_obj_t* equal = make_footer("1");
+    const int32_t back_w = width_of(equal, "eq_back");
+    CHECK(back_w > 0);
+    CHECK(width_of(equal, "eq_skip") == back_w);
+    CHECK(width_of(equal, "eq_next") == back_w);
+    lv_obj_delete(equal);
+
+    lv_obj_t* canvas = make_footer("0");
+    CHECK(width_of(canvas, "eq_back") < width_of(canvas, "eq_next"));
+    lv_obj_delete(canvas);
 }

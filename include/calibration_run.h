@@ -190,4 +190,12 @@ class CalibrationRun {
     std::shared_ptr<int> alive_ = std::make_shared<int>(0);
 };
 
+/// Whole minutes left of @p entry's estimate: all of it while it waits; while it
+/// runs, the share its progress has not reached (all of it before it reports a
+/// percentage), and at least one; none once it has ended.
+[[nodiscard]] int minutes_left(const CalibrationRun::Entry& entry);
+
+/// The run's countdown: minutes_left() of every entry, summed.
+[[nodiscard]] int minutes_left(const std::vector<CalibrationRun::Entry>& entries);
+
 } // namespace helix::calibration

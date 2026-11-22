@@ -138,7 +138,7 @@
           </calibration_intro-settings>
           <calibration_intro-badges>
             <cal_intro_badge name="shaper_badge_time" bind="is_intro_duration"/>
-            <cal_intro_badge name="shaper_badge_loud" text="loud" warm="true"/>
+            <cal_intro_badge name="shaper_badge_loud" text="loud" variant="warm"/>
             <cal_intro_badge name="shaper_badge_moves" text="homes, then moves fast"/>
           </calibration_intro-badges>
         </calibration_intro>

@@ -23,13 +23,9 @@
         </repeat>
       </lv_obj>
 
-      <lv_obj name="empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true" scrollable="false">
-        <bind_flag_if_not_eq subject="zone_ov_count" flag="hidden" ref_value="0"/>
-        <icon src="thermometer" size="xl" variant="secondary"/>
-        <text_muted width="content" text="No filament environment sensors" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="empty_state"
+                   flex_grow="1" icon="thermometer" icon_size="xl" text="No filament environment sensors"
+                   shown_subject="zone_ov_count"/>
     </overlay_panel-overlay_content>
   </view>
 </component>

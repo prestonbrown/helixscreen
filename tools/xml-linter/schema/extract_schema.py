@@ -1201,10 +1201,6 @@ CPP_SIMPLE_WIDGETS: dict[str, dict[str, Any]] = {
         "widgets": ["severity_card"],
         "inherits": "lv_obj",
     },
-    "components/ui_status_pill.cpp": {
-        "widgets": ["status_pill"],
-        "inherits": "lv_obj",
-    },
     "controls/ui_temp_display.cpp": {
         "widgets": ["temp_display"],
         "inherits": "lv_obj",

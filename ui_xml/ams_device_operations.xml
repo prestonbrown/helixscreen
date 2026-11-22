@@ -79,7 +79,12 @@
                 <text_small text="Controlled by hardware sensor"/>
               </lv_obj>
             </lv_obj>
-            <status_pill name="bypass_status_pill" text="Inactive" variant="muted"/>
+            <status_pill name="bypass_active_pill" text="Active" variant="success">
+              <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="0"/>
+            </status_pill>
+            <status_pill name="bypass_inactive_pill" text="Inactive" variant="muted">
+              <bind_flag_if_eq subject="ams_bypass_active" flag="hidden" ref_value="1"/>
+            </status_pill>
           </lv_obj>
         </lv_obj>
         <!-- Auto-Heat Info Row (shown when supported) -->
