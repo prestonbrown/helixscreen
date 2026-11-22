@@ -14,6 +14,7 @@
 #include "esp_ota_ops.h"
 #include "ktouch.h"
 #include "lvgl_glue.h"
+#include "restart_quiesce.h"
 #include "sdkconfig.h"
 #include "storage_mount.h"
 
@@ -45,6 +46,9 @@ void app_main(void) {
     const esp_partition_t* running = esp_ota_get_running_partition();
     ESP_LOGI(TAG, "helixscreen-esp32 booting from partition '%s' @ 0x%08" PRIx32, running->label,
              running->address);
+
+    // First, so esp_restart() runs it after every handler registered later.
+    restart_quiesce_register();
 
     // Assets (/assets, read-only frogfs) and config (/config, writable
     // LittleFS) must be mounted before the UI reads them. Fatal-ish: the shell
