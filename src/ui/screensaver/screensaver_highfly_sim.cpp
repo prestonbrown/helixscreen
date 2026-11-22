@@ -670,6 +670,14 @@ std::array<int, 6> highfly_numerals(const ClockReading& r) {
     return {left >= 10 * 3600 ? hour[0] : -1, hour[1], minute[0], minute[1], second[0], second[1]};
 }
 
+const char* highfly_word(const ClockReading& r) {
+    static constexpr char kCheck[] = {kGlyphCheck, '\0'};
+    if (r.mode != ClockMode::DONE) {
+        return "";
+    }
+    return r.spell_states ? "DONE" : kCheck;
+}
+
 HighflyPalette highfly_palette(const ClockReading& r) {
     switch (r.mode) {
     case ClockMode::CLOCK:
@@ -752,6 +760,27 @@ HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_
                      d.y2 + l.text_halo);
     }
     return l;
+}
+
+std::array<DirtyRect, kHighflyWordMax> highfly_word_boxes(const HighFlyClockLayout& l,
+                                                          size_t count) {
+    std::array<DirtyRect, kHighflyWordMax> out{};
+    count = std::min(count, kHighflyWordMax);
+    if (count == 0) {
+        return out;
+    }
+    const DirtyRect& first = l.digits[0];
+    const int32_t gw = first.x2 - first.x1 + 1;
+    const int32_t gap = l.digits[1].x1 - first.x2 - 1;
+    const auto n = static_cast<int32_t>(count);
+    const int32_t total = n * gw + (n - 1) * gap;
+    const int32_t centre = (first.x1 + l.digits[4].x2 + 1) / 2;
+    int32_t x = centre - total / 2;
+    for (size_t i = 0; i < count; i++) {
+        out[i] = {x, first.y1, x + gw - 1, first.y2};
+        x += gw + gap;
+    }
+    return out;
 }
 
 // ---------- HighFlySim ----------
@@ -1489,8 +1518,46 @@ class HighFlySim::LayerWriter {
     int32_t h_;
 };
 
+void HighFlySim::draw_word(LayerWriter& writer, const char* word,
+                           const HighFlyClockLayout& l) const {
+    const size_t count = std::min(std::strlen(word), kHighflyWordMax);
+    const std::array<DirtyRect, kHighflyWordMax> boxes = highfly_word_boxes(l, count);
+    // Built per bake and freed after it: a word bakes once when a print ends, never per frame.
+    StrokeGlyphSet glyphs;
+    glyphs.init(l.digit_unit, kDigitStroke);
+    std::vector<uint8_t> halo;
+    const int32_t pad = std::max<int32_t>(1, l.halo);
+    const int32_t hw = glyphs.w + 2 * pad;
+    const int32_t hh = glyphs.h + 2 * pad;
+    // Every shadow first, so none falls across a neighbour's strokes.
+    for (size_t i = 0; i < count; i++) {
+        glyphs.ensure(word[i]);
+        const uint8_t* cov = glyphs.coverage(word[i]);
+        if (cov == nullptr) {
+            continue;
+        }
+        build_glyph_halo(cov, glyphs.w, glyphs.h, l.halo, halo);
+        blit_coverage(writer, halo.data(), hw, hh, boxes[i].x1 - pad, boxes[i].y1 - pad, kHalo,
+                      kHaloOpacity);
+    }
+    for (size_t i = 0; i < count; i++) {
+        const uint8_t* cov = glyphs.coverage(word[i]);
+        if (cov != nullptr) {
+            blit_coverage(writer, cov, glyphs.w, glyphs.h, boxes[i].x1, boxes[i].y1, kNumeral,
+                          kNumeralOpacity);
+        }
+    }
+}
+
 void HighFlySim::draw_numeral_group(LayerWriter& writer, const ClockReading& reading,
                                     NumeralGroup g, const HighFlyClockLayout& l) const {
+    const char* word = highfly_word(reading);
+    if (*word != '\0') {
+        if (g == NumeralGroup::HOURS_MINUTES) {
+            draw_word(writer, word, l);
+        }
+        return;
+    }
     const std::array<int, 6> n = highfly_numerals(reading);
     struct Place {
         const StrokeDigitSet& set;
@@ -1638,7 +1705,13 @@ void compose_numeral_layer(const std::vector<uint32_t>& over, const DirtyRect& b
 
 void HighFlySim::draw_numerals(FrameTarget& frame, const ClockReading& reading) {
     const std::array<int, 6> n = highfly_numerals(reading);
-    const std::array<int, 4> wants[] = {{n[0], n[1], n[2], n[3]}, {n[4], n[5], -1, -1}};
+    const char* word = highfly_word(reading);
+    std::array<int, 4> wants[] = {{n[0], n[1], n[2], n[3]}, {n[4], n[5], -1, -1}};
+    if (*word != '\0') {
+        wants[0] = {-2, static_cast<unsigned char>(word[0]), static_cast<int>(std::strlen(word)),
+                    0};
+        wants[1] = {-2, -2, -2, -2};
+    }
     for (size_t i = 0; i < numerals_.size(); i++) {
         NumeralLayer& layer = numerals_[i];
         if (layer.over.empty()) {

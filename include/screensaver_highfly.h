@@ -17,8 +17,9 @@
 namespace helix::ui {
 
 /// High Fly's text block and AM/PM: while the numerals count down (highfly_counts_down()), the
-/// print's first line and the time of day, with no AM/PM since the numerals are not a time;
-/// clock_lines() otherwise.
+/// print's first line and the time of day; while they spell a highfly_word(), the time of day
+/// and the weekday; with no AM/PM in either, since the numerals are not a time. clock_lines()
+/// otherwise.
 ClockLines highfly_clock_lines(const ClockReading& reading);
 
 /**

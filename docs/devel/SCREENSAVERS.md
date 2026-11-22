@@ -731,9 +731,12 @@ white haze over the bottom rows.
   for the clock, towers and the approaching cloud; a fly-through repaints the whole screen. The
   last rung keeps the scene still and redraws only the clock.
 - During a print (`highfly_numerals`, `highfly_palette`): the big numerals count the time left
-  (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the
-  finish time and the time of day, AM/PM blank, in the state colour. The sky, the deck's light
-  and the haze blend from the day palette toward golden hour with progress in
+  (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the finish
+  time and the time of day, AM/PM blank, in the state colour. A finished print spells DONE (a
+  check mark where the reading spells no states, `highfly_word`) in the numerals' stroke style,
+  size and halo, centered where they stand, with no seconds; the left lines then show the time of
+  day and the weekday. The word bakes into the numeral layer once, like a digit change. The sky,
+  the deck's light and the haze blend from the day palette toward golden hour with progress in
   `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer and a recolor of the
   band, layer and tower textures from the shade byte each texel keeps (about 0.5 MB in all), so a
   near tower warms with the deck. A tower's day stops are regraded through the palette's shadow,

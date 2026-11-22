@@ -242,6 +242,14 @@ void StrokeGlyphSet::ensure(char c) {
     }
 }
 
+const uint8_t* StrokeGlyphSet::coverage(char c) const {
+    const int i = stroke_glyph_index(c);
+    if (i < 0 || glyphs_[static_cast<size_t>(i)].empty()) {
+        return nullptr;
+    }
+    return glyphs_[static_cast<size_t>(i)].data();
+}
+
 uint8_t StrokeGlyphSet::at(char c, int32_t gx, int32_t gy) const {
     const int i = stroke_glyph_index(c);
     if (i < 0 || gx < 0 || gy < 0 || gx >= w || gy >= h) {
@@ -302,43 +310,55 @@ void build_stroke_digits(int32_t unit, float stroke, StrokeDigitSet& out) {
     }
 }
 
+void build_glyph_halo(const uint8_t* cov, int32_t w, int32_t h, int32_t radius,
+                      std::vector<uint8_t>& out) {
+    radius = std::max<int32_t>(1, radius);
+    const int32_t ow = w + 2 * radius;
+    const int32_t oh = h + 2 * radius;
+    const int32_t grow = std::max<int32_t>(1, radius / 3);
+    const int32_t soften = std::max<int32_t>(1, radius / 2);
+    std::vector<float> grid(static_cast<size_t>(ow) * oh, 0.0f);
+    std::vector<float> wide(grid.size());
+    std::vector<float> tmp(grid.size());
+    for (int32_t y = 0; y < h; y++) {
+        for (int32_t x = 0; x < w; x++) {
+            grid[static_cast<size_t>(y + radius) * ow + x + radius] =
+                static_cast<float>(cov[static_cast<size_t>(y) * w + x]) / 255.0f;
+        }
+    }
+    // Widen the strokes so the blur leaves a body of shade behind them, not a faint rim.
+    for (int32_t y = 0; y < oh; y++) {
+        for (int32_t x = 0; x < ow; x++) {
+            float most = 0.0f;
+            for (int32_t dy = -grow; dy <= grow; dy++) {
+                const int32_t yy = std::clamp(y + dy, 0, oh - 1);
+                for (int32_t dx = -grow; dx <= grow; dx++) {
+                    const int32_t xx = std::clamp(x + dx, 0, ow - 1);
+                    most = std::max(most, grid[static_cast<size_t>(yy) * ow + xx]);
+                }
+            }
+            wide[static_cast<size_t>(y) * ow + x] = most;
+        }
+    }
+    box_blur(wide.data(), ow, oh, soften, false, false, tmp.data(), 3);
+    out.resize(wide.size());
+    for (size_t i = 0; i < wide.size(); i++) {
+        out[i] = static_cast<uint8_t>(std::lround(std::clamp(wide[i], 0.0f, 1.0f) * 255.0f));
+    }
+}
+
 void build_stroke_halo(const StrokeDigitSet& digits, int32_t radius, StrokeDigitSet& out) {
     radius = std::max<int32_t>(1, radius);
     out.w = digits.w + 2 * radius;
     out.h = digits.h + 2 * radius;
-    out.coverage.assign(static_cast<size_t>(out.w) * out.h * 10, 0);
-    const int32_t grow = std::max<int32_t>(1, radius / 3);
-    const int32_t soften = std::max<int32_t>(1, radius / 2);
-    std::vector<float> grid(static_cast<size_t>(out.w) * out.h);
-    std::vector<float> wide(grid.size());
-    std::vector<float> tmp(grid.size());
+    const size_t each = static_cast<size_t>(out.w) * out.h;
+    out.coverage.assign(each * 10, 0);
+    std::vector<uint8_t> halo;
     for (int digit = 0; digit < 10; digit++) {
-        std::fill(grid.begin(), grid.end(), 0.0f);
-        for (int32_t y = 0; y < digits.h; y++) {
-            for (int32_t x = 0; x < digits.w; x++) {
-                grid[static_cast<size_t>(y + radius) * out.w + x + radius] =
-                    static_cast<float>(digits.at(digit, x, y)) / 255.0f;
-            }
-        }
-        // Widen the strokes so the blur leaves a body of shade behind them, not a faint rim.
-        for (int32_t y = 0; y < out.h; y++) {
-            for (int32_t x = 0; x < out.w; x++) {
-                float most = 0.0f;
-                for (int32_t dy = -grow; dy <= grow; dy++) {
-                    const int32_t yy = std::clamp(y + dy, 0, out.h - 1);
-                    for (int32_t dx = -grow; dx <= grow; dx++) {
-                        const int32_t xx = std::clamp(x + dx, 0, out.w - 1);
-                        most = std::max(most, grid[static_cast<size_t>(yy) * out.w + xx]);
-                    }
-                }
-                wide[static_cast<size_t>(y) * out.w + x] = most;
-            }
-        }
-        box_blur(wide.data(), out.w, out.h, soften, false, false, tmp.data(), 3);
-        uint8_t* cov = &out.coverage[static_cast<size_t>(digit) * out.w * out.h];
-        for (size_t i = 0; i < wide.size(); i++) {
-            cov[i] = static_cast<uint8_t>(std::lround(std::clamp(wide[i], 0.0f, 1.0f) * 255.0f));
-        }
+        build_glyph_halo(&digits.coverage[static_cast<size_t>(digit) * digits.w * digits.h],
+                         digits.w, digits.h, radius, halo);
+        std::copy(halo.begin(), halo.end(),
+                  out.coverage.begin() + static_cast<std::ptrdiff_t>(each) * digit);
     }
 }
 

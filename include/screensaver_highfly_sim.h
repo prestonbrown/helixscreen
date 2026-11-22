@@ -168,6 +168,12 @@ inline constexpr float kHighflyPausedSpeed = 0.25f;
 inline constexpr float kHighflySwayTexels = 24.0f;
 inline constexpr float kHighflySwayRate = 0.15f;
 
+/// The word the big numerals spell in place of a time: "DONE" for a finished print, or the
+/// check mark (kGlyphCheck) where the reading spells no states; "" while they show numbers.
+const char* highfly_word(const ClockReading& r);
+/// Most glyphs highfly_word() returns.
+inline constexpr size_t kHighflyWordMax = 4;
+
 /// Where the clock sits on a w x h canvas, moved by the drift (dx, dy).
 struct HighFlyClockLayout {
     int32_t digit_unit = 0;            ///< big numerals' glyph unit
@@ -183,6 +189,11 @@ struct HighFlyClockLayout {
     DirtyRect bounds;
 };
 HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_t dy);
+/// Boxes of the first `count` (at most kHighflyWordMax) glyphs of a word the big numerals spell:
+/// each a numeral's size on the numerals' row, a numeral gap apart, the run centred on the
+/// numerals.
+std::array<DirtyRect, kHighflyWordMax> highfly_word_boxes(const HighFlyClockLayout& l,
+                                                          size_t count);
 
 class HighFlySim {
   public:
@@ -321,10 +332,15 @@ class HighFlySim {
     struct NumeralLayer {
         DirtyRect box;
         std::vector<uint32_t> over;
-        std::array<int, 4> digits{-1, -1, -1, -1}; ///< what `over` shows, -1 before a bake
+        /// What `over` shows: its digits, all -1 before a bake; for a word, -2 then the word's
+        /// first character and length (the seconds layer: all -2).
+        std::array<int, 4> digits{-1, -1, -1, -1};
     };
     class LayerWriter;
-    /// Draws group `g` of `reading` at layout `l` into `writer`.
+    /// Draws `word` (highfly_word()) in the numerals' size, style and halo at layout `l`.
+    void draw_word(LayerWriter& writer, const char* word, const HighFlyClockLayout& l) const;
+    /// Draws group `g` of `reading` at layout `l` into `writer`: the numerals, or for a reading
+    /// with a highfly_word() that word in place of the hours and minutes and no seconds.
     void draw_numeral_group(LayerWriter& writer, const ClockReading& reading, NumeralGroup g,
                             const HighFlyClockLayout& l) const;
     /// Sizes the two layers for the current clock size.
