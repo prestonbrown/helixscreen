@@ -332,6 +332,14 @@ $(OBJ_DIR)/system/text_io.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 # helix_fs stats and lists the same files; a 32-bit stat fails a >2GB file with EOVERFLOW.
 $(OBJ_DIR)/system/helix_fs.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 
+# A size-tuned build still compiles the screensavers for speed: on the AD5M their per-pixel
+# loops take a quarter less CPU at -O2 for about 100 KB of binary and no resident memory,
+# where -O2 on the whole build costs 4.4 MB resident. The -O2 follows -Os on the command
+# line, so it is the one GCC uses.
+ifneq ($(filter -Os,$(CXXFLAGS)),)
+$(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SCREENSAVER_SRCS)): override CXXFLAGS += -O2
+endif
+
 # print-compile-command (Makefile) prints a source's command from outside its
 # object's context, where no target-specific variable reaches, so it adds these
 # from here. tests/shell/test_print_compile_command.bats fails when an object
