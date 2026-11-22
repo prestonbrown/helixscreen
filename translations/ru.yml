@@ -3335,7 +3335,7 @@ translations:
   Objects: Объекты
   Objects in the print, with a tap to open the skip map: 'Объекты печати, касание открывает карту пропуска'
   'Off': Выкл
-  Off for This Print: 'Выкл. для этой печати'
+  Off for This Print: 'Без таймлапса'
   'Off:': 'Выкл:'
   'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offer to save Z-offset changes to the printer config: 'Предлагать сохранить изменения Z-Offset в конфигурации принтера'

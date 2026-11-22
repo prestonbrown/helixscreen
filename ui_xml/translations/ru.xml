@@ -3197,7 +3197,7 @@
   <translation tag="Objects" ru="Объекты"/>
   <translation tag="Objects in the print, with a tap to open the skip map" ru="Объекты печати, касание открывает карту пропуска"/>
   <translation tag="Off" ru="Выкл"/>
-  <translation tag="Off for This Print" ru="Выкл. для этой печати"/>
+  <translation tag="Off for This Print" ru="Без таймлапса"/>
   <translation tag="Off:" ru="Выкл:"/>
   <translation tag="Off: runs with these values without asking" ru="Выкл.: запуск с этими значениями без запроса"/>
   <translation tag="Offer to save Z-offset changes to the printer config" ru="Предлагать сохранить изменения Z-Offset в конфигурации принтера"/>

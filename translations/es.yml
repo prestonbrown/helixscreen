@@ -3271,7 +3271,7 @@ translations:
   Objects: Objetos
   Objects in the print, with a tap to open the skip map: 'Objetos de la impresión, con un toque abre el mapa para omitir'
   'Off': Apagado
-  Off for This Print: 'Desactivar en esta impresión'
+  Off for This Print: 'Sin timelapse'
   'Off:': 'Apagado:'
   'Off: runs with these values without asking': 'Desactivado: ejecuta con estos valores sin preguntar'
   Offer to save Z-offset changes to the printer config: 'Ofrecer guardar los cambios de Z-Offset en la configuración de la impresora'

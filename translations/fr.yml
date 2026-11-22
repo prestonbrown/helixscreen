@@ -3283,7 +3283,7 @@ translations:
   Objects: Objets
   Objects in the print, with a tap to open the skip map: 'Objets de l''impression, un toucher ouvre la carte d''exclusion'
   'Off': Éteint
-  Off for This Print: 'Désactivé pour cette impression'
+  Off for This Print: 'Sans timelapse'
   'Off:': 'Arrêt :'
   'Off: runs with these values without asking': 'Désactivé : exécute avec ces valeurs sans demander'
   Offer to save Z-offset changes to the printer config: 'Proposer d''enregistrer les modifications du Z-Offset dans la configuration de l''imprimante'

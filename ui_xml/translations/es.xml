@@ -3149,7 +3149,7 @@
   <translation tag="Objects" es="Objetos"/>
   <translation tag="Objects in the print, with a tap to open the skip map" es="Objetos de la impresión, con un toque abre el mapa para omitir"/>
   <translation tag="Off" es="Apagado"/>
-  <translation tag="Off for This Print" es="Desactivar en esta impresión"/>
+  <translation tag="Off for This Print" es="Sin timelapse"/>
   <translation tag="Off:" es="Apagado:"/>
   <translation tag="Off: runs with these values without asking" es="Desactivado: ejecuta con estos valores sin preguntar"/>
   <translation tag="Offer to save Z-offset changes to the printer config" es="Ofrecer guardar los cambios de Z-Offset en la configuración de la impresora"/>
