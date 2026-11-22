@@ -66,7 +66,7 @@ types every supported Orca release carries.
 | `lane_name` | the outer key (`laneN` or `T<n>`, below); `"bypass"` on the bypass spool's record |
 | `loaded` | bool, or `null` |
 | `color` | `"#RRGGBB"`, or `null` when `color_set` is false (pure black is a colour) |
-| `colors`, `color_mode` | a multi-color filament's list (`FilamentSlotOverride::multi_color_hexes`, two or more `#RRGGBB`) and `"gradient"` or `"coaxial"`; `null` and `"solid"` for one color, both `null` with no color (`include/filament_color_mode.h`) |
+| `colors`, `color_mode` | a multi-color filament's list (`FilamentSlotOverride::multi_color_hexes`, two or more `#RRGGBB`) and `"gradient"` or `"coaxial"`; for one color `colors` is `null` and `color_mode` is `"solid"` only when the write knew the count (`colors_stated`: a user's edit, a mirror replacing a stale list), else `null`; both `null` with no color (`include/filament_color_mode.h`, `src/printer/filament_slot_override_store.cpp#to_lane_data_record`) |
 | `material`, `filament_type` | the Orca match string and the precise type |
 | `vendor_name`, `name` | brand and product name |
 | `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product |
@@ -331,6 +331,14 @@ is never queued.
 | `persist_override_external_identity()` | Amend a linked slot's record with what Spoolman now states (colour only when the record has none) |
 | `mirror_firmware_to_lane_data(..., MirrorPolicy)` | Mirror firmware-detected colour and material into the record on backends whose firmware does not publish `lane_data` (IFS and Snapmaker `OverwriteAlways`, CFS `FillUnsetOnly`) |
 | `clear_persisted_override()` | Erase a slot's record in memory and on the printer |
+
+**Color lists across sources.** A firmware mirror names a color, never how many the spool has, so
+its record writes `color_mode: null` and leaves a tag's or Spoolman's list standing. A mirror that
+changes the record's color replaces a list the record held (another color is another filament)
+and states one color. On read, `resolve()` (`src/printer/lane_resolver.cpp#resolve`) keeps the
+strongest source's list unless a stronger source names a color other than the one the list's own
+source stated beside it; a source naming the same color (a backend that snaps a pick to its
+palette states that color in both places) keeps the list.
 
 ---
 

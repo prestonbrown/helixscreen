@@ -67,7 +67,7 @@ Tap **Edit** in the theme explorer to open the theme editor. You can recolor a t
 
 The editor has two sections:
 
-- **Theme Colors**: 16 color swatches, each labeled with what it colors (background, text, primary, success, warning and so on). Tap a swatch, then pick a ready-made color or mix your own.
+- **Theme Colors**: 16 color bars, each labeled with what it colors (background, text, primary, success, warning and so on), beside a color picker (above it on the smallest screens). Tap a bar, then pick its color: **Grid** in the header shows a block of ready-made colors, **Sliders** shows Hue, Saturation and Brightness with a **Hex** button to type a code. The row of small chips under the picker holds the theme's own colors, so you can reuse one. The selected bar shows the color's name and hex code.
 - **Style Properties**: four sliders.
 
 | Slider | What it does |
@@ -85,13 +85,13 @@ A theme can have a separate light and dark palette, and the editor changes one a
 
 ### Saving Your Changes
 
-Three buttons sit at the bottom of the editor:
+**Save** sits in the editor's header. **Reset** and **Save As New** are in the menu behind the more button (three dots) beside it:
 
 | Button | What it does |
 |--------|--------------|
-| **Reset** | For a built-in theme, puts the original colors back. For a theme you made, goes back to its last saved state |
-| **Save As New** | Saves your changes as a new theme and leaves the original alone |
 | **Save** | Saves over the current theme. Grayed out until you've changed something |
+| **Reset** (menu) | For a built-in theme, puts the original colors back. For a theme you made, goes back to its last saved state |
+| **Save As New** (menu) | Saves your changes as a new theme and leaves the original alone |
 
 **Save As New** asks for a name. It suggests "*theme name* Copy". Tap **Save** and the new theme is applied and added to the Theme Preset menu.
 
