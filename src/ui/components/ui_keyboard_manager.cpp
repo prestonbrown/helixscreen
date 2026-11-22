@@ -284,15 +284,9 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
         return;
     }
 
-    overlay_ = lv_obj_create(screen);
-    if (!overlay_) {
-        spdlog::error("[KeyboardManager] show_overlay: failed to create overlay");
-        return;
-    }
-
     size_t alt_count = strlen(alternatives);
-    // Size overlay cells proportional to the current keyboard font so they
-    // stay usable at micro (CC1 480×272) and scale up cleanly on larger panels.
+    // Size the cells from the popup's font so they stay usable at micro
+    // (CC1 480x272) and scale up cleanly on larger panels.
     const lv_font_t* overlay_font = theme_manager_get_font("font_heading");
     if (!overlay_font)
         overlay_font = &noto_sans_20;
@@ -303,46 +297,25 @@ void KeyboardManager::show_overlay(const lv_area_t* key_area, const char* altern
     int32_t overlay_width = (static_cast<int32_t>(alt_count) * char_width) + (padding * 2);
     int32_t overlay_height = char_height;
 
-    lv_obj_set_size(overlay_, overlay_width, overlay_height);
-
-    const char* card_bg_str =
-        lv_xml_get_const(NULL, theme_manager_is_dark_mode() ? "card_bg_dark" : "card_bg_light");
-    if (card_bg_str) {
-        lv_obj_set_style_bg_color(overlay_, theme_manager_parse_hex_color(card_bg_str),
-                                  LV_PART_MAIN);
+    const std::string width_str = std::to_string(overlay_width);
+    const std::string height_str = std::to_string(overlay_height);
+    const std::string pad_str = std::to_string(padding);
+    const char* popup_attrs[] = {"width", width_str.c_str(), "height", height_str.c_str(),
+                                 "pad",   pad_str.c_str(),   nullptr};
+    overlay_ = static_cast<lv_obj_t*>(lv_xml_create(screen, "keyboard_alt_popup", popup_attrs));
+    if (!overlay_) {
+        spdlog::error("[KeyboardManager] show_overlay: failed to create overlay");
+        return;
     }
-    lv_obj_set_style_bg_opa(overlay_, LV_OPA_90, LV_PART_MAIN);
-    lv_obj_set_style_border_width(overlay_, 2, LV_PART_MAIN);
-
-    const char* border_color_str = lv_xml_get_const(NULL, "success");
-    if (border_color_str) {
-        lv_obj_set_style_border_color(overlay_, theme_manager_parse_hex_color(border_color_str),
-                                      LV_PART_MAIN);
-    }
-
-    lv_obj_set_style_radius(overlay_, 8, LV_PART_MAIN);
-    lv_obj_set_style_shadow_width(overlay_, 10, LV_PART_MAIN);
-    lv_obj_set_style_shadow_opa(overlay_, LV_OPA_30, LV_PART_MAIN);
-
-    lv_obj_set_flex_flow(overlay_, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_flex_main_place(overlay_, LV_FLEX_ALIGN_SPACE_EVENLY, LV_PART_MAIN);
-    lv_obj_set_style_flex_cross_place(overlay_, LV_FLEX_ALIGN_CENTER, LV_PART_MAIN);
-    lv_obj_set_style_pad_all(overlay_, padding, LV_PART_MAIN);
-
-    const char* text_color_str =
-        lv_xml_get_const(NULL, theme_manager_is_dark_mode() ? "text_dark" : "text_light");
-    lv_color_t text_color = text_color_str ? theme_manager_parse_hex_color(text_color_str)
-                                           : theme_manager_get_color("text");
 
     for (size_t i = 0; i < alt_count; i++) {
-        lv_obj_t* label = lv_label_create(overlay_);
         char char_str[2] = {alternatives[i], '\0'};
-        lv_label_set_text(label, char_str);
-        lv_obj_set_style_text_font(label, overlay_font, LV_PART_MAIN);
-        lv_obj_set_style_text_color(label, text_color, LV_PART_MAIN);
-        lv_obj_set_flex_grow(label, 1);
-        lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN);
-        lv_obj_set_user_data(label, (void*)(uintptr_t)alternatives[i]);
+        const char* cell_attrs[] = {"text", char_str, nullptr};
+        auto* cell =
+            static_cast<lv_obj_t*>(lv_xml_create(overlay_, "keyboard_alt_cell", cell_attrs));
+        if (cell) {
+            lv_obj_set_user_data(cell, (void*)(uintptr_t)alternatives[i]);
+        }
     }
 
     int32_t key_center_x = (key_area->x1 + key_area->x2) / 2;
