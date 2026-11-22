@@ -239,7 +239,12 @@ screen and draw.
 
 - **Side list** (`ExcludeObjectSideList`): each row's chip number and colour, and its idle /
   printing / excluded state.
-- **Thumbnail map** (`ExcludeObjectMapView`): a numbered disc in each object's rect. The map
+- **Thumbnail map** (`ExcludeObjectMapView`): a numbered disc in each object's rect. Each rect
+  and its disc are one `exclude_object_rect` component (`ui_xml/components/exclude_object_rect.xml`)
+  created per object; C++ places and sizes it from bed coordinates and sets its states, `checked`
+  for the object printing now, `user_1` for an excluded (or pre-print picked) one and `user_2`
+  where the canvas draws the outline, so an exclusion only flips a state. A tap resolves to its
+  object through the rect's `index` prop, the object's defined index. The map
   has no legend of its own: it is always shown beside the side list, which names every
   object, so the plate takes the whole card. An object with no bounding box gets no rect
   but keeps its number, so later objects do not renumber.

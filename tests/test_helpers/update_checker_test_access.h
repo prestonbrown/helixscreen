@@ -53,6 +53,14 @@ class UpdateCheckerTestAccess {
         c.sync_moonraker_channel_for(install_root);
     }
 
+    /// The version the channel sync takes this build to run as.
+    static std::string running_version(const UpdateChecker& c) {
+        return c.running_version_;
+    }
+    static void set_running_version(UpdateChecker& c, const std::string& version) {
+        c.running_version_ = version;
+    }
+
     /// Whether check_for_updates() refuses to start, as it does during shutdown. A
     /// channel sync that adopts a channel starts a re-check, which would otherwise
     /// reach the network.
