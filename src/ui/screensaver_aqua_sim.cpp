@@ -81,8 +81,8 @@ constexpr WaveShape kWaveShapes[4] = {
 
 /// Splits `value` over the four pixels around (fx, fy) and max-blends each share.
 void splat_max(PixelWriter& w, const std::vector<Rgb>& tint, float fx, float fy, float value) {
-    const float x0f = std::floor(fx);
-    const float y0f = std::floor(fy);
+    const float x0f = saver_floor(fx);
+    const float y0f = saver_floor(fy);
     const float ax = fx - x0f;
     const float ay = fy - y0f;
     const auto x0 = static_cast<int32_t>(x0f);
@@ -523,7 +523,7 @@ class AquaSim::Scene : public HeightfieldScene {
         const float amp =
             kWrinkleAmp * std::clamp(1.4f - 1.6f * (z - kAquaZNear) / kAquaDepth, 0.1f, 1.0f);
         const float wv = z * 14.0f - shift_v;
-        const float wv_floor = std::floor(wv);
+        const float wv_floor = saver_floor(wv);
         const float av = wv - wv_floor;
         const int32_t v0 = static_cast<int32_t>(static_cast<int64_t>(wv_floor) & (kWrinkleN - 1));
         const int32_t v1 = (v0 + 1) & (kWrinkleN - 1);
@@ -549,7 +549,7 @@ class AquaSim::Scene : public HeightfieldScene {
             const float x = slice.x_left + static_cast<float>(c) * slice.x_step;
 
             const float wu = x * 4.0f + shift_u;
-            const float wu_floor = std::floor(wu);
+            const float wu_floor = saver_floor(wu);
             const float au = wu - wu_floor;
             const int32_t u0 =
                 static_cast<int32_t>(static_cast<int64_t>(wu_floor) & (kWrinkleN - 1));
