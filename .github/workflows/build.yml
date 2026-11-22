@@ -733,9 +733,9 @@ jobs:
     # `npx vite-node` in server/telemetry-worker. Without that directory's
     # node_modules, npx downloads vite-node from npm in the middle of the test,
     # and a slow registry holds the whole suite's output behind it.
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '24'
         cache: npm
         cache-dependency-path: server/telemetry-worker/package-lock.json
 
@@ -811,9 +811,9 @@ jobs:
 
     # npm ci from the committed lockfile, with setup-node caching the
     # downloads keyed on it, so a slow registry does not stall the install.
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '24'
         cache: npm
         cache-dependency-path: server/telemetry-worker/package-lock.json
 
