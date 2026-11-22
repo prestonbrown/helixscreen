@@ -5,6 +5,7 @@
 
 #include "ui_ams_context_menu.h"
 #include "ui_ams_detail.h"
+#include "ui_ams_device_operations_overlay.h"
 #include "ui_ams_lane_settings.h"
 #include "ui_button.h"
 #include "ui_callback_helpers.h"
@@ -718,6 +719,8 @@ void AmsEditOverlay::init_subjects() {
 
         // The lane's Assigned Tool and Endless Spool rows (load_lane_settings).
         UI_MANAGED_SUBJECT_INT(lane_visible_subject_, 0, "ams_edit_lane_visible", subjects_);
+        UI_MANAGED_SUBJECT_INT(runout_stated_subject_, 0, "ams_edit_runout_stated", subjects_);
+        UI_MANAGED_SUBJECT_INT(lane_tap_subject_, 0, "ams_edit_lane_tap", subjects_);
         UI_MANAGED_SUBJECT_INT(tool_row_visible_subject_, 0, "ams_edit_tool_row_visible",
                                subjects_);
         UI_MANAGED_SUBJECT_INT(backup_row_visible_subject_, 0, "ams_edit_backup_row_visible",
@@ -1096,10 +1099,44 @@ void AmsEditOverlay::update_lane_line() {
                    ? fmt::format(fmt::runtime(lv_tr("Feeds {}")), tool_label(lane_working_.tool))
                    : std::string(lv_tr("Feeds no tool"));
     }
-    if (backup_row) {
-        const std::string runout =
-            continues ? fmt::format(fmt::runtime(lv_tr("Continues from {} on runout")), backup_lane)
-                      : std::string(lv_tr("Pauses on runout"));
+    const bool tool_editable = tool_row && lv_subject_get_int(&tool_editable_subject_) == 1;
+    const bool backup_editable = backup_row && lv_subject_get_int(&backup_editable_subject_) == 1;
+    std::string runout;
+    bool refill_switchable = false;
+    if (backup_editable) {
+        runout = continues
+                     ? fmt::format(fmt::runtime(lv_tr("Continues from {} on runout")), backup_lane)
+                     : std::string(lv_tr("Pauses on runout"));
+    } else if (backend && slot_index_ >= 0) {
+        // A backup the firmware keeps: say what a runout of this lane will do.
+        const auto caps = backend->get_endless_spool_capabilities();
+        const std::optional<int> backup = backend->runout_backup_for(slot_index_);
+        switch (spool_assign::runout_line(caps, backup)) {
+        case spool_assign::RunoutLine::Continues:
+            runout = fmt::format(fmt::runtime(lv_tr("Continues from {} on runout")),
+                                 lane_label(noun, *backup));
+            break;
+        case spool_assign::RunoutLine::NoMatch:
+            runout = lv_tr("Pauses on runout (no matching spool)");
+            break;
+        case spool_assign::RunoutLine::Off:
+            runout = fmt::format(fmt::runtime(lv_tr("Pauses on runout ({} off)")),
+                                 caps.provider.empty() ? std::string(lv_tr("automatic refill"))
+                                                       : caps.provider);
+            break;
+        case spool_assign::RunoutLine::FirmwareChooses:
+            runout = printer::endless_spool_status(caps).text;
+            break;
+        case spool_assign::RunoutLine::None:
+            break;
+        }
+        refill_switchable = caps.switchable && !runout.empty();
+    }
+    lv_subject_set_int(&runout_stated_subject_, !backup_editable && !runout.empty() ? 1 : 0);
+    lv_subject_set_int(&lane_tap_subject_,
+                       static_cast<int>(spool_assign::lane_tap(tool_editable || backup_editable,
+                                                               refill_switchable)));
+    if (!runout.empty()) {
         line += (line.empty() ? "" : " · ") + runout;
     }
     snprintf(lane_line_buf_, sizeof(lane_line_buf_), "%s", line.c_str());
@@ -1113,6 +1150,20 @@ void AmsEditOverlay::update_lane_line() {
                   : std::string(lv_tr("When this spool runs out, the print pauses."));
     snprintf(runout_text_buf_, sizeof(runout_text_buf_), "%s", sentence.c_str());
     lv_subject_copy_string(&runout_text_subject_, runout_text_buf_);
+}
+
+void AmsEditOverlay::handle_lane_row() {
+    switch (static_cast<spool_assign::LaneTap>(lv_subject_get_int(&lane_tap_subject_))) {
+    case spool_assign::LaneTap::LanePage:
+        set_page(kPageLane);
+        break;
+    case spool_assign::LaneTap::RefillToggle:
+        // The unit's own switch for the feature.
+        get_ams_device_operations_overlay().show(lv_screen_active());
+        break;
+    case spool_assign::LaneTap::None:
+        break;
+    }
 }
 
 void AmsEditOverlay::update_empty_page() {
@@ -4335,7 +4386,7 @@ void AmsEditOverlay::register_callbacks() {
          [](lv_event_t*) { get_ams_edit_overlay().handle_same_filament(); }},
         {"ams_edit_open_filament_cb",
          [](lv_event_t*) { get_ams_edit_overlay().set_page(kPageFilament); }},
-        {"ams_edit_open_lane_cb", [](lv_event_t*) { get_ams_edit_overlay().set_page(kPageLane); }},
+        {"ams_edit_open_lane_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_lane_row(); }},
         {"ams_edit_open_details_cb",
          [](lv_event_t*) { get_ams_edit_overlay().set_page(kPageDetails); }},
         {"ams_edit_link_spoolman_cb",

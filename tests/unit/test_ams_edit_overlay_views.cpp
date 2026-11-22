@@ -4131,11 +4131,18 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         show_editor_on_lane(*this, *backend, 1);
         CHECK_FALSE(access.shown("lane_line"));
     }
-    SECTION("only read-only settings: the summary has no lane line") {
+    SECTION("only read-only settings: the summary states the runout, read-only") {
         backend->set_remap_strategy(AmsBackend::RemapStrategy::PrePrintSend);
         backend->set_endless_spool_editable(false);
         show_editor_on_lane(*this, *backend, 1);
-        CHECK_FALSE(access.shown("lane_line"));
+        // The firmware picks the spool: its own status sentence, and nothing
+        // to open (the mock's refill cannot be switched).
+        REQUIRE(access.shown("lane_line"));
+        CHECK(access.subject_text("ams_edit_lane_line").rfind("Switches to another spool on", 0) ==
+              0);
+        CHECK_FALSE(access.shown("lane_line_chevron"));
+        access.click("lane_line");
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
     }
     SECTION("a read-only backup is shown disabled") {
         set_material(*backend, 1, "PLA");

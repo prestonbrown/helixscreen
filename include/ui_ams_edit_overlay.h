@@ -465,9 +465,12 @@ class AmsEditOverlay : public OverlayBase {
     lv_subject_t temp_text_subject_{};
     lv_subject_t weight_text_subject_{};
     lv_subject_t reset_tag_visible_subject_{};
-    lv_subject_t clear_visible_subject_{};      ///< 1 = the slot holds a spool to clear
-    lv_subject_t spoolman_id_subject_{};        ///< "#19" for the header badge
-    lv_subject_t lane_visible_subject_{};       ///< 1 = the slot is a backend lane
+    lv_subject_t clear_visible_subject_{}; ///< 1 = the slot holds a spool to clear
+    lv_subject_t spoolman_id_subject_{};   ///< "#19" for the header badge
+    lv_subject_t lane_visible_subject_{};  ///< 1 = the slot is a backend lane
+    /// 1 = the lane row states what a runout does though nothing is editable.
+    lv_subject_t runout_stated_subject_{};
+    lv_subject_t lane_tap_subject_{};           ///< spool_assign::LaneTap: what the lane row opens
     lv_subject_t tool_row_visible_subject_{};   ///< 1 = Assigned Tool row shows
     lv_subject_t tool_editable_subject_{};      ///< 0 = tool shown read-only
     lv_subject_t tool_refusal_subject_{};       ///< why the tool cannot be changed here
@@ -511,6 +514,8 @@ class AmsEditOverlay : public OverlayBase {
     void set_page(int page);
     void update_page_title();
     void update_lane_line();
+    /// The summary's lane row tapped: what ams_edit_lane_tap says it opens.
+    void handle_lane_row();
     void update_empty_page();
     void update_tag_reset();
     void handle_weight_slider(int pct);

@@ -263,6 +263,30 @@ bool product_names_material(const std::string& product, const std::string& mater
     return false;
 }
 
+RunoutLine runout_line(const helix::printer::EndlessSpoolCapabilities& caps,
+                       std::optional<int> backup) {
+    using helix::printer::EndlessSpoolEnabled;
+    if (!caps.available() || caps.enabled == EndlessSpoolEnabled::Unknown) {
+        return RunoutLine::None;
+    }
+    if (caps.enabled == EndlessSpoolEnabled::Off) {
+        return RunoutLine::Off;
+    }
+    if (caps.enabled == EndlessSpoolEnabled::OnWithoutBackup) {
+        return RunoutLine::NoMatch;
+    }
+    if (!backup) {
+        return RunoutLine::FirmwareChooses;
+    }
+    return *backup >= 0 ? RunoutLine::Continues : RunoutLine::NoMatch;
+}
+
+LaneTap lane_tap(bool lane_editable, bool refill_switchable) {
+    return lane_editable       ? LaneTap::LanePage
+           : refill_switchable ? LaneTap::RefillToggle
+                               : LaneTap::None;
+}
+
 LaneScreen screen_for_lane(const SlotInfo& lane) {
     if (lane.status == SlotStatus::EMPTY) {
         return LaneScreen::Assign;

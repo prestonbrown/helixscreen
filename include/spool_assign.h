@@ -141,6 +141,30 @@ enum class LaneScreen { Assign, Edit };
 /// still records: that is what it last held.
 [[nodiscard]] LaneScreen screen_for_lane(const SlotInfo& lane);
 
+/// What a lane's summary row says a runout will do, where its backup is
+/// not the user's to set.
+enum class RunoutLine {
+    None,            ///< nothing to state: no such feature, or not known yet
+    Continues,       ///< continues from the backup slot
+    NoMatch,         ///< switched on, but nothing to switch to: pauses
+    Off,             ///< switched off: pauses
+    FirmwareChooses, ///< on, the firmware picks the spool at runout time
+};
+
+/// @p backup is AmsBackend::runout_backup_for(): a slot, -1, or nullopt when
+/// the backend cannot answer per slot.
+[[nodiscard]] RunoutLine runout_line(const helix::printer::EndlessSpoolCapabilities& caps,
+                                     std::optional<int> backup);
+
+/// What a tap on the summary's lane row opens.
+enum class LaneTap {
+    None,         ///< informational: no chevron
+    LanePage,     ///< the lane's own settings
+    RefillToggle, ///< the unit's switch for the feature
+};
+
+[[nodiscard]] LaneTap lane_tap(bool lane_editable, bool refill_switchable);
+
 /// @p product's name already says @p material as a whole word, case
 /// ignored ("Polymaker PolyLite ASA" says "ASA"; "Polymaker Basic" does not
 /// say "PLA"), so a line under it need not repeat the material.
