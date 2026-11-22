@@ -93,6 +93,28 @@ Run home operation first - many load/unload macros require homing.
 **Check temperatures:**
 Some backends require extruder at temperature before operations.
 
+### A filament system error dialog: what it shows and what Retry does
+
+When a filament system reports a fault, HelixScreen shows a dialog that says, in plain words, what went wrong and what to do about it. Faults that carry a code show it too, so you can look it up in the maker's documentation.
+
+- **QIDI Box.** Box faults show QIDI's code (for example `QDE_004_006`) with a summary, a cause and a fix that name the slot (`1A` to `4D`). When the Box stopped partway through loading or unloading a slot, a paused print's dialog offers **Retry**, which asks the Box to run that step again (heating first if it needs to) and resumes the print when nothing else fails. Retry appears only while the print is paused and only when the message names the slot the Box will retry. If the print is resumed or cancelled from another screen or app, Retry stops working and says the print is no longer paused. After a restart, or with no print paused, the dialog shows **OK** only: use the Filament screen's own Load and Unload instead. A slot that ran out (`QDE_004_016`) shows a short message naming the slot, and the usual runout dialog handles the paused print.
+- **FlashForge AD5X (IFS).** A failed load or unload shows ZMOD's message in plain words, in the same wording the printer's console message gets.
+- **Snapmaker U1.** Every U1 fault code reads in plain words. See [Snapmaker U1: a toolhead switch or a load failed](#snapmaker-u1-a-toolhead-switch-or-a-load-failed) below.
+
+### Snapmaker U1: a toolhead switch or a load failed
+
+**"Use Another Toolhead" is not offered after a runout.** It appears only while the print is paused on the head that ran out, that head's feeder has nothing more to feed it, and the printer isn't busy resuming or switching by itself. If the feeder still has filament, **Resume** refeeds the same head instead. If another head is already active, or the print already moved to another head, the offer goes away.
+
+**Every head in the list says why it can't be used.** A head must have the same nozzle size and flow type, be loaded by its feeder (not fed by hand), and hold filament the printer has identified with a material HelixScreen recognizes. Set the head's material in its slot editor if it shows **Filament not identified**.
+
+**The dialog says "Switching to Toolhead N" for a long time.** The printer is heating, loading and purging the new head, and retries a load that doesn't take. HelixScreen waits up to 15 minutes while the printer reports it is still working. Every button is grayed out meanwhile so nothing interrupts it.
+
+**"Print Did Not Resume".** The print moved to the new head, but the printer stopped before printing. Check the new head (filament at the nozzle, nothing tangled), then tap **Resume** in that dialog.
+
+**"Toolhead N didn't load".** Tap **Load** to try again on that head, or **Unload** if the dialog offers it. If it keeps failing, check that the head's hotend is seated and do a test extrude before resuming. If the Filament screen offers **Unload** on a head that failed to load, use it: part of the filament may be stuck in the head.
+
+**No runout message after a cancelled print.** The U1 keeps a runout on its list after the print it paused has ended, and reports it again on every reconnect. HelixScreen doesn't show it, since there is no print left to recover. Pulling filament while the printer is idle still shows the filament sensor's own message.
+
 ---
 
 ## Spoolman Issues
@@ -147,7 +169,7 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 **Check, in order:**
 1. **Was the slot linked before the print started?** Usage is only recorded while a spool is active, and HelixScreen makes a slot's spool active when the slot loads or when you link a spool to the loaded slot. A print that ran before the link is not deducted afterwards.
-2. **Is the right spool linked to that slot?** Open the slot's **Edit Spool** editor: a linked slot shows the Spoolman icon and spool number in its title. Names don't matter; only the link does.
+2. **Is the right spool linked to that slot?** Open the slot's **Edit Spool** editor: a linked slot shows the Spoolman icon in its title, and **New Spool** at the top lists your spools with the slot's own one first, marked **Current**, with its number. Names don't matter; only the link does.
 3. **Does your filament system set the spool itself?** AFC, Happy Hare (with its Spoolman support on) and INDX do, and HelixScreen leaves it to them.
 
 Details: [Which spool Spoolman charges](../guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).

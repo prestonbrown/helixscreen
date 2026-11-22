@@ -37,12 +37,28 @@ Hooks live in `assets/config/platform/`. Presets for each variant are in
 switched on by `DISPLAY_OFF HELIX=1`) as the alternative. The `prestonbrown/ff5m` fork with
 HelixScreen preinstalled is unmaintained; installs from it are Forge-X installs.
 
-ZMOD stores the z-offset outside `gcode_move`; see [`../Z_OFFSET_PERSISTENCE.md`](../Z_OFFSET_PERSISTENCE.md).
-
 Z-Mod 1.7.5 prints .3mf files natively and takes a per-print plate and tool map on
 `printer.print.start`. Its Moonraker fork is shared with the AD5X and Creator 5, so the details
 are on the AD5X page
 ([FLASHFORGE_AD5X_SUPPORT.md § "Z-Mod 1.7.5"](FLASHFORGE_AD5X_SUPPORT.md#z-mod-175-native-3mf-and-the-print-start-tool-map)).
+
+### Z-offset
+
+Where the AD5M's Z offset is saved depends on the mod, and
+[`../Z_OFFSET_PERSISTENCE.md`](../Z_OFFSET_PERSISTENCE.md) has the mechanism:
+
+| Mod | Detected by | Where a save goes |
+|-----|-------------|-------------------|
+| ZMOD | the `SAVE_ZMOD_DATA` macro | ZMOD's store in klipper `save_variables`; the app latches `FIRMWARE_MANAGED` and shows no Save button |
+| Forge-X | the `mod_params` object in `objects/list` (its plugin registers `SET_MOD` as a plain command, never a `gcode_macro`) | Forge-X's own `mod_data/variables.cfg`, which its `SET_GCODE_OFFSET` wrapper writes on every `Z=`; `FIRMWARE_MANAGED`, no Save button |
+| Klipper Mod or bare Klipper | neither | the probe's `z_offset`, through `PROBE_CALIBRATE` and `Z_OFFSET_APPLY_PROBE` plus `SAVE_CONFIG` |
+
+The last row comes from the printer database: both AD5M entries set
+`"z_offset_calibration_strategy": "probe_calibrate"`. The AD5M homes Z on a Z-max switch, so
+its config has a numeric `position_endstop` and the generic rule would pick the endstop, but
+its bed mesh has no zero reference and the nozzle probe sets Z0: an endstop save would be
+cancelled by the next `BED_MESH_CALIBRATE`. Forge-X also wraps `SET_GCODE_OFFSET`, which is
+why its persistence row sits above the Helper-Script row that keys on that wrapper.
 
 ### Z-Mod on the 5M Pro: the stock preset's fans
 

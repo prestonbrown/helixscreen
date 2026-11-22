@@ -68,7 +68,7 @@ live configs of two real units (`creality_k2_plus_jacobean*.json`, #2087).
 | Storage | 27.5 GB on `/mnt/UDISK` |
 | OS | OpenWrt 21.02-SNAPSHOT (Tina Linux), Linux 5.4.61 armv7l |
 | Device libc | glibc 2.29 (`ld-linux-armhf.so.3`), libstdc++ 6.0.25. We ship a fully static musl binary, so it does not matter |
-| Init System | procd (OpenWrt-style, NOT systemd) |
+| Init System | procd (OpenWrt-style, NOT systemd) on stock firmware; Jacobean's image runs systemd |
 | MCU | GD32F303RET6 on `/dev/ttyS2` @ 230400 baud |
 | Nozzle MCU | GD32F303CBT6 on `/dev/ttyS3` @ 230400 baud |
 | Moonraker | Port 7125 (direct), port 4408 (nginx proxy) |
@@ -188,16 +188,24 @@ Deploy directory: `/mnt/UDISK/helixscreen` (override with `K2_DEPLOY_DIR`). SSH 
 
 **Note**: The K2 uses BusyBox (OpenWrt), so deployment uses tar/ssh transfer instead of rsync.
 
+### Stock firmware and Jacobean's systemd image
+
+The same `deploy-k2`, `deploy-k2-fg` and `deploy-k2-bin` targets work on both K2 firmwares. Stock Creality firmware is OpenWrt with procd and SysV init scripts; Jacobean's K2 image boots with systemd and runs HelixScreen from its own `helixscreen.service`. The targets tell them apart on the device with `K2_SYSTEMD_TEST` (`mk/cross.mk#K2_SYSTEMD_TEST`): systemd is running (`/run/systemd/system` exists) and `systemctl cat helixscreen` finds a unit.
+
+- **Stopping the app** goes through the shared `deploy-stop-app` step (`scripts/deploy-stop-app-remote.sh`), the one every other deploy target uses. A systemd unit is stopped through `systemctl` and confirmed inactive before anything is killed. The unit has `Restart=always`, so killing its process would only make systemd respawn it from a half-copied install. If the unit cannot be stopped, the deploy stops there with instructions, before any file is synced. Unit-less instances (a launcher started by hand, the procd-started app on stock firmware) are then killed by name.
+- **Init scripts** (`S99helixscreen`, the procd shim and the web-server carve-out) install only where systemd does not run HelixScreen. On Jacobean's image the deploy says "systemd starts HelixScreen here: leaving its unit as it is" and leaves the unit alone.
+- **Starting the app** (`k2-start`) runs `systemctl start helixscreen` where there is a unit, and the installed launcher (`<deploy dir>/bin/helix-launcher.sh`) in the background otherwise. `deploy-k2-fg` always runs the launcher in the foreground with `--debug` after stopping the app.
+
 ### What Happens on Deploy
 
-1. Stops any running HelixScreen processes
+1. Stops any running HelixScreen through `deploy-stop-app`: the systemd unit on Jacobean's image, the processes by name on stock firmware
 2. Deploys platform hooks (`assets/config/platform/hooks-k2.sh` → /mnt/UDISK/helixscreen/platform/hooks.sh)
 3. Transfers binaries, assets, XML layouts, and config
-4. Installs the init script at `/etc/init.d/S99helixscreen` plus a procd shim at `/etc/init.d/helixscreen` (`config/helixscreen-k2-procd-shim.sh`), which owns the `/etc/rc.d/S99helixscreen` / `K01helixscreen` boot links
-5. Installs the web-server carve-out at `/etc/init.d/helix-k2-webserver` (`config/k2-webserver.init`, a USE_PROCD starter). Once its instance is registered, procd's respawn keeps `web-server` alive; the hook's restore registers it at every HelixScreen start — the stock app's `stop` runs killall -9 over the stock set and takes any `web-server` down (ours included), while `disable` only removes the app's rc.d links. The carve-out's own rc.d boot entry is belt-and-braces. It serves the LAN web interface: ports 80/443 redirect to Fluidd on :4408, 9999 is the local status websocket (prestonbrown/helixscreen#1617)
+4. On stock firmware only, installs the init script at `/etc/init.d/S99helixscreen` plus a procd shim at `/etc/init.d/helixscreen` (`config/helixscreen-k2-procd-shim.sh`), which owns the `/etc/rc.d/S99helixscreen` / `K01helixscreen` boot links
+5. On stock firmware only, installs the web-server carve-out at `/etc/init.d/helix-k2-webserver` (`config/k2-webserver.init`, a USE_PROCD starter). Once its instance is registered, procd's respawn keeps `web-server` alive; the hook's restore registers it at every HelixScreen start, because the stock app's `stop` runs killall -9 over the stock set and takes any `web-server` down (ours included), while `disable` only removes the app's rc.d links. The carve-out's own rc.d boot entry is belt-and-braces. It serves the LAN web interface: ports 80/443 redirect to Fluidd on :4408, 9999 is the local status websocket (prestonbrown/helixscreen#1617)
 6. Platform hooks stop the stock Creality UI (`display-server`, `Monitor`, etc.) via procd
 7. Platform hooks start `wpa_supplicant` to replace the stock `wifi-server`
-8. Starts HelixScreen on the framebuffer
+8. Starts HelixScreen on the framebuffer: through `systemctl start helixscreen` on Jacobean's image, through the launcher on stock firmware
 
 ### Reverting to Stock UI
 

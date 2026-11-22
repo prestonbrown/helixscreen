@@ -2,6 +2,8 @@
 
 **Settings > Devices** is where you look after the hardware and services around your printer: its camera, fans, sensors, lights and power switches. Rows only appear for things HelixScreen finds in your Klipper and Moonraker setup, so your list may be shorter than the one pictured.
 
+Spoolman's settings are not on this page: they are under [Settings > Printing > Spoolman](printing.md#spoolman).
+
 On the Settings screen, the **Devices** row shows a one-line health check: *All healthy*, *Needs attention* (Hardware Health lists something worth a look) or *Problem found* (hardware the printer needs is missing).
 
 ![Devices settings, top of the page](../../../images/user/settings-devices.png)

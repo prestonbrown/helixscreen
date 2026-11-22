@@ -53,6 +53,17 @@ The Filament panel is laid out in cards, like the Controls panel. In landscape t
 
 In portrait (such as a 320x480 screen) the cards stack in one column, with the readings side by side on one line and the material presets in one row, **Cool Down** in the Material card's header.
 
+### On an ultrawide screen
+
+On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), a printer with a multi-material system or several toolheads shows its Filament System panel beside the Filament panel instead of over it:
+
+1. Tap **Filament** in the navigation bar. The Filament cards fill the left part of the screen, and the Filament System panel, with its slots and filament path, fills the space to their right.
+2. Load, unload or edit a slot on the right while the temperatures and the Operations card stay in view on the left.
+
+The Multi-Filament card has no **Manage** button there, because the panel it opens is already showing. With more than one unit, the right side shows the overview of all your units: tap a unit to see its slots, and tap the back arrow to return to the overview. Opening something over the Filament panel, such as the temperature graph, and coming back keeps the unit you were looking at. Switching to another panel in the navigation bar and coming back starts again at the overview.
+
+A printer with no multi-material system and a single toolhead has nothing to show there, so the Filament cards keep their usual width and the space to the right stays empty.
+
 ### Choosing a tool on a multi-head printer
 
 On a printer with more than one toolhead (a tool changer, an IDEX or dual-extruder machine, the Snapmaker U1), the **Operations** card chooses which tool the panel acts on. Under its heading is a row with one cell per head, each with its filament color along the bottom: the same cells as the Home screen's tool switcher. The highlighted cell is the tool the panel is aimed at, and the Temperature card's nozzle row reads **Nozzle 4** for it. The cells name each head as the rest of the screen numbers it, **Tool 4** where they have room, else **4**.
@@ -230,7 +241,8 @@ Spoolman is an optional filament-inventory server. Once it's connected, the AMS 
 
 - Spool name and material type shown per slot
 - Remaining filament weight shown
-- Tap a slot's **Select Spool**, or **Edit Spool** and the Spoolman button in its header, to assign a saved spool. See [Editing Filament Properties](#editing-filament-properties) and the [Slot Context Menu](#slot-context-menu)
+- Tap a slot's **Select Spool**, or **Edit Spool** and **New Spool** at its top, to put a saved spool in the slot. See [Editing Filament Properties](#editing-filament-properties) and the [Slot Context Menu](#slot-context-menu)
+- Add a slot's spool to Spoolman in one tap, and archive a spool that ran out when you clear its slot. See [Filament Tracking & Spoolman](filament-tracking.md#adding-a-slots-spool-to-spoolman)
 
 Connecting a server, the full spool-inventory panel, the new-spool wizard, and how remaining weight is tracked all live on their own page: **[Filament Tracking & Spoolman](filament-tracking.md)**.
 

@@ -44,14 +44,14 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/filament.md` | Extrusion, the QIDI M604 load wizard, AMS, CFS (and a K2 with none), Spoolman, filament drying and humidity by box |
 | `guide/filament-ams-panel.md` | The multi-filament panel: slots, path, sidebar (Mounted line), slot editor, load/unload, tool picker |
 | `guide/filament-mapping.md` | Slot-to-tool mapping per print and as a standing table, OrcaSlicer sync |
-| `guide/filament-tool-changers.md` | Tool changers: MedusaHC, Snapmaker U1, Creator 5, pick up/park and the target tool |
+| `guide/filament-tool-changers.md` | Tool changers: MedusaHC, Snapmaker U1 (runout and resume, continuing on another toolhead, a failed load), Creator 5, pick up/park and the target tool |
 | `guide/filament-cfs.md` | Creality CFS (K1/K2), RFID tags, a K2 with no CFS |
 | `guide/filament-drying.md` | Filament drying by box, presets, humidity |
 | `guide/filament-tracking.md` | Filament tracking with/without Spoolman, usage estimation, connecting Spoolman, spool inventory |
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |
-| `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, troubleshooting |
-| `guide/calibration.md` | Bed mesh, screws tilt, input shaper, probe/Z/tool offsets, vertical artifact compensation and check, belt tension, pressure advance, PID/MPC |
+| `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, labels printed for new Spoolman spools, troubleshooting |
+| `guide/calibration.md` | The Calibration screen and its tiles, guided calibration (picking steps, before you start, running, stopping, Save all / Discard all, what restarts on Klipper vs Kalico), bed mesh, screws tilt, input shaper, probe/Z/tool offsets, vertical artifact compensation and check, belt tension, pressure advance, PID/MPC |
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
 | `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |

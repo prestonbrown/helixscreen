@@ -44,9 +44,41 @@ The U1 tracks filament with a motion sensor per tool. When you resume a print th
 
 After a runout, HelixScreen has the printer refeed the head from its feeder (heating, feeding and purging, which takes about a minute and a half) before it sends Resume, so a plain Resume actually continues the print. If the motion sensor reports a runout but filament is still physically present (a stale sensor reading), HelixScreen recovers silently without prompting you.
 
+### Continuing on Another Toolhead
+
+When a head runs out mid-print and its feeder has no more filament to give it, the runout dialog offers **Use Another Toolhead**. It finishes the print on a different head that is already loaded, so you don't have to reload the empty one.
+
+1. Tap **Use Another Toolhead**. The **Continue on Another Toolhead** list shows every head, with a note on each: **Same filament**, **Different color**, or why it can't take over (a different nozzle size, not loaded by its feeder, filament not identified, a different material, and so on). A head with a different color or a different variant of the same material (PLA Silk for PLA Matte) can still be picked, with a warning.
+2. Tap a head, read the confirmation, and tap **Continue**. The rest of the print keeps the temperatures it was sliced with for the original filament. If another head holds exactly the same filament, the printer may pick that one instead, and the confirmation says so. If the printer's own Auto-Replenish is off, it is turned on for this one switch and off again after.
+3. The runout dialog then shows **Switching to Toolhead N** with a spinner while the printer heats, loads and purges the new head. Every button is grayed out until it finishes, which can take several minutes if the load has to retry.
+
+How it ends:
+
+- **The print continues on the new head.** The dialog closes.
+- **The printer picked a different head.** A message names the head the print moved to.
+- **The switch didn't happen.** A message says the print is still paused (or continued without switching), and the runout dialog's own options come back.
+- **The print moved but didn't resume.** **Print Did Not Resume** names the new head. Check it, then tap **Resume** to continue there.
+- **The new head failed to load.** The load failure dialog below appears instead, with **Load** to try again.
+
+The offer isn't shown while the printer is already working on the pause by itself (its own resume or Auto-Replenish). The runout dialog then says "The printer is working on the paused print" and waits; **Cancel Print** still works.
+
+### When a Load Fails
+
+If a head fails to load or unload, HelixScreen says which head and why, in plain words (for example **Toolhead 1 didn't load**), with what to check. During a print this is a dialog:
+
+- **Load** tries the load again on that head, exactly as the Filament screen's Load does. **Unload** appears instead when the failure was an unload, or when filament is already in the feed path and has to come out first. When the failure can't be retried in one tap (a hand feed, or the Auto loading setting), the button is **Open Filament** and takes you to the Filament screen.
+- **Cancel Print** asks you to confirm, as the Stop button does.
+- **Close** leaves the print paused.
+
+While the printer is idle the same words appear as a short message. Resume stays refused until the head reports a finished load, because resuming pushes filament into whatever jammed.
+
+A head whose load failed while its feeder still holds filament may have filament pushed partway into the head, sometimes a broken piece the toolhead switch can't see. The Filament screen offers **Unload** and **Purge** for that head so you can clear it before loading again.
+
+If a load you started during a runout pause fails, the dialog describes that load ("Toolhead 4: Load failed"), not the runout that paused the print.
+
 ### Toolhead Offset Calibration
 
-The U1 measures how far each toolhead's nozzle sits from the others, so every head prints in the same place. Open **Advanced > Calibration > Tool Offsets**, or tap **Tool Offsets** on the Controls panel. It takes about 20 minutes and runs the printer's own calibration, the same one as the stock screen's Multi-toolhead Offset Calibration:
+The U1 measures how far each toolhead's nozzle sits from the others, so every head prints in the same place. Open **Advanced > Calibration > Tool offsets**, or tap **Tool Offsets** on the Controls panel. It takes about 20 minutes and runs the printer's own calibration, the same one as the stock screen's Multi-toolhead Offset Calibration:
 
 1. The printer preheats and homes, then for each toolhead in turn heats the nozzle, purges and wipes it, and parks it at the front.
 2. For each parked toolhead, HelixScreen asks you to brush the nozzle clean with the wire brush that came with the printer, then tap **Next**. The nozzle is hot.

@@ -220,7 +220,7 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 
 | Token | Axis | Small | Medium | Large | Purpose |
 |-------|------|-------|--------|-------|---------|
-| `#modal_button_height` | vertical | 48px | 52px | 72px | A dialog's footer button row (`modal_button_row`); micro 44px, so a dialog's confirm stays easy to hit at 480x272 |
+| `#modal_button_height` | vertical | 48px | 52px | 72px | A dialog's footer button row (`modal_button_row`, hand-built footers, action buttons in the footer's place); micro 44px where `#button_height` is 26px, so a dialog's confirm stays easy to hit at 480x272. See `MODAL_SYSTEM.md` § `modal_button_row` |
 | `#button_height` | vertical | 48px | 52px | 72px | Standard button height (micro 26px) |
 | `#button_height_sm` | vertical | 40px | 40px | 40px | Small buttons (back, icon-only) |
 | `#button_height_lg` | vertical | 64px | 70px | 96px | Large buttons |
@@ -228,8 +228,8 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 | `#input_height` | cramped | 48px | 52px | 56px | Text input / dropdown height; micro is 32px. Follows the cramped axis like the body font it holds |
 | `#temp_card_height` | vertical | 64px | 72px | 80px | Temperature card in print status |
 | `#dialog_content_max` | vertical | 260px | 320px | 440px | Max height of a modal's scrollable body |
-| `#dialog_content_pinned_max` | vertical | 164px | 207px | 272px | Same, plus one pinned block below the scroll area (measured 85% cap − chrome, #1277) |
-| `#dialog_content_recovery_max` | vertical | 218px | 276px | 352px | `klipper_recovery_dialog`'s message (measured 85% cap − chrome, #1277) |
+| `#dialog_content_pinned_max` | vertical | 164px | 207px | 272px | Same, plus one pinned block below the scroll area (measured 85% cap − chrome, #1277); micro 103px, its chrome including the 44px `#modal_button_height` row |
+| `#dialog_content_recovery_max` | vertical | 218px | 276px | 352px | `klipper_recovery_dialog`'s message (measured 85% cap − chrome, #1277); micro 135px, its chrome including the 44px `#modal_button_height` row |
 | `#badge_size` | neutral | 16px | 18px | 20px | Status badge diameter |
 | `#nav_width` | horizontal | 76px | 104px | 132px | Nav bar width - see note below |
 | `#icon_size` | neutral | md | lg | lg | Responsive icon size string |
@@ -455,6 +455,39 @@ on any int subject (a `<subject_expr>` for conditions like orientation and tier 
 The full attribute table is in [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md) under `ui_button`.
 
 **Stop buttons.** A control that ends a running operation with an emergency stop (`M112` plus `FIRMWARE_RESTART`) reads "Stop", carries `icon="alert_octagon"` and `variant="danger"`: `<ui_button icon="alert_octagon" text="Stop" variant="danger"/>`. Do not label it "Abort" or "Cancel" (it cannot cancel cleanly) and do not use the `close` icon. Examples: `ui_xml/input_shaper_panel.xml#btn_abort`, `ui_xml/calibration_pid_panel.xml#btn_abort`, `ui_xml/calibration_tool_offset_panel.xml#tool_cal_stop_btn`, `ui_xml/calibration_run_overlay.xml#btn_cal_run_stop`, `ui_xml/panel_belt_tension.xml#btn_stop`.
+
+### header_action (header buttons)
+
+A screen's header buttons are never a bare `ui_button`. Every one is a `<header_action>` in the
+header's actions slot (`<header_bar-actions>`, or `<overlay_panel-actions>` in a view extending
+`overlay_panel`), and `ui_xml/header_action.xml` owns its whole look: the height, the circle
+(icon only) or pill (text, with or without an icon), the fill by `role`, and the collapse to
+icon-only on small screens. A caller gives it a `name`, an `icon` and/or `text`, a `role`
+(`primary`, `neutral`, `danger`) and a `callback`; never a width, height, radius or color.
+
+```xml
+<header_bar-actions>
+    <header_action name="btn_add_spool" icon="plus" text="Add" role="primary"
+                   callback="on_spoolman_add_spool_clicked"/>
+    <header_action name="btn_refresh" icon="refresh" callback="on_spoolman_refresh_clicked"/>
+</header_bar-actions>
+```
+
+The tokens behind it, per breakpoint:
+
+| Token | Micro | Tiny | Small | Medium | Large | Purpose |
+|-------|-------|------|-------|--------|-------|---------|
+| `#header_button_height` | 32px | 26px | 38px | 44px | 48px | Every header button's height, about 80% of `#header_height` (xlarge 54px, xxlarge 64px). In `ui_xml/header_bar.xml` |
+| `#header_action_hit` | 4px | 3px | 3px | 0 | 0 | Touch reach past the button's edge, taking it to the header's height where that is under 44px. In `ui_xml/header_action.xml` |
+| `#header_action_gap` | 8px | 8px | 8px | 10px | 12px | Space between actions, at least twice the reach so neighbors never share a tap |
+
+The actions slot pads its ends by `#header_action_hit` and spaces its buttons by
+`#header_action_gap`. `collapse="auto"` (the default) hides the label on micro and tiny and in
+portrait below the large breakpoint; `collapse="never"` keeps it. A header holds three actions
+at most and one primary. `scripts/check_header_actions.py` (gated as `qc_header_actions`) fails
+anything else in the slot and any styling attribute on an action, and warns past three actions
+or one primary. The full prop table and gate rules are in
+[LVGL9_XML_GUIDE.md § header_action](LVGL9_XML_GUIDE.md#header_action).
 
 ### icon
 
@@ -817,6 +850,41 @@ Available operators: `bind_flag_if_eq`, `bind_flag_if_not_eq`, `bind_flag_if_gt`
 
 Callbacks are registered in C++. For layout-only work, just keep existing `<event_cb>` elements in place -- don't remove them or rename them.
 
+A row in a list built from data carries its position in the callback's user data,
+`<event_cb trigger="clicked" callback="on_row_clicked" user_data="$index"/>`, with `index`
+a prop of the row component. Keep those `user_data` attributes as they are when you move a
+row's widgets around; [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md#rows-that-report-their-index)
+has the C++ side.
+
+### Dialogs: `dialog_frame`
+
+Every titled dialog extends `dialog_frame` (`ui_xml/components/dialog_frame.xml`). The
+frame draws the card, the header (icon, title, optional close X), a body that scrolls past
+`#dialog_content_max`, and a footer, so the same title, padding and height cap hold on
+every screen size. To change a dialog's layout:
+
+- Edit what is inside the view: its widgets are the body. Body padding and alignment
+  changes go on a `<dialog_frame-body>` tag, never on a wrapper container of your own.
+- The buttons are the `modal_button_row` in `<dialog_frame-footer>`.
+- The title, its icon and the close button are props on the view (`title`, `icon`,
+  `icon_variant`, `hide_close`), not widgets you can move.
+- Never raise the card's height past 85% or pin content below the body: the chrome-budget
+  gate (`scripts/check_modal_chrome_budget.py`) refuses it, because a card taller than its
+  cap clips its buttons off the bottom on a short screen.
+
+[MODAL_SYSTEM.md](MODAL_SYSTEM.md#dialog_frame) has the props, slots and the few dialogs
+that keep their own card.
+
+### Overlay headers: the `actions` slot
+
+An overlay's header buttons are not props of the header. They sit in the header's
+`actions` slot at its right end, `<overlay_panel-actions>` in a view extending
+`overlay_panel` (or `<header_bar-actions>` on a bare `header_bar`), one `header_action` each
+with its own `name`. Reorder or hide them there; the slot spaces them with the bar's own
+gap and hides itself while empty.
+[LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md#slots-filling-a-component-from-outside) and its
+[`header_action`](LVGL9_XML_GUIDE.md#header_action) entry cover the component.
+
 ### Visual Debugging
 
 When you can't tell why something is overflowing or misaligned, add a temporary background color to see the actual widget bounds:
@@ -1121,17 +1189,33 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
+- The ultrawide class is `is_ultrawide_aspect()` in `src/layout_manager.cpp`
+  (`width * 2 > height * 5`, wider than 2.5:1), published to XML as `ui_is_ultrawide`. Test it
+  in C++ through that function or `app_layout_type()`, never by restating the ratio.
 - Print Status builds its ultrawide body (`ui_xml/components/print_status_ultrawide_body.xml`)
   under `<if cond="ui_is_ultrawide eq 1">`: one row of columns whose widths
-  `PrintStatusLayoutFitter` publishes from `decide_print_status_columns()`.
-  `ui_xml/panel_belt_tension.xml` branches on `ui_is_ultrawide`, and the home grid widens its
-  columns itself; everything else uses the standard layout.
+  `PrintStatusLayoutFitter` publishes from `decide_print_status_columns()`. With a lane tray
+  (`helix::ui::has_lane_tray()`) the readouts' column shows the tray instead, and during a
+  print a Tune column joins the row where the columns can make room for it
+  ([architecture chapter 08](architecture/08-panels-navigation.md#the-print-status-panel)).
+- Controls and Filament fill the width their content cap leaves with the **side band**:
+  Motion beside Controls, the AMS view beside Filament. A host wraps its content in a
+  `side_band_main` column beside a `<side_band>` component and drives one
+  `helix::ui::SideBand`; [LAYOUT_SYSTEM.md](LAYOUT_SYSTEM.md#the-side-band) has the model. A
+  view that can be both an overlay and a band guest calls `SideBand::take_open_request()` in
+  its open function and `SideBand::notify_released()` when its tree is freed
+  (`src/ui/controls/ui_panel_motion.cpp#open_motion_panel` is the pattern), so the two paths
+  never build a second tree.
+- `ui_xml/panel_belt_tension.xml` branches on `ui_is_ultrawide`, and the home grid widens its
+  columns itself; everything else uses the standard layout, capped at the content width.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status
 
 - The app shell, the navigation bar, the print status panel and Print Tune adapt to
-  portrait in their own files, through `ui_is_portrait` and measured layout.
+  portrait in their own files, through `ui_is_portrait` and measured layout. On stacked
+  Print Status tiles the job tile gives up height it can spare to the lane tray, then to an
+  inline Tune section during a print; the printer tile never shrinks for either.
 - At 480x272 the Controls panel switches to a denser arrangement in its own file (the
   `controls_micro` subject); the header bar, the theme explorer and editor and the
   material temperatures overlay adapt with `bind_style_if_eq` on `ui_breakpoint`.

@@ -8,10 +8,10 @@ Find the symptom you see, then open the page for it. Each page is organized by w
 
 | What you see | Page |
 |--------------|------|
-| "Cannot connect", **Login Required**, disconnects during a print, WiFi will not join or lists no networks, a recovery dialog after a Klipper error | [Connection and network problems](troubleshooting/connection.md) |
+| "Cannot connect", **Login Required**, disconnects during a print, WiFi will not join or lists no networks, a recovery dialog after a Klipper error (and what its wording means) | [Connection and network problems](troubleshooting/connection.md) |
 | Black or rotated screen, wrong size or colors, brightness does nothing, touch does not respond or lands in the wrong place, a Home widget vanished | [Screen and touch problems](troubleshooting/display-touch.md) |
 | Start Print does nothing, **Preparing Print** drags on, wrong layer count or time remaining, a power cut, a calibration that fails | [Printing and calibration problems](troubleshooting/printing.md) |
-| No slots on the filament panel, load or unload fails, OrcaSlicer or Spoolman shows the wrong spools | [Filament system and Spoolman problems](troubleshooting/filament-systems.md) |
+| No slots on the filament panel, load or unload fails, a filament system error dialog (QIDI Box Retry, Snapmaker U1 toolhead switch), OrcaSlicer or Spoolman shows the wrong spools | [Filament system and Spoolman problems](troubleshooting/filament-systems.md) |
 | Settings do not save, the wizard keeps returning, wrong printer model, a feature is missing, you want to start over | [Settings, setup wizard and printer model problems](troubleshooting/settings-config.md) |
 | The service does not start after an install or update, or your printer is a Snapmaker U1, Adventurer 5M or 5X, or Creality K1 | [Install, update and printer-specific problems](troubleshooting/updates-install.md) |
 | The interface is slow or the printer runs out of memory | [Slow interface and memory problems](troubleshooting/performance.md) |
