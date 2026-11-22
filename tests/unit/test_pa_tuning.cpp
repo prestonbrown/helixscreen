@@ -116,6 +116,7 @@ TEST_CASE("generated gcode heats the chosen extruder by name before selecting it
           "[pa_tuning]") {
     TestPrintParams p;
     p.tool = 3;
+    p.select_head_gcode = "T3";
     p.heater = "extruder2";
     const std::string gcode = generate_test_gcode(p);
     const size_t wait = gcode.find("TEMPERATURE_WAIT SENSOR=extruder2");
@@ -126,6 +127,7 @@ TEST_CASE("generated gcode heats the chosen extruder by name before selecting it
     CHECK(gcode.find("SET_HEATER_TEMPERATURE HEATER=extruder2 TARGET=0") != std::string::npos);
 
     p.tool = -1;
+    p.select_head_gcode.clear();
     const std::string none = generate_test_gcode(p);
     CHECK(none.find("\nT0") == std::string::npos);
     CHECK(none.find("\nT3") == std::string::npos);
