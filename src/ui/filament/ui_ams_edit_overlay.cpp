@@ -33,6 +33,7 @@
 #include "filament_color_mode.h"
 #include "filament_database.h"
 #include "filament_display_name.h"
+#include "filament_favorites.h"
 #include "filament_op_slot_resolver.h"
 #include "filament_variants.h"
 #include "format_utils.h"
@@ -83,9 +84,15 @@ helix::xml::IndexedSubjectPool s_recent_colors{"ams_edit_recent",
 /// The color dots, ams_edit_seg_<i>.
 helix::xml::IndexedSubjectPool s_seg_colors{"ams_edit_seg",
                                             helix::xml::IndexedSubjectPool::Type::Color};
-/// The common spool tiles' colors, ams_edit_common_color_<i>: black, white, gray.
-helix::xml::IndexedSubjectPool s_common_colors{"ams_edit_common_color",
-                                               helix::xml::IndexedSubjectPool::Type::Color};
+/// The spool tiles a new spool starts from (spool_assign::spool_tiles()):
+/// ams_edit_tile_color_<i>, ams_edit_tile_label_<i>, and ams_edit_tile_fav_<i>
+/// (1 for a favorite, which shows a star in place of a color).
+helix::xml::IndexedSubjectPool s_tile_colors{"ams_edit_tile_color",
+                                             helix::xml::IndexedSubjectPool::Type::Color};
+helix::xml::IndexedSubjectPool s_tile_labels{"ams_edit_tile_label",
+                                             helix::xml::IndexedSubjectPool::Type::String};
+helix::xml::IndexedSubjectPool s_tile_favorites{"ams_edit_tile_fav",
+                                                helix::xml::IndexedSubjectPool::Type::Int};
 /// The most recent chips the color row shows.
 // The color row's swatches: ams_edit_overlay.xml's ams_edit_swatch_cap, which
 // its <repeat> builds; this stands in only if the XML has not registered it.
@@ -501,6 +508,12 @@ void AmsEditOverlay::apply_scanned_spool(const SpoolInfo& spool) {
     // A scanned spool is known whole: it opens on Edit Spool for review.
     set_mode(kModeEdit);
     load_swapped_spool();
+    // Scanned from the empty page or the New Spool list, the spool is
+    // reviewed where Save is: the summary.
+    const int page = lv_subject_get_int(&page_subject_);
+    if (page == kPageEmpty || page == kPageList) {
+        set_page(kPageSummary);
+    }
 }
 
 void AmsEditOverlay::load_swapped_spool() {
@@ -670,6 +683,8 @@ void AmsEditOverlay::init_subjects() {
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(no_product_subject_, 1, "ams_edit_no_product", subjects_);
+        UI_MANAGED_SUBJECT_INT(star_state_subject_, 0, "ams_edit_star_state", subjects_);
+        UI_MANAGED_SUBJECT_INT(has_favorites_subject_, 0, "ams_edit_has_favorites", subjects_);
         // The color line and row (update_color_row).
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
@@ -684,14 +699,8 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
         UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
-        // The common spool tiles' swatches.
-        s_common_colors.ensure_size(3);
-        {
-            size_t i = 0;
-            for (uint32_t rgb : {0x1A1A1Au, 0xFFFFFFu, 0x7F7F7Fu}) {
-                s_common_colors.set_color(i++, rgb);
-            }
-        }
+        // The spool tiles, the common spools until favorites are known.
+        refresh_spool_tiles();
 
         // Temperatures, remaining weight, badges, disclosure.
         UI_MANAGED_SUBJECT_INT(tag_badge_visible_subject_, 0, "ams_edit_tag_badge_visible",
@@ -741,7 +750,9 @@ void AmsEditOverlay::deinit_subjects() {
     if (subjects_initialized_) {
         s_recent_colors.reclaim();
         s_seg_colors.reclaim();
-        s_common_colors.reclaim();
+        s_tile_colors.reclaim();
+        s_tile_labels.reclaim();
+        s_tile_favorites.reclaim();
     }
     deinit_subjects_base(subjects_);
 }
@@ -873,7 +884,13 @@ void AmsEditOverlay::rebuild_option_lists() {
         brands.insert(brands.begin() + 1, {sel_.brand, sel_.brand, false});
     }
     brands.push_back({lv_tr("Browse catalog..."), {}, true});
+    // Starred products lead: the catalog picker's own Favorites view.
+    if (!helix::filament_favorites::load_favorite_ids().empty()) {
+        brands.insert(brands.begin(),
+                      {std::string(lv_tr("Favorites")) + " \xE2\x98\x85", {}, true, true});
+    }
     brand_options_ = std::move(brands);
+    refresh_spool_tiles();
 
     // PRODUCT: every line of the brand the firmware accepts, each carrying
     // its material and type, then "Other..." (described by Material instead).
@@ -927,6 +944,7 @@ void AmsEditOverlay::rebuild_option_lists() {
                        helix::text_io::equals_ignore_case(sel_.brand, "Generic") ? 1 : 0);
     // Material shows where no product says it; Type where it has variants.
     lv_subject_set_int(&no_product_subject_, sel_.product_id.empty() ? 1 : 0);
+    update_star_state();
 
     refresh_dropdowns();
 }
@@ -956,28 +974,14 @@ void AmsEditOverlay::handle_option_selected(int row, int index) {
         if (!catalog_sheet_) {
             catalog_sheet_ = std::make_unique<FilamentCatalogPickerModal>();
         }
-        catalog_sheet_->show(
-            lv_screen_active(), sel_.family, firmware_materials(),
-            [](const helix::printer::EffectiveFilament& ef) {
-                auto& editor = get_ams_edit_overlay();
-                const std::string family = filament::display_family(ef.type);
-                const std::string variant = filament::variant_label(ef.type, family);
-                // Re-picking what is already selected is a no-op, like the
-                // dropdowns.
-                if (family == editor.sel_.family && variant == editor.sel_.variant &&
-                    ef.brand == editor.sel_.brand && ef.id == editor.sel_.product_id) {
-                    return;
-                }
-                editor.sel_.family = family;
-                editor.sel_.variant = variant;
-                editor.sel_.brand = ef.brand;
-                editor.sel_.product_id = ef.id;
-                editor.selection_moved_ = true;
-                editor.rebuild_option_lists();
-                editor.update_summary();
-                editor.update_temp_display();
-                editor.update_sync_button_state();
-            });
+        catalog_sheet_->set_seed_vendor(
+            option.favorites
+                ? std::optional<std::string>(FilamentCatalogSelector::favorites_vendor())
+                : std::nullopt);
+        catalog_sheet_->show(lv_screen_active(), sel_.family, firmware_materials(),
+                             [](const helix::printer::EffectiveFilament& ef) {
+                                 get_ams_edit_overlay().apply_catalog_pick(ef);
+                             });
         // The dropdown now reads "Browse catalog..."; put the real selection
         // back, so a cancelled sheet leaves the row as it was.
         refresh_dropdowns();
@@ -1728,6 +1732,84 @@ void AmsEditOverlay::handle_row_use(size_t row) {
         working_info_.remaining_weight_g = size_remaining_g_;
     }
     commit_and_close();
+}
+
+void AmsEditOverlay::apply_catalog_pick(const helix::printer::EffectiveFilament& ef) {
+    const std::string family = filament::display_family(ef.type);
+    const std::string variant = filament::variant_label(ef.type, family);
+    // Re-picking what is already selected is a no-op, like the dropdowns.
+    if (family == sel_.family && variant == sel_.variant && ef.brand == sel_.brand &&
+        ef.id == sel_.product_id) {
+        return;
+    }
+    sel_.family = family;
+    sel_.variant = variant;
+    sel_.brand = ef.brand;
+    sel_.product_id = ef.id;
+    selection_moved_ = true;
+    rebuild_option_lists();
+    update_summary();
+    update_temp_display();
+    update_sync_button_state();
+}
+
+void AmsEditOverlay::refresh_spool_tiles() {
+    std::vector<spool_assign::FavoriteTile> favorites;
+    if (catalog_) {
+        for (const std::string& id : helix::filament_favorites::load_favorite_ids()) {
+            if (const auto* ef = catalog_->resolve_id(id)) {
+                favorites.push_back({ef->brand, ef->name, ef->id});
+            }
+        }
+    }
+    spool_tiles_ = spool_assign::spool_tiles(favorites);
+    // The pools are file-wide and handed back at teardown; size them here too.
+    s_tile_colors.ensure_size(spool_assign::kSpoolTiles);
+    s_tile_labels.ensure_size(spool_assign::kSpoolTiles);
+    s_tile_favorites.ensure_size(spool_assign::kSpoolTiles);
+    for (size_t i = 0; i < spool_tiles_.size(); ++i) {
+        s_tile_colors.set_color(i, spool_tiles_[i].rgb);
+        s_tile_labels.set_string(i, spool_tiles_[i].label);
+        s_tile_favorites.set_int(i, spool_tiles_[i].favorite() ? 1 : 0);
+    }
+    if (subjects_initialized_) {
+        lv_subject_set_int(&has_favorites_subject_, favorites.empty() ? 0 : 1);
+    }
+}
+
+void AmsEditOverlay::update_star_state() {
+    // Only a product the catalog knows can be starred: not Generic, "Other…"
+    // or a product named without a catalog id.
+    const bool starrable = catalog_ && !sel_.product_id.empty() &&
+                           !helix::text_io::equals_ignore_case(sel_.brand, "Generic") &&
+                           catalog_->resolve_id(sel_.product_id) != nullptr;
+    const int state = !starrable                                                ? 0
+                      : helix::filament_favorites::is_favorite(sel_.product_id) ? 2
+                                                                                : 1;
+    lv_subject_set_int(&star_state_subject_, state);
+}
+
+void AmsEditOverlay::handle_star_toggle() {
+    if (lv_subject_get_int(&star_state_subject_) == 0) {
+        return;
+    }
+    helix::filament_favorites::toggle_favorite(sel_.product_id);
+    // The Brand list's Favorites entry and the spool tiles follow the change.
+    rebuild_option_lists();
+}
+
+void AmsEditOverlay::handle_spool_tile(size_t slot) {
+    if (save_in_flight_ || slot >= spool_tiles_.size()) {
+        return;
+    }
+    const auto& tile = spool_tiles_[slot];
+    if (!tile.favorite()) {
+        handle_common_spool(tile.common);
+        return;
+    }
+    if (const auto* ef = catalog_ ? catalog_->resolve_id(tile.product_id) : nullptr) {
+        apply_catalog_pick(*ef);
+    }
 }
 
 void AmsEditOverlay::handle_common_spool(size_t index) {
@@ -4341,13 +4423,14 @@ void AmsEditOverlay::register_callbacks() {
          [](lv_event_t*) {
              get_ams_edit_overlay().handle_remaining_step(spool_assign::kRemainingStepGrams);
          }},
-        {"ams_edit_common_spool_cb",
+        {"ams_edit_star_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_star_toggle(); }},
+        {"ams_edit_spool_tile_cb",
          [](lv_event_t* e) {
-             // common_spool_<n>
+             // spool_tile_<n>
              const char* name = lv_obj_get_name(lv_event_get_current_target_obj(e));
              const char* digit = name ? std::strrchr(name, '_') : nullptr;
              if (digit) {
-                 get_ams_edit_overlay().handle_common_spool(
+                 get_ams_edit_overlay().handle_spool_tile(
                      static_cast<size_t>(std::atoi(digit + 1)));
              }
          }},
