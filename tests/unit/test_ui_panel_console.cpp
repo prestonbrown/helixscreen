@@ -9,6 +9,20 @@
  * These tests don't require LVGL initialization since they test pure C++ logic.
  */
 
+#include "ui_nav_manager.h"
+#include "ui_update_queue.h"
+#include "ui_utils.h"
+
+#include "../lvgl_ui_test_fixture.h"
+#include "../ui_test_utils.h"
+#include "app_globals.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "moonraker_error.h"
+#include "printer_cache_registry.h"
+#include "printer_state.h"
+#include "static_panel_registry.h"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -601,4 +615,148 @@ TEST_CASE("Console: should_display() never drops errors that match no pattern",
     CHECK(ConsolePanel::should_display("!! Move out of range", false, true, true, eng));
     CHECK(ConsolePanel::should_display("!! Shutdown due to webhooks request", false, true, true,
                                        eng));
+}
+
+using namespace helix;
+
+namespace {
+
+/// The mock printer as the app's globals, so the console fetches its stored history.
+struct ConsoleOverlayFx : LVGLUITestFixture {
+    MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
+    std::unique_ptr<MoonrakerAPIMock> api;
+    helix::IMoonrakerAPI* previous_api = nullptr;
+    helix::IMoonrakerClient* previous_client = nullptr;
+
+    ConsoleOverlayFx() {
+        client.connect("ws://mock/websocket", []() {}, []() {});
+        api = std::make_unique<MoonrakerAPIMock>(client, get_printer_state());
+        previous_api = get_moonraker_api();
+        previous_client = get_moonraker_client();
+        set_moonraker_api(api.get());
+        set_moonraker_client(&client);
+        std::array<lv_obj_t*, kUiPanelCount> panels{};
+        for (auto& p : panels)
+            p = lv_obj_create(lv_screen_active());
+        NavigationManager::instance().set_panels(panels.data());
+    }
+
+    ~ConsoleOverlayFx() override {
+        helix::PrinterCacheRegistry::instance().invalidate_all();
+        helix::ui::destroy_static_panels();
+        helix::ui::UpdateQueue::instance().drain();
+        set_moonraker_client(previous_client);
+        set_moonraker_api(previous_api);
+        client.stop_temperature_simulation();
+        client.disconnect();
+    }
+
+    lv_obj_t* open() {
+        REQUIRE(get_global_console_panel().show(lv_screen_active()));
+        // The push, then the fetched history's own deferral.
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+        }
+        lv_obj_t* root = get_global_console_panel().get_root();
+        REQUIRE(root != nullptr);
+        return root;
+    }
+};
+
+lv_obj_t* named(lv_obj_t* root, const char* name) {
+    lv_obj_t* obj = lv_obj_find_by_name(root, name);
+    REQUIRE(obj != nullptr);
+    return obj;
+}
+
+/// Every console line as drawn, oldest first: a plain label's text, or a
+/// spangroup's spans joined (the timestamped and coloured render).
+std::vector<std::string> console_lines(lv_obj_t* root) {
+    lv_obj_t* container = named(root, "console_container");
+    std::vector<std::string> out;
+    const uint32_t n = lv_obj_get_child_count(container);
+    for (uint32_t i = 0; i < n; ++i) {
+        lv_obj_t* row = lv_obj_get_child(container, static_cast<int32_t>(i));
+        if (lv_obj_check_type(row, &lv_label_class)) {
+            out.emplace_back(lv_label_get_text(row));
+        } else if (lv_obj_check_type(row, &lv_spangroup_class)) {
+            std::string text;
+            const uint32_t spans = lv_spangroup_get_span_count(row);
+            for (uint32_t s = 0; s < spans; ++s) {
+                text += lv_span_get_text(lv_spangroup_get_child(row, static_cast<int32_t>(s)));
+            }
+            out.push_back(text);
+        }
+    }
+    return out;
+}
+
+bool any_line_contains(const std::vector<std::string>& lines, const std::string& needle) {
+    return std::any_of(lines.begin(), lines.end(), [&](const std::string& line) {
+        return line.find(needle) != std::string::npos;
+    });
+}
+
+/// Records every error notification for the life of the scope.
+struct ErrorToasts {
+    std::vector<std::string> seen;
+    ErrorToasts() {
+        helix::ui::set_test_notification_error_hook(
+            [this](const std::string& msg) { seen.push_back(msg); });
+    }
+    ~ErrorToasts() {
+        helix::ui::set_test_notification_error_hook(nullptr);
+    }
+};
+
+/// Type @p command and press Enter on a printer that is up, so the send reaches the client.
+void type_and_send(lv_obj_t* root, const char* command) {
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    lv_obj_t* input = named(root, "gcode_input");
+    lv_textarea_set_text(input, command);
+    lv_obj_send_event(input, LV_EVENT_READY, nullptr);
+    helix::ui::UpdateQueue::instance().drain();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ConsoleOverlayFx,
+                 "Console: a typed command gets the macro timeout, not the 60 s default",
+                 "[ui][console_overlay]") {
+    lv_obj_t* root = open();
+    type_and_send(root, "AFC_ACE_CALIBRATE");
+    REQUIRE(client.call_count("printer.gcode.script") == 1);
+    CHECK(client.last_send_timeout_ms() == 300000);
+}
+
+TEST_CASE_METHOD(ConsoleOverlayFx,
+                 "Console: a timed-out command is still running, so it gets a console "
+                 "line and no error toast",
+                 "[ui][console_overlay]") {
+    lv_obj_t* root = open();
+    ErrorToasts toasts;
+    client.fail_next("printer.gcode.script",
+                     MoonrakerError::timeout("printer.gcode.script", 300000));
+    type_and_send(root, "AFC_ACE_CALIBRATE");
+    REQUIRE(client.call_count("printer.gcode.script") == 1);
+
+    CHECK(toasts.seen.empty());
+    CHECK(any_line_contains(console_lines(root), "Still running; no reply after 5 min"));
+}
+
+TEST_CASE_METHOD(ConsoleOverlayFx,
+                 "Console: a command the printer rejects still raises the error toast",
+                 "[ui][console_overlay]") {
+    lv_obj_t* root = open();
+    ErrorToasts toasts;
+    client.fail_next(
+        "printer.gcode.script",
+        MoonrakerError::from_json_rpc(json{{"code", 400}, {"message", "Unknown command: BOGUS"}},
+                                      "printer.gcode.script"));
+    type_and_send(root, "BOGUS");
+    REQUIRE(client.call_count("printer.gcode.script") == 1);
+
+    REQUIRE(toasts.seen.size() == 1);
+    CHECK(toasts.seen[0].find("Unknown command: BOGUS") != std::string::npos);
+    CHECK_FALSE(any_line_contains(console_lines(root), "Still running"));
 }

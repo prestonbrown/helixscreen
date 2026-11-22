@@ -3696,6 +3696,7 @@
   <translation tag="Step 1 of 3" pt="Etapa 1 de 3"/>
   <translation tag="Step {} of {}" pt="Etapa {} de {}"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." pt="Ainda lendo o registro de lanes da impressora. Tente novamente em instantes."/>
+  <translation tag="Still running; no reply after {} min" pt="Ainda em execução; sem resposta após {} min"/>
   <translation tag="Still saving this spool…" pt="Ainda salvando este carretel…"/>
   <translation tag="Still working... taking longer than usual" pt="Ainda processando... está demorando mais que o normal"/>
   <translation tag="Stop" pt="Parar"/>

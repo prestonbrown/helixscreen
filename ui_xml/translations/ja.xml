@@ -3696,6 +3696,7 @@
   <translation tag="Step 1 of 3" ja="ステップ 1/3"/>
   <translation tag="Step {} of {}" ja="ステップ {} / {}"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ja="プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。"/>
+  <translation tag="Still running; no reply after {} min" ja="まだ実行中です。{}分経っても応答がありません"/>
   <translation tag="Still saving this spool…" ja="このスプールはまだ保存中です…"/>
   <translation tag="Still working... taking longer than usual" ja="まだ処理中です... 通常より時間がかかっています"/>
   <translation tag="Stop" ja="停止"/>

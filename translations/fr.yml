@@ -4056,6 +4056,7 @@ translations:
   Step 1 of 3: Étape 1 sur 3
   Step {} of {}: Étape {} sur {}
   Still reading the printer's lane record. Try again in a moment.: 'Lecture de l''enregistrement des voies de l''imprimante en cours. Réessayez dans un instant.'
+  Still running; no reply after {} min: 'Toujours en cours ; aucune réponse après {} min'
   Still saving this spool…: 'Enregistrement de cette bobine en cours…'
   Still working... taking longer than usual: Toujours en cours... cela prend plus
     de temps que d'habitude
