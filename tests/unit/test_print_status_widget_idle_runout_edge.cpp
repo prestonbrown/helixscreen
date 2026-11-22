@@ -30,7 +30,6 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/print_status_widget_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
-#include "../test_helpers/scoped_breakpoint.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -56,7 +55,6 @@ namespace {
 class IdleRunoutEdgeFixture : public LVGLTestFixture {
   public:
     IdleRunoutEdgeFixture() : mock_client(MoonrakerClientMock::PrinterType::VORON_24) {
-        helix::test::ensure_breakpoint_published();
         PanelWidgetManager::instance().init_widget_subjects();
         PrintStatusWidget::init_static_subjects();
         PrintStatusWidget::destroy_formatter_for_test();

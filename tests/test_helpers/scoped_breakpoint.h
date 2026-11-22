@@ -55,16 +55,4 @@ class ScopedBreakpoint {
     int32_t original_ = 0;
 };
 
-/// Publish `ui_breakpoint` from the default display when it is down, as
-/// theme_manager_init() does before the app attaches any widget. A widget that
-/// observes the breakpoint (PrintStatusWidget) would otherwise have its observer
-/// refused whenever its case runs before any theme fixture in the shard, or after
-/// one that tore the theme down. A live subject is left alone.
-inline void ensure_breakpoint_published() {
-    lv_subject_t* const subj = theme_manager_get_breakpoint_subject();
-    if (auto* owner = helix::Subject::owner_of(subj); owner && !owner->is_live()) {
-        owner->init_int(to_int(breakpoint_for(responsive_dimension(lv_display_get_default()))));
-    }
-}
-
 } // namespace helix::test
