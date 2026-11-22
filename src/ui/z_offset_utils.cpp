@@ -171,7 +171,8 @@ void begin_save_config(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watc
 void apply_and_save_or(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watch,
                        ZOffsetCalibrationStrategy strategy, std::function<void()> on_success,
                        std::function<void(const std::string& error)> on_error, PrinterState* ps,
-                       std::function<void(const std::string& reason)> on_apply_missing) {
+                       std::function<void(const std::string& reason)> on_apply_missing,
+                       std::string pre_apply = {}) {
     auto on_saved = clearing_pending_delta(ps, std::move(on_success));
 
     if (!api) {
@@ -198,15 +199,30 @@ void apply_and_save_or(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watc
     spdlog::info("[ZOffsetUtils] Applying Z-offset with {} strategy (cmd: {})", strategy_name,
                  apply_cmd);
 
-    auto send_apply = [api, apply_cmd, &save_watch, on_saved, on_error]() {
+    // One script, so nothing can land between the offset the apply folds and
+    // the apply itself.
+    std::string apply_script =
+        pre_apply.empty() ? std::string(apply_cmd) : pre_apply + "\n" + apply_cmd;
+    // A fold of the pending delta has spent it once the apply lands: the probe's
+    // staged z_offset now holds it. Clearing it there rather than after the
+    // restart means a SAVE_CONFIG reported failed (a restart outlasting the watch)
+    // cannot leave a Save up that would fold the same delta a second time.
+    const bool spends_pending_delta = ps && !pre_apply.empty();
+    auto send_apply = [api, apply_cmd, apply_script, &save_watch, on_saved, on_error, ps,
+                       spends_pending_delta]() {
         // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
         // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
         // calibration result in ZOffsetCalibrationPanel). The gate reads only the
         // callback body, where that hand-off looks like logging and nothing else.
         api->execute_gcode(
-            apply_cmd,
-            [api, apply_cmd, &save_watch, on_saved, on_error]() {
+            apply_script,
+            [api, apply_cmd, &save_watch, on_saved, on_error, ps, spends_pending_delta]() {
                 spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
+                if (spends_pending_delta) {
+                    helix::ui::run_on_main("ZOffsetUtils::spend_pending_delta", [ps]() {
+                        ps->motion_state().clear_pending_z_offset_delta();
+                    });
+                }
                 begin_save_config(api, save_watch, on_saved, on_error);
             },
             [apply_cmd, on_error](const MoonrakerError& err) {
@@ -409,7 +425,12 @@ SaveAvailability current_save_availability() {
     // answer and the XML bindings are computed from the same input.
     facts.manual_save_supported =
         lv_subject_get_int(ps.profile_state().get_z_offset_can_save_subject()) != 0;
-    facts.global_dirty = lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()) != 0;
+    // Where each pickup re-applies the head's own offset, the live value is that
+    // offset plus the user's adjustment, and only the adjustment is unsaved.
+    facts.global_dirty =
+        ps.profile_state().z_offset_reapplied_per_head()
+            ? ps.motion_state().get_pending_z_offset_delta() != 0
+            : lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()) != 0;
     facts.tools_dirty =
         lv_subject_get_int(helix::ToolState::instance().get_any_tool_offset_dirty_subject()) == 1;
     facts.save_enabled = save_enabled();
@@ -476,6 +497,7 @@ void set_save_enabled(bool enabled) {
 namespace {
 
 void republish_save_available(lv_observer_t*, lv_subject_t*);
+void drop_unsaved_delta_at_print_start(lv_observer_t*, lv_subject_t* subject);
 
 /// Publishes `z_offset_save_available` and holds the observers that keep it
 /// current.
@@ -493,6 +515,11 @@ struct SaveAvailabilityPublisher {
     lv_subject_t z_offset_save_available_{};
     lv_subject_t z_offset_save_enabled_{};
     ObserverGuard global_offset_obs;
+    ObserverGuard pending_delta_obs;
+    ObserverGuard per_head_obs;
+    ObserverGuard print_active_obs;
+    /// print_active as last seen, so only a start (0 to 1) drops the delta.
+    int last_print_active = 0;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;
     ObserverGuard per_tool_z_obs;
@@ -506,6 +533,15 @@ struct SaveAvailabilityPublisher {
         auto& ts = helix::ToolState::instance();
         observe(global_offset_obs, ps.motion_state().get_gcode_z_offset_subject(),
                 ps.get_subjects_lifetime());
+        observe(pending_delta_obs, ps.motion_state().get_pending_z_offset_delta_subject(),
+                ps.get_subjects_lifetime());
+        observe(per_head_obs, ps.profile_state().get_z_offset_reapplied_per_head_subject(),
+                ps.get_subjects_lifetime());
+        if (lv_subject_t* active = ps.print_state().get_print_active_subject()) {
+            last_print_active = lv_subject_get_int(active);
+            print_active_obs = ObserverGuard(active, drop_unsaved_delta_at_print_start, nullptr);
+            print_active_obs.set_alive_token(ps.get_subjects_lifetime());
+        }
         observe(can_save_obs, ps.profile_state().get_z_offset_can_save_subject(),
                 ps.get_subjects_lifetime());
         observe(tools_dirty_obs, ts.get_any_tool_offset_dirty_subject(),
@@ -541,6 +577,28 @@ struct SaveAvailabilityPublisher {
 std::optional<SaveAvailabilityPublisher>& save_available_storage() {
     static std::optional<SaveAvailabilityPublisher> storage;
     return storage;
+}
+
+/// Where each pickup re-applies the head's own offset, the firmware has already
+/// dropped an adjustment the user never saved by the time the next print starts,
+/// and Print Tune shows that print's offsets. A delta still pending from an
+/// earlier print would fold an adjustment nobody can see into every head, so a
+/// print start drops it.
+void drop_unsaved_delta_at_print_start(lv_observer_t*, lv_subject_t* subject) {
+    auto& storage = save_available_storage();
+    if (!storage) {
+        return;
+    }
+    const int active = lv_subject_get_int(subject);
+    const bool started = storage->last_print_active == 0 && active != 0;
+    storage->last_print_active = active;
+    PrinterState& ps = get_printer_state();
+    if (started && ps.profile_state().z_offset_reapplied_per_head() &&
+        ps.motion_state().get_pending_z_offset_delta() != 0) {
+        spdlog::info("[ZOffsetUtils] Print started: dropping an unsaved {} um adjustment",
+                     ps.motion_state().get_pending_z_offset_delta());
+        ps.motion_state().clear_pending_z_offset_delta();
+    }
 }
 
 void republish_save_available(lv_observer_t*, lv_subject_t*) {
@@ -670,8 +728,8 @@ void run_shared_save() {
     g_shared_save_running = true;
     NOTIFY_INFO(lv_tr("Saving Z-offset..."));
     save_dirty_offsets(
-        api, shared_save_watch(), ps.profile_state().z_offset_calibration_strategy(),
-        ps.get_discovery(), saves_global(current_save_availability()),
+        api, shared_save_watch(), ps.profile_state().z_offset_save_strategy(), ps.get_discovery(),
+        saves_global(current_save_availability()),
         []() {
             end_shared_save();
             NOTIFY_SUCCESS("{}", lv_tr("Z-offset saved"));
@@ -724,6 +782,22 @@ void save_dirty_offsets_shared() {
 }
 
 namespace {
+
+/// Z_OFFSET_APPLY_* folds the whole live offset into the saved one. On a
+/// firmware that re-applies each head's own Z offset at pickup, the live offset
+/// carries the mounted head's offset on top of the user's adjustment, and
+/// folding it would shift every head by one head's calibration. The returned
+/// command sets the live offset to the adjustment alone (the pending delta), for
+/// the apply to fold. Empty everywhere else.
+std::string per_head_fold_gcode(PrinterState* ps, ZOffsetCalibrationStrategy strategy) {
+    if (!ps || strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ||
+        !ps->profile_state().z_offset_reapplied_per_head()) {
+        return {};
+    }
+    return fmt::format("SET_GCODE_OFFSET Z={:.3f}",
+                       static_cast<double>(ps->motion_state().get_pending_z_offset_delta()) /
+                           1000.0);
+}
 
 /// SAVE_CONFIG for tool parameters already staged in Klipper, from the main thread.
 ///
@@ -858,8 +932,10 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
                     on_error);
             };
         }
+        // After SAVE_CONFIG's restart the mounted head's own offset comes back
+        // with its next pickup, which every print starts with.
         apply_and_save_or(api, save_watch, strategy, std::move(on_saved), on_error, ps,
-                          std::move(on_apply_missing));
+                          std::move(on_apply_missing), per_head_fold_gcode(ps, strategy));
         return;
     }
 

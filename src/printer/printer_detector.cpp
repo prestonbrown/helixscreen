@@ -1634,6 +1634,10 @@ bool PrinterDetector::tool_change_resets_z_offset(const std::string& printer_nam
     return printer_flag(printer_name, "tool_change_resets_z_offset");
 }
 
+std::string PrinterDetector::z_offset_save(const std::string& printer_name) {
+    return printer_field(printer_name, "z_offset_save");
+}
+
 // ============================================================================
 // Probe Type Lookup
 // ============================================================================

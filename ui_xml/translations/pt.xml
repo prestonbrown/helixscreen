@@ -4045,6 +4045,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." pt="Este arquivo foi fatiado para {} mas {} está carregado."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." pt="Este arquivo foi fatiado para {}, mas {} está carregado. A impressão será mais lenta e mais quente do que o carretel carregado precisa."/>
   <translation tag="This firmware can only switch slots by loading them" pt="Este firmware só pode trocar de slot carregando-o"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" pt="Este cabeçote até uma troca de ferramenta; salve após a impressão para aplicá-lo a todos os cabeçotes"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." pt="Isto instala as macros de ajuda do HelixScreen na impressora e as adiciona ao printer.cfg. Uma impressão está em andamento, então o Klipper será reiniciado ao término."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." pt="Isto instala as macros de ajuda do HelixScreen na impressora, as adiciona ao printer.cfg e reinicia o Klipper."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." pt="Esta é uma parada de emergência: a impressora para e o Klipper reinicia."/>

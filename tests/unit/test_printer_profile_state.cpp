@@ -115,7 +115,8 @@ TEST_CASE("Z-offset tune hint claims auto-save only where something persists it"
     // A strategy with its own Save step: the hint points at it, whatever else is known.
     CHECK(resolve_z_offset_tune_hint(S::PROBE_CALIBRATE, false, true, false, true) ==
           H::SAVE_ON_CONTROLS);
-    CHECK(resolve_z_offset_tune_hint(S::ENDSTOP, false, false, true, true) == H::SAVE_ON_CONTROLS);
+    CHECK(resolve_z_offset_tune_hint(S::ENDSTOP, false, false, true, true) == H::SAVE_ALL_HEADS);
+    CHECK(resolve_z_offset_tune_hint(S::ENDSTOP, false, false, false, true) == H::SAVE_ON_CONTROLS);
 
     // Firmware-managed and the firmware persists the offset.
     CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, true, false, true) ==
@@ -131,6 +132,53 @@ TEST_CASE("Z-offset tune hint claims auto-save only where something persists it"
           H::TEMPORARY);
     CHECK(resolve_z_offset_tune_hint(S::FIRMWARE_MANAGED, false, false, true, true) ==
           H::TEMPORARY_TOOL_CHANGE);
+}
+
+TEST_CASE("A firmware-managed printer the database gives a save target saves there",
+          "[printer_state][profile][zoffset][save_strategy]") {
+    using S = ZOffsetCalibrationStrategy;
+
+    CHECK(resolve_z_offset_save_strategy(S::FIRMWARE_MANAGED, "probe", false) ==
+          S::PROBE_CALIBRATE);
+    CHECK(resolve_z_offset_save_strategy(S::FIRMWARE_MANAGED, "endstop", false) == S::ENDSTOP);
+    // No target: the firmware persists the offset, or nothing can.
+    CHECK(resolve_z_offset_save_strategy(S::FIRMWARE_MANAGED, "", false) == S::FIRMWARE_MANAGED);
+    CHECK(resolve_z_offset_save_strategy(S::FIRMWARE_MANAGED, "bogus", false) ==
+          S::FIRMWARE_MANAGED);
+    // An installed persistence provider already saves it; a second save would stack.
+    CHECK(resolve_z_offset_save_strategy(S::FIRMWARE_MANAGED, "probe", true) ==
+          S::FIRMWARE_MANAGED);
+    // A calibration strategy with its own save keeps it.
+    CHECK(resolve_z_offset_save_strategy(S::ENDSTOP, "probe", false) == S::ENDSTOP);
+    CHECK(resolve_z_offset_save_strategy(S::PROBE_CALIBRATE, "endstop", false) ==
+          S::PROBE_CALIBRATE);
+}
+
+TEST_CASE("The Snapmaker U1 calibrates firmware-managed and saves to its probe",
+          "[printer_state][profile][zoffset][save_strategy]") {
+    LVGLTestFixture fixture;
+    PrinterProfileState profile;
+    profile.init_subjects(false);
+
+    REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
+    CHECK(profile.z_offset_calibration_strategy() == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(profile.z_offset_save_strategy() == ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 1);
+
+    // Saving turned off: the adjustment is temporary again, and says why.
+    CHECK(profile.set_z_offset_save_enabled(false));
+    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
+          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE));
+    CHECK(profile.set_z_offset_save_enabled(true));
+    CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
+          static_cast<int>(ZOffsetTuneHint::SAVE_ALL_HEADS));
+
+    // A firmware-managed printer the database gives no target still saves nothing.
+    REQUIRE(profile.set_printer_type("FlashForge Creator 5 Pro", true, false, false));
+    CHECK(profile.z_offset_save_strategy() == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
+    CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 0);
+
+    profile.deinit_subjects();
 }
 
 TEST_CASE("Z-offset tune hint is temporary when Z-offset saving is off",
@@ -199,13 +247,14 @@ TEST_CASE("PrinterProfileState publishes whether each head's own offset is re-ap
         return lv_subject_get_int(profile.get_z_offset_reapplied_per_head_subject());
     };
 
-    // The U1 re-applies the mounted head's stored offset at every tool change and
-    // saves nothing: re-applied, but the tune hint keeps saying temporary.
+    // The U1 re-applies the mounted head's stored offset at every tool change, so
+    // an adjustment lasts until the next pickup unless a Save folds it into the
+    // offset every head shares.
     REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
     CHECK(profile.z_offset_reapplied_per_head());
     CHECK(reapplied() == 1);
     CHECK(lv_subject_get_int(profile.get_z_offset_tune_hint_subject()) ==
-          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE));
+          static_cast<int>(ZOffsetTuneHint::SAVE_ALL_HEADS));
 
     REQUIRE(profile.set_printer_type("Unknown Printer", true, false, false));
     CHECK_FALSE(profile.z_offset_reapplied_per_head());
@@ -260,20 +309,22 @@ TEST_CASE("PrinterProfileState publishes the z-offset tune hint from the databas
             lv_subject_get_int(profile.get_z_offset_tune_hint_subject()));
     };
 
-    SECTION("Snapmaker U1: no save path, and a tool change re-applies the head's offset") {
+    SECTION("Snapmaker U1: a Save carries the mounted head's adjustment to every head") {
         REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
         CHECK(profile.z_offset_calibration_strategy() ==
               ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
-        CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 0);
-        CHECK(hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
+        CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 1);
+        CHECK(hint() == ZOffsetTuneHint::SAVE_ALL_HEADS);
 
-        // A provider latching later is a change even though the strategy is not.
+        // A provider latching later is a change even though the strategy is not,
+        // and it already saves: no Save step of ours on top.
         REQUIRE(profile.set_external_persistence(true));
         REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
         CHECK(hint() == ZOffsetTuneHint::AUTO_SAVED);
+        CHECK(lv_subject_get_int(profile.get_z_offset_can_save_subject()) == 0);
         REQUIRE(profile.set_external_persistence(false));
         REQUIRE(profile.set_printer_type("Snapmaker U1", true, false, false));
-        CHECK(hint() == ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE);
+        CHECK(hint() == ZOffsetTuneHint::SAVE_ALL_HEADS);
     }
 
     SECTION("the other firmware-managed printers keep the auto-saved claim") {
@@ -348,6 +399,7 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         {"z_offset_help_text_tool_change",
          static_cast<int>(ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE)},
         {"z_offset_help_text_per_head", static_cast<int>(ZOffsetTuneHint::AUTO_SAVED_PER_HEAD)},
+        {"z_offset_help_text_all_heads", static_cast<int>(ZOffsetTuneHint::SAVE_ALL_HEADS)},
     };
 
     for (const char* path : {"ui_xml/components/tune_z_offset.xml"}) {
@@ -355,14 +407,14 @@ TEST_CASE("Print Tune shows exactly the label for the resolved z-offset tune hin
         const auto values = tune_hint_label_values(path);
         CHECK(values == expected);
 
-        // On the U1 the tool-change label is the only one left visible.
+        // On the U1 the all-heads label is the only one left visible.
         std::vector<std::string> visible;
         for (const auto& [name, value] : values) {
             if (value == u1_hint) {
                 visible.push_back(name);
             }
         }
-        CHECK(visible == std::vector<std::string>{"z_offset_help_text_tool_change"});
+        CHECK(visible == std::vector<std::string>{"z_offset_help_text_all_heads"});
     }
 }
 
