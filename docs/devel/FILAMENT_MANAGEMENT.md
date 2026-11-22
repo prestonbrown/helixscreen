@@ -1038,10 +1038,37 @@ own subjects. A blocked lane still has filament; an active lane is still
 `Present`.
 
 The classification is published per lane as `ams_slot_<n>_lane_state`;
-`ams_lane_bar` consumes it. Converting the remaining surfaces
-(`ui_ams_mini_status` bar and spool modes, `ui_panel_ams_overview` mini-bars,
+`ams_lane_bar` consumes it. The mini status strip is built from XML components
+(`ams_mini_status_frame`, `ams_mini_spool_cell`, `ams_lane_badge`, `ams_tool_badge`, the
+`ams_mini_bypass_*` parts, `ams_mini_unit_row`, `ams_mini_unit_group` and `ams_mini_spools_row`
+in `ui_xml/components/`); C++ keeps its
+measured layout, sets each lane's text with `set_row_label_text()` and marks ghost and active
+lanes as states. Converting the remaining surfaces (`ui_panel_ams_overview` mini-bars,
 `ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
 open question of how much of the per-lane loop can be expressed in XML.
+
+### The mini status strip's spool layouts
+
+Spool mode has two layouts, and the XML attribute `fill` picks between them
+(`helix::ui::AmsMiniFill`, `include/ui_ams_mini_status.h`):
+
+- **The strip**: one row of spools, capped at 56 px, the name over or beside each. Its lanes
+  scroll sideways when they do not fit. `fill="false"`, and the fallback of the other two.
+- **The grid**: the lanes wrapped into the rows that give the largest spool, up to 120 px.
+  `helix::ui::plan_ams_mini_grid()` is the pure packing rule: each unit's lanes stay together,
+  a unit wider than a line wraps into even rows, and the line width that gives the largest
+  spool wins. The type follows the cell: the largest name font that keeps every name whole
+  and every percent beside its tool chip, and the remaining line (grams when the lane knows
+  them, else the percent) stays while the spool beside it still reads as one. Each lane shows
+  its tool (`ams_tool_badge`, when `slot_tool_badges_informative()`), and the active lane's
+  cell is tinted.
+
+`fill="true"` (Print Status's lane tray) draws the grid as one block whenever its spool is at
+least 24 px. `fill="auto"` (the Home panel's tile) draws it only when its spool beats the
+strip's, and on a rig with several units puts each unit in a box titled with
+`unit_display_name()`, unless the boxes cost the spool more than a third
+(`ams_mini_grid_prefers_flat()`). The decision is `ams_mini_use_grid()`: a lane count no grid
+can draw at 24 px keeps the scrolling strip, so no lane is ever clipped.
 
 ### The bypass on the mini status strip
 

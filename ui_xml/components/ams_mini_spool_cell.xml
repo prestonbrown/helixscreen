@@ -50,15 +50,7 @@
         <text_xs name="spool_pct_${slot}" text="" style_text_align="center" event_bubble="true">
           <style name="ghosted" selector="user_1"/>
         </text_xs>
-        <!-- The lane's tool, in the AMS panel's tool badge look; the strip sets
-             its fill and text color from tool_badge_colors(). -->
-        <lv_obj name="spool_tool_${slot}"
-                width="content" height="content" style_radius="#ams_slot_tool_badge_radius"
-                style_bg_opa="#ams_slot_tool_badge_opa" style_border_width="0" style_pad_left="#ams_slot_badge_pad_h"
-                style_pad_right="#ams_slot_badge_pad_h" style_pad_top="0" style_pad_bottom="0" scrollable="false"
-                event_bubble="true" hidden="true">
-          <text_xs name="spool_tool_label_${slot}" text="" style_text_color="#text" event_bubble="true"/>
-        </lv_obj>
+        <ams_tool_badge name="spool_tool_${slot}" hidden="true"/>
       </lv_obj>
     </lv_obj>
   </view>
