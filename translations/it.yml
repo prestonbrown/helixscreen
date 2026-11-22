@@ -4020,6 +4020,7 @@ translations:
   Step 1 of 3: Passaggio 1 di 3
   Step {} of {}: Passo {} di {}
   Still reading the printer's lane record. Try again in a moment.: 'Lettura del registro delle corsie della stampante in corso. Riprova tra un momento.'
+  Still running; no reply after {} min: 'Ancora in corso; nessuna risposta dopo {} min'
   Still saving this spool…: 'Salvataggio di questa bobina in corso…'
   Still working... taking longer than usual: Ancora in corso... ci vuole più tempo
     del solito

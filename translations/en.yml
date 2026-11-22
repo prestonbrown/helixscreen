@@ -3937,6 +3937,7 @@ translations:
   Step 1 of 3: Step 1 of 3
   Step {} of {}: Step {} of {}
   Still reading the printer's lane record. Try again in a moment.: Still reading the printer's lane record. Try again in a moment.
+  Still running; no reply after {} min: Still running; no reply after {} min
   Still saving this spool…: Still saving this spool…
   Still working... taking longer than usual: Still working... taking longer than usual
   Stop: Stop

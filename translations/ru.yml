@@ -4074,6 +4074,7 @@ translations:
   Step 1 of 3: Шаг 1 из 3
   Step {} of {}: Шаг {} из {}
   Still reading the printer's lane record. Try again in a moment.: 'Запись каналов принтера ещё читается. Повторите попытку через мгновение.'
+  Still running; no reply after {} min: 'Ещё выполняется; нет ответа уже {} мин'
   Still saving this spool…: 'Эта катушка ещё сохраняется…'
   Still working... taking longer than usual: Всё ещё выполняется... дольше обычного
   Stop: Стоп
