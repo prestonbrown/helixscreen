@@ -748,6 +748,7 @@
   <translation tag="Calibration complete - save to keep the offsets" ja="キャリブレーション完了 - 保存してオフセットを保持してください"/>
   <translation tag="Calibration complete!" ja="キャリブレーション完了！"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ja="&quot;キャリブレーション完了！「次へ」を押して続行してください。&quot;"/>
+  <translation tag="Calibration ended"/>
   <translation tag="Calibration failed" ja="キャリブレーション失敗"/>
   <translation tag="Calibration failed - touch targets more precisely." ja="キャリブレーション失敗 – ターゲットをより正確にタッチしてください。"/>
   <translation tag="Calibration failed: {}" ja="校正に失敗しました：{}"/>
@@ -2297,6 +2298,7 @@
   <translation tag="IFS: loading" ja="IFS: 装填中"/>
   <translation tag="IFS: unloading" ja="IFS: 取り出し中"/>
   <translation tag="IMPORT FROM USB" ja="USBからインポート"/>
+  <translation tag="INCOMPLETE"/>
   <translation tag="INDX dock positions are not calibrated" ja="INDXのドック位置がキャリブレーションされていません"/>
   <translation tag="INDX macros not recognized" ja="INDXマクロを認識できません"/>
   <translation tag="INPUTS" ja="入力"/>
@@ -2931,6 +2933,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" ja="ハイスコア更新！&#10;{}&#10;タップでもう一度"/>
   <translation tag="NEWLY DISCOVERED" ja="新規検出"/>
   <translation tag="NOT AVAILABLE HERE" ja="この環境では利用不可"/>
+  <translation tag="NOT DONE"/>
   <translation tag="Name" ja="名前"/>
   <translation tag="Name (optional)" ja="名前（オプション）"/>
   <translation tag="Name, image and model" ja="名前、画像、モデル"/>
@@ -2974,6 +2977,7 @@
   <translation tag="Next Zone" ja="次のゾーン"/>
   <translation tag="Next Zone (~{} min)" ja="次のゾーン(約{}分)"/>
   <translation tag="Next, review the results and save them once" ja="次に結果を確認して一度に保存します"/>
+  <translation tag="Next, see what finished and why the rest did not"/>
   <translation tag="Next: {}" ja="次の印刷：{}"/>
   <translation tag="Niimbot (Bluetooth)" ja="Niimbot (Bluetooth)"/>
   <translation tag="Nixie Clock" ja="ニキシー管時計"/>
@@ -3085,6 +3089,7 @@
   <translation tag="No spools match. Add it as a new spool below." ja="一致するスプールがありません。下から新しいスプールとして追加してください。"/>
   <translation tag="No spools placed" ja="スプールは置いていません"/>
   <translation tag="No spools to show. Add it as a new spool below." ja="表示するスプールがありません。下で新規スプールとして追加してください。"/>
+  <translation tag="No step finished"/>
   <translation tag="No tape detected in printer" ja="プリンターにテープが検出されません"/>
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
@@ -3158,7 +3163,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." ja="まだ何も登録されていません。フィラメントの星をタップしてここに追加してください。"/>
   <translation tag="Nothing to clean up" ja="クリーンアップするものはありません"/>
   <translation tag="Nothing to remap" ja="リマップするものがありません"/>
+  <translation tag="Nothing to save"/>
   <translation tag="Nothing to save." ja="保存するものはありません。"/>
+  <translation tag="Nothing to save. Each step says why."/>
   <translation tag="Nothing to tune here" ja="ここで調整するものはありません"/>
   <translation tag="Nothing to unload: no filament at the nozzle" ja="取り出すものがありません: ノズルにフィラメントがありません"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ja="何も変更されていません。温度と材料は保持されるので、再試行はワンタップです。"/>
@@ -4019,6 +4026,7 @@
   <translation tag="Review detected hardware validation issues" ja="検出されたハードウェア検証の問題を確認"/>
   <translation tag="Review the results, then save once." ja="結果を確認して一度に保存してください。"/>
   <translation tag="Review the results, then save them all at once." ja="結果を確認してから、まとめて保存してください。"/>
+  <translation tag="Review what finished. The results say why the rest did not."/>
   <translation tag="Review your configuration below, then click Finish to save" ja="以下の設定を確認し、「完了」をクリックして保存してください"/>
   <translation tag="Rewinding" ja="巻き戻し中"/>
   <translation tag="Right" ja="右"/>
@@ -5030,6 +5038,7 @@
   <translation tag="The probe was used before the printer was homed." ja="プリンターのホーミング前にプローブが使用されました。"/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ja="キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ja="指定された位置はプリンターの可動範囲外です"/>
+  <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" ja="この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ja="実行中のステップはすぐに停止し、プリンターが再起動します。完了したステップの結果も破棄されます。"/>
   <translation tag="The running step stops at once and the printer restarts." ja="実行中のステップはすぐに停止し、プリンターが再起動します。"/>
@@ -5044,6 +5053,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." ja="取り出しを要求されたスロットのフィラメントが、まだツールヘッドに装填されています。"/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." ja="このツール交換で選ばれたスロットの入口にフィラメントがありません。"/>
   <translation tag="The speed of one fan you choose" ja="選んだファン1つの速度"/>
+  <translation tag="The step didn&apos;t finish"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ja="サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。"/>
   <translation tag="The temperature was changed elsewhere." ja="温度が別の場所で変更されました。"/>
   <translation tag="The tensioners pull each belt to its target" ja="テンショナーが各ベルトを目標まで引っ張ります"/>
@@ -5565,6 +5575,7 @@
   <translation tag="Volume" ja="音量"/>
   <translation tag="Volume of filament used during ramming" ja="ラミング時に使用するフィラメント量"/>
   <translation tag="Volume {}%" ja="音量 {}%"/>
+  <translation tag="WAITING"/>
   <translation tag="WEIGHT SYNC" ja="重量同期"/>
   <translation tag="WIDTH SENSORS" ja="幅センサー"/>
   <translation tag="WLED Preset" ja="WLED プリセット"/>
@@ -5592,6 +5603,7 @@
   <translation tag="Waiting for the chamber to heat" ja="チャンバーの加熱を待っています"/>
   <translation tag="Waiting for the filament system to report its state" ja="フィラメントシステムの状態報告を待機中"/>
   <translation tag="Waiting for the printer" ja="プリンターを待っています"/>
+  <translation tag="Waiting for the printer to finish"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ja="プリンターの状態を待っています。接続後にもう一度お試しください"/>
   <translation tag="Waiting for you at the Z offset screen" ja="Zオフセット画面で操作をお待ちしています"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ja="Klipperからプリンターの設定を読み込むのを待っています。"/>
@@ -5975,6 +5987,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." ja="v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。"/>
   <translation tag="v{} installed! Restarting..." ja="v{} をインストールしました！再起動中..."/>
   <translation tag="v{} is available. Tap to update." ja="v{} が利用可能です。タップして更新してください。"/>
+  <translation tag="waiting for the printer"/>
   <translation tag="was {:.0f}%" ja="以前は {:.0f}%"/>
   <translation tag="what you turned" ja="回した量"/>
   <translation tag="within one bin" ja="1ビン以内"/>
@@ -6034,6 +6047,7 @@
   <translation tag="{} days" ja="{}日"/>
   <translation tag="{} detected" ja="{}を検出"/>
   <translation tag="{} did not arrive; nothing was sent" ja="{} が到着しませんでした。何も送信していません"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
   <translation tag="{} did not switch to {}. The print continued without switching." ja="{} は {} に切り替わりませんでした。切り替えずに印刷を続行しました。"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。"/>
   <translation tag="{} did not switch to {}. The print is still paused." ja="{}は{}に切り替わりませんでした。印刷は一時停止のままです。"/>
@@ -6105,6 +6119,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ja="{} 個の新しいプラグインが利用可能です。設定 &gt; プラグインで有効化してください。"/>
   <translation tag="{} nozzle sensor fault" ja="{} のノズルセンサー異常"/>
   <translation tag="{} of {} points" ja="{} / {} 点"/>
+  <translation tag="{} of {} steps didn&apos;t finish"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." ja="{}/{} ステップが完了しました。確認してから、まとめて保存してください。"/>
   <translation tag="{} packages to update" ja="更新するパッケージ {} 件"/>
   <translation tag="{} preset" ja="{} 個のプリセット"/>

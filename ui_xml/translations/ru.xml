@@ -790,6 +790,7 @@
   <translation tag="Calibration complete - save to keep the offsets" ru="Калибровка завершена - сохраните, чтобы оставить смещения"/>
   <translation tag="Calibration complete!" ru="Калибровка завершена!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." ru="Калибровка завершена! Нажмите «Далее» для продолжения."/>
+  <translation tag="Calibration ended"/>
   <translation tag="Calibration failed" ru="Калибровка не удалась"/>
   <translation tag="Calibration failed - touch targets more precisely." ru="Калибровка не удалась – нажимайте на цели точнее."/>
   <translation tag="Calibration failed: {}" ru="Ошибка калибровки: {}"/>
@@ -2345,6 +2346,7 @@
   <translation tag="IFS: loading" ru="IFS: загрузка"/>
   <translation tag="IFS: unloading" ru="IFS: выгрузка"/>
   <translation tag="IMPORT FROM USB" ru="ИМПОРТ С USB"/>
+  <translation tag="INCOMPLETE"/>
   <translation tag="INDX dock positions are not calibrated" ru="Позиции доков INDX не откалиброваны"/>
   <translation tag="INDX macros not recognized" ru="Макросы INDX не распознаны"/>
   <translation tag="INPUTS" ru="ВХОДЫ"/>
@@ -2979,6 +2981,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" ru="НОВЫЙ РЕКОРД!&#10;{}&#10;Нажмите, чтобы сыграть снова"/>
   <translation tag="NEWLY DISCOVERED" ru="НЕДАВНО ОБНАРУЖЕНО"/>
   <translation tag="NOT AVAILABLE HERE" ru="ЗДЕСЬ НЕДОСТУПНО"/>
+  <translation tag="NOT DONE"/>
   <translation tag="Name" ru="Название"/>
   <translation tag="Name (optional)" ru="Название (необязательно)"/>
   <translation tag="Name, image and model" ru="Имя, изображение и модель"/>
@@ -3022,6 +3025,7 @@
   <translation tag="Next Zone" ru="Следующая зона"/>
   <translation tag="Next Zone (~{} min)" ru="След. зона (~{} мин)"/>
   <translation tag="Next, review the results and save them once" ru="Далее проверьте результаты и сохраните их один раз"/>
+  <translation tag="Next, see what finished and why the rest did not"/>
   <translation tag="Next: {}" ru="Далее: {}"/>
   <translation tag="Niimbot (Bluetooth)" ru="Niimbot (Bluetooth)"/>
   <translation tag="Nixie Clock" ru="Часы на газоразрядных лампах"/>
@@ -3133,6 +3137,7 @@
   <translation tag="No spools match. Add it as a new spool below." ru="Подходящих катушек нет. Добавьте её как новую катушку ниже."/>
   <translation tag="No spools placed" ru="Катушки не положены"/>
   <translation tag="No spools to show. Add it as a new spool below." ru="Нет катушек. Добавьте её ниже как новую катушку."/>
+  <translation tag="No step finished"/>
   <translation tag="No tape detected in printer" ru="В принтере не обнаружена лента"/>
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
@@ -3206,7 +3211,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." ru="Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда."/>
   <translation tag="Nothing to clean up" ru="Нечего очищать"/>
   <translation tag="Nothing to remap" ru="Нечего переназначать"/>
+  <translation tag="Nothing to save"/>
   <translation tag="Nothing to save." ru="Нечего сохранять."/>
+  <translation tag="Nothing to save. Each step says why."/>
   <translation tag="Nothing to tune here" ru="Здесь нечего настраивать"/>
   <translation tag="Nothing to unload: no filament at the nozzle" ru="Выгружать нечего: в сопле нет филамента"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." ru="Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием."/>
@@ -4079,6 +4086,7 @@
   <translation tag="Review detected hardware validation issues" ru="Просмотр обнаруженных проблем валидации оборудования"/>
   <translation tag="Review the results, then save once." ru="Проверьте результаты и сохраните один раз."/>
   <translation tag="Review the results, then save them all at once." ru="Проверьте результаты и сохраните их все сразу."/>
+  <translation tag="Review what finished. The results say why the rest did not."/>
   <translation tag="Review your configuration below, then click Finish to save" ru="Проверьте конфигурацию ниже, затем нажмите «Готово» для сохранения"/>
   <translation tag="Rewinding" ru="Перемотка"/>
   <translation tag="Right" ru="Справа"/>
@@ -5096,6 +5104,7 @@
   <translation tag="The probe was used before the printer was homed." ru="Зонд использован до парковки принтера."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
+  <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ru="Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны."/>
   <translation tag="The running step stops at once and the printer restarts." ru="Текущий шаг сразу останавливается, и принтер перезапускается."/>
@@ -5110,6 +5119,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." ru="В слоте, который нужно извлечь, филамент всё ещё загружен в печатающую головку."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." ru="У слота, выбранного для этой смены инструмента, нет филамента на входе."/>
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
+  <translation tag="The step didn&apos;t finish"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
   <translation tag="The tensioners pull each belt to its target" ru="Натяжители тянут каждый ремень до целевого натяжения"/>
@@ -5631,6 +5641,7 @@
   <translation tag="Volume" ru="Громкость"/>
   <translation tag="Volume of filament used during ramming" ru="Объём филамента, расходуемый при рэмминге"/>
   <translation tag="Volume {}%" ru="Громкость {}%"/>
+  <translation tag="WAITING"/>
   <translation tag="WEIGHT SYNC" ru="СИНХРОНИЗАЦИЯ ВЕСА"/>
   <translation tag="WIDTH SENSORS" ru="ДАТЧИКИ ШИРИНЫ"/>
   <translation tag="WLED Preset" ru="Пресет WLED"/>
@@ -5658,6 +5669,7 @@
   <translation tag="Waiting for the chamber to heat" ru="Ожидание нагрева камеры"/>
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
+  <translation tag="Waiting for the printer to finish"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ru="Ожидание состояния принтера; повторите попытку после подключения"/>
   <translation tag="Waiting for you at the Z offset screen" ru="Ожидание вас на экране смещения Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>
@@ -6044,6 +6056,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." ru="Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском."/>
   <translation tag="v{} installed! Restarting..." ru="v{} установлена! Перезапуск..."/>
   <translation tag="v{} is available. Tap to update." ru="v{} доступна. Нажмите для обновления."/>
+  <translation tag="waiting for the printer"/>
   <translation tag="was {:.0f}%" ru="было {:.0f}%"/>
   <translation tag="what you turned" ru="сколько повернули"/>
   <translation tag="within one bin" ru="в пределах одного бина"/>
@@ -6109,6 +6122,7 @@
   <translation tag="{} days" ru="{} дн."/>
   <translation tag="{} detected" ru="{}: обнаружено"/>
   <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
   <translation tag="{} did not switch to {}. The print continued without switching." ru="{} не переключилась на {}. Печать продолжилась без переключения."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ru="{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." ru="{} не переключилась на {}. Печать всё ещё на паузе."/>
@@ -6183,6 +6197,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ru="Доступно новых плагинов: {}. Включите их в разделе Настройки &gt; Плагины."/>
   <translation tag="{} nozzle sensor fault" ru="{}: неисправность датчика сопла"/>
   <translation tag="{} of {} points" ru="{} из {} точек"/>
+  <translation tag="{} of {} steps didn&apos;t finish"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." ru="Завершено шагов: {} из {}. Проверьте их и сохраните все сразу."/>
   <translation tag="{} packages to update" ru="Пакетов для обновления: {}"/>
   <translation tag="{} preset" ru="{} пресет"/>

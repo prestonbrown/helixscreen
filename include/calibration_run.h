@@ -78,6 +78,21 @@ class RunFinisher {
     virtual void read_pending(std::function<void(bool any_pending)> done) = 0;
 };
 
+/// Whether Klipper is still running a command, and a wait for it to finish.
+/// A step can fail while the command it sent keeps running (a calibration that
+/// outlived its wait), and the next step's commands would only queue behind it.
+/// Main thread.
+class PrinterBusyWatch {
+  public:
+    virtual ~PrinterBusyWatch() = default;
+    [[nodiscard]] virtual bool busy() const = 0;
+    /// Call @p idle once, when the printer next reports idle. Replaces an
+    /// earlier wait.
+    virtual void when_idle(std::function<void()> idle) = 0;
+    /// Drop the wait without calling it.
+    virtual void cancel() = 0;
+};
+
 enum class StepStatus : uint8_t { Pending, Running, Finished, Failed, Skipped, Aborted, NotRun };
 
 enum class RunPhase : uint8_t {
@@ -131,9 +146,19 @@ class CalibrationRun {
     [[nodiscard]] const std::vector<Entry>& entries() const {
         return entries_;
     }
-    /// The running entry, or -1.
+    /// The running entry, or -1, also while the run waits for the printer.
     [[nodiscard]] int current() const {
-        return phase_ == RunPhase::Running ? current_ : -1;
+        return phase_ == RunPhase::Running && !waiting_ ? current_ : -1;
+    }
+    /// Watch Klipper's busy state: after a step that failed, the run goes on
+    /// only once the printer is idle. Without one it goes on at once.
+    void set_busy_watch(std::unique_ptr<PrinterBusyWatch> watch) {
+        busy_watch_ = std::move(watch);
+    }
+    /// The entry whose command the printer is still running while the run
+    /// waits to go on, or -1.
+    [[nodiscard]] int waiting_on() const {
+        return phase_ == RunPhase::Running && waiting_ ? current_ : -1;
     }
     [[nodiscard]] int finished_count() const;
     /// Stopping restarted the firmware, so the finished results are no longer
@@ -168,6 +193,8 @@ class CalibrationRun {
     void on_step_done(size_t index, StepOutcome outcome);
     void on_step_progress(size_t index, const StepProgress& progress);
     void finish_steps();
+    /// Go on after entry @p index ended, once the printer is idle if it failed.
+    void go_on_after(size_t index);
     void changed();
     /// Discard all: restore entries from @p from on, then restart if needed.
     void restore_from(size_t from, RunFinisher& finisher);
@@ -185,10 +212,51 @@ class CalibrationRun {
     bool results_lost_ = false;
     bool advancing_ = false;
     bool advance_again_ = false;
+    /// The current entry failed and the run waits for the printer to be idle.
+    bool waiting_ = false;
+    std::unique_ptr<PrinterBusyWatch> busy_watch_;
     std::string error_;
     /// The finisher's callbacks check it, so a run closed mid-save ignores them.
     std::shared_ptr<int> alive_ = std::make_shared<int>(0);
 };
+
+/// How the steps of a run came out: every screen that reports a run's end words
+/// it from this. A step that failed, was skipped, stopped or never ran did not
+/// finish.
+struct RunTally {
+    int finished = 0;
+    int total = 0;
+    enum class Outcome : uint8_t { AllFinished, SomeUnfinished, NoneFinished };
+    [[nodiscard]] int unfinished() const {
+        return total - finished;
+    }
+    [[nodiscard]] Outcome outcome() const {
+        if (finished >= total) {
+            return Outcome::AllFinished;
+        }
+        return finished == 0 ? Outcome::NoneFinished : Outcome::SomeUnfinished;
+    }
+};
+
+[[nodiscard]] RunTally run_tally(const std::vector<CalibrationRun::Entry>& entries);
+
+/// What of a run the owner would want to see, taken after each change.
+struct RunSighting {
+    RunPhase phase = RunPhase::Ready;
+    /// The running entry, -1 when none.
+    int current = -1;
+    /// The running entry needs the owner at the printer.
+    bool needs_hands = false;
+    /// Entries that ended without finishing.
+    int unfinished = 0;
+};
+
+[[nodiscard]] RunSighting sight(const CalibrationRun& run);
+
+/// Whether the change from @p before to @p now is one the owner must see, so a
+/// sleeping screen wakes for it: the steps ended, a step did not finish, or a
+/// step that needs the owner started.
+[[nodiscard]] bool calls_for_owner(const RunSighting& before, const RunSighting& now);
 
 /// Whole minutes left of @p entry's estimate: all of it while it waits; while it
 /// runs, the share its progress has not reached (all of it before it reports a

@@ -8,13 +8,16 @@
 
 #include "async_lifetime_guard.h"
 #include "calibration_abort.h"
+#include "calibration_catalog_inputs.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
+#include "core/observer_factory.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "moonraker_error.h"
 #include "pid_calibrate_tolerance.h"
 #include "pid_progress_tracker.h"
+#include "printer_calibration_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
@@ -67,6 +70,18 @@ class HeatersStep : public CalibrationStep {
         if (ctx.api.hardware().has_heater_bed()) {
             heaters_.push_back({kBedHeater, kRunBedTempC});
         }
+        // Each heater's share of the bar is its share of the step's time: a
+        // bed's cycles can take an hour where the nozzle's take minutes.
+        shares_.clear();
+        float total = 0.0f;
+        for (const auto& h : heaters_) {
+            shares_.push_back(heater_calibration_seconds(
+                price_heater(ctx.api.printer_state(), h.name, h.temp_c)));
+            total += shares_.back();
+        }
+        for (auto& share : shares_) {
+            share = total > 0.0f ? share / total : 1.0f / static_cast<float>(heaters_.size());
+        }
         index_ = 0;
         run_current();
     }
@@ -109,8 +124,12 @@ class HeatersStep : public CalibrationStep {
         if (!ctx_) {
             return;
         }
-        const int share = 100 / static_cast<int>(heaters_.size());
-        const int pct = static_cast<int>(index_) * share + done_fraction_pct * share / 100;
+        float before = 0.0f;
+        for (size_t i = 0; i < index_; ++i) {
+            before += shares_[i];
+        }
+        const int pct =
+            static_cast<int>(100.0f * (before + shares_[index_] * done_fraction_pct / 100.0f));
         std::string phase = fmt::format(fmt::runtime(lv_tr("{}: {} at {}°C")), label(), method,
                                         heaters_[index_].temp_c);
         if (!detail.empty()) {
@@ -265,6 +284,8 @@ class HeatersStep : public CalibrationStep {
     StepInfo info_;
     StepContext* ctx_ = nullptr;
     std::vector<Heater> heaters_;
+    /// Each heater's fraction of the step's time, summing to 1.
+    std::vector<float> shares_;
     size_t index_ = 0;
     std::vector<std::string> summaries_;
     std::vector<HeaterControl> controls_;
@@ -635,6 +656,48 @@ class ZOffsetStep : public CalibrationStep {
     helix::AsyncLifetimeGuard lifetime_;
 };
 
+/// Klipper's idle_timeout reads "Printing" while any command runs, a
+/// calibration that outlived the app's wait included.
+class IdleTimeoutBusyWatch : public PrinterBusyWatch {
+  public:
+    explicit IdleTimeoutBusyWatch(PrinterState& state) : state_(state) {}
+
+    bool busy() const override {
+        return lv_subject_get_int(state_.calibration_state().get_idle_timeout_printing_subject()) ==
+               1;
+    }
+
+    void when_idle(std::function<void()> idle) override {
+        idle_ = std::move(idle);
+        std::shared_ptr<bool> lifetime;
+        lv_subject_t* subject =
+            state_.calibration_state().get_idle_timeout_printing_subject(lifetime);
+        observer_ = helix::ui::observe<int>(
+            subject, this,
+            [](IdleTimeoutBusyWatch* self, int /*printing*/) {
+                // Deferred: read the printer as it is now, not as it was notified.
+                if (!self->idle_ || self->busy()) {
+                    return;
+                }
+                auto idle = std::move(self->idle_);
+                self->idle_ = nullptr;
+                self->observer_.reset();
+                idle();
+            },
+            lifetime);
+    }
+
+    void cancel() override {
+        idle_ = nullptr;
+        observer_.reset();
+    }
+
+  private:
+    PrinterState& state_;
+    std::function<void()> idle_;
+    ObserverGuard observer_;
+};
+
 } // namespace
 
 std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info, const RunOptions& options) {
@@ -655,6 +718,10 @@ std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info, const RunOp
 // ============================================================================
 // Finisher
 // ============================================================================
+
+std::unique_ptr<PrinterBusyWatch> make_printer_busy_watch(PrinterState& state) {
+    return std::make_unique<IdleTimeoutBusyWatch>(state);
+}
 
 void MoonrakerRunFinisher::save_all(helix::SharedCallback<void()> on_saved,
                                     helix::SharedCallback<void(const std::string&)> on_failed) {

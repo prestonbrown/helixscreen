@@ -831,6 +831,7 @@ translations:
   Calibration complete - save to keep the offsets: Калибровка завершена - сохраните, чтобы оставить смещения
   Calibration complete!: Калибровка завершена!
   Calibration complete! Press 'Next' to continue.: Калибровка завершена! Нажмите «Далее» для продолжения.
+  Calibration ended: ''
   Calibration failed: Калибровка не удалась
   Calibration failed - touch targets more precisely.: Калибровка не удалась – нажимайте на цели точнее.
   'Calibration failed: {}': 'Ошибка калибровки: {}'
@@ -2462,6 +2463,7 @@ translations:
   'IFS: loading': "IFS: загрузка"
   'IFS: unloading': "IFS: выгрузка"
   IMPORT FROM USB: ИМПОРТ С USB
+  INCOMPLETE: ''
   INDX dock positions are not calibrated: "Позиции доков INDX не откалиброваны"
   INDX macros not recognized: "Макросы INDX не распознаны"
   INPUTS: ВХОДЫ
@@ -3113,6 +3115,7 @@ translations:
   ? "NEW HIGH SCORE!\n{}\nTap to play again"
   : "НОВЫЙ РЕКОРД!\n{}\nНажмите, чтобы сыграть снова"
   NEWLY DISCOVERED: НЕДАВНО ОБНАРУЖЕНО
+  NOT DONE: ''
   Name: Название
   Name (optional): Название (необязательно)
   Name, image and model: Имя, изображение и модель
@@ -3154,6 +3157,7 @@ translations:
   Next Zone (~{} min): "След. зона (~{} мин)"
   Next Layer: 'Следующий слой'
   Next, review the results and save them once: Далее проверьте результаты и сохраните их один раз
+  Next, see what finished and why the rest did not: ''
   'Next: {}': 'Далее: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'Часы на газоразрядных лампах'
@@ -3264,6 +3268,7 @@ translations:
   No spools placed: Катушки не положены
 
   No spools to show. Add it as a new spool below.: 'Нет катушек. Добавьте её ниже как новую катушку.'
+  No step finished: ''
   No tape detected in printer: В принтере не обнаружена лента
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
@@ -3338,7 +3343,9 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Пока ничего не отмечено. Нажмите звезду у филамента, чтобы добавить его сюда.'
   Nothing to clean up: 'Нечего очищать'
   Nothing to remap: Нечего переназначать
+  Nothing to save: ''
   Nothing to save.: 'Нечего сохранять.'
+  Nothing to save. Each step says why.: ''
   Nothing to tune here: "Здесь нечего настраивать"
   'Nothing to unload: no filament at the nozzle': 'Выгружать нечего: в сопле нет филамента'
   Whether the Z arrows follow the bed or the Z value: "Следуют ли стрелки Z за столом или за значением Z"
@@ -4231,6 +4238,7 @@ translations:
   Review detected hardware validation issues: Просмотр обнаруженных проблем валидации оборудования
   Review the results, then save once.: Проверьте результаты и сохраните один раз.
   Review the results, then save them all at once.: 'Проверьте результаты и сохраните их все сразу.'
+  Review what finished. The results say why the rest did not.: ''
   Review your configuration below, then click Finish to save: Проверьте конфигурацию ниже, затем нажмите «Готово» для сохранения
   Rewinding: Перемотка
   Right: 'Справа'
@@ -5295,6 +5303,7 @@ translations:
   The printer's computer fell behind: Компьютер принтера не успевает
   The printer's firmware chooses where to switch on runout: Прошивка принтера сама выбирает, на что переключиться при обрыве
   The requested position is outside the printer's bounds: 'Запрошенная позиция находится за пределами рабочей области принтера'
+  The results say why.: ''
   The right RFID reader in this CFS unit may need service: Правому RFID-считывателю этого блока CFS может требоваться обслуживание
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны.'
   The running step stops at once and the printer restarts.: Текущий шаг сразу останавливается, и принтер перезапускается.
@@ -5309,6 +5318,7 @@ translations:
   The slot asked to eject still has its filament loaded in the toolhead.: В слоте, который нужно извлечь, филамент всё ещё загружен в печатающую головку.
   The slot chosen for this tool change has no filament at its inlet.: У слота, выбранного для этой смены инструмента, нет филамента на входе.
   The speed of one fan you choose: Скорость выбранного вентилятора
+  The step didn't finish: ''
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The tensioners pull each belt to its target: 'Натяжители тянут каждый ремень до целевого натяжения'
@@ -5866,6 +5876,7 @@ translations:
   Volume: Громкость
   Volume of filament used during ramming: 'Объём филамента, расходуемый при рэмминге'
   Volume {}%: Громкость {}%
+  WAITING: ''
   WEIGHT SYNC: СИНХРОНИЗАЦИЯ ВЕСА
   WIDTH SENSORS: ДАТЧИКИ ШИРИНЫ
   WLED Preset: Пресет WLED
@@ -5893,6 +5904,7 @@ translations:
   Waiting for the chamber to heat: Ожидание нагрева камеры
   Waiting for the filament system to report its state: Ожидание состояния системы филамента
   Waiting for the printer: Ожидание принтера
+  Waiting for the printer to finish: ''
   Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting for you at the Z offset screen: 'Ожидание вас на экране смещения Z'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
@@ -6285,6 +6297,7 @@ translations:
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском.
   v{} installed! Restarting...: v{} установлена! Перезапуск...
   v{} is available. Tap to update.: v{} доступна. Нажмите для обновления.
+  waiting for the printer: ''
   was {:.0f}%: 'было {:.0f}%'
   what you turned: "сколько повернули"
   within one bin: "в пределах одного бина"
@@ -6353,6 +6366,7 @@ translations:
   '{} days': "{} дн."
   '{} detected': '{}: обнаружено'
   '{} did not arrive; nothing was sent': '{} не прибыл; ничего не отправлено'
+  '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
   '{} did not switch to {}. The print continued without switching.': '{} не переключилась на {}. Печать продолжилась без переключения.'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}.'
   '{} did not switch to {}. The print is still paused.': '{} не переключилась на {}. Печать всё ещё на паузе.'
@@ -6428,6 +6442,7 @@ translations:
   '{} new plugins available. Enable them in Settings > Plugins.': 'Доступно новых плагинов: {}. Включите их в разделе Настройки > Плагины.'
   '{} nozzle sensor fault': '{}: неисправность датчика сопла'
   '{} of {} points': '{} из {} точек'
+  "{} of {} steps didn't finish": ''
   '{} of {} steps finished. Review them, then save them all at once.': 'Завершено шагов: {} из {}. Проверьте их и сохраните все сразу.'
   '{} packages to update': 'Пакетов для обновления: {}'
   '{} preset': '{} пресет'

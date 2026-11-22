@@ -748,6 +748,7 @@
   <translation tag="Calibration complete - save to keep the offsets" de="Kalibrierung abgeschlossen - speichern, um die Offsets zu behalten"/>
   <translation tag="Calibration complete!" de="Kalibrierung abgeschlossen!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." de="Kalibrierung abgeschlossen! Drücken Sie &apos;Weiter&apos; um fortzufahren."/>
+  <translation tag="Calibration ended"/>
   <translation tag="Calibration failed" de="Kalibrierung fehlgeschlagen"/>
   <translation tag="Calibration failed - touch targets more precisely." de="Kalibrierung fehlgeschlagen – Ziele präziser berühren."/>
   <translation tag="Calibration failed: {}" de="Kalibrierung fehlgeschlagen: {}"/>
@@ -2297,6 +2298,7 @@
   <translation tag="IFS: loading" de="IFS: Laden"/>
   <translation tag="IFS: unloading" de="IFS: Entladen"/>
   <translation tag="IMPORT FROM USB" de="VON USB IMPORTIEREN"/>
+  <translation tag="INCOMPLETE"/>
   <translation tag="INDX dock positions are not calibrated" de="INDX-Dockpositionen sind nicht kalibriert"/>
   <translation tag="INDX macros not recognized" de="INDX-Makros nicht erkannt"/>
   <translation tag="INPUTS" de="EINGÄNGE"/>
@@ -2931,6 +2933,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" de="NEUER BESTWERT!&#10;{}&#10;Zum erneuten Spielen tippen"/>
   <translation tag="NEWLY DISCOVERED" de="NEU ENTDECKT"/>
   <translation tag="NOT AVAILABLE HERE" de="HIER NICHT VERFÜGBAR"/>
+  <translation tag="NOT DONE"/>
   <translation tag="Name" de="Name"/>
   <translation tag="Name (optional)" de="Name (optional)"/>
   <translation tag="Name, image and model" de="Name, Bild und Modell"/>
@@ -2974,6 +2977,7 @@
   <translation tag="Next Zone" de="Nächste Zone"/>
   <translation tag="Next Zone (~{} min)" de="Nächste (~{} Min)"/>
   <translation tag="Next, review the results and save them once" de="Als Nächstes die Ergebnisse prüfen und einmal speichern"/>
+  <translation tag="Next, see what finished and why the rest did not"/>
   <translation tag="Next: {}" de="Als Nächstes: {}"/>
   <translation tag="Niimbot (Bluetooth)" de="Niimbot (Bluetooth)"/>
   <translation tag="Nixie Clock" de="Nixie-Röhrenuhr"/>
@@ -3085,6 +3089,7 @@
   <translation tag="No spools match. Add it as a new spool below." de="Keine passenden Spulen. Unten als neue Spule hinzufügen."/>
   <translation tag="No spools placed" de="Keine Spulen eingelegt"/>
   <translation tag="No spools to show. Add it as a new spool below." de="Keine Spulen vorhanden. Unten als neue Spule hinzufügen."/>
+  <translation tag="No step finished"/>
   <translation tag="No tape detected in printer" de="Kein Band im Drucker erkannt"/>
   <translation tag="No target printer configured" de="Kein Zieldrucker konfiguriert"/>
   <translation tag="No temperature sensors detected" de="Keine Temperatursensoren erkannt"/>
@@ -3158,7 +3163,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." de="Noch nichts markiert. Tippe auf den Stern eines Filaments, um es hier hinzuzufügen."/>
   <translation tag="Nothing to clean up" de="Nichts zu bereinigen"/>
   <translation tag="Nothing to remap" de="Nichts neu zuzuordnen"/>
+  <translation tag="Nothing to save"/>
   <translation tag="Nothing to save." de="Nichts zu speichern."/>
+  <translation tag="Nothing to save. Each step says why."/>
   <translation tag="Nothing to tune here" de="Hier gibt es nichts einzustellen"/>
   <translation tag="Nothing to unload: no filament at the nozzle" de="Nichts zu entladen: kein Filament an der Düse"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." de="Es wurde nichts geändert. Temperatur und Material bleiben erhalten, ein erneuter Versuch ist ein Tipp."/>
@@ -4019,6 +4026,7 @@
   <translation tag="Review detected hardware validation issues" de="Erkannte Hardware-Validierungsprobleme überprüfen"/>
   <translation tag="Review the results, then save once." de="Prüfe die Ergebnisse und speichere dann einmal."/>
   <translation tag="Review the results, then save them all at once." de="Prüfe die Ergebnisse und speichere dann alle auf einmal."/>
+  <translation tag="Review what finished. The results say why the rest did not."/>
   <translation tag="Review your configuration below, then click Finish to save" de="Überprüfen Sie Ihre Konfiguration unten und klicken Sie auf Fertig, um zu speichern"/>
   <translation tag="Rewinding" de="Zurückspulen"/>
   <translation tag="Right" de="Rechts"/>
@@ -5030,6 +5038,7 @@
   <translation tag="The probe was used before the printer was homed." de="Der Taster wurde verwendet, bevor der Drucker referenziert war."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." de="Die Warteschlange druckt die Standardplatte dieser .3mf-Datei. Drucke diese Platte stattdessen von hier."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" de="Die angeforderte Position liegt außerhalb des Druckerbereichs"/>
+  <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" de="Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." de="Der laufende Schritt stoppt sofort und der Drucker startet neu, wodurch auch die Ergebnisse der abgeschlossenen Schritte verworfen werden."/>
   <translation tag="The running step stops at once and the printer restarts." de="Der laufende Schritt stoppt sofort und der Drucker startet neu."/>
@@ -5044,6 +5053,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." de="Der Slot, der ausgeworfen werden soll, hat sein Filament noch im Werkzeugkopf geladen."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." de="Der für diesen Werkzeugwechsel gewählte Slot hat kein Filament am Einlass."/>
   <translation tag="The speed of one fan you choose" de="Drehzahl eines gewählten Lüfters"/>
+  <translation tag="The step didn&apos;t finish"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." de="Die Subnetzmaske ist ungültig. Verwende eine Form wie 255.255.255.0 oder 24."/>
   <translation tag="The temperature was changed elsewhere." de="Die Temperatur wurde anderswo geändert."/>
   <translation tag="The tensioners pull each belt to its target" de="Die Spanner ziehen jeden Riemen auf seinen Zielwert"/>
@@ -5565,6 +5575,7 @@
   <translation tag="Volume" de="Lautstärke"/>
   <translation tag="Volume of filament used during ramming" de="Beim Ramming verwendetes Filamentvolumen"/>
   <translation tag="Volume {}%" de="Lautstärke {}%"/>
+  <translation tag="WAITING"/>
   <translation tag="WEIGHT SYNC" de="GEWICHTSSYNCHRONISIERUNG"/>
   <translation tag="WIDTH SENSORS" de="BREITENSENSOREN"/>
   <translation tag="WLED Preset" de="WLED-Voreinstellung"/>
@@ -5592,6 +5603,7 @@
   <translation tag="Waiting for the chamber to heat" de="Warten auf das Aufheizen der Kammer"/>
   <translation tag="Waiting for the filament system to report its state" de="Warte auf Statusmeldung des Filamentsystems"/>
   <translation tag="Waiting for the printer" de="Warten auf den Drucker"/>
+  <translation tag="Waiting for the printer to finish"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" de="Warten auf den Druckerstatus; erneut versuchen, sobald der Drucker verbunden ist"/>
   <translation tag="Waiting for you at the Z offset screen" de="Wartet auf dich auf dem Z-Offset-Bildschirm"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." de="Warte darauf, die Konfiguration des Druckers aus Klipper zu lesen."/>
@@ -5975,6 +5987,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." de="v%s hat keinen Build für %s und kann hier nicht installiert werden. Wähle einen Update-Kanal mit einer neueren Version."/>
   <translation tag="v{} installed! Restarting..." de="v{} installiert! Neustart..."/>
   <translation tag="v{} is available. Tap to update." de="v{} ist verfügbar. Tippen zum Aktualisieren."/>
+  <translation tag="waiting for the printer"/>
   <translation tag="was {:.0f}%" de="war {:.0f}%"/>
   <translation tag="what you turned" de="was du gedreht hast"/>
   <translation tag="within one bin" de="innerhalb eines Bins"/>
@@ -6034,6 +6047,7 @@
   <translation tag="{} days" de="{} Tage"/>
   <translation tag="{} detected" de="{} erkannt"/>
   <translation tag="{} did not arrive; nothing was sent" de="{} ist nicht angekommen; nichts wurde gesendet"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
   <translation tag="{} did not switch to {}. The print continued without switching." de="{} hat nicht auf {} gewechselt. Der Druck lief ohne Wechsel weiter."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." de="{} wurde nicht auf {} umgestellt. Der Druck ist weiter pausiert, und {} trägt jetzt die Filamentangaben von {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." de="{} wurde nicht auf {} umgestellt. Der Druck ist weiter pausiert."/>
@@ -6105,6 +6119,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." de="{} neue Plugins verfügbar. Aktivieren Sie sie unter Einstellungen &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" de="{}: Düsensensorfehler"/>
   <translation tag="{} of {} points" de="{} von {} Punkten"/>
+  <translation tag="{} of {} steps didn&apos;t finish"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." de="{} von {} Schritten abgeschlossen. Prüfe sie und speichere dann alle auf einmal."/>
   <translation tag="{} packages to update" de="{} Pakete zu aktualisieren"/>
   <translation tag="{} preset" de="{} Voreinstellung"/>

@@ -748,6 +748,7 @@
   <translation tag="Calibration complete - save to keep the offsets" zh="校准完成 - 保存以保留偏移"/>
   <translation tag="Calibration complete!" zh="校准完成！"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." zh="校准完成！按“下一步”继续。"/>
+  <translation tag="Calibration ended"/>
   <translation tag="Calibration failed" zh="校准失败"/>
   <translation tag="Calibration failed - touch targets more precisely." zh="校准失败 – 请更精确地触摸目标。"/>
   <translation tag="Calibration failed: {}" zh="校准失败：{}"/>
@@ -2297,6 +2298,7 @@
   <translation tag="IFS: loading" zh="IFS：正在加载"/>
   <translation tag="IFS: unloading" zh="IFS：正在卸载"/>
   <translation tag="IMPORT FROM USB" zh="从 USB 导入"/>
+  <translation tag="INCOMPLETE"/>
   <translation tag="INDX dock positions are not calibrated" zh="INDX 停靠位置未校准"/>
   <translation tag="INDX macros not recognized" zh="无法识别 INDX 宏"/>
   <translation tag="INPUTS" zh="输入"/>
@@ -2931,6 +2933,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" zh="新纪录！&#10;{}&#10;点按再玩一次"/>
   <translation tag="NEWLY DISCOVERED" zh="新发现"/>
   <translation tag="NOT AVAILABLE HERE" zh="此处不可用"/>
+  <translation tag="NOT DONE"/>
   <translation tag="Name" zh="名称"/>
   <translation tag="Name (optional)" zh="名称（可选）"/>
   <translation tag="Name, image and model" zh="名称、图片和型号"/>
@@ -2974,6 +2977,7 @@
   <translation tag="Next Zone" zh="下一区间"/>
   <translation tag="Next Zone (~{} min)" zh="下一区间(约 {} 分钟)"/>
   <translation tag="Next, review the results and save them once" zh="接下来检查结果并一次保存"/>
+  <translation tag="Next, see what finished and why the rest did not"/>
   <translation tag="Next: {}" zh="下一个：{}"/>
   <translation tag="Niimbot (Bluetooth)" zh="Niimbot（蓝牙）"/>
   <translation tag="Nixie Clock" zh="辉光管时钟"/>
@@ -3085,6 +3089,7 @@
   <translation tag="No spools match. Add it as a new spool below." zh="没有匹配的料盘。请在下方添加为新料盘。"/>
   <translation tag="No spools placed" zh="未放置料盘"/>
   <translation tag="No spools to show. Add it as a new spool below." zh="没有可显示的料盘。请在下方添加为新料盘。"/>
+  <translation tag="No step finished"/>
   <translation tag="No tape detected in printer" zh="打印机中未检测到标签带"/>
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
@@ -3158,7 +3163,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." zh="还没有收藏。点击耗材行的星标即可收藏到这里。"/>
   <translation tag="Nothing to clean up" zh="没有可清理的内容"/>
   <translation tag="Nothing to remap" zh="没有可重新映射的内容"/>
+  <translation tag="Nothing to save"/>
   <translation tag="Nothing to save." zh="没有需要保存的内容。"/>
+  <translation tag="Nothing to save. Each step says why."/>
   <translation tag="Nothing to tune here" zh="这里没有需要调整的"/>
   <translation tag="Nothing to unload: no filament at the nozzle" zh="没有可卸载的耗材: 喷嘴处没有耗材"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." zh="没有更改任何内容。温度和材料保持不变，重试只需轻点一下。"/>
@@ -4019,6 +4026,7 @@
   <translation tag="Review detected hardware validation issues" zh="查看检测到的硬件验证问题"/>
   <translation tag="Review the results, then save once." zh="检查结果，然后一次保存。"/>
   <translation tag="Review the results, then save them all at once." zh="查看结果，然后一次性全部保存。"/>
+  <translation tag="Review what finished. The results say why the rest did not."/>
   <translation tag="Review your configuration below, then click Finish to save" zh="请检查以下配置，然后点击完成以保存"/>
   <translation tag="Rewinding" zh="回卷中"/>
   <translation tag="Right" zh="右"/>
@@ -5030,6 +5038,7 @@
   <translation tag="The probe was used before the printer was homed." zh="在打印机归位前使用了探针。"/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." zh="队列会打印此 .3mf 的默认板。请直接从这里打印此板。"/>
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
+  <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." zh="正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。"/>
   <translation tag="The running step stops at once and the printer restarts." zh="正在运行的步骤会立即停止，打印机将重启。"/>
@@ -5044,6 +5053,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." zh="要弹出的槽位的耗材仍加载在工具头中。"/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." zh="此次换料选择的槽位入口处没有耗材。"/>
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
+  <translation tag="The step didn&apos;t finish"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." zh="子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。"/>
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
   <translation tag="The tensioners pull each belt to its target" zh="张紧器将每条皮带拉到目标张力"/>
@@ -5565,6 +5575,7 @@
   <translation tag="Volume" zh="音量"/>
   <translation tag="Volume of filament used during ramming" zh="填充过程中使用的耗材体积"/>
   <translation tag="Volume {}%" zh="音量 {}%"/>
+  <translation tag="WAITING"/>
   <translation tag="WEIGHT SYNC" zh="重量同步"/>
   <translation tag="WIDTH SENSORS" zh="宽度传感器"/>
   <translation tag="WLED Preset" zh="WLED 预设"/>
@@ -5592,6 +5603,7 @@
   <translation tag="Waiting for the chamber to heat" zh="正在等待腔室加热"/>
   <translation tag="Waiting for the filament system to report its state" zh="正在等待耗材系统报告状态"/>
   <translation tag="Waiting for the printer" zh="正在等待打印机"/>
+  <translation tag="Waiting for the printer to finish"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" zh="正在等待打印机状态；连接后请重试"/>
   <translation tag="Waiting for you at the Z offset screen" zh="正在 Z 偏移界面等待您操作"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." zh="正在等待从 Klipper 读取打印机配置。"/>
@@ -5975,6 +5987,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." zh="v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。"/>
   <translation tag="v{} installed! Restarting..." zh="已安装 v{}！正在重启..."/>
   <translation tag="v{} is available. Tap to update." zh="v{} 可用。点击以更新。"/>
+  <translation tag="waiting for the printer"/>
   <translation tag="was {:.0f}%" zh="原为 {:.0f}%"/>
   <translation tag="what you turned" zh="你转动的量"/>
   <translation tag="within one bin" zh="在一个频点内"/>
@@ -6034,6 +6047,7 @@
   <translation tag="{} days" zh="{} 天"/>
   <translation tag="{} detected" zh="检测到{}"/>
   <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
   <translation tag="{} did not switch to {}. The print continued without switching." zh="{} 未切换到 {}。打印在未切换的情况下继续。"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." zh="{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。"/>
   <translation tag="{} did not switch to {}. The print is still paused." zh="{}未切换到{}。打印仍处于暂停状态。"/>
@@ -6105,6 +6119,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." zh="{} 个新插件可用。请在设置 &gt; 插件中启用。"/>
   <translation tag="{} nozzle sensor fault" zh="{} 喷嘴传感器故障"/>
   <translation tag="{} of {} points" zh="{} / {} 个点"/>
+  <translation tag="{} of {} steps didn&apos;t finish"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." zh="已完成 {} 个步骤，共 {} 个。请查看，然后一次性全部保存。"/>
   <translation tag="{} packages to update" zh="{} 个软件包待更新"/>
   <translation tag="{} preset" zh="{} 个预设"/>

@@ -775,6 +775,7 @@ translations:
   Calibration complete - save to keep the offsets: キャリブレーション完了 - 保存してオフセットを保持してください
   Calibration complete!: キャリブレーション完了！
   Calibration complete! Press 'Next' to continue.: '"キャリブレーション完了！「次へ」を押して続行してください。"'
+  Calibration ended: ''
   Calibration failed: キャリブレーション失敗
   Calibration failed - touch targets more precisely.: キャリブレーション失敗 – ターゲットをより正確にタッチしてください。
   'Calibration failed: {}': 校正に失敗しました：{}
@@ -2398,6 +2399,7 @@ translations:
   'IFS: loading': "IFS: 装填中"
   'IFS: unloading': "IFS: 取り出し中"
   IMPORT FROM USB: USBからインポート
+  INCOMPLETE: ''
   INDX dock positions are not calibrated: "INDXのドック位置がキャリブレーションされていません"
   INDX macros not recognized: "INDXマクロを認識できません"
   INPUTS: 入力
@@ -3049,6 +3051,7 @@ translations:
   ? "NEW HIGH SCORE!\n{}\nTap to play again"
   : "ハイスコア更新！\n{}\nタップでもう一度"
   NEWLY DISCOVERED: 新規検出
+  NOT DONE: ''
   Name: 名前
   Name (optional): 名前（オプション）
   Name, image and model: 名前、画像、モデル
@@ -3090,6 +3093,7 @@ translations:
   Next Zone (~{} min): "次のゾーン(約{}分)"
   Next Layer: '次のレイヤー'
   Next, review the results and save them once: 次に結果を確認して一度に保存します
+  Next, see what finished and why the rest did not: ''
   'Next: {}': '次の印刷：{}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'ニキシー管時計'
@@ -3200,6 +3204,7 @@ translations:
   No spools placed: スプールは置いていません
 
   No spools to show. Add it as a new spool below.: '表示するスプールがありません。下で新規スプールとして追加してください。'
+  No step finished: ''
   No tape detected in printer: プリンターにテープが検出されません
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
@@ -3274,7 +3279,9 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'まだ何も登録されていません。フィラメントの星をタップしてここに追加してください。'
   Nothing to clean up: 'クリーンアップするものはありません'
   Nothing to remap: リマップするものがありません
+  Nothing to save: ''
   Nothing to save.: '保存するものはありません。'
+  Nothing to save. Each step says why.: ''
   Nothing to tune here: "ここで調整するものはありません"
   'Nothing to unload: no filament at the nozzle': '取り出すものがありません: ノズルにフィラメントがありません'
   Whether the Z arrows follow the bed or the Z value: "ZボタンがベッドとZ値のどちらに従うか"
@@ -4151,6 +4158,7 @@ translations:
   Review detected hardware validation issues: 検出されたハードウェア検証の問題を確認
   Review the results, then save once.: 結果を確認して一度に保存してください。
   Review the results, then save them all at once.: '結果を確認してから、まとめて保存してください。'
+  Review what finished. The results say why the rest did not.: ''
   Review your configuration below, then click Finish to save: 以下の設定を確認し、「完了」をクリックして保存してください
   Rewinding: 巻き戻し中
   Right: '右'
@@ -5207,6 +5215,7 @@ translations:
   The printer's computer fell behind: プリンターのコンピューターの処理が遅れました
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
+  The results say why.: ''
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '実行中のステップはすぐに停止し、プリンターが再起動します。完了したステップの結果も破棄されます。'
   The running step stops at once and the printer restarts.: 実行中のステップはすぐに停止し、プリンターが再起動します。
@@ -5221,6 +5230,7 @@ translations:
   The slot asked to eject still has its filament loaded in the toolhead.: 取り出しを要求されたスロットのフィラメントが、まだツールヘッドに装填されています。
   The slot chosen for this tool change has no filament at its inlet.: このツール交換で選ばれたスロットの入口にフィラメントがありません。
   The speed of one fan you choose: 選んだファン1つの速度
+  The step didn't finish: ''
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The tensioners pull each belt to its target: 'テンショナーが各ベルトを目標まで引っ張ります'
@@ -5778,6 +5788,7 @@ translations:
   Volume: 音量
   Volume of filament used during ramming: 'ラミング時に使用するフィラメント量'
   Volume {}%: 音量 {}%
+  WAITING: ''
   WEIGHT SYNC: 重量同期
   WIDTH SENSORS: 幅センサー
   WLED Preset: WLED プリセット
@@ -5805,6 +5816,7 @@ translations:
   Waiting for the chamber to heat: チャンバーの加熱を待っています
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
+  Waiting for the printer to finish: ''
   Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting for you at the Z offset screen: 'Zオフセット画面で操作をお待ちしています'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"
@@ -6193,6 +6205,7 @@ translations:
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。
   v{} installed! Restarting...: v{} をインストールしました！再起動中...
   v{} is available. Tap to update.: v{} が利用可能です。タップして更新してください。
+  waiting for the printer: ''
   was {:.0f}%: '以前は {:.0f}%'
   what you turned: "回した量"
   within one bin: "1ビン以内"
@@ -6253,6 +6266,7 @@ translations:
   '{} days': "{}日"
   '{} detected': '{}を検出'
   '{} did not arrive; nothing was sent': '{} が到着しませんでした。何も送信していません'
+  '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
   '{} did not switch to {}. The print continued without switching.': '{} は {} に切り替わりませんでした。切り替えずに印刷を続行しました。'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}は{}に切り替わりませんでした。印刷は一時停止のままで、{}には現在{}のフィラメント情報が付いています。'
   '{} did not switch to {}. The print is still paused.': '{}は{}に切り替わりませんでした。印刷は一時停止のままです。'
@@ -6324,6 +6338,7 @@ translations:
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 個の新しいプラグインが利用可能です。設定 > プラグインで有効化してください。'
   '{} nozzle sensor fault': '{} のノズルセンサー異常'
   '{} of {} points': '{} / {} 点'
+  "{} of {} steps didn't finish": ''
   '{} of {} steps finished. Review them, then save them all at once.': '{}/{} ステップが完了しました。確認してから、まとめて保存してください。'
   '{} packages to update': '更新するパッケージ {} 件'
   '{} preset': '{} 個のプリセット'

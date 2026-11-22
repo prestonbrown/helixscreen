@@ -2383,6 +2383,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     // thread.
     std::atomic<std::chrono::steady_clock::time_point> last_activity_time_;
     std::atomic<bool> idle_timeout_triggered_{false};
+    /// A calibration holds idle_timeout at "Printing" (HELIX_MOCK_PID_BUSY_FAIL).
+    std::atomic<bool> calibration_busy_{false};
     std::atomic<uint32_t> idle_timeout_seconds_{600}; // Default 10 minutes
 
     // Homing state (needs mutex since std::string is not atomic)

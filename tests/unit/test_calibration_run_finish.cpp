@@ -351,3 +351,11 @@ TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER
     }
     get_printer_state().set_hardware(helix::PrinterDiscovery{});
 }
+
+TEST_CASE("the finish says how many steps did not finish", "[calibration_run]") {
+    using helix::calibration::RunTally;
+    CHECK(helix::ui::run_end_title(RunTally{3, 3}) == "Calibration finished");
+    CHECK(helix::ui::run_end_title(RunTally{1, 3}) == "2 of 3 steps didn't finish");
+    CHECK(helix::ui::run_end_title(RunTally{0, 3}) == "No step finished");
+    CHECK(helix::ui::run_end_title(RunTally{0, 1}) == "The step didn't finish");
+}

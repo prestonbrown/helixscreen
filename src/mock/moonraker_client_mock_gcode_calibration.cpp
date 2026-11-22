@@ -61,6 +61,24 @@ MoonrakerClientMock::gcode_pid_calibrate(const std::string& gcode) {
 
     spdlog::info("[MoonrakerClientMock] PID_CALIBRATE: heater={} target={}°C", heater, target);
 
+    // HELIX_MOCK_PID_BUSY_FAIL=<seconds>: the bed's calibration fails in the app
+    // while Klipper keeps running it for that long, as a calibration that
+    // outlives the app's wait does.
+    if (const float busy_s = helix::env_float("HELIX_MOCK_PID_BUSY_FAIL", 0.0f, 0.0f, 3600.0f);
+        busy_s > 0.0f && heater == "heater_bed") {
+        const auto busy_ms = static_cast<uint32_t>(busy_s * 1000.0f);
+        spdlog::info("[MoonrakerClientMock] PID_CALIBRATE {}: failing, printer busy for {} s",
+                     heater, busy_ms / 1000);
+        calibration_busy_.store(true);
+        dispatch_status_update({{"idle_timeout", {{"state", "Printing"}}}});
+        dispatch_gcode_response("!! PID_CALIBRATE printer still busy after extended wait");
+        play_console_lines({}, busy_ms, [this] {
+            calibration_busy_.store(false);
+            dispatch_status_update({{"idle_timeout", {{"state", "Ready"}}}});
+        });
+        return 0;
+    }
+
     // Five Kalico PID sample lines (pid_calibrate.py format), then the result
     // in real Klipper's wording, 500ms apart.
     std::vector<std::string> lines;

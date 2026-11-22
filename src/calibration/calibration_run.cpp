@@ -134,7 +134,10 @@ CalibrationRun::CalibrationRun(IMoonrakerAPI& api,
 CalibrationRun::~CalibrationRun() {
     // A step still running would report into a destroyed run.
     // Settled first, so its Aborted report starts nothing.
-    const bool running = phase_ == RunPhase::Running && current_ >= 0;
+    if (busy_watch_) {
+        busy_watch_->cancel();
+    }
+    const bool running = phase_ == RunPhase::Running && current_ >= 0 && !waiting_;
     phase_ = RunPhase::Discarded;
     if (running) {
         entries_[static_cast<size_t>(current_)].step->abort();
@@ -215,8 +218,31 @@ void CalibrationRun::on_step_done(size_t index, StepOutcome outcome) {
     }
     spdlog::info("[CalibrationRun] Step {} ({}) {}{}", index + 1, e.step->info().id,
                  status_name(e.status), e.message.empty() ? "" : ": " + e.message);
+    go_on_after(index);
+}
+
+void CalibrationRun::go_on_after(size_t index) {
+    const Entry& e = entries_[index];
+    if (e.status != StepStatus::Failed || !busy_watch_ || !busy_watch_->busy()) {
+        changed();
+        advance();
+        return;
+    }
+    // The failed step's command may still be running in Klipper: anything the
+    // next step sends would queue behind it and time out there.
+    spdlog::info("[CalibrationRun] Step {} ({}) failed with the printer still busy; waiting "
+                 "for it to finish before going on",
+                 index + 1, e.step->info().id);
+    waiting_ = true;
     changed();
-    advance();
+    busy_watch_->when_idle([this]() {
+        if (!waiting_ || phase_ != RunPhase::Running) {
+            return;
+        }
+        waiting_ = false;
+        spdlog::info("[CalibrationRun] The printer is idle; going on");
+        advance();
+    });
 }
 
 void CalibrationRun::stop() {
@@ -232,6 +258,19 @@ void CalibrationRun::stop() {
         return;
     }
     const auto i = static_cast<size_t>(current_);
+    if (waiting_) {
+        // Nothing of the run's own is running: the failed step keeps its result.
+        spdlog::info("[CalibrationRun] Stopping while waiting for the printer after step {}",
+                     i + 1);
+        waiting_ = false;
+        busy_watch_->cancel();
+        for (size_t j = i + 1; j < entries_.size(); ++j) {
+            entries_[j].status = StepStatus::NotRun;
+        }
+        phase_ = RunPhase::Results;
+        changed();
+        return;
+    }
     Entry& running = entries_[i];
     spdlog::info("[CalibrationRun] Stopping during step {} ({})", i + 1, running.step->info().id);
     // Settle the run first, so the step's own Aborted report is ignored.
@@ -254,7 +293,7 @@ void CalibrationRun::stop() {
 }
 
 CalibrationRun::StopEffect CalibrationRun::stop_effect() const {
-    if (phase_ != RunPhase::Running || current_ < 0) {
+    if (phase_ != RunPhase::Running || current_ < 0 || waiting_) {
         return StopEffect::EndsStep;
     }
     if (!entries_[static_cast<size_t>(current_)].step->abort_restarts_firmware()) {
@@ -422,6 +461,46 @@ void CalibrationRun::changed() {
     if (on_change_) {
         on_change_();
     }
+}
+
+RunTally run_tally(const std::vector<CalibrationRun::Entry>& entries) {
+    RunTally t;
+    t.total = static_cast<int>(entries.size());
+    t.finished = static_cast<int>(
+        std::count_if(entries.begin(), entries.end(), [](const CalibrationRun::Entry& e) {
+            return e.status == StepStatus::Finished;
+        }));
+    return t;
+}
+
+RunSighting sight(const CalibrationRun& run) {
+    RunSighting s;
+    s.phase = run.phase();
+    s.current = run.current();
+    const auto& entries = run.entries();
+    if (s.current >= 0) {
+        s.needs_hands = entries[static_cast<size_t>(s.current)].step->info().needs_hands;
+    }
+    for (const auto& e : entries) {
+        if (e.status != StepStatus::Pending && e.status != StepStatus::Running &&
+            e.status != StepStatus::Finished) {
+            ++s.unfinished;
+        }
+    }
+    return s;
+}
+
+bool calls_for_owner(const RunSighting& before, const RunSighting& now) {
+    if (before.phase == RunPhase::Running && now.phase == RunPhase::Results) {
+        return true;
+    }
+    if (now.phase != RunPhase::Running) {
+        return false;
+    }
+    if (now.unfinished > before.unfinished) {
+        return true;
+    }
+    return now.needs_hands && now.current != before.current;
 }
 
 int minutes_left(const CalibrationRun::Entry& entry) {

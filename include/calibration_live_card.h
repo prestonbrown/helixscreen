@@ -11,6 +11,7 @@
 
 #include "async_lifetime_guard.h"
 #include "calibration_catalog.h"
+#include "calibration_run.h"
 #include "calibration_step.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
@@ -39,7 +40,7 @@ struct LiveCardText {
     LiveKind kind = LiveKind::None;
     std::string what;   ///< what the step is doing, translated
     std::string badge;  ///< translated, upper case; empty for none
-    int badge_tone = 0; ///< 0 neutral, 1 motion, 2 hot, 3 loud, 4 done
+    int badge_tone = 0; ///< 0 neutral, 1 motion, 2 hot, 3 loud, 4 done, 5 did not finish
     std::string warn;   ///< translated
     bool hot = false;   ///< the warning is about heat
 };
@@ -48,8 +49,11 @@ struct LiveCardText {
 /// without a live view comes back as LiveKind::None with a neutral badge.
 [[nodiscard]] LiveCardText live_card_text(calibration::StepKind kind,
                                           const calibration::StepLive& live);
-/// The card's words once every step has ended.
-[[nodiscard]] LiveCardText live_card_done_text();
+/// The card's words once every step has ended, as @p tally came out.
+[[nodiscard]] LiveCardText live_card_done_text(const calibration::RunTally& tally);
+/// The card's words while the run waits for the printer to finish the command
+/// of @p step_name, a step that failed.
+[[nodiscard]] LiveCardText live_card_wait_text(const char* step_name);
 
 /// The fill of a belt's track, in percent of the track: @p pull_fraction of
 /// the way to the target mark at kBeltTargetPercent.
@@ -120,7 +124,10 @@ class CalibrationLiveCard {
     char belt_state_bufs_[kBelts][32]{};
 
     /// What the card shows, kept so a language change can re-word it.
-    bool shown_done_ = false;
+    /// The run has ended and came out as this.
+    std::optional<calibration::RunTally> shown_end_;
+    /// The run waits for the printer after this step (its catalog name).
+    const char* shown_wait_step_ = nullptr;
     std::optional<calibration::StepKind> shown_kind_;
     calibration::StepProgress shown_progress_;
     bool shaper_cannot_stream_ = false;

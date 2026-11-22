@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 
 namespace helix::calibration {
 
@@ -177,6 +178,47 @@ PrereqSet prerequisites_for(const std::vector<StepInfo>& steps) {
         set |= s.prereqs;
     }
     return set;
+}
+
+namespace {
+
+/// A PID cycle swings the heater a few degrees either side of its target, so
+/// it lasts as long as the heater is slow to move, and a bed's mass lags far
+/// more than a nozzle's. Seconds of cycle per second-per-degree of climb:
+/// a 0.25 s/°C nozzle cycles in about 30 s, a 1 s/°C bed (AD5M Pro) in
+/// about 3 min, a 2 s/°C 350 mm bed (K2 Plus) in about 6 min.
+constexpr float kNozzleCycleSecondsPerRate = 120.0f;
+constexpr float kBedCycleSecondsPerRate = 180.0f;
+/// Mainline Klipper's PID_CALIBRATE runs a fixed number of cycles.
+constexpr int kFixedPidCycles = 5;
+/// Kalico's runs until its last cycles agree within TOLERANCE. A large bed at
+/// 0.05 settled on about the tenth sample; a nozzle at 0.02 settles sooner,
+/// so this overstates a nozzle a little rather than understating a bed.
+constexpr int kTolerancePidCycles = 10;
+/// MPC_CALIBRATE holds the heater at its target while it measures heat loss.
+constexpr float kMpcMeasureSeconds = 240.0f;
+
+} // namespace
+
+float heater_calibration_seconds(const HeaterPricing& heater) {
+    const float heat = std::max(0.0f, heater.heat_seconds);
+    if (heater.mpc) {
+        return heat + kMpcMeasureSeconds;
+    }
+    const float per_rate = heater.bed ? kBedCycleSecondsPerRate : kNozzleCycleSecondsPerRate;
+    const int cycles = heater.tolerance ? kTolerancePidCycles : kFixedPidCycles;
+    return heat + per_rate * std::max(0.0f, heater.climb_rate) * static_cast<float>(cycles);
+}
+
+int heaters_step_minutes(const std::vector<HeaterPricing>& heaters) {
+    if (heaters.empty()) {
+        return 0;
+    }
+    float seconds = 0.0f;
+    for (const auto& h : heaters) {
+        seconds += heater_calibration_seconds(h);
+    }
+    return std::max(1, static_cast<int>(std::ceil(seconds / 60.0f)));
 }
 
 int total_minutes(const std::vector<StepInfo>& steps) {

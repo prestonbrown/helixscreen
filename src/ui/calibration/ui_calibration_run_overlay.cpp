@@ -18,6 +18,8 @@
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "display_format.h"
+#include "display_settings_manager.h"
+#include "display_wake_request.h"
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
 #include "json_utils.h"
@@ -262,6 +264,20 @@ std::string results_primary_label(bool offers_save, bool restart_known, bool sav
     return restart_known && !save_restarts ? lv_tr("Save") : lv_tr("Save and restart Klipper");
 }
 
+std::string run_end_title(const calibration::RunTally& tally) {
+    using Outcome = calibration::RunTally::Outcome;
+    switch (tally.outcome()) {
+    case Outcome::AllFinished:
+        break;
+    case Outcome::NoneFinished:
+        return tally.total == 1 ? lv_tr("The step didn't finish") : lv_tr("No step finished");
+    case Outcome::SomeUnfinished:
+        return fmt::format(fmt::runtime(lv_tr("{} of {} steps didn't finish")), tally.unfinished(),
+                           tally.total);
+    }
+    return lv_tr("Calibration finished");
+}
+
 std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect) {
     using Effect = calibration::CalibrationRun::StopEffect;
     switch (effect) {
@@ -376,6 +392,7 @@ void CalibrationRunOverlay::init_subjects() {
             self->klippy_obs_.reset();
             self->language_obs_.reset();
             self->run_.reset();
+            self->awake_.reset();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;
         }
@@ -632,6 +649,7 @@ void CalibrationRunOverlay::publish_run() {
     }
     const auto& entries = run_->entries();
     const RunPhase phase = run_->phase();
+    keep_owner_informed();
     const bool dropped_all =
         run_->results_lost() || phase == RunPhase::Discarding || phase == RunPhase::Discarded;
     for (size_t i = 0; i < kSteps; ++i) {
@@ -640,7 +658,6 @@ void CalibrationRunOverlay::publish_run() {
     int total_min = 0;
     int done_min_x100 = 0;
     int saving = 0;
-    bool any_unfinished = false;
     for (const auto& e : entries) {
         const int minutes = e.step->info().minutes;
         total_min += minutes;
@@ -649,8 +666,6 @@ void CalibrationRunOverlay::publish_run() {
         } else if (e.status != StepStatus::Pending) {
             done_min_x100 += minutes * 100;
         }
-        any_unfinished =
-            any_unfinished || e.status == StepStatus::Failed || e.status == StepStatus::Aborted;
         const bool keeps = !dropped_all && calibration::CalibrationRun::saves(e);
         saving += keeps ? 1 : 0;
         const int i = step_index(e.step->info().id);
@@ -671,7 +686,11 @@ void CalibrationRunOverlay::publish_run() {
     }
 
     const int current = run_->current();
+    const int waiting_on = run_->waiting_on();
     const bool over = phase != RunPhase::Running && phase != RunPhase::Ready;
+    const calibration::RunTally tally = calibration::run_tally(entries);
+    const bool all_finished = tally.outcome() == calibration::RunTally::Outcome::AllFinished;
+    const std::string end_title = run_end_title(tally);
     if (over && run_minutes_ < 0) {
         run_minutes_ = static_cast<int>(std::chrono::duration_cast<std::chrono::minutes>(
                                             std::chrono::steady_clock::now() - run_started_)
@@ -682,12 +701,22 @@ void CalibrationRunOverlay::publish_run() {
     lv_subject_set_int(&step_count_, static_cast<int>(entries.size()));
     lv_subject_set_int(&step_current_, current >= 0 ? current : static_cast<int>(entries.size()));
     lv_subject_set_int(&overall_, over ? 100 : (total_min > 0 ? done_min_x100 / total_min : 0));
-    set_text(header_title_, over ? lv_tr("Calibration finished") : lv_tr("Calibrating"));
-    set_text(eta_, over ? std::string(lv_tr("all done"))
-                        : fmt::format(fmt::runtime(lv_tr("about {} min left · you can leave")),
-                                      std::max(1, calibration::minutes_left(entries))));
-    set_text(footer_, over ? lv_tr("Next, review the results and save them once")
-                           : lv_tr("Results are saved together at the end"));
+    set_text(header_title_, over ? end_title : std::string(lv_tr("Calibrating")));
+    if (over) {
+        set_text(eta_, all_finished ? lv_tr("all done") : "");
+    } else if (waiting_on >= 0) {
+        set_text(eta_, lv_tr("waiting for the printer"));
+    } else {
+        set_text(eta_, fmt::format(fmt::runtime(lv_tr("about {} min left · you can leave")),
+                                   std::max(1, calibration::minutes_left(entries))));
+    }
+    if (!over) {
+        set_text(footer_, lv_tr("Results are saved together at the end"));
+    } else if (all_finished) {
+        set_text(footer_, lv_tr("Next, review the results and save them once"));
+    } else {
+        set_text(footer_, lv_tr("Next, see what finished and why the rest did not"));
+    }
     if (current >= 0) {
         const auto& e = entries[static_cast<size_t>(current)];
         const auto& info = e.step->info();
@@ -697,9 +726,15 @@ void CalibrationRunOverlay::publish_run() {
         lv_subject_set_int(&progress_, std::max(0, e.progress.percent));
         lv_subject_set_int(&live_heat_, info.kind == calibration::StepKind::Heaters ? 1 : 0);
         set_text(warn_, warning_for(info.kind));
+    } else if (waiting_on >= 0) {
+        set_text(title_, lv_tr("Waiting for the printer to finish"));
+        set_text(phase_text_, "");
+        lv_subject_set_int(&indeterminate_, 1);
+        lv_subject_set_int(&live_heat_, 0);
+        set_text(warn_, "");
     } else if (over) {
-        set_text(title_, lv_tr("All steps done"));
-        set_text(phase_text_, lv_tr("Review the results, then save once."));
+        set_text(title_, all_finished ? lv_tr("All steps done") : lv_tr("Calibration ended"));
+        set_text(phase_text_, "");
         lv_subject_set_int(&live_heat_, 0);
         set_text(warn_, "");
     }
@@ -709,19 +744,22 @@ void CalibrationRunOverlay::publish_run() {
     const bool busy = phase == RunPhase::Saving || phase == RunPhase::Discarding;
     lv_subject_set_int(&results_busy_, busy ? 1 : 0);
     lv_subject_set_int(&hide_discard_, run_->can_discard() && !busy ? 0 : 1);
-    lv_subject_set_int(&results_warn_, run_->results_lost() || any_unfinished ? 1 : 0);
-    const char* title = lv_tr("Calibration finished");
+    lv_subject_set_int(&results_warn_, run_->results_lost() || !all_finished ? 1 : 0);
+    std::string title = end_title;
     if (phase == RunPhase::Saved) {
         title = lv_tr("Calibration saved");
     } else if (phase == RunPhase::Discarded) {
         title = lv_tr("Nothing was saved");
-    } else if (run_->results_lost() || any_unfinished) {
+    } else if (run_->results_lost()) {
         title = lv_tr("Calibration stopped");
     }
     set_text(results_title_, title);
     const int finished = run_->finished_count();
     if (run_->results_lost()) {
         set_text(results_sub_, lv_tr("Stopping restarted the printer, so nothing can be saved"));
+    } else if (!can_save) {
+        set_text(results_sub_, finished == 0 ? lv_tr("Nothing to save. Each step says why.")
+                                             : lv_tr("Nothing to save"));
     } else {
         const int minutes = std::max(1, run_minutes_);
         set_text(results_sub_,
@@ -765,6 +803,22 @@ void CalibrationRunOverlay::publish_run() {
     const std::string& err = run_->error();
     lv_subject_set_int(&has_error_, err.empty() ? 0 : 1);
     set_text(error_, err);
+}
+
+void CalibrationRunOverlay::keep_owner_informed() {
+    // The owner was told they can leave, and that the screen shows when it needs them.
+    const calibration::RunSighting now = calibration::sight(*run_);
+    if (calibration::calls_for_owner(last_sighting_, now)) {
+        spdlog::info("[{}] The run needs the owner's eye; waking the display", get_name());
+        helix::request_display_wake();
+    }
+    last_sighting_ = now;
+    if (now.phase == RunPhase::Running &&
+        !DisplaySettingsManager::instance().get_sleep_while_printing()) {
+        awake_.acquire();
+    } else {
+        awake_.reset();
+    }
 }
 
 void CalibrationRunOverlay::query_save_restarts() {
@@ -840,6 +894,7 @@ void CalibrationRunOverlay::start() {
     finisher_ = std::make_unique<calibration::MoonrakerRunFinisher>(*api);
     run_ = std::make_unique<calibration::CalibrationRun>(*api, std::move(steps),
                                                          [this]() { publish_run(); });
+    run_->set_busy_watch(calibration::make_printer_busy_watch(get_printer_state()));
     // A shutdown or a restart the run did not ask for drops what it staged.
     klippy_obs_ = observe<int>(
         get_printer_state().network_state().get_klippy_state_subject(), this,
@@ -851,6 +906,7 @@ void CalibrationRunOverlay::start() {
         get_printer_state().get_subjects_lifetime());
     run_started_ = std::chrono::steady_clock::now();
     run_minutes_ = -1;
+    last_sighting_ = {};
     restart_known_ = false;
     set_page(RunPage::Running);
     run_->start();
@@ -925,6 +981,7 @@ void CalibrationRunOverlay::done() {
     klippy_obs_.reset();
     run_.reset();
     finisher_.reset();
+    awake_.reset();
     helix::nav::go_back();
 }
 

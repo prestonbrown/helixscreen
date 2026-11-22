@@ -325,6 +325,16 @@ run is on. Every page binds to subjects the overlay publishes; the subject names
 3. **Running.** The current step's name, its phase line and a progress bar (or an indeterminate
    one while the step reports `percent = -1`), a safety line per step ("Do not touch the nozzle or
    the bed."), live temperatures during the heater step, and "Step 2 of 4 · about 15 min left".
+   Once the steps end, the page says how they came out (`run_tally()`, `run_end_title()`):
+   "Calibration finished" with a DONE badge only when every step finished, else "2 of 3 steps
+   didn't finish" or "No step finished" in the warning tone, and the Results page takes the same
+   title with its amber lead.
+
+   **The screen.** The Before you start page tells the owner they can leave. The overlay wakes the
+   display (`request_display_wake()`) when `calls_for_owner()` says the change matters: the steps
+   ended, a step did not finish, or a step that needs the owner started. While the steps run it
+   holds the screen up (`DisplayAwakeToken`) only when **Sleep while printing** is off, the same
+   rule a print follows; with it on (the default) the screen may sleep and is woken as above.
 4. **Results.** Per step, the value before the run (its history summary, else its In-config
    value, captured when the run started) beside what the run measured. There is no per-step keep
    column: a run saves everything `saves()` accepts or nothing. The primary button is
@@ -372,7 +382,14 @@ A step's contract (`include/calibration_step.h`):
 - `restores_on_discard()` and `restore()` are for a result the firmware persisted itself, outside
   Klipper's pending config (below).
 
-A failed or skipped step does not stop the run; the next one starts. The run's phases are
+A failed or skipped step does not stop the run; the next one starts. A step can fail while the
+command it sent is still running in Klipper (a calibration that outlived the app's wait), and
+whatever the next step sends would only queue behind it and time out there. So after a failed
+step the run asks its `PrinterBusyWatch` (`make_printer_busy_watch()`, over `idle_timeout`, which
+reads "Printing" while any command runs) and, while the printer is busy, waits: `current()` is -1,
+`waiting_on()` names the failed entry, and the Running page reads "Waiting for the printer to
+finish" with a WAITING badge. The next step starts on the printer's first idle report. Stop while
+waiting ends the run without aborting anything; it never sends `M112`. The run's phases are
 `Ready`, `Running`, `Results`, `Saving`, `Saved`, `SaveFailed`, `Discarding` and `Discarded`, and
 every status or progress change calls the overlay's `on_change`, which republishes.
 
@@ -468,8 +485,23 @@ The PID progress collector parses each `sample:N pwm:... asymmetry:... tolerance
 (asymmetry may be negative). The heater step turns it into progress
 (`HeatersStep::report_pid_cycle()`): with a tolerance target the bar follows how close the cycles
 are on a log scale, and the phase line reads "Bed: PID at 60°C · cycle 4, 0.27 (needs 0.05)";
-without one it counts cycles out of `PidProgressTracker::kExpectedCycles`. Each heater gets an
-equal share of the step's bar.
+without one it counts cycles out of `PidProgressTracker::kExpectedCycles`. Each heater's share of
+the step's bar is its share of the step's priced time (below), so the bed's hour is not half the bar.
+
+A bed under Kalico's tolerance runs for longer than any fixed wait: the RPC's 20-minute ceiling
+expires and the collector's idle backstop arms. Each `sample:N` line, like each MPC phase, restarts
+that backstop (`CalibrationCollectorCore::note_progress()`) for at least three of the longest cycles
+seen, so a calibration that keeps reporting is never cut off, and one that stops reporting still
+fails a window after its last cycle.
+
+**What the step costs.** `heaters_step_minutes()` (`include/calibration_catalog.h`) prices the
+Heaters step from each heater's `HeaterPricing`: the thermal model's heating seconds to the
+calibration temperature, plus the cycles a PID calibration runs times a cycle length that scales
+with the heater's whole-climb rate (`ThermalRateModel::climb_rate()`), slower for a bed's mass.
+Mainline runs five cycles; Kalico's tolerance mode is priced at ten, which is where a large bed at
+0.05 settled. A heater already on MPC is priced as heating plus a fixed measurement.
+`current_printer_steps()` applies it, so the Pick page, the Calibration screen's banner, setup's
+last page and the Running page's countdown all read the same number.
 
 ### Stopping: the least destructive stop
 

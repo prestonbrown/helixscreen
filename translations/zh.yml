@@ -775,6 +775,7 @@ translations:
   Calibration complete - save to keep the offsets: 校准完成 - 保存以保留偏移
   Calibration complete!: 校准完成！
   Calibration complete! Press 'Next' to continue.: 校准完成！按“下一步”继续。
+  Calibration ended: ''
   Calibration failed: 校准失败
   Calibration failed - touch targets more precisely.: 校准失败 – 请更精确地触摸目标。
   'Calibration failed: {}': 校准失败：{}
@@ -2398,6 +2399,7 @@ translations:
   'IFS: loading': "IFS：正在加载"
   'IFS: unloading': "IFS：正在卸载"
   IMPORT FROM USB: 从 USB 导入
+  INCOMPLETE: ''
   INDX dock positions are not calibrated: "INDX 停靠位置未校准"
   INDX macros not recognized: "无法识别 INDX 宏"
   INPUTS: 输入
@@ -3049,6 +3051,7 @@ translations:
   ? "NEW HIGH SCORE!\n{}\nTap to play again"
   : "新纪录！\n{}\n点按再玩一次"
   NEWLY DISCOVERED: 新发现
+  NOT DONE: ''
   Name: 名称
   Name (optional): 名称（可选）
   Name, image and model: 名称、图片和型号
@@ -3090,6 +3093,7 @@ translations:
   Next Zone (~{} min): "下一区间(约 {} 分钟)"
   Next Layer: '下一层'
   Next, review the results and save them once: 接下来检查结果并一次保存
+  Next, see what finished and why the rest did not: ''
   'Next: {}': '下一个：{}'
   Niimbot (Bluetooth): Niimbot（蓝牙）
   Nixie Clock: '辉光管时钟'
@@ -3200,6 +3204,7 @@ translations:
   No spools placed: 未放置料盘
 
   No spools to show. Add it as a new spool below.: '没有可显示的料盘。请在下方添加为新料盘。'
+  No step finished: ''
   No tape detected in printer: 打印机中未检测到标签带
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
@@ -3274,7 +3279,9 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: '还没有收藏。点击耗材行的星标即可收藏到这里。'
   Nothing to clean up: '没有可清理的内容'
   Nothing to remap: 没有可重新映射的内容
+  Nothing to save: ''
   Nothing to save.: '没有需要保存的内容。'
+  Nothing to save. Each step says why.: ''
   Nothing to tune here: "这里没有需要调整的"
   'Nothing to unload: no filament at the nozzle': '没有可卸载的耗材: 喷嘴处没有耗材'
   Whether the Z arrows follow the bed or the Z value: "Z 按钮跟随热床还是 Z 值"
@@ -4151,6 +4158,7 @@ translations:
   Review detected hardware validation issues: 查看检测到的硬件验证问题
   Review the results, then save once.: 检查结果，然后一次保存。
   Review the results, then save them all at once.: '查看结果，然后一次性全部保存。'
+  Review what finished. The results say why the rest did not.: ''
   Review your configuration below, then click Finish to save: 请检查以下配置，然后点击完成以保存
   Rewinding: 回卷中
   Right: '右'
@@ -5207,6 +5215,7 @@ translations:
   The printer's computer fell behind: 打印机的主机处理滞后
   The printer's firmware chooses where to switch on runout: 耗材用尽时切换到哪里由打印机固件自行选择
   The requested position is outside the printer's bounds: '请求的位置超出打印机范围'
+  The results say why.: ''
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。'
   The running step stops at once and the printer restarts.: 正在运行的步骤会立即停止，打印机将重启。
@@ -5221,6 +5230,7 @@ translations:
   The slot asked to eject still has its filament loaded in the toolhead.: 要弹出的槽位的耗材仍加载在工具头中。
   The slot chosen for this tool change has no filament at its inlet.: 此次换料选择的槽位入口处没有耗材。
   The speed of one fan you choose: 所选风扇的转速
+  The step didn't finish: ''
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
   The tensioners pull each belt to its target: '张紧器将每条皮带拉到目标张力'
@@ -5778,6 +5788,7 @@ translations:
   Volume: 音量
   Volume of filament used during ramming: '填充过程中使用的耗材体积'
   Volume {}%: 音量 {}%
+  WAITING: ''
   WEIGHT SYNC: 重量同步
   WIDTH SENSORS: 宽度传感器
   WLED Preset: WLED 预设
@@ -5805,6 +5816,7 @@ translations:
   Waiting for the chamber to heat: 正在等待腔室加热
   Waiting for the filament system to report its state: 正在等待耗材系统报告状态
   Waiting for the printer: 正在等待打印机
+  Waiting for the printer to finish: ''
   Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting for you at the Z offset screen: '正在 Z 偏移界面等待您操作'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"
@@ -6193,6 +6205,7 @@ translations:
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。
   v{} installed! Restarting...: 已安装 v{}！正在重启...
   v{} is available. Tap to update.: v{} 可用。点击以更新。
+  waiting for the printer: ''
   was {:.0f}%: '原为 {:.0f}%'
   what you turned: "你转动的量"
   within one bin: "在一个频点内"
@@ -6253,6 +6266,7 @@ translations:
   '{} days': "{} 天"
   '{} detected': '检测到{}'
   '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
+  '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
   '{} did not switch to {}. The print continued without switching.': '{} 未切换到 {}。打印在未切换的情况下继续。'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。'
   '{} did not switch to {}. The print is still paused.': '{}未切换到{}。打印仍处于暂停状态。'
@@ -6324,6 +6338,7 @@ translations:
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 个新插件可用。请在设置 > 插件中启用。'
   '{} nozzle sensor fault': '{} 喷嘴传感器故障'
   '{} of {} points': '{} / {} 个点'
+  "{} of {} steps didn't finish": ''
   '{} of {} steps finished. Review them, then save them all at once.': '已完成 {} 个步骤，共 {} 个。请查看，然后一次性全部保存。'
   '{} packages to update': '{} 个软件包待更新'
   '{} preset': '{} 个预设'

@@ -142,6 +142,30 @@ class FakeFinisher : public RunFinisher {
     std::function<void(const std::string&)> discard_failed;
 };
 
+/// Klipper's busy state as the test sets it; the wait it was handed, held.
+class FakeBusyWatch : public PrinterBusyWatch {
+  public:
+    bool busy() const override {
+        return printer_busy;
+    }
+    void when_idle(std::function<void()> idle) override {
+        waiting = std::move(idle);
+    }
+    void cancel() override {
+        waiting = nullptr;
+    }
+    /// Klipper reports idle.
+    void go_idle() {
+        printer_busy = false;
+        if (auto w = std::move(waiting)) {
+            waiting = nullptr;
+            w();
+        }
+    }
+    bool printer_busy = false;
+    std::function<void()> waiting;
+};
+
 class RunFixture : public LVGLTestFixture {
   public:
     RunFixture() : client(MoonrakerClientMock::PrinterType::VORON_24) {
@@ -650,4 +674,101 @@ TEST_CASE_METHOD(RunFixture, "stop says it restarts exactly when the running ste
     run->stop();
     CHECK(run->results_lost());
     CHECK(run->stop_effect() == Effect::EndsStep);
+}
+
+TEST_CASE_METHOD(RunFixture, "after a failed step the run waits for the printer to be idle",
+                 "[calibration_run]") {
+    make_run(3);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->finish("0.120 mm");
+    REQUIRE(fakes[1]->starts == 1);
+
+    // Its command outlived the wait and still holds the printer.
+    busy->printer_busy = true;
+    fakes[1]->fail("PID_CALIBRATE printer still busy after extended wait");
+    CHECK(status_of(1) == StepStatus::Failed);
+    CHECK(fakes[2]->starts == 0);
+    CHECK(run->phase() == RunPhase::Running);
+    CHECK(run->waiting_on() == 1);
+    CHECK(run->current() == -1);
+
+    busy->go_idle();
+    CHECK(fakes[2]->starts == 1);
+    CHECK(run->waiting_on() == -1);
+    CHECK(run->current() == 2);
+}
+
+TEST_CASE_METHOD(RunFixture, "a step that fails on an idle printer goes straight on",
+                 "[calibration_run]") {
+    make_run(2);
+    run->set_busy_watch(std::make_unique<FakeBusyWatch>());
+    run->start();
+    fakes[0]->fail("heater fault");
+    CHECK(fakes[1]->starts == 1);
+    CHECK(run->waiting_on() == -1);
+}
+
+TEST_CASE_METHOD(RunFixture, "stopping while the printer finishes a failed step aborts nothing",
+                 "[calibration_run]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->fail("printer still busy");
+    REQUIRE(run->waiting_on() == 0);
+    CHECK(run->stop_effect() == CalibrationRun::StopEffect::EndsStep);
+
+    run->stop();
+    CHECK(run->phase() == RunPhase::Results);
+    CHECK(status_of(0) == StepStatus::Failed);
+    CHECK(status_of(1) == StepStatus::NotRun);
+    CHECK(fakes[0]->aborts == 0);
+    CHECK_FALSE(busy->waiting);
+}
+
+TEST_CASE_METHOD(RunFixture, "the screen wakes when the run ends, a step fails or needs the owner",
+                 "[calibration_run]") {
+    make_run(3);
+    fakes[2]->info_.needs_hands = true;
+    RunSighting before = sight(*run);
+    const auto wakes = [&]() {
+        const RunSighting now = sight(*run);
+        const bool w = calls_for_owner(before, now);
+        before = now;
+        return w;
+    };
+    run->start();
+    CHECK_FALSE(wakes()); // an automatic step starting
+    fakes[0]->ctx_->progress({"cycle 3", 40, {}});
+    CHECK_FALSE(wakes());
+    fakes[0]->fail("heater fault");
+    // The failure and the next step's start land together; the failure wakes.
+    CHECK(wakes());
+    fakes[1]->finish("ok");
+    CHECK(wakes()); // the third step needs the owner
+    fakes[2]->finish("0.1 mm");
+    CHECK(wakes()); // the steps ended
+}
+
+TEST_CASE("the heater step is priced from each heater's heating and cycles", "[calibration_run]") {
+    // A 350 mm bed under Kalico's TOLERANCE: 2 s/°C, about ten cycles of 6 min.
+    HeaterPricing nozzle{46.0f, 0.25f, false, false, true};
+    HeaterPricing bed{70.0f, 2.0f, true, false, true};
+    CHECK(heaters_step_minutes({nozzle, bed}) == 67);
+    // The same bed on mainline Klipper's five fixed cycles.
+    nozzle.tolerance = false;
+    bed.tolerance = false;
+    CHECK(heaters_step_minutes({nozzle, bed}) == 35);
+    // A smaller, quicker bed takes less.
+    bed.climb_rate = 1.0f;
+    bed.heat_seconds = 35.0f;
+    CHECK(heaters_step_minutes({nozzle, bed}) == 19);
+    // MPC heats, then measures for a fixed stretch.
+    CHECK(heaters_step_minutes({HeaterPricing{40.0f, 0.25f, false, true, false}}) == 5);
+    CHECK(heaters_step_minutes({}) == 0);
 }

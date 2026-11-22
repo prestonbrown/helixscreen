@@ -748,6 +748,7 @@
   <translation tag="Calibration complete - save to keep the offsets" en="Calibration complete - save to keep the offsets"/>
   <translation tag="Calibration complete!" en="Calibration complete!"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." en="Calibration complete! Press &apos;Next&apos; to continue."/>
+  <translation tag="Calibration ended" en="Calibration ended"/>
   <translation tag="Calibration failed" en="Calibration failed"/>
   <translation tag="Calibration failed - touch targets more precisely." en="Calibration failed - touch targets more precisely."/>
   <translation tag="Calibration failed: {}" en="Calibration failed: {}"/>
@@ -2297,6 +2298,7 @@
   <translation tag="IFS: loading" en="IFS: loading"/>
   <translation tag="IFS: unloading" en="IFS: unloading"/>
   <translation tag="IMPORT FROM USB" en="IMPORT FROM USB"/>
+  <translation tag="INCOMPLETE" en="INCOMPLETE"/>
   <translation tag="INDX dock positions are not calibrated" en="INDX dock positions are not calibrated"/>
   <translation tag="INDX macros not recognized" en="INDX macros not recognized"/>
   <translation tag="INPUTS" en="INPUTS"/>
@@ -2931,6 +2933,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" en="NEW HIGH SCORE!&#10;{}&#10;Tap to play again"/>
   <translation tag="NEWLY DISCOVERED" en="NEWLY DISCOVERED"/>
   <translation tag="NOT AVAILABLE HERE" en="NOT AVAILABLE HERE"/>
+  <translation tag="NOT DONE" en="NOT DONE"/>
   <translation tag="Name" en="Name"/>
   <translation tag="Name (optional)" en="Name (optional)"/>
   <translation tag="Name, image and model" en="Name, image and model"/>
@@ -2974,6 +2977,7 @@
   <translation tag="Next Zone" en="Next Zone"/>
   <translation tag="Next Zone (~{} min)" en="Next Zone (~{} min)"/>
   <translation tag="Next, review the results and save them once" en="Next, review the results and save them once"/>
+  <translation tag="Next, see what finished and why the rest did not" en="Next, see what finished and why the rest did not"/>
   <translation tag="Next: {}" en="Next: {}"/>
   <translation tag="Niimbot (Bluetooth)" en="Niimbot (Bluetooth)"/>
   <translation tag="Nixie Clock" en="Nixie Clock"/>
@@ -3085,6 +3089,7 @@
   <translation tag="No spools match. Add it as a new spool below." en="No spools match. Add it as a new spool below."/>
   <translation tag="No spools placed" en="No spools placed"/>
   <translation tag="No spools to show. Add it as a new spool below." en="No spools to show. Add it as a new spool below."/>
+  <translation tag="No step finished" en="No step finished"/>
   <translation tag="No tape detected in printer" en="No tape detected in printer"/>
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
@@ -3158,7 +3163,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." en="Nothing starred yet. Tap the star on a filament to add it here."/>
   <translation tag="Nothing to clean up" en="Nothing to clean up"/>
   <translation tag="Nothing to remap" en="Nothing to remap"/>
+  <translation tag="Nothing to save" en="Nothing to save"/>
   <translation tag="Nothing to save." en="Nothing to save."/>
+  <translation tag="Nothing to save. Each step says why." en="Nothing to save. Each step says why."/>
   <translation tag="Nothing to tune here" en="Nothing to tune here"/>
   <translation tag="Nothing to unload: no filament at the nozzle" en="Nothing to unload: no filament at the nozzle"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." en="Nothing was changed. Temperature and material are kept, so a retry is one tap."/>
@@ -4019,6 +4026,7 @@
   <translation tag="Review detected hardware validation issues" en="Review detected hardware validation issues"/>
   <translation tag="Review the results, then save once." en="Review the results, then save once."/>
   <translation tag="Review the results, then save them all at once." en="Review the results, then save them all at once."/>
+  <translation tag="Review what finished. The results say why the rest did not." en="Review what finished. The results say why the rest did not."/>
   <translation tag="Review your configuration below, then click Finish to save" en="Review your configuration below, then click Finish to save"/>
   <translation tag="Rewinding" en="Rewinding"/>
   <translation tag="Right" en="Right"/>
@@ -5030,6 +5038,7 @@
   <translation tag="The probe was used before the printer was homed." en="The probe was used before the printer was homed."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." en="The queue prints this .3mf&apos;s default plate. Print this plate from here instead."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>
+  <translation tag="The results say why." en="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" en="The right RFID reader in this CFS unit may need service"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." en="The running step stops at once and the printer restarts, which also drops the results of the steps that finished."/>
   <translation tag="The running step stops at once and the printer restarts." en="The running step stops at once and the printer restarts."/>
@@ -5044,6 +5053,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." en="The slot asked to eject still has its filament loaded in the toolhead."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." en="The slot chosen for this tool change has no filament at its inlet."/>
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
+  <translation tag="The step didn&apos;t finish" en="The step didn&apos;t finish"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." en="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24."/>
   <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
   <translation tag="The tensioners pull each belt to its target" en="The tensioners pull each belt to its target"/>
@@ -5565,6 +5575,7 @@
   <translation tag="Volume" en="Volume"/>
   <translation tag="Volume of filament used during ramming" en="Volume of filament used during ramming"/>
   <translation tag="Volume {}%" en="Volume {}%"/>
+  <translation tag="WAITING" en="WAITING"/>
   <translation tag="WEIGHT SYNC" en="WEIGHT SYNC"/>
   <translation tag="WIDTH SENSORS" en="WIDTH SENSORS"/>
   <translation tag="WLED Preset" en="WLED Preset"/>
@@ -5592,6 +5603,7 @@
   <translation tag="Waiting for the chamber to heat" en="Waiting for the chamber to heat"/>
   <translation tag="Waiting for the filament system to report its state" en="Waiting for the filament system to report its state"/>
   <translation tag="Waiting for the printer" en="Waiting for the printer"/>
+  <translation tag="Waiting for the printer to finish" en="Waiting for the printer to finish"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" en="Waiting for the printer&apos;s status; try again once it is connected"/>
   <translation tag="Waiting for you at the Z offset screen" en="Waiting for you at the Z offset screen"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." en="Waiting to read the printer&apos;s configuration from Klipper."/>
@@ -5975,6 +5987,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." en="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release."/>
   <translation tag="v{} installed! Restarting..." en="v{} installed! Restarting..."/>
   <translation tag="v{} is available. Tap to update." en="v{} is available. Tap to update."/>
+  <translation tag="waiting for the printer" en="waiting for the printer"/>
   <translation tag="was {:.0f}%" en="was {:.0f}%"/>
   <translation tag="what you turned" en="what you turned"/>
   <translation tag="within one bin" en="within one bin"/>
@@ -6034,6 +6047,7 @@
   <translation tag="{} days" en="{} days"/>
   <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle." en="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
   <translation tag="{} did not switch to {}. The print continued without switching." en="{} did not switch to {}. The print continued without switching."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." en="{} did not switch to {}. The print is still paused."/>
@@ -6105,6 +6119,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." en="{} new plugins available. Enable them in Settings &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" en="{} nozzle sensor fault"/>
   <translation tag="{} of {} points" en="{} of {} points"/>
+  <translation tag="{} of {} steps didn&apos;t finish" en="{} of {} steps didn&apos;t finish"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." en="{} of {} steps finished. Review them, then save them all at once."/>
   <translation tag="{} packages to update" en="{} packages to update"/>
   <translation tag="{} preset" en="{} preset"/>

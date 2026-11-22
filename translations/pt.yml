@@ -775,6 +775,7 @@ translations:
   Calibration complete - save to keep the offsets: Calibração concluída - salve para manter os offsets
   Calibration complete!: Calibração concluída!
   Calibration complete! Press 'Next' to continue.: Calibração concluída! Pressione 'Próximo' para continuar.
+  Calibration ended: ''
   Calibration failed: Calibração falhou
   Calibration failed - touch targets more precisely.: Calibração falhou – toque nos alvos com mais precisão.
   'Calibration failed: {}': 'Falha na calibração: {}'
@@ -2398,6 +2399,7 @@ translations:
   'IFS: loading': "IFS: carregando"
   'IFS: unloading': "IFS: descarregando"
   IMPORT FROM USB: IMPORTAR DO USB
+  INCOMPLETE: ''
   INDX dock positions are not calibrated: "As posições das docas do INDX não estão calibradas"
   INDX macros not recognized: "Macros do INDX não reconhecidas"
   INPUTS: ENTRADAS
@@ -3049,6 +3051,7 @@ translations:
   ? "NEW HIGH SCORE!\n{}\nTap to play again"
   : "NOVO RECORDE!\n{}\nToque para jogar de novo"
   NEWLY DISCOVERED: RECÉM DESCOBERTO
+  NOT DONE: ''
   Name: Nome
   Name (optional): Nome (opcional)
   Name, image and model: Nome, imagem e modelo
@@ -3090,6 +3093,7 @@ translations:
   Next Zone (~{} min): "Próx. zona (~{} min)"
   Next Layer: 'Próxima camada'
   Next, review the results and save them once: Em seguida, revise os resultados e salve-os uma vez
+  Next, see what finished and why the rest did not: ''
   'Next: {}': 'A seguir: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'Relógio Nixie'
@@ -3200,6 +3204,7 @@ translations:
   No spools placed: Nenhum carretel colocado
 
   No spools to show. Add it as a new spool below.: 'Nenhum carretel para mostrar. Adicione-o abaixo como novo carretel.'
+  No step finished: ''
   No tape detected in printer: Nenhuma fita detectada na impressora
   No target printer configured: Nenhuma impressora de destino configurada
   No temperature sensors detected: 'Nenhum sensor de temperatura detectado'
@@ -3274,7 +3279,9 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Nada marcado ainda. Toque na estrela de um filamento para o adicionar aqui.'
   Nothing to clean up: 'Nada para limpar'
   Nothing to remap: Nada para remapear
+  Nothing to save: ''
   Nothing to save.: 'Nada para salvar.'
+  Nothing to save. Each step says why.: ''
   Nothing to tune here: "Nada a ajustar aqui"
   'Nothing to unload: no filament at the nozzle': 'Nada para descarregar: sem filamento no bico'
   Whether the Z arrows follow the bed or the Z value: "Se as setas Z seguem a mesa ou o valor Z"
@@ -4151,6 +4158,7 @@ translations:
   Review detected hardware validation issues: Revisar problemas de validação de hardware detectados
   Review the results, then save once.: Revise os resultados e salve uma vez.
   Review the results, then save them all at once.: 'Revise os resultados e depois salve todos de uma vez.'
+  Review what finished. The results say why the rest did not.: ''
   Review your configuration below, then click Finish to save: Revise sua configuração abaixo e clique em Finalizar para salvar
   Rewinding: Rebobinando
   Right: 'Direita'
@@ -5207,6 +5215,7 @@ translations:
   The printer's computer fell behind: O computador da impressora ficou para trás
   The printer's firmware chooses where to switch on runout: O firmware da impressora escolhe para onde trocar ao acabar
   The requested position is outside the printer's bounds: 'A posição solicitada está fora dos limites da impressora'
+  The results say why.: ''
   The right RFID reader in this CFS unit may need service: O leitor RFID direito desta unidade CFS pode precisar de manutenção
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'A etapa em andamento para na hora e a impressora reinicia, o que também descarta os resultados das etapas concluídas.'
   The running step stops at once and the printer restarts.: A etapa em andamento para imediatamente e a impressora reinicia.
@@ -5221,6 +5230,7 @@ translations:
   The slot asked to eject still has its filament loaded in the toolhead.: O slot que deve ser ejetado ainda tem o filamento carregado no cabeçote.
   The slot chosen for this tool change has no filament at its inlet.: O slot escolhido para esta troca de ferramenta não tem filamento na entrada.
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
+  The step didn't finish: ''
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou 24.'
   The temperature was changed elsewhere.: "A temperatura foi alterada em outro lugar."
   The tensioners pull each belt to its target: 'Os tensores puxam cada correia até a tensão alvo'
@@ -5778,6 +5788,7 @@ translations:
   Volume: Volume
   Volume of filament used during ramming: 'Volume de filamento usado durante a compactação'
   Volume {}%: Volume {}%
+  WAITING: ''
   WEIGHT SYNC: SINCRONIZAÇÃO DE PESO
   WIDTH SENSORS: SENSORES DE LARGURA
   WLED Preset: Predefinição WLED
@@ -5805,6 +5816,7 @@ translations:
   Waiting for the chamber to heat: Aguardando a câmara aquecer
   Waiting for the filament system to report its state: Aguardando o sistema de filamento informar seu estado
   Waiting for the printer: Aguardando a impressora
+  Waiting for the printer to finish: ''
   Waiting for the printer's status; try again once it is connected: 'Aguardando o status da impressora; tente novamente quando ela estiver conectada'
   Waiting for you at the Z offset screen: 'Aguardando você na tela do offset Z'
   Waiting to read the printer's configuration from Klipper.: "Aguardando a leitura da configuração da impressora no Klipper."
@@ -6193,6 +6205,7 @@ translations:
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s não tem uma versão para %s, então não pode ser instalada aqui. Escolha um canal de atualização com uma versão mais recente.
   v{} installed! Restarting...: v{} instalado! Reiniciando...
   v{} is available. Tap to update.: v{} disponível. Toque para atualizar.
+  waiting for the printer: ''
   was {:.0f}%: 'era {:.0f}%'
   what you turned: "o que você girou"
   within one bin: "dentro de um bin"
@@ -6253,6 +6266,7 @@ translations:
   '{} days': "{} dias"
   '{} detected': '{} detetada'
   '{} did not arrive; nothing was sent': '{} não chegou; nada foi enviado'
+  '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
   '{} did not switch to {}. The print continued without switching.': '{} não trocou para {}. A impressão continuou sem trocar.'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} não mudou para {}. A impressão continua pausada, e {} agora tem a etiqueta de filamento de {}.'
   '{} did not switch to {}. The print is still paused.': '{} não mudou para {}. A impressão continua pausada.'
@@ -6324,6 +6338,7 @@ translations:
   '{} new plugins available. Enable them in Settings > Plugins.': '{} novos plugins disponíveis. Ative-os em Configurações > Plugins.'
   '{} nozzle sensor fault': 'Falha no sensor do bico de {}'
   '{} of {} points': '{} de {} pontos'
+  "{} of {} steps didn't finish": ''
   '{} of {} steps finished. Review them, then save them all at once.': '{} de {} etapas concluídas. Revise e depois salve todas de uma vez.'
   '{} packages to update': '{} pacotes para atualizar'
   '{} preset': '{} predefinição'
