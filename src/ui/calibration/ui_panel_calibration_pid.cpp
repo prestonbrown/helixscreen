@@ -26,6 +26,7 @@
 #include "klipper_config_editor.h"
 #include "locale_formats.h"
 #include "observe_language.h"
+#include "platform_info.h"
 #include "preset_materials.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -1662,7 +1663,8 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
                 heater_control_name_[idx] = type;
 
                 if (preselect_mpc) {
-                    selected_method_ = default_method(selected_heater_, current_control_, true);
+                    selected_method_ =
+                        default_method(selected_heater_, current_control_, offers_control_switch());
                     lv_subject_set_int(&subj_method_is_mpc_,
                                        selected_method_ == CalibMethod::MPC ? 1 : 0);
                 }
@@ -1905,6 +1907,12 @@ void PIDCalibrationPanel::handle_fan_thorough_clicked() {
 // INTRO, SWITCH PAGE AND ADVANCED
 // ============================================================================
 
+bool PIDCalibrationPanel::offers_control_switch() const {
+    // Switching rewrites the heater's config section, which firmware that
+    // supervises HelixScreen owns (#2154): there each heater keeps its control.
+    return supports_mpc_ && !helix::firmware_supervised();
+}
+
 PIDCalibrationPanel::CalibMethod
 PIDCalibrationPanel::default_method(Heater heater, ControlType current, bool supports_mpc) {
     if (heater == Heater::EXTRUDER && supports_mpc) {
@@ -2004,7 +2012,7 @@ void PIDCalibrationPanel::update_heater_cards() {
         const CalibMethod target =
             selected_heater_ == heater
                 ? selected_method_
-                : default_method(heater, heater_control_[idx], supports_mpc_);
+                : default_method(heater, heater_control_[idx], offers_control_switch());
         const char* words = "";
         switch (heater_note(heater_control_[idx], target)) {
         case HeaterNote::StaysPid:
