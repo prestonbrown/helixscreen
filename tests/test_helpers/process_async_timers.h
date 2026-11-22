@@ -4,6 +4,9 @@
 
 #include "misc/lv_timer_private.h"
 
+#include <set>
+#include <vector>
+
 /// True while @p timer is still in LVGL's timer list.
 inline bool timer_is_live(const lv_timer_t* timer) {
     for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
@@ -13,6 +16,60 @@ inline bool timer_is_live(const lv_timer_t* timer) {
     }
     return false;
 }
+
+namespace helix::test {
+
+/// Run @p timer once the way lv_timer_exec() does: spend one repeat, then
+/// delete it once its count is spent, unless its callback already deleted it.
+/// A one-shot fired by hand and left armed fires again later, and one that
+/// re-arms from its own callback then doubles on every pass (#2153).
+inline void fire_timer_once(lv_timer_t* timer) {
+    if (timer->repeat_count > 0) {
+        timer->repeat_count--;
+    }
+    timer->last_run = lv_tick_get();
+    timer->timer_cb(timer);
+    if (timer_is_live(timer) && timer->repeat_count == 0) {
+        lv_timer_delete(timer);
+    }
+}
+
+/// The timers in LVGL's list at one moment, so a test can tell which ones
+/// something it did afterwards armed.
+class TimerSnapshot {
+  public:
+    TimerSnapshot() {
+        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+            timers_.insert(t);
+        }
+    }
+    bool contains(const lv_timer_t* timer) const {
+        return timers_.count(const_cast<lv_timer_t*>(timer)) != 0;
+    }
+
+  private:
+    std::set<lv_timer_t*> timers_;
+};
+
+/// Fire, once each, the periodic timers armed since @p before. The test pump
+/// never runs a periodic timer, so a test standing in for one main-loop tick
+/// fires them by hand; one-shots are left to the pump, which runs each once
+/// when it comes due. A timer an earlier callback cancelled is skipped.
+inline void fire_new_periodic_timers(const TimerSnapshot& before) {
+    std::vector<lv_timer_t*> armed;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
+        if (!before.contains(t) && t->timer_cb && t->repeat_count < 0) {
+            armed.push_back(t);
+        }
+    }
+    for (lv_timer_t* t : armed) {
+        if (timer_is_live(t) && t->timer_cb && t->repeat_count < 0) {
+            t->timer_cb(t);
+        }
+    }
+}
+
+} // namespace helix::test
 
 /// Process pending lv_async_call / lv_obj_delete_async one-shot timers.
 /// Unlike lv_timer_handler(), this only fires one-shot timers and avoids the
@@ -32,11 +89,7 @@ inline void process_async_timers() {
         while (t) {
             lv_timer_t* next = lv_timer_get_next(t);
             if (t->repeat_count > 0 && t->timer_cb) {
-                t->repeat_count--;
-                t->timer_cb(t);
-                if (timer_is_live(t) && t->repeat_count == 0) {
-                    lv_timer_delete(t);
-                }
+                helix::test::fire_timer_once(t);
                 fired = true;
                 break; // Restart — list may have changed
             }

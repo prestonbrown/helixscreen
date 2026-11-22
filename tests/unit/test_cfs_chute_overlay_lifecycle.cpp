@@ -9,6 +9,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/armed_timers.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/process_async_timers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_cfs_calibration.h"
@@ -25,7 +26,6 @@
 
 #include <array>
 #include <functional>
-#include <set>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -201,27 +201,14 @@ class ChuteOverlayFixture : public LVGLUITestFixture {
 
     /// A press held past several repeat intervals, then released. The harness
     /// pauses periodic timers, so the periodic timer the press armed is fired by
-    /// hand. One-shots armed meanwhile are left to process_lvgl(), which runs each
-    /// once when it comes due: firing one by hand leaves it armed, and a one-shot
-    /// that re-arms from its callback then doubles on every pass (#2153).
+    /// hand; one-shots armed meanwhile are left to process_lvgl().
     void hold_pad(double dx, double dy) {
-        std::set<lv_timer_t*> before;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            before.insert(t);
-        }
+        const helix::test::TimerSnapshot before;
         REQUIRE(UITest::press_at(pad_x_ + static_cast<int32_t>(dx * pad_radius_),
                                  pad_y_ + static_cast<int32_t>(dy * pad_radius_)));
         for (int i = 0; i < 40; ++i) {
             process_lvgl(50);
-            std::vector<lv_timer_t*> armed;
-            for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-                if (before.count(t) == 0 && t->timer_cb && t->repeat_count < 0) {
-                    armed.push_back(t);
-                }
-            }
-            for (lv_timer_t* t : armed) {
-                t->timer_cb(t);
-            }
+            helix::test::fire_new_periodic_timers(before);
         }
         REQUIRE(UITest::release());
         process_lvgl(50);
