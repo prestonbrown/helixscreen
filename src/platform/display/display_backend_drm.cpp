@@ -589,8 +589,8 @@ lv_indev_t* DisplayBackendDRM::hook_pointer_devices(bool reopening) {
     // live when the old one dropped.
     if (pointer_ != nullptr && !calibration_wrapper_installed_) {
         if (reopening) {
-            helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
-                                                 screen_height_);
+            helix::reinstall_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                 screen_width_, screen_height_);
         } else {
             helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
                                                screen_width_, screen_height_);
@@ -1015,8 +1015,8 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
             // A reopened device keeps the calibration live when the old one dropped,
             // a capture's disabled affine included.
             if (reopening) {
-                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
-                                                     screen_height_);
+                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                     screen_width_, screen_height_);
             } else {
                 helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
                                                    screen_width_, screen_height_);

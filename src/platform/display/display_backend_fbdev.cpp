@@ -516,8 +516,9 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
 
     // Load affine calibration from config (saved by calibration wizard). A reopened
     // device keeps the one already live, which a calibration this session may have
-    // replaced or cleared.
-    if (!reopening) {
+    // replaced or cleared; a panel first seen on a reopen has none live yet.
+    const bool first_device = !reopening || !calibration_context_.installed;
+    if (first_device) {
         calibration_ = helix::load_touch_calibration();
     }
 
@@ -528,7 +529,7 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
     // and live ABS range are known.
     helix::Config* cfg = helix::Config::get_instance();
     bool recheck_pending = cfg->get<bool>("/input/calibration/recheck_pending", false);
-    if (recheck_pending && !reopening) {
+    if (recheck_pending && first_device) {
         bool is_resistive = helix::is_resistive_touchscreen_name(dev_name);
         bool abs_mismatch =
             got_range && helix::has_abs_display_mismatch(abs_x.maximum, abs_y.maximum,
@@ -582,8 +583,8 @@ bool DisplayBackendFbdev::open_touch_device(const std::string& touch_path, bool 
     // device keeps the calibration live when the old one dropped, a capture's disabled
     // affine included.
     if (reopening) {
-        helix::reinstall_calibration_wrapper(touch_, calibration_context_, screen_width_,
-                                             screen_height_);
+        helix::reinstall_calibration_wrapper(touch_, calibration_context_, calibration_,
+                                             screen_width_, screen_height_);
     } else {
         helix::install_calibration_wrapper(touch_, calibration_context_, calibration_,
                                            screen_width_, screen_height_);
