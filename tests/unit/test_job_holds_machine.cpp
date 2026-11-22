@@ -604,7 +604,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/unclaimed_toolhead_modal.xml",
     "ui_xml/components/tune_speed_flow.xml",
     "ui_xml/components/tune_z_offset.xml",
-    "ui_xml/components/tune_z_steps.xml",
     "ui_xml/components/tune_z_target_row.xml",
     "ui_xml/components/z_adjust_steps.xml",
     "ui_xml/components/upgrade_banner.xml",
