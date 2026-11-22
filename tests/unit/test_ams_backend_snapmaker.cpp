@@ -4485,6 +4485,10 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config's alpha makes a 
     CHECK(backend.get_slot_info(0).color_rgb == 0xE8E8FFu);
     CHECK(backend.get_slot_info(0).translucent);
     CHECK_FALSE(backend.get_slot_info(1).translucent);
+    // The lane's firmware reading states it, for every reader of the lane.
+    const auto fw = helix::ams::lane_sources(backend.lane_id(0)).firmware;
+    REQUIRE(fw.has_value());
+    CHECK(fw->translucent == std::optional<bool>(true));
 
     // A record written back opaque is opaque again.
     backend.fire_status(
@@ -4634,6 +4638,18 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker a save sends only the record lines
         REQUIRE(writes.size() == 1);
         CHECK(writes[0] ==
               "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=123456FF");
+    }
+    SECTION("a translucency change alone sends the colour line alone") {
+        SlotInfo edit = inland_pla();
+        edit.translucent = true;
+        REQUIRE(helix::test::apply_edit(h.backend, 1, edit).success());
+        FilamentRecordHarness::drain();
+        const auto writes = h.config_writes();
+        REQUIRE(writes.size() == 1);
+        CHECK(writes[0] ==
+              fmt::format(
+                  "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=FF5500{:02X}",
+                  helix::filament_alpha(true)));
     }
     SECTION("a product-line change sends the identity line alone") {
         SlotInfo edit = inland_pla();
@@ -5713,6 +5729,26 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(writes_for_head(h, 0) == 2 * 2);
         CHECK(writes_for_head(h, 2) == 2 * 2);
     }
+    SECTION("a reconnect gives a write-back its full count of tries again") {
+        for (int i = 0; i < 4; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
+        }
+        REQUIRE(writes_for_head(h, 0) == 2 * 2);
+        h.printer.client.clear_gcode_script_history();
+
+        h.backend.before_disconnect();
+        SnapmakerTestAccess::call_on_started(h.backend);
+        h.print("standby");
+        h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+        h.frame(make_feed_status(2, "preload_finish", /*filament_detected=*/true));
+        for (int i = 0; i < 6; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
+        }
+        CHECK(writes_for_head(h, 0) == 3 * 2);
+        CHECK(writes_for_head(h, 2) == 3 * 2);
+    }
     SECTION("an edit the record never echoed is written again as the edit, three times in all") {
         // The edit's write fails or a queued clear overtakes it: the record
         // still names no type, and the lane's override still holds the type
@@ -5807,6 +5843,45 @@ TEST_CASE_METHOD(SnapmakerFixture,
         h.printer.client.clear_gcode_script_history();
         h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
         check_head_writes(h, 0, "PETG", blue_translucent_rgba());
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an edit the firmware never echoed is not written over a spool that "
+                 "changed",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("drift_restore_edit_spool_changed");
+    edit_head0_unechoed(h);
+    // A frame from before the edit: the lane shows the filament it replaced.
+    h.frame(make_head_record(0, "PLA", "FF0000FF"));
+
+    SECTION("a spool goes into the port: RESUME's repair writes the lane, not the edit") {
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/true));
+        h.print("printing");
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        h.print("paused");
+        h.printer.client.clear_gcode_script_history();
+        SnapmakerTestAccess::set_current_slot(h.backend, 0);
+        SnapmakerTestAccess::set_sensor_present(h.backend, 0, true);
+        h.backend.prepare_for_resume(0, [](const AmsError&) {});
+        FilamentRecordHarness::drain();
+        for (const auto& w : h.config_writes()) {
+            INFO(w);
+            CHECK(w.find("PETG") == std::string::npos);
+            CHECK(w.find("RGBA=0000FF") == std::string::npos);
+        }
+    }
+    SECTION("the tag reader names a different spool: nothing is written back") {
+        h.frame(make_filament_detect_status(0, "PLA", 0xFFFF0000u, "Polymaker",
+                                            json::array({1, 2, 3, 4})));
+        h.frame(make_filament_detect_status(0, "ABS", 0xFF00FF00u, "Generic",
+                                            json::array({5, 6, 7, 8})));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(writes_for_head(h, 0) == 0);
     }
 }
 
