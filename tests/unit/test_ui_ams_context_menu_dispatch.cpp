@@ -284,8 +284,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     REQUIRE(warnings.size() == 3);
     for (const std::string& message : warnings) {
-        // The mock speaks Happy Hare, whose positions are gates (1-based).
-        CHECK(message.find("Gate 1") != std::string::npos);
+        // The mock speaks Happy Hare, whose positions are gates counted from 0.
+        CHECK(message.find("Gate 0") != std::string::npos);
         CHECK(message.find("feeding the current print") != std::string::npos);
     }
 }
@@ -400,7 +400,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         helix::ui::offer_clear_after_unverified_insert(0);
         REQUIRE(toasts.size() == 1);
         CHECK(toasts[0].first == ToastSeverity::INFO);
-        CHECK(toasts[0].second.find("Gate 1") != std::string::npos);
+        CHECK(toasts[0].second.find("Gate 0") != std::string::npos);
         // Asking changes nothing on its own.
         CHECK_FALSE(backend->get_slot_info(0).material.empty());
 

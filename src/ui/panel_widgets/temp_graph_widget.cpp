@@ -168,10 +168,12 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         settings.subject_tool_number_style(), settings.get_subjects_lifetime(), this,
         [](TempGraphWidget* self) { self->refresh_series_names(); });
     // A lane rig's nozzles are named by their heads, which a tool list rebuild moves.
-    tools_version_observer_ = helix::ui::observe<int>(
-        ToolState::instance().get_tools_version_subject(), this,
-        [](TempGraphWidget* self, int) { self->refresh_series_names(); },
-        ToolState::instance().get_subjects_lifetime());
+    if (ToolState::instance().subjects_initialized()) {
+        tools_version_observer_ = helix::ui::observe<int>(
+            ToolState::instance().get_tools_version_subject(), this,
+            [](TempGraphWidget* self, int) { self->refresh_series_names(); },
+            ToolState::instance().get_subjects_lifetime());
+    }
 
     // The graph is `merges_into_card = false` — it reads as its own panel, not
     // as one tile in a fused run — so it supplies its own surface. Use the

@@ -147,14 +147,16 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
 
     auto& tool_state = ToolState::instance();
     // A lane rig orders and names its rows by head, which a tool list rebuild moves.
-    const int initial_tools = lv_subject_get_int(tool_state.get_tools_version_subject());
-    tools_version_observer_ = helix::ui::observe<int>(
-        tool_state.get_tools_version_subject(), this,
-        [initial_tools](NozzleTempsWidget* self, int version) {
-            if (version != initial_tools)
-                self->rebuild_rows();
-        },
-        tool_state.get_subjects_lifetime());
+    if (tool_state.subjects_initialized()) {
+        const int initial_tools = lv_subject_get_int(tool_state.get_tools_version_subject());
+        tools_version_observer_ = helix::ui::observe<int>(
+            tool_state.get_tools_version_subject(), this,
+            [initial_tools](NozzleTempsWidget* self, int version) {
+                if (version != initial_tools)
+                    self->rebuild_rows();
+            },
+            tool_state.get_subjects_lifetime());
+    }
     named_mounted_tool_ = lv_subject_get_int(tool_state.get_active_tool_subject());
     mounted_tool_observer_ = helix::ui::observe<int>(
         tool_state.get_active_tool_subject(), this,

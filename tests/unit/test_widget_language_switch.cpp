@@ -296,8 +296,10 @@ TEST_CASE_METHOD(LanguageSwitchFixture, "a numbering change repaints the slot ba
     helix::ui::init_language_refresh();
     helix::ui::UpdateQueue::instance().drain_until_empty();
 
+    // Flip whichever numbering the backend's default left in place.
+    const bool was = helix::ui::lane_numbering_from_zero();
     const int before = lv_subject_get_int(ams.get_slots_version_subject());
-    SettingsManager::instance().set_number_lanes_from_zero(true);
+    SettingsManager::instance().set_number_lanes_from_zero(!was);
     helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(lv_subject_get_int(ams.get_slots_version_subject()) != before);
 
