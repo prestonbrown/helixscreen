@@ -179,14 +179,14 @@ does not know is `null` (RFC 0001 V-S2), never `""`, `0` or a placeholder.
 | `name` | string or null | Product name. |
 | `spool_id` | int or null | Spoolman spool id. |
 | `spoolman_filament_id` | int or null | The Spoolman filament record behind `spool_id`. |
-| `filament_id` | string or null | OrcaSlicer's filament id. On a lane linked to a Spoolman spool whose filament carries the `orca_filament_id` extra (RFC 0001 §6), HelixScreen writes that id, since the tracker wins on identity, and marks it with `helix_filament_id_source: "spoolman"`. Otherwise it writes the id its catalog records for the user's catalog pick when no other product carries the same id. It never guesses one from a brand or name, and never writes a Bambu `GF*` code or a numeric value. |
+| `filament_id` | string or null | OrcaSlicer's filament id. On a lane linked to a Spoolman spool whose filament carries the `orca_filament_id` extra (RFC 0001 §6), HelixScreen writes that id, since the tracker wins on identity, and marks it with `helix_filament_id_source: "spoolman"`. Otherwise it writes the id its catalog records for the user's catalog pick when no other product carries the same id. Failing both, it writes the id of the material family's Generic preset, the same `Generic <family> @System` preset OrcaSlicer's own fallback targets, and marks it `helix_filament_id_source: "generic"`; that names the material, not a product. With no Generic preset for the family the field is `null`. It never derives an id from a brand or product name, and never writes a Bambu `GF*` code or a numeric value. |
 | `bed_temp`, `nozzle_temp` | int or null | Celsius. From the user's entry, the linked spool's filament, or HelixScreen's material table, in that order; a range is written as its midpoint. |
 | `remaining_weight_g`, `total_weight_g` | number or null | Grams. |
 | `scan_time` | string | ISO-8601 UTC, second precision, stamped on every write. |
-| `helix_color_name` | string | The colour's name (`"Black"`). |
+| `helix_color_name` | string | The color's own name (`"Galaxy Black"`). A name made only of HelixScreen's derived color vocabulary (`"Dark Gray"`) is read as absent and recomputed from `color`. |
 | `helix_catalog_id`, `helix_product_name` | string | The HelixScreen catalog product the user picked. |
 | `helix_spoolman_vendor_id` | int | The Spoolman vendor id. |
-| `helix_filament_id_source` | string | `"spoolman"` when `filament_id` came from the linked spool (above). |
+| `helix_filament_id_source` | string | `"spoolman"` when `filament_id` came from the linked spool, `"generic"` when it is the family's Generic preset (above). |
 | `helix_fingerprint` | string | The spool identity HelixScreen's swap detection last observed (§6). Not filament metadata; carry it through unchanged on a rewrite. |
 | `helix_external` | bool | `true` on the external spool's lane (§4). |
 

@@ -4253,6 +4253,8 @@ translations:
     varias veces.
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'El carril olvida esta bobina. El filamento se queda donde está.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Los ajustes del carril no se cambiaron y la bobina no se guardó. Pulsa Guardar para guardar la bobina.'
+  The lane settings weren't changed.: 'Los ajustes del carril no se cambiaron.'
   The lane that takes over when this one runs out: 'El carril que toma el relevo cuando este se agota'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base.
   The left RFID reader in this CFS unit may need service: Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio
@@ -4433,6 +4435,7 @@ translations:
   This firmware can only switch slots by loading them: 'Este firmware solo puede cambiar de ranura cargándola'
   The filament went into the toolhead past its feeder. Load it by hand.: "El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."
   This toolhead has no automatic feeder. Load the filament by hand.: "Este cabezal no tiene alimentador automático. Carga el filamento a mano."
+  This head until a tool change; Save after the print to apply it to every head: 'Este cabezal hasta un cambio de herramienta; guarda tras la impresión para aplicarlo a todos los cabezales'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Esto instala las macros de ayuda de HelixScreen en la impresora, las añade a printer.cfg y reinicia Klipper.'

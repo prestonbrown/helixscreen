@@ -98,12 +98,37 @@
     <px name="edit_spool_size_medium" value="168"/>
     <px name="edit_spool_size_large" value="210"/>
     <!-- A multi-color spool's mode dropdown (the color page's Multi-Color
-         row, ams_edit_multi_color.xml) and the bar of its colors. -->
+         row, ams_edit_multi_color.xml: its widest) and the bar of its colors. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
     <px name="ams_edit_mode_dd_w_tiny" value="110"/>
     <px name="ams_edit_mode_dd_w_small" value="130"/>
     <px name="ams_edit_mode_dd_w_medium" value="150"/>
     <px name="ams_edit_mode_dd_w_large" value="170"/>
+    <!-- The mode dropdown's height: #button_height_sm, except at micro, where
+         the dropdown's 24px chevron glyph needs two more pixels than the box. -->
+    <px name="ams_edit_mode_dd_h_micro" value="26"/>
+    <px name="ams_edit_mode_dd_h_tiny" value="28"/>
+    <px name="ams_edit_mode_dd_h_small" value="40"/>
+    <px name="ams_edit_mode_dd_h_medium" value="40"/>
+    <px name="ams_edit_mode_dd_h_large" value="40"/>
+    <!-- The Multi-Color row's dots: the swatch_grid ladder, except that
+         480x320 holds the 44px pitch of its neighbors instead of 46, so four
+         dots, the switch and the dropdown share one line there. -->
+    <px name="ams_edit_multi_dot_size_micro" value="26"/>
+    <px name="ams_edit_multi_dot_size_tiny" value="28"/>
+    <px name="ams_edit_multi_dot_size_small" value="28"/>
+    <px name="ams_edit_multi_dot_size_medium" value="32"/>
+    <px name="ams_edit_multi_dot_size_large" value="32"/>
+    <px name="ams_edit_multi_dot_hit_micro" value="9"/>
+    <px name="ams_edit_multi_dot_hit_tiny" value="8"/>
+    <px name="ams_edit_multi_dot_hit_small" value="8"/>
+    <px name="ams_edit_multi_dot_hit_medium" value="6"/>
+    <px name="ams_edit_multi_dot_hit_large" value="6"/>
+    <px name="ams_edit_multi_dot_gap_micro" value="18"/>
+    <px name="ams_edit_multi_dot_gap_tiny" value="16"/>
+    <px name="ams_edit_multi_dot_gap_small" value="16"/>
+    <px name="ams_edit_multi_dot_gap_medium" value="12"/>
+    <px name="ams_edit_multi_dot_gap_large" value="12"/>
     <px name="ams_edit_preview_h_micro" value="18"/>
     <px name="ams_edit_preview_h_tiny" value="20"/>
     <px name="ams_edit_preview_h_small" value="22"/>
@@ -111,8 +136,8 @@
     <px name="ams_edit_preview_h_large" value="28"/>
     <!-- The most color swatches the Filament page builds, AmsEditOverlay's cap
          too: every color it can offer (12 recents and the 60-color filament
-         palette), which is also about what fits at 800x480 with nothing below
-         the colors (13 across, 6 lines, less the dot and the rainbow tile). -->
+         palette). The page shows as many as fit, far fewer at the
+         Filament page's swatch size. -->
     <int name="ams_edit_swatch_cap" value="72"/>
     <!-- The spool tiles a new spool starts from: spool_assign::kSpoolTiles. -->
     <int name="ams_edit_spool_tiles" value="12"/>
@@ -126,12 +151,33 @@
     <px name="ams_edit_label_w_small" value="88"/>
     <px name="ams_edit_label_w_medium" value="104"/>
     <px name="ams_edit_label_w_large" value="124"/>
-    <px name="ams_edit_label_pad_micro" value="6"/>
-    <px name="ams_edit_label_pad_tiny" value="8"/>
-    <px name="ams_edit_label_pad_small" value="10"/>
-    <px name="ams_edit_label_pad_medium" value="12"/>
-    <px name="ams_edit_label_pad_large" value="12"/>
-    <!-- ↺'s hit reach: #button_height_sm plus twice this is 44 or more. -->
+    <px name="ams_edit_label_pad_micro" value="9"/>
+    <px name="ams_edit_label_pad_tiny" value="10"/>
+    <px name="ams_edit_label_pad_small" value="16"/>
+    <px name="ams_edit_label_pad_medium" value="20"/>
+    <px name="ams_edit_label_pad_large" value="23"/>
+    <!-- The Filament page's color swatches: fewer and larger than the color
+         picker's dense grid, each a finger target. Size plus twice the hit
+         reach is touch_target_min or more, and the gap is twice the hit, so
+         neighbors' touch areas meet without overlapping. The color row pads
+         by the hit reach so the outer swatches are hit-testable to the edge. -->
+    <px name="ams_edit_swatch_size_micro" value="40"/>
+    <px name="ams_edit_swatch_size_tiny" value="40"/>
+    <px name="ams_edit_swatch_size_small" value="44"/>
+    <px name="ams_edit_swatch_size_medium" value="48"/>
+    <px name="ams_edit_swatch_size_large" value="52"/>
+    <px name="ams_edit_swatch_gap_micro" value="10"/>
+    <px name="ams_edit_swatch_gap_tiny" value="10"/>
+    <px name="ams_edit_swatch_gap_small" value="12"/>
+    <px name="ams_edit_swatch_gap_medium" value="12"/>
+    <px name="ams_edit_swatch_gap_large" value="14"/>
+    <px name="ams_edit_swatch_hit_micro" value="5"/>
+    <px name="ams_edit_swatch_hit_tiny" value="5"/>
+    <px name="ams_edit_swatch_hit_small" value="6"/>
+    <px name="ams_edit_swatch_hit_medium" value="6"/>
+    <px name="ams_edit_swatch_hit_large" value="7"/>
+    <!-- The hit reach of a #button_height_sm control (↺, the Multi-Color
+         mode dropdown): its height plus twice this is 44 or more. -->
     <px name="ams_edit_tag_hit_micro" value="10"/>
     <px name="ams_edit_tag_hit_tiny" value="8"/>
     <px name="ams_edit_tag_hit_small" value="2"/>
@@ -145,9 +191,6 @@
     <px name="ams_edit_lane_dd_w_large" value="240"/>
   </consts>
   <styles>
-    <!-- The color row pads by its swatches' reach so the outer ones are
-         hit-testable. -->
-    <style name="color_row_pad" pad_all="#swatch_grid_gap_half"/>
     <!-- A full-width row that opens another page: card-toned, pressable. -->
     <style name="nav_row"
            bg_color="#elevated_bg" bg_opa="255" radius="#border_radius" border_width="0" pad_hor="#space_sm"
@@ -359,9 +402,12 @@
                 flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
                 clickable="false"/>
 
+        <!-- Clear Lane at left, Save always at right: the spacer takes the
+             slack whenever the hint is hidden, so Save stays right with
+             Clear Lane hidden too. -->
         <lv_obj name="summary_actions"
-                width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
-                style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_md" scrollable="false">
           <ui_button name="btn_clear_spool"
                      width="content" height="#button_height" text="Clear Lane" variant="outline"
                      style_border_color="#danger" style_text_color="#danger" hidden="true">
@@ -375,6 +421,11 @@
                       style_text_color="#text_muted">
             <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="0"/>
           </text_small>
+          <lv_obj width="1"
+                  height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" clickable="false">
+            <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="1"/>
+          </lv_obj>
           <ui_button name="btn_edit_save"
                      width="content" height="#button_height" text="Save" variant="primary"
                      style_min_width="#ams_edit_weight_w">
@@ -577,19 +628,22 @@
                  under the count, so they wrap with the dots and the rainbow
                  tile ends the last line. -->
             <lv_obj name="color_row"
-                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
-                    style_flex_cross_place="center" scrollable="false">
-              <style name="color_row_pad"/>
-              <ams_edit_color_dots name="color_dots" hide_add="true"/>
+                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#ams_edit_swatch_gap"
+                    style_pad_all="#ams_edit_swatch_hit" style_flex_cross_place="center" scrollable="false">
+              <ams_edit_color_dots name="color_dots"
+                                   hide_add="true" size="#ams_edit_swatch_size" hit="#ams_edit_swatch_hit"
+                                   gap="#ams_edit_swatch_gap"/>
               <repeat count="#ams_edit_swatch_cap">
                 <color_swatch index="${i}"
                               color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
-                              size="#swatch_grid_size" hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach"
+                              size="#ams_edit_swatch_size" hit="#ams_edit_swatch_hit" reach="#swatch_grid_ring_reach"
                               ring="styles.grid_swatch_ring">
                   <bind_flag_if cond="ams_edit_recent_count le ${i}" flag="hidden"/>
                 </color_swatch>
               </repeat>
-              <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb"/>
+              <custom_color_swatch name="btn_all_colors"
+                                   icon="palette" callback="ams_edit_color_page_cb" size="#ams_edit_swatch_size"
+                                   hit="#ams_edit_swatch_hit"/>
             </lv_obj>
           </lv_obj>
         </lv_obj>
@@ -654,7 +708,7 @@
       </lv_obj>
 
       <!-- ============================================================ -->
-      <!-- LANE SETTINGS (page 4): applied as soon as they change.       -->
+      <!-- LANE SETTINGS (page 4): staged here, written by Save.         -->
       <!-- ============================================================ -->
       <lv_obj name="lane_section"
               width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#ams_edit_vgap"

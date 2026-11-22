@@ -19,7 +19,13 @@ ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
     const ZOffsetTuneHint temporary =
         tool_change_resets ? ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE : ZOffsetTuneHint::TEMPORARY;
     if (strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
-        return save_enabled ? ZOffsetTuneHint::SAVE_ON_CONTROLS : temporary;
+        if (!save_enabled) {
+            return temporary;
+        }
+        // The adjustment lives on the mounted head until the next pickup
+        // replaces it, so the Save is what carries it to every head.
+        return tool_change_resets ? ZOffsetTuneHint::SAVE_ALL_HEADS
+                                  : ZOffsetTuneHint::SAVE_ON_CONTROLS;
     }
     if (per_head) {
         return ZOffsetTuneHint::AUTO_SAVED_PER_HEAD;
@@ -28,6 +34,21 @@ ZOffsetTuneHint resolve_z_offset_tune_hint(ZOffsetCalibrationStrategy strategy,
         return ZOffsetTuneHint::AUTO_SAVED;
     }
     return temporary;
+}
+
+ZOffsetCalibrationStrategy resolve_z_offset_save_strategy(ZOffsetCalibrationStrategy calibration,
+                                                          std::string_view db_save,
+                                                          bool external_persistence) {
+    if (calibration != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED || external_persistence) {
+        return calibration;
+    }
+    if (db_save == "probe") {
+        return ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    }
+    if (db_save == "endstop") {
+        return ZOffsetCalibrationStrategy::ENDSTOP;
+    }
+    return calibration;
 }
 
 namespace {
@@ -116,18 +137,21 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
                              (db_strategy == "firmware_managed" ||
                               new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED);
     const bool db_tool_change_resets = PrinterDetector::tool_change_resets_z_offset(type);
+    const ZOffsetCalibrationStrategy new_save_strategy = resolve_z_offset_save_strategy(
+        new_strategy, PrinterDetector::z_offset_save(type), external_persistence_);
     const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
-        new_strategy, external_persistence_, db_persists, db_tool_change_resets,
+        new_save_strategy, external_persistence_, db_persists, db_tool_change_resets,
         z_offset_save_enabled_, z_offset_per_head_);
 
     if (type == printer_type_ && new_strategy == z_offset_calibration_strategy_ &&
-        new_hint == z_offset_tune_hint_value_) {
+        new_save_strategy == z_offset_save_strategy_ && new_hint == z_offset_tune_hint_value_) {
         return false;
     }
 
     printer_type_ = type;
     pre_print_option_set_ = new_options;
     z_offset_calibration_strategy_ = new_strategy;
+    z_offset_save_strategy_ = new_save_strategy;
     z_offset_tune_hint_value_ = new_hint;
     db_z_offset_persists_ = db_persists;
     db_tool_change_resets_z_offset_ = db_tool_change_resets;
@@ -144,7 +168,8 @@ bool PrinterProfileState::set_printer_type(const std::string& type, bool has_pro
 
     if (subjects_initialized_) {
         lv_subject_set_int(&z_offset_can_save_,
-                           new_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? 1 : 0);
+                           new_save_strategy != ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? 1
+                                                                                             : 0);
         lv_subject_set_int(&z_offset_tune_hint_, static_cast<int>(new_hint));
     }
     publish_z_offset_reapplied_per_head();
@@ -167,7 +192,7 @@ bool PrinterProfileState::set_z_offset_save_enabled(bool enabled) {
     }
     z_offset_save_enabled_ = enabled;
     const ZOffsetTuneHint new_hint = resolve_z_offset_tune_hint(
-        z_offset_calibration_strategy_, external_persistence_, db_z_offset_persists_,
+        z_offset_save_strategy_, external_persistence_, db_z_offset_persists_,
         db_tool_change_resets_z_offset_, enabled, z_offset_per_head_);
     if (new_hint == z_offset_tune_hint_value_) {
         return false;

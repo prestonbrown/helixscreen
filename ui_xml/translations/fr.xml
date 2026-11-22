@@ -3909,6 +3909,8 @@
   <translation tag="The heater will cycle on and off several times." fr="Le chauffage s&apos;allumera et s&apos;éteindra plusieurs fois."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." fr="Les macros d&apos;aide sont installées et s&apos;activent après un redémarrage de Klipper."/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." fr="La voie oublie cette bobine. Le filament lui-même reste en place."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." fr="Les paramètres de la voie n&apos;ont pas été modifiés et la bobine n&apos;a pas été enregistrée. Appuyez sur Enregistrer pour enregistrer la bobine."/>
+  <translation tag="The lane settings weren&apos;t changed." fr="Les paramètres de la voie n&apos;ont pas été modifiés."/>
   <translation tag="The lane that takes over when this one runs out" fr="La voie qui prend le relais quand celle-ci est vide"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." fr="Le verrou s&apos;ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" fr="Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention"/>
@@ -4050,6 +4052,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." fr="Ce fichier a été tranché pour {} mais {} est chargé."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." fr="Ce fichier a été tranché pour {}, mais {} est chargé. L&apos;impression sera plus lente et plus chaude que ce qu&apos;exige la bobine chargée."/>
   <translation tag="This firmware can only switch slots by loading them" fr="Ce firmware ne peut changer de slot qu&apos;en le chargeant"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" fr="Cette tête d&apos;outil jusqu&apos;au prochain changement d&apos;outil ; enregistrez après l&apos;impression pour l&apos;appliquer à toutes les têtes d&apos;outil"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante et les ajoute à printer.cfg. Une impression est en cours, Klipper redémarrera une fois terminée."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante, les ajoute à printer.cfg et redémarre Klipper."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." fr="Ceci est un arrêt d&apos;urgence : l&apos;imprimante s&apos;arrête et Klipper redémarre."/>

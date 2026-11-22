@@ -43,9 +43,19 @@ the first lookup never parses the asset on a WebSocket background thread. See
 full resolution order.
 
 **What OrcaSlicer reads.** Orca's `MoonrakerPrinterAgent` (2.3.2 through
-2.5.0-alpha) reads five fields per record: `lane` (a string, 0-based tool index),
-`color`, `material`, `bed_temp` and `nozzle_temp`, and picks the first visible
-preset whose `filament_type` equals `material`. The library-type table is
+2.5.2) reads `lane` (a string, 0-based tool index), `color`, `material`,
+`bed_temp` and `nozzle_temp` per record; 2.5.2 also reads a string
+`filament_id` (the lane loop of `fetch_moonraker_filament_data` in
+[MoonrakerPrinterAgent.cpp](https://github.com/SoftFever/OrcaSlicer/blob/v2.5.2/src/slic3r/Utils/MoonrakerPrinterAgent.cpp)). It never reads `vendor_name`. With a
+`filament_id` it syncs the tray to that preset. Without one it takes the first
+visible preset whose `filament_type` equals `material`, of whatever brand comes
+first, then `map_filament_type_to_generic_id`, the family's
+`Generic <family> @System` preset. The first-visible pick is how an uncatalogued
+Eryone ASA got Generic ABS's 105C bed on a U1 capped at 100C, so a record with
+no product id carries its family's Generic id instead (§2). A printer profile on
+Orca's `Snapmaker` agent
+([SnapmakerPrinterAgent.cpp](https://github.com/SoftFever/OrcaSlicer/blob/v2.5.2/src/slic3r/Utils/SnapmakerPrinterAgent.cpp)) reads the firmware's
+`print_task_config` object and never sees lane_data. The library-type table is
 regenerated with `make regen-filaments ORCA_TAG=<tag>`, and a newer tag can add
 types older Orca releases lack (2.5 adds `PLA Silk`, `PETG HF`, `PA6`, `PE-CF`,
 `TPU-AMS`). Mapping a precise type onto one of those makes it match on the new
@@ -69,7 +79,7 @@ types every supported Orca release carries.
 | `colors`, `color_mode` | a multi-color filament's list (`FilamentSlotOverride::multi_color_hexes`, two or more `#RRGGBB`) and `"gradient"` or `"coaxial"`; for one color `colors` is `null` and `color_mode` is `"solid"` only when the write knew the count (`colors_stated`: a user's edit, a mirror replacing a stale list), else `null`; both `null` with no color (`include/filament_color_mode.h`, `src/printer/filament_slot_override_store.cpp#to_lane_data_record`) |
 | `material`, `filament_type` | the Orca match string and the precise type |
 | `vendor_name`, `name` | brand and product name |
-| `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product |
+| `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product, else the material family's Generic preset (`FilamentCatalog::generic_orca_id_for`: the bundled `Generic <type>` product, else `Generic <orca_match_type>`), else `null`; `helix_filament_id_source` says `"spoolman"` or `"generic"` for the first and third |
 | `bed_temp`, `nozzle_temp` | numbers resolved from the material at write time, or `null` |
 | `remaining_weight_g`, `total_weight_g` | numbers or `null` |
 | `scan_time` | `null` |
@@ -78,6 +88,10 @@ types every supported Orca release carries.
 `from_lane_data_record()` reads the RFC spellings first and the legacy ones
 (`vendor`, `spool_name`, `helix_material`, a numeric `lane`) after, so a record
 written by an older HelixScreen, AFC, Happy Hare or Mainsail still reads. A
+stored color name made only of `describe_color()`'s own words ("Dark Gray",
+"Light Soft Blue": `helix::is_derived_color_name`) is dropped on read, because
+it caches the hex under whatever naming wrote it; the display derives it
+afresh and the next write omits it. A product's name ("Galaxy Black") stays. A
 record with no valid `lane` field does not parse, and costs its slot only.
 
 ### Outer key style

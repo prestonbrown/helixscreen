@@ -3903,6 +3903,8 @@
   <translation tag="The heater will cycle on and off several times." de="Die Heizung wird mehrmals ein- und ausschalten."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." de="Die Hilfsmakros sind installiert und werden nach einem Klipper-Neustart aktiv."/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." de="Die Spur vergisst diese Spule. Das Filament selbst bleibt, wo es ist."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." de="Die Spur-Einstellungen wurden nicht geändert, und die Spule wurde nicht gespeichert. Tippe auf Speichern, um die Spule zu speichern."/>
+  <translation tag="The lane settings weren&apos;t changed." de="Die Spur-Einstellungen wurden nicht geändert."/>
   <translation tag="The lane that takes over when this one runs out" de="Die Spur, die übernimmt, wenn diese ausläuft"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." de="Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" de="Der linke RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
@@ -4044,6 +4046,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." de="Diese Datei wurde für {} gesliced, aber {} ist geladen."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." de="Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt."/>
   <translation tag="This firmware can only switch slots by loading them" de="Diese Firmware kann Slots nur durch Laden wechseln"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" de="Dieser Werkzeugkopf bis zum nächsten Werkzeugwechsel; nach dem Druck speichern, um es auf alle Werkzeugköpfe anzuwenden"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." de="Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker und fügt sie zu printer.cfg hinzu. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." de="Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker, fügt sie zu printer.cfg hinzu und startet Klipper neu."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." de="Dies ist ein Not-Aus: Der Drucker hält an und Klipper startet neu."/>

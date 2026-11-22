@@ -4,10 +4,12 @@
 #include "color_utils.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 namespace helix {
 
@@ -56,62 +58,99 @@ void rgb_to_hsl(uint32_t rgb, float& h, float& s, float& l) {
     l *= 100.0f;
 }
 
+namespace {
+
+// describe_color's whole vocabulary. is_derived_color_name() reads the same
+// tables, so a name describe_color can give always reads as derived.
+enum Hue {
+    kRed,
+    kOrange,
+    kYellow,
+    kLime,
+    kGreen,
+    kTeal,
+    kCyan,
+    kBlue,
+    kIndigo,
+    kPurple,
+    kMagenta,
+    kPink
+};
+constexpr std::array<std::string_view, 12> kHueNames = {"Red",    "Orange", "Yellow",  "Lime",
+                                                        "Green",  "Teal",   "Cyan",    "Blue",
+                                                        "Indigo", "Purple", "Magenta", "Pink"};
+enum Saturation { kGrayish, kMuted, kSoft, kVibrant };
+constexpr std::array<std::string_view, 4> kSaturationNames = {"Grayish", "Muted", "Soft",
+                                                              "Vibrant"};
+enum Lightness { kDark, kDeep, kMedium, kLight, kPale };
+constexpr std::array<std::string_view, 5> kLightnessNames = {"Dark", "Deep", "Medium", "Light",
+                                                             "Pale"};
+constexpr std::string_view kWhite = "White";
+constexpr std::string_view kBlack = "Black";
+constexpr std::string_view kDeepBlack = "Deep Black";
+constexpr std::string_view kGray = "Gray";
+
+template <size_t N>
+bool names_one_of(std::string_view word, const std::array<std::string_view, N>& names) {
+    return std::find(names.begin(), names.end(), word) != names.end();
+}
+
+} // namespace
+
 std::string describe_color(uint32_t rgb) {
     float h, s, l;
     rgb_to_hsl(rgb, h, s, l);
 
     // Determine hue name based on angle
-    const char* hue_name = "Unknown";
+    Hue hue = kPink;
     if (h < 15.0f || h >= 345.0f) {
-        hue_name = "Red";
+        hue = kRed;
     } else if (h < 45.0f) {
-        hue_name = "Orange";
+        hue = kOrange;
     } else if (h < 70.0f) {
-        hue_name = "Yellow";
+        hue = kYellow;
     } else if (h < 80.0f) {
-        hue_name = "Lime";
+        hue = kLime;
     } else if (h < 163.0f) {
-        hue_name = "Green";
+        hue = kGreen;
     } else if (h < 193.0f) {
-        hue_name = "Teal";
+        hue = kTeal;
     } else if (h < 210.0f) {
-        hue_name = "Cyan";
+        hue = kCyan;
     } else if (h <= 240.0f) {
-        hue_name = "Blue";
+        hue = kBlue;
     } else if (h < 260.0f) {
-        hue_name = "Indigo";
+        hue = kIndigo;
     } else if (h < 280.0f) {
-        hue_name = "Purple";
+        hue = kPurple;
     } else if (h < 320.0f) {
-        hue_name = "Magenta";
-    } else {
-        hue_name = "Pink";
+        hue = kMagenta;
     }
 
     // Determine saturation modifier
-    const char* saturation_name = "";
+    std::string_view saturation_name;
     if (s < 10.0f) {
-        saturation_name = "Grayish";
+        saturation_name = kSaturationNames[kGrayish];
     } else if (s < 30.0f) {
-        saturation_name = "Muted";
+        saturation_name = kSaturationNames[kMuted];
     } else if (s < 60.0f) {
-        saturation_name = "Soft";
+        saturation_name = kSaturationNames[kSoft];
     } else if (s >= 80.0f) {
-        saturation_name = "Vibrant";
+        saturation_name = kSaturationNames[kVibrant];
     }
 
     // Determine lightness modifier
-    const char* lightness_name = "";
+    std::string_view lightness_name;
     if (l < 15.0f) {
-        lightness_name = "Dark";
+        lightness_name = kLightnessNames[kDark];
     } else if (l < 40.0f) {
-        lightness_name = "Deep";
+        lightness_name = kLightnessNames[kDeep];
     } else if (l < 55.0f) {
-        lightness_name = "Medium";
+        lightness_name = kLightnessNames[kMedium];
     } else if (l >= 75.0f && l < 90.0f) {
-        lightness_name = "Light";
+        lightness_name = kLightnessNames[kLight];
     } else if (l >= 90.0f) {
-        lightness_name = "Pale";
+        lightness_name = kLightnessNames[kPale];
     }
 
     // Build final color name
@@ -122,28 +161,27 @@ std::string describe_color(uint32_t rgb) {
     // near-neutral still reads as black, and below ~4.5% a neutral is "Deep Black".
     // Near-white mirrors the black band.
     if ((l > 98.0f) || (s < 25.0f && l >= 94.0f)) {
-        return "White";
+        return std::string(kWhite);
     } else if (s < 25.0f && l < 4.5f) {
-        return "Deep Black";
+        return std::string(kDeepBlack);
     } else if ((l < 8.0f) || (s < 25.0f && l < 18.0f)) {
-        return "Black";
+        return std::string(kBlack);
     } else if (s < 10.0f) {
         // Grayscale
-        if (lightness_name[0] != '\0') {
+        if (!lightness_name.empty()) {
             color_name = lightness_name;
-            color_name += " Gray";
-        } else {
-            color_name = "Gray";
+            color_name += " ";
         }
+        color_name += kGray;
         return color_name;
     }
 
     // Chromatic color: combine modifiers
-    if (lightness_name[0] != '\0') {
+    if (!lightness_name.empty()) {
         color_name = lightness_name;
     }
 
-    if (s > 10.0f && saturation_name[0] != '\0') {
+    if (s > 10.0f && !saturation_name.empty()) {
         if (!color_name.empty()) {
             color_name += " ";
         }
@@ -153,9 +191,35 @@ std::string describe_color(uint32_t rgb) {
     if (!color_name.empty()) {
         color_name += " ";
     }
-    color_name += hue_name;
+    color_name += kHueNames[hue];
 
     return color_name;
+}
+
+bool is_derived_color_name(std::string_view name) {
+    if (name == kWhite || name == kBlack || name == kDeepBlack)
+        return true;
+    // The rest is "[Lightness] [Saturation] Hue" or "[Lightness] Gray", one
+    // space between words.
+    std::vector<std::string_view> words;
+    for (size_t start = 0;;) {
+        const size_t space = name.find(' ', start);
+        words.push_back(
+            name.substr(start, space == std::string_view::npos ? space : space - start));
+        if (space == std::string_view::npos)
+            break;
+        start = space + 1;
+    }
+    if (words.size() > 3)
+        return false;
+    size_t i = 0;
+    if (words.size() > 1 && names_one_of(words[i], kLightnessNames))
+        ++i;
+    if (words.size() - i == 1 && words[i] == kGray)
+        return true;
+    if (words.size() - i > 1 && names_one_of(words[i], kSaturationNames))
+        ++i;
+    return words.size() - i == 1 && names_one_of(words[i], kHueNames);
 }
 
 bool parse_hex_color(const char* input, uint32_t& out_rgb) {
