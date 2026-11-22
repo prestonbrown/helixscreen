@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The bed mesh intro's settings column: the bed temperature to probe at,
+     why it matters, then the badges at the foot. BedMeshPanel publishes
+     bed_mesh_heat_choice (0 cold, 1 PLA, 2 PETG, 3 ABS / ASA), each
+     material's bed temperature and the badge texts. Shared by both
+     orientations of bed_mesh_panel.xml. -->
+<component>
+  <view extends="lv_obj"
+        style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" flex_flow="column"
+        scrollable="false">
+    <cal_intro_section_label name="mesh_heat_label" text="Heat the bed first"/>
+    <lv_obj name="mesh_heat_row_a"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" scrollable="false">
+      <cal_intro_chip name="mesh_heat_cold"
+                      label="Cold" detail="no heat" choice="bed_mesh_heat_choice" index="0"
+                      callback="on_bed_mesh_heat_choice"/>
+      <cal_intro_chip name="mesh_heat_pla"
+                      label="PLA" bind_detail="bed_mesh_heat_pla" choice="bed_mesh_heat_choice" index="1"
+                      callback="on_bed_mesh_heat_choice"/>
+    </lv_obj>
+    <lv_obj name="mesh_heat_row_b"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+            style_border_width="0" flex_flow="row" scrollable="false">
+      <cal_intro_chip name="mesh_heat_petg"
+                      label="PETG" bind_detail="bed_mesh_heat_petg" choice="bed_mesh_heat_choice" index="2"
+                      callback="on_bed_mesh_heat_choice"/>
+      <cal_intro_chip name="mesh_heat_abs"
+                      label="ABS / ASA" bind_detail="bed_mesh_heat_abs" choice="bed_mesh_heat_choice" index="3"
+                      callback="on_bed_mesh_heat_choice"/>
+    </lv_obj>
+    <text_small name="mesh_heat_desc"
+                width="100%" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                style_text_line_space="#space_xxs"
+                text="A hot bed changes shape. Probe at the temperature you print at.">
+      <!-- 480x272 keeps its height for the chips and badges. -->
+      <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+    </text_small>
+    <!-- Pushes the badges to the column's foot. -->
+    <lv_obj width="1"
+            height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            clickable="false"/>
+    <lv_obj name="mesh_intro_badges"
+            width="100%" height="content" style_pad_all="0" style_pad_bottom="#space_xs" style_pad_gap="#space_sm"
+            style_bg_opa="0" style_border_width="0" flex_flow="row_wrap" scrollable="false" clickable="false">
+      <cal_intro_badge name="mesh_badge_time" bind="bed_mesh_intro_duration"/>
+      <cal_intro_badge name="mesh_badge_heat" bind="bed_mesh_intro_heat" warm="true">
+        <bind_flag_if_eq subject="bed_mesh_heat_choice" flag="hidden" ref_value="0"/>
+      </cal_intro_badge>
+      <cal_intro_badge name="mesh_badge_points" bind="bed_mesh_intro_points"/>
+    </lv_obj>
+  </view>
+</component>

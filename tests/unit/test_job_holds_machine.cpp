@@ -421,6 +421,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/barcode_scanner_settings.xml",
     "ui_xml/bed_mesh_calibrate_modal.xml",
     "ui_xml/bed_mesh_panel.xml",
+    "ui_xml/components/bed_mesh_intro_footer.xml",
+    "ui_xml/components/bed_mesh_intro_settings.xml",
     "ui_xml/bed_mesh_rename_modal.xml",
     "ui_xml/bed_mesh_save_config_modal.xml",
     "ui_xml/belt_names_modal.xml",

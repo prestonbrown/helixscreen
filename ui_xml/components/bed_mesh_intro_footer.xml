@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The bed mesh intro's footer: Profiles opens the profiles view, Probe the
+     bed starts a calibration at the chosen bed temperature. Hidden outside
+     the intro (bed_mesh_view 0). Shared by both orientations of
+     bed_mesh_panel.xml. -->
+<component>
+  <view extends="calibration_intro_footer" primary_text="Probe the bed" primary_callback="on_bed_mesh_probe_intro">
+    <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+    <calibration_intro_footer-footer_left>
+      <cal_intro_footer_button name="btn_mesh_profiles" text="Profiles" callback="on_bed_mesh_show_profiles"/>
+    </calibration_intro_footer-footer_left>
+  </view>
+</component>

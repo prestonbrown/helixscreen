@@ -127,7 +127,7 @@ void open_advanced() {
 
 #if !defined(HELIX_PLATFORM_ESP32)
 void open_bed_mesh() {
-    ui::open_bed_mesh_panel(screen());
+    ui::open_bed_mesh_panel(screen(), /*profiles=*/true);
 }
 
 void open_input_shaper() {
