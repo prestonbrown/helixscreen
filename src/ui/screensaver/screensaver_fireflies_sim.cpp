@@ -271,8 +271,7 @@ void FirefliesSim::update_gather() {
     }
     char text[sizeof(gather_text_)];
     if (done) {
-        static constexpr char kCheck[] = {kGlyphCheck, '\0'};
-        std::snprintf(text, sizeof(text), "%s", spell_states_ ? "DONE" : kCheck);
+        std::snprintf(text, sizeof(text), "%s", clock_state_word(ClockMode::DONE, spell_states_));
     } else {
         std::snprintf(text, sizeof(text), "%d%%", static_cast<int>(print_pct_));
     }

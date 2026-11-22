@@ -77,6 +77,11 @@ constexpr bool clock_mode_is_end(ClockMode m) {
     return m == ClockMode::DONE || m == ClockMode::FAILED || m == ClockMode::CANCELLED;
 }
 
+/// What a clock spells for a paused or ended print: "PAUSE", "DONE", "FAIL" or "STOP", or
+/// where `spell` is false that state's one stroke symbol (kGlyphPause, kGlyphCheck, kGlyphCross,
+/// kGlyphSquare); "" for every other mode. Each saver draws it its own way.
+const char* clock_state_word(ClockMode mode, bool spell);
+
 /// The 12-hour marker.
 enum class ClockMeridiem : uint8_t { NONE, AM, PM };
 
