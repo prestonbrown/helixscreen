@@ -101,7 +101,7 @@ A message confirms **Label printed**, or names what went wrong. Until a printer 
 
 ### Labels for New Spools
 
-When a label printer is set up, a spool you add to Spoolman from a slot's spool editor prints its label right away: after saving a new spool with **Add to Spoolman** ticked, and after **Add to Spoolman** on a slot's summary. A **Printing label...** message shows, then **Label printed** or what went wrong. The save's own message has a **Print Label** button to print the label again.
+When a label printer is set up, a spool you add to Spoolman from a slot's spool editor prints its label right away: after saving a new spool with **Add to Spoolman** ticked, and after **Add to Spoolman** on a slot's summary. A **Printing label...** message shows, then **Label printed** or what went wrong. To print it again, use **Print Label** in any of the places listed above.
 
 ---
 
