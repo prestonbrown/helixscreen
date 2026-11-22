@@ -4258,6 +4258,8 @@ translations:
     várias vezes.
   The helper macros are installed and activate after Klipper restarts.: 'As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'A lane esquece este carretel. O filamento continua onde está.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'As configurações da lane não foram alteradas e o carretel não foi salvo. Toque em Salvar para salvar o carretel.'
+  The lane settings weren't changed.: 'As configurações da lane não foram alteradas.'
   The lane that takes over when this one runs out: 'A lane que assume quando esta acaba'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca.
   The left RFID reader in this CFS unit may need service: O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção
@@ -4437,6 +4439,7 @@ translations:
   This firmware can only switch slots by loading them: 'Este firmware só pode trocar de slot carregando-o'
   The filament went into the toolhead past its feeder. Load it by hand.: "O filamento entrou no cabeçote sem passar pelo alimentador. Carregue-o manualmente."
   This toolhead has no automatic feeder. Load the filament by hand.: "Este cabeçote não tem alimentador automático. Carregue o filamento manualmente."
+  This head until a tool change; Save after the print to apply it to every head: 'Este cabeçote até uma troca de ferramenta; salve após a impressão para aplicá-lo a todos os cabeçotes'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Isto instala as macros de ajuda do HelixScreen na impressora e as adiciona ao printer.cfg. Uma impressão está em andamento, então o Klipper será reiniciado ao término.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Isto instala as macros de ajuda do HelixScreen na impressora, as adiciona ao printer.cfg e reinicia o Klipper.'

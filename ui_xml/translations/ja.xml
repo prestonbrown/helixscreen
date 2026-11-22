@@ -3903,6 +3903,8 @@
   <translation tag="The heater will cycle on and off several times." ja="ヒーターは数回オン/オフを繰り返します。"/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ja="ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." ja="レーンはこのスプールの情報を消去します。フィラメント自体はそのままです。"/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." ja="レーン設定は変更されず、スプールも保存されていません。保存をタップしてスプールを保存してください。"/>
+  <translation tag="The lane settings weren&apos;t changed." ja="レーン設定は変更されていません。"/>
   <translation tag="The lane that takes over when this one runs out" ja="このレーンが切れたときに引き継ぐレーン"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ja="ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。"/>
   <translation tag="The left RFID reader in this CFS unit may need service" ja="この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります"/>
@@ -4044,6 +4046,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." ja="このファイルは {} 用にスライスされていますが、{} がロードされています。"/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." ja="このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。"/>
   <translation tag="This firmware can only switch slots by loading them" ja="このファームウェアはスロットを装填して切り替えることしかできません"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" ja="ツール交換まではこのツールヘッドのみ。印刷後に保存すると全ツールヘッドに適用されます"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." ja="HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加します。印刷中のため、Klipper は印刷完了後に再起動されます。"/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." ja="HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加して、Klipper を再起動します。"/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ja="これは緊急停止です：プリンターが停止し、Klipperが再起動します。"/>

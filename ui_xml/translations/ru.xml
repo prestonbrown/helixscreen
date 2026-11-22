@@ -3966,6 +3966,8 @@
   <translation tag="The heater will cycle on and off several times." ru="Нагреватель будет несколько раз включаться и выключаться."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." ru="Вспомогательные макросы установлены и активируются после перезапуска Klipper."/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." ru="Канал забудет эту катушку. Сам филамент останется на месте."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." ru="Настройки канала не изменены, и катушка не сохранена. Нажмите «Сохранить», чтобы сохранить катушку."/>
+  <translation tag="The lane settings weren&apos;t changed." ru="Настройки канала не изменены."/>
   <translation tag="The lane that takes over when this one runs out" ru="Канал, который продолжит, когда этот закончится"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>
   <translation tag="The left RFID reader in this CFS unit may need service" ru="Левому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
@@ -4107,6 +4109,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." ru="Файл нарезан для {}, но загружен {}."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." ru="Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке."/>
   <translation tag="This firmware can only switch slots by loading them" ru="Эта прошивка может переключать слоты только загрузкой"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" ru="Эта головка до смены инструмента; сохраните после печати, чтобы применить ко всем головкам"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." ru="Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." ru="Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." ru="Это аварийный останов: принтер останавливается, и Klipper перезапускается."/>

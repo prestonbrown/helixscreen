@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cerrno>
 #include <cstring>
 #include <memory>
@@ -339,6 +340,50 @@ std::string FilamentCatalog::orca_id_for(const std::string& catalog_id) {
     }
     auto it = ids->find(catalog_id);
     return it == ids->end() ? std::string{} : it->second;
+}
+
+namespace {
+/// The id scripts/import_orca_filaments.py#_slug gives a bundled product:
+/// "Generic" + "PLA Silk" is "generic-pla-silk", "PLA+" keeps its plus as "pla-plus".
+std::string bundled_product_id(std::string_view brand, std::string_view name) {
+    std::string out;
+    bool pending_sep = false;
+    const auto put = [&](unsigned char c) {
+        if (std::isalnum(c)) {
+            if (pending_sep && !out.empty())
+                out.push_back('-');
+            pending_sep = false;
+            out.push_back(static_cast<char>(std::tolower(c)));
+        } else {
+            pending_sep = true;
+        }
+    };
+    const auto put_all = [&](std::string_view text) {
+        for (unsigned char c : text) {
+            if (c == '+') {
+                pending_sep = true;
+                for (unsigned char p : std::string_view("plus"))
+                    put(p);
+                pending_sep = true;
+            } else {
+                put(c);
+            }
+        }
+    };
+    put_all(brand);
+    pending_sep = true;
+    put_all(name);
+    return out;
+}
+} // namespace
+
+std::string FilamentCatalog::generic_orca_id_for(std::string_view material,
+                                                 std::string_view match_type) {
+    if (match_type.empty())
+        return {};
+    if (std::string id = orca_id_for(bundled_product_id("Generic", material)); !id.empty())
+        return id;
+    return orca_id_for(bundled_product_id("Generic", match_type));
 }
 
 std::map<std::string, std::string> FilamentCatalog::load_user_orca_type_map() {

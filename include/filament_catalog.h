@@ -6,6 +6,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -79,6 +80,15 @@ class FilamentCatalog {
      * write. Thread-safe.
      */
     static std::string orca_id_for(const std::string& catalog_id);
+    /**
+     * @brief Orca's preset `filament_id` for the Generic preset of a material family
+     *
+     * The bundled "Generic <name>" product whose name is @p material, else the
+     * one whose name is @p match_type (orca_match_type() of it): "PLA Silk" is
+     * Generic PLA Silk, "ABS+" Generic ABS. "" when @p match_type is empty or
+     * neither has a usable id of its own (orca_id_for()). Thread-safe.
+     */
+    static std::string generic_orca_id_for(std::string_view material, std::string_view match_type);
     /// The map orca_id_for() serves, from explicit paths (tests). An overlay
     /// entry for a built-in id replaces its Orca id, with none when it carries none.
     static std::unordered_map<std::string, std::string>

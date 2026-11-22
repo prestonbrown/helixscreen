@@ -452,6 +452,11 @@ class PrinterDetector {
     /// replacing any adjustment. False when absent or unknown.
     static bool tool_change_resets_z_offset(const std::string& printer_name);
 
+    /// The database's `z_offset_save` field for @p printer_name: where a Save writes
+    /// the machine-wide offset on a firmware_managed printer whose firmware keeps
+    /// none ("probe" or "endstop"). Empty when absent or unknown.
+    static std::string z_offset_save(const std::string& printer_name);
+
     /// Look up probe type override from the printer database.
     /// @return Probe type string (e.g., "prtouch_v2"), or empty if not specified
     static std::string get_probe_type(const std::string& printer_name);

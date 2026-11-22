@@ -191,7 +191,7 @@ Tapping the mounted toolhead, or any slot's filament tube or spool, opens the sl
 
 **Feeds Tool** - On systems where HelixScreen can set which tool a slot feeds, the same page has a **Feeds Tool** dropdown: pick the tool this slot should feed. See [Assigned Tool](#assigned-tool) below.
 
-Both take effect as soon as you pick them; there is no separate save. A line under them says what a runout will do. To get there, tap a slot, choose **Edit Spool**, and tap the **Lane Settings** row on the slot's summary.
+Both are saved with the spool: pick them, go back to the summary and tap **Save**. A line under them says what a runout will do. To get there, tap a slot, choose **Edit Spool**, and tap the **Lane Settings** row on the slot's summary.
 
 **The Creality CFS is different: there is nothing to pick.** Its **Auto-Refill** is managed entirely by the box's firmware. Stock CFS firmware never says which slot it would switch to, so the editor has no Runout Backup row and no backup arrows are drawn between the slots; the line under the slots on the filament system panel says whether Auto-Refill is on and that the firmware chooses. A community Kalico-based CFS setup that publishes its switch plan is the exception: while Auto-Refill is on, arrows between the slots mark the plan, and you can't change it from the screen. Either way, the box decides for itself which slot can stand in, and it only accepts one holding the **exact same material and the exact same color**. If nothing matches, or Auto-Refill is switched off, it does not switch at all: the print stays paused and HelixScreen tells you which of the two it was. Auto-Refill itself is turned on or off with the **Endless Spool** switch on the Multi-Filament System Management screen.
 
@@ -295,7 +295,7 @@ Favorites belong to the screen, not the printer, so they are the same on every p
 
 ### Lane Settings
 
-Tap the **Lane Settings** row on a slot's summary to set what the slot does. These settings change the moment you pick them; there is nothing to save.
+Tap the **Lane Settings** row on a slot's summary to set what the slot does. Your picks are saved with the spool when you tap **Save** on the summary; leaving without saving keeps the slot's settings as they were. If the printer refuses a change, HelixScreen says why, puts that setting back, and leaves your spool changes unsaved so you can tap **Save** again.
 
 - **Feeds Tool** is the toolhead this slot loads into. It appears where HelixScreen can set it, such as on AFC, Happy Hare and the QIDI Box. See [Assigned Tool](#assigned-tool).
 - **Runout Backup** is the slot that takes over when this one runs out mid-print (Endless Spool). See [Endless Spool](#slot-context-menu) above for which slots can be picked.
@@ -376,7 +376,8 @@ Separately from Filament Mapping, some filament systems keep their own table of 
 
 1. Tap a slot and choose **Edit Spool**.
 2. Tap the **Lane Settings** row on the slot's summary.
-3. Pick the tool in **Feeds Tool**. It takes effect straight away.
+3. Pick the tool in **Feeds Tool**.
+4. Go back to the summary and tap **Save**.
 
 The row is left out where the system keeps no table HelixScreen can write, such as the Snapmaker U1 and the ACE. If your system refuses the change, the row is grayed out with the reason under it. The tool badges in the slot view show the result.
 
