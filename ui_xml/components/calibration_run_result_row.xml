@@ -15,6 +15,7 @@
   <api>
     <prop name="step" type="string" default=""/>
     <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
   </api>
   <consts>
     <px name="row_radius" value="8"/>
@@ -41,14 +42,14 @@
               width="#keep_box" height="#keep_box" style_radius="#keep_radius" style_pad_all="0" scrollable="false">
         <bind_style name="keep_on" subject="cal_run_keep_${step}" ref_value="1"/>
         <bind_style name="keep_off" subject="cal_run_keep_${step}" ref_value="0"/>
-        <icon src="check_bold" size="xs" color="0xFFFFFF" align="center">
+        <icon src="check_bold" size="xs" contrast="true" align="center">
           <bind_flag_if_eq subject="cal_run_keep_${step}" flag="hidden" ref_value="0"/>
         </icon>
       </lv_obj>
     </lv_obj>
     <text_body name="result_name"
-               width="0" flex_grow="11" text="$label" long_mode="dots" style_text_font="#cal_font_name"
-               style_text_color="#text"/>
+               width="0" flex_grow="11" text="$label" translation_tag="$label_tag" long_mode="dots"
+               style_text_font="#cal_font_name" style_text_color="#text"/>
     <text_small name="result_before"
                 width="0" flex_grow="10" bind_text="cal_run_before_${step}" long_mode="dots"
                 style_text_font="#cal_font_mono" style_text_color="#text_muted" style_text_opa="204"/>

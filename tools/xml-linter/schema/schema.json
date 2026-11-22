@@ -1378,6 +1378,9 @@
         },
         "color": {
           "type": "color"
+        },
+        "contrast": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"
@@ -3098,7 +3101,6 @@
   "runtime_constants": [
     "accent_bar_gap",
     "accent_bar_width",
-    "active_dot",
     "ams_action_label_font",
     "ams_action_label_font_large",
     "ams_action_label_font_medium",

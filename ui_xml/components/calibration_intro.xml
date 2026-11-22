@@ -10,8 +10,8 @@
 
      Slots: now (the left column, the default), settings, badges
      (cal_intro_badge pills). The primary carries the toolhead guard unless a
-     caller turns primary_moves_machine off, and is also disabled while the int subject
-     primary_enable_subject reads 0; primary_bind_text retitles it live.
+     caller turns primary_moves_machine off, and is also disabled while primary_disabled_cond holds (the footer adds an
+     unreachable printer to it); primary_bind_text retitles it live.
      Sizes: calibration_wizard_tokens.xml (its intro block). -->
 <component>
   <api>
@@ -31,7 +31,7 @@
     <prop name="primary_tag" type="string" default=""/>
     <prop name="primary_bind_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
-    <prop name="primary_enable_subject" type="string" default=""/>
+    <prop name="primary_disabled_cond" type="string" default="0"/>
     <prop name="primary_moves_machine" type="string" default="true"/>
     <prop name="status" type="string" default=""/>
     <prop name="status_tag" type="string" default=""/>
@@ -88,8 +88,8 @@
                                back_text="$secondary_text" back_tag="$secondary_tag" back_callback="$secondary_callback"
                                back_name="$secondary_name" primary_name="$primary_name" primary_text="$primary_text"
                                primary_tag="$primary_tag" primary_subject="$primary_bind_text"
-                               primary_callback="$primary_callback" primary_enable_subject="$primary_enable_subject"
-                               primary_moves_machine="$primary_moves_machine" status="$status" status_tag="$status_tag"
-                               status_subject="$status_subject" status_color="$status_color"/>
+                               primary_callback="$primary_callback" primary_disabled_cond="$primary_disabled_cond"
+                               divider="0" primary_moves_machine="$primary_moves_machine" status="$status"
+                               status_tag="$status_tag" status_subject="$status_subject" status_color="$status_color"/>
   </view>
 </component>

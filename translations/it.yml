@@ -4445,6 +4445,7 @@ translations:
   Skip Objects...: 'Salta oggetti...'
   Skip for now: 'Salta per ora'
   Skip the rest of this layer and resume at the next one: Saltare il resto di questo strato e riprendere dal successivo
+  Skip this step: ''
   Skipped: 'Saltato'
   Sleep While Printing: Sospensione Durante Stampa
   Sleep adjusted to match dim timeout: Timeout standby regolato
@@ -5131,6 +5132,8 @@ translations:
   The requested position is outside the printer's bounds: 'La posizione richiesta è fuori dai limiti della stampante'
   The right RFID reader in this CFS unit may need service: Il lettore RFID destro di questa unità CFS potrebbe richiedere assistenza
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Il passaggio in corso si ferma subito e la stampante si riavvia, perdendo anche i risultati dei passaggi completati.'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: Il sensore di esaurimento indica che nessun filamento è caricato. Avviare comunque la stampa?
   The runout sensor reads empty, so the print did not start.: Il sensore di filamento esaurito risulta vuoto, quindi la stampa non è partita.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La posizione salvata viene mantenuta. Riconnetti o riavvia lo schermo per vederti proporre di nuovo la ripresa.
@@ -5998,8 +6001,10 @@ translations:
   never sleeps: non va mai in sospensione
   no heat: senza calore
   no restart: ''
+  none: ''
   not detected: non rilevato
   not loaded: 'non caricato'
+  not set: ''
   nozzle: ugello
   of: di
   'off': spento
@@ -6090,6 +6095,8 @@ translations:
   '{} Issues Detected': '{} problemi rilevati'
   '{} LED strips available': '{} strisce LED disponibili'
   '{} MCUs': '{} MCU'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': 'Impostazioni {}'
   '{} Tools': '{} utensili'
   '{} accelerometers': '{} accelerometri'

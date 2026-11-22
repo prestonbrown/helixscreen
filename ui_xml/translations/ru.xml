@@ -4377,6 +4377,7 @@
   <translation tag="Skip Objects..." ru="Пропустить объекты..."/>
   <translation tag="Skip for now" ru="Пропустить пока"/>
   <translation tag="Skip the rest of this layer and resume at the next one" ru="Пропустить остаток этого слоя и продолжить со следующего"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" ru="Пропущено"/>
   <translation tag="Sleep While Printing" ru="Спящий режим при печати"/>
   <translation tag="Sleep adjusted to match dim timeout" ru="Таймаут сна изменён"/>
@@ -5032,6 +5033,8 @@
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." ru="Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны."/>
+  <translation tag="The running step stops at once and the printer restarts."/>
+  <translation tag="The running step stops. The steps that finished keep their results."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" ru="Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?"/>
   <translation tag="The runout sensor reads empty, so the print did not start." ru="Датчик окончания филамента показывает пусто, поэтому печать не началась."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." ru="Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить."/>
@@ -5873,8 +5876,10 @@
   <translation tag="never sleeps" ru="никогда не спит"/>
   <translation tag="no heat" ru="без нагрева"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" ru="не обнаружено"/>
   <translation tag="not loaded" ru="не загружен"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" ru="сопло"/>
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>
@@ -5957,6 +5962,8 @@
   <translation tag="{} Issues Detected" ru="Обнаружено проблем: {}"/>
   <translation tag="{} LED strips available" ru="Доступно светодиодных лент: {}"/>
   <translation tag="{} MCUs" ru="{} MCU"/>
+  <translation tag="{} MPC"/>
+  <translation tag="{} PID"/>
   <translation tag="{} Settings" ru="Настройки: {}"/>
   <translation tag="{} Tools" ru="Инструментов: {}"/>
   <translation tag="{} accelerometers" ru="Акселерометров: {}"/>

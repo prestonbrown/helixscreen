@@ -4525,6 +4525,7 @@ translations:
   Skip Objects...: 'Пропустить объекты...'
   Skip for now: 'Пропустить пока'
   Skip the rest of this layer and resume at the next one: Пропустить остаток этого слоя и продолжить со следующего
+  Skip this step: ''
   Skipped: 'Пропущено'
   Sleep While Printing: Спящий режим при печати
   Sleep adjusted to match dim timeout: Таймаут сна изменён
@@ -5219,6 +5220,8 @@ translations:
   The requested position is outside the printer's bounds: 'Запрошенная позиция находится за пределами рабочей области принтера'
   The right RFID reader in this CFS unit may need service: Правому RFID-считывателю этого блока CFS может требоваться обслуживание
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Текущий шаг сразу остановится, а принтер перезапустится, и результаты завершённых шагов тоже будут потеряны.'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: Датчик окончания филамента показывает, что филамент не загружен. Всё равно начать печать?
   The runout sensor reads empty, so the print did not start.: Датчик окончания филамента показывает пусто, поэтому печать не началась.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Сохранённая позиция остаётся. Переподключитесь или перезапустите экран, чтобы снова получить предложение продолжить.
@@ -6090,8 +6093,10 @@ translations:
   never sleeps: никогда не спит
   no heat: без нагрева
   no restart: ''
+  none: ''
   not detected: не обнаружено
   not loaded: 'не загружен'
+  not set: ''
   nozzle: сопло
   of: из
   'off': выкл
@@ -6182,6 +6187,8 @@ translations:
   '{} Issues Detected': 'Обнаружено проблем: {}'
   '{} LED strips available': 'Доступно светодиодных лент: {}'
   '{} MCUs': '{} MCU'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': 'Настройки: {}'
   '{} Tools': 'Инструментов: {}'
   '{} accelerometers': 'Акселерометров: {}'

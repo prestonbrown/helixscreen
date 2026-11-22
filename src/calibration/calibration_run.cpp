@@ -222,8 +222,9 @@ void CalibrationRun::stop() {
         entries_[j].status = StepStatus::NotRun;
     }
     phase_ = RunPhase::Results;
+    const bool restarts = running.step->abort_restarts_firmware();
     running.step->abort();
-    if (running.step->abort_restarted_firmware()) {
+    if (restarts) {
         results_lost_ = has_pending_result();
         if (results_lost_) {
             spdlog::warn("[CalibrationRun] The abort restarted the firmware: {} finished "
@@ -232,6 +233,16 @@ void CalibrationRun::stop() {
         }
     }
     changed();
+}
+
+CalibrationRun::StopEffect CalibrationRun::stop_effect() const {
+    if (phase_ != RunPhase::Running || current_ < 0) {
+        return StopEffect::EndsStep;
+    }
+    if (!entries_[static_cast<size_t>(current_)].step->abort_restarts_firmware()) {
+        return StopEffect::EndsStep;
+    }
+    return has_pending_result() ? StopEffect::RestartDropsResults : StopEffect::Restarts;
 }
 
 void CalibrationRun::finish_steps() {

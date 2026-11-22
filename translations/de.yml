@@ -4445,6 +4445,7 @@ translations:
   Skip Objects...: 'Objekte überspringen...'
   Skip for now: 'Vorerst überspringen'
   Skip the rest of this layer and resume at the next one: Rest dieser Schicht überspringen und bei der nächsten fortsetzen
+  Skip this step: ''
   Skipped: 'Übersprungen'
   Sleep While Printing: Ruhemodus beim Drucken
   Sleep adjusted to match dim timeout: Ruhemodus-Zeitlimit angepasst
@@ -5131,6 +5132,8 @@ translations:
   The requested position is outside the printer's bounds: 'Die angeforderte Position liegt außerhalb des Druckerbereichs'
   The right RFID reader in this CFS unit may need service: Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'Der laufende Schritt stoppt sofort und der Drucker startet neu, wodurch auch die Ergebnisse der abgeschlossenen Schritte verworfen werden.'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?
   The runout sensor reads empty, so the print did not start.: Der Filamentsensor meldet leer, daher wurde der Druck nicht gestartet.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
@@ -5998,8 +6001,10 @@ translations:
   never sleeps: schläft nie
   no heat: ohne Heizen
   no restart: ''
+  none: ''
   not detected: nicht erkannt
   not loaded: 'nicht geladen'
+  not set: ''
   nozzle: Düse
   of: von
   'off': aus
@@ -6090,6 +6095,8 @@ translations:
   '{} Issues Detected': '{} Probleme erkannt'
   '{} LED strips available': '{} LED-Streifen verfügbar'
   '{} MCUs': '{} MCUs'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': '{}-Einstellungen'
   '{} Tools': '{} Werkzeuge'
   '{} accelerometers': '{} Beschleunigungssensoren'

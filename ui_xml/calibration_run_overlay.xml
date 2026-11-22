@@ -50,7 +50,9 @@
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="0"/>
       <calibration_wizard_header name="cal_run_pick_header"
                                  title="Calibrate your printer" subtitle_subject="cal_run_pick_subtitle"
-                                 subtitle_compact="2" subtitle_compact_subject="cal_run_pick_subtitle_short"/>
+                                 subtitle_compact="2" subtitle_compact_subject="cal_run_pick_subtitle_short"
+                                 progress="1" step_count_subject="cal_run_page_count"
+                                 step_current_subject="cal_run_page"/>
       <lv_obj name="cal_run_pick_list"
               width="100%" height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_bg_opa="0" style_border_width="0" scroll_dir="ver">
@@ -75,13 +77,14 @@
         </calibration_run_pick_row>
       </lv_obj>
       <calibration_wizard_footer name="cal_run_pick_footer"
-                                 back_text="Skip for now" back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
+                                 back_text="Skip for now" back_compact_text="Skip" compact_texts="1"
+                                 back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
                                  status_subject="cal_run_pick_summary" status_sub_subject="cal_run_hands_line"
                                  status_color="#text" status_font="#cal_font_name" status_compact="1"
                                  status_compact_subject="cal_run_pick_summary_short"
                                  status_sub_compact_subject="cal_run_hands_short" primary_text="Start"
                                  primary_icon="chevron_right" primary_callback="on_cal_run_next"
-                                 primary_name="btn_cal_run_next" primary_enable_subject="cal_run_pick_count"/>
+                                 primary_name="btn_cal_run_next" primary_disabled_cond="cal_run_pick_count eq 0"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- BEFORE YOU START (1) -->
@@ -134,7 +137,7 @@
               <lv_obj width="#disc"
                       height="#disc" style_radius="9999" style_bg_color="#warning" style_bg_opa="38" style_pad_all="0"
                       style_border_width="0" scrollable="false">
-                <icon src="alert_circle" size="xs" variant="warning" align="center"/>
+                <icon src="hand" size="xs" variant="warning" align="center"/>
               </lv_obj>
               <lv_obj width="0"
                       height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
@@ -186,7 +189,7 @@
                                  back_callback="on_cal_run_back" back_name="btn_cal_run_back"
                                  status_subject="cal_run_prereq_left" primary_text="Everything's ready"
                                  primary_callback="on_cal_run_start" primary_name="btn_cal_run_start"
-                                 primary_enable_subject="cal_run_prereq_ready" primary_moves_machine="true"/>
+                                 primary_disabled_cond="cal_run_prereq_ready eq 0" primary_moves_machine="true"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- RUNNING (2) -->
@@ -260,7 +263,7 @@
                                  back_name="btn_cal_run_stop" back_style="cal_footer_danger"
                                  back_hide_subject="cal_run_over" status_subject="cal_run_footer"
                                  primary_text="See results" primary_callback="on_cal_run_see_results"
-                                 primary_name="btn_cal_run_results" primary_enable_subject="cal_run_over"
+                                 primary_name="btn_cal_run_results" primary_disabled_cond="cal_run_over eq 0"
                                  primary_hide_subject="cal_run_running_now"/>
     </lv_obj>
     <!-- ================================================================ -->

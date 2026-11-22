@@ -37,6 +37,9 @@ enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 [[nodiscard]] std::string results_primary_label(bool offers_save, bool restart_known,
                                                 bool save_restarts);
 
+/// The Stop confirmation's message for what stopping would do now.
+[[nodiscard]] std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect);
+
 class CalibrationRunOverlay : public OverlayBase {
   public:
     const char* get_name() const override {
@@ -106,6 +109,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
     /// Tells the run when Klipper goes down under it.
     ObserverGuard klippy_obs_;
+    /// Re-publishes every composed line in the new language.
+    ObserverGuard language_obs_;
     RunPage page_ = RunPage::Pick;
     /// Answers whether the one save restarts Klipper; MoonrakerRunFinisher saves.
     SaveConfigWatch restart_query_;
@@ -120,6 +125,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::deque<std::string> names_;
 
     helix::Subject page_subject_;
+    /// How many pages the run has, for the Pick header's dots.
+    helix::Subject page_count_;
     helix::Subject pick_count_;
     helix::Subject pick_summary_;
     char pick_summary_buf_[kShortLen]{};
@@ -194,6 +201,10 @@ class CalibrationRunOverlay : public OverlayBase {
     char eta_buf_[kShortLen]{};
     helix::Subject overall_;
     helix::Subject running_now_;
+    /// For the wizard header's step marks on screens the run opens: how many
+    /// steps, and the running one (0-based; the count once all have ended).
+    helix::Subject step_count_;
+    helix::Subject step_current_;
 
     helix::Subject results_title_;
     char results_title_buf_[kShortLen]{};

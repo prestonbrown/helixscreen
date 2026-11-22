@@ -4317,6 +4317,7 @@
   <translation tag="Skip Objects..." zh="跳过对象..."/>
   <translation tag="Skip for now" zh="暂时跳过"/>
   <translation tag="Skip the rest of this layer and resume at the next one" zh="跳过本层剩余部分并从下一层恢复"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" zh="已跳过"/>
   <translation tag="Sleep While Printing" zh="打印时休眠"/>
   <translation tag="Sleep adjusted to match dim timeout" zh="休眠超时已调整"/>
@@ -4966,6 +4967,8 @@
   <translation tag="The requested position is outside the printer&apos;s bounds" zh="请求的位置超出打印机范围"/>
   <translation tag="The right RFID reader in this CFS unit may need service" zh="此 CFS 单元的右侧 RFID 读取器可能需要维修"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." zh="正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。"/>
+  <translation tag="The running step stops at once and the printer restarts."/>
+  <translation tag="The running step stops. The steps that finished keep their results."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" zh="断料传感器显示未装载耗材。仍要开始打印吗？"/>
   <translation tag="The runout sensor reads empty, so the print did not start." zh="断料传感器显示为空，打印未开始。"/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." zh="已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。"/>
@@ -5804,8 +5807,10 @@
   <translation tag="never sleeps" zh="从不休眠"/>
   <translation tag="no heat" zh="不加热"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" zh="未检测到"/>
   <translation tag="not loaded" zh="未加载"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" zh="喷嘴"/>
   <translation tag="of" zh="的"/>
   <translation tag="off" zh="关闭"/>
@@ -5888,6 +5893,8 @@
   <translation tag="{} Issues Detected" zh="检测到 {} 个问题"/>
   <translation tag="{} LED strips available" zh="{} 条 LED 灯带可用"/>
   <translation tag="{} MCUs" zh="{} 个 MCU"/>
+  <translation tag="{} MPC"/>
+  <translation tag="{} PID"/>
   <translation tag="{} Settings" zh="{}设置"/>
   <translation tag="{} Tools" zh="{} 个工具"/>
   <translation tag="{} accelerometers" zh="{} 个加速度传感器"/>

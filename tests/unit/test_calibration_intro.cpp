@@ -39,13 +39,14 @@ TEST_CASE_METHOD(XMLTestFixture,
                            "Go",
                            "primary_callback",
                            "test_cal_intro_chip_cb",
-                           "primary_enable_subject",
-                           "test_cal_intro_ready",
+                           "primary_disabled_cond",
+                           "test_cal_intro_ready eq 0",
                            nullptr};
     lv_obj_t* intro = create_component("calibration_intro", attrs);
     REQUIRE(intro != nullptr);
     lv_obj_t* primary = lv_obj_find_by_name(intro, "cal_intro_primary");
     REQUIRE(primary != nullptr);
+    lv_subject_set_int(state().network_state().get_nav_buttons_enabled_subject(), 1);
     UpdateQueue::instance().drain_until_empty();
     CHECK_FALSE(lv_obj_has_state(primary, LV_STATE_DISABLED));
 

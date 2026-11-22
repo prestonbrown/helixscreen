@@ -4445,6 +4445,7 @@ translations:
   Skip Objects...: 'オブジェクトをスキップ...'
   Skip for now: '今はスキップ'
   Skip the rest of this layer and resume at the next one: このレイヤーの残りをスキップして次のレイヤーから再開する
+  Skip this step: ''
   Skipped: 'スキップ'
   Sleep While Printing: 印刷中のスリープ
   Sleep adjusted to match dim timeout: スリープタイムアウトを調整しました
@@ -5131,6 +5132,8 @@ translations:
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '実行中のステップはすぐに停止し、プリンターが再起動します。完了したステップの結果も破棄されます。'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: フィラメント切れセンサーがフィラメント未装填を検出しました。それでも印刷を開始しますか？
   The runout sensor reads empty, so the print did not start.: フィラメント切れセンサーが空を示しているため、印刷を開始しませんでした。
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 保存された位置は残ります。再接続するか画面を再起動すると、再開が再び提示されます。
@@ -5998,8 +6001,10 @@ translations:
   never sleeps: スリープしない
   no heat: 加熱なし
   no restart: ''
+  none: ''
   not detected: 未検出
   not loaded: '未装填'
+  not set: ''
   nozzle: ノズル
   of: の
   'off': オフ
@@ -6090,6 +6095,8 @@ translations:
   '{} Issues Detected': '問題を {} 件検出'
   '{} LED strips available': '{} 個の LED ストリップが利用可能です'
   '{} MCUs': '{} MCU'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': '{}の設定'
   '{} Tools': '{} ツール'
   '{} accelerometers': 加速度センサー {} 個

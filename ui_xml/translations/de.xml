@@ -4317,6 +4317,7 @@
   <translation tag="Skip Objects..." de="Objekte überspringen..."/>
   <translation tag="Skip for now" de="Vorerst überspringen"/>
   <translation tag="Skip the rest of this layer and resume at the next one" de="Rest dieser Schicht überspringen und bei der nächsten fortsetzen"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" de="Übersprungen"/>
   <translation tag="Sleep While Printing" de="Ruhemodus beim Drucken"/>
   <translation tag="Sleep adjusted to match dim timeout" de="Ruhemodus-Zeitlimit angepasst"/>
@@ -4966,6 +4967,8 @@
   <translation tag="The requested position is outside the printer&apos;s bounds" de="Die angeforderte Position liegt außerhalb des Druckerbereichs"/>
   <translation tag="The right RFID reader in this CFS unit may need service" de="Der rechte RFID-Leser dieser CFS-Einheit muss möglicherweise gewartet werden"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." de="Der laufende Schritt stoppt sofort und der Drucker startet neu, wodurch auch die Ergebnisse der abgeschlossenen Schritte verworfen werden."/>
+  <translation tag="The running step stops at once and the printer restarts."/>
+  <translation tag="The running step stops. The steps that finished keep their results."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" de="Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?"/>
   <translation tag="The runout sensor reads empty, so the print did not start." de="Der Filamentsensor meldet leer, daher wurde der Druck nicht gestartet."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." de="Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird."/>
@@ -5804,8 +5807,10 @@
   <translation tag="never sleeps" de="schläft nie"/>
   <translation tag="no heat" de="ohne Heizen"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" de="nicht erkannt"/>
   <translation tag="not loaded" de="nicht geladen"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" de="Düse"/>
   <translation tag="of" de="von"/>
   <translation tag="off" de="aus"/>
@@ -5888,6 +5893,8 @@
   <translation tag="{} Issues Detected" de="{} Probleme erkannt"/>
   <translation tag="{} LED strips available" de="{} LED-Streifen verfügbar"/>
   <translation tag="{} MCUs" de="{} MCUs"/>
+  <translation tag="{} MPC"/>
+  <translation tag="{} PID"/>
   <translation tag="{} Settings" de="{}-Einstellungen"/>
   <translation tag="{} Tools" de="{} Werkzeuge"/>
   <translation tag="{} accelerometers" de="{} Beschleunigungssensoren"/>

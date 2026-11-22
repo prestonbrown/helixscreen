@@ -22,6 +22,8 @@
 
 #include "../../include/ui_icon.h"
 #include "../../include/ui_icon_codepoints.h"
+#include "../lvgl_test_fixture.h"
+#include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
@@ -650,4 +652,26 @@ TEST_CASE_METHOD(LVGLUITestFixture, "helix::ui::icon::set_variant: accepts new v
     REQUIRE(lv_color_eq(danger_color, value.color));
 
     lv_obj_delete(icon);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a contrast icon reads against the nearest filled ancestor",
+                 "[ui_icon]") {
+    lv_obj_t* card = lv_obj_create(test_screen());
+    lv_obj_t* clear = lv_obj_create(card);
+    lv_obj_set_style_bg_opa(clear, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_t* glyph = lv_label_create(clear);
+    const lv_color_t text = theme_manager_get_color("text");
+
+    const lv_color_t dark = theme_manager_get_color("screen_bg");
+    lv_obj_set_style_bg_color(card, dark, LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, LV_PART_MAIN);
+    const lv_color_t on_dark = helix::ui::icon::contrast_color(glyph);
+    CHECK(lv_color_eq(on_dark, theme_manager_get_contrast_adjusted_text(text, dark)));
+
+    // The fill changes under the icon and the answer follows it.
+    const lv_color_t light = theme_manager_get_color("text");
+    lv_obj_set_style_bg_color(card, light, LV_PART_MAIN);
+    const lv_color_t on_light = helix::ui::icon::contrast_color(glyph);
+    CHECK(lv_color_eq(on_light, theme_manager_get_contrast_adjusted_text(text, light)));
+    CHECK_FALSE(lv_color_eq(on_dark, on_light));
 }
