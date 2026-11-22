@@ -940,10 +940,9 @@ TEST_CASE("an ended print spells its state, or the flip clock's symbol, in place
     }
 }
 
-TEST_CASE("end words are the numerals' height, and a longer word fills their span",
+TEST_CASE("end words are the numerals' height, centered on them, at every screen and drift",
           "[screensaver][highfly][clock]") {
-    using helix::ui::highfly_word_layout;
-    using helix::ui::HighflyWordLayout;
+    using helix::ui::highfly_word_boxes;
     struct Size {
         int32_t w, h;
     };
@@ -955,50 +954,23 @@ TEST_CASE("end words are the numerals' height, and a longer word fills their spa
             for (int32_t dy : {-reach_y, 0, reach_y}) {
                 CAPTURE(dx, dy);
                 const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, dx, dy);
-                const int32_t numeral_h = l.digits[0].y2 - l.digits[0].y1 + 1;
-                const int32_t center_x = l.digits[0].x1 + l.digits[4].x2;
-                const int32_t center_y = l.digits[0].y1 + l.digits[0].y2;
-                const int32_t span = l.digits[4].x2 - l.digits[0].x1 + 1;
-                // Every end word stands at the numerals' full height, centered on them.
+                const int32_t center = l.digits[0].x1 + l.digits[4].x2;
                 for (const ClockMode m :
                      {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
                     const char* word = helix::ui::highfly_word(print_reading(m, 100));
                     CAPTURE(word);
-                    const size_t n = std::strlen(word);
-                    const HighflyWordLayout wl = highfly_word_layout(l, n);
-                    CHECK(wl.unit == l.digit_unit);
-                    CHECK(wl.boxes[0].y2 - wl.boxes[0].y1 + 1 == numeral_h);
-                    CHECK(std::abs(wl.boxes[0].x1 + wl.boxes[n - 1].x2 - center_x) <= 2);
-                    CHECK(std::abs(wl.boxes[0].y1 + wl.boxes[0].y2 - center_y) <= 2);
-                }
-                for (size_t count = 1; count <= helix::ui::kHighflyWordMax; count++) {
-                    CAPTURE(count);
-                    const HighflyWordLayout wl = highfly_word_layout(l, count);
-                    const auto& boxes = wl.boxes;
-                    const int32_t run = boxes[count - 1].x2 - boxes[0].x1 + 1;
-                    const int32_t glyph_h = boxes[0].y2 - boxes[0].y1 + 1;
-                    CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - center_x) <= 2);
-                    CHECK(std::abs(boxes[0].y1 + boxes[0].y2 - center_y) <= 2);
-                    if (count <= 4) {
-                        // DONE, FAIL, STOP: the numerals' own size and halo.
-                        CHECK(glyph_h == numeral_h);
-                        CHECK(wl.unit == l.digit_unit);
-                        CHECK(wl.halo == l.halo);
-                    } else {
-                        // A longer word: shrunk only as far as the span needs.
-                        CHECK(glyph_h < numeral_h);
-                        CHECK(run * 10 >= span * 9);
-                        CHECK(wl.halo <= l.halo);
-                    }
+                    const size_t count = std::strlen(word);
+                    REQUIRE(count <= helix::ui::kHighflyWordMax);
+                    const auto boxes = highfly_word_boxes(l, count);
+                    CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - center) <= 2);
                     for (size_t i = 0; i < count; i++) {
-                        CHECK(boxes[i].y2 - boxes[i].y1 + 1 == glyph_h);
+                        CHECK(boxes[i].y1 == l.digits[0].y1);
+                        CHECK(boxes[i].y2 == l.digits[0].y2);
+                        CHECK(boxes[i].x2 - boxes[i].x1 == l.digits[0].x2 - l.digits[0].x1);
                         CHECK(boxes[i].x1 >= l.digits[0].x1);
                         CHECK(boxes[i].x2 <= l.digits[4].x2);
-                        CHECK(boxes[i].x1 > l.date_line.x2);
-                        CHECK(boxes[i].x1 - wl.halo >= 0);
-                        CHECK(boxes[i].x2 + wl.halo < s.w);
-                        CHECK(boxes[i].y1 - wl.halo >= 0);
-                        CHECK(boxes[i].y2 + wl.halo < s.h);
+                        CHECK(boxes[i].x1 - l.halo >= 0);
+                        CHECK(boxes[i].x2 + l.halo < s.w);
                         if (i > 0) {
                             CHECK(boxes[i].x1 > boxes[i - 1].x2);
                         }
@@ -1009,7 +981,7 @@ TEST_CASE("end words are the numerals' height, and a longer word fills their spa
     }
 }
 
-TEST_CASE("the sim draws each end word at its layout's height, within the numerals' span",
+TEST_CASE("the sim draws each end word as tall as the numerals, within their span",
           "[screensaver][highfly][clock]") {
     // The still rung paints once, so two runs from one seed differ only where their numerals do.
     const auto paint = [](ClockMode mode, bool spell, TestFrame& frame) {
@@ -1032,9 +1004,8 @@ TEST_CASE("the sim draws each end word at its layout's height, within the numera
             const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, 0, 0);
             ClockReading r = print_reading(m, 100);
             const size_t count = std::strlen(helix::ui::highfly_word(r));
-            const auto wl = helix::ui::highfly_word_layout(l, count);
             // The first letter: the symbol sits a glyph and more away, centered on the run.
-            const DirtyRect d = wl.boxes[0];
+            const DirtyRect d = helix::ui::highfly_word_boxes(l, count)[0];
             const PixelWriter a(word.target);
             const PixelWriter b(symbol.target);
             int32_t top = -1;
@@ -1062,7 +1033,7 @@ TEST_CASE("the sim draws each end word at its layout's height, within the numera
             CHECK(right <= l.digits[4].x2);
             if (m == ClockMode::CANCELLED) {
                 // The square is solid, not its outline and fill lines with sky between.
-                const DirtyRect q = helix::ui::highfly_word_layout(l, 1).boxes[0];
+                const DirtyRect q = helix::ui::highfly_word_boxes(l, 1)[0];
                 const int32_t cx = (q.x1 + q.x2) / 2;
                 const int32_t cy = (q.y1 + q.y2) / 2;
                 const int32_t r = std::max(2, l.digit_unit / 4);

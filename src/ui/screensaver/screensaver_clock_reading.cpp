@@ -5,6 +5,7 @@
 #include "screensaver_clock_reading.h"
 
 #include "screensaver_motion.h"
+#include "screensaver_stroke_digits.h"
 
 #include <algorithm>
 #include <cmath>
@@ -146,6 +147,25 @@ void clock_drift_at(uint32_t elapsed_ms, int32_t max_dx, int32_t max_dy, int32_t
     // Two incommensurate rates, so the path does not retrace itself for hours.
     dx = static_cast<int32_t>(std::lround(static_cast<float>(max_dx) * std::sin(step * 0.61f)));
     dy = static_cast<int32_t>(std::lround(static_cast<float>(max_dy) * std::sin(step * 0.37f)));
+}
+
+const char* clock_state_word(ClockMode mode, bool spell) {
+    static constexpr char kPause[] = {kGlyphPause, '\0'};
+    static constexpr char kCheck[] = {kGlyphCheck, '\0'};
+    static constexpr char kCross[] = {kGlyphCross, '\0'};
+    static constexpr char kSquare[] = {kGlyphSquare, '\0'};
+    switch (mode) {
+    case ClockMode::PAUSED:
+        return spell ? "PAUSE" : kPause;
+    case ClockMode::DONE:
+        return spell ? "DONE" : kCheck;
+    case ClockMode::FAILED:
+        return spell ? "FAIL" : kCross;
+    case ClockMode::CANCELLED:
+        return spell ? "STOP" : kSquare;
+    default:
+        return "";
+    }
 }
 
 } // namespace helix::ui

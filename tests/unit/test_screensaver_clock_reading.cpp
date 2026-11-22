@@ -474,6 +474,28 @@ TEST_CASE("every stroke glyph has a centre line and only its own strokes",
     CHECK(stroke_glyph_distance('?', 0.5f, 0.5f) > 100.0f);
 }
 
+TEST_CASE("a paused or ended print has one word and one symbol for every clock",
+          "[screensaver][clock_reading]") {
+    using helix::ui::clock_state_word;
+    struct State {
+        ClockMode mode;
+        const char* word;
+        char symbol;
+    };
+    for (const State st : {State{ClockMode::PAUSED, "PAUSE", helix::ui::kGlyphPause},
+                           State{ClockMode::DONE, "DONE", helix::ui::kGlyphCheck},
+                           State{ClockMode::FAILED, "FAIL", helix::ui::kGlyphCross},
+                           State{ClockMode::CANCELLED, "STOP", helix::ui::kGlyphSquare}}) {
+        CAPTURE(st.word);
+        CHECK(std::string(clock_state_word(st.mode, true)) == st.word);
+        CHECK(std::string(clock_state_word(st.mode, false)) == std::string(1, st.symbol));
+    }
+    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::COUNTDOWN}) {
+        CHECK(std::string(clock_state_word(m, true)).empty());
+        CHECK(std::string(clock_state_word(m, false)).empty());
+    }
+}
+
 TEST_CASE("the print-state symbols fill solid at the symbol stroke",
           "[screensaver][clock_reading]") {
     using helix::ui::is_stroke_symbol;

@@ -410,7 +410,8 @@ a print runs, a row of small cards under them (`kSubCardScale` of the main size)
 The words are English. In any other UI language (`SaverHost::spell_states`, false when
 `locale_current_language()` is not `en`) the main row is one card with the state's symbol
 instead: two bars paused, a check mark done, a cross failed, a solid square cancelled
-(`kGlyphPause`, `kGlyphCheck`, `kGlyphCross`, `kGlyphSquare`). The small row is the same in
+(`kGlyphPause`, `kGlyphCheck`, `kGlyphCross`, `kGlyphSquare`). Words and symbols come from
+`clock_state_word`, which High Fly and the fireflies spell from too. The small row is the same in
 every language.
 
 The cards draw in the state colour (`print_state_color`): white while running, amber paused,
@@ -756,13 +757,11 @@ white haze over the bottom rows.
   RGBA.
 - The end of a print: the step into DONE flies through a cloud and comes out into the sunset
   palette; FAILED and CANCELLED turn it overcast. An ended print spells its state
-  (`highfly_word`: DONE, FAIL, STOP, the flip clock's words) in place of the hours and minutes,
-  in the numerals' stroke glyphs (`StrokeGlyphSet`), size, color and halo, centered where the
-  numerals stand, with no seconds (`highfly_word_layout`). All three fit the hours-and-minutes
-  span at every screen; a longer word would shrink to the largest glyph unit whose run fits that
-  span, halo shrinking with it, so it never reaches the left lines or past the numerals' layer.
-  Where the reading spells no states (`spell_states` off) it shows the flip
-  clock's symbol instead, a check mark, a cross or a solid square, drawn at
+  (`highfly_word`: DONE, FAIL or STOP from `clock_state_word`, the flip clock's words) in place
+  of the hours and minutes, in the numerals' stroke glyphs (`StrokeGlyphSet`), size, color and
+  halo, centered where the numerals stand (`highfly_word_boxes`), with no seconds. Four glyphs
+  fit the hours-and-minutes span at every screen. Where the reading spells no states
+  (`spell_states` off) it shows the flip clock's symbol instead, a check mark, a cross or a solid square, drawn at
   `kStrokeSymbolMinStroke` so its parallel lines fill solid. The left lines then show the time
   of day (with its AM/PM) and the weekday in the state color, and the AM/PM slot under the
   seconds stays blank. The word bakes into the hours-and-minutes layer once, like a digit
