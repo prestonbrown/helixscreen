@@ -36,7 +36,7 @@
                            size="#ams_edit_multi_dot_size" hit="#ams_edit_multi_dot_hit" gap="#ams_edit_multi_dot_gap"
                            reach_pad="#ams_edit_multi_dot_hit" join="0"/>
       <lv_dropdown name="multi_color_mode"
-                   width="1" height="#button_height_sm" flex_grow="1" style_max_width="#ams_edit_mode_dd_w"
+                   width="1" height="#ams_edit_mode_dd_h" flex_grow="1" style_max_width="#ams_edit_mode_dd_w"
                    style_radius="#border_radius" style_pad_ver="0" ext_click_area="#ams_edit_tag_hit" scrollable="false"
                    options="Gradient&#10;Coaxial" options_tag="Gradient&#10;Coaxial" bind_value="ams_edit_color_mode">
         <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>

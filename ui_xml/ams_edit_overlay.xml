@@ -104,6 +104,13 @@
     <px name="ams_edit_mode_dd_w_small" value="130"/>
     <px name="ams_edit_mode_dd_w_medium" value="150"/>
     <px name="ams_edit_mode_dd_w_large" value="170"/>
+    <!-- The mode dropdown's height: #button_height_sm, except at micro, where
+         the dropdown's 24px chevron glyph needs two more pixels than the box. -->
+    <px name="ams_edit_mode_dd_h_micro" value="26"/>
+    <px name="ams_edit_mode_dd_h_tiny" value="28"/>
+    <px name="ams_edit_mode_dd_h_small" value="40"/>
+    <px name="ams_edit_mode_dd_h_medium" value="40"/>
+    <px name="ams_edit_mode_dd_h_large" value="40"/>
     <!-- The Multi-Color row's dots: the swatch_grid ladder, except that
          480x320 holds the 44px pitch of its neighbors instead of 46, so four
          dots, the switch and the dropdown share one line there. -->
