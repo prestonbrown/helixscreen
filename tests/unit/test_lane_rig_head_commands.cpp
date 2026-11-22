@@ -55,7 +55,54 @@ class LaneRigFixture : public BusyGuardFixture {
     }
 };
 
+/// A lane rig on a first connect: the printer's tool offsets arrive before the
+/// AFC backend's first topology.
+class LaneRigFirstConnectFixture : public BusyGuardFixture {
+  public:
+    LaneRigFirstConnectFixture() {
+        state.set_hardware(test::make_lb6lez44_discovery());
+        auto& ts = ToolState::instance();
+        ts.deinit_subjects();
+        ts.init_subjects(true);
+        ts.init_tools(state.get_discovery());
+        ui::UpdateQueue::instance().drain();
+        mock_client.clear_gcode_script_history();
+    }
+    ~LaneRigFirstConnectFixture() override {
+        ToolState::instance().clear_ams_topology();
+        ToolState::instance().deinit_subjects();
+        ui::UpdateQueue::instance().drain();
+    }
+};
+
 } // namespace
+
+TEST_CASE_METHOD(LaneRigFirstConnectFixture,
+                 "A head's offset seeded before the topology arrives is still readable after it",
+                 "[head-identity][tool_offsets][zoffset]") {
+    auto& ts = ToolState::instance();
+    REQUIRE_FALSE(ts.tools_are_lanes());
+
+    ts.update_from_status(json{{"tool T0", {{"gcode_z_offset", -0.2}, {"extruder", "extruder"}}},
+                               {"tool T2", {{"gcode_z_offset", 0.15}, {"extruder", "extruder2"}}}});
+    ts.set_ams_topology(test::make_lb6lez44_topology());
+    ui::UpdateQueue::instance().drain();
+    REQUIRE(ts.tools_are_lanes());
+    REQUIRE(ts.active_tool_index() == 0);
+
+    const int head = ts.offset_tool_for(0);
+    REQUIRE(head == 2);
+    CHECK(ts.tool_offset_known(head, Axis::Z));
+    CHECK(ts.tool_offset_mm(head, Axis::Z) == Catch::Approx(0.15));
+
+    mock_client.clear_gcode_script_history();
+    REQUIRE(zoffset::adjust_tool_offset(api.get(), &state, 0, 0.05));
+    const auto& history = mock_client.gcode_script_history();
+    CHECK(std::any_of(history.begin(), history.end(), [](const std::string& script) {
+        return script.find("SET_TOOL_PARAMETER T=2 PARAMETER=gcode_z_offset VALUE=0.2") !=
+               std::string::npos;
+    }));
+}
 
 TEST_CASE_METHOD(LaneRigFixture,
                  "A lane's tool offset is its head's, read and written as the head's",

@@ -127,6 +127,9 @@ void ToolState::deinit_subjects() {
     async_lifetime_.invalidate();
 
     tools_.clear();
+    head_tools_.clear();
+    heads_share_heater_ = false;
+    tools_are_lanes_ = false;
     heads_cache_.reset();
     discovered_extruders_.clear();
     active_tool_index_ = 0;
@@ -327,6 +330,15 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                          ams_topology_tool_extruder_ != topo.tool_extruder;
     if (heads_share_heater_ != topo.heads_share_heater ||
         tools_are_lanes_ != topo.tools_are_lanes) {
+        // Until the first topology, tools_ IS the printer's own tool list and
+        // every offset write landed there. Lanes mode moves those reads to
+        // head_tools_, and Moonraker resends only changed values, so carry
+        // the offsets over now, by index.
+        if (topo.tools_are_lanes && !ams_topology_active_) {
+            for (size_t i = 0; i < head_tools_.size() && i < tools_.size(); ++i) {
+                head_tools_[i].gcode_offsets = tools_[i].gcode_offsets;
+            }
+        }
         heads_share_heater_ = topo.heads_share_heater;
         tools_are_lanes_ = topo.tools_are_lanes;
         heads_cache_.reset();
