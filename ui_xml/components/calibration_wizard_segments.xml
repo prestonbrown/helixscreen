@@ -17,7 +17,7 @@
     <px name="seg_gap" value="5"/>
   </consts>
   <styles>
-    <style name="seg_off" bg_color="#overlay_bg"/>
+    <style name="seg_off" bg_color="#elevated_bg"/>
     <style name="seg_on" bg_color="#primary"/>
     <style name="seg_on_warn" bg_color="#warning"/>
   </styles>

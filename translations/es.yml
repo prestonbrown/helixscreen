@@ -5102,6 +5102,8 @@ translations:
   The requested position is outside the printer's bounds: 'La posición solicitada está fuera de los límites de la impresora'
   The right RFID reader in this CFS unit may need service: Puede que el lector RFID derecho de esta unidad CFS necesite servicio
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'El paso en curso se detiene de inmediato y la impresora se reinicia, lo que también descarta los resultados de los pasos terminados.'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: El sensor de agotamiento indica que no hay filamento cargado. ¿Iniciar la impresión de todos modos?
   The runout sensor reads empty, so the print did not start.: El sensor de fin de filamento lee vacío, así que la impresión no empezó.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: La posición guardada se conserva. Vuelva a conectar o reinicie la pantalla para que se le ofrezca de nuevo la reanudación.
@@ -6041,6 +6043,8 @@ translations:
   '{} Issues Detected': '{} problemas detectados'
   '{} LED strips available': '{} tiras LED disponibles'
   '{} MCUs': '{} MCU'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': 'Ajustes de {}'
   '{} Tools': '{} herramientas'
   '{} and {}': '{} y {}'

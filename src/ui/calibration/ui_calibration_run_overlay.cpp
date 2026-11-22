@@ -156,7 +156,9 @@ int dot_state(StepStatus status) {
     }
 }
 
-std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
+/// A step's line: in the step list (@p brief) a few words, in the results table
+/// the full values.
+std::string entry_status_text(const calibration::CalibrationRun::Entry& e, bool brief) {
     switch (e.status) {
     case StepStatus::Pending:
         return fmt::format(fmt::runtime(lv_tr("about {} min")), e.step->info().minutes);
@@ -168,7 +170,7 @@ std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
         return fmt::format(fmt::runtime(lv_tr("about {} min left")), left);
     }
     case StepStatus::Finished:
-        return e.result.summary;
+        return brief && !e.result.brief.empty() ? e.result.brief : e.result.summary;
     case StepStatus::Failed:
         if (!e.result.summary.empty()) {
             // What it staged before failing is saved with the rest.
@@ -206,6 +208,20 @@ std::string results_primary_label(bool offers_save, bool restart_known, bool sav
         return lv_tr("Done");
     }
     return restart_known && !save_restarts ? lv_tr("Save") : lv_tr("Save and restart Klipper");
+}
+
+std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect) {
+    using Effect = calibration::CalibrationRun::StopEffect;
+    switch (effect) {
+    case Effect::RestartDropsResults:
+        return lv_tr("The running step stops at once and the printer restarts, which also drops "
+                     "the results of the steps that finished.");
+    case Effect::Restarts:
+        return lv_tr("The running step stops at once and the printer restarts.");
+    case Effect::EndsStep:
+        break;
+    }
+    return lv_tr("The running step stops. The steps that finished keep their results.");
 }
 
 CalibrationRunOverlay& get_calibration_run_overlay() {
@@ -282,6 +298,8 @@ void CalibrationRunOverlay::init_subjects() {
     add_string(eta_, eta_buf_, kShortLen, "cal_run_eta");
     add_int(overall_, 0, "cal_run_overall");
     add_int(running_now_, 0, "cal_run_running_now");
+    add_int(step_count_, 0, "cal_run_step_count");
+    add_int(step_current_, 0, "cal_run_step_current");
     add_string(results_title_, results_title_buf_, kShortLen, "cal_run_results_title");
     add_int(results_warn_, 0, "cal_run_results_warn");
     add_string(results_primary_, results_primary_buf_, kShortLen, "cal_run_results_primary");
@@ -567,11 +585,10 @@ void CalibrationRunOverlay::publish_run() {
         const bool dropped = run_->results_lost() && e.status == StepStatus::Finished &&
                              !e.step->restores_on_discard();
         lv_subject_set_int(&state_[k], dropped ? 3 : dot_state(e.status));
-        const std::string status = dropped
-                                       ? std::string(lv_tr("Dropped when the printer restarted"))
-                                       : entry_status_text(e);
-        set_text(detail_[k], status);
-        set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
+        const std::string dropped_text = lv_tr("Dropped when the printer restarted");
+        set_text(detail_[k], dropped ? dropped_text : entry_status_text(e, true));
+        const std::string after = dropped ? dropped_text : entry_status_text(e, false);
+        set_text(after_[k], e.restore_note.empty() ? after : e.restore_note);
         set_text(before_subj_[k], before_text_[k]);
     }
 
@@ -584,6 +601,8 @@ void CalibrationRunOverlay::publish_run() {
     }
     lv_subject_set_int(&over_, over ? 1 : 0);
     lv_subject_set_int(&running_now_, over ? 0 : 1);
+    lv_subject_set_int(&step_count_, static_cast<int>(entries.size()));
+    lv_subject_set_int(&step_current_, current >= 0 ? current : static_cast<int>(entries.size()));
     lv_subject_set_int(&overall_, over ? 100 : (total_min > 0 ? done_min_x100 / total_min : 0));
     set_text(header_title_, over ? lv_tr("Calibration finished") : lv_tr("Calibrating"));
     set_text(eta_, over ? std::string(lv_tr("all done"))
@@ -756,9 +775,7 @@ void CalibrationRunOverlay::stop() {
     opts.owner_token = lifetime_.token();
     opts.destructive = true;
     modal_confirm(
-        lv_tr("Stop calibration?"),
-        lv_tr("The running step stops at once and the printer restarts, which also drops "
-              "the results of the steps that finished."),
+        lv_tr("Stop calibration?"), stop_confirm_message(run_->stop_effect()).c_str(),
         ModalSeverity::Warning, lv_tr("Stop"),
         [this]() {
             if (run_) {

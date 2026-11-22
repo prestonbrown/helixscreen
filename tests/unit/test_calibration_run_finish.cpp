@@ -243,3 +243,17 @@ TEST_CASE("the results button promises a restart unless Klipper said the save sk
     CHECK(results_primary_label(false, true, false) == "Done");
     CHECK(results_primary_label(false, false, true) == "Done");
 }
+
+TEST_CASE("the stop confirmation warns of a restart only when the stop restarts",
+          "[calibration_run]") {
+    using Effect = CalibrationRun::StopEffect;
+    using helix::ui::stop_confirm_message;
+    const std::string quiet = stop_confirm_message(Effect::EndsStep);
+    const std::string restarts = stop_confirm_message(Effect::Restarts);
+    const std::string drops = stop_confirm_message(Effect::RestartDropsResults);
+    CHECK(quiet.find("restarts") == std::string::npos);
+    CHECK(restarts.find("restarts") != std::string::npos);
+    CHECK(restarts.find("drops") == std::string::npos);
+    CHECK(drops.find("restarts") != std::string::npos);
+    CHECK(drops.find("drops the results") != std::string::npos);
+}

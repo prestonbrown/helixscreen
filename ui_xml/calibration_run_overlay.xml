@@ -75,7 +75,8 @@
         </calibration_run_pick_row>
       </lv_obj>
       <calibration_wizard_footer name="cal_run_pick_footer"
-                                 back_text="Skip for now" back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
+                                 back_text="Skip for now" back_compact_text="Skip" compact_texts="1"
+                                 back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
                                  status_subject="cal_run_pick_summary" status_sub_subject="cal_run_hands_line"
                                  status_color="#text" status_font="#cal_font_name" status_compact="1"
                                  status_compact_subject="cal_run_pick_summary_short"

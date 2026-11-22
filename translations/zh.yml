@@ -5102,6 +5102,8 @@ translations:
   The requested position is outside the printer's bounds: '请求的位置超出打印机范围'
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。'
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
   The runout sensor reads empty, so the print did not start.: 断料传感器显示为空，打印未开始。
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
@@ -6041,6 +6043,8 @@ translations:
   '{} Issues Detected': '检测到 {} 个问题'
   '{} LED strips available': '{} 条 LED 灯带可用'
   '{} MCUs': '{} 个 MCU'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': '{}设置'
   '{} Tools': '{} 个工具'
   '{} and {}': '{} 和 {}'

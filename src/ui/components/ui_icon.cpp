@@ -230,6 +230,11 @@ static lv_color_t fill_behind(lv_obj_t* obj) {
     return theme_manager_get_color("screen_bg");
 }
 
+lv_color_t contrast_color(lv_obj_t* icon) {
+    return theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                    fill_behind(icon));
+}
+
 /// contrast="true": the glyph takes the text colour that reads on the fill behind
 /// it, as ui_button's label does. Decided per draw, since the fill can change
 /// under the icon (a bound style on its parent) with no event reaching the icon.
@@ -242,9 +247,7 @@ static void contrast_draw_cb(lv_event_t* e) {
     if (!dsc) {
         return;
     }
-    lv_obj_t* obj = lv_event_get_target_obj(e);
-    dsc->color =
-        theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"), fill_behind(obj));
+    dsc->color = contrast_color(lv_event_get_target_obj(e));
 }
 
 /**

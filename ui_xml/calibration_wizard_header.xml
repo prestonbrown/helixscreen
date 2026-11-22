@@ -163,7 +163,7 @@
     </lv_obj>
     <lv_bar name="cal_header_bar"
             width="100%" height="#bar_h" min_value="0" max_value="100" bind_value="$bar_subject" style_radius="9999"
-            style_bg_color="#overlay_bg" style_bg_opa="255" style_bg_color-indicator="#primary"
-            style_bg_opa-indicator="255" style_radius-indicator="9999" hidden_if_empty="$bar_subject"/>
+            style_bg_color="#border" style_bg_opa="255" style_bg_color-indicator="#primary" style_bg_opa-indicator="255"
+            style_radius-indicator="9999" hidden_if_empty="$bar_subject"/>
   </view>
 </component>

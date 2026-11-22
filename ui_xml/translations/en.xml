@@ -4938,6 +4938,8 @@
   <translation tag="The requested position is outside the printer&apos;s bounds" en="The requested position is outside the printer&apos;s bounds"/>
   <translation tag="The right RFID reader in this CFS unit may need service" en="The right RFID reader in this CFS unit may need service"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." en="The running step stops at once and the printer restarts, which also drops the results of the steps that finished."/>
+  <translation tag="The running step stops at once and the printer restarts." en="The running step stops at once and the printer restarts."/>
+  <translation tag="The running step stops. The steps that finished keep their results." en="The running step stops. The steps that finished keep their results."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" en="The runout sensor indicates no filament is loaded. Start print anyway?"/>
   <translation tag="The runout sensor reads empty, so the print did not start." en="The runout sensor reads empty, so the print did not start."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." en="The saved position is kept. Reconnect or restart the screen to be offered the resume again."/>
@@ -5840,6 +5842,8 @@
   <translation tag="{} Issues Detected" en="{} Issues Detected"/>
   <translation tag="{} LED strips available" en="{} LED strips available"/>
   <translation tag="{} MCUs" en="{} MCUs"/>
+  <translation tag="{} MPC" en="{} MPC"/>
+  <translation tag="{} PID" en="{} PID"/>
   <translation tag="{} Settings" en="{} Settings"/>
   <translation tag="{} Tools" en="{} Tools"/>
   <translation tag="{} and {}" en="{} and {}"/>

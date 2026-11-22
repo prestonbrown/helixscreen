@@ -133,4 +133,11 @@ void set_color(lv_obj_t* icon, lv_color_t color, lv_opa_t opa);
  */
 void set_opa(lv_obj_t* icon, lv_opa_t opa);
 
+/**
+ * The color a contrast="true" icon draws in: the theme's text color, adjusted as
+ * ui_button adjusts its label, against the fill of the icon's nearest ancestor
+ * that paints one (the screen background when none does).
+ */
+[[nodiscard]] lv_color_t contrast_color(lv_obj_t* icon);
+
 } // namespace helix::ui::icon

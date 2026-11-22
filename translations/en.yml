@@ -5074,6 +5074,8 @@ translations:
   The requested position is outside the printer's bounds: The requested position is outside the printer's bounds
   The right RFID reader in this CFS unit may need service: The right RFID reader in this CFS unit may need service
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: The running step stops at once and the printer restarts, which also drops the results of the steps that finished.
+  The running step stops at once and the printer restarts.: The running step stops at once and the printer restarts.
+  The running step stops. The steps that finished keep their results.: The running step stops. The steps that finished keep their results.
   The runout sensor indicates no filament is loaded. Start print anyway?: The runout sensor indicates no filament is loaded. Start print anyway?
   The runout sensor reads empty, so the print did not start.: The runout sensor reads empty, so the print did not start.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: The saved position is kept. Reconnect or restart the screen to be offered the resume again.
@@ -6015,6 +6017,8 @@ translations:
   '{} Issues Detected': '{} Issues Detected'
   '{} LED strips available': '{} LED strips available'
   '{} MCUs': '{} MCUs'
+  '{} MPC': '{} MPC'
+  '{} PID': '{} PID'
   '{} Settings': '{} Settings'
   '{} Tools': '{} Tools'
   '{} and {}': '{} and {}'

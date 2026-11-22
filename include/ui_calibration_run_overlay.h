@@ -37,6 +37,9 @@ enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 [[nodiscard]] std::string results_primary_label(bool offers_save, bool restart_known,
                                                 bool save_restarts);
 
+/// The Stop confirmation's message for what stopping would do now.
+[[nodiscard]] std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect);
+
 class CalibrationRunOverlay : public OverlayBase {
   public:
     const char* get_name() const override {
@@ -196,6 +199,10 @@ class CalibrationRunOverlay : public OverlayBase {
     char eta_buf_[kShortLen]{};
     helix::Subject overall_;
     helix::Subject running_now_;
+    /// For the wizard header's step marks on screens the run opens: how many
+    /// steps, and the running one (0-based; the count once all have ended).
+    helix::Subject step_count_;
+    helix::Subject step_current_;
 
     helix::Subject results_title_;
     char results_title_buf_[kShortLen]{};
