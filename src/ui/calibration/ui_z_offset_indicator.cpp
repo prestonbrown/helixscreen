@@ -246,16 +246,21 @@ void draw_nozzle(lv_layer_t* layer, const ZOffsetIndicatorData& d, int32_t cx, i
     lv_draw_triangle_dsc_init(&t);
     t.color = d.color_text_muted;
     t.opa = LV_OPA_COVER;
-    // The cone: a trapezoid, as two triangles.
-    t.p[0] = {static_cast<lv_value_precise_t>(cx - s(18)),
-              static_cast<lv_value_precise_t>(tip - s(34))};
-    t.p[1] = {static_cast<lv_value_precise_t>(cx + s(18)),
-              static_cast<lv_value_precise_t>(tip - s(34))};
-    t.p[2] = {static_cast<lv_value_precise_t>(cx + s(6)),
-              static_cast<lv_value_precise_t>(tip - s(6))};
+    // The cone: a trapezoid, as a middle bar and two side triangles whose
+    // shared edges are vertical, so no seam shows.
+    fill_rect(layer, d.color_text_muted, LV_OPA_COVER, 0, cx - s(6), tip - s(34), cx + s(6),
+              tip - s(6));
+    auto pt = [](int32_t x, int32_t y) {
+        return lv_point_precise_t{static_cast<lv_value_precise_t>(x),
+                                  static_cast<lv_value_precise_t>(y)};
+    };
+    t.p[0] = pt(cx - s(18), tip - s(34));
+    t.p[1] = pt(cx - s(6), tip - s(34));
+    t.p[2] = pt(cx - s(6), tip - s(6));
     lv_draw_triangle(layer, &t);
-    t.p[1] = {static_cast<lv_value_precise_t>(cx - s(6)),
-              static_cast<lv_value_precise_t>(tip - s(6))};
+    t.p[0] = pt(cx + s(18), tip - s(34));
+    t.p[1] = pt(cx + s(6), tip - s(34));
+    t.p[2] = pt(cx + s(6), tip - s(6));
     lv_draw_triangle(layer, &t);
     fill_rect(layer, d.color_warning, LV_OPA_COVER, 0, cx - s(3), tip - s(6), cx + s(3), tip);
 }
@@ -350,8 +355,11 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
     if (note) {
         const int32_t nh = lv_font_get_line_height(note_font);
         const int32_t ny = L.note_bottom ? h - L.note_bottom_margin - nh : note_y;
-        const int32_t nx1 = L.compact ? 4 : bed_x;
-        const int32_t nx2 = L.compact ? w - 4 : bed_r;
+        // Centered under the bed, free to run wider than it when the text needs to.
+        const int32_t center = (bed_x + bed_r) / 2;
+        const int32_t half = L.compact ? w / 2 - 4 : std::min(center, w - center);
+        const int32_t nx1 = L.compact ? 4 : center - half;
+        const int32_t nx2 = L.compact ? w - 4 : center + half;
         draw_text(layer, note, note_font, note_color, LV_TEXT_ALIGN_CENTER, x0 + nx1, y0 + ny,
                   x0 + nx2);
     }
