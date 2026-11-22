@@ -2,6 +2,7 @@
 #include "platform_info.h"
 
 #include "board_identity.h"
+#include "env_knobs.h"
 
 #include <spdlog/spdlog.h>
 
@@ -30,6 +31,20 @@ void set_platform_override(int override_value) {
     s_platform_override = override_value;
 }
 
+// -1 = decide from the environment, 0 = force off, 1 = force on
+static int s_firmware_supervised_override = -1;
+
+bool firmware_supervised() {
+    if (s_firmware_supervised_override >= 0) {
+        return s_firmware_supervised_override != 0;
+    }
+    return env_flag("HELIX_FIRMWARE_MANAGED");
+}
+
+void set_firmware_supervised_override(int override_value) {
+    s_firmware_supervised_override = override_value;
+}
+
 // -1 = use compile-time default, 0 = force self-managed, 1 = force externally managed
 static int s_external_updates_default_override = -1;
 
@@ -37,7 +52,9 @@ bool platform_defaults_to_external_updates() {
     if (s_external_updates_default_override >= 0) {
         return s_external_updates_default_override != 0;
     }
-    return board::firmware_manages_updates(board::current());
+    // The firmware's own package is also recognised by where it runs, so a firmware that
+    // does not export HELIX_FIRMWARE_MANAGED still never has its package overwritten.
+    return firmware_supervised() || board::firmware_manages_updates(board::current());
 }
 
 void set_external_updates_default_override(int override_value) {

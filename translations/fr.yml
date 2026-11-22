@@ -3980,6 +3980,7 @@ translations:
     rien à supprimer.'
   Spoolman is offline, so brand and material can't be saved.: Spoolman est hors ligne, la marque et le matériau ne peuvent donc pas être enregistrés.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman est hors ligne. La marque et le matériau pourront être modifiés à son retour.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman se configure via le firmware de votre imprimante, pas sur cet écran.'
   Spoolman needs a brand for this filament.: Spoolman a besoin d'une marque pour ce filament.
   Spoolman needs a color for this filament.: Spoolman a besoin d'une couleur pour ce filament.
   Spoolman needs a material for this filament.: Spoolman a besoin d'un matériau pour ce filament.
@@ -5002,6 +5003,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Votre imprimante était hors ligne lors de la configuration, les options matérielles ont donc été ignorées. Les configurer maintenant ?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Le firmware de votre imprimante gère le logiciel de HelixScreen, le plugin HelixPrint doit donc être fourni par le firmware. Il ne peut pas être installé depuis cet écran.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Le firmware de votre imprimante gère sa configuration, réglez donc ces valeurs là-bas.'
   Your {0} is set up for {1}, but it looks stock.: 'Votre {0} est configurée pour {1}, mais elle semble d''origine.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Votre {0} semble avoir {1}, mais elle est configurée pour {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Votre {0} semble avoir {1}, mais elle est configurée d''origine.'

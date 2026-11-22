@@ -17,6 +17,7 @@
 #include "json_utils.h"
 #include "moonraker_api.h"
 #include "moonraker_validation.h"
+#include "platform_info.h"
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
 
@@ -85,6 +86,29 @@ inline void report_connection_error(const MoonrakerAPI::ErrorCallback& on_error,
     TelemetryManager::instance().record_error("moonraker_api", "connection_refused",
                                               std::string(method));
     report_error(on_error, MoonrakerErrorType::CONNECTION_LOST, method, message);
+}
+
+/**
+ * @brief Refuse a write under Moonraker's config root while firmware supervises
+ *        HelixScreen (prestonbrown/helixscreen#2154)
+ *
+ * That firmware owns the Moonraker and Klipper configuration, so every feature that
+ * would upload, delete, copy or move a file there stops here, whichever panel asked.
+ *
+ * @return true when refused (on_error got PERMISSION_DENIED); the caller returns
+ */
+inline bool reject_supervised_config_write(const MoonrakerAPI::ErrorCallback& on_error,
+                                           std::string_view method, std::string_view root,
+                                           std::string_view path) {
+    if (!names_config_root(root, path) || !helix::firmware_supervised()) {
+        return false;
+    }
+    spdlog::warn("[Moonraker API] {}: refused writing {}/{}: the printer's firmware manages "
+                 "its configuration",
+                 method, root, path);
+    report_error(on_error, MoonrakerErrorType::PERMISSION_DENIED, method,
+                 helix::kFirmwareSupervisedConfigRefusal);
+    return true;
 }
 
 /**

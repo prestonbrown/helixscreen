@@ -22,6 +22,7 @@
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "memory_utils.h"
 #include "platform_capabilities.h"
+#include "platform_info.h"
 #include "printer_state.h"
 #include "shaper_response.h"
 #include "shaper_selection.h"
@@ -1088,6 +1089,15 @@ void InputShaperPanel::save_configuration() {
     spdlog::info("[InputShaper] Writing [input_shaper] to config: {} edit(s)", edits.size());
     for (const auto& e : edits) {
         spdlog::debug("[InputShaper]   {} = {}", e.key, e.value);
+    }
+
+    // Firmware that supervises HelixScreen owns printer.cfg (#2154): refused before
+    // anything announces a restart that will not come.
+    if (helix::firmware_supervised()) {
+        spdlog::warn("[InputShaper] Not saving: {}", helix::kFirmwareSupervisedConfigRefusal);
+        ToastManager::instance().show(ToastSeverity::ERROR, lv_tr("Failed to save configuration"),
+                                      3000);
+        return;
     }
 
     // safe_multi_edit() ends in FIRMWARE_RESTART, so the restart that follows is

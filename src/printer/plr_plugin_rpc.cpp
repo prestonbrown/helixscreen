@@ -6,6 +6,7 @@
 #include "json_utils.h"
 #include "moonraker_db_item.h"
 #include "moonraker_error.h"
+#include "platform_info.h"
 #include "plr_profile.h"
 #include "printer_state.h"
 #include "standing_print_options.h"
@@ -159,6 +160,19 @@ void request_mesh_include_status(IMoonrakerAPI& api, std::function<void(bool pre
 void mesh_include_action(IMoonrakerAPI& api, bool add,
                          std::function<void(bool present, bool changed)> on_ok,
                          ErrorCallback on_error) {
+    // The include edits printer.cfg, which supervising firmware owns (#2154).
+    if (helix::firmware_supervised()) {
+        spdlog::warn("[PLR] {} refused: {}", kPlrMeshIncludeRpc,
+                     helix::kFirmwareSupervisedConfigRefusal);
+        if (on_error) {
+            MoonrakerError err;
+            err.type = MoonrakerErrorType::PERMISSION_DENIED;
+            err.method = kPlrMeshIncludeRpc;
+            err.message = helix::kFirmwareSupervisedConfigRefusal;
+            on_error(err);
+        }
+        return;
+    }
     api.get_client().send_jsonrpc(
         kPlrMeshIncludeRpc, json{{"action", add ? "add" : "remove"}},
         [on_ok = std::move(on_ok), method = kPlrMeshIncludeRpc](const json& response) {

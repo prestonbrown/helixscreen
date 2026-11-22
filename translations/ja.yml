@@ -3749,6 +3749,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman が設定されていません — 削除する項目はありません。
   Spoolman is offline, so brand and material can't be saved.: Spoolman がオフラインのため、ブランドと素材を保存できません。
   Spoolman is offline. Brand and material can change once it's back.: Spoolman がオフラインです。復帰後にブランドと素材を変更できます。
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman はこの画面ではなく、プリンターのファームウェアで設定します。'
   Spoolman needs a brand for this filament.: Spoolman にはこのフィラメントのブランドが必要です。
   Spoolman needs a color for this filament.: Spoolman にはこのフィラメントの色が必要です。
   Spoolman needs a material for this filament.: Spoolman にはこのフィラメントの素材が必要です。
@@ -4704,6 +4705,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。'
+  Your printer's firmware manages its configuration, so set these values there.: 'プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。'
   Your {0} is set up for {1}, but it looks stock.: 'お使いの{0}は{1}用に設定されていますが、標準状態のようです。'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'お使いの{0}には{1}があるようですが、{2}用に設定されています。'
   Your {0} looks like it has {1}, but it is set up as stock.: 'お使いの{0}には{1}があるようですが、標準状態として設定されています。'

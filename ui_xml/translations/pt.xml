@@ -3626,6 +3626,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." pt="Spoolman não está configurado — nada a remover."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." pt="O Spoolman está offline, então marca e material não podem ser salvos."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." pt="O Spoolman está offline. Marca e material poderão ser alterados quando ele voltar."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." pt="O Spoolman é configurado pelo firmware da impressora, não nesta tela."/>
   <translation tag="Spoolman needs a brand for this filament." pt="O Spoolman precisa de uma marca para este filamento."/>
   <translation tag="Spoolman needs a color for this filament." pt="O Spoolman precisa de uma cor para este filamento."/>
   <translation tag="Spoolman needs a material for this filament." pt="O Spoolman precisa de um material para este filamento."/>
@@ -4527,6 +4528,7 @@
   <translation tag="Your printer has an automatic filament changer" pt="Sua impressora possui um trocador automático de filamento"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" pt="Sua impressora estava offline durante a configuração, então as opções de hardware foram puladas. Configurar agora?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." pt="O firmware da sua impressora gerencia o software do HelixScreen, então o plugin HelixPrint precisa ser fornecido pelo firmware. Ele não pode ser instalado por esta tela."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." pt="O firmware da impressora gerencia a configuração dela, então defina esses valores lá."/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." pt="Sua {0} está configurada para {1}, mas parece original."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." pt="Sua {0} parece ter {1}, mas está configurada como original."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." pt="Sua {0} parece ter {1}, mas está configurada para {2}."/>

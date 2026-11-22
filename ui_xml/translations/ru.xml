@@ -3683,6 +3683,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." ru="Spoolman не настроен — удалять нечего."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." ru="Spoolman не в сети, поэтому бренд и материал не могут быть сохранены."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." ru="Spoolman не в сети. Бренд и материал можно будет изменить после его восстановления."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." ru="Spoolman настраивается через прошивку принтера, а не на этом экране."/>
   <translation tag="Spoolman needs a brand for this filament." ru="Spoolman требует бренд для этого филамента."/>
   <translation tag="Spoolman needs a color for this filament." ru="Spoolman требует цвет для этого филамента."/>
   <translation tag="Spoolman needs a material for this filament." ru="Spoolman требует материал для этого филамента."/>
@@ -4590,6 +4591,7 @@
   <translation tag="Your printer has an automatic filament changer" ru="Ваш принтер оснащён автоматическим сменщиком филамента"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ru="Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ru="Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ru="Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там."/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ru="Ваш {0} настроен для {1}, но выглядит стоковым."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ru="Похоже, на вашем {0} есть {1}, но он настроен как стоковый."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ru="Похоже, на вашем {0} есть {1}, но он настроен для {2}."/>
