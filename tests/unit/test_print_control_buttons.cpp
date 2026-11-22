@@ -79,12 +79,12 @@ TEST_CASE_METHOD(ControlButtonsFixture, "primary label is translated and follows
     REQUIRE(read_str("print_control_primary_label") == "Pause");
 
     settings.set_language("ru");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Pause")) != "Pause");
     CHECK(read_str("print_control_primary_label") == lv_tr("Pause"));
 
     settings.set_language("en");
-    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    helix::ui::UpdateQueue::instance().drain_until_empty();
     CHECK(read_str("print_control_primary_label") == "Pause");
 }
 
