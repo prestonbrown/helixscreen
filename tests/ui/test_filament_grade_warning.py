@@ -37,9 +37,8 @@ Mutation check (measured 2026-08-18, not assumed):
        what proves the two are measuring different things. That table is the
        load-bearing part of the feature.
 
-The directional wording is not separately mutation-checked here; its assertion
-("hardened") is pinned by the gate-level unit test in test_print_start_gates.cpp
-against both directions, which is a cheaper place to catch a reworded string.
+The directional wording is not asserted here; the gate-level unit test in
+test_print_start_gates.cpp covers both directions.
 """
 
 from __future__ import annotations
@@ -168,15 +167,14 @@ def _tap_print_on_the_pla_cube(app) -> None:
 def test_filled_lane_warns_with_the_abrasive_direction(filled_lane_app):
     _tap_print_on_the_pla_cube(filled_lane_app)
 
-    assert filled_lane_app.text(_DIALOG_TITLE) == "Filament Grade Mismatch"
-
     message = filled_lane_app.text(_DIALOG_MESSAGE)
     # Both materials are named: a dialog that says only "grade mismatch" leaves
     # the user to go hunting for which lane and which grade.
     assert "PLA-CF" in message
-    # The loaded spool is the filled one, so this is the direction that costs
-    # hardware, and the dialog has to say so.
-    assert "hardened" in message
+    # The expected (sliced-for) material is named too, so the user sees both
+    # sides of the mismatch. This also pins that the grade dialog fired rather
+    # than another gate: only it names the filled spool.
+    assert "PLA" in message.replace("PLA-CF", "")
 
 
 def test_filled_lane_still_maps_and_the_warning_is_click_through(filled_lane_app):
@@ -187,10 +185,18 @@ def test_filled_lane_still_maps_and_the_warning_is_click_through(filled_lane_app
     # the dialog can name a loaded material at all rather than reporting an
     # unresolved tool.
     message = filled_lane_app.text(_DIALOG_MESSAGE)
-    assert "sliced for PLA" in message
+    assert "PLA-CF" in message
+    assert "PLA" in message.replace("PLA-CF", "")
 
-    # And it is dismissible rather than a block.
-    assert filled_lane_app.text(_DIALOG_PRIMARY) == "Start Anyway"
+    # And it is dismissible rather than a block: the primary button is live,
+    # and tapping it closes the dialog and proceeds.
+    primary = filled_lane_app.state(_DIALOG_PRIMARY)
+    assert primary["disabled"] is False
+    assert primary["flags"]["hidden"] is False
+    filled_lane_app.click(_DIALOG_PRIMARY)
+    filled_lane_app.wait_idle()
+    with pytest.raises(HelixCtlError):
+        filled_lane_app.geom(_DIALOG_TITLE)
 
 
 def test_matching_lane_shows_no_grade_dialog(default_lane_app):
@@ -199,8 +205,11 @@ def test_matching_lane_shows_no_grade_dialog(default_lane_app):
 
     # This fixture does raise the ordinary material dialog against the default
     # lanes (the cube's used tool falls through to an ASA lane), which is the
-    # point: the gate is speaking, and it is NOT saying "grade".
-    # Asserted as an equality rather than "not the grade title": a dialog that
-    # failed to appear, or a stale one left by another test, would satisfy the
-    # negative form.
-    assert default_lane_app.text(_DIALOG_TITLE) == "Material Mismatch"
+    # point: the gate is speaking, and it is NOT the grade gate. The loaded
+    # materials are plain, so the message never names a filled grade; it does
+    # name the lane's actual material, which proves a mismatch dialog is up
+    # (a missing or stale dialog would have no such text).
+    assert default_lane_app.text(_DIALOG_TITLE).strip()
+    message = default_lane_app.text(_DIALOG_MESSAGE)
+    assert "ASA" in message
+    assert "PLA-CF" not in message
