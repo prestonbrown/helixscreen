@@ -33,6 +33,7 @@
 #include <cstring>
 #include <optional>
 #include <tuple>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -87,6 +88,10 @@ struct PrinterDatabase {
     // The file, and its mtime, that last failed to load. Every lookup calls
     // load(), so retrying an unchanged broken file would toast once per lookup.
     std::optional<std::pair<std::string, std::optional<std::int64_t>>> failed_file;
+    // Lowercased printer name -> index into data["printers"], first entry wins.
+    // Draw code asks for a printer's fields every frame, so a lookup must not
+    // walk and lowercase the whole array.
+    std::unordered_map<std::string, std::size_t> name_index;
 
     bool load() {
         if (loaded)
@@ -131,8 +136,18 @@ struct PrinterDatabase {
         // Phase 2: Merge user extensions from config/printer_database.d/
         merge_user_extensions();
 
+        build_name_index();
         loaded = true;
         return true;
+    }
+
+    void build_name_index() {
+        name_index.clear();
+        const json& printers = data["printers"];
+        for (std::size_t i = 0; i < printers.size(); ++i) {
+            name_index.emplace(
+                helix::text_io::to_lower(helix::json_util::safe_string(printers[i], "name")), i);
+        }
     }
 
     void reload() {
@@ -143,6 +158,7 @@ struct PrinterDatabase {
         load_errors.clear();
         user_overrides = 0;
         user_additions = 0;
+        name_index.clear();
         data = json();
         load();
     }
@@ -996,14 +1012,20 @@ const json* find_printer_entry(const std::string& printer_name, bool match_id = 
         return nullptr;
     }
     const std::string wanted = helix::text_io::to_lower(printer_name);
-    for (const auto& printer : *printers) {
-        if (helix::text_io::to_lower(helix::json_util::safe_string(printer, "name")) == wanted ||
-            (match_id &&
-             helix::text_io::to_lower(helix::json_util::safe_string(printer, "id")) == wanted)) {
-            return &printer;
+    const auto by_name = g_database.name_index.find(wanted);
+    const std::size_t name_hit =
+        by_name == g_database.name_index.end() ? printers->size() : by_name->second;
+    if (!match_id) {
+        return name_hit < printers->size() ? &(*printers)[name_hit] : nullptr;
+    }
+    // An id match earlier in the array outranks a later name match.
+    for (std::size_t i = 0; i < name_hit && i < printers->size(); ++i) {
+        if (helix::text_io::to_lower(helix::json_util::safe_string((*printers)[i], "id")) ==
+            wanted) {
+            return &(*printers)[i];
         }
     }
-    return nullptr;
+    return name_hit < printers->size() ? &(*printers)[name_hit] : nullptr;
 }
 
 /// Member `field` of the entry named `printer_name`, or nullptr when either is absent.
@@ -1022,7 +1044,7 @@ bool printer_flag(const std::string& printer_name, const char* field, bool fallb
 std::string printer_field(const std::string& printer_name, const char* field) {
     const json* printer = find_printer_entry(printer_name);
     std::string value = printer ? helix::json_util::safe_string(*printer, field) : std::string();
-    spdlog::debug("[PrinterDetector] {} for '{}': '{}'", field, printer_name, value);
+    spdlog::trace("[PrinterDetector] {} for '{}': '{}'", field, printer_name, value);
     return value;
 }
 } // namespace
