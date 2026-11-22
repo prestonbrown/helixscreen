@@ -250,6 +250,7 @@ or discarded unshown at a seek or close.
 |----------|---------|
 | `find_companion_thumbnail(video, listing)` | The preview beside a video: moonraker-timelapse's `video.jpg`, else `video.thumb.jpg` |
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
+| `ffmpeg_lean_input_args()` / `ffmpeg_lean_output_args()` | The one-thread, small-probe options every viewer ffmpeg (thumbnails and the player) runs with |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
 
 Local vs remote playback is decided by the `moonraker_is_remote` subject

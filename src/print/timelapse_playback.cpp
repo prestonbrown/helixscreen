@@ -3,6 +3,8 @@
 
 #include "timelapse_playback.h"
 
+#include "timelapse_thumbnailer.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -232,25 +234,22 @@ size_t frame_bytes(FrameSize size, RawPixelFormat format) {
 
 std::vector<std::string> ffmpeg_decode_args(const std::string& path, double start_s, FrameSize out,
                                             RawPixelFormat format) {
-    // One thread everywhere: a threaded decoder and the rawvideo encoder each
-    // hold a frame set per thread (thread counts default to the core count),
-    // which is most of ffmpeg's memory, and the printer's other cores belong
-    // to Klipper. A local file needs no stream probing beyond its header.
-    // Never -fflags nobuffer: it ends an MP4 early.
-    std::vector<std::string> args = {"ffmpeg",   "-hide_banner",    "-loglevel", "error",
-                                     "-nostdin", "-probesize",      "32768",     "-analyzeduration",
-                                     "0",        "-filter_threads", "1",         "-threads",
-                                     "1"};
+    // Lean, as every viewer ffmpeg is: one thread per stage, a small probe.
+    std::vector<std::string> args = {"ffmpeg", "-hide_banner", "-loglevel", "error", "-nostdin"};
+    const auto lean_in = ffmpeg_lean_input_args();
+    args.insert(args.end(), lean_in.begin(), lean_in.end());
     if (start_s > 0.0) {
         char ss[32];
         std::snprintf(ss, sizeof(ss), "%.3f", start_s);
         args.insert(args.end(), {"-ss", ss});
     }
-    args.insert(args.end(),
-                {"-i", path, "-an", "-sn", "-vf",
-                 "scale=" + std::to_string(out.width) + ":" + std::to_string(out.height) +
-                     ":flags=fast_bilinear",
-                 "-pix_fmt", ffmpeg_pix_fmt_name(format), "-threads", "1", "-f", "rawvideo", "-"});
+    args.insert(args.end(), {"-i", path, "-an", "-sn", "-vf",
+                             "scale=" + std::to_string(out.width) + ":" +
+                                 std::to_string(out.height) + ":flags=fast_bilinear",
+                             "-pix_fmt", ffmpeg_pix_fmt_name(format)});
+    const auto lean_out = ffmpeg_lean_output_args();
+    args.insert(args.end(), lean_out.begin(), lean_out.end());
+    args.insert(args.end(), {"-f", "rawvideo", "-"});
     return args;
 }
 

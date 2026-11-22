@@ -33,17 +33,32 @@ std::string find_companion_thumbnail(const std::string& video_filename,
     return {};
 }
 
+std::vector<std::string> ffmpeg_lean_input_args() {
+    // Never -fflags nobuffer: it ends an MP4 early.
+    return {"-probesize",      "32768", "-analyzeduration", "0",
+            "-filter_threads", "1",     "-threads",         "1"};
+}
+
+std::vector<std::string> ffmpeg_lean_output_args() {
+    return {"-threads", "1"};
+}
+
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,
                                              const std::string& output_path, ExtractFrame frame) {
     std::vector<std::string> args = {"ffmpeg", "-y"};
+    const auto lean_in = ffmpeg_lean_input_args();
+    args.insert(args.end(), lean_in.begin(), lean_in.end());
     if (frame == ExtractFrame::Last) {
         // Before -i, a seek from the end jumps to a keyframe instead of decoding there.
         args.insert(args.end(), {"-sseof", "-1"});
     }
     // 480px wide: a full-resolution frame would cost every pre-scale a
     // multi-megabyte decode on a worker.
-    args.insert(args.end(), {"-i", input_path, "-vframes", "1", "-q:v", "3", "-vf", "scale=480:-2",
-                             output_path});
+    args.insert(args.end(),
+                {"-i", input_path, "-vframes", "1", "-q:v", "3", "-vf", "scale=480:-2"});
+    const auto lean_out = ffmpeg_lean_output_args();
+    args.insert(args.end(), lean_out.begin(), lean_out.end());
+    args.push_back(output_path);
     return args;
 }
 

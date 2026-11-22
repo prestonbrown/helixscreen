@@ -30,6 +30,16 @@ enum class ExtractFrame {
     First, ///< The opening frame, for a file the end seek gets nothing from
 };
 
+/// ffmpeg options, before -i, that keep a local-file decode lean on a printer:
+/// one decoder thread and one filter thread (each defaults to one per core,
+/// every thread holding its own frames) and no stream probing beyond the
+/// file's header. Every ffmpeg the timelapse viewer runs starts with these.
+[[nodiscard]] std::vector<std::string> ffmpeg_lean_input_args();
+
+/// The output-side half of ffmpeg_lean_input_args(), just before the output:
+/// one encoder thread.
+[[nodiscard]] std::vector<std::string> ffmpeg_lean_output_args();
+
 /// Build an argument list for ffmpeg thumbnail extraction (safe from shell injection)
 std::vector<std::string> ffmpeg_extract_args(const std::string& input_path,
                                              const std::string& output_path, ExtractFrame frame);
