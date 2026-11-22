@@ -181,6 +181,7 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(subj_fan_locked_, 0, "cal_fan_locked", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_power_known_, 0, "cal_power_known", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_power_pick_, 0, "cal_power_pick", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_switch_ready_, 0, "cal_switch_ready", subjects_);
     UI_MANAGED_SUBJECT_STRING(subj_power_source_, buf_power_source_, "", "cal_power_source",
                               subjects_);
     static constexpr const char* kPowerChipNames[4] = {"cal_power_chip_0", "cal_power_chip_1",
@@ -438,6 +439,7 @@ void PIDCalibrationPanel::on_activate() {
     lv_subject_set_int(&subj_add_cooling_fan_, 1);
     lv_subject_set_int(&subj_power_known_, 0);
     lv_subject_set_int(&subj_power_pick_, 0);
+    lv_subject_set_int(&subj_switch_ready_, 0);
     lv_subject_set_string(&subj_power_source_, "");
 
     update_fan_section_visibility();
@@ -2033,6 +2035,7 @@ void PIDCalibrationPanel::show_switch_page() {
     // No printer-database heater power exists yet, so the page always asks.
     lv_subject_set_int(&subj_power_known_, 0);
     lv_subject_set_string(&subj_power_source_, "");
+    update_switch_ready();
     refresh_switch_text();
     set_page(Page::SWITCH_MPC);
 }
@@ -2089,12 +2092,20 @@ void PIDCalibrationPanel::handle_power_pick(int pick) {
         heater_wattage_ = kPowerChoicesW[static_cast<size_t>(pick - 1)];
     }
     lv_subject_set_int(&subj_power_pick_, pick);
+    update_switch_ready();
     update_wattage_display();
     spdlog::debug("[PIDCal] Heater power pick {} ({} W)", pick, heater_wattage_);
 }
 
 void PIDCalibrationPanel::handle_power_change() {
     lv_subject_set_int(&subj_power_known_, 0);
+    update_switch_ready();
+}
+
+void PIDCalibrationPanel::update_switch_ready() {
+    const bool ready = lv_subject_get_int(subj_power_known_.get()) == 1 ||
+                       lv_subject_get_int(subj_power_pick_.get()) != 0;
+    lv_subject_set_int(&subj_switch_ready_, ready ? 1 : 0);
 }
 
 void PIDCalibrationPanel::handle_keep_pid_clicked() {
@@ -2112,8 +2123,7 @@ void PIDCalibrationPanel::handle_switch_mpc_clicked() {
     if (state_ != State::IDLE || page_ != Page::SWITCH_MPC) {
         return;
     }
-    if (lv_subject_get_int(subj_power_known_.get()) == 0 &&
-        lv_subject_get_int(subj_power_pick_.get()) == 0) {
+    if (lv_subject_get_int(subj_switch_ready_.get()) == 0) {
         return;
     }
     set_page(Page::INTRO);

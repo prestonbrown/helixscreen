@@ -471,6 +471,7 @@ class PIDCalibrationPanel : public OverlayBase {
     helix::Subject subj_fan_locked_{};    // int 0/1: the heater already names its fan
     helix::Subject subj_power_known_{};   // int 0/1: heater power from the printer database
     helix::Subject subj_power_pick_{};    // int 0 none, 1..3 kPowerChoicesW, 4 other
+    helix::Subject subj_switch_ready_{};  // int 0/1: a heater power is known or picked
     helix::Subject subj_power_source_{};
     char buf_power_source_[96];
     std::array<helix::Subject, 4> subj_power_chip_{};
@@ -583,6 +584,7 @@ class PIDCalibrationPanel : public OverlayBase {
     /// Re-renders every string this panel formats with lv_tr(): first show and a language switch.
     void refresh_translated_text();
     void refresh_switch_text();
+    void update_switch_ready();
     void refresh_heater_controls();
     void update_heater_cards();
     void update_badges();

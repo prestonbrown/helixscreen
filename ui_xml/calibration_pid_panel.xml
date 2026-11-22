@@ -188,7 +188,7 @@
         <calibration_intro name="switch_intro"
                            primary_name="btn_switch_mpc" primary_text="Switch and calibrate"
                            primary_callback="on_pid_switch_mpc"
-                           disabled_cond="(cal_power_known eq 0 and cal_power_pick eq 0) or pid_cal_not_idle or nav_buttons_enabled eq 0">
+                           disabled_cond="cal_switch_ready eq 0 or pid_cal_not_idle or nav_buttons_enabled eq 0">
           <!-- What MPC is, and the same fan change under both methods -->
           <text_small width="100%"
                       text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."
@@ -259,18 +259,18 @@
                         height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row" scrollable="false">
                   <cal_intro_chip name="btn_power_0"
                                   bind_label="cal_power_chip_0" choice="cal_power_pick" value="1" index="1"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name"/>
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle"/>
                   <cal_intro_chip name="btn_power_1"
                                   bind_label="cal_power_chip_1" choice="cal_power_pick" value="2" index="2"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name"/>
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle"/>
                   <cal_intro_chip name="btn_power_2"
                                   bind_label="cal_power_chip_2" choice="cal_power_pick" value="3" index="3"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name">
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle">
                     <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   </cal_intro_chip>
                   <cal_intro_chip name="btn_power_3"
                                   bind_label="cal_power_chip_3" choice="cal_power_pick" value="4" index="4"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name">
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle">
                     <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   </cal_intro_chip>
                 </lv_obj>
@@ -279,10 +279,10 @@
                   <bind_flag_if_not_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
                   <cal_intro_chip name="btn_power_2_micro"
                                   bind_label="cal_power_chip_2" choice="cal_power_pick" value="3" index="3"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name"/>
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle"/>
                   <cal_intro_chip name="btn_power_3_micro"
                                   bind_label="cal_power_chip_3" choice="cal_power_pick" value="4" index="4"
-                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_name"/>
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_font_subtitle"/>
                 </lv_obj>
                 <!-- "Other": any wattage, in the heater's own steps -->
                 <lv_obj width="100%"

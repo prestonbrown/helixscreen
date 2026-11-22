@@ -32,6 +32,9 @@ struct PIDCalibrationPanelTestAccess {
     static void use_mpc(PIDCalibrationPanel& p) {
         p.selected_method_ = PIDCalibrationPanel::CalibMethod::MPC;
     }
+    static void power_pick(PIDCalibrationPanel& p, int pick) {
+        p.handle_power_pick(pick);
+    }
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
