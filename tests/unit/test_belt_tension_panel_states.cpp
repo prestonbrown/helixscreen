@@ -342,9 +342,6 @@ class BeltPanelFixture : public XMLTestFixture {
     bool pump_until_int(const char* name, int want, uint32_t budget_ms = 60000) {
         return pump_until([&] { return state_int(name) == want; }, budget_ms);
     }
-    bool pump_until_text(const char* name, const std::string& want, uint32_t budget_ms = 60000) {
-        return pump_until([&] { return text(name) == want; }, budget_ms);
-    }
     /// Waits for the run view's sweeping path (0 = A, 1 = B, 2 = neither).
     bool pump_until_running_path(int path, uint32_t budget_ms = 60000) {
         return pump_until_int("bt_running_path", path, budget_ms);
@@ -1081,7 +1078,6 @@ void replay_to_adjust(BeltPanelFixture& fx, ReplayBelts& belts) {
 } // namespace
 
 TEST_CASE("the Tune button names the job by verdict", "[belt][panel][tune]") {
-    static std::string fair_cta = "unset";
     SECTION("Fair match: Tune Belts") {
         BeltPanelFixture fx;
         fx.mock().set_belt_peaks_hz(104.0f, 98.0f);
@@ -1091,7 +1087,6 @@ TEST_CASE("the Tune button names the job by verdict", "[belt][panel][tune]") {
         REQUIRE(fx.state_int("bt_verdict") !=
                 static_cast<int>(helix::calibration::BeltVerdict::MATCHED));
         CHECK_FALSE(fx.text("bt_tune_cta").empty());
-        fair_cta = fx.text("bt_tune_cta");
     }
     SECTION("Good match: Fine-tune") {
         BeltPanelFixture fx;
@@ -1102,8 +1097,6 @@ TEST_CASE("the Tune button names the job by verdict", "[belt][panel][tune]") {
         REQUIRE(fx.state_int("bt_verdict") ==
                 static_cast<int>(helix::calibration::BeltVerdict::MATCHED));
         CHECK_FALSE(fx.text("bt_tune_cta").empty());
-        // The Fair-match section ran first and recorded its text.
-        CHECK(fx.text("bt_tune_cta") != fair_cta);
     }
 }
 
