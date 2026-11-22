@@ -1274,6 +1274,12 @@ TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken 
         CHECK_FALSE(access.shown("favorite_spools"));
         CHECK_FALSE(access.shown("common_spools"));
         const size_t swatches_without = access.color_row().size();
+        // A page with room to spare stops the swatches at the row's most lines.
+        lv_obj_t* row = access.widget("color_row");
+        lv_obj_update_layout(row);
+        const bool capped_without =
+            lv_obj_get_height(row) + lv_obj_get_height(access.widget("btn_all_colors")) >
+            lv_obj_get_style_max_height(row, LV_PART_MAIN);
         close_editor_overlay();
 
         {
@@ -1285,8 +1291,9 @@ TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken 
             CHECK(access.shown("favorite_tile_0"));
             CHECK(access.shown("favorite_tile_2"));
             CHECK_FALSE(access.shown("favorite_tile_3"));
-            // The swatches gave up room for the row.
-            CHECK(access.color_row().size() < swatches_without);
+            // The swatches gave up room for the row, or had room to spare.
+            CHECK((access.color_row().size() < swatches_without ||
+                   (capped_without && access.color_row().size() == swatches_without)));
             close_editor_overlay();
         }
     }
