@@ -196,8 +196,10 @@ TEST_CASE("With no AMS the current paint follows the external spool",
     SlotInfo spool;
     spool.color_rgb = 0x12AB34;
     spool.material = "PETG";
+    spool.translucent = true;
     ams.set_external_spool_info(spool);
     CHECK(lv_subject_get_int(paint) == 0x12AB34);
+    CHECK(lv_subject_get_int(ams.get_current_translucent_subject()) == 1);
 
     SECTION("a spool with no color keeps the no-filament paint") {
         ams.clear_external_spool_info();
@@ -549,6 +551,33 @@ TEST_CASE("active_spool_describes_bypass: false when an AMS is feeding from a la
     CHECK_FALSE(AmsState::instance().active_spool_describes_bypass());
 
     AmsState::instance().clear_backends();
+}
+
+TEST_CASE("A bypass feeding a translucent external spool paints Currently Loaded translucent",
+          "[external_spool][ams_state][bypass][translucent]") {
+    ExternalSpoolCommitFixture fixture;
+    AmsState& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    mock->set_operation_delay(0);
+    AmsBackendMock* raw = mock.get();
+    ams.set_backend(std::move(mock));
+    REQUIRE(raw->start());
+    REQUIRE(helix::test::unload_for_bypass(*raw));
+    REQUIRE(raw->enable_bypass().success());
+
+    SlotInfo spool;
+    spool.color_rgb = 0xE8E8FF;
+    spool.material = "PETG";
+    spool.translucent = true;
+    ams.set_external_spool_info(spool);
+    ams.sync_from_backend();
+    settle_queue();
+    REQUIRE(lv_subject_get_int(ams.get_current_color_subject()) == 0xE8E8FF);
+    CHECK(lv_subject_get_int(ams.get_current_translucent_subject()) == 1);
+
+    ams.clear_external_spool_info();
+    ams.clear_backends();
 }
 
 TEST_CASE("active_spool_describes_bypass: true when the AMS is feeding from its bypass",

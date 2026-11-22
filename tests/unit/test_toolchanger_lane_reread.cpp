@@ -295,6 +295,42 @@ TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Ejec
     settings.set_ams_keep_spool_info_on_eject(previous);
 }
 
+TEST_CASE("a spool that leaves before its edit's echo takes the edit's translucency with it",
+          "[toolchanger][zmod][keep_spool][lane_truth][translucent]") {
+    auto& settings = SettingsManager::instance();
+    settings.init_subjects();
+    const bool previous = settings.get_ams_keep_spool_info_on_eject();
+    settings.set_ams_keep_spool_info_on_eject(true);
+
+    Rig rig(/*creator5=*/true);
+    auto head0 = [](const char* hex, bool has_filament) {
+        json frame = zmod_color_frame("8C8C89");
+        frame["zmod_color"]["slots"][0]["HEX"] = hex;
+        frame["zmod_color"]["slots"][0]["hasFilament"] = has_filament;
+        return frame;
+    };
+    rig.feed(head0("48358C", true));
+    rig.reg->refresh_lane_records();
+    Rig::settle();
+
+    // A translucent edit to a new colour, which the firmware never echoes:
+    // the spool leaves first.
+    SlotInfo edit = rig.reg->get_slot_info(0);
+    edit.color_rgb = 0xD080E0;
+    edit.translucent = true;
+    REQUIRE(rig.reg->commit_user_edit(0, rig.reg->get_slot_info(0), edit).success());
+    Rig::settle();
+    rig.feed(head0("48358C", false));
+
+    // Another spool goes in, and the printer's screen gives it a colour.
+    rig.feed(head0("D584DE", true));
+    const json rec = rig.printer.client.mock_db_get("lane_data", "T0");
+    CHECK(rec["color"] == "#D584DE");
+    CHECK_FALSE((rec.contains("helix_translucent") && rec["helix_translucent"] == true));
+    CHECK_FALSE(rig.reg->get_slot_info(0).translucent);
+    settings.set_ams_keep_spool_info_on_eject(previous);
+}
+
 TEST_CASE("Z-Mod lane truth: a record another writer owns is never copied into",
           "[toolchanger][zmod][lane_truth][writer_rule]") {
     MockPrinter printer;

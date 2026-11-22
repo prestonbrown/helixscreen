@@ -120,6 +120,24 @@ TEST_CASE("apply_resolved writes the resolver's fields and leaves the rest alone
     CHECK(slot.multi_color_hexes == "#111111,#222222");
 }
 
+TEST_CASE("apply_resolved writes a stated translucency and keeps the slot's when none is stated",
+          "[lane][apply][translucent]") {
+    SlotInfo slot;
+    ResolvedLane r;
+    r.present = true;
+    r.translucent = true;
+    apply_resolved(slot, r);
+    CHECK(slot.translucent);
+
+    r.translucent = std::nullopt;
+    apply_resolved(slot, r);
+    CHECK(slot.translucent);
+
+    r.translucent = false;
+    apply_resolved(slot, r);
+    CHECK_FALSE(slot.translucent);
+}
+
 TEST_CASE("A lane the resolver reports absent is emptied, not merely dimmed", "[lane][apply]") {
     SlotInfo slot;
     slot.status = SlotStatus::LOADED;

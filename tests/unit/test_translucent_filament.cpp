@@ -163,6 +163,24 @@ TEST_CASE("A lane record keeps translucency beside an #RRGGBB color", "[transluc
     CHECK_FALSE(ams::record_observation(silent->second).translucent.has_value());
 }
 
+TEST_CASE("The external spool read from its record keeps the record's translucency",
+          "[translucent][lane_data][external_spool]") {
+    FilamentSlotOverride record;
+    record.material = "PETG";
+    record.color_rgb = 0xE8E8FF;
+    record.color_set = true;
+    record.translucent = true;
+    CHECK(ams::external_spool_from_record(record).translucent);
+
+    record.translucent = std::nullopt;
+    CHECK_FALSE(ams::external_spool_from_record(record).translucent);
+
+    // Translucency belongs to a color: a record with none states no paint.
+    record.translucent = true;
+    record.color_set = false;
+    CHECK_FALSE(ams::external_spool_from_record(record).translucent);
+}
+
 TEST_CASE("Translucency goes with the color its source stated", "[translucent][lane_resolver]") {
     ams::Observation record(ams::ObservationSource::Record);
     record.color_rgb = 0xE8E8FF;

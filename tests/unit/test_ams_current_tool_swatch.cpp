@@ -122,3 +122,48 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     drain();
     CHECK_FALSE(ui::swatch_paint_translucent(disc));
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Currently Loaded's translucency follows the loaded lane",
+                 "[ams][ams_state][ams_current_tool][translucent]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    auto mock = std::make_unique<AmsBackendMock>(4);
+    auto* mock_ptr = mock.get();
+    mock_ptr->set_operation_delay(10);
+    ams.set_backend(std::move(mock));
+    mock_ptr->start();
+
+    SlotInfo clear = mock_ptr->get_slot_info(1);
+    clear.color_rgb = 0xE8E8FF;
+    clear.multi_color_hexes.clear();
+    clear.material = "PETG";
+    clear.translucent = true;
+    REQUIRE(test::apply_edit(*mock_ptr, 1, clear).success());
+    SlotInfo opaque = mock_ptr->get_slot_info(2);
+    opaque.color_rgb = 0x2266AA;
+    opaque.multi_color_hexes.clear();
+    opaque.material = "PLA";
+    opaque.translucent = false;
+    REQUIRE(test::apply_edit(*mock_ptr, 2, opaque).success());
+
+    mock_ptr->load_filament(1);
+    mock_ptr->wait_for_operation_thread();
+    REQUIRE(mock_ptr->get_current_slot() == 1);
+    ams.sync_from_backend();
+    drain();
+    REQUIRE(lv_subject_get_int(ams.get_current_color_subject()) == 0xE8E8FF);
+    CHECK(lv_subject_get_int(ams.get_current_translucent_subject()) == 1);
+
+    mock_ptr->unload_filament(1);
+    mock_ptr->wait_for_operation_thread();
+    mock_ptr->load_filament(2);
+    mock_ptr->wait_for_operation_thread();
+    REQUIRE(mock_ptr->get_current_slot() == 2);
+    ams.sync_from_backend();
+    drain();
+    CHECK(lv_subject_get_int(ams.get_current_translucent_subject()) == 0);
+
+    mock_ptr->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
+}

@@ -100,6 +100,43 @@ TEST_CASE_METHOD(LVGLTestFixture,
     ams.deinit_subjects();
 }
 
+TEST_CASE_METHOD(LVGLTestFixture, "collect_available_slots carries a lane's translucency",
+                 "[ams][ams_state][available_slots][translucent]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(false);
+    auto mock = std::make_unique<AmsBackendMock>();
+    auto* mock_ptr = mock.get();
+    mock_ptr->set_operation_delay(0);
+    ams.set_backend(std::move(mock));
+    mock_ptr->start();
+    {
+        auto slot = mock_ptr->get_slot_info(0);
+        slot.color_rgb = 0xE8E8FF;
+        slot.multi_color_hexes.clear();
+        slot.translucent = true;
+        helix::test::apply_edit(*mock_ptr, 0, slot);
+    }
+
+    const auto slots = ams.collect_available_slots();
+    const AvailableSlot* lane0 = nullptr;
+    const AvailableSlot* lane1 = nullptr;
+    for (const auto& s : slots) {
+        if (s.backend_index == 0 && s.slot_index == 0) {
+            lane0 = &s;
+        } else if (s.backend_index == 0 && s.slot_index == 1) {
+            lane1 = &s;
+        }
+    }
+    REQUIRE(lane0 != nullptr);
+    REQUIRE(lane1 != nullptr);
+    CHECK(lane0->translucent);
+    CHECK_FALSE(lane1->translucent);
+
+    mock_ptr->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "an assigned but empty lane still flattens to is_empty",
                  "[ams][ams_state][available_slots]") {
     // A lane the user assigned filament to, whose spool has since been pulled,
