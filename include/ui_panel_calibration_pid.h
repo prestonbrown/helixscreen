@@ -378,6 +378,9 @@ class PIDCalibrationPanel : public OverlayBase {
 
     // KlipperConfigEditor for migration
     helix::system::KlipperConfigEditor config_editor_;
+    /// How long a control migration's FIRMWARE_RESTART has to come back READY
+    /// with the new control before the edit is reverted.
+    int migration_restart_timeout_ms_ = 30000;
 
     // Subject manager for automatic cleanup
     SubjectManager subjects_;

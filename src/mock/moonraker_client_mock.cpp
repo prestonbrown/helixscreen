@@ -4152,15 +4152,18 @@ void MoonrakerClientMock::trigger_restart(bool is_firmware) {
                 return;
             }
 
-            klippy_state_.store(KlippyState::READY);
-
-            // Dispatch ready notification
+            const KlippyState outcome = restart_outcome_.load();
+            klippy_state_.store(outcome);
+            const bool ready = outcome == KlippyState::READY;
+            const std::string message =
+                ready ? "Printer is ready"
+                      : (klippy_error_message_.empty() ? "Config error" : klippy_error_message_);
             json ready_status = {
-                {"webhooks", {{"state", "ready"}, {"state_message", "Printer is ready"}}}};
+                {"webhooks", {{"state", ready ? "ready" : "error"}, {"state_message", message}}}};
             dispatch_status_update(ready_status);
 
-            spdlog::info("[MoonrakerClientMock] {} complete - klippy_state='ready'",
-                         is_firmware ? "FIRMWARE_RESTART" : "RESTART");
+            spdlog::info("[MoonrakerClientMock] {} complete - klippy_state='{}'",
+                         is_firmware ? "FIRMWARE_RESTART" : "RESTART", ready ? "ready" : "error");
 
             restart_pending_.store(false);
         });

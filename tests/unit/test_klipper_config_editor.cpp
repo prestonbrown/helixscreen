@@ -820,13 +820,14 @@ TEST_CASE_METHOD(LVGLTestFixture,
         {"conf.d/options.cfg", "[stepper_x]\nstep_pin: PA1\n"},
     });
 
-    // Never seeing a disconnect is what the health monitor reads as a fast
-    // restart, i.e. the success path. Leaving the mock DISCONNECTED would send
-    // it down the revert branch instead.
     helix::MoonrakerClientTestAccess::force_connection_state(client,
                                                              helix::ConnectionState::CONNECTED);
+    // The health monitor waits for Klippy READY after the restart; at this
+    // speed the mock's 3s restart takes 3ms.
+    client.set_simulation_speedup(1000.0);
 
     KlipperConfigEditor editor;
+    editor.set_restart_poll_interval(std::chrono::milliseconds(1));
     bool succeeded = false;
     std::string error;
 
@@ -861,9 +862,6 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(written->find("kinematics: corexy") != std::string::npos);
     CHECK(written->find("[include conf.d/*.cfg]") != std::string::npos);
 
-    // The mock's FIRMWARE_RESTART also queues a deferred SHUTDOWN that arms a
-    // 1s "back to READY" timer. Run it out here, or it lands inside whatever
-    // test comes next and reads as that test leaking.
     process_lvgl(1200);
     helix::ui::UpdateQueue::instance().drain();
 }
@@ -930,8 +928,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
         {"printer.cfg", "[printer]\nkinematics: corexy\n[input_shaper]\nshaper_freq_x: 40\n"},
     });
 
-    // Stays CONNECTED, so the monitor sits in its phase-1 "wait for the restart
-    // disconnect" poll for the whole timeout. That poll is the window in which
+    // At real-time speed the mock's restart sits in STARTUP for 3s, so the
+    // monitor is still polling for READY. That poll is the window in which
     // shutdown destroys the panel that owns the editor.
     helix::MoonrakerClientTestAccess::force_connection_state(client,
                                                              helix::ConnectionState::CONNECTED);
