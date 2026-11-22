@@ -673,6 +673,8 @@ const MockVendorUnit* mock_vendor_unit(std::string_view mock_value) {
         {"hh_3ms", "3MS", PathTopology::HUB},
         {"hh_emu", "EMU", PathTopology::HUB},
         {"hh_yammu", "YAMMU", PathTopology::HUB},
+        // Happy Hare's vendor for hardware it has no constant for: nothing names the unit.
+        {"hh_other", "Other", PathTopology::HUB},
     };
     for (const MockVendorUnit& row : kRows) {
         if (row.mock_value == mock_value)

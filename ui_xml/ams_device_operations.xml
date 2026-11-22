@@ -181,6 +181,34 @@
         </lv_obj>
       </ui_card>
       <!-- ================================================================== -->
+      <!-- Unit Type: the drawing a unit is shown as, for units that report   -->
+      <!-- nothing that identifies them. Automatic keeps detection; the pick   -->
+      <!-- changes only the drawing, never how the system is driven. Hidden   -->
+      <!-- when no unit has a drawing to pick (builds without unit art).       -->
+      <!-- ================================================================== -->
+      <ui_card name="unit_type_card"
+               width="100%" height="content" style_radius="#border_radius" style_pad_all="#space_sm" flex_flow="column"
+               style_pad_gap="0">
+        <bind_flag_if_eq subject="ams_unit_type_available" flag="hidden" ref_value="0"/>
+        <setting_row name="row_unit_type_unit" label="Unit" icon="view_grid" description="The unit whose drawing to set">
+          <bind_flag_if_eq subject="ams_unit_type_many_units" flag="hidden" ref_value="0"/>
+          <lv_dropdown name="unit_dropdown"
+                       width="40%" height="content" style_min_height="#touch_target_min" style_radius="#border_radius"
+                       bind_options="ams_unit_type_units" bind_value="ams_unit_type_unit">
+            <event_cb trigger="value_changed" callback="on_ams_unit_type_unit_changed"/>
+          </lv_dropdown>
+        </setting_row>
+        <setting_row name="row_unit_type"
+                     label="Unit Type" icon="image_area"
+                     description="The drawing shown for this unit. Automatic uses what the system reports">
+          <lv_dropdown name="unit_type_dropdown"
+                       width="40%" height="content" style_min_height="#touch_target_min" style_radius="#border_radius"
+                       bind_options="ams_unit_type_options" bind_value="ams_unit_type_selected">
+            <event_cb trigger="value_changed" callback="on_ams_unit_type_changed"/>
+          </lv_dropdown>
+        </setting_row>
+      </ui_card>
+      <!-- ================================================================== -->
       <!-- Section List (progressive disclosure — rows push detail overlays) -->
       <!-- ================================================================== -->
       <ui_card name="sections_card"

@@ -4815,6 +4815,7 @@
   <translation tag="The curve draws in as the axis sweeps" fr="La courbe se trace pendant le balayage de l&apos;axe"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" fr="La lame n&apos;est pas revenue. Vérifiez qu&apos;aucun filament n&apos;est enroulé autour du mécanisme de coupe"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" fr="Le coupe-filament est désaligné. Recalibrez avec CALIBRATE_CUT_POS"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" fr="Le dessin affiché pour cette unité. Automatique utilise ce que le système indique"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." fr="Le pilote de {1} a trop chauffé, généralement à cause d&apos;un courant moteur réglé trop haut ou d&apos;un refroidissement insuffisant des pilotes."/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." fr="Le pilote de {1} a signalé une erreur, et le firmware a arrêté l&apos;imprimante."/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." fr="Le pilote de {1} a détecté un court-circuit dans le câblage du moteur : un câble, un connecteur ou un moteur endommagé, ou un pilote défaillant."/>
@@ -5078,6 +5079,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." fr="Le capot supérieur a été débranché. Pour garantir la qualité d&apos;impression, rebranchez-le avant de continuer."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" fr="L&apos;unité exécute déjà une autre opération. Attendez la fin, ou réinitialisez le CFS s&apos;il reste bloqué"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" fr="L&apos;unité a signalé une panne sans plus de détails. Redémarrez l&apos;imprimante si cela se reproduit"/>
+  <translation tag="The unit whose drawing to set" fr="L&apos;unité dont choisir le dessin"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" fr="La mémoire interne de l&apos;unité est défaillante. La carte mère du CFS doit être remplacée"/>
   <translation tag="The unload did not start: unload by hand, then start again" fr="Le déchargement n&apos;a pas démarré : déchargez à la main, puis recommencez"/>
   <translation tag="The unload finishes on its own, but the plate will not move." fr="Le déchargement se termine de lui-même, mais le plateau ne bougera pas."/>
@@ -5401,6 +5403,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." fr="Désinstallation — délai dépassé. Le script est peut-être bloqué."/>
   <translation tag="Unit" fr="Unité"/>
   <translation tag="Unit " fr="Unité "/>
+  <translation tag="Unit Type" fr="Type d&apos;unité"/>
   <translation tag="Unit text" fr="Texte de l&apos;unité"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" fr="Unités : %d   Boîtes : %d   Sécheurs : %d"/>
   <translation tag="Unknown" fr="Inconnu"/>

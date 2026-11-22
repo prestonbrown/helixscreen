@@ -23,6 +23,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 /**
@@ -220,6 +221,9 @@ class AmsPanel : public PanelBase {
     ObserverGuard endless_status_observer_;
     int endless_status_shown_ = -1; ///< whether that line showed at the last layout; -1 unknown
     bool slot_creation_pending_ = false; ///< Coalesces rapid slot count changes
+    /// The user's unit drawings (helix::ui::unit_art_choices) the slots were laid out for: a
+    /// new pick lays them out again, since the drawing decides where the spools stand.
+    std::vector<std::string> laid_out_drawings_;
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
     /// Opened while the backend reported one unit. A backend that reports its units one at a
     /// time (multiACE's ACEs arrive after the SnapSwap) can turn that into several while the

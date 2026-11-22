@@ -16,6 +16,7 @@
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
+#include "settings_manager.h"
 #include "theme_manager.h"
 #include "ui/opa_pulse.h"
 #include "unit_art_geometry.h"
@@ -673,6 +674,20 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
     return stem + (tier == UnitArtTier::Full ? "full" : "thumb");
 }
 
+tray::ShellChoices unit_art_choices(const AmsSystemInfo& info) {
+    tray::ShellChoices choices;
+    choices.reserve(info.units.size());
+    const SettingsManager& settings = SettingsManager::instance();
+    for (const AmsUnit& unit : info.units)
+        choices.push_back(settings.get_ams_unit_drawing(ams_unit_identity(unit)));
+    return choices;
+}
+
+const tray::UnitShell* unit_art_shell_for(const AmsSystemInfo& info, int unit_index,
+                                          bool has_dryer) {
+    return tray::unit_shell_for(info, unit_index, has_dryer, unit_art_choices(info));
+}
+
 UnitArtLane unit_art_lane(const SlotInfo& slot) {
     // A bay that still names its spool shows it, as the drawn spool does; only an empty
     // one is a bare reel.
@@ -685,9 +700,10 @@ namespace {
 /// The drawing a picture of @p scope shows for unit @p unit_index, with the units it covers.
 tray::DeviceShell art_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer,
                                 UnitArtScope scope) {
+    const tray::ShellChoices choices = unit_art_choices(info);
     if (scope == UnitArtScope::Device)
-        return tray::device_shell_for(info, unit_index, has_dryer);
-    return {tray::unit_shell_for(info, unit_index, has_dryer), {unit_index}};
+        return tray::device_shell_for(info, unit_index, has_dryer, choices);
+    return {tray::unit_shell_for(info, unit_index, has_dryer, choices), {unit_index}};
 }
 
 /// Every bay the drawing shows, unit after unit.

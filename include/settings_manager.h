@@ -745,6 +745,12 @@ class SettingsManager {
         return settings_.subject(Key::AmsForceBypassControls);
     }
 
+    /// The drawing this printer's user picked for the unit whose identity is @p unit_identity
+    /// (helix::ams_unit_identity): a unit shell id, or empty for detection.
+    std::string get_ams_unit_drawing(const std::string& unit_identity) const;
+    /// Save @p shell_id as the unit's drawing on this printer; empty returns it to detection.
+    void set_ams_unit_drawing(const std::string& unit_identity, const std::string& shell_id);
+
     // =========================================================================
     // POST-OP COOLDOWN (owned by SettingsManager — per-printer filament behavior)
     // =========================================================================

@@ -128,6 +128,36 @@ constexpr ShellRow kShellRows[] = {
     unreported_openams("openams", nullptr, false),
 };
 
+/// Every drawing a user can pick for a unit, in the order the picker lists them. Product names
+/// stay untranslated, as the hardware is sold under them.
+[[maybe_unused]] constexpr ShellChoice kShellChoices[] = {
+    {"3ms", "3MS"},
+    {"ace_pro", "ACE Pro"},
+    {"ad5x_ifs", "AD5X IFS"},
+    {"ams", "Bambu AMS"},
+    {"ams_2_pro", "Bambu AMS 2 Pro"},
+    {"ams_ht", "Bambu AMS HT"},
+    {"ams_lite", "Bambu AMS Lite"},
+    {"bmcu", "BMCU"},
+    {"box_turtle", "Box Turtle"},
+    {"box_turtle_enclosed", "Box Turtle (enclosed)"},
+    {"btt_vivid", "BTT ViViD"},
+    {"cfs", "Creality CFS"},
+    {"elegoo_canvas", "Elegoo Canvas"},
+    {"emu", "EMU"},
+    {"ercf_rail", "ERCF"},
+    {"htlf", "HTLF"},
+    {"kms", "KMS"},
+    {"mmx", "MMX"},
+    {"night_owl", "Night Owl"},
+    {"qidi_box", "QIDI Box"},
+    {"quattro_box", "Quattro Box"},
+    {"tradrack_rail", "Tradrack"},
+    {"yammu", "YAMMU"},
+    {"yammu_upper", "YAMMU (upper drawer)"},
+    {"yammu_lower", "YAMMU (lower drawer)"},
+};
+
 /// Climate readings or a dryer mean the unit is closed up.
 [[maybe_unused]] bool has_climate(const AmsUnit& unit, bool has_dryer) {
     if (has_dryer || unit.environment.has_value())
@@ -168,29 +198,66 @@ const UnitShell* shell_of(const ShellRow& row, const AmsUnit& unit, bool has_dry
                                 : row.shell_id);
 }
 
+/// The drawing the user picked for unit @p unit_index, when it has art for the unit's bays;
+/// nullptr keeps detection.
+const UnitShell* chosen_shell(const AmsSystemInfo& info, int unit_index,
+                              const ShellChoices& choices) {
+    if (unit_index < 0 || unit_index >= static_cast<int>(choices.size()) ||
+        unit_index >= static_cast<int>(info.units.size()))
+        return nullptr;
+    const std::string& id = choices[static_cast<size_t>(unit_index)];
+    const UnitShell* shell = id.empty() ? nullptr : unit_shell_by_id(id.c_str());
+    return shell && unit_shell_has_art_for(*shell,
+                                           info.units[static_cast<size_t>(unit_index)].slot_count)
+               ? shell
+               : nullptr;
+}
+
 } // namespace
 #endif
 
-const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
+std::vector<ShellChoice> unit_shell_choices(int lanes) {
+    std::vector<ShellChoice> out;
+#ifdef ESP_PLATFORM
+    (void)lanes;
+#else
+    for (const ShellChoice& choice : kShellChoices) {
+        const UnitShell* shell = unit_shell_by_id(choice.shell_id);
+        if (shell && unit_shell_has_art_for(*shell, lanes))
+            out.push_back(choice);
+    }
+#endif
+    return out;
+}
+
+const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer,
+                                const ShellChoices& choices) {
 #ifdef ESP_PLATFORM
     // The firmware image carries no unit art and stays on logos.
     (void)info;
     (void)unit_index;
     (void)has_dryer;
+    (void)choices;
     return nullptr;
 #else
+    if (const UnitShell* chosen = chosen_shell(info, unit_index, choices))
+        return chosen;
     const ShellRow* row = row_for(info, unit_index);
     return row ? shell_of(*row, info.units[static_cast<size_t>(unit_index)], has_dryer) : nullptr;
 #endif
 }
 
-DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer) {
+DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer,
+                             const ShellChoices& choices) {
 #ifdef ESP_PLATFORM
     (void)info;
     (void)unit_index;
     (void)has_dryer;
+    (void)choices;
     return {};
 #else
+    if (const UnitShell* chosen = chosen_shell(info, unit_index, choices))
+        return {chosen, {unit_index}};
     const ShellRow* row = row_for(info, unit_index);
     if (!row)
         return {};
@@ -199,7 +266,7 @@ DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has
                 {unit_index}};
     DeviceShell device{unit_shell_by_id(row->device_shell_id), {}};
     for (int i = 0; i < static_cast<int>(info.units.size()); ++i) {
-        const ShellRow* other = row_for(info, i);
+        const ShellRow* other = chosen_shell(info, i, choices) ? nullptr : row_for(info, i);
         if (other && other->device_shell_id &&
             std::strcmp(other->device_shell_id, row->device_shell_id) == 0)
             device.unit_indices.push_back(i);

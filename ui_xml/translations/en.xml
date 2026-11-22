@@ -4809,6 +4809,7 @@
   <translation tag="The curve draws in as the axis sweeps" en="The curve draws in as the axis sweeps"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" en="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" en="The drawing shown for this unit. Automatic uses what the system reports"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." en="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers."/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." en="The driver for {1} reported an error, and the firmware stopped the printer."/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." en="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver."/>
@@ -5072,6 +5073,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." en="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" en="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" en="The unit reported a fault with no further detail. Restart the printer if it repeats"/>
+  <translation tag="The unit whose drawing to set" en="The unit whose drawing to set"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" en="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing"/>
   <translation tag="The unload did not start: unload by hand, then start again" en="The unload did not start: unload by hand, then start again"/>
   <translation tag="The unload finishes on its own, but the plate will not move." en="The unload finishes on its own, but the plate will not move."/>
@@ -5395,6 +5397,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." en="Uninstallation timed out. The script may be stuck."/>
   <translation tag="Unit" en="Unit"/>
   <translation tag="Unit " en="Unit "/>
+  <translation tag="Unit Type" en="Unit Type"/>
   <translation tag="Unit text" en="Unit text"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" en="Units: %d   Boxes: %d   Dryers: %d"/>
   <translation tag="Unknown" en="Unknown"/>

@@ -730,6 +730,43 @@ void SettingsManager::set_mount_feed_purge_mm(int mm) {
     config->save();
 }
 
+// A unit's picked drawing, per printer: {"<unit identity>": "<shell id>"}.
+namespace {
+constexpr const char* kAmsUnitDrawingsKey = "ams/unit_drawings";
+} // namespace
+
+std::string SettingsManager::get_ams_unit_drawing(const std::string& unit_identity) const {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return {};
+    }
+    const json drawings = config->get<json>(config->df() + kAmsUnitDrawingsKey, json::object());
+    return drawings.is_object() ? json_util::safe_string(drawings, unit_identity.c_str())
+                                : std::string{};
+}
+
+void SettingsManager::set_ams_unit_drawing(const std::string& unit_identity,
+                                           const std::string& shell_id) {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return;
+    }
+    const std::string path = config->df() + kAmsUnitDrawingsKey;
+    json drawings = config->get<json>(path, json::object());
+    if (!drawings.is_object()) {
+        drawings = json::object();
+    }
+    if (shell_id.empty()) {
+        drawings.erase(unit_identity);
+    } else {
+        drawings[unit_identity] = shell_id;
+    }
+    spdlog::info("[SettingsManager] set_ams_unit_drawing({}, {})", unit_identity,
+                 shell_id.empty() ? "automatic" : shell_id);
+    config->set<json>(path, drawings);
+    config->save();
+}
+
 // Print cost: prices are global ("/print_cost"), the printer's watts are per printer.
 namespace {
 constexpr const char* kCostRoot = "/print_cost";

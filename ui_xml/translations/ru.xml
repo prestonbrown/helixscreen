@@ -4875,6 +4875,7 @@
   <translation tag="The curve draws in as the axis sweeps" ru="Кривая строится по ходу развёртки оси"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ru="Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" ru="Рисунок, который показывается для этого узла. Автоматический использует то, что сообщает система"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." ru="Драйвер {1} перегрелся, обычно из-за слишком высокого тока мотора или недостаточного охлаждения драйверов."/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." ru="Драйвер {1} сообщил об ошибке, и прошивка остановила принтер."/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." ru="Драйвер {1} обнаружил замыкание в проводке мотора: повреждён кабель, разъём или сам мотор либо неисправен драйвер."/>
@@ -5138,6 +5139,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." ru="Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ru="Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ru="Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер"/>
+  <translation tag="The unit whose drawing to set" ru="Узел, для которого выбирается рисунок"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ru="Встроенная память блока вышла из строя. Требуется замена материнской платы CFS"/>
   <translation tag="The unload did not start: unload by hand, then start again" ru="Выгрузка не началась: выгрузите вручную и начните заново"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ru="Выгрузка завершится сама, но стол не будет перемещаться."/>
@@ -5461,6 +5463,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ru="Время удаления истекло. Скрипт мог зависнуть."/>
   <translation tag="Unit" ru="Узел"/>
   <translation tag="Unit " ru="Узел "/>
+  <translation tag="Unit Type" ru="Тип узла"/>
   <translation tag="Unit text" ru="Обозначение единицы"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" ru="Узлы: %d   Коробки: %d   Сушилки: %d"/>
   <translation tag="Unknown" ru="Неизвестно"/>

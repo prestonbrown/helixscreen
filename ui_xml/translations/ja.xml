@@ -4809,6 +4809,7 @@
   <translation tag="The curve draws in as the axis sweeps" ja="軸のスイープに合わせて曲線が描かれます"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ja="カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ja="カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" ja="このユニットに表示する図。自動はシステムの報告に従います"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." ja="{1} のドライバーが過熱しました。通常、run current の設定が高すぎるか、ドライバーの冷却不足が原因です。"/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." ja="{1} のドライバーがエラーを報告したため、ファームウェアがプリンターを停止しました。"/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." ja="{1} のドライバーがモーター配線のショートを検出しました: モーターケーブル、コネクター、モーターの損傷、またはドライバーの故障です。"/>
@@ -5072,6 +5073,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." ja="トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" ja="ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" ja="ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください"/>
+  <translation tag="The unit whose drawing to set" ja="図を設定するユニット"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" ja="ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です"/>
   <translation tag="The unload did not start: unload by hand, then start again" ja="排出が始まりませんでした: 手で排出してから、もう一度始めてください"/>
   <translation tag="The unload finishes on its own, but the plate will not move." ja="排出はそのまま完了しますが、ベッドは移動しません。"/>
@@ -5395,6 +5397,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." ja="アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。"/>
   <translation tag="Unit" ja="ユニット"/>
   <translation tag="Unit " ja="ユニット "/>
+  <translation tag="Unit Type" ja="ユニットの種類"/>
   <translation tag="Unit text" ja="単位の表示"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" ja="ユニット: %d   ボックス: %d   ドライヤー: %d"/>
   <translation tag="Unknown" ja="不明"/>

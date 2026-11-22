@@ -4971,6 +4971,7 @@ translations:
   The curve draws in as the axis sweeps: '曲线随轴扫描绘制'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准
+  The drawing shown for this unit. Automatic uses what the system reports: '此单元显示的图示。自动使用系统报告的内容'
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: '{1} 的驱动过热，通常是运行电流设置过高或驱动散热不足。'
   The driver for {1} reported an error, and the firmware stopped the printer.: '{1} 的驱动报告错误，固件已停止打印机。'
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': '{1} 的驱动检测到电机线路短路：电机线缆、接头或电机损坏，或驱动故障。'
@@ -5255,6 +5256,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: '检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
   The unit reported a fault with no further detail. Restart the printer if it repeats: 该单元报告了故障但无更多信息。若反复出现，请重启打印机
+  The unit whose drawing to set: '要设置图示的单元'
   The unit's onboard storage has failed. The CFS mainboard needs replacing: 该单元的板载存储已损坏。需更换 CFS 主板
   'The unload did not start: unload by hand, then start again': 卸载未开始:请手动卸载,然后重新开始
   The unload finishes on its own, but the plate will not move.: '卸载会自行完成,但热床不会移动。'
@@ -5618,6 +5620,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: 卸载超时。脚本可能已卡住。
   Unit: 单元
   'Unit ': '单元 '
+  Unit Type: '单元类型'
   Unit text: '单位文字'
   'Units: %d   Boxes: %d   Dryers: %d': '单元: %d   料盒: %d   干燥器: %d'
   Unknown: 未知

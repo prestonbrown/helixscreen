@@ -4809,6 +4809,7 @@
   <translation tag="The curve draws in as the axis sweeps" pt="A curva é desenhada durante a varredura do eixo"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" pt="A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" pt="O cortador está desalinhado. Recalibre com CALIBRATE_CUT_POS"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" pt="O desenho mostrado para esta unidade. Automático usa o que o sistema informa"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." pt="O driver de {1} esquentou demais, geralmente por uma corrente de operação alta demais ou pouco resfriamento sobre os drivers."/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." pt="O driver de {1} relatou um erro, e o firmware parou a impressora."/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." pt="O driver de {1} detectou um curto na fiação do motor: um cabo, conector ou motor danificado, ou um driver com defeito."/>
@@ -5072,6 +5073,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." pt="A cobertura superior foi desligada. Para garantir a qualidade de impressão, volte a ligá-la antes de continuar."/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" pt="A unidade já está executando outra operação. Aguarde a conclusão, ou reinicie o CFS se ele continuar travado"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" pt="A unidade relatou uma falha sem mais detalhes. Reinicie a impressora se repetir"/>
+  <translation tag="The unit whose drawing to set" pt="A unidade cujo desenho definir"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" pt="O armazenamento interno da unidade falhou. A placa-mãe do CFS precisa ser substituída"/>
   <translation tag="The unload did not start: unload by hand, then start again" pt="A descarga não começou: descarregue à mão e comece de novo"/>
   <translation tag="The unload finishes on its own, but the plate will not move." pt="A descarga termina sozinha, mas a mesa não vai se mover."/>
@@ -5395,6 +5397,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." pt="A desinstalação — tempo esgotado. O script pode estar travado."/>
   <translation tag="Unit" pt="Unidade"/>
   <translation tag="Unit " pt="Unidade "/>
+  <translation tag="Unit Type" pt="Tipo de unidade"/>
   <translation tag="Unit text" pt="Texto da unidade"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" pt="Unidades: %d   Caixas: %d   Secadores: %d"/>
   <translation tag="Unknown" pt="Desconhecido"/>

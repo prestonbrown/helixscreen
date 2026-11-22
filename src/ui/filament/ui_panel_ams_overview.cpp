@@ -391,13 +391,6 @@ void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
 
 namespace {
 
-/// A unit's identity across rebuilds: its name, or its first slot when it has none. The
-/// position in the backend's list is not stable, and neither is the slot a unit starts at
-/// when a backend that sorts its units gains one.
-std::string unit_key(const AmsUnit& unit) {
-    return unit.name.empty() ? "#" + std::to_string(unit.first_slot_global_index) : unit.name;
-}
-
 /// What makes two page lists the same screen: the same units in the same order, grouped the
 /// same way. The drying flags are not part of it; they only repaint the stubs.
 bool same_page_structure(const std::vector<helix::ui::UnitPage>& a,
@@ -444,7 +437,7 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
     std::vector<std::string> units;
     units.reserve(pages.size());
     for (const auto& p : pages)
-        units.push_back(unit_key(info.units[p.unit_index]));
+        units.push_back(helix::ams_unit_identity(info.units[p.unit_index]));
 
     int target = focus_unit >= 0 ? helix::ui::page_of_unit(pages, focus_unit) : -1;
     if (target < 0 && reopen) {
@@ -485,7 +478,7 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
         return;
     const AmsUnit& unit = info.units[page.unit_index];
 
-    const std::string key = unit_key(unit);
+    const std::string key = helix::ams_unit_identity(unit);
     const bool new_unit = key != shown_unit_key_;
     shown_unit_key_ = key;
     shown_unit_pos_ = page.unit_index;

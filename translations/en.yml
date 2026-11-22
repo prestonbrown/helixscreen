@@ -4937,6 +4937,7 @@ translations:
   The curve draws in as the axis sweeps: The curve draws in as the axis sweeps
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
+  The drawing shown for this unit. Automatic uses what the system reports: The drawing shown for this unit. Automatic uses what the system reports
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.
   The driver for {1} reported an error, and the firmware stopped the printer.: The driver for {1} reported an error, and the firmware stopped the printer.
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': 'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.'
@@ -5218,6 +5219,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck
   The unit reported a fault with no further detail. Restart the printer if it repeats: The unit reported a fault with no further detail. Restart the printer if it repeats
+  The unit whose drawing to set: The unit whose drawing to set
   The unit's onboard storage has failed. The CFS mainboard needs replacing: The unit's onboard storage has failed. The CFS mainboard needs replacing
   'The unload did not start: unload by hand, then start again': 'The unload did not start: unload by hand, then start again'
   The unload finishes on its own, but the plate will not move.: The unload finishes on its own, but the plate will not move.
@@ -5578,6 +5580,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: Uninstallation timed out. The script may be stuck.
   Unit: Unit
   'Unit ': 'Unit '
+  Unit Type: Unit Type
   Unit text: Unit text
   'Units: %d   Boxes: %d   Dryers: %d': 'Units: %d   Boxes: %d   Dryers: %d'
   Unknown: Unknown

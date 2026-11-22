@@ -113,6 +113,8 @@ On the path screen a selector rail (ERCF, Tradrack) carries its buffer's tension
 
 Selecting a unit's shell is the only place that names hardware. `unit_shell_for` walks `kShellRows` in order (backend slug, a part of the unit's name when one backend covers several kinds of unit, the shell id, an enclosed variant used when the unit has climate control, an optional lane count and a selector-rail flag), so a more specific row goes above a general one. Everything else in the UI asks for a shell and never names a vendor.
 
+**The user's pick comes first.** Some setups report nothing that names their hardware (Happy Hare on a QIDI Box running a community config reports "MMU" from vendor "Other"), so the user can pick a unit's drawing: **Unit Type** in Multi-Filament System Management. The pick is one more input to the resolver, `tray::ShellChoices` (a shell id per unit, by position in `AmsSystemInfo::units`; empty for Automatic), passed to `unit_shell_for` and `device_shell_for`. A pick wins only when its shell has art for the unit's bay count, so a stale pick after a lane-count change falls back to detection; a picked unit is drawn alone, never as a slice of a device. Every UI caller takes the picks from `helix::ui::unit_art_choices()` (`include/ui_unit_art.h`), which reads `SettingsManager::get_ams_unit_drawing(ams_unit_identity(unit))`, saved per printer at `ams/unit_drawings` as `{unit identity: shell id}`; units of one name share a pick. The pick decides the drawing only: no backend reads it. The picker lists `tray::unit_shell_choices(lanes)`: each row of `kShellChoices` (beside `kShellRows`, with the product name the picker shows) whose shell has art for that many bays, after Automatic.
+
 ## Combiner
 
 Every unit with more than one lane merges its lanes into one output that feeds a single extruder. Where that merge happens is Preston's call per unit, recorded as `TrayShellDef.combiner` in the unit's own file and generated into `UnitShell::combiner`:
@@ -148,7 +150,7 @@ Follow `.claude/skills/unit-art/SKILL.md`. In outline:
 
 1. Collect photos for the proportions. Keep them out of git.
 2. Write `scripts/unit_art/units/<id>.py` with a `UnitDef` and a `TrayShellDef`, set its `combiner` from § "Combiner" (ask Preston for a unit not in the table), and add it to `UNITS` in `build.py`.
-3. Add a row to `kShellRows` in `src/ui/filament/ams_unit_shell.cpp`.
+3. Add a row to `kShellRows` in `src/ui/filament/ams_unit_shell.cpp`, and one to `kShellChoices` there with the product name the Unit Type picker shows (`[unit-type]` fails on a baked unit the picker does not offer).
 4. Run `make unit-art` and commit the baked layers and the regenerated `src/generated/ams_unit_shells_gen.cpp`.
 5. Run `python3 -m pytest tests/python/test_unit_art_kit.py -q` and `make t F='[ams][tray],[unit-art]'`, then check `build/unit-art/contact_sheet.png` on dark and light at real size.
 6. Look at it in the mock with the unit's `HELIX_MOCK_AMS` value (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md`).

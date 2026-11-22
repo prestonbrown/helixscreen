@@ -24,6 +24,7 @@
 #include "ui_panel_common.h"
 #include "ui_side_band.h"
 #include "ui_spool_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -193,9 +194,19 @@ void AmsPanel::init_subjects() {
             if (!self->open_ || !self->subjects_initialized_ || !self->panel_)
                 return;
             spdlog::trace("[AmsPanel] Gates version changed - refreshing slots");
-            if (const auto info = AmsState::instance().system_info())
+            const auto info = AmsState::instance().system_info();
+            if (info)
                 self->hand_off_if_multi_unit(*info);
             self->refresh_slots();
+            if (info && !self->slot_creation_pending_ && self->current_slot_count_ > 0 &&
+                helix::ui::unit_art_choices(*info) != self->laid_out_drawings_) {
+                self->slot_creation_pending_ = true;
+                self->object_lifetime_.defer("AmsPanel::drawing_relayout", [self]() {
+                    self->slot_creation_pending_ = false;
+                    if (self->open_ && self->current_slot_count_ > 0)
+                        self->create_slots(self->current_slot_count_);
+                });
+            }
         },
         AmsState::instance().get_subjects_lifetime());
 
@@ -742,6 +753,8 @@ void AmsPanel::create_slots(int count) {
     ams_detail_pre_show_env_indicator(detail_widgets_, kAllUnits);
 
     // Create new slots
+    if (const auto info = AmsState::instance().system_info())
+        laid_out_drawings_ = helix::ui::unit_art_choices(*info);
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, kMaxVisibleSlots,
                                           kAllUnits, on_slot_clicked, this);
 

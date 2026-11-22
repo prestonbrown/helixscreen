@@ -1541,6 +1541,13 @@ struct AmsUnit {
     }
 };
 
+/// A unit's identity across rebuilds and restarts: its name, or its first slot when it has
+/// none. The position in the backend's list is not stable, and neither is the slot a unit
+/// starts at when a backend that sorts its units gains one. Units of one name share it.
+inline std::string ams_unit_identity(const AmsUnit& unit) {
+    return unit.name.empty() ? "#" + std::to_string(unit.first_slot_global_index) : unit.name;
+}
+
 // ============================================================================
 // Spoolman Integration Mode (Happy Hare v4)
 // ============================================================================

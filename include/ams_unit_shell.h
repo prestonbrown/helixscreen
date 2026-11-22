@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace helix {
@@ -197,9 +198,26 @@ struct UnitArtGeom {
 /// The baked lane geometry of @p id's drawing at @p lanes lanes, or nullptr when it has none.
 const UnitArtGeom* unit_art_geometry(const char* id, int lanes);
 
+/// The drawing the user picked for each unit, by its position in AmsSystemInfo::units: a shell
+/// id, or empty to keep detection. A unit past the end keeps detection too. It decides the drawing
+/// only; nothing that drives the backend reads it.
+using ShellChoices = std::vector<std::string>;
+
+/// A drawing a user can pick for a unit: its shell id and the name the picker shows.
+struct ShellChoice {
+    const char* shell_id;
+    const char* name;
+};
+
+/// The drawings a unit with @p lanes bays can be shown as, in the order the picker lists them:
+/// each one that has art for exactly that many bays.
+std::vector<ShellChoice> unit_shell_choices(int lanes);
+
 /// The shell for one unit, or nullptr to keep the generic tray. @p has_dryer joins the unit's
-/// own climate readings as evidence that an optionally enclosed unit has its enclosure.
-const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
+/// own climate readings as evidence that an optionally enclosed unit has its enclosure. A
+/// choice in @p choices that has art for the unit's bays wins over detection.
+const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false,
+                                const ShellChoices& choices = {});
 
 /// A drawing and the units whose bays it shows, in order.
 struct DeviceShell {
@@ -209,7 +227,9 @@ struct DeviceShell {
 
 /// The drawing of the whole device unit @p unit_index belongs to. A backend can report one
 /// device as several units, each drawn as its slice of it: such a unit gets the device's
-/// drawing and every unit that makes it up. Any other unit gets its own shell.
-DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false);
+/// drawing and every unit that makes it up. Any other unit gets its own shell. A unit with a
+/// choice in @p choices is drawn alone, as that choice, and is no slice of any device.
+DeviceShell device_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false,
+                             const ShellChoices& choices = {});
 
 } // namespace helix::ui::tray
