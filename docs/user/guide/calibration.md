@@ -173,6 +173,7 @@ HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE
 - **Z homes on an endstop switch** (`position_endstop` set under `[stepper_z]`), such as a stock Voron 2.4 or an Ender whose BLTouch only probes the bed mesh: calibration and Save set the Z endstop position, even when a probe is fitted, because that is what sets where Z0 is.
 - **Z homes with the probe**: calibration and Save set the probe's Z offset.
 - **A delta with no probe**: the offset is adjusted for the current session only, because Klipper has no endstop calibration for deltas.
+- **A FlashForge Adventurer 5M or 5M Pro without ZMOD or Forge-X** (for example on Klipper Mod) is one of the printers with its method set: it homes Z on a switch, but its nozzle probe sets the zero point, so an offset saved into the switch position would be undone by the next bed mesh. HelixScreen runs `PROBE_CALIBRATE` there and saves into the probe's Z offset, which a new bed mesh keeps.
 
 > **Quick access:** A **Z Calibration** button is also available on the Controls panel for one-tap access.
 

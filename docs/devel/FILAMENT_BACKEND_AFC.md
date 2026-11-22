@@ -916,6 +916,19 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Dryer | ACE units only | `AFC_ACE_DRY` (see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
+**An engaged bypass is what the toolhead holds.** While `bypass_state` is true,
+`AmsBackendAfc::apply_bypass_to_system_info()` (`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`)
+sets `current_slot` to -2 and `filament_loaded` to true. It runs after every writer that
+derives those two from the lanes (`parse_afc_state()`, `parse_lane_data()`, and
+`handle_status()`), because AFC keeps sending lane-only frames
+while bypass is on and each of them would otherwise put the system back on "no lane, nothing
+loaded". That state is what enables **Unload** for the external spool: with the nozzle hot,
+the tap sends AFC's `TOOL_UNLOAD`, which AFC turns into the stock unload ("Bypass detected,
+calling manual unload filament routine"). Disengaging releases the slot: a frame whose
+`bypass_state` goes from true to false, even a lone delta carrying nothing else, sets
+`current_slot` back to -1 and `filament_loaded` to false when the bypass was the one holding
+them, and the next lane frame states what is really loaded.
+
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
 gets the dialog with manual **Load** kept prominent, because Resume alone does not re-feed.
 `supports_per_tool_spool_assignment()` is not overridden either; it falls through to
