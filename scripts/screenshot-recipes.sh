@@ -38,6 +38,8 @@ filament           navigate filament
 settings           navigate settings
 advanced           navigate advanced
 calibration        navigate advanced; click row_calibration
+guided-run         navigate advanced; click row_calibration; click cal_guided_banner
+guided-run-prereqs navigate advanced; click row_calibration; click cal_guided_banner; click btn_cal_run_next
 print-select       navigate print-select
 
 # Printer image callouts (home widget, prestonbrown/helixscreen#1397).

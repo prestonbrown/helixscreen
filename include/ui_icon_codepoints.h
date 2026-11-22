@@ -92,6 +92,7 @@ static const IconMapping kIconMap[] = {
     {"chevron_left",       "\xF3\xB0\x85\x81"},  // F0141 chevron-left
     {"chevron_right",      "\xF3\xB0\x85\x82"},  // F0142 chevron-right
     {"chevron_up",         "\xF3\xB0\x85\x83"},  // F0143 chevron-up
+    {"circle_medium",      "\xF3\xB0\xA7\x9E"},  // F09DE circle-medium
     {"clock",              "\xF3\xB0\x85\x90"},  // F0150 clock-outline
     {"close",              "\xF3\xB0\x85\x96"},  // F0156 close/xmark
     {"close_circle",       "\xF3\xB0\x85\x99"},  // F0159 close-circle
@@ -153,6 +154,8 @@ static const IconMapping kIconMap[] = {
     {"grid_large",         "\xF3\xB0\x9D\x98"},  // F0758 grid-large
     {"grid_off",           "\xF3\xB0\x8B\x82"},  // F02C2 grid-off
     {"grid_view",          "\xF3\xB0\x95\xB0"},  // F0570 view-grid
+
+    {"hand",               "\xF3\xB1\xA0\xAD"},  // F182D hand-back-right-outline (needs you)
 
     // Heat/Heating
     {"heat_wave",          "\xF3\xB1\xA9\x85"},  // F1A45 heat-wave (thermal lines)

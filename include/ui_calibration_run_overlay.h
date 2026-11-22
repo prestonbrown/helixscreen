@@ -10,9 +10,11 @@
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "overlay_base.h"
+#include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
 #include <array>
+#include <chrono>
 #include <deque>
 #include <memory>
 #include <string>
@@ -29,6 +31,12 @@ inline constexpr std::array<const char*, 6> kRunPrereqIds = {
 
 enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 
+/// The Results page's primary button: "Done" when nothing is left to save or a
+/// save or discard is under way; "Save" only once Klipper said the save skips its
+/// restart; "Save and restart Klipper" otherwise, before that answer too.
+[[nodiscard]] std::string results_primary_label(bool offers_save, bool restart_known,
+                                                bool save_restarts);
+
 class CalibrationRunOverlay : public OverlayBase {
   public:
     const char* get_name() const override {
@@ -40,6 +48,8 @@ class CalibrationRunOverlay : public OverlayBase {
     bool destroy_on_close() const override {
         return true;
     }
+    /// Full screen, over the navigation bar: the wizard has its own header and footer.
+    lv_obj_t* create(lv_obj_t* parent) override;
 
     void init_subjects() override;
     void on_activate() override;
@@ -61,6 +71,10 @@ class CalibrationRunOverlay : public OverlayBase {
     void save();
     void discard();
     void done();
+    /// The Results page's primary button: Save while there is something to save, else Done.
+    void results_primary();
+    /// Leave without running anything.
+    void close();
 
   private:
     /// The steps this printer offers a run, with their default ticks.
@@ -70,6 +84,8 @@ class CalibrationRunOverlay : public OverlayBase {
     void publish_prereqs();
     void publish_run();
     void set_page(RunPage page);
+    /// Ask once whether the save restarts Klipper, so the Save button can say so.
+    void query_save_restarts();
     [[nodiscard]] std::vector<calibration::StepInfo> picked_steps() const;
 
     void add_int(helix::Subject& subject, int initial, std::string name);
@@ -90,7 +106,16 @@ class CalibrationRunOverlay : public OverlayBase {
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
     /// Tells the run when Klipper goes down under it.
     ObserverGuard klippy_obs_;
+    /// Re-publishes every composed line in the new language.
+    ObserverGuard language_obs_;
     RunPage page_ = RunPage::Pick;
+    /// Answers whether the one save restarts Klipper; MoonrakerRunFinisher saves.
+    SaveConfigWatch restart_query_;
+    bool restart_known_ = false;
+    bool save_restarts_ = true;
+    std::chrono::steady_clock::time_point run_started_{};
+    /// Whole minutes the steps took, fixed when the last one ends.
+    int run_minutes_ = -1;
 
     SubjectManager subjects_;
     /// Stable storage for the subject names the XML registry keeps pointers to.
@@ -102,11 +127,22 @@ class CalibrationRunOverlay : public OverlayBase {
     char pick_summary_buf_[kShortLen]{};
     helix::Subject hands_line_;
     char hands_line_buf_[kLongLen]{};
+    helix::Subject pick_subtitle_;
+    char pick_subtitle_buf_[kLongLen]{};
+    helix::Subject pick_subtitle_short_;
+    char pick_subtitle_short_buf_[kShortLen]{};
+    helix::Subject pick_summary_short_;
+    char pick_summary_short_buf_[kShortLen]{};
+    helix::Subject hands_short_;
+    char hands_short_buf_[kShortLen]{};
 
     std::array<helix::Subject, kSteps> shown_{};
     std::array<helix::Subject, kSteps> picked_subj_{};
     std::array<helix::Subject, kSteps> locked_{};
+    std::array<helix::Subject, kSteps> optional_{};
+    std::array<helix::Subject, kSteps> keep_{};
     std::array<helix::Subject, kSteps> meta_{};
+    std::array<helix::Subject, kSteps> meta_short_{};
     std::array<helix::Subject, kSteps> last_{};
     std::array<helix::Subject, kSteps> in_run_{};
     std::array<helix::Subject, kSteps> state_{};
@@ -114,6 +150,7 @@ class CalibrationRunOverlay : public OverlayBase {
     std::array<helix::Subject, kSteps> before_subj_{};
     std::array<helix::Subject, kSteps> after_{};
     char meta_bufs_[kSteps][kShortLen]{};
+    char meta_short_bufs_[kSteps][kShortLen]{};
     char last_bufs_[kSteps][kShortLen]{};
     char detail_bufs_[kSteps][kLongLen]{};
     char before_bufs_[kSteps][kShortLen]{};
@@ -131,6 +168,10 @@ class CalibrationRunOverlay : public OverlayBase {
     helix::Subject has_hands_;
     helix::Subject you_line_;
     char you_line_buf_[kShortLen]{};
+    helix::Subject you_steps_;
+    char you_steps_buf_[kLongLen]{};
+    helix::Subject chime_line_;
+    char chime_line_buf_[kLongLen]{};
     helix::Subject away_line_;
     char away_line_buf_[kShortLen]{};
     helix::Subject away_steps_;
@@ -149,9 +190,20 @@ class CalibrationRunOverlay : public OverlayBase {
     char warn_buf_[kShortLen]{};
     helix::Subject footer_;
     char footer_buf_[kShortLen]{};
+    helix::Subject header_title_;
+    char header_title_buf_[kShortLen]{};
+    helix::Subject eta_;
+    char eta_buf_[kShortLen]{};
+    helix::Subject overall_;
+    helix::Subject running_now_;
 
-    helix::Subject run_phase_;
-    helix::Subject can_save_;
+    helix::Subject results_title_;
+    char results_title_buf_[kShortLen]{};
+    helix::Subject results_warn_;
+    helix::Subject results_primary_;
+    char results_primary_buf_[kShortLen]{};
+    helix::Subject results_busy_;
+    helix::Subject hide_discard_;
     helix::Subject results_sub_;
     char results_sub_buf_[kLongLen]{};
     helix::Subject save_line_;

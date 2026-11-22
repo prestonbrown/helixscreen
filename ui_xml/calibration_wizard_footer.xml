@@ -1,0 +1,172 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The calibration wizard's footer bar, under a divider: the leading button on
+     the left (Back, Skip for now, Discard all, Stop calibration), a centered
+     status line (one or two lines), and Skip plus the primary action together on
+     the right, the primary always bottom right.
+
+     Each button shows only when its callback is given. Per button:
+       <b>_text / <b>_tag      its caption (literal) and translation key
+       <b>_subject            a string subject that retitles it live
+       <b>_hide_subject       an int subject; 1 hides it
+       <b>_callback           what a tap runs
+       <b>_name               its widget name, for C++ lookups and tests
+     back_style="cal_footer_danger" outlines the leading button in red (Stop calibration).
+     primary_disable_subject  an int subject; 1 disables the primary
+     primary_icon             a trailing icon on the primary (Start's chevron)
+     primary_moves_machine    "true" installs the toolhead guard on the primary
+     primary_enable_subject   an int subject; 0 disables the primary
+     status / status_subject  the status line; status_sub_subject a second line;
+                              status_color and status_font its look
+     status_compact="1"       at 480x272 the status shows status_compact_subject and
+                              status_sub_compact_subject instead
+     In portrait the status sits above the buttons and the primary takes the
+     width the others leave. -->
+<component>
+  <consts>
+    <px name="btn_radius" value="8"/>
+  </consts>
+  <styles>
+    <style name="cal_footer_btn"
+           height="#cal_button_h" pad_left="#space_lg" pad_right="#space_lg" pad_top="0" pad_bottom="0"
+           radius="#btn_radius" bg_opa="0" border_width="1" border_color="#border" border_opa="255" shadow_width="0"
+           text_color="#text_muted" text_font="#cal_font_button"/>
+    <style name="cal_footer_skip" border_width="2" border_color="#elevated_bg" text_color="#text"/>
+    <style name="cal_footer_danger" border_width="2" border_color="#danger" text_color="#danger"/>
+    <style name="cal_footer_primary"
+           min_width="#cal_primary_w" pad_left="#space_lg" pad_right="#space_lg" pad_top="0" pad_bottom="0"
+           radius="#btn_radius" shadow_width="0" text_font="#cal_font_primary"/>
+    <style name="cal_footer_landscape" height="#cal_footer_h" pad_top="0" pad_bottom="0" pad_row="0"/>
+    <style name="cal_footer_portrait" height="content" pad_top="#space_md" pad_bottom="#space_lg" pad_row="#space_md"/>
+    <style name="cal_footer_row_gap" pad_column="#space_lg"/>
+    <style name="cal_footer_row_gap_tight" pad_column="#space_md"/>
+    <style name="cal_footer_primary_fill" flex_grow="1"/>
+  </styles>
+  <api>
+    <prop name="back_text" type="string" default="Back"/>
+    <prop name="back_tag" type="string" default="Back"/>
+    <prop name="back_subject" type="string" default=""/>
+    <prop name="back_hide_subject" type="string" default=""/>
+    <prop name="back_callback" type="string" default=""/>
+    <prop name="back_name" type="string" default="cal_footer_back"/>
+    <prop name="back_style" type="string" default="cal_footer_btn"/>
+    <prop name="skip_text" type="string" default="Skip this step"/>
+    <prop name="skip_tag" type="string" default="Skip this step"/>
+    <prop name="skip_hide_subject" type="string" default=""/>
+    <prop name="skip_callback" type="string" default=""/>
+    <prop name="skip_name" type="string" default="cal_footer_skip"/>
+    <prop name="primary_text" type="string" default=""/>
+    <prop name="primary_tag" type="string" default=""/>
+    <prop name="primary_subject" type="string" default=""/>
+    <prop name="primary_hide_subject" type="string" default=""/>
+    <prop name="primary_disable_subject" type="string" default=""/>
+    <prop name="primary_enable_subject" type="string" default=""/>
+    <prop name="primary_callback" type="string" default=""/>
+    <prop name="primary_name" type="string" default="cal_footer_primary"/>
+    <prop name="primary_icon" type="string" default=""/>
+    <prop name="primary_moves_machine" type="string" default="false"/>
+    <prop name="status" type="string" default=""/>
+    <prop name="status_tag" type="string" default=""/>
+    <prop name="status_subject" type="string" default=""/>
+    <prop name="status_sub_subject" type="string" default=""/>
+    <prop name="status_color" type="string" default="#text_muted"/>
+    <prop name="status_font" type="string" default="#cal_font_subtitle"/>
+    <prop name="status_compact" type="int" default="0"/>
+    <prop name="status_compact_subject" type="string" default=""/>
+    <prop name="status_sub_compact_subject" type="string" default=""/>
+  </api>
+  <view extends="lv_obj"
+        width="100%" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x" style_bg_opa="0"
+        style_radius="0" style_border_width="1" style_border_side="top" style_border_color="#border"
+        style_border_opa="255" flex_flow="column" style_flex_main_place="center" scrollable="false">
+    <bind_style_if_eq name="cal_footer_landscape" subject="ui_is_portrait" ref_value="0"/>
+    <bind_style_if_eq name="cal_footer_portrait" subject="ui_is_portrait" ref_value="1"/>
+    <!-- Portrait: the status line sits above the buttons, which share the width. -->
+    <lv_obj name="cal_footer_status_top"
+            width="100%" height="content" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+            flex_flow="column" style_flex_cross_place="center" scrollable="false">
+      <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
+      <text_body width="100%"
+                 bind_text="$status_subject" text="$status" translation_tag="$status_tag" long_mode="dots"
+                 style_text_align="center" style_text_font="$status_font" style_text_color="$status_color"/>
+      <text_body width="100%"
+                 bind_text="$status_sub_subject" long_mode="dots" style_text_align="center"
+                 style_text_font="#cal_font_detail" style_text_color="#text_muted" hidden_if_empty="$status_sub_subject"/>
+    </lv_obj>
+    <lv_obj name="cal_footer_row"
+            width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_flex_cross_place="center" scrollable="false">
+      <bind_style_if_eq name="cal_footer_row_gap" subject="ui_is_portrait" ref_value="0"/>
+      <bind_style_if_eq name="cal_footer_row_gap_tight" subject="ui_is_portrait" ref_value="1"/>
+      <!-- height inline: ui_button sets its own at create, which a style cannot override. -->
+      <ui_button name="$back_name"
+                 height="#cal_button_h" variant="outline" bind_text="$back_subject" text="$back_text"
+                 translation_tag="$back_tag" hidden_if_empty="$back_callback">
+        <style name="cal_footer_btn"/>
+        <style name="$back_style"/>
+        <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="$back_callback"/>
+      </ui_button>
+      <lv_obj name="cal_footer_status_inline"
+              width="0" height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
+              style_border_width="0" flex_flow="column" style_flex_cross_place="center" scrollable="false">
+        <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
+        <if cond="$status_compact eq 0">
+          <text_body name="cal_footer_status"
+                     width="100%" bind_text="$status_subject" text="$status" translation_tag="$status_tag"
+                     long_mode="dots" style_text_align="center" style_text_font="$status_font"
+                     style_text_color="$status_color"/>
+          <text_body name="cal_footer_status_sub"
+                     width="100%" bind_text="$status_sub_subject" long_mode="dots" style_text_align="center"
+                     style_text_font="#cal_font_detail" style_text_color="#text_muted"
+                     hidden_if_empty="$status_sub_subject"/>
+        </if>
+        <if cond="$status_compact eq 1">
+          <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
+          <text_body name="cal_footer_status"
+                     width="100%" bind_text="$status_subject" text="$status" translation_tag="$status_tag"
+                     long_mode="dots" style_text_align="center" style_text_font="$status_font"
+                     style_text_color="$status_color">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </text_body>
+          <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
+          <text_body name="cal_footer_status_sub"
+                     width="100%" bind_text="$status_sub_subject" long_mode="dots" style_text_align="center"
+                     style_text_font="#cal_font_detail" style_text_color="#text_muted">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </text_body>
+          <text_body name="cal_footer_status_compact"
+                     width="100%" bind_text="$status_compact_subject" long_mode="dots" style_text_align="center"
+                     style_text_font="#cal_font_subtitle" style_text_color="$status_color">
+            <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+          </text_body>
+          <text_body name="cal_footer_status_sub_compact"
+                     width="100%" bind_text="$status_sub_compact_subject" long_mode="dots" style_text_align="center"
+                     style_text_font="#cal_font_detail" style_text_color="#text_muted">
+            <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+          </text_body>
+        </if>
+      </lv_obj>
+      <ui_button name="$skip_name"
+                 height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
+                 hidden_if_empty="$skip_callback">
+        <style name="cal_footer_btn"/>
+        <style name="cal_footer_skip"/>
+        <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+        <event_cb trigger="clicked" callback="$skip_callback"/>
+      </ui_button>
+      <ui_button name="$primary_name"
+                 height="#cal_button_h" variant="primary" bind_text="$primary_subject" text="$primary_text"
+                 translation_tag="$primary_tag" icon="$primary_icon" icon_position="right"
+                 moves_machine="$primary_moves_machine" hidden_if_empty="$primary_callback">
+        <style name="cal_footer_primary"/>
+        <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
+        <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
+        <bind_state_if_eq subject="$primary_enable_subject" state="disabled" ref_value="0"/>
+        <bind_state_if_eq subject="$primary_disable_subject" state="disabled" ref_value="1"/>
+        <event_cb trigger="clicked" callback="$primary_callback"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>
