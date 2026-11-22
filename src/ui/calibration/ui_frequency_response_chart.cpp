@@ -1246,10 +1246,9 @@ static void draw_peak_dots_cb(lv_event_t* e) {
             label_dsc.font = font;
             label_dsc.align = LV_TEXT_ALIGN_CENTER;
             label_dsc.text = text;
-            const int32_t cx =
-                ui_frequency_response_chart_x_label_center(abs_x, half_w, content_x1, content_x2);
-            const int32_t y2 = std::max(chart_coords.y1 + label_h, abs_y - kGlowRadius);
-            lv_area_t label_area{cx - half_w, y2 - label_h, cx + half_w, y2};
+            const lv_area_t plot{content_x1, content_y1, content_x2, content_y2};
+            const lv_area_t label_area = ui_frequency_response_chart_peak_label_area(
+                abs_x, abs_y, kGlowRadius, half_w, label_h, plot);
             lv_draw_label(layer, &label_dsc, &label_area);
         }
 
@@ -1678,6 +1677,27 @@ int32_t ui_frequency_response_chart_x_label_center(int32_t tick_x, int32_t half_
         return tick_x;
     }
     return std::clamp(tick_x, x_min + half_w, x_max - half_w);
+}
+
+// NAMESPACE_OK: joins the header's global ui_frequency_response_chart_* API
+lv_area_t ui_frequency_response_chart_peak_label_area(int32_t dot_x, int32_t dot_y,
+                                                      int32_t clearance, int32_t half_w,
+                                                      int32_t label_h, const lv_area_t& plot) {
+    // Room between the label and the top gridline.
+    constexpr int32_t kLineGap = 2;
+    const int32_t above_top = dot_y - clearance - label_h;
+    if (above_top >= plot.y1 + kLineGap) {
+        const int32_t cx =
+            ui_frequency_response_chart_x_label_center(dot_x, half_w, plot.x1, plot.x2);
+        return {cx - half_w, above_top, cx + half_w, dot_y - clearance};
+    }
+    // The curve falls away either side of its peak, so the dot's own height is clear.
+    const int32_t top = std::max(plot.y1 + kLineGap, dot_y - label_h / 2);
+    int32_t x1 = dot_x + clearance;
+    if (x1 + 2 * half_w > plot.x2) {
+        x1 = dot_x - clearance - 2 * half_w;
+    }
+    return {x1, top, x1 + 2 * half_w, top + label_h};
 }
 
 static void draw_x_axis_labels_cb(lv_event_t* e) {

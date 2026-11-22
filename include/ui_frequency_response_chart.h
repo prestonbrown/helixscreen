@@ -226,6 +226,18 @@ int32_t ui_frequency_response_chart_x_label_center(int32_t tick_x, int32_t half_
                                                    int32_t x_max);
 
 /**
+ * @brief Where a peak's frequency label goes, inside the plot @p plot
+ *
+ * Centred above the dot (@p clearance past its centre) when the box clears the
+ * top gridline at plot.y1; otherwise beside the dot, right of it unless that
+ * runs past plot.x2, with its top kept below the gridline.
+ */
+// NAMESPACE_OK: matches this file's C-style chart API
+lv_area_t ui_frequency_response_chart_peak_label_area(int32_t dot_x, int32_t dot_y,
+                                                      int32_t clearance, int32_t half_w,
+                                                      int32_t label_h, const lv_area_t& plot);
+
+/**
  * @brief Label the amplitude gridlines as percentages
  *
  * For callers that normalise their data to 0-100 and set the amplitude range

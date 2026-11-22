@@ -1259,6 +1259,25 @@ TEST_CASE("frequency labels stay inside the chart's box", "[frequency_response_c
     CHECK(ui_frequency_response_chart_x_label_center(120, 32, 100, 140) == 120);
 }
 
+TEST_CASE("a peak's label stays inside the plot, clear of the top gridline",
+          "[frequency_response_chart][axis]") {
+    // A plot from (100, 50) to (400, 250), a 32 px half box, 14 px labels, 10 px clearance.
+    const lv_area_t plot{100, 50, 400, 250};
+    // Room above the dot: centred over it.
+    lv_area_t a = ui_frequency_response_chart_peak_label_area(250, 150, 10, 32, 14, plot);
+    CHECK(a.y2 == 140);
+    CHECK(a.x1 == 218);
+    CHECK(a.x2 == 282);
+    // A peak at the top gridline: beside the dot, below the line.
+    a = ui_frequency_response_chart_peak_label_area(250, 50, 10, 32, 14, plot);
+    CHECK(a.y1 > plot.y1);
+    CHECK(a.x1 >= 260);
+    // Near the right edge it goes left of the dot.
+    a = ui_frequency_response_chart_peak_label_area(390, 52, 10, 32, 14, plot);
+    CHECK(a.y1 > plot.y1);
+    CHECK(a.x2 <= 380);
+}
+
 // ============================================================================
 // NaN gaps (prestonbrown/helixscreen#1812)
 // ============================================================================
