@@ -37,6 +37,13 @@ lv_obj_t* create_darkened_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity);
 /// screen no longer fits its buffer.
 bool retake_darkened_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity);
 
+/// Re-take the picture of any snapshot backdrop, blurred or darkened, into the
+/// buffer it already owns. A blurred one takes a full-size shot to blur down, freed
+/// before returning, so it holds one full frame at most. Returns false, leaving
+/// the old pixels, for a dim layer (it is translucent over the live screen and
+/// never stale), once blur is off, or when the shot fails.
+bool retake_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity);
+
 /// Full-size, clickable, translucent black rectangle. Costs no pixel buffer, but
 /// LVGL blends whatever redraws beneath it every frame.
 lv_obj_t* create_dim_layer(lv_obj_t* parent, lv_opa_t dim_opacity);

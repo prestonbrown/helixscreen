@@ -15,6 +15,7 @@
 #include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
+#include "core/timer_guard.h"
 #include "helix_shared_callback.h"
 #include "helix_type_tag.h"
 #include "lvgl/lvgl.h"
@@ -534,6 +535,16 @@ class ModalStack {
     /// a new modal leaves them out: they are gone a moment later.
     std::vector<lv_obj_t*> exiting_backdrops() const;
 
+    /// Re-take the picture behind every visible modal now, lowest first, each with
+    /// itself and every modal above it hidden so it shows what is beneath it.
+    void refresh_backdrops();
+
+    /// refresh_backdrops() once @p delay_ms has passed, for a change beneath the
+    /// modals (navigation) whose animations need that long to settle. Calls
+    /// before it runs fold into one, timed from the latest. No-op with no modal
+    /// showing.
+    void schedule_backdrop_refresh(uint32_t delay_ms);
+
     /// Bring every visible (non-exiting) backdrop to the front, bottom to top, so
     /// the stack keeps its order above anything created after it (an overlay).
     void raise_visible_to_foreground();
@@ -621,6 +632,7 @@ class ModalStack {
 
     std::vector<ModalEntry> stack_;
     int external_covers_ = 0;
+    helix::ui::LvglTimerGuard refresh_timer_;
 
     static void exit_animation_done(lv_anim_t* anim);
 

@@ -786,6 +786,10 @@ class NavigationManager {
      */
     void refresh_overlay_backdrop();
 
+    /// Have every open modal re-take the picture behind it once this navigation
+    /// has settled: its backdrop is a snapshot of the screen it opened over.
+    void refresh_modal_backdrops_after_settle();
+
     helix::ui::NavbarButton navbar_estop_{"nav_estop_slot", "navbar_estop", "nav_btn_estop", true};
     helix::ui::NavbarButton navbar_drying_{"nav_drying_slot", "navbar_drying", "nav_btn_drying",
                                            false};
@@ -929,6 +933,9 @@ class NavigationManager {
     // Animation constants
     static constexpr uint32_t kOverlayAnimDurationMs = 200;
     static constexpr int32_t kOverlaySlideOffset = 400;
+    /// The overlay slide (kOverlayAnimDurationMs) and the navbar's 180ms
+    /// crossfade both end inside this, with a frame to spare.
+    static constexpr uint32_t kModalBackdropSettleMs = 250;
 
     // Subject management via RAII
     SubjectManager subjects_;

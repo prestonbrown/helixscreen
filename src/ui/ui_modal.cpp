@@ -13,6 +13,7 @@
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "backdrop_blur.h"
 #include "content_width_cap.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
@@ -28,6 +29,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <string>
@@ -338,6 +340,7 @@ void ModalStack::assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> ins
 }
 
 void ModalStack::clear() {
+    refresh_timer_.reset();
     // Drain from the top, one entry at a time: freeing an owned instance can
     // erase its own entry (~Modal -> remove()), so holding an iterator across
     // the loop body is unsafe. Each entry is moved out first.
@@ -533,6 +536,65 @@ std::vector<lv_obj_t*> ModalStack::exiting_backdrops() const {
         }
     }
     return out;
+}
+
+void ModalStack::refresh_backdrops() {
+    refresh_timer_.reset();
+    lv_obj_t* screen = lv_screen_active();
+    if (!screen) {
+        return;
+    }
+
+    // Every modal backdrop on screen leaves the shots, then each visible one is
+    // re-taken lowest first and shown again, so the next one up captures it.
+    std::vector<lv_obj_t*> hidden;
+    std::vector<lv_obj_t*> visible;
+    for (const auto& entry : stack_) {
+        lv_obj_t* backdrop = entry.backdrop;
+        if (!backdrop || lv_obj_get_screen(backdrop) != screen || lv_obj_is_hidden(backdrop)) {
+            continue;
+        }
+        // DECLARATIVE_OK: left out of the snapshots below, restored after them
+        lv_obj_set_hidden(backdrop, true);
+        hidden.push_back(backdrop);
+        if (!entry.exiting) {
+            visible.push_back(backdrop);
+        }
+    }
+
+    const auto started = std::chrono::steady_clock::now();
+    const lv_opa_t opacity = get_modal_backdrop_opacity();
+    int retaken = 0;
+    for (lv_obj_t* backdrop : visible) {
+        if (helix::ui::retake_backdrop(backdrop, opacity)) {
+            ++retaken;
+        }
+        lv_obj_set_hidden(backdrop, false); // DECLARATIVE_OK: restores the flag set above
+    }
+    for (lv_obj_t* backdrop : hidden) {
+        lv_obj_set_hidden(backdrop, false); // DECLARATIVE_OK: restores the flag set above
+    }
+    if (retaken > 0) {
+        const std::chrono::duration<double, std::milli> took =
+            std::chrono::steady_clock::now() - started;
+        spdlog::debug("[ModalStack] Re-took {} modal backdrop(s) in {:.1f}ms", retaken,
+                      took.count());
+    }
+}
+
+void ModalStack::schedule_backdrop_refresh(uint32_t delay_ms) {
+    if (empty()) {
+        return;
+    }
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<ModalStack*>(lv_timer_get_user_data(t));
+            self->refresh_timer_.release(); // a one-shot timer deletes itself
+            self->refresh_backdrops();
+        },
+        delay_ms, this);
+    lv_timer_set_repeat_count(timer, 1);
+    refresh_timer_.reset(timer);
 }
 
 bool ModalStack::is_exiting(lv_obj_t* backdrop) const {

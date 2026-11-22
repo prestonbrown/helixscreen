@@ -698,6 +698,100 @@ static void on_backdrop_image_deleted(lv_event_t* e) {
     }
 }
 
+/// The delete hook of a blurred backdrop: the same free, under a name of its own
+/// so a re-take can tell a blurred image from a darkened one.
+static void on_blurred_image_deleted(lv_event_t* e) {
+    on_backdrop_image_deleted(e);
+}
+
+static bool is_blurred_backdrop(lv_obj_t* obj) {
+    const uint32_t count = lv_obj_get_event_count(obj);
+    for (uint32_t i = 0; i < count; i++) {
+        lv_event_dsc_t* dsc = lv_obj_get_event_dsc(obj, i);
+        if (dsc && lv_event_dsc_get_cb(dsc) == on_blurred_image_deleted)
+            return true;
+    }
+    return false;
+}
+
+namespace {
+
+/// A blurred, dimmed picture of the screen, tight-stride ARGB8888.
+struct BlurredShot {
+    std::vector<uint8_t> pixels;
+    int w = 0;
+    int h = 0;
+};
+
+/// Snapshot @p screen, then downscale, blur and dim it. The full-size snapshot is
+/// freed before returning, so it is the only full frame this ever holds. False,
+/// and blur off for good, when that snapshot cannot be taken.
+bool render_blurred(lv_obj_t* screen, lv_opa_t dim_opacity, BlurredShot& out) {
+    lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
+    if (!snapshot) {
+        spdlog::warn("[Backdrop Blur] Snapshot failed — disabling blur permanently");
+        s_blur_disabled = true;
+        return false;
+    }
+
+    const int snap_w = static_cast<int>(snapshot->header.w);
+    const int snap_h = static_cast<int>(snapshot->header.h);
+    const auto* snap_data = static_cast<const uint8_t*>(snapshot->data);
+    const uint32_t snap_stride = snapshot->header.stride;
+    spdlog::debug("[Backdrop Blur] Snapshot {}x{}", snap_w, snap_h);
+
+    out.w = snap_w / 2;
+    out.h = snap_h / 2;
+    if (out.w < 2 || out.h < 2) {
+        // Too small to downscale: blur the original.
+        out.w = snap_w;
+        out.h = snap_h;
+    }
+
+    out.pixels.resize(static_cast<size_t>(out.w) * out.h * 4);
+    if (out.w != snap_w) {
+        detail::downscale_2x_argb8888(snap_data, out.pixels.data(), snap_w, snap_h,
+                                      static_cast<int>(snap_stride));
+    } else {
+        // box_blur works in width*4 rows, whatever the snapshot's stride.
+        const uint32_t tight_stride = static_cast<uint32_t>(snap_w) * 4;
+        for (int y = 0; y < snap_h; y++) {
+            std::memcpy(out.pixels.data() + y * tight_stride, snap_data + y * snap_stride,
+                        tight_stride);
+        }
+    }
+    lv_draw_buf_destroy(snapshot);
+
+    bool blurred = false;
+#ifdef BACKDROP_BLUR_GPU
+    blurred = gpu_blur(out.pixels.data(), out.w, out.h);
+    if (!blurred) {
+        spdlog::debug("[Backdrop Blur] GPU blur failed, falling back to CPU");
+    }
+#endif
+    if (!blurred) {
+        detail::box_blur_argb8888(out.pixels.data(), out.w, out.h, 3);
+    }
+
+    // Dimmed in the pixels: no per-frame opacity overlay.
+    detail::darken_argb8888_inplace(out.pixels.data(), out.w, out.h, out.w * 4, dim_opacity);
+    return true;
+}
+
+/// Copy @p shot into @p dst row by row: LVGL rounds a draw buffer's stride up to
+/// LV_DRAW_BUF_STRIDE_ALIGN, and a flat copy across differing strides shifts
+/// every row into a diagonal smear.
+void copy_shot(const BlurredShot& shot, lv_draw_buf_t* dst) {
+    const uint32_t tight_stride = static_cast<uint32_t>(shot.w) * 4;
+    const uint32_t stride = dst->header.stride;
+    auto* out = static_cast<uint8_t*>(dst->data);
+    for (int y = 0; y < shot.h; y++) {
+        std::memcpy(out + y * stride, shot.pixels.data() + y * tight_stride, tight_stride);
+    }
+}
+
+} // namespace
+
 lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     if (s_blur_disabled) {
         return nullptr;
@@ -715,7 +809,6 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     return create_darkened_backdrop(parent, dim_opacity);
 #endif
 
-    // Step 1: Snapshot current screen
     lv_obj_t* screen = lv_screen_active();
     if (!screen) {
         spdlog::warn("[Backdrop Blur] No active screen — disabling blur permanently");
@@ -723,103 +816,21 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
         return nullptr;
     }
 
-    lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
-    if (!snapshot) {
-        spdlog::warn("[Backdrop Blur] Snapshot failed — disabling blur permanently");
-        s_blur_disabled = true;
+    BlurredShot shot;
+    if (!render_blurred(screen, dim_opacity, shot)) {
         return nullptr;
     }
 
-    int snap_w = static_cast<int>(snapshot->header.w);
-    int snap_h = static_cast<int>(snapshot->header.h);
-    auto* snap_data = static_cast<uint8_t*>(snapshot->data);
-
-    spdlog::debug("[Backdrop Blur] Snapshot {}x{}", snap_w, snap_h);
-
-    // Step 2: Downscale 2x
-    int blur_w = snap_w / 2;
-    int blur_h = snap_h / 2;
-
-    if (blur_w < 2 || blur_h < 2) {
-        // Too small to downscale — blur on original
-        blur_w = snap_w;
-        blur_h = snap_h;
-    }
-
-    // Allocate downscaled buffer
-    std::vector<uint8_t> blur_buf;
-    uint8_t* blur_data;
-
-    if (blur_w != snap_w) {
-        blur_buf.resize(static_cast<size_t>(blur_w) * blur_h * 4);
-        detail::downscale_2x_argb8888(snap_data, blur_buf.data(), snap_w, snap_h,
-                                      static_cast<int>(snapshot->header.stride));
-        blur_data = blur_buf.data();
-    } else {
-        // No downscale; copy into tight-stride buffer since box_blur uses width*4
-        uint32_t snap_stride = snapshot->header.stride;
-        uint32_t tight_stride = static_cast<uint32_t>(snap_w) * 4;
-        blur_buf.resize(static_cast<size_t>(tight_stride) * snap_h);
-        if (snap_stride == tight_stride) {
-            std::memcpy(blur_buf.data(), snap_data, blur_buf.size());
-        } else {
-            for (int y = 0; y < snap_h; y++) {
-                std::memcpy(blur_buf.data() + y * tight_stride, snap_data + y * snap_stride,
-                            tight_stride);
-            }
-        }
-        blur_data = blur_buf.data();
-    }
-
-    // Step 3: Blur
-    bool blurred = false;
-
-#ifdef BACKDROP_BLUR_GPU
-    blurred = gpu_blur(blur_data, blur_w, blur_h);
-    if (!blurred) {
-        spdlog::debug("[Backdrop Blur] GPU blur failed, falling back to CPU");
-    }
-#endif
-
-    if (!blurred) {
-        detail::box_blur_argb8888(blur_data, blur_w, blur_h, 3);
-    }
-
-    // Apply dimming directly to blur pixels (eliminates per-frame opacity overlay)
-    detail::darken_argb8888_inplace(blur_data, blur_w, blur_h, blur_w * 4, dim_opacity);
-
-    // Step 4: Create lv_draw_buf for the blurred result at display resolution.
-    // LVGL's lv_image will scale the smaller buffer up automatically when we
-    // set it as source on a full-screen image widget.
+    // Smaller than the screen: the full-screen image widget stretches it.
     lv_draw_buf_t* result_buf = lv_draw_buf_create(
-        static_cast<uint32_t>(blur_w), static_cast<uint32_t>(blur_h), LV_COLOR_FORMAT_ARGB8888, 0);
+        static_cast<uint32_t>(shot.w), static_cast<uint32_t>(shot.h), LV_COLOR_FORMAT_ARGB8888, 0);
     if (!result_buf) {
         spdlog::warn("[Backdrop Blur] Failed to allocate result buffer — disabling blur");
-        lv_draw_buf_destroy(snapshot);
         s_blur_disabled = true;
         return nullptr;
     }
+    copy_shot(shot, result_buf);
 
-    // Copy row-by-row: blur_data uses tight stride (blur_w * 4) but result_buf
-    // uses LVGL's aligned stride (rounded up to LV_DRAW_BUF_STRIDE_ALIGN).
-    // A flat memcpy shifts every row when the strides differ, causing diagonal smearing.
-    {
-        uint32_t tight_stride = static_cast<uint32_t>(blur_w) * 4;
-        uint32_t aligned_stride = result_buf->header.stride;
-        if (tight_stride == aligned_stride) {
-            std::memcpy(result_buf->data, blur_data, static_cast<size_t>(blur_w) * blur_h * 4);
-        } else {
-            auto* dst = static_cast<uint8_t*>(result_buf->data);
-            for (int y = 0; y < blur_h; y++) {
-                std::memcpy(dst + y * aligned_stride, blur_data + y * tight_stride, tight_stride);
-            }
-        }
-    }
-
-    // Done with snapshot
-    lv_draw_buf_destroy(snapshot);
-
-    // Step 5: Create image widget
     lv_obj_t* img = lv_image_create(parent);
     lv_obj_set_size(img, LV_PCT(100), LV_PCT(100));
     lv_obj_align(img, LV_ALIGN_CENTER, 0, 0);
@@ -829,10 +840,10 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
     lv_obj_set_scrollable(img, false);
 
     // Free draw buffer when image is deleted
-    lv_obj_add_event_cb(img, on_backdrop_image_deleted, LV_EVENT_DELETE, result_buf);
+    lv_obj_add_event_cb(img, on_blurred_image_deleted, LV_EVENT_DELETE, result_buf);
 
-    spdlog::debug("[Backdrop Blur] Created blurred backdrop ({}x{} blur, dim_opacity={})", blur_w,
-                  blur_h, dim_opacity);
+    spdlog::debug("[Backdrop Blur] Created blurred backdrop ({}x{} blur, dim_opacity={})", shot.w,
+                  shot.h, dim_opacity);
     return img;
 }
 
@@ -935,6 +946,37 @@ bool retake_darkened_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity) {
     lv_image_cache_drop(buf);
     lv_obj_invalidate(backdrop);
     return true;
+}
+
+static bool retake_blurred_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity) {
+    if (s_blur_disabled)
+        return false;
+    auto* buf = static_cast<lv_draw_buf_t*>(const_cast<void*>(lv_image_get_src(backdrop)));
+    lv_obj_t* screen = lv_screen_active();
+    if (!buf || !screen)
+        return false;
+
+    BlurredShot shot;
+    if (!render_blurred(screen, dim_opacity, shot))
+        return false;
+    if (static_cast<uint32_t>(shot.w) != buf->header.w ||
+        static_cast<uint32_t>(shot.h) != buf->header.h)
+        return false; // the screen was resized under it
+
+    // A draw unit may still be blending the old pixels on the render thread.
+    lv_draw_wait_for_finish();
+    copy_shot(shot, buf);
+    lv_image_cache_drop(buf);
+    lv_obj_invalidate(backdrop);
+    return true;
+}
+
+bool retake_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity) {
+    if (!backdrop || !lv_obj_check_type(backdrop, &lv_image_class))
+        return false;
+    if (is_blurred_backdrop(backdrop))
+        return retake_blurred_backdrop(backdrop, dim_opacity);
+    return retake_darkened_backdrop(backdrop, dim_opacity);
 }
 
 void backdrop_blur_cleanup() {
