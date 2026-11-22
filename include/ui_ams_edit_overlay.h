@@ -538,6 +538,24 @@ class AmsEditOverlay : public OverlayBase {
     void handle_new_spool();
     /// What the lane held before it emptied or was cleared here.
     SlotInfo last_held_;
+    /// Reset a session's lane state (the spool, the form, the save) to @p info.
+    void start_lane_session(const SlotInfo& info);
+    /// Show the page @p info opens on: its summary, its empty page, or with
+    /// @p open_on_picker the spools list.
+    void open_lane_page(const SlotInfo& info, bool open_on_picker);
+    /// The page the backend's reading of this lane opens on; nullopt with no
+    /// backend or no such lane.
+    [[nodiscard]] std::optional<spool_assign::LaneScreen> lane_screen_now() const;
+    /// Follow the lane's slot changes while the editor is open.
+    void observe_lane();
+    /// Move between the summary and the empty page when the lane fills or
+    /// runs out under them (spool_assign::page_after_lane_change()).
+    void follow_lane();
+    /// Unsaved edits, a save in flight, or the color page open over the form.
+    [[nodiscard]] bool editing_lane() const;
+    /// The lane screen the editor last followed the lane to.
+    std::optional<spool_assign::LaneScreen> lane_screen_seen_;
+    ObserverGuard lane_observer_;
     [[nodiscard]] bool spoolman_set_up() const;
     /// File the staged spool going in: in Spoolman and the lane, or the lane alone.
     void save_new_spool(bool add_to_spoolman);

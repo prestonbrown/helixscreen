@@ -144,6 +144,25 @@ TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-a
     CHECK(screen_for_lane(unrecorded_empty) == LaneScreen::Assign);
 }
 
+TEST_CASE("an open editor follows its lane between the summary and the empty page",
+          "[spool-assign]") {
+    // A spool fed into a lane shown empty opens its summary; a runout under
+    // the summary shows the lane empty.
+    CHECK(page_after_lane_change(EditorPage::Empty, false, LaneScreen::Edit) ==
+          LaneFollow::ToSummary);
+    CHECK(page_after_lane_change(EditorPage::Summary, false, LaneScreen::Assign) ==
+          LaneFollow::ToEmpty);
+    // Already on the lane's own page.
+    CHECK(page_after_lane_change(EditorPage::Empty, false, LaneScreen::Assign) == LaneFollow::Stay);
+    CHECK(page_after_lane_change(EditorPage::Summary, false, LaneScreen::Edit) == LaneFollow::Stay);
+    // Never while the user edits, nor off a list or a form.
+    CHECK(page_after_lane_change(EditorPage::Empty, true, LaneScreen::Edit) == LaneFollow::Stay);
+    CHECK(page_after_lane_change(EditorPage::Summary, true, LaneScreen::Assign) ==
+          LaneFollow::Stay);
+    CHECK(page_after_lane_change(EditorPage::Other, false, LaneScreen::Edit) == LaneFollow::Stay);
+    CHECK(page_after_lane_change(EditorPage::Other, false, LaneScreen::Assign) == LaneFollow::Stay);
+}
+
 TEST_CASE("remaining steps stay between empty and the spool's total", "[spool-assign]") {
     CHECK(step_remaining(500, 10, 1000) == 510);
     CHECK(step_remaining(995, 10, 1000) == 1000);
