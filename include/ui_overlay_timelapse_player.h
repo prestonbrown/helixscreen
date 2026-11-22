@@ -26,8 +26,9 @@ namespace helix::ui {
  * @brief Plays one timelapse video on the app's own screen
  *
  * A PlayerDecoder runs ffmpeg into raw frames of the display's own pixel
- * format, fitted to the screen; each frame is copied into one draw buffer the
- * lv_image shows. Leaving the overlay, or destroying it at shutdown, stops the
+ * format, fitted to the screen, and queues each a little before it is due; a
+ * timer on the main thread copies the newest due frame into the one draw
+ * buffer the lv_image shows. Leaving the overlay, or destroying it at shutdown, stops the
  * decoder: its worker is joined and its ffmpeg child reaped.
  *
  * @threading The decoder's events arrive on its worker and reach this class
@@ -67,6 +68,11 @@ class TimelapsePlayerOverlay : public OverlayBase {
 
     void start_decoder();
     void stop_decoder();
+    /// The presentation timer: runs while frames can arrive (playing, or ended
+    /// with frames still queued), stopped while paused. Cancelled from
+    /// cleanup() and the destructor as well as from every state change.
+    void start_present_timer();
+    void cancel_present_timer();
     void present_frame();
     void ensure_draw_buf(helix::timelapse::FrameSize size);
     void free_draw_buf();
@@ -102,6 +108,7 @@ class TimelapsePlayerOverlay : public OverlayBase {
     bool scrubbing_ = false;
     State state_ = kLoading;
     LvglTimerGuard hide_timer_;
+    LvglTimerGuard present_timer_;
 
     SubjectManager subjects_;
     helix::Subject state_subject_{};

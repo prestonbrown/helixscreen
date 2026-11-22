@@ -30,7 +30,9 @@ std::optional<VideoInfo> probe_video(const std::string& path, const std::atomic<
  *
  * A worker thread (joined by stop() and the destructor) probes the video,
  * runs ffmpeg with its stdout on a pipe, cuts the stream into frames and
- * publishes each into exchange() when it is due. Pause stops reading, so
+ * publishes each into exchange() one frame period before it is due, stamped
+ * with its due time; the UI's own timer shows it then. The worker paces
+ * against the monotonic clock and never waits on the UI. Pause stops reading, so
  * ffmpeg blocks on the full pipe and costs nothing; a seek replaces the child
  * with one started at the new time. When the stream ends the worker waits for
  * a seek (replay) or stop. Every child is reaped before the next starts and
@@ -44,8 +46,6 @@ class PlayerDecoder {
     struct Events {
         /// The probe answered; frames will be @p out in size.
         std::function<void(const VideoInfo& info, FrameSize out)> on_info;
-        /// exchange() went from nothing pending to a frame pending.
-        std::function<void()> on_frame;
         /// The stream ended. @p failed: no video could be decoded at all.
         std::function<void(bool failed)> on_end;
     };
@@ -97,7 +97,8 @@ class PlayerDecoder {
     std::condition_variable cv_;
     std::atomic<bool> stop_{false};
     bool paused_ = false;
-    bool resumed_ = false; ///< a resume the reading loop has not re-anchored for
+    double paused_at_s_ = 0.0;     ///< monotonic_seconds() when the pause began
+    double pending_shift_s_ = 0.0; ///< paused time the reading loop has not taken up
     std::optional<double> seek_to_;
 
     std::atomic<pid_t> child_pid_{-1};

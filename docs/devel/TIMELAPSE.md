@@ -195,10 +195,12 @@ runs `ffmpeg` as a child with its stdout on a pipe.
   size fitted to the screen with the video's aspect (`fit_frame()`), the format the display's
   own: `rgb565le` for a 16-bit display, `bgr24` for 24, `bgra` (LVGL XRGB8888) for 32. The
   child runs at nice 10 with two decoder threads, and dies with the app (`PR_SET_PDEATHSIG`).
-- **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and publishes
-  each into a one-slot `FrameExchange` when it is due (`pace_frame()`). The UI copies the
-  newest into one draw buffer and invalidates the image. A frame the UI has not taken
-  before the next arrives is dropped, never queued.
+- **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and queues
+  each in `FrameExchange` one frame period before it is due, stamped with its due time on
+  the monotonic clock (`pace_frame()`). A main-thread timer looking every quarter period
+  (`present_poll_ms()`, 4 to 10 ms) copies the newest due frame (`pick_due_frame()`) into
+  one draw buffer and invalidates the image; it stops while paused. Neither side waits on
+  the other: a UI more than a period late skips frames, and a full queue drops its oldest.
 - **Controls** - tap toggles the bars, which hide after 3 s while playing; play/pause (pause
   stops reading, so ffmpeg blocks on the pipe); a scrub bar that seeks on release by
   replacing the child with one started at `-ss`; at the end the last frame stays with a
@@ -206,15 +208,21 @@ runs `ffmpeg` as a child with its stdout on a pipe.
 - **Lifetime** - leaving the overlay, destroying it and seeking each kill and reap the child
   (`terminate_and_reap()`); the worker is joined before the decoder goes away.
 
-Measured on the desktop mock (headless SDL, 800x480, XRGB8888), 20 s testsrc clips at 30 fps:
+Measured on the desktop mock (headless SDL, XRGB8888), 20 s testsrc clips at 30 fps, on a
+32-thread host running other builds (load average 45 to 107):
 
-| Clip | Decoded at | Added RSS | Main thread | Whole app | ffmpeg | Shown / dropped |
-|---|---|---|---|---|---|---|
-| 1280x720 H.264 | 800x450 | ~10 MB | 1.8% | 3.5% | 11.1% | 554 / 46 of 600 |
-| 640x480 H.264 | 640x480 | ~10 MB | 2.8% | 5.6% | 4.7% | 552 / 48 of 600 |
+| Clip | Screen | Decoded at | Added RSS | Main thread | Whole app | ffmpeg | Dropped of 600, typical run |
+|---|---|---|---|---|---|---|---|
+| 1280x720 H.264 | 800x480 | 800x450 | ~12 MB | 1.6-4.1% | 3.8-7.4% | 12-14% | 2-3 |
+| 640x480 H.264 | 800x480 | 640x480 | ~10 MB | 2.4-4.0% | 4.8-7.4% | 5-6% | 1 |
+| 1280x720 H.264 | 480x272 | 480x270 | ~6 MB | 1.9-2.3% | 3.2-4.1% | 9-11% | 0-6 |
+| 640x480 H.264 | 480x272 | 362x272 | ~5 MB | 1.8-2.1% | 3.2-3.7% | 5-6% | 3-6 |
 
 CPU is percent of one core on a desktop x86 host; a printer's board costs several times
-more. The drops come from the UpdateQueue's 33 ms drain beating against 30 fps frames.
+more. The stats log at close splits drops into frames the UI was late for and frames
+pushed out of the queue before they were due; the second is 0 in every instrumented run, so
+the drops that remain are the main loop being descheduled on the loaded host (single runs
+lost 13 to 102 frames at load 53 to 107).
 
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`

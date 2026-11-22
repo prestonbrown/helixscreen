@@ -180,8 +180,8 @@ TEST_CASE("Decoder: a seek restarts the child at the new time and numbers frames
 
     int64_t index = -1;
     REQUIRE(wait_for([&] {
-        return h.decoder.exchange().consume(
-            [&](const uint8_t*, FrameSize, int64_t i) { index = i; });
+        return h.decoder.exchange().consume_due(
+            monotonic_seconds() + 100.0, [&](const uint8_t*, FrameSize, int64_t i) { index = i; });
     }));
     CHECK(index >= 200);
 }

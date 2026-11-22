@@ -119,18 +119,32 @@ struct FrameSize {
 /// "m:ss", or "h:mm:ss" from an hour up. Negative times read as 0:00.
 [[nodiscard]] std::string format_clock(double seconds);
 
-// --- Pacing ---
+// --- Pacing and presentation ---
 
 struct PaceDecision {
-    double wait_s = 0.0;   ///< sleep this long before showing the frame
+    double wait_s = 0.0;   ///< sleep this long before handing the frame over
     bool reanchor = false; ///< too far behind: restart the clock at this frame
 };
 
-/// When frame @p index (counted from the clock's anchor) is due at @p fps,
-/// given @p elapsed_s since the anchor. A frame late by more than
-/// @p max_late_s restarts the clock rather than racing to catch up.
+/// When to hand frame @p index (counted from the clock's anchor) to the UI at
+/// @p fps, given @p elapsed_s since the anchor: @p lead_s before it is due, so
+/// it is waiting when its moment comes. A frame late by more than @p max_late_s
+/// restarts the clock rather than racing to catch up.
 [[nodiscard]] PaceDecision pace_frame(int64_t index, double fps, double elapsed_s,
-                                      double max_late_s = 0.25);
+                                      double lead_s = 0.0, double max_late_s = 0.25);
+
+/// Which of the pending frames to show at @p now_s, given each one's due time
+/// in @p due_s (oldest first): the newest already due, or -1 when none is due
+/// yet. Every older due frame is skipped: the UI fell behind it.
+[[nodiscard]] int pick_due_frame(const std::vector<double>& due_s, double now_s);
+
+/// How often the UI looks for a due frame at @p fps: a quarter of the frame
+/// period, kept between 4 and 10 ms, so a frame is never more than a fraction
+/// of a period late and two frames never fall between looks.
+[[nodiscard]] uint32_t present_poll_ms(double fps);
+
+/// Seconds on the monotonic clock both sides of the handoff share.
+[[nodiscard]] double monotonic_seconds();
 
 // --- Raw stream to frames ---
 
@@ -178,49 +192,78 @@ class FrameAssembler {
 };
 
 /**
- * @brief The one-frame handoff between the decoder thread and the UI
+ * @brief The handoff between the decoder thread and the UI's presentation timer
  *
- * The decoder publishes each finished frame by swapping its buffer in; the UI
- * consumes the newest. A frame the UI never picked up before the next arrived
- * is dropped, never queued, so a slow UI shows fewer frames instead of falling
- * further behind. Thread-safe.
+ * The decoder publishes each frame a little before it is due, with its due
+ * time; the UI's timer shows the newest frame whose time has come. Neither side
+ * waits on the other: a full queue drops its oldest frame, and a UI that looks
+ * late skips the frames it missed (pick_due_frame()). Thread-safe.
  */
 class FrameExchange {
   public:
     struct Stats {
         uint64_t published = 0;
         uint64_t shown = 0;
-        uint64_t dropped = 0;
+        uint64_t dropped = 0;       ///< both kinds below
+        uint64_t dropped_late = 0;  ///< skipped because the UI looked too late
+        uint64_t dropped_early = 0; ///< pushed out of a full queue before it was due
     };
 
-    /// Swap @p frame in as the newest; @p frame comes back holding a buffer to
-    /// reuse. True when the UI had nothing pending: the caller then owes it one
-    /// wake-up, and later publishes ride on that one.
-    bool publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index);
+    /// Frames waiting at most; more than this and the oldest is dropped. The
+    /// decoder queues one period ahead, so three slots hold the frame being
+    /// shown, the next, and one more: only a UI more than a whole period late
+    /// loses a frame, the same bar pick_due_frame() skips at.
+    static constexpr size_t kSlots = 3;
 
-    /// Call @p fn(pixels, size, index) on the newest unseen frame, under the
-    /// lock. False when nothing new arrived since the last consume.
-    template <typename F> bool consume(F&& fn) {
+    /// Queue @p frame, due at @p due_s (monotonic_seconds()); @p frame comes
+    /// back holding a buffer to reuse.
+    void publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index, double due_s);
+
+    /// Call @p fn(pixels, size, index) on the frame pick_due_frame() chooses at
+    /// @p now_s, under the lock. False when no frame is due.
+    template <typename F> bool consume_due(double now_s, F&& fn) {
         std::lock_guard<std::mutex> lock(mutex_);
-        if (!fresh_) {
+        std::vector<double> due;
+        due.reserve(queue_.size());
+        for (const auto& slot : queue_) {
+            due.push_back(slot.due_s);
+        }
+        const int pick = pick_due_frame(due, now_s);
+        if (pick < 0) {
             return false;
         }
-        fresh_ = false;
+        for (int i = 0; i < pick; ++i) {
+            ++stats_.dropped;
+            ++stats_.dropped_late;
+            recycle_front();
+        }
+        Slot& slot = queue_.front();
         ++stats_.shown;
-        fn(static_cast<const uint8_t*>(ready_.data()), size_, index_);
+        fn(static_cast<const uint8_t*>(slot.pixels.data()), slot.size, slot.index);
+        recycle_front();
         return true;
     }
 
+    /// Frames queued and not yet shown.
+    [[nodiscard]] size_t pending() const;
+    /// Push every queued frame's due time back by @p seconds (a pause ended).
+    void shift_due(double seconds);
     [[nodiscard]] Stats stats() const;
-    /// Forget any pending frame (a seek makes it stale); stats are kept.
+    /// Forget the queued frames (a seek makes them stale); stats are kept.
     void clear();
 
   private:
+    struct Slot {
+        std::vector<uint8_t> pixels;
+        FrameSize size;
+        int64_t index = 0;
+        double due_s = 0.0;
+    };
+    void recycle_front();
+
     mutable std::mutex mutex_;
-    std::vector<uint8_t> ready_;
-    FrameSize size_;
-    int64_t index_ = 0;
-    bool fresh_ = false;
+    std::vector<Slot> queue_;                ///< oldest first, at most kSlots
+    std::vector<std::vector<uint8_t>> free_; ///< buffers handed back to the decoder
     Stats stats_;
 };
 

@@ -273,7 +273,14 @@ TEST_CASE("Pacing: an early frame waits until it is due", "[timelapse][player][p
     CHECK_FALSE(d.reanchor);
 }
 
-TEST_CASE("Pacing: a slightly late frame shows at once", "[timelapse][player][pace]") {
+TEST_CASE("Pacing: a lead hands the frame over that much before it is due",
+          "[timelapse][player][pace]") {
+    CHECK(pace_frame(10, 20.0, 0.4, 0.05).wait_s == Catch::Approx(0.05));
+    CHECK(pace_frame(10, 20.0, 0.47, 0.05).wait_s == 0.0);
+    CHECK_FALSE(pace_frame(10, 20.0, 0.47, 0.05).reanchor);
+}
+
+TEST_CASE("Pacing: a slightly late frame goes at once", "[timelapse][player][pace]") {
     const auto d = pace_frame(10, 20.0, 0.6);
     CHECK(d.wait_s == 0.0);
     CHECK_FALSE(d.reanchor);
@@ -283,6 +290,132 @@ TEST_CASE("Pacing: a frame far behind restarts the clock", "[timelapse][player][
     const auto d = pace_frame(10, 20.0, 1.0);
     CHECK(d.wait_s == 0.0);
     CHECK(d.reanchor);
+    CHECK(pace_frame(10, 20.0, 1.0, 0.05).reanchor);
+}
+
+// --- Presentation ---
+
+TEST_CASE("Present: nothing pending or nothing due shows nothing", "[timelapse][player][present]") {
+    CHECK(pick_due_frame({}, 5.0) == -1);
+    CHECK(pick_due_frame({5.1, 5.2}, 5.0) == -1);
+}
+
+TEST_CASE("Present: the frame whose time has come is shown", "[timelapse][player][present]") {
+    CHECK(pick_due_frame({5.0, 5.033}, 5.0) == 0);
+    CHECK(pick_due_frame({4.99, 5.033}, 5.01) == 0);
+}
+
+TEST_CASE("Present: a UI that looked late shows the newest due frame",
+          "[timelapse][player][present]") {
+    CHECK(pick_due_frame({4.9, 4.95, 5.2}, 5.0) == 1);
+    CHECK(pick_due_frame({4.9, 4.95}, 5.0) == 1);
+}
+
+TEST_CASE("Present: the timer looks several times per frame", "[timelapse][player][present]") {
+    CHECK(present_poll_ms(30.0) == 8);
+    CHECK(present_poll_ms(15.0) == 10);
+    CHECK(present_poll_ms(60.0) == 4);
+    CHECK(present_poll_ms(240.0) == 4);
+    CHECK(present_poll_ms(0.0) == 8); // an unknown rate paces at 30
+}
+
+// --- The decoder-to-UI handoff ---
+
+namespace {
+
+struct Shown {
+    int64_t index = -1;
+    std::vector<uint8_t> pixels;
+};
+
+Shown show(FrameExchange& x, double now) {
+    Shown out;
+    x.consume_due(now, [&](const uint8_t* p, FrameSize s, int64_t idx) {
+        out.pixels.assign(p, p + static_cast<size_t>(s.width * s.height));
+        out.index = idx;
+    });
+    return out;
+}
+
+void put(FrameExchange& x, uint8_t value, int64_t index, double due) {
+    std::vector<uint8_t> f{value};
+    x.publish(f, {1, 1}, index, due);
+}
+
+} // namespace
+
+TEST_CASE("Exchange: a frame published early waits for its time, then shows",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 7, 0, 10.0);
+    CHECK(show(x, 9.99).index == -1);
+    CHECK(x.pending() == 1);
+    const Shown s = show(x, 10.0);
+    CHECK(s.index == 0);
+    CHECK(s.pixels == std::vector<uint8_t>{7});
+    CHECK(x.pending() == 0);
+    CHECK(show(x, 10.1).index == -1);
+}
+
+TEST_CASE("Exchange: frames on time are all shown, in order", "[timelapse][player][exchange]") {
+    FrameExchange x;
+    for (int i = 0; i < 30; ++i) {
+        put(x, static_cast<uint8_t>(i), i, 1.0 + i / 30.0);
+        if (i > 0) {
+            CHECK(show(x, 1.0 + (i - 1) / 30.0 + 0.004).index == i - 1);
+        }
+    }
+    CHECK(show(x, 2.0).index == 29);
+    const auto st = x.stats();
+    CHECK(st.published == 30);
+    CHECK(st.shown == 30);
+    CHECK(st.dropped == 0);
+}
+
+TEST_CASE("Exchange: a late UI skips to the newest due frame", "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 1, 0, 1.0);
+    put(x, 2, 1, 1.033);
+    CHECK(show(x, 1.05).index == 1);
+    CHECK(x.stats().dropped == 1);
+}
+
+TEST_CASE("Exchange: a full queue drops its oldest frame", "[timelapse][player][exchange]") {
+    FrameExchange x;
+    for (int i = 0; i < static_cast<int>(FrameExchange::kSlots) + 1; ++i) {
+        put(x, static_cast<uint8_t>(i), i, 1.0 + i);
+    }
+    CHECK(x.pending() == FrameExchange::kSlots);
+    CHECK(x.stats().dropped == 1);
+    CHECK(show(x, 2.0).index == 1);
+}
+
+TEST_CASE("Exchange: a pause pushes the queued frames' times back",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 1, 0, 1.0);
+    x.shift_due(5.0);
+    CHECK(show(x, 1.0).index == -1);
+    CHECK(show(x, 6.0).index == 0);
+}
+
+TEST_CASE("Exchange: clear forgets the queued frames", "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 1, 0, 1.0);
+    x.clear();
+    CHECK(x.pending() == 0);
+    CHECK(show(x, 9.0).index == -1);
+}
+
+TEST_CASE("Exchange: a published frame hands back a used buffer to fill",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    std::vector<uint8_t> f(64, 1);
+    x.publish(f, {8, 8}, 0, 1.0);
+    show(x, 1.0);
+    std::vector<uint8_t> g(64, 2);
+    x.publish(g, {8, 8}, 1, 2.0);
+    CHECK(g.size() == 64);
 }
 
 // --- Frame assembly from a byte stream ---
@@ -337,48 +470,4 @@ TEST_CASE("Assembler: a frame swapped out by the reader is replaced, not shrunk"
     std::vector<uint8_t> second;
     a.feed(bytes + 3, 3, [&](std::vector<uint8_t>& f) { second = f; });
     CHECK(second == std::vector<uint8_t>{4, 5, 6});
-}
-
-// --- The decoder-to-UI handoff ---
-
-TEST_CASE("Exchange: the UI gets the newest frame and an unseen one is dropped",
-          "[timelapse][player][exchange]") {
-    FrameExchange x;
-    std::vector<uint8_t> f1{1, 1};
-    std::vector<uint8_t> f2{2, 2};
-    CHECK(x.publish(f1, {1, 1}, 0));
-    CHECK_FALSE(x.publish(f2, {1, 1}, 1));
-
-    int64_t seen_index = -1;
-    std::vector<uint8_t> seen;
-    CHECK(x.consume([&](const uint8_t* p, FrameSize s, int64_t idx) {
-        seen.assign(p, p + s.width * s.height * 2);
-        seen_index = idx;
-    }));
-    CHECK(seen == std::vector<uint8_t>{2, 2});
-    CHECK(seen_index == 1);
-    CHECK_FALSE(x.consume([](const uint8_t*, FrameSize, int64_t) {}));
-
-    const auto st = x.stats();
-    CHECK(st.published == 2);
-    CHECK(st.shown == 1);
-    CHECK(st.dropped == 1);
-}
-
-TEST_CASE("Exchange: after a consume the next publish wakes the UI again",
-          "[timelapse][player][exchange]") {
-    FrameExchange x;
-    std::vector<uint8_t> f{1};
-    CHECK(x.publish(f, {1, 1}, 0));
-    x.consume([](const uint8_t*, FrameSize, int64_t) {});
-    std::vector<uint8_t> g{2};
-    CHECK(x.publish(g, {1, 1}, 1));
-}
-
-TEST_CASE("Exchange: clear forgets a stale frame", "[timelapse][player][exchange]") {
-    FrameExchange x;
-    std::vector<uint8_t> f{1};
-    x.publish(f, {1, 1}, 0);
-    x.clear();
-    CHECK_FALSE(x.consume([](const uint8_t*, FrameSize, int64_t) {}));
 }

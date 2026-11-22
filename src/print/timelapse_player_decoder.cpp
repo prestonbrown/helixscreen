@@ -90,10 +90,6 @@ Child spawn_reader(const std::vector<std::string>& args) {
     return {pid, fds[0]};
 }
 
-double seconds_since(Clock::time_point t) {
-    return std::chrono::duration<double>(Clock::now() - t).count();
-}
-
 } // namespace
 
 std::optional<VideoInfo> probe_video(const std::string& path, const std::atomic<bool>& cancel) {
@@ -125,7 +121,8 @@ bool PlayerDecoder::start(Config config, Events events) {
     events_ = std::move(events);
     stop_.store(false);
     paused_ = false;
-    resumed_ = false;
+    paused_at_s_ = 0.0;
+    pending_shift_s_ = 0.0;
     seek_to_.reset();
     exchange_.clear();
     worker_ = helix::make_thread([this] { run(); });
@@ -134,14 +131,20 @@ bool PlayerDecoder::start(Config config, Events events) {
 
 void PlayerDecoder::pause() {
     std::lock_guard<std::mutex> lock(mutex_);
-    paused_ = true;
+    if (!paused_) {
+        paused_ = true;
+        paused_at_s_ = monotonic_seconds();
+    }
 }
 
 void PlayerDecoder::resume() {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (paused_) {
-            resumed_ = true;
+            // The clock, and every frame already queued, pick up where the pause left them.
+            const double paused_for = monotonic_seconds() - paused_at_s_;
+            pending_shift_s_ += paused_for;
+            exchange_.shift_due(paused_for);
         }
         paused_ = false;
     }
@@ -236,26 +239,33 @@ bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, bool&
 
     FrameAssembler assembler(frame_bytes(out, config_.format));
     const auto base_index = static_cast<int64_t>(std::llround(start_s * fps));
+    // Each frame goes to the UI one period before it is due, so the
+    // presentation timer finds it waiting when its moment comes.
+    const double lead_s = 1.0 / fps;
     int64_t n = 0;
-    Clock::time_point anchor = Clock::now();
+    double anchor_s = monotonic_seconds();
     bool interrupted = false;
+
+    // Wait out a pause; true when the run must stop reading (stop or seek).
+    // Takes up any time the clock was paused for.
+    auto settle = [&](std::unique_lock<std::mutex>& lock) {
+        if (paused_ && wait_while_paused(lock)) {
+            return true;
+        }
+        if (stop_.load() || seek_to_) {
+            return true;
+        }
+        anchor_s += pending_shift_s_;
+        pending_shift_s_ = 0.0;
+        return false;
+    };
 
     while (true) {
         {
             std::unique_lock<std::mutex> lock(mutex_);
-            if (paused_ && wait_while_paused(lock)) {
+            if (settle(lock)) {
                 interrupted = true;
                 break;
-            }
-            if (stop_.load() || seek_to_) {
-                interrupted = true;
-                break;
-            }
-            if (resumed_) {
-                // Pick the clock up where the pause left it.
-                resumed_ = false;
-                anchor = Clock::now() - std::chrono::duration_cast<Clock::duration>(
-                                            std::chrono::duration<double>(n / fps));
             }
         }
 
@@ -275,24 +285,29 @@ bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, bool&
             continue;
         }
 
-        const PaceDecision pace = pace_frame(n, fps, seconds_since(anchor));
-        if (pace.reanchor) {
-            anchor = Clock::now() - std::chrono::duration_cast<Clock::duration>(
-                                        std::chrono::duration<double>(n / fps));
-        }
-        if (pace.wait_s > 0.0) {
+        // Hold the frame until its hand-over time, waking for stop, seek and pause.
+        while (!interrupted) {
             std::unique_lock<std::mutex> lock(mutex_);
-            cv_.wait_for(lock, std::chrono::duration<double>(pace.wait_s),
-                         [this] { return stop_.load() || seek_to_.has_value() || paused_; });
-            if (stop_.load() || seek_to_) {
+            if (settle(lock)) {
                 interrupted = true;
                 break;
             }
-            // A pause that lands while this frame waits shows it on resume.
+            const PaceDecision pace = pace_frame(n, fps, monotonic_seconds() - anchor_s, lead_s);
+            if (pace.reanchor) {
+                // Decoding fell behind: this frame is due now, not in the past.
+                anchor_s = monotonic_seconds() - static_cast<double>(n) / fps;
+            }
+            if (pace.wait_s <= 0.0) {
+                break;
+            }
+            cv_.wait_for(lock, std::chrono::duration<double>(pace.wait_s),
+                         [this] { return stop_.load() || seek_to_.has_value() || paused_; });
         }
-        if (exchange_.publish(assembler.frame(), out, base_index + n) && events_.on_frame) {
-            events_.on_frame();
+        if (interrupted) {
+            break;
         }
+        exchange_.publish(assembler.frame(), out, base_index + n,
+                          anchor_s + static_cast<double>(n) / fps);
         got_frame = true;
         ++n;
     }

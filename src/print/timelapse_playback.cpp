@@ -4,6 +4,7 @@
 #include "timelapse_playback.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -275,14 +276,34 @@ std::string format_clock(double seconds) {
     return buf;
 }
 
-// --- Pacing ---
+// --- Pacing and presentation ---
 
-PaceDecision pace_frame(int64_t index, double fps, double elapsed_s, double max_late_s) {
+PaceDecision pace_frame(int64_t index, double fps, double elapsed_s, double lead_s,
+                        double max_late_s) {
     const double due = static_cast<double>(index) / effective_fps(fps);
-    if (elapsed_s <= due) {
-        return {due - elapsed_s, false};
+    const double hand_over = due - lead_s;
+    if (elapsed_s < hand_over) {
+        return {hand_over - elapsed_s, false};
     }
     return {0.0, elapsed_s - due > max_late_s};
+}
+
+int pick_due_frame(const std::vector<double>& due_s, double now_s) {
+    int pick = -1;
+    for (size_t i = 0; i < due_s.size() && due_s[i] <= now_s; ++i) {
+        pick = static_cast<int>(i);
+    }
+    return pick;
+}
+
+uint32_t present_poll_ms(double fps) {
+    const double quarter_ms = 1000.0 / effective_fps(fps) / 4.0;
+    return static_cast<uint32_t>(std::clamp(quarter_ms, 4.0, 10.0));
+}
+
+double monotonic_seconds() {
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch())
+        .count();
 }
 
 // --- Assembler ---
@@ -315,18 +336,44 @@ bool FrameAssembler::commit(size_t n) {
 
 // --- Exchange ---
 
-bool FrameExchange::publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index) {
+void FrameExchange::publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index,
+                            double due_s) {
     std::lock_guard<std::mutex> lock(mutex_);
-    ready_.swap(frame);
-    size_ = size;
-    index_ = index;
     ++stats_.published;
-    const bool was_fresh = fresh_;
-    if (was_fresh) {
+    if (queue_.size() >= kSlots) {
         ++stats_.dropped;
+        if (queue_.front().due_s > monotonic_seconds()) {
+            ++stats_.dropped_early;
+        }
+        recycle_front();
     }
-    fresh_ = true;
-    return !was_fresh;
+    Slot slot;
+    slot.pixels.swap(frame);
+    slot.size = size;
+    slot.index = index;
+    slot.due_s = due_s;
+    queue_.push_back(std::move(slot));
+    if (!free_.empty()) {
+        frame.swap(free_.back());
+        free_.pop_back();
+    }
+}
+
+void FrameExchange::recycle_front() {
+    free_.push_back(std::move(queue_.front().pixels));
+    queue_.erase(queue_.begin());
+}
+
+size_t FrameExchange::pending() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return queue_.size();
+}
+
+void FrameExchange::shift_due(double seconds) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    for (auto& slot : queue_) {
+        slot.due_s += seconds;
+    }
 }
 
 FrameExchange::Stats FrameExchange::stats() const {
@@ -336,7 +383,9 @@ FrameExchange::Stats FrameExchange::stats() const {
 
 void FrameExchange::clear() {
     std::lock_guard<std::mutex> lock(mutex_);
-    fresh_ = false;
+    while (!queue_.empty()) {
+        recycle_front();
+    }
 }
 
 } // namespace helix::timelapse

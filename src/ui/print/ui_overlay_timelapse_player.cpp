@@ -50,6 +50,7 @@ void open_timelapse_player(const std::string& path, const std::string& title) {
 TimelapsePlayerOverlay::TimelapsePlayerOverlay() = default;
 
 TimelapsePlayerOverlay::~TimelapsePlayerOverlay() {
+    cancel_present_timer();
     stop_decoder();
     free_draw_buf();
     subjects_.deinit_all();
@@ -117,6 +118,7 @@ void TimelapsePlayerOverlay::on_deactivating(DeactivateReason) {
 }
 
 void TimelapsePlayerOverlay::cleanup() {
+    cancel_present_timer();
     stop_decoder();
     if (video_frame_) {
         lv_image_set_src(video_frame_, nullptr);
@@ -168,9 +170,6 @@ void TimelapsePlayerOverlay::start_decoder() {
                                  helix::timelapse::FrameSize) {
         tok.defer("TimelapsePlayer::info", [this, info]() { on_info(info); });
     };
-    events.on_frame = [this, tok]() {
-        tok.defer("TimelapsePlayer::frame", [this]() { present_frame(); });
-    };
     events.on_end = [this, tok](bool failed) {
         tok.defer("TimelapsePlayer::end", [this, failed]() { on_end(failed); });
     };
@@ -179,10 +178,28 @@ void TimelapsePlayerOverlay::start_decoder() {
     spdlog::info("[{}] Playing {} ({}x{} {})", get_name(), path_, config.box.width,
                  config.box.height, helix::timelapse::ffmpeg_pix_fmt_name(format_));
     decoder_->start(std::move(config), std::move(events));
+    start_present_timer();
+}
+
+void TimelapsePlayerOverlay::start_present_timer() {
+    cancel_present_timer();
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            static_cast<TimelapsePlayerOverlay*>(lv_timer_get_user_data(t))->present_frame();
+        },
+        helix::timelapse::present_poll_ms(fps_), this);
+    present_timer_.reset(timer);
+}
+
+void TimelapsePlayerOverlay::cancel_present_timer() {
+    // lv_timer_cancel_safe() underneath: safe from the timer's own callback and
+    // after lv_deinit().
+    present_timer_.reset();
 }
 
 void TimelapsePlayerOverlay::stop_decoder() {
     hide_timer_.reset();
+    cancel_present_timer();
     // Queued frames and events become no-ops before the decoder goes away.
     decoder_lifetime_.invalidate();
     if (!decoder_) {
@@ -191,8 +208,10 @@ void TimelapsePlayerOverlay::stop_decoder() {
     const auto stats = decoder_->exchange().stats();
     decoder_->stop();
     decoder_.reset();
-    spdlog::info("[{}] Stopped: {} frames decoded, {} shown, {} dropped", get_name(),
-                 stats.published, stats.shown, stats.dropped);
+    spdlog::info("[{}] Stopped: {} frames decoded, {} shown, {} dropped ({} the UI was late for, "
+                 "{} before due)",
+                 get_name(), stats.published, stats.shown, stats.dropped, stats.dropped_late,
+                 stats.dropped_early);
 }
 
 void TimelapsePlayerOverlay::on_info(const helix::timelapse::VideoInfo& info) {
@@ -201,18 +220,19 @@ void TimelapsePlayerOverlay::on_info(const helix::timelapse::VideoInfo& info) {
     lv_subject_set_string(&total_subject_, helix::timelapse::format_clock(duration_s_).c_str());
     set_state(kPlaying);
     arm_hide_timer();
+    // Look for frames at this video's own rate.
+    start_present_timer();
 }
 
 void TimelapsePlayerOverlay::on_end(bool failed) {
     if (failed) {
         spdlog::warn("[{}] Could not decode {}", get_name(), path_);
+        cancel_present_timer();
         set_state(kFailed);
         return;
     }
+    // The last frames may still be queued; the timer shows them, then stops.
     set_state(kEnded);
-    if (duration_s_ > 0.0) {
-        show_position(duration_s_);
-    }
 }
 
 void TimelapsePlayerOverlay::ensure_draw_buf(helix::timelapse::FrameSize size) {
@@ -241,7 +261,8 @@ void TimelapsePlayerOverlay::present_frame() {
         return;
     }
     int64_t index = -1;
-    decoder_->exchange().consume(
+    decoder_->exchange().consume_due(
+        helix::timelapse::monotonic_seconds(),
         [&](const uint8_t* pixels, helix::timelapse::FrameSize size, int64_t frame_index) {
             ensure_draw_buf(size);
             if (!draw_buf_) {
@@ -263,6 +284,12 @@ void TimelapsePlayerOverlay::present_frame() {
             index = frame_index;
         });
     if (index < 0) {
+        if (state_ == kEnded && decoder_->exchange().pending() == 0) {
+            cancel_present_timer();
+            if (duration_s_ > 0.0) {
+                show_position(duration_s_);
+            }
+        }
         return;
     }
     lv_obj_invalidate(video_frame_);
@@ -336,9 +363,11 @@ void TimelapsePlayerOverlay::play_pause() {
     }
     if (state_ == kPlaying) {
         decoder_->pause();
+        cancel_present_timer();
         set_state(kPaused);
     } else if (state_ == kPaused) {
         decoder_->resume();
+        start_present_timer();
         set_state(kPlaying);
         arm_hide_timer();
     }
@@ -349,6 +378,7 @@ void TimelapsePlayerOverlay::replay() {
         return;
     }
     decoder_->seek(0.0);
+    start_present_timer();
     shown_second_ = -1;
     set_state(kPlaying);
     show_position(0.0);
@@ -369,6 +399,7 @@ void TimelapsePlayerOverlay::scrub_released() {
         helix::timelapse::seek_seconds_for(lv_subject_get_int(&position_subject_), duration_s_);
     spdlog::debug("[{}] Seek to {:.2f}s", get_name(), target);
     decoder_->seek(target);
+    start_present_timer();
     shown_second_ = -1;
     set_state(kPlaying);
     show_position(target);
