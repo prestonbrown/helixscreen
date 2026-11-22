@@ -21,6 +21,8 @@ The Z column stays on the right on the Move and Bed tabs. On the Jog tab it is p
 
 On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), the Motion screen sits beside the Controls panel instead of opening over it:
 
+![The Controls panel on a 1920x440 ultrawide screen, with the Motion screen beside its cards](../../images/user/controls-ultrawide.png)
+
 1. Tap **Controls** in the navigation bar. The Controls cards fill the left part of the screen and the Motion screen, with its tabs, fills the space to their right.
 2. Jog, move or tap the bed map as usual. Both halves work at the same time, so you can watch a temperature or switch a fan on the left while you move the toolhead on the right.
 
@@ -259,7 +261,9 @@ The Motion screen has its own home buttons: the [Home Bar](#home-bar) and the jo
 
 ## Calibration Buttons on the Controls Panel
 
-The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, as on a 480x800 portrait screen, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them.
+The Controls panel's **Calibration & Tools** card holds the calibration actions your printer supports. The grid rearranges itself to fit the card. On a landscape screen five or six buttons sit three across in two rows, a taller card stacks them two across, and every button keeps its label on one line. When the card is too small for labels at all, the buttons show their icons alone. In portrait the panel's top cards rearrange too: **Position** sits beside **Temperature**, with **Cooling** across the full width below them.
+
+![The Controls panel on a 480x800 portrait screen: Position beside Temperature, Cooling across the width, Calibration & Tools beside Quick Actions](../../images/user/controls-portrait.png)
 
 - **Bed Mesh** and **Z Calibration**
 - **QGL** (Quad Gantry Level, shown only when `quad_gantry_level` is configured)

@@ -326,6 +326,9 @@ class AmsBackendCfs : public AmsSubscriptionBackend, public ICfsCalibration, pub
     /// empty on stock, with no plan published, or with swapping off.
     /// @note Takes `mutex_`; callers must NOT hold it.
     [[nodiscard]] helix::printer::EndlessSpoolConfig get_endless_spool_config() const override;
+    /// The fork's swap chain where it publishes one; otherwise another loaded
+    /// slot in this slot's same_material group, -1 when none is loaded.
+    [[nodiscard]] std::optional<int> runout_backup_for(int slot) const override;
 
   protected:
     /// The auto-refill setter: BOX_ENABLE_AUTO_REFILL, or the fork's _BOX_SET_RUNOUT_SWAP.

@@ -3415,6 +3415,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。'
   Pauses on runout: '用尽时暂停'
+  Pauses on runout (no matching spool): '用尽时暂停（无匹配料盘）'
+  Pauses on runout ({} off): '用尽时暂停（{}已关闭）'
   Pausing at layer {}.: '将在第 {} 层暂停。'
   Pausing...: 暂停中...
   Peak Freq: 峰值频率
@@ -5867,6 +5869,7 @@ translations:
   attempt {}: '第 {} 次尝试'
   auto: 自动
   automatic: '自动'
+  automatic refill: '自动补料'
   bed: 热床
   buffer|Neutral: 中位
   busy: '正忙'

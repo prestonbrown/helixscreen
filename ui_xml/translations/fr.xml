@@ -3294,6 +3294,8 @@
   <translation tag="Paused by {}: {}" fr="Mis en pause par {} : {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." fr="Met une impression en pause à une couche choisie, pour changer de filament ou poser un insert. Pendant l&apos;impression, choisissez la couche dans la carte d&apos;aperçu de l&apos;écran d&apos;état."/>
   <translation tag="Pauses on runout" fr="Pause en fin de filament"/>
+  <translation tag="Pauses on runout (no matching spool)" fr="Pause en fin de filament (aucune bobine correspondante)"/>
+  <translation tag="Pauses on runout ({} off)" fr="Pause en fin de filament ({} désactivé)"/>
   <translation tag="Pausing at layer {}." fr="Pause à la couche {}."/>
   <translation tag="Pausing..." fr="Pause en cours..."/>
   <translation tag="Peak Freq" fr="Fréq. pic"/>
@@ -5662,6 +5664,7 @@
   <translation tag="attempt {}" fr="essai {}"/>
   <translation tag="auto" fr="auto"/>
   <translation tag="automatic" fr="automatique"/>
+  <translation tag="automatic refill" fr="recharge automatique"/>
   <translation tag="bed" fr="plateau"/>
   <translation tag="buffer|Neutral" fr="Centré"/>
   <translation tag="busy" fr="occupé"/>

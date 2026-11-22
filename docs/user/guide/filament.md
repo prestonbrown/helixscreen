@@ -53,9 +53,13 @@ The Filament panel is laid out in cards, like the Controls panel. In landscape t
 
 In portrait (such as a 320x480 screen) the cards stack in one column, with the readings side by side on one line and the material presets in one row, **Cool Down** in the Material card's header.
 
+![The Filament panel on a 480x800 portrait screen, its cards stacked in one column](../../images/user/filament-portrait.png)
+
 ### On an ultrawide screen
 
 On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), a printer with a multi-material system or several toolheads shows its Filament System panel beside the Filament panel instead of over it:
+
+![The Filament panel on a 1920x440 ultrawide screen, with the Filament System panel beside its cards](../../images/user/filament-ultrawide.png)
 
 1. Tap **Filament** in the navigation bar. The Filament cards fill the left part of the screen, and the Filament System panel, with its slots and filament path, fills the space to their right.
 2. Load, unload or edit a slot on the right while the temperatures and the Operations card stay in view on the left.
@@ -131,7 +135,7 @@ With a QIDI Box, box slots load and unload the way the stock screen does them.
 2. What is loaded now.
 3. The action buttons: Load, Unload and the others your system offers (a Happy Hare printer shows Home here).
 
-A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap the slot bars on the Filament panel's Multi-Filament card to open it (the whole row of bars is one tap target, and **Manage** beside it does the same; with several heads it is a smaller button, and in portrait, where the bars sit in the Operations header, they end in a chevron instead). The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
+A printer with a multi-material system (Happy Hare, AFC, OpenAMS, ACE, a tool changer, the Snapmaker U1, the Creality CFS, the AD5X IFS, the QIDI Box) gets a Filament System panel that draws your slots and the filament path. Tap the slot bars on the Filament panel's Multi-Filament card to open it (the whole row of bars is one tap target, and **Manage** beside it does the same; with several heads it is a smaller button, and in portrait on a printer with several heads, where the bars sit in the Operations header, they end in a chevron instead). The panel's header has a gear that opens Multi-Filament System Management. The details live on their own pages:
 
 | Topic | Page |
 |-------|------|

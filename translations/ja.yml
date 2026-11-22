@@ -3415,6 +3415,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。'
   Pauses on runout: 'フィラメント切れで一時停止'
+  Pauses on runout (no matching spool): 'フィラメント切れで一時停止（一致するスプールなし）'
+  Pauses on runout ({} off): 'フィラメント切れで一時停止（{}オフ）'
   Pausing at layer {}.: 'レイヤー {} で一時停止します。'
   Pausing...: 一時停止中...
   Peak Freq: ピーク周波数
@@ -5867,6 +5869,7 @@ translations:
   attempt {}: '試行 {}'
   auto: 自動
   automatic: '自動'
+  automatic refill: '自動補充'
   bed: ベッド
   buffer|Neutral: 中央
   busy: 'ビジー状態'

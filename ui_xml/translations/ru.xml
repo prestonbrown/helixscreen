@@ -3336,6 +3336,8 @@
   <translation tag="Paused by {}: {}" ru="Приостановлено ({}): {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ru="Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати."/>
   <translation tag="Pauses on runout" ru="Пауза при окончании"/>
+  <translation tag="Pauses on runout (no matching spool)" ru="Пауза при окончании (нет подходящей катушки)"/>
+  <translation tag="Pauses on runout ({} off)" ru="Пауза при окончании ({} выкл.)"/>
   <translation tag="Pausing at layer {}." ru="Пауза на слое {}."/>
   <translation tag="Pausing..." ru="Приостановка..."/>
   <translation tag="Peak Freq" ru="Пиковая частота"/>
@@ -5722,6 +5724,7 @@
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
   <translation tag="automatic" ru="автоматически"/>
+  <translation tag="automatic refill" ru="автоподача"/>
   <translation tag="bed" ru="стол"/>
   <translation tag="buffer|Neutral" ru="Нейтрален"/>
   <translation tag="busy" ru="занят"/>
