@@ -4965,16 +4965,28 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
 
             // The mounted extruder names its own seated lane. Precise even where
             // several lanes feed one extruder, which a lane→tool map cannot be.
-            if (!mounted->lane_loaded.empty()) {
-                const int slot = slots_.index_of(mounted->lane_loaded);
-                if (slot >= 0) {
-                    system_info_.current_slot = slot;
-                    const helix::printer::SlotEntry* entry = slots_.get(slot);
-                    if (entry != nullptr && entry->info.status != SlotStatus::UNKNOWN) {
-                        system_info_.filament_loaded = (entry->info.status == SlotStatus::LOADED);
-                    }
-                    return;
+            const int slot =
+                mounted->lane_loaded.empty() ? -1 : slots_.index_of(mounted->lane_loaded);
+
+            // The active tool is the seated lane's AFC tool, read from this
+            // frame's slot order, and with no seated tool the head's lowest one.
+            // Nothing earlier in the frame may stand in for it:
+            // toolchanger.tool_number counts heads, not lanes, and a tool derived
+            // from current_load names a slot index the unit objects may since
+            // have regrouped (#2158). A head no lane feeds stands for no tool.
+            int tool = slot >= 0 ? slots_.tool_for_slot(slot) : -1;
+            if (tool < 0) {
+                tool = lowest_tool_on_extruder_unlocked(mounted_name);
+            }
+            system_info_.current_tool = tool;
+
+            if (slot >= 0) {
+                system_info_.current_slot = slot;
+                const helix::printer::SlotEntry* entry = slots_.get(slot);
+                if (entry != nullptr && entry->info.status != SlotStatus::UNKNOWN) {
+                    system_info_.filament_loaded = (entry->info.status == SlotStatus::LOADED);
                 }
+                return;
             }
 
             // Mounted but holding nothing: a real state, not a reason to keep a
@@ -6542,6 +6554,23 @@ helix::printer::EndlessSpoolCapabilities AmsBackendAfc::get_endless_spool_capabi
 
 std::vector<int> AmsBackendAfc::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);
+    return tool_mapping_unlocked();
+}
+
+int AmsBackendAfc::lowest_tool_on_extruder_unlocked(const std::string& ext_name) const {
+    const std::string klipper_name = klipper_extruder_name_unlocked(ext_name);
+    const std::vector<int> mapping = tool_mapping_unlocked();
+    for (size_t tool = 0; tool < mapping.size(); ++tool) {
+        const helix::printer::SlotEntry* entry = slots_.get(mapping[tool]);
+        if (entry != nullptr && !entry->info.extruder_name.empty() &&
+            entry->info.extruder_name == klipper_name) {
+            return static_cast<int>(tool);
+        }
+    }
+    return -1;
+}
+
+std::vector<int> AmsBackendAfc::tool_mapping_unlocked() const {
     std::vector<int> mapping = slots_.build_system_info().tool_to_slot_map;
     // The extras of a multi-tool lane run that lane too.
     for (const auto& [lane_name, tools] : lane_map_tools_) {

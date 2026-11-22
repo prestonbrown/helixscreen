@@ -977,6 +977,17 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
      */
     [[nodiscard]] int tool_index_for_extruder_unlocked(const std::string& ext_name) const;
 
+    /// get_tool_mapping() for a caller already holding mutex_.
+    [[nodiscard]] std::vector<int> tool_mapping_unlocked() const;
+
+    /**
+     * @brief Lowest AFC tool whose lane feeds an AFC_extruder section, or -1.
+     *
+     * The tool a mounted head with no seated lane stands for: the same one
+     * ToolState's head grouping falls back to. Caller must hold mutex_.
+     */
+    [[nodiscard]] int lowest_tool_on_extruder_unlocked(const std::string& ext_name) const;
+
     /**
      * @brief Parse lane data from database response
      *

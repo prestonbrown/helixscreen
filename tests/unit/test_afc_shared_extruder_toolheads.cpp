@@ -129,6 +129,14 @@ class AfcSharedExtruderHelper : public AmsBackendAfc {
             hubs.push_back(hub.get<std::string>());
         }
         set_discovered_lanes(lanes, hubs);
+        discovered_lanes_ = lanes;
+    }
+
+    /// What start() does before the first status frame arrives: the slots
+    /// exist, in discovery order, before any unit object regroups them.
+    void seed_slots_from_discovery() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        AfcTestAccess::initialize_slots(*this, discovered_lanes_);
     }
 
     void feed(const nlohmann::json& status) {
@@ -154,6 +162,9 @@ class AfcSharedExtruderHelper : public AmsBackendAfc {
         AfcTestAccess::configfile_answered(*this) = true; // stands in for the query having landed
         AfcTestAccess::extruder_tool_index_warned(*this).clear();
     }
+
+  private:
+    std::vector<std::string> discovered_lanes_;
 };
 } // namespace helix
 
@@ -185,6 +196,37 @@ TEST_CASE("AFC shared extruders: two units on one extruder draw one toolhead",
     INFO("drew " << layout.total_physical_tools << " toolhead nodes for " << extruders.size()
                  << " extruders");
     CHECK(layout.total_physical_tools == static_cast<int>(extruders.size()));
+}
+
+// The first frame of a connection names AFC.current_load before the unit
+// objects regroup the slots, so a tool read from that lane's slot index then
+// names whatever lane lands on that index after the regroup. The mounted
+// extruder still says which head is on the carriage, and the frames that follow
+// carry no current_load to correct it.
+TEST_CASE("AFC shared extruders: the mounted head survives the first frame's slot regroup",
+          "[ams][afc][2158][toolchanger][shared_extruder]") {
+    auto fixture = load_fixture("afc_u1_shared_extruders.json");
+    const auto& status = fixture["status"];
+    REQUIRE(status["AFC_extruder e3"]["on_shuttle"].get<bool>());
+    REQUIRE(status["AFC"]["current_load"] == "lane10");
+
+    AfcSharedExtruderHelper afc;
+    afc.discover_from(status);
+    afc.seed_slots_from_discovery();
+    afc.feed(status);
+    afc.feed(nlohmann::json::object());
+
+    const AmsSystemInfo info = afc.get_system_info();
+    const std::vector<int> mapping = afc.get_tool_mapping();
+    INFO("current_tool=" << info.current_tool << " current_slot=" << info.current_slot);
+    REQUIRE(info.current_tool >= 0);
+    REQUIRE(info.current_tool < static_cast<int>(mapping.size()));
+    const SlotInfo* slot = info.get_slot_global(mapping[static_cast<size_t>(info.current_tool)]);
+    REQUIRE(slot != nullptr);
+    INFO("the active tool prints through another head than the one on the carriage");
+    CHECK(slot->extruder_name == "e3");
+    INFO("the active tool runs a lane other than the one seated on the carriage");
+    CHECK(mapping[static_cast<size_t>(info.current_tool)] == info.current_slot);
 }
 
 TEST_CASE("AFC shared extruders: merging needs no configfile",
