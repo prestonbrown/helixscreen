@@ -115,6 +115,8 @@ class BedMeshPanel : public OverlayBase {
         /// @p staged_profile: a profile the calibration left pending that could
         /// not be removed again, which a save would write; empty when none.
         std::function<void(const std::string& why, const std::string& staged_profile)> failed;
+        /// Each probed point: how many so far, of @p total (0 when the firmware does not say).
+        std::function<void(int current, int total)> probed;
     };
     /// Calibrate into the default profile for a guided run: the same plan,
     /// preheat, homing and probing as the panel's own, without the panel's

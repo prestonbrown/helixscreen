@@ -115,7 +115,11 @@ class HeatersStep : public CalibrationStep {
         if (!detail.empty()) {
             phase += " · " + detail;
         }
-        ctx_->progress({std::move(phase), std::clamp(pct, 0, 99)});
+        StepLive live;
+        live.heater = heaters_[index_].name;
+        live.target_c = heaters_[index_].temp_c;
+        live.mpc = mpc_;
+        ctx_->progress({std::move(phase), std::clamp(pct, 0, 99), std::move(live)});
     }
 
     /// A PID cycle's progress. Where the firmware repeats cycles until they
@@ -144,6 +148,7 @@ class HeatersStep : public CalibrationStep {
             ctx->done(StepOutcome::finished({joined_summary(), values_}));
             return;
         }
+        mpc_ = false;
         report(lv_tr("checking"), 0);
         const std::string heater = heaters_[index_].name;
         ctx_->api.advanced().get_heater_control_type(
@@ -194,6 +199,7 @@ class HeatersStep : public CalibrationStep {
         }
         const Heater h = heaters_[index_];
         spdlog::info("[CalibrationRun] MPC_CALIBRATE {} at {}°C", h.name, h.temp_c);
+        mpc_ = true;
         report("MPC", 0);
         command_sent_ = true;
         ctx_->api.advanced().start_mpc_calibrate(
@@ -253,6 +259,8 @@ class HeatersStep : public CalibrationStep {
     size_t index_ = 0;
     std::vector<std::string> summaries_;
     nlohmann::json values_ = nlohmann::json::object();
+    /// The current heater runs MPC_CALIBRATE.
+    bool mpc_ = false;
     /// A calibration command is running in Klipper for the current heater.
     bool command_sent_ = false;
     /// The last abort() restarted the firmware.
@@ -279,7 +287,7 @@ class BedMeshStep : public CalibrationStep {
     void start(StepContext& ctx) override {
         ctx_ = &ctx;
         aborted_ = false;
-        ctx.progress({lv_tr("Probing the bed"), -1});
+        ctx.progress({lv_tr("Probing the bed"), -1, {}});
         BedMeshPanel::RunHooks hooks;
         hooks.stored = [this](const std::string& profile, std::optional<double> range) {
             if (auto* c = take()) {
@@ -306,6 +314,19 @@ class BedMeshStep : public CalibrationStep {
                 why,
                 {fmt::format(fmt::runtime(lv_tr("a temporary mesh profile '{}'")), staged_profile),
                  {{"profile", staged_profile}}}));
+        };
+        hooks.probed = [this](int current, int total) {
+            if (!ctx_) {
+                return;
+            }
+            StepLive live;
+            live.probed = current;
+            live.probe_total = total;
+            ctx_->progress(
+                {total > 0
+                     ? fmt::format(fmt::runtime(lv_tr("Probing point {} of {}")), current, total)
+                     : std::string(lv_tr("Probing the bed")),
+                 total > 0 ? std::clamp(current * 100 / total, 0, 99) : -1, std::move(live)});
         };
         get_global_bed_mesh_panel().calibrate_for_run(&ctx.api, std::move(hooks));
     }
@@ -359,11 +380,11 @@ class InputShaperStep : public CalibrationStep {
         ctx_ = &ctx;
         aborted_ = false;
         calibrator_ = std::make_unique<InputShaperCalibrator>(&ctx.api);
-        ctx.progress({lv_tr("Checking the accelerometer"), -1});
+        ctx.progress({lv_tr("Checking the accelerometer"), -1, {}});
         calibrator_->run_both_axes(
             lifetime_.bg_cb(
                 "CalibrationRun.Shaper.progress",
-                [this](char axis, int percent, ShaperCalibrationPhase phase) {
+                [this](char axis, int percent, ShaperCalibrationPhase phase, float freq_hz) {
                     if (!ctx_) {
                         return;
                     }
@@ -372,7 +393,11 @@ class InputShaperStep : public CalibrationStep {
                         analyzing ? fmt::format(fmt::runtime(lv_tr("Analyzing the {} axis")), axis)
                                   : fmt::format(fmt::runtime(lv_tr("Shaking the {} axis")), axis);
                     const int base = axis == 'X' ? 0 : 50;
-                    ctx_->progress({text, analyzing ? -1 : base + percent / 2});
+                    StepLive live;
+                    live.axis = axis;
+                    live.analyzing = analyzing;
+                    live.sweep_hz = analyzing ? 0.0f : freq_hz;
+                    ctx_->progress({text, analyzing ? -1 : base + percent / 2, std::move(live)});
                 }),
             lifetime_.bg_cb(
                 "CalibrationRun.Shaper.done",
@@ -470,7 +495,7 @@ class ZOffsetStep : public CalibrationStep {
         old_offset_mm_ = lv_subject_get_int(
                              ctx.api.printer_state().motion_state().get_gcode_z_offset_subject()) /
                          1000.0;
-        ctx.progress({lv_tr("Waiting for you at the Z offset screen"), -1});
+        ctx.progress({lv_tr("Waiting for you at the Z offset screen"), -1, {}});
         get_global_zoffset_cal_panel().open_for_run(
             &ctx.api, [this, alive = std::weak_ptr<int>(alive_)](
                           bool accepted, float z, ZOffsetCalibrationStrategy strategy) {

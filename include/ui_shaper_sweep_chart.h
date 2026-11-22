@@ -74,6 +74,10 @@ class ShaperSweepChart {
     /// frequency, Analyzing finishes the stream. Other phases do nothing.
     void on_progress(ShaperCalibrationPhase phase, float freq_hz);
 
+    /// Mark the drawn curve's highest point with its frequency, redrawn with
+    /// every update. Off by default.
+    void set_marks_peak(bool marks);
+
     /// Stop the preview and draw the CSV curve (freq, psd) in its place.
     void show_curve(const std::vector<std::pair<float, float>>& freq_response);
 
@@ -100,6 +104,7 @@ class ShaperSweepChart {
     int series_ = -1;
     helix::calibration::SweepColumn column_ = helix::calibration::SweepColumn::X;
     bool has_curve_ = false;
+    bool marks_peak_ = false;
     std::function<void(bool)> on_curve_changed_;
 };
 

@@ -56,11 +56,36 @@ struct StepOutcome {
     }
 };
 
+/// What a running step's live card draws beside the phase line. A step fills
+/// only the fields of its own kind; the rest keep their defaults.
+struct StepLive {
+    /// Heaters: the Klipper heater being calibrated ("extruder", "heater_bed").
+    std::string heater;
+    /// Heaters: the temperature it is calibrated at.
+    int target_c = 0;
+    /// Heaters: MPC_CALIBRATE rather than PID_CALIBRATE.
+    bool mpc = false;
+    /// Bed mesh: points probed so far, and how many the mesh has (0 when the
+    /// firmware does not say).
+    int probed = 0;
+    int probe_total = 0;
+    /// Belt tension: each belt's pull as a fraction of its target (X, then Y);
+    /// negative while the step does not measure it.
+    float belt_pull[2] = {-1.0f, -1.0f};
+    /// Input shaper: the axis under test, 'X' or 'Y'; 0 before the first sweep.
+    char axis = 0;
+    /// Input shaper: the sweep's latest console frequency, 0 when not sweeping.
+    float sweep_hz = 0.0f;
+    /// Input shaper: the axis's sweep is over and Klipper is fitting shapers.
+    bool analyzing = false;
+};
+
 /// Where a running step is: a translated phase line and a percentage, or -1
 /// while the step cannot tell how far along it is.
 struct StepProgress {
     std::string phase;
     int percent = -1;
+    StepLive live;
 };
 
 /// What a step is given to run. Both callbacks are main-thread only, and done

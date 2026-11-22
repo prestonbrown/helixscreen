@@ -1483,6 +1483,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "Ne faites pas de cold pull sur une buse revêtue. Le cold pull s'exécute sur l'outil actif."
   Do not power off your printer.: N'éteignez pas votre imprimante.
   Do not touch the filament yet.: "Ne touchez pas encore le filament."
+  Do not touch the nozzle or bed: ''
   Do not touch the nozzle or the bed.: 'Ne touchez ni la buse ni le plateau.'
   Do not touch the printer during calibration: Ne touchez pas l'imprimante pendant la calibration
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'N''éteignez pas l''imprimante avant la fin. Une coupure de courant pendant le flashage peut empêcher l''imprimante de démarrer.'
@@ -2125,6 +2126,7 @@ translations:
   Got it: Compris
   Gradient: Dégradé
   Gray: Gris
+  'Green mark: the tension the printer aims for': ''
   Grid: Grille
   Grip filament: Saisir le filament
   Grip the filament: Saisir le filament
@@ -2140,6 +2142,7 @@ translations:
   HEPA filter interval: 'Intervalle du filtre HEPA'
   HOST: Hôte
   HOST ACCESS: 'ACCÈS À L''HÔTE'
+  HOT: ''
   HTTP Code: Code HTTP
   'HTTP error: {} {}': 'Erreur HTTP : {} {}'
   HUMIDITY SENSORS: CAPTEURS D'HUMIDITÉ
@@ -2521,6 +2524,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Restez à l'écart de l'imprimante pendant que la tête d'outil se déplace
   Keep current: Garder l'actuel
   Keep current ({}): Garder l'actuel ({})
+  Keep hands clear: ''
   Keep hands clear except when asked. The printer moves on its own.: Gardez les mains éloignées sauf lorsque cela vous est demandé. L'imprimante bouge d'elle-même.
   Keep hands clear. The printer moves on its own.: Tenez vos mains à distance. L'imprimante bouge seule.
 
@@ -2592,6 +2596,7 @@ translations:
   LOADED: CHARGÉ
   LOCKED: VERROUILLÉ
   LOT-2024-001: LOT-2024-001
+  LOUD: ''
   Label Printer: Imprimante d'étiquettes
   Label Size: Taille d'étiquette
   Label printed: Étiquette imprimée
@@ -2774,8 +2779,11 @@ translations:
   MISSING CONFIGURED: CONFIGURÉ MANQUANT
   MMU command failed: Échec de la commande MMU
   MOTION & LEVELING: 'MOUVEMENT & NIVELLEMENT'
+  MOTORS: ''
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: Modèle thermique MPC calibré pour {} à {}.
+  'MPC: measuring how fast the bed heats and loses heat': ''
+  'MPC: measuring how fast the nozzle heats and loses heat': ''
   Machine Limits: Limites de la machine
   Macro: Macro
   Macro Browser: Navigateur de macros
@@ -3349,6 +3357,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  'PID: heating the bed in cycles to tune its control': ''
+  'PID: heating the nozzle in cycles to tune its control': ''
   PIN must be 4-6 digits: Le code PIN doit comporter 4 à 6 chiffres
   PIN removed: Code PIN supprimé
   PIN set: Code PIN défini
@@ -3701,6 +3711,7 @@ translations:
   Probing stopped at {}: 'Palpage arrêté sur {}'
   'Probing stopped: toolhead state': 'Palpage arrêté : état des têtes'
   Probing the bed: 'Palpage du plateau'
+  Probing the bed point by point: ''
   Probing was asked for before homing.: 'Le palpage a été demandé avant la prise d''origine.'
   Probing... ({} points): 'Palpage... ({} points)'
   Problem found: Problème détecté
@@ -4057,6 +4068,7 @@ translations:
   Revert now: 'Annuler maintenant'
   Review: Examiner
   Review detected hardware validation issues: Examiner les problèmes de validation matérielle détectés
+  Review the results, then save once.: ''
   Review the results, then save them all at once.: 'Vérifiez les résultats, puis enregistrez-les tous d''un coup.'
   Review your configuration below, then click Finish to save: Vérifiez votre configuration ci-dessous, puis cliquez sur Terminer pour enregistrer
   Rewinding: Rembobinage
@@ -4349,6 +4361,7 @@ translations:
   Shadow Intensity: Intensité de l'ombre
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Fait vibrer la tête d'outil le long de chaque diagonale et superpose les deux réponses. Des courroies équilibrées culminent ensemble.
+  Shaking each axis through a frequency sweep: ''
   Shaking the {} axis: 'Mise en vibration de l''axe {}'
   Share Screen: 'Partager l''écran'
   Share Usage Data: Partager les données d'utilisation
@@ -4803,6 +4816,7 @@ translations:
   The bed has cooled. Take the spools off the plate, then confirm.: Le plateau a refroidi. Retirez les bobines du plateau, puis confirmez.
 
   The bed is clear: 'Le plateau est dégagé'
+  The bed is hot: ''
   The bed is not heating: 'Le plateau ne chauffe pas'
   The bed is too far out of level for automatic compensation.: 'Le plateau est trop mal nivelé pour la compensation automatique.'
   The bed is too small for settling laps.: 'Le plateau est trop petit pour les tours de mise en place.'
@@ -4847,6 +4861,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : La carte contrôleur n'a pas pu suivre la fréquence de pas demandée, généralement parce que des micropas élevés s'ajoutent à une vitesse élevée, ou parce que l'hôte s'est figé.
   The controller boards Klipper runs on. See their load in the system settings.: 'Les cartes contrôleur sur lesquelles tourne Klipper. Consultez leur charge dans les paramètres système.'
+  The curve draws in as the axis sweeps: ''
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lame n'est pas revenue. Vérifiez qu'aucun filament n'est enroulé autour du mécanisme de coupe
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Le coupe-filament est désaligné. Recalibrez avec CALIBRATE_CUT_POS
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: Le pilote de {1} a trop chauffé, généralement à cause d'un courant moteur réglé trop haut ou d'un refroidissement insuffisant des pilotes.
@@ -5095,6 +5110,7 @@ translations:
   The speed of one fan you choose: La vitesse d'un ventilateur choisi
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Le masque de sous-réseau n''est pas valide. Utilisez une forme comme 255.255.255.0 ou 24.'
   The temperature was changed elsewhere.: "La température a été modifiée ailleurs."
+  The tensioners pull each belt to its target: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: L'amplificateur de thermocouple ou de PT100 a signalé un défaut ou une mesure hors plage.
   The time, date, and system uptime: Heure, date et temps de fonctionnement
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
@@ -5229,6 +5245,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Cette impression nécessite environ %.0fg mais il reste environ %.0fg sur la bobine. Démarrer quand même ?
   This print never reports layer {}.: 'Cette impression ne signale jamais la couche {}.'
   This printer cannot calibrate tool offsets automatically: Cette imprimante ne peut pas calibrer les offsets d'outil automatiquement
+  This printer cannot stream the sweep to the screen: ''
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Cette imprimante remplit ses gates depuis Spoolman. HelixScreen a effacé sa propre copie ; retirez la bobine dans Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Cette imprimante remplit ses gates depuis Spoolman. Effectuez les changements de couleur, matériau et bobine dans Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Cette imprimante dispose d''une compensation moteur, la vérification s''exécute donc deux fois : désactivée, puis activée.'
@@ -5850,6 +5867,7 @@ translations:
   about {} min: 'environ {} min'
   already loaded: 'déjà chargé'
   assign without adding to Spoolman: attribuer sans ajouter à Spoolman
+  at target: ''
   attempt {}: 'essai {}'
   auto: auto
   automatic: 'automatique'
@@ -5943,6 +5961,7 @@ translations:
   printer default: par défaut de l’imprimante
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg charge plus de {} fichiers de configuration ; [{}] n'a pas été cherché dans tous"
   prints: impressions
+  pulling...: ''
   ready to load: 'prêt à charger'
   remaining: restant
   remaining before clog detection triggers: restant avant le déclenchement de la détection de bouchon
@@ -6101,6 +6120,7 @@ translations:
   '{} new hardware available': '{} nouveau matériel disponible'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nouveaux plugins disponibles. Activez-les dans Paramètres > Plugins.'
   '{} nozzle sensor fault': '{} : défaut du capteur de buse'
+  '{} of {} points': ''
   '{} of {} steps finished. Review them, then save them all at once.': '{} étapes sur {} terminées. Vérifiez-les, puis enregistrez-les toutes d''un coup.'
   '{} packages to update': '{} paquets à mettre à jour'
   '{} preset': '{} préréglage'

@@ -1471,6 +1471,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "请勿对涂层喷嘴进行冷拉清理。冷拉清理在当前工具上运行。"
   Do not power off your printer.: 请勿关闭打印机电源。
   Do not touch the filament yet.: "请暂时不要触碰耗材。"
+  Do not touch the nozzle or bed: ''
   Do not touch the nozzle or the bed.: '请勿触碰喷嘴或热床。'
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完成之前请勿关闭打印机。刷写过程中断电可能导致打印机无法启动。'
@@ -2113,6 +2114,7 @@ translations:
   Got it: 知道了
   Gradient: 渐变
   Gray: 灰色
+  'Green mark: the tension the printer aims for': ''
   Grid: 网格
   Grip filament: 夹持耗材
   Grip the filament: 夹持耗材
@@ -2128,6 +2130,7 @@ translations:
   HEPA filter interval: 'HEPA 过滤器间隔'
   HOST: 主机
   HOST ACCESS: '主机访问'
+  HOT: ''
   HTTP Code: HTTP 代码
   'HTTP error: {} {}': 'HTTP 错误: {} {}'
   HUMIDITY SENSORS: 湿度传感器
@@ -2509,6 +2512,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: 工具头移动时请远离打印机
   Keep current: 保留当前
   Keep current ({}): 保持当前值 ({})
+  Keep hands clear: ''
   Keep hands clear except when asked. The printer moves on its own.: 除提示时外请让手远离打印机。打印机会自行移动。
   Keep hands clear. The printer moves on its own.: 请勿将手靠近。打印机会自行移动。
 
@@ -2580,6 +2584,7 @@ translations:
   LOADED: 已加载
   LOCKED: 已锁定
   LOT-2024-001: LOT-2024-001
+  LOUD: ''
   Label Printer: 标签打印机
   Label Size: 标签尺寸
   Label printed: 标签已打印
@@ -2762,8 +2767,11 @@ translations:
   MISSING CONFIGURED: 缺少配置
   MMU command failed: MMU 命令失败
   MOTION & LEVELING: '运动与调平'
+  MOTORS: ''
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: 已针对 {} 在 {} 下校准 MPC 热模型。
+  'MPC: measuring how fast the bed heats and loses heat': ''
+  'MPC: measuring how fast the nozzle heats and loses heat': ''
   Machine Limits: 机器限制
   Macro: 宏
   Macro Browser: 宏浏览器
@@ -3337,6 +3345,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  'PID: heating the bed in cycles to tune its control': ''
+  'PID: heating the nozzle in cycles to tune its control': ''
   PIN must be 4-6 digits: PIN 码必须为 4-6 位数字
   PIN removed: PIN 码已移除
   PIN set: PIN 码已设置
@@ -3689,6 +3699,7 @@ translations:
   Probing stopped at {}: '探测在 {} 处停止'
   'Probing stopped: toolhead state': '探测停止：工具头状态'
   Probing the bed: '正在探测热床'
+  Probing the bed point by point: ''
   Probing was asked for before homing.: '归位前就请求了探测。'
   Probing... ({} points): '探测中...（{} 个点）'
   Problem found: 发现问题
@@ -4045,6 +4056,7 @@ translations:
   Revert now: '立即还原'
   Review: 查看
   Review detected hardware validation issues: 查看检测到的硬件验证问题
+  Review the results, then save once.: ''
   Review the results, then save them all at once.: '查看结果，然后一次性全部保存。'
   Review your configuration below, then click Finish to save: 请检查以下配置，然后点击完成以保存
   Rewinding: 回卷中
@@ -4337,6 +4349,7 @@ translations:
   Shadow Intensity: 阴影强度
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: 沿每条对角线振动工具头，并同时显示两条响应曲线。张力一致的皮带峰值重合。
+  Shaking each axis through a frequency sweep: ''
   Shaking the {} axis: '正在振动 {} 轴'
   Share Screen: '共享屏幕'
   Share Usage Data: 共享使用数据
@@ -4791,6 +4804,7 @@ translations:
   The bed has cooled. Take the spools off the plate, then confirm.: 热床已冷却。请从热床上取下料盘,然后确认。
 
   The bed is clear: '热床已清空'
+  The bed is hot: ''
   The bed is not heating: '热床未加热'
   The bed is too far out of level for automatic compensation.: '热床不平程度超出自动补偿范围。'
   The bed is too small for settling laps.: '打印床太小，无法进行稳定绕圈。'
@@ -4835,6 +4849,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : 控制板跟不上所要求的步进速率，通常是高细分配合高速度，或主机卡顿。
   The controller boards Klipper runs on. See their load in the system settings.: '运行 Klipper 的控制板。在系统设置中查看其负载。'
+  The curve draws in as the axis sweeps: ''
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: 切刀未复位。请检查切刀机构上是否缠绕耗材
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: 切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: '{1} 的驱动过热，通常是运行电流设置过高或驱动散热不足。'
@@ -5083,6 +5098,7 @@ translations:
   The speed of one fan you choose: 所选风扇的转速
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: '子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。'
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
+  The tensioners pull each belt to its target: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 热电偶或 PT100 放大器报告故障或读数超出范围。
   The time, date, and system uptime: 时间、日期和系统运行时长
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
@@ -5217,6 +5233,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: 本次打印需要约 %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？
   This print never reports layer {}.: '此打印从不报告第 {} 层。'
   This printer cannot calibrate tool offsets automatically: 此打印机无法自动校准工具偏移
+  This printer cannot stream the sweep to the screen: ''
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: 此打印机的通道信息来自 Spoolman。HelixScreen 已清除本地副本；请在 Spoolman 中移除该线轴。
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: 此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。
   'This printer has motor compensation, so the check runs twice: with it off, then on.': '此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。'
@@ -5838,6 +5855,7 @@ translations:
   about {} min: '约 {} 分钟'
   already loaded: '已加载'
   assign without adding to Spoolman: 分配但不添加到 Spoolman
+  at target: ''
   attempt {}: '第 {} 次尝试'
   auto: 自动
   automatic: '自动'
@@ -5931,6 +5949,7 @@ translations:
   printer default: 打印机默认
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"
   prints: 打印次数
+  pulling...: ''
   ready to load: '可加载'
   remaining: 剩余
   remaining before clog detection triggers: 剩余即触发堵料检测
@@ -6089,6 +6108,7 @@ translations:
   '{} new hardware available': '{} 个新硬件可用'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 个新插件可用。请在设置 > 插件中启用。'
   '{} nozzle sensor fault': '{} 喷嘴传感器故障'
+  '{} of {} points': ''
   '{} of {} steps finished. Review them, then save them all at once.': '已完成 {} 个步骤，共 {} 个。请查看，然后一次性全部保存。'
   '{} packages to update': '{} 个软件包待更新'
   '{} preset': '{} 个预设'

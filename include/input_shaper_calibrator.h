@@ -188,7 +188,7 @@ class InputShaperCalibrator {
 
     /// Progress of a two-axis run: the axis under test, then as ProgressCallback.
     using AxisProgressCallback =
-        std::function<void(char axis, int percent, ShaperCalibrationPhase phase)>;
+        std::function<void(char axis, int percent, ShaperCalibrationPhase phase, float freq_hz)>;
     using BothAxesCallback = std::function<void(const CalibrationResults& results)>;
 
     /**

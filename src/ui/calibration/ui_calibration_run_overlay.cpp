@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
+#include "calibration_live_card.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
@@ -377,6 +378,7 @@ void CalibrationRunOverlay::publish_prereqs() {
 
 void CalibrationRunOverlay::publish_run() {
     lv_subject_set_int(&has_bed_, get_printer_state().get_discovery().has_heater_bed() ? 1 : 0);
+    get_calibration_live_card().update(run_.get(), overlay_root_);
     if (!run_) {
         for (size_t i = 0; i < kSteps; ++i) {
             lv_subject_set_int(&in_run_[i], 0);

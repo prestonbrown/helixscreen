@@ -41,6 +41,13 @@ void ShaperSweepChart::set_source_factory(LiveSweepPreview::SourceFactory factor
     preview_.set_source_factory(std::move(factory));
 }
 
+void ShaperSweepChart::set_marks_peak(bool marks) {
+    marks_peak_ = marks;
+    if (!marks && chart_ != nullptr && series_ >= 0) {
+        ui_frequency_response_chart_clear_peak(chart_, series_);
+    }
+}
+
 void ShaperSweepChart::set_on_curve_changed(std::function<void(bool has_curve)> on_changed) {
     on_curve_changed_ = std::move(on_changed);
 }
@@ -165,6 +172,18 @@ void ShaperSweepChart::draw(const std::vector<float>& freqs, const std::vector<f
     ui_frequency_response_chart_set_amplitude_range(
         chart_, 0.0f, max_amp > 0.0f ? max_amp * kShaperChartHeadroom : 1.0f);
     ui_frequency_response_chart_set_data(chart_, series_, freqs.data(), amps.data(), freqs.size());
+    if (!marks_peak_) {
+        return;
+    }
+    size_t peak = amps.size();
+    for (size_t i = 0; i < amps.size(); ++i) {
+        if (std::isfinite(amps[i]) && (peak == amps.size() || amps[i] > amps[peak])) {
+            peak = i;
+        }
+    }
+    if (peak < amps.size() && amps[peak] > 0.0f) {
+        ui_frequency_response_chart_mark_peak(chart_, series_, freqs[peak], amps[peak]);
+    }
 }
 
 void ShaperSweepChart::set_has_curve(bool has_curve) {

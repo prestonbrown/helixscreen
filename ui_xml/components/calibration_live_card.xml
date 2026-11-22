@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The guided run's live card: the running step's name, what it is doing, a badge for
+     what to expect (moving, hot, loud), the live view for its kind, then the step's own
+     bar and its warning. CalibrationRunOverlay publishes cal_run_title, cal_run_progress
+     and cal_run_indeterminate; CalibrationLiveCard publishes the cal_live_* subjects:
+       cal_live_kind        calibration_live_card.h#LiveKind
+       cal_live_what        what the step is doing, one line
+       cal_live_badge       MOVING, HOT, LOUD, DONE; empty for none
+       cal_live_badge_tone  0 neutral, 1 motion, 2 hot, 3 loud, 4 done
+       cal_live_warn        the warning under the live view
+       cal_live_hot         1 when the warning is about heat -->
+<component>
+  <styles>
+    <style name="badge_motion" text_color="#secondary"/>
+    <style name="badge_hot" text_color="#warning"/>
+    <style name="badge_loud" text_color="#warning" text_opa="80%"/>
+    <style name="badge_done" text_color="#success"/>
+    <style name="warn_hot" text_color="#warning"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="1"
+        style_border_color="#border" style_radius="#border_radius" style_pad_top="#space_md"
+        style_pad_bottom="#space_md" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_gap="#space_md"
+        flex_flow="column" scrollable="false">
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_pad_gap="#space_md" style_flex_cross_place="start" scrollable="false">
+      <lv_obj width="0"
+              height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+              flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
+        <text_body name="cal_live_name"
+                   width="100%" bind_text="cal_run_title" long_mode="dots" style_text_font="#font_body_bold"
+                   style_text_color="#text"/>
+        <text_xs name="cal_live_what"
+                 width="100%" bind_text="cal_live_what" long_mode="wrap" style_text_color="#text_muted"/>
+      </lv_obj>
+      <lv_obj name="cal_live_badge_pill"
+              width="content" height="content" style_bg_color="#overlay_bg" style_bg_opa="50%" style_border_width="0"
+              style_radius="#border_radius" style_pad_top="#space_xxs" style_pad_bottom="#space_xxs"
+              style_pad_left="#space_md" style_pad_right="#space_md" scrollable="false">
+        <bind_flag_if_eq subject="cal_live_badge_tone" flag="hidden" ref_value="0"/>
+        <text_xs name="cal_live_badge"
+                 bind_text="cal_live_badge" style_text_font="#font_chip_material" style_text_letter_space="1">
+          <bind_style name="badge_motion" subject="cal_live_badge_tone" ref_value="1"/>
+          <bind_style name="badge_hot" subject="cal_live_badge_tone" ref_value="2"/>
+          <bind_style name="badge_loud" subject="cal_live_badge_tone" ref_value="3"/>
+          <bind_style name="badge_done" subject="cal_live_badge_tone" ref_value="4"/>
+        </text_xs>
+      </lv_obj>
+    </lv_obj>
+    <lv_obj name="cal_live_body"
+            width="100%" height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false">
+      <calibration_live_heat name="cal_live_heat"/>
+      <calibration_live_mesh name="cal_live_mesh"/>
+      <calibration_live_shaper name="cal_live_shaper"/>
+      <calibration_live_belt name="cal_live_belt"/>
+    </lv_obj>
+    <lv_obj width="100%"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_pad_gap="#space_md" style_flex_cross_place="center" scrollable="false">
+      <bind_flag_if_eq subject="cal_live_kind" flag="hidden" ref_value="5"/>
+      <lv_bar name="cal_live_step_bar"
+              width="0" height="#space_xxs" flex_grow="1" min_value="0" max_value="100" bind_value="cal_run_progress"
+              style_bg_color="#overlay_bg" style_bg_opa="255" style_radius="#space_xxs"
+              style_bg_color-indicator="#primary" style_bg_opa-indicator="255" style_radius-indicator="0">
+        <bind_flag_if_eq subject="cal_run_indeterminate" flag="hidden" ref_value="1"/>
+      </lv_bar>
+      <lv_obj width="0"
+              height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+              scrollable="false">
+        <bind_flag_if_eq subject="cal_run_indeterminate" flag="hidden" ref_value="0"/>
+        <spinner name="cal_live_step_spinner" size="xs"/>
+      </lv_obj>
+      <lv_obj width="content"
+              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+              style_pad_gap="#space_xs" style_flex_cross_place="center" scrollable="false">
+        <icon name="cal_live_warn_flame" src="fire" size="xs" variant="warning">
+          <bind_flag_if_eq subject="cal_live_hot" flag="hidden" ref_value="0"/>
+        </icon>
+        <text_xs name="cal_live_warn" bind_text="cal_live_warn">
+          <bind_style name="warn_hot" subject="cal_live_hot" ref_value="1"/>
+        </text_xs>
+      </lv_obj>
+    </lv_obj>
+  </view>
+</component>

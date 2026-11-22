@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Heaters live view: the heater's temperature against its calibration target, and its
+     current and target readout. CalibrationLiveCard draws the graph into
+     cal_live_heat_graph and publishes cal_live_heat_bed (1 while the bed is tuned). -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+        style_pad_gap="#space_md" scrollable="false">
+    <bind_flag_if_not_eq subject="cal_live_kind" flag="hidden" ref_value="1"/>
+    <lv_obj name="cal_live_heat_graph"
+            width="0" height="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false"/>
+    <lv_obj name="cal_live_heat_readout"
+            width="32%" height="100%" style_bg_opa="0" style_border_width="1" style_border_color="#border"
+            style_radius="#border_radius" style_pad_all="#space_xs" flex_flow="column" style_pad_gap="#space_xs"
+            style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
+            scrollable="false">
+      <heater_icon src="heater" glyph_name="cal_live_nozzle_glyph" size="lg">
+        <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="1"/>
+      </heater_icon>
+      <heater_icon src="radiator" glyph_name="cal_live_bed_glyph" size="lg">
+        <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="0"/>
+      </heater_icon>
+      <text_xs text="Current / Target" style_text_color="#text_muted"/>
+      <temp_display name="cal_live_nozzle_temp"
+                    size="lg" show_target="true" bind_current="extruder_temp" bind_target="extruder_target">
+        <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="1"/>
+      </temp_display>
+      <temp_display name="cal_live_bed_temp"
+                    size="lg" show_target="true" bind_current="bed_temp" bind_target="bed_target">
+        <bind_flag_if_eq subject="cal_live_heat_bed" flag="hidden" ref_value="0"/>
+      </temp_display>
+    </lv_obj>
+  </view>
+</component>
