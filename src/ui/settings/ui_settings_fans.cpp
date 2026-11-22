@@ -13,7 +13,6 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_modal.h"
 #include "ui_row_text.h"
-#include "ui_status_pill.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -64,6 +63,11 @@ lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
+void FanSettingsOverlay::init_subjects() {
+    UI_MANAGED_SUBJECT_INT(controllable_count_, 0, "fan_settings_controllable_count", subjects_);
+    UI_MANAGED_SUBJECT_INT(auto_count_, 0, "fan_settings_auto_count", subjects_);
+}
+
 // ============================================================================
 // LIFECYCLE HOOKS
 // ============================================================================
@@ -80,18 +84,6 @@ void FanSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // FAN LIST POPULATION
 // ============================================================================
-
-void FanSettingsOverlay::update_section_count(const char* badge_name, size_t count) {
-    if (!overlay_root_)
-        return;
-
-    lv_obj_t* badge = lv_obj_find_by_name(overlay_root_, badge_name);
-    if (badge) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%zu", count);
-        ui_status_pill_set_text(badge, buf);
-    }
-}
 
 void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
     if (!list)
@@ -156,9 +148,8 @@ void FanSettingsOverlay::populate_fans() {
         }
     }
 
-    // Update section badges
-    update_section_count("controllable_fan_count", controllable_count);
-    update_section_count("auto_fan_count", auto_count);
+    lv_subject_set_int(&controllable_count_, static_cast<int>(controllable_count));
+    lv_subject_set_int(&auto_count_, static_cast<int>(auto_count));
 
     // Show/hide sections based on fan counts
     lv_obj_t* controllable_section =

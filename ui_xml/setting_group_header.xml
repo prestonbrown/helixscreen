@@ -3,9 +3,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Non-interactive section label; used as the first child of a <setting_group> card. -->
 <!-- Usage: <setting_group_header title="DISPLAY" title_tag="DISPLAY" icon="light" hide_icon="false"/> -->
-<!-- Optional count badge (right-justified): badge_name="fan_count" badge_text="0" hide_badge="false"; -->
-<!-- C++ finds the pill by badge_name and updates it via ui_status_pill_set_text(), or -->
-<!-- badge_subject binds the badge's text to a subject (an int count shows as a number). -->
+<!-- Optional count badge (right-justified), shown with hide_badge="false": static text in -->
+<!-- badge_text, or badge_subject binds its text to a subject (an int count shows as a number). -->
 <component>
   <api>
     <prop name="title" type="string" default="Section"/>
