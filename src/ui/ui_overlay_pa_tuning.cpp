@@ -350,6 +350,14 @@ helix::pa::TestPrintParams PaTuningOverlay::build_params() const {
     }
     const ChosenHead head = chosen_head();
     p.tool = head.tool;
+    if (head.tool >= 0) {
+        // Mount the head without a filament change: on a rig whose T<n> loads a
+        // lane, the backend knows the head-only command.
+        const AmsBackend* backend = AmsState::instance().get_backend();
+        p.select_head_gcode = backend
+                                  ? backend->head_select_gcode(head.tool)
+                                  : "T" + std::to_string(head.tool); // DISPLAY_NUMBERING_OK: gcode
+    }
     p.heater = head.extruder;
     p.restore_k = state.temperature_state().extruder_pressure_advance(head.extruder);
     return p;

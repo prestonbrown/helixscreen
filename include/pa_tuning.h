@@ -146,6 +146,9 @@ struct TestPrintParams {
     /// Only a printer with several physical extruders gets one: an AMS lane
     /// is not a tool to mount here.
     int tool = -1;
+    /// The command that mounts @c tool's head (AmsBackend::head_select_gcode()),
+    /// sent once the nozzle is hot. Empty sends none.
+    std::string select_head_gcode;
     /// Klipper heater of the extruder the tower prints with, and the one K is
     /// tuned on.
     std::string heater = "extruder";

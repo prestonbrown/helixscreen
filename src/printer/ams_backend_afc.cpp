@@ -5458,6 +5458,32 @@ AmsError AmsBackendAfc::do_select_slot(int slot_index) {
     return AmsErrorHelper::not_supported("AFC does not support select without load");
 }
 
+namespace {
+/// The command that changes to @p tool_number. On a toolchanger it mounts the
+/// head the tool's lane feeds and moves no filament; elsewhere AFC's own T<n>,
+/// which resolves the lane from the current map and swaps filament into the
+/// shared path. Empty on a toolchanger whose lane names no extruder yet.
+std::string tool_change_gcode(bool toolchanger, const std::string& lane_extruder, int tool_number) {
+    if (toolchanger) {
+        return lane_extruder.empty() ? std::string() : "AFC_SELECT_TOOL TOOL=" + lane_extruder;
+    }
+    return "T" + std::to_string(tool_number);
+}
+} // namespace
+
+std::string AmsBackendAfc::head_select_gcode(int tool) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!tool_registered_locked(tool)) {
+        return {};
+    }
+    std::string lane_extruder;
+    const int lane = lane_carrying_tool_locked(tool);
+    if (const auto* entry = lane >= 0 ? slots_.get(lane) : nullptr) {
+        lane_extruder = entry->info.extruder_name;
+    }
+    return tool_change_gcode(has_toolchanger_unit_locked(), lane_extruder, tool);
+}
+
 AmsError AmsBackendAfc::do_change_tool(int tool_number) {
     bool toolchanger = false;
     bool warn_unmountable = false;
@@ -5483,7 +5509,6 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
     // T{n} runs AFC's CHANGE_TOOL, which unloads the current lane and loads
     // the new one, so selecting a parked head would swap filament. Filament
     // moves only through load_filament() / unload_filament().
-    std::string cmd;
     if (toolchanger) {
         if (lane_extruder.empty()) {
             return AmsErrorHelper::invalid_parameter(
@@ -5498,12 +5523,8 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
                          "AFC will not mount it and HelixScreen will wait for the tool change",
                          tool_number, lane_extruder);
         }
-        cmd = "AFC_SELECT_TOOL TOOL=" + lane_extruder;
-    } else {
-        // AFC registers a T-command per lane; CHANGE_TOOL resolves the lane
-        // from the current map and swaps filament into the shared path.
-        cmd = "T" + std::to_string(tool_number);
     }
+    std::string cmd = tool_change_gcode(toolchanger, lane_extruder, tool_number);
 
     spdlog::info("[AMS AFC] Tool change: {}", cmd);
     // SELECTING, not LOADING: every AFC toolchanger state (ToolSwap, ToolDock,
