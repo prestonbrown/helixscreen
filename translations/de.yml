@@ -66,6 +66,7 @@ translations:
   : "Der Drucker referenziert X und Y bei Bedarf und fährt den Druckkopf dann gegen den Schneider, um dessen Position zu ermitteln. Entladen Sie zuerst das Filament."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "Der Drucker referenziert X und Y, fährt den Druckkopf in die Mitte des Betts und stellt jeden Riemen mit seinem Spanner ein. Danach sind die Motoren stromlos, referenzieren Sie also, bevor Sie den Drucker bewegen."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Der Drucker hat noch nicht mitgeteilt, wie dieser Druckkopf aufgenommen wird. Versuche es erneut, sobald sein Filamentsystem fertig verbunden ist.
   "X belt": "X-Riemen"
   "Y belt": "Y-Riemen"
   "'{}' already exists. Replace the stored mesh?": "'{}' existiert bereits. Gespeichertes Netz ersetzen?"

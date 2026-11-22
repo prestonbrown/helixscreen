@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
   <translation tag="The printer did not report its toolhead limits." en="The printer did not report its toolhead limits."/>
   <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." en="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting."/>
   <translation tag="The printer did not say whether it is printing. Try again." en="The printer did not say whether it is printing. Try again."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>

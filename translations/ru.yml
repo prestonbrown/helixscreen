@@ -110,6 +110,7 @@ translations:
   : "Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение.
   "X belt": "Ремень X"
   "Y belt": "Ремень Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"

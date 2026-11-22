@@ -66,6 +66,7 @@ translations:
   : "La stampante esegue l'homing di X e Y se serve, poi porta la testina contro la taglierina per trovarne la posizione. Scaricare prima il filamento."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "La stampante esegue l'homing di X e Y, porta la testina al centro del piano e regola ogni cinghia con il suo tenditore. Alla fine i motori vengono rilasciati, quindi eseguire l'homing prima di muovere la stampante."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: La stampante non ha ancora indicato come prelevare questa testina. Riprova quando il suo sistema di filamento avrà finito di connettersi.
   "X belt": "Cinghia X"
   "Y belt": "Cinghia Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' esiste già. Sostituire la mesh salvata?"

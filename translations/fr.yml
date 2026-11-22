@@ -78,6 +78,7 @@ translations:
   : "L'imprimante prend l'origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d'abord le filament."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "L'imprimante prend l'origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l'origine avant de déplacer l'imprimante."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: L'imprimante n'a pas encore indiqué comment prendre cette tête. Réessayez lorsque son système de filament aura fini de se connecter.
   "X belt": "Courroie X"
   "Y belt": "Courroie Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"

@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." es="La impresora no confirmó el inicio de la impresión ({}). Puede que aún empiece: revisa la impresora antes de iniciarla de nuevo."/>
   <translation tag="The printer did not report its toolhead limits." es="La impresora no informó de los límites de su cabezal."/>
   <translation tag="The printer did not reset the filter" es="La impresora no restableció el filtro"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." es="La impresora aún no ha indicado cómo recoger este cabezal. Inténtalo de nuevo cuando su sistema de filamento termine de conectarse."/>
   <translation tag="The printer did not say whether it is printing. Try again." es="La impresora no indicó si está imprimiendo. Inténtalo de nuevo."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." es="La impresora extruye en una esquina y repite hasta que las lecturas coinciden. Tú no juzgas nada a ojo."/>
   <translation tag="The printer finishes this measurement on its own." es="La impresora termina esta medición por su cuenta."/>

@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." zh="打印机未确认打印已开始 ({})。它仍可能开始：再次开始前请检查打印机。"/>
   <translation tag="The printer did not report its toolhead limits." zh="打印机未报告其工具头限制。"/>
   <translation tag="The printer did not reset the filter" zh="打印机未重置滤网"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." zh="打印机尚未告知如何切换到此打印头。请在其耗材系统完成连接后重试。"/>
   <translation tag="The printer did not say whether it is printing. Try again." zh="打印机未报告是否正在打印。请重试。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." zh="打印机在角落挤出并重复，直到读数一致为止。你无需用肉眼判断任何东西。"/>
   <translation tag="The printer finishes this measurement on its own." zh="打印机会自行完成这次测量。"/>

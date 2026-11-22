@@ -66,6 +66,7 @@ translations:
   : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。
   "X belt": "Xベルト"
   "Y belt": "Yベルト"
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"

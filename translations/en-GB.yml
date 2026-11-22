@@ -69,6 +69,7 @@ translations:
   : ''
   ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.
   : ''
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.
   X belt: ''
   Y belt: ''
   "'{}' already exists. Replace the stored mesh?": ""

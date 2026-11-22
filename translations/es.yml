@@ -66,6 +66,7 @@ translations:
   : "La impresora referencia X e Y si hace falta y luego lleva el cabezal contra el cortador para localizar su posición. Descargue antes el filamento."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "La impresora referencia X e Y, lleva el cabezal al centro de la cama y ajusta cada correa con su tensor. Al terminar, los motores quedan liberados, así que haga home antes de mover la impresora."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: La impresora aún no ha indicado cómo recoger este cabezal. Inténtalo de nuevo cuando su sistema de filamento termine de conectarse.
   "X belt": "Correa X"
   "Y belt": "Correa Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' ya existe. ¿Reemplazar la malla guardada?"

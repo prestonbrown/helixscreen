@@ -5040,6 +5040,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
   <translation tag="The printer did not report its toolhead limits." ru="Принтер не сообщил пределы печатающей головки."/>
   <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." ru="Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение."/>
   <translation tag="The printer did not say whether it is printing. Try again." ru="Принтер не сообщил, идёт ли печать. Повторите попытку."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
