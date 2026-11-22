@@ -40,6 +40,13 @@
         <text_small name="copy_feedback"
                     width="100%" text="" style_text_align="center" style_text_color="#success" hidden="true"/>
       </lv_obj>
+      <!-- Description (firmware-managed install - the firmware provides the plugin) -->
+      <lv_obj name="firmware_description"
+              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" hidden="true">
+        <text_body width="100%"
+                   text="Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen."
+                   long_mode="wrap" style_text_align="left"/>
+      </lv_obj>
       <!-- Installing state (spinner) -->
       <lv_obj name="installing_container"
               width="100%" height="content" style_pad_all="#space_lg" flex_flow="column" style_flex_cross_place="center"

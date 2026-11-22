@@ -4191,6 +4191,8 @@ translations:
     skipping bed mesh for quick reprints.
   : El plugin HelixPrint permite modificaciones rápidas de G-code directamente en
     su impresora, como omitir la malla de cama para reimpresiones rápidas.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'El plugin HelixPrint debe venir del firmware de tu impresora, que gestiona el software de HelixScreen.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'El plugin HelixPrint lo gestiona el firmware de tu impresora.'
   The IFS state file can't be read.: "No se puede leer el archivo de estado del IFS."
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'El plugin de timelapse de Moonraker está instalado. Define cómo graba en los ajustes de timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: La lámina PEI sigue en la cama. Retírala y pulsa Siguiente.
@@ -4946,6 +4948,8 @@ translations:
   Your printer has an automatic filament changer: Tu impresora tiene un cambiador
     de filamento automático
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Su impresora estaba desconectada durante la configuración, por lo que se omitieron las opciones de hardware. ¿Configurarlas ahora?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'El firmware de tu impresora gestiona el software de HelixScreen, así que el plugin HelixPrint debe proporcionarlo el firmware. No se puede instalar desde esta pantalla.'
   Your {0} is set up for {1}, but it looks stock.: 'Tu {0} está configurada para {1}, pero parece de serie.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Tu {0} parece tener {1}, pero está configurada para {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Tu {0} parece tener {1}, pero está configurada como de serie.'

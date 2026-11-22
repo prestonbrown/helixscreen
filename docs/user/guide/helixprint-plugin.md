@@ -43,6 +43,12 @@ few seconds. Once the plugin is installed, the Advanced screen shows **HelixPrin
 The plugin needs the standard Moonraker. Replacements that do not run Python add-ons, such as
 Moonruster on the Centauri Carbon, cannot load it.
 
+**When your printer's firmware manages HelixScreen** (for example the Extended Firmware on the
+Snapmaker U1, where you pick HelixScreen in the firmware's own settings), the plugin has to come
+from the firmware. HelixScreen does not offer the install there, and tapping the Advanced row
+explains that instead of starting an install. Features that need the plugin turn on by
+themselves once the firmware provides it.
+
 K-Touch owners: see also [Install the HelixPrint plugin on your printer](install-esp32.md#install-the-helixprint-plugin-on-your-printer).
 
 ---

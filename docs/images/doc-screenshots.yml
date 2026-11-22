@@ -191,9 +191,9 @@ images:
     kind: app
     recipe: advanced
   - path: docs/images/user/ams-portrait.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+    kind: app
+    recipe: ams
+    size: 480x800
   - path: docs/images/user/ams.png
     kind: app
     recipe: ams
@@ -856,3 +856,52 @@ images:
       - {n: 1, widget: row_estop_confirm, at: top_right}
       - {n: 2, widget: row_cancel_escalation, at: top_right}
       - {n: 3, widget: row_macro_confirm, at: top_right}
+  # Ultrawide shots use 1920x440, the size the home grid docs cite; portrait
+  # shots use 480x800, and Print Status 480x1920, the shortest portrait screen
+  # whose job tile has room for the lane tray strip and the inline Tune card.
+  - path: docs/images/user/home-ultrawide.png
+    kind: app
+    recipe: home
+    size: 1920x440
+  - path: docs/images/user/controls-ultrawide.png
+    kind: app
+    steps:
+      - navigate controls
+    size: 1920x440
+  - path: docs/images/user/filament-ultrawide.png
+    kind: app
+    steps:
+      - navigate filament
+    size: 1920x440
+  - path: docs/images/user/print-status-ultrawide.png
+    kind: app
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+      - wait_for print_progress 1 --timeout 400
+    size: 1920x440
+  - path: docs/images/user/home-portrait.png
+    kind: app
+    recipe: home
+    size: 480x800
+  - path: docs/images/user/controls-portrait.png
+    kind: app
+    steps:
+      - navigate controls
+    size: 480x800
+  - path: docs/images/user/filament-portrait.png
+    kind: app
+    steps:
+      - navigate filament
+    size: 480x800
+  - path: docs/images/user/print-status-portrait.png
+    kind: app
+    env:
+      HELIX_MOCK_AUTO_PRINT: "1"
+    steps:
+      - wait_for print_show_progress 1 --timeout 400
+      - wait_for print_start_phase 0 --timeout 400
+      - wait_for print_progress 1 --timeout 400
+    size: 480x1920
