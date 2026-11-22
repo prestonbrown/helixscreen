@@ -6513,6 +6513,36 @@ TEST_CASE("AFC bypass survives a lane-only status frame", "[ams][afc][bypass][by
     CHECK(sys.filament_loaded);
 }
 
+// bypass_state is a mode switch that stays on after the external spool is
+// pulled out; a fitted toolhead sensor reading empty means nothing is loaded.
+TEST_CASE("AFC bypass is loaded only as far as the toolhead sensor says",
+          "[ams][afc][bypass][bypass-lane-frame]") {
+    AmsBackendAfcTestHelper helper;
+    helper.initialize_test_lanes_with_slots(4);
+    helper.set_running(true);
+    helper.set_supports_bypass(true);
+    AfcTestAccess::apply_configfile_topology(
+        helper,
+        AmsBackendAfc::parse_configfile_topology(
+            {{"result",
+              {{"status",
+                {{"configfile",
+                  {{"settings",
+                    {{"afc_extruder extruder", {{"pin_tool_start", "sht36:PA1"}}}}}}}}}}}}));
+    helper.feed_afc_extruder("extruder", {{"tool_start_status", false}});
+    helper.feed_afc_state({{"bypass_state", true}});
+
+    CHECK(helper.get_system_info().current_slot == -2);
+    CHECK_FALSE(helper.get_system_info().filament_loaded);
+
+    helper.feed_afc_extruder("extruder", {{"tool_start_status", true}});
+    CHECK(helper.get_system_info().current_slot == -2);
+    CHECK(helper.get_system_info().filament_loaded);
+
+    helper.feed_afc_extruder("extruder", {{"tool_start_status", false}});
+    CHECK_FALSE(helper.get_system_info().filament_loaded);
+}
+
 // Moonraker sends deltas, so disengaging can arrive as bypass_state alone, with
 // no lane frame to recount the toolhead.
 TEST_CASE("AFC bypass disengaged by a lone delta releases the toolhead",

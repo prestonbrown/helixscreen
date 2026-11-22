@@ -212,7 +212,8 @@ class AmsPanel : public PanelBase {
     ObserverGuard
         supports_bypass_observer_;         ///< Bypass node appears/disappears with backend support
     ObserverGuard bypass_active_observer_; ///< Active ring follows bypass engage/disengage
-    bool slot_creation_pending_ = false;   ///< Coalesces rapid slot count changes
+    ObserverGuard filament_loaded_observer_; ///< Bypass path follows the toolhead sensor
+    bool slot_creation_pending_ = false;     ///< Coalesces rapid slot count changes
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
     bool path_update_pending_ = false; ///< Coalesces rapid path state changes
 

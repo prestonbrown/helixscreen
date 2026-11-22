@@ -246,6 +246,12 @@ void AmsOverviewPanel::init_subjects() {
             AmsState::instance().get_bypass_active_subject(), this,
             [](AmsOverviewPanel* self, int /*active*/) { self->refresh_bypass_display(); },
             AmsState::instance().get_subjects_lifetime());
+
+        // Under bypass the slot stays -2 while the toolhead sensor fills or empties.
+        filament_loaded_observer_ = observe<int>(
+            AmsState::instance().get_filament_loaded_subject(), this,
+            [](AmsOverviewPanel* self, int /*loaded*/) { self->refresh_bypass_display(); },
+            AmsState::instance().get_subjects_lifetime());
     });
 }
 
@@ -864,7 +870,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
     ui_system_path_canvas_set_filament_loaded(system_path_, info.filament_loaded);
 
     // Set bypass path state (canvas draws the connecting lines only)
-    bool bypass_active = info.supports_bypass && (current_slot == -2);
+    const bool bypass_active = helix::ui::bypass_filament_at_toolhead(info);
     uint32_t bypass_color = 0x888888; // Default gray when no external spool assigned
     auto ext_spool = AmsState::instance().get_external_spool_info();
     if (ext_spool) {
@@ -1841,9 +1847,11 @@ void AmsOverviewPanel::refresh_page_bypass(bool node) {
         ui_filament_path_canvas_set_bypass_has_spool(detail_path_canvas_, ext.has_value() && node);
         if (ext && node)
             ui_filament_path_canvas_set_bypass_color(detail_path_canvas_, ext->color_rgb);
+        const auto info = AmsState::instance().system_info();
         ui_filament_path_canvas_set_bypass_active(
             detail_path_canvas_,
-            node && lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0);
+            node && lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0 &&
+                info && helix::ui::bypass_filament_at_toolhead(*info));
         ui_filament_path_canvas_refresh(detail_path_canvas_);
     }
     update_page_bypass_widgets_position();
@@ -1861,8 +1869,7 @@ void AmsOverviewPanel::refresh_system_bypass() {
         auto* backend = AmsState::instance().get_backend();
         if (backend) {
             AmsSystemInfo info = backend->get_system_info();
-            int current_slot = lv_subject_get_int(AmsState::instance().get_current_slot_subject());
-            bool bypass_active = info.supports_bypass && (current_slot == -2);
+            const bool bypass_active = helix::ui::bypass_filament_at_toolhead(info);
             ui_system_path_canvas_set_bypass(system_path_,
                                              helix::ui::bypass_node_visible_for(backend),
                                              bypass_active, ext_spool->color_rgb);

@@ -156,7 +156,7 @@ If bypass is not engaged when you tap **Load**, it is engaged first. On systems 
 
 Both entries gray out for the same reasons the Filament panel's buttons do: while a filament operation is already running, while a job holds the machine, and (for Unload) when there is nothing at the toolhead to retract.
 
-**On AFC (Box Turtle, ACE Pro under AFC, OpenAMS)**, an engaged bypass counts as filament at the toolhead, so **Unload** is available whenever bypass is on, even though no lane is loaded. Heat the nozzle first: AFC hands the unload to your printer's own unload routine, and Klipper refuses to retract below its minimum extrusion temperature. Unload brings the filament back out of the extruder; pull it the rest of the way out of the tube and the combiner by hand.
+**On AFC (Box Turtle, ACE Pro under AFC, OpenAMS)**, **Unload** is available with bypass on and no lane loaded whenever the toolhead sensor sees filament. Without a toolhead sensor, an engaged bypass counts as filament at the toolhead. The filament path draws the bypass filament into the toolhead only while it is there, so a bypass left switched on after the spool comes out shows empty tubes. Heat the nozzle first: AFC hands the unload to your printer's own unload routine, and Klipper refuses to retract below its minimum extrusion temperature. Unload brings the filament back out of the extruder; pull it the rest of the way out of the tube and the combiner by hand.
 
 > The same Load and Unload are on the **Filament panel**, which acts on the external spool whenever bypass is the current selection.
 

@@ -916,9 +916,15 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Dryer | ACE units only | `AFC_ACE_DRY` (see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
-**An engaged bypass is what the toolhead holds.** While `bypass_state` is true,
-`AmsBackendAfc::apply_bypass_to_system_info()` (`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`)
-sets `current_slot` to -2 and `filament_loaded` to true. It runs after every writer that
+**An engaged bypass is the selected path; the toolhead sensor says whether it is fed.** While
+`bypass_state` is true, `AmsBackendAfc::apply_bypass_to_system_info()`
+(`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`) sets `current_slot` to -2, and
+`filament_loaded` from the toolhead sensor (`tool_start_status` or `tool_end_status`) when
+configfile shows an `AFC_extruder` with one wired, or true when none is. `bypass_state` is a
+mode switch, not a sensor: it stays on after the spool is pulled out, so an empty toolhead
+sensor always wins. The AMS panels draw bypass filament to the nozzle only when
+`helix::ui::bypass_filament_at_toolhead()` (`include/ui_bypass_spool_widget.h`) agrees, and
+redraw on `ams_filament_loaded` while the slot stays -2. It runs after every writer that
 derives those two from the lanes (`parse_afc_state()`, `parse_lane_data()`, and
 `handle_status()`), because AFC keeps sending lane-only frames
 while bypass is on and each of them would otherwise put the system back on "no lane, nothing

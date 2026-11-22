@@ -4898,12 +4898,20 @@ void AmsBackendAfc::parse_lane_data(const nlohmann::json& lane_data) {
 }
 
 void AmsBackendAfc::apply_bypass_to_system_info() {
-    // An engaged bypass feeds the toolhead with no lane behind it: whatever the
-    // lanes report, the external spool is what is loaded.
+    // An engaged bypass selects the external spool's path with no lane behind
+    // it, whatever the lanes report. Whether filament has reached the toolhead
+    // is the toolhead sensor's call where one is fitted: bypass_state is a mode
+    // switch, not a sensor, and stays on after the spool is pulled out.
     if (bypass_active_) {
         system_info_.current_slot = -2; // -2 = bypass mode
-        system_info_.filament_loaded = true;
+        system_info_.filament_loaded =
+            toolhead_sensor_known_fitted() ? (tool_start_sensor_ || tool_end_sensor_) : true;
     }
+}
+
+bool AmsBackendAfc::toolhead_sensor_known_fitted() const {
+    return std::any_of(extruder_sensor_fitted_.begin(), extruder_sensor_fitted_.end(),
+                       [](const auto& entry) { return entry.second; });
 }
 
 void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_stated_unloaded) {

@@ -33,6 +33,10 @@ bool bypass_node_visible_for(const AmsBackend* backend, const AmsSystemInfo& inf
                                SettingsManager::instance().get_ams_always_show_bypass_spool());
 }
 
+bool bypass_filament_at_toolhead(const AmsSystemInfo& info) {
+    return info.supports_bypass && info.current_slot == -2 && info.filament_loaded;
+}
+
 void bypass_spool_sync_from_state(BypassSpoolWidgets& w) {
     if (!w.valid()) {
         return;

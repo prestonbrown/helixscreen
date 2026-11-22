@@ -64,6 +64,11 @@ inline constexpr uint32_t kBypassNoSpoolRgb = 0x505050;
 /// the whole system the one-argument form takes. @p info must be @p backend's own reading.
 [[nodiscard]] bool bypass_node_visible_for(const AmsBackend* backend, const AmsSystemInfo& info);
 
+/// Whether the path draws bypass filament reaching the toolhead: bypass is the
+/// selected path and the backend reports filament loaded. An engaged bypass with
+/// nothing fed (the switch stays on after the spool is pulled out) draws empty.
+[[nodiscard]] bool bypass_filament_at_toolhead(const AmsSystemInfo& info);
+
 /// Bag of widget pointers that make up the bypass-spool overlay: a small card
 /// containing the spool icon, with a material label above and "Bypass" label
 /// below — matching how lane spools display their material on the AMS path
