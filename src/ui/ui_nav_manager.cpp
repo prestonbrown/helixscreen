@@ -599,6 +599,7 @@ void NavigationManager::switch_to_panel_impl(int panel_id) {
         activate_restored_target();
     }
 
+    refresh_modal_backdrops_after_settle();
     SoundManager::instance().play("nav_forward");
 }
 
@@ -750,6 +751,7 @@ void NavigationManager::set_active(PanelId panel_id) {
     if (lv_obj_t* root = get_panel_widget(panel_id)) {
         helix::ui::PageScrollAutoInject::instance().on_root_shown(root);
     }
+    refresh_modal_backdrops_after_settle();
 }
 
 PanelId NavigationManager::get_active() const {
@@ -1092,6 +1094,12 @@ void NavigationManager::refresh_overlay_backdrop() {
     if (shutting_down_)
         return;
     backdrop_.refresh(app_layout_widget_, panel_stack_.empty() ? nullptr : panel_stack_.front());
+}
+
+void NavigationManager::refresh_modal_backdrops_after_settle() {
+    if (shutting_down_)
+        return;
+    ModalStack::instance().schedule_backdrop_refresh(kModalBackdropSettleMs);
 }
 
 void NavigationManager::ensure_delete_hook(lv_obj_t* widget) {
@@ -1477,6 +1485,7 @@ void NavigationManager::push_overlay(lv_obj_t* overlay_panel, bool hide_previous
         }
 
         helix::ui::PageScrollAutoInject::instance().on_root_shown(overlay_panel);
+        mgr.refresh_modal_backdrops_after_settle();
 
         SoundManager::instance().play("nav_forward");
         spdlog::trace("[NavigationManager] Pushed overlay {} (stack: {})", (void*)overlay_panel,
@@ -1625,6 +1634,7 @@ void NavigationManager::go_back_now() {
             mgr.backdrop_.retire(popped);
         }
         mgr.publish_top_overlay();
+        mgr.refresh_modal_backdrops_after_settle();
 
         // Determine the previous panel (what will be visible after pop)
         lv_obj_t* previous_panel = mgr.panel_stack_.empty() ? nullptr : mgr.panel_stack_.back();

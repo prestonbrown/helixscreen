@@ -4759,6 +4759,8 @@ translations:
   The DNS server is not a valid address.: 'DNSサーバーが有効なアドレスではありません。'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'HelixPrintプラグインは、HelixScreenのソフトウェアを管理しているプリンターのファームウェアから提供される必要があります。'
+  The HelixPrint plugin is managed by your printer's firmware.: 'HelixPrintプラグインはプリンターのファームウェアによって管理されています。'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'HelixPrint プラグインが PRINT_START の古いコマンドを非表示の名前に変更します。'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'IFS ボードが時間内に応答しませんでした: ケーブルの問題、ボードのフリーズ、または純正画面が同じポートを使用しています。'
   The IFS board reported a driver error on every retry.: IFS ボードが再試行のたびにドライバーエラーを報告しました。
@@ -5776,6 +5778,8 @@ translations:
   Your printer at a glance: プリンターを一目で確認
   Your printer has an automatic filament changer: プリンターに自動フィラメントチェンジャーが搭載されています
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。'
   Your printer's manual has the parts and lubricant for your model.: "部品と潤滑剤はプリンターのマニュアルで確認できます。"
   Your usual build plate is on: 'いつものビルドプレートが載っている'
   Your {0} is set up for {1}, but it looks stock.: 'お使いの{0}は{1}用に設定されていますが、標準状態のようです。'

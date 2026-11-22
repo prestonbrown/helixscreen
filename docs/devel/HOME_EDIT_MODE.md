@@ -380,11 +380,25 @@ void HomePanel::on_home_grid_press_cancelled(lv_event_t* e) {
 ```
 
 **The shield** is a full-grid, clickable, bubbling child of the scoped container, created by
-`GridEditMode::ensure_shield()`. As the topmost full-grid child it is the press target of every
+`GridEditMode::ensure_shield()` from the `grid_edit_shield` component
+(`ui_xml/components/grid_edit_shield.xml`: transparent, floating, `clickable` and
+`event_bubble` set in its markup). As the topmost full-grid child it is the press target of every
 edit gesture, so no widget underneath is ever pressed. It draws the lattice dots and has no
 children. The shield carries no callback: a shield that outlives the session,
 because the rebuild that would delete it never runs once the session's lifetime token expired,
 holds nothing that calls into the session.
+
+**The selection chrome** is the `grid_edit_selection` component
+(`ui_xml/components/grid_edit_selection.xml`): an L-bracket at each corner of the selected tile
+and, on a resizable tile, a faint bar along each edge between the brackets. Every part lets
+touches through to the shield's handlers. `GridEditMode::create_selection_chrome()` creates it
+once per selection and passes the theme's accent color (`accent`, as `0xRRGGBB`) and which edge
+bars to hide (`hide_left_right`, `hide_top_bottom`): a tile too short or too narrow for a bar
+past the brackets gets none, measured against the component's own `edge_inset` const, which C++
+reads from the component's scope rather than restating it. C++ places and sizes the chrome over
+the tile, moves it with a drag, and pulses the corner brackets' opacity when animations are on;
+the markup, sizes and colors are the component's. The sizes are fixed pixels on every screen, as
+the drag outline's are.
 
 **The shield persists for the session.** LVGL glues a press to its target, and deleting that
 target resets the pointer: `obj_delete_core` removes the object's callbacks, then sends it

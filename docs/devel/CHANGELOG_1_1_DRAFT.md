@@ -500,18 +500,27 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   another tool sets a head's spool (an NFC tag reader through `CHANGE_ZCOLOR`, or
   zmod_afclite's `SET_SPOOL_ID`), the screen reads the record it wrote and shows the new
   spool, name and colour within a couple of seconds. (thanks @DIEHARDave)
-- **A new Edit Spool editor** - tap a slot and choose Edit Spool for one screen that shows
-  the filament in words with its colour and remaining weight, the temperatures for what you
-  picked, and Material, Variant, Brand and Product lists that narrow each other down, with
-  the full filament catalog one tap away. Colour swatches are at least 7 mm across on every
-  screen. The full colour view puts the presets and a custom colour picker side by side where
-  both fit, and on small screens they take turns. On systems that read a spool's tag, a
-  "from tag" pill marks each value the tag supplied, and Reset to tag puts them all back.
-  Spoolman's spool list and QR scan are round buttons in the header, and a linked spool's
-  price, location, lot and notes sit under More. A save still talking to Spoolman finishes
-  even if you leave the screen, and a save that only partly succeeds says which part did
-  not: with Spoolman offline, the slot saves and price, location, lot and notes wait in the
-  editor. Which tool a slot feeds is picked from Assigned Tool in the slot's menu.
+- **A new spool editor, one step per page** - tap a slot and choose Edit Spool. A slot with
+  a spool opens on a summary: the spool drawn in its color and filled to what is left, and
+  its weight as "850 g of 1 kg · 85%" with - and + buttons, a drag bar and a keypad. An empty
+  slot shows what it last held, with Same Filament, New Spool to put in a full spool of it in
+  one tap. New Spool lists your spools; Use puts one in the slot, and a spool that sits in
+  another slot moves over, unless that slot is feeding the print. Tapping the spool opens the
+  Filament page: a brand and its product, or under Generic one list of exact materials such as
+  ASA-CF, with the full filament catalog one tap away, colors, and an NFC button that puts back
+  what the spool's tag says. Lane Settings sets the tool a slot feeds and its runout backup,
+  and takes effect as you pick. A linked spool's price, location, lot and notes have a page of
+  their own. Colors can be multi-color on systems that store them. A weight HelixScreen does
+  not know reads as a full spool of the slot's size, 1 kg when the size is unknown too.
+- **Clear a slot and archive its spool** - Clear Lane asks first, and where the slot holds a
+  Spoolman spool it offers to archive that spool in Spoolman, ticked for you when the spool
+  ran out or has under 20 g left. The spool is archived only once the slot is cleared.
+- **Add a slot's spool to Spoolman in one tap** - a slot whose spool Spoolman does not track
+  shows Add to Spoolman on its summary, which adds the spool as the slot describes it and
+  links the slot, so Spoolman tracks its weight from then on.
+- **Remaining filament reads the same everywhere** - the Active Spool widget, the external
+  spool line and the spool editor with its spool list show what is left as grams and a percent
+  ("850 g · 85%"), and the loaded card shows the percent alone where space is tight.
 - **Creality CFS on the K2 Plus community firmware** - on the Kalico-based K2 Plus port and
   its own CFS module, loads use the module's slot selection, and each CFS unit shows its own
   temperature and humidity. With API revision 4 or later of the CFS module, the Filament
@@ -525,12 +534,6 @@ git log --no-merges --oneline 2ad32dc6e..main --not release/1.0
   the Toolhead section of the filament system's settings starts with a Calibrate Toolhead
   button. AFC then walks you through measuring the sensor-to-nozzle and unload distances and
   the cutter retract, asking each question on screen.
-- **The spool editor is now Edit Spool** - a slot's Spool Info is renamed Edit Spool and
-  opens straight into the editor. Material, variant, brand and product are dropdowns that
-  narrow each other, with Browse catalog... at the end for searching or typing your own, and
-  the colour grid sits beside or below them depending on the screen. Tap the weight to type
-  the grams left. Price, location, lot and notes sit under More. Save is in the header, and
-  Back with unsaved changes asks whether to save or discard them.
 
 **Drying filament**
 

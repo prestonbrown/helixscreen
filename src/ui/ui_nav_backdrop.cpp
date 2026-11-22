@@ -20,9 +20,6 @@
 
 namespace helix::ui {
 
-namespace {
-
-/// The colors the navbar is painted in right now.
 std::string active_palette_key() {
     const helix::ThemeData& theme = theme_manager_get_active_theme();
     const helix::ModePalette& palette = theme_manager_is_dark_mode() ? theme.dark : theme.light;
@@ -31,6 +28,8 @@ std::string active_palette_key() {
         key += palette.at(i);
     return key;
 }
+
+namespace {
 
 /// A snapshot backdrop is an image; a dim layer is a translucent plain object.
 bool is_snapshot_backdrop(lv_obj_t* backdrop) {

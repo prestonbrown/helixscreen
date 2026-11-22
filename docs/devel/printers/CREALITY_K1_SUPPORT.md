@@ -104,7 +104,7 @@ SSH credentials: `root` / `creality_2023`
 
 ## Cross-Compilation
 
-The K1 target uses MIPS32r2 with fully static musl linking. There is also an advanced dynamic-linking variant.
+The K1 series runs the unified `mips` build: one MIPS32r2 binary, fully static against musl, shared with the AD5X and the Creator 5 Pro. It links nothing from the printer's own glibc, so there is no separate dynamic build.
 
 ### Build via Docker (Recommended)
 
@@ -412,7 +412,7 @@ is the PCM pipe backend (a child `aplay` per sound burst, `docs/devel/SOUND_SYST
 
 ### Architecture
 - **MIPS32r2** — Unusual ISA. Cross-compilation requires MIPS toolchain. No NEON SIMD (ARM-specific). MIPS SIMD (MSA) available but unused.
-- **NaN2008 ABI** — The K1's glibc uses NaN2008 encoding. Dynamic builds must use `-mnan=2008 -mfp64` or linking will fail at runtime.
+- **NaN2008 ABI**: the K1 userland uses the NaN2008 floating-point encoding, so the `mips` build compiles with `-mnan=2008 -mfp64` (the encoding the K1 and AD5X kernels both execute).
 
 ### Display
 - **480x800 portrait** — Same panel as K2 series. Requires software rotation to 800x480 landscape.

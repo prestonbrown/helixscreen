@@ -21,12 +21,14 @@
 
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_utils.h"
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/snapshot_backdrops_mode.h"
 #include "backdrop_blur.h"
+#include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/draw/lv_draw_buf_private.h" // handler fields: no public setters
@@ -469,4 +471,371 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     next.hide();
     ModalStack::instance().remove(closing, true);
     process_lvgl(400);
+}
+
+// ============================================================================
+// A modal over a screen that changes beneath it
+// ============================================================================
+//
+// A modal's backdrop is a picture of the screen taken when it opened. A dialog
+// that stays up while navigation changes the screen beneath it (a stacked
+// dialog left open while another dialog's button opens a panel) has to have
+// that picture re-taken, or the user sees the old panel frozen behind it.
+
+namespace {
+
+constexpr lv_color_t kGreen = LV_COLOR_MAKE(0x00, 0xFF, 0x00);
+
+/// The pixel of @p backdrop's image that sits at screen point (@p sx, @p sy).
+/// A blurred backdrop is a half-size image stretched over the screen.
+Rgb backdrop_pixel_at_screen(lv_obj_t* backdrop, int32_t sx, int32_t sy) {
+    const auto* buf = static_cast<const lv_draw_buf_t*>(lv_image_get_src(backdrop));
+    REQUIRE(buf != nullptr);
+    lv_display_t* disp = lv_display_get_default();
+    const int32_t w = lv_display_get_horizontal_resolution(disp);
+    const int32_t h = lv_display_get_vertical_resolution(disp);
+    return backdrop_pixel(backdrop, static_cast<uint32_t>(sx * buf->header.w / w),
+                          static_cast<uint32_t>(sy * buf->header.h / h));
+}
+
+/// A point near the top-left corner, clear of any centered dialog.
+Rgb backdrop_corner_pixel(lv_obj_t* backdrop) {
+    return backdrop_pixel_at_screen(backdrop, 12, 12);
+}
+
+/// Home is a red panel and Controls a green one, Home showing.
+class ModalUnderNavFixture : public LVGLUITestFixture {
+  public:
+    ModalUnderNavFixture() {
+        helix::ui::destroy_static_panels();
+        home_ = make_flat_layer(test_screen(), kBaseColor);
+        controls_ = make_flat_layer(test_screen(), kGreen);
+        lv_obj_t* panels[kUiPanelCount] = {nullptr};
+        panels[static_cast<int>(PanelId::Home)] = home_;
+        panels[static_cast<int>(PanelId::Controls)] = controls_;
+        auto& nav = NavigationManager::instance();
+        nav.set_panels(panels);
+        NavigationManagerTestAccess::switch_to_panel(nav, PanelId::Home);
+        settle();
+    }
+
+    ~ModalUnderNavFixture() override {
+        ModalStack::instance().clear();
+        NavigationManagerTestAccess::set_panel_stack(NavigationManager::instance(), {});
+        helix::ui::destroy_static_panels();
+        settle();
+    }
+
+    /// Long enough for queued navigation, its animations and the re-take after.
+    void settle() {
+        for (int i = 0; i < 6; i++) {
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(100);
+        }
+    }
+
+    static lv_obj_t* backdrop_of_top() {
+        return ModalStack::instance().backdrop_for(ModalStack::instance().top_dialog());
+    }
+
+    lv_obj_t* home_ = nullptr;
+    lv_obj_t* controls_ = nullptr;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "a panel switch beneath an open modal re-takes its backdrop",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    REQUIRE(lv_obj_check_type(backdrop, &lv_image_class));
+    const Rgb before = backdrop_corner_pixel(backdrop);
+    REQUIRE(before.r > before.g);
+
+    NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
+    settle();
+
+    REQUIRE(backdrop_of_top() == backdrop);
+    // Red is Home frozen behind the dialog after the user went to Controls.
+    const Rgb after = backdrop_corner_pixel(backdrop);
+    INFO("after " << int(after.r) << "," << int(after.g) << "," << int(after.b));
+    CHECK(after.g > after.r);
+    CHECK(after.g > 0x40);
+    // The capture hid the modal for its shot and showed it again.
+    CHECK_FALSE(lv_obj_is_hidden(backdrop));
+    modal.hide();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "an overlay pushed and popped beneath an open modal re-takes its backdrop",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    auto& nav = NavigationManager::instance();
+    lv_obj_t* overlay = make_flat_layer(test_screen(), kGreen);
+    lv_obj_set_hidden(overlay, true);
+    nav.register_overlay_instance(overlay, nullptr);
+
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+
+    nav.push_overlay(overlay);
+    settle();
+
+    lv_area_t a;
+    lv_obj_get_coords(overlay, &a);
+    const int32_t x = (a.x1 + a.x2) / 2;
+    const int32_t y = a.y1 + 12;
+    const Rgb pushed = backdrop_pixel_at_screen(backdrop, x, y);
+    INFO("pushed " << int(pushed.r) << "," << int(pushed.g) << "," << int(pushed.b));
+    CHECK(pushed.g > pushed.r);
+
+    nav.go_back();
+    settle();
+    const Rgb popped = backdrop_pixel_at_screen(backdrop, x, y);
+    INFO("popped " << int(popped.r) << "," << int(popped.g) << "," << int(popped.b));
+    CHECK(popped.r > popped.g);
+
+    modal.hide();
+    nav.unregister_overlay_instance(overlay);
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "stacked modals re-take lowest first, each over what is beneath it",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal lower;
+    REQUIRE(lower.show(test_screen()));
+    lv_obj_t* lower_backdrop = backdrop_of_top();
+    PlainModal upper;
+    REQUIRE(upper.show(test_screen()));
+    lv_obj_t* upper_backdrop = backdrop_of_top();
+    REQUIRE(lower_backdrop != nullptr);
+    REQUIRE(upper_backdrop != nullptr);
+    REQUIRE(lower_backdrop != upper_backdrop);
+
+    NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
+    settle();
+
+    const Rgb low = backdrop_corner_pixel(lower_backdrop);
+    INFO("lower " << int(low.r) << "," << int(low.g) << "," << int(low.b));
+    CHECK(low.g > low.r);
+    // The upper one's corner is the lower backdrop's: red there means it was
+    // re-taken over the lower one's stale picture.
+    const Rgb up = backdrop_corner_pixel(upper_backdrop);
+    INFO("upper " << int(up.r) << "," << int(up.g) << "," << int(up.b));
+    CHECK(up.g > up.r);
+    // Darker than the lower one: it shows the lower backdrop dimmed again, not
+    // the bare panel, so the lower modal was in its shot.
+    CHECK(up.g < low.g);
+    CHECK_FALSE(lv_obj_is_hidden(lower_backdrop));
+    CHECK_FALSE(lv_obj_is_hidden(upper_backdrop));
+
+    upper.hide();
+    lower.hide();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "a modal backdrop re-take never holds two full frames",
+                 "[modal][backdrop][memory]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    const void* buf_before = lv_image_get_src(backdrop);
+
+    {
+        // The blurred picture it keeps is a quarter frame; the re-take's own
+        // full-size shot is the one frame it may hold.
+        FrameBufferCounter frames;
+        ModalStack::instance().refresh_backdrops();
+        CHECK(frames.attempts() >= 1); // it did take a new picture
+        CHECK(frames.peak() <= 1);
+    }
+    // Into the buffer it already had: no second image held for the modal.
+    CHECK(lv_image_get_src(backdrop) == buf_before);
+    modal.hide();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "a dim-layer modal backdrop has nothing to re-take",
+                 "[modal][backdrop][memory]") {
+    SnapshotBackdropsMode snapshots(false);
+    helix::ui::backdrop_blur_cleanup(); // blur off, as after its circuit breaker trips
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    REQUIRE_FALSE(lv_obj_check_type(backdrop, &lv_image_class));
+
+    FrameBufferCounter frames;
+    NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
+    settle();
+    CHECK(frames.attempts() == 0);
+    CHECK(backdrop_of_top() == backdrop);
+    modal.hide();
+    helix::ui::detail::reset_circuit_breaker();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a theme switch under an open modal re-takes its backdrop",
+                 "[modal][backdrop][theme]") {
+    SnapshotBackdropsMode snapshots(true);
+    auto& nav = NavigationManager::instance();
+    const helix::ThemeData theme = theme_manager_get_active_theme();
+    const bool was_dark = theme_manager_is_dark_mode();
+    lv_obj_t* saved_layout = NavigationManagerTestAccess::app_layout_widget(nav);
+    theme_manager_apply_theme(theme, true);
+
+    lv_obj_t* layout = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(layout);
+    lv_obj_set_size(layout, LV_PCT(100), LV_PCT(100));
+    lv_obj_t* navbar = static_cast<lv_obj_t*>(lv_xml_create(layout, "navigation_bar", nullptr));
+    REQUIRE(navbar != nullptr);
+    nav.set_app_layout(layout);
+    nav.wire_events(navbar);
+    lv_obj_update_layout(test_screen());
+    process_lvgl(20);
+
+    lv_area_t a;
+    lv_obj_get_coords(navbar, &a);
+    const int32_t x = a.x1 + 4;
+    const int32_t y = (a.y1 + a.y2) / 2;
+
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(ModalStack::instance().top_dialog());
+    REQUIRE(backdrop != nullptr);
+    REQUIRE(lv_obj_check_type(backdrop, &lv_image_class));
+    const Rgb dark_px = backdrop_pixel_at_screen(backdrop, x, y);
+
+    theme_manager_apply_theme(theme, false);
+    for (int i = 0; i < 4; i++) {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(100);
+    }
+
+    // The dark navbar left behind the dialog after the user picked light mode.
+    const Rgb light_px = backdrop_pixel_at_screen(backdrop, x, y);
+    INFO("navbar in modal backdrop: dark " << int(dark_px.r) << "," << int(dark_px.g) << ","
+                                           << int(dark_px.b) << " light " << int(light_px.r) << ","
+                                           << int(light_px.g) << "," << int(light_px.b));
+    CHECK(light_px.r + light_px.g + light_px.b > dark_px.r + dark_px.g + dark_px.b + 100);
+
+    modal.hide();
+    process_lvgl(400);
+    NavigationManagerTestAccess::set_panel_stack(nav, {});
+    nav.set_app_layout(saved_layout);
+    theme_manager_apply_theme(theme, was_dark);
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "a modal backdrop re-take keeps keyboard focus where it was",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    lv_group_t* saved_group = lv_group_get_default();
+    lv_group_t* group = lv_group_create();
+    lv_group_set_default(group);
+    // A focusable widget on the panel behind: where focus lands if hiding the
+    // backdrop for its shot moves it on.
+    lv_obj_t* behind = lv_button_create(controls_);
+    lv_group_add_obj(group, behind);
+
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_group_focus_obj(backdrop);
+    REQUIRE(lv_group_get_focused(group) == backdrop);
+
+    NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
+    settle();
+
+    // Focus on the panel button sends ESC and Enter to the panel behind the dialog.
+    CHECK(lv_group_get_focused(group) == backdrop);
+
+    modal.hide();
+    settle();
+    lv_group_set_default(saved_group);
+    lv_group_delete(group);
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "a blurred re-take that cannot allocate keeps its pixels and blur on",
+                 "[modal][backdrop][memory]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    REQUIRE(lv_obj_check_type(backdrop, &lv_image_class));
+    const void* buf_before = lv_image_get_src(backdrop);
+
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+    {
+        FrameBufferCounter frames(/*refuse=*/true);
+        ModalStack::instance().refresh_backdrops();
+        CHECK(frames.attempts() == 1);
+    }
+    // A full frame that did not fit this once leaves blur on for the next modal.
+    CHECK_FALSE(helix::ui::detail::is_blur_disabled());
+    CHECK(lv_image_get_src(backdrop) == buf_before);
+    const Rgb px = backdrop_corner_pixel(backdrop);
+    CHECK(px.r > px.g); // the old picture, not a half-written one
+
+    modal.hide();
+    helix::ui::detail::reset_circuit_breaker();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "clear() cancels a scheduled modal backdrop re-take",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal first;
+    REQUIRE(first.show(test_screen()));
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    ModalStack::instance().clear();
+
+    // A modal shown after the teardown, over a screen that then changes.
+    PlainModal next;
+    REQUIRE(next.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+    process_lvgl(400);
+
+    // Green is the re-take scheduled before the teardown firing anyway.
+    const Rgb px = backdrop_corner_pixel(backdrop);
+    CHECK(px.r > px.g);
+    next.hide();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "back-to-back triggers fold into one re-take timed from the latest",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+
+    FrameBufferCounter frames;
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    process_lvgl(200);
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    process_lvgl(100);
+    // 300ms after the first trigger, 100ms after the second: not yet.
+    const Rgb early = backdrop_corner_pixel(backdrop);
+    CHECK(early.r > early.g);
+    CHECK(frames.attempts() == 0);
+
+    process_lvgl(200);
+    const Rgb late = backdrop_corner_pixel(backdrop);
+    CHECK(late.g > late.r);
+    CHECK(frames.attempts() == 1);
+    modal.hide();
 }

@@ -47,6 +47,9 @@ class HighFlySimTestAccess {
     static void repaint_all(HighFlySim& sim) {
         sim.painted_ = false;
     }
+    static const HighFlyTexture& band(const HighFlySim& sim) {
+        return sim.band_;
+    }
 };
 
 /// Reads the text lines a HighFlyScreensaver owns.
@@ -896,9 +899,101 @@ TEST_CASE_METHOD(LVGLTestFixture, "the countdown numerals carry no AM/PM",
     CHECK(paused.second == clock_minute_text(14 * 60));
     CHECK(paused.meridiem.empty());
     // Numerals that show the time of day keep their AM/PM.
-    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::DONE}) {
+    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::FAILED}) {
         CHECK_FALSE(highfly_clock_lines(print_reading(m, 40)).meridiem.empty());
     }
+    // Numerals that spell DONE leave the time of day and the weekday to the text block.
+    const ClockReading done = print_reading(ClockMode::DONE, 100);
+    const auto finished = highfly_clock_lines(done);
+    CHECK(finished.first == clock_minute_text(14 * 60));
+    CHECK(finished.second == helix::ui::clock_date_text(done.date).weekday);
+    CHECK(finished.meridiem.empty());
+}
+
+TEST_CASE("a finished print spells DONE, or a check mark, in place of the time",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_word;
+    ClockReading r = print_reading(ClockMode::DONE, 100);
+    CHECK(std::string(highfly_word(r)) == "DONE");
+    r.spell_states = false;
+    CHECK(std::string(highfly_word(r)) == std::string(1, helix::ui::kGlyphCheck));
+    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::COUNTDOWN,
+                              ClockMode::PAUSED, ClockMode::FAILED, ClockMode::CANCELLED}) {
+        r.mode = m;
+        CHECK(std::string(highfly_word(r)).empty());
+    }
+}
+
+TEST_CASE("DONE's glyphs are the numerals' height, centred on them, at every screen and drift",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_word_boxes;
+    struct Size {
+        int32_t w, h;
+    };
+    for (const Size s : {Size{800, 480}, Size{480, 320}, Size{1024, 600}, Size{480, 800}}) {
+        CAPTURE(s.w, s.h);
+        const int32_t reach_x = std::max(4, s.w / 25);
+        const int32_t reach_y = std::max(4, s.h / 25);
+        for (int32_t dx : {-reach_x, 0, reach_x}) {
+            for (int32_t dy : {-reach_y, 0, reach_y}) {
+                CAPTURE(dx, dy);
+                const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, dx, dy);
+                const int32_t numeral_h = l.digits[0].y2 - l.digits[0].y1 + 1;
+                const int32_t centre = l.digits[0].x1 + l.digits[4].x2;
+                for (size_t count = 1; count <= helix::ui::kHighflyWordMax; count++) {
+                    CAPTURE(count);
+                    const auto boxes = highfly_word_boxes(l, count);
+                    CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - centre) <= 2);
+                    for (size_t i = 0; i < count; i++) {
+                        CHECK(boxes[i].y2 - boxes[i].y1 + 1 >= numeral_h);
+                        CHECK(boxes[i].x1 >= l.digits[0].x1);
+                        CHECK(boxes[i].x2 <= l.digits[4].x2);
+                        CHECK(boxes[i].x1 - l.halo >= 0);
+                        CHECK(boxes[i].x2 + l.halo < s.w);
+                        if (i > 0) {
+                            CHECK(boxes[i].x1 > boxes[i - 1].x2);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+TEST_CASE("the sim draws DONE as tall as the numerals", "[screensaver][highfly][clock]") {
+    // The still rung paints once, so two runs from one seed differ only where their numerals do.
+    const auto paint = [](bool spell, TestFrame& frame) {
+        std::minstd_rand rng(3);
+        HighFlySim sim;
+        ClockReading r = print_reading(ClockMode::DONE, 100);
+        r.spell_states = spell;
+        sim.init(frame.target, rng, kHighflyLevelCount - 1, r);
+    };
+    TestFrame word(800, 480, PixelFormat::XRGB8888);
+    TestFrame check(800, 480, PixelFormat::XRGB8888);
+    paint(true, word);
+    paint(false, check);
+    const HighFlyClockLayout l = layout_highfly_clock(800, 480, 0, 0);
+    // The D: the check mark sits a glyph and more away, centred on the run.
+    const DirtyRect d = helix::ui::highfly_word_boxes(l, 4)[0];
+    const PixelWriter a(word.target);
+    const PixelWriter b(check.target);
+    int32_t top = -1;
+    int32_t bottom = -1;
+    for (int32_t y = d.y1 - l.halo; y <= d.y2 + l.halo; y++) {
+        for (int32_t x = d.x1; x <= d.x2; x++) {
+            const Rgb p = a.get(x, y);
+            const Rgb q = b.get(x, y);
+            // A stroke: brighter than the scene under it.
+            if (luminance(p) > luminance(q) + 40.0f) {
+                top = top < 0 ? y : top;
+                bottom = y;
+            }
+        }
+    }
+    CAPTURE(top, bottom, d.y1, d.y2);
+    REQUIRE(top >= 0);
+    CHECK(bottom - top + 1 >= (d.y2 - d.y1 + 1) * 9 / 10);
 }
 
 TEST_CASE("the palette is today's sky without a print and warms with progress",
@@ -951,6 +1046,102 @@ TEST_CASE("the sky repaints per palette step, not per frame", "[screensaver][hig
     CHECK(full >= static_cast<size_t>(helix::ui::kHighflyPaletteSteps));
     CHECK(full <= static_cast<size_t>(helix::ui::kHighflyPaletteSteps) + 3);
     CHECK(red_over_blue(w.get(200, 2)) > red_over_blue(start) + 0.5f);
+}
+
+TEST_CASE("a tower's colors follow the palette, and the day palette keeps its day stops",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_tower_rgb;
+    using helix::ui::kHighflyDay;
+    using helix::ui::kHighflyGolden;
+    CHECK(highfly_tower_rgb(0.0f, kHighflyDay) == Rgb{118, 152, 184});
+    CHECK(highfly_tower_rgb(0.5f, kHighflyDay) == Rgb{196, 218, 236});
+    CHECK(highfly_tower_rgb(1.0f, kHighflyDay) == kHighflyDay.lit);
+    CHECK(highfly_tower_rgb(1.0f, kHighflyGolden) == kHighflyGolden.lit);
+    for (const float s : {0.0f, 0.5f}) {
+        CAPTURE(s);
+        CHECK(red_over_blue(highfly_tower_rgb(s, kHighflyGolden)) >
+              red_over_blue(highfly_tower_rgb(s, kHighflyDay)) + 0.3f);
+    }
+}
+
+TEST_CASE("billboard shade halves by coverage, and an empty cell takes its neighbour's",
+          "[screensaver][highfly]") {
+    using helix::ui::HighFlyTexture;
+    // Two cells side by side. The left one's texels: shade 200 fully covering, shade 100 at a
+    // third, and two empty texels at shade 0; the right one is empty.
+    HighFlyTexture t;
+    t.w = 4;
+    t.h = 2;
+    t.rgba.assign(4 * 2 * 4, 0);
+    std::vector<uint8_t> full(4 * 2, 0);
+    full[0] = 200;
+    t.rgba[0 * 4 + 3] = 255;
+    full[4] = 100;
+    t.rgba[4 * 4 + 3] = 85;
+    helix::ui::highfly_pack_shade(full, false, t);
+    REQUIRE(t.sw == 2);
+    REQUIRE(t.sh == 1);
+    // (255 x 200 + 85 x 100) / 340, where a plain mean of the four texels gives 75.
+    CHECK(static_cast<int>(t.shade[0]) == 175);
+    CHECK(static_cast<int>(t.shade[1]) == 175);
+    // A covered texel next to the empty cell keeps its cell's shade.
+    CHECK(static_cast<int>(t.shade_at(0, 0)) == 175);
+    CHECK(static_cast<int>(t.shade_at(1, 0)) == 175);
+}
+
+TEST_CASE("a print's palette recolors the towers and the far band, and the day palette restores "
+          "them",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_palette;
+    using helix::ui::HighFlyTexture;
+    using helix::ui::kHighflyDay;
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    HighFlySim sim;
+    const ClockReading idle = reading_at(10 * 3600);
+    sim.init(frame.target, rng, 0, idle);
+    const std::vector<uint8_t> day_tower = sim.tower_texture(0).rgba;
+    const std::vector<uint8_t> day_band = HighFlySimTestAccess::band(sim).rgba;
+    // Every fully sunlit texel shows the palette's lit color at its coverage, premultiplied.
+    const auto lit_texels = [](const HighFlyTexture& t, Rgb lit) {
+        size_t n = 0;
+        size_t off = 0;
+        const auto near = [](uint8_t got, uint8_t want, int32_t a) {
+            return std::abs(static_cast<int32_t>(got) - (want * a + 127) / 255) <= 1;
+        };
+        for (size_t i = 0; i < static_cast<size_t>(t.w) * t.h; i++) {
+            const auto x = static_cast<int32_t>(i % static_cast<size_t>(t.w));
+            const auto y = static_cast<int32_t>(i / static_cast<size_t>(t.w));
+            const int32_t a = t.rgba[i * 4 + 3];
+            if (t.shade_at(x, y) == 255 && a >= 128) {
+                n++;
+                const bool on = near(t.rgba[i * 4], lit.r, a) &&
+                                near(t.rgba[i * 4 + 1], lit.g, a) &&
+                                near(t.rgba[i * 4 + 2], lit.b, a);
+                off += on ? 0 : 1;
+            }
+        }
+        CAPTURE(n, off);
+        CHECK(n > 100);
+        CHECK(off == 0);
+    };
+    lit_texels(sim.tower_texture(0), kHighflyDay.lit);
+
+    const ClockReading late = print_reading(ClockMode::COUNTDOWN, 100);
+    const Rgb golden_lit = highfly_palette(late).lit;
+    REQUIRE_FALSE(golden_lit == kHighflyDay.lit);
+    std::vector<DirtyRect> dirty;
+    sim.step(100, frame.target, rng, late, dirty);
+    for (size_t v = 0; v < kHighflyTowerVariants; v++) {
+        CAPTURE(v);
+        lit_texels(sim.tower_texture(v), golden_lit);
+    }
+    CHECK(sim.tower_texture(0).rgba != day_tower);
+    CHECK(HighFlySimTestAccess::band(sim).rgba != day_band);
+
+    sim.step(100, frame.target, rng, idle, dirty);
+    CHECK(sim.tower_texture(0).rgba == day_tower);
+    CHECK(HighFlySimTestAccess::band(sim).rgba == day_band);
 }
 
 TEST_CASE("the end of a print flies through a cloud into the sunset",

@@ -79,6 +79,7 @@ Welcome to the HelixScreen documentation. Choose your path:
 | [**Creality CFS Internals (K2)**](devel/printer-research/CREALITY_CFS_K2_INTERNALS.md) | K2 CFS module RE reference: `box` schema variants, command surface, error codes, runout, the community Kalico port |
 | [**Creator 5 Stock Firmware**](devel/printer-research/FLASHFORGE_CREATOR5_FIRMWARE.md) | Creator 5 stock firmware RE: package decryption, the 2.0.0 layout and features, Klipper deltas, stock features against HelixScreen |
 | [**Filament Slots Spec (public)**](specs/filament_slots.md) | Wire-format convention for the `lane_data` Moonraker DB namespace — readable by any third party |
+| [**Calibration**](devel/CALIBRATION.md) | Step catalog and tiers, the Calibration screen, calibration history, the guided run with one save at the end, Kalico saves without a restart |
 | [**Input Shaper & PID**](devel/INPUT_SHAPER.md) | Calibration, frequency response charts, CSV parser |
 | [**Pressure Advance Tuning**](devel/PRESSURE_ADVANCE_TUNING.md) | Tune K by eye on a live test print; Spoolman and Moonraker persistence |
 | [**Vertical Artifact Check**](devel/MOTOR_RIPPLE_CHECK.md) | Motor ripple speed sweep: speeds to avoid, compensation off/on compare, the outer-wall-speed print-start warning, mock knobs |

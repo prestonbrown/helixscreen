@@ -4736,6 +4736,8 @@ translations:
   The DNS server is not a valid address.: The DNS server is not a valid address.
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.
+  The HelixPrint plugin is managed by your printer's firmware.: The HelixPrint plugin is managed by your printer's firmware.
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: The HelixPrint plugin moves old PRINT_START calls to the hidden names.
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.'
   The IFS board reported a driver error on every retry.: The IFS board reported a driver error on every retry.
@@ -5755,6 +5757,8 @@ translations:
   Your printer at a glance: Your printer at a glance
   Your printer has an automatic filament changer: Your printer has an automatic filament changer
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Your printer was offline during setup, so hardware options were skipped. Set them up now?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   Your printer's manual has the parts and lubricant for your model.: Your printer's manual has the parts and lubricant for your model.
   Your usual build plate is on: Your usual build plate is on
   Your {0} is set up for {1}, but it looks stock.: Your {0} is set up for {1}, but it looks stock.

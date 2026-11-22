@@ -237,6 +237,8 @@ on 32 cores and 86 MB on 4. The stats line at close puts every frame in one buck
 skipped or pushed out because the UI was late, pushed out because the decoder ran ahead,
 or discarded unshown at a seek or close.
 
+The phone URL comes from `phone_video_url()` (`src/print/timelapse_thumbnailer.cpp#phone_video_url`): `<http base>/server/files/timelapse/<file>`, percent-encoded. A loopback base (Moonraker reached as `localhost`) has its host swapped for the screen's LAN IPv4; with no LAN address the URL is empty and the tap falls to the toast.
+
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`
 - `alive_` shared_ptr pattern prevents callbacks after overlay destruction

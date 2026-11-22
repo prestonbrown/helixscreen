@@ -12,15 +12,18 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
+#include "display_wake_request.h"
 #include "print_health_log.h"
 #include "remote_client.h"
 #include "remote_control_server.h"
+#include "screen_hide_hold.h"
 #include "widget_resolution.h"
 
 #include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -763,6 +766,111 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl navigate: a widget target gets a whole qu
     const nlohmann::json r = rig.call("navigate", "panel", "ctl_navigate_button");
     CHECK(r.value("kind", std::string()) == "widget");
     CHECK(codes == std::vector<int>{LV_EVENT_SHORT_CLICKED, LV_EVENT_CLICKED});
+}
+
+// A dimmed, sleeping or screensaver display hides the active screen (the hide
+// hold), so every widget on it has a hidden ancestor until the display wakes.
+// ctl drives the UI as a user who has already woken it.
+TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a sleeping display is woken before the tap is judged",
+                 "[remote][ctl]") {
+    lv_obj_t* btn = lv_button_create(lv_screen_active());
+    lv_obj_set_name(btn, "ctl_asleep_button");
+    std::vector<int> codes;
+    lv_obj_add_event_cb(btn, record_code_cb, LV_EVENT_CLICKED, &codes);
+
+    // A real wake inside an update batch unhides the screen only on a later
+    // pass of the main loop, so the stand-in defers its release the same way.
+    struct SleepingDisplay {
+        std::function<void()> previous = helix::display_wake_handler();
+        int wakes = 0;
+        SleepingDisplay() {
+            helix::active_screen_hide_hold().acquire(lv_screen_active());
+            helix::set_display_wake_handler([this] {
+                ++wakes;
+                helix::ui::queue_update("test sleeping display wake", [] {
+                    if (helix::active_screen_hide_hold().is_held()) {
+                        helix::active_screen_hide_hold().release();
+                    }
+                });
+            });
+        }
+        ~SleepingDisplay() {
+            helix::set_display_wake_handler(previous);
+            if (helix::active_screen_hide_hold().is_held()) {
+                helix::active_screen_hide_hold().release();
+            }
+        }
+        SleepingDisplay(const SleepingDisplay&) = delete;
+        SleepingDisplay& operator=(const SleepingDisplay&) = delete;
+    } display;
+    REQUIRE(lv_obj_is_hidden(lv_screen_active()));
+
+    CtlClickRig rig;
+    const nlohmann::json reply = rig.request("click", {{"name", "ctl_asleep_button"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(reply.contains("error"));
+    CHECK(display.wakes > 0);
+    CHECK(codes == std::vector<int>{LV_EVENT_CLICKED});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl navigate: a widget name skips a hidden twin found first",
+                 "[remote][ctl]") {
+    lv_obj_t* hidden_host = lv_obj_create(lv_screen_active());
+    lv_obj_set_hidden(hidden_host, true);
+    lv_obj_t* twin = lv_button_create(hidden_host);
+    lv_obj_set_name(twin, "ctl_twin_button");
+    lv_obj_t* shown = lv_button_create(lv_obj_create(lv_screen_active()));
+    lv_obj_set_name(shown, "ctl_twin_button");
+    std::vector<int> twin_codes;
+    std::vector<int> shown_codes;
+    lv_obj_add_event_cb(twin, record_code_cb, LV_EVENT_CLICKED, &twin_codes);
+    lv_obj_add_event_cb(shown, record_code_cb, LV_EVENT_CLICKED, &shown_codes);
+
+    CtlClickRig rig;
+    rig.call("navigate", "panel", "ctl_twin_button");
+    CHECK(twin_codes.empty());
+    CHECK(shown_codes == std::vector<int>{LV_EVENT_CLICKED});
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl click: two visible widgets of one name are both reported",
+                 "[remote][ctl]") {
+    lv_obj_t* first = lv_button_create(lv_screen_active());
+    lv_obj_set_name(first, "ctl_shared_name");
+    lv_obj_t* second = lv_button_create(lv_screen_active());
+    lv_obj_set_name(second, "ctl_shared_name");
+    lv_obj_t* hidden_host = lv_obj_create(lv_screen_active());
+    lv_obj_set_hidden(hidden_host, true);
+    lv_obj_set_name(lv_button_create(hidden_host), "ctl_shared_name");
+
+    CtlClickRig rig;
+    const nlohmann::json r = rig.click("ctl_shared_name");
+    CHECK(r.value("path", std::string()) == helix::path_of(second));
+    REQUIRE(r.contains("name_matches"));
+    CHECK(r["name_matches"] ==
+          nlohmann::json::array({helix::path_of(first), helix::path_of(second)}));
+
+    lv_obj_delete(second);
+    const nlohmann::json single = rig.click("ctl_shared_name");
+    CHECK_FALSE(single.contains("name_matches"));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "ctl geom: names the widget it measured and what hides it",
+                 "[remote][ctl]") {
+    lv_obj_t* host = lv_obj_create(lv_screen_active());
+    lv_obj_set_name(host, "ctl_geom_host");
+    lv_obj_t* inner = lv_obj_create(host);
+    lv_obj_set_name(inner, "ctl_geom_inner");
+
+    CtlClickRig rig;
+    const nlohmann::json shown = rig.call("geom", "name", "ctl_geom_inner");
+    CHECK(shown.value("resolved_path", std::string()) == helix::path_of(inner));
+    CHECK_FALSE(shown.contains("hidden_by"));
+
+    lv_obj_set_hidden(host, true);
+    const nlohmann::json hidden = rig.call("geom", "path", helix::path_of(inner));
+    CHECK(hidden["widgets"][0].value("hidden", true) == false);
+    CHECK(hidden.value("hidden_by", std::string()) == helix::path_of(host));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a hold-only widget says a tap does nothing",

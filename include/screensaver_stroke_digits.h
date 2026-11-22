@@ -67,6 +67,8 @@ class StrokeGlyphSet {
     void ensure(char c);
     /// Coverage of `c` at (gx, gy), 0 outside its box or for a glyph not built.
     uint8_t at(char c, int32_t gx, int32_t gy) const;
+    /// `c`'s coverage, w x h row-major, or nullptr for a glyph not built.
+    const uint8_t* coverage(char c) const;
     /// Bytes held, capacity included.
     size_t heap_bytes() const;
     /// Frees every glyph; the size stays.
@@ -111,26 +113,43 @@ void build_stroke_digits(int32_t unit, float stroke, StrokeDigitSet& out);
  */
 void build_stroke_halo(const StrokeDigitSet& digits, int32_t radius, StrokeDigitSet& out);
 
+/// One glyph's halo as build_stroke_halo() makes each digit's: the `w` x `h` coverage `cov`
+/// widened and blurred into `out`, (w + 2 radius) x (h + 2 radius) with radius at least 1.
+void build_glyph_halo(const uint8_t* cov, int32_t w, int32_t h, int32_t radius,
+                      std::vector<uint8_t>& out);
+
 /// The tens and units digits of `value` (0 to 99), as a two-card clock shows them.
 constexpr std::array<int, 2> two_digits(int32_t value) {
     return {value / 10 % 10, value % 10};
 }
 
-/// Blends `digit` from `set` over the frame with its box's top left at (x, y), `colour` at
-/// `opacity` times each pixel's coverage, dithered; pixels off the frame are skipped. `Writer`
-/// is a PixelWriter, or anything with its contains() and blend_over().
+/// Blends the `w` x `h` coverage `cov` over the frame with its top left at (x, y), `colour` at
+/// `opacity` times each pixel's coverage; pixels off the frame are skipped. `Writer` is a
+/// PixelWriter, or anything with its contains() and blend_over().
+template <typename Writer>
+void blit_coverage(Writer& writer, const uint8_t* cov, int32_t w, int32_t h, int32_t x, int32_t y,
+                   Rgb colour, float opacity) {
+    for (int32_t gy = 0; gy < h; gy++) {
+        for (int32_t gx = 0; gx < w; gx++) {
+            const uint8_t c = cov[static_cast<size_t>(gy) * w + gx];
+            if (c == 0 || !writer.contains(x + gx, y + gy)) {
+                continue;
+            }
+            writer.blend_over(x + gx, y + gy, colour, opacity * static_cast<float>(c) / 255.0f);
+        }
+    }
+}
+
+/// Blends `digit` from `set` over the frame with its box's top left at (x, y), as
+/// blit_coverage(); a digit past 0-9 draws nothing.
 template <typename Writer>
 void blit_stroke_digit(Writer& writer, const StrokeDigitSet& set, int digit, int32_t x, int32_t y,
                        Rgb colour, float opacity) {
-    for (int32_t gy = 0; gy < set.h; gy++) {
-        for (int32_t gx = 0; gx < set.w; gx++) {
-            const uint8_t cov = set.at(digit, gx, gy);
-            if (cov == 0 || !writer.contains(x + gx, y + gy)) {
-                continue;
-            }
-            writer.blend_over(x + gx, y + gy, colour, opacity * static_cast<float>(cov) / 255.0f);
-        }
+    if (digit < 0 || digit > 9) {
+        return;
     }
+    blit_coverage(writer, &set.coverage[static_cast<size_t>(digit) * set.w * set.h], set.w, set.h,
+                  x, y, colour, opacity);
 }
 
 } // namespace helix::ui

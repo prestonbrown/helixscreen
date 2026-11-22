@@ -160,7 +160,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_workflow_submodules.py` | Fail on a workflow running the shell suite without submodules and patches |
 | `check_vendor_branches.py` | Ratchet: generic code must not branch on a vendor |
 | `check_hold_ends_press.py` | Fail on a `long_pressed` handler that neither ends its press nor opts out |
-| `check_header_actions.py` | Fail on anything but `header_action` in a header's actions slot, or a header_action given a size or color; warns past 3 actions or 1 primary |
+| `check_header_actions.py` | Fail on anything but `header_action` in a header's actions slot, a header_action given a size or color, or one with no `callback=` or `event_cb`; warns past 3 actions or 1 primary, and on both a callback and an event_cb |
 | `check_hand_rolled_swatch.py` | Ratchet on colour swatches drawn by hand instead of the swatch painter |
 | `check_lvgl_subject_api.py` | Fail on a deprecated LVGL subject call or a by-value `lv_subject_t`; `helix::Subject` owns subjects |
 | `check_growth_ratchets.py` | A branch does not add global access or active-instance pointers |

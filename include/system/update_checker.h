@@ -19,6 +19,7 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
+#include "helix_version.h"
 #include "json_fwd.h"
 #include "lvgl.h"
 #include "subject_managed_panel.h"
@@ -820,6 +821,10 @@ class UpdateChecker {
     ObserverGuard moonraker_sync_after_job_;
     /// The install root the last channel sync was for, which a deferred run reuses.
     std::string moonraker_sync_root_;
+    /// The version this build runs as. Moonraker's update entry offers the newest
+    /// stable release, which is older than a running prerelease, so the entry is
+    /// listed only while a stable build runs.
+    std::string running_version_ = HELIX_VERSION;
     /// on_channel_changed() short of the moonraker.conf sync.
     void recheck_for_channel();
 

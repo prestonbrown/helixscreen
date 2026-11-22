@@ -371,6 +371,12 @@ HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync
 
 HelixPluginInstaller::LocalInstallJob HelixPluginInstaller::begin_local_install() {
     LocalInstallJob job;
+    if (firmware_owns_plugin()) {
+        spdlog::info("[PluginInstaller] Install refused: the firmware owns the plugin");
+        job.refusal = {false, lv_tr("The HelixPrint plugin has to come from your printer's "
+                                    "firmware, which manages HelixScreen's software.")};
+        return job;
+    }
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-install on remote Moonraker");
         job.refusal = {false, lv_tr("Auto-install only works on local Moonraker")};
@@ -445,6 +451,14 @@ constexpr int kUninstallExitNeedsAttention = 2;
 } // namespace
 
 void HelixPluginInstaller::uninstall_local(UninstallCallback callback) {
+    if (firmware_owns_plugin()) {
+        spdlog::info("[PluginInstaller] Uninstall refused: the firmware owns the plugin");
+        if (callback) {
+            callback(UninstallOutcome::FAILED,
+                     lv_tr("The HelixPrint plugin is managed by your printer's firmware."));
+        }
+        return;
+    }
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-uninstall on remote Moonraker");
         if (callback) {
@@ -753,23 +767,7 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         exe_dir = script_search_root_;
         search_paths = {script_search_root_ + "/moonraker-plugin/install.sh"};
     } else {
-        std::string exe = running_exe_override_;
-        if (exe.empty()) {
-#ifdef __APPLE__
-            char path[1024];
-            uint32_t size = sizeof(path);
-            if (_NSGetExecutablePath(path, &size) == 0) {
-                exe = path;
-            }
-#else
-            char path[1024];
-            ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
-            if (len != -1) {
-                path[len] = '\0';
-                exe = path;
-            }
-#endif
-        }
+        const std::string exe = running_exe();
         if (exe.empty()) {
             return "";
         }
@@ -836,6 +834,33 @@ bool local_moonraker_loads_addons() {
 
 } // namespace
 
+std::string HelixPluginInstaller::running_exe() const {
+    if (!running_exe_override_.empty()) {
+        return running_exe_override_;
+    }
+#ifdef __APPLE__
+    char path[1024];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        return path;
+    }
+#else
+    char path[1024];
+    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (len != -1) {
+        path[len] = '\0';
+        return path;
+    }
+#endif
+    return "";
+}
+
+bool HelixPluginInstaller::firmware_owns_plugin() const {
+    const std::string exe = running_exe();
+    return board::firmware_manages_updates(board::current(), exe.empty() ? "/proc/self/exe" : exe,
+                                           probe_root_);
+}
+
 bool HelixPluginInstaller::should_prompt_install() const {
     Config* config = Config::get_instance();
 
@@ -849,6 +874,11 @@ bool HelixPluginInstaller::should_prompt_install() const {
 
     if (prompt_settled_for_session_) {
         spdlog::debug("[PluginInstaller] Plugin prompt already settled this session");
+        return false;
+    }
+
+    if (firmware_owns_plugin()) {
+        spdlog::debug("[PluginInstaller] The firmware owns the plugin, not offering it");
         return false;
     }
 
