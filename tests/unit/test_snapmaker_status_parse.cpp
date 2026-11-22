@@ -187,6 +187,21 @@ TEST_CASE("Snapmaker status parse reads print_task_config without inventing what
                     .print_task_config->extruder_map_table);
 }
 
+TEST_CASE("Snapmaker color_from_rgba_hex keeps the alpha as translucency",
+          "[snapmaker][status_parse][translucent]") {
+    const auto clear = snapmaker::color_from_rgba_hex("E8E8FF80");
+    REQUIRE(clear);
+    CHECK(clear->rgb == 0xE8E8FFu);
+    CHECK(clear->translucent);
+    const auto opaque = snapmaker::color_from_rgba_hex("E8E8FFFF");
+    REQUIRE(opaque);
+    CHECK_FALSE(opaque->translucent);
+    const auto six = snapmaker::color_from_rgba_hex("AABBCC");
+    REQUIRE(six);
+    CHECK_FALSE(six->translucent);
+    CHECK_FALSE(snapmaker::color_from_rgba_hex("112233ZZ"));
+}
+
 TEST_CASE("Snapmaker rgb_from_rgba_hex reads the colour the lane grammar names",
           "[snapmaker][status_parse]") {
     CHECK(snapmaker::rgb_from_rgba_hex("112233FF") == 0x112233u);

@@ -15,6 +15,7 @@ draws its own.
 | Selection | One mark: `color_swatch`'s inside ring (`selected_subject` + `index`). |
 | Multi-color | A filament with two or more colors (`SlotInfo::multi_color_hexes`, Spoolman's `multi_color_hexes`) shows them everywhere its color shows, as equal-area bands across the top-left to bottom-right diagonal, clipped to the shape. `swatch_paint blend="on"` instead blends them evenly left to right: the slot editor's Gradient bar, beside the banded Coaxial one. A lane spool repaints on `AmsState::get_slot_paint_subject()` (`SlotInfo::paint_key()`) as well as its color, so a new split or finish under the same color shows. |
 | Glass | A swatch never takes the glass appearance: the swatch painter marks every object it paints `glass_mark(obj, GlassFamily::None)`, because shading would shift the color that identifies a spool (`docs/devel/THEME_SYSTEM.md` § "Glass appearance"). |
+| Translucent | A clear or see-through filament (`SlotInfo::translucent`) is its color tinted over a checkerboard, on every surface and at every size; see § "Translucent filament". |
 | Finish | Silk, matte, marble and sparkle come from the filament's names, never from a widget. A swatch with less area than a `kSwatchFinishMinPx` (16 px) square cannot show a finish and paints plain; a long thin band or a spool body of the same short side keeps it. |
 
 ## Finishes
@@ -35,16 +36,51 @@ rows; `SpoolInfo::finish()` reads a Spoolman spool's material and filament name.
 finish travels through a subject it is the finish's name (`filament_finish_name()`), read
 back by `filament_finish_of()`.
 
+## Translucent filament
+
+One flag, `SlotInfo::translucent`: a filament is opaque or translucent, and "translucent"
+covers clear. The swatch painter draws the filament's color as it always does and lays a
+checkerboard over it at `kSwatchCheckOpa` (110), which reads the same as the color laid over
+the checks at the rest of the way: clear PETG and translucent red stay apart, and the hue
+still leads. Real see-through drawing is not used: on the dark theme it reads as a muddier
+color, not as clear.
+
+| Part | Rule |
+|------|------|
+| Squares | A quarter of the swatch's short side, clamped to 3..8 px (`swatch_check_cell_px()`): four squares across a 12 to 32 px chip, about three on an 8 px dot, more on anything larger. The top-left square is light (`swatch_check_is_light()`). |
+| Tones | The theme tokens `swatch_check_hi` and `swatch_check_lo`, each with a light and a dark mode value, read through `swatch_check_tones()`: two light grays, the image-editor convention, a little darker in dark mode so they do not glare. |
+| Where it is drawn | `draw_swatch()` blits a checkerboard image its `SwatchCache` renders once per size, radius and tones (`SwatchPaint::translucent`; no cache, no checks), after the finish texture and before the edge. `swatch_paint_check_pixels()` writes the same squares straight into an illustration's ARGB8888 buffer: `spool_canvas` lays them over the wound filament in both views, and `<unit_art>` over each translucent lane's tint (UNIT_ART.md § "Baked layers"). |
+| What carries it | `apply_swatch_color(obj, slot)`, `swatch_paint_for(slot)` and `spool_canvas_set_filament(canvas, slot)` read the slot; their color forms take a `translucent` argument; `set_swatch_translucent()` sets it on a painted object; `<swatch_paint translucent="on">` or `bind_translucent` (an int subject), and `<color_swatch>` / `<color_dot>` `translucent_subject`. `AvailableSlot::translucent` carries it to the mapping rows, the slot picker's rows (`filament_picker_row_<i>_translucent`) and the FILAMENTS card chip (`filament_chip_<i>_slot_translucent`). The slot editor's color dots bind its draft (`ams_edit_translucent`), and the color page's readout swatch binds `color_picker_translucent`, which a host sets with `ColorPickerView::set_translucent()` (attach starts opaque, so LEDs, themes and Spoolman never see it). The loaded filament's flag is `AmsState::get_current_translucent_subject()`, published with `current_paint()`. `SlotInfo::paint_key()` folds it in, so a lane spool repaints when it changes. |
+
+Where it comes from, one rule: an RRGGBBAA color whose alpha is below FF
+(`helix::hex_color_is_translucent()`, `ColorReading::translucent` from
+`helix::ams::read_lane_color()`). The Snapmaker U1 reports it in
+`print_task_config.filament_color_rgba` (its tag's `ALPHA` byte lands there too), a linked
+Spoolman spool in its filament's `color_hex` or `multi_color_hexes`, another writer's
+lane_data record in `color`. HelixScreen's own lane_data records keep `color` as `#RRGGBB`
+and carry `helix_translucent` beside it (docs/specs/filament_slots.md § 3). A source names
+translucency with its color, so a stronger source naming another color drops it
+(`helix::ams::resolve()`). The slot editor's color page has a **Translucent** checkbox beside
+Multi-Color (`ui_xml/components/ams_edit_multi_color.xml`), staged with the editor's other
+edits, and disabled with a "from tag" pill where `AmsBackend::tag_owns_filament_record()` says
+the spool's tag owns the record (a U1 head holding a real Snapmaker card), since no edit
+reaches it and the tag states its alpha. Writes carry the alpha the store keeps: `helix::kTranslucentFilamentAlpha` (0x80) or FF
+in the U1's `FILAMENT_COLOR_RGBA`, and in a Spoolman filament's `color_hex`
+(`helix::spoolman::color_hex_for()`), which Spoolman stores and returns as written.
+
+`HELIX_MOCK_AMS_STATE=translucent` gives the mock a translucent red loaded in lane 1 and a
+clear PETG in lane 2. Tests: `[translucent]`.
+
 ## Using it
 
 ### XML
 
 | Component | When |
 |-----------|------|
-| `<color_swatch>` | A swatch the user picks: a touch target with a selection ring. Props `color_subject` or `color`, `colors_subject` (CSV), `finish_subject` (a filament name), `fill` (a style; the LED Custom swatch's hue wheel), `selected_subject` + `index`, `callback`, `clickable`, `bubble`, `size`, `hit`, `reach`, `ring`. The color picker's strip and the slot editor's color row are rows of it. |
+| `<color_swatch>` | A swatch the user picks: a touch target with a selection ring. Props `color_subject` or `color`, `colors_subject` (CSV), `finish_subject` (a filament name), `translucent_subject` (int, nonzero = translucent), `fill` (a style; the LED Custom swatch's hue wheel), `selected_subject` + `index`, `callback`, `clickable`, `bubble`, `size`, `hit`, `reach`, `ring`. The color picker's strip and the slot editor's color row are rows of it. |
 | `<custom_color_swatch>` | The rainbow custom-color swatch (hue wheel, center glyph, `index` -2) that opens a color editor: closing the LED color row. Props `icon` (`pencil` default, `plus`), `selected_subject`, `callback`, `size`, `hit`, `reach`, `ring`; sizing defaults to the `swatch_grid_*` tokens. |
 | `<color_dot>` | A color that is only shown (a spool in a list, a slot in a row, a tool's dot): no ring, no reach, clicks go to the row. Same color props plus `size`. |
-| `<swatch_paint>` | The bare painter, for a rounded rect (set `style_radius`) or a fill inside another control (the LED power button). Attributes `color`, `bind_color`, `colors`, `bind_colors`, `finish`, `bind_finish`, `edge="off"`, `blend="on"` (colors blend left to right instead of banding). With no color it paints nothing. |
+| `<swatch_paint>` | The bare painter, for a rounded rect (set `style_radius`) or a fill inside another control (the LED power button). Attributes `color`, `bind_color`, `colors`, `bind_colors`, `finish`, `bind_finish`, `edge="off"`, `blend="on"` (colors blend left to right instead of banding), `translucent="on"`, `bind_translucent` (int subject). With no color it paints nothing. |
 
 A click handler reads the tapped color with `helix::ui::swatch_color_of(target)`.
 

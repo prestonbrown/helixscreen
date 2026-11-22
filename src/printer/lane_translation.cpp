@@ -47,6 +47,7 @@ enum class FieldKind {
     Text,
     PositiveId, ///< Zero is "unset", so a stored zero declares nothing.
     Weight,     ///< Negative is the "unknown" sentinel.
+    Flag,       ///< A bool; a record states it only when it holds one.
 };
 
 /// Who owns a field's value on a lane bound to a spool.
@@ -96,6 +97,10 @@ constexpr auto kFieldRoster = std::make_tuple(
                            &Observation::multi_color_hexes),
     field<FieldKind::Text>("color_mode", &SlotInfo::color_mode, &FilamentSlotOverride::color_mode,
                            &Observation::color_mode),
+    // Translucency goes with the color: a record states it only when it holds
+    // one, so an older record leaves another source's answer standing.
+    field<FieldKind::Flag>("translucent", &SlotInfo::translucent,
+                           &FilamentSlotOverride::translucent, &Observation::translucent),
     field<FieldKind::Text>("color_name", &SlotInfo::color_name, &FilamentSlotOverride::color_name,
                            &Observation::color_name),
     // Material, brand, spool name and vendor id are what a Spoolman spool states
@@ -268,6 +273,9 @@ Observation record_observation(const FilamentSlotOverride& record) {
             } else if constexpr (Row::kind == FieldKind::PositiveId) {
                 if (value > 0)
                     obs.*(f.obs) = value;
+            } else if constexpr (Row::kind == FieldKind::Flag) {
+                if (value.has_value())
+                    obs.*(f.obs) = *value;
             } else {
                 if (is_declarable_weight(value))
                     obs.*(f.obs) = value;
@@ -313,7 +321,7 @@ ColorReading read_lane_color(const std::string& raw) {
     }
 
     if (const auto rgb = parse_hex_color(raw)) {
-        return {ColorReadingKind::Observed, *rgb};
+        return {ColorReadingKind::Observed, *rgb, hex_color_is_translucent(raw)};
     }
     return {ColorReadingKind::NoReading, 0};
 }

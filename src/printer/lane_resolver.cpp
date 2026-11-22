@@ -20,6 +20,8 @@ void lay_identity(const Observation& obs, ResolvedLane& out) {
         out.multi_color_hexes = *obs.multi_color_hexes;
     if (obs.color_mode.has_value())
         out.color_mode = *obs.color_mode;
+    if (obs.translucent.has_value())
+        out.translucent = *obs.translucent;
     if (obs.color_name.has_value())
         out.color_name = *obs.color_name;
     if (obs.material.has_value())
@@ -40,6 +42,30 @@ void lay_identity(const Observation& obs, ResolvedLane& out) {
         out.spoolman_vendor_id = *obs.spoolman_vendor_id;
     if (obs.spoolman_orca_filament_id.has_value())
         out.spoolman_orca_filament_id = *obs.spoolman_orca_filament_id;
+}
+
+/// Whether a source stronger than the strongest one stating @p field names a
+/// different color than that source did: the filament it described is gone.
+template <typename Field>
+bool color_replaced(const std::array<const Observation*, 4>& by_strength, Field field) {
+    size_t source = by_strength.size();
+    for (size_t i = 0; i < by_strength.size(); ++i) {
+        if (by_strength[i] != nullptr && (by_strength[i]->*field).has_value()) {
+            source = i;
+        }
+    }
+    if (source == by_strength.size()) {
+        return false;
+    }
+    const std::optional<uint32_t> color = by_strength[source]->color_rgb;
+    for (size_t i = source + 1; color && i < by_strength.size(); ++i) {
+        const Observation* stronger = by_strength[i];
+        if (stronger != nullptr && stronger->color_rgb &&
+            (*stronger->color_rgb & 0xFFFFFF) != (*color & 0xFFFFFF)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void lay_weights(const Observation& obs, ResolvedLane& out) {
@@ -94,25 +120,15 @@ ResolvedLane resolve(const LaneSources& sources) {
     // A list belongs to the color its own source stated beside it. A stronger
     // source naming a different color has replaced the filament, so the list
     // goes too; one naming the same color (a backend that snaps a pick to its
-    // palette states that row in both places) keeps it.
-    size_t list_source = by_strength.size();
-    for (size_t i = 0; i < by_strength.size(); ++i) {
-        if (by_strength[i] != nullptr && by_strength[i]->multi_color_hexes.has_value()) {
-            list_source = i;
-        }
+    // palette states that row in both places) keeps it. Translucency belongs
+    // to its color the same way.
+    if (out.multi_color_hexes && !out.multi_color_hexes->empty() &&
+        color_replaced(by_strength, &Observation::multi_color_hexes)) {
+        out.multi_color_hexes = std::string();
+        out.color_mode = std::string();
     }
-    if (list_source < by_strength.size() && out.multi_color_hexes &&
-        !out.multi_color_hexes->empty()) {
-        const std::optional<uint32_t> list_color = by_strength[list_source]->color_rgb;
-        for (size_t i = list_source + 1; list_color && i < by_strength.size(); ++i) {
-            const Observation* stronger = by_strength[i];
-            if (stronger != nullptr && stronger->color_rgb &&
-                (*stronger->color_rgb & 0xFFFFFF) != (*list_color & 0xFFFFFF)) {
-                out.multi_color_hexes = std::string();
-                out.color_mode = std::string();
-                break;
-            }
-        }
+    if (out.translucent.value_or(false) && color_replaced(by_strength, &Observation::translucent)) {
+        out.translucent = false;
     }
     for (const Observation* obs : {held(sources.metered), held(sources.record),
                                    held(sources.firmware), spoolman, held(sources.pending)}) {

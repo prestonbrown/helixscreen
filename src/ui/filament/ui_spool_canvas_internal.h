@@ -23,7 +23,7 @@ struct SpoolCacheKey {
     uint16_t size;
     uint8_t fill_bucket; // 0..kFillBuckets
     SpoolGlow glow;
-    uint32_t filament_hash = 0; // multi-colour list and finish; 0 for a plain single colour
+    uint32_t filament_hash = 0; // multi-color list, finish, translucency; 0 for plain
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
 
@@ -44,6 +44,7 @@ struct SpoolCanvasData {
     /// is split the way every swatch splits (helix::ui::swatch_split_thresholds).
     std::vector<lv_color_t> colors;
     helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
+    bool translucent = false; // the filament is drawn over the swatch checkerboard
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     helix::ui::SpoolSpin spin;
     int vent_phase = 0; ///< current rotation, kept across a stop so the vents hold still

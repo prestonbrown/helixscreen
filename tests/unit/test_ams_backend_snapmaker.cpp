@@ -4458,6 +4458,42 @@ size_t index_of_containing(const std::vector<std::string>& history, const std::s
 
 } // namespace
 
+TEST_CASE("Snapmaker filament config gcode sends a translucent filament's alpha",
+          "[ams][snapmaker][filament_record][translucent]") {
+    SlotInfo s;
+    s.material = "PETG";
+    s.color_rgb = 0xD32F2F;
+    s.translucent = true;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2F80");
+    s.translucent = false;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2FFF");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config's alpha makes a lane translucent",
+                 "[ams][snapmaker][translucent]") {
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_type", json::array({"PETG", "PLA", "PLA", "PLA"})},
+                   {"filament_color_rgba",
+                    json::array({"E8E8FF80", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK(backend.get_slot_info(0).color_rgb == 0xE8E8FFu);
+    CHECK(backend.get_slot_info(0).translucent);
+    CHECK_FALSE(backend.get_slot_info(1).translucent);
+
+    // A record written back opaque is opaque again.
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_color_rgba",
+                    json::array({"E8E8FFFF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK_FALSE(backend.get_slot_info(0).translucent);
+}
+
 TEST_CASE("Snapmaker filament config gcode maps vendor and subtype to firmware values",
           "[ams][snapmaker][filament_record]") {
     SECTION("an unknown vendor and a free-form spool name take Generic / Basic") {
@@ -4765,6 +4801,21 @@ json make_detect_card(int head, const json& card_uid) {
 } // namespace
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a real card's official record is the tag's, a card-less one is not",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    FilamentRecordHarness h("tag_owns_record");
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+    h.frame(make_detect_card(1, json::array({144, 32, 196, 2})));
+    h.frame(make_task_filament({"NONE", "PLA", "NONE", "NONE"}, {false, true, false, false}));
+    CHECK(h.backend.tag_owns_filament_record(1));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(2));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(9));
+    // Official only by an endpoint write, no card behind it: an edit is forced through.
+    h.frame(make_detect_card(1, 0));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker an edit forces the record of an official head with no card",
                  "[ams][snapmaker][filament_record]") {
     lv_init_safe();
@@ -4937,6 +4988,84 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resume repairs a used head's blank
             }
         }
     }
+}
+
+namespace {
+
+/// Head 1 edited to a translucent clear PETG, and the firmware's echo of that
+/// edit: its record now holds E8E8FF80.
+void translucent_head_echoed(FilamentRecordHarness& h) {
+    h.frame(make_feed_status(1, "load_finish"));
+    REQUIRE(h.backend.get_slot_info(1).is_present());
+    SlotInfo clear;
+    clear.brand = "Inland";
+    clear.material = "PETG";
+    clear.color_rgb = 0xE8E8FF;
+    clear.translucent = true;
+    helix::test::edit_slot_as_user(h.backend, 1, clear);
+    json echo = make_task_filament({"NONE", "PETG", "NONE", "NONE"});
+    echo["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "E8E8FF80", "FFFFFFFF", "FFFFFFFF"});
+    h.frame(echo);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an edit changing color and translucency keeps it in the record",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("translucent_echo");
+    translucent_head_echoed(h);
+    const auto record = SnapmakerTestAccess::get_override(h.backend, 1);
+    REQUIRE(record.has_value());
+    CHECK(record->color_rgb == 0xE8E8FFu);
+    CHECK(record->translucent == std::optional<bool>(true));
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an edit's translucency waits in the record for the firmware's echo",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("translucent_waits");
+    h.frame(make_feed_status(1, "load_finish"));
+    SlotInfo clear;
+    clear.brand = "Inland";
+    clear.material = "PETG";
+    clear.color_rgb = 0xE8E8FF;
+    clear.translucent = true;
+    helix::test::edit_slot_as_user(h.backend, 1, clear);
+    const auto record = SnapmakerTestAccess::get_override(h.backend, 1);
+    REQUIRE(record.has_value());
+    // The firmware has not taken it yet, so the record does not state it.
+    CHECK_FALSE(record->translucent.has_value());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a translucent head the firmware cleared is repaired with its alpha",
+                 "[ams][snapmaker][filament_record][resume][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    pause_on_runout();
+    FilamentRecordHarness h("translucent_repair");
+    translucent_head_echoed(h);
+    // The firmware resets the head's record: its type NONE, its color FFFFFFFF.
+    json cleared =
+        make_task_filament({"NONE", "NONE", "NONE", "NONE"}, {false, false, false, false},
+                           std::vector<bool>{false, true, false, false});
+    cleared["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FFFFFFFF", "FFFFFFFF", "FFFFFFFF"});
+    h.frame(cleared);
+    SnapmakerTestAccess::set_current_slot(h.backend, 1);
+    h.printer.client.clear_gcode_script_history();
+
+    h.backend.prepare_for_resume(1, [](const AmsError&) {});
+    FilamentRecordHarness::drain();
+    const auto hist = h.history();
+    CHECK(index_of_containing(hist, "CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=E8E8FF80") <
+          hist.size());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
@@ -5421,6 +5550,264 @@ TEST_CASE_METHOD(SnapmakerFixture,
 
     h.print("complete");
     CHECK(h.config_writes().size() == 2);
+}
+
+namespace {
+
+/// print_task_config frame naming heads 0 and 2 as the firmware's clear
+/// leaves them; heads 1 and 3 keep a type.
+json heads_0_and_2_cleared() {
+    return json{
+        {"print_task_config",
+         {{"filament_type", json::array({"NONE", "HIPS", "NONE", "ASA"})},
+          {"filament_color_rgba", json::array({"FFFFFFFF", "E8E8E8FF", "FFFFFFFF", "FFFFFFFF"})},
+          {"filament_official", json::array({false, false, false, false})}}}};
+}
+
+size_t writes_for_head(const FilamentRecordHarness& h, int head) {
+    const std::string key = "CONFIG_EXTRUDER=" + std::to_string(head);
+    size_t n = 0;
+    for (const auto& w : h.config_writes()) {
+        if (w.find(key) != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+SlotInfo petg_blue() {
+    SlotInfo edit = polymaker_asa();
+    edit.material = "PETG";
+    edit.color_rgb = 0x0000FF;
+    return edit;
+}
+
+/// Every record write to @p head names @p type and @p rgba, and at least one
+/// names a type.
+void check_head_writes(const FilamentRecordHarness& h, int head, const std::string& type,
+                       const std::string& rgba) {
+    const std::string key = "CONFIG_EXTRUDER=" + std::to_string(head);
+    size_t typed = 0;
+    for (const auto& w : h.config_writes()) {
+        if (w.find(key) == std::string::npos) {
+            continue;
+        }
+        INFO(w);
+        if (w.find("FILAMENT_TYPE=") != std::string::npos) {
+            ++typed;
+            CHECK(w.find("FILAMENT_TYPE=" + type + " ") != std::string::npos);
+        }
+        if (w.find("FILAMENT_COLOR_RGBA=") != std::string::npos) {
+            CHECK(w.find("FILAMENT_COLOR_RGBA=" + rgba) != std::string::npos);
+        }
+    }
+    CHECK(typed > 0);
+}
+
+/// Head 0 holds a declared Polymaker PLA in red, echoed, with its spool in
+/// the feeder port. The user then edits it to @p edit (PETG in blue), and the
+/// firmware has not stated the edit yet.
+void edit_head0_unechoed(FilamentRecordHarness& h, const SlotInfo& edit = petg_blue()) {
+    h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+    SlotInfo pla = polymaker_asa();
+    pla.material = "PLA";
+    pla.color_rgb = 0xFF0000;
+    helix::test::edit_slot_as_user(h.backend, 0, pla);
+    FilamentRecordHarness::drain();
+    h.frame(make_head_record(0, "PLA", "FF0000FF"));
+    h.printer.client.clear_gcode_script_history();
+
+    helix::test::edit_slot_as_user(h.backend, 0, edit);
+    FilamentRecordHarness::drain();
+    REQUIRE(h.config_writes().size() == 2);
+    h.printer.client.clear_gcode_script_history();
+}
+
+SlotInfo petg_blue_translucent() {
+    SlotInfo edit = petg_blue();
+    edit.translucent = true;
+    return edit;
+}
+
+/// Blue at the alpha a translucent filament is written with.
+std::string blue_translucent_rgba() {
+    return fmt::format("0000FF{:02X}", helix::filament_alpha(true));
+}
+
+/// Heads 0 and 2 each hold a declared spool resting in the feeder port.
+void declare_heads_0_and_2(FilamentRecordHarness& h) {
+    declare_head0_asa(h);
+    h.frame(make_feed_status(2, "preload_finish", /*filament_detected=*/true));
+    SlotInfo generic = polymaker_asa();
+    generic.brand = "Generic";
+    generic.color_rgb = 0x1A1A1A;
+    helix::test::edit_slot_as_user(h.backend, 2, generic);
+    FilamentRecordHarness::drain();
+    h.frame(make_head_record(2, "ASA", "1A1A1AFF"));
+    h.printer.client.clear_gcode_script_history();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes a record back again when the firmware's clear overtook the "
+                 "write",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    FilamentRecordHarness h("drift_restore_overtaken");
+    declare_heads_0_and_2(h);
+
+    // A print that ends at once: the toolhead switches' remove events clear
+    // heads 0 and 2, and the write-back goes out.
+    h.print("printing");
+    h.frame(heads_0_and_2_cleared());
+    h.print("cancelled");
+    REQUIRE(writes_for_head(h, 0) == 2);
+    REQUIRE(writes_for_head(h, 2) == 2);
+    h.printer.client.clear_gcode_script_history();
+
+    // The clears queued before the writes land after them, inside one status
+    // tick: the record never names a type. Within the settle time nothing is
+    // repeated.
+    h.frame(heads_0_and_2_cleared());
+    CHECK(h.config_writes().empty());
+
+    SECTION("the next print runs a runout reload on head 2 and is cancelled") {
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.print("printing");
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", false}}}});
+        h.print("paused");
+        h.frame(make_feed_status(2, "load_picking", /*filament_detected=*/true));
+        h.frame(make_feed_status(2, "load_feeding", /*filament_detected=*/true));
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", true}}}});
+        h.frame(make_feed_status(2, "load_finish", /*filament_detected=*/true));
+        h.print("printing");
+        h.frame(heads_0_and_2_cleared());
+        CHECK(h.config_writes().empty());
+
+        h.print("cancelled");
+        CHECK(writes_for_head(h, 0) == 2);
+        CHECK(writes_for_head(h, 2) == 2);
+    }
+    SECTION("a spool that really left gets no second write") {
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.frame(make_feed_status(2, "wait_insert", /*filament_detected=*/false));
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.frame(heads_0_and_2_cleared());
+        CHECK(h.config_writes().empty());
+    }
+    SECTION("a spool inserted since the declaration gets no second write") {
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/true));
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.frame(heads_0_and_2_cleared());
+        CHECK(writes_for_head(h, 0) == 0);
+        CHECK(writes_for_head(h, 2) == 2);
+    }
+    SECTION("a firmware that clears every write is written a bounded number of times") {
+        for (int i = 0; i < 6; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
+        }
+        // Three writes in all, the first before the history was cleared.
+        CHECK(writes_for_head(h, 0) == 2 * 2);
+        CHECK(writes_for_head(h, 2) == 2 * 2);
+    }
+    SECTION("an edit the record never echoed is written again as the edit, three times in all") {
+        // The edit's write fails or a queued clear overtakes it: the record
+        // still names no type, and the lane's override still holds the type
+        // and color the firmware last stated.
+        helix::test::edit_slot_as_user(h.backend, 0, petg_blue());
+        FilamentRecordHarness::drain();
+        REQUIRE(writes_for_head(h, 0) == 2);
+        h.printer.client.clear_gcode_script_history();
+
+        for (int i = 0; i < 4; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
+        }
+        CHECK(writes_for_head(h, 0) == 2 * 2);
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes an edit the firmware has not echoed back, never the filament "
+                 "it replaced",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("drift_restore_unechoed_edit");
+    edit_head0_unechoed(h);
+
+    SECTION("a frame from before the edit, then the firmware's clear") {
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("a reconnect, a frame from before the edit, then the firmware's clear") {
+        h.backend.before_disconnect();
+        SnapmakerTestAccess::call_on_started(h.backend);
+        h.print("standby");
+        h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("the clear lands in a print paused on the head: RESUME's repair writes the edit") {
+        h.print("printing");
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        h.print("paused");
+        h.printer.client.clear_gcode_script_history();
+        SnapmakerTestAccess::set_current_slot(h.backend, 0);
+        SnapmakerTestAccess::set_sensor_present(h.backend, 0, true);
+        h.backend.prepare_for_resume(0, [](const AmsError&) {});
+        FilamentRecordHarness::drain();
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("the firmware echoes the edit, another writer restates PLA red, then a clear") {
+        h.frame(make_head_record(0, "PETG", "0000FFFF"));
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PLA", "FF0000FF");
+    }
+    SECTION("another writer names a third type before the echo, then a clear") {
+        h.frame(make_head_record(0, "ABS", "00FF00FF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "ABS", "00FF00FF");
+    }
+    SECTION("the user clears the lane, then the firmware's clear: nothing is written") {
+        h.backend.clear_slot_override(0);
+        FilamentRecordHarness::drain();
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(writes_for_head(h, 0) == 0);
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes a translucent edit the firmware has not echoed back with its "
+                 "alpha",
+                 "[ams][snapmaker][filament_record][record_drift][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("drift_restore_unechoed_translucent");
+    edit_head0_unechoed(h, petg_blue_translucent());
+
+    SECTION("a frame from before the edit, then the firmware's clear") {
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", blue_translucent_rgba());
+    }
+    SECTION("a frame naming the edit's type and color but full opacity is no echo") {
+        h.frame(make_head_record(0, "PETG", "0000FFFF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", blue_translucent_rgba());
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,

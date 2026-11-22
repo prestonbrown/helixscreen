@@ -56,6 +56,11 @@ inline constexpr int32_t kSwatchFinishMinPx = 16;
 /// near 1.9.
 inline constexpr double kSwatchEdgeContrastRatio = 1.75;
 
+/// How strongly a translucent filament's checkerboard shows through its color:
+/// the checks are laid over the color at this alpha, which reads the same as
+/// the color laid over the checks at the rest.
+inline constexpr lv_opa_t kSwatchCheckOpa = 110;
+
 // ---------------------------------------------------------------------------
 // Pure decisions
 // ---------------------------------------------------------------------------
@@ -95,6 +100,24 @@ SwatchFinish swatch_effective_finish(SwatchFinish finish, int32_t w, int32_t h);
 
 /// A matte filament's colour: slightly desaturated toward its own grey.
 lv_color_t swatch_matte_color(lv_color_t c);
+
+/// The side of one checkerboard square on a translucent swatch whose short side
+/// is @p short_side px: a quarter of it, clamped to 3..8 px. Four squares span
+/// a short side from 12 to 32 px; a smaller chip shows fewer (about three at
+/// 8 px), and a larger one more.
+int32_t swatch_check_cell_px(int32_t short_side);
+
+/// Whether the checkerboard square holding pixel (@p x, @p y), counted from the
+/// swatch's top-left corner, is the light one. The top-left square is light.
+bool swatch_check_is_light(int32_t x, int32_t y, int32_t cell);
+
+/// The two check tones: the theme's `swatch_check_hi` and
+/// `swatch_check_lo`, read per theme mode.
+struct SwatchCheckTones {
+    lv_color_t light;
+    lv_color_t dark;
+};
+SwatchCheckTones swatch_check_tones();
 
 struct SwatchPoint {
     float x;
@@ -147,6 +170,9 @@ std::vector<SwatchPoint> swatch_texture_points(const lv_area_t& area, int32_t ra
  */
 class SwatchCache {
   public:
+    /// The checkerboard overlay for a translucent @p w x @p h shape, rendered
+    /// on a key change (size, radius, tones).
+    const lv_draw_buf_t* checks(int32_t w, int32_t h, int32_t radius, SwatchCheckTones tones);
     SwatchCache() = default;
     ~SwatchCache();
     SwatchCache(const SwatchCache&) = delete;
@@ -167,6 +193,10 @@ class SwatchCache {
     int32_t tex_w_ = 0, tex_h_ = 0, tex_radius_ = 0;
     SwatchFinish tex_finish_ = SwatchFinish::Plain;
     int texture_builds_ = 0;
+    void drop_checks();
+    lv_draw_buf_t* checks_ = nullptr;
+    int32_t chk_w_ = 0, chk_h_ = 0, chk_radius_ = 0;
+    uint32_t chk_tones_ = 0;
     std::vector<float> thresholds_;
     int32_t thr_w_ = -1, thr_h_ = -1, thr_radius_ = 0;
     size_t thr_n_ = 0;
@@ -183,6 +213,9 @@ struct SwatchPaint {
     /// The colour the swatch sits on, when known; else the theme surfaces.
     std::optional<uint32_t> backdrop;
     SwatchFinish finish = SwatchFinish::Plain;
+    /// A clear or see-through filament: the color is drawn tinted over a
+    /// checkerboard (SlotInfo::translucent). Needs @ref cache.
+    bool translucent = false;
     lv_opa_t opa = LV_OPA_COVER;
     /// Holds the finish texture between redraws. Without one a silk, marble or
     /// sparkle finish is not drawn (the colour and split still are).
@@ -208,10 +241,17 @@ void swatch_paint_finish_pixels(lv_draw_buf_t* buf, const lv_area_t& area, int32
 void swatch_paint_finish_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
                                 const SwatchCoverage& cover, SwatchFinish finish);
 
+/// Lay a translucent filament's checkerboard over the pixels of @p area that
+/// @p cover covers in the ARGB8888 @p buf: squares of @p cell px in @p tones,
+/// at kSwatchCheckOpa, so whatever color is there reads as seen through.
+/// The squares count from @p area's top-left corner.
+void swatch_paint_check_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
+                               const SwatchCoverage& cover, int32_t cell, SwatchCheckTones tones);
+
 /// The paint for a spool colour: its multi-colour list when it has two or more
 /// parseable entries, else @p rgb.
 SwatchPaint swatch_paint_for(uint32_t rgb, const std::string& multi_color_hexes,
-                             SwatchFinish finish = SwatchFinish::Plain);
+                             SwatchFinish finish = SwatchFinish::Plain, bool translucent = false);
 
 /// swatch_paint_for() a slot: its colour, multi-colour list and finish.
 SwatchPaint swatch_paint_for(const helix::SlotInfo& slot);
@@ -222,7 +262,8 @@ SwatchPaint swatch_paint_for(const helix::SlotInfo& slot);
 
 /**
  * Paint an object (or a <color_swatch>'s disc) as a swatch of @p primary_rgb, or of @p
- * multi_color_hexes when that lists two or more colours, with @p finish.
+ * multi_color_hexes when that lists two or more colors, with @p finish, over a
+ * checkerboard when @p translucent.
  *
  * The object keeps its own size and radius; its background and border are
  * drawn by the swatch painter instead of the style. Safe to call repeatedly
@@ -230,10 +271,17 @@ SwatchPaint swatch_paint_for(const helix::SlotInfo& slot);
  */
 void apply_swatch_color(lv_obj_t* swatch, uint32_t primary_rgb,
                         const std::string& multi_color_hexes,
-                        SwatchFinish finish = SwatchFinish::Plain);
+                        SwatchFinish finish = SwatchFinish::Plain, bool translucent = false);
 
-/// apply_swatch_color() from a slot's colour, multi-colour list and finish.
+/// apply_swatch_color() from a slot's color, multi-color list, finish and
+/// translucency.
 void apply_swatch_color(lv_obj_t* swatch, const helix::SlotInfo& slot);
+
+/// Draw @p swatch's paint over a checkerboard (a translucent filament), or not.
+void set_swatch_translucent(lv_obj_t* swatch, bool translucent);
+
+/// Whether an object's swatch paint is drawn translucent.
+bool swatch_paint_translucent(const lv_obj_t* obj);
 
 /// Hang the swatch painter on @p obj with no fixed colour: it paints the
 /// object's own bg_color (or bg_grad), so a subject-bound colour style keeps
@@ -262,7 +310,8 @@ lv_color_t swatch_color_of(lv_obj_t* obj);
 /// ignored when empty: color, bind_color (color subject), colors and
 /// bind_colors (CSV / string subject), finish and bind_finish (finish name /
 /// string subject holding a filament name), edge ("off" disables the edge),
-/// blend ("on" blends several colors left to right instead of banding them).
+/// blend ("on" blends several colors left to right instead of banding them),
+/// translucent ("on") and bind_translucent (int subject, nonzero = translucent).
 void register_swatch_paint_widget();
 
 /// Drop all retained swatch paint state. Normally unnecessary (state is

@@ -1138,6 +1138,13 @@
     <color name="filament_hub_border_dark" value="#4c566a"/>
     <!-- nord9 -->
     <color name="filament_metal" value="#808890"/>
+    <!-- A translucent filament's checkerboard (ui_swatch.h, COLOR_SWATCHES.md): two light
+         grays the color is tinted over, the image-editor convention for see-through.
+         Lighter on the light theme so the checks stay off its white cards. -->
+    <color name="swatch_check_hi_light" value="#FFFFFF"/>
+    <color name="swatch_check_lo_light" value="#AEB4BC"/>
+    <color name="swatch_check_hi_dark" value="#E4E7EB"/>
+    <color name="swatch_check_lo_dark" value="#8C939C"/>
     <!-- Faceted toolhead base color (static - Voron-style red) -->
     <color name="toolhead_body" value="#E53935"/>
     <!-- AMS slot colors (static - 3D visualization) -->

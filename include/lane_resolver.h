@@ -32,6 +32,7 @@ struct ResolvedLane {
     /// A multi-color filament's colors and how they run; empty states one color.
     std::optional<std::string> multi_color_hexes;
     std::optional<std::string> color_mode;
+    std::optional<bool> translucent;
     std::optional<std::string> color_name;
     std::optional<std::string> material;
     std::optional<std::string> brand;

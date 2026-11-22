@@ -50,7 +50,8 @@ uint8_t unit_art_glow_alpha(uint8_t chamber, uint8_t art_alpha);
 struct UnitArtLane {
     bool filled = false;
     uint32_t color = 0;
-    float fill = 1.0f; ///< how full its spool is drawn, 0..1
+    float fill = 1.0f;        ///< how full its spool is drawn, 0..1
+    bool translucent = false; ///< drawn tinted over the swatch checkerboard
 };
 
 /// Which drawing a unit that holds no spools uses: spools behind it, or tube stubs.
