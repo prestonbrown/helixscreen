@@ -10,6 +10,7 @@
 #include "ui_color_picker_page.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
+#include "ui_swatch.h"
 
 #include "../test_helpers/ams_edit_overlay_view_access.h"
 #include "../test_helpers/backend_user_edit.h"
@@ -785,6 +786,50 @@ TEST_CASE_METHOD(PagesFixture,
     access.call_handle_save();
     settle();
     CHECK(backend->get_slot_info(0).translucent);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "a translucent lane's color dots and the color page's readout draw translucent",
+                 "[ams_edit_overlay][pages][translucent]") {
+    SlotInfo lane = describe_lane(*backend, 0, "PETG");
+    lane.translucent = true;
+    REQUIRE(helix::test::apply_edit(*backend, 0, lane).success());
+    open(0, backend->get_slot_info(0));
+    access.open_page(AmsEditOverlay::kPageFilament);
+    settle();
+    const auto first_dot = [](lv_obj_t* root) {
+        lv_obj_t* dots = lv_obj_find_by_name(root, "dots");
+        REQUIRE(dots != nullptr);
+        REQUIRE(lv_obj_get_child_count(dots) > 0);
+        return lv_obj_find_by_name(lv_obj_get_child(dots, 0), "color_swatch_disc");
+    };
+    lv_obj_t* filament_dot = first_dot(lv_screen_active());
+    REQUIRE(filament_dot != nullptr);
+    CHECK(helix::ui::swatch_paint_translucent(filament_dot));
+
+    access.call_open_color_page();
+    settle();
+    auto& page = helix::ui::get_color_picker_page();
+    REQUIRE(page.view().attached());
+    lv_obj_t* readout = lv_obj_find_by_name(page.get_root(), "readout_swatch");
+    REQUIRE(readout != nullptr);
+    lv_obj_t* readout_disc = lv_obj_find_by_name(readout, "color_swatch_disc");
+    REQUIRE(readout_disc != nullptr);
+    CHECK(helix::ui::swatch_paint_translucent(readout_disc));
+
+    // Unchecking shows opaque on both at once.
+    lv_obj_t* box = lv_obj_find_by_name(page.get_root(), "translucent_check");
+    REQUIRE(box != nullptr);
+    lv_obj_remove_state(box, LV_STATE_CHECKED);
+    lv_obj_send_event(box, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(readout_disc));
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(filament_dot));
+
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(400);
     close_editor_overlay();
 }
 

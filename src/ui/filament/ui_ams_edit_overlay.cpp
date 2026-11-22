@@ -2763,6 +2763,9 @@ void AmsEditOverlay::reset_color_draft() {
 void AmsEditOverlay::handle_translucent(bool on) {
     translucent_set_ = true;
     draft_translucent_ = on;
+    if (color_page_open_) {
+        helix::ui::get_color_picker_page().view().set_translucent(on);
+    }
     update_summary();
     update_sync_button_state();
 }
@@ -2930,6 +2933,8 @@ void AmsEditOverlay::open_color_page() {
             editor.update_color_row();
         },
         multi_color_capable() ? "ams_edit_multi_color" : "");
+    // The readout shows the draft as every swatch does, its translucency included.
+    helix::ui::get_color_picker_page().view().set_translucent(draft_translucent());
 }
 
 void AmsEditOverlay::update_color_row() {
