@@ -38,11 +38,10 @@ bool firmware_supervised() {
     if (s_firmware_supervised_override >= 0) {
         return s_firmware_supervised_override != 0;
     }
-    // The answer cannot change while the process runs, and the board probe stats the
-    // filesystem, while config-root writes ask it on every upload.
-    static const bool supervised = decide_firmware_supervised(
-        std::getenv("HELIX_FIRMWARE_MANAGED"), board::firmware_manages_updates(board::current()));
-    return supervised;
+    // Asked afresh each time: the board probe is a few stats, asked only before an
+    // install or a config write, and a test's board override must reach it.
+    return decide_firmware_supervised(std::getenv("HELIX_FIRMWARE_MANAGED"),
+                                      board::firmware_manages_updates(board::current()));
 }
 
 bool decide_firmware_supervised(const char* env_value, bool board_says) {

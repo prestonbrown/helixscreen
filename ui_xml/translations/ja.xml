@@ -4528,6 +4528,7 @@
   <translation tag="Your printer has an automatic filament changer" ja="プリンターに自動フィラメントチェンジャーが搭載されています"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ja="セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ja="プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。"/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ja="プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ja="お使いの{0}は{1}用に設定されていますが、標準状態のようです。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ja="お使いの{0}には{1}があるようですが、標準状態として設定されています。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ja="お使いの{0}には{1}があるようですが、{2}用に設定されています。"/>

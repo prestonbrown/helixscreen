@@ -4591,6 +4591,7 @@
   <translation tag="Your printer has an automatic filament changer" ru="Ваш принтер оснащён автоматическим сменщиком филамента"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ru="Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ru="Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ru="Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там."/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ru="Ваш {0} настроен для {1}, но выглядит стоковым."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ru="Похоже, на вашем {0} есть {1}, но он настроен как стоковый."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ru="Похоже, на вашем {0} есть {1}, но он настроен для {2}."/>

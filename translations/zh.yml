@@ -4696,6 +4696,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: 设置期间打印机离线，硬件选项已跳过。现在设置吗？
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : '打印机固件管理 HelixScreen 的软件，因此 HelixPrint 插件必须由固件提供，无法在此屏幕上安装。'
+  Your printer's firmware manages its configuration, so set these values there.: '打印机的配置由其固件管理，请在固件中设置这些值。'
   Your {0} is set up for {1}, but it looks stock.: '您的 {0} 设置为 {1}，但看起来是原厂状态。'
   Your {0} looks like it has {1}, but it is set up for {2}.: '您的 {0} 似乎装有 {1}，但设置为 {2}。'
   Your {0} looks like it has {1}, but it is set up as stock.: '您的 {0} 似乎装有 {1}，但当前设置为原厂状态。'
