@@ -137,21 +137,15 @@
             <text_heading name="plr_z_display" bind_text="plr_wizard_z"/>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
-              <ui_button name="btn_plr_step_0" flex_grow="1" text="0.05 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="0"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 0"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="0"/>
-              </ui_button>
-              <ui_button name="btn_plr_step_1" flex_grow="1" text="0.1 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="1"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 1"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="1"/>
-              </ui_button>
-              <ui_button name="btn_plr_step_2" flex_grow="1" text="1 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="2"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 2"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="2"/>
-              </ui_button>
+              <choice_button name="btn_plr_step_0"
+                             flex_grow="1" text="0.05 mm" subject="plr_jog_step" value="0" callback="on_plr_wizard_step"
+                             user_data="0"/>
+              <choice_button name="btn_plr_step_1"
+                             flex_grow="1" text="0.1 mm" subject="plr_jog_step" value="1" callback="on_plr_wizard_step"
+                             user_data="1"/>
+              <choice_button name="btn_plr_step_2"
+                             flex_grow="1" text="1 mm" subject="plr_jog_step" value="2" callback="on_plr_wizard_step"
+                             user_data="2"/>
             </lv_obj>
             <lv_obj width="100%"
                     height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">

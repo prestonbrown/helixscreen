@@ -30,20 +30,20 @@
           <button_group_item name="btn_chamber_air_recirculate"
                              icon="sync" text="Recirculate" variant="secondary" style_border_width="0">
             <bind_flag_if_eq subject="printer_has_chamber_air_recirculate" flag="hidden" ref_value="0"/>
-            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="0"/>
-            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 0"/>
+            <bind_style_if_eq name="styles.choice_fill_selected" subject="chamber_air_mode" ref_value="0"/>
+            <bind_style_if name="styles.choice_fill_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 0"/>
             <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="recirculate"/>
           </button_group_item>
           <button_group_item name="btn_chamber_air_exhaust" icon="fan" text="Exhaust" variant="secondary">
             <bind_flag_if_eq subject="printer_has_chamber_air_exhaust" flag="hidden" ref_value="0"/>
-            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="1"/>
-            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 1"/>
+            <bind_style_if_eq name="styles.choice_fill_selected" subject="chamber_air_mode" ref_value="1"/>
+            <bind_style_if name="styles.choice_fill_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 1"/>
             <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="exhaust"/>
           </button_group_item>
           <button_group_item name="btn_chamber_air_off" icon="fan_off" text="Off" variant="secondary">
             <bind_flag_if_eq subject="printer_has_chamber_air_off" flag="hidden" ref_value="0"/>
-            <bind_style_if_eq name="styles.choice_selected" subject="chamber_air_mode" ref_value="2"/>
-            <bind_style_if name="styles.choice_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 2"/>
+            <bind_style_if_eq name="styles.choice_fill_selected" subject="chamber_air_mode" ref_value="2"/>
+            <bind_style_if name="styles.choice_fill_idle" cond="chamber_air_mode ge 0 and chamber_air_mode ne 2"/>
             <event_cb trigger="clicked" callback="on_chamber_air_mode_clicked" user_data="off"/>
           </button_group_item>
         </button_group>

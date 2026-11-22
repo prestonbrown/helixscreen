@@ -54,11 +54,10 @@
     <style name="zo_fig_top" width="100%" height="0" flex_grow="1"/>
     <style name="zo_sec_side" width="0" height="100%" flex_grow="1"/>
     <style name="zo_sec_below" width="100%" height="content" flex_grow="0"/>
-    <style name="zo_step"
-           radius="#zo_step_radius" border_width="#zo_step_border" border_color="#elevated_bg" border_opa="255"
-           text_font="#cal_font_button"/>
+    <!-- The step chips' shape and type; the colors are choice_button's outline look. -->
+    <style name="zo_step" radius="#zo_step_radius" border_width="#zo_step_border" text_font="#cal_font_button"/>
     <style name="zo_step_micro" radius="#zo_m_step_radius"/>
-    <style name="zo_step_on" bg_color="#primary" bg_opa="255" border_width="0" text_font="#cal_font_name_bold"/>
+    <style name="zo_step_on" text_font="#cal_font_name_bold"/>
   </styles>
   <view name="calibration_zoffset_panel"
         extends="lv_obj" height="100%" align="right_mid" style_bg_opa="255" style_bg_color="#screen_bg"
@@ -239,38 +238,42 @@
               <lv_obj width="100%"
                       height="content" style_pad_all="0" style_pad_gap="#zo_m_step_gap" flex_flow="row"
                       scrollable="false">
-                <ui_button name="zo_step_0" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.01">
+                <choice_button name="zo_step_0"
+                               width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.01"
+                               subject="zoffset_step" value="0" callback="on_zoffset_step_pick" user_data="0"
+                               look="outline">
                   <style name="zo_step"/>
                   <style name="zo_step_micro"/>
                   <style name="zo_step_on" selector="checked"/>
-                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="0"/>
-                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="0"/>
-                </ui_button>
-                <ui_button name="zo_step_1" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.05">
+                </choice_button>
+                <choice_button name="zo_step_1"
+                               width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.05"
+                               subject="zoffset_step" value="1" callback="on_zoffset_step_pick" user_data="1"
+                               look="outline">
                   <style name="zo_step"/>
                   <style name="zo_step_micro"/>
                   <style name="zo_step_on" selector="checked"/>
-                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="1"/>
-                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="1"/>
-                </ui_button>
+                </choice_button>
               </lv_obj>
               <lv_obj width="100%"
                       height="content" style_pad_all="0" style_pad_gap="#zo_m_step_gap" flex_flow="row"
                       scrollable="false">
-                <ui_button name="zo_step_2" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.10">
+                <choice_button name="zo_step_2"
+                               width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.10"
+                               subject="zoffset_step" value="2" callback="on_zoffset_step_pick" user_data="2"
+                               look="outline">
                   <style name="zo_step"/>
                   <style name="zo_step_micro"/>
                   <style name="zo_step_on" selector="checked"/>
-                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="2"/>
-                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="2"/>
-                </ui_button>
-                <ui_button name="zo_step_3" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="1 mm">
+                </choice_button>
+                <choice_button name="zo_step_3"
+                               width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="1 mm"
+                               subject="zoffset_step" value="3" callback="on_zoffset_step_pick" user_data="3"
+                               look="outline">
                   <style name="zo_step"/>
                   <style name="zo_step_micro"/>
                   <style name="zo_step_on" selector="checked"/>
-                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="3"/>
-                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="3"/>
-                </ui_button>
+                </choice_button>
               </lv_obj>
               <lv_obj width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <lv_label width="100%"
@@ -412,38 +415,38 @@
                   <lv_obj width="100%"
                           height="content" style_pad_all="0" style_pad_gap="#zo_step_gap" flex_flow="row"
                           scrollable="false">
-                    <ui_button name="zo_step_0"
-                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.01">
+                    <choice_button name="zo_step_0"
+                                   width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.01"
+                                   subject="zoffset_step" value="0" callback="on_zoffset_step_pick" user_data="0"
+                                   look="outline">
                       <style name="zo_step"/>
                       <style name="zo_step_on" selector="checked"/>
-                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="0"/>
-                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="0"/>
-                    </ui_button>
-                    <ui_button name="zo_step_1"
-                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.05">
+                    </choice_button>
+                    <choice_button name="zo_step_1"
+                                   width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.05"
+                                   subject="zoffset_step" value="1" callback="on_zoffset_step_pick" user_data="1"
+                                   look="outline">
                       <style name="zo_step"/>
                       <style name="zo_step_on" selector="checked"/>
-                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="1"/>
-                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="1"/>
-                    </ui_button>
+                    </choice_button>
                   </lv_obj>
                   <lv_obj width="100%"
                           height="content" style_pad_all="0" style_pad_gap="#zo_step_gap" flex_flow="row"
                           scrollable="false">
-                    <ui_button name="zo_step_2"
-                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.10">
+                    <choice_button name="zo_step_2"
+                                   width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.10"
+                                   subject="zoffset_step" value="2" callback="on_zoffset_step_pick" user_data="2"
+                                   look="outline">
                       <style name="zo_step"/>
                       <style name="zo_step_on" selector="checked"/>
-                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="2"/>
-                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="2"/>
-                    </ui_button>
-                    <ui_button name="zo_step_3"
-                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="1 mm">
+                    </choice_button>
+                    <choice_button name="zo_step_3"
+                                   width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="1 mm"
+                                   subject="zoffset_step" value="3" callback="on_zoffset_step_pick" user_data="3"
+                                   look="outline">
                       <style name="zo_step"/>
                       <style name="zo_step_on" selector="checked"/>
-                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="3"/>
-                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="3"/>
-                    </ui_button>
+                    </choice_button>
                   </lv_obj>
                   <lv_label width="100%"
                             text="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."

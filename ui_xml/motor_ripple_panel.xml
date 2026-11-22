@@ -25,17 +25,14 @@
         <bind_flag_if cond="ripple_view ne 1 and ripple_view ne 2" flag="hidden"/>
         <lv_obj width="100%"
                 height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
-          <ui_button name="btn_ripple_motor_x" flex_grow="1" text="X motor">
-            <bind_style name="styles.choice_selected" subject="ripple_motor" ref_value="0"/>
-            <bind_style_if name="styles.choice_idle" cond="ripple_motor ne 0"/>
-            <event_cb trigger="clicked" callback="on_ripple_motor" user_data="0"/>
-          </ui_button>
-          <ui_button name="btn_ripple_motor_y" flex_grow="1" text="Y motor">
+          <choice_button name="btn_ripple_motor_x"
+                         flex_grow="1" text="X motor" subject="ripple_motor" value="0" callback="on_ripple_motor"
+                         user_data="0"/>
+          <choice_button name="btn_ripple_motor_y"
+                         flex_grow="1" text="Y motor" subject="ripple_motor" value="1" callback="on_ripple_motor"
+                         user_data="1">
             <bind_flag_if_eq subject="ripple_has_y" flag="hidden" ref_value="0"/>
-            <bind_style name="styles.choice_selected" subject="ripple_motor" ref_value="1"/>
-            <bind_style_if name="styles.choice_idle" cond="ripple_motor ne 1"/>
-            <event_cb trigger="clicked" callback="on_ripple_motor" user_data="1"/>
-          </ui_button>
+          </choice_button>
         </lv_obj>
         <lv_obj name="ripple_chart" width="100%" flex_grow="3" style_pad_all="0" scrollable="false"/>
         <text_small width="100%"
