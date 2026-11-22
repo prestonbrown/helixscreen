@@ -14,6 +14,7 @@
 namespace helix {
 class AmsBackend;
 struct AmsUnit;
+struct HeadIdentity;
 } // namespace helix
 
 namespace helix::ui {
@@ -113,6 +114,22 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
  */
 std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string_view name,
                                int index, ToolLabelForm form);
+
+/**
+ * @brief The tool_*_label() family for a head (helix::head_identity()).
+ *
+ * A head with a name is labeled as the tool of that name would be. A head
+ * without one has no G-code name, since none selects it, so every form spells
+ * its number: tool_name_label() and Full give lane_label() ("Tool 2"), and
+ * Code, the badge and the number give lane_number_text() ("2").
+ *
+ * @return empty when the head's index is negative
+ */
+std::string head_number_text(ToolNumberStyle style, const HeadIdentity& head);
+std::string head_badge_label(ToolNumberStyle style, const HeadIdentity& head);
+std::string head_name_label(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head);
+std::string head_label_in_form(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head,
+                               ToolLabelForm form);
 
 /**
  * @brief A tool that draws from a lane into the one head every tool shares.
@@ -354,5 +371,12 @@ std::string active_tool_badge_label(std::string_view name, int index);
  *        ("Toolhead 3 (T2)" on a U1).
  */
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form);
+
+/// head_name_label(), head_label_in_form() and head_badge_label() under
+/// active_tool_noun() and active_tool_number_style(): what every surface
+/// naming a head of the connected printer shows.
+std::string active_head_name_label(const HeadIdentity& head);
+std::string active_head_label(const HeadIdentity& head, ToolLabelForm form);
+std::string active_head_badge_label(const HeadIdentity& head);
 
 } // namespace helix::ui

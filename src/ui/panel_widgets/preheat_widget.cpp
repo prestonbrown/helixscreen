@@ -14,6 +14,7 @@
 #include "core/observer_factory.h"
 #include "core/subject.h"
 #include "core/temperature_units.h"
+#include "display_numbering.h"
 #include "filament_database.h"
 #include "i18n_plural.h"
 #include "i_moonraker_api.h"
@@ -230,18 +231,17 @@ void PreheatWidget::sync_tool_target() {
 }
 
 void PreheatWidget::update_tool_target_label() {
-    // Holds ToolInfo::display_label, a translated noun plus a number:
+    // Holds a head's name, a translated noun plus a number:
     // Russian renders LaneNoun::Toolhead as "Печатающая головка 16" at 40 bytes.
     char label[64];
-    const auto& tools = ToolState::instance().tools();
     if (tool_target_ == -1) {
         // The number of nozzles "All" will heat, which is what
         // collect_preheat_heaters() resolves to once lanes sharing a heater
         // collapse, not the lane count.
         std::snprintf(label, sizeof(label), "%s (%d)", lv_tr("All"),
                       ToolState::instance().extruder_count());
-    } else if (const int tool = target_tool_index(); tool >= 0) {
-        std::snprintf(label, sizeof(label), "%s", tools[tool].display_label.c_str());
+    } else if (const std::string head = target_head_label(); !head.empty()) {
+        std::snprintf(label, sizeof(label), "%s", head.c_str());
     } else {
         label[0] = '\0';
     }
@@ -451,9 +451,9 @@ void PreheatWidget::set_temperatures_multi(int nozzle, int bed, int chamber) {
                                                          static_cast<uint64_t>(tool_count))),
                        tool_count);
     } else if (target_tool >= 0 && bed_sent) {
-        NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), tools[target_tool].display_label);
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} + bed set"), target_head_label());
     } else if (target_tool >= 0) {
-        NOTIFY_SUCCESS(lv_tr("Preheat: {} set"), tools[target_tool].display_label);
+        NOTIFY_SUCCESS(lv_tr("Preheat: {} set"), target_head_label());
     }
 }
 
@@ -467,6 +467,17 @@ int PreheatWidget::target_tool_index() const {
     // head heats and announces through the lane it holds.
     return heads[static_cast<size_t>(tool_target_)].representative_tool(
         ToolState::instance().active_tool_index());
+}
+
+std::string PreheatWidget::target_head_label() const {
+    if (tool_target_ < 0)
+        return {};
+    const auto& ts = ToolState::instance();
+    const auto heads = ts.heated_heads();
+    if (tool_target_ >= static_cast<int>(heads.size()))
+        return {};
+    return helix::ui::active_head_name_label(
+        ts.head_identity(heads[static_cast<size_t>(tool_target_)]));
 }
 
 void PreheatWidget::cycle_tool_target() {

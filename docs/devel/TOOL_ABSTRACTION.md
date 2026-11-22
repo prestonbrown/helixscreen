@@ -343,6 +343,8 @@ This allows a tool changer where T0 feeds from an AFC (backend 0) and T1 feeds f
 
 `ToolInfo.lane_seated` comes from `ToolTopology::tool_seated`, which `build_ams_topology()` fills from each lane's `slot_is_actively_loaded()` on every push. Where a hub feeds several lanes into one head, it names the lane the head holds, mounted or parked, and `PhysicalHead::representative_tool()` sends that lane when the head is selected rather than the head's lowest (prestonbrown/helixscreen#1811).
 
+**What a head is called.** Every surface that labels a head (the home tool switcher, the tool picker, the Filament and temperature graph target rows, the calibration head pickers, the preheat target and the print status chip for the other heads) asks `helix::head_identity()` (`include/tool_state.h`) and spells the answer with the `head_*_label()` family in `include/display_numbering.h`. Where there are no more tools than heads, every tool is a head and the head is labeled as its representative tool, so a tool changer, a U1, MedusaHC and INDX read as before. Where tools outnumber heads, the tools are lanes: a tool's G-code name says which lane loads, not which head, so `T3` on an AFC rig loads lane T3 wherever it feeds. The head is then named by `ToolInfo::head_name`, the klipper-toolchanger tool object its extruder belongs to, and otherwise by its number alone ("Tool 2", "2"), since no G-code name selects it. The lane it holds is `HeadIdentity::lane_code`, which the switcher shows on a head's second line and detail row.
+
 ---
 
 ## Subject Bindings

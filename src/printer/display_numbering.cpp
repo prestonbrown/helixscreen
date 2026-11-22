@@ -6,6 +6,7 @@
 #include "ams_state.h"
 #include "lvgl.h"
 #include "settings_manager.h"
+#include "tool_state.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -89,6 +90,32 @@ std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string
     if (is_generated_tool_name(name) && code == tool_label(lane_number(index)))
         return label;
     return fmt::format(lv_tr("{} ({})"), label, code);
+}
+
+std::string head_number_text(ToolNumberStyle style, const HeadIdentity& head) {
+    if (head.name.empty())
+        return lane_number_text(head.index);
+    return tool_number_text(style, head.name, head.index);
+}
+
+std::string head_badge_label(ToolNumberStyle style, const HeadIdentity& head) {
+    if (head.name.empty())
+        return lane_number_text(head.index);
+    return tool_badge_label(style, head.name, head.index);
+}
+
+std::string head_name_label(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head) {
+    if (head.name.empty())
+        return lane_label(noun, head.index);
+    return tool_name_label(noun, style, head.name, head.index);
+}
+
+std::string head_label_in_form(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head,
+                               ToolLabelForm form) {
+    if (head.name.empty())
+        return form == ToolLabelForm::Code ? lane_number_text(head.index)
+                                           : lane_label(noun, head.index);
+    return tool_label_in_form(noun, style, head.name, head.index, form);
 }
 
 std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm form) {
@@ -281,6 +308,18 @@ std::string active_tool_name_label(std::string_view name, int index) {
 
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form) {
     return tool_label_in_form(active_tool_noun(), active_tool_number_style(), name, index, form);
+}
+
+std::string active_head_name_label(const HeadIdentity& head) {
+    return head_name_label(active_tool_noun(), active_tool_number_style(), head);
+}
+
+std::string active_head_label(const HeadIdentity& head, ToolLabelForm form) {
+    return head_label_in_form(active_tool_noun(), active_tool_number_style(), head, form);
+}
+
+std::string active_head_badge_label(const HeadIdentity& head) {
+    return head_badge_label(active_tool_number_style(), head);
 }
 
 bool tool_badges_add_information(const std::vector<int>& tool_to_slot, int slot_count) {
