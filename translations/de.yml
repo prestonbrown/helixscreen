@@ -204,7 +204,7 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Ein Delta-Drucker kann X und Y nicht referenzieren, ohne Z zu bewegen, daher kann ein Druck nicht fortgesetzt werden."
   A different toolhead than the one asked for is on the carriage.: 'Auf dem Schlitten sitzt ein anderer Werkzeugkopf als der angeforderte.'
   ? 'A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head.'
-  : 'Ein Dock- oder Greifsensor liest falsch: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf.'
+  : 'Ein Dock- oder Greifsensor meldet einen falschen Zustand: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Ein paar Minuten, fast alles Aufheizen. Du beurteilst nichts mit dem Auge.'
   A first-layer offset and bed mesh for each material: "Ein Erstschicht-Offset und Bettnetz für jedes Material"
@@ -2666,13 +2666,13 @@ translations:
   Layer Height: Schichthöhe
   Layer Pause: 'Schichtpause'
   ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
-  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code Ihres Slicers muss ausführen:
 
     TIMELAPSE_TAKE_FRAME'
   ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
   : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.
 
-    Füge es in den Schichtwechsel-G-Code deines Slicers ein:
+    Fügen Sie es in den Schichtwechsel-G-Code Ihres Slicers ein:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -5207,7 +5207,7 @@ translations:
   The running step stops at once and the printer restarts.: Der laufende Schritt stoppt sofort und der Drucker startet neu.
   The running step stops. The steps that finished keep their results.: Der laufende Schritt stoppt. Abgeschlossene Schritte behalten ihre Ergebnisse.
   The runout sensor indicates no filament is loaded. Start print anyway?: Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?
-  The runout sensor reads empty, so the print did not start.: Der Filamentsensor meldet leer, daher wurde der Druck nicht gestartet.
+  The runout sensor reads empty, so the print did not start.: Der Auslaufsensor meldet leer, daher wurde der Druck nicht gestartet.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
   The screen will lose its connection to the printer for a few seconds.: "Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
@@ -5225,7 +5225,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
   Timelapse did not start: 'Zeitraffer nicht gestartet'
   Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
-  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stelle ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stellen Sie ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
@@ -5328,7 +5328,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Diese Datei wurde für {} gesliced, aber {} ist geladen.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt.
   ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
-  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und dein Slicer hat sie nicht eingefügt:
+  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und Ihr Slicer hat sie nicht eingefügt:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -5572,7 +5572,7 @@ translations:
   Turn On: Einschalten
   Turn On LEDs: 'LEDs einschalten'
   Turn On Toolhead LED: "Werkzeugkopf-LED einschalten"
-  Turn off arc fitting in the slicer and slice the file again.: Arc Fitting im Slicer ausschalten und die Datei neu slicen.
+  Turn off arc fitting in the slicer and slice the file again.: Bogenanpassung (Arc Fitting) im Slicer ausschalten und die Datei neu slicen.
   Turn off arc fitting in the slicer, then slice the file again.: 'Bogenanpassung (Arc Fitting) im Slicer ausschalten, dann die Datei neu slicen.'
   Turn off bed check: 'Bettprüfung ausschalten'
   Turn off detection: Erkennung ausschalten
@@ -6231,10 +6231,10 @@ translations:
   '{} complete': '{} abgeschlossen'
   '{} configured item not found': '{} konfiguriertes Element nicht gefunden'
   '{} configured items not found': '{} konfigurierte Elemente nicht gefunden'
-  '{} could not load': '{} konnte nicht laden'
+  '{} could not load': '{} konnte nicht geladen werden'
   '{} could not load its filament': '{} konnte sein Filament nicht laden'
   '{} could not preload its filament': '{} konnte sein Filament nicht vorladen'
-  '{} could not unload': '{} konnte nicht entladen'
+  '{} could not unload': '{} konnte nicht entladen werden'
   '{} could not unload its filament': '{} konnte sein Filament nicht entladen'
   '{} critical': '{} kritisch'
   '{} critical hardware issues': '{} kritische Hardwareprobleme'
@@ -6319,7 +6319,7 @@ translations:
   '{} presets': '{} Voreinstellungen'
   '{} prints': '{} Drucke'
   '{} queued': '{} in der Warteschlange'
-  '{} ran out': '{} ist aufgebraucht'
+  '{} ran out': '{}: Filament aufgebraucht'
   '{} ran out of filament': '{}: Filament aufgebraucht'
   '{} ran out of filament during the print, and auto refill is off.': Das Filament von {} ist während des Drucks ausgegangen, und automatisches Nachfüllen ist aus.
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen.'

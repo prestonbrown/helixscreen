@@ -246,7 +246,7 @@ translations:
   A configuration file is missing: Отсутствует файл конфигурации
   A controller board did not answer: 'Плата управления не ответила'
   A controller board fell behind: 'Плата управления не успевает'
-  A controller board missed a timed update: Плата управления пропустила своевременное обновление
+  A controller board missed a timed update: Плата управления пропустила обновление по таймеру
   A controller board runs firmware that does not match the printer software.: 'Прошивка платы управления не соответствует ПО принтера.'
   A cooling fan stopped while its heater was on, so the firmware turned the heater off.: Вентилятор охлаждения остановился при включённом нагревателе, поэтому прошивка выключила нагреватель.
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."
@@ -2173,7 +2173,7 @@ translations:
   Found {} at {}.: '{} найден по адресу {}.'
   Framerate: Частота кадров
   Free space unknown: 'Свободное место неизвестно'
-  Free the spool and pull the filament out of {} by hand, then try again.: Освободите катушку и вручную вытяните филамент из {}, затем попробуйте снова.
+  Free the spool and pull the filament out of {} by hand, then try again.: '{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова.'
   Freed {}: 'Освобождено {}'
   Freed {}, but some files could not be deleted: 'Освобождено {}, но некоторые файлы удалить не удалось'
   From Buffer: Из буфера
@@ -6365,7 +6365,7 @@ translations:
   '{} h': '{} ч'
   '{} h of {} h': '{} ч из {} ч'
   '{} hand feed did not finish': '{}: ручная подача не завершилась'
-  '{} has no filament': В {} нет филамента
+  '{} has no filament': '{}: нет филамента'
   '{} has no filament type set': '{}: не задан тип филамента'
   '{} has no hotend': "У {} нет хотэнда"
   '{} heater turned off': Нагреватель {} выключен
@@ -6433,7 +6433,7 @@ translations:
   '{} queued': 'В очереди: {}'
   '{} ran out': '{}: филамент закончился'
   '{} ran out of filament': '{}: закончился филамент'
-  '{} ran out of filament during the print, and auto refill is off.': В {} закончился филамент во время печати, а автопополнение выключено.
+  '{} ran out of filament during the print, and auto refill is off.': '{}: филамент закончился во время печати, а автопополнение выключено.'
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': 'В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента.'
   '{} ran out, and the printer has not said what it was printing.': 'В {} закончился филамент, а принтер не сообщил, чем печатал.'
   '{} serial': 'Серийный номер {}'

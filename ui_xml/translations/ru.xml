@@ -218,7 +218,7 @@
   <translation tag="A configuration file is missing" ru="Отсутствует файл конфигурации"/>
   <translation tag="A controller board did not answer" ru="Плата управления не ответила"/>
   <translation tag="A controller board fell behind" ru="Плата управления не успевает"/>
-  <translation tag="A controller board missed a timed update" ru="Плата управления пропустила своевременное обновление"/>
+  <translation tag="A controller board missed a timed update" ru="Плата управления пропустила обновление по таймеру"/>
   <translation tag="A controller board runs firmware that does not match the printer software." ru="Прошивка платы управления не соответствует ПО принтера."/>
   <translation tag="A cooling fan stopped while its heater was on, so the firmware turned the heater off." ru="Вентилятор охлаждения остановился при включённом нагревателе, поэтому прошивка выключила нагреватель."/>
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." ru="Дельта-принтер не может выполнить парковку X и Y без движения Z, поэтому печать нельзя продолжить."/>
@@ -2063,7 +2063,7 @@
   <translation tag="Found {} at {}." ru="{} найден по адресу {}."/>
   <translation tag="Framerate" ru="Частота кадров"/>
   <translation tag="Free space unknown" ru="Свободное место неизвестно"/>
-  <translation tag="Free the spool and pull the filament out of {} by hand, then try again." ru="Освободите катушку и вручную вытяните филамент из {}, затем попробуйте снова."/>
+  <translation tag="Free the spool and pull the filament out of {} by hand, then try again." ru="{}: освободите катушку и вручную вытяните филамент, затем попробуйте снова."/>
   <translation tag="Freed {}" ru="Освобождено {}"/>
   <translation tag="Freed {}, but some files could not be deleted" ru="Освобождено {}, но некоторые файлы удалить не удалось"/>
   <translation tag="From Buffer" ru="Из буфера"/>
@@ -6121,7 +6121,7 @@
   <translation tag="{} h" ru="{} ч"/>
   <translation tag="{} h of {} h" ru="{} ч из {} ч"/>
   <translation tag="{} hand feed did not finish" ru="{}: ручная подача не завершилась"/>
-  <translation tag="{} has no filament" ru="В {} нет филамента"/>
+  <translation tag="{} has no filament" ru="{}: нет филамента"/>
   <translation tag="{} has no filament type set" ru="{}: не задан тип филамента"/>
   <translation tag="{} has no hotend" ru="У {} нет хотэнда"/>
   <translation tag="{} heater turned off" ru="Нагреватель {} выключен"/>
@@ -6186,7 +6186,7 @@
   <translation tag="{} queued" ru="В очереди: {}"/>
   <translation tag="{} ran out" ru="{}: филамент закончился"/>
   <translation tag="{} ran out of filament" ru="{}: закончился филамент"/>
-  <translation tag="{} ran out of filament during the print, and auto refill is off." ru="В {} закончился филамент во время печати, а автопополнение выключено."/>
+  <translation tag="{} ran out of filament during the print, and auto refill is off." ru="{}: филамент закончился во время печати, а автопополнение выключено."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." ru="В {} закончился {}. Выберите заряженную печатающую головку, чтобы завершить печать. Она сохранит температуры, нарезанные для исходного филамента."/>
   <translation tag="{} ran out, and the printer has not said what it was printing." ru="В {} закончился филамент, а принтер не сообщил, чем печатал."/>
   <translation tag="{} serial" ru="Серийный номер {}"/>

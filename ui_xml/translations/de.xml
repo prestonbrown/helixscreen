@@ -187,7 +187,7 @@
   <translation tag="A cooling fan stopped while its heater was on, so the firmware turned the heater off." de="Ein Kühllüfter ist stehen geblieben, während seine Heizung an war, daher hat die Firmware die Heizung abgeschaltet."/>
   <translation tag="A delta printer can&apos;t home X and Y without moving Z, so a print can&apos;t be resumed." de="Ein Delta-Drucker kann X und Y nicht referenzieren, ohne Z zu bewegen, daher kann ein Druck nicht fortgesetzt werden."/>
   <translation tag="A different toolhead than the one asked for is on the carriage." de="Auf dem Schlitten sitzt ein anderer Werkzeugkopf als der angeforderte."/>
-  <translation tag="A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head." de="Ein Dock- oder Greifsensor liest falsch: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf."/>
+  <translation tag="A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head." de="Ein Dock- oder Greifsensor meldet einen falschen Zustand: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf."/>
   <translation tag="A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen." de="Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm."/>
   <translation tag="A few minutes, nearly all of it heating. You judge nothing by eye." de="Ein paar Minuten, fast alles Aufheizen. Du beurteilst nichts mit dem Auge."/>
   <translation tag="A first-layer offset and bed mesh for each material" de="Ein Erstschicht-Offset und Bettnetz für jedes Material"/>
@@ -2554,8 +2554,8 @@
   <translation tag="Layer 2" de="Schicht 2"/>
   <translation tag="Layer Height" de="Schichthöhe"/>
   <translation tag="Layer Pause" de="Schichtpause"/>
-  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.&#10;Füge es in den Schichtwechsel-G-Code deines Slicers ein:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code Ihres Slicers muss ausführen:&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.&#10;Fügen Sie es in den Schichtwechsel-G-Code Ihres Slicers ein:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist."/>
   <translation tag="Layer {} of {} · {:.2f} mm" de="Schicht {} von {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." de="Schicht {} von {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" de="Schicht {}, Z {:.2f} mm"/>
@@ -5030,7 +5030,7 @@
   <translation tag="The running step stops at once and the printer restarts." de="Der laufende Schritt stoppt sofort und der Drucker startet neu."/>
   <translation tag="The running step stops. The steps that finished keep their results." de="Der laufende Schritt stoppt. Abgeschlossene Schritte behalten ihre Ergebnisse."/>
   <translation tag="The runout sensor indicates no filament is loaded. Start print anyway?" de="Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?"/>
-  <translation tag="The runout sensor reads empty, so the print did not start." de="Der Filamentsensor meldet leer, daher wurde der Druck nicht gestartet."/>
+  <translation tag="The runout sensor reads empty, so the print did not start." de="Der Auslaufsensor meldet leer, daher wurde der Druck nicht gestartet."/>
   <translation tag="The saved position is kept. Reconnect or restart the screen to be offered the resume again." de="Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird."/>
   <translation tag="The screen will lose its connection to the printer for a few seconds." de="Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."/>
   <translation tag="The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service" de="Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden"/>
@@ -5125,7 +5125,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." de="Diese Datei druckt {0} und {1} zusammen. Die Kammer- und Betttemperatur für {1} kann {0} erweichen und seine Düse verstopfen."/>
   <translation tag="This file was sliced for {} but {} is loaded." de="Diese Datei wurde für {} gesliced, aber {} ist geladen."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." de="Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt."/>
-  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." de="Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und dein Slicer hat sie nicht eingefügt:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse nimmt stattdessen Bilder in festen Zeitabständen auf."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." de="Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und Ihr Slicer hat sie nicht eingefügt:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse nimmt stattdessen Bilder in festen Zeitabständen auf."/>
   <translation tag="This firmware can only switch slots by loading them" de="Diese Firmware kann Slots nur durch Laden wechseln"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." de="Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker und fügt sie zu printer.cfg hinzu. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." de="Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker, fügt sie zu printer.cfg hinzu und startet Klipper neu."/>
@@ -5226,7 +5226,7 @@
   <translation tag="Timelapse Videos" de="Zeitraffer-Videos"/>
   <translation tag="Timelapse did not start" de="Zeitraffer nicht gestartet"/>
   <translation tag="Timelapse frames start after Klipper restarts." de="Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen."/>
-  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." de="Der Zeitraffer steht noch auf Hyperlapse. Stelle ihn unter Einstellungen &gt; Drucken &gt; Zeitraffer zurück."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." de="Der Zeitraffer steht noch auf Hyperlapse. Stellen Sie ihn unter Einstellungen &gt; Drucken &gt; Zeitraffer zurück."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." de="Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."/>
   <translation tag="Timelapse plugin installed successfully!" de="Zeitraffer-Plugin erfolgreich installiert!"/>
   <translation tag="Timelapse plugin installed!" de="Zeitraffer-Plugin installiert!"/>
@@ -5350,7 +5350,7 @@
   <translation tag="Turn On" de="Einschalten"/>
   <translation tag="Turn On LEDs" de="LEDs einschalten"/>
   <translation tag="Turn On Toolhead LED" de="Werkzeugkopf-LED einschalten"/>
-  <translation tag="Turn off arc fitting in the slicer and slice the file again." de="Arc Fitting im Slicer ausschalten und die Datei neu slicen."/>
+  <translation tag="Turn off arc fitting in the slicer and slice the file again." de="Bogenanpassung (Arc Fitting) im Slicer ausschalten und die Datei neu slicen."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." de="Bogenanpassung (Arc Fitting) im Slicer ausschalten, dann die Datei neu slicen."/>
   <translation tag="Turn off bed check" de="Bettprüfung ausschalten"/>
   <translation tag="Turn off detection" de="Erkennung ausschalten"/>
@@ -6012,10 +6012,10 @@
   <translation tag="{} configured item not found" de="{} konfiguriertes Element nicht gefunden"/>
   <translation tag="{} configured items not found" de="{} konfigurierte Elemente nicht gefunden"/>
   <translation tag="{} could not be checked from Home - review it and tap Print" de="{} konnte von der Startseite aus nicht geprüft werden – prüfe die Datei und tippe auf Drucken"/>
-  <translation tag="{} could not load" de="{} konnte nicht laden"/>
+  <translation tag="{} could not load" de="{} konnte nicht geladen werden"/>
   <translation tag="{} could not load its filament" de="{} konnte sein Filament nicht laden"/>
   <translation tag="{} could not preload its filament" de="{} konnte sein Filament nicht vorladen"/>
-  <translation tag="{} could not unload" de="{} konnte nicht entladen"/>
+  <translation tag="{} could not unload" de="{} konnte nicht entladen werden"/>
   <translation tag="{} could not unload its filament" de="{} konnte sein Filament nicht entladen"/>
   <translation tag="{} critical" de="{} kritisch"/>
   <translation tag="{} critical hardware issues" de="{} kritische Hardwareprobleme"/>
@@ -6100,7 +6100,7 @@
   <translation tag="{} presets" de="{} Voreinstellungen"/>
   <translation tag="{} prints" de="{} Drucke"/>
   <translation tag="{} queued" de="{} in der Warteschlange"/>
-  <translation tag="{} ran out" de="{} ist aufgebraucht"/>
+  <translation tag="{} ran out" de="{}: Filament aufgebraucht"/>
   <translation tag="{} ran out of filament" de="{}: Filament aufgebraucht"/>
   <translation tag="{} ran out of filament during the print, and auto refill is off." de="Das Filament von {} ist während des Drucks ausgegangen, und automatisches Nachfüllen ist aus."/>
   <translation tag="{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament." de="{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen."/>
