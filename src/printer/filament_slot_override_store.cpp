@@ -824,7 +824,8 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                                   std::unordered_map<int, FilamentSlotOverride>& overrides,
                                   int slot_index, uint32_t firmware_color,
                                   const std::string& firmware_material, bool slot_has_filament,
-                                  MirrorPolicy policy, const std::string& log_tag) {
+                                  MirrorPolicy policy, const std::string& log_tag,
+                                  std::optional<bool> firmware_translucent) {
     // No filament = no signal. Don't establish a phantom lane_data entry for
     // an empty slot; clear_override paths handle ejection.
     //
@@ -863,8 +864,12 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                 ovr.color_mode.clear();
                 ovr.colors_stated = true;
             }
-            // Its translucency, too, was the other filament's.
-            ovr.translucent.reset();
+            // Its translucency is what the firmware states beside the color;
+            // a firmware that states none leaves the other filament's behind.
+            ovr.translucent = firmware_translucent;
+            changed = true;
+        } else if (has_color && firmware_translucent && ovr.translucent != firmware_translucent) {
+            ovr.translucent = firmware_translucent;
             changed = true;
         }
         if (ovr.material != firmware_material) {

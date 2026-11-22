@@ -600,8 +600,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// persist_user_record_locked() for a backend whose firmware holds the
     /// lane's colour and material. Those two reach the firmware through the
     /// edit's own command, so the record keeps the ones it already carries
-    /// (what mirror_firmware_identity_locked() last copied from the firmware)
-    /// and never states a value the firmware has not taken. Caller holds mutex_.
+    /// (what mirror_firmware_identity_locked() last copied from the firmware),
+    /// translucency included, and never states a value the firmware has not
+    /// taken. Caller holds mutex_.
     void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
 
     /// loaded = false on @p slot_index's record, its identity cleared unless
@@ -613,9 +614,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
     /// is copied before the first record read lands (a save then would replace
     /// the stored record with a bare one), nor into a record another writer
-    /// owns. True when the record changed. Caller holds mutex_.
+    /// owns. @p translucent is the firmware's alpha, for a firmware that
+    /// states one beside the colour. True when the record changed. Caller holds mutex_.
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
-                                         const std::string& material);
+                                         const std::string& material,
+                                         std::optional<bool> translucent = std::nullopt);
 
     /// An edit's pending colour and material, restated as the firmware will
     /// store them (@p material normalized, @p color snapped), so the edit

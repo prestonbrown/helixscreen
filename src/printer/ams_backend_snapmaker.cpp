@@ -2678,7 +2678,8 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         const bool record_reset = task_type_[ti] && is_unset_task_field(*task_type_[ti]);
         if (holds_filament && !record_reset) {
             if (task_type_[ti] && task_color_[ti]) {
-                mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti]);
+                mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti],
+                                                task_translucent_[ti]);
             } else if (const auto& tag = tag_firmware_[ti];
                        tag && tag->color_rgb && tag->material) {
                 mirror_firmware_identity_locked(i, *tag->color_rgb, *tag->material);
@@ -3581,6 +3582,8 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
         }
         if (ovr->second.color_set) {
             restore.color_rgb = ovr->second.color_rgb;
+            // The reset record reads FF; the record kept the alpha.
+            restore.translucent = ovr->second.translucent.value_or(slot->translucent);
         }
     }
     return build_filament_config_gcode(head, restore, *needs_force);
