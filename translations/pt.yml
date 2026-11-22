@@ -114,7 +114,7 @@ translations:
   1 more tap to {} beta features: Mais 1 toque para {} recursos beta
   1 print: '1 impressão'
   1 profile: '1 perfil'
-  1 step due · about {} min: ''
+  1 step due · about {} min: '1 etapa pendente · cerca de {} min'
   1 step in {} min · review, then save once: ''
   1 step never run · about {} min: '1 etapa nunca executada · cerca de {} min'
   1 step · about {} min: '1 etapa · cerca de {} min'
@@ -3205,7 +3205,7 @@ translations:
   Not yet calibrated: Ainda não calibrado
   Notes: Notas
   Notes (optional): Notas (opcional)
-  Nothing due · about {} min: ''
+  Nothing due · about {} min: 'Nada pendente · cerca de {} min'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Nada respondeu às voltas em {0}. Desfaça-as e depois verifique a mecânica."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "Nada respondeu a {1} voltas de {0}. Volte {0} {1} voltas e depois verifique a mecânica."
   Nothing loaded: Nada carregado
@@ -4116,7 +4116,7 @@ translations:
   Runout: 'Fim de filamento'
   Runout Backup: 'Reserva no fim de filamento'
   Runout Sensor: Sensor de Fim de Filamento
-  Runs everything this printer needs, in order ·: ''
+  Runs everything this printer needs, in order ·: 'Executa tudo o que esta impressora precisa, em ordem ·'
   Runs on its own once started: ''
   Runs the printer's tool offset calibration for every tool.: Executa a calibração de offsets de ferramenta da impressora para todas as ferramentas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falhou: {}. Os offsets de ferramenta foram aplicados mas não salvos. Execute SAVE_CONFIG manualmente ou serão perdidos ao reiniciar.'
@@ -6155,7 +6155,7 @@ translations:
   '{} slots': '{} slots'
   '{} spool cleared': '{}: bobina removida'
   '{} started': '{} iniciado'
-  '{} steps due · about {} min': ''
+  '{} steps due · about {} min': '{} etapas pendentes · cerca de {} min'
   '{} steps in {} min · review, then save once': ''
   '{} steps never run · about {} min': '{} etapas nunca executadas · cerca de {} min'
   '{} steps · about {} min': '{} etapas · cerca de {} min'

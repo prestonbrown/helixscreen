@@ -19,6 +19,7 @@
     <!-- One size up for a glyph that fills less of its box than its neighbors (the flame). -->
     <prop name="icon_size" type="string" default="sm"/>
     <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
     <!-- The callback the step's own screen registers. -->
     <prop name="callback" type="string" default=""/>
   </api>
@@ -51,8 +52,8 @@
             height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
             scrollable="false" clickable="false" event_bubble="true">
       <text_body name="tile_name"
-                 width="100%" text="$label" style_text_font="#cal_font_name" long_mode="dots" clickable="false"
-                 event_bubble="true"/>
+                 width="100%" text="$label" translation_tag="$label_tag" style_text_font="#cal_font_name"
+                 long_mode="dots" clickable="false" event_bubble="true"/>
       <text_small name="tile_status_idle"
                   width="100%" bind_text="cal_status_${step}" style_text_font="#cal_font_detail" long_mode="dots"
                   style_text_color="#text_muted" clickable="false" event_bubble="true">

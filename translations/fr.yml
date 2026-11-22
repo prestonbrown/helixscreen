@@ -126,7 +126,7 @@ translations:
   1 more tap to {} beta features: 1 appui supplémentaire pour {} les fonctionnalités bêta
   1 print: '1 impression'
   1 profile: '1 profil'
-  1 step due · about {} min: ''
+  1 step due · about {} min: '1 étape à faire · environ {} min'
   1 step in {} min · review, then save once: ''
   1 step never run · about {} min: '1 étape jamais exécutée · environ {} min'
   1 step · about {} min: '1 étape · environ {} min'
@@ -3217,7 +3217,7 @@ translations:
   Not yet calibrated: Pas encore calibré
   Notes: Notes
   Notes (optional): Notes (facultatif)
-  Nothing due · about {} min: ''
+  Nothing due · about {} min: 'Rien à faire · environ {} min'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Rien n'a suivi les tours sur {0}. Annulez-les, puis vérifiez la mécanique."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "Rien n'a suivi {1} tours de {0}. Ramenez {0} de {1} tours, puis vérifiez la mécanique."
   Nothing loaded: Rien de chargé
@@ -4128,7 +4128,7 @@ translations:
   Runout: 'Fin de filament'
   Runout Backup: 'Secours en fin de filament'
   Runout Sensor: Capteur de fin de filament
-  Runs everything this printer needs, in order ·: ''
+  Runs everything this printer needs, in order ·: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre ·'
   Runs on its own once started: ''
   Runs the printer's tool offset calibration for every tool.: Lance la calibration des offsets d'outil de l'imprimante pour tous les outils.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': "SAVE_CONFIG a échoué : {}. Les décalages d'outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."
@@ -6167,7 +6167,7 @@ translations:
   '{} slots': '{} slots'
   '{} spool cleared': '{} : bobine effacée'
   '{} started': '{} démarré'
-  '{} steps due · about {} min': ''
+  '{} steps due · about {} min': '{} étapes à faire · environ {} min'
   '{} steps in {} min · review, then save once': ''
   '{} steps never run · about {} min': '{} étapes jamais exécutées · environ {} min'
   '{} steps · about {} min': '{} étapes · environ {} min'

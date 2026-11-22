@@ -114,7 +114,7 @@ translations:
   1 more tap to {} beta features: 1 toque más para {} funciones beta
   1 print: '1 impresión'
   1 profile: '1 perfil'
-  1 step due · about {} min: ''
+  1 step due · about {} min: '1 paso pendiente · unos {} min'
   1 step in {} min · review, then save once: ''
   1 step never run · about {} min: '1 paso sin ejecutar · unos {} min'
   1 step · about {} min: '1 paso · unos {} min'
@@ -3205,7 +3205,7 @@ translations:
   Not yet calibrated: Aún no calibrado
   Notes: Notas
   Notes (optional): Notas (opcional)
-  Nothing due · about {} min: ''
+  Nothing due · about {} min: 'Nada pendiente · unos {} min'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Nada respondió a las vueltas en {0}. Deshazlas y luego revisa la mecánica."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "Nada respondió a {1} vueltas de {0}. Gira {0} {1} vueltas hacia atrás y luego revisa la mecánica."
   Nothing loaded: Nada cargado
@@ -4116,7 +4116,7 @@ translations:
   Runout: 'Agotamiento'
   Runout Backup: 'Reserva por agotamiento'
   Runout Sensor: Sensor de Agotamiento
-  Runs everything this printer needs, in order ·: ''
+  Runs everything this printer needs, in order ·: 'Ejecuta todo lo que necesita esta impresora, en orden ·'
   Runs on its own once started: ''
   Runs the printer's tool offset calibration for every tool.: Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar.'
@@ -6155,7 +6155,7 @@ translations:
   '{} slots': '{} ranuras'
   '{} spool cleared': '{}: bobina eliminada'
   '{} started': '{} iniciado'
-  '{} steps due · about {} min': ''
+  '{} steps due · about {} min': '{} pasos pendientes · unos {} min'
   '{} steps in {} min · review, then save once': ''
   '{} steps never run · about {} min': '{} pasos sin ejecutar · unos {} min'
   '{} steps · about {} min': '{} pasos · unos {} min'
