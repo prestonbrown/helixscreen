@@ -1,12 +1,27 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_notification.h"
+
+#include "../../fake_moonraker_client.h"
+#include "../../lvgl_ui_test_fixture.h"
+#include "../../test_helpers/gcode_error_router_test_access.h"
+#include "../../test_helpers/print_state_test_drivers.h"
+#include "../../ui_test_utils.h"
+#include "app_globals.h"
+#include "core/update_queue.h"
 #include "error_classify.h"
+#include "fault_surface_correlation.h"
 #include "gcode_error_router.h"
 #include "helix_test_fixture.h"
+#include "printer_discovery.h"
+#include "printer_event_journal.h"
+#include "printer_state.h"
+#include "recovery_modal_presenter.h"
 
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "../../catch_amalgamated.hpp"
 
@@ -187,6 +202,7 @@ TEST_CASE_METHOD(GcodeErrorRouterTest,
     std::string code;
     GcodeErrorRouter::clean_error_text(text, code);
     REQUIRE(code.empty());
+    CHECK(text == "Must home axis first");
 
     helix::ClassifyContext ctx;
     const auto e = helix::error_classify::classify("!! Must home axis first", ctx);
@@ -286,4 +302,105 @@ TEST_CASE("truncate_for_toast keeps a message within the bound and cuts on a cod
         CHECK(kept.compare(0, lead.size(), lead) == 0);
         CHECK((kept.size() - lead.size()) % glyph.size() == 0);
     }
+}
+
+namespace {
+
+/// A router as the app wires it, over a printer whose discovery a case sets,
+/// with every notification the router raises recorded.
+class RouterSurfaceFixture : public LVGLUITestFixture {
+  public:
+    RouterSurfaceFixture() {
+        helix::fault_surface_correlation::clear_for_test();
+        helix::ui::set_test_notification_event_hook(
+            [this](const helix::ui::NotificationEvent& e) { events.push_back(e); });
+    }
+    ~RouterSurfaceFixture() override {
+        helix::ui::set_test_notification_event_hook(nullptr);
+        helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::STANDBY);
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        helix::ui::UpdateQueue::instance().drain();
+        helix::fault_surface_correlation::clear_for_test();
+    }
+
+    static helix::PrinterDiscovery qidi_box_printer() {
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(nlohmann::json::array(
+            {"box_extras", "box_stepper slot0", "box_stepper slot1", "extruder", "heater_bed"}));
+        return hw;
+    }
+
+    std::vector<helix::ui::NotificationEvent> errors() const {
+        std::vector<helix::ui::NotificationEvent> out;
+        for (const auto& e : events) {
+            if (e.severity == ToastSeverity::ERROR) {
+                out.push_back(e);
+            }
+        }
+        return out;
+    }
+
+    std::vector<helix::ui::NotificationEvent> events;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(RouterSurfaceFixture, "a QIDI pause code raised mid-print blocks at once",
+                 "[gcode_error_router][qidi]") {
+    get_printer_state().set_hardware(qidi_box_printer());
+    helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    GcodeErrorRouter router(nullptr, nullptr, presenter);
+    GcodeErrorRouterTestAccess::process_line(
+        router, "!!Code:QDE_004_005; Message:Please load the filament to 1B first.");
+    helix::ui::UpdateQueue::instance().drain();
+
+    // The blocking printer-fault alert, not a held toast: QIDI's printing
+    // severity reaches the router.
+    REQUIRE(errors().size() == 1);
+    CHECK(errors()[0].title.find("Slot 2") != std::string::npos);
+    process_lvgl(250);
+    CHECK(events.size() == 1);
+    CHECK(GcodeErrorRouterTestAccess::deferred_shown_count(router) == 0);
+}
+
+TEST_CASE_METHOD(RouterSurfaceFixture,
+                 "an uncoded fault on QIDI firmware blocks at once with no twin hold",
+                 "[gcode_error_router][qidi]") {
+    // QIDI sends no code-stripped prose copy of its coded faults, so nothing
+    // is worth waiting for.
+    get_printer_state().set_hardware(qidi_box_printer());
+    helix::test::set_wire_state(get_printer_state(), helix::PrintJobState::PRINTING);
+    helix::ui::UpdateQueue::instance().drain();
+
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    GcodeErrorRouter router(nullptr, nullptr, presenter);
+    GcodeErrorRouterTestAccess::process_line(router,
+                                             "!! Move out of range: 300.000 0.000 10.000 [0.000]");
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(errors().size() == 1);
+    process_lvgl(250);
+    CHECK(events.size() == 1);
+    CHECK(GcodeErrorRouterTestAccess::deferred_shown_count(router) == 0);
+}
+
+TEST_CASE_METHOD(RouterSurfaceFixture, "a replayed fault reads with the wording a live one gets",
+                 "[gcode_error_router][replay]") {
+    helix::test::FakeMoonrakerClient client;
+    helix::ui::RecoveryModalPresenter presenter(nullptr);
+    GcodeErrorRouter router(nullptr, &client, presenter);
+    GcodeErrorRouterTestAccess::on_connected(router);
+    REQUIRE(client.last_gcode_store_cb);
+
+    client.last_gcode_store_cb({{"!! Must home axis first: 0.000 0.000 0.000 [0.000]",
+                                 helix::wall_now_s() - 5, "response"}});
+    helix::ui::UpdateQueue::instance().drain();
+
+    REQUIRE(errors().size() == 1);
+    CHECK(errors()[0].title == "The printer needs homing first");
+    CHECK(errors()[0].message.find("A move was sent before the axes were homed") !=
+          std::string::npos);
 }
