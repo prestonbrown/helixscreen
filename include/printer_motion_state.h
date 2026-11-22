@@ -91,6 +91,12 @@ class PrinterMotionState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        axis_bounds_ = AxisBounds{};
+    }
+
     /**
      * @brief Update motion state from Moonraker status JSON
      * @param status JSON object containing "toolhead" and/or "gcode_move" keys
@@ -190,8 +196,6 @@ class PrinterMotionState {
     }
 
   private:
-    friend class PrinterMotionStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 

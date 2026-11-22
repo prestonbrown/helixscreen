@@ -14,51 +14,6 @@ namespace helix {
 
 class PrinterPrintStateTestAccess {
   public:
-    static void reset_extra(PrinterPrintState& pps) {
-        pps.estimated_print_time_ = 0;
-        // A fresh session has applied no print_stats frame yet.
-        pps.print_stats_frames_ = 0;
-        pps.print_exception_frame_ = 0;
-        // File-scoped slice geometry + per-print Z cache used by the Z-height
-        // layer derivation. Like estimated_print_time_ these survive
-        // reset_for_new_print() in production; the test reset() simulates a fresh
-        // session on the shared singleton, so clear them for cross-test isolation.
-        pps.layer_height_ = 0.0;
-        pps.first_layer_height_ = 0.0;
-        pps.last_gcode_z_mm_ = 0.0;
-        pps.have_gcode_z_ = false;
-        pps.print_clock_s_ = 0.0;
-        pps.height_layer_pending_ = {};
-        pps.layer_z_derived_ = false;
-        pps.has_real_layer_data_ = false;
-        // Sticky printer capability — session-scoped in production (survives
-        // reset_for_new_print, cleared only on a fresh session). The test
-        // reset() simulates a fresh session on the shared PrinterState
-        // singleton, so clear it here for cross-test isolation.
-        pps.printer_reports_layers_ = false;
-        pps.slicer_progress_ = 0.0;
-        pps.slicer_progress_active_ = false;
-        pps.file_progress_fraction_ = -1.0;
-        pps.eta_estimator_.reset();
-        pps.sdcard_active_ = false;
-        // print_stats.exception parses under Moonraker delta semantics: an
-        // absent key leaves these unchanged, so a latched exception survives
-        // status frames that never mention it. Clear them here or a test that
-        // latches one poisons every later classify_pause consumer.
-        pps.print_exception_id_ = -1;
-        pps.print_exception_code_ = -1;
-        pps.print_exception_message_.clear();
-        pps.print_exception_runout_lane_ = -1;
-        // The job being prepared is session-scoped: it outlives
-        // reset_for_new_print() by design, since it exists precisely for the
-        // window before the printer reports the job. Leaving it set leaks a
-        // live preparing job into the next test, where it relaxes the
-        // phase-update guard and the print_active safety reset.
-        pps.preparing_job_ = {};
-        pps.printer_side_pre_start_ = false;
-        pps.cancel_preparing_watchdog();
-    }
-
     /// Fire the preparing-job watchdog as if its timer had elapsed.
     ///
     /// The real bound is half an hour - longer than the slowest legitimate
@@ -96,102 +51,8 @@ class PrinterPrintStateTestAccess {
     }
 };
 
-// ---------------------------------------------------------------------------
-// Per-domain data accessors used by PrinterStateTestAccess::clear_data().
-//
-// Every PrinterXState declares `friend class PrinterXStateTestAccess;` next to
-// its private members; these are those friends. They exist ONLY to clear plain
-// (non-subject) data — the members that init_subjects()/deinit_subjects() never
-// touch, and that therefore live for the whole process on the shared
-// get_printer_state() singleton.
-//
-// Deliberately absent: PrinterFanStateTestAccess, a name already taken by a
-// local definition in tests/unit/test_print_status_fan_section.cpp, and a
-// temperature accessor. The fan and temperature domains are cleared through
-// their public init_fans({}) / init_extruders({}) instead, which is also the
-// only correct way to expire their per-item subjects.
-// ---------------------------------------------------------------------------
-
-class PrinterExcludedObjectsStateTestAccess {
-  public:
-    static void clear_data(PrinterExcludedObjectsState& s) {
-        s.excluded_objects_.clear();
-        s.defined_objects_.clear();
-        s.current_object_.clear();
-        s.object_geometry_.clear();
-    }
-};
-
-class PrinterMotionStateTestAccess {
-  public:
-    static void clear_data(PrinterMotionState& s) {
-        s.axis_bounds_ = AxisBounds{};
-    }
-};
-
-class PrinterCapabilitiesStateTestAccess {
-  public:
-    static void clear_data(PrinterCapabilitiesState& s) {
-        // Values latched while subjects were down, replayed by the next
-        // init_subjects(). Left behind, they re-seed the NEXT test's
-        // capability subjects with the previous printer's answers.
-        s.pending_capability_values_.fill(std::nullopt);
-        s.stepper_z_endstop_microns_ = 0;
-    }
-};
-
-class PrinterCalibrationStateTestAccess {
-  public:
-    static void clear_data(PrinterCalibrationState& s) {
-        s.busy_queue_toast_shown_.store(false, std::memory_order_relaxed);
-        // Debounced view of idle_timeout.printing; not a subject, so
-        // deinit_subjects() leaves it latched. A test that drove a blocking op
-        // otherwise makes every later test's is_blocking_operation_active()
-        // read true once its kSettle window has passed.
-        s.idle_timeout_busy_.set_printing(false);
-    }
-};
-
-class PrinterHardwareValidationStateTestAccess {
-  public:
-    static void clear_data(PrinterHardwareValidationState& s) {
-        s.hardware_validation_result_ = HardwareValidationResult{};
-    }
-};
-
-class PrinterCompositeVisibilityStateTestAccess {
-  public:
-    static void clear_data(PrinterCompositeVisibilityState& s) {
-        s.last_log_state_initialized_ = false;
-        s.last_any_ = -1;
-        s.last_plugin_ = false;
-    }
-};
-
 class PrinterProfileStateTestAccess {
   public:
-    static void clear_data(PrinterProfileState& s) {
-        s.printer_type_.clear();
-        s.pre_print_option_set_ = PrePrintOptionSet();
-        s.z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-        s.z_offset_save_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
-        // A latched external-persistence flag would hold FIRMWARE_MANAGED
-        // across every later test in the binary after a mid-test failure.
-        s.external_persistence_ = false;
-        // The tune hint subject is seeded from the cached value on re-init.
-        s.z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
-        s.z_offset_save_enabled_ = true;
-        s.db_z_offset_persists_ = true;
-        s.db_tool_change_resets_z_offset_ = false;
-        s.z_position_endstop_numeric_ = false;
-        s.kinematics_.clear();
-        s.db_enclosed_ = false;
-        s.db_hides_dot_dirs_ = false;
-        s.timelapse_default_enabled_ = false;
-        s.heat_soak_macro_.clear();
-        s.firmware_option_defaults_.clear();
-    }
-
     static void pin_strategy(PrinterProfileState& s, ZOffsetCalibrationStrategy strategy) {
         s.z_offset_calibration_strategy_ = strategy;
         s.z_offset_save_strategy_ = strategy;
@@ -199,15 +60,6 @@ class PrinterProfileStateTestAccess {
 
     static void set_option_set(PrinterProfileState& s, PrePrintOptionSet set) {
         s.pre_print_option_set_ = std::move(set);
-    }
-};
-
-class PrinterNetworkStateTestAccess {
-  public:
-    static void clear_data(PrinterNetworkState& s) {
-        s.klippy_state_message_.clear();
-        s.was_ever_connected_ = false;
-        s.last_unknown_klippy_state_.clear();
     }
 };
 
@@ -246,7 +98,8 @@ class PrinterStateTestAccess {
     /// reads a plausible value it never set, and the assertion that trips is
     /// usually in some third test that looks unrelated.
     ///
-    /// Adding a plain member to any PrinterXState? Add it here too.
+    /// Adding a plain member to any PrinterXState? Clear it in that state's
+    /// clear_data(), which PrinterState::clear_printer_data() runs.
     ///
     /// Does NOT touch subjects, so it is safe from a fixture ctor/dtor whether
     /// or not init_subjects() has run, and it does not walk into the
@@ -267,37 +120,12 @@ class PrinterStateTestAccess {
             ps.fan_state_.init_fans({});
             ps.temperature_state_.init_extruders({});
         }
-        ps.fan_state_.set_tachometers({});
-        // Plain string setters — no subject touched, so they run unguarded. These
-        // are the Klipper object names the chamber logic matches against; a leaked
-        // one makes a later test's chamber read the previous test's sensor.
-        ps.temperature_state_.set_chamber_sensor_name("");
-        ps.temperature_state_.set_chamber_heater_name("");
-        ps.temperature_state_.set_chamber_cooling_fan_name("");
-
-        // --- Domains with pure data ------------------------------------------
-        PrinterExcludedObjectsStateTestAccess::clear_data(ps.excluded_objects_state());
-        PrinterMotionStateTestAccess::clear_data(ps.motion_state_);
-        PrinterCapabilitiesStateTestAccess::clear_data(ps.capabilities_state_);
-        PrinterCalibrationStateTestAccess::clear_data(ps.calibration_state_);
-        PrinterHardwareValidationStateTestAccess::clear_data(ps.hardware_validation_state_);
-        PrinterCompositeVisibilityStateTestAccess::clear_data(ps.composite_visibility_state_);
-        PrinterNetworkStateTestAccess::clear_data(ps.network_state_);
-        PrinterPrintStateTestAccess::reset_extra(ps.print_domain_);
-        ps.versions_state_.clear_data();
-        ps.plugin_status_state_.clear_data();
-
-        // --- PrinterState's own members ---------------------------------------
-        PrinterProfileStateTestAccess::clear_data(ps.profile_state_);
-        ps.auto_detected_bed_moves_ = false;
-        ps.macro_option_count_ = 0;
-        ps.hidden_option_ids_.clear();
-        ps.skip_gates_ = {};
-        ps.is_paused_ = false;
-        ps.last_kinematics_.clear();
+        // Everything a printer switch forgets, through the same routine
+        // production teardown runs, so the two cannot drift apart.
+        ps.clear_printer_data();
+        // Production reloads the overrides for the next printer in its cache
+        // invalidator; a test starts from none.
         ps.capability_overrides_ = CapabilityOverrides();
-        ps.discovery_ = helix::PrinterDiscovery();
-        ps.network_state().reset_klippy_state_freshness();
     }
 
     /// Every domain member, in declaration order.
