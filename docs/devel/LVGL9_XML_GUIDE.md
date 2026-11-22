@@ -1268,6 +1268,29 @@ ends by that reach and spaces actions `#header_action_gap` apart, at least twice
 the reach, so every reach registers and neighbors never share a tap. A header
 holds three actions at most and one primary; the gate warns past either.
 
+The glyph comes from the `header` icon size (`icon_font_header_*`): 16px on micro and
+tiny, 24px from small through large, 32px above, a size under `#header_button_height` so
+it never reaches the circle's edge. The per-breakpoint values of `#header_button_height`,
+`#header_action_hit` and `#header_action_gap` are tabled in `UI_CONTRIBUTOR_GUIDE.md`
+§ "header_action (header buttons)".
+
+**The gate.** `scripts/check_header_actions.py` (`qc_header_actions`) scans `ui_xml/`,
+skipping translations and the component itself:
+
+| Finding | Level |
+|---------|-------|
+| An element in `<header_bar-actions>` / `<overlay_panel-actions>` other than `<header_action>` or a `bind_*` acting on the slot | error |
+| A `header_action` child other than `bind_*` and `event_cb` | error |
+| An attribute outside `name`, `icon`, `text`, `text_tag`, `role`, `collapse`, `callback`, `hidden` | error |
+| A `role` other than `primary` / `neutral` / `danger`, a `collapse` other than `auto` / `never` | error |
+| Neither `icon` nor `text` | error |
+| Neither `callback=` nor an `event_cb` child (a button that does nothing) | error |
+| Both `callback=` and an `event_cb` child (one tap, two calls) | warning |
+| More than three actions, or more than one `primary`, in one slot | warning |
+
+A `header_action` outside a slot (the AMS panels' own header rows) gets the same
+attribute and child checks; only the per-slot counts need a slot.
+
 #### responsive_grid
 
 Equal-width columns, as many as fit: `min_col_width`, `max_col_width`, `max_cols`,

@@ -456,6 +456,39 @@ The full attribute table is in [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md) under `u
 
 **Stop buttons.** A control that ends a running operation with an emergency stop (`M112` plus `FIRMWARE_RESTART`) reads "Stop", carries `icon="alert_octagon"` and `variant="danger"`: `<ui_button icon="alert_octagon" text="Stop" variant="danger"/>`. Do not label it "Abort" or "Cancel" (it cannot cancel cleanly) and do not use the `close` icon. Examples: `ui_xml/input_shaper_panel.xml#btn_abort`, `ui_xml/calibration_pid_panel.xml#btn_abort`, `ui_xml/calibration_tool_offset_panel.xml#tool_cal_stop_btn`, `ui_xml/calibration_run_overlay.xml#btn_cal_run_stop`, `ui_xml/panel_belt_tension.xml#btn_stop`.
 
+### header_action (header buttons)
+
+A screen's header buttons are never a bare `ui_button`. Every one is a `<header_action>` in the
+header's actions slot (`<header_bar-actions>`, or `<overlay_panel-actions>` in a view extending
+`overlay_panel`), and `ui_xml/header_action.xml` owns its whole look: the height, the circle
+(icon only) or pill (text, with or without an icon), the fill by `role`, and the collapse to
+icon-only on small screens. A caller gives it a `name`, an `icon` and/or `text`, a `role`
+(`primary`, `neutral`, `danger`) and a `callback`; never a width, height, radius or color.
+
+```xml
+<header_bar-actions>
+    <header_action name="btn_add_spool" icon="plus" text="Add" role="primary"
+                   callback="on_spoolman_add_spool_clicked"/>
+    <header_action name="btn_refresh" icon="refresh" callback="on_spoolman_refresh_clicked"/>
+</header_bar-actions>
+```
+
+The tokens behind it, per breakpoint:
+
+| Token | Micro | Tiny | Small | Medium | Large | Purpose |
+|-------|-------|------|-------|--------|-------|---------|
+| `#header_button_height` | 32px | 26px | 38px | 44px | 48px | Every header button's height, about 80% of `#header_height` (xlarge 54px, xxlarge 64px). In `ui_xml/header_bar.xml` |
+| `#header_action_hit` | 4px | 3px | 3px | 0 | 0 | Touch reach past the button's edge, taking it to the header's height where that is under 44px. In `ui_xml/header_action.xml` |
+| `#header_action_gap` | 8px | 8px | 8px | 10px | 12px | Space between actions, at least twice the reach so neighbors never share a tap |
+
+The actions slot pads its ends by `#header_action_hit` and spaces its buttons by
+`#header_action_gap`. `collapse="auto"` (the default) hides the label on micro and tiny and in
+portrait below the large breakpoint; `collapse="never"` keeps it. A header holds three actions
+at most and one primary. `scripts/check_header_actions.py` (gated as `qc_header_actions`) fails
+anything else in the slot and any styling attribute on an action, and warns past three actions
+or one primary. The full prop table and gate rules are in
+[LVGL9_XML_GUIDE.md § header_action](LVGL9_XML_GUIDE.md#header_action).
+
 ### icon
 
 Material Design Icons with size and color variants.
