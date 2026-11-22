@@ -136,9 +136,19 @@ At level 3 `-O2` cuts Aqua's CPU by 27% on the AD5M (Cortex-A7) and by 46% on th
 both boards at `-Os` and nearly so at `-O2`. The cost is about 4.4 MB of resident memory on
 both, mostly the larger text.
 
-The MIPS target (K1, AD5X, Creator 5) builds at `-O2`. The AD5M stays at `-Os`: 4.4 MB more
-resident is too much on a board with about 46 MB available. The way to get the saver speed
-there without that is `-O2` on the screensaver sources alone, which is not measured yet.
+The MIPS target (K1, AD5X, Creator 5) builds at `-O2`: the AD5X has 474 MB, about 320 MB of it
+available. The AD5M (108 MB, about 46 MB available) stays at `-Os`, since 4.4 MB more resident
+is too much there.
+
+`-O2` on `src/ui/screensaver/*.cpp` alone, over an `-Os` build of the same commit (a
+target-specific `override CXXFLAGS += -O2` on those objects), gets the AD5M nearly all of the
+speed for none of the memory:
+
+| AD5M, Aqua level 3 | `-Os` | Screensavers `-O2` | Whole build `-O2` |
+|---|---:|---:|---:|
+| CPU, runs | 63.0, 62.6, 63.7 | 47.9, 48.0 | 45.8, 45.4, 45.8 |
+| Stripped binary | 16.47 MB | 16.57 MB (+102 KB) | 21.5 MB |
+| `VmRSS` (`VmHWM`) | 23.3-23.5 (26.3-26.7) MB | 23.4 (26.4) MB | 27.7 (30.9) MB |
 
 ### LVGL style cache, K1C and AD5M, 2026-11-16
 
