@@ -18,6 +18,7 @@
 #include "../test_helpers/scoped_runtime_config.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "bed_mesh_state.h"
 #include "core/observer_factory.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
@@ -97,6 +98,7 @@ struct LanguageSwitchFixture : public LVGLUITestFixture {
         helix::ui::UpdateQueue::instance().drain_until_empty();
         PrintStatusWidget::destroy_formatter_for_test();
         ToolState::instance().deinit_subjects();
+        BedMeshState::instance().deinit_subjects();
         helix::ui::UpdateQueue::instance().drain_until_empty();
     }
 };
@@ -115,6 +117,9 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     // resync it from, so the sweep starts from fresh AMS subjects.
     AmsState::instance().deinit_subjects();
     AmsState::instance().init_subjects(true);
+    // The sweep builds the bed-mesh tile, which observes BedMeshState's subjects.
+    BedMeshState::instance().deinit_subjects();
+    BedMeshState::instance().init_subjects();
 
     PanelWidgetManager::instance().init_widget_subjects();
     seed_two_hotends(state());
