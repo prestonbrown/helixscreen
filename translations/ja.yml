@@ -4043,6 +4043,8 @@ translations:
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
   The lane forgets this spool. The filament itself stays where it is.: 'レーンはこのスプールの情報を消去します。フィラメント自体はそのままです。'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'レーン設定は変更されず、スプールも保存されていません。保存をタップしてスプールを保存してください。'
+  The lane settings weren't changed.: 'レーン設定は変更されていません。'
   The lane that takes over when this one runs out: 'このレーンが切れたときに引き継ぐレーン'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります

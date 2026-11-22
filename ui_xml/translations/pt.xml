@@ -3902,6 +3902,8 @@
   <translation tag="The heater will cycle on and off several times." pt="O aquecedor ligará e desligará várias vezes."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." pt="As macros de ajuda estão instaladas e são ativadas após reiniciar o Klipper."/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." pt="A lane esquece este carretel. O filamento continua onde está."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." pt="As configurações da lane não foram alteradas e o carretel não foi salvo. Toque em Salvar para salvar o carretel."/>
+  <translation tag="The lane settings weren&apos;t changed." pt="As configurações da lane não foram alteradas."/>
   <translation tag="The lane that takes over when this one runs out" pt="A lane que assume quando esta acaba"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>
   <translation tag="The left RFID reader in this CFS unit may need service" pt="O leitor RFID esquerdo desta unidade CFS pode precisar de manutenção"/>

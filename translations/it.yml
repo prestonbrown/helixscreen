@@ -4251,6 +4251,8 @@ translations:
     spegnerà diverse volte.
   The helper macros are installed and activate after Klipper restarts.: 'Le macro di ausilio sono installate e si attivano dopo il riavvio di Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'La corsia dimentica questa bobina. Il filamento resta dov''è.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Le impostazioni della corsia non sono state modificate e la bobina non è stata salvata. Premi Salva per salvare la bobina.'
+  The lane settings weren't changed.: 'Le impostazioni della corsia non sono state modificate.'
   The lane that takes over when this one runs out: 'La corsia che subentra quando questa si esaurisce'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock.
   The left RFID reader in this CFS unit may need service: Il lettore RFID sinistro di questa unità CFS potrebbe richiedere assistenza

@@ -4289,6 +4289,8 @@ translations:
     plusieurs fois.
   The helper macros are installed and activate after Klipper restarts.: 'Les macros d''aide sont installées et s''activent après un redémarrage de Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'La voie oublie cette bobine. Le filament lui-même reste en place.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Les paramètres de la voie n''ont pas été modifiés et la bobine n''a pas été enregistrée. Appuyez sur Enregistrer pour enregistrer la bobine.'
+  The lane settings weren't changed.: 'Les paramètres de la voie n''ont pas été modifiés.'
   The lane that takes over when this one runs out: 'La voie qui prend le relais quand celle-ci est vide'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.
   The left RFID reader in this CFS unit may need service: Le lecteur RFID gauche de cette unité CFS nécessite peut-être une intervention
