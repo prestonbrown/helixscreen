@@ -54,7 +54,7 @@
         </lv_obj>
         <lv_obj name="firmware_spoolman_note"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
-                style_pad_hor="#space_lg" scrollable="false">
+                style_pad_hor="#space_lg" scrollable="false" hidden="true">
           <bind_flag_if cond="printer_has_spoolman eq 1 or firmware_supervised eq 0" flag="hidden"/>
           <text_small width="100%"
                       long_mode="wrap" text="Spoolman is set up through your printer's firmware, not on this screen."
