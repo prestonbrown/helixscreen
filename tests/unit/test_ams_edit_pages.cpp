@@ -990,8 +990,8 @@ TEST_CASE_METHOD(PagesFixture, "Brand leads with Favorites only while there are 
         open(1, describe_lane(*backend, 1, "PLA"));
         access.open_page(AmsEditOverlay::kPageFilament);
         settle();
-        REQUIRE(first_brand() == "\xE2\x98\x85 Favorites");
-        REQUIRE(access.pick_dropdown("dropdown_brand", "\xE2\x98\x85 Favorites"));
+        REQUIRE(first_brand() == "Favorites \xE2\x98\x85");
+        REQUIRE(access.pick_dropdown("dropdown_brand", "Favorites \xE2\x98\x85"));
         settle();
         lv_obj_t* picker = ModalStack::instance().top_dialog();
         REQUIRE(picker != nullptr);
