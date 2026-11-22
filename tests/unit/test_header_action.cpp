@@ -12,12 +12,14 @@
 
 #include "ui_button.h"
 
+#include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "core/subject.h"
 #include "theme_manager.h"
 
 #include <lvgl.h>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -158,4 +160,58 @@ TEST_CASE_METHOD(HeaderActionFixture, "header_action child bindings act on the b
     lv_obj_delete(host);
     hide.reset();
     busy.reset();
+}
+
+TEST_CASE_METHOD(HeaderActionFixture,
+                 "header_action touch targets stay apart and inside the header on small screens",
+                 "[header_action][xml][touch]") {
+    REQUIRE(register_component("header_bar"));
+    REQUIRE(lv_xml_register_component_from_data(
+                "header_action_row",
+                "<component><view extends=\"lv_obj\" width=\"100%\" height=\"100%\">"
+                "<header_bar title=\"Spoolman\"><header_bar-actions>"
+                "<header_action name=\"a\" icon=\"plus\" text=\"Add\" role=\"primary\"/>"
+                "<header_action name=\"b\" icon=\"refresh\"/>"
+                "<header_action name=\"c\" text=\"Clear All\"/>"
+                "</header_bar-actions></header_bar>"
+                "</view></component>") == LV_RESULT_OK);
+
+    struct Size {
+        int32_t w;
+        int32_t h;
+    };
+    for (const Size size : {Size{480, 272}, Size{480, 320}, Size{800, 480}}) {
+        INFO(size.w << "x" << size.h);
+        ScopedResolution res(lv_display_get_default(), size.w, size.h);
+        theme_manager_refresh_layout_constants(lv_display_get_default());
+        lv_obj_t* row = create_component("header_action_row");
+        REQUIRE(row != nullptr);
+        lv_obj_update_layout(row);
+
+        lv_obj_t* host = lv_obj_find_by_name(row, "header_actions");
+        REQUIRE(host != nullptr);
+        lv_area_t parent;
+        lv_obj_get_coords(host, &parent);
+        lv_area_t prev{};
+        bool first = true;
+        for (const char* name : {"a", "b", "c"}) {
+            INFO(name);
+            lv_obj_t* btn = lv_obj_find_by_name(row, name);
+            REQUIRE(btn != nullptr);
+            lv_area_t hit;
+            lv_obj_get_click_area(btn, &hit);
+            // LVGL hit-tests a child only inside its parent, so a reach past
+            // the slot's edge would never register.
+            CHECK(hit.x1 >= parent.x1);
+            CHECK(hit.x2 <= parent.x2);
+            CHECK(hit.y1 >= parent.y1);
+            CHECK(hit.y2 <= parent.y2);
+            if (!first) {
+                CHECK(prev.x2 < hit.x1);
+            }
+            prev = hit;
+            first = false;
+        }
+        lv_obj_delete(row);
+    }
 }

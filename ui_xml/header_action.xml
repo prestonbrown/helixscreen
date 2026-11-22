@@ -28,13 +28,20 @@
   </api>
   <consts>
     <!-- Touch reach past the button's edge, taking a #header_button_height button
-         to the header's own height where that is under 44px. Twice the reach
-         stays under the gap between actions, so neighbors never share a tap. -->
+         to the header's own height where that is under 44px. header_bar's actions
+         slot pads its ends by the reach and spaces actions #header_action_gap
+         apart, at least twice the reach, so every reach registers and neighbors
+         never share a tap. -->
     <px name="header_action_hit_micro" value="4"/>
     <px name="header_action_hit_tiny" value="3"/>
     <px name="header_action_hit_small" value="3"/>
     <px name="header_action_hit_medium" value="0"/>
     <px name="header_action_hit_large" value="0"/>
+    <px name="header_action_gap_micro" value="8"/>
+    <px name="header_action_gap_tiny" value="8"/>
+    <px name="header_action_gap_small" value="8"/>
+    <px name="header_action_gap_medium" value="10"/>
+    <px name="header_action_gap_large" value="12"/>
     <!-- The glyph, a size under #header_button_height so it never reaches the
          circle's edge (a 24px glyph fills tiny's 26px button). -->
     <string name="icon_font_header_micro" value="mdi_icons_16"/>

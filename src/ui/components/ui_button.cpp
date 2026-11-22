@@ -128,7 +128,9 @@ std::unordered_set<const lv_obj_t*>& live_ui_buttons() {
 constexpr lv_state_t kIconOnlyState = LV_STATE_USER_4;
 
 void sync_icon_only_state(lv_obj_t* btn, const UiButtonData* data) {
-    const bool icon_shown = data->icon && !lv_obj_is_hidden(data->icon);
+    // A busy op-state spinner stands in the icon's slot.
+    const bool icon_shown = (data->icon && !lv_obj_is_hidden(data->icon)) ||
+                            (data->op_spinner && !lv_obj_is_hidden(data->op_spinner));
     const bool label_shown = data->label && !lv_obj_is_hidden(data->label);
     lv_obj_set_state(btn, kIconOnlyState, icon_shown && !label_shown);
 }
@@ -1080,6 +1082,7 @@ void apply_op_state(lv_obj_t* btn, UiButtonData* data, int op_state) {
         break;
     }
     }
+    sync_icon_only_state(btn, data);
     update_button_text_contrast(btn);
 }
 
