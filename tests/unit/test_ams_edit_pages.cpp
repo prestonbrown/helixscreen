@@ -1012,7 +1012,10 @@ TEST_CASE_METHOD(PagesFixture, "Brand leads with Favorites only while there are 
         char buf[64] = {};
         lv_dropdown_get_selected_str(vendor, buf, sizeof(buf));
         CHECK(std::string(buf) == "Favorites");
-        ModalStack::instance().clear();
+        // The editor owns the picker: closed through its own hide, not torn
+        // out of the stack under it.
+        Modal::hide(picker);
+        settle();
     }
     close_editor_overlay();
 }
