@@ -390,7 +390,7 @@ In run mode the Z offset panel behaves differently in four ways:
   the panel then warms the bed through the same path its switch uses before probing.
   The overlay prices the warm-up with the shared thermal model
   (`ThermalRateManager::estimate_heating_seconds("heater_bed", ...)`, from the bed's temperature
-  now to `zoffset_warm_bed_target_c()`), and `with_run_options()` adds those minutes to the step,
+  now to `zoffset_cal::warm_bed_target_c()`), and `with_run_options()` adds those minutes to the step,
   so the card, the Pick totals, the hands-on minutes and the Running estimate all include it.
 - **Accept only stages.** It sends `ACCEPT` and no `SAVE_CONFIG`; the completion state says the
   value is saved with the other results, and its Done button becomes **Continue**, which returns

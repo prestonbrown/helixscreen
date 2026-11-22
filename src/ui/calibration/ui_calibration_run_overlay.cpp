@@ -422,7 +422,7 @@ calibration::RunOptions CalibrationRunOverlay::run_options() const {
             lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()));
         options.zoffset_warm_bed_minutes =
             calibration::heating_minutes(ThermalRateManager::instance().estimate_heating_seconds(
-                "heater_bed", bed_c, static_cast<float>(zoffset_warm_bed_target_c())));
+                "heater_bed", bed_c, static_cast<float>(zoffset_cal::warm_bed_target_c())));
     }
     return options;
 }
