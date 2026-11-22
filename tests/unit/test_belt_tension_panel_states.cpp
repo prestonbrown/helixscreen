@@ -304,6 +304,24 @@ class BeltPanelFixture : public XMLTestFixture {
         return panel_->tune_ ? &*panel_->tune_ : nullptr;
     }
 
+    /// What the last tuning round concluded; empty before any round.
+    std::optional<helix::calibration::BeltTuneOutcome> panel_last_outcome() {
+        return panel_->tune_last_outcome_;
+    }
+    /// Pumps until the run view sweeps `path`; false when it sweeps `forbidden`
+    /// first or the budget runs out.
+    bool pump_until_running_path_not(int path, int forbidden, uint32_t budget_ms = 60000) {
+        bool saw_forbidden = false;
+        pump_until(
+            [&] {
+                const int now = state_int("bt_running_path");
+                saw_forbidden = saw_forbidden || now == forbidden;
+                return now == path || saw_forbidden;
+            },
+            budget_ms);
+        return !saw_forbidden && state_int("bt_running_path") == path;
+    }
+
     int state_int(const char* name) {
         lv_subject_t* s = lv_xml_get_subject(nullptr, name);
         INFO("subject not registered: " << name);
@@ -804,7 +822,7 @@ TEST_CASE("sweep fact line comes from the printer's resonance_tester config", "[
     BeltPanelFixture fx;
     REQUIRE(fx.wait_gate_open());
     // Mock defaults 5-135 Hz at 1 Hz/s: two sweeps take ceil(2*130/60) = 5 min.
-    CHECK(has(fx.text("bt_hw_sweep"), "5"));
+    CHECK(has(fx.text("bt_hw_sweep"), "5-"));
     CHECK(has(fx.text("bt_hw_sweep"), "135"));
     CHECK(has(fx.text("bt_intro_minutes"), "5"));
 }
@@ -1078,26 +1096,22 @@ void replay_to_adjust(BeltPanelFixture& fx, ReplayBelts& belts) {
 } // namespace
 
 TEST_CASE("the Tune button names the job by verdict", "[belt][panel][tune]") {
-    SECTION("Fair match: Tune Belts") {
+    const auto cta_for = [](float a_hz, float b_hz, bool matched) {
         BeltPanelFixture fx;
-        fx.mock().set_belt_peaks_hz(104.0f, 98.0f);
+        fx.mock().set_belt_peaks_hz(a_hz, b_hz);
         REQUIRE(fx.wait_gate_open());
         fx.panel().handle_start_clicked();
         REQUIRE(fx.pump_until_state(kResults));
-        REQUIRE(fx.state_int("bt_verdict") !=
-                static_cast<int>(helix::calibration::BeltVerdict::MATCHED));
-        CHECK_FALSE(fx.text("bt_tune_cta").empty());
-    }
-    SECTION("Good match: Fine-tune") {
-        BeltPanelFixture fx;
-        fx.mock().set_belt_peaks_hz(104.0f, 104.0f);
-        REQUIRE(fx.wait_gate_open());
-        fx.panel().handle_start_clicked();
-        REQUIRE(fx.pump_until_state(kResults));
-        REQUIRE(fx.state_int("bt_verdict") ==
-                static_cast<int>(helix::calibration::BeltVerdict::MATCHED));
-        CHECK_FALSE(fx.text("bt_tune_cta").empty());
-    }
+        const bool is_matched = fx.state_int("bt_verdict") ==
+                                static_cast<int>(helix::calibration::BeltVerdict::MATCHED);
+        REQUIRE(is_matched == matched);
+        return fx.text("bt_tune_cta");
+    };
+    const std::string fair = cta_for(104.0f, 98.0f, false);
+    const std::string good = cta_for(104.0f, 104.0f, true);
+    CHECK_FALSE(fair.empty());
+    CHECK_FALSE(good.empty());
+    CHECK(fair != good);
 }
 
 TEST_CASE("Tune opens on the calibration turn", "[belt][panel][tune]") {
@@ -1716,6 +1730,7 @@ TEST_CASE("a round with no peak says so and can be re-measured", "[belt][panel][
     tune_round(fx);
 
     CHECK(fx.state_int("bt_tune_phase") == kPhaseAdjust);
+    CHECK(fx.panel_last_outcome() == std::optional(helix::calibration::BeltTuneOutcome::NO_PEAK));
     CHECK_FALSE(fx.text("bt_tune_last").empty());
     CHECK(fx.text("bt_tune_gap") == gap);
     lv_obj_t* measure = named(fx, "btn_tune_measure");
@@ -1902,6 +1917,7 @@ TEST_CASE("a wrong-way line names the turn the user made", "[belt][panel][tune]"
     tune_round(fx);
     INFO("last: " << fx.text("bt_tune_last"));
     CHECK(fx.panel_last_turns() == std::optional<float>(0.5f));
+    CHECK(fx.panel_last_outcome() == std::optional(helix::calibration::BeltTuneOutcome::WRONG_WAY));
     CHECK(has(fx.text("bt_tune_last"), "Path B"));
 }
 
@@ -1914,6 +1930,8 @@ TEST_CASE("both peaks drifting together is no move", "[belt][panel][tune]") {
     belts.set_b({107.5f});
     tune_round(fx);
     INFO("last: " << fx.text("bt_tune_last"));
+    CHECK(fx.panel_last_outcome() ==
+          std::optional(helix::calibration::BeltTuneOutcome::NO_MOVEMENT));
     CHECK(has(fx.text("bt_tune_last"), "0."));
     CHECK(has(fx.text("bt_tune_instruction"), "Path B"));
     CHECK_FALSE(has(fx.text("bt_tune_instruction"), "turn"));
@@ -1932,7 +1950,10 @@ TEST_CASE("a reference peak that leaves the zone names the reference", "[belt][p
     SECTION("the adjusted path losing its peak keeps the generic line") {
         belts.set_b({});
         tune_round(fx);
+        CHECK(fx.panel_last_outcome() ==
+              std::optional(helix::calibration::BeltTuneOutcome::NO_PEAK));
         CHECK_FALSE(fx.text("bt_tune_last").empty());
+        CHECK_FALSE(has(fx.text("bt_tune_last"), "Path A"));
     }
 }
 
@@ -2610,7 +2631,7 @@ TEST_CASE("RESULTS folds Re-test A/B into one menu below medium and in portrait"
         pick_retest(fx, "btn_retest_menu_slot_1");
         CHECK(fx.state_int("belt_tension_state") ==
               static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
-        CHECK(fx.pump_until_running_path(1));
+        CHECK(fx.pump_until_running_path_not(1, 0));
     }
 }
 
@@ -3084,7 +3105,6 @@ TEST_CASE("the run title reads Settling belts while the laps run", "[belt][panel
                 static_cast<int>(BeltTensionPanel::ViewState::RUNNING));
         CHECK(fx.state_int("bt_running_path") == 2);
         CHECK_FALSE(fx.text("bt_run_title").empty());
-        CHECK(fx.state_int("bt_running_path") == 2); // neither path is sweeping
         const std::string settle_note = fx.text("bt_slot_0_note");
         CHECK(fx.text("bt_run_detail").find("elapsed") != std::string::npos);
         CHECK(fx.pump_until_running_path(0));
@@ -3312,10 +3332,14 @@ TEST_CASE("a path measured earlier in this run reads done", "[belt][panel]") {
     BeltPanelFixture fx;
     REQUIRE(fx.wait_gate_open());
     fx.panel().handle_start_clicked();
+    REQUIRE(fx.pump_until_running_path(0));
+    const std::string sweeping_note = fx.text("bt_slot_0_note");
+    REQUIRE_FALSE(sweeping_note.empty());
     REQUIRE(fx.pump_until_running_path(1));
+    // The sweeping note moved from A's slot to B's; A's slot now reads differently.
+    CHECK(fx.text("bt_slot_1_note") == sweeping_note);
     CHECK_FALSE(fx.text("bt_slot_0_note").empty());
-    CHECK_FALSE(fx.text("bt_slot_1_note").empty());
-    CHECK(fx.text("bt_slot_0_note") != fx.text("bt_slot_1_note"));
+    CHECK(fx.text("bt_slot_0_note") != sweeping_note);
 }
 
 TEST_CASE("ages refresh on RESULTS", "[belt][panel]") {
@@ -4064,12 +4088,14 @@ TEST_CASE("A as the right belt puts Path B in the left slot and its Re-test",
     CHECK(fx.text("bt_unpaired").rfind("Only on the left belt: ", 0) == 0);
 
     // The left Re-test button measures the left belt, which is Path B.
+    const std::string idle_note_0 = fx.text("bt_slot_0_note");
+    const std::string idle_note_1 = fx.text("bt_slot_1_note");
     lv_obj_send_event(named(fx, "btn_retest_slot_0"), LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
-    CHECK(fx.pump_until_running_path(1));
+    CHECK(fx.pump_until_running_path_not(1, 0));
     CHECK(fx.text("bt_run_title").find("left") != std::string::npos);
-    CHECK_FALSE(fx.text("bt_slot_0_note").empty());
-    CHECK(fx.text("bt_slot_0_note") != fx.text("bt_slot_1_note"));
+    CHECK(fx.text("bt_slot_0_note") != idle_note_0);
+    CHECK(fx.text("bt_slot_1_note") == idle_note_1);
 }
 
 TEST_CASE("compact tuning's pencil opens the names dialog instead of swapping",
