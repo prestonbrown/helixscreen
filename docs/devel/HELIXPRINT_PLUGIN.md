@@ -45,6 +45,14 @@ most, because it is the one that is not always connected and cannot afford to re
   is written twice, once in C++ and once in Python. The one exception is power-loss recovery,
   whose resume script is built from a file scan that runs in the plugin, serves every client
   (the K-Touch cannot scan files) and duplicates no backend's G-code.
+- **A firmware that owns HelixScreen owns the plugin too.** When the app runs from a firmware's
+  own package (`board::firmware_manages_updates()`, the Snapmaker U1 under PAXX today),
+  `HelixPluginInstaller::firmware_owns_plugin()` is true: the prompt never appears,
+  `install_local*` and `uninstall_local` refuse, startup self-repair skips its check, and the
+  install dialog says the plugin must come from the firmware
+  (`src/system/helix_plugin_installer.cpp#firmware_owns_plugin`). The package tree is
+  unreadable to Moonraker's user and the components directory is reset at every boot, so an
+  install from the screen could not work there anyway (#2136, #2154).
 - **App-only work stays in the app.** Learned ETA correction reads history the app already
   has, so it is not a plugin feature.
 

@@ -3,6 +3,7 @@
 
 #include "timelapse_thumbnailer.h"
 
+#include <algorithm>
 #include <set>
 #include <string>
 
@@ -44,39 +45,75 @@ TEST_CASE("Thumbnailer: companion thumbnail lookup", "[timelapse][thumbnailer]")
     }
 }
 
+namespace {
+
+ptrdiff_t position(const std::vector<std::string>& args, const std::string& word) {
+    auto it = std::find(args.begin(), args.end(), word);
+    return it == args.end() ? -1 : it - args.begin();
+}
+
+bool pair_at(const std::vector<std::string>& args, ptrdiff_t at, const std::string& flag,
+             const std::string& value) {
+    return at >= 0 && static_cast<size_t>(at) + 1 < args.size() &&
+           args[static_cast<size_t>(at)] == flag && args[static_cast<size_t>(at) + 1] == value;
+}
+
+} // namespace
+
 TEST_CASE("Thumbnailer: ffmpeg argument list construction", "[timelapse][thumbnailer]") {
     auto args = ffmpeg_extract_args("/home/pi/printer_data/timelapse/benchy.mp4",
                                     "/home/pi/printer_data/timelapse/benchy.thumb.jpg",
                                     ExtractFrame::First);
 
-    REQUIRE(args.size() == 11);
-    REQUIRE(args[0] == "ffmpeg");
-    REQUIRE(args[1] == "-y");
-    REQUIRE(args[2] == "-i");
-    REQUIRE(args[3] == "/home/pi/printer_data/timelapse/benchy.mp4");
-    REQUIRE(args[4] == "-vframes");
-    REQUIRE(args[5] == "1");
-    REQUIRE(args[6] == "-q:v");
-    REQUIRE(args[7] == "3");
+    REQUIRE(args.front() == "ffmpeg");
+    CHECK(args[1] == "-y");
+    const auto in = position(args, "-i");
+    REQUIRE(in > 0);
+    CHECK(args[static_cast<size_t>(in) + 1] == "/home/pi/printer_data/timelapse/benchy.mp4");
+    CHECK(pair_at(args, position(args, "-vframes"), "-vframes", "1"));
+    CHECK(pair_at(args, position(args, "-q:v"), "-q:v", "3"));
     // Small enough that pre-scaling it is a cheap decode.
-    REQUIRE(args[8] == "-vf");
-    REQUIRE(args[9] == "scale=480:-2");
-    REQUIRE(args[10] == "/home/pi/printer_data/timelapse/benchy.thumb.jpg");
+    CHECK(pair_at(args, position(args, "-vf"), "-vf", "scale=480:-2"));
+    CHECK(args.back() == "/home/pi/printer_data/timelapse/benchy.thumb.jpg");
+    CHECK(position(args, "-sseof") < 0);
+}
+
+TEST_CASE("Thumbnailer: extraction runs as lean as the player's decoder",
+          "[timelapse][thumbnailer]") {
+    for (const auto frame : {ExtractFrame::First, ExtractFrame::Last}) {
+        const auto args = ffmpeg_extract_args("/v/a.mkv", "/c/a.jpg", frame);
+        const auto in = position(args, "-i");
+        REQUIRE(in > 0);
+        // The shared input options, in order, before -i.
+        const auto lean_in = ffmpeg_lean_input_args();
+        const auto at = std::search(args.begin(), args.end(), lean_in.begin(), lean_in.end());
+        REQUIRE(at != args.end());
+        CHECK(at - args.begin() < in);
+        // The shared output options just before the output file.
+        const auto lean_out = ffmpeg_lean_output_args();
+        REQUIRE(args.size() > lean_out.size() + 1);
+        CHECK(std::equal(lean_out.begin(), lean_out.end(),
+                         args.end() - 1 - static_cast<ptrdiff_t>(lean_out.size())));
+    }
+    // What those options are: one thread everywhere and a small probe.
+    const auto lean_in = ffmpeg_lean_input_args();
+    CHECK(pair_at(lean_in, position(lean_in, "-threads"), "-threads", "1"));
+    CHECK(pair_at(lean_in, position(lean_in, "-filter_threads"), "-filter_threads", "1"));
+    CHECK(position(lean_in, "-probesize") >= 0);
+    CHECK(position(lean_in, "nobuffer") < 0);
+    CHECK(ffmpeg_lean_output_args() == std::vector<std::string>{"-threads", "1"});
 }
 
 TEST_CASE("Thumbnailer: the last frame seeks from the end before the input",
           "[timelapse][thumbnailer]") {
     auto args = ffmpeg_extract_args("/v/a.mp4", "/c/a.jpg", ExtractFrame::Last);
 
-    REQUIRE(args.size() == 13);
-    CHECK(args[0] == "ffmpeg");
-    CHECK(args[1] == "-y");
-    CHECK(args[2] == "-sseof");
-    CHECK(args[3] == "-1");
-    CHECK(args[4] == "-i");
-    CHECK(args[5] == "/v/a.mp4");
-    CHECK(args[6] == "-vframes");
-    CHECK(args[7] == "1");
+    const auto sseof = position(args, "-sseof");
+    const auto in = position(args, "-i");
+    REQUIRE(sseof > 0);
+    CHECK(pair_at(args, sseof, "-sseof", "-1"));
+    CHECK(sseof < in);
+    CHECK(args[static_cast<size_t>(in) + 1] == "/v/a.mp4");
     CHECK(args.back() == "/c/a.jpg");
 }
 
@@ -126,7 +163,9 @@ TEST_CASE("Thumbnailer: ffmpeg args are safe from shell injection", "[timelapse]
     auto args = ffmpeg_extract_args("/tmp/$(rm -rf /).mp4", "/tmp/out.jpg", ExtractFrame::First);
 
     // The malicious filename is passed as a single argument element, not shell-interpreted
-    REQUIRE(args[3] == "/tmp/$(rm -rf /).mp4");
+    const auto in = position(args, "-i");
+    REQUIRE(in > 0);
+    REQUIRE(args[static_cast<size_t>(in) + 1] == "/tmp/$(rm -rf /).mp4");
 }
 
 TEST_CASE("Thumbnailer: video file filtering", "[timelapse][thumbnailer]") {

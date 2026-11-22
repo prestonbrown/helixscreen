@@ -20,6 +20,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/side_band_test_host.h"
+#include "content_width_cap.h"
 #include "core/static_panel_registry.h"
 #include "core/update_queue.h"
 #include "theme_manager.h"
@@ -45,6 +46,30 @@ TEST_CASE("side band gate: AMS needs ultrawide and a lane tray", "[uw_side_band]
     CHECK(side_band_shows(SideBandContent::Ams, true, true));
     CHECK_FALSE(side_band_shows(SideBandContent::Ams, true, false));
     CHECK_FALSE(side_band_shows(SideBandContent::Ams, false, true));
+}
+
+TEST_CASE("side band room: the cap must leave at least a screen height", "[uw_side_band]") {
+    // Host widths are the screen less the navigation bar, as measured at each size.
+    struct Size {
+        int32_t host_w, ver_res;
+        bool room;
+    };
+    const std::array<Size, 6> sizes{{
+        {1920 - 76, 720, false}, // 116 px beside a 1728 cap
+        {1280 - 76, 480, false}, // 52 px beside a 1152 cap
+        {1920 - 76, 480, true},  // 692 px
+        {2560 - 76, 720, true},  // 756 px
+        {1480 - 54, 320, true},  // 658 px
+        {1920 - 76, 440, true},  // 788 px
+    }};
+    for (const Size& s : sizes) {
+        CAPTURE(s.host_w, s.ver_res);
+        CHECK(helix::side_band_has_room(s.host_w, helix::content_max_width(s.ver_res), s.ver_res) ==
+              s.room);
+    }
+    // The boundary itself is room enough.
+    CHECK(helix::side_band_has_room(1152 + 480, 1152, 480));
+    CHECK_FALSE(helix::side_band_has_room(1152 + 479, 1152, 480));
 }
 
 namespace {
@@ -502,4 +527,67 @@ TEST_CASE_METHOD(LVGLUITestFixture, "side band: Controls hosts the Motion panel'
     get_global_motion_panel().close();
     helix::ui::UpdateQueue::instance().drain();
     band.deinit_subjects();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a sliver beside the cap stays empty",
+                 "[uw_side_band]") {
+    // 1920x720 is past 2.5:1, but its 1728 cap leaves about 116 px.
+    ScopedResolution resolution(lv_display_get_default(), 1920, 720);
+    theme_manager_refresh_layout_constants(lv_display_get_default());
+    ScopedUltrawide ultrawide(0);
+    ultrawide.set(1);
+    FakeBand fx;
+    fx.band.on_host_activate();
+
+    CHECK_FALSE(fx.band.shows());
+    CHECK(fx.log.attaches == 0);
+    CHECK(fx.band.hosted() == nullptr);
+    CHECK(subject_value("test_side_band") == 0);
+    // The host keeps the capped layout, its main column whole on screen.
+    lv_obj_t* main = lv_obj_find_by_name(fx.host, "side_band_main");
+    lv_obj_update_layout(fx.host);
+    CHECK(lv_obj_get_width(main) == helix::content_max_width(720));
+    lv_area_t a;
+    lv_obj_get_coords(main, &a);
+    CHECK(a.x2 < 1920);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: with room, the band is wide and on screen",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1); // 1920x480: a 1152 cap
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.band.hosted() != nullptr);
+
+    lv_obj_update_layout(fx.host);
+    lv_obj_t* band = fx.band_obj();
+    CHECK(lv_obj_get_width(band) >=
+          helix::side_band_min_width(480) - lv_obj_get_style_pad_column(fx.host, LV_PART_MAIN));
+    lv_area_t a;
+    lv_obj_get_coords(fx.log.root, &a);
+    CHECK(a.x2 < helix::test::kUltrawideTestWidth);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "side band: a resize that closes the room empties the band",
+                 "[uw_side_band]") {
+    ScopedUltrawide ultrawide(1); // 1920x480
+    FakeBand fx;
+    fx.band.on_host_activate();
+    REQUIRE(fx.band.hosted() != nullptr);
+
+    // Narrower at the same height, still past 2.5:1: 1280x480 leaves 52 px.
+    {
+        ScopedResolution narrow(lv_display_get_default(), 1280, 480);
+        lv_obj_update_layout(fx.host);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK_FALSE(fx.band.shows());
+        CHECK(fx.band.hosted() == nullptr);
+        CHECK(subject_value("test_side_band") == 0);
+    }
+    // And back.
+    lv_obj_update_layout(fx.host);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(fx.band.shows());
+    CHECK(fx.band.hosted() != nullptr);
+    CHECK(subject_value("test_side_band") == 1);
 }

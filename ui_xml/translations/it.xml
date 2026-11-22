@@ -1414,6 +1414,7 @@
   <translation tag="Download update?" it="Scaricare aggiornamento?"/>
   <translation tag="Download v{}?" it="Scaricare v{}?"/>
   <translation tag="Downloading the timelapse plugin..." it="Download del plugin timelapse..."/>
+  <translation tag="Downloading the timelapse..." it="Download del timelapse..."/>
   <translation tag="Downloading..." it="Download in corso..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" it="Download in corso... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" it="Disegna un&apos;onda a ogni tocco — aiuta a diagnosticare gli scostamenti"/>
@@ -4623,6 +4624,8 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." it="Il CFS ha esaurito il filamento. La stampa continua con quello rimasto nel tubo."/>
   <translation tag="The DNS server is not a valid address." it="Il server DNS non è un indirizzo valido."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." it="Il plugin HelixPrint abilita modifiche G-code rapide direttamente sulla stampante, come saltare la mesh piano per ristampe veloci."/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." it="Il plugin HelixPrint deve essere fornito dal firmware della stampante, che gestisce il software di HelixScreen."/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." it="Il plugin HelixPrint è gestito dal firmware della stampante."/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." it="Il plugin HelixPrint sposta le vecchie chiamate di PRINT_START sui nomi nascosti."/>
   <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port." it="La scheda IFS non ha risposto in tempo: un problema di cavo, una scheda bloccata oppure lo schermo nativo che usa la stessa porta."/>
   <translation tag="The IFS board reported a driver error on every retry." it="La scheda IFS ha segnalato un errore del driver a ogni tentativo."/>
@@ -4923,6 +4926,7 @@
   <translation tag="The temperature was changed elsewhere." it="La temperatura è stata modificata altrove."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." it="L&apos;amplificatore della termocoppia o del PT100 ha segnalato un guasto o una lettura fuori intervallo."/>
   <translation tag="The time, date, and system uptime" it="Ora, data e tempo di attività"/>
+  <translation tag="The timelapse could not be downloaded" it="Impossibile scaricare il timelapse"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." it="La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." it="Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che non è installato su questa stampante."/>
   <translation tag="The tool change under way finished, and the tool was not parked" it="Il cambio utensile in corso è terminato e l&apos;utensile non è stato parcheggiato"/>
@@ -4954,7 +4958,6 @@
   <translation tag="The update failed" it="L&apos;aggiornamento non è riuscito"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." it="L&apos;aggiornamento non dà più notizie. Il risultato è sconosciuto: controlla la stampante prima di usarla."/>
   <translation tag="The update&apos;s result is unknown" it="Il risultato dell&apos;aggiornamento è sconosciuto"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." it="Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." it="Il motore {0} non è stato misurato: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." it="L&apos;accelerometro {1} non ha risposto con l&apos;ID previsto. Molto probabilmente è scollegato, il suo cavo è danneggiato o i suoi pin SPI sono errati."/>
   <translation tag="The {1} motor lost steps" it="Il motore {1} ha perso passi"/>
@@ -5066,6 +5069,7 @@
   <translation tag="This update asks for new permissions:" it="Questo aggiornamento richiede nuovi permessi:"/>
   <translation tag="This update removes HelixScreen from the printer." it="Questo aggiornamento rimuove HelixScreen dalla stampante."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." it="Questo aggiorna i pacchetti del sistema operativo della stampante."/>
+  <translation tag="This video could not be played" it="Impossibile riprodurre questo video"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." it="Questa attesa termina solo alla sua temperatura: l&apos;annullamento richiede un arresto di emergenza e un riavvio del firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset al tuo endstop e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset alla tua sonda e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>
@@ -5413,8 +5417,6 @@
   <translation tag="Vibration" it="Vibrazione"/>
   <translation tag="Vibration compensation active" it="Compensazione vibrazione attiva"/>
   <translation tag="Video playback speed" it="Velocità riproduzione video"/>
-  <translation tag="Video player failed to start" it="Impossibile avviare il lettore video"/>
-  <translation tag="Video player failed to start ({})" it="Impossibile avviare il lettore video ({})"/>
   <translation tag="View" it="Visualizza"/>
   <translation tag="View Changelog" it="Visualizza Modifiche"/>
   <translation tag="View Full History" it="Visualizza cronologia completa"/>
@@ -5586,6 +5588,7 @@
   <translation tag="Your printer at a glance" it="La tua stampante a colpo d&apos;occhio"/>
   <translation tag="Your printer has an automatic filament changer" it="La stampante ha un cambio filamento automatico"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" it="La stampante era offline durante la configurazione, quindi le opzioni hardware sono state saltate. Configurarle ora?"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." it="Il firmware della stampante gestisce il software di HelixScreen, quindi il plugin HelixPrint deve essere fornito dal firmware. Non può essere installato da questa schermata."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." it="Il manuale della stampante indica ricambi e lubrificante per il tuo modello."/>
   <translation tag="Your usual build plate is on" it="Il tuo piatto di stampa abituale è montato"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." it="La tua {0} è configurata per {1}, ma sembra di serie."/>

@@ -6,7 +6,7 @@
   <view name="plugin_install_modal"
         extends="dialog_frame" width="85%" title="Optimize Your Printing" icon="puzzle_outline" icon_variant="success">
     <!-- plugin_install_phase: 0 local prompt, 1 remote prompt, 2 installing, 3 succeeded,
-           4 failed. Each part below shows for its own phases. -->
+           4 failed, 5 firmware-managed. Each part below shows for its own phases. -->
     <!-- Description (LOCAL mode - auto-install available) -->
     <lv_obj name="local_description"
             width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm">
@@ -57,6 +57,11 @@
             width="100%" height="content" style_pad_all="#space_md" flex_flow="column" style_flex_cross_place="center"
             style_pad_gap="#space_sm">
       <bind_flag_if_lt subject="plugin_install_phase" flag="hidden" ref_value="3"/>
+      <text_body name="firmware_message"
+                 width="100%" long_mode="wrap" style_text_align="center"
+                 text="Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.">
+        <bind_flag_if_not_eq subject="plugin_install_phase" flag="hidden" ref_value="5"/>
+      </text_body>
       <icon name="result_icon" src="check_circle" size="lg" variant="success">
         <bind_flag_if_not_eq subject="plugin_install_phase" flag="hidden" ref_value="3"/>
       </icon>
