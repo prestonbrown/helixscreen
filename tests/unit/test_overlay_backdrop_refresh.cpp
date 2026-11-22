@@ -679,3 +679,54 @@ TEST_CASE_METHOD(ModalUnderNavFixture, "a dim-layer modal backdrop has nothing t
     modal.hide();
     helix::ui::detail::reset_circuit_breaker();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture, "a theme switch under an open modal re-takes its backdrop",
+                 "[modal][backdrop][theme]") {
+    SnapshotBackdropsMode snapshots(true);
+    auto& nav = NavigationManager::instance();
+    const helix::ThemeData theme = theme_manager_get_active_theme();
+    const bool was_dark = theme_manager_is_dark_mode();
+    lv_obj_t* saved_layout = NavigationManagerTestAccess::app_layout_widget(nav);
+    theme_manager_apply_theme(theme, true);
+
+    lv_obj_t* layout = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(layout);
+    lv_obj_set_size(layout, LV_PCT(100), LV_PCT(100));
+    lv_obj_t* navbar = static_cast<lv_obj_t*>(lv_xml_create(layout, "navigation_bar", nullptr));
+    REQUIRE(navbar != nullptr);
+    nav.set_app_layout(layout);
+    nav.wire_events(navbar);
+    lv_obj_update_layout(test_screen());
+    process_lvgl(20);
+
+    lv_area_t a;
+    lv_obj_get_coords(navbar, &a);
+    const int32_t x = a.x1 + 4;
+    const int32_t y = (a.y1 + a.y2) / 2;
+
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = ModalStack::instance().backdrop_for(ModalStack::instance().top_dialog());
+    REQUIRE(backdrop != nullptr);
+    REQUIRE(lv_obj_check_type(backdrop, &lv_image_class));
+    const Rgb dark_px = backdrop_pixel_at_screen(backdrop, x, y);
+
+    theme_manager_apply_theme(theme, false);
+    for (int i = 0; i < 4; i++) {
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(100);
+    }
+
+    // The dark navbar left behind the dialog after the user picked light mode.
+    const Rgb light_px = backdrop_pixel_at_screen(backdrop, x, y);
+    INFO("navbar in modal backdrop: dark " << int(dark_px.r) << "," << int(dark_px.g) << ","
+                                           << int(dark_px.b) << " light " << int(light_px.r) << ","
+                                           << int(light_px.g) << "," << int(light_px.b));
+    CHECK(light_px.r + light_px.g + light_px.b > dark_px.r + dark_px.g + dark_px.b + 100);
+
+    modal.hide();
+    process_lvgl(400);
+    NavigationManagerTestAccess::set_panel_stack(nav, {});
+    nav.set_app_layout(saved_layout);
+    theme_manager_apply_theme(theme, was_dark);
+}

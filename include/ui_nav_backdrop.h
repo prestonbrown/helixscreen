@@ -16,6 +16,9 @@ class NavigationManagerTestAccess; // NAMESPACE_OK: test accessor, global scope
 
 namespace helix::ui {
 
+/// The colors the navbar is painted in right now, as one comparable key.
+std::string active_palette_key();
+
 /**
  * @brief What sits behind the overlay stack: the dismiss backdrop and its bookkeeping
  *

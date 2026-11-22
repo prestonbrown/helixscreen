@@ -908,6 +908,8 @@ class NavigationManager {
     ObserverGuard klippy_state_observer_;
     ObserverGuard printer_switcher_observer_;
     ObserverGuard theme_observer_;
+    /// The palette the open modals' backdrops were last asked to show.
+    std::string modal_palette_key_;
 
     // Track previous states for detecting transitions
     int previous_connection_state_ = -1;
