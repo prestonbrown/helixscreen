@@ -272,12 +272,12 @@
               </lv_obj>
               <lv_obj width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false"/>
               <lv_label width="100%"
-                        text="Big steps first, then 0.01." long_mode="wrap" style_text_font="#cal_font_detail"
-                        style_text_color="#text_subtle">
+                        text="Big steps first, then 0.01." long_mode="wrap" wrap_at_spaces="true"
+                        style_text_font="#cal_font_detail" style_text_color="#text_subtle">
                 <bind_flag_if_eq subject="zoffset_step" flag="hidden" ref_value="3"/>
               </lv_label>
               <lv_label width="100%"
-                        text="1 mm steps can press the nozzle into the bed." long_mode="wrap"
+                        text="1 mm steps can press the nozzle into the bed." long_mode="wrap" wrap_at_spaces="true"
                         style_text_font="#cal_font_detail" style_text_color="#warning">
                 <bind_flag_if_not_eq subject="zoffset_step" flag="hidden" ref_value="3"/>
               </lv_label>
@@ -445,22 +445,25 @@
                   </lv_obj>
                   <lv_label width="100%"
                             text="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."
-                            long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#text_subtle">
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#text_subtle">
                     <bind_flag_if cond="zoffset_step eq 3 or ui_is_portrait eq 1" flag="hidden"/>
                   </lv_label>
                   <lv_label width="100%"
                             text="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."
-                            long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#warning">
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#warning">
                     <bind_flag_if cond="zoffset_step ne 3 or ui_is_portrait eq 1" flag="hidden"/>
                   </lv_label>
                   <lv_label width="100%"
                             text="Big steps first, then 0.01. Never force the nozzle into the bed." long_mode="wrap"
-                            style_text_font="#cal_font_detail" style_text_color="#text_subtle">
+                            wrap_at_spaces="true" style_text_font="#cal_font_detail" style_text_color="#text_subtle">
                     <bind_flag_if cond="zoffset_step eq 3 or ui_is_portrait eq 0" flag="hidden"/>
                   </lv_label>
                   <lv_label width="100%"
                             text="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."
-                            long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#warning">
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#warning">
                     <bind_flag_if cond="zoffset_step ne 3 or ui_is_portrait eq 0" flag="hidden"/>
                   </lv_label>
                 </lv_obj>
