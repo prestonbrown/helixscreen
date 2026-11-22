@@ -84,12 +84,12 @@
                 style_bg_opa="0" style_border_width="0" flex_flow="row_wrap" scrollable="false" clickable="false"/>
       </lv_obj>
     </lv_obj>
-    <calibration_wizard_footer name="cal_intro_footer"
-                               back_text="$secondary_text" back_tag="$secondary_tag" back_callback="$secondary_callback"
-                               back_name="$secondary_name" primary_name="$primary_name" primary_text="$primary_text"
-                               primary_tag="$primary_tag" primary_subject="$primary_bind_text"
-                               primary_callback="$primary_callback" primary_disabled_cond="$primary_disabled_cond"
-                               divider="0" primary_moves_machine="$primary_moves_machine" status="$status"
-                               status_tag="$status_tag" status_subject="$status_subject" status_color="$status_color"/>
+    <wizard_frame_footer name="cal_intro_footer"
+                         back_text="$secondary_text" back_tag="$secondary_tag" back_callback="$secondary_callback"
+                         back_name="$secondary_name" primary_name="$primary_name" primary_text="$primary_text"
+                         primary_tag="$primary_tag" primary_subject="$primary_bind_text"
+                         primary_callback="$primary_callback" primary_disabled_cond="$primary_disabled_cond" divider="0"
+                         primary_moves_machine="$primary_moves_machine" status="$status" status_tag="$status_tag"
+                         status_subject="$status_subject" status_color="$status_color"/>
   </view>
 </component>

@@ -214,7 +214,6 @@ void LVGLUITestFixture::register_event_callbacks() {
 
     // Wizard callbacks (for navigation buttons)
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
 
     // Notification callbacks (for status icons)
     helix::ui::notification_register_callbacks();

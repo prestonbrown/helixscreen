@@ -24,9 +24,8 @@ class Config;
  *   1. Register XML components (globals.xml, wizard_container.xml, all wizard_*.xml)
  *   2. ui_wizard_init_subjects()
  *   3. ui_wizard_register_event_callbacks()
- *   4. ui_wizard_container_register_responsive_constants()  <- BEFORE creating XML
- *   5. ui_wizard_create(parent)
- *   6. ui_wizard_navigate_to_step(1)
+ *   4. ui_wizard_create(parent)
+ *   5. ui_wizard_navigate_to_step(1)
  */
 
 /**
@@ -34,9 +33,10 @@ class Config;
  *
  * Creates and registers reactive subjects for wizard state:
  * - current_step, total_steps (int)
- * - wizard_title, wizard_subtitle, wizard_step_current, wizard_step_total (string)
- * - wizard_total_visible, wizard_is_final_step, wizard_back_visible,
- *   wizard_show_skip, connection_test_passed (int flags)
+ * - wizard_title, wizard_subtitle, wizard_step_text, wizard_back_text,
+ *   wizard_next_text, wizard_skip_text (string)
+ * - wizard_is_final_step, wizard_back_visible, wizard_show_skip,
+ *   connection_test_passed (int flags)
  *
  * MUST be called BEFORE creating XML components.
  */
@@ -49,20 +49,6 @@ void ui_wizard_init_subjects();
  * Called by StaticPanelRegistry during Application::shutdown().
  */
 void ui_wizard_deinit_subjects();
-
-/**
- * Register responsive constants to wizard_container scope and propagate to children
- *
- * Registers wizard_button_width to the wizard_container scope, then propagates it
- * to every wizard step component. Uses parent-defined constants pattern to avoid
- * polluting globals scope.
- *
- * wizard_button_width by the display's larger axis: 90 (≤272), 110 (≤460),
- * 140 (≤550), 160 above.
- *
- * MUST be called AFTER all wizard_*.xml components are registered and BEFORE ui_wizard_create().
- */
-void ui_wizard_container_register_responsive_constants();
 
 /**
  * Register event callbacks
@@ -84,7 +70,6 @@ void ui_wizard_register_event_callbacks();
  * Prerequisites:
  * - ui_wizard_init_subjects() called
  * - ui_wizard_register_event_callbacks() called
- * - ui_wizard_container_register_responsive_constants() called
  *
  * @param parent Parent object (typically screen root)
  * @return The wizard root object, or NULL on failure
