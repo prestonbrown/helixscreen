@@ -151,6 +151,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Subject keeps its address across reset and re
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Subject::reset removes every observer and refuses new ones until re-init",
                  "[subject][raii]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     Subject s;
     s.init_int(5);
     REQUIRE(lv_subject_add_observer(&s, count_cb, nullptr) != nullptr);
@@ -402,6 +404,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "subject_reset reports an unowned subject and 
 TEST_CASE_METHOD(LVGLTestFixture,
                  "Subject constructed after lv_init has a stable handle that init_* keeps",
                  "[subject][raii]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     Subject s;
     lv_subject_t* const early = &s;
     REQUIRE(early != nullptr);

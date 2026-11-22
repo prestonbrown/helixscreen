@@ -20,11 +20,11 @@
 namespace helix::test {
 
 /// Codes that mean a test misused a subject: each one is a binding that silently
-/// does nothing or an observer left on a dead subject. observer_refused_deinit_subject
-/// belongs here too and joins once the suite stops reporting it (#2116).
+/// does nothing or an observer left on a dead subject.
 inline constexpr const char* kStrictAnomalies[] = {
     "subject_reinit_while_live",
     "observer_null_subject",
+    "observer_refused_deinit_subject",
 };
 
 inline bool is_strict_anomaly(const char* code) {

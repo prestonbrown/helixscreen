@@ -16,6 +16,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/print_status_panel_test_access.h"
+#include "../test_helpers/strict_anomalies.h"
 #include "core/update_queue.h"
 
 #include <cstdlib>
@@ -30,6 +31,8 @@ using helix::ui::UpdateQueue;
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "PrintStatusPanel subjects refuse observers before init_subjects() (#1423)",
                  "[print_status][subject_lifetime]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     // Heap storage the constructor cannot see being filled, so the pattern
     // survives to the constructor and only the members' own initializers can
     // clear it.

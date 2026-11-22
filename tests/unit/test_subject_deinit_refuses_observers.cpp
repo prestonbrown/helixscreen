@@ -14,6 +14,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/strict_anomalies.h"
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
@@ -147,6 +148,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "Re-initializing a deinitialized subject accep
 
 TEST_CASE_METHOD(LVGLTestFixture, "Re-initializing a deinitialized group subject accepts observers",
                  "[observer][subject_lifetime][1279]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     helix::Subject a;
     helix::Subject b;
     a.init_int(1);
@@ -186,6 +189,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "A deinitialized subject still reads and write
 // leave no NULL dereference, no applied style and no allocation behind.
 TEST_CASE_METHOD(LVGLTestFixture, "Style and span binders survive a deinitialized subject",
                  "[observer][subject_lifetime][1279]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     helix::Subject subject;
     subject.init_int(1);
     subject.reset();
@@ -270,6 +275,8 @@ lv_obj_t* create_bind_style_probe(lv_obj_t* parent) {
 
 TEST_CASE("XML bind_style_if_eq on a deinitialized subject leaves the style off",
           "[observer][subject_lifetime][xml][1279]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     XMLTestFixture fixture;
     helix::Subject& subject = deinit_probe_subject();
 

@@ -133,6 +133,14 @@ NavigationManager::instance().set_active(PanelId::Advanced);
 or `(widget, nullptr)` for an intentional lifecycle-less overlay. Tests run with
 `HELIX_STRICT_OVERLAY_CHECK`, so an unregistered push **aborts** rather than warning.
 
+**A binding to a dead subject fails the case.** `observer_refused_deinit_subject`,
+`observer_null_subject` and `subject_reinit_while_live` are strict
+(`test_helpers/strict_anomalies.h`); a case that provokes one on purpose holds
+`helix::test::AllowAnomaly`. Every case starts with the subjects the app brings up at
+startup live (`HelixTestFixture::reset_all()`), so seed values, never tear an app-lifetime
+owner down. To find what a run refuses, set `HELIX_ANOMALY_TALLY=<dir>`: each case appends
+its anomaly counts and the owner of every refused subject to `<dir>/tally-<pid>.tsv`.
+
 ---
 
 ## What to run when

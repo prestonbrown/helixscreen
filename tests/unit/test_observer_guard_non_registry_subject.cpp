@@ -19,6 +19,7 @@
 
 #include "../helix_test_fixture.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/strict_anomalies.h"
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
@@ -173,6 +174,8 @@ TEST_CASE_METHOD(
 // still owns the context the factory allocated and must free it.
 TEST_CASE_METHOD(LVGLTestFixture, "ObserverGuard frees its context when the attach failed",
                  "[observer][lifetime][1279]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     helix::Subject never_initialized{};
     int ctx = 0;
     bool context_freed = false;

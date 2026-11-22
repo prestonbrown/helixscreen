@@ -24,6 +24,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
+#include "../test_helpers/strict_anomalies.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml_expr.h"
 #include "printer_state.h"
@@ -387,6 +388,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a cond binding outlives a subject it reads wi
 
 TEST_CASE_METHOD(LVGLTestFixture, "a binding made on a deinitialised subject never reads it",
                  "[xml][1983]") {
+    // This case binds to a deinitialized subject on purpose.
+    helix::test::AllowAnomaly refusal("observer_refused_deinit_subject");
     helix::Subject gone;
     gone.init_int(0);
     gone.reset();
