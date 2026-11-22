@@ -251,6 +251,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "a Calibration tile says when a step last ran, else how much it matters",
                  "[calibration_history]") {
     StepInfo step;
+    step.kind = StepKind::Heaters;
     step.tier = Tier::Required;
     const HistoryEntry done{"2026-11-20", "MPC 60 W", json::object()};
     auto s = helix::ui::tile_status(step, &done, nullptr);
@@ -258,6 +259,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(s.tone == helix::ui::TileTone::Done);
     const HistoryEntry bare{"2026-03-09", "", json::object()};
     CHECK(helix::ui::tile_status(step, &bare, nullptr).text == "Done Mar 9");
+    // A step with a result per axis shows the date alone; its screen shows the result.
+    StepInfo shaper;
+    shaper.kind = StepKind::InputShaper;
+    const HistoryEntry axes{"2026-11-20", "X: MZV 52 Hz · Y: EI 48 Hz", json::object()};
+    CHECK(helix::ui::tile_status(shaper, &axes, nullptr).text == "Done Nov 20");
+    CHECK(helix::ui::tile_status(shaper, &axes, nullptr).tone == helix::ui::TileTone::Done);
 
     using helix::ui::TileTone;
     const std::pair<Tier, std::pair<const char*, TileTone>> never[] = {
@@ -278,6 +285,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "a Calibration tile with no history shows what the printer's config holds",
                  "[calibration_history]") {
     StepInfo step;
+    step.kind = StepKind::ZOffset;
     step.tier = Tier::Recommended;
     const std::string in_config = "-1.250 mm";
     auto s = helix::ui::tile_status(step, nullptr, &in_config);
@@ -295,6 +303,20 @@ TEST_CASE_METHOD(LVGLTestFixture,
     const std::string axes = "X: MZV 50.0 · Y: MZV 50.0";
     CHECK(helix::ui::tile_status(shaper, nullptr, &axes).text == axes);
     CHECK(s.tone == helix::ui::TileTone::Done);
+}
+
+TEST_CASE("a done tile repeats its result only for a one-reading step", "[calibration_history]") {
+    using helix::ui::tile_shows_reading;
+    for (StepKind k :
+         {StepKind::CutterPosition, StepKind::ZOffset, StepKind::Heaters, StepKind::BedMesh,
+          StepKind::PressureAdvance, StepKind::PressureAdvanceTuning}) {
+        CHECK(tile_shows_reading(k));
+    }
+    for (StepKind k :
+         {StepKind::BeltTension, StepKind::InputShaper, StepKind::BeltCompare, StepKind::BedScrews,
+          StepKind::ToolOffsets, StepKind::VerticalArtifact, StepKind::VibrationCheck}) {
+        CHECK_FALSE(tile_shows_reading(k));
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "every change to the calibration history moves its version",
@@ -345,7 +367,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 namespace {
 
-/// The step count a "N step(s) never run" banner leads with, or -1.
+/// The step count a "N step(s) due" banner leads with, or -1.
 long banner_count(const char* text) {
     char* end = nullptr;
     const long n = std::strtol(text, &end, 10);
@@ -355,7 +377,7 @@ long banner_count(const char* text) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "the Calibration screen offers a guided run and counts the steps never run",
+                 "the Calibration screen offers a guided run and counts the steps due",
                  "[calibration_history][calibration_hub]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -374,7 +396,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(text != nullptr);
     CHECK(lv_subject_get_int(shown) == 1);
     const std::string before = lv_subject_get_string(text);
-    CHECK(before.find("never run") != std::string::npos);
+    CHECK(before.find("due") != std::string::npos);
     const long never_run = banner_count(before.c_str());
     REQUIRE(never_run >= 1);
 
@@ -384,7 +406,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_subject_get_int(shown) == 1);
     const std::string after = lv_subject_get_string(text);
     if (never_run == 1) {
-        CHECK(after.find("Run everything again") == 0);
+        CHECK(after.find("Nothing due") == 0);
     } else {
         CHECK(banner_count(after.c_str()) == never_run - 1);
     }

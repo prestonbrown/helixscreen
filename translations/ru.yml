@@ -163,6 +163,7 @@ translations:
   1 print: '1 печать'
   1 profile: '1 профиль'
   1 step in {} min · review, then save once: 1 шаг за {} мин · проверьте и сохраните один раз
+  1 step due · about {} min: '1 шаг к выполнению · около {} мин'
   1 step never run · about {} min: '1 шаг не выполнялся · около {} мин'
   1 step · about {} min: '1 шаг · около {} мин'
   1 step · {} min: 1 шаг · {} мин
@@ -3268,6 +3269,7 @@ translations:
   Not yet calibrated: Ещё не откалибровано
   Notes: Заметки
   Notes (optional): Заметки (необязательно)
+  Nothing due · about {} min: 'Ничего не требуется · около {} мин'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Повороты {0} ничего не изменили. Верните их и проверьте механику."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "{1} оборота {0} ничего не изменили. Поверните {0} на {1} оборота назад и проверьте механику."
   Nothing loaded: Ничего не загружено
@@ -4195,6 +4197,7 @@ translations:
   Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
   Runs on its own once started: После запуска работает сам
+  Runs everything this printer needs, in order ·: 'Выполняет всё, что нужно этому принтеру, по порядку ·'
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6280,6 +6283,7 @@ translations:
   '{} spool cleared': '{}: катушка удалена'
   '{} started': '{} запущено'
   '{} steps in {} min · review, then save once': 'Шагов: {} за {} мин · проверьте и сохраните один раз'
+  '{} steps due · about {} min': 'Шагов к выполнению: {} · около {} мин'
   '{} steps never run · about {} min': 'Не выполнялось шагов: {} · около {} мин'
   '{} steps · about {} min': 'Шагов: {} · около {} мин'
   '{} steps · {} min': 'Шагов: {} · {} мин'

@@ -9,31 +9,56 @@
   <styles>
     <style name="tiles_standard" pad_row="#space_sm"/>
     <style name="tiles_micro" pad_row="#space_xxs"/>
+    <style name="banner_micro" pad_top="#space_xs" pad_bottom="#space_xs"/>
   </styles>
   <view name="calibration_hub_overlay" extends="overlay_panel" title="Calibration" bg_color="#screen_bg">
     <overlay_panel-overlay_content style_pad_top="0"
-                                   style_pad_left="#space_md" style_pad_right="#space_md" style_pad_bottom="#space_md"
-                                   scrollable="true" flex_flow="column" style_pad_gap="#space_sm">
-      <!-- Guided calibration: opens the run (calibration_run_overlay.xml). cal_run_banner_text
-           says what a run would do, or that one is waiting. -->
+                                   style_pad_left="#cal_hub_gutter" style_pad_right="#cal_hub_gutter"
+                                   style_pad_bottom="#cal_hub_tile_pad" scrollable="true" flex_flow="column"
+                                   style_pad_gap="#space_md">
+      <!-- Guided calibration: opens the run (calibration_run_overlay.xml); the whole banner and
+           its Start button both open it. cal_run_banner_text says how many steps are due and
+           how long a run takes; the lead-in before it shows only where the row has room. -->
       <lv_button name="cal_guided_banner"
-                 width="100%" height="content" style_min_height="#touch_target_min" style_bg_color="#card_bg"
-                 style_bg_opa="100%" style_border_width="2" style_border_color="#primary" style_shadow_width="0"
-                 style_radius="#border_radius" style_pad_left="#space_md" style_pad_right="#space_md"
-                 style_pad_top="#space_sm" style_pad_bottom="#space_sm" style_pad_gap="#space_md" scrollable="false"
-                 flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
+                 width="100%" height="content" style_bg_color="#primary" style_bg_opa="12%" style_border_width="1"
+                 style_border_color="#primary" style_border_opa="40%" style_shadow_width="0"
+                 style_radius="#border_radius" style_pad_left="#cal_hub_gutter" style_pad_right="#cal_hub_gutter"
+                 style_pad_top="#cal_hub_tile_pad" style_pad_bottom="#cal_hub_tile_pad" style_pad_gap="#cal_hub_gutter"
+                 scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
         <bind_flag_if_eq subject="cal_run_banner_shown" flag="hidden" ref_value="0"/>
         <style name="styles.press_wash" selector="pressed"/>
-        <icon src="tune" size="sm" variant="primary" clickable="false" event_bubble="true"/>
+        <bind_style_if name="banner_micro" cond="ui_breakpoint eq 0"/>
+        <lv_obj name="cal_guided_mark"
+                width="#cal_hub_banner_mark" height="#cal_hub_banner_mark" style_bg_color="#primary" style_bg_opa="100%"
+                style_border_width="0" style_radius="999" style_pad_all="0" scrollable="false" clickable="false"
+                event_bubble="true">
+          <icon align="center"
+                src="play" size="sm" style_text_color="#text_on_primary" clickable="false" event_bubble="true"/>
+        </lv_obj>
         <lv_obj width="0"
                 height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
                 scrollable="false" clickable="false" event_bubble="true">
-          <text_body width="100%" text="Guided calibration" long_mode="dots" clickable="false" event_bubble="true"/>
-          <text_small name="cal_guided_banner_text"
-                      width="100%" bind_text="cal_run_banner_text" long_mode="dots" style_text_color="#text_muted"
-                      clickable="false" event_bubble="true"/>
+          <text_body width="100%"
+                     text="Guided calibration" style_text_font="#cal_font_name_bold" long_mode="dots" clickable="false"
+                     event_bubble="true"/>
+          <lv_obj width="100%"
+                  height="content" style_pad_all="0" style_pad_column="#space_xs" flex_flow="row" scrollable="false"
+                  clickable="false" event_bubble="true">
+            <text_small name="cal_guided_banner_lead"
+                        text="Runs everything this printer needs, in order ·" style_text_font="#cal_font_detail"
+                        style_text_color="#text_muted" clickable="false" event_bubble="true">
+              <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
+            </text_small>
+            <text_small name="cal_guided_banner_text"
+                        width="0" flex_grow="1" bind_text="cal_run_banner_text" style_text_font="#cal_font_detail"
+                        long_mode="dots" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
+          </lv_obj>
         </lv_obj>
-        <icon src="chevron_right" size="sm" variant="secondary" clickable="false" event_bubble="true"/>
+        <ui_button name="cal_guided_start"
+                   height="#touch_target_min" text="Start" variant="primary" style_text_font="#cal_font_primary"
+                   style_pad_left="#space_lg" style_pad_right="#space_lg">
+          <event_cb trigger="clicked" callback="on_guided_calibration_clicked"/>
+        </ui_button>
         <event_cb trigger="clicked" callback="on_guided_calibration_clicked"/>
       </lv_button>
       <lv_obj name="calibration_tiles"
@@ -42,39 +67,36 @@
         <bind_style_if name="tiles_standard" cond="ui_breakpoint gt 0"/>
         <bind_style_if name="tiles_micro" cond="ui_breakpoint eq 0"/>
         <calibration_hub_tile name="cal_tile_belt_tension"
-                              step="belt_tension" icon="vibrate" label="Belt tension"
+                              step="belt_tension" icon="arrow_left_right" icon_hidden="false" label="Belt tension"
                               callback="on_belt_tension_auto_clicked"/>
         <calibration_hub_tile name="cal_tile_cutter"
-                              step="cutter" icon="content_cut" label="Cutter position"
-                              callback="on_cutter_calibration_clicked"/>
+                              step="cutter" glyph="C" label="Cutter position" callback="on_cutter_calibration_clicked"/>
         <calibration_hub_tile name="cal_tile_z_offset"
-                              step="z_offset" icon="z_closer" label="Z offset" callback="on_zoffset_row_clicked"/>
+                              step="z_offset" glyph="Z" label="Z offset" callback="on_zoffset_row_clicked"/>
         <calibration_hub_tile name="cal_tile_heaters"
-                              step="heaters" icon="heater" label="Heaters" callback="on_pid_tuning_clicked"/>
+                              step="heaters" icon="fire" icon_size="md" icon_hidden="false" label="Heaters"
+                              callback="on_pid_tuning_clicked"/>
         <calibration_hub_tile name="cal_tile_bed_mesh"
-                              step="bed_mesh" icon="grid_large" label="Bed mesh" callback="on_calibration_bed_mesh"/>
+                              step="bed_mesh" icon="grid_large" icon_hidden="false" label="Bed mesh"
+                              callback="on_calibration_bed_mesh"/>
         <calibration_hub_tile name="cal_tile_input_shaper"
-                              step="input_shaper" icon="inputshaper" label="Input shaper"
+                              step="input_shaper" icon="sine_wave" icon_hidden="false" label="Input shaper"
                               callback="on_input_shaper_row_clicked"/>
         <calibration_hub_tile name="cal_tile_pressure_advance"
-                              step="pressure_advance" icon="gauge" label="Pressure advance" callback="on_calibration_pa"/>
+                              step="pressure_advance" glyph="K" label="Pressure advance" callback="on_calibration_pa"/>
         <calibration_hub_tile name="cal_tile_belt_compare"
-                              step="belt_compare" icon="vibrate" label="Belt compare"
-                              callback="on_belt_tension_row_clicked"/>
+                              step="belt_compare" glyph="B" label="Belt compare" callback="on_belt_tension_row_clicked"/>
         <calibration_hub_tile name="cal_tile_bed_screws"
-                              step="bed_screws" icon="grid_large" label="Bed screws"
-                              callback="on_screws_tilt_row_clicked"/>
+                              step="bed_screws" glyph="S" label="Bed screws" callback="on_screws_tilt_row_clicked"/>
         <calibration_hub_tile name="cal_tile_tool_offsets"
-                              step="tool_offsets" icon="axis_arrow" label="Tool offsets"
-                              callback="on_tool_offset_row_clicked"/>
+                              step="tool_offsets" glyph="T" label="Tool offsets" callback="on_tool_offset_row_clicked"/>
         <calibration_hub_tile name="cal_tile_vertical_artifact"
-                              step="vertical_artifact" icon="sine_wave" label="Vertical artifact compensation"
+                              step="vertical_artifact" glyph="M" label="Vertical artifact compensation"
                               callback="on_stepper_resonance_cal_clicked"/>
         <calibration_hub_tile name="cal_tile_pa_tuning"
-                              step="pa_tuning" icon="gauge" label="Pressure advance tuning"
-                              callback="on_pa_tuning_clicked"/>
+                              step="pa_tuning" glyph="K" label="Pressure advance tuning" callback="on_pa_tuning_clicked"/>
         <calibration_hub_tile name="cal_tile_vibration_check"
-                              step="vibration_check" icon="vibrate" label="Vertical artifact check"
+                              step="vibration_check" glyph="V" label="Vertical artifact check"
                               callback="on_motor_ripple_row_clicked"/>
       </lv_obj>
     </overlay_panel-overlay_content>

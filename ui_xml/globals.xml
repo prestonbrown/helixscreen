@@ -487,6 +487,30 @@
     <px name="calib_tile_min_height_medium" value="56"/>
     <px name="calib_tile_min_height_large" value="76"/>
     <px name="calib_tile_min_height_xlarge" value="88"/>
+    <!-- Calibration screen (calibration_hub_overlay.xml): a step tile's height, the
+         rounded square holding its glyph, and the guided banner's round mark. -->
+    <px name="cal_hub_tile_h_micro" value="44"/>
+    <px name="cal_hub_tile_h_small" value="52"/>
+    <px name="cal_hub_tile_h_medium" value="60"/>
+    <px name="cal_hub_tile_h_large" value="72"/>
+    <px name="cal_hub_glyph_box_micro" value="26"/>
+    <px name="cal_hub_glyph_box_small" value="30"/>
+    <px name="cal_hub_glyph_box_medium" value="34"/>
+    <px name="cal_hub_glyph_box_large" value="40"/>
+    <px name="cal_hub_banner_mark_micro" value="28"/>
+    <px name="cal_hub_banner_mark_small" value="34"/>
+    <px name="cal_hub_banner_mark_medium" value="40"/>
+    <px name="cal_hub_banner_mark_large" value="48"/>
+    <!-- Calibration screen gutters: cal_hub_gutter beside the content, inside the guided
+         banner and between its parts; cal_hub_tile_pad inside a tile and above/below the banner. -->
+    <px name="cal_hub_gutter_micro" value="8"/>
+    <px name="cal_hub_gutter_small" value="10"/>
+    <px name="cal_hub_gutter_medium" value="14"/>
+    <px name="cal_hub_gutter_large" value="18"/>
+    <px name="cal_hub_tile_pad_micro" value="6"/>
+    <px name="cal_hub_tile_pad_small" value="8"/>
+    <px name="cal_hub_tile_pad_medium" value="12"/>
+    <px name="cal_hub_tile_pad_large" value="16"/>
     <!-- Motors Off beside Motion on the Controls position card: at least 40px
          wide to tap, with the glyph sized to the one-button-tall row -->
     <!-- Motion + Motors Off row on a portrait Controls panel: Motion is inline

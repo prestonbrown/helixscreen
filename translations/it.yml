@@ -115,6 +115,7 @@ translations:
   1 print: '1 stampa'
   1 profile: '1 profilo'
   1 step in {} min · review, then save once: 1 passo in {} min · controlla, poi salva una volta
+  1 step due · about {} min: '1 passaggio da fare · circa {} min'
   1 step never run · about {} min: '1 passaggio mai eseguito · circa {} min'
   1 step · about {} min: '1 passaggio · circa {} min'
   1 step · {} min: 1 passo · {} min
@@ -3204,6 +3205,7 @@ translations:
   Not yet calibrated: Non ancora calibrato
   Notes: Note
   Notes (optional): Note (facoltativo)
+  Nothing due · about {} min: 'Niente da fare · circa {} min'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Nulla ha seguito i giri su {0}. Annullali, poi controlla la meccanica."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "Nulla ha seguito {1} giri di {0}. Riporta {0} indietro di {1} giri, poi controlla la meccanica."
   Nothing loaded: Nulla caricato
@@ -4115,6 +4117,7 @@ translations:
   Runout Backup: 'Riserva all''esaurimento'
   Runout Sensor: Sensore esaurimento
   Runs on its own once started: Procede da solo una volta avviato
+  Runs everything this printer needs, in order ·: 'Esegue tutto ciò che serve a questa stampante, in ordine ·'
   Runs the printer's tool offset calibration for every tool.: Esegue la calibrazione degli offset degli strumenti della stampante per tutti gli strumenti.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG non riuscito: {}. Gli offset strumento sono stati applicati ma non salvati. Esegui SAVE_CONFIG manualmente o andranno persi al riavvio.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6164,6 +6167,7 @@ translations:
   '{} spool cleared': '{}: bobina rimossa'
   '{} started': '{} avviato'
   '{} steps in {} min · review, then save once': '{} passi in {} min · controlla, poi salva una volta'
+  '{} steps due · about {} min': '{} passaggi da fare · circa {} min'
   '{} steps never run · about {} min': '{} passaggi mai eseguiti · circa {} min'
   '{} steps · about {} min': '{} passaggi · circa {} min'
   '{} steps · {} min': '{} passi · {} min'

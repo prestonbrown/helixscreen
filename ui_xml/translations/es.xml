@@ -102,6 +102,7 @@
   <translation tag="1 more tap to {} beta features" es="1 toque más para {} funciones beta"/>
   <translation tag="1 print" es="1 impresión"/>
   <translation tag="1 profile" es="1 perfil"/>
+  <translation tag="1 step due · about {} min" es="1 paso pendiente · unos {} min"/>
   <translation tag="1 step in {} min · review, then save once" es="1 paso en {} min · revisa y guarda una vez"/>
   <translation tag="1 step never run · about {} min" es="1 paso sin ejecutar · unos {} min"/>
   <translation tag="1 step · about {} min" es="1 paso · unos {} min"/>
@@ -3099,6 +3100,7 @@
   <translation tag="Not yet calibrated" es="Aún no calibrado"/>
   <translation tag="Notes" es="Notas"/>
   <translation tag="Notes (optional)" es="Notas (opcional)"/>
+  <translation tag="Nothing due · about {} min" es="Nada pendiente · unos {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." es="Nada respondió a las vueltas en {0}. Deshazlas y luego revisa la mecánica."/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." es="Nada respondió a {1} vueltas de {0}. Gira {0} {1} vueltas hacia atrás y luego revisa la mecánica."/>
   <translation tag="Nothing loaded" es="Nada cargado"/>
@@ -3992,6 +3994,7 @@
   <translation tag="Runout" es="Agotamiento"/>
   <translation tag="Runout Backup" es="Reserva por agotamiento"/>
   <translation tag="Runout Sensor" es="Sensor de Agotamiento"/>
+  <translation tag="Runs everything this printer needs, in order ·" es="Ejecuta todo lo que necesita esta impresora, en orden ·"/>
   <translation tag="Runs on its own once started" es="Funciona solo una vez iniciado"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." es="Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." es="SAVE_CONFIG falló: {}. Los offsets de herramienta se aplicaron pero no se guardaron. Ejecuta SAVE_CONFIG manualmente o se perderán al reiniciar."/>
@@ -5962,6 +5965,7 @@
   <translation tag="{} slots" es="{} ranuras"/>
   <translation tag="{} spool cleared" es="{}: bobina eliminada"/>
   <translation tag="{} started" es="{} iniciado"/>
+  <translation tag="{} steps due · about {} min" es="{} pasos pendientes · unos {} min"/>
   <translation tag="{} steps in {} min · review, then save once" es="{} pasos en {} min · revisa y guarda una vez"/>
   <translation tag="{} steps never run · about {} min" es="{} pasos sin ejecutar · unos {} min"/>
   <translation tag="{} steps · about {} min" es="{} pasos · unos {} min"/>

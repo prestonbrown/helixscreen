@@ -115,6 +115,7 @@ translations:
   1 print: '1 次打印'
   1 profile: '1 个配置'
   1 step in {} min · review, then save once: 1 个步骤，用时 {} 分钟 · 检查后一次保存
+  1 step due · about {} min: '1 个步骤待完成 · 约 {} 分钟'
   1 step never run · about {} min: '1 个步骤从未运行 · 约 {} 分钟'
   1 step · about {} min: '1 个步骤 · 约 {} 分钟'
   1 step · {} min: 1 个步骤 · {} 分钟
@@ -3204,6 +3205,7 @@ translations:
   Not yet calibrated: 尚未校准
   Notes: 备注
   Notes (optional): 备注（可选）
+  Nothing due · about {} min: '无待完成步骤 · 约 {} 分钟'
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "{0} 的转动没有带来变化。请撤回这些转动,然后检查机械部分。"
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "{0} 转了 {1} 圈没有带来变化。请将 {0} 反向转回 {1} 圈,然后检查机械部分。"
   Nothing loaded: 未装载耗材
@@ -4115,6 +4117,7 @@ translations:
   Runout Backup: '用尽备用'
   Runout Sensor: 断料传感器
   Runs on its own once started: 启动后自动运行
+  Runs everything this printer needs, in order ·: '按顺序运行此打印机所需的一切 ·'
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6164,6 +6167,7 @@ translations:
   '{} spool cleared': '{} 料盘已清除'
   '{} started': '已开始{}'
   '{} steps in {} min · review, then save once': '{} 个步骤，用时 {} 分钟 · 检查后一次保存'
+  '{} steps due · about {} min': '{} 个步骤待完成 · 约 {} 分钟'
   '{} steps never run · about {} min': '{} 个步骤从未运行 · 约 {} 分钟'
   '{} steps · about {} min': '{} 个步骤 · 约 {} 分钟'
   '{} steps · {} min': '{} 个步骤 · {} 分钟'
