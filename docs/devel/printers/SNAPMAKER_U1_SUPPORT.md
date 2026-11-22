@@ -416,7 +416,8 @@ filament"). The rows feed:
 - console lines and raise notifications, through the backend
   (`src/printer/ams_backend_snapmaker.cpp#classify_coded_fault`): the summary is the dialog's or
   toast's title, the cause and the fix its text. A feeder failure (525) that pauses a print is a
-  dialog with Open Filament, Cancel Print and Close;
+  dialog with Load (Unload for an unload fault; Open Filament when it names no head or has
+  no retry), Cancel Print and Close;
 - the pause's stop reason on the print status tile, through the pause descriptor
   (`src/printer/pause_descriptor.cpp#read`), which a cancel keeps;
 - the fault-code classifier's fallback (`src/printer/firmware_fault_codes.cpp`), which reads the

@@ -839,7 +839,10 @@ state, constructed with representative sample data and the real lifecycle:
 action disabled; pause the mock print first for the paused button row),
 `runout-other-head` (the chooser for finishing a runout-paused print on another toolhead;
 U1 mock with `HELIX_MOCK_U1_EMPTY_PORTS=0`, so the runout head cannot refeed), `lock-screen`,
-`print-status`, `print-tune`, `ams`, `camera`, `ams-error-toast`,
+`print-status`, `print-live` (starts the mock's sample print at 10x; `wait_for print_progress N`,
+then `freeze`, holds it at a fixed point for a stable capture; the next `demo` command restores
+the mock's previous speed), `print-tune`, `ams`, `camera`,
+`ams-error-toast`,
 `type-mismatch-toast`, `type-mismatch-toast-model`, `type-mismatch-review`,
 `action-prompt-worst`, `action-prompt-many`, `action-prompt-hex`, `action-prompt-zmod`,
 `action-prompt-afc-cal`, `recovery-fault-afc`, `recovery-fault-hh` (the filament fault

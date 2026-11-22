@@ -61,4 +61,23 @@ inline bool is_bare_path(const std::string& target) {
     }
     return segment_has_content;
 }
+
+/**
+ * @brief Seconds the client waits for a command's reply.
+ *
+ * `wait_for` and `wait_idle` block on the server for the caller's own
+ * --timeout, so the read window covers that plus a margin, and never drops
+ * below the 120 s those commands default to. Every other command answers at
+ * once and gets 30 s. A non-positive timeout means none was given.
+ */
+inline int reply_window_secs(const std::string& command, int requested_timeout_secs) {
+    constexpr int kQuickWindowSecs = 30;
+    constexpr int kBlockingFloorSecs = 120;
+    constexpr int kBlockingMarginSecs = 10;
+    if (command != "wait_for" && command != "wait_idle") {
+        return kQuickWindowSecs;
+    }
+    const int wanted = requested_timeout_secs + kBlockingMarginSecs;
+    return wanted > kBlockingFloorSecs ? wanted : kBlockingFloorSecs;
+}
 } // namespace helix

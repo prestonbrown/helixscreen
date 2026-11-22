@@ -54,6 +54,18 @@ TEST_CASE("ctl target: widget names are not mistaken for paths", "[remote][ctl]"
     REQUIRE_FALSE(helix::is_bare_path("theme_swatch_grid"));
 }
 
+TEST_CASE("ctl reply window: a blocking command waits out its own --timeout", "[remote][ctl]") {
+    // A wait_for longer than the default window must not read as an empty reply.
+    REQUIRE(helix::reply_window_secs("wait_for", 300) == 310);
+    REQUIRE(helix::reply_window_secs("wait_idle", 200) == 210);
+    // Short or absent timeouts keep the blocking floor.
+    REQUIRE(helix::reply_window_secs("wait_for", 30) == 120);
+    REQUIRE(helix::reply_window_secs("wait_idle", 0) == 120);
+    // Everything else answers at once.
+    REQUIRE(helix::reply_window_secs("click", 300) == 30);
+    REQUIRE(helix::reply_window_secs("screenshot", 0) == 30);
+}
+
 TEST_CASE("ctl target: name segments are recognised as locators", "[remote][ctl]") {
     // path_of() emits names where it can, so a locator pasted out of `ls` is
     // mostly words now. The root prefix is what makes it a path, not the
