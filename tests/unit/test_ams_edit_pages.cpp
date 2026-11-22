@@ -29,6 +29,7 @@
 #include "text_io.h"
 #include "theme_manager.h"
 
+#include <cstdlib>
 #include <optional>
 
 #include "../catch_amalgamated.hpp"
@@ -809,6 +810,79 @@ TEST_CASE_METHOD(PagesFixture,
     NavigationManager::instance().go_back();
     settle();
     process_lvgl(400);
+}
+
+namespace {
+/// What a finger can reach of @p w: its click area, cut by every ancestor's
+/// box, since LVGL hit-tests a child only inside its parent.
+lv_area_t reachable_area(lv_obj_t* w) {
+    lv_obj_update_layout(w);
+    lv_area_t a;
+    lv_obj_get_click_area(w, &a);
+    for (lv_obj_t* p = lv_obj_get_parent(w); p != nullptr; p = lv_obj_get_parent(p)) {
+        lv_area_t box;
+        lv_obj_get_coords(p, &box);
+        a = {LV_MAX(a.x1, box.x1), LV_MAX(a.y1, box.y1), LV_MIN(a.x2, box.x2),
+             LV_MIN(a.y2, box.y2)};
+    }
+    return a;
+}
+} // namespace
+
+TEST_CASE_METHOD(PagesFixture,
+                 "the Multi-Color row's + and mode reach 44px on one line, none of it spilling",
+                 "[ams_edit_overlay][pages][multi_color][touch]") {
+    lv_display_t* disp = lv_display_get_default();
+    for (const auto& [w, h] : {std::pair{480, 272}, std::pair{480, 320}, std::pair{800, 480}}) {
+        CAPTURE(w, h);
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+        open(0, describe_lane(*backend, 0, "PLA"));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        access.call_open_color_page();
+        settle();
+        auto& page = helix::ui::get_color_picker_page();
+        lv_obj_t* sw = lv_obj_find_by_name(page.get_root(), "multi_color_switch");
+        REQUIRE(sw != nullptr);
+        lv_obj_add_state(sw, LV_STATE_CHECKED);
+        lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
+        settle();
+        // Three colors: the widest the row gets, four circles with the "+".
+        access.call_add_color();
+        settle();
+        REQUIRE(access.draft_colors().size() == 3);
+
+        for (const char* name : {"btn_add_color", "multi_color_mode"}) {
+            INFO(name);
+            lv_obj_t* target = lv_obj_find_by_name(page.get_root(), name);
+            REQUIRE(target != nullptr);
+            REQUIRE_FALSE(lv_obj_has_flag(target, LV_OBJ_FLAG_HIDDEN));
+            const lv_area_t reach = reachable_area(target);
+            CHECK(lv_area_get_width(&reach) >= 44);
+            CHECK(lv_area_get_height(&reach) >= 44);
+            // A real press at the reach's corners lands on the target.
+            for (lv_point_t pt : {lv_point_t{reach.x1, reach.y1}, lv_point_t{reach.x2, reach.y2}}) {
+                CHECK(lv_indev_search_obj(lv_obj_get_screen(target), &pt) == target);
+            }
+            // Its content stays inside its box: nothing to clip or scroll.
+            lv_obj_update_layout(target);
+            CHECK(lv_obj_get_scroll_right(target) <= 0);
+            CHECK(lv_obj_get_scroll_bottom(target) <= 0);
+        }
+        // One line: the dropdown sits level with the switch.
+        lv_obj_t* mode = lv_obj_find_by_name(page.get_root(), "multi_color_mode");
+        lv_area_t a;
+        lv_area_t b;
+        lv_obj_get_coords(sw, &a);
+        lv_obj_get_coords(mode, &b);
+        CHECK(std::abs((a.y1 + a.y2) - (b.y1 + b.y2)) <= 2);
+
+        NavigationManager::instance().go_back();
+        settle();
+        process_lvgl(400);
+        close_editor_overlay();
+    }
+    theme_manager_refresh_layout_constants(disp);
 }
 
 TEST_CASE_METHOD(PagesFixture,
