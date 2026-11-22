@@ -137,6 +137,7 @@ elsewhere. Rows carry what a gate fails on and its opt-out marker.
 | `check_shipped_spacing_tokens.py` | Fail on a spacing token declared only in a dev-only panel stripped from release |
 | `check_icon_names.py` | Fail on an XML icon name absent from `include/ui_icon_codepoints.h` |
 | `check_raw_this_queue_update.py` | Ratchet on `queue_update([this, ...])` in `src/` |
+| `check_head_labels.py` | Fail on a head named by a G-code tool number or mounted by a raw `T<n>` in `src/ui` and `src/printer`; `HEAD_LABEL_OK`. Gated as `qc_head_labels` |
 | `check_hardcoded_pixels.py` | Ratchet on raw pixel literals where a design token belongs; over the baseline warns |
 | `check_thumbnail_cache_guard.py` | Fail on calls to `ThumbnailCache`'s legacy overloads without a load context |
 | `check_lfs_sites.py` | Fail if a site that needs 64-bit `off_t` on 32-bit targets loses it |

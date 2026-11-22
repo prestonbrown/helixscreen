@@ -2867,8 +2867,10 @@ std::string AmsBackendToolChanger::mount_gcode(int slot_index) const {
     // TOOL= names the [tool ...] object, a physical tool. T= is a tool NUMBER,
     // which ASSIGN_TOOL can point at any other hot end.
     if (slot_index >= 0 && slot_index < static_cast<int>(tool_names_.size())) {
+        // HEAD_LABEL_OK: a toolchanger's tools are its heads; this is the mount command itself
         return "SELECT_TOOL TOOL=" + tool_object_arg(tool_names_[static_cast<size_t>(slot_index)]);
     }
+    // HEAD_LABEL_OK: a toolchanger's tools are its heads; this is the mount command itself
     return "SELECT_TOOL T=" + std::to_string(slot_index);
 }
 

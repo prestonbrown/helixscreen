@@ -2519,6 +2519,7 @@ AmsError AmsBackendHappyHare::do_change_tool(int tool_number) {
     }
 
     // Send T{n} command for standard tool change
+    // HEAD_LABEL_OK: Happy Hare's T<n> is its lane change, not a head choice
     const std::string cmd = fmt::format("T{}", tool_number);
 
     spdlog::info("[AMS HappyHare] Tool change to T{}", tool_number);

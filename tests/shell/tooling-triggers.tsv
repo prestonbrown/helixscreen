@@ -63,6 +63,7 @@ tests/shell/test_env_file_vars_are_live.bats	scripts/code_lint.sh
 tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/components/helixapp/app_srcs.cmake include/helix_features.h scripts/check_esp32_app_srcs.py scripts/qc/esp32_app_srcs.sh src/printer/ams_backend_mock.cpp
 tests/shell/test_esp32_build_debug_heap.bats	scripts/esp32_build_debug_heap.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/pool-docker.sh
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
+tests/shell/test_head_labels_gate.bats	scripts/check_head_labels.py scripts/qc/head_labels.sh scripts/quality-checks.sh scripts/source_strip.py scripts/staged_content.py
 tests/shell/test_nightly_esp32_link.bats	.github/workflows/nightly.yml .github/workflows/esp32-build.yml tests/shell/helpers.bash
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
 tests/shell/test_esp32_stub_coverage_gate.bats	scripts/check_esp32_app_srcs.py scripts/check_esp32_stub_coverage.py scripts/qc/_lib.sh scripts/qc/esp32_stub_coverage.sh

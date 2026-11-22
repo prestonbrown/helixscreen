@@ -246,6 +246,8 @@ const std::vector<Provider>& providers() {
          zmod_c5_feed_gcode, /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr,
          /*resume_command=*/nullptr, /*toolchanger_is_a_view=*/false},
         {"Reforge", reforge_detect, /*status_objects=*/nullptr, nullptr, nullptr,
+         // HEAD_LABEL_OK: the add-on's own select command for a toolchanger whose tools are its
+         // heads
          "SELECT_TOOL T=", reforge_unselect_gcode, /*owns_swap=*/true, nullptr, nullptr,
          /*feeds_through_mount=*/false, /*resume_min_nozzle_c=*/0, nullptr,
          /*resume_command=*/nullptr, /*toolchanger_is_a_view=*/true},

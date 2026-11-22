@@ -4756,6 +4756,8 @@ namespace {
 /// shared path. Empty on a toolchanger whose lane names no extruder yet.
 std::string tool_change_gcode(bool toolchanger, const std::string& lane_extruder, int tool_number) {
     if (toolchanger) {
+        // HEAD_LABEL_OK: AFC's tool change: a toolchanger mounts the lane's extruder, any other rig
+        // runs the lane's own T<n>
         return lane_extruder.empty() ? std::string() : "AFC_SELECT_TOOL TOOL=" + lane_extruder;
     }
     return "T" + std::to_string(tool_number);
@@ -5771,6 +5773,7 @@ bool AmsBackendAfc::tool_registered_locked(int tool_number) const {
     if (afc_tool_cmds_.empty()) {
         return true;
     }
+    // HEAD_LABEL_OK: matches a lane's own T<n> macro against AFC's registered commands
     const std::string cmd = "T" + std::to_string(tool_number);
     return std::any_of(afc_tool_cmds_.begin(), afc_tool_cmds_.end(), [&cmd](const std::string& c) {
         return c.size() == cmd.size() &&
