@@ -2612,9 +2612,14 @@ translations:
   Layer 2: '第 2 层'
   Layer Height: 层高
   Layer Pause: '层暂停'
-  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: '层模式在每次换层时拍摄一帧。切片软件必须在换层 G-code 中添加 TIMELAPSE_TAKE_FRAME。'
-  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : '层模式在每次换层时拍摄一帧，模型会平滑地生长。只有打印执行 TIMELAPSE_TAKE_FRAME 时才会拍摄：请将这一行添加到切片软件的换层 G-code 中，否则视频几乎是空的。
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : '层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : '层模式在每次换层时拍摄一帧，但只有打印执行这一行时才会拍摄。请将它添加到切片软件的换层 G-code 中，否则视频几乎是空的：
+
+    TIMELAPSE_TAKE_FRAME
 
 
     超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。'
@@ -5196,8 +5201,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
-  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
-  : '此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行 TIMELAPSE_TAKE_FRAME 时拍摄，而你的切片软件没有添加它。超延时则按固定时间间隔拍摄。'
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : '此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行这一行时拍摄，而你的切片软件没有添加它：
+
+    TIMELAPSE_TAKE_FRAME
+
+    超延时则按固定时间间隔拍摄。'
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'
   The filament took too long to reach the feeder's sensor.: '耗材到达送料器传感器用时过长。'
   The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"

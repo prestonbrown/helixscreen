@@ -72,6 +72,7 @@ lv_obj_t* TimelapseSettingsOverlay::create(lv_obj_t* parent) {
     framerate_dropdown_ = helix::ui::find_required(framerate_row, "dropdown", get_name());
     autorender_switch_ = helix::ui::find_required(autorender_row, "toggle", get_name());
     mode_info_text_ = helix::ui::find_required(overlay_root_, "mode_info_text", get_name());
+    update_mode_info(0);
 
     return overlay_root_;
 }
@@ -108,11 +109,12 @@ void TimelapseSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              helix::ui::modal_alert(
                  lv_tr("Recording Mode"),
-                 lv_tr("Layer takes one frame at each layer change, so the part grows smoothly. "
-                       "Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that "
-                       "line to your slicer's layer change G-code, or the video stays nearly "
-                       "empty.\n\nHyperlapse takes a frame on a timer and needs no slicer "
-                       "setup, but each frame catches the head wherever it is."),
+                 // The macro name sits on a line of its own so wrapping never splits it.
+                 lv_tr("Layer takes one frame at each layer change, but only when the print "
+                       "runs this line. Add it to your slicer's layer change G-code, or the "
+                       "video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a "
+                       "frame on a timer and needs no slicer setup, but each frame catches the "
+                       "head wherever it is."),
                  ModalSeverity::Info);
          }},
         {"on_timelapse_framerate_changed",
@@ -259,9 +261,9 @@ void TimelapseSettingsOverlay::update_mode_info(int mode_index) {
     const char* info_text = (mode_index == 1)
                                 ? lv_tr("Hyperlapse takes a frame on a timer. No slicer setup, "
                                         "but the head shows up wherever it is.")
-                                : lv_tr("Layer takes a frame at each layer change. Your slicer "
-                                        "must add TIMELAPSE_TAKE_FRAME to its layer change "
-                                        "G-code.");
+                                : lv_tr("Layer takes a frame at each layer change. Your "
+                                        "slicer's layer change G-code must run:\n"
+                                        "TIMELAPSE_TAKE_FRAME");
 
     lv_label_set_text(mode_info_text_, info_text);
 }

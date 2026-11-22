@@ -2624,9 +2624,14 @@ translations:
   Layer 2: 'Couche 2'
   Layer Height: Hauteur de couche
   Layer Pause: 'Pause à la couche'
-  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Couche prend une image à chaque changement de couche. Votre trancheur doit ajouter TIMELAPSE_TAKE_FRAME à son G-code de changement de couche.'
-  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Couche prend une image à chaque changement de couche, la pièce grandit donc de façon fluide. Les images ne sont prises que lorsque l''impression exécute TIMELAPSE_TAKE_FRAME : ajoutez cette ligne au G-code de changement de couche de votre trancheur, sinon la vidéo reste presque vide.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Couche prend une image à chaque changement de couche. Le G-code de changement de couche de votre trancheur doit exécuter :
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Couche prend une image à chaque changement de couche, mais seulement lorsque l''impression exécute cette ligne. Ajoutez-la au G-code de changement de couche de votre trancheur, sinon la vidéo reste presque vide :
+
+    TIMELAPSE_TAKE_FRAME
 
 
     Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu''elle soit.'
@@ -5208,8 +5213,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Ce fichier imprime {0} et {1} ensemble. La chaleur de l''enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse.'
   This file was sliced for {} but {} is loaded.: Ce fichier a été tranché pour {} mais {} est chargé.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Ce fichier a été tranché pour {}, mais {} est chargé. L'impression sera plus lente et plus chaude que ce qu'exige la bobine chargée.
-  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
-  : 'Ce fichier ne capturera aucune image de timelapse. Le mode couche ne prend une image que lorsque le fichier exécute TIMELAPSE_TAKE_FRAME à chaque changement de couche, et votre trancheur ne l''a pas ajouté. Hyperlapse prend plutôt des images à intervalle régulier.'
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Ce fichier ne capturera aucune image de timelapse. Le mode couche ne prend une image que lorsque le fichier exécute cette ligne à chaque changement de couche, et votre trancheur ne l''a pas ajoutée :
+
+    TIMELAPSE_TAKE_FRAME
+
+    Hyperlapse prend plutôt des images à intervalle régulier.'
   This firmware can only switch slots by loading them: 'Ce firmware ne peut changer de slot qu''en le chargeant'
   The filament took too long to reach the feeder's sensor.: 'Le filament a mis trop de temps à atteindre le capteur de l''alimentateur.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Le filament est entré dans la tête d'outil sans passer par son alimentateur. Chargez-le à la main."

@@ -2501,8 +2501,8 @@
   <translation tag="Layer 2" zh="第 2 层"/>
   <translation tag="Layer Height" zh="层高"/>
   <translation tag="Layer Pause" zh="层暂停"/>
-  <translation tag="Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code." zh="层模式在每次换层时拍摄一帧。切片软件必须在换层 G-code 中添加 TIMELAPSE_TAKE_FRAME。"/>
-  <translation tag="Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer&apos;s layer change G-code, or the video stays nearly empty.&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，模型会平滑地生长。只有打印执行 TIMELAPSE_TAKE_FRAME 时才会拍摄：请将这一行添加到切片软件的换层 G-code 中，否则视频几乎是空的。&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。"/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" zh="层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，但只有打印执行这一行时才会拍摄。请将它添加到切片软件的换层 G-code 中，否则视频几乎是空的：&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。"/>
   <translation tag="Layer {} of {} · {:.2f} mm" zh="第 {} / {} 层 · {:.2f} mm"/>
   <translation tag="Layer {} of {}." zh="第 {} 层，共 {} 层。"/>
   <translation tag="Layer {}, Z {:.2f} mm" zh="第 {} 层，Z {:.2f} mm"/>
@@ -5003,7 +5003,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." zh="此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。"/>
   <translation tag="This file was sliced for {} but {} is loaded." zh="此文件为 {} 切片，但当前加载的是 {}。"/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." zh="此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。"/>
-  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead." zh="此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行 TIMELAPSE_TAKE_FRAME 时拍摄，而你的切片软件没有添加它。超延时则按固定时间间隔拍摄。"/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." zh="此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行这一行时拍摄，而你的切片软件没有添加它：&#10;TIMELAPSE_TAKE_FRAME&#10;超延时则按固定时间间隔拍摄。"/>
   <translation tag="This firmware can only switch slots by loading them" zh="此固件只能通过装载来切换槽位"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." zh="这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。"/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." zh="这会在打印机上安装 HelixScreen 帮助宏，添加到 printer.cfg，并重启 Klipper。"/>

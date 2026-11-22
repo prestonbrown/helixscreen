@@ -2597,9 +2597,10 @@ translations:
   Layer 2: Layer 2
   Layer Height: Layer Height
   Layer Pause: Layer Pause
-  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.
-  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
   Layer {} of {} · {:.2f} mm: Layer {} of {} · {:.2f} mm
   Layer {} of {}.: Layer {} of {}.
   Layer {}, Z {:.2f} mm: Layer {}, Z {:.2f} mm
@@ -5166,8 +5167,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.
   This file was sliced for {} but {} is loaded.: This file was sliced for {} but {} is loaded.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.
-  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
-  : This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
   This firmware can only switch slots by loading them: This firmware can only switch slots by loading them
   The filament took too long to reach the feeder's sensor.: The filament took too long to reach the feeder's sensor.
   The filament went into the toolhead past its feeder. Load it by hand.: The filament went into the toolhead past its feeder. Load it by hand.

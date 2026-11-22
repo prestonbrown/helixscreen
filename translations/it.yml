@@ -2612,9 +2612,14 @@ translations:
   Layer 2: 'Strato 2'
   Layer Height: Altezza layer
   Layer Pause: 'Pausa al layer'
-  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Strato scatta un fotogramma a ogni cambio di strato. Lo slicer deve aggiungere TIMELAPSE_TAKE_FRAME al G-code di cambio strato.'
-  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Strato scatta un fotogramma a ogni cambio di strato, così il pezzo cresce in modo fluido. I fotogrammi vengono scattati solo quando la stampa esegue TIMELAPSE_TAKE_FRAME: aggiungi quella riga al G-code di cambio strato dello slicer, altrimenti il video resta quasi vuoto.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Strato scatta un fotogramma a ogni cambio di strato. Il G-code di cambio strato dello slicer deve eseguire:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue questa riga. Aggiungila al G-code di cambio strato dello slicer, altrimenti il video resta quasi vuoto:
+
+    TIMELAPSE_TAKE_FRAME
 
 
     Hyperlapse scatta un fotogramma a intervalli regolari e non richiede configurazione dello slicer, ma ogni fotogramma riprende la testina ovunque si trovi.'
@@ -5196,8 +5201,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Questo file stampa {0} e {1} insieme. Il calore di camera e piano richiesto da {1} può ammorbidire {0} e intasarne l''ugello.'
   This file was sliced for {} but {} is loaded.: Questo file è stato sezionato per {} ma è caricato {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Questo file è stato sezionato per {}, ma è caricato {}. La stampa sarà più lenta e più calda di quanto richiesto dalla bobina caricata.
-  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
-  : 'Questo file non catturerà fotogrammi del timelapse. La modalità strato scatta un fotogramma solo quando il file esegue TIMELAPSE_TAKE_FRAME a ogni cambio di strato, e lo slicer non l''ha aggiunto. Hyperlapse invece scatta fotogrammi a intervalli regolari.'
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Questo file non catturerà fotogrammi del timelapse. La modalità strato scatta un fotogramma solo quando il file esegue questa riga a ogni cambio di strato, e lo slicer non l''ha aggiunta:
+
+    TIMELAPSE_TAKE_FRAME
+
+    Hyperlapse invece scatta fotogrammi a intervalli regolari.'
   This firmware can only switch slots by loading them: 'Questo firmware può cambiare slot solo caricandoli'
   The filament took too long to reach the feeder's sensor.: 'Il filamento ha impiegato troppo a raggiungere il sensore dell''alimentatore.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Il filamento è entrato nella testina senza passare dal suo alimentatore. Caricalo a mano."

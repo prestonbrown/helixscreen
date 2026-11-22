@@ -569,9 +569,10 @@ CheckResult gate_timelapse_frames(const PrintStartContext& ctx) {
                  "showing pre-print warning");
     CheckResult r = warn_result(
         lv_tr("No Timelapse Frames"),
+        // The macro name sits on a line of its own so wrapping never splits it.
         lv_tr("This file won't capture timelapse frames. Layer mode takes a frame only when the "
-              "file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add "
-              "it. Hyperlapse takes frames on a timer instead."),
+              "file runs this line at each layer change, and your slicer did not add it:\n"
+              "TIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."),
         lv_tr("Print Anyway"));
     r.alternatives = {{lv_tr("Use Hyperlapse"), GateChoice::TimelapseHyperlapse},
                       {lv_tr("Timelapse Off"), GateChoice::TimelapseOff}};

@@ -2612,9 +2612,14 @@ translations:
   Layer 2: 'レイヤー2'
   Layer Height: レイヤー高さ
   Layer Pause: 'レイヤー一時停止'
-  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code に TIMELAPSE_TAKE_FRAME を追加する必要があります。'
-  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'レイヤーはレイヤー変更ごとに 1 フレームを撮影するため、造形物がなめらかに成長します。フレームは印刷が TIMELAPSE_TAKE_FRAME を実行したときだけ撮影されます。スライサーのレイヤー変更 G-code にこの行を追加しないと、動画はほとんど空になります。
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code で次を実行する必要があります:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷がこの行を実行したときだけです。スライサーのレイヤー変更 G-code に追加しないと、動画はほとんど空になります:
+
+    TIMELAPSE_TAKE_FRAME
 
 
     ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。'
@@ -5196,8 +5201,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。'
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
-  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
-  : 'このファイルではタイムラプスのフレームが撮影されません。レイヤーモードは、ファイルがレイヤー変更ごとに TIMELAPSE_TAKE_FRAME を実行したときだけフレームを撮影しますが、スライサーがそれを追加していません。ハイパーラプスなら一定間隔で撮影します。'
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'このファイルではタイムラプスのフレームが撮影されません。レイヤーモードは、ファイルがレイヤー変更ごとにこの行を実行したときだけ撮影しますが、スライサーが追加していません:
+
+    TIMELAPSE_TAKE_FRAME
+
+    ハイパーラプスなら一定間隔で撮影します。'
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
   The filament took too long to reach the feeder's sensor.: 'フィラメントがフィーダーのセンサーに届くまで時間がかかりすぎました。'
   The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"

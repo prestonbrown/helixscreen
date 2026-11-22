@@ -39,10 +39,7 @@
                 width="100%" height="content" style_bg_color="#overlay_bg" style_radius="#border_radius"
                 style_pad_all="#space_md" scrollable="false" flex_flow="column" style_pad_gap="#space_xs"
                 style_margin_left="#space_lg" style_margin_right="#space_lg" style_margin_bottom="#space_md">
-          <text_small name="mode_info_text"
-                      width="100%"
-                      text="Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code."
-                      style_text_color="#text_muted" long_mode="wrap"/>
+          <text_small name="mode_info_text" width="100%" text="" style_text_color="#text_muted" long_mode="wrap"/>
         </lv_obj>
         <!-- ================================================================== -->
         <!-- FRAMERATE -->
