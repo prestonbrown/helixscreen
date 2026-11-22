@@ -507,19 +507,23 @@ bool row_matches(const Row& row, const Normalized& n, std::vector<std::string>& 
     return true;
 }
 
-/// A translated format string over the captures. A mistranslated placeholder
-/// falls back to the English source rather than aborting.
-std::string fill(const char* source, const std::vector<std::string>& captures) {
+/// @p format over the captures into @p out; false for a malformed format.
+bool format_captures(const char* tag, const char* format, const std::vector<std::string>& captures,
+                     std::string& out) {
     std::array<std::string, 6> a;
     for (size_t i = 0; i < a.size() && i < captures.size(); ++i) {
         a[i] = captures[i];
     }
-    const auto apply = [&a](const char* f) {
-        return fmt::format(fmt::runtime(f), a[0], a[1], a[2], a[3], a[4], a[5]);
-    };
+    return contain_exceptions(
+        tag, [&] { out = fmt::format(fmt::runtime(format), a[0], a[1], a[2], a[3], a[4], a[5]); });
+}
+
+/// A translated format string over the captures. A mistranslated placeholder
+/// falls back to the English source rather than aborting.
+std::string fill(const char* source, const std::vector<std::string>& captures) {
     std::string out;
-    if (!contain_exceptions("[ErrorWording] format", [&] { out = apply(lv_tr(source)); })) {
-        contain_exceptions("[ErrorWording] format source", [&] { out = apply(source); });
+    if (!format_captures("[ErrorWording] format", lv_tr(source), captures, out)) {
+        format_captures("[ErrorWording] format source", source, captures, out);
     }
     return out;
 }
@@ -578,6 +582,14 @@ std::optional<Worded> word(const Classification& c) {
     w.cause = fill(c.row->cause, c.captures);
     w.fix = fill(c.row->fix, c.captures);
     return w;
+}
+
+std::string firmware_prompt_title(const Classification& c) {
+    std::string out;
+    if (c.row && c.row->firmware_prompt) {
+        format_captures("[ErrorWording] prompt title", c.row->firmware_prompt, c.captures, out);
+    }
+    return out;
 }
 
 std::string reason_summary(const std::string& text, const PrinterDiscovery* hw) {

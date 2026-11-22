@@ -300,7 +300,9 @@ cannot race its destruction.
 |----------|---------|-----|
 | `ActionPromptManager::is_showing()` | `src/printer/ams_backend_afc.cpp`, `src/ui/notify/recovery_modal_presenter.cpp#present` | Whether a firmware prompt is up. False once the user closed it on the screen |
 | `ActionPromptManager::current_prompt_name()` | same | The title, e.g. AFC suppresses its toasts while a title containing `AFC` is showing |
-| `ActionPromptManager::dismiss_active()` | `RecoveryModalPresenter::present` | Closes a firmware prompt that a backend's `duplicates_firmware_prompt()` claims, once the recovery modal covers it. Main thread only |
+| `ActionPromptManager::dismiss_active()` | `RecoveryModalPresenter::present` | Closes a firmware prompt the fault being shown repeats (`ErrorEvent::firmware_prompt`) or that a backend's `duplicates_firmware_prompt()` claims, once the recovery modal covers it. Main thread only |
+
+The reverse order is handled in the show callback (`src/application/gcode_response_routing.cpp#attach`): a prompt that arrives while the recovery modal shows the fault it repeats (`RecoveryModalPresenter::stands_in_for_prompt`) is closed on this screen as an `External` close, so nothing is sent and the printer keeps it for its other clients. ZMOD's resume refusal and Creator 5 head runout are the cases today; [architecture/06-discovery-capabilities.md](architecture/06-discovery-capabilities.md) § "Error wording" has the table.
 
 `ActionPromptModal` is also the renderer for HelixScreen's own recovery dialogs:
 `RecoveryModalPresenter` owns a separate instance and feeds it `PromptData` from
@@ -404,4 +406,5 @@ Use `ActionPromptManager::is_showing()` and `current_prompt_name()`. They are sa
 any thread: they read a title the main thread publishes with `std::atomic_store` on each state
 change. A reader on another thread can see a value one transition old, so treat them as hints. If your feature replaces a backend's
 own firmware dialog, implement `IFirmwarePromptDedup` (`include/ams_firmware_prompt_dedup.h`) rather than calling
-`dismiss_active()` yourself.
+`dismiss_active()` yourself. A firmware's console error with a dialog of its own names it on its wording row instead
+(`Row::firmware_prompt`).

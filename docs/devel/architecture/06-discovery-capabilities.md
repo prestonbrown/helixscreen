@@ -180,6 +180,15 @@ Klipper and Kalico raise errors as English prose (`MCU 'mcu' shutdown: Timer too
 | Forge-X (AD5M) | `PrinterDiscovery::has_mod_params()` | `FF-F*` bed pressure, load-cell tare, start and resume refusals |
 | OpenCreator (Creator 5) | `creator5_toolchanger` or `c5_motion_guard` | `FF-C*` clog, dock and grab sensors, motion guard |
 
+**A fault the firmware also raises as a dialog.** Some firmware prints a fault as `!!` and also opens its own `action:prompt` dialog for it. Such a row names that dialog in `Row::firmware_prompt`, a title prefix with the row's captures, and the console classifier copies it onto `ErrorEvent::firmware_prompt` (`helix::error_wording::firmware_prompt_title`). The fault dialog then stands in for the prompt whichever arrives first: `RecoveryModalPresenter::present()` closes a prompt already showing, and the prompt routing declines one that arrives while the fault dialog shows it (`RecoveryModalPresenter::stands_in_for_prompt`). Name a dialog only when its buttons offer nothing the fault dialog lacks. ZMOD's rows name two (#2155), both read from its macros:
+
+| Rows | Order on the console | Dialog | Why ours replaces it |
+|------|----------------------|--------|----------------------|
+| `FF-Z9`, `FF-Z10` resume refusals | `!!` first, then the dialog, from the same `RESUME` macro run (`base_client.cfg`) | `Resumption interrupted !!!`, the same reason text, a lone Ok. Some builds drop the space before `!!!`, so the prefix stops short of it | The Ok only closes it; the fault dialog adds Resume once the user has fixed the cause |
+| `FF-Z7` Creator 5 head runout | The dialog first, when the head's sensor runs out (`_SENSOR_RUNOUT_HANDLER`); the `!!` only if no spool of the same type and color takes over within the next 600 mm, after `PAUSE` (`_PRINT_PAUSE_MOTION`, from zmod_color.py's `_T_FIND_ANALOG`) | `T<n> runout`, with OK and Manual (keep printing while the user loads by hand) | By the time the `!!` arrives the print has paused, so Manual means nothing. Another head's dialog stays |
+
+The match uses the English titles only, as the macro rows do; ZMOD's other languages keep both dialogs.
+
 Adding a firmware: write its rows from the firmware's own raise sites in a new `<vendor>_error_wording.cpp`, declare its `RowSet` accessor in `error_wording_rows.h`, add it to `kRowSets` above the generic set, give every string a `TR_NOOP` and regenerate translations, and cover it in a `tests/unit/test_<vendor>_error_wording.cpp` beside `tests/unit/test_flashforge_error_wording.cpp`. No presenter changes.
 
 **Presenters** each render the same `Classification` their own way:
