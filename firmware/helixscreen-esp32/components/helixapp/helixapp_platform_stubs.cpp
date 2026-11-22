@@ -7,6 +7,7 @@
 
 #include "helix_psram_attr.h"
 #include "panel_widget_manager.h"
+#include "platform_info.h"
 #include "printer_state.h"
 #include "system/crash_handler.h"
 #include "system/telemetry_manager.h"
@@ -41,6 +42,15 @@ bool update_install_suppressed() {
 bool update_checks_suppressed() {
     return true;
 }
+
+// Firmware supervision (platform_info.cpp on Linux) reads HELIX_FIRMWARE_MANAGED from a
+// launch hook's environment. ESP32 firmware has no such hook and no Moonraker config root
+// of its own to protect, so supervision is always off here.
+namespace helix {
+bool firmware_supervised() {
+    return false;
+}
+} // namespace helix
 
 // --- crash_handler seam (Task 2 bucket D: ucontext.h) ----------------------
 // Signal-context register dumps are the Linux crash pipeline; ESP32 gets
