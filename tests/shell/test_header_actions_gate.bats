@@ -25,10 +25,23 @@ screen() {
       <header_action name="btn_save" text="Save" role="primary" callback="on_save">
         <bind_state_if_eq subject="dirty" state="disabled" ref_value="0"/>
       </header_action>
-      <header_action name="btn_more" icon="dots_vertical" callback="on_more"/>'
+      <header_action name="btn_more" icon="dots_vertical">
+        <event_cb trigger="clicked" callback="on_more"/>
+      </header_action>'
     run python3 scripts/check_header_actions.py --root "$ROOT"
     [ "$status" -eq 0 ] || fail "$output"
     [[ "$output" != *warning* ]] || fail "$output"
+}
+
+@test "the gate fires on a header_action with no callback, and warns on two" {
+    screen '<header_action name="btn_dead" icon="refresh"/>
+      <header_action name="btn_twice" icon="cog" callback="on_cog">
+        <event_cb trigger="clicked" callback="on_cog"/>
+      </header_action>'
+    run python3 scripts/check_header_actions.py --root "$ROOT"
+    [ "$status" -eq 1 ]
+    contains "btn_dead has no callback= and no event_cb child" "$output"
+    contains "warning: ui_xml/screen.xml:4: header_action btn_twice has both" "$output"
 }
 
 @test "the gate fires on a hand-built button in the slot" {

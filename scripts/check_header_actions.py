@@ -16,8 +16,10 @@
 #       collapse, callback, hidden): a width, height or color is the component's call
 #     - a role other than primary / neutral / danger, a collapse other than
 #       auto / never, or a header_action with neither icon nor text
+#     - a header_action with neither callback= nor an event_cb child: a dead button
 #   warnings (exit 0)
 #     - more than 3 actions in one header, or more than one primary
+#     - a header_action with both callback= and an event_cb child: one tap, two calls
 #
 # A header_action outside a slot (the AMS panels' own header rows) gets the same
 # attribute and child checks.
@@ -53,6 +55,7 @@ class Checker:
         self.warnings: list[str] = []
         self.stack: list[str] = []
         self.slots: list[dict] = []  # open slots: {"line", "actions", "primaries"}
+        self.actions: list[dict] = []  # open header_actions: {"where", "name", "callback", "event_cb"}
         self.parser = xml.parsers.expat.ParserCreate()
         self.parser.StartElementHandler = self.start
         self.parser.EndElementHandler = self.end
@@ -71,8 +74,12 @@ class Checker:
             self.errors.append(
                 f"{self.where()}: <{tag}> inside <header_action>: only bind_* and "
                 f"event_cb children act on it")
+        if parent == ACTION and tag == "event_cb" and self.actions:
+            self.actions[-1]["event_cb"] = True
         if tag == ACTION:
             self.check_action(attrs, in_slot=parent in SLOT_TAGS)
+            self.actions.append({"where": self.where(), "name": attrs.get("name", "<unnamed>"),
+                                 "callback": bool(attrs.get("callback")), "event_cb": False})
         if tag in SLOT_TAGS:
             self.slots.append({"line": self.parser.CurrentLineNumber, "actions": 0,
                                "primaries": 0, "tag": tag})
@@ -80,6 +87,14 @@ class Checker:
 
     def end(self, tag: str) -> None:
         self.stack.pop()
+        if tag == ACTION:
+            action = self.actions.pop()
+            if not action["callback"] and not action["event_cb"]:
+                self.errors.append(f"{action['where']}: header_action {action['name']} has no "
+                                   f"callback= and no event_cb child: a button that does nothing")
+            elif action["callback"] and action["event_cb"]:
+                self.warnings.append(f"{action['where']}: header_action {action['name']} has both "
+                                     f"callback= and an event_cb child, so one tap calls both")
         if tag in SLOT_TAGS:
             slot = self.slots.pop()
             here = f"{self.rel}:{slot['line']}"
