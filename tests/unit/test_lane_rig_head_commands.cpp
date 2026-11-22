@@ -7,12 +7,15 @@
  *        where lane T0 prints through extruder2, whose printer tool is T2.
  */
 
+#include "ui_ams_device_section_detail_overlay.h"
 #include "ui_update_queue.h"
 
 #include "../busy_guard_fixture.h"
+#include "display_numbering.h"
 #include "printer_discovery.h"
 #include "test_helpers/tool_topologies.h"
 #include "tool_state.h"
+#include "z_offset_calibration_approach.h"
 #include "z_offset_utils.h"
 
 #include <algorithm>
@@ -83,4 +86,38 @@ TEST_CASE_METHOD(LaneRigFixture,
     CHECK(ts.offset_tool_for(6) == -1);
     CHECK_FALSE(zoffset::adjust_tool_offset(api.get(), &state, 6, 0.05));
     CHECK_FALSE(sent("SET_TOOL_PARAMETER"));
+}
+
+TEST_CASE_METHOD(LaneRigFixture,
+                 "The probe's reference tool is asked about by head, not by lane number",
+                 "[head-identity][zoffset]") {
+    using zoffset_cal::ToolGate;
+    constexpr auto kProbe = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    auto& ts = ToolState::instance();
+
+    // Lane T0 mounted: it sits in extruder2, not on tool T0's extruder.
+    REQUIRE(ts.active_tool_index() == 0);
+    CHECK(zoffset_cal::mounted_reference_gate(kProbe, 0, ts) == ToolGate::ConfirmFirst);
+    CHECK(ui::active_head_name_label(ts.head_identity_for_tool(0)) == "Tool 3");
+    CHECK(ui::active_head_name_label(ts.head_identity_for_offset_tool(0)) == "Tool 1");
+
+    // Lane T1 sits in extruder, tool T0's head: no question.
+    auto topo = test::make_lb6lez44_topology();
+    topo.active_tool = 1;
+    ts.set_ams_topology(topo);
+    CHECK(zoffset_cal::mounted_reference_gate(kProbe, 0, ts) == ToolGate::Proceed);
+}
+
+TEST_CASE_METHOD(LaneRigFixture, "A per-head device action names its head, not a lane",
+                 "[head-identity][device-section]") {
+    // AFC's per-extruder actions number extruders; T2 there is a lane.
+    printer::DeviceAction action =
+        printer::DeviceAction::toggle("tool_stn_T2", "Sensor to Nozzle", "toolhead", false);
+    action.tool_index = 2;
+    action.extruder = "extruder2";
+    CHECK(ui::device_action_label(action) == "Sensor to Nozzle - Tool 3 (E3)");
+
+    // Without an extruder the tool number names it, as on a tool changer.
+    action.extruder.clear();
+    CHECK(ui::device_action_label(action) == "Sensor to Nozzle - Tool 3 (T2)");
 }

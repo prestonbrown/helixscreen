@@ -147,7 +147,13 @@ void ToolState::deinit_subjects() {
 }
 
 void ToolState::refresh_display_labels() {
+    // A lane is no physical tool, so it carries no physical label: a head's
+    // label comes from head_identity().
+    const bool lanes = tools_are_lanes();
     for (auto& tool : tools_) {
+        tool.display_label = lanes ? std::string() : noun_tool_label(tool.index);
+    }
+    for (auto& tool : head_tools_) {
         tool.display_label = noun_tool_label(tool.index);
     }
     lv_subject_set_int(&tools_version_, lv_subject_get_int(&tools_version_) + 1);
@@ -345,7 +351,8 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             ToolInfo t;
             t.index = i;
             t.name = helix::ui::tool_label(i);
-            t.display_label = noun_tool_label(i);
+            // A lane is no physical tool: its head's label is head_identity()'s.
+            t.display_label = topo.tools_are_lanes ? std::string() : noun_tool_label(i);
             t.backend_index = topo.backend_index;
             t.backend_slot =
                 (i < static_cast<int>(topo.tool_to_slot.size())) ? topo.tool_to_slot[i] : -1;
@@ -753,6 +760,17 @@ int ToolState::offset_tool_for(int tool_index) const {
         }
     }
     return -1;
+}
+
+HeadIdentity ToolState::head_identity_for_offset_tool(int offset_tool) const {
+    if (!tools_are_lanes()) {
+        return head_identity_for_tool(offset_tool);
+    }
+    if (offset_tool < 0 || offset_tool >= static_cast<int>(head_tools_.size())) {
+        return {};
+    }
+    const auto& extruder = head_tools_[static_cast<size_t>(offset_tool)].extruder_name;
+    return extruder ? head_identity_for_extruder(*extruder) : HeadIdentity{};
 }
 
 std::vector<int> ToolState::dirty_tool_indices() const {

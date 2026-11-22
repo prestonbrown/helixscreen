@@ -362,7 +362,9 @@ void TempGraphOverlay::discover_series() {
 
         for (const auto* ext : sorted_extruders) {
             SeriesInfo s;
-            s.display_name = ext->display_name;
+            // A lane rig names the head, not the extruder's discovery name.
+            s.display_name =
+                helix::ui::temperature::nozzle_display_name(ext->name, ext->display_name);
             s.heater_name = ext->name;
             s.klipper_name = ext->name;
             s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];

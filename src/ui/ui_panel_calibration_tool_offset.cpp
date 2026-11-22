@@ -12,6 +12,7 @@
 
 #include "app_globals.h"
 #include "calibration_abort.h"
+#include "display_numbering.h"
 #include "format_utils.h"
 #include "i_moonraker_api.h"
 #include "lvgl/src/others/translation/lv_translation.h"
@@ -28,6 +29,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <memory>
 
 namespace helix::ui {
@@ -93,6 +95,13 @@ lv_obj_t* ToolOffsetCalibrationPanel::create(lv_obj_t* parent) {
     // on_activate(), and this is what the macros panel does in its create().
     ui_alive_ = true;
     refresh_rows();
+    // The measuring highlight follows the mounted head for as long as the rows
+    // exist, shown or not, as a binding to the mounted tool would.
+    auto& tools = helix::ToolState::instance();
+    active_tool_observer_ = helix::ui::observe<int>(
+        tools.get_active_tool_subject(), this,
+        [](ToolOffsetCalibrationPanel* self, int /*tool*/) { self->refresh_mounted(); },
+        tools.get_subjects_lifetime());
     return overlay_root_;
 }
 
@@ -100,9 +109,12 @@ void ToolOffsetCalibrationPanel::on_ui_destroyed() {
     // The rows are gone; reclaim their name-registered subjects while LVGL is
     // still live, as the macros panel does for its list.
     ui_alive_ = false;
+    active_tool_observer_.reset();
     row_x_.reclaim();
     row_y_.reclaim();
     row_z_.reclaim();
+    row_label_.reclaim();
+    row_mounted_.reclaim();
     lv_subject_set_int(&tool_count_, 0);
 }
 
@@ -153,6 +165,7 @@ void ToolOffsetCalibrationPanel::cleanup() {
     object_lifetime_.invalidate();
     finish_idle_wait();
     tools_observer_.reset();
+    active_tool_observer_.reset();
     if (overlay_root_) {
         helix::nav::unregister_overlay(overlay_root_);
     }
@@ -175,23 +188,50 @@ void ToolOffsetCalibrationPanel::refresh_rows() {
         spdlog::debug("[ToolOffsetCal] refresh_rows() skipped - overlay UI not alive");
         return;
     }
-    const size_t count = helix::ToolState::instance().tools().size();
+    // One row per head: where tools are lanes, several lanes share a head and
+    // its offsets.
+    const size_t count = helix::ToolState::instance().physical_heads().size();
     // Pools first, count last: the <repeat> rebuilds on the count and binds
     // each new row to tool_cal_*_<i> by name, so every slot must exist and
     // hold its value before the rows are built.
     row_x_.ensure_size(count);
     row_y_.ensure_size(count);
     row_z_.ensure_size(count);
+    row_label_.ensure_size(count);
+    row_mounted_.ensure_size(count);
     for (size_t i = 0; i < count; ++i) {
         refresh_row_values(static_cast<int>(i));
     }
     lv_subject_set_int(&tool_count_, static_cast<int>(count));
 }
 
-void ToolOffsetCalibrationPanel::refresh_row_values(int tool) {
+void ToolOffsetCalibrationPanel::refresh_mounted() {
+    if (!subjects_initialized_ || !ui_alive_) {
+        return;
+    }
     auto& tools = helix::ToolState::instance();
+    const auto& heads = tools.physical_heads();
+    const int mounted = lv_subject_get_int(tools.get_active_tool_subject());
+    const size_t rows = std::min(heads.size(), row_mounted_.size());
+    for (size_t i = 0; i < rows; ++i) {
+        row_mounted_.set_int(i, heads[i].holds_tool(mounted) ? 1 : 0);
+    }
+}
+
+void ToolOffsetCalibrationPanel::refresh_row_values(int head_index) {
+    auto& tools = helix::ToolState::instance();
+    const auto& heads = tools.physical_heads();
+    if (head_index < 0 || head_index >= static_cast<int>(heads.size())) {
+        return;
+    }
+    const helix::PhysicalHead& head = heads[static_cast<size_t>(head_index)];
+    const auto slot = static_cast<size_t>(head_index);
+    row_label_.set_string(slot, helix::ui::active_head_label(tools.head_identity(head),
+                                                             helix::ui::ToolLabelForm::Code));
+    row_mounted_.set_int(
+        slot, head.holds_tool(lv_subject_get_int(tools.get_active_tool_subject())) ? 1 : 0);
+    const int tool = tools.offset_tool_for(head.tool_indices.front());
     helix::xml::IndexedSubjectPool* pools[] = {&row_x_, &row_y_, &row_z_};
-    const auto slot = static_cast<size_t>(tool);
     for (helix::Axis axis : helix::kAllAxes) {
         const int idx = helix::axis_index(axis);
         if (!tools.tool_offset_known(tool, axis)) {

@@ -5,6 +5,7 @@
 
 #include "app_globals.h"
 #include "config.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -391,6 +392,11 @@ std::string nozzle_display_name(const std::string& extruder_name, const std::str
             if (head.extruder_name == extruder_name) {
                 return tools.nozzle_label(head.tool_indices.front());
             }
+        }
+        // An extruder no lane feeds is still a head, named by its extruder.
+        if (const auto number = tool_number_for_extruder(extruder_name)) {
+            return std::string(lv_tr("Nozzle")) + " " +
+                   head_number_or_name(HeadIdentity{{}, *number, {}});
         }
     }
     return discovered;

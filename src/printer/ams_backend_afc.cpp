@@ -6945,6 +6945,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                      100.0f, std::max(2000.0f, bowden_length_ * 1.5f), "mm",
                                      "ruler", "Bowden tube length to this tool");
             a.tool_index = i;
+            a.extruder = klipper_extruder_name_unlocked(extruders_[static_cast<size_t>(i)].name);
             actions.push_back(std::move(a));
         }
     }
@@ -6968,6 +6969,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                        100.0f, "mm", "ruler",
                                        "Extra distance to move once sensors clear")}) {
                 a.tool_index = i;
+                a.extruder = klipper_extruder_name_unlocked(ext.name);
                 actions.push_back(std::move(a));
             }
         }
@@ -6985,6 +6987,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                                   "setup", led_on ? "light_off" : "lightbulb_on",
                                                   "Toggle this tool's toolhead LED");
             a.tool_index = i;
+            a.extruder = klipper_extruder_name_unlocked(extruders_[static_cast<size_t>(i)].name);
             actions.push_back(std::move(a));
         }
     }

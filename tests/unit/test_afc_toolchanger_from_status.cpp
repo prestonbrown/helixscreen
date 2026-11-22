@@ -320,7 +320,7 @@ TEST_CASE("AFC toolchanger refuses a tool change while lanes have named no head"
 }
 
 TEST_CASE("Per-extruder actions follow the frame's extruder order, not name order",
-          "[ams][afc][toolchanger][status][1200]") {
+          "[ams][afc][toolchanger][status][1200][head-identity]") {
     // The webhook parse sorts its map keys; the status parse must not, or the
     // _T0 and _T1 actions silently swap heads.
     AfcStatusDispatchHelper afc;
@@ -330,6 +330,13 @@ TEST_CASE("Per-extruder actions follow the frame's extruder order, not name orde
 
     REQUIRE(afc.execute_device_action("led_extruder_T0"));
     CHECK(afc.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder_b TURN_ON=1"));
+
+    // And each names the head it belongs to, so the screen labels the head.
+    const auto actions = afc.get_device_actions();
+    const auto led = std::find_if(actions.begin(), actions.end(),
+                                  [](const auto& a) { return a.id == "led_extruder_T0"; });
+    REQUIRE(led != actions.end());
+    CHECK(led->extruder == "extruder_b");
 }
 
 TEST_CASE("Per-extruder device actions materialise from the status payload alone (#1200)",

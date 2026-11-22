@@ -173,6 +173,8 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// Warm-up or probing: the start once every check has passed.
     void begin_calibration();
     /// Ask before calibrating with a tool other than the probe's reference tool.
+    /// @param reference_tool the printer tool the probe offset belongs to
+    /// @param active_tool    the mounted tool (a lane where tools are lanes)
     void confirm_tool_then_start(int reference_tool, int active_tool);
     /// Whether a calibration may still begin now: the answer to a question can
     /// arrive after the panel left the screen, a print started or Klipper went away.

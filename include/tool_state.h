@@ -55,8 +55,10 @@ struct ToolAxisOffset {
 
 struct ToolInfo {
     int index = 0;
-    std::string name = "T0";   ///< G-code identity, 0-based ("T0"). What a user types.
-    std::string display_label; ///< Physical label, 1-based ("Tool 1"). What is on the machine.
+    std::string name = "T0"; ///< G-code identity, 0-based ("T0"). What a user types.
+    /// Physical label, 1-based ("Tool 1"). What is on the machine. Empty for a
+    /// lane where tools are lanes: label its head through head_identity().
+    std::string display_label;
     std::optional<std::string> extruder_name = "extruder";
     std::optional<std::string> heater_name;
     std::optional<std::string> fan_name;
@@ -402,6 +404,10 @@ class ToolState {
     /// (lane T0 in extruder2 takes tool T2's). -1 for none. The offset
     /// accessors below take this index; the save and set G-code number it.
     [[nodiscard]] int offset_tool_for(int tool_index) const;
+
+    /// head_identity() of the head printer tool @p offset_tool (an
+    /// offset_tool_for() index) sits on. Index -1 for none.
+    [[nodiscard]] HeadIdentity head_identity_for_offset_tool(int offset_tool) const;
 
     /// Tools with at least one axis whose offset differs from what is
     /// persisted, lowest index first. Empty when nothing needs saving. Ask

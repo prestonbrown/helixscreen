@@ -351,6 +351,7 @@
   <translation tag="Assign a role to enable sensor monitoring" zh="分配角色以启用传感器监控"/>
   <translation tag="Assign a slot first" zh="请先分配槽位"/>
   <translation tag="Assigned Tool" zh="已分配工具"/>
+  <translation tag="Assigned {}" zh="已分配 {}"/>
   <translation tag="Assisted Retract" zh="辅助回抽"/>
   <translation tag="Assisting" zh="辅助中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" zh="helixscreen.env 中至少有 {} 行被忽略"/>
@@ -1469,9 +1470,6 @@
   <translation tag="Feeder" zh="送料器"/>
   <translation tag="Feeders" zh="送料器"/>
   <translation tag="Feeding filament forward" zh="正在向前送料"/>
-  <translation tag="Feeds Tool" zh="供料工具"/>
-  <translation tag="Feeds no tool" zh="不供料任何工具"/>
-  <translation tag="Feeds {}" zh="供料至{}"/>
   <translation tag="Filament" zh="耗材"/>
   <translation tag="Filament Buffer" zh="耗材缓冲区"/>
   <translation tag="Filament Control" zh="耗材控制"/>
@@ -2483,6 +2481,7 @@
   <translation tag="No target printer configured" zh="未配置目标打印机"/>
   <translation tag="No temperature sensors detected" zh="未检测到温度传感器"/>
   <translation tag="No timelapse videos found" zh="未找到延时视频"/>
+  <translation tag="No tool assigned" zh="未分配工具"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" zh="不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？"/>
   <translation tag="No tool is mounted" zh="未安装工具"/>
   <translation tag="No tool mounted" zh="未装上工具"/>

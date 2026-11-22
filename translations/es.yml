@@ -387,6 +387,7 @@ translations:
     del sensor
   Assign a slot first: 'Asigna primero una ranura'
   Assigned Tool: Herramienta asignada
+  Assigned {}: 'Asignada {}'
   Assisted Retract: 'Retracción asistida'
   Assisting: Asistiendo
   At least {} lines in helixscreen.env were ignored: 'Al menos {} líneas de helixscreen.env fueron ignoradas'
@@ -1621,9 +1622,6 @@ translations:
   Feeder: Alimentador
   Feeders: Alimentadores
   Feeding filament forward: Avanzando filamento
-  Feeds Tool: 'Alimenta herramienta'
-  Feeds no tool: 'No alimenta ninguna herramienta'
-  Feeds {}: 'Alimenta {}'
   Filament: Filamento
   Filament Buffer: 'Búfer de filamento'
   Filament Control: Control de filamento
@@ -2711,6 +2709,7 @@ translations:
   No target printer configured: Ninguna impresora de destino configurada
   No temperature sensors detected: 'No se detectaron sensores de temperatura'
   No timelapse videos found: No se encontraron videos timelapse
+  No tool assigned: 'Ninguna herramienta asignada'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No se sabe qué herramienta está montada. Con una sonda compartida, calibra con {}. ¿Continuar de todos modos?'
   No tool is mounted: 'No hay ninguna herramienta montada'
   No tool mounted: 'Ninguna herramienta montada'
