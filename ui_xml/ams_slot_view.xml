@@ -115,20 +115,10 @@
                 event_bubble="true" hidden="true"/>
       </lv_obj>
 
-      <!-- Tool badge (top-left) - shows tool assignment (T0, T1), hidden by default.
-           clickable="false" so taps bubble to the slot's click handler. -->
-      <!-- Min 22px for single-digit tools, auto-widens for T10+ -->
-      <lv_obj name="tool_badge"
-              width="content" height="#ams_slot_tool_badge_h" style_min_width="#ams_slot_tool_badge_min_w"
-              align="top_left" style_translate_x="#ams_slot_tool_badge_inset"
-              style_translate_y="#ams_slot_tool_badge_inset" style_radius="#ams_slot_tool_badge_radius"
-              style_bg_opa="#ams_slot_tool_badge_opa" style_border_width="0" style_pad_left="#ams_slot_badge_pad_h"
-              style_pad_right="#ams_slot_badge_pad_h" style_pad_top="0" style_pad_bottom="0" scrollable="false"
-              clickable="false" event_bubble="true" hidden="true">
-        <!-- Tool number label (T0, T1, etc.) -->
-        <text_small name="tool_badge_label"
-                    text="" align="center" style_text_color="#text" clickable="false" event_bubble="true"/>
-      </lv_obj>
+      <!-- Tool badge (top-left) - shows tool assignment (T0, T1), hidden by default. -->
+      <ams_tool_badge name="tool_badge"
+                      align="top_left" style_translate_x="#ams_slot_tool_badge_inset"
+                      style_translate_y="#ams_slot_tool_badge_inset" hidden="true"/>
 
       <!-- Drying badge, on the spool face right of its hub, where the dry-box view's
            neighbouring spools cannot cover it: this lane's part in a drying cycle, on a dryer that

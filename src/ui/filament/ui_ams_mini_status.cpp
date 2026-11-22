@@ -8,7 +8,6 @@
 #include "ui_ams_slot.h"
 #include "ui_bypass_spool_widget.h"
 #include "ui_fonts.h"
-#include "ui_obj_flags.h"
 #include "ui_panel_ams.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_row_text.h"
@@ -172,6 +171,7 @@ struct UnitRowInfo {
     lv_obj_t* row_container = nullptr; // Row container for this unit's bars
 };
 
+namespace {
 /**
  * @brief One pooled unit group of the grid view: the lanes of one unit, under
  * its title when the rig has several units.
@@ -182,6 +182,7 @@ struct UnitGroupObj {
     bool titled = false;
     std::string title;
 };
+} // namespace
 
 /**
  * @brief What the strip draws for the bypass: whether it is on the strip at all
@@ -790,7 +791,7 @@ static const char* spool_material_text(const SpoolCellData& cd) {
 
 /**
  * @brief Width of the widest material label this render is about to draw, in
- * the font it will be drawn in.
+ * @p font, the font it will be drawn in.
  *
  * This is the number the text column has to be at least as wide as, and it is
  * measured rather than assumed for two reasons: the label uses font_small,
@@ -808,10 +809,10 @@ static const char* spool_material_text(const SpoolCellData& cd) {
  *         34px rather than 0 - a wrong reservation still lays out, a zero one
  *         packs unreadable cells.
  */
-static int measure_widest_material(const AmsMiniStatusData* data, lv_obj_t* sc) {
+static int measure_widest_material(const AmsMiniStatusData* data, lv_obj_t* sc,
+                                   const lv_font_t* font) {
     if (!data || data->spool_cells.empty())
         return 0;
-    const lv_font_t* font = theme_manager_get_font("font_small");
     if (!font || !sc)
         return 34;
 
@@ -991,12 +992,34 @@ static int scrollbar_room_px(lv_obj_t* scroller, int gap) {
            gap;
 }
 
+namespace {
 /** One unit's run of spool cells (indices into spool_cells), in lane order. */
 struct UnitSpan {
     int unit = -1; // index into unit_rows; -1 = a rig without units
     int first_cell = 0;
     int count = 0;
 };
+
+/** What a grid plan is measured against. */
+struct GridInputs {
+    const AmsMiniStatusData* data = nullptr;
+    lv_obj_t* sc = nullptr; // the lanes' scroller, whose text styles the labels inherit
+    int avail_w = 0;
+    int avail_h = 0;
+    int gap = 0;
+    bool bypass = false;
+    int chip_h = 0; // the tool chip's height; 0 when no lane shows one
+};
+
+/** A grid plan and the type it is drawn in. */
+struct GridChoice {
+    helix::ui::AmsMiniGridPlan plan;
+    const lv_font_t* name_font = nullptr; // the material line
+    const lv_font_t* meta_font = nullptr; // the remaining line
+    bool remaining = true;                // the remaining line is drawn
+    int rung = 1;                         // index into plan_grid_choice()'s font ladder
+};
+} // namespace
 
 /** The unit a slot belongs to, or -1 when no unit row holds it. */
 static int unit_of_slot(const AmsMiniStatusData* data, int slot) {
@@ -1086,7 +1109,7 @@ static void place_cells_in_groups(AmsMiniStatusData* data, lv_obj_t* sc,
             continue;
         const helix::ui::AmsMiniGridGroup& pg = plan.groups[k];
         // DECLARATIVE_OK: the plan decides where a line of groups breaks.
-        helix::ui::obj_set_flags(group, LV_OBJ_FLAG_FLEX_IN_NEW_TRACK, pg.new_line && k > 0);
+        lv_obj_set_flex_in_new_track(group, pg.new_line && k > 0);
         lv_obj_t* lanes = lv_obj_find_by_name(group, "unit_group_lanes");
         if (!lanes)
             continue;
@@ -1167,6 +1190,103 @@ helix::ui::AmsMiniGridPlan helix::ui::plan_ams_mini_grid(const std::vector<int>&
     return best;
 }
 
+/// Line height of @p font, or @p fallback when the theme has none.
+static int line_h(const lv_font_t* font, int fallback) {
+    return font ? static_cast<int>(lv_font_get_line_height(font)) : fallback;
+}
+
+/// Width of the widest remaining line a grid cell draws in @p font: the
+/// percent and, on a lane that has one, the tool chip beside it.
+static int widest_meta_line(const GridInputs& in, const lv_font_t* font) {
+    if (!font || !in.data)
+        return 0;
+    const helix::ui::ToolBadgeLook look = helix::ui::tool_badge_look();
+    int widest = 0;
+    for (const SpoolCellData& cd : in.data->spool_cells) {
+        int w = 0;
+        if (cd.remaining_pct >= 0 && cd.lane_state != helix::ui::LaneState::Empty) {
+            lv_point_t size;
+            lv_text_get_size(&size, (std::to_string(cd.remaining_pct) + "%").c_str(), font, 0, 0,
+                             LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+            w = size.x;
+        }
+        if (in.chip_h > 0 && cd.mapped_tool >= 0)
+            w += helix::ui::tool_badge_width(look, helix::ui::tool_label(cd.mapped_tool).c_str()) +
+                 (w > 0 ? in.gap : 0);
+        widest = std::max(widest, w);
+    }
+    return widest;
+}
+
+/**
+ * @brief Plan the grid for @p spans and choose its type: the largest name font
+ * that keeps every name whole and costs the spool at most a tenth, else
+ * font_small, else font_xs. The remaining line stays while the spool beside it
+ * still reads as a spool.
+ */
+static GridChoice plan_grid_choice(const GridInputs& in, const std::vector<UnitSpan>& spans) {
+    std::vector<int> unit_lanes;
+    for (const UnitSpan& sp : spans)
+        unit_lanes.push_back(sp.count);
+    const bool titled = spans.size() >= 2;
+    const lv_font_t* title_font = theme_manager_get_font("font_xs");
+    helix::ui::AmsMiniGridMetrics m;
+    m.gap = in.gap;
+    m.group_gap = theme_manager_get_spacing("space_xs");
+    m.group_pad = titled ? in.gap : 0;
+    m.title_h = titled ? line_h(title_font, 12) + in.gap : 0;
+    m.badge_margin = helix::ui::kAmsLaneSpoolBadgeMarginPx;
+    m.max_spool = kFillMaxSpoolImgPx;
+    m.bypass = in.bypass;
+
+    // Name and remaining fonts, largest first; index 1 is the strip's own pair.
+    static constexpr const char* kNameFonts[] = {"font_body", "font_small", "font_xs"};
+    static constexpr const char* kMetaFonts[] = {"font_small", "font_xs", "font_xs"};
+    auto plan_with = [&](int k, bool remaining) {
+        GridChoice c;
+        c.rung = k;
+        c.name_font = theme_manager_get_font(kNameFonts[k]);
+        c.meta_font = theme_manager_get_font(kMetaFonts[k]);
+        c.remaining = remaining;
+        const int meta_h = std::max(line_h(c.meta_font, 12), in.chip_h);
+        m.text_h = line_h(c.name_font, 14) + (remaining ? meta_h : 0) + in.gap;
+        c.plan = helix::ui::plan_ams_mini_grid(unit_lanes, in.avail_w, in.avail_h, m);
+        return c;
+    };
+    // Every name whole, and every percent beside its tool chip.
+    auto names_fit = [&](const GridChoice& c) {
+        return measure_widest_material(in.data, in.sc, c.name_font) <= c.plan.cell_w &&
+               widest_meta_line(in, c.meta_font) <= c.plan.cell_w;
+    };
+    GridChoice choice = plan_with(1, true);
+    if (!names_fit(choice)) {
+        choice = plan_with(2, true);
+    } else {
+        GridChoice larger = plan_with(0, true);
+        if (names_fit(larger) && larger.plan.spool * 10 >= choice.plan.spool * 9)
+            choice = std::move(larger);
+    }
+    if (choice.plan.spool < kMinSpoolImgPx) {
+        GridChoice name_only = plan_with(choice.rung, false);
+        if (name_only.plan.spool > choice.plan.spool)
+            choice = std::move(name_only);
+    }
+    return choice;
+}
+
+bool helix::ui::ams_mini_use_grid(bool fill, bool fill_auto, int grid_spool, int strip_spool,
+                                  int min_spool) {
+    if (!fill && !fill_auto)
+        return false;
+    if (grid_spool < min_spool)
+        return false;
+    return fill || grid_spool > strip_spool;
+}
+
+bool helix::ui::ams_mini_grid_prefers_flat(int grouped_spool, int flat_spool, int min_spool) {
+    return grouped_spool < min_spool || grouped_spool * 3 < flat_spool * 2;
+}
+
 static void on_spools_size_changed(lv_event_t* e) {
     lv_obj_t* sc = lv_event_get_target_obj(e);
     auto* data = get_data(static_cast<lv_obj_t*>(lv_event_get_user_data(e)));
@@ -1184,7 +1304,8 @@ static void on_spools_size_changed(lv_event_t* e) {
  *
  * Lazily creates the horizontally-scrollable spool container, then renders one
  * cell per entry in data->spool_cells (spool graphic with lane badge, material
- * label, remaining percent), sizing cells to fit the available width.
+ * label, remaining) as the one-row strip or, per the fill mode, the grid
+ * (ams_mini_use_grid()), seating the cells in unit groups for the grid.
  */
 static void rebuild_spools(AmsMiniStatusData* data) {
     if (!data || !data->container)
@@ -1256,14 +1377,14 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // draw it. Both the cell count and the text reservation come from it, so the
     // divisor and the reservation cannot disagree the way two independently
     // chosen constants did.
-    const int min_text = measure_widest_material(data, sc);
+    const lv_font_t* mat_font = theme_manager_get_font("font_small");
+    const int min_text = measure_widest_material(data, sc, mat_font);
     const int min_cell = min_spool_cell_w(min_text, gap);
     // Below a spool and its badge a cell no longer identifies its lane.
     const int floor_cell = kMinSpoolImgPx + badge_margin;
     // Every lane's equal share of the row. -2px so sub-pixel rounding cannot
     // tip a row that fits into a spurious scrollbar.
     const int share = (avail_w - (lanes - 1) * gap - 2) / lanes;
-    const lv_font_t* mat_font = theme_manager_get_font("font_small");
     const int mat_h = mat_font ? static_cast<int>(lv_font_get_line_height(mat_font)) : 14;
     const lv_font_t* pct_font = theme_manager_get_font("font_xs");
     const int pct_h = pct_font ? static_cast<int>(lv_font_get_line_height(pct_font)) : 12;
@@ -1338,88 +1459,60 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
     // ---- The grid view ----
     // Each unit's lanes in a group, the groups wrapped into the lines that
-    // give the largest spool. A fill tray always draws it; an auto tray draws
-    // it when it gives a larger spool than the strip, without scrolling.
+    // give the largest spool. Only an auto tray (the home tile) titles its
+    // groups; a fill tray lays every lane out as one block.
     const std::vector<UnitSpan> spans = unit_spans(data);
-    helix::ui::AmsMiniGridPlan grid;
-    bool grid_pct = true;
-    // A name too wide for a grid cell in font_small drops to font_xs before it
-    // is shortened.
-    const lv_font_t* grid_mat_font = mat_font;
     std::vector<UnitSpan> grid_spans = spans;
+    GridChoice grid;
     if (data->fill || data->fill_auto) {
-        struct GridChoice {
-            helix::ui::AmsMiniGridPlan plan;
-            const lv_font_t* font;
-            bool pct = true;
-        };
-        auto plan_for = [&](const std::vector<UnitSpan>& sps) {
-            std::vector<int> unit_lanes;
-            for (const UnitSpan& sp : sps)
-                unit_lanes.push_back(sp.count);
-            const bool titled = sps.size() >= 2;
-            helix::ui::AmsMiniGridMetrics m;
-            m.gap = gap;
-            m.group_gap = theme_manager_get_spacing("space_xs");
-            m.group_pad = titled ? gap : 0;
-            m.title_h = titled ? pct_h + gap : 0;
-            m.badge_margin = badge_margin;
-            m.max_spool = kFillMaxSpoolImgPx;
-            m.bypass = bypass_cell;
-            m.text_h = mat_h + pct_h + gap;
-            GridChoice c{helix::ui::plan_ams_mini_grid(unit_lanes, row_w, row_h, m), mat_font};
-            int name_h = mat_h;
-            if (min_text > c.plan.cell_w && pct_font) {
-                c.font = pct_font;
-                name_h = pct_h;
-                m.text_h = name_h + pct_h + gap;
-                c.plan = helix::ui::plan_ams_mini_grid(unit_lanes, row_w, row_h, m);
-            }
-            // The remaining line stays while the spool beside it still reads
-            // as a spool.
-            m.text_h = name_h + gap;
-            helix::ui::AmsMiniGridPlan name_only =
-                helix::ui::plan_ams_mini_grid(unit_lanes, row_w, row_h, m);
-            if (c.plan.spool < kMinSpoolImgPx && name_only.spool > c.plan.spool) {
-                c.plan = std::move(name_only);
-                c.pct = false;
-            }
-            return c;
-        };
-        GridChoice choice = plan_for(spans);
-        // The unit groups' titles and boxes cost room. A rig whose groups
-        // leave no spool worth drawing, or cost it more than a third, lays
-        // every lane out as one block instead.
-        if (spans.size() >= 2) {
-            UnitSpan all{-1, 0, static_cast<int>(data->spool_cells.size())};
-            GridChoice flat = plan_for({all});
-            if (choice.plan.spool < kMinSpoolImgPx || choice.plan.spool * 3 < flat.plan.spool * 2) {
-                choice = std::move(flat);
+        // The tool chip shares the remaining line, so the line is as tall as
+        // the taller of the two when any lane shows one.
+        bool chips = false;
+        if (helix::ui::slot_tool_badges_informative())
+            for (const SpoolCellData& cd : data->spool_cells)
+                chips = chips || cd.mapped_tool >= 0;
+        GridInputs in;
+        in.data = data;
+        in.sc = sc;
+        in.avail_w = row_w;
+        in.avail_h = row_h;
+        in.gap = gap;
+        in.bypass = bypass_cell;
+        in.chip_h = chips ? helix::ui::tool_badge_look().height : 0;
+        const UnitSpan all{-1, 0, static_cast<int>(data->spool_cells.size())};
+        if (data->fill_auto && spans.size() >= 2) {
+            grid = plan_grid_choice(in, spans);
+            // The unit groups' titles and boxes cost room. A rig whose groups
+            // leave no spool worth drawing, or cost it more than a third, lays
+            // every lane out as one block instead.
+            GridChoice flat = plan_grid_choice(in, {all});
+            if (helix::ui::ams_mini_grid_prefers_flat(grid.plan.spool, flat.plan.spool,
+                                                      kMinSpoolImgPx)) {
+                grid = std::move(flat);
                 grid_spans = {all};
             }
+        } else {
+            grid = plan_grid_choice(in, {all});
+            grid_spans = {all};
         }
-        grid = std::move(choice.plan);
-        grid_mat_font = choice.font;
-        grid_pct = choice.pct;
     }
-    // An auto tray takes the grid only for a larger spool: a grid of spools
-    // at the strip's floor, badges and names crowding them, reads worse than
-    // the strip.
-    const bool use_grid =
-        data->fill ? grid.spool > 0
-                   : data->fill_auto && grid.spool >= kMinSpoolImgPx && grid.spool > spool_size;
+    // The grid only for a spool that still reads as one, and in an auto tray
+    // only when it beats the strip's: below that the strip, scrolling when it
+    // must, shows the lanes better.
+    const bool use_grid = helix::ui::ams_mini_use_grid(data->fill, data->fill_auto, grid.plan.spool,
+                                                       spool_size, kMinSpoolImgPx);
     data->grid_view = use_grid;
     spdlog::debug("[AmsMiniStatus] spool view {}x{}: strip spool {} (scrolls {}), grid spool {} "
                   "cell {}x{} groups {}, grid {}",
-                  row_w, row_h, spool_size, lanes_scroll, grid.spool, grid.cell_w, grid.row_h,
-                  grid_spans.size(), use_grid);
+                  row_w, row_h, spool_size, lanes_scroll, grid.plan.spool, grid.plan.cell_w,
+                  grid.plan.row_h, grid_spans.size(), use_grid);
     if (use_grid) {
         stacked = true;
-        cell_px = grid.cell_w;
-        spool_size = grid.spool;
+        cell_px = grid.plan.cell_w;
+        spool_size = grid.plan.spool;
         text_w = cell_px;
         ellipsize = true;
-        show_pct = grid_pct;
+        show_pct = grid.remaining;
     }
     const int pad_bottom = use_grid ? 0 : scrollbar_room;
     lv_obj_set_style_pad_bottom(sc, pad_bottom, LV_PART_MAIN);
@@ -1488,7 +1581,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
     // Seat the cells: in their unit groups for the grid view, straight in the
     // scroller, in lane order, for the strip.
     if (use_grid) {
-        place_cells_in_groups(data, sc, grid_spans, grid, cell_px, gap, condemn);
+        place_cells_in_groups(data, sc, grid_spans, grid.plan, cell_px, gap, condemn);
     } else {
         for (lv_obj_t* cell : data->spool_cell_objs)
             if (cell && lv_obj_get_parent(cell) != sc)
@@ -1504,9 +1597,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
     // The tool chip shows only what the lane badge does not already say.
     const bool tool_chips = use_grid && helix::ui::slot_tool_badges_informative();
-    const helix::ui::ToolBadgeColors chip_colors = helix::ui::tool_badge_colors(false);
-    const helix::ui::ToolBadgeColors chip_override_colors = helix::ui::tool_badge_colors(true);
-    const lv_font_t* meta_font = pct_font;
+    const helix::ui::ToolBadgeLook chip_look = helix::ui::tool_badge_look();
+    const lv_font_t* meta_font = use_grid && grid.meta_font ? grid.meta_font : pct_font;
 
     for (int i = 0; i < n; ++i) {
         const SpoolCellData& cd = data->spool_cells[i];
@@ -1517,7 +1609,7 @@ static void rebuild_spools(AmsMiniStatusData* data) {
 
         // Stacked cells put the name over the spool (the text column is the
         // cell's second child); short rows sit it alongside.
-        lv_obj_set_size(cell, cell_px, use_grid ? grid.row_h : lv_pct(100));
+        lv_obj_set_size(cell, cell_px, use_grid ? grid.plan.row_h : lv_pct(100));
         // A column-flow cell spaces its children by pad_row, which the
         // component sets to the same space_xxs `gap` the stacked height budget
         // counts once between the spool and the text block.
@@ -1577,8 +1669,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
             lv_obj_set_state(mat, LV_STATE_USER_1, ghosted);
             // DECLARATIVE_OK: the font is measured against the grid cell.
-            if (use_grid && grid_mat_font != mat_font)
-                lv_obj_set_style_text_font(mat, grid_mat_font, LV_PART_MAIN);
+            if (use_grid && grid.name_font && grid.name_font != mat_font)
+                lv_obj_set_style_text_font(mat, grid.name_font, LV_PART_MAIN);
             else
                 lv_obj_remove_local_style_prop(mat, LV_STYLE_TEXT_FONT, LV_PART_MAIN);
             // Same helper measure_widest_material() sized text_w from, so the
@@ -1589,7 +1681,8 @@ static void rebuild_spools(AmsMiniStatusData* data) {
             const char* text = spool_material_text(cd);
             if (use_grid && cd.lane_state == helix::ui::LaneState::Empty) {
                 lv_point_t size;
-                lv_text_get_size(&size, text, grid_mat_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+                lv_text_get_size(&size, text, grid.name_font ? grid.name_font : mat_font, 0, 0,
+                                 LV_COORD_MAX, LV_TEXT_FLAG_NONE);
                 if (size.x > text_w)
                     text = "";
             }
@@ -1601,18 +1694,12 @@ static void rebuild_spools(AmsMiniStatusData* data) {
         int chip_w = 0;
         if (lv_obj_t* tool = cell_part(cell, "spool_tool_%d", slot)) {
             if (chip) {
-                const std::string label = helix::ui::tool_label(cd.mapped_tool);
-                helix::ui::set_row_label_text(
-                    cell, (std::string("spool_tool_label_") + std::to_string(slot)).c_str(),
-                    label.c_str());
                 // Warning for a user override, muted for the firmware's own
-                // mapping: the AMS panel's tool badge colors.
-                const auto& colors = cd.tool_override ? chip_override_colors : chip_colors;
-                lv_obj_set_style_bg_color(tool, colors.bg, LV_PART_MAIN);
-                if (lv_obj_t* tl = cell_part(cell, "spool_tool_label_%d", slot))
-                    lv_obj_set_style_text_color(tl, colors.text, LV_PART_MAIN);
-                lv_obj_update_layout(tool);
-                chip_w = lv_obj_get_width(tool) + gap;
+                // mapping: the AMS panel's tool badge.
+                helix::ui::paint_tool_badge(tool, cd.mapped_tool, cd.tool_override);
+                chip_w = helix::ui::tool_badge_width(
+                             chip_look, helix::ui::tool_label(cd.mapped_tool).c_str()) +
+                         gap;
             }
             lv_obj_set_hidden(tool, !chip);
         }
@@ -1634,8 +1721,22 @@ static void rebuild_spools(AmsMiniStatusData* data) {
                 if (size.x + chip_w <= text_w)
                     remaining = grams;
             }
+            // A percent that cannot sit beside the chip gives way to it: the
+            // spool already draws how full it is.
+            if (use_grid && !remaining.empty() && chip_w > 0 && meta_font) {
+                lv_point_t size;
+                lv_text_get_size(&size, remaining.c_str(), meta_font, 0, 0, LV_COORD_MAX,
+                                 LV_TEXT_FLAG_NONE);
+                if (size.x + chip_w > text_w)
+                    remaining.clear();
+            }
             helix::ui::set_row_label_text(cell, nm, remaining.c_str());
             lv_obj_set_state(pct, LV_STATE_USER_1, ghosted);
+            // DECLARATIVE_OK: the font is measured against the grid cell.
+            if (meta_font != pct_font)
+                lv_obj_set_style_text_font(pct, meta_font, LV_PART_MAIN);
+            else
+                lv_obj_remove_local_style_prop(pct, LV_STYLE_TEXT_FONT, LV_PART_MAIN);
             lv_obj_set_hidden(pct, !(show_text && show_pct));
         }
         if (lv_obj_t* meta = cell_part(cell, "spool_meta_%d", slot))
@@ -1909,11 +2010,16 @@ void ui_ams_mini_status_refresh(lv_obj_t* obj) {
     }
 }
 
-void helix::ui::ams_mini_status_set_fill(lv_obj_t* obj, bool fill) {
+void helix::ui::ams_mini_status_set_fill(lv_obj_t* obj, AmsMiniFill fill) {
     auto* data = get_data(obj);
-    if (!data || data->fill == fill)
+    if (!data)
         return;
-    data->fill = fill;
+    const bool on = fill == AmsMiniFill::On;
+    const bool automatic = fill == AmsMiniFill::Auto;
+    if (data->fill == on && data->fill_auto == automatic)
+        return;
+    data->fill = on;
+    data->fill_auto = automatic;
     if (data->slot_count > 0)
         rebuild(data);
 }
@@ -2125,14 +2231,10 @@ static void ui_ams_mini_status_xml_apply(lv_xml_parser_state_t* state, const cha
     }
 
     if (const char* fill_str = lv_xml_get_value_of(attrs, "fill")) {
-        // "auto": the grid view when it draws the larger spool.
-        const bool fill_auto = lv_streq(fill_str, "auto");
-        if (data->fill_auto != fill_auto) {
-            data->fill_auto = fill_auto;
-            if (data->slot_count > 0)
-                rebuild(data);
-        }
-        helix::ui::ams_mini_status_set_fill(obj, !fill_auto && lv_xml_to_bool(fill_str));
+        using helix::ui::AmsMiniFill;
+        helix::ui::ams_mini_status_set_fill(obj, lv_streq(fill_str, "auto") ? AmsMiniFill::Auto
+                                                 : lv_xml_to_bool(fill_str) ? AmsMiniFill::On
+                                                                            : AmsMiniFill::Off);
     }
 
     const char* bars_align_str = lv_xml_get_value_of(attrs, "bars_align");

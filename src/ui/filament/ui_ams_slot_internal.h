@@ -76,7 +76,6 @@ struct AmsSlotData {
     lv_obj_t* status_badge_bg = nullptr;    // Status badge background (colored circle)
     lv_obj_t* slot_badge = nullptr;         // Slot number label inside status badge
     lv_obj_t* tool_badge_bg = nullptr;      // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;         // Tool badge label (T0, T1, etc.)
     lv_obj_t* container = nullptr;          // The ams_slot widget itself
     lv_obj_t* lane_humidity = nullptr;      // Droplet + value row, under a per-lane lid
     lv_obj_t* lane_humidity_text = nullptr; // The row's value

@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The tool a lane feeds ("T0"), as the AMS panel's slots and the home
+       spool widget's grid show it. The toolhead badge draws the same look on
+       a canvas from the same ams_slot_tool_badge_* tokens. The owner sets the
+       label and the colors (warning for a user override, muted otherwise)
+       through helix::ui::paint_tool_badge(). At least the minimum width for one
+       digit, wider for T10 and up. Not clickable: taps reach its host. -->
+  <view extends="lv_obj"
+        width="content" height="#ams_slot_tool_badge_h" style_min_width="#ams_slot_tool_badge_min_w"
+        style_radius="#ams_slot_tool_badge_radius" style_bg_opa="#ams_slot_tool_badge_opa" style_border_width="0"
+        style_pad_left="#ams_slot_badge_pad_h" style_pad_right="#ams_slot_badge_pad_h" style_pad_top="0"
+        style_pad_bottom="0" scrollable="false" clickable="false" event_bubble="true">
+    <text_small name="tool_badge_label"
+                text="" align="center" style_text_color="#text" clickable="false" event_bubble="true"/>
+  </view>
+</component>

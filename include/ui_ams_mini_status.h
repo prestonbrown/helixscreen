@@ -25,12 +25,13 @@ extern "C" {
  * - "+N" overflow indicator when more than max_visible slots exist
  * - Auto-hides when slot_count == 0
  *
- * XML attribute `fill="true"` always draws the spool view as the grid view:
- * each unit's lanes in a group, the groups wrapped into the lines that give
- * the largest spool, which grows past the one-row strip's cap. A host that
- * hands the tray a whole column sets it. `fill="auto"` (the home grid's tile)
- * draws the grid view when it gives a larger spool than the one-row strip,
- * and the strip otherwise.
+ * XML attribute `fill="true"` draws the spool view as a grid: the lanes
+ * wrapped into the rows that give the largest spool, which grows past the
+ * one-row strip's cap. A host that hands the tray a whole column sets it.
+ * `fill="auto"` (the home grid's tile) draws the grid only when it gives a
+ * larger spool than the strip, and on a rig with several units titles each
+ * unit's group. Either falls back to the strip, which scrolls sideways, when
+ * the grid's spool would be too small to read.
  *
  * Bar mode renders through ams_lane_bar widgets driven by AmsState's per-slot
  * subjects; the programmatic setters below feed the spool-mode cells and the
@@ -136,17 +137,20 @@ void ui_ams_mini_status_init(void);
 
 namespace helix::ui {
 
+/// How the spool view uses the widget's height: the XML attribute `fill`.
+enum class AmsMiniFill {
+    Off,  ///< "false": one row of spools at the home tray's size
+    On,   ///< "true": the grid, its lanes wrapped into rows, whenever its spool reads
+    Auto, ///< "auto": the grid only when it beats the row, titling each unit's group
+};
+
 /**
- * @brief Size the spool view from the widget's height as well as its width
+ * @brief Set how the spool view uses the widget's height (XML `fill`).
  *
- * The XML attribute `fill`. Lanes wrap into the rows that give the largest
- * spool, which grows past the home tray's cap. Off (the default), one row of
- * spools at the home tray's size.
- *
- * @param obj The ams_mini_status widget
- * @param fill true to fill the widget's height
+ * Whatever the mode, a grid whose spool would be too small to read falls back
+ * to the one-row strip, which scrolls sideways.
  */
-void ams_mini_status_set_fill(lv_obj_t* obj, bool fill);
+void ams_mini_status_set_fill(lv_obj_t* obj, AmsMiniFill fill);
 
 /**
  * @brief The fixed sizes the grid view is laid out with (px).
@@ -194,6 +198,23 @@ struct AmsMiniGridPlan {
  */
 AmsMiniGridPlan plan_ams_mini_grid(const std::vector<int>& unit_lanes, int avail_w, int avail_h,
                                    const AmsMiniGridMetrics& m);
+
+/**
+ * @brief Whether the spool view draws the grid rather than the one-row strip.
+ *
+ * Only a fill tray (@p fill) or an auto tray (@p fill_auto) has a grid, and
+ * only while its spool still reads as one (@p min_spool); an auto tray takes it
+ * only for a larger spool than the strip's. Otherwise the strip, which scrolls
+ * sideways when its lanes overflow.
+ */
+bool ams_mini_use_grid(bool fill, bool fill_auto, int grid_spool, int strip_spool, int min_spool);
+
+/**
+ * @brief Whether a multi-unit grid lays its lanes out as one block instead of
+ * titled unit groups: the groups' boxes and titles leave no spool worth drawing
+ * (@p min_spool) or cost it more than a third of the block's.
+ */
+bool ams_mini_grid_prefers_flat(int grouped_spool, int flat_spool, int min_spool);
 
 /**
  * @brief Whether the tray draws anything: some lanes, and at least one of
