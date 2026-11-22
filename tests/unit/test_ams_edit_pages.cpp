@@ -27,6 +27,7 @@
 #include "lane_translation.h"
 #include "moonraker_client_mock_spoolman.h"
 #include "text_io.h"
+#include "theme_manager.h"
 
 #include <optional>
 
@@ -1062,4 +1063,46 @@ TEST_CASE_METHOD(PagesFixture, "the Filament row's star adds the lane's product 
         CHECK(star_state() == 1);
     }
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken from the swatches",
+                 "[ams_edit_overlay][pages][favorites]") {
+    lv_display_t* disp = lv_display_get_default();
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    const auto favs = catalog_products(catalog, 3);
+    REQUIRE(favs.size() == 3);
+    const auto add_spool = [this] {
+        open(1, SlotInfo{});
+        access.click("btn_choose_spool");
+        access.click("btn_add_new");
+        settle();
+        REQUIRE(access.page() == AmsEditOverlay::kPageFilament);
+    };
+    for (const auto& [w, h] : {std::pair{480, 320}, std::pair{480, 272}}) {
+        CAPTURE(w, h);
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+
+        // No favorites: as before, no tiles at all.
+        add_spool();
+        CHECK_FALSE(access.shown("favorite_spools"));
+        CHECK_FALSE(access.shown("common_spools"));
+        const size_t swatches_without = access.color_row().size();
+        close_editor_overlay();
+
+        {
+            StarredFavorites starred({favs[0]->id, favs[1]->id, favs[2]->id});
+            add_spool();
+            REQUIRE(access.shown("favorite_spools"));
+            CHECK_FALSE(access.shown("common_spools"));
+            // The favorites alone: the fourth slot is a common spool and stays hidden.
+            CHECK(access.shown("favorite_tile_0"));
+            CHECK(access.shown("favorite_tile_2"));
+            CHECK_FALSE(access.shown("favorite_tile_3"));
+            // The swatches gave up room for the row.
+            CHECK(access.color_row().size() < swatches_without);
+            close_editor_overlay();
+        }
+    }
+    theme_manager_refresh_layout_constants(disp);
 }
