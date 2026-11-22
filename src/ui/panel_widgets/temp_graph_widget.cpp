@@ -6,6 +6,7 @@
 #include "ui_next_tick.h"
 #include "ui_overlay_temp_graph.h"
 #include "ui_swatch.h"
+#include "ui_temperature_utils.h"
 
 #include "app_globals.h"
 #include "display_numbering.h"
@@ -24,6 +25,7 @@
 #include "printer_state.h"
 #include "temperature_sensor_manager.h"
 #include "theme_manager.h"
+#include "tool_state.h"
 #include "widget_subjects.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -157,6 +159,11 @@ void TempGraphWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
     // Bed and chamber are named here, not by the printer layer.
     language_observer_ = helix::ui::observe_language_change(
         this, [](TempGraphWidget* self) { self->refresh_series_names(); });
+    // A lane rig's nozzles are named by their heads, which a tool list rebuild moves.
+    tools_version_observer_ = helix::ui::observe<int>(
+        ToolState::instance().get_tools_version_subject(), this,
+        [](TempGraphWidget* self, int) { self->refresh_series_names(); },
+        ToolState::instance().get_subjects_lifetime());
 
     // The graph is `merges_into_card = false` — it reads as its own panel, not
     // as one tile in a fused run — so it supplies its own surface. Use the
@@ -174,6 +181,7 @@ void TempGraphWidget::detach() {
     cancel_discovery_rebuild();
     extruder_version_observer_.reset();
     language_observer_.reset();
+    tools_version_observer_.reset();
     controller_.reset();
 
     widget_obj_ = nullptr;
@@ -586,10 +594,10 @@ TempGraphWidget::TempGraphConfigModal::sensor_display_name(const std::string& kl
     // "Nozzle" (single) / "Nozzle 1", "Nozzle 2", ... (multi). Keeps the
     // chip row, graph legend, and config modal aligned on one source of truth.
     if (const auto tool_number = tool_number_for_extruder(klipper_name)) {
-        const auto& exts = get_printer_state().temperature_state().extruders();
-        auto it = exts.find(klipper_name);
-        if (it != exts.end() && !it->second.display_name.empty()) {
-            return it->second.display_name;
+        std::string name = helix::ui::temperature::nozzle_display_name(
+            get_printer_state().temperature_state(), klipper_name);
+        if (!name.empty()) {
+            return name;
         }
         // Fallback when extruders haven't been discovered yet: a bare "extruder"
         // carries no signal about whether the printer has one nozzle or several,

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "ui_temperature_utils.h"
 #include "ui_update_queue.h"
 
 #include "display_numbering.h"
@@ -312,6 +313,8 @@ TEST_CASE_METHOD(ToolStateFixture,
     CHECK(ts.display_label_for_extruder("extruder2") == "Tool 3");
     CHECK(ts.display_label_for_extruder("extruder5") == "Tool 6");
     CHECK(ts.tool_name_for_extruder("extruder2").empty());
+    // The temperature graph's legend: the head, not discovery's T code.
+    CHECK(helix::ui::temperature::nozzle_display_name("extruder2", "Nozzle T2") == "Nozzle 3");
 
     // The nozzle temperature rows stand in the same order as the heads.
     const std::vector<std::string> by_extruder(std::begin(extruders), std::end(extruders));
@@ -360,5 +363,6 @@ TEST_CASE_METHOD(ToolStateFixture,
         CHECK(third.name == "T2");
         CHECK(third.index == 2);
         CHECK(third.lane_code.empty());
+        CHECK(helix::ui::temperature::nozzle_display_name("extruder2", "Nozzle T2") == "Nozzle T2");
     }
 }

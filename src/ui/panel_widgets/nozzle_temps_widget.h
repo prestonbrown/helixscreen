@@ -93,6 +93,7 @@ class NozzleTempsWidget : public PanelWidget {
     /// Rebuilds the row names when the mounted tool changes on nozzles that
     /// share one heater: the one row is named after the mounted nozzle.
     ObserverGuard mounted_tool_observer_;
+    ObserverGuard tools_version_observer_;
     int named_mounted_tool_ = -1;
     int rebuild_gen_ = 0;     // Generation counter to break infinite rebuild cycles (L074)
     bool rebuilding_ = false; // Re-entrancy guard: drain() inside clear_rows() can fire
