@@ -1863,3 +1863,69 @@ TEST_CASE_METHOD(HardwareValidatorConfigFixture,
     HardwareValidator::set_hardware_optional(&config, "extruder", true);
     REQUIRE_FALSE(validator.validate(&config, client.hardware()).has_critical());
 }
+
+// ============================================================================
+// The "new hardware" toast reports hardware the last session had not seen
+// ============================================================================
+
+#include "../lvgl_test_fixture.h"
+#include "../ui_test_utils.h"
+
+namespace {
+/// The config fixture on a live LVGL, which the toast path queues onto.
+struct NewHardwareToastFixture : LVGLTestFixture, helix::HardwareValidatorConfigFixture {};
+
+/// Every toast asked for while this is in scope.
+struct CapturedHwToasts {
+    std::vector<std::string> shown;
+    CapturedHwToasts() {
+        helix::ui::set_test_toast_hook([this](ToastSeverity, const std::string& message, uint32_t) {
+            shown.push_back(message);
+        });
+    }
+    ~CapturedHwToasts() {
+        helix::ui::set_test_toast_hook(nullptr);
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(
+    NewHardwareToastFixture,
+    "HardwareValidator - a reconnect with unchanged hardware shows no new-hardware toast",
+    "[hardware][validator][new_hardware]") {
+    setup_empty_hardware_config();
+    MoonrakerClientMock client;
+    client.set_heaters({"extruder", "heater_bed"});
+    // Hardware no role names, which validate_new_hardware() lists every connect.
+    client.set_fans({"fan", "controller_fan electronics"});
+
+    // One connect: validate, toast if worth one, then save the session snapshot.
+    const auto connect = [&] {
+        CapturedHwToasts toasts;
+        HardwareValidator validator;
+        auto result = validator.validate(&config, client.hardware());
+        validator.notify_user(result);
+        validator.save_session_snapshot(&config, client.hardware());
+        return std::make_pair(result, toasts.shown);
+    };
+
+    auto [first, first_toasts] = connect();
+    REQUIRE_FALSE(first.newly_discovered.empty());
+    CHECK(first_toasts.size() == 1);
+
+    // The same hardware again: still listed for Hardware Health, but no toast.
+    auto [second, second_toasts] = connect();
+    REQUIRE(second.newly_discovered.size() == first.newly_discovered.size());
+    for (const auto& issue : second.newly_discovered) {
+        INFO(issue.hardware_name);
+        CHECK(issue.seen_last_session);
+    }
+    CHECK(second_toasts.empty());
+
+    // A fan that was not there last session is news again, and the only news.
+    client.set_fans({"fan", "controller_fan electronics", "fan_generic bed_fans"});
+    auto [third, third_toasts] = connect();
+    CHECK(third.newly_discovered.size() == first.newly_discovered.size() + 1);
+    REQUIRE(third_toasts.size() == 1);
+    CHECK(third_toasts[0] == "1 new hardware available");
+}
