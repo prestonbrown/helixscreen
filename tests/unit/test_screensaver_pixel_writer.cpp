@@ -1,12 +1,14 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "screensaver_fast_math.h"
 #include "screensaver_pixel_writer.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <utility>
 #include <vector>
 
@@ -157,6 +159,43 @@ TEST_CASE("PixelWriter dithers RGB565 with a 4x4 ordered pattern and writes XRGB
     TestFrame exact(1, 1, 4, PixelFormat::XRGB8888);
     PixelWriter(exact.target).put_dithered(0, 0, Rgb{70, 71, 72});
     CHECK(PixelWriter(exact.target).get(0, 0) == Rgb{70, 71, 72});
+}
+
+TEST_CASE("the RGB565 dither tables give dither_channel's level for every value and threshold",
+          "[screensaver][pixel_writer]") {
+    for (int t = 0; t < 16; t++) {
+        for (int c = 0; c < 256; c++) {
+            CAPTURE(t, c);
+            const auto th = static_cast<uint8_t>(t);
+            const auto v = static_cast<uint8_t>(c);
+            const auto expect = static_cast<uint16_t>(helix::ui::dither_channel(v, 31, th) << 11 |
+                                                      helix::ui::dither_channel(v, 63, th) << 5 |
+                                                      helix::ui::dither_channel(v, 31, th));
+            REQUIRE(helix::ui::dither_rgb565(Rgb{v, v, v}, th) == expect);
+        }
+    }
+    // Each channel reads its own table column.
+    CHECK(helix::ui::dither_rgb565(Rgb{255, 0, 0}, 0) == 0xF800);
+    CHECK(helix::ui::dither_rgb565(Rgb{0, 255, 0}, 0) == 0x07E0);
+    CHECK(helix::ui::dither_rgb565(Rgb{0, 0, 255}, 0) == 0x001F);
+}
+
+TEST_CASE("saver_floor and saver_ceil round like std::floor and std::ceil",
+          "[screensaver][pixel_writer]") {
+    const float values[] = {
+        0.0f,        0.25f,      0.5f,        0.999f,     1.0f,        1.5f,     -0.25f,
+        -0.5f,       -1.0f,      -1.5f,       -2.0001f,   123.75f,     -123.75f, 4194303.5f,
+        -4194303.5f, 8388607.0f, -8388607.0f, 8388608.0f, -8388608.0f, 1.0e9f,   -1.0e9f};
+    for (const float v : values) {
+        CAPTURE(v);
+        CHECK(helix::ui::saver_floor(v) == std::floor(v));
+        CHECK(helix::ui::saver_ceil(v) == std::ceil(v));
+    }
+    CHECK(std::isnan(helix::ui::saver_floor(std::numeric_limits<float>::quiet_NaN())));
+    CHECK(std::isnan(helix::ui::saver_ceil(std::numeric_limits<float>::quiet_NaN())));
+    const float inf = std::numeric_limits<float>::infinity();
+    CHECK(helix::ui::saver_floor(-inf) == -inf);
+    CHECK(helix::ui::saver_ceil(inf) == inf);
 }
 
 TEST_CASE("PixelWriter max blending brightens each channel and leaves a dimmer colour alone",
