@@ -419,11 +419,11 @@ TEST_CASE_METHOD(PIDCalibrateTestFixture,
     SECTION("mainline Klipper takes no TOLERANCE") {
         CHECK(start("heater_bed", 60) == "PID_CALIBRATE HEATER=heater_bed TARGET=60");
     }
-    SECTION("Kalico: the bed settles at 0.05, a hotend at Kalico's own 0.02") {
+    SECTION("Kalico: the bed settles at 0.15, a hotend at Kalico's own 0.02") {
         api_->hardware().apply_printer_info(
             json{{"app", "Kalico"}, {"software_version", "v2025.1"}});
         CHECK(start("heater_bed", 60) ==
-              "PID_CALIBRATE HEATER=heater_bed TARGET=60 TOLERANCE=0.05");
+              "PID_CALIBRATE HEATER=heater_bed TARGET=60 TOLERANCE=0.15");
         CHECK(start("extruder", 210) == "PID_CALIBRATE HEATER=extruder TARGET=210 TOLERANCE=0.02");
     }
 }

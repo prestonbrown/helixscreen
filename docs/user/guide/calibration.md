@@ -40,7 +40,7 @@ A guided calibration runs several calibrations one after another and saves all t
 It can run these four calibrations, where your printer has them:
 
 1. **Z offset**: the nozzle-to-bed distance
-2. **Heaters**: PID tuning (or MPC on Kalico, when the heater already uses MPC) for the nozzle and the bed
+2. **Heaters**: PID tuning (or MPC on Kalico, when the heater already uses MPC) for the nozzle, and the bed when you pick it
 3. **Bed mesh**: a new mesh in the `default` profile
 4. **Input shaper**: both axes, with the accelerometer
 
@@ -64,6 +64,8 @@ The first page lists the calibrations the guided run offers on your printer, eac
 - Recommended calibrations start ticked. Optional ones start unticked.
 - A calibration your printer's profile marks as required stays ticked and cannot be unticked.
 - The total time, and how much of it needs you, update as you tick and untick.
+- **Heaters** starts unticked when your printer's configuration already has tuning for its heaters (PID values or MPC): working tuning does not need redoing. A heater with no tuning makes it start ticked again, and the printer's profile decides whether it can be unticked.
+- The **Heaters** card has a **Bed** option, shown while Heaters is ticked. By default only the nozzle is tuned; tap **Bed** to tune the bed as well, and the card's time grows by the bed's share, which can be most of an hour on a large bed. A bed with no tuning yet is always tuned: the option shows on, with a lock.
 - The **Z offset** card has **Warm the bed first**. Tap it to heat the bed before the printer probes, so the offset is measured with the bed expanded the way it is when you print. Tap it again to turn it off.
 
 Tap **Start** when the list is right, or **Skip for now** to close the guided calibration without running anything.
@@ -106,9 +108,9 @@ If you tap **Back**, including in the middle of the paper test, the paper test i
 
 On printers whose firmware keeps the Z offset itself (FlashForge with ZMOD, for example), the new offset takes effect and is stored by the firmware as soon as you accept it. **Discard all** puts the old offset back.
 
-**The heaters step.** The nozzle is tuned at 210 °C and then the bed at 60 °C. The progress line shows which heater is tuning and, for PID, each heating cycle as it finishes.
+**The heaters step.** The nozzle is tuned at 210 °C, then the bed at 60 °C when the run tunes it. The progress line shows which heater is tuning and, for PID, each heating cycle as it finishes.
 
-**Heater calibration on Kalico takes several cycles.** Klipper runs a fixed five heating cycles. Kalico keeps cycling until the last cycles agree closely enough, so it can take more cycles, and each bed cycle can take several minutes. HelixScreen asks Kalico for a looser fit on the bed than on the nozzle, so a bed does not keep cycling for most of an hour. The progress line shows the cycle number, how close the last cycles agree, and what they need to reach, for example "cycle 4, 0.27 (needs 0.05)"; the bar fills as the number comes down.
+**Heater calibration on Kalico takes several cycles.** Klipper runs a fixed five heating cycles. Kalico keeps cycling until the last cycles agree closely enough, so it can take more cycles, and each bed cycle can take several minutes. HelixScreen asks Kalico for a looser fit on the bed than on the nozzle, so a bed does not keep cycling for most of an hour. The progress line shows the cycle number, how close the last cycles agree, and what they need to reach, for example "cycle 4, 0.70 (needs 0.15)"; the bar fills as the number comes down.
 
 ### Stopping
 
@@ -640,7 +642,7 @@ Calibrate temperature controllers for stable heating. HelixScreen supports two c
 - View new PID values (Kp, Ki, Kd) with **old-to-new deltas** so you can see what changed
 - Tap **Save Config** to persist the new values to your Klipper configuration
 
-**On Kalico**, PID calibration repeats heating cycles until the last ones agree closely enough, instead of Klipper's fixed five, so it can take longer, especially on the bed. HelixScreen asks for a looser fit on the bed (0.05) than on the nozzle (0.02, Kalico's own default).
+**On Kalico**, PID calibration repeats heating cycles until the last ones agree closely enough, instead of Klipper's fixed five, so it can take longer, especially on the bed. HelixScreen asks for a looser fit on the bed (0.15) than on the nozzle (0.02, Kalico's own default).
 
 > **Tip:** Run PID tuning after any hardware change (new heater, thermistor, or hotend) and with the fan speed you typically use while printing.
 

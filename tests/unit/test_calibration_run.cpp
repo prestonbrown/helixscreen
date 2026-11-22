@@ -270,6 +270,42 @@ TEST_CASE("warming the bed first adds its priced warm-up to the Z offset step on
     CHECK_FALSE(with_run_options(zoffset, off).heats);
 }
 
+TEST_CASE("picking the bed adds its minutes to the Heaters step where the bed is a choice",
+          "[calibration_run]") {
+    StepInfo heaters = step(StepKind::Heaters, "heaters");
+    heaters.minutes = 4;
+    heaters.bed_minutes = 37;
+    heaters.bed = BedTuning::Optional;
+    RunOptions with_bed;
+    with_bed.heaters_bed = true;
+
+    const StepInfo picked = with_run_options(heaters, with_bed);
+    CHECK(picked.tunes_bed);
+    CHECK(picked.minutes == 41);
+    CHECK_FALSE(with_run_options(heaters, RunOptions{}).tunes_bed);
+    CHECK(with_run_options(heaters, RunOptions{}).minutes == 4);
+
+    // A required bed is already in the step's minutes.
+    heaters.bed = BedTuning::Required;
+    heaters.tunes_bed = true;
+    heaters.minutes = 41;
+    CHECK(with_run_options(heaters, with_bed).minutes == 41);
+    // No heated bed: nothing to add.
+    heaters.bed = BedTuning::None;
+    heaters.tunes_bed = false;
+    heaters.minutes = 4;
+    CHECK_FALSE(with_run_options(heaters, with_bed).tunes_bed);
+    CHECK(with_run_options(heaters, with_bed).minutes == 4);
+}
+
+TEST_CASE("an optional Heaters step starts unticked", "[calibration_run]") {
+    StepInfo heaters = step(StepKind::Heaters, "heaters");
+    heaters.tier = Tier::Optional;
+    CHECK_FALSE(picked_by_default(heaters));
+    heaters.tier = Tier::Required;
+    CHECK(picked_by_default(heaters));
+}
+
 TEST_CASE("the run counts down what is left of the running step, not its whole estimate",
           "[calibration_run]") {
     auto entry = [](int minutes, StepStatus status, int percent) {
@@ -870,10 +906,10 @@ TEST_CASE_METHOD(RunFixture, "the screen wakes when the run ends, a step fails o
 }
 
 TEST_CASE("the heater step is priced from each heater's heating and cycles", "[calibration_run]") {
-    // A 350 mm bed under Kalico's TOLERANCE: 2 s/°C, about ten cycles of 6 min.
+    // A 350 mm bed under Kalico's TOLERANCE: 2 s/°C, about six cycles of 6 min.
     HeaterPricing nozzle{46.0f, 0.25f, false, false, true};
     HeaterPricing bed{70.0f, 2.0f, true, false, true};
-    CHECK(heaters_step_minutes({nozzle, bed}) == 67);
+    CHECK(heaters_step_minutes({nozzle, bed}) == 41);
     // The same bed on mainline Klipper's five fixed cycles.
     nozzle.tolerance = false;
     bed.tolerance = false;

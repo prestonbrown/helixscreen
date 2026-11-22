@@ -1466,3 +1466,61 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     overlay.close();
     settle();
 }
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: tuned heaters start unticked, and the bed is the owner's "
+                 "choice unless it has no tuning",
+                 "[ui_integration][calibration_run]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe", "heater_bed", "extruder"}));
+    const json pid = {{"control", "pid"}, {"pid_kp", 22.0}, {"pid_ki", 1.0}, {"pid_kd", 100.0}};
+    const bool bed_tuned = GENERATE(true, false);
+    hw.parse_calibration_in_config(bed_tuned ? json{{"extruder", pid}, {"heater_bed", pid}}
+                                             : json{{"extruder", pid}});
+    state().set_hardware(hw);
+    auto& overlay = helix::ui::get_calibration_run_overlay();
+    overlay.open();
+    settle();
+    REQUIRE(overlay.get_root() != nullptr);
+    lv_obj_t* chip = lv_obj_find_by_name(overlay.get_root(), "cal_run_heaters_bed");
+    REQUIRE(chip != nullptr);
+    lv_subject_t* bed = lv_xml_get_subject(nullptr, "cal_run_heaters_bed");
+    lv_subject_t* picked = lv_xml_get_subject(nullptr, "cal_run_picked_heaters");
+    lv_subject_t* locked = lv_xml_get_subject(nullptr, "cal_run_locked_heaters");
+    lv_subject_t* summary = lv_xml_get_subject(nullptr, "cal_run_pick_summary");
+    REQUIRE(bed != nullptr);
+    REQUIRE(picked != nullptr);
+    REQUIRE(locked != nullptr);
+    REQUIRE(summary != nullptr);
+
+    if (bed_tuned) {
+        CHECK(lv_subject_get_int(picked) == 0);
+        CHECK(lv_subject_get_int(locked) == 0);
+        CHECK(lv_obj_is_hidden(chip));
+        overlay.toggle_pick("heaters");
+        settle();
+        REQUIRE(lv_subject_get_int(picked) == 1);
+        CHECK_FALSE(lv_obj_is_hidden(chip));
+        CHECK(lv_subject_get_int(bed) == 0);
+        const std::string nozzle_only = lv_subject_get_string(summary);
+        overlay.toggle_heaters_bed();
+        settle();
+        CHECK(lv_subject_get_int(bed) == 1);
+        CHECK(std::string(lv_subject_get_string(summary)) != nozzle_only);
+        overlay.toggle_heaters_bed();
+        settle();
+        CHECK(lv_subject_get_int(bed) == 0);
+        CHECK(std::string(lv_subject_get_string(summary)) == nozzle_only);
+    } else {
+        // An untuned bed: Heaters is ticked, and the bed stays in.
+        CHECK(lv_subject_get_int(picked) == 1);
+        CHECK_FALSE(lv_obj_is_hidden(chip));
+        CHECK(lv_subject_get_int(bed) == 2);
+        overlay.toggle_heaters_bed();
+        settle();
+        CHECK(lv_subject_get_int(bed) == 2);
+    }
+
+    overlay.close();
+    settle();
+}

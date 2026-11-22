@@ -98,6 +98,17 @@ bool z_offset_is_paper_test(const CatalogInputs& in) {
            !in.nozzle_contact_probe;
 }
 
+bool heaters_all_tuned(const CatalogInputs& in) {
+    return in.nozzle_tuned && (!in.has_heated_bed || in.bed_tuned);
+}
+
+BedTuning heaters_bed_tuning(const CatalogInputs& in) {
+    if (!in.has_heated_bed) {
+        return BedTuning::None;
+    }
+    return in.bed_tuned ? BedTuning::Optional : BedTuning::Required;
+}
+
 bool known_step_id(const std::string& id) {
     return std::any_of(kSteps.begin(), kSteps.end(), [&](const StepRow& r) { return id == r.id; });
 }
@@ -167,6 +178,14 @@ std::vector<StepInfo> applicable_steps(const CatalogInputs& in) {
                 s.tier = tier;
             }
         }
+        if (row.kind == StepKind::Heaters) {
+            // Tuning that works needs no new run; only a heater with none does.
+            if (heaters_all_tuned(in)) {
+                s.tier = Tier::Optional;
+            }
+            s.bed = heaters_bed_tuning(in);
+            s.tunes_bed = s.bed == BedTuning::Required;
+        }
         out.push_back(s);
     }
     return out;
@@ -191,10 +210,11 @@ constexpr float kNozzleCycleSecondsPerRate = 120.0f;
 constexpr float kBedCycleSecondsPerRate = 180.0f;
 /// Mainline Klipper's PID_CALIBRATE runs a fixed number of cycles.
 constexpr int kFixedPidCycles = 5;
-/// Kalico's runs until its last cycles agree within TOLERANCE. A large bed at
-/// 0.05 settled on about the tenth sample; a nozzle at 0.02 settles sooner,
-/// so this overstates a nozzle a little rather than understating a bed.
-constexpr int kTolerancePidCycles = 10;
+/// Kalico's runs until its last cycles agree within TOLERANCE. A large bed's
+/// spread roughly halves each cycle (0.70 at the fourth sample, 0.30 at the
+/// fifth), so it meets its 0.15 around the sixth; a nozzle at 0.02 settles in
+/// about as many of its short cycles.
+constexpr int kTolerancePidCycles = 6;
 /// MPC_CALIBRATE holds the heater at its target while it measures heat loss.
 constexpr float kMpcMeasureSeconds = 240.0f;
 
@@ -219,6 +239,18 @@ int heaters_step_minutes(const std::vector<HeaterPricing>& heaters) {
         seconds += heater_calibration_seconds(h);
     }
     return std::max(1, static_cast<int>(std::ceil(seconds / 60.0f)));
+}
+
+void price_heaters_step(StepInfo& step, const std::vector<HeaterPricing>& heaters) {
+    std::vector<HeaterPricing> nozzle;
+    for (const auto& h : heaters) {
+        if (!h.bed) {
+            nozzle.push_back(h);
+        }
+    }
+    const int nozzle_minutes = heaters_step_minutes(nozzle);
+    step.bed_minutes = std::max(0, heaters_step_minutes(heaters) - nozzle_minutes);
+    step.minutes = nozzle_minutes + (step.tunes_bed ? step.bed_minutes : 0);
 }
 
 int total_minutes(const std::vector<StepInfo>& steps) {

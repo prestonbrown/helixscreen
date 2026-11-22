@@ -61,6 +61,10 @@ enum Prereq : uint32_t {
 };
 using PrereqSet = uint32_t;
 
+/// Whether the Heaters step tunes the bed: not at all (no heated bed), when the
+/// owner ticks it, or always (the bed has no tuning yet).
+enum class BedTuning : uint8_t { None, Optional, Required };
+
 struct StepInfo {
     StepKind kind{};
     /// Stable key, also the calibration history key.
@@ -77,6 +81,12 @@ struct StepInfo {
     PrereqSet prereqs = kPrereqNone;
     /// Position in the fixed run order; lower runs first.
     int order = 0;
+    /// Heaters: whether the bed is tuned, and whether this pick tunes it.
+    /// `minutes` counts the bed only while tunes_bed is set.
+    BedTuning bed = BedTuning::None;
+    bool tunes_bed = false;
+    /// Heaters: the minutes tuning the bed adds to the nozzle's.
+    int bed_minutes = 0;
 };
 
 /// A per-printer tier from the printer database: step id and tier.
@@ -106,6 +116,11 @@ struct CatalogInputs {
     /// The firmware sets the nozzle height itself: probe_sets_nozzle_height(), or a
     /// probe set up to touch the bed (ProbeSensorManager::z_probe_sets_z_by_touch()).
     bool probe_sets_nozzle_height = false;
+    bool has_heated_bed = false;
+    /// The config holds tuning (PID values or MPC) for the heater the Heaters
+    /// step tunes: the active extruder, the bed.
+    bool nozzle_tuned = false;
+    bool bed_tuned = false;
     std::vector<TierOverride> tier_overrides;
 };
 
@@ -114,7 +129,9 @@ inline constexpr size_t kStepCount = 13;
 /// Every step id the catalog knows, in run order, whatever the printer has.
 [[nodiscard]] const std::array<const char*, kStepCount>& all_step_ids();
 
-/// The steps this printer has, in run order.
+/// The steps this printer has, in run order. Heaters is Optional when every
+/// heater it tunes already has tuning in the config, whatever the database
+/// tier; its bed is Required while the bed has none.
 [[nodiscard]] std::vector<StepInfo> applicable_steps(const CatalogInputs& in);
 
 /// The prerequisites of every step in @p steps.
@@ -149,6 +166,11 @@ struct HeaterPricing {
 
 /// The Heaters step's whole minutes for @p heaters, at least 1; 0 for none.
 [[nodiscard]] int heaters_step_minutes(const std::vector<HeaterPricing>& heaters);
+
+/// Prices the Heaters step @p step from @p heaters (the nozzle, then the bed
+/// where there is one): `bed_minutes` is what the bed adds, `minutes` counts it
+/// only while the step tunes the bed.
+void price_heaters_step(StepInfo& step, const std::vector<HeaterPricing>& heaters);
 
 /// Database `calibration.steps` entries as overrides: entries with an unknown
 /// step id or tier are dropped.

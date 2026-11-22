@@ -28,7 +28,7 @@ namespace helix::calibration {
 [[nodiscard]] std::vector<HeaterPricing> heater_pricing(PrinterState& state);
 
 /// applicable_steps() for the connected printer, the Heaters step priced by
-/// heaters_step_minutes(). Main thread only.
+/// price_heaters_step(). Main thread only.
 [[nodiscard]] std::vector<StepInfo> current_printer_steps(PrinterState& state);
 
 } // namespace helix::calibration

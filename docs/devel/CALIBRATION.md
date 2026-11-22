@@ -38,7 +38,7 @@ cover those. The end-user view is [docs/user/guide/calibration.md](../user/guide
 | `include/ui_wizard_calibration.h`, `src/ui/wizard/ui_wizard_calibration.cpp`, `ui_xml/wizard_calibration.xml` | Setup's last page: Calibrate now or Skip for now |
 | `include/save_config_restart.h`, `src/ui/calibration/save_config_restart.cpp` | `SaveConfigWatch`: one `SAVE_CONFIG` and its real outcome; `query_restarts()` |
 | `include/save_config_live.h`, `src/printer/save_config_live.cpp` | `save_config::restart_required()`: whether a Kalico save may skip the restart |
-| `include/pid_calibrate_tolerance.h`, `src/api/pid_calibrate_tolerance.cpp` | Kalico's PID `TOLERANCE`: 0.05 for a bed, 0.02 for everything else |
+| `include/pid_calibrate_tolerance.h`, `src/api/pid_calibrate_tolerance.cpp` | Kalico's PID `TOLERANCE`: 0.15 for a bed, 0.02 for everything else |
 | `include/hardware_object_table.h`, `src/printer/hardware_object_table.cpp` | `hw::is_fallback_probe_section()`: a K2's `[prtouch]` is the Z probe only when no other probe is configured |
 | `assets/config/printer_database.json` | Per-printer tiers under `calibration.steps` |
 
@@ -155,6 +155,24 @@ Jacobean's K2 Plus:
 `tier_overrides_from()` drops any entry whose step id or tier the catalog does not know, so a typo
 in the database is ignored rather than inventing a step. A tier never makes a step appear: a step
 the printer lacks stays hidden whatever its tier says.
+
+### Heaters: tuned heaters and the bed
+
+`applicable_steps()` decides two things about the Heaters step from `CatalogInputs`'
+`has_heated_bed`, `nozzle_tuned` and `bed_tuned`, which `catalog_inputs_from()` reads from
+`PrinterDiscovery::heater_controls_in_config()` (the active extruder and `heater_bed` running
+`pid`, `pid_v` or `mpc` in the config, a vendor's shipped values included):
+
+| Config | Heaters tier | `StepInfo::bed` |
+|--------|--------------|-----------------|
+| Every heater it tunes has tuning | `Optional`, over any database tier | `BedTuning::Optional` (`None` with no heated bed) |
+| The bed has none | its tier as above (the K2 Plus: Required) | `BedTuning::Required` |
+| Only the nozzle has none | its tier as above | `BedTuning::Optional` |
+
+So a tuned printer is never told Heaters is due, and a run tunes the nozzle only unless the owner
+picks the bed, whose cycles can take most of an hour on a large bed. `StepInfo::tunes_bed` says
+whether this pick tunes it (set for a Required bed), and `price_heaters_step()` keeps the bed's
+share in `bed_minutes`, counted in `minutes` only while `tunes_bed` is set.
 
 ---
 
@@ -306,6 +324,11 @@ int run_rank(StepKind kind) {
 The Z offset goes first because it is the step that may need the owner at the printer; after it
 the owner can walk away.
 `picked_by_default()` ticks Required and Recommended steps; the run overlay locks Required ones on.
+The Heaters card's **Bed** chip (`calibration_run_option_chip`, the Z offset's warm-up
+chip's component) sets `RunOptions::heaters_bed`, offered where `StepInfo::bed` is not `None` and
+shown only while Heaters is ticked; `with_run_options()` then sets `tunes_bed` and adds
+`bed_minutes`, so the card, the Pick totals and the Running estimate follow the choice. A Required
+bed shows the chip on with a lock, and the tap changes nothing.
 
 ### The four pages
 
@@ -420,7 +443,7 @@ already runs:
 | Step | What it runs | Its result |
 |------|--------------|------------|
 | `ZOffsetStep` | The Z offset panel opened in run mode (`ZOffsetCalibrationPanel::open_for_run()`) | The value `ACCEPT` staged, read back from the pending items (`staged_z_offset()`); "Accepted at Z ..." when the firmware reports none |
-| `HeatersStep` | `get_heater_control_type()` per heater, then `MPC_CALIBRATE` where the heater already runs MPC, else `PID_CALIBRATE`: the active extruder at 210 °C, then the bed at 60 °C when there is one (`kRunNozzleTempC`, `kRunBedTempC`) | Each heater's gains or model, joined |
+| `HeatersStep` | `get_heater_control_type()` per heater, then `MPC_CALIBRATE` where the heater already runs MPC, else `PID_CALIBRATE`: the active extruder at 210 °C, then the bed at 60 °C when the pick tunes it (`StepInfo::tunes_bed`; `kRunNozzleTempC`, `kRunBedTempC`) | Each heater's gains or model, joined |
 | `BedMeshStep` | The bed mesh panel's own calibration into the default profile, without its questions, toasts or save prompt (`BedMeshPanel::calibrate_for_run()`) | The stored mesh's range, or its profile name |
 | `InputShaperStep` | `InputShaperCalibrator::run_both_axes()`: the accelerometer noise check, then X, then Y | Both axes' shaper and frequency |
 
@@ -486,19 +509,20 @@ bed could run for most of an hour at the default. Discovery marks Kalico from `p
 ```cpp
 // Kalico's own default (pid_calibrate.py TUNE_PID_TOL).
 constexpr double kHotendTolerance = 0.02;
-// Kalico's docs: noisy readings need 0.03 or more; a bed's cycles run for
-// minutes each, so it settles for a looser fit.
-constexpr double kBedTolerance = 0.05;
+// Kalico's docs: noisy readings need 0.03 or more. A bed's cycles run for
+// minutes each, and a large bed's spread falls to 0.15 in about six of them
+// where 0.05 takes about nine, so it settles for the looser fit.
+constexpr double kBedTolerance = 0.15;
 ```
 
-`calibrate_command()` appends `TOLERANCE=0.05` for `heater_bed` and `TOLERANCE=0.02` for any other
+`calibrate_command()` appends `TOLERANCE=0.15` for `heater_bed` and `TOLERANCE=0.02` for any other
 heater on Kalico, and nothing on mainline. `MoonrakerAdvancedAPI::start_pid_calibrate()` builds
 its command through it, so the Heaters screen and the guided run send the same thing.
 
 The PID progress collector parses each `sample:N pwm:... asymmetry:... tolerance:...` line
 (asymmetry may be negative). The heater step turns it into progress
 (`HeatersStep::report_pid_cycle()`): with a tolerance target the bar follows how close the cycles
-are on a log scale, and the phase line reads "Bed: PID at 60°C · cycle 4, 0.27 (needs 0.05)";
+are on a log scale, and the phase line reads "Bed: PID at 60°C · cycle 4, 0.70 (needs 0.15)";
 without one it counts cycles out of `PidProgressTracker::kExpectedCycles`. Each heater's share of
 the step's bar is its share of the step's priced time (below), so the bed's hour is not half the bar.
 
@@ -515,9 +539,9 @@ than `kPidTimeoutMs`.
 Heaters step from each heater's `HeaterPricing`: the thermal model's heating seconds to the
 calibration temperature, plus the cycles a PID calibration runs times a cycle length that scales
 with the heater's whole-climb rate (`ThermalRateModel::climb_rate()`), slower for a bed's mass.
-Mainline runs five cycles; Kalico's tolerance mode is priced at ten, which is where a large bed at
-0.05 settled. A heater already on MPC is priced as heating plus a fixed measurement.
-`current_printer_steps()` applies it, so the Pick page, the Calibration screen's banner, setup's
+Mainline runs five cycles; Kalico's tolerance mode is priced at six: a large bed's spread roughly
+halves each cycle (0.70 at the fourth sample, 0.30 at the fifth), so it meets 0.15 around the sixth. A heater already on MPC is priced as heating plus a fixed measurement.
+`current_printer_steps()` applies it through `price_heaters_step()`, so the Pick page, the Calibration screen's banner, setup's
 last page and the Running page's countdown all read the same number.
 
 ### Stopping: the least destructive stop

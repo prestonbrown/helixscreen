@@ -36,13 +36,16 @@ struct RunOptions {
     /// The warm-up's minutes, which the caller prices from the shared thermal
     /// model (ThermalRateManager) for the bed as it is now.
     int zoffset_warm_bed_minutes = 0;
+    /// The Heaters step tunes the bed too, where the bed is the owner's choice.
+    bool heaters_bed = false;
 };
 
 /// Whole minutes for @p heating_seconds of heating; 0 when nothing is left to heat.
 [[nodiscard]] int heating_minutes(float heating_seconds);
 
 /// @p step as a run with @p options runs it: a warmed Z offset takes the
-/// warm-up's minutes longer and heats the bed.
+/// warm-up's minutes longer and heats the bed; Heaters with the bed picked
+/// tunes it and takes its minutes longer.
 [[nodiscard]] StepInfo with_run_options(StepInfo step, const RunOptions& options);
 
 /// One line of the "Before you start" list: a prerequisite and the picked steps

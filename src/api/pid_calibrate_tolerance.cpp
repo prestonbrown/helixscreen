@@ -10,9 +10,10 @@ namespace helix::pid {
 namespace {
 // Kalico's own default (pid_calibrate.py TUNE_PID_TOL).
 constexpr double kHotendTolerance = 0.02;
-// Kalico's docs: noisy readings need 0.03 or more; a bed's cycles run for
-// minutes each, so it settles for a looser fit.
-constexpr double kBedTolerance = 0.05;
+// Kalico's docs: noisy readings need 0.03 or more. A bed's cycles run for
+// minutes each, and a large bed's spread falls to 0.15 in about six of them
+// where 0.05 takes about nine, so it settles for the looser fit.
+constexpr double kBedTolerance = 0.15;
 } // namespace
 
 std::optional<double> calibrate_tolerance(bool takes_tolerance, std::string_view heater) {

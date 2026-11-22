@@ -59,6 +59,11 @@ CatalogInputs catalog_inputs_from(const PrinterState& state) {
     in.nozzle_contact_probe = sensors::probe_contacts_nozzle(probe);
     in.probe_sets_nozzle_height = sensors::probe_sets_nozzle_height(probe) ||
                                   sensors::ProbeSensorManager::instance().z_probe_sets_z_by_touch();
+    const auto& hardware = state.get_discovery();
+    const auto& controls = hardware.heater_controls_in_config();
+    in.has_heated_bed = hardware.has_heater_bed();
+    in.nozzle_tuned = controls.count(state.temperature_state().active_extruder_name()) != 0;
+    in.bed_tuned = controls.count("heater_bed") != 0;
     if (!profile.printer_type().empty()) {
         in.tier_overrides = tier_overrides_from(
             PrinterDetector::get_calibration_step_tiers(profile.printer_type()));
@@ -99,7 +104,7 @@ std::vector<StepInfo> current_printer_steps(PrinterState& state) {
     auto steps = applicable_steps(catalog_inputs_from(state));
     for (auto& s : steps) {
         if (s.kind == StepKind::Heaters) {
-            s.minutes = heaters_step_minutes(heater_pricing(state));
+            price_heaters_step(s, heater_pricing(state));
         }
     }
     return steps;

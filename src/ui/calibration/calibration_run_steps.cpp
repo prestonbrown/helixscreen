@@ -69,7 +69,7 @@ class HeatersStep : public CalibrationStep {
         values_ = nlohmann::json::object();
         heaters_.push_back(
             {ctx.api.printer_state().temperature_state().active_extruder_name(), kRunNozzleTempC});
-        if (ctx.api.hardware().has_heater_bed()) {
+        if (info_.tunes_bed) {
             heaters_.push_back({kBedHeater, kRunBedTempC});
         }
         // Each heater's share of the bar is its share of the step's time: a

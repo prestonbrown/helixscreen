@@ -101,6 +101,9 @@ class CalibrationRunOverlay : public OverlayBase {
     void toggle_pick(const std::string& step_id);
     /// The Z offset card's "Warm the bed first".
     void toggle_zoffset_warm_bed();
+    /// The Heaters card's Bed chip. A bed with no tuning is tuned
+    /// whatever the choice (calibration::BedTuning::Required).
+    void toggle_heaters_bed();
     void toggle_prereq(const std::string& prereq_id);
     void next();
     void back();
@@ -150,6 +153,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::array<bool, kPrereqs> ticked_{};
     /// "Warm the bed first" on the Z offset card.
     bool zoffset_warm_bed_ = false;
+    /// The Bed chip on the Heaters card, where the bed is the owner's choice.
+    bool heaters_bed_ = false;
     /// Each step's value when the run started: the history changes as soon as Save all lands.
     std::array<std::string, kSteps> before_text_{};
     std::unique_ptr<calibration::CalibrationRun> run_;
@@ -195,6 +200,9 @@ class CalibrationRunOverlay : public OverlayBase {
     /// The Z offset card's warm-up option: whether it shows, and whether it is on.
     helix::Subject zoffset_warm_shown_;
     helix::Subject zoffset_warm_;
+    /// The Heaters card's bed option: whether it shows, and 0 off, 1 on, 2 required.
+    helix::Subject heaters_bed_shown_;
+    helix::Subject heaters_bed_subj_;
 
     std::array<helix::Subject, kSteps> shown_{};
     std::array<helix::Subject, kSteps> picked_subj_{};

@@ -188,6 +188,8 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps tell the live
     heaters.kind = StepKind::Heaters;
     heaters.id = "heaters";
     heaters.name = "Heaters";
+    // The bed is calibrated only when the pick tunes it.
+    heaters.tunes_bed = GENERATE(false, true);
     StepInfo shaper;
     shaper.kind = StepKind::InputShaper;
     shaper.id = "input_shaper";
@@ -214,7 +216,8 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps tell the live
     REQUIRE(wait_until([&] { return run->phase() == RunPhase::Results; }, 30000));
     REQUIRE(heater_targets.count("extruder") == 1);
     CHECK(heater_targets["extruder"] == kRunNozzleTempC);
-    if (heater_targets.count("heater_bed")) {
+    REQUIRE(heater_targets.count("heater_bed") == (heaters.tunes_bed ? 1u : 0u));
+    if (heaters.tunes_bed) {
         CHECK(heater_targets["heater_bed"] == kRunBedTempC);
     }
     CHECK(swept_axes == std::set<char>{'X', 'Y'});
@@ -329,6 +332,7 @@ TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER
     heaters.kind = StepKind::Heaters;
     heaters.id = "heaters";
     heaters.name = "Heaters";
+    heaters.tunes_bed = true;
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
     hw.parse_calibration_in_config(
@@ -343,6 +347,10 @@ TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER
             *api, "heaters", "Nozzle 22.1 / 1.08 / 113 · Bed 70.0 / 1.20 / 900",
             {{"extruder", {{"control", "pid"}}}, {"heater_bed", {{"control", "pid"}}}});
         CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle PID · bed PID");
+    }
+    SECTION("a run that leaves the bed out has only the nozzle") {
+        heaters.tunes_bed = false;
+        CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle PID");
     }
     SECTION("a printer without a heated bed has only the nozzle") {
         helix::PrinterDiscovery no_bed;

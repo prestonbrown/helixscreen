@@ -88,6 +88,11 @@ StepInfo with_run_options(StepInfo step, const RunOptions& options) {
         step.minutes += std::max(0, options.zoffset_warm_bed_minutes);
         step.heats = true;
     }
+    if (step.kind == StepKind::Heaters && step.bed == BedTuning::Optional && options.heaters_bed &&
+        !step.tunes_bed) {
+        step.tunes_bed = true;
+        step.minutes += step.bed_minutes;
+    }
     return step;
 }
 

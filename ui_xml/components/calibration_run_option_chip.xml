@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- An option of one step on the guided run's Pick page, in the step row's
+     `extra` slot: the Z offset's "Warm the bed first", the Heaters' "Bed".
+     Outlined while off, warning tinted while on. The int `subject` reads 0
+     off, 1 on, 2 on and required (a lock in place of the icon; a tap changes
+     nothing the run does). `hidden_when` hides the chip, usually while its
+     step is not picked. -->
+<component>
+  <api>
+    <prop name="subject" type="string"/>
+    <prop name="hidden_when" type="string"/>
+    <prop name="text" type="string" default=""/>
+    <prop name="text_tag" type="string" default=""/>
+    <prop name="icon" type="string" default="fire"/>
+    <prop name="callback" type="string"/>
+  </api>
+  <consts>
+    <px name="chip_radius" value="10"/>
+  </consts>
+  <styles>
+    <style name="chip_off" bg_opa="0" border_color="#border"/>
+    <style name="chip_on" bg_color="#warning" bg_opa="38" border_color="#warning"/>
+    <style name="chip_text_off" text_color="#text_muted"/>
+    <style name="chip_text_on" text_color="#warning"/>
+  </styles>
+  <view extends="lv_button"
+        width="content" height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xxs" style_pad_gap="#space_xs"
+        style_radius="#chip_radius" style_border_width="1" style_border_opa="255" style_shadow_width="0" flex_flow="row"
+        style_flex_cross_place="center" scrollable="false">
+    <bind_flag_if cond="$hidden_when" flag="hidden"/>
+    <bind_style_if name="chip_off" cond="${subject} eq 0"/>
+    <bind_style_if name="chip_on" cond="${subject} ge 1"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <icon src="$icon" size="xs" variant="muted" clickable="false" event_bubble="true">
+      <bind_flag_if cond="${subject} ne 0" flag="hidden"/>
+    </icon>
+    <icon src="$icon" size="xs" variant="warning" clickable="false" event_bubble="true">
+      <bind_flag_if cond="${subject} ne 1" flag="hidden"/>
+    </icon>
+    <icon src="lock" size="xs" variant="warning" clickable="false" event_bubble="true">
+      <bind_flag_if cond="${subject} ne 2" flag="hidden"/>
+    </icon>
+    <text_small name="option_chip_text"
+                text="$text" translation_tag="$text_tag" style_text_font="#cal_font_detail" clickable="false"
+                event_bubble="true">
+      <bind_style_if name="chip_text_off" cond="${subject} eq 0"/>
+      <bind_style_if name="chip_text_on" cond="${subject} ge 1"/>
+    </text_small>
+    <event_cb trigger="clicked" callback="$callback"/>
+  </view>
+</component>

@@ -224,6 +224,78 @@ TEST_CASE("the K2 Plus on Jacobean firmware gets its database tiers", "[calibrat
     CHECK((prerequisites_for(steps) & kPrereqPaper) == 0);
 }
 
+TEST_CASE("Heaters is optional once every heater it tunes has tuning in the config",
+          "[calibration_catalog]") {
+    CatalogInputs in = k2_jacobean();
+    in.has_heated_bed = true;
+    in.nozzle_tuned = true;
+    in.bed_tuned = true;
+    const auto steps = applicable_steps(in);
+    const StepInfo* heaters = step_named(steps, "heaters");
+    REQUIRE(heaters != nullptr);
+    // Over the database's Required: tuning that works needs no new run.
+    CHECK(heaters->tier == Tier::Optional);
+    // The bed is the owner's choice, left out until picked.
+    CHECK(heaters->bed == BedTuning::Optional);
+    CHECK_FALSE(heaters->tunes_bed);
+
+    SECTION("a printer without a heated bed needs only its nozzle tuned") {
+        in.has_heated_bed = false;
+        in.bed_tuned = false;
+        const auto bedless = applicable_steps(in);
+        CHECK(step_named(bedless, "heaters")->tier == Tier::Optional);
+        CHECK(step_named(bedless, "heaters")->bed == BedTuning::None);
+        CHECK_FALSE(step_named(bedless, "heaters")->tunes_bed);
+    }
+}
+
+TEST_CASE("a heater with no tuning keeps Heaters at its tier, and an untuned bed is required",
+          "[calibration_catalog]") {
+    CatalogInputs in = k2_jacobean();
+    in.has_heated_bed = true;
+
+    SECTION("an untuned bed") {
+        in.nozzle_tuned = true;
+        const StepInfo* heaters = step_named(applicable_steps(in), "heaters");
+        CHECK(heaters->tier == Tier::Required);
+        CHECK(heaters->bed == BedTuning::Required);
+        CHECK(heaters->tunes_bed);
+    }
+    SECTION("an untuned nozzle leaves a tuned bed to the owner") {
+        in.bed_tuned = true;
+        const StepInfo* heaters = step_named(applicable_steps(in), "heaters");
+        CHECK(heaters->tier == Tier::Required);
+        CHECK(heaters->bed == BedTuning::Optional);
+        CHECK_FALSE(heaters->tunes_bed);
+    }
+    SECTION("no database tier: the default") {
+        in.tier_overrides.clear();
+        in.bed_tuned = true;
+        CHECK(step_named(applicable_steps(in), "heaters")->tier == Tier::Recommended);
+    }
+}
+
+TEST_CASE("the Heaters step counts the bed's minutes only while it tunes the bed",
+          "[calibration_catalog]") {
+    const HeaterPricing nozzle{46.0f, 0.25f, false, false, true};
+    const HeaterPricing bed{70.0f, 2.0f, true, false, true};
+    const int nozzle_only = heaters_step_minutes({nozzle});
+    const int both = heaters_step_minutes({nozzle, bed});
+    REQUIRE(both > nozzle_only);
+
+    StepInfo step;
+    step.kind = StepKind::Heaters;
+    step.bed = BedTuning::Optional;
+    price_heaters_step(step, {nozzle, bed});
+    CHECK(step.minutes == nozzle_only);
+    CHECK(step.bed_minutes == both - nozzle_only);
+
+    step.bed = BedTuning::Required;
+    step.tunes_bed = true;
+    price_heaters_step(step, {nozzle, bed});
+    CHECK(step.minutes == both);
+}
+
 TEST_CASE("a printer without database tiers gets the defaults", "[calibration_catalog]") {
     CHECK(PrinterDetector::get_calibration_step_tiers("Some Random Printer").empty());
     CatalogInputs in;
