@@ -5605,9 +5605,9 @@ void check_head_writes(const FilamentRecordHarness& h, int head, const std::stri
 }
 
 /// Head 0 holds a declared Polymaker PLA in red, echoed, with its spool in
-/// the feeder port. The user then edits it to PETG in blue, and the firmware
-/// has not stated the edit yet.
-void edit_head0_unechoed(FilamentRecordHarness& h) {
+/// the feeder port. The user then edits it to @p edit (PETG in blue), and the
+/// firmware has not stated the edit yet.
+void edit_head0_unechoed(FilamentRecordHarness& h, const SlotInfo& edit = petg_blue()) {
     h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
     SlotInfo pla = polymaker_asa();
     pla.material = "PLA";
@@ -5617,10 +5617,21 @@ void edit_head0_unechoed(FilamentRecordHarness& h) {
     h.frame(make_head_record(0, "PLA", "FF0000FF"));
     h.printer.client.clear_gcode_script_history();
 
-    helix::test::edit_slot_as_user(h.backend, 0, petg_blue());
+    helix::test::edit_slot_as_user(h.backend, 0, edit);
     FilamentRecordHarness::drain();
     REQUIRE(h.config_writes().size() == 2);
     h.printer.client.clear_gcode_script_history();
+}
+
+SlotInfo petg_blue_translucent() {
+    SlotInfo edit = petg_blue();
+    edit.translucent = true;
+    return edit;
+}
+
+/// Blue at the alpha a translucent filament is written with.
+std::string blue_translucent_rgba() {
+    return fmt::format("0000FF{:02X}", helix::filament_alpha(true));
 }
 
 /// Heads 0 and 2 each hold a declared spool resting in the feeder port.
@@ -5774,6 +5785,28 @@ TEST_CASE_METHOD(SnapmakerFixture,
         h.frame(make_head_record(0, "PLA", "FF0000FF"));
         h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
         CHECK(writes_for_head(h, 0) == 0);
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes a translucent edit the firmware has not echoed back with its "
+                 "alpha",
+                 "[ams][snapmaker][filament_record][record_drift][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("drift_restore_unechoed_translucent");
+    edit_head0_unechoed(h, petg_blue_translucent());
+
+    SECTION("a frame from before the edit, then the firmware's clear") {
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", blue_translucent_rgba());
+    }
+    SECTION("a frame naming the edit's type and color but full opacity is no echo") {
+        h.frame(make_head_record(0, "PETG", "0000FFFF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", blue_translucent_rgba());
     }
 }
 

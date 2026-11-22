@@ -1183,6 +1183,7 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     struct SentRecord {
         std::string material;
         uint32_t color_rgb = 0;
+        bool translucent = false;
         bool unechoed = false;
         std::string replaced_material;
     };

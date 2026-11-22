@@ -1645,8 +1645,9 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
             // and a restore before that echo writes this edit again.
             record_restores_made_[idx] = 0;
             note_record_written_locked(idx);
-            sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu,
-                                           /*unechoed=*/true, task_type_[idx].value_or("")};
+            sent_record_[idx] =
+                SentRecord{info.material, info.color_rgb & 0xFFFFFFu, info.translucent,
+                           /*unechoed=*/true, task_type_[idx].value_or("")};
         } else if (task_type_[idx].has_value()) {
             // The record already states this edit, or a tag owns it.
             forget_unechoed_edit_locked(idx);
@@ -3616,7 +3617,8 @@ void AmsBackendSnapmaker::settle_unechoed_edit_locked(size_t idx) {
     }
     const std::string& type = *task_type_[idx];
     if (helix::text_io::equals_ignore_case(type, sent->material)) {
-        if (!task_color_[idx] || *task_color_[idx] == sent->color_rgb) {
+        if (!task_color_[idx] ||
+            (*task_color_[idx] == sent->color_rgb && task_translucent_[idx] == sent->translucent)) {
             sent->unechoed = false;
         }
         return;
@@ -3655,6 +3657,7 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     if (const SentRecord* edit = unechoed_edit_locked(head)) {
         restore.material = edit->material;
         restore.color_rgb = edit->color_rgb;
+        restore.translucent = edit->translucent;
     } else if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
         if (!ovr->second.material.empty()) {
             restore.material = ovr->second.material;
