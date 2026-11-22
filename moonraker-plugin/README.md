@@ -77,18 +77,13 @@ plugin yet or only the config changed, and `POST /machine/services/restart` for 
 Moonraker reports as its own when it runs another plugin version, which only a new process
 reads.
 
-### Update Manager (Auto-Updates)
+### Updates
 
-To enable automatic updates via Moonraker's update manager, add to `moonraker.conf`:
-
-```ini
-[update_manager helix_print]
-type: git_repo
-origin: https://github.com/prestonbrown/helixscreen.git
-path: ~/helix_print
-primary_branch: main
-managed_services: moonraker
-```
+The plugin has no `[update_manager helix_print]` entry. Moonraker's updater follows a git
+branch or a release zip, and neither is the plugin of the app's release, so the app keeps
+the plugin matched to itself: after the app updates, run the command it shows again.
+`install.sh` removes an `[update_manager helix_print]` entry left from an older setup when the
+Moonraker link points at the tree it installs.
 
 ## Configuration
 
