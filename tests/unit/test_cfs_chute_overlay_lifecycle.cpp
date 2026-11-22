@@ -7,13 +7,16 @@
 #include "ui_test_utils.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/armed_timers.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/process_async_timers.h"
 #include "../ui_test_utils.h"
 #include "ams_backend_mock.h"
 #include "ams_cfs_calibration.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "chute_jog_guard.h"
+#include "core/coalesced_timer.h"
 #include "core/update_queue.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "misc/lv_timer_private.h"
@@ -22,7 +25,7 @@
 #include "settings_manager.h"
 
 #include <array>
-#include <set>
+#include <functional>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -197,25 +200,15 @@ class ChuteOverlayFixture : public LVGLUITestFixture {
     }
 
     /// A press held past several repeat intervals, then released. The harness
-    /// pauses periodic timers, so the timer the press armed is fired by hand.
+    /// pauses periodic timers, so the periodic timer the press armed is fired by
+    /// hand; one-shots armed meanwhile are left to process_lvgl().
     void hold_pad(double dx, double dy) {
-        std::set<lv_timer_t*> before;
-        for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            before.insert(t);
-        }
+        const helix::test::TimerSnapshot before;
         REQUIRE(UITest::press_at(pad_x_ + static_cast<int32_t>(dx * pad_radius_),
                                  pad_y_ + static_cast<int32_t>(dy * pad_radius_)));
         for (int i = 0; i < 40; ++i) {
             process_lvgl(50);
-            std::vector<lv_timer_t*> armed;
-            for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-                if (before.count(t) == 0 && t->timer_cb && t->repeat_count != 0) {
-                    armed.push_back(t);
-                }
-            }
-            for (lv_timer_t* t : armed) {
-                t->timer_cb(t);
-            }
+            helix::test::fire_new_periodic_timers(before);
         }
         REQUIRE(UITest::release());
         process_lvgl(50);
@@ -391,6 +384,27 @@ TEST_CASE_METHOD(ChuteOverlayFixture,
         hold_pad(kInnerRing, 0.0);
         CHECK(backend->x_jogs.size() == at_park + 1);
     }
+}
+
+TEST_CASE_METHOD(ChuteOverlayFixture,
+                 "A held jog leaves a one-shot that re-arms itself to its period",
+                 "[ams][cfs][chute_overlay]") {
+    reach_settled_park();
+    // A trailing debounce that is not due yet re-arms from its own callback,
+    // the way NavigationManager's heap trim waits out its interval.
+    int fires = 0;
+    helix::ui::CoalescedTimer rearming(100);
+    std::function<void()> rearm = [&]() {
+        ++fires;
+        rearming.schedule(rearm);
+    };
+    rearming.schedule(rearm);
+
+    hold_pad(kInnerRing, 0.0);
+
+    REQUIRE(fires > 0);
+    CHECK(fires <= 25);
+    CHECK(helix::test::armed_timer_count(&rearming) == 1);
 }
 
 TEST_CASE_METHOD(ChuteOverlayFixture, "The chute overlay stops Y short of the backend's wiper",

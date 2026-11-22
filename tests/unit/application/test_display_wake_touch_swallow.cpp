@@ -30,6 +30,7 @@
 #include "lvgl_test_fixture.h"
 #include "misc/lv_timer_private.h" // period/last_run/timer_cb: fires the wake's own timers
 #include "test_helpers/display_manager_test_access.h"
+#include "test_helpers/process_async_timers.h"
 #include "wake_touch_latch.h"
 
 #if HELIX_ENABLE_SCREENSAVER
@@ -293,8 +294,7 @@ class WakeChain {
                 return;
             }
             fired.push_back(due);
-            due->last_run = lv_tick_get();
-            due->timer_cb(due);
+            helix::test::fire_timer_once(due);
         }
     }
 

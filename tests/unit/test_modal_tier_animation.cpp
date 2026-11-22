@@ -7,6 +7,7 @@
 #include "ui_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/process_async_timers.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -55,8 +56,7 @@ void fire_one_shots_before_queue() {
             t = lv_timer_get_next(t);
         if (!t)
             return;
-        t->repeat_count--;
-        t->timer_cb(t);
+        helix::test::fire_timer_once(t);
     }
 }
 
