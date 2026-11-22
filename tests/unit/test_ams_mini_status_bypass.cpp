@@ -66,7 +66,7 @@ void settle() {
 }
 
 /// A strip in a box @p width px wide, so layout measures what a grid cell gives it.
-lv_obj_t* make_strip(lv_obj_t* screen, int width, int height = 60) {
+lv_obj_t* make_strip(lv_obj_t* screen, int width, int height = 100) {
     lv_obj_t* box = lv_obj_create(screen);
     lv_obj_set_size(box, width, height);
     lv_obj_set_style_pad_all(box, 0, LV_PART_MAIN);
@@ -223,7 +223,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     install_mock(std::move(mock));
     REQUIRE(AmsState::instance().system_info()->units.size() >= 2);
 
-    lv_obj_t* w = make_strip(test_screen(), 130, 80);
+    lv_obj_t* w = make_strip(test_screen(), 130, 100);
     lv_obj_t* col = bypass_column(w);
     REQUIRE(shown(col));
     // Not in any unit's row: a sibling of the rows' container.
@@ -315,7 +315,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Six lanes in a short two-column home cell: more than fit, so the lanes
     // scroll, and the row is short enough that a spool reaches its bottom edge.
-    lv_obj_t* w = make_strip(test_screen(), 230, 70);
+    lv_obj_t* w = make_strip(test_screen(), 230, 100);
     // Fill the cell's height, as the home grid's XML host does.
     lv_obj_set_height(w, lv_pct(100));
     lv_obj_update_layout(test_screen());

@@ -34,6 +34,10 @@ struct ToolBadgeColors {
 /// contrast-adjusted label color.
 ToolBadgeColors tool_badge_colors(bool is_override);
 
+/// Label an ams_tool_badge component with @p tool ("T0"), its fill marking a user
+/// override, its label in tool_badge_colors()' contrast color.
+void paint_tool_badge(lv_obj_t* badge, int tool, bool is_override);
+
 struct ToolBadgeLook {
     int32_t height, min_width, pad_h, radius, inset;
     lv_opa_t bg_opa;

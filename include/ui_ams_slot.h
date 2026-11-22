@@ -96,6 +96,11 @@ namespace helix::ui {
  * @param right_inset Pixels off the right edge that belong to the right neighbour
  */
 void ams_slot_set_hit_band(lv_obj_t* obj, int32_t left_inset, int32_t right_inset);
+
+/// Whether a lane's tool badge tells the user anything on this rig: false when
+/// the backend draws the tool elsewhere (a tool changer's toolhead labels) or
+/// every tool feeds the lane of its own number (tool_badges_add_information()).
+bool slot_tool_badges_informative();
 } // namespace helix::ui
 
 /**

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The hairline that sets the AMS mini strip's bypass apart from the units'
+       lanes. In the spool view it stands at a fixed share of the row; in the
+       bar view the strip sizes it from the measured bar body. -->
+  <api>
+    <prop name="height" type="string" default="80%"/>
+  </api>
+  <view name="bypass_divider"
+        extends="lv_obj" width="1" height="$height" style_pad_all="0" style_border_width="0" style_radius="0"
+        style_bg_color="#border" style_bg_opa="255" scrollable="false" clickable="false" event_bubble="true"/>
+</component>

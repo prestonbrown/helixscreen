@@ -106,7 +106,6 @@ struct AmsSlotData {
     lv_obj_t* status_badge_bg = nullptr; // Status badge background (colored circle)
     lv_obj_t* slot_badge = nullptr;      // Slot number label inside status badge
     lv_obj_t* tool_badge_bg = nullptr;   // Tool badge background (top-left corner)
-    lv_obj_t* tool_badge = nullptr;      // Tool badge label (T0, T1, etc.)
     lv_obj_t* container = nullptr;       // The ams_slot widget itself
     lv_obj_t* lane_humidity = nullptr;   // Droplet + value row, under a per-lane lid
     lv_obj_t* lane_humidity_text = nullptr; // The row's value
@@ -574,6 +573,17 @@ static void evaluate_pulse_state(AmsSlotData* data) {
     }
 }
 
+bool helix::ui::slot_tool_badges_informative() {
+    // Tool changers: the badge repeats the toolhead label.
+    auto* backend = AmsState::instance().get_backend();
+    if (backend && backend->should_hide_slot_tool_badge())
+        return false;
+    // A tool feeding the lane of its own number only repeats the lane badge.
+    if (const auto info = AmsState::instance().system_info(0))
+        return helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots);
+    return true;
+}
+
 /**
  * @brief Update tool badge based on slot's mapped_tool value
  *
@@ -588,35 +598,18 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         return;
     }
 
-    // Tool changers: badge is redundant with toolhead label below
-    auto* backend = AmsState::instance().get_backend();
-    if (backend && backend->should_hide_slot_tool_badge()) {
+    if (!helix::ui::slot_tool_badges_informative()) {
         lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
         return;
     }
 
-    // A tool feeding the lane of its own number only repeats the lane badge.
-    if (const auto info = AmsState::instance().system_info(0)) {
-        if (!helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots)) {
-            lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
-            return;
-        }
-    }
-
     if (mapped_tool >= 0) {
-        // Tool is mapped - show badge with tool number
-        const std::string tool_text = helix::ui::tool_label(mapped_tool);
-        lv_label_set_text(data->tool_badge, tool_text.c_str());
-        lv_obj_remove_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
-
         // Warning for user overrides, muted for firmware defaults; the toolhead
         // badge takes the same colors.
-        const helix::ui::ToolBadgeColors colors = helix::ui::tool_badge_colors(is_override);
-        lv_obj_set_style_bg_color(data->tool_badge_bg, colors.bg, LV_PART_MAIN);
-        if (data->tool_badge)
-            lv_obj_set_style_text_color(data->tool_badge, colors.text, LV_PART_MAIN);
-        spdlog::trace("[AmsSlot] Slot {} tool badge: {} (override={})", data->slot_index, tool_text,
-                      is_override);
+        helix::ui::paint_tool_badge(data->tool_badge_bg, mapped_tool, is_override);
+        lv_obj_remove_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
+        spdlog::trace("[AmsSlot] Slot {} tool badge: T{} (override={})", data->slot_index,
+                      mapped_tool, is_override);
     } else {
         // No tool mapped - hide badge
         lv_obj_add_flag(data->tool_badge_bg, LV_OBJ_FLAG_HIDDEN);
@@ -922,7 +915,6 @@ static void* ams_slot_xml_create(lv_xml_parser_state_t* state, const char** attr
     data->status_badge_bg = helix::ui::find_required(obj, "status_badge", "AmsSlot");
     data->slot_badge = helix::ui::find_required(obj, "slot_badge_label", "AmsSlot");
     data->tool_badge_bg = helix::ui::find_required(obj, "tool_badge", "AmsSlot");
-    data->tool_badge = helix::ui::find_required(obj, "tool_badge_label", "AmsSlot");
     data->lane_humidity = lv_obj_find_by_name(obj, "lane_humidity");
     data->lane_humidity_text = lv_obj_find_by_name(obj, "lane_humidity_text");
     data->lane_humidity_drop = lv_obj_find_by_name(obj, "lane_humidity_icon");

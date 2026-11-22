@@ -187,7 +187,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: idle unload clears the lane highl
     set_slot(mock, 1, SlotStatus::AVAILABLE, "ABS");
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260); // spool mode
     helix::ui::UpdateQueue::instance().drain();
 
@@ -222,7 +222,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: idle unload clears the bar-view o
     set_slot(mock, 1, SlotStatus::AVAILABLE, "ABS");
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 130); // bar mode
     helix::ui::UpdateQueue::instance().drain();
 
@@ -263,7 +263,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: per-slot authority beats a stale 
     REQUIRE(mock->get_slot_info(1).status == SlotStatus::LOADED);
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260);
     helix::ui::UpdateQueue::instance().drain();
 
@@ -304,7 +304,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(mock->get_slot_info(1).spool_name.empty());
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260);
     helix::ui::UpdateQueue::instance().drain();
 
@@ -318,11 +318,18 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     // Assigned lane: material kept, and dimmed in lockstep with the spool visual.
     CHECK(std::string(lv_label_get_text(mat0)) == "PETG");
-    CHECK(lv_obj_get_style_text_opa(mat0, LV_PART_MAIN) == LV_OPA_30);
+    CHECK(lv_obj_get_style_text_opa(mat0, LV_PART_MAIN) == ams_draw::kGhostOpa);
+    // The percent line dims with it, so the lane's text reads as one group.
+    lv_obj_t* pct0 = UITest::find_by_name(w, "spool_pct_0");
+    REQUIRE(pct0 != nullptr);
+    CHECK(lv_obj_get_style_text_opa(pct0, LV_PART_MAIN) == ams_draw::kGhostOpa);
 
     // Unassigned lane: names its purpose, at full strength (nothing to ghost).
     CHECK(std::string(lv_label_get_text(mat1)) == std::string(lv_tr("Empty")));
     CHECK(lv_obj_get_style_text_opa(mat1, LV_PART_MAIN) == LV_OPA_COVER);
+    lv_obj_t* pct1 = UITest::find_by_name(w, "spool_pct_1");
+    REQUIRE(pct1 != nullptr);
+    CHECK(lv_obj_get_style_text_opa(pct1, LV_PART_MAIN) == LV_OPA_COVER);
 
     lv_obj_delete(w);
     teardown_ams();
@@ -347,7 +354,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: spent lane keeps the shared fill 
     REQUIRE(shared_floor > 0);
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 130); // bar mode exposes the fill element
     helix::ui::UpdateQueue::instance().drain();
 
@@ -391,7 +398,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: an absent unit's bays draw no cel
     REQUIRE(cfs->get_system_info().slot_absent(5));
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 600); // spool mode
     helix::ui::UpdateQueue::instance().drain();
     ams.sync_from_backend();
