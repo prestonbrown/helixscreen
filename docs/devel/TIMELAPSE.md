@@ -99,7 +99,7 @@ Layer mode ("layermacro") captures a frame only when the print runs `TIMELAPSE_T
 **The choices** are carried by `PrintStartController::timelapse_choice_` into the start:
 
 - **Timelapse Off**: `PrintPreparationManager::force_start_option_off("timelapse")` for that one `start_print()`, so the usual `timelapse:off` write goes out.
-- **Use Hyperlapse**: once Moonraker accepts the start, `TimelapseState::record_print_as_hyperlapse()` POSTs `mode=hyperlapse` and arms a `PrintEndLatch` on the print lifecycle; at that print's Complete/Cancelled/Error it POSTs `mode=layermacro`. The plugin has no per-print mode, but a mode POST during a print starts or stops its HYPERLAPSE loop at once (`webrequest_settings` in the plugin's component, [timelapse.py](https://github.com/mainsail-crew/moonraker-timelapse/blob/main/component/timelapse.py)), so switching after the start is safe. A HelixScreen restart mid-print loses the restore and leaves the plugin in Hyperlapse.
+- **Use Hyperlapse**: once Moonraker accepts the start, `TimelapseState::record_print_as_hyperlapse()` first persists the owed mode (`helix::pending_restore`, key `timelapse/pending_mode_restore`, the active printer's settings, the same store the U1 runout switch uses), then POSTs `mode=hyperlapse` and arms a `PrintEndLatch` on the print lifecycle. At that print's Complete/Cancelled/Error, `settle_mode_restore()` reads the plugin's mode and puts the owed one back. The plugin has no per-print mode, but a mode POST during a print starts or stops its HYPERLAPSE loop at once (`webrequest_settings` in the plugin's component, [timelapse.py](https://github.com/mainsail-crew/moonraker-timelapse/blob/main/component/timelapse.py)), so switching after the start is safe. The restore survives a restart: the `timelapse_mode_restore` discovery step settles it with the printer's reported activity (waiting out a running print through the same latch). `timelapse::mode_restore_step()` is the rule: kept while a print runs or nothing is reported; once idle, a plugin still in Hyperlapse is put back and any other mode drops the restore. A mode picked in the settings overlay calls `forget_mode_restore()`, so the user's choice wins; one picked in another frontend during the print cannot be seen.
 
 ---
 
@@ -247,6 +247,8 @@ not by a hostname check in the thumbnailer.
 | `src/rendering/timelapse_frame_check.cpp` | Its implementation |
 | `include/ui_print_gate_choice_modal.h` | Four-button print-start gate dialog |
 | `tests/unit/test_timelapse_frame_check.cpp` | Frame check, gate decision and Hyperlapse restore latch tests |
+| `include/printer_pending_restore.h` | Per-printer store for a setting the app owes back (Hyperlapse switch-back, U1 runout switch) |
+| `tests/unit/test_timelapse_mode_restore.cpp` | Persisted Hyperlapse switch-back: restart mid-print, user's own pick |
 | `ui_xml/advanced_panel.xml` | Timelapse/Setup rows (capability-gated on `printer_has_timelapse`) |
 | `include/timelapse_state.h` | TimelapseState singleton class |
 | `src/printer/timelapse_state.cpp` | Event dispatch, subject management, render notifications |

@@ -12,6 +12,7 @@
 #include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "notice.h"
+#include "printer_pending_restore.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
 #include "state/subject_macros.h"
@@ -256,11 +257,13 @@ void TimelapseState::reset() {
 
 void TimelapseState::record_print_as_hyperlapse() {
     IMoonrakerAPI* api = get_moonraker_api();
-    auto* lifecycle = get_printer_state().print_state().get_print_lifecycle_subject();
-    if (!api || !lifecycle) {
+    if (!api) {
         spdlog::warn("[TimelapseState] Cannot switch this print to Hyperlapse: no printer");
         return;
     }
+    // Owed before it is sent: a restart from here on still puts Layer mode back.
+    pending_restore::write(timelapse::kModeRestoreKey, "layermacro");
+    watch_print_end(false);
     api->timelapse().set_timelapse_mode(
         "hyperlapse",
         [this]() {
@@ -273,41 +276,97 @@ void TimelapseState::record_print_as_hyperlapse() {
                 NOTIFY_WARNING(lv_tr("Could not switch timelapse to Hyperlapse"));
             });
         });
-    // Armed now, whatever the write's answer: Layer mode is what the user chose,
-    // so putting it back at the end is right even if this write never landed.
-    hyperlapse_print_end_ = timelapse::PrintEndLatch{};
-    hyperlapse_print_observer_ = helix::ui::observe_print_lifecycle<TimelapseState>(
+}
+
+void TimelapseState::watch_print_end(bool already_running) {
+    auto* lifecycle = get_printer_state().print_state().get_print_lifecycle_subject();
+    if (!lifecycle) {
+        return;
+    }
+    print_end_latch_ = timelapse::PrintEndLatch{};
+    if (already_running) {
+        (void)print_end_latch_.ended_by(PrintState::Printing);
+    }
+    watching_print_end_ = true;
+    print_end_observer_ = helix::ui::observe_print_lifecycle<TimelapseState>(
         lifecycle, this,
         [](TimelapseState* self, PrintState state) {
-            if (self->hyperlapse_print_end_.ended_by(state)) {
-                self->restore_layer_mode();
+            if (!self->print_end_latch_.ended_by(state)) {
+                return;
             }
+            self->watching_print_end_ = false;
+            // Deferred: this runs inside the observer it releases.
+            self->async_lifetime_.defer("TimelapseState::print_ended", [self]() {
+                self->print_end_observer_.reset();
+                self->settle_mode_restore(ReportedPrintActivity::Idle);
+            });
         },
         get_printer_state().get_subjects_lifetime());
 }
 
-void TimelapseState::restore_layer_mode() {
-    // Deferred: this runs inside the lifecycle observer it releases.
-    async_lifetime_.defer("TimelapseState::release_hyperlapse_observer",
-                          [this]() { hyperlapse_print_observer_.reset(); });
+void TimelapseState::settle_mode_restore(ReportedPrintActivity activity) {
+    if (!watching_print_end_ && activity != ReportedPrintActivity::Idle &&
+        !pending_restore::read(timelapse::kModeRestoreKey).empty()) {
+        watch_print_end(activity == ReportedPrintActivity::Active);
+    }
     IMoonrakerAPI* api = get_moonraker_api();
-    if (!api) {
-        spdlog::warn("[TimelapseState] Print ended with no printer: timelapse stays Hyperlapse");
+    settle_mode_restore(api ? &api->timelapse() : nullptr, activity);
+}
+
+void TimelapseState::settle_mode_restore(ITimelapseAPI* api, ReportedPrintActivity activity) {
+    const bool pending = !pending_restore::read(timelapse::kModeRestoreKey).empty();
+    if (timelapse::mode_restore_step(pending, watching_print_end_, activity, nullptr) !=
+            timelapse::ModeRestoreStep::FetchMode ||
+        !api) {
         return;
     }
-    api->timelapse().set_timelapse_mode(
-        "layermacro",
-        [this]() {
-            spdlog::info("[TimelapseState] Print ended: timelapse back to Layer mode");
-            layer_mode_.store(true);
+    auto tok = async_lifetime_.token();
+    api->get_timelapse_settings(
+        [this, tok, api](const TimelapseSettings& settings) {
+            tok.defer("TimelapseState::mode_restore_read", [this, tok, api, settings]() {
+                const std::string owed = pending_restore::read(timelapse::kModeRestoreKey);
+                switch (timelapse::mode_restore_step(!owed.empty(), watching_print_end_,
+                                                     ReportedPrintActivity::Idle, &settings.mode)) {
+                case timelapse::ModeRestoreStep::Keep:
+                case timelapse::ModeRestoreStep::FetchMode:
+                    return;
+                case timelapse::ModeRestoreStep::Clear:
+                    spdlog::info("[TimelapseState] Timelapse mode is {}: no restore owed",
+                                 settings.mode);
+                    pending_restore::write(timelapse::kModeRestoreKey, {});
+                    set_mode(settings.mode);
+                    return;
+                case timelapse::ModeRestoreStep::Send:
+                    break;
+                }
+                spdlog::info("[TimelapseState] Print over: timelapse back to {}", owed);
+                api->set_timelapse_mode(
+                    owed,
+                    [this, tok, owed]() {
+                        tok.defer("TimelapseState::mode_restored", [this, owed]() {
+                            pending_restore::write(timelapse::kModeRestoreKey, {});
+                            set_mode(owed);
+                        });
+                    },
+                    [](const MoonrakerError& err) {
+                        spdlog::error("[TimelapseState] Mode restore failed: {}", err.message);
+                        helix::ui::queue_update("TimelapseState::restore_failed", []() {
+                            NOTIFY_WARNING(lv_tr("Timelapse is still in Hyperlapse mode. Switch it "
+                                                 "back in Settings > Printing > Timelapse."));
+                        });
+                    });
+            });
         },
         [](const MoonrakerError& err) {
-            spdlog::error("[TimelapseState] Layer mode restore failed: {}", err.message);
-            helix::ui::queue_update("TimelapseState::restore_failed", []() {
-                NOTIFY_WARNING(lv_tr("Timelapse is still in Hyperlapse mode. Switch it back in "
-                                     "Settings > Printing > Timelapse."));
-            });
+            spdlog::warn("[TimelapseState] Could not read the timelapse mode to restore it: {}",
+                         err.message);
         });
+}
+
+void TimelapseState::forget_mode_restore() {
+    pending_restore::write(timelapse::kModeRestoreKey, {});
+    watching_print_end_ = false;
+    print_end_observer_.reset();
 }
 
 } // namespace helix

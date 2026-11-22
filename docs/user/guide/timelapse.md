@@ -90,7 +90,7 @@ The plugin has one on/off setting for the whole printer, so each of these change
 
 ## Gotchas
 
-- **The Hyperlapse switch needs HelixScreen running until the print ends.** If HelixScreen restarts or loses power during that print, the plugin stays in Hyperlapse mode. Switch it back in **Settings > Printing > Timelapse > Recording Mode**.
+- **The switch back to Layer survives a restart.** If HelixScreen restarts or loses its connection during that print, it switches the plugin back once it reconnects and the print is over. If you pick a recording mode yourself in **Settings > Printing > Timelapse** before then, HelixScreen keeps your choice. A mode picked in Mainsail or Fluidd during that print is not seen: if it is still Hyperlapse when the print ends, HelixScreen sets it back to Layer.
 - **Other screens see the change.** Mainsail, Fluidd and other screens show the plugin in Hyperlapse mode while that print runs, because there is only one mode setting.
 - **Timelapse Off changes the printer's setting.** Like the print options tile, it turns timelapse off for later prints too until you turn it back on.
 - **The plugin's Klipper macros must be loaded.** If Klipper has not loaded `timelapse.cfg`, no mode records anything. **Settings > Printing > Timelapse** shows a card with the line to add when they are missing.

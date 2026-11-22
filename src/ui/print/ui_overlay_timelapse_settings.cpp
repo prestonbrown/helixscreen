@@ -99,6 +99,8 @@ void TimelapseSettingsOverlay::register_callbacks() {
              const char* mode = (index == 1) ? "hyperlapse" : "layermacro";
              spdlog::debug("[{}] Mode changed: {} (index {})", self.get_name(), mode, index);
              self.current_settings_.mode = mode;
+             // The user's pick wins over a Hyperlapse-for-this-print switch-back.
+             helix::TimelapseState::instance().forget_mode_restore();
              self.update_mode_info(index);
              self.save_settings();
          }},

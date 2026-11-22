@@ -19,6 +19,7 @@
 namespace helix {
 
 class IMoonrakerClient;
+class ITimelapseAPI;
 enum class PrintJobState;
 
 namespace timelapse {
@@ -53,6 +54,41 @@ class PrintEndLatch {
     bool seen_running_ = false;
     bool fired_ = false;
 };
+
+/// The active printer's settings key holding the mode a Hyperlapse-for-this-print
+/// switch owes back (helix::pending_restore).
+inline constexpr const char* kModeRestoreKey = "timelapse/pending_mode_restore";
+
+/// What to do about a persisted mode restore.
+enum class ModeRestoreStep {
+    Keep,      ///< Nothing to do now
+    FetchMode, ///< Read the plugin's mode, then decide
+    Send,      ///< The plugin still reads Hyperlapse: put the owed mode back
+    Clear,     ///< The plugin no longer reads Hyperlapse: forget the restore
+};
+
+/**
+ * @brief Decide a persisted mode restore.
+ *
+ * Kept while nothing is owed, while this session watches the print's end
+ * itself, and while the printer reports a print running or nothing yet. Once
+ * it reports none, the plugin's mode decides: still Hyperlapse is put back; any
+ * other mode means the restore already happened or the user picked a mode
+ * since, and the restore is dropped.
+ *
+ * @param current_mode The plugin's mode once read; nullptr before.
+ */
+[[nodiscard]] inline ModeRestoreStep mode_restore_step(bool pending, bool watching_print_end,
+                                                       ReportedPrintActivity activity,
+                                                       const std::string* current_mode) {
+    if (!pending || watching_print_end || activity != ReportedPrintActivity::Idle) {
+        return ModeRestoreStep::Keep;
+    }
+    if (current_mode == nullptr) {
+        return ModeRestoreStep::FetchMode;
+    }
+    return *current_mode == "hyperlapse" ? ModeRestoreStep::Send : ModeRestoreStep::Clear;
+}
 
 } // namespace timelapse
 
@@ -169,10 +205,27 @@ class TimelapseState {
      */
     void record_print_as_hyperlapse();
 
+    /**
+     * @brief Settle a mode restore a Hyperlapse switch persisted.
+     *
+     * Decided by timelapse::mode_restore_step() with @p activity, reading the
+     * mode from @p api when it must. Main thread.
+     */
+    void settle_mode_restore(ITimelapseAPI* api, ReportedPrintActivity activity);
+
+    /// settle_mode_restore() against the connected printer. While it reports a
+    /// print running, the restore waits for that print's end. Main thread.
+    void settle_mode_restore(ReportedPrintActivity activity);
+
+    /// The user picked a mode: no restore is owed any more. Main thread.
+    void forget_mode_restore();
+
   private:
     TimelapseState() = default;
 
-    void restore_layer_mode();
+    /// Settle the restore when the print running now ends; @p already_running
+    /// when the printer has reported it running.
+    void watch_print_end(bool already_running);
 
     // Allow tests to call handle_timelapse_event directly
     friend class TimelapseStateTestAccess;
@@ -201,8 +254,9 @@ class TimelapseState {
     char timelapse_capture_info_buf_[256]{};
 
     std::atomic<bool> layer_mode_{false};
-    timelapse::PrintEndLatch hyperlapse_print_end_;
-    ObserverGuard hyperlapse_print_observer_;
+    timelapse::PrintEndLatch print_end_latch_;
+    ObserverGuard print_end_observer_;
+    bool watching_print_end_ = false;
 
     // Notification throttling: last progress value that triggered a notification
     std::atomic<int> last_notified_progress_{-1};
