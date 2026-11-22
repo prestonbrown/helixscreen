@@ -3,30 +3,40 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The intro page a calibration step opens on, under the screen's own header:
      a left column (what is calibrated and its current value), a right column
-     (the settings that matter, then the step's badges at its foot) and a
-     footer with an optional secondary button at the left and the primary
-     action at the bottom right. Portrait stacks the columns.
+     (the settings that matter, then the step's badges at its foot) and the
+     calibration wizard footer: an optional secondary button at the left
+     (secondary_text + secondary_callback), an optional status line, and the
+     primary action at the bottom right. Portrait stacks the columns.
 
      Slots: now (the left column, the default), settings, badges
-     (cal_intro_badge pills), footer_left (one outline button), footer_note
-     (a line between the footer buttons). The primary is disabled while
-     `disabled_cond` holds; it reads global subjects only. The default is the toolhead guard
-     (machine_motion_blocked, as moves_machine binds it) or an unreachable
-     printer; a caller that adds a condition keeps both. One expression,
-     because a second disabled binding would clobber it. Sizes: calibration_intro_tokens.xml. -->
+     (cal_intro_badge pills). The primary carries the toolhead guard unless a
+     caller turns primary_moves_machine off, and is also disabled while the int subject
+     primary_enable_subject reads 0; primary_bind_text retitles it live.
+     Sizes: calibration_intro_tokens.xml and calibration_wizard_tokens.xml. -->
 <component>
   <api>
     <slot name="now" target="cal_intro_now" default="true"/>
     <slot name="settings" target="cal_intro_settings"/>
     <slot name="badges" target="cal_intro_badges" hide_empty="true"/>
-    <slot name="footer_left" target="cal_intro_footer_left" hide_empty="true"/>
-    <slot name="footer_note" target="cal_intro_footer_note"/>
     <prop name="left_label" type="string" default=""/>
+    <prop name="left_label_tag" type="string" default=""/>
     <prop name="right_label" type="string" default=""/>
+    <prop name="right_label_tag" type="string" default=""/>
+    <prop name="secondary_text" type="string" default=""/>
+    <prop name="secondary_tag" type="string" default=""/>
+    <prop name="secondary_callback" type="string" default=""/>
+    <prop name="secondary_name" type="string" default="cal_intro_secondary"/>
     <prop name="primary_name" type="string" default="cal_intro_primary"/>
     <prop name="primary_text" type="string" default=""/>
+    <prop name="primary_tag" type="string" default=""/>
+    <prop name="primary_bind_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
-    <prop name="disabled_cond" type="string" default="machine_motion_blocked eq 1 or nav_buttons_enabled eq 0"/>
+    <prop name="primary_enable_subject" type="string" default=""/>
+    <prop name="primary_moves_machine" type="string" default="true"/>
+    <prop name="status" type="string" default=""/>
+    <prop name="status_tag" type="string" default=""/>
+    <prop name="status_subject" type="string" default=""/>
+    <prop name="status_color" type="string" default="#text_muted"/>
   </api>
   <styles>
     <style name="split_row" layout="flex" flex_flow="row"/>
@@ -40,9 +50,9 @@
         width="100%" height="100%" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
         flex_flow="column" scrollable="false">
     <lv_obj name="cal_intro_main"
-            width="100%" height="0" flex_grow="1" style_pad_top="0" style_pad_bottom="0" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_gap="#space_lg" style_bg_opa="0" style_border_width="0"
-            scrollable="false">
+            width="100%" height="0" flex_grow="1" style_pad_top="0" style_pad_bottom="0"
+            style_pad_left="#cal_page_pad_x" style_pad_right="#space_lg" style_pad_gap="#space_lg" style_bg_opa="0"
+            style_border_width="0" scrollable="false">
       <bind_style_if_eq name="split_row" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="split_column" subject="ui_is_portrait" ref_value="1"/>
       <bind_flag_if_eq subject="ui_is_portrait" flag="scrollable" ref_value="1"/>
@@ -51,7 +61,7 @@
               scrollable="false">
         <bind_style_if_eq name="left_fixed" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="left_full" subject="ui_is_portrait" ref_value="1"/>
-        <cal_intro_section_label name="cal_intro_left_label" text="$left_label"/>
+        <cal_intro_section_label name="cal_intro_left_label" text="$left_label" text_tag="$left_label_tag"/>
         <lv_obj name="cal_intro_now"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="column" scrollable="false"/>
@@ -61,7 +71,7 @@
               scrollable="false">
         <bind_style_if_eq name="right_grow" subject="ui_is_portrait" ref_value="0"/>
         <bind_style_if_eq name="right_full" subject="ui_is_portrait" ref_value="1"/>
-        <cal_intro_section_label name="cal_intro_right_label" text="$right_label"/>
+        <cal_intro_section_label name="cal_intro_right_label" text="$right_label" text_tag="$right_label_tag"/>
         <lv_obj name="cal_intro_settings"
                 width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                 style_border_width="0" flex_flow="column" scrollable="false"/>
@@ -74,8 +84,12 @@
                 style_bg_opa="0" style_border_width="0" flex_flow="row_wrap" scrollable="false" clickable="false"/>
       </lv_obj>
     </lv_obj>
-    <calibration_intro_footer name="cal_intro_footer"
-                              primary_name="$primary_name" primary_text="$primary_text"
-                              primary_callback="$primary_callback" disabled_cond="$disabled_cond"/>
+    <calibration_wizard_footer name="cal_intro_footer"
+                               back_text="$secondary_text" back_tag="$secondary_tag" back_callback="$secondary_callback"
+                               back_name="$secondary_name" primary_name="$primary_name" primary_text="$primary_text"
+                               primary_tag="$primary_tag" primary_subject="$primary_bind_text"
+                               primary_callback="$primary_callback" primary_enable_subject="$primary_enable_subject"
+                               primary_moves_machine="$primary_moves_machine" status="$status" status_tag="$status_tag"
+                               status_subject="$status_subject" status_color="$status_color"/>
   </view>
 </component>

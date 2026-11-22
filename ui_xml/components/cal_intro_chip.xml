@@ -7,21 +7,24 @@
      the index), or a per-chip subject that reads 1 while chosen (value 1).
      The label (static, or the string subject `bind_label`) sits at the left
      and the detail (static, or `bind_detail`) at the right; with no detail,
-     `label_align="center"` centers the label; a label too long for the chip
+     `label_align="center"` with no_detail="true" centers the label; a label too long for the chip
      ends in dots before the detail. The tap calls `callback` with `index`
      as its user data string. Sizes: calibration_intro_tokens.xml. -->
 <component>
   <api>
     <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
     <prop name="detail" type="string" default=""/>
+    <prop name="detail_tag" type="string" default=""/>
     <prop name="bind_detail" type="string" default=""/>
+    <prop name="no_detail" type="boolean" default="false"/>
     <prop name="choice" type="string" default=""/>
     <prop name="value" type="int" default="0"/>
     <prop name="index" type="string" default="0"/>
     <prop name="bind_label" type="string" default=""/>
     <prop name="callback" type="string" default=""/>
     <prop name="label_align" type="string" default="left"/>
-    <prop name="label_font" type="string" default="#cal_intro_font_row_bold"/>
+    <prop name="label_font" type="string" default="#cal_font_name_bold"/>
   </api>
   <view extends="lv_obj"
         width="0" height="#cal_intro_chip_h" flex_grow="1" style_radius="#border_radius" style_border_width="2"
@@ -33,16 +36,16 @@
     <bind_state_if_eq subject="$choice" state="checked" ref_value="$value"/>
     <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
     <text_small name="chip_label"
-                width="0" flex_grow="1" style_text_align="$label_align" text="$label" bind_text="$bind_label"
-                style_text_font="$label_font" style_text_font-checked="#cal_intro_font_row_bold"
+                width="0" flex_grow="1" style_text_align="$label_align" text="$label" translation_tag="$label_tag"
+                bind_text="$bind_label" style_text_font="$label_font" style_text_font-checked="#cal_font_name_bold"
                 style_text_color="#text" style_text_color-checked="#text_on_primary" long_mode="dots" clickable="false"
                 event_bubble="true">
       <bind_state_if_eq subject="$choice" state="checked" ref_value="$value"/>
     </text_small>
     <text_small name="chip_detail"
-                text="$detail" bind_text="$bind_detail" style_text_font="#cal_intro_font_desc"
-                style_text_color="#text_muted" style_text_color-checked="#text_on_primary" clickable="false"
-                event_bubble="true">
+                hidden="$no_detail" text="$detail" translation_tag="$detail_tag" bind_text="$bind_detail"
+                style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
+                style_text_color-checked="#text_on_primary" clickable="false" event_bubble="true">
       <bind_state_if_eq subject="$choice" state="checked" ref_value="$value"/>
     </text_small>
   </view>

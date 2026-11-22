@@ -61,9 +61,11 @@
     <lv_obj name="pa_intro"
             width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
       <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="0"/>
+      <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <calibration_intro name="pa_intro_frame"
                          left_label="Filament" right_label="What it does" primary_text="Measure pressure advance"
-                         primary_callback="on_pa_cal_action">
+                         primary_callback="on_pa_cal_action" primary_moves_machine="true" secondary_name="btn_pa_tower"
+                         secondary_text="Print a test tower instead" secondary_callback="on_pa_cal_tower">
         <!-- The filament on the tool being measured -->
         <lv_obj name="pa_filament_card"
                 width="100%" height="content" style_radius="#border_radius" style_bg_color="#primary" style_bg_opa="10%"
@@ -77,10 +79,10 @@
                   style_border_width="0" flex_flow="column" scrollable="false">
             <text_small name="pa_filament_name"
                         width="100%" bind_text="pa_cal_filament_name" long_mode="dots"
-                        style_text_font="#cal_intro_font_row_bold" style_text_color="#text"/>
+                        style_text_font="#cal_font_name_bold" style_text_color="#text"/>
             <text_small name="pa_filament_sub"
-                        width="100%" bind_text="pa_cal_filament_sub" long_mode="dots"
-                        style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"/>
+                        width="100%" bind_text="pa_cal_filament_sub" long_mode="dots" style_text_font="#cal_font_detail"
+                        style_text_color="#text_muted"/>
           </lv_obj>
         </lv_obj>
         <cal_intro_section_label name="pa_calibrate_at_label" text="Calibrate at" style_margin_top="#space_xs"/>
@@ -110,9 +112,9 @@
                   style_border_width="0" flex_flow="row" scrollable="false">
             <!-- 480x272 keeps its height for the badges -->
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            <text_small width="#space_lg" text="1" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="#space_lg" text="1" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
             <text_small width="0"
-                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        flex_grow="1" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                         style_text_line_space="#space_xxs"
                         text="Heats the nozzle and extrudes short test lines in a corner of the plate"/>
           </lv_obj>
@@ -121,9 +123,9 @@
                   style_border_width="0" flex_flow="row" scrollable="false">
             <!-- 480x272 keeps its height for the badges -->
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            <text_small width="#space_lg" text="2" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="#space_lg" text="2" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
             <text_small width="0"
-                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        flex_grow="1" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                         style_text_line_space="#space_xxs"
                         text="Measures each line itself, repeating until the readings agree"/>
           </lv_obj>
@@ -132,9 +134,9 @@
                   style_border_width="0" flex_flow="row" scrollable="false">
             <!-- 480x272 keeps its height for the badges -->
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-            <text_small width="#space_lg" text="3" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="#space_lg" text="3" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
             <text_small width="0"
-                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        flex_grow="1" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                         style_text_line_space="#space_xxs"
                         text="Shows the new K next to the old one. You choose to save it"/>
           </lv_obj>
@@ -145,9 +147,6 @@
           <cal_intro_badge name="pa_badge_filament" text="uses about 30 cm of filament"/>
           <cal_intro_badge name="pa_badge_plate" text="plate must be clear"/>
         </calibration_intro-badges>
-        <calibration_intro-footer_left>
-          <cal_intro_footer_button name="btn_pa_tower" text="Print a test tower instead" callback="on_pa_cal_tower"/>
-        </calibration_intro-footer_left>
       </calibration_intro>
     </lv_obj>
 

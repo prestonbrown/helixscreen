@@ -1276,6 +1276,8 @@ void InputShaperPanel::on_calibration_error(const std::string& message) {
 // ============================================================================
 
 void InputShaperPanel::refresh_intro_facts() {
+    // Text set from C++ follows the language each time the intro opens.
+    handle_axis_choice(lv_subject_get_int(&is_axis_choice_));
     const auto when = helix::calibration::last_run_month_day("input_shaper");
     const std::string caption =
         when ? fmt::format(lv_tr("Measured {} · reduces ringing and ghosting"), *when)

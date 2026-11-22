@@ -31,6 +31,7 @@
 #include "preset_materials.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
+#include "theme_manager.h"
 #include "thermal_rate_model.h"
 #include "tool_state.h"
 
@@ -94,7 +95,8 @@ void PACalibrationPanel::init_subjects() {
         UI_MANAGED_SUBJECT_INT(result_plausible_, 1, "pa_cal_result_plausible", subjects_);
         UI_MANAGED_SUBJECT_INT(action_is_stop_, 0, "pa_cal_action_is_stop", subjects_);
         UI_MANAGED_SUBJECT_INT(has_filament_, 0, "pa_cal_has_filament", subjects_);
-        UI_MANAGED_SUBJECT_INT(filament_color_, 0, "pa_cal_filament_color", subjects_);
+        UI_MANAGED_SUBJECT_COLOR(filament_color_, theme_manager_get_color("elevated_bg"),
+                                 "pa_cal_filament_color", subjects_);
 
         for (int i = 0; i < kMaxTools; ++i) {
             UI_MANAGED_SUBJECT_INT(tool_selected_[i], i == 0 ? 1 : 0,
@@ -523,7 +525,7 @@ void PACalibrationPanel::refresh_intro() {
     const bool known = slot && !slot->material.empty();
     lv_subject_set_int(&has_filament_, known ? 1 : 0);
     if (known) {
-        lv_subject_set_int(&filament_color_, static_cast<int>(slot->color_rgb));
+        lv_subject_set_color(&filament_color_, lv_color_hex(slot->color_rgb));
     }
     const std::string name = !known ? std::string(lv_tr("Filament not known"))
                              : slot->color_name.empty()
