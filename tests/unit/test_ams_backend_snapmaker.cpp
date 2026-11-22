@@ -6176,6 +6176,21 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(writes_for_head(h, 0) == 2);
         CHECK(writes_for_head(h, 2) == 2);
     }
+    SECTION("a spool that really left gets no second write") {
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.frame(make_feed_status(2, "wait_insert", /*filament_detected=*/false));
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.frame(heads_0_and_2_cleared());
+        CHECK(h.config_writes().empty());
+    }
+    SECTION("a spool inserted since the declaration gets no second write") {
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/false));
+        h.frame(make_feed_status(0, "wait_insert", /*filament_detected=*/true));
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.frame(heads_0_and_2_cleared());
+        CHECK(writes_for_head(h, 0) == 0);
+        CHECK(writes_for_head(h, 2) == 2);
+    }
     SECTION("a firmware that clears every write is written a bounded number of times") {
         for (int i = 0; i < 6; ++i) {
             SnapmakerTestAccess::age_record_restores(h.backend);
