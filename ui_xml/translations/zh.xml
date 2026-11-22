@@ -2719,6 +2719,8 @@
   <translation tag="Paused by a command" zh="由命令暂停"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." zh="在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。"/>
   <translation tag="Pauses on runout" zh="用尽时暂停"/>
+  <translation tag="Pauses on runout (no matching spool)" zh="用尽时暂停（无匹配料盘）"/>
+  <translation tag="Pauses on runout ({} off)" zh="用尽时暂停（{}已关闭）"/>
   <translation tag="Pausing at layer {}." zh="将在第 {} 层暂停。"/>
   <translation tag="Pausing..." zh="暂停中..."/>
   <translation tag="Peak Freq" zh="峰值频率"/>
@@ -4563,6 +4565,7 @@
   <translation tag="assign without adding to Spoolman" zh="分配但不添加到 Spoolman"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
+  <translation tag="automatic refill" zh="自动补料"/>
   <translation tag="bed" zh="热床"/>
   <translation tag="busy" zh="正忙"/>
   <translation tag="by" zh="作者："/>

@@ -2965,6 +2965,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Pausa uma impressão numa camada escolhida, para trocar o filamento ou colocar um inserto. Durante a impressão, defina a camada no cartão de pré-visualização da tela de status.'
   Pauses on runout: 'Pausa no fim de filamento'
+  Pauses on runout (no matching spool): 'Pausa no fim de filamento (nenhum carretel correspondente)'
+  Pauses on runout ({} off): 'Pausa no fim de filamento ({} desligado)'
   Pausing at layer {}.: 'Pausando na camada {}.'
   Pausing...: Pausando...
   Peak Freq: Freq Pico
@@ -4999,6 +5001,7 @@ translations:
   assign without adding to Spoolman: 'atribuir sem adicionar ao Spoolman'
   attempt {}: 'tentativa {}'
   auto: auto
+  automatic refill: 'recarga automática'
   bed: mesa
   busy: 'ocupado'
   by: 'por'

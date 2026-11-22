@@ -2719,6 +2719,8 @@
   <translation tag="Paused by a command" en="Paused by a command"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." en="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen."/>
   <translation tag="Pauses on runout" en="Pauses on runout"/>
+  <translation tag="Pauses on runout (no matching spool)" en="Pauses on runout (no matching spool)"/>
+  <translation tag="Pauses on runout ({} off)" en="Pauses on runout ({} off)"/>
   <translation tag="Pausing at layer {}." en="Pausing at layer {}."/>
   <translation tag="Pausing..." en="Pausing..."/>
   <translation tag="Peak Freq" en="Peak Freq"/>
@@ -4563,6 +4565,7 @@
   <translation tag="assign without adding to Spoolman" en="assign without adding to Spoolman"/>
   <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="auto" en="auto"/>
+  <translation tag="automatic refill" en="automatic refill"/>
   <translation tag="bed" en="bed"/>
   <translation tag="busy" en="busy"/>
   <translation tag="by" en="by"/>

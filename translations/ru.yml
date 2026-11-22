@@ -3001,6 +3001,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Ставит печать на паузу на выбранном слое для смены филамента или закладной детали. Во время печати задайте слой в карточке предпросмотра на экране состояния печати.'
   Pauses on runout: 'Пауза при окончании'
+  Pauses on runout (no matching spool): 'Пауза при окончании (нет подходящей катушки)'
+  Pauses on runout ({} off): 'Пауза при окончании ({} выкл.)'
   Pausing at layer {}.: 'Пауза на слое {}.'
   Pausing...: Приостановка...
   Peak Freq: Пиковая частота
@@ -5037,6 +5039,7 @@ translations:
   assign without adding to Spoolman: 'назначить без добавления в Spoolman'
   attempt {}: 'попытка {}'
   auto: авто
+  automatic refill: 'автоподача'
   bed: стол
   busy: 'занят'
   by: 'автор:'
