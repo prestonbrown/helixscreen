@@ -176,6 +176,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     std::sort(discovered_extruders_.begin(), discovered_extruders_.end());
     toolchanger_reports_mount_ = false;
     tool_numbers_.clear();
+    head_tools_.clear();
 
     // init_tools enumerates tools from extruders/toolchanger — semantically
     // incompatible with an AMS-backend topology override. Drop any prior
@@ -298,6 +299,9 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             tools_[0].fan_name = "fan";
         }
     }
+    // The printer's own tools, kept apart from any lane list a filament system
+    // later lays over them: their status objects and offsets belong to heads.
+    head_tools_ = tools_;
 
     invalidate_heads();
 
@@ -579,8 +583,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Parse per-tool status updates
-    for (auto& tool : tools_) {
+    // Parse per-tool status updates. A `tool T<n>` object describes one of the
+    // printer's own tools; where the tool list is lanes, lane T<n> is another
+    // thing, so the objects update the printer's tools and never a lane.
+    for (auto& tool : object_tools()) {
         std::string key = "tool " + tool.name;
         const auto* tool_obj = json_util::find_object(status, key.c_str());
         if (!tool_obj) {
@@ -654,20 +660,21 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // this frame, and on a firmware that keeps every tool's offset on ONE
     // object (see helix::tool_offsets) that would skip the offsets entirely.
     if (follows_any_axis()) {
-        for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+        auto& offset_tools = object_tools();
+        for (int i = 0; i < static_cast<int>(offset_tools.size()); ++i) {
             for (Axis axis : kAllAxes) {
                 if (!follows_axis(axis)) {
                     continue;
                 }
                 auto microns = helix::tool_offsets::read_tool_offset_microns(
-                    offset_reader_, status, axis, i, tools_[i].name);
+                    offset_reader_, status, axis, i, offset_tools[i].name);
                 if (!microns) {
                     // No news. Moonraker republishes only what CHANGED, per
                     // field, so this is routine and must not be read as a
                     // reset to zero.
                     continue;
                 }
-                ToolAxisOffset& offset = tools_[i].gcode_offset(axis);
+                ToolAxisOffset& offset = offset_tools[i].gcode_offset(axis);
                 const float mm = static_cast<float>(*microns) / 1000.0f;
                 if (!offset.known) {
                     // First value seen for this axis is the persisted one: on
@@ -718,7 +725,7 @@ bool ToolState::follows_any_axis() const {
 
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
                                    const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() || !follows_any_axis()) {
+    if (!client || object_tools().empty() || !follows_any_axis()) {
         return;
     }
 
@@ -726,7 +733,7 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
     // offsets in. The module owns the second list so a machine that stores all
     // four on one macro is covered without naming it here.
     nlohmann::json objects = nlohmann::json::object();
-    for (const auto& tool : tools_) {
+    for (const auto& tool : object_tools()) {
         objects["tool " + tool.name] = nullptr;
     }
     for (const auto& obj : helix::tool_offsets::required_status_objects(hardware)) {
@@ -746,7 +753,7 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
                 return;
             }
             update_from_status(*status);
-            for (const auto& tool : tools_) {
+            for (const auto& tool : object_tools()) {
                 spdlog::debug(
                     "[ToolState] Seeded per-tool offsets from query: {} x={:.3f}{} "
                     "y={:.3f}{} z={:.3f}{}",
@@ -760,11 +767,37 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
                          std::move(cb));
 }
 
+std::vector<ToolInfo>& ToolState::object_tools() {
+    return tools_are_lanes() ? head_tools_ : tools_;
+}
+
+const std::vector<ToolInfo>& ToolState::object_tools() const {
+    return tools_are_lanes() ? head_tools_ : tools_;
+}
+
+int ToolState::offset_tool_for(int tool_index) const {
+    if (!tools_are_lanes()) {
+        return tool_index >= 0 && tool_index < static_cast<int>(tools_.size()) ? tool_index : -1;
+    }
+    // A lane's offset is its head's: the printer tool on the head's extruder.
+    const std::string extruder = extruder_name_for_tool(tool_index);
+    if (extruder.empty()) {
+        return -1;
+    }
+    for (int i = 0; i < static_cast<int>(head_tools_.size()); ++i) {
+        if (head_tools_[static_cast<size_t>(i)].extruder_name == extruder) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 std::vector<int> ToolState::dirty_tool_indices() const {
     std::vector<int> dirty;
-    for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+    const auto& tools = object_tools();
+    for (int i = 0; i < static_cast<int>(tools.size()); ++i) {
         for (Axis axis : kAllAxes) {
-            if (tools_[i].gcode_offset(axis).dirty()) {
+            if (tools[static_cast<size_t>(i)].gcode_offset(axis).dirty()) {
                 dirty.push_back(i);
                 break;
             }
@@ -774,41 +807,45 @@ std::vector<int> ToolState::dirty_tool_indices() const {
 }
 
 bool ToolState::tool_offset_dirty(int tool_index, Axis axis) const {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    const auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return false;
     }
-    return tools_[tool_index].gcode_offset(axis).dirty();
+    return tools[static_cast<size_t>(tool_index)].gcode_offset(axis).dirty();
 }
 
 float ToolState::tool_offset_mm(int tool_index, Axis axis) const {
     if (!tool_offset_known(tool_index, axis)) {
         return 0.0f;
     }
-    return tools_[tool_index].gcode_offset(axis).mm;
+    return object_tools()[static_cast<size_t>(tool_index)].gcode_offset(axis).mm;
 }
 
 bool ToolState::tool_offset_known(int tool_index, Axis axis) const {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    const auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return false;
     }
-    return tools_[tool_index].gcode_offset(axis).known;
+    return tools[static_cast<size_t>(tool_index)].gcode_offset(axis).known;
 }
 
 void ToolState::set_tool_offset_local(int tool_index, Axis axis, int microns) {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return;
     }
-    ToolAxisOffset& offset = tools_[tool_index].gcode_offset(axis);
+    ToolAxisOffset& offset = tools[static_cast<size_t>(tool_index)].gcode_offset(axis);
     offset.mm = static_cast<float>(microns) / 1000.0f;
     offset.known = true;
     refresh_any_tool_dirty();
 }
 
 void ToolState::mark_tool_offsets_saved(int tool_index) {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return;
     }
-    for (ToolAxisOffset& offset : tools_[tool_index].gcode_offsets) {
+    for (ToolAxisOffset& offset : tools[static_cast<size_t>(tool_index)].gcode_offsets) {
         offset.saved_mm = offset.mm;
     }
     refresh_any_tool_dirty();
