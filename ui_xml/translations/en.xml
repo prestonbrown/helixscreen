@@ -1414,6 +1414,7 @@
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading the timelapse plugin..." en="Downloading the timelapse plugin..."/>
+  <translation tag="Downloading the timelapse..." en="Downloading the timelapse..."/>
   <translation tag="Downloading..." en="Downloading..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" en="Downloading... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" en="Draw a ripple at each touch — helps diagnose offsets"/>
@@ -4621,6 +4622,8 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." en="The CFS ran out of filament. Printing continues on what is left in the tube."/>
   <translation tag="The DNS server is not a valid address." en="The DNS server is not a valid address."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." en="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints."/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." en="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software."/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." en="The HelixPrint plugin is managed by your printer&apos;s firmware."/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." en="The HelixPrint plugin moves old PRINT_START calls to the hidden names."/>
   <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port." en="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port."/>
   <translation tag="The IFS board reported a driver error on every retry." en="The IFS board reported a driver error on every retry."/>
@@ -4921,6 +4924,7 @@
   <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." en="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
+  <translation tag="The timelapse could not be downloaded" en="The timelapse could not be downloaded"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." en="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer."/>
   <translation tag="The tool change under way finished, and the tool was not parked" en="The tool change under way finished, and the tool was not parked"/>
@@ -4952,7 +4956,6 @@
   <translation tag="The update failed" en="The update failed"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." en="The update stopped reporting. Its result is unknown: check the printer before using it."/>
   <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." en="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
   <translation tag="The {1} motor lost steps" en="The {1} motor lost steps"/>
@@ -5064,6 +5067,7 @@
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>
   <translation tag="This update removes HelixScreen from the printer." en="This update removes HelixScreen from the printer."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." en="This upgrades the printer&apos;s operating system packages."/>
+  <translation tag="This video could not be played" en="This video could not be played"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect."/>
@@ -5411,8 +5415,6 @@
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
   <translation tag="Video playback speed" en="Video playback speed"/>
-  <translation tag="Video player failed to start" en="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})" en="Video player failed to start ({})"/>
   <translation tag="View" en="View"/>
   <translation tag="View Changelog" en="View Changelog"/>
   <translation tag="View Full History" en="View Full History"/>
@@ -5584,6 +5586,7 @@
   <translation tag="Your printer at a glance" en="Your printer at a glance"/>
   <translation tag="Your printer has an automatic filament changer" en="Your printer has an automatic filament changer"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" en="Your printer was offline during setup, so hardware options were skipped. Set them up now?"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." en="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." en="Your printer&apos;s manual has the parts and lubricant for your model."/>
   <translation tag="Your usual build plate is on" en="Your usual build plate is on"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." en="Your {0} is set up for {1}, but it looks stock."/>

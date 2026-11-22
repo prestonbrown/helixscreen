@@ -120,6 +120,17 @@ class HelixPluginInstaller {
      */
     [[nodiscard]] bool is_local_moonraker() const;
 
+    /**
+     * @brief Whether the printer's firmware owns HelixScreen's software
+     *
+     * True when this app runs from a firmware's own package
+     * (board::firmware_manages_updates()). The plugin then has to come from the
+     * firmware: its package tree is unreadable to Moonraker's user, and the
+     * Moonraker components directory is reset at every boot. Nothing here offers,
+     * runs or repairs the install there.
+     */
+    [[nodiscard]] bool firmware_owns_plugin() const;
+
     // === Installation ===
 
     /**
@@ -312,6 +323,9 @@ class HelixPluginInstaller {
     static PromptClock prompt_clock_;
     static AddonCheck addon_check_;
     static int64_t read_prompt_clock();
+    /// The executable the install root is resolved from: the test override, or
+    /// this process. Empty when it cannot be read.
+    [[nodiscard]] std::string running_exe() const;
 };
 
 struct LocalPluginRecipe;

@@ -13,12 +13,15 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
 #include "theme_manager.h"
+#include "utf8_validation.h"
 
 #include <cstring>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
+namespace text = helix::text_io;
 
 namespace {
 
@@ -61,6 +64,43 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Busy overlay label shows the overlay's text
         REQUIRE(advance_until([] { return BusyOverlay::is_visible(); }, 200));
         REQUIRE(label_text("busy_overlay_label") != nullptr);
         CHECK(std::strcmp(label_text("busy_overlay_label"), "Uploading... 12%") == 0);
+    }
+
+    BusyOverlay::hide();
+    process_lvgl(20);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "Busy overlay text too long for it is cut between characters",
+                 "[ui_busy_overlay][top_layer]") {
+    BusyOverlay::hide();
+    process_lvgl(20);
+
+    // Two-byte characters only: every odd byte count lands inside one.
+    std::string accented;
+    for (int i = 0; i < 300; ++i) {
+        accented += "\xC3\xA9";
+    }
+
+    SECTION("a message") {
+        BusyOverlay::show(accented, 0);
+        const char* shown = label_text("busy_overlay_label");
+        REQUIRE(shown != nullptr);
+        const std::string text(shown);
+        CHECK(text::is_valid_utf8(text));
+        CHECK(accented.compare(0, text.size(), text) == 0);
+        CHECK(text.size() >= 200);
+    }
+
+    SECTION("a progress line keeps its percentage") {
+        BusyOverlay::show("Preparing...", 0);
+        BusyOverlay::set_progress(accented, 45.0f);
+        const char* shown = label_text("busy_overlay_label");
+        REQUIRE(shown != nullptr);
+        const std::string text(shown);
+        CHECK(text::is_valid_utf8(text));
+        CHECK(text.size() >= 200);
+        REQUIRE(text.size() > 7);
+        CHECK(text.compare(text.size() - 7, 7, "... 45%") == 0);
     }
 
     BusyOverlay::hide();

@@ -1420,6 +1420,7 @@
   <translation tag="Download update?" fr="Télécharger la mise à jour ?"/>
   <translation tag="Download v{}?" fr="Télécharger v{} ?"/>
   <translation tag="Downloading the timelapse plugin..." fr="Téléchargement du plugin timelapse..."/>
+  <translation tag="Downloading the timelapse..." fr="Téléchargement du timelapse..."/>
   <translation tag="Downloading..." fr="Téléchargement..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" fr="Téléchargement... {:.1f}/{:.1f} Mo"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" fr="Dessine une ondulation à chaque contact — aide à diagnostiquer les décalages"/>
@@ -4627,6 +4628,8 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." fr="Le CFS est à court de filament. L&apos;impression continue avec ce qui reste dans le tube."/>
   <translation tag="The DNS server is not a valid address." fr="Le serveur DNS n&apos;est pas une adresse valide."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." fr="Le plugin HelixPrint permet des modifications rapides du G-code directement sur votre imprimante—comme ignorer le maillage du plateau pour des réimpressions rapides."/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." fr="Le plugin HelixPrint doit être fourni par le firmware de votre imprimante, qui gère le logiciel de HelixScreen."/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." fr="Le plugin HelixPrint est géré par le firmware de votre imprimante."/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." fr="Le plugin HelixPrint passe les anciens appels de PRINT_START aux noms masqués."/>
   <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port." fr="La carte IFS n&apos;a pas répondu à temps : un problème de câble, une carte figée, ou l&apos;écran d&apos;origine qui utilise le même port."/>
   <translation tag="The IFS board reported a driver error on every retry." fr="La carte IFS a signalé une erreur de pilote à chaque tentative."/>
@@ -4927,6 +4930,7 @@
   <translation tag="The temperature was changed elsewhere." fr="La température a été modifiée ailleurs."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." fr="L&apos;amplificateur de thermocouple ou de PT100 a signalé un défaut ou une mesure hors plage."/>
   <translation tag="The time, date, and system uptime" fr="Heure, date et temps de fonctionnement"/>
+  <translation tag="The timelapse could not be downloaded" fr="Le timelapse n&apos;a pas pu être téléchargé"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." fr="Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." fr="Le plugin timelapse est installé. Pour créer des vidéos, ffmpeg est aussi nécessaire, et il n&apos;est pas installé sur cette imprimante."/>
   <translation tag="The tool change under way finished, and the tool was not parked" fr="Le changement d&apos;outil en cours s&apos;est terminé et l&apos;outil n&apos;a pas été rangé"/>
@@ -4958,7 +4962,6 @@
   <translation tag="The update failed" fr="La mise à jour a échoué"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." fr="La mise à jour ne donne plus de nouvelles. Son résultat est inconnu : vérifiez l&apos;imprimante avant de l&apos;utiliser."/>
   <translation tag="The update&apos;s result is unknown" fr="Le résultat de la mise à jour est inconnu"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." fr="Le lecteur vidéo n&apos;a pas pu démarrer sur cette imprimante ({}). Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." fr="Le moteur {0} n&apos;a pas été mesuré : {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." fr="L&apos;accéléromètre {1} n&apos;a pas répondu avec l&apos;identifiant attendu. Il est très probablement débranché, son câble est endommagé, ou ses broches SPI sont incorrectes."/>
   <translation tag="The {1} motor lost steps" fr="Le moteur {1} a perdu des pas"/>
@@ -5070,6 +5073,7 @@
   <translation tag="This update asks for new permissions:" fr="Cette mise à jour demande de nouvelles autorisations :"/>
   <translation tag="This update removes HelixScreen from the printer." fr="Cette mise à jour supprime HelixScreen de l&apos;imprimante."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." fr="Cette opération met à jour les paquets du système d&apos;exploitation de l&apos;imprimante."/>
+  <translation tag="This video could not be played" fr="Cette vidéo n&apos;a pas pu être lue"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." fr="Cette attente ne se termine qu&apos;à sa température : l&apos;annulation nécessite un arrêt d&apos;urgence et un redémarrage du firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." fr="Cela appliquera le Z-offset à votre butée et redémarrera Klipper pour enregistrer la configuration. L&apos;imprimante se déconnectera brièvement."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." fr="Cela appliquera le Z-offset à votre sonde et redémarrera Klipper pour enregistrer la configuration. L&apos;imprimante se déconnectera brièvement."/>
@@ -5417,8 +5421,6 @@
   <translation tag="Vibration" fr="Vibration"/>
   <translation tag="Vibration compensation active" fr="Compensation de vibration active"/>
   <translation tag="Video playback speed" fr="Vitesse de lecture vidéo"/>
-  <translation tag="Video player failed to start" fr="Le lecteur vidéo n&apos;a pas pu démarrer"/>
-  <translation tag="Video player failed to start ({})" fr="Le lecteur vidéo n&apos;a pas pu démarrer ({})"/>
   <translation tag="View" fr="Voir"/>
   <translation tag="View Changelog" fr="Voir le journal des modifications"/>
   <translation tag="View Full History" fr="Voir l&apos;historique complet"/>
@@ -5590,6 +5592,7 @@
   <translation tag="Your printer at a glance" fr="Votre imprimante en un coup d&apos;œil"/>
   <translation tag="Your printer has an automatic filament changer" fr="Votre imprimante dispose d&apos;un changeur de filament automatique"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" fr="Votre imprimante était hors ligne lors de la configuration, les options matérielles ont donc été ignorées. Les configurer maintenant ?"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." fr="Le firmware de votre imprimante gère le logiciel de HelixScreen, le plugin HelixPrint doit donc être fourni par le firmware. Il ne peut pas être installé depuis cet écran."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." fr="Le manuel de votre imprimante indique pièces et lubrifiant pour votre modèle."/>
   <translation tag="Your usual build plate is on" fr="Votre plaque d&apos;impression habituelle est en place"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." fr="Votre {0} est configurée pour {1}, mais elle semble d&apos;origine."/>

@@ -1497,6 +1497,7 @@ translations:
   Download update?: ''
   Download v{}?: ''
   Downloading the timelapse plugin...: ''
+  Downloading the timelapse...: ''
   Downloading...: ''
   Downloading... {:.1f}/{:.1f} MB: ''
   Draw a ripple at each touch — helps diagnose offsets: ''
@@ -4738,6 +4739,8 @@ translations:
   The DNS server is not a valid address.: ''
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : ''
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: ''
+  The HelixPrint plugin is managed by your printer's firmware.: ''
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: ''
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': ''
   The IFS board reported a driver error on every retry.: ''
@@ -5060,6 +5063,7 @@ translations:
   The temperature was changed elsewhere.: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: ''
+  The timelapse could not be downloaded: ''
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: ''
   Timelapse did not start: ''
   Timelapse frames start after Klipper restarts.: ''
@@ -5097,7 +5101,6 @@ translations:
   'The {0} motor was not measured: {1}.': ''
   'The update stopped reporting. Its result is unknown: check the printer before using it.': ''
   The update's result is unknown: ''
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : ''
   The {1} motor lost steps: ''
@@ -5238,6 +5241,7 @@ translations:
   'This update asks for new permissions:': ''
   This update removes HelixScreen from the printer.: ''
   This upgrades the printer's operating system packages.: ''
+  This video could not be played: ''
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'This wait ends only at its temperature: cancelling takes an emergency stop and a firmware restart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : ''
@@ -5588,8 +5592,6 @@ translations:
   Vibration: ''
   Vibration compensation active: ''
   Video playback speed: ''
-  Video player failed to start: ''
-  Video player failed to start ({}): ''
   View: ''
   View Changelog: ''
   View Full History: ''
@@ -5758,6 +5760,8 @@ translations:
   Your printer at a glance: ''
   Your printer has an automatic filament changer: ''
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: ''
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : ''
   Your printer's manual has the parts and lubricant for your model.: ''
   Your usual build plate is on: ''
   Your {0} is set up for {1}, but it looks stock.: ''

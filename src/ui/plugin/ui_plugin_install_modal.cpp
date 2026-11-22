@@ -85,7 +85,8 @@ enum class Phase : int {
     RemotePrompt = 1,
     Installing = 2,
     Succeeded = 3,
-    Failed = 4
+    Failed = 4,
+    FirmwareManaged = 5
 };
 
 /// plugin_install_copy_result: which Copy Command outcome is shown, if any.
@@ -172,10 +173,17 @@ void PluginInstallModal::on_show() {
 
     // Determine mode based on installer
     is_local_mode_ = installer_ && installer_->is_local_moonraker();
+    const bool firmware_owned = installer_ && installer_->firmware_owns_plugin();
 
-    spdlog::info("[Plugin Install] Showing in {} mode", is_local_mode_ ? "LOCAL" : "REMOTE");
+    spdlog::info("[Plugin Install] Showing in {} mode",
+                 firmware_owned ? "FIRMWARE" : (is_local_mode_ ? "LOCAL" : "REMOTE"));
 
-    set_phase(is_local_mode_ ? Phase::LocalPrompt : Phase::RemotePrompt);
+    if (firmware_owned) {
+        // The result message belongs to an earlier install attempt.
+        lv_subject_set_string(&install_subjects().result_message, "");
+    }
+    set_phase(firmware_owned ? Phase::FirmwareManaged
+                             : (is_local_mode_ ? Phase::LocalPrompt : Phase::RemotePrompt));
     set_copy_result(CopyResult::Hidden);
 
     // REMOTE mode shows the curl command to run over SSH
