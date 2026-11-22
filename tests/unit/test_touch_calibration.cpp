@@ -1668,7 +1668,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         lv_indev_t* reopened = lv_indev_create();
         lv_indev_set_type(reopened, LV_INDEV_TYPE_POINTER);
 
-        helix::reinstall_calibration_wrapper(reopened, ctx, 800, 480);
+        helix::reinstall_calibration_wrapper(reopened, ctx, TouchCalibration{}, 800, 480);
 
         CHECK(lv_indev_get_read_cb(reopened) == helix::calibrated_read_cb);
         const Point got = read_reopened(reopened);
@@ -1682,7 +1682,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
         lv_indev_t* reopened = lv_indev_create();
         lv_indev_set_type(reopened, LV_INDEV_TYPE_POINTER);
 
-        helix::reinstall_calibration_wrapper(reopened, ctx, 800, 480);
+        helix::reinstall_calibration_wrapper(reopened, ctx, TouchCalibration{}, 800, 480);
 
         const Point want = transform_point(cal, {10, 20}, 799, 479);
         const Point got = read_reopened(reopened);
@@ -1690,6 +1690,22 @@ TEST_CASE_METHOD(LVGLTestFixture,
         CHECK(got.y == want.y);
         uninstall_calibration_wrapper(reopened, ctx);
         lv_indev_delete(reopened);
+    }
+
+    SECTION("a panel first seen on a reopen applies the stored calibration") {
+        // No device at startup, so nothing ever installed a calibration.
+        CalibrationContext fresh;
+        lv_indev_t* late = lv_indev_create();
+        lv_indev_set_type(late, LV_INDEV_TYPE_POINTER);
+
+        helix::reinstall_calibration_wrapper(late, fresh, cal, 800, 480);
+
+        const Point want = transform_point(cal, {10, 20}, 799, 479);
+        const Point got = read_reopened(late);
+        CHECK(got.x == want.x);
+        CHECK(got.y == want.y);
+        uninstall_calibration_wrapper(late, fresh);
+        lv_indev_delete(late);
     }
 }
 

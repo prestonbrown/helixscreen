@@ -588,8 +588,8 @@ lv_indev_t* DisplayBackendDRM::hook_pointer_devices(bool reopening) {
     // live when the old one dropped.
     if (pointer_ != nullptr && !calibration_wrapper_installed_) {
         if (reopening) {
-            helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
-                                                 screen_height_);
+            helix::reinstall_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                 screen_width_, screen_height_);
         } else {
             helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
                                                screen_width_, screen_height_);
@@ -1014,8 +1014,8 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
             // A reopened device keeps the calibration live when the old one dropped,
             // a capture's disabled affine included.
             if (reopening) {
-                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, screen_width_,
-                                                     screen_height_);
+                helix::reinstall_calibration_wrapper(pointer_, calibration_context_, calibration_,
+                                                     screen_width_, screen_height_);
             } else {
                 helix::install_calibration_wrapper(pointer_, calibration_context_, calibration_,
                                                    screen_width_, screen_height_);
@@ -1108,21 +1108,11 @@ bool DisplayBackendDRM::open_touch_device(bool reopening) {
     }
 #endif
 
+    // No guess at a bare event node: the first one is often a power key or a
+    // GPIO button, and holding it as the pointer hides a touch panel that
+    // enumerates later. DisplayManager waits for the panel instead.
     if (!pointer_) {
-        // Fallback to evdev on common device paths
-        spdlog::warn("[DRM Backend] Libinput auto-detection failed, trying evdev fallback");
-
-        // Try event1 first (common for touchscreens on Pi)
-        const char* fallback_devices[] = {"/dev/input/event1", "/dev/input/event0"};
-        for (const char* dev : fallback_devices) {
-            pointer_ = lv_evdev_create(LV_INDEV_TYPE_POINTER, dev);
-            if (pointer_ != nullptr) {
-                pointer_path_ = dev;
-                spdlog::info("[DRM Backend] Evdev pointer device created on {}", dev);
-                configure_touch_gestures(pointer_);
-                break;
-            }
-        }
+        spdlog::warn("[DRM Backend] No touch device found");
     }
     return false;
 }

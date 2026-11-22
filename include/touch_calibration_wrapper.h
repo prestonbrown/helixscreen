@@ -16,6 +16,8 @@ namespace helix {
 struct CalibrationContext {
     TouchCalibration calibration;
     lv_indev_read_cb_t original_read_cb = nullptr;
+    /// Set by install_calibration_wrapper(): calibration is the one this session runs.
+    bool installed = false;
     int screen_width = 800;
     int screen_height = 480;
 
@@ -156,8 +158,10 @@ void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
 /// install_calibration_wrapper() for a device reopened after LVGL deleted the one
 /// ctx served: the new device reads with the calibration ctx has live, so an
 /// affine a calibration capture disabled stays off for the rest of the capture.
-void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx, int screen_w,
-                                   int screen_h);
+/// A device first seen on a reopen (absent at startup) has no live calibration
+/// yet and gets `stored`.
+void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
+                                   const TouchCalibration& stored, int screen_w, int screen_h);
 
 /// Tear down the wrapper installed by install_calibration_wrapper(): silence the
 /// calibrated read callback on `indev` and drop the active-context handle if it
