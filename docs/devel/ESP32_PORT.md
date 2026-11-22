@@ -40,6 +40,11 @@ firmware. Before you commit:
   (`src/system/settings_manager.cpp#"static HELIX_PSRAM_BSS SettingsManager instance"`). Do the same for a new widget's, overlay's
   or model's subjects, buffers and singleton. Subjects registered at app runtime are first touched after PSRAM
   is up, which is what makes the attribute legal.
+- **Subject registration macros:** `UI_MANAGED_SUBJECT_*` (`include/subject_managed_panel.h`) and
+  `UI_SUBJECT_INIT_AND_REGISTER_*` (`include/ui_subject_registry.h`) expand to one call each, into
+  `helix::publish_managed_subject()` and `helix::publish_subject()`, which init, register and record the
+  subject out of line. Hundreds of call sites expanding the whole sequence inline cost about 63 KB of
+  image, so a new registration macro follows the same shape: a thin macro over one out-of-line helper.
 - **Push:** `.githooks/pre-push` runs `scripts/esp32_syntax_check.py`, which compiles the touched firmware units
   `-fsyntax-only` in the `espressif/idf` image and catches the host-green, Xtensa-red class (`int32_t` is `long`).
   It skips with a note when docker or the image is missing; `HELIX_ESP32_SYNTAX=0` skips it.
