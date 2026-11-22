@@ -392,6 +392,17 @@ Each row carries its own top divider, so there is no shared `divider_horizontal`
 Subject props resolve in `modal_button_row`'s scope plus globals, so a subject declared in
 the calling component's own `<subjects>` cannot be passed in.
 
+**Row height.** The row fixes every button at `#modal_button_height`, not `#button_height`.
+The two match at every breakpoint except micro (480x272), where `#button_height` is 26px and
+`#modal_button_height` is 44px: a dialog's confirm/cancel pair is the one control the user must
+hit, so it stays a full touch target on the smallest screen. A hand-built footer shaped like the
+row (`network_test_modal`, `update_download_modal`) and any action button standing in the
+footer's place (the runout dialog's Load/Unload/Purge and Use Another Toolhead buttons,
+`ui_xml/runout_guidance_modal.xml`) sets `height="#modal_button_height"` too. The chrome-budget
+gate recognizes a hand-built row by either height token. `helix::ui::fit_dialog_to_screen()`
+(`src/ui/ui_modal.cpp#fit_dialog_to_screen`) gives the taller row its room by shrinking the
+content scroll area, and the measured content caps below already include the 44px row.
+
 Use `primary_variant="danger"` (not a color override) for destructive primaries. The
 tertiary button is hidden by default so existing two-button callers are unaffected; a
 hidden flex child drops out of layout entirely.
@@ -507,6 +518,12 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 | `#dialog_content_max` | header + divider + scroll area + divider + ONE button row | `modal_dialog` |
 | `#dialog_content_pinned_max` | …plus ONE pinned block below the scroll area (a diagram, a status row) | `ams_loading_error_modal` |
 | `#dialog_content_recovery_max` | header + divider + scroll area + ONE button row, measured on that card | `klipper_recovery_dialog` |
+
+The micro values carry the 44px `#modal_button_height` row in their measured chrome:
+`#dialog_content_pinned_max` is 103px there and `#dialog_content_recovery_max` 135px, with the
+card cap still 85% of the screen. A change to the footer row's height at any breakpoint means
+re-measuring these two ladders at that breakpoint (the comment above each in `globals.xml`
+lists the measured chrome per breakpoint).
 
 - Prefer moving content INSIDE the scroll container over pinning it - then
   `#dialog_content_max` is correct by construction.

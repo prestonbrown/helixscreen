@@ -220,7 +220,7 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 
 | Token | Axis | Small | Medium | Large | Purpose |
 |-------|------|-------|--------|-------|---------|
-| `#modal_button_height` | vertical | 48px | 52px | 72px | A dialog's footer button row (`modal_button_row`); micro 44px, so a dialog's confirm stays easy to hit at 480x272 |
+| `#modal_button_height` | vertical | 48px | 52px | 72px | A dialog's footer button row (`modal_button_row`, hand-built footers, action buttons in the footer's place); micro 44px where `#button_height` is 26px, so a dialog's confirm stays easy to hit at 480x272. See `MODAL_SYSTEM.md` § `modal_button_row` |
 | `#button_height` | vertical | 48px | 52px | 72px | Standard button height (micro 26px) |
 | `#button_height_sm` | vertical | 40px | 40px | 40px | Small buttons (back, icon-only) |
 | `#button_height_lg` | vertical | 64px | 70px | 96px | Large buttons |
@@ -228,8 +228,8 @@ You almost never need to reference font tokens directly. Use the semantic `<text
 | `#input_height` | cramped | 48px | 52px | 56px | Text input / dropdown height; micro is 32px. Follows the cramped axis like the body font it holds |
 | `#temp_card_height` | vertical | 64px | 72px | 80px | Temperature card in print status |
 | `#dialog_content_max` | vertical | 260px | 320px | 440px | Max height of a modal's scrollable body |
-| `#dialog_content_pinned_max` | vertical | 164px | 207px | 272px | Same, plus one pinned block below the scroll area (measured 85% cap − chrome, #1277) |
-| `#dialog_content_recovery_max` | vertical | 218px | 276px | 352px | `klipper_recovery_dialog`'s message (measured 85% cap − chrome, #1277) |
+| `#dialog_content_pinned_max` | vertical | 164px | 207px | 272px | Same, plus one pinned block below the scroll area (measured 85% cap − chrome, #1277); micro 103px, its chrome including the 44px `#modal_button_height` row |
+| `#dialog_content_recovery_max` | vertical | 218px | 276px | 352px | `klipper_recovery_dialog`'s message (measured 85% cap − chrome, #1277); micro 135px, its chrome including the 44px `#modal_button_height` row |
 | `#badge_size` | neutral | 16px | 18px | 20px | Status badge diameter |
 | `#nav_width` | horizontal | 76px | 104px | 132px | Nav bar width - see note below |
 | `#icon_size` | neutral | md | lg | lg | Responsive icon size string |
