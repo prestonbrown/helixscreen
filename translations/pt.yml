@@ -1482,7 +1482,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "Não faça extração a frio em um bico revestido. A extração a frio é feita na ferramenta ativa."
   Do not power off your printer.: Não desligue sua impressora.
   Do not touch the filament yet.: "Ainda não toque no filamento."
-  Do not touch the nozzle or bed: ''
+  Do not touch the nozzle or bed: 'Não toque no bico nem na mesa'
   Do not touch the nozzle or the bed.: 'Não toque no bico nem na mesa.'
   Do not touch the printer during calibration: Não toque na impressora durante a calibração
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Não desligue a impressora até terminar. Uma queda de energia durante a gravação pode impedir a impressora de iniciar.'
@@ -2126,7 +2126,7 @@ translations:
   Got it: Entendi
   Gradient: Gradiente
   Gray: Cinza
-  'Green mark: the tension the printer aims for': ''
+  'Green mark: the tension the printer aims for': 'Marca verde: a tensão que a impressora procura'
   Grid: Grade
   Grip filament: Segurar filamento
   Grip the filament: Segurar o filamento
@@ -2142,7 +2142,7 @@ translations:
   HEPA filter interval: 'Intervalo do filtro HEPA'
   HOST: Host
   HOST ACCESS: 'ACESSO AO HOST'
-  HOT: ''
+  HOT: 'QUENTE'
   HTTP Code: Código HTTP
   'HTTP error: {} {}': 'Erro HTTP: {} {}'
   HUMIDITY SENSORS: SENSORES DE UMIDADE
@@ -2526,7 +2526,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Afaste-se da impressora enquanto o cabeçote se move
   Keep current: Manter atual
   Keep current ({}): Manter atual ({})
-  Keep hands clear: ''
+  Keep hands clear: 'Mantenha as mãos afastadas'
   Keep hands clear except when asked. The printer moves on its own.: Mantenha as mãos afastadas, exceto quando solicitado. A impressora se move sozinha.
   Keep hands clear. The printer moves on its own.: Mantenha as mãos afastadas. A impressora se move sozinha.
 
@@ -2599,7 +2599,7 @@ translations:
   LOADED: CARREGADO
   LOCKED: BLOQUEADO
   LOT-2024-001: LOT-2024-001
-  LOUD: ''
+  LOUD: 'BARULHENTO'
   Label Printer: Impressora de Etiquetas
   Label Size: Tamanho da Etiqueta
   Label printed: Etiqueta impressa
@@ -2784,11 +2784,11 @@ translations:
   MISSING CONFIGURED: CONFIGURAÇÃO FALTANDO
   MMU command failed: Falha no comando MMU
   MOTION & LEVELING: 'MOVIMENTO E NIVELAMENTO'
-  MOTORS: ''
+  MOTORS: 'MOTORES'
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: Modelo térmico MPC calibrado para {} a {}.
-  'MPC: measuring how fast the bed heats and loses heat': ''
-  'MPC: measuring how fast the nozzle heats and loses heat': ''
+  'MPC: measuring how fast the bed heats and loses heat': 'MPC: medindo a rapidez com que a mesa aquece e perde calor'
+  'MPC: measuring how fast the nozzle heats and loses heat': 'MPC: medindo a rapidez com que o bico aquece e perde calor'
   Machine Limits: Limites da Máquina
   Macro: Macro
   Macro Browser: Navegador de Macros
@@ -3366,8 +3366,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
-  'PID: heating the bed in cycles to tune its control': ''
-  'PID: heating the nozzle in cycles to tune its control': ''
+  'PID: heating the bed in cycles to tune its control': 'PID: aquecendo a mesa em ciclos para ajustar o controle'
+  'PID: heating the nozzle in cycles to tune its control': 'PID: aquecendo o bico em ciclos para ajustar o controle'
   PIN must be 4-6 digits: O PIN deve ter 4-6 dígitos
   PIN removed: PIN removido
   PIN set: PIN definido
@@ -3720,7 +3720,7 @@ translations:
   Probing stopped at {}: 'Sondagem interrompida em {}'
   'Probing stopped: toolhead state': 'Sondagem interrompida: estado do cabeçote'
   Probing the bed: 'Sondando a mesa'
-  Probing the bed point by point: ''
+  Probing the bed point by point: 'Sondando a mesa ponto a ponto'
   Probing was asked for before homing.: 'A sondagem foi pedida antes do homing.'
   Probing... ({} points): 'Sondando... ({} pontos)'
   Problem found: Problema detectado
@@ -4079,7 +4079,7 @@ translations:
   Revert now: 'Reverter agora'
   Review: Revisar
   Review detected hardware validation issues: Revisar problemas de validação de hardware detectados
-  Review the results, then save once.: ''
+  Review the results, then save once.: 'Revise os resultados e salve uma única vez.'
   Review the results, then save them all at once.: 'Revise os resultados e depois salve todos de uma vez.'
   Review your configuration below, then click Finish to save: Revise sua configuração abaixo e clique em Finalizar para salvar
   Rewinding: Rebobinando
@@ -4376,7 +4376,7 @@ translations:
   Shadow Intensity: Intensidade da Sombra
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Agita o cabeçote ao longo de cada diagonal e sobrepõe as duas respostas. Correias equilibradas atingem o pico juntas.
-  Shaking each axis through a frequency sweep: ''
+  Shaking each axis through a frequency sweep: 'Vibrando cada eixo numa varredura de frequências'
   Shaking the {} axis: 'Vibrando o eixo {}'
   Share Screen: 'Compartilhar tela'
   Share Usage Data: Compartilhar Dados de Uso
@@ -4833,7 +4833,7 @@ translations:
   The bed has cooled. Take the spools off the plate, then confirm.: A mesa esfriou. Tire os carretéis da mesa e depois confirme.
 
   The bed is clear: 'A mesa está livre'
-  The bed is hot: ''
+  The bed is hot: 'A mesa está quente'
   The bed is not heating: 'A mesa não está aquecendo'
   The bed is too far out of level for automatic compensation.: 'A mesa está desnivelada demais para a compensação automática.'
   The bed is too small for settling laps.: 'A mesa é pequena demais para as voltas de assentamento.'
@@ -4878,7 +4878,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : A placa controladora não conseguiu acompanhar a taxa de passos pedida, geralmente porque micropassos altos se somam a uma velocidade alta, ou o host travou.
   The controller boards Klipper runs on. See their load in the system settings.: 'As placas controladoras em que o Klipper roda. Veja a carga delas nas configurações do sistema.'
-  The curve draws in as the axis sweeps: ''
+  The curve draws in as the axis sweeps: 'A curva é desenhada durante a varredura do eixo'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: O cortador está desalinhado. Recalibre com CALIBRATE_CUT_POS
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: O driver de {1} esquentou demais, geralmente por uma corrente de operação alta demais ou pouco resfriamento sobre os drivers.
@@ -5127,7 +5127,7 @@ translations:
   The speed of one fan you choose: A velocidade de uma ventoinha escolhida
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou 24.'
   The temperature was changed elsewhere.: "A temperatura foi alterada em outro lugar."
-  The tensioners pull each belt to its target: ''
+  The tensioners pull each belt to its target: 'Os tensores puxam cada correia até a tensão alvo'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: O amplificador do termopar ou do PT100 relatou uma falha ou uma leitura fora da faixa.
   The time, date, and system uptime: Hora, data e tempo ativo
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."
@@ -5262,7 +5262,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Esta impressão precisa de cerca de %.0fg, mas o carretel tem cerca de %.0fg restantes. Iniciar mesmo assim?
   This print never reports layer {}.: 'Esta impressão nunca informa a camada {}.'
   This printer cannot calibrate tool offsets automatically: Esta impressora não consegue calibrar os offsets de ferramenta automaticamente
-  This printer cannot stream the sweep to the screen: ''
+  This printer cannot stream the sweep to the screen: 'Esta impressora não consegue mostrar a varredura na tela'
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Esta impressora preenche seus gates a partir do Spoolman. O HelixScreen limpou a própria cópia; remova a bobina no Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Esta impressora preenche seus gates a partir do Spoolman. Faça alterações de cor, material e bobina no Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'Esta impressora tem compensação do motor, então a verificação é executada duas vezes: com ela desligada e depois ligada.'
@@ -5891,7 +5891,7 @@ translations:
   all done: ''
   already loaded: 'já carregado'
   assign without adding to Spoolman: atribuir sem adicionar ao Spoolman
-  at target: ''
+  at target: 'no alvo'
   attempt {}: 'tentativa {}'
   auto: auto
   automatic: 'automático'
@@ -5991,7 +5991,7 @@ translations:
   printer default: padrão da impressora
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carrega mais de {} arquivos de configuração; [{}] não foi procurado em todos"
   prints: impressões
-  pulling...: ''
+  pulling...: 'tensionando...'
   ready to load: 'pronto para carregar'
   remaining: restante
   remaining before clog detection triggers: restante antes da detecção de obstrução ser acionada
@@ -6153,7 +6153,7 @@ translations:
   '{} new hardware available': '{} novo hardware disponível'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} novos plugins disponíveis. Ative-os em Configurações > Plugins.'
   '{} nozzle sensor fault': 'Falha no sensor do bico de {}'
-  '{} of {} points': ''
+  '{} of {} points': '{} de {} pontos'
   '{} of {} steps finished. Review them, then save them all at once.': '{} de {} etapas concluídas. Revise e depois salve todas de uma vez.'
   '{} packages to update': '{} pacotes para atualizar'
   '{} preset': '{} predefinição'

@@ -1400,7 +1400,7 @@
   <translation tag="Do not cold pull a coated nozzle. The cold pull runs on the active tool." zh="请勿对涂层喷嘴进行冷拉清理。冷拉清理在当前工具上运行。"/>
   <translation tag="Do not power off your printer." zh="请勿关闭打印机电源。"/>
   <translation tag="Do not touch the filament yet." zh="请暂时不要触碰耗材。"/>
-  <translation tag="Do not touch the nozzle or bed"/>
+  <translation tag="Do not touch the nozzle or bed" zh="请勿触摸喷嘴和热床"/>
   <translation tag="Do not touch the nozzle or the bed." zh="请勿触碰喷嘴或热床。"/>
   <translation tag="Do not touch the printer during calibration" zh="校准期间请勿触碰打印机"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." zh="完成之前请勿关闭打印机。刷写过程中断电可能导致打印机无法启动。"/>
@@ -2032,7 +2032,7 @@
   <translation tag="Got it" zh="知道了"/>
   <translation tag="Gradient" zh="渐变"/>
   <translation tag="Gray" zh="灰色"/>
-  <translation tag="Green mark: the tension the printer aims for"/>
+  <translation tag="Green mark: the tension the printer aims for" zh="标记线：打印机的目标张力"/>
   <translation tag="Grid" zh="网格"/>
   <translation tag="Grip filament" zh="夹持耗材"/>
   <translation tag="Grip the filament" zh="夹持耗材"/>
@@ -2048,7 +2048,7 @@
   <translation tag="HEPA filter interval" zh="HEPA 过滤器间隔"/>
   <translation tag="HOST" zh="主机"/>
   <translation tag="HOST ACCESS" zh="主机访问"/>
-  <translation tag="HOT"/>
+  <translation tag="HOT" zh="高温"/>
   <translation tag="HTTP Code" zh="HTTP 代码"/>
   <translation tag="HTTP error: {} {}" zh="HTTP 错误: {} {}"/>
   <translation tag="HUMIDITY SENSORS" zh="湿度传感器"/>
@@ -2424,7 +2424,7 @@
   <translation tag="Keep clear of the printer while the toolhead is moving" zh="工具头移动时请远离打印机"/>
   <translation tag="Keep current" zh="保留当前"/>
   <translation tag="Keep current ({})" zh="保持当前值 ({})"/>
-  <translation tag="Keep hands clear"/>
+  <translation tag="Keep hands clear" zh="请勿将手靠近"/>
   <translation tag="Keep hands clear except when asked. The printer moves on its own." zh="除提示时外请让手远离打印机。打印机会自行移动。"/>
   <translation tag="Keep hands clear. The printer moves on its own." zh="请勿将手靠近。打印机会自行移动。"/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." zh="在此屏幕上保存自己的数据（最多256 KB）。"/>
@@ -2491,7 +2491,7 @@
   <translation tag="LOADED" zh="已加载"/>
   <translation tag="LOCKED" zh="已锁定"/>
   <translation tag="LOT-2024-001" zh="LOT-2024-001"/>
-  <translation tag="LOUD"/>
+  <translation tag="LOUD" zh="噪音大"/>
   <translation tag="Label Printer" zh="标签打印机"/>
   <translation tag="Label Size" zh="标签尺寸"/>
   <translation tag="Label printed" zh="标签已打印"/>
@@ -2683,11 +2683,11 @@
   <translation tag="MISSING CONFIGURED" zh="缺少配置"/>
   <translation tag="MMU command failed" zh="MMU 命令失败"/>
   <translation tag="MOTION &amp; LEVELING" zh="运动与调平"/>
-  <translation tag="MOTORS"/>
+  <translation tag="MOTORS" zh="电机"/>
   <translation tag="MPC" zh="MPC"/>
   <translation tag="MPC thermal model calibrated for {} at {}." zh="已针对 {} 在 {} 下校准 MPC 热模型。"/>
-  <translation tag="MPC: measuring how fast the bed heats and loses heat"/>
-  <translation tag="MPC: measuring how fast the nozzle heats and loses heat"/>
+  <translation tag="MPC: measuring how fast the bed heats and loses heat" zh="MPC：测量热床升温和散热的速度"/>
+  <translation tag="MPC: measuring how fast the nozzle heats and loses heat" zh="MPC：测量喷嘴升温和散热的速度"/>
   <translation tag="Machine Limits" zh="机器限制"/>
   <translation tag="Macro" zh="宏"/>
   <translation tag="Macro Browser" zh="宏浏览器"/>
@@ -3250,8 +3250,8 @@
   <translation tag="PC" zh="PC"/>
   <translation tag="PETG" zh="PETG"/>
   <translation tag="PID" zh="PID"/>
-  <translation tag="PID: heating the bed in cycles to tune its control"/>
-  <translation tag="PID: heating the nozzle in cycles to tune its control"/>
+  <translation tag="PID: heating the bed in cycles to tune its control" zh="PID：循环加热热床以调整控制"/>
+  <translation tag="PID: heating the nozzle in cycles to tune its control" zh="PID：循环加热喷嘴以调整控制"/>
   <translation tag="PIN must be 4-6 digits" zh="PIN 码必须为 4-6 位数字"/>
   <translation tag="PIN removed" zh="PIN 码已移除"/>
   <translation tag="PIN set" zh="PIN 码已设置"/>
@@ -3604,7 +3604,7 @@
   <translation tag="Probing stopped at {}" zh="探测在 {} 处停止"/>
   <translation tag="Probing stopped: toolhead state" zh="探测停止：工具头状态"/>
   <translation tag="Probing the bed" zh="正在探测热床"/>
-  <translation tag="Probing the bed point by point"/>
+  <translation tag="Probing the bed point by point" zh="按点探测热床"/>
   <translation tag="Probing was asked for before homing." zh="归位前就请求了探测。"/>
   <translation tag="Probing... ({} points)" zh="探测中...（{} 个点）"/>
   <translation tag="Problem found" zh="发现问题"/>
@@ -3959,7 +3959,7 @@
   <translation tag="Revert now" zh="立即还原"/>
   <translation tag="Review" zh="查看"/>
   <translation tag="Review detected hardware validation issues" zh="查看检测到的硬件验证问题"/>
-  <translation tag="Review the results, then save once."/>
+  <translation tag="Review the results, then save once." zh="查看结果，然后一次性保存。"/>
   <translation tag="Review the results, then save them all at once." zh="查看结果，然后一次性全部保存。"/>
   <translation tag="Review your configuration below, then click Finish to save" zh="请检查以下配置，然后点击完成以保存"/>
   <translation tag="Rewinding" zh="回卷中"/>
@@ -4249,7 +4249,7 @@
   <translation tag="Shadow Intensity" zh="阴影强度"/>
   <translation tag="Shake&amp;Tune" zh="Shake&amp;Tune"/>
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." zh="沿每条对角线振动工具头，并同时显示两条响应曲线。张力一致的皮带峰值重合。"/>
-  <translation tag="Shaking each axis through a frequency sweep"/>
+  <translation tag="Shaking each axis through a frequency sweep" zh="各轴依次进行频率扫描振动"/>
   <translation tag="Shaking the {} axis" zh="正在振动 {} 轴"/>
   <translation tag="Share Screen" zh="共享屏幕"/>
   <translation tag="Share Usage Data" zh="共享使用数据"/>
@@ -4691,7 +4691,7 @@
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." zh="热床已冷却。请从热床上取下料盘,然后确认。"/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." zh="热床加热器。在热床温度界面设置温度并查看曲线。"/>
   <translation tag="The bed is clear" zh="热床已清空"/>
-  <translation tag="The bed is hot"/>
+  <translation tag="The bed is hot" zh="热床很烫"/>
   <translation tag="The bed is not heating" zh="热床未加热"/>
   <translation tag="The bed is too far out of level for automatic compensation." zh="热床不平程度超出自动补偿范围。"/>
   <translation tag="The bed is too small for settling laps." zh="打印床太小，无法进行稳定绕圈。"/>
@@ -4729,7 +4729,7 @@
   <translation tag="The connection to Klipper was lost" zh="与 Klipper 的连接已断开"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." zh="控制板跟不上所要求的步进速率，通常是高细分配合高速度，或主机卡顿。"/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." zh="运行 Klipper 的控制板。在系统设置中查看其负载。"/>
-  <translation tag="The curve draws in as the axis sweeps"/>
+  <translation tag="The curve draws in as the axis sweeps" zh="曲线随轴扫描绘制"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" zh="切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." zh="{1} 的驱动过热，通常是运行电流设置过高或驱动散热不足。"/>
@@ -4963,7 +4963,7 @@
   <translation tag="The speed of one fan you choose" zh="所选风扇的转速"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." zh="子网掩码无效。请使用 255.255.255.0 或 24 这样的格式。"/>
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
-  <translation tag="The tensioners pull each belt to its target"/>
+  <translation tag="The tensioners pull each belt to its target" zh="张紧器将每条皮带拉到目标张力"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." zh="热电偶或 PT100 放大器报告故障或读数超出范围。"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
@@ -5067,7 +5067,7 @@
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" zh="本次打印需要约 %.0fg，但料盘仅剩约 %.0fg。仍要开始吗？"/>
   <translation tag="This print never reports layer {}." zh="此打印从不报告第 {} 层。"/>
   <translation tag="This printer cannot calibrate tool offsets automatically" zh="此打印机无法自动校准工具偏移"/>
-  <translation tag="This printer cannot stream the sweep to the screen"/>
+  <translation tag="This printer cannot stream the sweep to the screen" zh="此打印机无法在屏幕上实时显示扫描"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." zh="此打印机的通道信息来自 Spoolman。HelixScreen 已清除本地副本；请在 Spoolman 中移除该线轴。"/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." zh="此打印机的通道信息来自 Spoolman。请在 Spoolman 中更改颜色、材料和线轴。"/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." zh="此打印机具有电机补偿，因此检查会运行两次：先关闭补偿，再开启补偿。"/>
@@ -5697,7 +5697,7 @@
   <translation tag="all done"/>
   <translation tag="already loaded" zh="已加载"/>
   <translation tag="assign without adding to Spoolman" zh="分配但不添加到 Spoolman"/>
-  <translation tag="at target"/>
+  <translation tag="at target" zh="已达目标"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
   <translation tag="automatic" zh="自动"/>
@@ -5792,7 +5792,7 @@
   <translation tag="printer default" zh="打印机默认"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" zh="printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"/>
   <translation tag="prints" zh="打印次数"/>
-  <translation tag="pulling..."/>
+  <translation tag="pulling..." zh="张紧中..."/>
   <translation tag="ready to load" zh="可加载"/>
   <translation tag="remaining" zh="剩余"/>
   <translation tag="remaining before clog detection triggers" zh="剩余即触发堵料检测"/>
@@ -5953,7 +5953,7 @@
   <translation tag="{} new hardware available" zh="{} 个新硬件可用"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." zh="{} 个新插件可用。请在设置 &gt; 插件中启用。"/>
   <translation tag="{} nozzle sensor fault" zh="{} 喷嘴传感器故障"/>
-  <translation tag="{} of {} points"/>
+  <translation tag="{} of {} points" zh="{} / {} 个点"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." zh="已完成 {} 个步骤，共 {} 个。请查看，然后一次性全部保存。"/>
   <translation tag="{} packages to update" zh="{} 个软件包待更新"/>
   <translation tag="{} preset" zh="{} 个预设"/>
