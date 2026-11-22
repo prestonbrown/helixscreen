@@ -13,6 +13,7 @@
 #include "config.h"
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
+#include "device_display_name.h"
 #include "favorite_macro_config_modal.h"
 #include "favorite_macro_widget.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -444,16 +445,21 @@ TEST_CASE_METHOD(ConfigModalDefaultsFixture, "a tap on a macro row selects and s
     lv_obj_t* list = lv_obj_find_by_name(modal.dialog(), "macro_list");
     REQUIRE(list != nullptr);
 
+    const std::string other_label =
+        helix::get_display_name("OTHER_MACRO", helix::DeviceType::MACRO);
     lv_obj_t* other = nullptr;
     for (uint32_t i = 0; i < lv_obj_get_child_count(list); ++i) {
         lv_obj_t* row = lv_obj_get_child(list, i);
-        const auto* name = static_cast<const std::string*>(lv_obj_get_user_data(row));
-        if (name && *name == "OTHER_MACRO")
+        lv_obj_t* label = lv_obj_find_by_name(row, "option_label");
+        if (label && other_label == lv_label_get_text(label))
             other = row;
     }
     REQUIRE(other != nullptr);
+    CHECK(lv_obj_get_style_bg_opa(other, LV_PART_MAIN) == LV_OPA_TRANSP);
     lv_obj_send_event(other, LV_EVENT_CLICKED, nullptr);
     helix::ui::UpdateQueue::instance().drain();
+    // The picked row lights while the modal stays open.
+    CHECK(lv_obj_get_style_bg_opa(other, LV_PART_MAIN) > LV_OPA_TRANSP);
 
     auto& wc = helix::PanelWidgetManager::instance().get_widget_config("defaults_test_panel");
     CHECK(wc.get_widget_config("favorite_macro:1").value("macro", "") == "OTHER_MACRO");

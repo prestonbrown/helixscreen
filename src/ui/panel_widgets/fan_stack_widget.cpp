@@ -4,6 +4,7 @@
 #include "fan_stack_widget.h"
 
 #include "ui_carousel.h"
+#include "ui_choice_subject.h"
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_fan_arc_resize.h"
@@ -938,13 +939,12 @@ void FanStackWidget::ConfigurePicker::on_created(lv_obj_t* backdrop) {
     bool is_carousel = owner_.is_carousel_mode();
     const char* mode_labels[] = {"Stack", "Carousel"};
     const char* mode_values[] = {"stack", "carousel"};
+    constexpr const char* kModeChoice = "fan_stack_mode_choice";
+    helix::ui::set_choice(kModeChoice, is_carousel ? 1 : 0);
     for (int i = 0; i < 2; ++i) {
-        bool is_selected = (i == 0) ? !is_carousel : is_carousel;
-
+        const std::string index = std::to_string(i);
         const char* attrs[] = {
-            "selected",
-            is_selected ? "true" : "false",
-            nullptr,
+            "selected_subject", kModeChoice, "selected_value", index.c_str(), nullptr,
         };
         lv_obj_t* row =
             static_cast<lv_obj_t*>(lv_xml_create(mode_list, "picker_option_row", attrs));
