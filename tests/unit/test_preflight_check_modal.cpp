@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 #include "ui_preflight_check_modal.h"
+#include "ui_swatch.h"
 
 #include "../test_helpers/backend_user_edit.h"
 #include "ams_backend_mock.h"
@@ -356,4 +357,50 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         modal->hide();
         pump();
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "PreflightCheckModal paints a translucent seated lane translucent",
+                 "[preflight][modal][ui][translucent]") {
+    auto& ams = helix::AmsState::instance();
+    ams.init_subjects(false);
+    auto owned_backend = std::make_unique<helix::AmsBackendMock>(4);
+    auto* backend = owned_backend.get();
+    backend->set_operation_delay(0);
+    ams.set_backend(std::move(owned_backend));
+    backend->start();
+    helix::SlotInfo clear = backend->get_slot_info(0);
+    clear.color_rgb = 0xE8E8FF;
+    clear.multi_color_hexes.clear();
+    clear.material = "PETG";
+    clear.translucent = true;
+    REQUIRE(helix::test::apply_edit(*backend, 0, clear).success());
+
+    helix::PreflightResult pf;
+    pf.checks = {make_check(0, 0xE8E8FF, "PETG", /*slot=*/0, true, helix::ToolCheck::Severity::Ok),
+                 make_check(1, 0x2E8B57, "PLA", /*slot=*/1, true, helix::ToolCheck::Severity::Ok)};
+    auto owned = std::make_unique<helix::ui::PreflightCheckModal>();
+    auto* modal = owned.get();
+    modal->set_checks(pf);
+    REQUIRE(Modal::show_owned(std::move(owned), test_screen()));
+    process_lvgl(50);
+
+    lv_obj_t* list = lv_obj_find_by_name(test_screen(), "preflight_tool_list");
+    REQUIRE(list != nullptr);
+    const auto translucent = [](lv_obj_t* row) {
+        lv_obj_t* swatch = lv_obj_find_by_name(row, "seated_swatch");
+        REQUIRE(swatch != nullptr);
+        lv_obj_t* disc = lv_obj_find_by_name(swatch, "color_swatch_disc");
+        return helix::ui::swatch_paint_translucent(swatch) ||
+               (disc != nullptr && helix::ui::swatch_paint_translucent(disc));
+    };
+    CHECK(translucent(lv_obj_get_child(list, 0)));
+    CHECK_FALSE(translucent(lv_obj_get_child(list, 1)));
+
+    modal->hide();
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
+    backend->stop();
+    ams.clear_backends();
+    ams.deinit_subjects();
 }

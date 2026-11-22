@@ -22,6 +22,7 @@
  */
 
 #include "ui_filament_mapping_card.h"
+#include "ui_swatch.h"
 
 #include "../mapping_card_render_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -139,6 +140,27 @@ TEST_CASE_METHOD(NoFilamentSystemCardFixture,
     REQUIRE(chip != nullptr);
     lv_obj_send_event(chip, LV_EVENT_CLICKED, nullptr);
     CHECK_FALSE(card.slot_picker().is_visible());
+    process_lvgl(100);
+}
+
+TEST_CASE_METHOD(NoFilamentSystemCardFixture,
+                 "No filament system: a translucent loaded spool paints its chip translucent",
+                 "[filament_mapping][visibility][loaded][translucent]") {
+    helix::SlotInfo spool;
+    spool.material = "PETG";
+    spool.color_rgb = 0xE8E8FF;
+    spool.translucent = true;
+    spool.status = helix::SlotStatus::LOADED;
+    helix::AmsStateTestAccess::seed_external_spool(spool);
+    card.update({"#E8E8FF"}, {"PETG"});
+    REQUIRE(Chip::chip_count() == 1);
+    lv_obj_t* spool_paint = lv_obj_find_by_name(rows, "chip_spool");
+    REQUIRE(spool_paint != nullptr);
+    CHECK(helix::ui::swatch_paint_translucent(spool_paint));
+
+    load("PETG", 0xE8E8FF);
+    card.refresh_slot_data();
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(spool_paint));
     process_lvgl(100);
 }
 

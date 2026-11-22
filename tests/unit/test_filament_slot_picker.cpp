@@ -9,6 +9,7 @@
  */
 
 #include "ui_filament_slot_picker.h"
+#include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "core/update_queue.h"
@@ -253,4 +254,17 @@ TEST_CASE_METHOD(SlotPickerFixture, "Auto as the current answer is ringed on scr
     CHECK(lv_obj_get_style_bg_opa(auto_row, LV_PART_MAIN) == 40);
     CHECK(lv_obj_get_style_bg_opa(extra, LV_PART_MAIN) == 0);
     CHECK(lv_obj_get_style_bg_opa(find("filament_picker_row_0"), LV_PART_MAIN) == 0);
+}
+
+TEST_CASE_METHOD(SlotPickerFixture, "A translucent slot's row paints its swatch translucent",
+                 "[slot_picker][translucent]") {
+    std::vector<AvailableSlot> s = slots(2);
+    s[0].translucent = true;
+    show(s, {});
+    lv_obj_t* clear = lv_obj_find_by_name(find("filament_picker_row_0"), "color_swatch_disc");
+    lv_obj_t* opaque = lv_obj_find_by_name(find("filament_picker_row_1"), "color_swatch_disc");
+    REQUIRE(clear != nullptr);
+    REQUIRE(opaque != nullptr);
+    CHECK(helix::ui::swatch_paint_translucent(clear));
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(opaque));
 }

@@ -14,6 +14,7 @@
  */
 
 #include "ui_filament_mapping_modal.h"
+#include "ui_swatch.h"
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_mapping_modal_test_access.h"
@@ -94,4 +95,26 @@ TEST_CASE_METHOD(MappingLabelFixture, "the remap row names a position in the pri
             FilamentMappingModalTestAccess::slot_display_text(modal, mapping_to(2));
         CHECK(text == "Gate 3");
     }
+}
+
+TEST_CASE_METHOD(MappingLabelFixture,
+                 "the remap row paints a translucent lane's swatch translucent",
+                 "[filament_mapping][modal][translucent]") {
+    AvailableSlot clear{0, 0, 0xE8E8FF, "PETG", false, -1};
+    clear.local_slot_index = 0;
+    clear.translucent = true;
+
+    FilamentMappingModal modal;
+    modal.set_tool_info({{0, 0xE8E8FF, "PETG"}});
+    modal.set_available_slots({clear});
+    ToolMapping m = mapping_to(0);
+    modal.set_mappings({m});
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* chosen = lv_obj_find_by_name(test_screen(), "chosen_swatch");
+    REQUIRE(chosen != nullptr);
+    lv_obj_t* disc = lv_obj_find_by_name(chosen, "color_swatch_disc");
+    CHECK((helix::ui::swatch_paint_translucent(chosen) ||
+           (disc && helix::ui::swatch_paint_translucent(disc))));
+    modal.hide();
+    process_lvgl(50);
 }

@@ -460,6 +460,28 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip's spool paints the slot's s
     process_lvgl(100);
 }
 
+TEST_CASE_METHOD(MappingCardRenderFixture, "The chip's spool paints a translucent slot translucent",
+                 "[filament_mapping][chip][translucent]") {
+    auto slot = mock->get_slot_info(0);
+    slot.color_rgb = 0xE8E8FF;
+    slot.multi_color_hexes.clear();
+    slot.material = "PLA";
+    slot.translucent = true;
+    helix::test::apply_edit(*mock, 0, slot);
+    card.update({"#E8E8FF", "#00FF00"}, {"PLA", "PLA"});
+    card.set_mappings(mappings_to_slots({0, 1}));
+    REQUIRE(chip_count() == 2);
+
+    lv_obj_t* const clear = lv_obj_find_by_name(chip(0), "chip_spool");
+    lv_obj_t* const opaque = lv_obj_find_by_name(chip(1), "chip_spool");
+    REQUIRE(clear != nullptr);
+    REQUIRE(opaque != nullptr);
+    CHECK(helix::ui::swatch_paint_translucent(clear));
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(opaque));
+
+    process_lvgl(100);
+}
+
 TEST_CASE_METHOD(MappingCardRenderFixture, "Republishing the same file keeps the chips",
                  "[filament_mapping][idempotent]") {
     // The late AMS resync after the panel opens republishes identical data; the
