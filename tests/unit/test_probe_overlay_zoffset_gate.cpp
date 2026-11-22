@@ -79,6 +79,25 @@ TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
     CHECK_FALSE(button_hidden());
 }
 
+// Supervising firmware owns the probe's config section (#2154): the values
+// still show, the rows take no edit, and a note says where to set them.
+TEST_CASE_METHOD(ProbeOverlayZOffsetFixture,
+                 "Probe configuration rows are read-only under supervising firmware",
+                 "[probe][xml][firmware_supervised]") {
+    lv_obj_t* row = lv_obj_find_by_name(overlay_, "btn_cfg_x_offset");
+    lv_obj_t* note = lv_obj_find_by_name(overlay_, "probe_cfg_firmware_note");
+    REQUIRE(row != nullptr);
+    REQUIRE(note != nullptr);
+    set("firmware_supervised", 0);
+    CHECK_FALSE(lv_obj_has_state(row, LV_STATE_DISABLED));
+    CHECK(lv_obj_has_flag(note, LV_OBJ_FLAG_HIDDEN));
+    set("firmware_supervised", 1);
+    CHECK(lv_obj_has_state(row, LV_STATE_DISABLED));
+    CHECK(lv_obj_has_state(lv_obj_find_by_name(overlay_, "btn_cfg_tolerance"), LV_STATE_DISABLED));
+    CHECK_FALSE(lv_obj_has_flag(note, LV_OBJ_FLAG_HIDDEN));
+    set("firmware_supervised", 0);
+}
+
 // A probe whose Z offset no status or config section gives shows no value
 // rather than a made-up 0.000 mm (#2089).
 TEST_CASE_METHOD(XMLTestFixture, "Probe overlay hides the Z offset row while the offset is unknown",

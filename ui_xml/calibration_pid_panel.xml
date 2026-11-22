@@ -319,7 +319,9 @@
           <lv_obj name="method_selector"
                   width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
                   style_flex_cross_place="center" scrollable="false">
-            <bind_flag_if_eq subject="cal_supports_mpc" flag="hidden" ref_value="0"/>
+            <!-- Switching method rewrites the heater's config section, which
+                 supervising firmware owns (#2154). -->
+            <bind_flag_if cond="cal_supports_mpc eq 0 or firmware_supervised eq 1" flag="hidden"/>
             <text_body width="30%" text="Method"/>
             <choice_button name="btn_method_mpc"
                            height="#modal_button_height" flex_grow="1" text="MPC" subject="cal_method_is_mpc" value="1"
