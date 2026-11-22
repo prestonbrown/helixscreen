@@ -3852,6 +3852,8 @@
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." en="The CFS ran out of filament in {}. Printing continues on what is left in the tube."/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." en="The CFS ran out of filament. Printing continues on what is left in the tube."/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." en="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints."/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." en="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software."/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." en="The HelixPrint plugin is managed by your printer&apos;s firmware."/>
   <translation tag="The IFS state file can&apos;t be read." en="The IFS state file can&apos;t be read."/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." en="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings."/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." en="The PEI sheet is still on the bed. Take it off, then tap Next."/>
@@ -4520,6 +4522,7 @@
   <translation tag="Your printer at a glance" en="Your printer at a glance"/>
   <translation tag="Your printer has an automatic filament changer" en="Your printer has an automatic filament changer"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" en="Your printer was offline during setup, so hardware options were skipped. Set them up now?"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." en="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen."/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." en="Your {0} is set up for {1}, but it looks stock."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." en="Your {0} looks like it has {1}, but it is set up as stock."/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." en="Your {0} looks like it has {1}, but it is set up for {2}."/>

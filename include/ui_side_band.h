@@ -19,6 +19,9 @@
  *   first (take_open_request()), so the overlay builds its own and there is
  *   never a second tree. The band rebuilds it on the host's next activation,
  *   or sooner once the overlay's tree is freed (notify_released()).
+ * - The band also stays empty when the cap leaves it less than
+ *   side_band_min_width() (include/content_width_cap.h): an ultrawide screen
+ *   just past the 2.5:1 threshold has only a sliver beside the cap.
  * - The gate going false, a host rebuild and the host tree's deletion all hand
  *   the tree back. A theme or mode change, and a guest that reports itself
  *   stale(), make the band rebuild the tree, as the overlay path rebuilds a
@@ -165,6 +168,9 @@ class SideBand {
     void activate_guest();
     void deactivate_guest(DeactivateReason reason);
     void fit_main_column();
+    /// The host leaves the band at least side_band_min_width()
+    /// (include/content_width_cap.h) beside its capped main column.
+    [[nodiscard]] bool has_room() const;
     void publish();
     void observe_inputs();
     static void on_band_deleted(lv_event_t* e);
@@ -188,6 +194,8 @@ class SideBand {
     bool host_active_ = false;
     bool guest_active_ = false;
     bool shows_ = false;
+    /// has_room() at the last refresh().
+    bool room_ = false;
 
     ObserverGuard ultrawide_observer_;
     ObserverGuard lane_tray_observer_;

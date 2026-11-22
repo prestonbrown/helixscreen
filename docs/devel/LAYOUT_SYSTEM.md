@@ -179,14 +179,19 @@ forwards its `setup()`, activation and deactivation to it.
 **When it shows.** `helix::ui::side_band_shows()`
 (`src/ui/ui_side_band.cpp#side_band_shows`) is the gate, and it is true only on the ultrawide
 layout (`ui_is_ultrawide`, from `is_ultrawide_aspect()`: `width * 2 > height * 5`, wider than
-2.5:1). Motion needs nothing more. The AMS view needs a lane tray, `helix::ui::has_lane_tray()`
+2.5:1), and only when the cap leaves the band at least one screen height of width
+(`helix::side_band_has_room()`, `include/content_width_cap.h`). A screen just past 2.5:1 has
+only a sliver there: 1920x720 leaves 116 px beside its 1728 cap and 1280x480 leaves 52, too
+little for Motion's jog pad or the AMS tray, so their hosts keep the capped layout with their
+own Motion and Manage buttons. 1920x480 (692 px), 2560x720 (756) and 1480x320 (658) show it.
+Motion needs nothing more. The AMS view needs a lane tray, `helix::ui::has_lane_tray()`
 (`include/ui_ams_mini_status.h`): a filament system or several heads
 (`has_filament_system_or_multi_tool`, published by `TargetTool`) and at least one lane in a
 present unit to draw. Print Status's lane tray asks the same question, so the two never
 disagree. Without it the band stays empty and Filament keeps the capped layout. The band
 re-reads the gate from observers on `ui_is_ultrawide`, the lane-tray inputs and the theme, so
 a resize, a `--layout` override, a unit appearing or a theme change moves it without a
-navigation.
+navigation. A resize between two ultrawide sizes reaches it through the host's size change.
 
 **The host's XML.** The host's root is a row: its own content in a `side_band_main` column,
 then the `<side_band shown_subject="..."/>` component (`ui_xml/components/side_band.xml`),

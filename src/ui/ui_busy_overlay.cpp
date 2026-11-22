@@ -14,7 +14,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include <cstdio>
+#include <string>
+#include <utility>
 
 namespace helix {
 
@@ -192,16 +193,17 @@ void BusyOverlay::set_progress(const std::string& operation, float percent) {
     // Format: "Operation... XX%"
     char percent_buf[12];
     helix::format::format_percent_float(percent, 0, percent_buf, sizeof(percent_buf));
-    char buf[128];
-    snprintf(buf, sizeof(buf), "%s... %s", operation.c_str(), percent_buf);
-
-    // Update pending text (in case overlay not yet visible)
-    g_pending_text = buf;
+    // The label copies the whole string, so nothing is cut: no partial
+    // character, and the percentage always shows.
+    std::string text = operation + "... " + percent_buf;
 
     // Update label if visible
     if (g_overlay && g_label) {
-        lv_label_set_text(g_label, buf);
+        lv_label_set_text(g_label, text.c_str());
     }
+
+    // Update pending text (in case overlay not yet visible)
+    g_pending_text = std::move(text);
 }
 
 void BusyOverlay::hide() {

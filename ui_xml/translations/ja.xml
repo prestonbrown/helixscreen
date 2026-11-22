@@ -3852,6 +3852,8 @@
   <translation tag="The CFS ran out of filament in {}. Printing continues on what is left in the tube." ja="CFSの{}でフィラメントが切れました。チューブに残っている分で印刷を続けます。"/>
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." ja="CFSでフィラメントが切れました。チューブに残っている分で印刷を続けます。"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." ja="HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。"/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." ja="HelixPrintプラグインは、HelixScreenのソフトウェアを管理しているプリンターのファームウェアから提供される必要があります。"/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." ja="HelixPrintプラグインはプリンターのファームウェアによって管理されています。"/>
   <translation tag="The IFS state file can&apos;t be read." ja="IFSの状態ファイルを読み取れません。"/>
   <translation tag="The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings." ja="Moonrakerのタイムラプスプラグインがインストールされています。録画方法はタイムラプス設定で決められます。"/>
   <translation tag="The PEI sheet is still on the bed. Take it off, then tap Next." ja="PEIシートがまだベッド上にあります。外してから「次へ」をタップしてください。"/>
@@ -4520,6 +4522,7 @@
   <translation tag="Your printer at a glance" ja="プリンターを一目で確認"/>
   <translation tag="Your printer has an automatic filament changer" ja="プリンターに自動フィラメントチェンジャーが搭載されています"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ja="セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ja="プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ja="お使いの{0}は{1}用に設定されていますが、標準状態のようです。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up as stock." ja="お使いの{0}には{1}があるようですが、標準状態として設定されています。"/>
   <translation tag="Your {0} looks like it has {1}, but it is set up for {2}." ja="お使いの{0}には{1}があるようですが、{2}用に設定されています。"/>

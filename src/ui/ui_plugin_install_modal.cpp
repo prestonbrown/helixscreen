@@ -163,6 +163,21 @@ void PluginInstallModal::on_show() {
         show_installing_state();
     }
 
+    // The firmware provides the plugin here, so the dialog explains that and
+    // offers no install.
+    if (installer_ && installer_->firmware_owns_plugin()) {
+        spdlog::info("[Plugin Install] The firmware owns the plugin; no install offered");
+        for (lv_obj_t* hide : {local_description_, remote_description_, local_button_row_,
+                               remote_button_row_, checkbox_container_}) {
+            if (hide)
+                lv_obj_add_flag(hide, LV_OBJ_FLAG_HIDDEN);
+        }
+        if (lv_obj_t* firmware_description = find_widget("firmware_description"))
+            lv_obj_remove_flag(firmware_description, LV_OBJ_FLAG_HIDDEN);
+        if (result_button_row_)
+            lv_obj_remove_flag(result_button_row_, LV_OBJ_FLAG_HIDDEN);
+    }
+
     // Wire cancel button and set user_data for all buttons
     wire_cancel_button("btn_cancel");
     wire_cancel_button("btn_done");

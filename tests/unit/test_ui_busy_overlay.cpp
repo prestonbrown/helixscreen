@@ -4,8 +4,11 @@
 #include "ui_busy_overlay.h"
 
 #include "../lvgl_test_fixture.h"
+#include "utf8_validation.h"
 
 #include <spdlog/spdlog.h>
+
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -162,6 +165,49 @@ TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay progress updates", "[ui_busy_over
 
     BusyOverlay::hide();
     spdlog::set_level(spdlog::level::warn);
+}
+
+namespace {
+
+/// The text of the first label under @p obj, depth first; null when none.
+const char* first_label_text(lv_obj_t* obj) {
+    if (lv_obj_check_type(obj, &lv_label_class)) {
+        return lv_label_get_text(obj);
+    }
+    const uint32_t n = lv_obj_get_child_count(obj);
+    for (uint32_t i = 0; i < n; ++i) {
+        if (const char* text = first_label_text(lv_obj_get_child(obj, i))) {
+            return text;
+        }
+    }
+    return nullptr;
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "BusyOverlay long progress text keeps whole characters",
+                 "[ui_busy_overlay][progress]") {
+    BusyOverlay::hide();
+
+    // Two-byte characters only: every odd byte count lands inside one.
+    std::string accented;
+    for (int i = 0; i < 300; ++i) {
+        accented += "\xC3\xA9";
+    }
+
+    BusyOverlay::show("Preparing...", 0);
+    REQUIRE(BusyOverlay::is_visible());
+    BusyOverlay::set_progress(accented, 45.0f);
+    // The overlay is the top layer's foremost child.
+    lv_obj_t* overlay = lv_obj_get_child(lv_layer_top(), -1);
+    REQUIRE(overlay != nullptr);
+    const char* shown = first_label_text(overlay);
+    REQUIRE(shown != nullptr);
+    const std::string text(shown);
+    CHECK(helix::text_io::is_valid_utf8(text));
+    CHECK(text == accented + "... 45%");
+
+    BusyOverlay::hide();
 }
 
 // ============================================================================

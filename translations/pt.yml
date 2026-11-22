@@ -4198,6 +4198,8 @@ translations:
     skipping bed mesh for quick reprints.
   : O plugin HelixPrint permite modificações rápidas de G-code diretamente na sua
     impressora—como pular malha da mesa para reimpressões rápidas.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'O plugin HelixPrint precisa vir do firmware da sua impressora, que gerencia o software do HelixScreen.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'O plugin HelixPrint é gerenciado pelo firmware da sua impressora.'
   The IFS state file can't be read.: "Não é possível ler o arquivo de estado do IFS."
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: 'O plugin de timelapse do Moonraker está instalado. Defina como ele grava nas configurações de timelapse.'
   The PEI sheet is still on the bed. Take it off, then tap Next.: A folha PEI ainda está na mesa. Retire-a e toque em Próximo.
@@ -4952,6 +4954,8 @@ translations:
   Your printer has an automatic filament changer: Sua impressora possui um trocador
     automático de filamento
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Sua impressora estava offline durante a configuração, então as opções de hardware foram puladas. Configurar agora?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'O firmware da sua impressora gerencia o software do HelixScreen, então o plugin HelixPrint precisa ser fornecido pelo firmware. Ele não pode ser instalado por esta tela.'
   Your {0} is set up for {1}, but it looks stock.: 'Sua {0} está configurada para {1}, mas parece original.'
   Your {0} looks like it has {1}, but it is set up for {2}.: 'Sua {0} parece ter {1}, mas está configurada para {2}.'
   Your {0} looks like it has {1}, but it is set up as stock.: 'Sua {0} parece ter {1}, mas está configurada como original.'
