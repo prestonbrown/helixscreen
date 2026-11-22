@@ -474,6 +474,33 @@ TEST_CASE("every stroke glyph has a centre line and only its own strokes",
     CHECK(stroke_glyph_distance('?', 0.5f, 0.5f) > 100.0f);
 }
 
+TEST_CASE("the print-state symbols fill solid at the symbol stroke",
+          "[screensaver][clock_reading]") {
+    using helix::ui::is_stroke_symbol;
+    for (const char c : {helix::ui::kGlyphCheck, helix::ui::kGlyphCross, helix::ui::kGlyphSquare,
+                         helix::ui::kGlyphPause}) {
+        CHECK(is_stroke_symbol(c));
+    }
+    for (const char* c = "0123456789%ACDEFILNOPSTU"; *c; ++c) {
+        CHECK_FALSE(is_stroke_symbol(*c));
+    }
+    helix::ui::StrokeGlyphSet set;
+    const int32_t unit = 60;
+    set.init(unit, helix::ui::kStrokeSymbolMinStroke);
+    set.ensure(helix::ui::kGlyphSquare);
+    // The square's inside, in path units, inset from its 0.15 to 0.85 x 0.45 to 1.15 outline.
+    const float half = helix::ui::kStrokeSymbolMinStroke / 2.0f;
+    uint8_t least = 255;
+    for (float y = 0.5f; y <= 1.1f; y += 0.01f) {
+        for (float x = 0.2f; x <= 0.8f; x += 0.01f) {
+            least = std::min(least, set.at(helix::ui::kGlyphSquare,
+                                           static_cast<int32_t>((x + half) * unit),
+                                           static_cast<int32_t>((y + half) * unit)));
+        }
+    }
+    CHECK(least == 255);
+}
+
 TEST_CASE("letters that share strokes still draw differently", "[screensaver][clock_reading]") {
     helix::ui::StrokeGlyphSet set;
     set.init(30, 0.2f);

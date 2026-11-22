@@ -485,8 +485,8 @@ the time of day, PROGRESS for a running print before it has an estimate, or a co
 anchored to the print's remaining time (jitter under `kClockCountdownResyncS` ignored), frozen
 while paused, and DONE, FAILED or CANCELLED for as long as the input reports the end. The flip clock replaces the time with the countdown; Aqua
 Surface keeps the time as the main readout and High Fly the countdown, both showing the print
-as secondary text from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". High Fly spells a
-finished print as DONE in its numerals (§ "High Fly"). With no print they show
+as secondary text from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". High Fly spells an
+ended print as DONE, FAILED or CANCELED in its numerals (§ "High Fly"). With no print they show
 `clock_date_text`, the long date and weekday from `locale_formats`
 (`format_localized_long_date`, `format_localized_weekday`). All three drift by
 `clock_drift_at` every `kClockDriftStepMs` against burn-in.
@@ -755,16 +755,20 @@ white haze over the bottom rows.
   tower exactly. Nothing per pixel changes: `draw_billboard` still samples the premultiplied
   RGBA.
 - The end of a print: the step into DONE flies through a cloud and comes out into the sunset
-  palette. A finished print spells DONE (`highfly_word`) in place of the hours and minutes, in
-  the numerals' stroke glyphs (`StrokeGlyphSet`), size, colour and halo, centred where the
-  numerals stand (`highfly_word_boxes`), with no seconds; where the reading spells no states
-  (`spell_states` off) it shows one check mark instead, as the flip clock and the fireflies do.
-  The left lines then show the time of day (with its AM/PM) and the weekday, and the AM/PM slot
-  under the seconds stays blank. The word bakes into the hours-and-minutes layer once, like a
-  digit change, from glyphs built for that bake and freed after it, so a frame pays only the
-  layer composite it always pays. FAILED and CANCELLED keep the time of day in the numerals and
-  say so on the small first line ("FAILED", "CANCELED") in the state colour, under the overcast
-  palette.
+  palette; FAILED and CANCELLED turn it overcast. An ended print spells its state
+  (`highfly_word`: DONE, FAILED, CANCELED) in place of the hours and minutes, in the numerals'
+  stroke glyphs (`StrokeGlyphSet`), color and halo, centered where the numerals stand, with no
+  seconds (`highfly_word_layout`). A word that fits the hours-and-minutes span draws at the
+  numerals' size (DONE does at every screen); a longer one shrinks to the largest glyph unit
+  whose run fits that span, halo shrinking with it, so it never reaches the left lines or past
+  the numerals' layer (FAILED draws about three quarters of the numerals' height, CANCELED a
+  little over half). Where the reading spells no states (`spell_states` off) it shows the flip
+  clock's symbol instead, a check mark, a cross or a solid square, drawn at
+  `kStrokeSymbolMinStroke` so its parallel lines fill solid. The left lines then show the time
+  of day (with its AM/PM) and the weekday in the state color, and the AM/PM slot under the
+  seconds stays blank. The word bakes into the hours-and-minutes layer once, like a digit
+  change, from glyphs built for that bake and freed after it, so a frame pays only the layer
+  composite it always pays.
 - Its per-pixel work is fixed point: the deck is stored as 16-bit heights and byte shades (half
   the floats' cache footprint), billboards sample with two channels per multiply and depth-test
   through a per-slice visibility table, and the renderer's span gradient and feather step in

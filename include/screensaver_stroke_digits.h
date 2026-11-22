@@ -33,6 +33,13 @@ inline constexpr char kGlyphCheck = '\x01';
 inline constexpr char kGlyphCross = '\x02';
 inline constexpr char kGlyphSquare = '\x03';
 inline constexpr char kGlyphPause = '\x04';
+/// The least stroke at which a symbol's parallel lines merge into one solid shape: the square's
+/// fill lines are 0.175 apart. A thinner stroke draws them as separate lines.
+inline constexpr float kStrokeSymbolMinStroke = 0.2f;
+/// True for the print-state symbols (kGlyphCheck to kGlyphPause).
+constexpr bool is_stroke_symbol(char c) {
+    return c >= kGlyphCheck && c <= kGlyphPause;
+}
 
 /// Every character a stroke glyph exists for: the digits, the percent sign, the capitals the
 /// clocks spell print states with and the print-state symbols.
