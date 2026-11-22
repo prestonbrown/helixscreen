@@ -1713,7 +1713,7 @@ class AmsBackend {
      * a lane answers with its head-only command. Empty where no command can.
      */
     [[nodiscard]] virtual std::string head_select_gcode(int tool) const {
-        return tool < 0 ? std::string() : "T" + std::to_string(tool);
+        return tool < 0 ? std::string() : "T" + std::to_string(tool); // DISPLAY_NUMBERING_OK: gcode
     }
 
     /**

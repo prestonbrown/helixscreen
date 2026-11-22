@@ -124,6 +124,11 @@ class PaTuningOverlay : public OverlayBase {
     };
     /// The pre-print routing for the tower: its tool on its own head.
     static std::map<int, int> tower_routing(int tuned_tool);
+    /// Why the tower cannot start on @p params' head, or empty when it can. A
+    /// tower aimed at a tool needs the command that mounts that tool's head;
+    /// without it the tower would heat one head and print through whichever
+    /// is on the carriage.
+    static std::string head_mount_refusal(const helix::pa::TestPrintParams& params);
 
     static HeadChoice choose_head(const std::vector<PhysicalHead>& heads, bool multi_extruder,
                                   int selected, int active_tool,
@@ -181,6 +186,8 @@ class PaTuningOverlay : public OverlayBase {
     void begin_upload();
     /// Fail the start when the filament system refuses to heat the nozzle.
     bool refuse_blocked_nozzle();
+    /// Fail the start when the chosen head has no command that mounts it.
+    bool refuse_unmountable_head(const helix::pa::TestPrintParams& params);
     void fail_start(const std::string& message);
     helix::pa::TestPrintParams build_params() const;
     /// The printer's own start and end macros, from the discovered macro set.
