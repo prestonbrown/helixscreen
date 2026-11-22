@@ -678,6 +678,51 @@ TEST_CASE_METHOD(ApplicationTestFixture,
     CHECK(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
 }
 
+namespace {
+
+/// A DRM backend whose USB touch panel enumerates only after the app starts.
+class LatePointerBackend : public ReopeningPointerBackend {
+  public:
+    lv_indev_t* create_input_pointer() override {
+        return device_present ? MockDrmPointerBackend::create_input_pointer() : nullptr;
+    }
+    lv_indev_t* reopen_input_pointer() override {
+        ++reopen_calls;
+        return device_present ? MockDrmPointerBackend::create_input_pointer() : nullptr;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(ApplicationTestFixture,
+                 "DisplayManager adopts a touch panel that appears after startup",
+                 "[application][display][indev][2069]") {
+    DisplayManager mgr;
+    auto backend_owner = std::make_unique<LatePointerBackend>();
+    LatePointerBackend* backend = backend_owner.get();
+    DisplayManagerTestAccess::set_backend(mgr, std::move(backend_owner));
+    DisplayManagerTestAccess::create_input_devices(mgr);
+    REQUIRE(mgr.pointer_input() == nullptr);
+    REQUIRE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    CHECK(backend->reopen_calls == 1);
+    CHECK(mgr.pointer_input() == nullptr);
+
+    backend->device_present = true;
+    DisplayManagerTestAccess::run_pointer_reopen_tick(mgr);
+    lv_indev_t* adopted = mgr.pointer_input();
+    REQUIRE(adopted != nullptr);
+    CHECK_FALSE(DisplayManagerTestAccess::pointer_reopen_pending(mgr));
+    CHECK(DisplayManagerTestAccess::pointer_is_sleep_wrapped(mgr));
+    CHECK(adopted->scroll_throw == 25);
+
+    lv_indev_delete(adopted);
+    if (mgr.keyboard_input()) {
+        lv_indev_delete(mgr.keyboard_input());
+    }
+}
+
 TEST_CASE_METHOD(ApplicationTestFixture,
                  "DisplayManager arms no pointer retry on a backend that cannot reopen it",
                  "[application][display][indev][2069]") {
