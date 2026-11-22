@@ -17,6 +17,9 @@ struct PIDCalibrationPanelTestAccess {
     static void start_clicked(PIDCalibrationPanel& p) {
         p.handle_start_clicked();
     }
+    static void measure_fan_row_clicked(PIDCalibrationPanel& p) {
+        p.handle_measure_fan_row_clicked();
+    }
     static void switch_mpc_clicked(PIDCalibrationPanel& p) {
         p.handle_switch_mpc_clicked();
     }

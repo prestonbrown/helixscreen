@@ -273,6 +273,22 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered 
         }
         CHECK_FALSE(names_fan);
     }
+    SECTION("the intro's time and the switch page's agree through the part-fan toggle") {
+        client.set_extruder_control("pid");
+        activate_and_detect();
+        auto text = [](const char* name) {
+            lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+            REQUIRE(s != nullptr);
+            return std::string(lv_subject_get_string(s));
+        };
+        const std::string before = text("pid_duration_text");
+        Access::measure_fan_row_clicked(panel);
+        const std::string chip = text("pid_duration_text");
+        REQUIRE(chip != before);
+        start();
+        REQUIRE(subject_int("pid_page") == 1);
+        CHECK(text("cal_switch_run_text").find(chip) != std::string::npos);
+    }
     SECTION("a filament system that blocks the nozzle after the switch page opened stops it") {
         client.set_extruder_control("pid");
         activate_and_detect();

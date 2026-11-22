@@ -2025,9 +2025,7 @@ void PIDCalibrationPanel::update_heater_cards() {
 
 void PIDCalibrationPanel::update_badges() {
     const bool mpc = selected_method_ == CalibMethod::MPC;
-    const bool measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
-                             lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
-    const int minutes = estimate_minutes(selected_heater_, selected_method_, measure_fan);
+    const int minutes = estimated_minutes(selected_method_);
     lv_subject_set_string(&subj_duration_text_,
                           fmt::format(fmt::runtime(lv_tr("about {} min")), minutes).c_str());
     lv_subject_set_string(&subj_heats_to_text_,
@@ -2079,14 +2077,17 @@ void PIDCalibrationPanel::refresh_switch_text() {
     lv_subject_set_string(&subj_switch_step_gets_, fmt::format(" {} ", lv_tr("gets")).c_str());
     lv_subject_set_string(&subj_switch_step_power_,
                           fmt::format(" {}", lv_tr("and the heater power")).c_str());
+    lv_subject_set_string(&subj_switch_run_text_,
+                          fmt::format(fmt::runtime(lv_tr("Calibration runs at {}, about {} min")),
+                                      helix::units::format_display_temp(target_temp_),
+                                      estimated_minutes(CalibMethod::MPC))
+                              .c_str());
+}
+
+int PIDCalibrationPanel::estimated_minutes(CalibMethod method) const {
     const bool measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
                              lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
-    lv_subject_set_string(
-        &subj_switch_run_text_,
-        fmt::format(fmt::runtime(lv_tr("Calibration runs at {}, about {} min")),
-                    helix::units::format_display_temp(target_temp_),
-                    estimate_minutes(selected_heater_, CalibMethod::MPC, measure_fan))
-            .c_str());
+    return estimate_minutes(selected_heater_, method, measure_fan);
 }
 
 void PIDCalibrationPanel::handle_back_clicked() {

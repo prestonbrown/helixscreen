@@ -625,6 +625,9 @@ class PIDCalibrationPanel : public OverlayBase {
     bool adding_cooling_fan();
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
+    /// estimate_minutes() for the selected heater with the part-fan row as shown:
+    /// the intro's chip and the switch page both read it.
+    [[nodiscard]] int estimated_minutes(CalibMethod method) const;
     /// The part fan a config rewrite names: none when the owner switched it off.
     [[nodiscard]] std::string migration_cooling_fan() const;
     /// The filament system refuses to heat the selected nozzle: warns and
