@@ -31,6 +31,7 @@
 #include "moonraker_client_mock_spoolman.h"
 #include "theme_manager.h"
 
+#include <cstdio>
 #include <cstdlib>
 #include <optional>
 
@@ -825,6 +826,105 @@ TEST_CASE_METHOD(
     NavigationManager::instance().go_back();
     settle();
     process_lvgl(400);
+}
+
+TEST_CASE_METHOD(PagesFixture,
+                 "Single, Gradient and Coaxial reach the lane and the linked Spoolman filament",
+                 "[ams_edit_overlay][pages][multi_color][spoolman]") {
+    set_spoolman_available(true);
+    auto& spools = client.spoolman_mock().get_mock_spools();
+    spools.clear();
+    SpoolInfo record;
+    record.id = 40;
+    record.filament_id = 3;
+    record.vendor = "eSUN";
+    record.material = "PLA";
+    record.color_hex = "2050C0";
+    SlotInfo lane = describe_lane(*backend, 1, "PLA");
+    lane.spoolman_id = 40;
+
+    int pick = AmsEditOverlay::kColorModeGradient;
+    std::string lane_mode = "gradient";
+    std::string direction = "longitudinal";
+    SECTION("Gradient from one color") {}
+    SECTION("Coaxial from one color") {
+        pick = AmsEditOverlay::kColorModeCoaxial;
+        lane_mode = "coaxial";
+        direction = "coaxial";
+    }
+    SECTION("Single from two colors") {
+        pick = AmsEditOverlay::kColorModeSingle;
+        lane.multi_color_hexes = "#2050C0,#C0C0C0";
+        lane.color_mode = "coaxial";
+        record.multi_color_hexes = "2050C0,C0C0C0";
+        record.multi_color_direction = "coaxial";
+        lane_mode.clear();
+        direction.clear();
+    }
+    spools.push_back(record);
+    REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+    open(1, backend->get_slot_info(1));
+    access.open_page(AmsEditOverlay::kPageFilament);
+    access.call_open_color_page();
+    settle();
+    auto& page = helix::ui::get_color_picker_page();
+    lv_obj_t* mode = lv_obj_find_by_name(page.get_root(), "multi_color_mode");
+    REQUIRE(mode != nullptr);
+    pick_color_mode(mode, pick);
+    const std::vector<uint32_t> colors = access.draft_colors();
+    REQUIRE(colors.size() == (pick == AmsEditOverlay::kColorModeSingle ? 1u : 2u));
+    CHECK(colors.front() == 0x2050C0);
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(400);
+    back();
+    REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+    client.spoolman_mock().next_created_filament_id = 117;
+    access.click("btn_edit_save");
+    settle();
+    // One color close to a filament on file is offered first: file a new one.
+    if (!ModalStack::instance().stack_empty()) {
+        REQUIRE(pick == AmsEditOverlay::kColorModeSingle);
+        helix::test::answer_top_modal("btn_secondary");
+        settle();
+    }
+
+    // The lane: the list and its mode, or one color and no mode.
+    const SlotInfo saved = backend->get_slot_info(1);
+    CHECK(saved.color_rgb == 0x2050C0);
+    if (colors.size() == 2) {
+        CHECK(AmsEditOverlay::split_color_list(saved.multi_color_hexes) == colors);
+    } else {
+        CHECK(saved.multi_color_hexes.empty());
+    }
+    CHECK(saved.color_mode == lane_mode);
+
+    // Spoolman: a filament of those colors and that direction, the spool moved to it.
+    const auto& created = client.spoolman_mock().created_filaments;
+    REQUIRE(created.size() == 1);
+    INFO(created[0].dump());
+    if (colors.size() == 2) {
+        char second[7];
+        std::snprintf(second, sizeof second, "%06X", static_cast<unsigned>(colors[1]));
+        CHECK(created[0].value("multi_color_hexes", std::string()) ==
+              std::string("2050C0,") + second);
+        CHECK(created[0].value("multi_color_direction", std::string()) == direction);
+        CHECK_FALSE(created[0].contains("color_hex"));
+    } else {
+        CHECK(created[0].value("color_hex", std::string()) == "2050C0");
+        CHECK_FALSE(created[0].contains("multi_color_hexes"));
+        CHECK_FALSE(created[0].contains("multi_color_direction"));
+    }
+    bool repointed = false;
+    for (const auto& update : client.spoolman_mock().spool_updates) {
+        if (update.spool_id == 40 && update.patch.value("filament_id", 0) == 117) {
+            repointed = true;
+        }
+    }
+    CHECK(repointed);
+    if (overlay.is_visible()) {
+        close_editor_overlay();
+    }
 }
 
 namespace {

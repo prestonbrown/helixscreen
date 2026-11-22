@@ -6050,8 +6050,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(subject_value("ams_edit_seg_count") == 1);
     CHECK(lv_obj_is_hidden(access.widget("colors_line")));
     access.call_seg_hold(0);
+    // The lane cannot store a mode either: Coaxial stages nothing.
     access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
+    CHECK_FALSE(access.multi_set());
+    CHECK(access.draft_mode() == "gradient");
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});
     close_editor_overlay();
