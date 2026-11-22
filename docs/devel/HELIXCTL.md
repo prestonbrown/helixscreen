@@ -681,15 +681,17 @@ that reports success and does nothing.
 Every command that takes a widget name uses this one lookup (`click`,
 `set_value`, `scroll`, `focus`, `state`, `text`, `geom`, `screenshot --target`,
 and `navigate <widget>`), so two commands given the same name land on the same
-widget. When a plain name matches more than one visible widget, `click` and
+widget. `navigate <widget>` therefore accepts the same glob, `name[n]` and
+resolved-name (`#` auto-indexed) forms as `click`. When a plain name matches
+more than one visible widget, `click` and
 `geom` list every match's path under `name_matches`; the reply's `path` (for
 `geom`, `resolved_path`) is the one acted on.
 
 **A sleeping display hides the whole screen.** While the display is asleep,
 dimmed under a screensaver or blanked, the active screen object itself is
 hidden, so every widget on it has a hidden ancestor. `click`, `set_value`,
-`scroll`, `focus`, `navigate` and `wake` therefore wake the display and wait up
-to about a second for the active screen to show again before they resolve
+`scroll`, `focus`, `wake` and `navigate <widget>` (not `navigate <panel>`)
+therefore wake the display and wait up to about a second for the active screen to show again before they resolve
 anything. If it stays hidden, `click`'s refusal says the active screen is
 hidden rather than blaming the widget.
 

@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <poll.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -777,22 +778,39 @@ TEST_CASE_METHOD(LVGLTestFixture, "ctl click: a sleeping display is woken before
     std::vector<int> codes;
     lv_obj_add_event_cb(btn, record_code_cb, LV_EVENT_CLICKED, &codes);
 
-    helix::active_screen_hide_hold().acquire(lv_screen_active());
-    REQUIRE(lv_obj_is_hidden(lv_screen_active()));
-    int wakes = 0;
-    helix::set_display_wake_handler([&wakes] {
-        ++wakes;
-        if (helix::active_screen_hide_hold().is_held()) {
-            helix::active_screen_hide_hold().release();
+    // A real wake inside an update batch unhides the screen only on a later
+    // pass of the main loop, so the stand-in defers its release the same way.
+    struct SleepingDisplay {
+        std::function<void()> previous = helix::display_wake_handler();
+        int wakes = 0;
+        SleepingDisplay() {
+            helix::active_screen_hide_hold().acquire(lv_screen_active());
+            helix::set_display_wake_handler([this] {
+                ++wakes;
+                helix::ui::queue_update("test sleeping display wake", [] {
+                    if (helix::active_screen_hide_hold().is_held()) {
+                        helix::active_screen_hide_hold().release();
+                    }
+                });
+            });
         }
-    });
+        ~SleepingDisplay() {
+            helix::set_display_wake_handler(previous);
+            if (helix::active_screen_hide_hold().is_held()) {
+                helix::active_screen_hide_hold().release();
+            }
+        }
+        SleepingDisplay(const SleepingDisplay&) = delete;
+        SleepingDisplay& operator=(const SleepingDisplay&) = delete;
+    } display;
+    REQUIRE(lv_obj_is_hidden(lv_screen_active()));
 
     CtlClickRig rig;
     const nlohmann::json reply = rig.request("click", {{"name", "ctl_asleep_button"}});
-    helix::set_display_wake_handler(nullptr);
+    helix::ui::UpdateQueue::instance().drain();
 
     CHECK_FALSE(reply.contains("error"));
-    CHECK(wakes > 0);
+    CHECK(display.wakes > 0);
     CHECK(codes == std::vector<int>{LV_EVENT_CLICKED});
 }
 
