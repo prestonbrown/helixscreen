@@ -677,6 +677,7 @@ void AmsEditOverlay::init_subjects() {
         // Row visibility for the Generic-gated product dropdown.
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(no_product_subject_, 1, "ams_edit_no_product", subjects_);
+        UI_MANAGED_SUBJECT_INT(star_state_subject_, 0, "ams_edit_star_state", subjects_);
         // The color line and row (update_color_row).
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
@@ -935,6 +936,7 @@ void AmsEditOverlay::rebuild_option_lists() {
                        helix::text_io::equals_ignore_case(sel_.brand, "Generic") ? 1 : 0);
     // Material shows where no product says it; Type where it has variants.
     lv_subject_set_int(&no_product_subject_, sel_.product_id.empty() ? 1 : 0);
+    update_star_state();
 
     refresh_dropdowns();
 }
@@ -1762,6 +1764,27 @@ void AmsEditOverlay::refresh_spool_tiles() {
         s_tile_labels.set_string(i, spool_tiles_[i].label);
         s_tile_favorites.set_int(i, spool_tiles_[i].favorite() ? 1 : 0);
     }
+}
+
+void AmsEditOverlay::update_star_state() {
+    // Only a product the catalog knows can be starred: not Generic, "Other…"
+    // or a product named without a catalog id.
+    const bool starrable = catalog_ && !sel_.product_id.empty() &&
+                           !helix::text_io::equals_ignore_case(sel_.brand, "Generic") &&
+                           catalog_->resolve_id(sel_.product_id) != nullptr;
+    const int state = !starrable                                                ? 0
+                      : helix::filament_favorites::is_favorite(sel_.product_id) ? 2
+                                                                                : 1;
+    lv_subject_set_int(&star_state_subject_, state);
+}
+
+void AmsEditOverlay::handle_star_toggle() {
+    if (lv_subject_get_int(&star_state_subject_) == 0) {
+        return;
+    }
+    helix::filament_favorites::toggle_favorite(sel_.product_id);
+    // The Brand list's Favorites entry and the spool tiles follow the change.
+    rebuild_option_lists();
 }
 
 void AmsEditOverlay::handle_spool_tile(size_t slot) {
@@ -4389,6 +4412,7 @@ void AmsEditOverlay::register_callbacks() {
          [](lv_event_t*) {
              get_ams_edit_overlay().handle_remaining_step(spool_assign::kRemainingStepGrams);
          }},
+        {"ams_edit_star_cb", [](lv_event_t*) { get_ams_edit_overlay().handle_star_toggle(); }},
         {"ams_edit_spool_tile_cb",
          [](lv_event_t* e) {
              // spool_tile_<n>

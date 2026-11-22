@@ -639,6 +639,12 @@ class AmsEditOverlay : public OverlayBase {
     void handle_spool_tile(size_t slot);
     /// Rebuild spool_tiles_ from the favorites and publish the tiles.
     void refresh_spool_tiles();
+    /// The Filament row's star: 0 hidden (no catalog product), 1 not a
+    /// favorite, 2 a favorite ("ams_edit_star_state").
+    void update_star_state();
+    /// The star's tap: the selected product joins or leaves the favorites.
+    void handle_star_toggle();
+    helix::Subject star_state_subject_{};
     /// A catalog product picked: family, variant, brand and product at once.
     void apply_catalog_pick(const helix::printer::EffectiveFilament& ef);
     std::vector<spool_assign::SpoolTile> spool_tiles_;
