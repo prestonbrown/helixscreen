@@ -1,6 +1,7 @@
 // Copyright (C) 2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "error_classify.h"
 #include "gcode_error_router.h"
 #include "helix_test_fixture.h"
 
@@ -177,17 +178,23 @@ TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text falls through when text
     REQUIRE(text == "Generic Klipper error with no code marker");
 }
 
-TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text applies must-home heuristic",
+TEST_CASE_METHOD(GcodeErrorRouterTest,
+                 "a must-home rejection reads worded on the console path, not raw",
                  "[gcode_error_router]") {
+    // clean_error_text only decodes envelopes; Klipper's prose is worded by the
+    // error_wording table the console classifier asks.
     std::string text = "Must home axis first";
     std::string code;
     GcodeErrorRouter::clean_error_text(text, code);
-
     REQUIRE(code.empty());
-    // Rewritten via lv_tr — exact translated string depends on i18n,
-    // but the unrelated raw phrasing should be gone.
-    REQUIRE(text != "Must home axis first");
-    REQUIRE(text.find("home") != std::string::npos);
+
+    helix::ClassifyContext ctx;
+    const auto e = helix::error_classify::classify("!! Must home axis first", ctx);
+    REQUIRE(e.has_value());
+    CHECK_FALSE(e->title.empty());
+    CHECK(e->detail != "Must home axis first");
+    // The dedup identity stays Klipper's own line.
+    CHECK(e->raw_detail == "Must home axis first");
 }
 
 TEST_CASE_METHOD(GcodeErrorRouterTest, "clean_error_text recovers from malformed JSON after prefix",
