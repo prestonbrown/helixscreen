@@ -102,8 +102,10 @@ def _klipper_config(data, filename):
     return fileconfig
 
 
-def klipper_effective(root: Path):
-    """Every option's value as Klipper's read_main_config leaves it."""
+def klipper_effective(root: Path, strip_duplicates: bool = True):
+    """Every option's value as Klipper's read_main_config leaves it. Without
+    `strip_duplicates`, as a build that skips PrinterConfig._strip_duplicates
+    reads it (OpenCentauri's COSMOS Kalico): the SAVE_CONFIG value wins."""
     filename = str(root / "printer.cfg")
     data = Path(filename).read_text().replace("\r\n", "\n")
     regular, autosave = data, ""
@@ -124,7 +126,7 @@ def klipper_effective(root: Path):
             section = pruned[1:-1].strip()
             continue
         field = pruned.split("=")[0].split(":")[0].strip().lower()
-        if regular_config.has_option(section, field):
+        if strip_duplicates and regular_config.has_option(section, field):
             lines[i] = "#" + line
     config = _klipper_config(regular + "\n".join(lines), filename)
     return {s: dict(config.items(s)) for s in config.sections()}
@@ -391,6 +393,148 @@ class TestRefusals:
         with pytest.raises(ConfigEditRefused) as e:
             plan_edits(root, [_set("printer", "max_accel", "10", "9")])
         assert e.value.code == "outside_root"
+
+
+# ============================================================================
+# An option the SAVE_CONFIG block also defines (#2157)
+# ============================================================================
+
+ISSUE_2157_ROOT = """[include machine.cfg]
+
+[printer]
+kinematics: corexy
+
+#*# <---------------------- SAVE_CONFIG ---------------------->
+#*# DO NOT EDIT THIS BLOCK OR BELOW. The contents are auto-generated.
+#*#
+#*# [extruder]
+#*# pid_version = 1
+#*# pid_target = 255.00
+#*# pid_tolerance = 0.0200
+#*# control = pid
+#*# pid_kp = 27.945
+#*# pid_ki = 2.451
+#*# pid_kd = 79.647
+#*#
+#*# [input_shaper]
+#*# shaper_type_x = mzv
+#*# shaper_freq_x = 48.2
+"""
+
+ISSUE_2157_INCLUDE = """[extruder]
+control: pid
+pid_Kp: 24.860427
+pid_Ki: 2.702253
+pid_Kd: 57.178292
+"""
+
+MPC_MIGRATION = [
+    _set("extruder", "control", "mpc", "pid"),
+    _set("extruder", "heater_power", "50", None),
+    _set("extruder", "cooling_fan", "fan", None),
+]
+
+
+@pytest.fixture
+def shadowed_tree(tmp_path):
+    """[extruder] in an include, with PID_CALIBRATE + SAVE_CONFIG results in
+    printer.cfg's block, as #2157 reports it."""
+    root = tmp_path / "config"
+    root.mkdir()
+    (root / "printer.cfg").write_text(ISSUE_2157_ROOT)
+    (root / "machine.cfg").write_text(ISSUE_2157_INCLUDE)
+    return root
+
+
+def _autosave_body(text: str):
+    lines = text.split("\n")
+    start = helix_config.split_autosave(lines)
+    assert start is not None, "Klipper would read the SAVE_CONFIG block as corrupted"
+    return lines[start + len(helix_config.AUTOSAVE_HEADER_LINES):]
+
+
+class TestSaveConfigShadow:
+    @pytest.mark.parametrize("strip_duplicates", [True, False])
+    def test_mpc_migration_takes_effect_under_either_reading(self, shadowed_tree,
+                                                            strip_duplicates):
+        write_plan(shadowed_tree, plan_edits(shadowed_tree, MPC_MIGRATION), 1700000000.0)
+        extruder = klipper_effective(shadowed_tree, strip_duplicates)["extruder"]
+        assert (extruder["control"], extruder["heater_power"], extruder["cooling_fan"]) == (
+            "mpc", "50", "fan")
+
+    def test_the_unpatched_reading_kept_pid_before_the_edit(self, shadowed_tree):
+        (shadowed_tree / "machine.cfg").write_text(
+            ISSUE_2157_INCLUDE.replace("control: pid", "control: mpc"))
+        assert klipper_effective(shadowed_tree, False)["extruder"]["control"] == "pid"
+        assert klipper_effective(shadowed_tree, True)["extruder"]["control"] == "mpc"
+
+    def test_only_the_edited_options_leave_the_block(self, shadowed_tree):
+        plan = plan_edits(shadowed_tree, MPC_MIGRATION)
+        assert sorted(plan.changed) == ["machine.cfg", "printer.cfg"]
+        assert _autosave_body(plan.changed["printer.cfg"]) == [
+            "#*# [extruder]",
+            "#*# pid_version = 1",
+            "#*# pid_target = 255.00",
+            "#*# pid_tolerance = 0.0200",
+            "#*# pid_kp = 27.945",
+            "#*# pid_ki = 2.451",
+            "#*# pid_kd = 79.647",
+            "#*#",
+            "#*# [input_shaper]",
+            "#*# shaper_type_x = mzv",
+            "#*# shaper_freq_x = 48.2",
+            "",
+        ]
+        assert "-#*# control = pid" in plan.diff()
+
+    def test_both_files_are_backed_up(self, shadowed_tree):
+        backups = write_plan(shadowed_tree, plan_edits(shadowed_tree, MPC_MIGRATION),
+                             1700000000.0)
+        assert sorted(b["file"] for b in backups) == ["machine.cfg", "printer.cfg"]
+        for b in backups:
+            text = (shadowed_tree / b["backup"]).read_text()
+            assert text == {"machine.cfg": ISSUE_2157_INCLUDE,
+                            "printer.cfg": ISSUE_2157_ROOT}[b["file"]]
+
+    def test_a_last_block_section_left_empty_takes_the_separator_before_it(self, tmp_path):
+        (tmp_path / "printer.cfg").write_text(
+            "[input_shaper]\nshaper_type_x: ei\nshaper_freq_x: 40\n" + ISSUE_2157_ROOT)
+        (tmp_path / "machine.cfg").write_text(ISSUE_2157_INCLUDE)
+        plan = plan_edits(tmp_path, [
+            _set("input_shaper", "shaper_type_x", "zv", "ei"),
+            _set("input_shaper", "shaper_freq_x", "41", "40"),
+        ])
+        body = _autosave_body(plan.changed["printer.cfg"])
+        assert body[-3:] == ["#*# pid_ki = 2.451", "#*# pid_kd = 79.647", ""]
+        write_plan(tmp_path, plan, 1700000000.0)
+        assert klipper_effective(tmp_path, False)["input_shaper"] == {
+            "shaper_type_x": "zv", "shaper_freq_x": "41"}
+
+    def test_a_first_block_section_left_empty_takes_the_separator_after_it(self, tmp_path):
+        block = ISSUE_2157_ROOT.split("#*#\n", 1)[1].split("#*# [input_shaper]")[0]
+        (tmp_path / "printer.cfg").write_text(
+            "[input_shaper]\nshaper_type_x: ei\nshaper_freq_x: 40\n\n"
+            + "\n".join(helix_config.AUTOSAVE_HEADER_LINES) + "\n"
+            + "#*# [input_shaper]\n#*# shaper_type_x = mzv\n#*# shaper_freq_x = 48.2\n#*#\n"
+            + block)
+        plan = plan_edits(tmp_path, [
+            _set("input_shaper", "shaper_type_x", "zv", "ei"),
+            _set("input_shaper", "shaper_freq_x", "41", "40"),
+        ])
+        body = _autosave_body(plan.changed["printer.cfg"])
+        assert body[:2] == ["#*# [extruder]", "#*# pid_version = 1"]
+        assert not any("input_shaper" in line or "shaper_" in line for line in body)
+
+    def test_remove_also_drops_the_blocks_copy(self, shadowed_tree):
+        plan = plan_edits(shadowed_tree, [{"section": "extruder", "option": "control",
+                                           "action": "remove", "expect": "pid"}])
+        assert "#*# control = pid" not in plan.changed["printer.cfg"]
+        assert "#control: pid" in plan.changed["machine.cfg"]
+
+    def test_an_option_only_the_block_defines_is_still_refused(self, shadowed_tree):
+        with pytest.raises(ConfigEditRefused) as e:
+            plan_edits(shadowed_tree, [_set("extruder", "pid_target", "250", "255.00")])
+        assert e.value.code == "autosave"
 
 
 # ============================================================================

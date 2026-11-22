@@ -7,17 +7,24 @@ includes are read where their line stands, relative to the including file,
 globbed and sorted; a glob that matches nothing is legal and a missing plain
 include is an error; each run of lines between includes is parsed on its own,
 so a section never continues across an include; the SAVE_CONFIG block at the
-end of the root file is read after everything else and supplies only the
-options the regular config leaves undefined. Each option comes back with the
-file and line that define it, every section included, whether or not Klipper
-used it.
+end of the root file is read after everything else. Stock Klipper and Kalico
+comment out each SAVE_CONFIG option the regular config also defines before
+appending the block (PrinterConfig._strip_duplicates), so there the regular
+definition wins and the block supplies only what the regular config leaves
+undefined. Some builds skip that step (OpenCentauri's COSMOS Kalico patches it
+out), and there the block's value wins over the regular one, includes
+included. Each option comes back with the file and line that define it as
+stock Klipper reads it, every section included, whether or not Klipper used it.
 
 server.helix.config_edit writes edits addressed by (section, option) into the
 file and line that define the option, atomically (temp file, fsync, rename)
-after a timestamped backup, and returns a unified diff. It refuses an option
-the SAVE_CONFIG block defines, since that block belongs to Klipper, and an edit
-whose `expect` no longer matches the option's current value. It never restarts
-Klipper: the screen decides on FIRMWARE_RESTART.
+after a timestamped backup, and returns a unified diff. An edit to an option
+the SAVE_CONFIG block also defines deletes the block's copy in the same write,
+so the edit takes effect under either reading; stock Klipper's own SAVE_CONFIG
+drops that copy the same way. It refuses an option only the SAVE_CONFIG block
+defines, since that block belongs to Klipper, and an edit whose `expect` no
+longer matches the option's current value. It never restarts Klipper: the
+screen decides on FIRMWARE_RESTART.
 
 The parsing and planning functions here are pure and import nothing from
 Moonraker; HelixConfig wires them to endpoints.
@@ -140,8 +147,8 @@ class ConfigTree:
         self.errors: List[str] = []
 
     def effective(self) -> Dict[str, Dict[str, OptionDef]]:
-        """Each option's definition Klipper uses: the last in the regular
-        config, else the SAVE_CONFIG block's."""
+        """Each option's definition stock Klipper uses: the last in the
+        regular config, else the SAVE_CONFIG block's."""
         regular: Dict[str, Dict[str, OptionDef]] = {}
         autosave: Dict[str, Dict[str, OptionDef]] = {}
         for opt in self.options:
@@ -157,6 +164,11 @@ class ConfigTree:
 
     def option(self, section: str, option: str) -> Optional[OptionDef]:
         return self.effective().get(section, {}).get(option)
+
+    def autosave_options(self, section: str, option: str) -> List[OptionDef]:
+        """The SAVE_CONFIG block's definitions of `option` in `section`."""
+        return [o for o in self.options
+                if o.autosave and o.section == section and o.option == option]
 
     def last_regular_section(self, section: str) -> Optional[SectionDef]:
         found = None
@@ -480,6 +492,38 @@ def _new_section_lines(lines: List[str], section: str, option: str, value: str) 
     return lines[:at] + block + lines[at:]
 
 
+def _drop_autosave_lines(lines: List[str], tree: ConfigTree, section: str,
+                         option: str) -> Optional[List[str]]:
+    """The root file's `lines` without the SAVE_CONFIG block's definitions of
+    `option` in `section`, or None when the block defines none. A block
+    section left with no option loses its header and the `#*#` separator line
+    after it. Lines are deleted, never commented out: a line in the block that
+    does not start with "#*# " makes Klipper read the whole block as
+    corrupted."""
+    defs = tree.autosave_options(section, option)
+    if not defs:
+        return None
+    drop = set()
+    for opt in defs:
+        drop.update(range(opt.line - 1, opt.end_line))
+    block_start = split_autosave(lines)
+    first_body = (block_start + len(AUTOSAVE_HEADER_LINES)) if block_start is not None else 0
+    for sec in tree.sections:
+        if not sec.autosave or sec.section != section:
+            continue
+        kept = [o for o in tree.options if o.autosave and o.section == section
+                and sec.line < o.line <= sec.last_line and (o.line - 1) not in drop]
+        if kept:
+            continue
+        drop.add(sec.line - 1)
+        after, before = sec.last_line, sec.line - 2
+        if after < len(lines) and lines[after].strip() == "#*#":
+            drop.add(after)
+        elif before >= first_body and lines[before].strip() == "#*#":
+            drop.add(before)
+    return [line for index, line in enumerate(lines) if index not in drop]
+
+
 class EditPlan:
     """The files an edit list changes: original and new text by display path."""
 
@@ -566,6 +610,15 @@ def plan_edits(root_dir: Path, raw_edits: List[Any],
             else:
                 lines = _new_section_lines(lines, section, option, edit["value"])
         store(target, lines, crlf)
+
+        # The SAVE_CONFIG block's copy of the option would override this edit
+        # on a build that does not strip it.
+        tree = read_config(Path(root_abs), current_text)
+        if tree.autosave_options(section, option):
+            root_lines, root_crlf = lines_of(ROOT_FILE)
+            dropped = _drop_autosave_lines(root_lines, tree, section, option)
+            if dropped is not None:
+                store(ROOT_FILE, dropped, root_crlf)
 
     for name in [n for n, text in plan.changed.items() if text == plan.original[n]]:
         del plan.changed[name]
