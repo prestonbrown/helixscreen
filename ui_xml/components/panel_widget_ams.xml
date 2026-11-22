@@ -6,11 +6,13 @@
         extends="lv_obj" height="#button_height_lg" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_sm"
         scrollable="false" flex_flow="column" style_flex_cross_place="center">
     <!-- Hardware gate (ams_slot_count) checked in C++ populate_widgets() -->
+    <!-- fill="auto": a tile tall enough to wrap the lanes into rows draws each
+         unit as a group with larger spools; a short tile keeps the one-row strip. -->
     <!-- The home grid paints one fused card behind this widget group, so the spool
          view must not paint its own - two surfaces stack into a nested box. That card
          has no inset of its own: the vertical padding above keeps stacked bar rows,
          which fill their height, off its top and bottom edges. -->
-    <ams_mini_status name="ams_mini_status_widget" width="100%" card="false" flex_grow="1"/>
+    <ams_mini_status name="ams_mini_status_widget" width="100%" card="false" fill="auto" flex_grow="1"/>
     <text_tiny width="100%" text="Multi-Filament" style_text_color="#text_muted" style_text_align="center">
       <bind_flag_if_eq subject="show_widget_labels" flag="hidden" ref_value="0"/>
     </text_tiny>
