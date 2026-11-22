@@ -334,6 +334,26 @@ std::string heater_keypad_title(HeaterType type) {
     return {};
 }
 
+std::string nozzle_display_name(const std::string& extruder_name, const std::string& discovered) {
+    const auto& tools = ToolState::instance();
+    if (tools.tools_are_lanes() && tools.names_mounted_nozzle()) {
+        for (const PhysicalHead& head : tools.physical_heads()) {
+            if (head.extruder_name == extruder_name) {
+                return tools.nozzle_label(head.tool_indices.front());
+            }
+        }
+    }
+    return discovered;
+}
+
+std::string nozzle_display_name(const helix::PrinterTemperatureState& temps,
+                                const std::string& extruder_name) {
+    const auto& extruders = temps.extruders();
+    const auto it = extruders.find(extruder_name);
+    return nozzle_display_name(extruder_name,
+                               it != extruders.end() ? it->second.display_name : std::string());
+}
+
 std::string build_cooldown_gcode(const std::string& macro_gcode,
                                  const std::vector<std::string>& extruder_names,
                                  const std::string& chamber_heater_name) {

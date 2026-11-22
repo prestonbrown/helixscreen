@@ -146,6 +146,15 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         printer_state_.get_subjects_lifetime());
 
     auto& tool_state = ToolState::instance();
+    // A lane rig orders and names its rows by head, which a tool list rebuild moves.
+    const int initial_tools = lv_subject_get_int(tool_state.get_tools_version_subject());
+    tools_version_observer_ = helix::ui::observe<int>(
+        tool_state.get_tools_version_subject(), this,
+        [initial_tools](NozzleTempsWidget* self, int version) {
+            if (version != initial_tools)
+                self->rebuild_rows();
+        },
+        tool_state.get_subjects_lifetime());
     named_mounted_tool_ = lv_subject_get_int(tool_state.get_active_tool_subject());
     mounted_tool_observer_ = helix::ui::observe<int>(
         tool_state.get_active_tool_subject(), this,
@@ -194,6 +203,7 @@ void NozzleTempsWidget::detach() {
     temp_unit_observer_.reset();
     tool_number_style_observer_.reset();
     mounted_tool_observer_.reset();
+    tools_version_observer_.reset();
     clear_rows();
     uninstall_delete_hook();
     widget_obj_ = nullptr;
@@ -586,10 +596,10 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         long_name = tool_state.nozzle_label();
     } else if (helix::ui::is_generated_tool_name(gcode_name) ||
                (gcode_name.empty() && tool_state.tools_are_lanes())) {
-        const auto& exts = printer_state_.temperature_state().extruders();
-        auto it = exts.find(row.name);
-        if (it != exts.end() && !it->second.display_name.empty())
-            long_name = it->second.display_name;
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                printer_state_.temperature_state(), row.name);
+            !name.empty())
+            long_name = std::move(name);
     }
 
     row.short_name = std::move(short_name);

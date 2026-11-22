@@ -1908,8 +1908,10 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
         // Use the display name PrinterTemperatureState already assigned —
         // "Nozzle 1", "Nozzle 2", ... — for parity with the temp_graph config
         // modal and the multi-tool nozzle_temps widget.
-        if (!info.display_name.empty()) {
-            opt.label = info.display_name;
+        if (std::string label =
+                helix::ui::temperature::nozzle_display_name(name, info.display_name);
+            !label.empty()) {
+            opt.label = std::move(label);
         } else {
             // A bare "extruder" name by itself carries no signal about whether the
             // printer has one nozzle or several, so index 0 answers with the common
