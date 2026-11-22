@@ -986,7 +986,7 @@
   "variants": {
     "_comment": "Per-layout tables. Notifications sit in the top-right corner of every one. Slots whose cells may come up empty sit beside a declared gap or at an edge, so a printer with less hardware shows one calm empty block rather than a hole between two tiles.",
     "ultrawide": {
-      "_comment": "ULTRAWIDE (1480x320 -> 36x8 tracks, 1920x440 -> 46x10, 1920x480 -> 30x8). Two bands. Top: the printer image at the left, a deliberate empty span, then the readout cluster at the right edge with notifications in the corner; its slot cells fill from the right so any left unfilled join the empty span. Bottom: print status on the left half, the temperature graph on the right half. Tiny, small and medium are authored: micro falls back to tiny, and medium (a 480px narrow axis) gets its own placements because its 60px track edge makes a coarser grid than small's.",
+      "_comment": "ULTRAWIDE (1480x320 -> 36x8 tracks, 1920x440 -> 46x10, 1920x480 -> 30x8, 2560x720 -> 34x10). Two bands. Top: the printer image at the left, a deliberate empty span, then the readout cluster at the right edge with notifications in the corner; its slot cells fill from the right so any left unfilled join the empty span. Bottom: print status on the left half, the temperature graph on the right half. Tiny, small, medium and xlarge are authored: micro falls back to tiny; medium (1920x480) and xlarge (2560x720) get their own placements because their 60px and 72px track edges make coarser grids than small's.",
       "anchors": [
         {
           "id": "printer_image",
@@ -1008,6 +1008,12 @@
               "row": 0,
               "colspan": 6,
               "rowspan": 4
+            },
+            "xlarge": {
+              "col": 0,
+              "row": 0,
+              "colspan": 8,
+              "rowspan": 4
             }
           }
         },
@@ -1028,6 +1034,12 @@
             },
             "medium": {
               "col": 22,
+              "row": 0,
+              "colspan": 2,
+              "rowspan": 2
+            },
+            "xlarge": {
+              "col": 26,
               "row": 0,
               "colspan": 2,
               "rowspan": 2
@@ -1054,6 +1066,12 @@
               "row": 0,
               "colspan": 2,
               "rowspan": 2
+            },
+            "xlarge": {
+              "col": 28,
+              "row": 0,
+              "colspan": 2,
+              "rowspan": 2
             }
           }
         },
@@ -1077,6 +1095,12 @@
               "row": 0,
               "colspan": 2,
               "rowspan": 2
+            },
+            "xlarge": {
+              "col": 30,
+              "row": 0,
+              "colspan": 2,
+              "rowspan": 2
             }
           }
         },
@@ -1097,6 +1121,12 @@
             },
             "medium": {
               "col": 28,
+              "row": 0,
+              "colspan": 2,
+              "rowspan": 2
+            },
+            "xlarge": {
+              "col": 32,
               "row": 0,
               "colspan": 2,
               "rowspan": 2
@@ -1126,6 +1156,12 @@
               "row": 4,
               "colspan": 15,
               "rowspan": 4
+            },
+            "xlarge": {
+              "col": 0,
+              "row": 4,
+              "colspan": 17,
+              "rowspan": 6
             }
           }
         },
@@ -1149,6 +1185,12 @@
               "row": 4,
               "colspan": 15,
               "rowspan": 4
+            },
+            "xlarge": {
+              "col": 17,
+              "row": 4,
+              "colspan": 17,
+              "rowspan": 6
             }
           }
         },
@@ -1169,6 +1211,12 @@
             },
             "medium": {
               "col": 28,
+              "row": 2,
+              "colspan": 2,
+              "rowspan": 2
+            },
+            "xlarge": {
+              "col": 32,
               "row": 2,
               "colspan": 2,
               "rowspan": 2
@@ -1210,6 +1258,12 @@
               "row": 2,
               "colspan": 2,
               "rowspan": 2
+            },
+            "xlarge": {
+              "col": 30,
+              "row": 2,
+              "colspan": 2,
+              "rowspan": 2
             }
           },
           "alternatives": [
@@ -1245,6 +1299,12 @@
             },
             "medium": {
               "col": 22,
+              "row": 2,
+              "colspan": 4,
+              "rowspan": 2
+            },
+            "xlarge": {
+              "col": 26,
               "row": 2,
               "colspan": 4,
               "rowspan": 2
@@ -1300,6 +1360,9 @@
         ],
         "medium": [
           "tips"
+        ],
+        "xlarge": [
+          "tips"
         ]
       },
       "gaps": {
@@ -1324,6 +1387,14 @@
             6,
             0,
             16,
+            4
+          ]
+        ],
+        "xlarge": [
+          [
+            8,
+            0,
+            18,
             4
           ]
         ]

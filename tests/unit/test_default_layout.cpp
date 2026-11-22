@@ -625,7 +625,8 @@ const std::map<std::string, TrackBudget> kLandscapeBudget = {
 const std::map<std::string, TrackBudget> kUltrawideBudget = {
     {"tiny", {36, 8}},   // 1480x320
     {"small", {46, 10}}, // 1920x440
-    {"medium", {30, 8}}  // 1920x480
+    {"medium", {30, 8}}, // 1920x480
+    {"xlarge", {34, 10}} // 2560x720
 };
 
 struct AnchorRect {
@@ -2007,12 +2008,12 @@ const std::vector<Persona> kPersonas = {
       {"fan_stack", 26, 0, 2, 2}, {"notifications", 28, 0, 2, 2}, {"filament", 28, 2, 2, 2},
       {"led", 26, 2, 2, 2}, {"print_status", 0, 4, 15, 4}, {"temp_graph", 15, 4, 15, 4}},
      {"ams", "tips"}},
-    {"ultrawide 2560x720: xlarge is unauthored, so the medium bands seat on its 34x10 grid",
+    {"ultrawide 2560x720: the two bands edge to edge, the bell in the last column",
      "xlarge", 34, 10, {"ultrawide"},
      {{"led_controllable", 1}, {"filament_sensor_count", 1}},
-     {{"printer_image", 0, 0, 6, 4}, {"temperature", 22, 0, 2, 2}, {"bed_temperature", 24, 0, 2, 2},
-      {"fan_stack", 26, 0, 2, 2}, {"notifications", 28, 0, 2, 2}, {"filament", 28, 2, 2, 2},
-      {"led", 26, 2, 2, 2}, {"print_status", 0, 4, 15, 4}, {"temp_graph", 15, 4, 15, 4}},
+     {{"printer_image", 0, 0, 8, 4}, {"temperature", 26, 0, 2, 2}, {"bed_temperature", 28, 0, 2, 2},
+      {"fan_stack", 30, 0, 2, 2}, {"notifications", 32, 0, 2, 2}, {"filament", 32, 2, 2, 2},
+      {"led", 30, 2, 2, 2}, {"print_status", 0, 4, 17, 6}, {"temp_graph", 17, 4, 17, 6}},
      {"ams", "tips"}},
     {"ultratall 440x1920: notifications in the corner, the bed mesh below the graph",
      "small", 10, 44, {"portrait"},
