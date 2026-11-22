@@ -185,18 +185,20 @@
           <calibration_intro name="bt_intro"
                              left_label="Two belt paths" right_label="What it does" primary_name="btn_start"
                              primary_text="Compare belts" primary_callback="belt_tension_start_cb"
-                             disabled_cond="machine_motion_blocked eq 1 or bt_can_start eq 0 or nav_buttons_enabled eq 0">
+                             primary_moves_machine="true" secondary_name="btn_belt_names"
+                             secondary_text="Which belt is which?" secondary_callback="belt_tension_names_cb"
+                             primary_enable_subject="bt_can_start">
             <!-- The sketch draws its own frame -->
             <belt_path_sketch name="bt_sketch" width="100%" height="#cal_intro_picture_h"/>
             <text_small name="bt_intro_caption"
-                        width="100%" bind_text="bt_intro_caption" style_text_font="#cal_intro_font_caption"
+                        width="100%" bind_text="bt_intro_caption" style_text_font="#cal_font_detail"
                         style_text_color="#text_muted"/>
             <calibration_intro-settings>
               <lv_obj name="bt_start_text"
                       width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
                       style_border_width="0" flex_flow="column" scrollable="false">
                 <text_small width="100%"
-                            style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                            style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                             style_text_line_space="#space_xxs"
                             text="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.">
                   <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
@@ -209,17 +211,16 @@
                           height="content" style_pad_ver="#space_sm" style_pad_hor="0" style_bg_opa="0"
                           style_border_width="1" style_border_side="bottom" style_border_color="#border" flex_flow="row"
                           style_flex_main_place="space_between" scrollable="false">
-                    <text_small text="Kinematics" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"/>
+                    <text_small text="Kinematics" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"/>
                     <text_small bind_text="bt_hw_kinematics"
-                                style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
+                                style_text_font="#cal_font_subtitle" style_text_color="#text"/>
                   </lv_obj>
                   <lv_obj width="100%"
                           height="content" style_pad_ver="#space_sm" style_pad_hor="0" style_bg_opa="0"
                           style_border_width="0" flex_flow="row" style_flex_main_place="space_between"
                           scrollable="false">
-                    <text_small text="Accelerometer"
-                                style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"/>
-                    <text_small bind_text="bt_hw_accel" style_text_font="#cal_intro_font_desc">
+                    <text_small text="Accelerometer" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"/>
+                    <text_small bind_text="bt_hw_accel" style_text_font="#cal_font_subtitle">
                       <bind_style_if_eq name="bt_accel_ok" subject="printer_has_accelerometer" ref_value="1"/>
                       <bind_style_if_eq name="bt_accel_unknown" subject="printer_has_accelerometer" ref_value="0"/>
                     </text_small>
@@ -233,7 +234,7 @@
                   <icon src="alert" size="sm" variant="warning"/>
                   <text_small name="bt_gate_message_label"
                               flex_grow="1" bind_text="bt_gate_message" long_mode="wrap"
-                              style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
+                              style_text_font="#cal_font_subtitle" style_text_color="#text"/>
                 </lv_obj>
               </lv_obj>
             </calibration_intro-settings>
@@ -242,10 +243,6 @@
               <cal_intro_badge name="bt_badge_loud" text="loud" warm="true"/>
               <cal_intro_badge name="bt_badge_sweep" bind="bt_hw_sweep"/>
             </calibration_intro-badges>
-            <calibration_intro-footer_left>
-              <cal_intro_footer_button name="btn_belt_names"
-                                       text="Which belt is which?" callback="belt_tension_names_cb"/>
-            </calibration_intro-footer_left>
           </calibration_intro>
         </lv_obj>
         <!-- ============================================================ -->

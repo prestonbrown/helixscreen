@@ -32,7 +32,7 @@
                       index="3" callback="on_bed_mesh_heat_choice"/>
     </lv_obj>
     <text_small name="mesh_heat_desc"
-                width="100%" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                width="100%" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                 style_text_line_space="#space_xxs"
                 text="A hot bed changes shape. Probe at the temperature you print at.">
       <!-- 480x272 keeps its height for the chips and badges. -->

@@ -130,7 +130,7 @@
             <bind_style_if_eq name="canvas_portrait_profiles" subject="bed_mesh_view" ref_value="1"/>
           </bed_mesh_canvas_band>
           <text_small name="mesh_now_caption"
-                      width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_intro_font_caption"
+                      width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_font_detail"
                       style_text_color="#text_muted">
             <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
           </text_small>
@@ -176,7 +176,7 @@
               <bind_style_if_eq name="canvas_profiles" subject="bed_mesh_view" ref_value="1"/>
             </bed_mesh_canvas_band>
             <text_small name="mesh_now_caption"
-                        width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_intro_font_caption"
+                        width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_font_detail"
                         style_text_color="#text_muted">
               <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
             </text_small>

@@ -38,8 +38,9 @@
         <bind_flag_if_not_eq subject="input_shaper_state" flag="hidden" ref_value="0"/>
         <calibration_intro name="shaper_intro"
                            left_label="Now" right_label="Measure" primary_text="Measure resonances"
-                           primary_callback="input_shaper_measure_cb"
-                           disabled_cond="machine_motion_blocked eq 1 or printer_has_accelerometer eq 0 or nav_buttons_enabled eq 0">
+                           primary_callback="input_shaper_measure_cb" primary_moves_machine="true"
+                           secondary_name="btn_shaper_advanced" secondary_text="Advanced"
+                           secondary_callback="input_shaper_help_cb" primary_enable_subject="printer_has_accelerometer">
           <!-- Current shapers, as printer.cfg has them -->
           <lv_obj name="shaper_now_card"
                   width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
@@ -50,19 +51,19 @@
                     width="100%" height="content" style_pad_hor="0" style_pad_ver="#space_sm" style_pad_gap="#space_xs"
                     style_bg_opa="0" style_border_width="1" style_border_side="bottom" style_border_color="#border"
                     flex_flow="row" style_flex_cross_place="center" scrollable="false">
-              <text_small text="X axis" flex_grow="1" style_text_font="#cal_intro_font_row" style_text_color="#text"/>
-              <text_small bind_text="is_current_x_type" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
-              <text_small text="·" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
-              <text_small bind_text="is_current_x_freq" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
+              <text_small text="X axis" flex_grow="1" style_text_font="#cal_font_name" style_text_color="#text"/>
+              <text_small bind_text="is_current_x_type" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small text="·" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small bind_text="is_current_x_freq" style_text_font="#cal_font_mono" style_text_color="#text"/>
             </lv_obj>
             <lv_obj name="shaper_now_y"
                     width="100%" height="content" style_pad_hor="0" style_pad_ver="#space_sm" style_pad_gap="#space_xs"
                     style_bg_opa="0" style_border_width="0" flex_flow="row" style_flex_cross_place="center"
                     scrollable="false">
-              <text_small text="Y axis" flex_grow="1" style_text_font="#cal_intro_font_row" style_text_color="#text"/>
-              <text_small bind_text="is_current_y_type" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
-              <text_small text="·" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
-              <text_small bind_text="is_current_y_freq" style_text_font="#cal_intro_font_mono" style_text_color="#text"/>
+              <text_small text="Y axis" flex_grow="1" style_text_font="#cal_font_name" style_text_color="#text"/>
+              <text_small bind_text="is_current_y_type" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small text="·" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small bind_text="is_current_y_freq" style_text_font="#cal_font_mono" style_text_color="#text"/>
             </lv_obj>
           </lv_obj>
           <lv_obj name="shaper_now_unset"
@@ -71,11 +72,11 @@
                   scrollable="false">
             <bind_flag_if_not_eq subject="is_shaper_configured" flag="hidden" ref_value="0"/>
             <text_small width="100%"
-                        text="No input shaper in printer.cfg yet" style_text_font="#cal_intro_font_row"
+                        text="No input shaper in printer.cfg yet" style_text_font="#cal_font_name"
                         style_text_color="#text"/>
           </lv_obj>
           <text_small name="shaper_now_caption"
-                      width="100%" bind_text="is_intro_caption" style_text_font="#cal_intro_font_caption"
+                      width="100%" bind_text="is_intro_caption" style_text_font="#cal_font_detail"
                       style_text_color="#text_muted"/>
           <!-- Accelerometer: ready, or what is missing -->
           <lv_obj name="shaper_accel_ready"
@@ -90,9 +91,9 @@
             <lv_obj width="0"
                     height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
                     style_border_width="0" flex_flow="column" scrollable="false">
-              <text_small text="Accelerometer ready" style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
+              <text_small text="Accelerometer ready" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
               <text_small width="100%"
-                          bind_text="is_accel_detail" long_mode="dots" style_text_font="#cal_intro_font_caption"
+                          bind_text="is_accel_detail" long_mode="dots" style_text_font="#cal_font_detail"
                           style_text_color="#text_muted"/>
             </lv_obj>
           </lv_obj>
@@ -108,9 +109,9 @@
             <lv_obj width="0"
                     height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
                     style_border_width="0" flex_flow="column" scrollable="false">
-              <text_small text="No accelerometer" style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
+              <text_small text="No accelerometer" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
               <text_small width="100%"
-                          text="Connect one (ADXL345 or similar) to measure" style_text_font="#cal_intro_font_caption"
+                          text="Connect one (ADXL345 or similar) to measure" style_text_font="#cal_font_detail"
                           style_text_color="#text_muted"/>
             </lv_obj>
           </lv_obj>
@@ -120,16 +121,17 @@
                     style_border_width="0" flex_flow="row" scrollable="false">
               <cal_intro_chip name="shaper_axis_both"
                               label="Both axes" choice="is_axis_choice" value="0" index="0"
-                              callback="input_shaper_axis_cb" label_align="center" label_font="#cal_intro_font_row"/>
+                              callback="input_shaper_axis_cb" label_align="center" no_detail="true"
+                              label_font="#cal_font_name"/>
               <cal_intro_chip name="shaper_axis_x"
                               label="X only" choice="is_axis_choice" value="1" index="1" callback="input_shaper_axis_cb"
-                              label_align="center" label_font="#cal_intro_font_row"/>
+                              label_align="center" no_detail="true" label_font="#cal_font_name"/>
               <cal_intro_chip name="shaper_axis_y"
                               label="Y only" choice="is_axis_choice" value="2" index="2" callback="input_shaper_axis_cb"
-                              label_align="center" label_font="#cal_intro_font_row"/>
+                              label_align="center" no_detail="true" label_font="#cal_font_name"/>
             </lv_obj>
             <text_small name="shaper_intro_desc"
-                        width="100%" style_margin_top="#space_xs" style_text_font="#cal_intro_font_desc"
+                        width="100%" style_margin_top="#space_xs" style_text_font="#cal_font_subtitle"
                         style_text_color="#text_muted" style_text_line_space="#space_xxs"
                         text="Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration."/>
           </calibration_intro-settings>
@@ -138,9 +140,6 @@
             <cal_intro_badge name="shaper_badge_loud" text="loud" warm="true"/>
             <cal_intro_badge name="shaper_badge_moves" text="homes, then moves fast"/>
           </calibration_intro-badges>
-          <calibration_intro-footer_left>
-            <cal_intro_footer_button name="btn_shaper_advanced" text="Advanced" callback="input_shaper_help_cb"/>
-          </calibration_intro-footer_left>
         </calibration_intro>
       </lv_obj>
       <!-- idle state -->

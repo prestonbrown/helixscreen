@@ -6,10 +6,10 @@
      the intro (bed_mesh_view 0). Shared by both orientations of
      bed_mesh_panel.xml. -->
 <component>
-  <view extends="calibration_intro_footer" primary_text="Probe the bed" primary_callback="on_bed_mesh_probe_intro">
+  <view extends="calibration_wizard_footer"
+        back_name="btn_mesh_profiles" back_text="Profiles" back_callback="on_bed_mesh_show_profiles"
+        primary_name="cal_intro_primary" primary_text="Probe the bed" primary_callback="on_bed_mesh_probe_intro"
+        primary_moves_machine="true">
     <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
-    <calibration_intro_footer-footer_left>
-      <cal_intro_footer_button name="btn_mesh_profiles" text="Profiles" callback="on_bed_mesh_show_profiles"/>
-    </calibration_intro_footer-footer_left>
   </view>
 </component>

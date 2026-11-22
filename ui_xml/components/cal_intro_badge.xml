@@ -8,6 +8,7 @@
 <component>
   <api>
     <prop name="text" type="string" default=""/>
+    <prop name="text_tag" type="string" default=""/>
     <prop name="bind" type="string" default=""/>
     <prop name="warm" type="boolean" default="false"/>
   </api>
@@ -21,7 +22,7 @@
     <style name="neutral"/>
     <style name="warm" selector="checked"/>
     <text_small name="badge_text"
-                text="$text" bind_text="$bind" style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"
-                style_text_color-checked="#warning" checked="$warm" clickable="false"/>
+                text="$text" translation_tag="$text_tag" bind_text="$bind" style_text_font="#cal_font_detail"
+                style_text_color="#text_muted" style_text_color-checked="#warning" checked="$warm" clickable="false"/>
   </view>
 </component>
