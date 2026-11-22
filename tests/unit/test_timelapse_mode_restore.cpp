@@ -7,6 +7,7 @@
 #include "printer_pending_restore.h"
 #include "timelapse_state.h"
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -280,7 +281,9 @@ TEST_CASE_METHOD(RestoreFixture, "a late switch-back answer leaves the next prin
     plugin.land();
     drain();
     REQUIRE_FALSE(owed().empty());
-    CHECK(owed().back() == helix::timelapse::timelapse_off_switch().front());
+    const auto now_owed = owed();
+    CHECK(std::count(now_owed.begin(), now_owed.end(),
+                     helix::timelapse::timelapse_off_switch().front()) == 1);
 
     plugin.hold_writes = false;
     print_goes(PrintState::Printing);
