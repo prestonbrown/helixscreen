@@ -143,24 +143,24 @@
       <ui_button name="extrude_length_0"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="0"/>
-        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="0"/>
+        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="0"/>
+        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
       </ui_button>
       <ui_button name="extrude_length_1"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="1"/>
-        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="1"/>
+        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="1"/>
+        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
       </ui_button>
       <ui_button name="extrude_length_2"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="2"/>
-        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="2"/>
+        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="2"/>
+        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="2"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
       </ui_button>

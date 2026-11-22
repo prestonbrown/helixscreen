@@ -25,30 +25,30 @@
             <ui_button name="btn_source_auto"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="Auto" flex_grow="1"
                        clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_src_auto_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_src_auto_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_src_auto_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_src_auto_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_source_auto"/>
             </ui_button>
             <ui_button name="btn_source_encoder"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="Encoder" flex_grow="1"
                        clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_src_encoder_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_src_encoder_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_src_encoder_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_src_encoder_active" ref_value="0"/>
               <bind_flag_if_eq subject="clog_src_encoder_available" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_source_encoder"/>
             </ui_button>
             <ui_button name="btn_source_flowguard"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="Flowguard" flex_grow="1"
                        clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_src_flowguard_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_src_flowguard_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_src_flowguard_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_src_flowguard_active" ref_value="0"/>
               <bind_flag_if_eq subject="clog_src_flowguard_available" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_source_flowguard"/>
             </ui_button>
             <ui_button name="btn_source_afc"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="AFC" flex_grow="1" clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_src_afc_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_src_afc_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_src_afc_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_src_afc_active" ref_value="0"/>
               <bind_flag_if_eq subject="clog_src_afc_available" flag="hidden" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_source_afc"/>
             </ui_button>
@@ -65,15 +65,15 @@
             <ui_button name="btn_mode_auto"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="Auto" flex_grow="1"
                        clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_mode_auto_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_mode_auto_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_mode_auto_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_mode_auto_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_mode_auto"/>
             </ui_button>
             <ui_button name="btn_mode_manual"
                        height="#modal_button_height" style_pad_hor="#space_xs" text="Manual" flex_grow="1"
                        clickable="true">
-              <bind_style name="styles.choice_selected" subject="clog_mode_manual_active" ref_value="1"/>
-              <bind_style name="styles.choice_idle" subject="clog_mode_manual_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="clog_mode_manual_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="clog_mode_manual_active" ref_value="0"/>
               <event_cb trigger="clicked" callback="on_clog_mode_manual"/>
             </ui_button>
           </lv_obj>

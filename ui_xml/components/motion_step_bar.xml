@@ -14,8 +14,8 @@
       <ui_button name="step_${i}"
                  width="0" flex_grow="1" style_min_width="0" style_min_height="#touch_target_min"
                  style_pad_hor="#space_xxs" style_pad_ver="0" bind_text="motion_step_label_${i}">
-        <bind_style name="styles.choice_selected" subject="motion_step_active_${i}" ref_value="1"/>
-        <bind_style name="styles.choice_idle" subject="motion_step_active_${i}" ref_value="0"/>
+        <bind_style name="styles.choice_fill_selected" subject="motion_step_active_${i}" ref_value="1"/>
+        <bind_style name="styles.choice_fill_idle" subject="motion_step_active_${i}" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_motion_step_clicked" user_data="$i"/>
       </ui_button>
     </repeat>
