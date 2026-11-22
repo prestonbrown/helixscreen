@@ -2332,7 +2332,7 @@ translations:
   Homing XY...: 正在归位 XY...
   Homing Y...: 正在归位 Y...
   Homing Z...: 正在归位 Z...
-  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: 跨两块主板的归位（工具头板的限位开关和主板的电机）通过 USB 或 CAN 失去了联系。
+  Homing across two boards (a toolhead board's endstop and the mainboard's motors) lost contact over USB or CAN.: 跨两块控制板归位时（工具头板的限位开关和主板的电机），二者之间的 USB 或 CAN 连接中断。
   Homing all axes...: 正在归位所有轴...
   Homing and moving the plate...: '正在归位并移动热床...'
   Homing axes...: 正在归位各轴...
@@ -2343,7 +2343,7 @@ translations:
   Homing first...: 正在先归位...
   Homing gave inconsistent results.: '归位结果不一致。'
   Homing is disabled while a print is in progress: 打印进行中，无法归位
-  Homing lost contact between boards: 归位时主板之间失去联系
+  Homing lost contact between boards: 归位时控制板之间失去联系
   Homing may still be running — response timed out: 归位可能仍在运行 — 响应超时
   Homing selector: '选择器回零'
   Homing stopped at {}: '归位在 {} 处停止'
@@ -2387,7 +2387,7 @@ translations:
   Humidity inside the enclosure: 腔体内的湿度
   Humidity Sensors: 湿度传感器
   Hyperlapse: 超延时
-  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: '超延时按固定时间间隔拍摄。无需设置切片软件，但喷头会出现在当时所在的位置。'
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: '超延时按固定时间间隔拍摄。无需设置切片软件，但工具头会出现在当时所在的位置。'
   Hyperspace: 超空间
   I understand: 我已了解
 
@@ -2677,7 +2677,7 @@ translations:
     TIMELAPSE_TAKE_FRAME
 
 
-    超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。'
+    超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中工具头都在当时所在的位置。'
   Layer {} of {} · {:.2f} mm: 第 {} / {} 层 · {:.2f} mm
   Layer {} of {}.: '第 {} 层，共 {} 层。'
   Layer {}, Z {:.2f} mm: 第 {} 层，Z {:.2f} mm
@@ -3114,7 +3114,7 @@ translations:
   No Power Devices: 无电源设备
   No Spool: 无料盘
   No Spools: 无料盘
-  No Timelapse Frames: '没有延时摄影画面'
+  No Timelapse Frames: '没有延时摄影帧'
   No USB printer detected: 未检测到 USB 打印机
   No USB printers found: 未找到 USB 打印机
   No accelerometer: 无加速度传感器
@@ -5240,7 +5240,7 @@ translations:
   The toolhead is not homed, so this would home into the print: '工具头尚未归位，归位会使喷嘴碰到打印件'
   The toolhead is not loaded: 工具头未加载
   The toolhead is unloaded: '打印头已退料'
-  'The toolhead may still be at the chute. Move it away before printing.': '打印头可能仍在清料槽处。打印前请将其移开。'
+  'The toolhead may still be at the chute. Move it away before printing.': '工具头可能仍在排料口处。打印前请将其移开。'
   The toolhead moves. Keep hands clear.: '打印头会移动。请让手远离。'
   The toolhead on the carriage is not the one the printer expected.: '滑架上的工具头不是打印机预期的工具头。'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
@@ -5331,7 +5331,7 @@ translations:
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
   ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
-  : '此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行这一行时拍摄，而你的切片软件没有添加它：
+  : '此文件不会拍摄延时摄影帧。层模式只在文件每次换层执行这一行时拍摄，而你的切片软件没有添加它：
 
     TIMELAPSE_TAKE_FRAME
 

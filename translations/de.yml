@@ -141,8 +141,8 @@ translations:
   2 min: '2 Min'
   2 minutes: 2 Minuten
   '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. Füge in PRINT_START nach dem Referenzieren und Abtasten und vor deinem eigenen Bettnetz-Schritt diese Zeile ein:"
-  2. Jog X and Y until the nozzle is centered over the chute opening: 2. X und Y verfahren, bis die Düse mittig über der Rinnenöffnung steht
-  2. Jog Y until the nozzle is centered over the chute opening: 2. Y verfahren, bis die Düse mittig über der Rinnenöffnung steht
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. X und Y verfahren, bis die Düse mittig über der Schachtöffnung steht
+  2. Jog Y until the nozzle is centered over the chute opening: 2. Y verfahren, bis die Düse mittig über der Schachtöffnung steht
 
   2. Place paper between nozzle and bed: 2. Papier zwischen Düse und Bett legen
   2. Results show how much to turn each screw: 2. Ergebnisse zeigen, wie viel jede Schraube gedreht werden muss
@@ -204,7 +204,7 @@ translations:
   A delta printer can't home X and Y without moving Z, so a print can't be resumed.: "Ein Delta-Drucker kann X und Y nicht referenzieren, ohne Z zu bewegen, daher kann ein Druck nicht fortgesetzt werden."
   A different toolhead than the one asked for is on the carriage.: 'Auf dem Schlitten sitzt ein anderer Werkzeugkopf als der angeforderte.'
   ? 'A dock or grab sensor reads wrong: a head not seated in its dock, a dirty or failed switch, or the carriage still holding a head.'
-  : 'Ein Dock- oder Greifsensor liest falsch: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf.'
+  : 'Ein Dock- oder Greifsensor meldet einen falschen Zustand: ein Kopf sitzt nicht in seinem Dock, ein Schalter ist verschmutzt oder defekt, oder der Schlitten hält noch einen Kopf.'
   A fan that pulls the enclosure air through a filter. Control it on the chamber temperature screen.: 'Ein Lüfter, der die Luft im Gehäuse durch einen Filter zieht. Steuere ihn im Kammertemperatur-Bildschirm.'
   A few minutes, nearly all of it heating. You judge nothing by eye.: 'Ein paar Minuten, fast alles Aufheizen. Du beurteilst nichts mit dem Auge.'
   A first-layer offset and bed mesh for each material: "Ein Erstschicht-Offset und Bettnetz für jedes Material"
@@ -739,7 +739,7 @@ translations:
   Calibrate Encoder: 'Encoder kalibrieren'
   Calibrate Gates: 'Gates kalibrieren'
   Calibrate Gear: 'Zahnrad kalibrieren'
-  Calibrate Purge Chute: Entlüftungsrinne kalibrieren
+  Calibrate Purge Chute: Auswurfschacht kalibrieren
   Calibrate Toolhead: 'Werkzeugkopf kalibrieren'
   Calibrate Toolhead Offsets: Werkzeugkopf-Offsets kalibrieren
   Calibrate X: X kalibrieren
@@ -1001,7 +1001,7 @@ translations:
   Choose the order of day, month and year: Reihenfolge von Tag, Monat und Jahr wählen
   Choose what to power off or restart.: Wählen Sie, was ausgeschaltet oder neu gestartet werden soll.
   Choose which releases to get, and whether to share anonymous statistics.: 'Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst.'
-  'Chute position: X {:.1f}, Y {:.1f}': 'Position der Entlüftungsrinne: X {:.1f}, Y {:.1f}'
+  'Chute position: X {:.1f}, Y {:.1f}': 'Position des Auswurfschachts: X {:.1f}, Y {:.1f}'
 
   Clean Brush: 'Bürste reinigen'
   Clean Nozzle: Düse reinigen
@@ -1050,7 +1050,7 @@ translations:
   Clear the clog in head T{1} (a cold pull works), then resume.: Verstopfung in Kopf T{1} beseitigen (ein Cold Pull hilft), dann fortsetzen.
   Clear the extruder?: 'Extruder leeren?'
   Clear the nozzle and the part, then restart the firmware.: Düse und Teil freimachen, dann die Firmware neu starten.
-  Clear the nozzle and the purge chute, load {}, then resume.: Düse und Entlüftungsrinne freimachen, {} laden, dann fortsetzen.
+  Clear the nozzle and the purge chute, load {}, then resume.: Düse und Auswurfschacht freimachen, {} laden, dann fortsetzen.
   Clear the plate and load {}. The tower prints in the middle of the bed.: Räume das Heizbett und lade {}. Der Turm wird in der Mitte des Betts gedruckt.
   Clear {}?: '{} leeren?'
   Cleared: Geräumt
@@ -1261,7 +1261,7 @@ translations:
   : In kürzeren Schritten laden oder entladen, oder max_extrude_only_distance im Extruder-Abschnitt erhöhen. Prüfen, ob Slicer und Start-G-Code bei relativer oder absoluter Extrusion übereinstimmen.
   Load stopped: Laden gestoppt
   "Load, unload, purge, and extrude filament": "Filament laden, entladen, spülen und extrudieren"
-  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Hier laden, entladen und entlüften. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Hier laden, entladen und spülen. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Spulen laden, entladen und wechseln, Temperaturen einstellen und Filamentsensoren überwachen."
   ? "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
   : "Lange auf eine Kachel drücken, um in den Bearbeitungsmodus zu wechseln. Im neuen Raster können Sie Widgets anordnen, skalieren, entfernen, hinzufügen und zwischen Seiten ziehen."
@@ -1383,7 +1383,7 @@ translations:
   Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: 'Filamentende gerade abschneiden und in die Zuführung dieses Kopfs schieben, bis es greift, dann den Kopf erneut laden.'
   Cut tip: 'Spitze schneiden'
   Cutter Enabled: 'Schneider aktiviert'
-  Cutter and purge chute calibration: Schneider- und Entlüftungsrinnen-Kalibrierung
+  Cutter and purge chute calibration: Kalibrierung von Schneider und Auswurfschacht
   Cutter blade didn't sever filament: Schneidklinge hat das Filament nicht durchtrennt
   Cutter calibration completed: Schneider-Kalibrierung abgeschlossen
   'Cutter calibration failed: {}': 'Schneider-Kalibrierung fehlgeschlagen: {}'
@@ -1613,7 +1613,7 @@ translations:
   Enable Bypass Controls: Bypass-Steuerung aktivieren
   Enable Clean Nozzle and other print helpers: 'Düse reinigen und weitere Druck-Hilfen aktivieren'
   Enable Monitoring: Überwachung aktivieren
-  Enable Purge: 'Entlüften aktivieren'
+  Enable Purge: 'Spülen aktivieren'
   Enable Retraction: Retraktion aktivieren
   Enable Timelapse: Zeitraffer aktivieren
   Enable UI motion effects: UI-Bewegungseffekte aktivieren
@@ -1622,10 +1622,10 @@ translations:
   Enable anonymous statistics: Anonyme Statistiken aktivieren
   Enable assisted retraction at hub: 'Unterstützten Einzug am Hub aktivieren'
   Enable audio feedback: Akustisches Feedback aktivieren
-  Enable brush wipe after purging: 'Bürstenreinigung nach dem Entlüften aktivieren'
+  Enable brush wipe after purging: 'Bürstenreinigung nach dem Spülen aktivieren'
   Enable or disable the hub cutter: 'Den Hub-Schneider aktivieren oder deaktivieren'
   Enable plugin?: 'Plugin aktivieren?'
-  Enable purging during tool changes: 'Entlüften bei Werkzeugwechseln aktivieren'
+  Enable purging during tool changes: 'Spülen bei Werkzeugwechseln aktivieren'
   Enable/disable quiet operation mode: 'Leisen Betriebsmodus aktivieren/deaktivieren'
   Enabled: Aktiviert
   Enabled. Open its settings, or disable it?: 'Aktiviert. Einstellungen öffnen oder deaktivieren?'
@@ -1830,7 +1830,7 @@ translations:
   Failed to open history list: Verlaufsliste konnte nicht geöffnet werden
   Failed to open temperature graph: Temperaturgraph konnte nicht geöffnet werden
   'Failed to pause print: {}': 'Druck pausieren fehlgeschlagen: {}'
-  'Failed to purge: {}': 'Purge fehlgeschlagen: {}'
+  'Failed to purge: {}': 'Spülen fehlgeschlagen: {}'
   Failed to read G-code for Filament Mapping: G-code für die Filament-Zuordnung konnte nicht gelesen werden
   Failed to read config.: Konfiguration konnte nicht gelesen werden.
   Failed to read config. Check connection.: Konfiguration konnte nicht gelesen werden. Verbindung prüfen.
@@ -2155,7 +2155,7 @@ translations:
   Grip filament: Filament greifen
   Grip the filament: Filament greifen
   Groups follow each slot's material and color: "Gruppen folgen Material und Farbe jedes Slots"
-  Guide the toolhead to the chute's extrude position: Werkzeugkopf zur Extrusionsposition der Rinne führen
+  Guide the toolhead to the chute's extrude position: Werkzeugkopf zur Extrusionsposition des Schachts führen
   Guided calibration: 'Geführte Kalibrierung'
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Geführte Kalibrierung: Sensor zur Düse, Entladeweg und Einzug des Schneiders'
   H: H
@@ -2534,7 +2534,7 @@ translations:
   Jog Speed XY: Bewegungsgeschwindigkeit XY
   Jog Speed Z: Bewegungsgeschwindigkeit Z
   Jog X back to {:.1f} mm before moving Y further: X auf {:.1f} mm zurückfahren, bevor Y weiter bewegt wird
-  Jog Y until the nozzle is centered over the chute opening, then tap Save.: Verfahren Sie Y, bis die Düse mittig über der Rinnenöffnung steht, und tippen Sie dann auf Speichern.
+  Jog Y until the nozzle is centered over the chute opening, then tap Save.: Verfahren Sie Y, bis die Düse mittig über der Schachtöffnung steht, und tippen Sie dann auf Speichern.
 
   'Jog failed: {}': 'Bewegung fehlgeschlagen: {}'
   Jog layout, speeds and step distances: 'Verfahr-Layout, Geschwindigkeiten und Schrittweiten'
@@ -2666,13 +2666,13 @@ translations:
   Layer Height: Schichthöhe
   Layer Pause: 'Schichtpause'
   ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
-  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code Ihres Slicers muss ausführen:
 
     TIMELAPSE_TAKE_FRAME'
   ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
   : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.
 
-    Füge es in den Schichtwechsel-G-Code deines Slicers ein:
+    Fügen Sie es in den Schichtwechsel-G-Code Ihres Slicers ein:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -2692,7 +2692,7 @@ translations:
   Left: 'Links'
   Left belt: "Riemen links"
   Leftover material found: 'Materialreste gefunden'
-  Length of filament to purge: 'Zu entlüftende Filamentlänge'
+  Length of filament to purge: 'Zu spülende Filamentlänge'
   Length of the cooling tube section: 'Länge des Kühlrohrabschnitts'
   'Length:': 'Länge:'
   Let a browser tap and drag on this screen: 'Einem Browser erlauben, auf diesem Bildschirm zu tippen und zu ziehen'
@@ -2708,7 +2708,7 @@ translations:
   Light will switch when the current operation finishes: Das Licht schaltet sich, sobald der aktuelle Vorgang abgeschlossen ist.
   Lights that follow the printer's state: Leuchten, die sich nach dem Druckerstatus richten
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'Lichter, die der Drucker steuern kann. Wähle in den LED-Einstellungen, welche HelixScreen verwendet.'
-  Line the nozzle up with the purge chute so purged filament drops straight in.: Richten Sie die Düse über der Entlüftungsrinne aus, damit das entlüftete Filament direkt hineinfällt.
+  Line the nozzle up with the purge chute so purged filament drops straight in.: Richten Sie die Düse über dem Auswurfschacht aus, damit das gespülte Filament direkt hineinfällt.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Zeile {} ruft {} auf, das dieser Drucker als Notaus behandelt. Slicen Sie die Datei mit einem Profil für diesen Drucker neu.'
   Linear rails: 'Linearschienen'
@@ -2854,7 +2854,7 @@ translations:
   Macro to load filament into extruder: Makro zum Laden von Filament in den Extruder
   Macro to park the toolhead at a safe position: 'Makro, um den Werkzeugkopf in eine sichere Position zu fahren'
   Macro to pause an active print: Makro zum Pausieren eines aktiven Drucks
-  Macro to purge/prime the nozzle: Makro zum Entlüften/Primen der Düse
+  Macro to purge/prime the nozzle: Makro zum Spülen/Primen der Düse
   Macro to resume a paused print: Makro zum Fortsetzen eines pausierten Drucks
   Macro to unload filament from extruder: Makro zum Entladen von Filament aus dem Extruder
   Macro {1} has a syntax error: Makro {1} hat einen Syntaxfehler
@@ -3817,23 +3817,23 @@ translations:
   ? "Pulling the filament back from the toolhead never cleared the Box's buffer sensor: the filament was not cut through, its tip swelled, or it tangled."
   : 'Beim Zurückziehen des Filaments aus dem Werkzeugkopf wurde der Puffersensor der Box nie frei: Das Filament wurde nicht ganz durchgeschnitten, seine Spitze ist aufgequollen oder es hat sich verheddert.'
   "Pulling the filament back into the Box did not clear the slot's sensor: a tangled spool, or stuck or snapped filament.": 'Beim Zurückziehen des Filaments in die Box wurde der Sensor des Slots nicht frei: eine verhedderte Spule oder festsitzendes oder gerissenes Filament.'
-  Purge: Entlüften
-  Purge & Wipe: 'Entlüften & Abwischen'
-  Purge Chute Calibration: Entlüftungsrinnen-Kalibrierung
-  Purge Length: 'Entlüftungslänge'
+  Purge: Spülen
+  Purge & Wipe: 'Spülen & Abwischen'
+  Purge Chute Calibration: Auswurfschacht-Kalibrierung
+  Purge Length: 'Spüllänge'
   Purge Line: 'Spüllinie'
-  'Purge chute calibration failed: {}': 'Kalibrierung der Entlüftungsrinne fehlgeschlagen: {}'
-  Purge chute position saved.: Position der Entlüftungsrinne gespeichert.
+  'Purge chute calibration failed: {}': 'Kalibrierung des Auswurfschachts fehlgeschlagen: {}'
+  Purge chute position saved.: Position des Auswurfschachts gespeichert.
 
-  'Purge failed: {}': 'Purge fehlgeschlagen: {}'
-  Purge may still be running — response timed out: Purge läuft möglicherweise noch — Zeitüberschreitung
+  'Purge failed: {}': 'Spülen fehlgeschlagen: {}'
+  Purge may still be running — response timed out: Spülen läuft möglicherweise noch — Zeitüberschreitung
   Purge the loaded filament: "Geladenes Filament spülen"
-  Purge to bucket: 'In den Behälter entlüften'
+  Purge to bucket: 'In den Behälter spülen'
   Purge tower and brush settings: 'Einstellungen für Reinigungsturm und Bürste'
   Purging: Spülen
   Purging nozzle: Düse wird gespült
   Purging old filament: "Altes Filament wird gespült"
-  Purging...: Entlüften...
+  Purging...: Spülen...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."
   Push the filament into the head until the extruder grabs it, then try again.: 'Filament in den Kopf schieben, bis der Extruder es greift, dann erneut versuchen.'
@@ -5210,7 +5210,7 @@ translations:
   The running step stops at once and the printer restarts.: Der laufende Schritt stoppt sofort und der Drucker startet neu.
   The running step stops. The steps that finished keep their results.: Der laufende Schritt stoppt. Abgeschlossene Schritte behalten ihre Ergebnisse.
   The runout sensor indicates no filament is loaded. Start print anyway?: Der Auslaufsensor zeigt an, dass kein Filament geladen ist. Druck trotzdem starten?
-  The runout sensor reads empty, so the print did not start.: Der Filamentsensor meldet leer, daher wurde der Druck nicht gestartet.
+  The runout sensor reads empty, so the print did not start.: Der Auslaufsensor meldet leer, daher wurde der Druck nicht gestartet.
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: Die gespeicherte Position bleibt erhalten. Verbinden Sie neu oder starten Sie den Bildschirm neu, damit das Fortsetzen erneut angeboten wird.
   The screen will lose its connection to the printer for a few seconds.: "Der Bildschirm verliert für einige Sekunden die Verbindung zum Drucker."
   The sensor in this CFS unit cannot be read. Check its connection, or the unit may need service: Der Sensor dieser CFS-Einheit lässt sich nicht auslesen. Anschluss prüfen, andernfalls muss die Einheit gewartet werden
@@ -5228,7 +5228,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
   Timelapse did not start: 'Zeitraffer nicht gestartet'
   Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
-  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stelle ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stellen Sie ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
@@ -5240,7 +5240,7 @@ translations:
   The toolhead is not homed, so this would home into the print: 'Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren'
   The toolhead is not loaded: Der Werkzeugkopf ist nicht geladen
   The toolhead is unloaded: 'Der Druckkopf ist entladen'
-  'The toolhead may still be at the chute. Move it away before printing.': 'Der Druckkopf befindet sich möglicherweise noch an der Rinne. Bewege ihn vor dem Drucken weg.'
+  'The toolhead may still be at the chute. Move it away before printing.': 'Der Werkzeugkopf befindet sich möglicherweise noch am Schacht. Bewegen Sie ihn vor dem Drucken weg.'
   The toolhead moves. Keep hands clear.: 'Der Druckkopf bewegt sich. Hände weg.'
   The toolhead on the carriage is not the one the printer expected.: 'Der Werkzeugkopf auf dem Schlitten ist nicht der, den der Drucker erwartet hat.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
@@ -5331,7 +5331,7 @@ translations:
   This file was sliced for {} but {} is loaded.: Diese Datei wurde für {} gesliced, aber {} ist geladen.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt.
   ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
-  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und dein Slicer hat sie nicht eingefügt:
+  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und Ihr Slicer hat sie nicht eingefügt:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -5508,7 +5508,7 @@ translations:
   Tool offsets saved: Werkzeug-Offsets gespeichert
   Tool swap: Werkzeugwechsel
   Tool, runout backup: Werkzeug, Ersatz bei Filamentende
-  Toolchange purge: 'Werkzeugwechsel-Entlüftung'
+  Toolchange purge: 'Spülen beim Werkzeugwechsel'
   Toolhead: 'Werkzeugkopf'
   Toolhead Calibration Running: 'Werkzeugkopf-Kalibrierung läuft'
   Toolhead LED: 'Werkzeugkopf-LED'
@@ -5576,7 +5576,7 @@ translations:
   Turn On: Einschalten
   Turn On LEDs: 'LEDs einschalten'
   Turn On Toolhead LED: "Werkzeugkopf-LED einschalten"
-  Turn off arc fitting in the slicer and slice the file again.: Arc Fitting im Slicer ausschalten und die Datei neu slicen.
+  Turn off arc fitting in the slicer and slice the file again.: Bogenanpassung (Arc Fitting) im Slicer ausschalten und die Datei neu slicen.
   Turn off arc fitting in the slicer, then slice the file again.: 'Bogenanpassung (Arc Fitting) im Slicer ausschalten, dann die Datei neu slicen.'
   Turn off bed check: 'Bettprüfung ausschalten'
   Turn off detection: Erkennung ausschalten
@@ -6235,10 +6235,10 @@ translations:
   '{} complete': '{} abgeschlossen'
   '{} configured item not found': '{} konfiguriertes Element nicht gefunden'
   '{} configured items not found': '{} konfigurierte Elemente nicht gefunden'
-  '{} could not load': '{} konnte nicht laden'
+  '{} could not load': '{} konnte nicht geladen werden'
   '{} could not load its filament': '{} konnte sein Filament nicht laden'
   '{} could not preload its filament': '{} konnte sein Filament nicht vorladen'
-  '{} could not unload': '{} konnte nicht entladen'
+  '{} could not unload': '{} konnte nicht entladen werden'
   '{} could not unload its filament': '{} konnte sein Filament nicht entladen'
   '{} critical': '{} kritisch'
   '{} critical hardware issues': '{} kritische Hardwareprobleme'
@@ -6323,7 +6323,7 @@ translations:
   '{} presets': '{} Voreinstellungen'
   '{} prints': '{} Drucke'
   '{} queued': '{} in der Warteschlange'
-  '{} ran out': '{} ist aufgebraucht'
+  '{} ran out': '{}: Filament aufgebraucht'
   '{} ran out of filament': '{}: Filament aufgebraucht'
   '{} ran out of filament during the print, and auto refill is off.': Das Filament von {} ist während des Drucks ausgegangen, und automatisches Nachfüllen ist aus.
   '{} ran out of {}. Pick a loaded toolhead to finish the print. It keeps the temperatures sliced for the original filament.': '{} hat kein {} mehr. Wähle einen geladenen Werkzeugkopf, um den Druck zu beenden. Er behält die für das ursprüngliche Filament geslicten Temperaturen.'
