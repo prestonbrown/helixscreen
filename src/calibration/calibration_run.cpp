@@ -109,6 +109,8 @@ CalibrationRun::CalibrationRun(IMoonrakerAPI& api,
                     stop();
                 }
             },
+            static_cast<int>(i),
+            static_cast<int>(steps.size()),
         }));
     }
 }

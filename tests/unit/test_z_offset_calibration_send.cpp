@@ -1092,7 +1092,7 @@ class ZOffsetRunFixture : public CalibrationSendFixture {
     }
 
     void open() {
-        panel.open_for_run(&api, [this](bool accepted, float, ZOffsetCalibrationStrategy s) {
+        panel.open_for_run(&api, 0, 1, [this](bool accepted, float, ZOffsetCalibrationStrategy s) {
             done.emplace_back(accepted, s);
         });
         settle();

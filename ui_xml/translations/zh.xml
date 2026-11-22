@@ -4466,6 +4466,7 @@
   <translation tag="Step 1 of 3" zh="第 1 步，共 3 步"/>
   <translation tag="Step {} of {}" zh="第 {} 步，共 {} 步"/>
   <translation tag="Step {} of {} · about {} min left" zh="第 {} 步，共 {} 步 · 剩余约 {} 分钟"/>
+  <translation tag="Step {} of {} · needs you"/>
   <translation tag="Stepper driver {1} detected a short" zh="步进驱动 {1} 检测到短路"/>
   <translation tag="Stepper driver {1} lost motor power" zh="步进驱动 {1} 失去电机电源"/>
   <translation tag="Stepper driver {1} overheated" zh="步进驱动 {1} 过热"/>
@@ -6010,6 +6011,7 @@
   <translation tag="{}% left" zh="剩余 {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" zh="{}的喷嘴仍在加热"/>
   <translation tag="{}, {}" zh="{}、{}"/>
+  <translation tag="{}/{} · needs you"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" zh="{}：标签指定的 Spoolman 料盘 #{} 不存在"/>
   <translation tag="{}: {} at {}°C" zh="{}：{}，{}°C"/>
   <translation tag="{}:{:02} elapsed" zh="已用时 {}:{:02}"/>

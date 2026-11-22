@@ -4598,6 +4598,7 @@ translations:
   Step 1 of 3: 第 1 步，共 3 步
   Step {} of {}: 第 {} 步，共 {} 步
   Step {} of {} · about {} min left: '第 {} 步，共 {} 步 · 剩余约 {} 分钟'
+  Step {} of {} · needs you: ''
   Stepper driver {1} detected a short: 步进驱动 {1} 检测到短路
   Stepper driver {1} lost motor power: 步进驱动 {1} 失去电机电源
   Stepper driver {1} overheated: 步进驱动 {1} 过热
@@ -6210,6 +6211,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'
   "{}'s nozzle is still heating": '{}的喷嘴仍在加热'
   '{}, {}': '{}、{}'
+  '{}/{} · needs you': ''
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}：标签指定的 Spoolman 料盘 #{} 不存在'
   '{}: {} at {}°C': '{}：{}，{}°C'
   '{}:{:02} elapsed': 已用时 {}:{:02}

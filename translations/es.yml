@@ -4598,6 +4598,7 @@ translations:
   Step 1 of 3: Paso 1 de 3
   Step {} of {}: Paso {} de {}
   Step {} of {} · about {} min left: 'Paso {} de {} · quedan unos {} min'
+  Step {} of {} · needs you: ''
   Stepper driver {1} detected a short: El driver de motor {1} detectó un cortocircuito
   Stepper driver {1} lost motor power: El driver de motor {1} perdió la alimentación del motor
   Stepper driver {1} overheated: El driver de motor {1} se sobrecalentó
@@ -6210,6 +6211,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: no hay filamento cargado.'
   "{}'s nozzle is still heating": 'La boquilla de {} sigue calentándose'
   '{}, {}': '{}, {}'
+  '{}/{} · needs you': ''
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: la etiqueta indica la bobina #{} de Spoolman, que no existe'
   '{}: {} at {}°C': '{}: {} a {}°C'
   '{}:{:02} elapsed': '{}:{:02} transcurrido'

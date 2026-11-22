@@ -4466,6 +4466,7 @@
   <translation tag="Step 1 of 3" de="Schritt 1 von 3"/>
   <translation tag="Step {} of {}" de="Schritt {} von {}"/>
   <translation tag="Step {} of {} · about {} min left" de="Schritt {} von {} · noch etwa {} Min."/>
+  <translation tag="Step {} of {} · needs you"/>
   <translation tag="Stepper driver {1} detected a short" de="Schrittmotortreiber {1} hat einen Kurzschluss erkannt"/>
   <translation tag="Stepper driver {1} lost motor power" de="Schrittmotortreiber {1} hat die Motorstromversorgung verloren"/>
   <translation tag="Stepper driver {1} overheated" de="Schrittmotortreiber {1} ist überhitzt"/>
@@ -6010,6 +6011,7 @@
   <translation tag="{}% left" de="{}% übrig"/>
   <translation tag="{}&apos;s nozzle is still heating" de="Düse von {} heizt noch"/>
   <translation tag="{}, {}" de="{}, {}"/>
+  <translation tag="{}/{} · needs you"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" de="{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert"/>
   <translation tag="{}: {} at {}°C" de="{}: {} bei {}°C"/>
   <translation tag="{}:{:02} elapsed" de="{}:{:02} vergangen"/>

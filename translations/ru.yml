@@ -4686,6 +4686,7 @@ translations:
   Step 1 of 3: Шаг 1 из 3
   Step {} of {}: Шаг {} из {}
   Step {} of {} · about {} min left: 'Шаг {} из {} · осталось около {} мин'
+  Step {} of {} · needs you: ''
   Stepper driver {1} detected a short: Драйвер шагового мотора {1} обнаружил замыкание
   Stepper driver {1} lost motor power: Драйвер шагового мотора {1} потерял питание мотора
   Stepper driver {1} overheated: Драйвер шагового мотора {1} перегрелся
@@ -6326,6 +6327,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
   "{}'s nozzle is still heating": 'Сопло {} всё ещё нагревается'
   '{}, {}': '{}, {}'
+  '{}/{} · needs you': ''
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: метка указывает катушку Spoolman #{}, которой не существует'
   '{}: {} at {}°C': '{}: {} при {}°C'
   '{}:{:02} elapsed': прошло {}:{:02}

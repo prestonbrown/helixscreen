@@ -72,6 +72,9 @@ struct StepContext {
     /// Stop the whole run, as its Stop button does: this step's abort() is
     /// called and later steps do not run.
     std::function<void()> stop_run;
+    /// This step's place in the run, 0-based, and how many steps the run has.
+    int index = 0;
+    int count = 1;
 };
 
 class CalibrationStep {

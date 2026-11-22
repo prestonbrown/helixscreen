@@ -4466,6 +4466,7 @@
   <translation tag="Step 1 of 3" ja="ステップ 1/3"/>
   <translation tag="Step {} of {}" ja="ステップ {} / {}"/>
   <translation tag="Step {} of {} · about {} min left" ja="ステップ {}/{} · 残り約{}分"/>
+  <translation tag="Step {} of {} · needs you"/>
   <translation tag="Stepper driver {1} detected a short" ja="ステッピングドライバー {1} がショートを検出しました"/>
   <translation tag="Stepper driver {1} lost motor power" ja="ステッピングドライバー {1} のモーター電源が失われました"/>
   <translation tag="Stepper driver {1} overheated" ja="ステッピングドライバー {1} が過熱しました"/>
@@ -6010,6 +6011,7 @@
   <translation tag="{}% left" ja="残り {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" ja="{}のノズルはまだ加熱中です"/>
   <translation tag="{}, {}" ja="{}、{}"/>
+  <translation tag="{}/{} · needs you"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" ja="{}: タグが示す Spoolman スプール #{} は存在しません"/>
   <translation tag="{}: {} at {}°C" ja="{}: {}（{}°C）"/>
   <translation tag="{}:{:02} elapsed" ja="経過 {}:{:02}"/>

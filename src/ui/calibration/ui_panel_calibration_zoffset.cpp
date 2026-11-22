@@ -98,6 +98,12 @@ void ZOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(not_run_subject_, 1, "zoffset_not_run", subjects_);
     UI_MANAGED_SUBJECT_STRING(back_text_subject_, back_text_buf_, lv_tr("Abort"),
                               "zoffset_back_text", subjects_);
+    UI_MANAGED_SUBJECT_INT(run_step_count_subject_, 1, "zoffset_run_step_count", subjects_);
+    UI_MANAGED_SUBJECT_INT(run_step_current_subject_, 0, "zoffset_run_step_current", subjects_);
+    UI_MANAGED_SUBJECT_STRING(run_subtitle_subject_, run_subtitle_buf_, "", "zoffset_run_subtitle",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(run_subtitle_short_subject_, run_subtitle_short_buf_, "",
+                              "zoffset_run_subtitle_short", subjects_);
     UI_MANAGED_SUBJECT_INT(step_subject_, ztape::kDefaultStepIndex, "zoffset_step", subjects_);
     UI_MANAGED_SUBJECT_INT(estimate_subject_, ztape::kNoEstimate, "zoffset_estimate", subjects_);
     UI_MANAGED_SUBJECT_STRING(guide_text_subject_, guide_text_buf_, "", "zoffset_guide_text",
@@ -156,6 +162,10 @@ void ZOffsetCalibrationPanel::init_subjects() {
 lv_obj_t* ZOffsetCalibrationPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
         return nullptr;
+    }
+    // A guided run's step covers the navigation bar, as the run's own pages do.
+    if (run_done_) {
+        helix::nav::set_overlay_width_unmanaged(overlay_root_);
     }
     setup_widgets();
     return overlay_root_;
@@ -534,14 +544,24 @@ void ZOffsetCalibrationPanel::start_calibration() {
 }
 
 void ZOffsetCalibrationPanel::open_for_run(
-    IMoonrakerAPI* api,
+    IMoonrakerAPI* api, int step_index, int step_count,
     std::function<void(bool accepted, float z, ZOffsetCalibrationStrategy strategy)> on_done) {
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
+    lv_subject_set_int(&run_step_count_subject_, step_count);
+    lv_subject_set_int(&run_step_current_subject_, step_index);
     set_run_mode(true);
     spdlog::info("[ZOffsetCal] Opened for a guided run");
     show(lv_screen_active());
+    // After the tree exists: the header's literal subtitle, applied after its
+    // binding, would otherwise blank a value set before it was built.
+    set_readout(run_subtitle_subject_, fmt::format(fmt::runtime(lv_tr("Step {} of {} · needs you")),
+                                                   step_index + 1, step_count)
+                                           .c_str());
+    set_readout(
+        run_subtitle_short_subject_,
+        fmt::format(fmt::runtime(lv_tr("{}/{} · needs you")), step_index + 1, step_count).c_str());
 }
 
 void ZOffsetCalibrationPanel::finish_run(bool accepted) {

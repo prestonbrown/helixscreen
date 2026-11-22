@@ -472,8 +472,9 @@ class ZOffsetStep : public CalibrationStep {
                          1000.0;
         ctx.progress({lv_tr("Waiting for you at the Z offset screen"), -1});
         get_global_zoffset_cal_panel().open_for_run(
-            &ctx.api, [this, alive = std::weak_ptr<int>(alive_)](
-                          bool accepted, float z, ZOffsetCalibrationStrategy strategy) {
+            &ctx.api, ctx.index, ctx.count,
+            [this, alive = std::weak_ptr<int>(alive_)](bool accepted, float z,
+                                                       ZOffsetCalibrationStrategy strategy) {
                 if (alive.expired() ||
                     !ctx_) { // L081_OK: main thread, from the panel's own handlers
                     return;

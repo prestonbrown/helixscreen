@@ -148,8 +148,9 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     /// no SAVE_CONFIG: the run saves everything at once) and Continue returns to
     /// the run. @p on_done runs once on the main thread: with true and the
     /// accepted Z position, or with false when the owner leaves without accepting.
+    /// @p step_index (0-based) and @p step_count place it in the run's header.
     void open_for_run(
-        helix::IMoonrakerAPI* api,
+        helix::IMoonrakerAPI* api, int step_index, int step_count,
         std::function<void(bool accepted, float z, helix::ZOffsetCalibrationStrategy strategy)>
             on_done);
     /// The guided run stops while this panel serves it: a manual probe ends with
@@ -272,6 +273,13 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     helix::Subject not_run_subject_{};
     helix::Subject back_text_subject_{};
     char back_text_buf_[32] = {0};
+    // The run's header: where this step sits in the run.
+    helix::Subject run_step_count_subject_{};
+    helix::Subject run_step_current_subject_{};
+    helix::Subject run_subtitle_subject_{};
+    helix::Subject run_subtitle_short_subject_{};
+    char run_subtitle_buf_[64] = {0};
+    char run_subtitle_short_buf_[32] = {0};
 
     // The paper test's tape: the selected step (an index into ztape::kStepMicrons),
     // the estimated drag point in microns (ztape::kNoEstimate for none), and the

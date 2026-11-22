@@ -4579,6 +4579,7 @@ translations:
   Step 1 of 3: ''
   Step {} of {}: ''
   Step {} of {} · about {} min left: ''
+  Step {} of {} · needs you: ''
   Stepper driver {1} detected a short: ''
   Stepper driver {1} lost motor power: ''
   Stepper driver {1} overheated: ''
@@ -6187,6 +6188,7 @@ translations:
   '{} → {}: no filament loaded.': ''
   "{}'s nozzle is still heating": ""
   '{}, {}': ''
+  '{}/{} · needs you': ''
   "{}: the tag names Spoolman spool #{}, which doesn't exist": ""
   '{}: {} at {}°C': ''
   '{}:{:02} elapsed': ''

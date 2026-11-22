@@ -4532,6 +4532,7 @@
   <translation tag="Step 1 of 3" ru="Шаг 1 из 3"/>
   <translation tag="Step {} of {}" ru="Шаг {} из {}"/>
   <translation tag="Step {} of {} · about {} min left" ru="Шаг {} из {} · осталось около {} мин"/>
+  <translation tag="Step {} of {} · needs you"/>
   <translation tag="Stepper driver {1} detected a short" ru="Драйвер шагового мотора {1} обнаружил замыкание"/>
   <translation tag="Stepper driver {1} lost motor power" ru="Драйвер шагового мотора {1} потерял питание мотора"/>
   <translation tag="Stepper driver {1} overheated" ru="Драйвер шагового мотора {1} перегрелся"/>
@@ -6097,6 +6098,7 @@
   <translation tag="{}% left" ru="Осталось {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" ru="Сопло {} всё ещё нагревается"/>
   <translation tag="{}, {}" ru="{}, {}"/>
+  <translation tag="{}/{} · needs you"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" ru="{}: метка указывает катушку Spoolman #{}, которой не существует"/>
   <translation tag="{}: {} at {}°C" ru="{}: {} при {}°C"/>
   <translation tag="{}:{:02} elapsed" ru="прошло {}:{:02}"/>
