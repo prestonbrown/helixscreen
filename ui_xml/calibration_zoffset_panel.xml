@@ -74,7 +74,8 @@
     <!-- Inside a guided run the wizard's own header names the step and its place. -->
     <calibration_wizard_header name="zo_run_header"
                                title="Z offset" subtitle_subject="zoffset_run_subtitle" subtitle_color="#warning"
-                               subtitle_compact="1" subtitle_compact_subject="zoffset_run_subtitle_short" progress="2"
+                               subtitle_icon="hand" subtitle_compact="1"
+                               subtitle_compact_subject="zoffset_run_subtitle_short" progress="2"
                                segment_style="seg_on_warn" step_count_subject="zoffset_run_step_count"
                                step_current_subject="zoffset_run_step_current">
       <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="0"/>
