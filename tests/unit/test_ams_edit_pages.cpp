@@ -1111,3 +1111,32 @@ TEST_CASE_METHOD(PagesFixture, "a lane holding an unrecorded spool opens on its 
     CHECK(access.shown("btn_hdr_new_spool"));
     close_editor_overlay();
 }
+
+TEST_CASE_METHOD(PagesFixture, "a label scanned on the empty page or the list opens the summary",
+                 "[ams_edit_overlay][pages][scan]") {
+    SpoolInfo spool;
+    spool.id = 77;
+    spool.vendor = "Polymaker";
+    spool.material = "PLA";
+    spool.color_hex = "202020";
+    spool.remaining_weight_g = 700;
+    spool.initial_weight_g = 1000;
+    SlotInfo empty;
+    empty.status = SlotStatus::EMPTY;
+    SECTION("from the empty page") {
+        open(1, empty);
+        REQUIRE(access.page() == AmsEditOverlay::kPageEmpty);
+    }
+    SECTION("from the New Spool list") {
+        open(1, empty);
+        access.click("btn_choose_spool");
+        settle();
+        REQUIRE(access.page() == AmsEditOverlay::kPageList);
+    }
+    access.scan_spool(spool);
+    settle();
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.working_info().spoolman_id == 77);
+    CHECK(access.save_disabled() == 0);
+    close_editor_overlay();
+}
