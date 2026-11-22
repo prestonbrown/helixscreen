@@ -333,6 +333,52 @@ TEST_CASE("Main fan speed follows the active tool's part fan over the configured
     fans.init_fans({});
 }
 
+// A printer switch deinits the subjects and rebuilds the UI, and the UI built
+// then asks for the primary fans before the next printer's discovery runs.
+TEST_CASE("After a printer switch the primary fans name none of the previous printer's",
+          "[fan][fan_state][printer_switch]") {
+    lv_init_safe();
+
+    PrinterState& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto& fans = state.fan_state();
+
+    // A toolchanger with T2 mounted.
+    FanRoleConfig toolchanger;
+    toolchanger.part_fan = "fan_generic T0_partfan";
+    toolchanger.hotend_fan = "heater_fan hotend_fan0";
+    toolchanger.aux_fan = "fan_generic BedFans";
+    fans.init_fans({"fan_generic BedFans", "fan_generic T0_partfan", "heater_fan hotend_fan0",
+                    "fan_generic T2_partfan", "heater_fan hotend_fan2"},
+                   toolchanger);
+    fans.set_heater_fans(
+        {{"heater_fan hotend_fan0", {"extruder"}}, {"heater_fan hotend_fan2", {"extruder2"}}});
+    fans.set_active_tool_fans("extruder2", "T2_partfan");
+    REQUIRE(fans.classify_primary_fans().part == "fan_generic T2_partfan");
+    REQUIRE(fans.classify_primary_fans().hotend == "heater_fan hotend_fan2");
+
+    state.deinit_subjects();
+    state.init_subjects(false);
+
+    const PrimaryFans before_discovery = fans.classify_primary_fans();
+    CHECK(before_discovery.part.empty());
+    CHECK(before_discovery.hotend.empty());
+    CHECK(before_discovery.aux.empty());
+    CHECK(fans.get_fans().empty());
+
+    FanRoleConfig single;
+    single.part_fan = "fan";
+    single.hotend_fan = "heater_fan power_fan";
+    fans.init_fans({"fan", "heater_fan power_fan", "fan_generic cavity_fan"}, single);
+    const PrimaryFans after_discovery = fans.classify_primary_fans();
+    CHECK(after_discovery.part == "fan");
+    CHECK(after_discovery.hotend == "heater_fan power_fan");
+    CHECK(after_discovery.aux == "fan_generic cavity_fan");
+
+    fans.init_fans({});
+}
+
 TEST_CASE("Fan characterization: per-fan speed updates from JSON",
           "[characterization][fan][update][per-fan]") {
     lv_init_safe();
