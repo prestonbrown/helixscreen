@@ -293,3 +293,13 @@ TEST_CASE("format_saved_offset_line names the projection only while it differs",
     CHECK(format_saved_offset_line({1250, 1230}) == "Saved 1.250 mm, 1.230 mm after Save");
     CHECK(format_saved_offset_line({-50, 10}) == "Saved -0.050 mm, 0.010 mm after Save");
 }
+
+TEST_CASE("step_microns: each baby-step in microns, the default for a bad index",
+          "[zoffset][z_adjuster]") {
+    CHECK(helix::zoffset::step_microns(0) == 50);
+    CHECK(helix::zoffset::step_microns(1) == 25);
+    CHECK(helix::zoffset::step_microns(2) == 10);
+    CHECK(helix::zoffset::step_microns(3) == 5);
+    CHECK(helix::zoffset::step_microns(-1) == 10);
+    CHECK(helix::zoffset::step_microns(4) == 10);
+}

@@ -98,17 +98,18 @@ after discovery lands. `bind_flag_if_eq` is the correct primitive for this case 
 
 ## 3. Bound icon subject (the pattern that needs no slot)
 
-The tune overlay's two Z-offset direction buttons take their icon from a subject:
+The motion panel's Z jog keys take their icon from a subject:
 
 ```xml
-<ui_button name="btn_z_farther" width="100%" icon="arrow_up" bind_icon="tune_z_farther_icon">
-<ui_button name="btn_z_closer" width="100%" icon="arrow_down" bind_icon="tune_z_closer_icon">
+<motion_jog_button name="z_up_large" jog="z_up_large" icon="arrow_up" bind_icon="motion_z_up_icon" .../>
 ```
 
-`tune_z_closer_icon` and `tune_z_farther_icon` are registered in
-`src/ui/print/ui_print_tune_overlay.cpp`. C++ decides the kinematics once and writes the icon name;
-the XML binds it. **A bound icon subject beats a pair of mutually-hidden icons** wherever the
-choice is computed rather than per-instance.
+`motion_z_up_icon` is registered in `src/ui/controls/ui_panel_motion.cpp`. C++ decides the
+kinematics once and writes the icon name; the XML binds it. **A bound icon subject beats a pair
+of mutually-hidden icons** wherever only the icon changes and the choice is computed rather than
+per-instance. Where the label and the direction change with it, as in the Z adjuster's Raise
+nozzle / Raise bed pair (`ui_xml/components/z_adjust_buttons.xml`), the pair is two buttons
+hidden on `printer_bed_moves`, each with its own text and user_data.
 
 Sliders still repeat in `ui_xml/retraction_settings_overlay.xml` and
 `ui_xml/machine_limits_overlay.xml`. Whether those are similar enough to share a component is

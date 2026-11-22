@@ -16,6 +16,7 @@
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_plr_wizard_overlay.h"
+#include "ui_utils.h"
 
 #include "../../src/ui/print/ui_plr_prompt.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -610,6 +611,46 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: leaving after the print starts d
     NavigationManager::instance().go_back();
     settle();
     CHECK(client.count(helix::kPlrAbortRpc) == 0);
+}
+
+TEST_CASE_METHOD(PlrWizardFixture,
+                 "PLR wizard: the Z adjuster's chips pick the jog and its tape follows Z",
+                 "[plr][wizard_overlay][z_adjuster]") {
+    helix::ScopedEnv tier{"HELIX_MOCK_PLR_TIER", "1"};
+    open();
+    set_subject("plr_ack_part", 1);
+    set_subject("plr_ack_nozzle", 1);
+    PlrWizardOverlayTestAccess::tap_continue(get_plr_wizard_overlay());
+    settle();
+    REQUIRE(run_past(PlrWizardStep::Preparing));
+    REQUIRE(wizard_step() == PlrWizardStep::ZStep);
+
+    // The tape zooms by the selected step, in microns.
+    CHECK(subject("plr_jog_step") == 1);
+    CHECK(subject("plr_jog_step_microns") == 100);
+    CHECK(lv_obj_is_hidden(wizard_widget("zo_step_3")));
+    helix::ui::send_tap(wizard_widget("zo_step_2"));
+    settle();
+    CHECK(subject("plr_jog_step") == 2);
+    CHECK(subject("plr_jog_step_microns") == 1000);
+
+    // The pair sends +Z for Raise nozzle and -Z for Lower nozzle, at that step.
+    const size_t before = client.sent.size();
+    helix::ui::send_tap(wizard_widget("btn_z_lower_nozzle"));
+    settle();
+    bool lowered = false;
+    for (size_t i = before; i < client.sent.size(); ++i) {
+        if (client.sent[i].first == "printer.gcode.script" &&
+            client.sent[i].second.value("script", "").find("Z-1") != std::string::npos) {
+            lowered = true;
+        }
+    }
+    CHECK(lowered);
+    CHECK(subject("plr_z_jogged") == 1);
+
+    lv_subject_set_int(get_printer_state().motion_state().get_position_z_subject(), 1234);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(subject("plr_wizard_z_microns") == 12340);
 }
 
 TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: tier 1 resumes only after jogging down",

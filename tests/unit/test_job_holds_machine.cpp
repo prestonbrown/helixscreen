@@ -374,7 +374,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/guided_load_modal.xml", 2},
     {"ui_xml/header_bar.xml", 1},
     {"ui_xml/pa_tuning_overlay.xml", 1},
-    {"ui_xml/plr_wizard_overlay.xml", 4},
+    {"ui_xml/plr_wizard_overlay.xml", 3},
     {"ui_xml/motion_panel.xml", 8},
     {"ui_xml/motor_ripple_panel.xml", 1},
     {"ui_xml/components/move_preset_grid.xml", 11},
@@ -385,6 +385,10 @@ constexpr GuardedFile kGuardedFiles[] = {
     // Jog keys stay live through a print, as the pad layout's Z column does;
     // the layouts' home keys carry the guards.
     {"ui_xml/components/motion_jog_button.xml", 0},
+    // The Z adjuster's Raise / Lower carry the caller's moves_machine: the resume
+    // wizard's jog passes true; Print Tune's babystep and the Z offset
+    // calibration's manual probe stay live.
+    {"ui_xml/components/z_adjust_buttons.xml", 0},
     // Recovery actions answer a fault in a paused job, so they stay live.
     {"ui_xml/recovery_fault_modal.xml", 0},
     {"ui_xml/probe_generic_panel.xml", 2},
@@ -600,8 +604,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/unclaimed_toolhead_modal.xml",
     "ui_xml/components/tune_speed_flow.xml",
     "ui_xml/components/tune_z_offset.xml",
-    "ui_xml/components/tune_z_steps.xml",
     "ui_xml/components/tune_z_target_row.xml",
+    "ui_xml/components/z_adjust_steps.xml",
     "ui_xml/components/upgrade_banner.xml",
     "ui_xml/components/vendor_tile.xml",
     "ui_xml/components/widget_catalog_row.xml",
