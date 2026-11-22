@@ -25,6 +25,25 @@
     <prop name="collapse" type="string" default="auto"/>
     <prop name="callback" type="string" default=""/>
   </api>
+  <consts>
+    <!-- Touch reach past the button's edge, taking a #header_button_height button
+         to the header's own height where that is under 44px. Twice the reach
+         stays under the gap between actions, so neighbors never share a tap. -->
+    <px name="header_action_hit_micro" value="4"/>
+    <px name="header_action_hit_tiny" value="3"/>
+    <px name="header_action_hit_small" value="3"/>
+    <px name="header_action_hit_medium" value="0"/>
+    <px name="header_action_hit_large" value="0"/>
+    <!-- The glyph, a size under #header_button_height so it never reaches the
+         circle's edge (a 24px glyph fills tiny's 26px button). -->
+    <string name="icon_font_header_micro" value="mdi_icons_16"/>
+    <string name="icon_font_header_tiny" value="mdi_icons_16"/>
+    <string name="icon_font_header_small" value="mdi_icons_24"/>
+    <string name="icon_font_header_medium" value="mdi_icons_24"/>
+    <string name="icon_font_header_large" value="mdi_icons_24"/>
+    <string name="icon_font_header_xlarge" value="mdi_icons_32"/>
+    <string name="icon_font_header_xxlarge" value="mdi_icons_32"/>
+  </consts>
   <subjects>
     <!-- The label-hiding rule each collapse value names; ui_button binds it only
          when the action has an icon to collapse to. -->
@@ -42,8 +61,9 @@
   </styles>
   <view extends="ui_button"
         width="content" height="#header_button_height" style_min_width="#header_button_height" icon="$icon"
-        icon_size="sm" text="$text" translation_tag="$text_tag"
-        label_hidden_subject="header_action_collapse_${collapse}" label_hidden_if_eq="1">
+        icon_size="header" text="$text" translation_tag="$text_tag"
+        label_hidden_subject="header_action_collapse_${collapse}" label_hidden_if_eq="1"
+        ext_click_area="#header_action_hit">
     <style name="shape"/>
     <style name="icon_only" selector="user_4"/>
     <style name="role_${role}"/>

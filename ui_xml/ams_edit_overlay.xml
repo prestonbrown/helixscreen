@@ -85,18 +85,6 @@
     <px name="ams_edit_step_gap_small" value="4"/>
     <px name="ams_edit_step_gap_medium" value="4"/>
     <px name="ams_edit_step_gap_large" value="4"/>
-    <!-- Header buttons: hit reach and spacing. The buttons are
-         #button_height_sm tall; the reach takes each to the header's height
-         (40 at micro) or 44, and the gap is twice the reach so the two
-         targets meet without overlapping. -->
-    <px name="ams_edit_hdr_hit_micro" value="8"/>
-    <px name="ams_edit_hdr_hit_small" value="2"/>
-    <px name="ams_edit_hdr_hit_medium" value="2"/>
-    <px name="ams_edit_hdr_hit_large" value="2"/>
-    <px name="ams_edit_hdr_gap_micro" value="16"/>
-    <px name="ams_edit_hdr_gap_small" value="4"/>
-    <px name="ams_edit_hdr_gap_medium" value="4"/>
-    <px name="ams_edit_hdr_gap_large" value="4"/>
     <!-- Assign Spool's two columns: the describe form's width (eight color
          swatches across at medium) and the least the spools column takes
          before it wraps under the form. -->
@@ -175,40 +163,14 @@
         extends="overlay_panel" title="Assign Spool" title_badge_icon="spoolman"
         title_badge_subject="ams_edit_is_managed" back_button_callback="ams_edit_back_cb">
     <overlay_panel-actions>
-      <lv_obj name="hdr_actions"
-              width="content" height="100%" style_pad_ver="0" style_pad_hor="#ams_edit_hdr_hit"
-              style_pad_gap="#ams_edit_hdr_gap" style_bg_opa="0" style_border_width="0" scrollable="false"
-              clickable="false" flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center">
-        <bind_flag_if_not_eq subject="ams_edit_view" flag="hidden" ref_value="0"/>
-        <!-- Labeled where the header has room; the two smallest classes show
-             the icons alone so the title stays readable. -->
-        <ui_button name="btn_hdr_different_spool"
-                   width="content" height="#button_height_sm" text="Different Spool" icon="swap_horizontal"
-                   icon_size="sm" variant="secondary" ext_click_area="#ams_edit_hdr_hit" hidden="true">
-          <bind_flag_if cond="ams_edit_mode ne 1 or ui_breakpoint le 1" flag="hidden"/>
-          <event_cb trigger="clicked" callback="ams_edit_different_spool_cb"/>
-        </ui_button>
-        <ui_button name="btn_hdr_different_spool_icon"
-                   width="#button_height_sm" height="#button_height_sm" icon="swap_horizontal" icon_size="sm"
-                   ext_click_area="#ams_edit_hdr_hit" hidden="true">
-          <style name="styles.header_icon_button"/>
-          <bind_flag_if cond="ams_edit_mode ne 1 or ui_breakpoint gt 1" flag="hidden"/>
-          <event_cb trigger="clicked" callback="ams_edit_different_spool_cb"/>
-        </ui_button>
-        <ui_button name="btn_hdr_scan_qr"
-                   width="content" height="#button_height_sm" text="Scan Label" icon="qrcode_scan" icon_size="sm"
-                   variant="secondary" ext_click_area="#ams_edit_hdr_hit" hidden="true">
-          <bind_flag_if cond="ams_edit_scan_enabled eq 0 or ui_breakpoint le 1" flag="hidden"/>
-          <event_cb trigger="clicked" callback="ams_edit_scan_qr_cb"/>
-        </ui_button>
-        <ui_button name="btn_hdr_scan_qr_icon"
-                   width="#button_height_sm" height="#button_height_sm" icon="qrcode_scan" icon_size="sm"
-                   ext_click_area="#ams_edit_hdr_hit" hidden="true">
-          <style name="styles.header_icon_button"/>
-          <bind_flag_if cond="ams_edit_scan_enabled eq 0 or ui_breakpoint gt 1" flag="hidden"/>
-          <event_cb trigger="clicked" callback="ams_edit_scan_qr_cb"/>
-        </ui_button>
-      </lv_obj>
+      <header_action name="btn_hdr_different_spool"
+                     icon="swap_horizontal" text="Different Spool" callback="ams_edit_different_spool_cb" hidden="true">
+        <bind_flag_if cond="ams_edit_mode ne 1 or ams_edit_view ne 0" flag="hidden"/>
+      </header_action>
+      <header_action name="btn_hdr_scan_qr"
+                     icon="qrcode_scan" text="Scan Label" callback="ams_edit_scan_qr_cb" hidden="true">
+        <bind_flag_if cond="ams_edit_scan_enabled eq 0 or ams_edit_view ne 0" flag="hidden"/>
+      </header_action>
     </overlay_panel-actions>
     <overlay_panel-overlay_content style_pad_left="#space_md"
                                    style_pad_right="#space_md" style_pad_top="#space_xs" style_pad_bottom="#space_xs"

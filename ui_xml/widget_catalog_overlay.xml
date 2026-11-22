@@ -6,17 +6,10 @@
   <view name="widget_catalog_overlay" extends="overlay_panel" width="70%" title="Add Widget" bg_color="#screen_bg">
     <!-- From Printer (copy the printer's layout, local Moonraker only) and Reset. -->
     <overlay_panel-actions>
-      <ui_button name="btn_copy_layout"
-                 height="content" style_min_width="0" style_bg_color="#secondary" icon="printer_3d" icon_size="sm"
-                 text="From Printer" label_hidden_cond="ui_is_portrait eq 1 and ui_breakpoint lt 4">
-        <style name="styles.header_action"/>
+      <header_action name="btn_copy_layout" icon="printer_3d" text="From Printer" callback="on_catalog_copy_layout">
         <bind_flag_if cond="moonraker_locality ne 2 or widget_catalog_view ne 0" flag="hidden"/>
-        <event_cb trigger="clicked" callback="on_catalog_copy_layout"/>
-      </ui_button>
-      <ui_button name="btn_reset" height="content" text="Reset">
-        <style name="styles.header_action"/>
-        <event_cb trigger="clicked" callback="on_catalog_reset"/>
-      </ui_button>
+      </header_action>
+      <header_action name="btn_reset" text="Reset" callback="on_catalog_reset"/>
     </overlay_panel-actions>
     <bind_style_if name="styles.catalog_portrait_full" cond="ui_is_portrait eq 1 and ui_breakpoint lt 4"/>
     <bind_style_if name="styles.catalog_portrait_min" cond="ui_is_portrait eq 1 and ui_breakpoint ge 4"/>

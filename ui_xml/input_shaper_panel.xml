@@ -18,11 +18,10 @@
     <!-- Header Bar -->
     <header_bar name="overlay_header" title="Input Shaper">
       <header_bar-actions>
-        <ui_button name="btn_calibrate_all" height="content" text="Calibrate All">
-          <style name="styles.header_action"/>
+        <header_action name="btn_calibrate_all"
+                       text="Calibrate All" role="primary" callback="input_shaper_calibrate_all_cb">
           <bind_state_if cond="is_calibrate_all_disabled or nav_buttons_enabled eq 0" state="disabled"/>
-          <event_cb trigger="clicked" callback="input_shaper_calibrate_all_cb"/>
-        </ui_button>
+        </header_action>
       </header_bar-actions>
     </header_bar>
     <!-- Content Area -->

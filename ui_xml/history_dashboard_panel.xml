@@ -20,10 +20,7 @@
        however tall the stats and charts below grow. -->
   <view name="history_dashboard_panel" extends="overlay_panel" title="Print History">
     <overlay_panel-actions>
-      <ui_button name="btn_view_full_history" height="content" text="View Full History">
-        <style name="styles.header_action"/>
-        <event_cb trigger="clicked" callback="history_view_full_clicked"/>
-      </ui_button>
+      <header_action name="btn_view_full_history" text="View Full History" callback="history_view_full_clicked"/>
     </overlay_panel-actions>
     <!-- Content Area - scrollable to fit all content on small screens -->
     <overlay_panel-overlay_content style_pad_all="#space_lg" scrollable="true" flex_flow="column">
