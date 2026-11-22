@@ -181,6 +181,24 @@ TEST_CASE("The external spool read from its record keeps the record's translucen
     CHECK_FALSE(ams::external_spool_from_record(record).translucent);
 }
 
+TEST_CASE("The external spool's record keeps a translucent spool's translucency",
+          "[translucent][lane_data][external_spool]") {
+    SlotInfo spool;
+    spool.material = "PETG";
+    spool.color_rgb = 0xE8E8FF;
+    spool.translucent = true;
+    const FilamentSlotOverride record = ams::external_lane_record(spool);
+    CHECK(record.translucent == std::optional<bool>(true));
+
+    // Through the database and back.
+    const auto stored = ams::from_lane_data_record(ams::to_lane_data_record(0, record));
+    REQUIRE(stored.has_value());
+    CHECK(ams::external_spool_from_record(stored->second).translucent);
+
+    spool.translucent = false;
+    CHECK(ams::external_lane_record(spool).translucent == std::optional<bool>(false));
+}
+
 TEST_CASE("Translucency goes with the color its source stated", "[translucent][lane_resolver]") {
     ams::Observation record(ams::ObservationSource::Record);
     record.color_rgb = 0xE8E8FF;

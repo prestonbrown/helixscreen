@@ -1112,6 +1112,9 @@ FilamentSlotOverride external_lane_record(const SlotInfo& spool) {
     // black = picked.
     ovr.color_rgb = spool.color_rgb;
     ovr.color_set = is_declarable_color(spool.color_rgb);
+    if (ovr.color_set) {
+        ovr.translucent = spool.translucent;
+    }
     populate_temps_from_slot_info(ovr, spool);
     return ovr;
 }
