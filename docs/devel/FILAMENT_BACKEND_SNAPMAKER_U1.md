@@ -234,7 +234,10 @@ resets the head's flow calibration), the port or
 the nozzle latch holds filament, no spool has gone into the port since the declaration,
 no feed is moving the head, and the heads are free (the same hold as an edit). It sends
 once per drop: the record naming a type re-arms it, and an edit's own write counts as the
-restore until the firmware echoes it. A spool inserted after the declaration is one
+restore until the firmware echoes it. A clear the firmware queued before the write
+(the toolhead switches' remove events at a print's end) can land just after it, inside one
+status tick, so the record never reads the write: one still unset 5 seconds after it went
+out is written again, three writes per drop at most. A spool inserted after the declaration is one
 nobody has named, so it waits for the next edit
 (`src/printer/ams_backend_snapmaker.cpp#record_restores_locked`).
 

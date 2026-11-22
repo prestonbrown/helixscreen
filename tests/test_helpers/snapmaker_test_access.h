@@ -104,6 +104,14 @@ class SnapmakerTestAccess {
     static void expire_refeed_wait(AmsBackendSnapmaker& b) {
         b.finish_refeed_wait();
     }
+    /// Age every record write-back past the settle time, as wall time
+    /// passing does.
+    static void age_record_restores(AmsBackendSnapmaker& b) {
+        std::lock_guard<std::mutex> lock(b.mutex_);
+        for (auto& at : b.record_restore_sent_at_) {
+            at -= AmsBackendSnapmaker::kRecordRestoreSettle;
+        }
+    }
     /// Forget the print state, as a reconnect's on_started() does.
     static void forget_print_state(AmsBackendSnapmaker& b) {
         std::lock_guard<std::mutex> lock(b.mutex_);
