@@ -165,7 +165,10 @@
           <calibration_intro-badges>
             <cal_intro_badge bind="pid_duration_text"/>
             <cal_intro_badge bind="pid_heats_to_text" warm="true"/>
-            <cal_intro_badge bind="pid_method_text"/>
+            <cal_intro_badge bind="pid_method_text">
+              <!-- 480x272 keeps two badges on one line; Advanced shows the method -->
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </cal_intro_badge>
           </calibration_intro-badges>
         </calibration_intro>
       </lv_obj>
