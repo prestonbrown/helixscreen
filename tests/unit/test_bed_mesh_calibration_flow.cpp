@@ -516,6 +516,35 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,
+                 "a wake from the screensaver keeps the intro's pick and the profiles view",
+                 "[bed_mesh_flow][calibration_intro]") {
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    lv_subject_t* choice = lv_xml_get_subject(nullptr, "bed_mesh_heat_choice");
+    lv_subject_t* view = lv_xml_get_subject(nullptr, "bed_mesh_view");
+    REQUIRE(choice != nullptr);
+    REQUIRE(view != nullptr);
+    panel.on_activate();
+    drain();
+    panel.pick_heat_choice(3);
+    panel.show_view(1);
+
+    panel.on_deactivate(DeactivateReason::Suspended);
+    panel.on_activate();
+    drain();
+    CHECK(lv_subject_get_int(choice) == 3);
+    CHECK(lv_subject_get_int(view) == 1);
+
+    // Leaving and coming back starts over.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    panel.on_activate();
+    drain();
+    CHECK(lv_subject_get_int(choice) == 1);
+    CHECK(lv_subject_get_int(view) == 0);
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture,
                  "a plain BED_MESH_CALIBRATE still gets the panel's preheat and homing",
                  "[bed_mesh_flow]") {
     use_printer("");
@@ -1048,6 +1077,24 @@ TEST_CASE_METHOD(BedMeshRunFixture,
     }
 
     CHECK(errors.empty());
+}
+
+TEST_CASE_METHOD(BedMeshRunFixture,
+                 "a guided run probes at the default bed temperature, not the intro's last pick",
+                 "[bed_mesh_flow][bed_mesh_run]") {
+    ScopedTemperatureController heaters(get_printer_state(), &api);
+    set_nozzle(0.0);
+    set_bed(24.0, 0.0);
+    panel.init_subjects();
+    panel.pick_heat_choice(3);
+    client.force_next_gcode_dropped_response("TEMPERATURE_WAIT");
+    panel.calibrate_for_run(&api, hooks());
+    drain();
+
+    CHECK(any_sent(sent(), ("TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=" +
+                            std::to_string(helix::bed_mesh::kDefaultProbeBedTempC))
+                               .c_str()));
+    CHECK_FALSE(any_sent(sent(), "MINIMUM=100"));
 }
 
 TEST_CASE_METHOD(BedMeshRunFixture, "a calibration after a cancelled run probes as usual",

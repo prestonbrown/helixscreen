@@ -636,10 +636,13 @@ void BedMeshPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
-    heat_choice_picked_ = false;
-    set_heat_choice(1);
-    show_view(opening_view_);
-    opening_view_ = 0;
+    // A wake from the screensaver keeps the view and the picked temperature.
+    if (!take_wake()) {
+        heat_choice_picked_ = false;
+        set_heat_choice(1);
+        show_view(opening_view_);
+        opening_view_ = 0;
+    }
 
     // Defer layout computation and data loading to after the current timer cycle.
     // on_activate() runs inside push_overlay()'s queue_update lambda, which fires
@@ -2008,6 +2011,9 @@ void BedMeshPanel::calibrate_for_run(IMoonrakerAPI* api, RunHooks hooks) {
     init_subjects();
     run_hooks_ = std::move(hooks);
     in_run_ = true;
+    // A run probes at the default temperature, whatever the intro last showed.
+    heat_choice_picked_ = false;
+    set_heat_choice(1);
     spdlog::info("[BedMeshPanel] Guided run: calibrating into '{}'",
                  helix::bed_mesh::kDefaultProfile);
     begin_calibration(helix::bed_mesh::kDefaultProfile);
