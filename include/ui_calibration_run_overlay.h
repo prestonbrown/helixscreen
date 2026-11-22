@@ -125,6 +125,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::deque<std::string> names_;
 
     helix::Subject page_subject_;
+    /// How many pages the run has, for the Pick header's dots.
+    helix::Subject page_count_;
     helix::Subject pick_count_;
     helix::Subject pick_summary_;
     char pick_summary_buf_[kShortLen]{};

@@ -50,7 +50,9 @@
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="0"/>
       <calibration_wizard_header name="cal_run_pick_header"
                                  title="Calibrate your printer" subtitle_subject="cal_run_pick_subtitle"
-                                 subtitle_compact="2" subtitle_compact_subject="cal_run_pick_subtitle_short"/>
+                                 subtitle_compact="2" subtitle_compact_subject="cal_run_pick_subtitle_short"
+                                 progress="1" step_count_subject="cal_run_page_count"
+                                 step_current_subject="cal_run_page"/>
       <lv_obj name="cal_run_pick_list"
               width="100%" height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_bg_opa="0" style_border_width="0" scroll_dir="ver">

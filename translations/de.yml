@@ -5955,8 +5955,10 @@ translations:
   needs you: 'braucht dich'
   never sleeps: schläft nie
   no restart: ''
+  none: ''
   not detected: nicht erkannt
   not loaded: 'nicht geladen'
+  not set: ''
   nozzle: Düse
   of: von
   'off': aus

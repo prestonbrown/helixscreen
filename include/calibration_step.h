@@ -24,8 +24,8 @@ struct StepResult {
     std::string summary;
     /// The numbers the history keeps for later steps.
     nlohmann::json values = nlohmann::json::object();
-    /// The same in a few words, for the running step list ("nozzle MPC · bed PID");
-    /// empty when summary is short already.
+    /// The same in a few words, for the run's step list and results table
+    /// ("nozzle MPC · bed PID"); empty when summary is short already.
     std::string brief;
 };
 

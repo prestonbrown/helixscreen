@@ -5955,8 +5955,10 @@ translations:
   needs you: '操作が必要'
   never sleeps: スリープしない
   no restart: ''
+  none: ''
   not detected: 未検出
   not loaded: '未装填'
+  not set: ''
   nozzle: ノズル
   of: の
   'off': オフ

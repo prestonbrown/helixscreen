@@ -5762,8 +5762,10 @@
   <translation tag="needs you" it="richiede te"/>
   <translation tag="never sleeps" it="non va mai in sospensione"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" it="non rilevato"/>
   <translation tag="not loaded" it="non caricato"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" it="ugello"/>
   <translation tag="of" it="di"/>
   <translation tag="off" it="spento"/>

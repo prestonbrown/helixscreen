@@ -5762,8 +5762,10 @@
   <translation tag="needs you" ja="操作が必要"/>
   <translation tag="never sleeps" ja="スリープしない"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" ja="未検出"/>
   <translation tag="not loaded" ja="未装填"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" ja="ノズル"/>
   <translation tag="of" ja="の"/>
   <translation tag="off" ja="オフ"/>

@@ -5762,8 +5762,10 @@
   <translation tag="needs you" de="braucht dich"/>
   <translation tag="never sleeps" de="schläft nie"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" de="nicht erkannt"/>
   <translation tag="not loaded" de="nicht geladen"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" de="Düse"/>
   <translation tag="of" de="von"/>
   <translation tag="off" de="aus"/>

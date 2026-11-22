@@ -139,7 +139,10 @@ std::string before_text(const StepInfo& s) {
     }
     const auto& in_config = get_printer_state().get_discovery().calibration_in_config();
     const auto found = in_config.find(s.id);
-    return found != in_config.end() ? found->second : lv_tr("Not set");
+    if (found != in_config.end()) {
+        return found->second;
+    }
+    return s.kind == calibration::StepKind::BedMesh ? lv_tr("none") : lv_tr("not set");
 }
 
 /// The row dot: 0 waiting, 1 running, 2 finished, 3 did not finish.
@@ -156,9 +159,9 @@ int dot_state(StepStatus status) {
     }
 }
 
-/// A step's line: in the step list (@p brief) a few words, in the results table
-/// the full values.
-std::string entry_status_text(const calibration::CalibrationRun::Entry& e, bool brief) {
+/// A step's line in the step list and the results table: its brief result when it
+/// has one ("nozzle MPC · bed PID"); the history keeps the full summary.
+std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
     switch (e.status) {
     case StepStatus::Pending:
         return fmt::format(fmt::runtime(lv_tr("about {} min")), e.step->info().minutes);
@@ -170,7 +173,7 @@ std::string entry_status_text(const calibration::CalibrationRun::Entry& e, bool 
         return fmt::format(fmt::runtime(lv_tr("about {} min left")), left);
     }
     case StepStatus::Finished:
-        return brief && !e.result.brief.empty() ? e.result.brief : e.result.summary;
+        return e.result.brief.empty() ? e.result.summary : e.result.brief;
     case StepStatus::Failed:
         if (!e.result.summary.empty()) {
             // What it staged before failing is saved with the rest.
@@ -245,6 +248,7 @@ void CalibrationRunOverlay::set_text(helix::Subject& subject, const std::string&
 
 void CalibrationRunOverlay::init_subjects() {
     add_int(page_subject_, 0, "cal_run_page");
+    add_int(page_count_, static_cast<int>(RunPage::Results) + 1, "cal_run_page_count");
     add_int(pick_count_, 0, "cal_run_pick_count");
     add_string(pick_summary_, pick_summary_buf_, kShortLen, "cal_run_pick_summary");
     add_string(hands_line_, hands_line_buf_, kLongLen, "cal_run_hands_line");
@@ -586,9 +590,9 @@ void CalibrationRunOverlay::publish_run() {
                              !e.step->restores_on_discard();
         lv_subject_set_int(&state_[k], dropped ? 3 : dot_state(e.status));
         const std::string dropped_text = lv_tr("Dropped when the printer restarted");
-        set_text(detail_[k], dropped ? dropped_text : entry_status_text(e, true));
-        const std::string after = dropped ? dropped_text : entry_status_text(e, false);
-        set_text(after_[k], e.restore_note.empty() ? after : e.restore_note);
+        const std::string status = dropped ? dropped_text : entry_status_text(e);
+        set_text(detail_[k], status);
+        set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
         set_text(before_subj_[k], before_text_[k]);
     }
 

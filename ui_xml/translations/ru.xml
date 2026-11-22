@@ -5831,8 +5831,10 @@
   <translation tag="needs you" ru="нужны вы"/>
   <translation tag="never sleeps" ru="никогда не спит"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" ru="не обнаружено"/>
   <translation tag="not loaded" ru="не загружен"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" ru="сопло"/>
   <translation tag="of" ru="из"/>
   <translation tag="off" ru="выкл"/>

@@ -5955,8 +5955,10 @@ translations:
   needs you: 'richiede te'
   never sleeps: non va mai in sospensione
   no restart: ''
+  none: ''
   not detected: non rilevato
   not loaded: 'non caricato'
+  not set: ''
   nozzle: ugello
   of: di
   'off': spento

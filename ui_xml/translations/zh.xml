@@ -5762,8 +5762,10 @@
   <translation tag="needs you" zh="需要您参与"/>
   <translation tag="never sleeps" zh="从不休眠"/>
   <translation tag="no restart"/>
+  <translation tag="none"/>
   <translation tag="not detected" zh="未检测到"/>
   <translation tag="not loaded" zh="未加载"/>
+  <translation tag="not set"/>
   <translation tag="nozzle" zh="喷嘴"/>
   <translation tag="of" zh="的"/>
   <translation tag="off" zh="关闭"/>

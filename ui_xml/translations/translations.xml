@@ -5831,8 +5831,10 @@
   <translation tag="needs you" de="braucht dich" en="needs you" es="te necesita" fr="a besoin de vous" it="richiede te" ja="操作が必要" pt="precisa de você" ru="нужны вы" zh="需要您参与"/>
   <translation tag="never sleeps" de="schläft nie" en="never sleeps" es="nunca duerme" fr="ne dort jamais" it="non va mai in sospensione" ja="スリープしない" pt="nunca dorme" ru="никогда не спит" zh="从不休眠"/>
   <translation tag="no restart" en="no restart"/>
+  <translation tag="none" en="none"/>
   <translation tag="not detected" de="nicht erkannt" en="not detected" es="no detectado" fr="non détecté" it="non rilevato" ja="未検出" pt="não detectado" ru="не обнаружено" zh="未检测到"/>
   <translation tag="not loaded" de="nicht geladen" en="not loaded" es="no cargado" fr="non chargé" it="non caricato" ja="未装填" pt="não carregado" ru="не загружен" zh="未加载"/>
+  <translation tag="not set" en="not set"/>
   <translation tag="nozzle" de="Düse" en="nozzle" es="boquilla" fr="buse" it="ugello" ja="ノズル" pt="bico" ru="сопло" zh="喷嘴"/>
   <translation tag="of" de="von" en="of" es="de" fr="de" it="di" ja="の" pt="de" ru="из" zh="的"/>
   <translation tag="off" de="aus" en="off" es="apagado" fr="éteint" it="spento" ja="オフ" pt="desligado" ru="выкл" zh="关闭"/>
