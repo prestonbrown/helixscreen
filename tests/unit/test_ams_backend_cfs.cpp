@@ -8285,3 +8285,24 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(routing.manual_purge_gcode(50, 600).empty());
     get_printer_state().update_from_status(json{{"toolhead", {{"homed_axes", ""}}}});
 }
+
+TEST_CASE("CFS runout backup: another loaded spool of the same group, or none",
+          "[ams][cfs][endless_spool][lane_runout]") {
+    helix::test::StartedBackend<CfsRemapHelper> backend;
+    SECTION("stock: the group's other loaded spool") {
+        json box = make_runout_box(0);
+        box["same_material"] =
+            json::array({json::array({"101001", "01A1A1A", json::array({"T1B", "T1C"}), "PLA"}),
+                         json::array({"101001", "0FFFFFF", json::array({"T1A"}), "PLA"})});
+        backend.fire_status(make_cfs_notification(box));
+        CHECK(backend.runout_backup_for(1) == std::optional<int>(2));
+        CHECK(backend.runout_backup_for(2) == std::optional<int>(1));
+        // A singleton group, and an ungrouped slot: nothing to refill from.
+        CHECK(backend.runout_backup_for(0) == std::optional<int>(-1));
+        CHECK(backend.runout_backup_for(3) == std::optional<int>(-1));
+    }
+    SECTION("no grouping data: the box cannot say in advance") {
+        backend.fire_status(make_cfs_notification(make_runout_box(0)));
+        CHECK_FALSE(backend.runout_backup_for(1).has_value());
+    }
+}
