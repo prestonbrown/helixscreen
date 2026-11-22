@@ -1173,11 +1173,31 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// Per head, the type and colour this session's last edit wrote into
     /// print_task_config: the record official_flag_repairs_locked() may
     /// rewrite, since another writer's it would discard. Under mutex_.
+    ///
+    /// Until the firmware states the edit, the lane override still holds the
+    /// type and color the edit replaced, so while `unechoed` a write-back of
+    /// the head's record states this edit instead. `replaced_material` is the
+    /// type the record named when the edit went out: a frame still naming it
+    /// predates the edit, and a frame naming any other type is another
+    /// writer's, which ends the wait.
     struct SentRecord {
         std::string material;
         uint32_t color_rgb = 0;
+        bool unechoed = false;
+        std::string replaced_material;
     };
     std::array<std::optional<SentRecord>, kNumTools> sent_record_{};
+
+    /// Head @p head's edit the firmware has not stated yet, or null. Under
+    /// mutex_.
+    [[nodiscard]] const SentRecord* unechoed_edit_locked(int head) const;
+    /// Ends head @p idx's wait for its edit's echo once the record names a
+    /// type: the edit's own (with its color), or another writer's. Under
+    /// mutex_.
+    void settle_unechoed_edit_locked(size_t idx);
+    /// Drops head @p idx's unechoed edit: its lane was cleared, or a spool
+    /// went in since. Under mutex_.
+    void forget_unechoed_edit_locked(size_t idx);
 
     /// Per channel: a spool went into the feeder port after the lane's
     /// material was declared, so the declaration may name a spool that has
@@ -1344,7 +1364,8 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
 
     /// The script that refills @p head's record from its slot: empty unless
     /// the record is known to name no type, a write may reach the head, and
-    /// the slot names a material. Caller holds mutex_.
+    /// the slot names a material. The type and color are the head's unechoed
+    /// edit's, else the lane override's. Caller holds mutex_.
     [[nodiscard]] std::string unset_record_restore_locked(int head) const;
 
     /// Send each script in @p writes as its own request, logging @p why per
