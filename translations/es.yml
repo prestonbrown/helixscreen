@@ -5337,6 +5337,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: 'El filamento tardó demasiado en llegar al sensor del alimentador.'
   The filament went into the toolhead past its feeder. Load it by hand.: "El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."
   This toolhead has no automatic feeder. Load the filament by hand.: "Este cabezal no tiene alimentador automático. Carga el filamento a mano."
+  This head until a tool change; Save after the print to apply it to every head: 'Este cabezal hasta un cambio de herramienta; guarda tras la impresión para aplicarlo a todos los cabezales'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Esto instala las macros de ayuda de HelixScreen en la impresora, las añade a printer.cfg y reinicia Klipper.'

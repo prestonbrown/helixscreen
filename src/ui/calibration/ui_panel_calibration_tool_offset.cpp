@@ -487,7 +487,7 @@ void ToolOffsetCalibrationPanel::send_save() {
     }
     lv_subject_set_string(&status_, lv_tr("Saving offsets..."));
     helix::zoffset::save_dirty_offsets(
-        api, save_watch_, ps.profile_state().z_offset_calibration_strategy(), ps.get_discovery(),
+        api, save_watch_, ps.profile_state().z_offset_save_strategy(), ps.get_discovery(),
         helix::zoffset::folds_global(facts),
         object_lifetime_.bg_cb("ToolOffsetCal::saved",
                                [this]() {

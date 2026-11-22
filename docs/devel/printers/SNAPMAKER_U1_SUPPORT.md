@@ -301,22 +301,34 @@ When the U1 is detected, the printer database record provides these metadata fie
 | `preset` | `snapmaker_u1` |
 | `z_offset_calibration_strategy` | `firmware_managed` |
 | `z_offset_persists` | `false` |
+| `z_offset_save` | `probe` |
 | `tool_change_resets_z_offset` | `true` |
 
 The `snapmaker_u1` preset causes the first-run wizard to auto-skip hardware steps that do not apply to the U1 (e.g., probe wiring, toolhead identification).
 
-**Z-offset adjustments are temporary.** HelixScreen offers no Save Z Offset step on
-the U1 (`firmware_managed`), and the firmware does not persist a `SET_GCODE_OFFSET`
-adjustment either. Each head keeps its own stored offset (`extruder.gcode_offset`,
-set by the firmware's own `PROBE_XYZ_OFFSET_CALIBRATE SAVE_INFO=1`), and activating a
-head re-applies that offset with an absolute `SET_GCODE_OFFSET X= Y= Z=`
+**A babystep applies to the mounted head; a Save applies it to every head.** Each head
+keeps its own stored offset (its `base_position`, set by the firmware's
+`PROBE_XYZ_OFFSET_CALIBRATE SAVE_INFO=1` and reported as `extruder_offset`), and
+activating a head re-applies that offset with an absolute `SET_GCODE_OFFSET X= Y= Z=`
 (the firmware's `active_gcode_offset()` in its klippy kinematics/extruder.py, called
-from its virtual_sdcard.py on each tool change). A babystep therefore lasts until the next tool change or the end of the
-print, and Print Tune says so (`ZOffsetTuneHint::TEMPORARY_TOOL_CHANGE`).
+from its virtual_sdcard.py on each tool change). A babystep therefore lasts until the
+next tool change or the end of the print, and the firmware persists none of it.
 
-`Z_OFFSET_APPLY_PROBE` is no way out either (measured on the device): it writes the
-first head's coil section and folds the active head's per-head offset into it, so it is
-not a save of the babystep and HelixScreen never sends it here.
+The height every head shares is the probe's: the U1 builds one probe object from
+`[inductance_coil extruder]`, whose `z_offset` every `G28 Z` uses whichever head is
+mounted (the other three coil sections carry 0). The database row sets
+`"z_offset_save": "probe"`, so the save strategy is PROBE_CALIBRATE while calibration
+stays firmware-managed (`resolve_z_offset_save_strategy()`), and Print Tune says the
+adjustment is for this head until a Save after the print (`ZOffsetTuneHint::SAVE_ALL_HEADS`).
+
+`Z_OFFSET_APPLY_PROBE` writes that coil section as `z_offset - homing_origin.z`, and
+here `homing_origin.z` also holds the mounted head's own offset. So the save folds the
+user's adjustment alone (`src/ui/calibration/z_offset_utils.cpp#per_head_fold_gcode`): it sets the
+live offset to the pending delta, then applies, in one script, then runs `SAVE_CONFIG`.
+What counts as unsaved is that pending delta, never the live offset
+(`current_save_availability()`). The Save buttons are machine-moving and stay disabled
+while a print runs, so the save always happens after the print. `SAVE_CONFIG`'s restart
+drops the mounted head's offset until its next pickup, which every print starts with.
 
 ## Print Start Tracking
 

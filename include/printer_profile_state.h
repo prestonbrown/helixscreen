@@ -45,11 +45,14 @@ enum class ZOffsetTuneHint {
                                ///< stored offset over it
     AUTO_SAVED_PER_HEAD = 4,   ///< The firmware saves it for the mounted head; the other heads
                                ///< keep their own
+    SAVE_ALL_HEADS = 5,        ///< Applies to the mounted head until a tool change; a Save after
+                               ///< the print folds it into the offset every head shares
 };
 
 /**
  * @brief Pick the tune hint from what is known about persistence
  *
+ * @param strategy the save strategy (resolve_z_offset_save_strategy())
  * @param external_persistence an installed z-offset persistence provider is latched
  * @param db_persists the printer database does not say the firmware drops the offset
  *        (`z_offset_persists`, default true)
@@ -85,6 +88,23 @@ ZOffsetCalibrationStrategy resolve_z_offset_calibration_strategy(std::string_vie
                                                                  bool has_probe,
                                                                  bool z_position_endstop_numeric,
                                                                  std::string_view kinematics);
+
+/**
+ * @brief Pick where a Save writes the machine-wide Z offset
+ *
+ * The calibration strategy, except where the printer database names a save
+ * target of its own (`z_offset_save`): a firmware that manages calibration
+ * itself and yet keeps no adjustment ("probe" saves to the probe's z_offset,
+ * "endstop" to stepper_z's position_endstop). An installed persistence provider
+ * keeps FIRMWARE_MANAGED: it already saves the offset.
+ *
+ * @param calibration the resolved calibration strategy
+ * @param db_save the database's `z_offset_save`, "" for none
+ * @param external_persistence an installed z-offset persistence provider is latched
+ */
+ZOffsetCalibrationStrategy resolve_z_offset_save_strategy(ZOffsetCalibrationStrategy calibration,
+                                                          std::string_view db_save,
+                                                          bool external_persistence);
 
 /**
  * @brief The printer type and what it decides: the pre-print option set and the
@@ -212,6 +232,11 @@ class PrinterProfileState {
     ZOffsetCalibrationStrategy z_offset_calibration_strategy() const {
         return z_offset_calibration_strategy_;
     }
+    /// Where a Save writes the machine-wide offset (resolve_z_offset_save_strategy()).
+    /// FIRMWARE_MANAGED means the firmware persists it and there is nothing to save.
+    ZOffsetCalibrationStrategy z_offset_save_strategy() const {
+        return z_offset_save_strategy_;
+    }
     /// The printer database says this printer type is enclosed.
     bool db_enclosed() const {
         return db_enclosed_;
@@ -268,6 +293,8 @@ class PrinterProfileState {
     std::string printer_type_;
     PrePrintOptionSet pre_print_option_set_;
     ZOffsetCalibrationStrategy z_offset_calibration_strategy_ =
+        ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+    ZOffsetCalibrationStrategy z_offset_save_strategy_ =
         ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     bool external_persistence_ = false;
     bool z_position_endstop_numeric_ = false;
