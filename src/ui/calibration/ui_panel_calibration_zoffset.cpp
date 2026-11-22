@@ -553,9 +553,8 @@ void ZOffsetCalibrationPanel::start_calibration() {
     ensure_bed_clear_then(lifetime_.token(), [this]() { start_once_bed_clear(); });
 }
 
-void ZOffsetCalibrationPanel::open_for_run(
-    IMoonrakerAPI* api, int step_index, int step_count,
-    std::function<void(bool accepted, float z, ZOffsetCalibrationStrategy strategy)> on_done) {
+void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api, int step_index, int step_count,
+                                           RunDone on_done) {
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
@@ -568,16 +567,19 @@ void ZOffsetCalibrationPanel::open_for_run(
     show(lv_screen_active());
 }
 
-void ZOffsetCalibrationPanel::finish_run(bool accepted) {
+void ZOffsetCalibrationPanel::finish_run(RunEnd end) {
     auto done = std::move(run_done_);
     run_done_ = nullptr;
     set_run_mode(false);
     if (done) {
-        spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
+        spdlog::info("[ZOffsetCal] Guided run step {}", end == RunEnd::Accepted ? "accepted"
+                                                        : end == RunEnd::Skipped
+                                                            ? "skipped"
+                                                            : "left unaccepted");
         // A firmware-managed run applied the offset itself; the others report
         // the Z position ACCEPT took, which the run reads the staged value for.
         const auto strategy = run_strategy();
-        done(accepted,
+        done(end,
              strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED ? cumulative_z_delta_
                                                                       : final_offset_,
              strategy);
@@ -627,13 +629,13 @@ void ZOffsetCalibrationPanel::render_translated_texts() {
 }
 
 void ZOffsetCalibrationPanel::handle_continue_clicked() {
-    finish_run(state_ == State::COMPLETE);
+    finish_run(state_ == State::COMPLETE ? RunEnd::Accepted : RunEnd::Left);
     helix::nav::go_back();
 }
 
 void ZOffsetCalibrationPanel::on_dismissed() {
-    // Leaving a run's Z offset without accepting it skips the step.
-    finish_run(false);
+    // Leaving a run's Z offset without accepting or skipping: the run asks.
+    finish_run(RunEnd::Left);
 }
 
 void ZOffsetCalibrationPanel::start_once_bed_clear() {
@@ -1192,6 +1194,8 @@ void ZOffsetCalibrationPanel::handle_back_clicked() {
 }
 
 void ZOffsetCalibrationPanel::handle_skip_clicked() {
+    // An explicit skip: the run moves on without asking (closing aborts the probe).
+    finish_run(RunEnd::Skipped);
     helix::nav::go_back();
 }
 

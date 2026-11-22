@@ -1092,9 +1092,11 @@ class ZOffsetRunFixture : public CalibrationSendFixture {
     }
 
     void open() {
-        panel.open_for_run(&api, 0, 1, [this](bool accepted, float, ZOffsetCalibrationStrategy s) {
-            done.emplace_back(accepted, s);
-        });
+        panel.open_for_run(
+            &api, 0, 1,
+            [this](ZOffsetCalibrationPanel::RunEnd end, float, ZOffsetCalibrationStrategy s) {
+                done.emplace_back(end == ZOffsetCalibrationPanel::RunEnd::Accepted, s);
+            });
         settle();
         REQUIRE(panel.get_root() != nullptr);
     }
@@ -1219,4 +1221,34 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
         run.stop();
         settle();
     }
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture, "Calibration run: Skip this step moves on without asking",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    using namespace helix::calibration;
+    StepInfo zoffset;
+    zoffset.kind = StepKind::ZOffset;
+    zoffset.id = "z_offset";
+    zoffset.name = "Z offset";
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(zoffset));
+    steps.push_back(make_run_step(heaters));
+    CalibrationRun run(api, std::move(steps), nullptr);
+    run.start();
+    settle();
+    REQUIRE(panel.get_root() != nullptr);
+
+    lv_event_cb_t on_skip = lv_xml_get_event_cb(nullptr, "on_zoffset_skip_clicked");
+    REQUIRE(on_skip != nullptr);
+    on_skip(nullptr);
+    settle();
+    CHECK(Modal::get_top() == nullptr);
+    CHECK(run.entries()[0].status == StepStatus::Skipped);
+    CHECK(run.entries()[1].status == StepStatus::Running);
+    run.stop();
+    settle();
 }

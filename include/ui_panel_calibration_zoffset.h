@@ -144,15 +144,19 @@ class ZOffsetCalibrationPanel : public OverlayBase {
         api_ = api;
     }
 
+    /// How a guided run's step ended.
+    enum class RunEnd {
+        Accepted, ///< Continue after ACCEPT answered; z is the accepted position
+        Skipped,  ///< the owner chose Skip this step
+        Left      ///< closed without accepting or skipping
+    };
+    using RunDone = std::function<void(RunEnd end, float z, helix::ZOffsetCalibrationStrategy)>;
+
     /// Open for a guided calibration run. Accept only stages the result (ACCEPT,
     /// no SAVE_CONFIG: the run saves everything at once) and Continue returns to
-    /// the run. @p on_done runs once on the main thread: with true and the
-    /// accepted Z position, or with false when the owner leaves without accepting.
+    /// the run. @p on_done runs once on the main thread with how the step ended.
     /// @p step_index (0-based) and @p step_count place it in the run's header.
-    void open_for_run(
-        helix::IMoonrakerAPI* api, int step_index, int step_count,
-        std::function<void(bool accepted, float z, helix::ZOffsetCalibrationStrategy strategy)>
-            on_done);
+    void open_for_run(helix::IMoonrakerAPI* api, int step_index, int step_count, RunDone on_done);
     /// The guided run stops while this panel serves it: a manual probe ends with
     /// ABORT (nothing is sent when none is running) and the panel closes.
     void abort_run();
@@ -266,7 +270,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     char error_text_buf_[512] = {0};
 
     /// Set while the panel serves a guided run; see open_for_run().
-    std::function<void(bool, float, helix::ZOffsetCalibrationStrategy)> run_done_;
+    RunDone run_done_;
     /// 1 while the panel serves a guided run.
     helix::Subject run_mode_subject_{};
     /// 1 outside a guided run: the footer hides Skip there.
@@ -311,7 +315,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void handle_back_clicked();
     void handle_skip_clicked();
     /// Tell the run how the step ended and leave run mode.
-    void finish_run(bool accepted);
+    void finish_run(RunEnd end);
 
     // Current Z position during calibration
     float current_z_ = 0.0f;
