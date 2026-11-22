@@ -358,12 +358,7 @@ void register_xml_components() {
     helix::ui::ContextMenu::register_shared_callbacks();
     // plugin_feature_toggle_row: any settings page may place one.
     helix::ui::register_plugin_feature_row_callbacks();
-    // A second registration in one process (test fixtures) keeps the live subject and
-    // its observers; only the XML name is registered again.
-    if (!s_noop_subject.is_live()) {
-        s_noop_subject.init_int(0);
-    }
-    lv_xml_register_subject(nullptr, "", &s_noop_subject);
+    register_xml_noop_subject();
 
     // Self-register cleanup — ensures deinit runs before lv_deinit()
     StaticSubjectRegistry::instance().register_deinit("XmlSubjects", helix::deinit_xml_subjects,
@@ -432,6 +427,15 @@ void register_xml_components() {
     helix::ui::PageScrollAutoInject::instance().init();
 
     spdlog::trace("[XML Registration] XML component registration complete");
+}
+
+void register_xml_noop_subject() {
+    // A second registration in one process (test fixtures) keeps the live subject and
+    // its observers; only the XML name is registered again.
+    if (!s_noop_subject.is_live()) {
+        s_noop_subject.init_int(0);
+    }
+    lv_xml_register_subject(nullptr, "", &s_noop_subject);
 }
 
 void deinit_xml_subjects() {

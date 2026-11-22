@@ -68,6 +68,7 @@
 #include "tool_heads_model.h"
 #include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
+#include "xml_registration.h"
 
 #include <spdlog/spdlog.h>
 
@@ -415,10 +416,10 @@ void HelixTestFixture::reset_all() {
     // session (SubjectInitializer, in this order), so code under test binds them
     // without asking. A case that runs with one of them down has each such binding
     // refused by LVGL, and the observer it wanted never fires (#2125).
-    // init_subjects() is a no-op for an owner already up.
+    // init_subjects() is a no-op for an owner already up. The owners that observe
+    // PrinterState restart further down, once the settings they read are up.
     get_printer_state().init_subjects(true);
     helix::ToolState::instance().init_subjects(true);
-    restart_printer_state_observers();
 
     reset_printer_state();
 
@@ -460,6 +461,10 @@ void HelixTestFixture::reset_all() {
     if (!helix::led::LedController::instance().is_initialized()) {
         helix::led::LedController::instance().init(nullptr, nullptr);
     }
+    restart_printer_state_observers();
+    // XML binds an empty subject attribute to this; a fixture that tore the XML
+    // subjects down would leave every such binding refused.
+    helix::register_xml_noop_subject();
     // Every formatter reads the display unit; a test that shows °F must not
     // leave the rest of the binary reading it.
     helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);

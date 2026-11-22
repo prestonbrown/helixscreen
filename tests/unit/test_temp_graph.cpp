@@ -4,7 +4,7 @@
 #include "../../include/temp_graph_internal.h"
 #include "../../include/theme_manager.h"
 #include "../../include/ui_temp_graph.h"
-#include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../ui_test_utils.h"
@@ -14,7 +14,9 @@
 #include "../catch_amalgamated.hpp"
 
 // Test fixture for temperature graph tests
-class TempGraphTestFixture : public LVGLTestFixture {
+// XMLTestFixture brings the theme up, as the app does before any graph exists: a graph
+// binds the theme's change subject when it is created.
+class TempGraphTestFixture : public XMLTestFixture {
   public:
     TempGraphTestFixture() {
         // Create a screen object to use as parent

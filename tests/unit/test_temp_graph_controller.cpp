@@ -6,7 +6,7 @@
 #include "../../include/temp_graph_controller.h"
 #include "../../include/temp_graph_internal.h"
 #include "../../include/ui_temp_graph.h"
-#include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 #include "../test_helpers/discovery_of_objects.h"
 #include "../test_helpers/log_capture.h"
 #include "../test_helpers/temp_graph_controller_test_access.h"
@@ -30,7 +30,9 @@ using namespace helix;
 // Test Fixture
 // ============================================================================
 
-class TempGraphControllerFixture : public LVGLTestFixture {
+// XMLTestFixture brings the theme up, as the app does before any graph exists: a graph
+// binds the theme's change subject when it is created.
+class TempGraphControllerFixture : public XMLTestFixture {
   public:
     TempGraphControllerFixture() {
         screen = lv_obj_create(NULL);

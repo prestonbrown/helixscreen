@@ -89,6 +89,13 @@ void unregister_idle_xml_components();
 void reregister_xml_components_for_rebuild();
 
 /**
+ * @brief Publish the subject that an empty subject attribute ("") binds to
+ *
+ * register_xml_components() calls it. Idempotent: a live subject keeps its observers.
+ */
+void register_xml_noop_subject();
+
+/**
  * @brief Deinitialize XML-related subjects
  *
  * Must be called during shutdown before lv_deinit().
