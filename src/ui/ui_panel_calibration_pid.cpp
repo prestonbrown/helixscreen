@@ -1532,6 +1532,12 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
         spdlog::info("[PIDCal] Starting MPC->PID migration for '{}'", section);
     }
 
+    // Calibration starts only once Klipper runs the new control: a value the
+    // edit could not make take (a SAVE_CONFIG copy that overrides it) or a
+    // Klipper left in error reverts the edit instead.
+    std::vector<helix::system::ExpectedSetting> expected = {
+        {section, "control", to_mpc ? "mpc" : "pid"}};
+
     EmergencyStopOverlay::instance().suppress_recovery_dialog(helix::recovery_suppression::EXTRA);
 
     auto token = run_lifetime_.token();
@@ -1553,7 +1559,7 @@ void PIDCalibrationPanel::start_migration(CalibMethod target) {
                 set_state(State::ERROR);
             });
         },
-        30000);
+        migration_restart_timeout_ms_, std::move(expected));
 }
 
 void PIDCalibrationPanel::send_mpc_calibrate() {
