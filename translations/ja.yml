@@ -56,7 +56,7 @@ translations:
   '%zu events queued': '%zu 件のイベントを待機中'
   '%zu plugins failed to load': '%zu 個のプラグインの読み込みに失敗しました'
   "Auto Belt Tension": "ベルト自動張り調整"
-  Both axes: ''
+  Both axes: 両軸
   "Both belts": "両方のベルト"
   "Cutter Calibration": "カッターのキャリブレーション"
   "Find the filament cutter's position": "フィラメントカッターの位置を検出します"
@@ -215,7 +215,7 @@ translations:
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'チャンバー内の空気を温めるヒーター。温度はチャンバー温度画面で設定します。'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Klipperが凹凸を補正するために使うベッドの高さマップ。ベッドメッシュ画面で確認とキャリブレーションができます。'
   A home-origin calibration point failed or stayed unstable.: '原点キャリブレーションの測定点が失敗したか、安定しませんでした。'
-  A hot bed changes shape. Probe at the temperature you print at.: ''
+  A hot bed changes shape. Probe at the temperature you print at.: ベッドは温まると形が変わります。印刷するときの温度で測定してください。
   A left, B right: "A左・B右"
   A load was asked for while the toolhead holds filament the Box has no record of.: ボックスが把握していないフィラメントがツールヘッドにある状態で装填が要求されました。
   A lower, B upper: "A下・B上"
@@ -282,7 +282,7 @@ translations:
   ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   : プリンター設定の値の型が正しくないか、その設定で許容される範囲外です。Klipper のメッセージに設定名とセクションが示されています。
   ABS: ABS
-  ABS / ASA: ''
+  ABS / ASA: ABS / ASA
   ACCELEROMETERS: 加速度センサー
   'ACCEPT failed: {}': 'ACCEPT に失敗しました: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: ACE Moonraker ブリッジが見つかりません。完全なサポートには ace_status.py をインストールしてください。
@@ -329,7 +329,7 @@ translations:
   Accelerometer communication failed. Try again.: 加速度センサーとの通信に失敗しました。再試行してください。
   Accelerometer not connected: 加速度センサーが接続されていません
   Accelerometer not responding: '加速度センサーが応答しません'
-  Accelerometer ready: ''
+  Accelerometer ready: 加速度センサー準備完了
   Accelerometers: 加速度センサー
   Accept: 承認
   'Accepted Z Position: 0.000': '確定Z位置: 0.000'
@@ -736,7 +736,7 @@ translations:
   Calibrate X: X軸をキャリブレート
   Calibrate Y: Y軸をキャリブレート
   Calibrate All Tools: すべてのツールをキャリブレート
-  Calibrate at: ''
+  Calibrate at: キャリブレーション温度
   Calibrate heater: ヒーターを校正
   Calibrate input shaping to reduce ringing artifacts in prints: 入力シェーピングをキャリブレートして印刷のリンギングを軽減します
   Calibrate now: '今すぐキャリブレーション'
@@ -1065,7 +1065,7 @@ translations:
   Coaxial: 同軸
   Code: コード
   Coil Temperature: コイル温度
-  Cold: ''
+  Cold: 加熱なし
   Cold Pull: "コールドプル"
   Cold pull cancelled: "コールドプルをキャンセルしました"
   Cold pull finished: "コールドプルが完了しました"
@@ -1085,7 +1085,7 @@ translations:
   Communication Test: '通信テスト'
   Compact: コンパクト
   Compare belt paths with a resonance sweep: "共振スイープでベルトパスを比較"
-  Compare belts: ''
+  Compare belts: ベルトを比較
   Compare your belt paths: ベルト経路を比較
   ? Compares the two belt paths of a CoreXY printer with the accelerometer, so you can even out their tension. Run it on the Belt Tension screen.
   : 'CoreXYプリンターの2本のベルト経路を加速度センサーで比較し、張力を揃えられるようにします。ベルトテンション画面で実行できます。'
@@ -1141,7 +1141,7 @@ translations:
   Connect: 接続
   Connect a USB label printer first: 先にUSBラベルプリンターを接続してください
   Connect an ADXL345 accelerometer to calibrate: キャリブレーションには ADXL345 加速度センサーを接続してください
-  Connect one (ADXL345 or similar) to measure: ''
+  Connect one (ADXL345 or similar) to measure: 測定するには接続してください（ADXL345など）
   Connect to servers on your network and the internet.: 'ネットワークおよびインターネット上のサーバーに接続します。'
   'Connect to your printer via SSH and run:': 'SSHでプリンターに接続し、次を実行してください:'
   Connected: 接続済み
@@ -1977,7 +1977,7 @@ translations:
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'エクストルーダーにフィラメントが装填され、ビルドプレートが取り付けられ、ツールヘッドの邪魔になる物がないことを確認してください。'
   Filament never reached the CFS hub sensor: フィラメントが CFS ハブセンサーに到達しませんでした
   Filament not identified: 'フィラメントが識別されていません'
-  Filament not known: ''
+  Filament not known: フィラメント不明
   Filament not set: 'フィラメント未設定'
   Filament operation failed: フィラメント操作に失敗しました
   Filament operation timed out: フィラメント操作がタイムアウトしました
@@ -2185,7 +2185,7 @@ translations:
   Heat soak: ヒートソーク
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'ヒートソークは印刷前に筐体内を温めます。プリンターにヒートソークマクロがあるか、設定で有効にされたため表示されています。HelixScreenは印刷前オプションでこのマクロを提供します。'
-  Heat the bed first: ''
+  Heat the bed first: 先にベッドを加熱
   Heat the bed to {}: ベッドを {} に加熱
   Heat the chamber too: チャンバーも加熱
   Heat the extruder to at least {} before loading filament: フィラメントを装填する前に、エクストルーダーを最低 {} まで加熱してください
@@ -2245,7 +2245,7 @@ translations:
   Heating...: 加熱中...
   'Heating: %d / %s': '加熱中: %d / %s'
   Heats the bed to {}, above this printer's {} limit.: ベッドを{}に加熱します。このプリンターの上限は{}です。
-  Heats the nozzle and extrudes short test lines in a corner of the plate: ''
+  Heats the nozzle and extrudes short test lines in a corner of the plate: ノズルを加熱し、プレートの隅に短いテストラインを押し出します
   Heats the nozzle to {}, above this printer's {} limit.: ノズルを{}に加熱します。このプリンターの上限は{}です。
   Heightmap and flatness of the active bed mesh: '有効なベッドメッシュの高さマップと平面度'
   HelixPrint Plugin: 'HelixPrintプラグイン'
@@ -2627,8 +2627,8 @@ translations:
   Last 24 hours: '過去24時間'
   Last 30 days: '過去30日間'
   Last 7 days: '過去7日間'
-  Last check {}: ''
-  Last check {} · {}: ''
+  Last check {}: 前回のチェック {}
+  Last check {} · {}: 前回のチェック {} · {}
   Last done at {} h: "前回: {} 時間"
   'Last held: {}': '前回のスプール: {}'
   Last measured: '前回の測定値'
@@ -2720,7 +2720,7 @@ translations:
   Load...: 装填...
   Loaded: 装填済み
   Loaded filament not recognized: 装填されたフィラメントを認識できません
-  Loaded from T{}: ''
+  Loaded from T{}: T{} から装填
   Loading: ロード中
   Loading Bed Mesh...: ベッドメッシュ読込中...
   Loading Error: 装填エラー
@@ -2890,9 +2890,9 @@ translations:
   Measure (~{} min): "測定 (約{}分)"
   Measure each toolhead's X, Y and Z offset (about 20 minutes): 各ツールヘッドのX・Y・Zオフセットを計測します（約20分）
   Measure every tool's XYZ offset automatically: 各ツールの XYZ オフセットを自動で測定します
-  Measure pressure advance: ''
+  Measure pressure advance: Pressure Advanceを測定
   Measure pressure advance automatically: 'Pressure Advance を自動で測定します'
-  Measure resonances: ''
+  Measure resonances: 共振を測定
   Measure the tension with the Belt Tension tool, or as your manual shows.: "ベルトテンションツールまたはマニュアルの方法で測定します。"
   Measure this zone first: "まずこのゾーンを測定"
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
@@ -2903,9 +2903,9 @@ translations:
   Measured from the printer's file list: 'プリンターのファイル一覧から測定'
   Measured offsets, read-only: 測定済みオフセット（読み取り専用）
   Measured pressure advance: '測定された Pressure Advance'
-  Measured {} · reduces ringing and ghosting: ''
+  Measured {} · reduces ringing and ghosting: '{} に測定 · リンギングとゴーストを低減'
   Measurement incomplete. Try again.: 測定が不完全です。再試行してください。
-  Measures each line itself, repeating until the readings agree: ''
+  Measures each line itself, repeating until the readings agree: 各ラインを自動で測定し、値が一致するまで繰り返します
   Measures each toolhead's X, Y and Z offset so every head prints in the same place. Takes about 20 minutes.: 各ツールヘッドのX・Y・Zオフセットを計測し、すべてのヘッドが同じ位置に印刷できるようにします。約20分かかります。
   Measures the bed at each adjustment screw and says how far to turn it. Run it on the Screws Tilt screen.: '各調整ネジの位置でベッドを測定し、どれだけ回すかを示します。ネジ傾き画面で実行できます。'
   Measures vibration for input shaping. Run resonance tests on the Input Shaper screen.: 'インプットシェーピング用に振動を測定します。共振テストはインプットシェーパー画面で実行できます。'
@@ -3074,7 +3074,7 @@ translations:
   No Spools: スプールなし
   No USB printer detected: USB プリンターが検出されません
   No USB printers found: USBプリンターが見つかりません
-  No accelerometer: ''
+  No accelerometer: 加速度センサーなし
   No actions right now: '現在利用できる操作はありません'
   No active Spoolman spool.: Spoolmanで使用中のスプールがありません。
   No answer from the printer; it may still be calibrating: プリンターから応答がありません。まだ校正中の可能性があります
@@ -3109,7 +3109,7 @@ translations:
   No hub configured: 'Hub が設定されていません'
   No humidity sensor detected: '湿度センサーが検出されません'
   No images found on USB drive: USBドライブに画像が見つかりません
-  No input shaper in printer.cfg yet: ''
+  No input shaper in printer.cfg yet: printer.cfg にはまだインプットシェーパーがありません
   No jobs in queue: キューにジョブがありません
   No lane holds filament, so none can be pulled back. Clearing cuts the filament in the extruder and withdraws it.: 'フィラメントが入っているレーンがないため、引き戻せるレーンはありません。空にすると、エクストルーダー内のフィラメントを切断して引き抜きます。'
   No macro devices configured: マクロデバイスが設定されていません
@@ -3197,7 +3197,7 @@ translations:
   Not available now: 現在は利用できません
   Not available on Android: Androidでは利用できません
   Not calibrated: キャリブレーション未実施
-  Not compared yet: ''
+  Not compared yet: まだ比較していません
   Not configured: 未設定
   Not connected: 未接続
   Not connected to printer: プリンターに未接続
@@ -3248,7 +3248,7 @@ translations:
   Notification History: 通知履歴
   Notifications: 通知
   Notify when print finishes: 印刷完了時に通知
-  Now: ''
+  Now: 現在
   Now printing: '印刷中'
   Noz max: ノズル最大
   Noz min: ノズル最小
@@ -3461,7 +3461,7 @@ translations:
   Pick Color: 色を選択
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'HelixScreen の動作を選択します。すべて後で「設定」から変更できます。'
   Pick the best band: 最適な区間を選択
-  Pick the material below: ''
+  Pick the material below: 下で材料を選択
   Pick up: '装着'
   Pick up and park each tool in turn: 各ツールを順に取り付けて戻す
   Pick up the tool, heat it, and pull the filament out: "ツールを取り付けて加熱し、フィラメントを引き抜いてください"
@@ -3623,7 +3623,7 @@ translations:
   Print copies: '印刷コピー'
   Print details: '印刷の詳細'
   Print did not start: 印刷は開始されませんでした
-  Print a test tower instead: ''
+  Print a test tower instead: 代わりにテストタワーを印刷
   Print canceled: 印刷がキャンセルされました
   Print complete: 印刷完了
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): 印刷が開始されませんでした — プリンターがビジー状態またはオフラインの可能性があります (B3 polls={}, status=0x{:02X}, error=0x{:02X})
@@ -3722,7 +3722,7 @@ translations:
   Probe controls, accuracy test, and settings: プローブコントロール、精度テスト、設定
   Probe readings disagree: 'プローブの測定値が一致しません'
   Probe readings don't agree: プローブの測定値が一致しません
-  Probe the bed: ''
+  Probe the bed: ベッドを測定
   Probe triggered too early: 'プローブが早く反応しすぎました'
   Probing Bed Mesh: ベッドメッシュをプローブ中
   Probing Bed Mesh...: ベッドメッシュをプローブ中...
@@ -3893,7 +3893,7 @@ translations:
   Reduce Sensitivity: 感度を下げる
   Reduce ringing and ghosting artifacts: リンギングとゴーストのアーティファクトを軽減
   Reduce vibration artifacts like ringing and ghosting: リンギングやゴーストなどの振動アーティファクトを軽減
-  Reduces ringing and ghosting: ''
+  Reduces ringing and ghosting: リンギングとゴーストを低減
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'ファン速度を下げるとろ過性能に影響する可能性があります。続行しますか？'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'ファン速度を下げると印刷品質に影響する可能性があります。続行しますか？'
   Refeeding filament — this may take a minute: フィラメントを再供給中 — 少々時間がかかる場合があります
@@ -4391,9 +4391,9 @@ translations:
   Shadow Intensity: 影の強度
   Shake&Tune: 'Shake&Tune'
   ? Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.
-  : ''
+  : ツールヘッドを各対角線に沿って振動させ、2つの応答を重ねます。張りが揃ったベルトは同じ周波数でピークになり、ずれがあれば締めるべきベルトがわかります。
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: ツールヘッドを対角線ごとに動かし、2つの結果を同時に表示します。張りが同じベルトは同じ位置でピークになります。
-  Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.: ''
+  Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.: 各軸でツールヘッドを周波数スイープで振動させ、最も強い振動を打ち消すシェーパーを選びます。
   Shaking the {} axis: '{}軸を振動中'
   Share Screen: '画面を共有'
   Share Usage Data: 使用データを共有
@@ -4421,7 +4421,7 @@ translations:
   Show up/down buttons on long lists: 長いリストに上下ボタンを表示
   Show whatever curves you last had visible on the full graph.: フルグラフで最後に表示していた曲線を表示します。
   Showing the 50 newest files. See more in the printer's web UI.: '最新の50ファイルを表示しています。それ以外はプリンターのWeb画面で確認してください。'
-  Shows the new K next to the old one. You choose to save it: ''
+  Shows the new K next to the old one. You choose to save it: 新しいKを以前の値と並べて表示します。保存するかはあなたが選びます
   Shut down or restart the host: ホストのシャットダウンまたは再起動
   Shutdown: シャットダウン
   Shutdown / Reboot: シャットダウン / 再起動
@@ -5495,7 +5495,7 @@ translations:
   Turn the nozzle heater off first: 先にノズルヒーターをオフにしてください
   Turn the picture to match how the screen is mounted. Applies after restart.: 画面の取り付け向きに合わせて表示を回転します。再起動後に適用されます。
   Turn the printer's lights on or off: プリンターのライトをオン/オフ
-  Two belt paths: ''
+  Two belt paths: 2つのベルト経路
   Two configuration sections define the same command.: '2つの設定セクションが同じコマンドを定義しています。'
   Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: 2 つの機能が同じピンを使っているか、Klipper が受け付けない形式でピンが書かれています。Klipper のメッセージにピン名が示されています。
   Type: タイプ
@@ -5739,7 +5739,7 @@ translations:
   What fills the printer's disk, and cleanup: 'プリンターのディスクの使用状況とクリーンアップ'
   What happens next: 'この後の流れ'
   What happens when a print ends: '印刷終了時の動作'
-  What it does: ''
+  What it does: 内容
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'スライサーがこのプリンターの移動範囲を超える、加熱上限を超える、または存在しないツールを使うファイルをアップロードして開始したとき、ファイルは残して印刷は開始しません。'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: 有効時はマクロのみ実行されます。無効時は先に温度を設定してからマクロが実行されます。
@@ -5808,24 +5808,24 @@ translations:
   X Offset: Xオフセット
   X and Y jog feedrate: X/Y軸のジョグ移動速度
   X and Y must be homed before precise homing.: '精密ホーミングの前にXとYのホーミングが必要です。'
-  X axis: ''
+  X axis: X軸
   X axis applied, but Y axis failed: X軸は適用されましたが、Y軸は失敗しました
   X axis done, starting Y...: 'X軸が完了しました。Y軸を開始します...'
   X axis limit reached: X軸のリミットに達しました
   X is at its limit ({}mm): X軸は限界に達しています ({}mm)
   X motor: 'X モーター'
-  X only: ''
+  X only: Xのみ
   'X:': 'X:'
   XY: XY
   XY axis: "XY軸"
   Y: Y
   Y Axis: Y軸
   Y Offset: Yオフセット
-  Y axis: ''
+  Y axis: Y軸
   Y axis limit reached: Y軸のリミットに達しました
   Y is at its limit ({}mm): Y軸は限界に達しています ({}mm)
   Y motor: 'Y モーター'
-  Y only: ''
+  Y only: Yのみ
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "クリア！\nスコア: {}\nタップでもう一度"
@@ -5904,9 +5904,9 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] が printer.cfg の読み込む設定ファイルに {} 回見つかりました (1回のみ想定)"
   a newer version: '新しいバージョン'
   a temporary mesh profile '{}': '一時的なメッシュプロファイル ''{}'''
-  about 2 min: ''
-  about 4 min: ''
-  about 6 min with heat-up: ''
+  about 2 min: 約2分
+  about 4 min: 約4分
+  about 6 min with heat-up: 加熱込みで約6分
   about {} min: '約{}分'
   about {} min left: ''
   about {} min left · you can leave: ''
@@ -5959,8 +5959,8 @@ translations:
   filament sensor disabled: 'フィラメントセンサーが無効'
   heated bed: ヒートベッド
   heats: '加熱あり'
-  heats bed to {}°: ''
-  heats to {}°: ''
+  heats bed to {}°: ベッドを{}°に加熱
+  heats to {}°: '{}°に加熱'
   heats bed: ''
   heats nozzle: ''
   heats nozzle + bed: ''
@@ -5968,7 +5968,7 @@ translations:
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env は無視されました：信頼できないシンボリックリンクチェーンです'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env は無視されました：他のユーザーが書き込み可能です'
   'helixscreen.env ignored: {}': 'helixscreen.env は無視されました：{}'
-  homes, then moves fast: ''
+  homes, then moves fast: 原点復帰後に高速移動
   idle: アイドル
   in unit {} slot {}: 'ユニット {} スロット {}'
   in {}: '{}内'
@@ -5978,8 +5978,8 @@ translations:
   just now: たった今
   last 60 s · LOOSE up, TIGHT down: '直近60秒 · 上が緩み、下が張り'
   last 60 s · pressure, target dashed: 直近60秒 · 圧力、目標は破線
-  last K {}: ''
-  last measured {}: ''
+  last K {}: 前回のK {}
+  last measured {}: 前回の測定 {}
   'last turn: {:.1f} Hz closer': "前回: {:.1f} Hz接近"
   layers: レイヤー
   left: 残り
@@ -5988,7 +5988,7 @@ translations:
   loud: '大きな音'
   matched: 一致
   material differs: '素材が異なる'
-  measured {}: ''
+  measured {}: '{} に測定'
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: 詰まりまでの距離 (mm)
@@ -5996,7 +5996,7 @@ translations:
   needs approval: 承認が必要
   needs you: '操作が必要'
   never sleeps: スリープしない
-  no heat: ''
+  no heat: 加熱なし
   no restart: ''
   not detected: 未検出
   not loaded: '未装填'
@@ -6016,12 +6016,12 @@ translations:
   over memory budget: メモリ予算超過
   paper test: '紙テスト'
   passive: パッシブ
-  plate must be clear: ''
+  plate must be clear: プレートを空にしてください
   preparing: 準備中
   printer default: プリンター既定
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"
   prints: 印刷
-  range {:.3f} mm: ''
+  range {:.3f} mm: 範囲 {:.3f} mm
   ready to load: '装填可能'
   remaining: 残り
   remaining before clog detection triggers: 残りで詰まり検出が作動します
@@ -6055,7 +6055,7 @@ translations:
   too slow: 遅すぎ
   tool(s): ツール
   used: 使用
-  uses about 30 cm of filament: ''
+  uses about 30 cm of filament: フィラメントを約30cm使用
   v%s available: v%s が利用可能です
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。
   v{} installed! Restarting...: v{} をインストールしました！再起動中...
@@ -6081,7 +6081,7 @@ translations:
   '{1} temperature reading is out of range': '{1} の温度の読み取り値が範囲外です'
   '{:.0f} g left': 残り {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
-  '{:.0f}-{:.0f} Hz sweep': ''
+  '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz スイープ'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
   '{:.2f} mm range': '範囲 {:.2f} mm'
   '{} ({})': '{}（{}）'
@@ -6092,7 +6092,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} Settings': '{}の設定'
   '{} Tools': '{} ツール'
-  '{} accelerometers': ''
+  '{} accelerometers': 加速度センサー {} 個
   '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
   '{} auto-feed setting not applied': '{} の自動供給設定が適用されませんでした'
@@ -6254,7 +6254,7 @@ translations:
   'Variant': 'バリアント'
   'from tag': 'タグから'
   'Browse catalog...': 'カタログを見る...'
-  '{}×{} points · saved as "{}"': ''
+  '{}×{} points · saved as "{}"': '{}×{} 点 · 「{}」として保存'
   ~{:.1f} Hz / turn: "約{:.1f} Hz / 回転"
   RUNNING: "動作中"
   NOT AVAILABLE HERE: "この環境では利用不可"
