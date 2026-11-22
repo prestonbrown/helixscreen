@@ -8,6 +8,7 @@
 #include "calibration_catalog.h"
 
 #include <functional>
+#include <optional>
 #include <string>
 
 #include "hv/json.hpp" // JSON_HPP_OK: StepResult holds its values by value
@@ -127,6 +128,15 @@ class CalibrationStep {
     /// must put the old value back with restore().
     [[nodiscard]] virtual bool restores_on_discard() const {
         return false;
+    }
+    /// The run waited for the printer to finish the command this failed step
+    /// left running. Look for a result that command staged after the step gave
+    /// up on it: @p done runs once on the main thread with the outcome to
+    /// record instead, or nothing to keep the failure.
+    virtual void recheck_after_wait(IMoonrakerAPI& api,
+                                    std::function<void(std::optional<StepOutcome>)> done) {
+        (void)api;
+        done(std::nullopt);
     }
     /// Put the value from before the step back, the way the step set the new
     /// one. @p done runs once on the main thread with a translated line saying

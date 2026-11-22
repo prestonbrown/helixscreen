@@ -776,6 +776,7 @@ translations:
   Calibration complete - save to keep the offsets: Calibración completa - guarda para conservar los offsets
   Calibration complete!: ¡Calibración completa!
   Calibration complete! Press 'Next' to continue.: ¡Calibración completa! Presione 'Siguiente' para continuar.
+  Calibration ended: "Calibración terminada"
   Calibration failed: Calibración fallida
   Calibration failed - touch targets more precisely.: Calibración fallida – toca los objetivos con más precisión.
   'Calibration failed: {}': 'Calibración fallida: {}'
@@ -2396,6 +2397,7 @@ translations:
   'IFS: loading': "IFS: cargando"
   'IFS: unloading': "IFS: descargando"
   IMPORT FROM USB: IMPORTAR DESDE USB
+  INCOMPLETE: "INCOMPLETA"
   INDX dock positions are not calibrated: "Las posiciones de los docks de INDX no están calibradas"
   INDX macros not recognized: "Macros de INDX no reconocidas"
   INPUTS: ENTRADAS
@@ -2606,9 +2608,11 @@ translations:
   Klipper restarts before calibrating.: 'Klipper se reinicia antes de calibrar.'
   Klipper restarts, about 20 s: Klipper se reinicia, unos 20 s
   Klipper shut down: Klipper se apagó
+  Klipper stopped during the calibration, so the remaining steps did not run.: "Klipper se detuvo durante la calibración, así que los pasos restantes no se ejecutaron."
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas y dejar Klipper bloqueado, donde un reinicio de firmware no puede alcanzarlo. Apague y encienda la impresora (o reinicie Klipper por SSH) e inténtelo de nuevo."
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: "Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas; reinicie Klipper e inténtelo de nuevo."
+  Klipper stopped while the printer was finishing a step, so the remaining steps did not run.: ''
   Klipper will restart to apply changes.: Klipper se reiniciará para aplicar los cambios.
   Klipper will restart to apply new settings.: Klipper se reiniciará para aplicar la nueva configuración.
   'Klipper: ': 'Klipper: '
@@ -3047,6 +3051,7 @@ translations:
   ? "NEW HIGH SCORE!\n{}\nTap to play again"
   : "¡NUEVO RÉCORD!\n{}\nToca para jugar de nuevo"
   NEWLY DISCOVERED: RECIÉN DESCUBIERTO
+  NOT DONE: "NO HECHO"
   Name: Nombre
   Name (optional): Nombre (opcional)
   Name, image and model: Nombre, imagen y modelo
@@ -3088,6 +3093,7 @@ translations:
   Next Zone (~{} min): "Sig. zona (~{} min)"
   Next Layer: 'Siguiente capa'
   Next, review the results and save them once: Después, revisa los resultados y guárdalos una vez
+  Next, see what finished and why the rest did not: "Ahora, mira qué terminó y por qué el resto no"
   'Next: {}': 'Siguiente: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'Reloj Nixie'
@@ -3198,6 +3204,7 @@ translations:
   No spools placed: No coloqué bobinas
 
   No spools to show. Add it as a new spool below.: 'No hay bobinas. Añádela abajo como bobina nueva.'
+  No step finished: "Ningún paso terminó"
   No tape detected in printer: No se detectó cinta en la impresora
   No target printer configured: Ninguna impresora de destino configurada
   No temperature sensors detected: 'No se detectaron sensores de temperatura'
@@ -3273,7 +3280,9 @@ translations:
   Nothing starred yet. Tap the star on a filament to add it here.: 'Nada marcado aún. Toca la estrella de un filamento para añadirlo aquí.'
   Nothing to clean up: 'No hay nada que limpiar'
   Nothing to remap: Nada que reasignar
+  Nothing to save: "Nada que guardar"
   Nothing to save.: 'Nada que guardar.'
+  Nothing to save. Each step says why.: "Nada que guardar. Cada paso dice por qué."
   Nothing to tune here: "Nada que ajustar aquí"
   'Nothing to unload: no filament at the nozzle': 'Nada que descargar: no hay filamento en la boquilla'
   Whether the Z arrows follow the bed or the Z value: "Si las flechas Z siguen a la cama o al valor Z"
@@ -4150,6 +4159,7 @@ translations:
   Review detected hardware validation issues: Revisar problemas de validación de hardware detectados
   Review the results, then save once.: Revisa los resultados y guarda una vez.
   Review the results, then save them all at once.: 'Revisa los resultados y luego guárdalos todos a la vez.'
+  Review what finished. The results say why the rest did not.: "Revisa qué terminó. Los resultados dicen por qué el resto no."
   Review your configuration below, then click Finish to save: Revisa tu configuración abajo, luego toca Finalizar para guardar
   Rewinding: Rebobinando
   Right: 'Derecha'
@@ -5161,6 +5171,7 @@ translations:
   The printer homes, then probes each screw position.: "La impresora hace home y luego mide cada posición de tornillo."
   The printer is already resuming the print: 'La impresora ya está reanudando la impresión'
   The printer is busy. Run the check when no print or other motion is in progress.: 'La impresora está ocupada. Ejecuta la comprobación cuando no haya ninguna impresión ni otro movimiento en curso.'
+  The printer is finishing a step's command. Save once it is done.: "La impresora está terminando el comando de un paso. Guarda cuando termine."
   The printer is not connected.: 'La impresora no está conectada.'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: La impresora no está referenciada. Si continúa, se referenciarán todos los ejes y el cabezal se moverá. Asegúrese de que la cama esté despejada.
   The printer is not ready.: "La impresora no está lista."
@@ -5197,6 +5208,7 @@ translations:
   The printer shut down: 'La impresora se apagó'
   The printer shut down while homing or probing.: 'La impresora se apagó al referenciar o sondear.'
   The printer shut down while it was homing or probing.: La impresora se apagó mientras referenciaba o sondeaba.
+  The printer stayed busy long after the step failed, so the remaining steps did not run.: "La impresora siguió ocupada mucho después del fallo del paso, así que los pasos restantes no se ejecutaron."
   The printer stopped itself for safety; the firmware gave no specific reason.: 'La impresora se detuvo por seguridad; el firmware no dio un motivo concreto.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'La impresora se reinicia con la pantalla de Snapmaker y HelixScreen deja de iniciarse. Sus ajustes de HelixScreen se conservan en la impresora; ejecute de nuevo el instalador para volver.'
@@ -5206,7 +5218,10 @@ translations:
   The printer was stopped: 'La impresora se detuvo'
   The printer's computer fell behind: El ordenador de la impresora se retrasó
   The printer's firmware chooses where to switch on runout: El firmware de la impresora elige a dónde cambiar al agotarse
+  ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
+  : "Los pasos restantes no se ejecutarán. La impresora termina primero el comando en curso y sus calentadores siguen encendidos hasta entonces."
   The requested position is outside the printer's bounds: 'La posición solicitada está fuera de los límites de la impresora'
+  The results say why.: "Los resultados dicen por qué."
   The right RFID reader in this CFS unit may need service: Puede que el lector RFID derecho de esta unidad CFS necesite servicio
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: 'El paso en curso se detiene de inmediato y la impresora se reinicia, lo que también descarta los resultados de los pasos terminados.'
   The running step stops at once and the printer restarts.: El paso en curso se detiene de inmediato y la impresora se reinicia.
@@ -5221,6 +5236,7 @@ translations:
   The slot asked to eject still has its filament loaded in the toolhead.: La ranura que se pidió expulsar todavía tiene su filamento cargado en el cabezal.
   The slot chosen for this tool change has no filament at its inlet.: La ranura elegida para este cambio de herramienta no tiene filamento en su entrada.
   The speed of one fan you choose: La velocidad de un ventilador elegido
+  The step didn't finish: "El paso no terminó"
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'La máscara de subred no es válida. Usa un formato como 255.255.255.0 o 24.'
   The temperature was changed elsewhere.: "La temperatura se cambió desde otro lugar."
   The tensioners pull each belt to its target: 'Los tensores llevan cada correa a su tensión objetivo'
@@ -5296,6 +5312,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'La sonda leía activada antes de empezar a moverse: no se retrajo, la boquilla toca la cama o su señal está invertida.'
   The probe was already triggered before the move started.: 'La sonda ya estaba activada antes de que empezara el movimiento.'
+  The printer's state could no longer be read, so the remaining steps did not run.: "Ya no se pudo leer el estado de la impresora, así que los pasos restantes no se ejecutaron."
   The printer's status isn't known yet, so a print may be running.: 'El estado de la impresora aún no se conoce, así que puede haber una impresión en curso.'
   The probe was used before the printer was homed.: Se usó la sonda antes de referenciar la impresora.
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La cola imprime la placa predeterminada de este .3mf. Imprime esta placa desde aquí.'
@@ -5778,6 +5795,7 @@ translations:
   Volume: Volumen
   Volume of filament used during ramming: 'Volumen de filamento usado durante la compactación'
   Volume {}%: Volumen {}%
+  WAITING: "ESPERANDO"
   WEIGHT SYNC: SINCRONIZACIÓN DE PESO
   WIDTH SENSORS: SENSORES DE ANCHO
   WLED Preset: Preajuste WLED
@@ -5805,6 +5823,8 @@ translations:
   Waiting for the chamber to heat: Esperando a que la cámara se caliente
   Waiting for the filament system to report its state: Esperando que el sistema de filamento informe su estado
   Waiting for the printer: Esperando a la impresora
+  Waiting for the printer to finish: "Esperando a que la impresora termine"
+  Waiting for the printer to finish its command: "Esperando a que la impresora termine su comando"
   Waiting for the printer's status; try again once it is connected: 'Esperando el estado de la impresora; inténtelo de nuevo cuando esté conectada'
   Waiting for you at the Z offset screen: 'Esperándote en la pantalla del offset Z'
   Waiting to read the printer's configuration from Klipper.: "Esperando para leer la configuración de la impresora desde Klipper."
@@ -6194,6 +6214,7 @@ translations:
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s no tiene una versión para %s, así que no se puede instalar aquí. Elige un canal de actualización con una versión más reciente.
   v{} installed! Restarting...: ¡v{} instalado! Reiniciando...
   v{} is available. Tap to update.: v{} disponible. Toque para actualizar.
+  waiting for the printer: "esperando a la impresora"
   was {:.0f}%: 'era {:.0f}%'
   what you turned: "lo que giraste"
   within one bin: "dentro de un bin"
@@ -6254,6 +6275,8 @@ translations:
   '{} days': "{} días"
   '{} detected': '{} detectada'
   '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
+  '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': "{} no terminó y la impresora aún ejecuta su comando. El siguiente paso empieza cuando la impresora quede libre."
+  '{} did not run': "{} no se ejecutó"
   '{} did not switch to {}. The print continued without switching.': '{} no cambió a {}. La impresión continuó sin cambiar.'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}.'
   '{} did not switch to {}. The print is still paused.': '{} no cambió a {}. La impresión sigue en pausa.'
@@ -6325,6 +6348,7 @@ translations:
   '{} new plugins available. Enable them in Settings > Plugins.': '{} nuevos plugins disponibles. Actívalos en Ajustes > Plugins.'
   '{} nozzle sensor fault': '{}: fallo del sensor de boquilla'
   '{} of {} points': '{} de {} puntos'
+  "{} of {} steps didn't finish": "{} de {} pasos no terminaron"
   '{} of {} steps finished. Review them, then save them all at once.': '{} de {} pasos terminados. Revísalos y luego guárdalos todos a la vez.'
   '{} packages to update': '{} paquetes por actualizar'
   '{} preset': '{} preajuste'
