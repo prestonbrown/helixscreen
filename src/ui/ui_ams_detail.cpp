@@ -1170,6 +1170,86 @@ BufferBoxState ams_detail_buffer_box(const AmsSystemInfo& info, int unit_index) 
     return box;
 }
 
+bool clear_slot_spool(int slot) {
+    // This function is public and takes a raw slot index, so the bypass sentinel
+    // reaches it. The external spool is not one of the backend's lanes: it carries
+    // no number to name, apply_user_edit() refuses the index, and a printer with no
+    // filament system has one too, so it clears through its own store first.
+    if (slot == kExternalSpoolSlot) {
+        AmsState::instance().commit_external_spool_edit(SlotInfo{});
+        NOTIFY_INFO(lv_tr("External spool cleared"));
+        return true;
+    }
+    auto* backend = AmsState::instance().get_backend();
+    if (!backend) {
+        NOTIFY_WARNING(lv_tr("Multi-Filament System not available"));
+        return false;
+    }
+    // The menu greys its Clear button for this case, but this function is
+    // public and its callers can hold a menu built before the print
+    // started, so the guard here is the authority: the lane a job is
+    // drawing from is the lane whose material and colour the print's own
+    // surfaces are displaying (prestonbrown/helixscreen#1661).
+    if (helix::ui::clear_spool_blocked_by_print(
+            get_printer_state().print_state().get_print_lifecycle(),
+            backend->slot_is_actively_loaded(slot))) {
+        NOTIFY_WARNING("{}", helix::ui::clear_spool_blocked_hint(backend->lane_noun(), slot));
+        return false;
+    }
+    // The menu greys Clear with this reason; a caller holding an older
+    // menu is refused here, quietly, since the reason is already shown.
+    if (const std::string refusal = backend->clear_spool_refusal(slot); !refusal.empty()) {
+        spdlog::info("[AMS] Clear of slot {} refused: {}", slot, refusal);
+        return false;
+    }
+
+    // Clear spool assignment: reset material/color/spool data, keep slot status.
+    // Routed through AmsState::commit_slot_edit so the Spoolman server's
+    // active spool and the identity cache clear too: a spool left active
+    // server-side is re-asserted into the UI on the next start. The
+    // PRE-WIPE info is passed as `original` because the commit's unlink
+    // arm keys off original.spoolman_id.
+    SlotInfo original = backend->get_slot_info(slot);
+    SlotInfo cleared = original;
+    cleared.material.clear();
+    cleared.color_rgb = kAmsDefaultSlotColor;
+    cleared.color_name.clear();
+    cleared.multi_color_hexes.clear();
+    cleared.color_mode.clear();
+    cleared.brand.clear();
+    // The catalog pick names a product of the material cleared above.
+    cleared.catalog_id.clear();
+    cleared.product_name.clear();
+    // Drops spoolman_id AND the filament/vendor handles: left behind,
+    // they feed a later repoint comparison against a spool this lane is
+    // no longer linked to.
+    cleared.clear_spoolman_link();
+    cleared.remaining_weight_g = -1;
+    cleared.total_weight_g = -1;
+    auto error = AmsState::instance().commit_slot_edit(slot, original, cleared);
+    if (error.success() || error.partially_applied) {
+        helix::ui::offer_edit_follow_up(slot, original, cleared);
+        // The commit clears what an edit can state - and, unlinked, a
+        // colour pick, a typed weight or a colour name never engages as a
+        // clear, so the statement leaves the lane's standing user record
+        // holding them. Dropping that record whole is what makes the live
+        // lane read what a restart would show (prestonbrown/helixscreen#1661).
+        // A partial commit has already written HelixScreen's own layer and
+        // its message says so, so the record drops for it too.
+        // clear_slot_override() carries no server unlink and no ToolState
+        // clear, which is why it rides behind the commit, never instead
+        // of it. Backends whose firmware keeps its own per-slot profile
+        // clear that here too.
+        backend->clear_slot_override(slot);
+    }
+    if (error.success()) {
+        NOTIFY_INFO(lv_tr("{} spool cleared"), helix::ui::lane_label(backend->lane_noun(), slot));
+    } else {
+        notify_ams_error(error, lv_tr("Clear failed"));
+    }
+    return error.success() || error.partially_applied;
+}
+
 bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
                                  lv_obj_t* path_canvas) {
     using MenuAction = AmsContextMenu::MenuAction;
@@ -1193,8 +1273,7 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
     // no number to name, apply_user_edit() refuses the index, and a printer with no
     // filament system has one too, so it clears through its own store first.
     if (action == MenuAction::CLEAR_SPOOL && slot == kExternalSpoolSlot) {
-        AmsState::instance().commit_external_spool_edit(SlotInfo{});
-        NOTIFY_INFO(lv_tr("External spool cleared"));
+        (void)clear_slot_spool(slot);
         return true;
     }
 
@@ -1267,72 +1346,9 @@ bool ams_dispatch_backend_action(AmsContextMenu::MenuAction action, int slot,
         break;
     }
 
-    case MenuAction::CLEAR_SPOOL: {
-        // The menu greys its Clear button for this case, but this function is
-        // public and its callers can hold a menu built before the print
-        // started, so the guard here is the authority: the lane a job is
-        // drawing from is the lane whose material and colour the print's own
-        // surfaces are displaying (prestonbrown/helixscreen#1661).
-        if (helix::ui::clear_spool_blocked_by_print(
-                get_printer_state().print_state().get_print_lifecycle(),
-                backend->slot_is_actively_loaded(slot))) {
-            NOTIFY_WARNING("{}", helix::ui::clear_spool_blocked_hint(backend->lane_noun(), slot));
-            break;
-        }
-        // The menu greys Clear with this reason; a caller holding an older
-        // menu is refused here, quietly, since the reason is already shown.
-        if (const std::string refusal = backend->clear_spool_refusal(slot); !refusal.empty()) {
-            spdlog::info("[AMS] Clear of slot {} refused: {}", slot, refusal);
-            break;
-        }
-
-        // Clear spool assignment: reset material/color/spool data, keep slot status.
-        // Routed through AmsState::commit_slot_edit so the Spoolman server's
-        // active spool and the identity cache clear too: a spool left active
-        // server-side is re-asserted into the UI on the next start. The
-        // PRE-WIPE info is passed as `original` because the commit's unlink
-        // arm keys off original.spoolman_id.
-        SlotInfo original = backend->get_slot_info(slot);
-        SlotInfo cleared = original;
-        cleared.material.clear();
-        cleared.color_rgb = kAmsDefaultSlotColor;
-        cleared.color_name.clear();
-        cleared.multi_color_hexes.clear();
-        cleared.color_mode.clear();
-        cleared.brand.clear();
-        // The catalog pick names a product of the material cleared above.
-        cleared.catalog_id.clear();
-        cleared.product_name.clear();
-        // Drops spoolman_id AND the filament/vendor handles: left behind,
-        // they feed a later repoint comparison against a spool this lane is
-        // no longer linked to.
-        cleared.clear_spoolman_link();
-        cleared.remaining_weight_g = -1;
-        cleared.total_weight_g = -1;
-        auto error = AmsState::instance().commit_slot_edit(slot, original, cleared);
-        if (error.success() || error.partially_applied) {
-            helix::ui::offer_edit_follow_up(slot, original, cleared);
-            // The commit clears what an edit can state - and, unlinked, a
-            // colour pick, a typed weight or a colour name never engages as a
-            // clear, so the statement leaves the lane's standing user record
-            // holding them. Dropping that record whole is what makes the live
-            // lane read what a restart would show (prestonbrown/helixscreen#1661).
-            // A partial commit has already written HelixScreen's own layer and
-            // its message says so, so the record drops for it too.
-            // clear_slot_override() carries no server unlink and no ToolState
-            // clear, which is why it rides behind the commit, never instead
-            // of it. Backends whose firmware keeps its own per-slot profile
-            // clear that here too.
-            backend->clear_slot_override(slot);
-        }
-        if (error.success()) {
-            NOTIFY_INFO(lv_tr("{} spool cleared"),
-                        helix::ui::lane_label(backend->lane_noun(), slot));
-        } else {
-            notify_ams_error(error, lv_tr("Clear failed"));
-        }
+    case MenuAction::CLEAR_SPOOL:
+        (void)clear_slot_spool(slot);
         break;
-    }
 
     default:
         break; // unreachable: filtered by the guard switch above
