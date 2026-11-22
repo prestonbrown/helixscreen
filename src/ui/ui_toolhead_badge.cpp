@@ -101,12 +101,10 @@ void paint_tool_badge(lv_obj_t* badge, int tool, bool is_override) {
     if (!badge)
         return;
     set_row_label_text(badge, "tool_badge_label", tool_label(tool).c_str());
-    const ToolBadgeColors colors = tool_badge_colors(is_override);
-    // DECLARATIVE_OK: the colors follow the mapping's origin, and the text color is
-    // computed for contrast against the fill.
-    lv_obj_set_style_bg_color(badge, colors.bg, LV_PART_MAIN);
+    lv_obj_set_state(badge, LV_STATE_USER_1, is_override);
     if (lv_obj_t* label = lv_obj_find_by_name(badge, "tool_badge_label"))
-        lv_obj_set_style_text_color(label, colors.text, LV_PART_MAIN);
+        // DECLARATIVE_OK: the text color is computed for contrast against the fill
+        lv_obj_set_style_text_color(label, tool_badge_colors(is_override).text, LV_PART_MAIN);
 }
 
 ToolBadgeLook tool_badge_look(bool is_override) {

@@ -9,6 +9,7 @@
  */
 
 #include "ui_ams_mini_status.h"
+#include "ui_toolhead_badge.h"
 #include "ui_update_queue.h"
 
 #include "../lvgl_ui_test_fixture.h"
@@ -16,6 +17,7 @@
 #include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "display_numbering.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 #include "ui/ams_drawing_utils.h"
 
@@ -407,4 +409,24 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini grid: a fill tray draws one untitl
     check_no_lane_clipped(tray, helix::AmsState::instance().system_info()->total_slots);
     teardown_ams();
     theme_manager_refresh_layout_constants(disp);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "ams_tool_badge: an override wears the warning fill",
+                 "[ams_mini][grid][tool_badge]") {
+    lv_obj_t* badge =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_tool_badge", nullptr));
+    REQUIRE(badge != nullptr);
+    lv_obj_t* label = lv_obj_find_by_name(badge, "tool_badge_label");
+    REQUIRE(label != nullptr);
+
+    helix::ui::paint_tool_badge(badge, 3, false);
+    CHECK(std::string(lv_label_get_text(label)) == "T3");
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(badge, LV_PART_MAIN),
+                      theme_manager_get_color("text_muted")));
+
+    helix::ui::paint_tool_badge(badge, 3, true);
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(badge, LV_PART_MAIN),
+                      theme_manager_get_color("warning")));
+    CHECK(lv_color_eq(lv_obj_get_style_text_color(label, LV_PART_MAIN),
+                      helix::ui::tool_badge_colors(true).text));
 }
