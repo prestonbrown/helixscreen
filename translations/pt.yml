@@ -417,7 +417,7 @@ translations:
   Already connecting — wait a moment and try again: Já está conectando — aguarde um momento e tente novamente
   Already mounted: 'Já montada'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Manter esta malha também para {}? As impressões dele sem malha a carregam no início."
-  Also measure part-fan cooling: ''
+  Also measure part-fan cooling: Medir também o arrefecimento da ventoinha da peça
   Always Show Bypass Spool: Sempre Mostrar Carretel de Bypass
   Always show Android navigation bar instead of using gestures: Mostrar sempre a barra de navegação Android em vez de usar gestos
   Ambient Transfer: Transferência Ambiente
@@ -738,11 +738,11 @@ translations:
   Calibrate Y: Calibrar Y
   Calibrate All Tools: Calibrar todas as ferramentas
   Calibrate at: Calibrar a
-  Calibrate bed: ''
+  Calibrate bed: Calibrar mesa
   Calibrate heater: Calibrar aquecedor
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping para reduzir artefatos de ringing nas impressões
   Calibrate now: 'Calibrar agora'
-  Calibrate nozzle: ''
+  Calibrate nozzle: Calibrar bico
   Calibrate part fan: Calibrar ventoinha da peça
   Calibrate this printer, step by step: 'Calibre esta impressora passo a passo'
   Calibrate tool offsets?: Calibrar os offsets de ferramenta?
@@ -778,7 +778,7 @@ translations:
   Calibration may still be running — response timed out: 'A calibração pode ainda estar em execução — tempo esgotado'
   Calibration move may still be running — printer connection was interrupted: 'O movimento de calibração pode ainda estar em execução — a conexão com a impressora foi interrompida'
   Calibration request not valid: 'Pedido de calibração inválido'
-  Calibration runs at {}, about {} min: ''
+  Calibration runs at {}, about {} min: A calibração corre a {}, cerca de {} min
   Calibration saved: Calibração salva
   Calibration saved but cannot apply on SDL display: Calibração salva mas não pode ser aplicada no display SDL
   Calibration stopped: ''
@@ -875,7 +875,7 @@ translations:
   Change tool: Trocar ferramenta
   Changes apply immediately. Adjust during print for tuning.: Alterações aplicadas imediatamente. Ajuste durante a impressão para calibrar.
   Changes are temporary and reset on printer reboot: Alterações são temporárias e resetam ao reiniciar a impressora
-  Changes printer.cfg and restarts Klipper first: ''
+  Changes printer.cfg and restarts Klipper first: Primeiro altera o printer.cfg e reinicia o Klipper
   Changing filament: "Trocando filamento"
   Check AFC configuration: 'Verifique a configuração do AFC'
   Check Again: Verificar Novamente
@@ -1891,7 +1891,7 @@ translations:
   Fan available but not assigned to any role: 'Ventoinha disponível, mas sem função atribuída'
   Fan control: 'Controlo de ventoinhas'
   'Fan control failed: {}': 'Falha no controle da ventoinha: {}'
-  Fan points: ''
+  Fan points: Pontos da ventoinha
   Fan {} is not spinning: A ventoinha {} não está girando
   Fan {} stopped: A ventoinha {} parou
   FanSelect: Selecionar Ventoinha
@@ -2215,8 +2215,8 @@ translations:
   Heater not heating as expected: 'Aquecedor não aquece como esperado'
   Heater offline: Aquecedor desconectado
   Heater over-temperature: Sobretemperatura do aquecedor
-  Heater power: ''
-  Heater power needed: ''
+  Heater power: Potência do aquecedor
+  Heater power needed: É necessária a potência do aquecedor
   Heater sensor fault: Falha no sensor do aquecedor
   Heater {1} is not heating as expected: O aquecedor {1} não está aquecendo como esperado
   HeaterSelect: Selecionar Aquecedor
@@ -2290,7 +2290,7 @@ translations:
   Hold slicer prints that do not fit: 'Reter impressões do fatiador que não cabem'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Segure {} totalmente no cabeçote. A trava se fecha nela e ela passa a ser a ferramenta montada.
   Holding nozzle at {} to purge previous filament.: Mantendo o bico a {} para purgar o filamento anterior.
-  Holds temperature better when the fan changes · +3 min: ''
+  Holds temperature better when the fan changes · +3 min: Mantém melhor a temperatura quando a ventoinha muda · +3 min
   Home: Início
   Home & Continue: Fazer home e continuar
   Home All: "Posicionar tudo"
@@ -2538,7 +2538,7 @@ translations:
   Keep: 'Manter'
   Keep %s?: 'Manter %s?'
   Keep Navigation Bar: Manter barra de navegação
-  Keep PID: ''
+  Keep PID: Manter PID
   Keep Printing: Continuar Imprimindo
   Keep Spool Info on Eject: Manter Informações do Carretel ao Ejetar
   Keep clear of the printer while the toolhead is moving: Afaste-se da impressora enquanto o cabeçote se move
@@ -2593,7 +2593,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "O Klipper reserva 'default' para novas calibrações. Escolha outro nome."
   Klipper restarting - macros activating: 'Reiniciando o Klipper - ativando macros'
   Klipper restarts before calibrating.: 'O Klipper reinicia antes de calibrar.'
-  Klipper restarts, about 20 s: ''
+  Klipper restarts, about 20 s: O Klipper reinicia, cerca de 20 s
   Klipper shut down: Klipper desligou
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "O Klipper parou de informar o progresso. A análise pode ficar sem memória em impressoras pequenas e deixar o Klipper travado, onde um reinício de firmware não o alcança. Desligue e ligue a impressora (ou reinicie o Klipper via SSH) e tente novamente."
@@ -2645,7 +2645,7 @@ translations:
   Last measured: 'Última medição'
   Last print canceled: Última impressão cancelada
   Last print failed: Última impressão falhou
-  Last tuned {}: ''
+  Last tuned {}: 'Último ajuste: {}'
   Later: Depois
   Layer: Camada
   Layer 2: 'Camada 2'
@@ -3393,7 +3393,7 @@ translations:
   PETG: PETG
   PID: PID
   ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
-  : ''
+  : 'O PID corrige a temperatura depois de ela se desviar. O MPC prevê o desvio: aprende como o aquecedor, o bloco e a ventoinha movem o calor, para que o bico se mantenha estável quando a ventoinha ou o fluxo mudam.'
   PIN must be 4-6 digits: O PIN deve ter 4-6 dígitos
   PIN removed: PIN removido
   PIN set: PIN definido
@@ -3431,7 +3431,7 @@ translations:
   Part: Peça
   Part Cooling Fan: Ventoinha de Resfriamento da Peça
   Part Fan: Ventoinha da Peça
-  Part fan: ''
+  Part fan: Ventoinha da peça
   Part of the plugin failed to load. Reinstall the plugin.: "Uma parte do plugin não carregou. Reinstale o plugin."
   Part of the plugin is missing. Reinstall the plugin.: "Falta uma parte do plugin. Reinstale o plugin."
   Part, hotend, and auxiliary fan speeds: 'Velocidades das ventoinhas de peça, hotend e auxiliar'
@@ -4178,7 +4178,7 @@ translations:
   Safety & Alerts: Segurança e alertas
   Same Filament, New Spool: 'Mesmo filamento, novo carretel'
   Same filament: 'Mesmo filamento'
-  Same part-fan change, both methods: ''
+  Same part-fan change, both methods: A mesma mudança de ventoinha, ambos os métodos
   Same spool in {}? Tap Clear if it is a new one.: 'Mesmo carretel em {}? Toque em Limpar se for um novo.'
   Sample: Amostra
   Sample %d/%d: Amostra %d/%d
@@ -4623,8 +4623,8 @@ translations:
   Status: Estado
   Status icons: Ícones de status
   Stay at the printer.: ''
-  Stays on MPC: ''
-  Stays on PID: ''
+  Stays on MPC: Continua em MPC
+  Stays on PID: Continua em PID
   Std Deviation: Desvio Padrão
   Stealth: Silencioso
   Stealth is quiet, Sport is fastest: Silencioso é o mais quieto, Esportivo é o mais rápido
@@ -4686,12 +4686,12 @@ translations:
   Switch Printer: Trocar Impressora
   Switch a power device on or off: Ligar ou desligar um dispositivo
   Switch Sensors: Sensores de interruptor
-  Switch and calibrate: ''
+  Switch and calibrate: Mudar e calibrar
   Switch back to the Snapmaker screen: 'Voltar para a tela da Snapmaker'
   Switch between light and dark themes: Alternar entre temas claro e escuro
   Switch spools at each tool change: 'Trocar de carretel a cada troca de ferramenta'
   Switch the active tool or extruder: Trocar a ferramenta ou extrusor ativo
-  Switch the nozzle to MPC?: ''
+  Switch the nozzle to MPC?: Mudar o bico para MPC?
   Switch to a backup slot on runout: Trocar para um slot de reserva ao acabar o filamento
   Switch to a matching slot on runout: Trocar para um slot compatível ao acabar o filamento
   Switch to a matching spool when one runs out: 'Trocar para um carretel compatível quando um acabar'
@@ -5409,7 +5409,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Para mapear o filamento, o HelixScreen reescreve o arquivo de trabalho antes de imprimi-lo. Sem o plugin HelixPrint, a cópia reescrita é o que entra no seu histórico de impressões, então os trabalhos concluídos aparecem com nomes como modified_1730824_benchy.gcode em vez do arquivo escolhido.\n\nInstalar o plugin leva um momento e não exige reinicialização."
   To use the lanes, pull the filament out of the toolhead by hand.: "Para usar as lanes, puxe o filamento do cabeçote à mão."
-  'Today: {} · last tuned {}': ''
+  'Today: {} · last tuned {}': 'Agora: {} · último ajuste: {}'
   Toggle: Alternar
   Toggle (fire-and-forget): Alternar (sem rastreamento)
   Toggle AFC LED strip: 'Alternar a fita LED do AFC'
@@ -5751,7 +5751,7 @@ translations:
   Watch on Your Phone: 'Assistir no celular'
   Watch the camera during a print for failed prints: Observa a câmera durante a impressão para detectar impressões com falha
   Watch which motor turns: "Veja qual motor gira"
-  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: ''
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: Não conhecemos o aquecedor deste hotend. Está impresso no cartucho ou nos fios, normalmente 40 a 70 W.
   Weak battery: Bateria fraca
   Webcam: Webcam
   Website (optional): Site (opcional)
@@ -5812,8 +5812,8 @@ translations:
   Width Sensors: Sensores de largura
   Wifi: Wi-Fi
   Will not switch spools on runout: Não trocará de carretel ao acabar
-  Will switch to MPC (more stable): ''
-  Will switch to PID: ''
+  Will switch to MPC (more stable): Vai mudar para MPC (mais estável)
+  Will switch to PID: Vai mudar para PID
   Wipe each rail or rod clean with a lint-free cloth.: "Limpe cada trilho ou varão com pano sem fiapos."
   Wipe nozzle on silicone cleaning strip: 'Limpar o bico na tira de limpeza de silicone'
   With exhaust cooling on, the recirculation fan cannot be turned on: 'Com o arrefecimento por exaustão ativo, a ventoinha de recirculação não pode ser ligada'
@@ -5864,7 +5864,7 @@ translations:
   You have unsaved changes. Discard them?: Você tem alterações não salvas. Descartar?
   You, about {} min: 'Você, cerca de {} min'
   'You: about {} min at the start, then it runs on its own': 'Você: cerca de {} min no início, depois roda sozinho'
-  Your PID values are kept. You can switch back here any time.: ''
+  Your PID values are kept. You can switch back here any time.: Os seus valores PID são mantidos. Pode voltar aqui a qualquer momento.
   Your completed prints will appear here: Suas impressões concluídas aparecerão aqui
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'Seu arquivo pede paredes externas a {0:.0f} mm/s. Esta impressora vibrou mais a {1:.0f}-{2:.0f} mm/s na última Verificação de artefatos verticais, o que pode imprimir finas linhas verticais nas paredes ao longo de X ou Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
@@ -5941,7 +5941,7 @@ translations:
   accelerometer: ''
   all done: ''
   already loaded: 'já carregado'
-  and the heater power: ''
+  and the heater power: e a potência do aquecedor
   assign without adding to Spoolman: atribuir sem adicionar ao Spoolman
   attempt {}: 'tentativa {}'
   auto: auto
@@ -5956,7 +5956,7 @@ translations:
   'close: {}': 'próximo: {}'
   color differs: 'cor diferente'
   complete: concluído
-  'control: mpc': ''
+  'control: mpc': 'control: mpc'
   cores: núcleos
   cycle {}: ciclo {}
   cycle {}, {:.2f} (needs {:.2f}): ciclo {}, {:.2f} (meta {:.2f})
@@ -5987,11 +5987,11 @@ translations:
   feeder error: 'erro do alimentador'
   feeder not in automatic mode: 'alimentador não está em modo automático'
   filament sensor disabled: 'sensor de filamento desativado'
-  gets: ''
+  gets: recebe
   heated bed: mesa aquecida
   heats: 'aquece'
   heats bed to {}°: aquece a mesa a {}°
-  heats to {}: ''
+  heats to {}: aquece a {}
   heats to {}°: aquece a {}°
   heats bed: ''
   heats nozzle: ''
@@ -6021,14 +6021,14 @@ translations:
   matched: equilibradas
   material differs: 'material diferente'
   measured {}: medido {}
-  'method: {}': ''
+  'method: {}': 'método: {}'
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: mm antes da obstrução
   needs: precisa
   needs approval: requer aprovação
   needs you: 'precisa de você'
-  never: ''
+  never: nunca
   never sleeps: nunca dorme
   no heat: sem aquecer
   no restart: ''
@@ -6055,7 +6055,7 @@ translations:
   plate must be clear: a placa deve estar livre
   preparing: preparando
   printer default: padrão da impressora
-  printer.cfg: ''
+  printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carrega mais de {} arquivos de configuração; [{}] não foi procurado em todos"
   prints: impressões
   range {:.3f} mm: faixa {:.3f} mm

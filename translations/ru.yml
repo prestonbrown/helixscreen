@@ -465,7 +465,7 @@ translations:
   Already connecting — wait a moment and try again: Подключение уже выполняется — подождите и попробуйте снова
   Already mounted: 'Уже установлен'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "Сохранить эту сетку и для {}? Его печати без построения сетки загрузят её при старте."
-  Also measure part-fan cooling: ''
+  Also measure part-fan cooling: Также измерить охлаждение вент. детали
   Always Show Bypass Spool: Всегда показывать катушку байпаса
   Always show Android navigation bar instead of using gestures: Всегда показывать панель навигации Android вместо жестов
   Ambient Transfer: Теплообмен с окружающей средой
@@ -794,11 +794,11 @@ translations:
   Calibrate Y: Калибровать Y
   Calibrate All Tools: Калибровать все инструменты
   Calibrate at: Калибровать при
-  Calibrate bed: ''
+  Calibrate bed: Калибровать стол
   Calibrate heater: Калибровать нагреватель
   Calibrate input shaping to reduce ringing artifacts in prints: Калибровка компенсации вибраций для уменьшения артефактов звона
   Calibrate now: 'Откалибровать'
-  Calibrate nozzle: ''
+  Calibrate nozzle: Калибровать сопло
   Calibrate part fan: Калибровать обдув модели
   Calibrate this printer, step by step: 'Пошаговая калибровка принтера'
   Calibrate tool offsets?: Калибровать смещения инструментов?
@@ -834,7 +834,7 @@ translations:
   Calibration may still be running — response timed out: 'Калибровка может ещё выполняться — время ожидания истекло'
   Calibration move may still be running — printer connection was interrupted: 'Движение калибровки может ещё выполняться — соединение с принтером прервано'
   Calibration request not valid: 'Недопустимый запрос калибровки'
-  Calibration runs at {}, about {} min: ''
+  Calibration runs at {}, about {} min: Калибровка при {}, около {} мин
   Calibration saved: Калибровка сохранена
   Calibration saved but cannot apply on SDL display: Калибровка сохранена, но не может быть применена на SDL дисплее
   Calibration stopped: ''
@@ -931,7 +931,7 @@ translations:
   Change tool: Сменить инструмент
   Changes apply immediately. Adjust during print for tuning.: Изменения применяются немедленно. Корректируйте во время печати.
   Changes are temporary and reset on printer reboot: Изменения временные и сбрасываются при перезагрузке принтера
-  Changes printer.cfg and restarts Klipper first: ''
+  Changes printer.cfg and restarts Klipper first: Сначала изменяет printer.cfg и перезапускает Klipper
   Changing filament: "Смена филамента"
   Check AFC configuration: 'Проверьте конфигурацию AFC'
   Check Again: Проверить снова
@@ -1951,7 +1951,7 @@ translations:
   Fan available but not assigned to any role: 'Вентилятор доступен, но не назначен ни на одну роль'
   Fan control: 'Управление вентиляторами'
   'Fan control failed: {}': 'Ошибка управления вентилятором: {}'
-  Fan points: ''
+  Fan points: Точки вентилятора
   Fan {} is not spinning: Вентилятор {} не вращается
   Fan {} stopped: Вентилятор {} остановился
   FanSelect: Выбрать вентилятор
@@ -2279,8 +2279,8 @@ translations:
   Heater not heating as expected: 'Нагреватель греет не так, как ожидалось'
   Heater offline: Нагреватель отключён
   Heater over-temperature: Перегрев нагревателя
-  Heater power: ''
-  Heater power needed: ''
+  Heater power: Мощность нагревателя
+  Heater power needed: Нужна мощность нагревателя
   Heater sensor fault: Неисправность датчика нагревателя
   Heater {1} is not heating as expected: Нагреватель {1} греет не так, как ожидалось
   HeaterSelect: Выбрать нагреватель
@@ -2354,7 +2354,7 @@ translations:
   Hold slicer prints that do not fit: 'Задерживать печать из слайсера, если файл не подходит'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: Удерживайте {} плотно на головке. Защелка зафиксирует его, и он станет установленным инструментом.
   Holding nozzle at {} to purge previous filament.: Удержание сопла при {} для очистки от предыдущего филамента.
-  Holds temperature better when the fan changes · +3 min: ''
+  Holds temperature better when the fan changes · +3 min: Лучше держит температуру при смене оборотов вентилятора · +3 мин
   Home: Главная
   Home & Continue: Запарковать и продолжить
   Home All: "Парковка всех осей"
@@ -2602,7 +2602,7 @@ translations:
   Keep: 'Оставить'
   Keep %s?: 'Оставить %s?'
   Keep Navigation Bar: Сохранить панель навигации
-  Keep PID: ''
+  Keep PID: Оставить PID
   Keep Printing: Продолжить печать
   Keep Spool Info on Eject: Сохранять данные катушки при извлечении
   Keep clear of the printer while the toolhead is moving: Не приближайтесь к принтеру, пока перемещается печатающая головка
@@ -2657,7 +2657,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper резервирует 'default' для новых калибровок. Выберите другое имя."
   Klipper restarting - macros activating: 'Перезапуск Klipper - активация макросов'
   Klipper restarts before calibrating.: 'Klipper перезапустится перед калибровкой.'
-  Klipper restarts, about 20 s: ''
+  Klipper restarts, about 20 s: Klipper перезапускается, около 20 с
   Klipper shut down: Klipper остановлен
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."
@@ -2709,7 +2709,7 @@ translations:
   Last measured: 'Последний замер'
   Last print canceled: Последняя печать отменена
   Last print failed: Последняя печать не удалась
-  Last tuned {}: ''
+  Last tuned {}: 'Последняя настройка: {}'
   Later: Позже
   Layer: Слой
   Layer 2: 'Слой 2'
@@ -3457,7 +3457,7 @@ translations:
   PETG: PETG
   PID: PID
   ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
-  : ''
+  : 'PID исправляет температуру после того, как она ушла. MPC предсказывает уход: он изучает, как нагреватель, блок и вентилятор переносят тепло, поэтому сопло держит температуру при смене вентилятора или потока.'
   PIN must be 4-6 digits: PIN должен содержать 4-6 цифр
   PIN removed: PIN удалён
   PIN set: PIN установлен
@@ -3495,7 +3495,7 @@ translations:
   Part: Деталь
   Part Cooling Fan: Вентилятор охлаждения детали
   Part Fan: Вент. детали
-  Part fan: ''
+  Part fan: Вент. детали
   Part of the plugin failed to load. Reinstall the plugin.: "Часть плагина не загрузилась. Переустановите плагин."
   Part of the plugin is missing. Reinstall the plugin.: "Часть плагина отсутствует. Переустановите плагин."
   Part, hotend, and auxiliary fan speeds: 'Скорости вентиляторов обдува, хотэнда и дополнительного'
@@ -4258,7 +4258,7 @@ translations:
   Safety & Alerts: Безопасность и оповещения
   Same Filament, New Spool: 'Тот же филамент, новая катушка'
   Same filament: 'Тот же филамент'
-  Same part-fan change, both methods: ''
+  Same part-fan change, both methods: Одно и то же изменение вентилятора, оба метода
   Same spool in {}? Tap Clear if it is a new one.: 'Та же катушка в {}? Нажмите «Очистить», если это новая.'
   Sample: Образец
   Sample %d/%d: Образец %d/%d
@@ -4711,8 +4711,8 @@ translations:
   Status: Статус
   Status icons: Иконки статуса
   Stay at the printer.: ''
-  Stays on MPC: ''
-  Stays on PID: ''
+  Stays on MPC: Остаётся на MPC
+  Stays on PID: Остаётся на PID
   Std Deviation: Станд. отклонение
   Stealth: Тихий
   Stealth is quiet, Sport is fastest: Тихий самый тихий, Спорт самый быстрый
@@ -4774,12 +4774,12 @@ translations:
   Switch Printer: Переключить принтер
   Switch a power device on or off: Включить или выключить питание
   Switch Sensors: Датчики-переключатели
-  Switch and calibrate: ''
+  Switch and calibrate: Переключить и калибровать
   Switch back to the Snapmaker screen: 'Вернуться к экрану Snapmaker'
   Switch between light and dark themes: Переключение между светлой и тёмной темами
   Switch spools at each tool change: 'Переключать катушку при каждой смене инструмента'
   Switch the active tool or extruder: Смена активного инструмента
-  Switch the nozzle to MPC?: ''
+  Switch the nozzle to MPC?: Перевести сопло на MPC?
   Switch to a backup slot on runout: Переключаться на резервный слот при окончании филамента
   Switch to a matching slot on runout: Переключаться на подходящий слот при окончании филамента
   Switch to a matching spool when one runs out: 'Переключаться на подходящую катушку, когда одна закончится'
@@ -5497,7 +5497,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "Чтобы сопоставить филамент, HelixScreen переписывает файл задания перед печатью. Без плагина HelixPrint в историю печати попадает изменённая копия, поэтому выполненные задания отображаются под именами вроде modified_1730824_benchy.gcode вместо выбранного файла.\n\nУстановка плагина занимает немного времени и не требует перезапуска."
   To use the lanes, pull the filament out of the toolhead by hand.: "Чтобы использовать каналы, вытяните филамент из печатающей головки вручную."
-  'Today: {} · last tuned {}': ''
+  'Today: {} · last tuned {}': 'Сейчас: {} · последняя настройка: {}'
   Toggle: Переключить
   Toggle (fire-and-forget): Переключение (без отслеживания)
   Toggle AFC LED strip: 'Переключить LED-ленту AFC'
@@ -5839,7 +5839,7 @@ translations:
   Watch on Your Phone: 'Смотреть на телефоне'
   Watch the camera during a print for failed prints: Следит за камерой во время печати, выявляя неудачные печати
   Watch which motor turns: "Смотрите, какой двигатель вращается"
-  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: ''
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: Нагреватель этого хотэнда неизвестен. Мощность указана на картридже или его проводах, обычно 40–70 Вт.
   Weak battery: Слабый заряд
   Webcam: Веб-камера
   Website (optional): Веб-сайт (необязательно)
@@ -5900,8 +5900,8 @@ translations:
   Width Sensors: Датчики ширины
   Wifi: Wi-Fi
   Will not switch spools on runout: При обрыве катушка не переключится
-  Will switch to MPC (more stable): ''
-  Will switch to PID: ''
+  Will switch to MPC (more stable): Будет переведено на MPC (стабильнее)
+  Will switch to PID: Будет переведено на PID
   Wipe each rail or rod clean with a lint-free cloth.: "Протрите каждый рельс или вал безворсовой тканью."
   Wipe nozzle on silicone cleaning strip: 'Очистить сопло о силиконовую полоску'
   With exhaust cooling on, the recirculation fan cannot be turned on: 'При охлаждении вытяжкой вентилятор рециркуляции включить нельзя'
@@ -5952,7 +5952,7 @@ translations:
   You have unsaved changes. Discard them?: У вас есть несохранённые изменения. Отменить их?
   You, about {} min: 'Вы, около {} мин'
   'You: about {} min at the start, then it runs on its own': 'Вы: около {} мин в начале, затем всё идёт само'
-  Your PID values are kept. You can switch back here any time.: ''
+  Your PID values are kept. You can switch back here any time.: Ваши значения PID сохраняются. Вернуться можно здесь в любой момент.
   Your completed prints will appear here: Ваши завершённые печати появятся здесь
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : 'В файле внешние стенки печатаются на {0:.0f} mm/s. При последней проверке вертикальных артефактов этот принтер сильнее всего трясло на {1:.0f}-{2:.0f} mm/s, что может оставлять тонкие вертикальные линии на стенках вдоль X или Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
@@ -6029,7 +6029,7 @@ translations:
   accelerometer: ''
   all done: ''
   already loaded: 'уже загружен'
-  and the heater power: ''
+  and the heater power: и мощность нагревателя
   assign without adding to Spoolman: назначить без добавления в Spoolman
   attempt {}: 'попытка {}'
   auto: авто
@@ -6044,7 +6044,7 @@ translations:
   'close: {}': 'похоже: {}'
   color differs: 'другой цвет'
   complete: завершено
-  'control: mpc': ''
+  'control: mpc': 'control: mpc'
   cores: ядер
   cycle {}: цикл {}
   cycle {}, {:.2f} (needs {:.2f}): цикл {}, {:.2f} (цель {:.2f})
@@ -6079,11 +6079,11 @@ translations:
   feeder error: 'ошибка фидера'
   feeder not in automatic mode: 'фидер не в автоматическом режиме'
   filament sensor disabled: 'датчик филамента отключён'
-  gets: ''
+  gets: получает
   heated bed: подогреваемый стол
   heats: 'нагрев'
   heats bed to {}°: нагрев стола до {}°
-  heats to {}: ''
+  heats to {}: нагрев до {}
   heats to {}°: нагрев до {}°
   heats bed: ''
   heats nozzle: ''
@@ -6113,14 +6113,14 @@ translations:
   matched: совпадают
   material differs: 'другой материал'
   measured {}: измерено {}
-  'method: {}': ''
+  'method: {}': 'метод: {}'
   mm: мм
   mm Z-offset: мм Z-смещение
   mm before clog: мм до засора
   needs: требуется
   needs approval: требует подтверждения
   needs you: 'нужны вы'
-  never: ''
+  never: никогда
   never sleeps: никогда не спит
   no heat: без нагрева
   no restart: ''
@@ -6147,7 +6147,7 @@ translations:
   plate must be clear: пластина должна быть пустой
   preparing: подготовка
   printer default: по умолчанию для принтера
-  printer.cfg: ''
+  printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
   prints: печатей
   range {:.3f} mm: диапазон {:.3f} мм

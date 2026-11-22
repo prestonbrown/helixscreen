@@ -69,12 +69,14 @@ std::string read_disabled_cond(const std::string& xml_path) {
     if (actions != std::string::npos) {
         return value_in("<bind_state_if cond=\"", actions, src.find("-actions>", actions + 1));
     }
-    // A screen on the calibration intro frame names its footer primary btn_start
-    // and gates it through the frame's disabled_cond.
+    // A screen on the calibration intro frame names its footer primary btn_start.
+    // The wizard footer composes the screen's primary_disabled_cond with the
+    // connection gate (pinned by the footer case below), so this is what it binds.
     const size_t framed = src.find("primary_name=\"btn_start\"");
     if (framed != std::string::npos) {
         const size_t open = src.rfind('<', framed);
-        return value_in("disabled_cond=\"", open, src.find('>', framed));
+        const std::string own = value_in("primary_disabled_cond=\"", open, src.find('>', framed));
+        return "nav_buttons_enabled eq 0 or (" + (own.empty() ? std::string("0") : own) + ")";
     }
     // A screen whose primary action sits in its own footer names it btn_start.
     const size_t start = src.find("name=\"btn_start\"");

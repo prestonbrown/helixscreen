@@ -44,7 +44,8 @@
                            right_label_tag="Calibrate at" secondary_name="btn_advanced" secondary_text="Advanced"
                            secondary_tag="Advanced" secondary_callback="on_pid_advanced" primary_name="btn_start"
                            primary_bind_text="pid_cta_text" primary_callback="on_pid_start"
-                           status_subject="pid_restart_note" status_color="#warning">
+                           primary_disabled_cond="pid_cal_not_idle eq 1" status_subject="pid_restart_note"
+                           status_color="#warning">
           <!-- What is calibrated, and what it runs today -->
           <lv_obj name="btn_heater_extruder"
                   width="100%" height="content" style_radius="#border_radius" style_border_width="2"
@@ -183,7 +184,8 @@
                            secondary_name="btn_keep_pid" secondary_text="Keep PID" secondary_tag="Keep PID"
                            secondary_callback="on_pid_keep_pid" primary_name="btn_switch_mpc"
                            primary_text="Switch and calibrate" primary_tag="Switch and calibrate"
-                           primary_callback="on_pid_switch_mpc" primary_disabled_cond="cal_switch_ready eq 0">
+                           primary_callback="on_pid_switch_mpc"
+                           primary_disabled_cond="cal_switch_ready eq 0 or pid_cal_not_idle eq 1">
           <!-- What MPC is, and the same fan change under both methods -->
           <text_small width="100%"
                       text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."
