@@ -132,7 +132,7 @@ make PLATFORM_TARGET=k1-dynamic -j   # Dynamic (glibc)
 | Toolchain | Bootlin mips32el-musl-stable-2024.02-1 |
 | Architecture | MIPS32r2 (little-endian, hard-float) |
 | Linking | Fully static (musl) |
-| Optimization | `-Os` with LTO (size-optimized) |
+| Optimization | `-O2` with LTO |
 | Display backend | fbdev (`/dev/fb0`) |
 | SSL | Enabled (static OpenSSL) |
 | Platform define | `HELIX_PLATFORM_MIPS` |
