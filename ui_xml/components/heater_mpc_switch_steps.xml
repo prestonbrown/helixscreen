@@ -6,15 +6,15 @@
      or in place of the response sketch at 480x272. -->
 <component>
   <styles>
-    <style name="code" text_font="#cal_intro_font_mono" text_color="#text"/>
+    <style name="code" text_font="#cal_font_mono" text_color="#text"/>
   </styles>
   <view extends="lv_obj"
         width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
         style_pad_gap="#space_sm" scrollable="false">
     <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-      <text_small text="1" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+      <text_small text="1" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
       <lv_spangroup width="1"
-                    height="content" flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted">
+                    height="content" flex_grow="1" style_text_font="#cal_font_subtitle" style_text_color="#text_muted">
         <lv_spangroup-span text="printer.cfg" style="code"/>
         <lv_spangroup-span bind_text="cal_switch_step_gets"/>
         <lv_spangroup-span text="control: mpc" style="code"/>
@@ -22,22 +22,22 @@
       </lv_spangroup>
     </lv_obj>
     <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-      <text_small text="2" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+      <text_small text="2" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
       <text_small width="0"
-                  flex_grow="1" text="Klipper restarts, about 20 s" style_text_font="#cal_intro_font_desc"
+                  flex_grow="1" text="Klipper restarts, about 20 s" style_text_font="#cal_font_subtitle"
                   style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
     <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-      <text_small text="3" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+      <text_small text="3" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
       <text_small width="0"
-                  flex_grow="1" bind_text="cal_switch_run_text" style_text_font="#cal_intro_font_desc"
+                  flex_grow="1" bind_text="cal_switch_run_text" style_text_font="#cal_font_subtitle"
                   style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
     <lv_obj width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-      <text_small text="4" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+      <text_small text="4" style_text_font="#cal_font_subtitle" style_text_color="#secondary"/>
       <text_small width="0"
                   flex_grow="1" text="Your PID values are kept. You can switch back here any time."
-                  style_text_font="#cal_intro_font_desc" style_text_color="#text_muted" long_mode="wrap"/>
+                  style_text_font="#cal_font_subtitle" style_text_color="#text_muted" long_mode="wrap"/>
     </lv_obj>
   </view>
 </component>
