@@ -47,6 +47,8 @@ inline const std::vector<MeasuredGrid> kMeasuredGrids = {
     {"micro 320x240",            320,  240,   270,  232,   2,    8,  6},
     {"xxlarge portrait 1080x1920", 1080, 1920, 1056, 1756, 12,   14, 24},
     {"xxlarge portrait 1080x2400", 1080, 2400, 1056, 2236, 12,   14, 32},
+    {"ultrawide 1920x480",      1920,  480,  1830,  466,   5,   30,  8},
+    {"ultrawide 2560x720",      2560,  720,  2464,  700,  10,   34, 10},
 };
 // clang-format on
 
