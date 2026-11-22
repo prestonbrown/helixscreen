@@ -56,6 +56,7 @@ translations:
   '%zu events queued': '%zu events queued'
   '%zu plugins failed to load': '%zu plugins failed to load'
   "Auto Belt Tension": "Auto Belt Tension"
+  Both axes: Both axes
   "Both belts": "Both belts"
   "Cutter Calibration": "Cutter Calibration"
   "Find the filament cutter's position": "Find the filament cutter's position"
@@ -209,6 +210,7 @@ translations:
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.
   A home-origin calibration point failed or stayed unstable.: A home-origin calibration point failed or stayed unstable.
+  A hot bed changes shape. Probe at the temperature you print at.: A hot bed changes shape. Probe at the temperature you print at.
   A left, B right: A left, B right
   A load was asked for while the toolhead holds filament the Box has no record of.: A load was asked for while the toolhead holds filament the Box has no record of.
   A lower, B upper: A lower, B upper
@@ -275,6 +277,7 @@ translations:
   ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   : A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   ABS: ABS
+  ABS / ASA: ABS / ASA
   ACCELEROMETERS: ACCELEROMETERS
   'ACCEPT failed: {}': 'ACCEPT failed: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: ACE Moonraker bridge not found. Install ace_status.py for full support.
@@ -322,6 +325,7 @@ translations:
   Accelerometer communication failed. Try again.: Accelerometer communication failed. Try again.
   Accelerometer not connected: Accelerometer not connected
   Accelerometer not responding: Accelerometer not responding
+  Accelerometer ready: Accelerometer ready
   Accelerometers: Accelerometers
   Accept: Accept
   'Accepted Z Position: 0.000': 'Accepted Z Position: 0.000'
@@ -728,6 +732,7 @@ translations:
   Calibrate X: Calibrate X
   Calibrate Y: Calibrate Y
   Calibrate All Tools: Calibrate All Tools
+  Calibrate at: Calibrate at
   Calibrate heater: Calibrate heater
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrate input shaping to reduce ringing artifacts in prints
   Calibrate now: Calibrate now
@@ -1050,6 +1055,7 @@ translations:
   Coaxial: Coaxial
   Code: Code
   Coil Temperature: Coil Temperature
+  Cold: Cold
   Cold Pull: Cold Pull
   Cold pull cancelled: Cold pull cancelled
   Cold pull finished: Cold pull finished
@@ -1069,6 +1075,7 @@ translations:
   Communication Test: Communication Test
   Compact: Compact
   Compare belt paths with a resonance sweep: Compare belt paths with a resonance sweep
+  Compare belts: Compare belts
   Compare your belt paths: Compare your belt paths
   ? Compares the two belt paths of a CoreXY printer with the accelerometer, so you can even out their tension. Run it on the Belt Tension screen.
   : Compares the two belt paths of a CoreXY printer with the accelerometer, so you can even out their tension. Run it on the Belt Tension screen.
@@ -1124,6 +1131,7 @@ translations:
   Connect: Connect
   Connect a USB label printer first: Connect a USB label printer first
   Connect an ADXL345 accelerometer to calibrate: Connect an ADXL345 accelerometer to calibrate
+  Connect one (ADXL345 or similar) to measure: Connect one (ADXL345 or similar) to measure
   Connect to servers on your network and the internet.: Connect to servers on your network and the internet.
   'Connect to your printer via SSH and run:': 'Connect to your printer via SSH and run:'
   Connected: Connected
@@ -1947,6 +1955,7 @@ translations:
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.
   Filament never reached the CFS hub sensor: Filament never reached the CFS hub sensor
   Filament not identified: Filament not identified
+  Filament not known: Filament not known
   Filament not set: Filament not set
   Filament operation failed: Filament operation failed
   Filament operation timed out: Filament operation timed out
@@ -2152,6 +2161,7 @@ translations:
   Heat soak: Heat soak
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
+  Heat the bed first: Heat the bed first
   Heat the bed to {}: Heat the bed to {}
   Heat the chamber too: Heat the chamber too
   Heat the extruder to at least {} before loading filament: Heat the extruder to at least {} before loading filament
@@ -2211,6 +2221,7 @@ translations:
   Heating...: Heating...
   'Heating: %d / %s': 'Heating: %d / %s'
   Heats the bed to {}, above this printer's {} limit.: Heats the bed to {}, above this printer's {} limit.
+  Heats the nozzle and extrudes short test lines in a corner of the plate: Heats the nozzle and extrudes short test lines in a corner of the plate
   Heats the nozzle to {}, above this printer's {} limit.: Heats the nozzle to {}, above this printer's {} limit.
   Heightmap and flatness of the active bed mesh: Heightmap and flatness of the active bed mesh
   HelixPrint Plugin: HelixPrint Plugin
@@ -2586,6 +2597,8 @@ translations:
   Last 24 hours: Last 24 hours
   Last 30 days: Last 30 days
   Last 7 days: Last 7 days
+  Last check {}: Last check {}
+  Last check {} · {}: Last check {} · {}
   Last done at {} h: Last done at {} h
   'Last held: {}': 'Last held: {}'
   Last measured: Last measured
@@ -2676,6 +2689,7 @@ translations:
   Load...: Load...
   Loaded: Loaded
   Loaded filament not recognized: Loaded filament not recognized
+  Loaded from T{}: Loaded from T{}
   Loading: Loading
   Loading Bed Mesh...: Loading Bed Mesh...
   Loading Error: Loading Error
@@ -2841,7 +2855,9 @@ translations:
   Measure (~{} min): Measure (~{} min)
   Measure each toolhead's X, Y and Z offset (about 20 minutes): Measure each toolhead's X, Y and Z offset (about 20 minutes)
   Measure every tool's XYZ offset automatically: Measure every tool's XYZ offset automatically
+  Measure pressure advance: Measure pressure advance
   Measure pressure advance automatically: Measure pressure advance automatically
+  Measure resonances: Measure resonances
   Measure the tension with the Belt Tension tool, or as your manual shows.: Measure the tension with the Belt Tension tool, or as your manual shows.
   Measure this zone first: Measure this zone first
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
@@ -2852,7 +2868,9 @@ translations:
   Measured from the printer's file list: Measured from the printer's file list
   Measured offsets, read-only: Measured offsets, read-only
   Measured pressure advance: Measured pressure advance
+  Measured {} · reduces ringing and ghosting: Measured {} · reduces ringing and ghosting
   Measurement incomplete. Try again.: Measurement incomplete. Try again.
+  Measures each line itself, repeating until the readings agree: Measures each line itself, repeating until the readings agree
   Measures each toolhead's X, Y and Z offset so every head prints in the same place. Takes about 20 minutes.: Measures each toolhead's X, Y and Z offset so every head prints in the same place. Takes about 20 minutes.
   Measures the bed at each adjustment screw and says how far to turn it. Run it on the Screws Tilt screen.: Measures the bed at each adjustment screw and says how far to turn it. Run it on the Screws Tilt screen.
   Measures vibration for input shaping. Run resonance tests on the Input Shaper screen.: Measures vibration for input shaping. Run resonance tests on the Input Shaper screen.
@@ -3024,6 +3042,7 @@ translations:
   No Spools: No Spools
   No USB printer detected: No USB printer detected
   No USB printers found: No USB printers found
+  No accelerometer: No accelerometer
   No actions right now: No actions right now
   No active Spoolman spool.: No active Spoolman spool.
   No answer from the printer; it may still be calibrating: No answer from the printer; it may still be calibrating
@@ -3058,6 +3077,7 @@ translations:
   No hub configured: No hub configured
   No humidity sensor detected: No humidity sensor detected
   No images found on USB drive: No images found on USB drive
+  No input shaper in printer.cfg yet: No input shaper in printer.cfg yet
   No jobs in queue: No jobs in queue
   No lane holds filament, so none can be pulled back. Clearing cuts the filament in the extruder and withdraws it.: No lane holds filament, so none can be pulled back. Clearing cuts the filament in the extruder and withdraws it.
   No macro devices configured: No macro devices configured
@@ -3143,6 +3163,7 @@ translations:
   Not available now: Not available now
   Not available on Android: Not available on Android
   Not calibrated: Not calibrated
+  Not compared yet: Not compared yet
   Not configured: Not configured
   Not connected: Not connected
   Not connected to printer: Not connected to printer
@@ -3192,6 +3213,7 @@ translations:
   Notification History: Notification History
   Notifications: Notifications
   Notify when print finishes: Notify when print finishes
+  Now: Now
   Now printing: Now printing
   Noz max: Noz max
   Noz min: Noz min
@@ -3401,6 +3423,7 @@ translations:
   Pick Color: Pick Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: Pick how HelixScreen behaves. You can change any of these later in Settings.
   Pick the best band: Pick the best band
+  Pick the material below: Pick the material below
   Pick up: Pick up
   Pick up and park each tool in turn: Pick up and park each tool in turn
   Pick up the tool, heat it, and pull the filament out: Pick up the tool, heat it, and pull the filament out
@@ -3559,6 +3582,7 @@ translations:
   Print Tuning: Print Tuning
   Print Was Terminated: Print Was Terminated
   Print a test tower and tune K by eye: Print a test tower and tune K by eye
+  Print a test tower instead: Print a test tower instead
   Print canceled: Print canceled
   'Print complete': 'Print complete'
   Print completed: Print completed
@@ -3661,6 +3685,7 @@ translations:
   Probe controls, accuracy test, and settings: Probe controls, accuracy test, and settings
   Probe readings disagree: Probe readings disagree
   Probe readings don't agree: Probe readings don't agree
+  Probe the bed: Probe the bed
   Probe triggered too early: Probe triggered too early
   Probing Bed Mesh: Probing Bed Mesh
   'Probing Bed Mesh...': 'Probing Bed Mesh...'
@@ -3830,6 +3855,7 @@ translations:
   Reduce Sensitivity: Reduce Sensitivity
   Reduce ringing and ghosting artifacts: Reduce ringing and ghosting artifacts
   Reduce vibration artifacts like ringing and ghosting: Reduce vibration artifacts like ringing and ghosting
+  Reduces ringing and ghosting: Reduces ringing and ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: Reducing the fan speed may affect filtration performance. Do you want to continue?
   Reducing the fan speed may affect print quality. Do you want to continue?: Reducing the fan speed may affect print quality. Do you want to continue?
   Refeeding filament — this may take a minute: Refeeding filament — this may take a minute
@@ -4318,7 +4344,10 @@ translations:
   Several printers match - choose yours: Several printers match - choose yours
   Shadow Intensity: Shadow Intensity
   Shake&Tune: Shake&Tune
+  ? Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.
+  : Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.
+  Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.: Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.
   Shaking the {} axis: Shaking the {} axis
   Share Screen: Share Screen
   Share Usage Data: Share Usage Data
@@ -4346,6 +4375,7 @@ translations:
   Show up/down buttons on long lists: Show up/down buttons on long lists
   Show whatever curves you last had visible on the full graph.: Show whatever curves you last had visible on the full graph.
   Showing the 50 newest files. See more in the printer's web UI.: Showing the 50 newest files. See more in the printer's web UI.
+  Shows the new K next to the old one. You choose to save it: Shows the new K next to the old one. You choose to save it
   Shut down or restart the host: Shut down or restart the host
   Shutdown: Shutdown
   Shutdown / Reboot: Shutdown / Reboot
@@ -5407,6 +5437,7 @@ translations:
   Turn the nozzle heater off first: Turn the nozzle heater off first
   Turn the picture to match how the screen is mounted. Applies after restart.: Turn the picture to match how the screen is mounted. Applies after restart.
   Turn the printer's lights on or off: Turn the printer's lights on or off
+  Two belt paths: Two belt paths
   Two configuration sections define the same command.: Two configuration sections define the same command.
   Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.
   Type: Type
@@ -5655,6 +5686,7 @@ translations:
   What fills the printer's disk, and cleanup: What fills the printer's disk, and cleanup
   What happens next: What happens next
   What happens when a print ends: What happens when a print ends
+  What it does: What it does
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.
@@ -5723,20 +5755,24 @@ translations:
   X Offset: X Offset
   X and Y jog feedrate: X and Y jog feedrate
   X and Y must be homed before precise homing.: X and Y must be homed before precise homing.
+  X axis: X axis
   X axis applied, but Y axis failed: X axis applied, but Y axis failed
   X axis done, starting Y...: X axis done, starting Y...
   X axis limit reached: X axis limit reached
   X is at its limit ({}mm): X is at its limit ({}mm)
   X motor: X motor
+  X only: X only
   'X:': 'X:'
   XY: XY
   XY axis: XY axis
   Y: Y
   Y Axis: Y Axis
   Y Offset: Y Offset
+  Y axis: Y axis
   Y axis limit reached: Y axis limit reached
   Y is at its limit ({}mm): Y is at its limit ({}mm)
   Y motor: Y motor
+  Y only: Y only
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "YOU WIN!\nScore: {}\nTap to play again"
@@ -5814,6 +5850,9 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': '[{}] was found {} times in the config files printer.cfg loads, expected once'
   a newer version: a newer version
   a temporary mesh profile '{}': a temporary mesh profile '{}'
+  about 2 min: about 2 min
+  about 4 min: about 4 min
+  about 6 min with heat-up: about 6 min with heat-up
   about {} min: about {} min
   already loaded: already loaded
   assign without adding to Spoolman: assign without adding to Spoolman
@@ -5863,10 +5902,13 @@ translations:
   from tag: from tag
   heated bed: heated bed
   heats: heats
+  heats bed to {}°: heats bed to {}°
+  heats to {}°: heats to {}°
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignored: owned by uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignored: untrusted symlink chain'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignored: writable by other users'
   'helixscreen.env ignored: {}': 'helixscreen.env ignored: {}'
+  homes, then moves fast: homes, then moves fast
   idle: idle
   in unit {} slot {}: in unit {} slot {}
   in {}: in {}
@@ -5876,6 +5918,8 @@ translations:
   just now: just now
   last 60 s · LOOSE up, TIGHT down: last 60 s · LOOSE up, TIGHT down
   last 60 s · pressure, target dashed: last 60 s · pressure, target dashed
+  last K {}: last K {}
+  last measured {}: last measured {}
   'last turn: {:.1f} Hz closer': 'last turn: {:.1f} Hz closer'
   layers: layers
   left: left
@@ -5884,6 +5928,7 @@ translations:
   loud: loud
   matched: matched
   material differs: material differs
+  measured {}: measured {}
   mm: mm
   mm Z-offset: mm Z-offset
   mm before clog: mm before clog
@@ -5901,10 +5946,12 @@ translations:
   over memory budget: over memory budget
   paper test: paper test
   passive: passive
+  plate must be clear: plate must be clear
   preparing: preparing
   printer default: printer default
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: printer.cfg loads more than {} config files; [{}] was not searched for in all of them
   prints: prints
+  range {:.3f} mm: range {:.3f} mm
   ready to load: ready to load
   remaining: remaining
   remaining before clog detection triggers: remaining before clog detection triggers
@@ -5936,6 +5983,7 @@ translations:
   too slow: too slow
   tool(s): tool(s)
   used: used
+  uses about 30 cm of filament: uses about 30 cm of filament
   v%s available: v%s available
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.
   v{} installed! Restarting...: v{} installed! Restarting...
@@ -5960,6 +6008,7 @@ translations:
   '{1} temperature reading is out of range': '{1} temperature reading is out of range'
   '{:.0f} g left': '{:.0f} g left'
   '{:.0f} g of {} · {}%': '{:.0f} g of {} · {}%'
+  '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz sweep'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
   '{:.2f} mm range': '{:.2f} mm range'
   '{} ({})': '{} ({})'
@@ -5970,6 +6019,7 @@ translations:
   '{} MCUs': '{} MCUs'
   '{} Settings': '{} Settings'
   '{} Tools': '{} Tools'
+  '{} accelerometers': '{} accelerometers'
   '{} and {}': '{} and {}'
   '{} and {} are both mapped here': '{} and {} are both mapped here'
   '{} auto-feed setting not applied': '{} auto-feed setting not applied'
@@ -6105,6 +6155,7 @@ translations:
   'Basic': 'Basic'
   Recovery is not possible in the printer's current state.: Recovery is not possible in the printer's current state.
   'Recycled': 'Recycled'
+  '{}×{} points · saved as "{}"': '{}×{} points · saved as "{}"'
   ~{:.1f} Hz / turn: ~{:.1f} Hz / turn
   RUNNING: "RUNNING"
   NOT AVAILABLE HERE: "NOT AVAILABLE HERE"
