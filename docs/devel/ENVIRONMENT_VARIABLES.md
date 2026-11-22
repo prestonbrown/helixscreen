@@ -2321,8 +2321,8 @@ Declare that the printer's firmware supervises HelixScreen (prestonbrown/helixsc
 
 | Property | Value |
 |----------|-------|
-| **Values** | Truthy: `1`, `true`, `yes`, `on`. Any other non-empty value turns it off. |
-| **Default** | Unset: the board module decides (`helix::board::firmware_manages_updates()`), today a Snapmaker U1 running PAXX Extended Firmware's own package from `/oem/apps/helixscreen` |
+| **Values** | Truthy: `1`, `true`, `yes`, `on`. Anything else, or unset, leaves it off. |
+| **Default** | Unset: off. The variable is the whole contract; where the package lives is not, since a firmware may move it |
 | **File** | `src/system/platform_info.cpp` (`helix::firmware_supervised()`) |
 
 Exported by the firmware's launch hook; it may also sit in `helixscreen.env`. While it holds, HelixScreen:
@@ -2331,6 +2331,8 @@ Exported by the firmware's launch hook; it may also sit in `helixscreen.env`. Wh
 - never writes under Moonraker's `config` root: uploads, deletes, copies, moves and directory changes there fail with `PERMISSION_DENIED` (`src/api/moonraker_api_internal.h#reject_supervised_config_write`), which covers the helper macros, the timelapse and Spoolman setup and AFC/IFS saves; the config editor refuses every edit on both routes before it writes (`src/system/klipper_config_editor.cpp#refuse_while_supervised`), as does the PLR mesh include, and Lua plugins cannot call `machine.update.*` (other than status and refresh) or change files there;
 - never syncs the `[update_manager helixscreen]` stanza, never runs `restore-user-config.sh` at boot, and does not update itself (an explicit `HELIX_DISABLE_AUTO_UPDATES=0`, a developer's override, still turns self-update back on);
 - hides what would only fail (the `firmware_supervised` subject): Setup Timelapse, the Advanced panel's plugin Install and Uninstall rows, Install and Update Helper Macros there and on the Material Z-offset screen, Spoolman setup, Change and Remove, the PLR mesh-include rows, the timelapse macro card and Input Shaper's Save, which says to set the values in the firmware instead. Other plugin install offers open the install dialog, which explains that the plugin comes from the firmware; probe value edits and the PID-to-MPC migration report the refusal.
+
+Without the variable, two older safety nets still recognise a firmware's own package where they can (`helix::board::firmware_manages_updates()`, today PAXX's `/oem/apps/helixscreen` on a Snapmaker U1): the in-app updater stays off and the HelixPrint plugin is not offered for install. Nothing else keys on the path.
 
 What the firmware provides instead: the HelixPrint plugin (`moonraker-plugin/helix_print.py` from the package, loaded the way it loads its other Moonraker components) with a `[helix_print]` section, the helper macro include if it wants the macro-backed features, and any Spoolman or timelapse configuration.
 

@@ -28,15 +28,10 @@ bool platform_host_terminal_supported();
 /// detects what is there and uses it: it never runs an installer, never writes a file
 /// under Moonraker's config root, and never updates itself.
 ///
-/// HELIX_FIRMWARE_MANAGED, exported by the firmware's launch hook, decides it when set
-/// (a truthy value turns it on, any other non-empty value off). Unset, the board module
-/// decides (board::firmware_manages_updates): today a Snapmaker U1 running PAXX
-/// Extended Firmware's own HelixScreen package.
+/// HELIX_FIRMWARE_MANAGED, exported by the firmware's launch hook, is the whole
+/// contract: truthy turns it on, anything else or unset leaves it off. Where the package
+/// lives is deliberately not part of it, since a firmware may move it at any time.
 bool firmware_supervised();
-
-/// The rule behind firmware_supervised(): @p env_value (HELIX_FIRMWARE_MANAGED) decides
-/// when set and non-empty, truthy meaning on; otherwise @p board_says does.
-bool decide_firmware_supervised(const char* env_value, bool board_says);
 
 /// Why a config write was refused under firmware_supervised(), for logs and errors.
 inline constexpr const char* kFirmwareSupervisedConfigRefusal =
@@ -45,10 +40,12 @@ inline constexpr const char* kFirmwareSupervisedConfigRefusal =
 /// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
-/// firmware_supervised() decides it: firmware that supervises HelixScreen owns its
-/// package, such as PAXX Extended Firmware's pinned, sha256-verified tarball in
-/// /oem/apps/helixscreen on a Snapmaker U1, and self-updating would rewrite it. A U1
-/// on stock firmware, where our installer owns /userdata/helixscreen, self-updates.
+/// True under firmware_supervised(), and also when the board module recognises a
+/// firmware's own package running (board::firmware_manages_updates), such as PAXX
+/// Extended Firmware's pinned, sha256-verified tarball in /oem/apps/helixscreen on a
+/// Snapmaker U1, so a firmware that does not export HELIX_FIRMWARE_MANAGED still never
+/// has its package rewritten. A U1 on stock firmware, where our installer owns
+/// /userdata/helixscreen, self-updates.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,
