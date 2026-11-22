@@ -195,12 +195,7 @@
            so an empty host adds no flex gap beside the coordinates. -->
       <header_bar-actions>
         <bind_flag_if cond="ui_breakpoint lt 2" flag="hidden"/>
-        <ui_button name="btn_motion_settings"
-                   width="#button_height_sm" height="#button_height_sm" style_max_height="#header_button_height"
-                   icon="cog" icon_size="sm">
-          <style name="styles.header_icon_button"/>
-          <event_cb trigger="clicked" callback="on_motion_header_settings_clicked"/>
-        </ui_button>
+        <header_action name="btn_motion_settings" icon="cog" callback="on_motion_header_settings_clicked"/>
       </header_bar-actions>
     </header_bar>
     <if cond="ui_is_portrait eq 1">

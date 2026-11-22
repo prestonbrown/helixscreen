@@ -36,16 +36,10 @@
          readout (name, hex and color), so the picker shows none. Save is the
          header's action; Reset and Save As New are behind the more button. -->
     <overlay_panel-actions>
-      <ui_button name="btn_theme_more"
-                 width="#button_height_sm" height="#button_height_sm" icon="dots_vertical" icon_size="sm">
-        <style name="styles.header_icon_button"/>
-        <event_cb trigger="clicked" callback="on_theme_more_clicked"/>
-      </ui_button>
-      <ui_button name="btn_theme_save" height="#button_height_sm" text="Save">
-        <style name="styles.header_action"/>
+      <header_action name="btn_theme_more" icon="dots_vertical" callback="on_theme_more_clicked"/>
+      <header_action name="btn_theme_save" text="Save" role="primary" callback="on_theme_save_clicked">
         <bind_state_if_eq subject="theme_editor_dirty" state="disabled" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_theme_save_clicked"/>
-      </ui_button>
+      </header_action>
     </overlay_panel-actions>
     <header_bar-header_content style_pad_gap="#space_sm">
       <color_picker_tabs/>

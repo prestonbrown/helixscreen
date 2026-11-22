@@ -5,11 +5,9 @@
   <view name="macro_panel" extends="overlay_panel" title="Macros" back_button_callback="on_macros_back_clicked">
     <!-- Save, shown only while the list is in edit mode. -->
     <overlay_panel-actions>
-      <ui_button name="btn_save" height="content" text="Save">
-        <style name="styles.header_action"/>
+      <header_action name="btn_save" text="Save" role="primary" callback="on_macros_edit_save">
         <bind_flag_if_eq subject="macros_edit_save_hidden" flag="hidden" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_macros_edit_save"/>
-      </ui_button>
+      </header_action>
     </overlay_panel-actions>
     <!-- Content Area -->
     <overlay_panel-overlay_content style_pad_left="#space_lg"

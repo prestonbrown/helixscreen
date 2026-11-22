@@ -12,17 +12,10 @@
        - Uses text_heading/text_body components for theme consistency
   -->
   <consts>
-    <!-- Cap for the header's action buttons.
-         These must fit INSIDE header_height, not merely be a comfortable
-         standalone touch target. button_height's own ladder exceeds
-         header_height from the LARGE tier up (72>60, 80>68, 96>80), so a
-         header passing #button_height gets a button taller than its own bar;
-         style_flex_cross_place centers the overflow and the top half clips off
-         the screen.
-         Applied as style_max_height rather than height, because most header
-         buttons size to their content and are already correct; a cap leaves
-         them alone and clamps only the oversized ones.
-         Roughly 80% of the corresponding header_height at each tier. -->
+    <!-- The height of every header button: header_action's, and the z-offset
+         save's cap. Roughly 80% of header_height at each tier, so a button fits
+         inside its bar; button_height's own ladder exceeds header_height from the
+         LARGE tier up (72>60, 80>68, 96>80). -->
     <px name="header_button_height_micro" value="32"/>
     <px name="header_button_height_tiny" value="26"/>
     <px name="header_button_height_small" value="38"/>
@@ -30,16 +23,6 @@
     <px name="header_button_height_large" value="48"/>
     <px name="header_button_height_xlarge" value="54"/>
     <px name="header_button_height_xxlarge" value="64"/>
-    <!-- Floor for a labelled secondary header button
-         (style_min_width="#header_slot2_min_width"). 72 on the 480x272 tier, where the bar is 40px tall and every
-         slot-2 px comes out of the title; 90 everywhere else. -->
-    <px name="header_slot2_min_width_micro" value="72"/>
-    <px name="header_slot2_min_width_tiny" value="90"/>
-    <px name="header_slot2_min_width_small" value="90"/>
-    <px name="header_slot2_min_width_medium" value="90"/>
-    <px name="header_slot2_min_width_large" value="90"/>
-    <px name="header_slot2_min_width_xlarge" value="90"/>
-    <px name="header_slot2_min_width_xxlarge" value="90"/>
   </consts>
   <styles>
     <!-- The title slot's left inset: a step tighter at 480x272, where the
@@ -52,8 +35,9 @@
     <!-- Widgets a screen adds to its header: <header_bar-header_content>. -->
     <slot name="header_content"/>
     <!-- The screen's own header buttons, at the right end: <header_bar-actions>
-         (<overlay_panel-actions> in a view extending overlay_panel). Style each
-         with styles.header_action, or styles.header_icon_button for a round glyph. -->
+         (<overlay_panel-actions> in a view extending overlay_panel). Each is a
+         <header_action> (ui_xml/header_action.xml); scripts/check_header_actions.py
+         refuses anything else. -->
     <slot name="actions" target="header_actions" hide_empty="true"/>
     <prop name="title" type="string"/>
     <prop name="title_tag" type="string" default=""/>
@@ -145,11 +129,12 @@
             style_border_width="0" scrollable="false" clickable="false" flex_flow="row" style_pad_gap="#space_sm"
             style_flex_cross_place="center" style_flex_track_place="center"/>
     <!-- Host of the actions slot: hidden until filled, so an unfilled slot
-         adds no flex gap. It sets no gap of its own: it takes the theme's
-         container gap, the same one that spaces the bar's children, so its
-         buttons sit as far apart as the bar's at every breakpoint. -->
+         adds no flex gap. Its ends are padded by header_action's touch reach,
+         since LVGL hit-tests a child only inside its parent, and its gap is
+         wide enough that neighboring reaches never overlap. -->
     <lv_obj name="header_actions"
-            width="content" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+            width="content" height="100%" style_pad_ver="0" style_pad_hor="#header_action_hit"
+            style_pad_column="#header_action_gap" style_bg_opa="0" style_border_width="0" scrollable="false"
             clickable="false" flex_flow="row" style_flex_cross_place="center" style_flex_track_place="center"/>
     <!-- Unsaved z-offset. Built into the header rather than placed in each
          screen's actions slot, because it must be able to appear on any of them.

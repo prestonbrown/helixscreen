@@ -409,6 +409,28 @@ TEST_CASE_METHOD(UiButtonTestFixture, "ui_button bind_op_state renders idle/busy
     process_lvgl(5);
 }
 
+TEST_CASE_METHOD(UiButtonTestFixture, "ui_button stays icon-only through its op-state spinner",
+                 "[ui_button][xml][op_state]") {
+    // LV_STATE_USER_4 marks a button showing its icon and no label; a busy
+    // spinner holds the icon's slot, so the state holds through busy and idle.
+    helix::Subject op_subject;
+    op_subject.init_int(1);
+    lv_xml_register_subject(nullptr, "test_op_icon_only", &op_subject);
+    const char* attrs[] = {"icon", "refresh", "bind_op_state", "test_op_icon_only", nullptr};
+    lv_obj_t* btn = create_button(attrs);
+    REQUIRE(btn != nullptr);
+    REQUIRE(ui_button_get_op_spinner(btn) != nullptr);
+
+    CHECK(lv_obj_has_state(btn, LV_STATE_USER_4));
+    lv_subject_set_int(&op_subject, 0);
+    CHECK(lv_obj_has_state(btn, LV_STATE_USER_4));
+    lv_subject_set_int(&op_subject, 1);
+    CHECK(lv_obj_has_state(btn, LV_STATE_USER_4));
+
+    lv_obj_delete(btn);
+    op_subject.reset();
+}
+
 TEST_CASE_METHOD(UiButtonTestFixture,
                  "ui_button without bind_op_state has no spinner and behaves normally",
                  "[ui_button][xml][op_state][quick]") {

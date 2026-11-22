@@ -232,6 +232,9 @@ void XMLTestFixture::setup_global_xml_registrations_once() {
     // draw the heater glyph with <nozzle_icon>. An unregistered dependency makes
     // the whole component fail to parse, so without these two the panels create
     // as nullptr and every binding test against them fails on a bare nullptr.
+    // Every header button is a <header_action>; an unregistered one would vanish
+    // and hand its bindings to the actions slot.
+    lv_xml_register_component_from_file("A:ui_xml/header_action.xml");
     lv_xml_register_component_from_file("A:ui_xml/overlay_panel.xml");
     lv_xml_register_component_from_file("A:ui_xml/components/nozzle_icon.xml");
 

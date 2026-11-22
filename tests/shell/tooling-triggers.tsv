@@ -95,6 +95,7 @@ tests/shell/test_helix_claim_worktrees.bats	scripts/helix-claim scripts/lib/buil
 tests/shell/test_helixctl_json.bats	src/remote/ tests/ui/helix/app.py
 tests/shell/test_helpers_systemctl_shim.bats	tests/shell/helpers.bash tests/shell/setup_suite.bash
 tests/shell/test_hold_ends_press_gate.bats	scripts/check_hold_ends_press.py scripts/quality-checks.sh
+tests/shell/test_header_actions_gate.bats	scripts/check_header_actions.py scripts/qc/header_actions.sh scripts/quality-checks.sh
 tests/shell/test_icon_names_gate.bats	include/ui_icon_codepoints.h scripts/check_icon_names.py
 tests/shell/test_imperative_ui_gate.bats	scripts/check_imperative_ui.py scripts/ratchet.py
 tests/shell/test_index_sync_gate.bats	.githooks/

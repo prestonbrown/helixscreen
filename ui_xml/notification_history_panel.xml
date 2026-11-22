@@ -9,17 +9,11 @@
     <!-- Header Bar (uses improved header_bar component) -->
     <header_bar name="overlay_header" title="Notifications">
       <header_bar-actions>
-        <ui_button name="btn_printer_events"
-                   height="#button_height" text="Printer Events" icon="script_text" style_bg_color="#secondary"
-                   style_min_width="#header_slot2_min_width">
-          <style name="styles.header_action"/>
-          <event_cb trigger="clicked" callback="on_open_printer_events"/>
-        </ui_button>
-        <ui_button name="btn_clear_all" height="#button_height" text="Clear All">
-          <style name="styles.header_action"/>
+        <header_action name="btn_printer_events"
+                       icon="script_text" text="Printer Events" callback="on_open_printer_events"/>
+        <header_action name="btn_clear_all" text="Clear All" callback="on_notification_history_clear">
           <bind_flag_if_eq subject="notification_has_entries" flag="hidden" ref_value="0"/>
-          <event_cb trigger="clicked" callback="on_notification_history_clear"/>
-        </ui_button>
+        </header_action>
       </header_bar-actions>
     </header_bar>
     <!-- Content Area (scrollable, hidden when no entries) -->

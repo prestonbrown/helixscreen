@@ -508,6 +508,6 @@ Tests cover:
 
 ## Multi-Printer Management
 
-A **Manage Printers** button always appears in the Printer Manager overlay's header bar: the labelled `btn_manage_printers` in landscape, the round `printer_3d` icon `btn_manage_printers_icon` in portrait, where the label would crowd out the title. This navigates to the Printer List overlay for switching, adding, and deleting printers.
+A **Manage Printers** button always appears in the Printer Manager overlay's header bar: `btn_manage_printers`, a `header_action` that shows its `printer_3d` icon and label, and folds to the icon alone on micro and tiny screens and in portrait below the large breakpoint, where the label would crowd out the title. This navigates to the Printer List overlay for switching, adding, and deleting printers.
 
 See [Multi-Printer Management](MULTI_PRINTER.md) for the full developer guide on the multi-printer system.

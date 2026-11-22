@@ -215,15 +215,18 @@ on the title's centre line.
 A screen's own header buttons go in the `actions` slot at the bar's right end:
 `<header_bar-actions>`, or `<overlay_panel-actions>` in a view extending
 `overlay_panel`. The slot is hidden while empty and spaces its buttons with the
-bar's own gap. A labelled button (Save, Done, Start) takes
-`<style name="styles.header_action"/>` and `height="content"`; a secondary one
-adds `style_bg_color="#secondary"` and `style_min_width="#header_slot2_min_width"`.
-A glyph (Motion's cog, Print Status's folder, Printer Manager's portrait button)
-is a `#button_height_sm` square with `<style name="styles.header_icon_button"/>`,
-so every round header button has one definition. Both are capped at
-`#header_button_height` so they fit inside the bar. The button's own bindings
-(`bind_state_if cond=...`, `bind_flag_if_eq`, `event_cb`) carry its disabled,
-hidden and click behavior.
+bar's own gap. Every button in it is a [`header_action`](#header_action);
+`scripts/check_header_actions.py` refuses anything else, and a `bind_*` on the
+slot tag itself acts on the slot (Motion hides its whole slot below the small
+tier).
+
+```xml
+<header_bar-actions>
+    <header_action name="btn_add_spool" icon="plus" text="Add" role="primary"
+                   callback="on_spoolman_add_spool_clicked"/>
+    <header_action name="btn_refresh" icon="refresh" callback="on_spoolman_refresh_clicked"/>
+</header_bar-actions>
+```
 
 ### 2. Subjects (Reactive Data)
 
@@ -1231,6 +1234,39 @@ button outgrows a small panel. Both need the button to carry an icon and a label
 | `label_hidden_cond="EXPR"` | Hides the label while the expression is nonzero, e.g. `ui_is_portrait eq 1 and ui_breakpoint lt 4`. Names resolve in the button's own scope, so globals like `ui_breakpoint` work from inside a nested component. Use one label-hiding form per button: each binding writes the same label flag, so with two the most recent change wins. |
 
 Give each label one writer: a widget that measures whether its label fits should fold the breakpoint rule into its own subject rather than set both attributes. The same holds for stacking: set `stacked_if_bp_lte` or `stacked_subject`, never both, or the two observers fight over the layout.
+
+#### header_action
+
+One button in a screen's header (`ui_xml/header_action.xml`), and the only element
+a header's actions slot takes. It owns the look; a caller gives it content, a role
+and a callback, never a width, height, radius or color (the gate refuses them).
+
+| Prop | Values |
+|------|--------|
+| `name` | the button's name, for C++ lookups and tests |
+| `text_tag` | the translation key when it differs from the English `text` (otherwise implied from `text`) |
+| `icon`, `text` | at least one. Icon only: a circle, as wide as `#header_button_height` is tall. Text, with or without an icon: a pill |
+| `role` | `primary` (the screen's one main action: Save, Start, Probe, Apply), `neutral` (default: Refresh, settings, folder, Clear All), `danger` (a destructive action that does not confirm) |
+| `collapse` | `auto` (default): icon and text where the header has room, the icon alone on micro and tiny and in portrait below the large breakpoint. A text-only action keeps its text. `never` keeps the text everywhere |
+| `callback` | the clicked callback; an `event_cb` child instead also works, exactly one of the two: the gate fails an action with neither and warns on both |
+| `hidden` | the initial hidden flag, for a button its own binding reveals |
+
+Bindings written as its children act on the button: `bind_flag_if*` hides it,
+`bind_state_if*` disables it.
+
+```xml
+<header_action name="btn_theme_save" text="Save" role="primary" callback="on_theme_save_clicked">
+    <bind_state_if_eq subject="theme_editor_dirty" state="disabled" ref_value="0"/>
+</header_action>
+```
+
+The circle comes from `ui_button`'s icon-only state (`LV_STATE_USER_4`, set while a
+button shows its icon and no label), which the component's `selector="user_4"`
+style shapes. On micro, tiny and small screens the touch target reaches past the
+button to the header's height (`#header_action_hit`); the actions slot pads its
+ends by that reach and spaces actions `#header_action_gap` apart, at least twice
+the reach, so every reach registers and neighbors never share a tap. A header
+holds three actions at most and one primary; the gate warns past either.
 
 #### responsive_grid
 

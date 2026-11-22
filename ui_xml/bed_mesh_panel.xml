@@ -73,11 +73,9 @@
     <!-- Header Bar with the Probe (calibrate) action -->
     <header_bar name="overlay_header" title="Bed Mesh">
       <header_bar-actions>
-        <ui_button name="btn_probe" height="#button_height" text="Probe">
-          <style name="styles.header_action"/>
+        <header_action name="btn_probe" text="Probe" role="primary" callback="on_bed_mesh_calibrate_clicked">
           <bind_state_if cond="nav_buttons_enabled eq 0" state="disabled"/>
-          <event_cb trigger="clicked" callback="on_bed_mesh_calibrate_clicked"/>
-        </ui_button>
+        </header_action>
       </header_bar-actions>
     </header_bar>
     <!-- Content Area: landscape is a row (canvas left, cards in a fixed-width
