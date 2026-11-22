@@ -33,17 +33,10 @@
     <style name="bt_half_w" width="50%"/>
     <style name="bt_side_w" width="#belt_sidebar_w"/>
     <style name="bt_grow" flex_grow="1"/>
-    <style name="bt_cross_end" flex_cross_place="end"/>
     <style name="bt_main_end" flex_main_place="end"/>
     <!-- Portrait: the chart stops at about its width, so a tall screen leaves -->
     <!-- space under the controls instead of a chart taller than it is wide. -->
     <style name="bt_chart_cap" max_height="#belt_chart_max_h"/>
-    <!-- Portrait START stacks: the sketch on top takes the spare height, the text under it -->
-    <style name="bt_w40" width="40%"/>
-    <style name="bt_full_w_grow" width="100%" flex_grow="1"/>
-    <style name="bt_start_text_row" height="100%" flex_grow="1"/>
-    <style name="bt_start_text_side" width="#belt_sidebar_w" height="100%"/>
-    <style name="bt_start_text_col" width="100%" height="content" flex_grow="0"/>
     <!-- Portrait: a button row wraps, and the button given bt_own_line takes -->
     <!-- a line of its own, so the rest keep room for their labels -->
     <style name="bt_flow_row_wrap" layout="flex" flex_flow="row_wrap"/>
@@ -59,14 +52,20 @@
     <style name="bt_right_line" layout="flex" flex_flow="row" flex_main_place="space_between"/>
     <style name="bt_own_line" width="100%" flex_grow="0" flex_main_place="center"/>
     <style name="bt_grow_main_end" flex_grow="1" flex_main_place="end"/>
+    <!-- START is the calibration intro, which brings its own margins -->
+    <style name="bt_content_padded" pad_top="0" pad_bottom="#space_md" pad_left="#space_lg" pad_right="#space_lg"/>
+    <style name="bt_content_flush" pad_all="0"/>
+    <style name="bt_accel_ok" text_color="#success"/>
+    <style name="bt_accel_unknown" text_color="#text"/>
   </styles>
   <view name="panel_belt_tension"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_border_width="0"
-        style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
+        style_pad_all="0" style_pad_gap="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false"
+        flex_flow="column">
     <header_bar name="overlay_header" title="Belt Tension"/>
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_top="0" style_pad_bottom="#space_md" style_pad_left="#space_lg"
-            style_pad_right="#space_lg" style_pad_gap="#space_sm" scrollable="false">
+    <lv_obj name="overlay_content" width="100%" flex_grow="1" style_pad_gap="#space_sm" scrollable="false">
+      <bind_style_if_not_eq name="bt_content_padded" subject="belt_tension_state" ref_value="0"/>
+      <bind_style_if_eq name="bt_content_flush" subject="belt_tension_state" ref_value="0"/>
       <bind_style_if name="bt_flow_column" cond="ui_is_ultrawide eq 0"/>
       <bind_style_if name="bt_flow_row" cond="ui_is_ultrawide eq 1"/>
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
@@ -178,88 +177,76 @@
           </lv_obj>
         </lv_obj>
         <!-- ============================================================ -->
-        <!-- STATE 0: START - which way each path is shaken, what will run -->
+        <!-- STATE 0: START - the calibration intro: which way each path is -->
+        <!-- shaken, what the check does, and Compare belts at the bottom right -->
         <!-- ============================================================ -->
-        <lv_obj name="state_start"
-                width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-                scrollable="false">
+        <lv_obj name="state_start" width="100%" flex_grow="1" style_pad_all="0" scrollable="false">
           <bind_flag_if_not_eq subject="belt_tension_state" flag="hidden" ref_value="0"/>
-          <!-- Ultrawide: the sketch grows on the left; the text and Start keep the sidebar's width -->
-          <bind_style_if name="bt_cross_end" cond="ui_is_ultrawide eq 1"/>
-          <lv_obj width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
-            <bind_style_if name="bt_flow_row" cond="ui_is_portrait eq 0"/>
-            <bind_style_if name="bt_flow_column" cond="ui_is_portrait eq 1"/>
-            <belt_path_sketch name="bt_sketch" height="100%">
-              <bind_style_if name="bt_w40" cond="ui_is_portrait eq 0"/>
-              <bind_style_if name="bt_grow" cond="ui_is_ultrawide eq 1"/>
-              <bind_style_if name="bt_full_w_grow" cond="ui_is_portrait eq 1"/>
-            </belt_path_sketch>
-            <lv_obj name="bt_start_text"
-                    style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
-              <bind_style_if name="bt_start_text_row" cond="ui_is_ultrawide eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="bt_start_text_side" cond="ui_is_ultrawide eq 1"/>
-              <bind_style_if name="bt_start_text_col" cond="ui_is_portrait eq 1"/>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      scrollable="false">
-                <text_heading text="Compare your belt paths" flex_grow="1" long_mode="wrap"/>
-                <ui_button name="btn_help"
-                           width="#icon_button_size_lg" height="#icon_button_size_lg" variant="ghost" icon="help_circle">
-                  <event_cb trigger="clicked" callback="belt_tension_help_cb"/>
-                </ui_button>
-              </lv_obj>
-              <text_body width="100%"
-                         text="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together."
-                         long_mode="wrap" style_text_color="#text_muted">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-              </text_body>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" style_pad_top="#space_xs" flex_flow="column" scrollable="false">
-                <lv_obj width="100%"
-                        height="content" style_pad_ver="#space_xs" style_pad_hor="0" style_border_width="1"
-                        style_border_side="bottom" style_border_color="#border" flex_flow="row"
-                        style_flex_main_place="space_between" scrollable="false">
-                  <text_body text="Kinematics" style_text_color="#text_muted"/>
-                  <text_body bind_text="bt_hw_kinematics"/>
+          <calibration_intro name="bt_intro"
+                             left_label="Two belt paths" right_label="What it does" primary_name="btn_start"
+                             primary_text="Compare belts" primary_callback="belt_tension_start_cb"
+                             disabled_cond="machine_motion_blocked eq 1 or bt_can_start eq 0 or nav_buttons_enabled eq 0">
+            <!-- The sketch draws its own frame -->
+            <belt_path_sketch name="bt_sketch" width="100%" height="#cal_intro_picture_h"/>
+            <text_small name="bt_intro_caption"
+                        width="100%" bind_text="bt_intro_caption" style_text_font="#cal_intro_font_caption"
+                        style_text_color="#text_muted"/>
+            <calibration_intro-settings>
+              <lv_obj name="bt_start_text"
+                      width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+                      style_border_width="0" flex_flow="column" scrollable="false">
+                <text_small width="100%"
+                            style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                            style_text_line_space="#space_xxs"
+                            text="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                </text_small>
+                <lv_obj name="bt_hw_card"
+                        width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
+                        style_bg_opa="24%" style_border_width="0" style_pad_hor="#space_md" style_pad_ver="#space_xxs"
+                        style_pad_gap="0" flex_flow="column" scrollable="false">
+                  <lv_obj width="100%"
+                          height="content" style_pad_ver="#space_sm" style_pad_hor="0" style_bg_opa="0"
+                          style_border_width="1" style_border_side="bottom" style_border_color="#border" flex_flow="row"
+                          style_flex_main_place="space_between" scrollable="false">
+                    <text_small text="Kinematics" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"/>
+                    <text_small bind_text="bt_hw_kinematics"
+                                style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
+                  </lv_obj>
+                  <lv_obj width="100%"
+                          height="content" style_pad_ver="#space_sm" style_pad_hor="0" style_bg_opa="0"
+                          style_border_width="0" flex_flow="row" style_flex_main_place="space_between"
+                          scrollable="false">
+                    <text_small text="Accelerometer"
+                                style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"/>
+                    <text_small bind_text="bt_hw_accel" style_text_font="#cal_intro_font_desc">
+                      <bind_style_if_eq name="bt_accel_ok" subject="printer_has_accelerometer" ref_value="1"/>
+                      <bind_style_if_eq name="bt_accel_unknown" subject="printer_has_accelerometer" ref_value="0"/>
+                    </text_small>
+                  </lv_obj>
                 </lv_obj>
+                <!-- Why Compare belts is refused, shown only when it is -->
                 <lv_obj width="100%"
-                        height="content" style_pad_ver="#space_xs" style_pad_hor="0" style_border_width="1"
-                        style_border_side="bottom" style_border_color="#border" flex_flow="row"
-                        style_flex_main_place="space_between" scrollable="false">
-                  <text_body text="Accelerometer" style_text_color="#text_muted"/>
-                  <text_body bind_text="bt_hw_accel"/>
-                </lv_obj>
-                <lv_obj width="100%"
-                        height="content" style_pad_ver="#space_xs" style_pad_hor="0" style_border_width="1"
-                        style_border_side="bottom" style_border_color="#border" flex_flow="row"
-                        style_flex_main_place="space_between" scrollable="false">
-                  <text_body text="Sweep" style_text_color="#text_muted"/>
-                  <text_body bind_text="bt_hw_sweep"/>
+                        height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                        style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" scrollable="false">
+                  <bind_flag_if_eq subject="bt_can_start" flag="hidden" ref_value="1"/>
+                  <icon src="alert" size="sm" variant="warning"/>
+                  <text_small name="bt_gate_message_label"
+                              flex_grow="1" bind_text="bt_gate_message" long_mode="wrap"
+                              style_text_font="#cal_intro_font_desc" style_text_color="#text"/>
                 </lv_obj>
               </lv_obj>
-              <ui_button name="btn_belt_names"
-                         width="100%" height="#button_height_sm" icon="vibrate" text="Which belt is which?"
-                         variant="secondary" long_mode="dots">
-                <event_cb trigger="clicked" callback="belt_tension_names_cb"/>
-              </ui_button>
-              <!-- Why Start is refused, shown only when it is -->
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" style_pad_top="#space_xs" flex_flow="row"
-                      style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-                <bind_flag_if_eq subject="bt_can_start" flag="hidden" ref_value="1"/>
-                <icon src="alert" size="sm" variant="warning"/>
-                <text_body name="bt_gate_message_label" flex_grow="1" bind_text="bt_gate_message" long_mode="wrap"/>
-              </lv_obj>
-            </lv_obj>
-          </lv_obj>
-          <!-- bind_state_if_eq is the hard gate: bound to a subject, it holds -->
-          <!-- however the user reached the panel. -->
-          <ui_button name="btn_start" height="#button_height" icon="waveform" text="Start Check" variant="primary">
-            <bind_style_if name="bt_full_w" cond="ui_is_ultrawide eq 0"/>
-            <bind_style_if name="bt_side_w" cond="ui_is_ultrawide eq 1"/>
-            <bind_state_if_eq subject="bt_can_start" state="disabled" ref_value="0"/>
-            <event_cb trigger="clicked" callback="belt_tension_start_cb"/>
-          </ui_button>
+            </calibration_intro-settings>
+            <calibration_intro-badges>
+              <cal_intro_badge name="bt_badge_time" bind="bt_intro_minutes"/>
+              <cal_intro_badge name="bt_badge_loud" text="loud" warm="true"/>
+              <cal_intro_badge name="bt_badge_sweep" bind="bt_hw_sweep"/>
+            </calibration_intro-badges>
+            <calibration_intro-footer_left>
+              <cal_intro_footer_button name="btn_belt_names"
+                                       text="Which belt is which?" callback="belt_tension_names_cb"/>
+            </calibration_intro-footer_left>
+          </calibration_intro>
         </lv_obj>
         <!-- ============================================================ -->
         <!-- STATE 1: RUNNING - the frequency axis is the progress bar -->

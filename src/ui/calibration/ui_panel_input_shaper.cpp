@@ -12,8 +12,10 @@
 #include "ui_shaper_sweep_chart.h"
 #include "ui_toast_manager.h"
 
+#include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "calibration_intro_text.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
@@ -114,12 +116,13 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
 void ui_panel_input_shaper_register_callbacks() {
     // Register event callbacks for XML
     register_xml_callbacks({
-        {"input_shaper_calibrate_all_cb",
-         [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_calibrate_all_clicked(); }},
-        {"input_shaper_calibrate_x_cb",
-         [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_calibrate_x_clicked(); }},
-        {"input_shaper_calibrate_y_cb",
-         [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_calibrate_y_clicked(); }},
+        {"input_shaper_axis_cb",
+         [](lv_event_t* e) {
+             get_global_input_shaper_panel().handle_axis_choice(
+                 helix::calibration::intro_chip_index(e));
+         }},
+        {"input_shaper_measure_cb",
+         [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_measure_clicked(); }},
         {"input_shaper_cancel_cb",
          [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_cancel_clicked(); }},
         {"input_shaper_close_cb",
@@ -248,8 +251,14 @@ void InputShaperPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(is_results_has_x_, 0, "is_results_has_x", subjects_);
     UI_MANAGED_SUBJECT_INT(is_results_has_y_, 0, "is_results_has_y", subjects_);
 
-    // Header button disabled state
-    UI_MANAGED_SUBJECT_INT(is_calibrate_all_disabled_, 0, "is_calibrate_all_disabled", subjects_);
+    // Intro
+    UI_MANAGED_SUBJECT_INT(is_axis_choice_, 0, "is_axis_choice", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_intro_duration_, is_intro_duration_buf_, lv_tr("about 4 min"),
+                              "is_intro_duration", subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_intro_caption_, is_intro_caption_buf_, "", "is_intro_caption",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(is_accel_detail_, is_accel_detail_buf_, "", "is_accel_detail",
+                              subjects_);
 
     // Recommended row index per axis (-1 = none highlighted)
     UI_MANAGED_SUBJECT_INT(is_x_recommended_row_, -1, "is_x_recommended_row", subjects_);
@@ -446,6 +455,7 @@ void InputShaperPanel::on_activate() {
     }
 
     query_preview_facts();
+    refresh_intro_facts();
 
     // Auto-start calibration for testing (env var)
     if (std::getenv("INPUT_SHAPER_AUTO_START")) {
@@ -574,9 +584,6 @@ void InputShaperPanel::set_state(State new_state) {
     // Update subject - XML bindings handle visibility automatically
     // State mapping: 0=IDLE, 1=MEASURING, 2=RESULTS, 3=ERROR
     lv_subject_set_int(&s_input_shaper_state, static_cast<int>(new_state));
-
-    // Disable Calibrate All button when not idle
-    lv_subject_set_int(&is_calibrate_all_disabled_, new_state != State::IDLE ? 1 : 0);
 }
 
 // ============================================================================
@@ -1267,6 +1274,27 @@ void InputShaperPanel::on_calibration_error(const std::string& message) {
 // ============================================================================
 // UI UPDATE HELPERS
 // ============================================================================
+
+void InputShaperPanel::refresh_intro_facts() {
+    const auto when = helix::calibration::last_run_month_day("input_shaper");
+    const std::string caption =
+        when ? fmt::format(lv_tr("Measured {} · reduces ringing and ghosting"), *when)
+             : std::string(lv_tr("Reduces ringing and ghosting"));
+    snprintf(is_intro_caption_buf_, sizeof(is_intro_caption_buf_), "%s", caption.c_str());
+    lv_subject_set_string(&is_intro_caption_, is_intro_caption_buf_);
+
+    auto& accels = helix::sensors::AccelSensorManager::instance();
+    std::string detail;
+    const size_t count = accels.sensor_count();
+    if (count > 1) {
+        detail = fmt::format(lv_tr("{} accelerometers"), count);
+    } else if (count == 1) {
+        const auto row = accels.row(0);
+        detail = row.detail.empty() ? row.name : row.detail;
+    }
+    snprintf(is_accel_detail_buf_, sizeof(is_accel_detail_buf_), "%s", detail.c_str());
+    lv_subject_set_string(&is_accel_detail_, is_accel_detail_buf_);
+}
 
 void InputShaperPanel::populate_current_config(const InputShaperConfig& config) {
     lv_subject_set_int(&is_shaper_configured_, config.is_configured ? 1 : 0);
@@ -2153,6 +2181,31 @@ void InputShaperPanel::handle_calibrate_y_clicked() {
     spdlog::debug("[InputShaper] Calibrate Y clicked");
     calibrate_all_mode_ = false;
     start_with_preflight('Y');
+}
+
+void InputShaperPanel::handle_axis_choice(int choice) {
+    if (choice < 0 || choice > 2) {
+        return;
+    }
+    lv_subject_set_int(&is_axis_choice_, choice);
+    // A sweep is about two minutes per axis.
+    snprintf(is_intro_duration_buf_, sizeof(is_intro_duration_buf_), "%s",
+             choice == 0 ? lv_tr("about 4 min") : lv_tr("about 2 min"));
+    lv_subject_set_string(&is_intro_duration_, is_intro_duration_buf_);
+}
+
+void InputShaperPanel::handle_measure_clicked() {
+    switch (lv_subject_get_int(&is_axis_choice_)) {
+    case 1:
+        handle_calibrate_x_clicked();
+        break;
+    case 2:
+        handle_calibrate_y_clicked();
+        break;
+    default:
+        handle_calibrate_all_clicked();
+        break;
+    }
 }
 
 void InputShaperPanel::handle_cancel_clicked() {

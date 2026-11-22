@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The secondary action at the left of a calibration intro's footer
+     ("Advanced", "Profiles"): a quiet outlined button, sized to its label. -->
+<component>
+  <api>
+    <prop name="text" type="string" default=""/>
+    <prop name="callback" type="string" default=""/>
+  </api>
+  <view extends="ui_button"
+        width="content" height="#cal_intro_btn_h" variant="outline" text="$text" style_pad_hor="#space_lg"
+        style_border_width="1" style_border_color="#border" style_border_opa="255"
+        style_text_font="#cal_intro_font_secondary" style_text_color="#text_muted">
+    <event_cb trigger="clicked" callback="$callback"/>
+  </view>
+</component>

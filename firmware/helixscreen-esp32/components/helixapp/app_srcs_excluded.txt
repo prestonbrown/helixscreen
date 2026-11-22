@@ -333,6 +333,7 @@ src/system/pty_session.cpp  # the Host Terminal, compiled out (HELIX_HAS_HOST_TE
 src/system/terminal_screen.cpp  # the Host Terminal, compiled out (HELIX_HAS_HOST_TERMINAL=0): no pty on the firmware
 src/ui/controls/ui_panel_host_terminal.cpp  # the Host Terminal, compiled out (HELIX_HAS_HOST_TERMINAL=0): no pty on the firmware
 src/ui/calibration/pid_progress_tracker.cpp  # not in the v1 Core+AMS cut
+src/ui/calibration/calibration_intro_text.cpp  # only the excluded calibration intros use it; not in the v1 Core+AMS cut
 src/ui/notify/recovery_fault_modal.cpp  # not in the v1 Core+AMS cut
 src/ui/notify/recovery_modal_presenter.cpp  # not in the v1 Core+AMS cut
 src/system/splash_asset_choice.cpp  # not in the v1 Core+AMS cut

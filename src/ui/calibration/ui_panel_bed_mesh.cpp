@@ -19,6 +19,7 @@
 #include "ui_error_reporting.h"
 #include "ui_event_safety.h"
 #include "ui_modal.h"
+#include "ui_nav.h"
 #include "ui_panel_common.h"
 #include "ui_settings_material_z_offset.h"
 #include "ui_temperature_utils.h"
@@ -33,11 +34,13 @@
 #include "bed_mesh_stats.h"
 #include "bed_plate_context.h"
 #include "calibration_config_results.h"
+#include "calibration_intro_text.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
+#include "filament_database.h"
 #include "format_utils.h"
 #include "gcode_response_lines.h"
 #include "i18n_plural.h"
@@ -192,6 +195,31 @@ void BedMeshPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(bed_mesh_calibrate_name_, calibrate_name_buf_,
                                   helix::bed_mesh::kDefaultProfile, "bed_mesh_calibrate_name",
                                   subjects_);
+
+        // Intro
+        UI_MANAGED_SUBJECT_INT(bed_mesh_view_, 0, "bed_mesh_view", subjects_);
+        UI_MANAGED_SUBJECT_INT(bed_mesh_heat_choice_, 1, "bed_mesh_heat_choice", subjects_);
+        static constexpr const char* kHeatMaterials[] = {"PLA", "PETG", "ABS"};
+        static constexpr const char* kHeatSubjects[] = {"bed_mesh_heat_pla", "bed_mesh_heat_petg",
+                                                        "bed_mesh_heat_abs"};
+        for (size_t i = 0; i < 3; ++i) {
+            if (auto mat = filament::find_material(kHeatMaterials[i]); mat && mat->bed_temp > 0) {
+                heat_choice_bed_c_[i + 1] = mat->bed_temp;
+            }
+            const std::string degrees = fmt::format("{}°", heat_choice_bed_c_[i + 1]);
+            UI_MANAGED_SUBJECT_STRING_N(bed_mesh_heat_temp_[i], heat_temp_bufs_[i].data(),
+                                        heat_temp_bufs_[i].size(), degrees.c_str(),
+                                        kHeatSubjects[i], subjects_);
+        }
+        UI_MANAGED_SUBJECT_STRING(bed_mesh_intro_duration_, intro_duration_buf_, "",
+                                  "bed_mesh_intro_duration", subjects_);
+        UI_MANAGED_SUBJECT_STRING(bed_mesh_intro_heat_, intro_heat_buf_, "", "bed_mesh_intro_heat",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(bed_mesh_intro_points_, intro_points_buf_, "",
+                                  "bed_mesh_intro_points", subjects_);
+        UI_MANAGED_SUBJECT_STRING(bed_mesh_intro_caption_, intro_caption_buf_, "",
+                                  "bed_mesh_intro_caption", subjects_);
+        set_heat_choice(1);
 
         // Self-register cleanup — ensures deinit runs before lv_deinit(). The
         // hook peeks: an absent panel has no subjects to deinit, and building
@@ -441,6 +469,15 @@ void BedMeshPanel::apply_portrait_canvas_height() {
         return;
     }
 
+    // The intro sizes the picture from its own style; a height left from the
+    // profiles view would outrank it.
+    if (lv_subject_get_int(&bed_mesh_view_) == 0) {
+        if (lv_obj_t* wrapper = lv_obj_find_by_name(overlay_root_, "canvas_wrapper")) {
+            lv_obj_remove_local_style_prop(wrapper, LV_STYLE_HEIGHT, LV_PART_MAIN);
+        }
+        return;
+    }
+
     // Visual decision: canvas height follows the effective layout so a
     // --layout override reshapes this the same way it reshapes the XML. #1255.
     if (!helix::is_portrait_layout(helix::LayoutManager::instance().type())) {
@@ -530,6 +567,17 @@ void BedMeshPanel::register_callbacks() {
         {"on_bed_mesh_calibrate_clicked",
          [](lv_event_t*) { get_global_bed_mesh_panel().start_calibration(); }},
 
+        // Intro
+        {"on_bed_mesh_probe_intro",
+         [](lv_event_t*) { get_global_bed_mesh_panel().start_calibration(); }},
+        {"on_bed_mesh_show_profiles",
+         [](lv_event_t*) { get_global_bed_mesh_panel().show_view(1); }},
+        {"on_bed_mesh_back", [](lv_event_t*) { get_global_bed_mesh_panel().handle_back(); }},
+        {"on_bed_mesh_heat_choice",
+         [](lv_event_t* e) {
+             get_global_bed_mesh_panel().set_heat_choice(helix::calibration::intro_chip_index(e));
+         }},
+
         // Profile row callbacks (5 profiles)
         {"on_profile_0_clicked", on_profile_clicked_cb},
         {"on_profile_1_clicked", on_profile_clicked_cb},
@@ -588,6 +636,8 @@ void BedMeshPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
+    show_view(opening_view_);
+    opening_view_ = 0;
 
     // Defer layout computation and data loading to after the current timer cycle.
     // on_activate() runs inside push_overlay()'s queue_update lambda, which fires
@@ -613,6 +663,57 @@ void BedMeshPanel::on_activate() {
 
         ensure_async_rendering();
     });
+}
+
+void BedMeshPanel::show_view(int view) {
+    lv_subject_set_int(&bed_mesh_view_, view == 1 ? 1 : 0);
+    apply_portrait_canvas_height();
+}
+
+void BedMeshPanel::handle_back() {
+    if (lv_subject_get_int(&bed_mesh_view_) == 1) {
+        show_view(0);
+        return;
+    }
+    helix::nav::go_back();
+}
+
+void BedMeshPanel::set_heat_choice(int choice) {
+    if (choice < 0 || choice >= static_cast<int>(heat_choice_bed_c_.size())) {
+        return;
+    }
+    lv_subject_set_int(&bed_mesh_heat_choice_, choice);
+    const int bed_c = heat_choice_bed_c_[static_cast<size_t>(choice)];
+    // Heat-up dominates: a bed from cold to 60-100°C takes a few minutes.
+    snprintf(intro_duration_buf_, sizeof(intro_duration_buf_), "%s",
+             bed_c > 0 ? lv_tr("about 6 min with heat-up") : lv_tr("about 2 min"));
+    lv_subject_set_string(&bed_mesh_intro_duration_, intro_duration_buf_);
+    const std::string heat = fmt::format(lv_tr("heats bed to {}°"), bed_c);
+    snprintf(intro_heat_buf_, sizeof(intro_heat_buf_), "%s", heat.c_str());
+    lv_subject_set_string(&bed_mesh_intro_heat_, intro_heat_buf_);
+}
+
+int BedMeshPanel::chosen_probe_bed_c() const {
+    const int choice = lv_subject_get_int(&bed_mesh_heat_choice_);
+    if (choice < 0 || choice >= static_cast<int>(heat_choice_bed_c_.size())) {
+        return helix::bed_mesh::kDefaultProbeBedTempC;
+    }
+    return heat_choice_bed_c_[static_cast<size_t>(choice)];
+}
+
+void BedMeshPanel::refresh_intro_caption(const helix::MeshStats& stats) {
+    std::string caption = fmt::format("{}×{} · ", stats.cols, stats.rows);
+    caption += fmt::format(lv_tr("range {:.3f} mm"), stats.range);
+    if (const auto when = helix::calibration::last_run_month_day("bed_mesh")) {
+        caption += " · " + fmt::format(lv_tr("measured {}"), *when);
+    }
+    snprintf(intro_caption_buf_, sizeof(intro_caption_buf_), "%s", caption.c_str());
+    lv_subject_set_string(&bed_mesh_intro_caption_, intro_caption_buf_);
+
+    const std::string points = fmt::format(lv_tr("{}×{} points · saved as \"{}\""), stats.cols,
+                                           stats.rows, helix::bed_mesh::kDefaultProfile);
+    snprintf(intro_points_buf_, sizeof(intro_points_buf_), "%s", points.c_str());
+    lv_subject_set_string(&bed_mesh_intro_points_, intro_points_buf_);
 }
 
 void BedMeshPanel::ensure_async_rendering() {
@@ -863,6 +964,8 @@ void BedMeshPanel::on_mesh_update_internal(const BedMeshProfile& mesh) {
         return;
     }
 
+    refresh_intro_caption(stats);
+
     // Normalize mesh data: subtract mean so deviations are centered around zero.
     // This makes the 3D visualization show bed flatness (what users care about)
     // rather than absolute probe heights (which depend on Z calibration).
@@ -998,8 +1101,8 @@ void BedMeshPanel::remember_heaters_probing_turns_on(int nozzle_c, int bed_c) {
 }
 
 void BedMeshPanel::preheat_for_probing() {
-    remember_heaters_probing_turns_on(static_cast<int>(kProbeNozzleTemp),
-                                      static_cast<int>(kProbeBedTemp));
+    const int bed_c = chosen_probe_bed_c();
+    remember_heaters_probing_turns_on(static_cast<int>(kProbeNozzleTemp), bed_c);
 
     auto& state = get_printer_state();
     const std::string nozzle = state.temperature_state().active_extruder_name();
@@ -1027,9 +1130,9 @@ void BedMeshPanel::preheat_for_probing() {
                      helix::units::from_decidegrees(nozzle_target));
     }
 
-    if (heat_.owns(kBedHeater)) {
-        spdlog::info("[BedMeshPanel] Preheating bed to {}°C for probing", kProbeBedTemp);
-        set_temp(kBedHeater, kProbeBedTemp, "bed");
+    if (bed_c > 0 && heat_.owns(kBedHeater)) {
+        spdlog::info("[BedMeshPanel] Preheating bed to {}°C for probing", bed_c);
+        set_temp(kBedHeater, bed_c, "bed");
     } else {
         spdlog::info("[BedMeshPanel] Bed already heating (target={}°C), skipping",
                      helix::units::from_decidegrees(bed_target));
@@ -1189,8 +1292,8 @@ void BedMeshPanel::prepare_and_probe() {
         }
         if (heat_.owns(kBedHeater)) {
             char buf[128];
-            std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%.0f",
-                          kProbeBedTemp);
+            std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%d",
+                          chosen_probe_bed_c());
             wait_cmd += buf;
         }
 
@@ -1336,8 +1439,12 @@ BedMeshPanel::plan_calibration_into(const std::string& name) const {
     // parameters it takes, and brings its own heating and homing.
     const auto& info = StandardMacros::instance().get(StandardMacroSlot::BedMesh);
     auto& state = get_printer_state();
+    // The intro's choice stands in for a set target; a cold-bed choice leaves
+    // the target, or the default, to a sequence that heats on its own.
+    const int chosen_c = chosen_probe_bed_c();
     const int bed_temp_c = helix::bed_mesh::probe_bed_temp_c(
-        lv_subject_get_int(state.temperature_state().get_bed_target_subject()),
+        chosen_c > 0 ? chosen_c * 10
+                     : lv_subject_get_int(state.temperature_state().get_bed_target_subject()),
         lv_subject_get_int(state.temperature_state().get_bed_temp_subject()));
     auto plan = helix::bed_mesh::plan_calibration(info, name, bed_temp_c);
     if (plan.copy_to.empty()) {
@@ -2062,8 +2169,10 @@ BedMeshPanel& get_global_bed_mesh_panel() {
 
 namespace helix::ui {
 
-void open_bed_mesh_panel(lv_obj_t* parent_screen) {
-    get_global_bed_mesh_panel().show(parent_screen);
+void open_bed_mesh_panel(lv_obj_t* parent_screen, bool profiles) {
+    auto& panel = get_global_bed_mesh_panel();
+    panel.set_opening_view(profiles ? 1 : 0);
+    panel.show(parent_screen);
 }
 
 } // namespace helix::ui

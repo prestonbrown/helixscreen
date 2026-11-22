@@ -12,10 +12,10 @@
        duplicated translatable string is the worst version of this:
        translators see it twice and the copies can drift with no gate able to
        see it, since the existing string/i18n gates compare across files, not
-       within one. Only width/height/flex_grow differ, so they are
-       overridden at each instantiation site rather than declared as <api>
-       props. -->
-  <view name="canvas_wrapper" extends="lv_obj" width="100%" height="100%" style_pad_all="0" scrollable="false">
+       within one. Its size comes from each instantiation site: the panel
+       sizes the band with styles bound to its view, so the band sets no
+       width or height of its own (a local one would outrank them). -->
+  <view name="canvas_wrapper" extends="lv_obj" style_pad_all="0" scrollable="false">
     <bed_mesh name="bed_mesh_canvas" width="100%" height="100%" clickable="true" style_border_width="0"/>
     <!-- Empty state overlay - absolutely positioned centered over canvas -->
     <centered_column name="no_mesh_overlay" width="content" height="content" align="center">
