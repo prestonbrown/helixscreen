@@ -659,6 +659,16 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     REQUIRE(z != nullptr);
     CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
 
+    // The arrows follow the kinematics while the section shows.
+    lv_subject_t* closer_icon = lv_xml_get_subject(nullptr, "tune_z_closer_icon");
+    REQUIRE(closer_icon != nullptr);
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_expand_up");
+    lv_subject_set_int(bed_moves, 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_down");
+    lv_subject_set_int(bed_moves, 1);
+    helix::ui::UpdateQueue::instance().drain();
+
     // Bed up sits above bed down; the head-moves pair's lower button gives way.
     CHECK_FALSE(
         lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));

@@ -242,6 +242,7 @@ void PrintTuneOverlay::remove_observers() {
     pa_observer_.reset();
     pending_z_observer_.reset();
     per_head_z_observer_.reset();
+    bed_moves_observer_.reset();
     tools_version_observer_.reset();
     active_tool_observer_.reset();
 }
@@ -283,6 +284,11 @@ void PrintTuneOverlay::install_observers() {
         pending_z_observer_ = helix::ui::observe<int>(
             printer_state_->motion_state().get_pending_z_offset_delta_subject(), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            printer_state_->get_subjects_lifetime());
+        // The button order follows this subject in XML; the arrows follow it here.
+        bed_moves_observer_ = helix::ui::observe<int>(
+            printer_state_->capabilities_state().subject(Capability::BedMoves), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_z_offset_icons(nullptr); },
             printer_state_->get_subjects_lifetime());
         per_head_z_observer_ = helix::ui::observe<int>(
             printer_state_->profile_state().get_z_offset_reapplied_per_head_subject(), this,
@@ -357,8 +363,7 @@ void PrintTuneOverlay::update_z_offset_icons(lv_obj_t* /*panel*/) {
         return;
     }
 
-    // Get kinematics type from PrinterState
-    // 0 = unknown, 1 = bed moves Z (CoreXY), 2 = head moves Z (Cartesian/Delta)
+    // 1 where the bed moves on Z, 0 where the head does.
     int kin =
         lv_subject_get_int(printer_state_->capabilities_state().subject(Capability::BedMoves));
     bool bed_moves_z = (kin == 1);
