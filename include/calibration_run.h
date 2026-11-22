@@ -173,7 +173,7 @@ class CalibrationRun {
     /// Why the run ended before its last step, other than Stop.
     enum class EndNote : uint8_t {
         None,
-        KlipperStopped,    ///< Klipper shut down or restarted during the wait
+        KlipperStopped,    ///< Klipper shut down or restarted while the steps ran
         PrinterStayedBusy, ///< the wait passed its ceiling
         PrinterLost,       ///< the printer's state could no longer be read
     };
@@ -217,8 +217,8 @@ class CalibrationRun {
     void go_on_after(size_t index);
     /// The printer finished the command failed entry @p index left running.
     void printer_went_idle(size_t index);
-    /// End a run that waited after entry @p index without going on.
-    void end_waiting_run(EndNote note);
+    /// End the run after the current entry without going on: the rest did not run.
+    void end_early(EndNote note);
     void changed();
     /// Discard all: restore entries from @p from on, then restart if needed.
     void restore_from(size_t from, RunFinisher& finisher);
@@ -239,6 +239,8 @@ class CalibrationRun {
     /// The current entry failed and the run waits for the printer to be idle.
     bool waiting_ = false;
     bool printer_finishing_ = false;
+    /// Klipper left READY while the run was running: it never goes on again.
+    bool klipper_left_ready_ = false;
     EndNote end_note_ = EndNote::None;
     std::unique_ptr<PrinterBusyWatch> busy_watch_;
     std::string error_;

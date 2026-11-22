@@ -2610,6 +2610,7 @@ translations:
   Klipper restarts before calibrating.: '校准前 Klipper 将重启。'
   Klipper restarts, about 20 s: Klipper 重启，约 20 秒
   Klipper shut down: Klipper已关闭
+  Klipper stopped during the calibration, so the remaining steps did not run.: ''
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: "Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存；请重启 Klipper 后重试。"
@@ -6274,6 +6275,7 @@ translations:
   '{} detected': '检测到{}'
   '{} did not arrive; nothing was sent': '{} 未到位；未发送任何指令'
   '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
+  '{} did not run': ''
   '{} did not switch to {}. The print continued without switching.': '{} 未切换到 {}。打印在未切换的情况下继续。'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。'
   '{} did not switch to {}. The print is still paused.': '{}未切换到{}。打印仍处于暂停状态。'

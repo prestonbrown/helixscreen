@@ -2610,6 +2610,7 @@ translations:
   Klipper restarts before calibrating.: 'Klipper se reinicia antes de calibrar.'
   Klipper restarts, about 20 s: Klipper se reinicia, unos 20 s
   Klipper shut down: Klipper se apagó
+  Klipper stopped during the calibration, so the remaining steps did not run.: ''
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas y dejar Klipper bloqueado, donde un reinicio de firmware no puede alcanzarlo. Apague y encienda la impresora (o reinicie Klipper por SSH) e inténtelo de nuevo."
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: "Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas; reinicie Klipper e inténtelo de nuevo."
@@ -6274,6 +6275,7 @@ translations:
   '{} detected': '{} detectada'
   '{} did not arrive; nothing was sent': '{} no llegó; no se envió nada'
   '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': ''
+  '{} did not run': ''
   '{} did not switch to {}. The print continued without switching.': '{} no cambió a {}. La impresión continuó sin cambiar.'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}.'
   '{} did not switch to {}. The print is still paused.': '{} no cambió a {}. La impresión sigue en pausa.'

@@ -2502,6 +2502,7 @@
   <translation tag="Klipper restarts before calibrating." zh="校准前 Klipper 将重启。"/>
   <translation tag="Klipper restarts, about 20 s" zh="Klipper 重启，约 20 秒"/>
   <translation tag="Klipper shut down" zh="Klipper已关闭"/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." zh="Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存；请重启 Klipper 后重试。"/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -6054,6 +6055,7 @@
   <translation tag="{} detected" zh="检测到{}"/>
   <translation tag="{} did not arrive; nothing was sent" zh="{} 未到位；未发送任何指令"/>
   <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
+  <translation tag="{} did not run"/>
   <translation tag="{} did not switch to {}. The print continued without switching." zh="{} 未切换到 {}。打印在未切换的情况下继续。"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." zh="{}未切换到{}。打印仍处于暂停状态，{}现在带有{}的耗材标签。"/>
   <translation tag="{} did not switch to {}. The print is still paused." zh="{}未切换到{}。打印仍处于暂停状态。"/>

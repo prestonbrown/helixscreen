@@ -886,3 +886,59 @@ TEST_CASE("the heater step is priced from each heater's heating and cycles", "[c
     CHECK(heaters_step_minutes({HeaterPricing{40.0f, 0.25f, false, true, false}}) == 5);
     CHECK(heaters_step_minutes({}) == 0);
 }
+
+TEST_CASE_METHOD(RunFixture, "a Klipper shutdown under a running step ends the run when it reports",
+                 "[calibration_run]") {
+    make_run(3);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    // A heater fault shuts Klipper down mid-calibration; the shutdown zeroes
+    // the busy flag, so no wait starts.
+    run->klippy_restarted();
+    REQUIRE(run->phase() == RunPhase::Running);
+    fakes[0]->fail("Heater heater_bed not heating at expected rate");
+    CHECK(run->phase() == RunPhase::Results);
+    CHECK(run->end_note() == CalibrationRun::EndNote::KlipperStopped);
+    CHECK(status_of(1) == StepStatus::NotRun);
+    CHECK(status_of(2) == StepStatus::NotRun);
+    // Klipper back at READY changes nothing.
+    busy->go_idle();
+    CHECK(fakes[1]->starts == 0);
+    CHECK(fakes[2]->starts == 0);
+}
+
+TEST_CASE_METHOD(RunFixture, "a wait past its ceiling opens Save again once the printer is idle",
+                 "[calibration_run]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->ctx_->done(
+        StepOutcome::failed_after("printer still busy", {"Nozzle 22 / 1 / 100", {}}));
+    busy->time_out();
+    REQUIRE(run->phase() == RunPhase::Results);
+    CHECK_FALSE(run->can_save());
+
+    busy->go_idle();
+    CHECK_FALSE(run->printer_finishing());
+    CHECK(run->can_save());
+    CHECK(fakes[1]->starts == 0);
+}
+
+TEST_CASE("a late recheck takes only gains this calibration staged", "[calibration_run]") {
+    const nlohmann::json earlier = {
+        {"heater_bed", {{"pid_kp", "70.1"}, {"pid_ki", "1.1"}, {"pid_kd", "1190.0"}}}};
+    const nlohmann::json same = earlier;
+    const nlohmann::json fresh = {
+        {"heater_bed", {{"pid_kp", "14.888"}, {"pid_ki", "0.462"}, {"pid_kd", "119.9"}}}};
+    CHECK_FALSE(newly_staged_pid(earlier, same, "heater_bed"));
+    const auto got = newly_staged_pid(earlier, fresh, "heater_bed");
+    REQUIRE(got);
+    CHECK(got->kp == Catch::Approx(14.888));
+    CHECK(newly_staged_pid(nlohmann::json(), fresh, "heater_bed"));
+    CHECK_FALSE(newly_staged_pid(nlohmann::json(), fresh, "extruder"));
+}

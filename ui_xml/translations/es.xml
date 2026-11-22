@@ -2502,6 +2502,7 @@
   <translation tag="Klipper restarts before calibrating." es="Klipper se reinicia antes de calibrar."/>
   <translation tag="Klipper restarts, about 20 s" es="Klipper se reinicia, unos 20 s"/>
   <translation tag="Klipper shut down" es="Klipper se apagó"/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." es="Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas y dejar Klipper bloqueado, donde un reinicio de firmware no puede alcanzarlo. Apague y encienda la impresora (o reinicie Klipper por SSH) e inténtelo de nuevo."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." es="Klipper dejó de informar el progreso. Su análisis puede quedarse sin memoria en impresoras pequeñas; reinicie Klipper e inténtelo de nuevo."/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -6054,6 +6055,7 @@
   <translation tag="{} detected" es="{} detectada"/>
   <translation tag="{} did not arrive; nothing was sent" es="{} no llegó; no se envió nada"/>
   <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
+  <translation tag="{} did not run"/>
   <translation tag="{} did not switch to {}. The print continued without switching." es="{} no cambió a {}. La impresión continuó sin cambiar."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." es="{} no cambió a {}. La impresión sigue en pausa y {} lleva ahora la etiqueta de filamento de {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." es="{} no cambió a {}. La impresión sigue en pausa."/>

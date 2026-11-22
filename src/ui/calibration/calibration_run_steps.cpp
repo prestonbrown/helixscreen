@@ -14,11 +14,13 @@
 #include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
+#include "klippy_state.h"
 #include "moonraker_error.h"
 #include "pid_calibrate_tolerance.h"
 #include "pid_progress_tracker.h"
 #include "printer_calibration_state.h"
 #include "printer_discovery.h"
+#include "printer_network_state.h"
 #include "printer_state.h"
 #include "printer_temperature_state.h"
 #include "translation_loader.h"
@@ -75,6 +77,14 @@ class HeatersStep : public CalibrationStep {
         shares_.clear();
         priced_s_.clear();
         failed_index_.reset();
+        // What is pending before this step stages anything, so a late recheck
+        // tells this step's gains from an earlier calibration's left unsaved.
+        pending_before_ = nlohmann::json();
+        ctx.api.advanced().get_save_config_pending_items(
+            lifetime_.bg_cb("CalibrationRun.Heaters.pending_before",
+                            [this](const nlohmann::json& items) { pending_before_ = items; }),
+            lifetime_.bg_cb("CalibrationRun.Heaters.pending_before_error",
+                            [](const MoonrakerError&) {}));
         float total = 0.0f;
         for (const auto& h : heaters_) {
             priced_s_.push_back(heater_calibration_seconds(
@@ -120,23 +130,27 @@ class HeatersStep : public CalibrationStep {
         const size_t at = *failed_index_;
         const Heater h = heaters_[at];
         api.advanced().get_save_config_pending_items(
-            lifetime_.bg_cb(
-                "CalibrationRun.Heaters.recheck",
-                [this, h, at, done](const nlohmann::json& items) {
-                    const auto gains = staged_pid(items, h.name);
-                    if (!gains) {
-                        done(std::nullopt);
-                        return;
-                    }
-                    record_pid(h, gains->kp, gains->ki, gains->kd);
-                    failed_index_.reset();
-                    if (at + 1 >= heaters_.size()) {
-                        done(StepOutcome::finished({joined_summary(), values_, joined_brief()}));
-                        return;
-                    }
-                    done(StepOutcome::failed_after(failure_,
-                                                   {joined_summary(), values_, joined_brief()}));
-                }),
+            lifetime_.bg_cb("CalibrationRun.Heaters.recheck",
+                            [this, h, at, done](const nlohmann::json& items) {
+                                const auto gains = newly_staged_pid(pending_before_, items, h.name);
+                                if (!gains) {
+                                    done(std::nullopt);
+                                    return;
+                                }
+                                record_pid(h, gains->kp, gains->ki, gains->kd);
+                                failed_index_.reset();
+                                if (at + 1 >= heaters_.size()) {
+                                    done(StepOutcome::finished(
+                                        {joined_summary(), values_, joined_brief()}));
+                                    return;
+                                }
+                                // This heater tuned after all; the next one never ran.
+                                const bool next_bed = heaters_[at + 1].name == kBedHeater;
+                                done(StepOutcome::failed_after(
+                                    fmt::format(fmt::runtime(lv_tr("{} did not run")),
+                                                next_bed ? lv_tr("Bed") : lv_tr("Nozzle")),
+                                    {joined_summary(), values_, joined_brief()}));
+                            }),
             lifetime_.bg_cb("CalibrationRun.Heaters.recheck_error",
                             [done](const MoonrakerError&) { done(std::nullopt); }));
     }
@@ -302,7 +316,6 @@ class HeatersStep : public CalibrationStep {
         const std::string message = MoonrakerError::friendly_error_line(why);
         failed_index_ = index_;
         failed_mpc_ = mpc_;
-        failure_ = message;
         if (summaries_.empty()) {
             ctx->done(StepOutcome::failed(message));
             return;
@@ -335,7 +348,8 @@ class HeatersStep : public CalibrationStep {
     /// The heater the step failed on, and how, for recheck_after_wait().
     std::optional<size_t> failed_index_;
     bool failed_mpc_ = false;
-    std::string failure_;
+    /// Klipper's pending config as the step started.
+    nlohmann::json pending_before_;
     size_t index_ = 0;
     std::vector<std::string> summaries_;
     std::vector<HeaterControl> controls_;
@@ -771,7 +785,12 @@ class IdleTimeoutBusyWatch : public PrinterBusyWatch {
             }
             return;
         }
-        if (!busy()) {
+        // A klippy transition zeroes the busy flag at once, before the run
+        // hears Klipper went down; idle only counts from a READY Klipper.
+        const bool ready =
+            static_cast<KlippyState>(lv_subject_get_int(
+                state_.network_state().get_klippy_state_subject())) == KlippyState::READY;
+        if (ready && !busy()) {
             auto idle = std::move(idle_);
             cancel();
             if (idle) {

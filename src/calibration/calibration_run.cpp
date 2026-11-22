@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace helix::calibration {
 
@@ -223,6 +224,11 @@ void CalibrationRun::on_step_done(size_t index, StepOutcome outcome) {
 
 void CalibrationRun::go_on_after(size_t index) {
     const Entry& e = entries_[index];
+    if (klipper_left_ready_) {
+        // Klipper went down while this step ran, maybe for a heater fault.
+        end_early(EndNote::KlipperStopped);
+        return;
+    }
     if (e.status != StepStatus::Failed || !busy_watch_ || !busy_watch_->busy()) {
         changed();
         advance();
@@ -238,23 +244,29 @@ void CalibrationRun::go_on_after(size_t index) {
     changed();
     busy_watch_->when_idle(
         [this, index]() { printer_went_idle(index); }, wait_ceiling_ms(e.step->info()),
-        [this](bool still_busy) {
+        [this, index](bool still_busy) {
             spdlog::warn("[CalibrationRun] Gave up waiting for the printer ({})",
                          still_busy ? "still busy" : "state unreadable");
             printer_finishing_ = still_busy;
-            end_waiting_run(still_busy ? EndNote::PrinterStayedBusy : EndNote::PrinterLost);
+            end_early(still_busy ? EndNote::PrinterStayedBusy : EndNote::PrinterLost);
+            if (still_busy) {
+                // The run has ended, but Save stays shut only while the printer
+                // is busy: keep watching, with no ceiling, to open it again.
+                busy_watch_->when_idle([this, index]() { printer_went_idle(index); },
+                                       std::numeric_limits<uint32_t>::max(), [](bool) {});
+            }
         });
 }
 
 void CalibrationRun::printer_went_idle(size_t index) {
     spdlog::info("[CalibrationRun] The printer is idle");
-    printer_finishing_ = false;
     std::weak_ptr<int> alive = alive_;
     entries_[index].step->recheck_after_wait(
         api_, [this, alive, index](std::optional<StepOutcome> late) {
             if (alive.expired()) { // L081_OK: steps call back on the main thread
                 return;
             }
+            printer_finishing_ = false;
             Entry& e = entries_[index];
             if (late && e.status == StepStatus::Failed) {
                 spdlog::info("[CalibrationRun] Step {} ({}) staged its result after all", index + 1,
@@ -265,6 +277,10 @@ void CalibrationRun::printer_went_idle(size_t index) {
                 e.message = std::move(late->message);
             }
             if (waiting_ && phase_ == RunPhase::Running) {
+                if (klipper_left_ready_) {
+                    end_early(EndNote::KlipperStopped);
+                    return;
+                }
                 waiting_ = false;
                 changed();
                 advance();
@@ -274,8 +290,8 @@ void CalibrationRun::printer_went_idle(size_t index) {
         });
 }
 
-void CalibrationRun::end_waiting_run(EndNote note) {
-    if (!waiting_ || phase_ != RunPhase::Running) {
+void CalibrationRun::end_early(EndNote note) {
+    if (phase_ != RunPhase::Running) {
         changed();
         return;
     }
@@ -381,11 +397,17 @@ bool CalibrationRun::can_discard() const {
 void CalibrationRun::klippy_restarted() {
     // The command the run waited on died with Klipper. Never go on to the next
     // step from here: the restart may follow a heater fault.
+    if (phase_ == RunPhase::Running) {
+        // A step still running ends the run when it reports, instead of going on.
+        klipper_left_ready_ = true;
+    }
     if (printer_finishing_ || waiting_) {
         spdlog::warn("[CalibrationRun] Klipper stopped while the printer finished a failed step");
         busy_watch_->cancel();
         printer_finishing_ = false;
-        end_waiting_run(EndNote::KlipperStopped);
+        if (waiting_) {
+            end_early(EndNote::KlipperStopped);
+        }
     }
     // The restarts Save all and Discard all cause are their own; a stop's has
     // already marked what it lost.

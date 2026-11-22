@@ -2502,6 +2502,7 @@
   <translation tag="Klipper restarts before calibrating." de="Klipper startet vor dem Kalibrieren neu."/>
   <translation tag="Klipper restarts, about 20 s" de="Klipper startet neu, etwa 20 s"/>
   <translation tag="Klipper shut down" de="Klipper heruntergefahren"/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." de="Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen und Klipper blockieren, sodass ein Firmware-Neustart es nicht erreicht. Schalten Sie den Drucker aus und wieder ein (oder starten Sie Klipper per SSH neu) und versuchen Sie es dann erneut."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." de="Klipper meldet keinen Fortschritt mehr. Seine Auswertung kann auf kleinen Druckern den Speicher erschöpfen; starten Sie Klipper neu und versuchen Sie es erneut."/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -6054,6 +6055,7 @@
   <translation tag="{} detected" de="{} erkannt"/>
   <translation tag="{} did not arrive; nothing was sent" de="{} ist nicht angekommen; nichts wurde gesendet"/>
   <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
+  <translation tag="{} did not run"/>
   <translation tag="{} did not switch to {}. The print continued without switching." de="{} hat nicht auf {} gewechselt. Der Druck lief ohne Wechsel weiter."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." de="{} wurde nicht auf {} umgestellt. Der Druck ist weiter pausiert, und {} trägt jetzt die Filamentangaben von {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." de="{} wurde nicht auf {} umgestellt. Der Druck ist weiter pausiert."/>

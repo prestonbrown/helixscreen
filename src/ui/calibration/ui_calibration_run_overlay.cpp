@@ -284,8 +284,8 @@ std::string end_note_text(calibration::CalibrationRun::EndNote note) {
     case Note::None:
         break;
     case Note::KlipperStopped:
-        return lv_tr("Klipper stopped while the printer was finishing a step, so the remaining "
-                     "steps did not run.");
+        return lv_tr("Klipper stopped during the calibration, so the remaining steps did not "
+                     "run.");
     case Note::PrinterStayedBusy:
         return lv_tr("The printer stayed busy long after the step failed, so the remaining steps "
                      "did not run.");

@@ -395,8 +395,12 @@ words. On the printer's first idle report the step gets `recheck_after_wait()`: 
 reads the gains a late `PID_CALIBRATE` staged (`staged_pid()`) and turns its failure into a finish,
 so the results and the history match what Klipper will save. The next step then starts.
 
-Klipper leaving READY during the wait ends the run (`EndNote::KlipperStopped`) and never goes on,
-since the restart may follow a heater fault. Stop while waiting (`StopEffect::PrinterFinishes`)
+Klipper leaving READY while the steps run is latched: the run never starts another step, it ends
+with `EndNote::KlipperStopped` at once during a wait, or when the running step reports, since the
+restart may follow a heater fault. The watch counts an idle reading only from a READY Klipper,
+because a klippy transition zeroes the busy flag before the run hears of it. Past the ceiling the
+run ends but keeps watching, without a ceiling, so Save opens once the printer is idle. The late
+recheck takes only gains that were not already pending when the step started (`newly_staged_pid()`). Stop while waiting (`StopEffect::PrinterFinishes`)
 ends the run without aborting anything and never sends `M112`; its confirmation says the printer
 finishes its command first. Until the printer is idle, `printer_finishing()` keeps Save and
 Discard shut, since a `SAVE_CONFIG` would queue behind the command. The run's phases are

@@ -67,5 +67,10 @@ struct PidGains {
 /// configfile.save_config_pending_items, or nothing when it staged none.
 [[nodiscard]] std::optional<PidGains> staged_pid(const nlohmann::json& pending_items,
                                                  const std::string& heater);
+/// The gains staged for @p heater in @p now that were not already pending in
+/// @p before: an earlier, unsaved calibration's gains are not this one's.
+[[nodiscard]] std::optional<PidGains> newly_staged_pid(const nlohmann::json& before,
+                                                       const nlohmann::json& now,
+                                                       const std::string& heater);
 
 } // namespace helix::calibration

@@ -2550,6 +2550,7 @@
   <translation tag="Klipper restarts before calibrating." ru="Klipper перезапустится перед калибровкой."/>
   <translation tag="Klipper restarts, about 20 s" ru="Klipper перезапускается, около 20 с"/>
   <translation tag="Klipper shut down" ru="Klipper остановлен"/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти; перезапустите Klipper и повторите попытку."/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -6129,6 +6130,7 @@
   <translation tag="{} detected" ru="{}: обнаружено"/>
   <translation tag="{} did not arrive; nothing was sent" ru="{} не прибыл; ничего не отправлено"/>
   <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
+  <translation tag="{} did not run"/>
   <translation tag="{} did not switch to {}. The print continued without switching." ru="{} не переключилась на {}. Печать продолжилась без переключения."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." ru="{} не переключилась на {}. Печать всё ещё на паузе, и у {} теперь данные филамента от {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." ru="{} не переключилась на {}. Печать всё ещё на паузе."/>

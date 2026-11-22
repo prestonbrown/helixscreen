@@ -370,6 +370,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the busy watch answers on Klipper's idle repo
                  "[calibration_run]") {
     PrinterState state;
     state.init_subjects(false);
+    state.set_klippy_state_sync(KlippyState::READY);
     lv_subject_t* printing = state.calibration_state().get_idle_timeout_printing_subject();
     lv_subject_set_int(printing, 1);
     auto watch = make_printer_busy_watch(state);
@@ -405,6 +406,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "the busy watch answers on Klipper's idle repo
 TEST_CASE_METHOD(LVGLTestFixture, "the busy watch gives up at its ceiling", "[calibration_run]") {
     PrinterState state;
     state.init_subjects(false);
+    state.set_klippy_state_sync(KlippyState::READY);
     lv_subject_t* printing = state.calibration_state().get_idle_timeout_printing_subject();
     lv_subject_set_int(printing, 1);
     auto watch = make_printer_busy_watch(state);
@@ -439,4 +441,25 @@ TEST_CASE("a run holds the screen up only while its steps run with sleep-while-p
     }
     // Closing the run lets the screen sleep again.
     CHECK_FALSE(display_awake_hold().is_held());
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the busy watch takes idle only from a READY Klipper",
+                 "[calibration_run]") {
+    PrinterState state;
+    state.init_subjects(false);
+    state.set_klippy_state_sync(KlippyState::READY);
+    lv_subject_t* printing = state.calibration_state().get_idle_timeout_printing_subject();
+    lv_subject_set_int(printing, 1);
+    auto watch = make_printer_busy_watch(state);
+    int idle = 0;
+    watch->when_idle([&]() { ++idle; }, 60000, [](bool) {});
+    // A shutdown zeroes the busy flag before the run hears Klipper went down.
+    state.set_klippy_state_sync(KlippyState::SHUTDOWN);
+    lv_subject_set_int(printing, 0);
+    process_lvgl(2500);
+    CHECK(idle == 0);
+    state.set_klippy_state_sync(KlippyState::READY);
+    lv_subject_set_int(printing, 0);
+    process_lvgl(1500);
+    CHECK(idle == 1);
 }

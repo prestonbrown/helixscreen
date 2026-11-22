@@ -298,6 +298,19 @@ std::optional<PidGains> staged_pid(const json& pending_items, const std::string&
     return PidGains{*kp, *ki, *kd};
 }
 
+std::optional<PidGains> newly_staged_pid(const json& before, const json& now,
+                                         const std::string& heater) {
+    const auto gains = staged_pid(now, heater);
+    if (!gains) {
+        return std::nullopt;
+    }
+    const auto old = staged_pid(before, heater);
+    if (old && old->kp == gains->kp && old->ki == gains->ki && old->kd == gains->kd) {
+        return std::nullopt;
+    }
+    return gains;
+}
+
 std::optional<double> staged_z_offset(const json& pending_items) {
     if (!pending_items.is_object()) {
         return std::nullopt;

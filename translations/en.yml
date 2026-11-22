@@ -2595,6 +2595,7 @@ translations:
   Klipper restarts before calibrating.: Klipper restarts before calibrating.
   Klipper restarts, about 20 s: Klipper restarts, about 20 s
   Klipper shut down: Klipper shut down
+  Klipper stopped during the calibration, so the remaining steps did not run.: Klipper stopped during the calibration, so the remaining steps did not run.
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.
@@ -6235,6 +6236,7 @@ translations:
   '{} detected': '{} detected'
   '{} did not arrive; nothing was sent': '{} did not arrive; nothing was sent'
   '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.': '{} did not finish, and the printer is still running its command. The next step starts once the printer is idle.'
+  '{} did not run': '{} did not run'
   '{} did not switch to {}. The print continued without switching.': '{} did not switch to {}. The print continued without switching.'
   '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.': '{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}.'
   '{} did not switch to {}. The print is still paused.': '{} did not switch to {}. The print is still paused.'

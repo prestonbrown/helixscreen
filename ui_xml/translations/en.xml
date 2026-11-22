@@ -2502,6 +2502,7 @@
   <translation tag="Klipper restarts before calibrating." en="Klipper restarts before calibrating."/>
   <translation tag="Klipper restarts, about 20 s" en="Klipper restarts, about 20 s"/>
   <translation tag="Klipper shut down" en="Klipper shut down"/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run." en="Klipper stopped during the calibration, so the remaining steps did not run."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." en="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." en="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again."/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run." en="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -6054,6 +6055,7 @@
   <translation tag="{} detected" en="{} detected"/>
   <translation tag="{} did not arrive; nothing was sent" en="{} did not arrive; nothing was sent"/>
   <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle." en="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
+  <translation tag="{} did not run" en="{} did not run"/>
   <translation tag="{} did not switch to {}. The print continued without switching." en="{} did not switch to {}. The print continued without switching."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." en="{} did not switch to {}. The print is still paused."/>
