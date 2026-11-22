@@ -9,6 +9,7 @@
 
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
+#include "core/text_io.h"
 #include "core/update_queue.h"
 #include "format_utils.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -17,7 +18,8 @@
 
 #include <spdlog/spdlog.h>
 
-#include <cstdio>
+#include <string>
+#include <string_view>
 
 namespace helix {
 
@@ -67,8 +69,13 @@ lv_subject_t* busy_text_subject() {
     return &s.subject;
 }
 
-void set_text(const char* text) {
-    lv_subject_set_string(busy_text_subject(), text);
+/// The most bytes of text the subject's buffer holds.
+constexpr size_t kMaxTextBytes = sizeof(BusyTextSubject::buf) - 1;
+
+/// Longer text is cut between characters: LVGL's copy cuts at the byte.
+void set_text(std::string_view text) {
+    const std::string fitted(text_io::utf8_prefix(text, kMaxTextBytes));
+    lv_subject_set_string(busy_text_subject(), fitted.c_str());
 }
 
 void create_overlay_internal();
@@ -148,7 +155,7 @@ void grace_timer_cb(lv_timer_t* timer) {
 
 void BusyOverlay::show(const std::string& initial_text, uint32_t grace_period_ms) {
     // Bound by the label, and held for the overlay if it is still pending
-    set_text(initial_text.c_str());
+    set_text(initial_text);
 
     // If already visible, the label already shows the new text
     if (g_overlay) {
@@ -188,10 +195,10 @@ void BusyOverlay::set_progress(const std::string& operation, float percent) {
     // Format: "Operation... XX%"
     char percent_buf[12];
     helix::format::format_percent_float(percent, 0, percent_buf, sizeof(percent_buf));
-    char buf[128];
-    snprintf(buf, sizeof(buf), "%s... %s", operation.c_str(), percent_buf);
-
-    set_text(buf);
+    // A long operation name gives way to the percentage.
+    const std::string suffix = std::string("... ") + percent_buf;
+    const size_t room = kMaxTextBytes > suffix.size() ? kMaxTextBytes - suffix.size() : 0;
+    set_text(std::string(text_io::utf8_prefix(operation, room)) + suffix);
 }
 
 void BusyOverlay::hide() {
