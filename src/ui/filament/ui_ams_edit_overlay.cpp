@@ -53,6 +53,7 @@
 #include "ui_breakpoint.h"
 #include "ui_overlay_qr_scanner.h"
 #include "ui_spool_canvas.h"
+#include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 
 #include "core/subject.h"
@@ -2394,6 +2395,23 @@ void AmsEditOverlay::update_header_and_panel() {
     update_page_title();
 }
 
+std::string AmsEditOverlay::temps_line(int nozzle_min, int nozzle_max, int bed_temp) {
+    std::string line;
+    char buf[32];
+    if (nozzle_min > 0 || nozzle_max > 0) {
+        helix::ui::temperature::format_temperature_range(nozzle_min, nozzle_max, buf, sizeof(buf));
+        line = std::string(lv_tr("Nozzle")) + " " + buf;
+    }
+    if (bed_temp > 0) {
+        helix::ui::temperature::format_temperature_range(bed_temp, bed_temp, buf, sizeof(buf));
+        if (!line.empty()) {
+            line += " \xC2\xB7 ";
+        }
+        line += std::string(lv_tr("Bed")) + " " + buf;
+    }
+    return line;
+}
+
 void AmsEditOverlay::update_temp_display() {
     if (!overlay_root_) {
         return;
@@ -2430,16 +2448,8 @@ void AmsEditOverlay::update_temp_display() {
         }
     }
 
-    // One read-only line under the summary: "Nozzle 230–250 °C · Bed 80 °C".
-    if (nozzle_min > 0 || nozzle_max > 0 || bed_temp > 0) {
-        const char* unit = helix::units::display_temp_symbol();
-        snprintf(temp_buf_, sizeof(temp_buf_), "%s %d\xE2\x80\x93%d%s \xC2\xB7 %s %d%s",
-                 lv_tr("Nozzle"), helix::units::to_display_temp_whole(nozzle_min),
-                 helix::units::to_display_temp_whole(nozzle_max), unit, lv_tr("Bed"),
-                 helix::units::to_display_temp_whole(bed_temp), unit);
-    } else {
-        temp_buf_[0] = '\0';
-    }
+    snprintf(temp_buf_, sizeof(temp_buf_), "%s",
+             temps_line(nozzle_min, nozzle_max, bed_temp).c_str());
     lv_subject_set_string(&temp_text_subject_, temp_buf_);
     update_header_and_panel();
     shown_nozzle_min_ = nozzle_min;

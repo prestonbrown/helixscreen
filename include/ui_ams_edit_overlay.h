@@ -214,6 +214,11 @@ class AmsEditOverlay : public OverlayBase {
     static size_t recents_room(int row_width, int fixed_tiles, int chip, int gap, size_t cap,
                                int rows = 1);
 
+    /// The read-only temperature line: "Nozzle 200-230°C · Bed 60°C". A range
+    /// with equal ends is one temperature, and an unknown (0) bed or nozzle is
+    /// left out; with neither known the line is empty.
+    static std::string temps_line(int nozzle_min, int nozzle_max, int bed_temp);
+
   private:
     // === State ===
     int slot_index_ = -1;

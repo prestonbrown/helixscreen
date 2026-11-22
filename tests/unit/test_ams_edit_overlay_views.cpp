@@ -1812,6 +1812,15 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     process_lvgl(10);
 }
 
+TEST_CASE("AmsEditOverlay::temps_line shows one temperature for equal ends and leaves out unknowns",
+          "[ams_edit_overlay][temps]") {
+    CHECK(AmsEditOverlay::temps_line(200, 230, 60) == "Nozzle 200-230°C \xC2\xB7 Bed 60°C");
+    CHECK(AmsEditOverlay::temps_line(210, 210, 60) == "Nozzle 210°C \xC2\xB7 Bed 60°C");
+    CHECK(AmsEditOverlay::temps_line(210, 210, 0) == "Nozzle 210°C");
+    CHECK(AmsEditOverlay::temps_line(0, 0, 60) == "Bed 60°C");
+    CHECK(AmsEditOverlay::temps_line(0, 0, 0).empty());
+}
+
 TEST_CASE("AmsEditOverlay::save_is_disabled holds Save shut while a save is in flight",
           "[ams_edit_overlay][spool_edit]") {
     // The rule as a rule, with no editor around it: the async seam a live save
