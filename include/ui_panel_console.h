@@ -164,6 +164,9 @@ class ConsolePanel : public OverlayBase {
     /// Append a single entry, create its widget, and auto-scroll if appropriate
     void add_entry(const GcodeEntry& entry);
 
+    /// Append a line the app itself writes (not Klipper output), styled as a response.
+    void add_status_line(const std::string& text);
+
     /// Subscribe to real-time G-code responses (called from on_activate)
     void subscribe_to_gcode_responses();
 
