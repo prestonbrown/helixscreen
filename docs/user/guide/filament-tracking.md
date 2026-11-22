@@ -135,7 +135,7 @@ A slot you set up by hand, or one whose spool came from a tag, isn't in Spoolman
 
 From then on Spoolman tracks the spool's weight. Spoolman needs a brand, a material and a color; if one is missing, a message says which, so you can pick it on the editor's Filament page and try again. See [Adding a slot's spool to Spoolman](filament-ams-panel.md#adding-a-slots-spool-to-spoolman).
 
-Putting a new spool in an empty slot adds it to Spoolman too: **Same Filament, New Spool** on the empty slot does it in one tap, and **Not Listed? Add New Spool** in the spool list does it while **Add to Spoolman** is ticked.
+Putting a new spool in an empty slot adds it to Spoolman too: **Same Filament, New Spool** on the empty slot does it in one tap, and **Not Listed? Add New Spool** in the spool list does it while **Add to Spoolman** is ticked. The spool tiles there start with your [favorite filaments](filament-ams-panel.md#favorite-filaments), so a spool you buy often is one tap to describe.
 
 ### Archiving a spool when you clear its slot
 

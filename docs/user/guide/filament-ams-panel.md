@@ -248,7 +248,7 @@ Each row shows the spool's name, its number, how much is left (**850 g · 85%**,
 **A spool that isn't listed:**
 
 1. Tap **Not Listed? Add New Spool** at the bottom of the list. The Filament page opens, set to a full 1 kg spool.
-2. Pick what the spool is (see [The Filament page](#the-filament-page)). On all but the smallest screens, the spool tiles at the bottom of the page fill in a common filament in one tap.
+2. Pick what the spool is (see [The Filament page](#the-filament-page)). The spool tiles at the bottom of the page fill it in with one tap: your [favorite filaments](#favorite-filaments) come first, marked with a star, then common ones such as **Generic PLA** in black, white and gray. On 480x320 and 480x272 screens, one row of your favorites shows instead, once you have some.
 3. With Spoolman set up, leave **Add to Spoolman** ticked to add the spool to Spoolman as well, or untick it to keep the spool on this slot only. With a label printer set up, a spool added to Spoolman prints its label when you save: see [Labels for New Spools](label-printing.md#labels-for-new-spools).
 4. Tap **Back**. The summary shows the new spool. Set its weight if it isn't full.
 5. Tap **Save**.
@@ -262,6 +262,8 @@ The Filament page says what the spool is. Its changes are held until you tap **S
   - Under **Generic**, pick the **material** from one list of exact types, such as **PLA**, **PLA-CF**, **ASA** or **ASA-CF**.
   - **Browse catalog...** at the end of either list opens the full filament catalog, where you can search, or type a filament it doesn't list.
   - With Spoolman, the brands and materials of your recent spools come first.
+  - **★ Favorites** leads the brand list once you have starred a filament. It opens the filament catalog on your starred filaments, so you can pick one in a tap.
+  - The **star** beside the product adds that product to your favorites. Tap it again to take it out. It appears once you pick a product from the catalog (not under **Generic** or **Other…**).
 - **Color** shows the spool's color, then your recent colors and more swatches, then the rainbow swatch. Tap a swatch to use it. Tap the rainbow swatch, or the spool's own color, to open the full color view. The color view and multi-color spools are described below the list.
 - **Temps** shows the nozzle range and bed temperature for what you picked: the product's own range, otherwise the material's usual range.
 - **Spoolman Details** appears on a slot linked to a Spoolman spool: see [Spoolman Details](#spoolman-details).
@@ -271,6 +273,23 @@ The Filament page says what the spool is. Its changes are held until you tap **S
 **Multi-color spools.** Where the slot can store several colors (the filament system keeps HelixScreen's own slot record, or the slot is linked to a Spoolman spool), the color view has a **Multi-Color** row above the picker. Turn its switch on to add a second color. The row then shows each color as a dot: tap a dot to edit that color in the picker below, press and hold to remove it, and tap **+** to add one, up to four. Choose **Gradient** (the color changes along the filament) or **Coaxial** (the colors run side by side, as in dual-color silk). Back on the Filament page, a multi-color spool shows its dots and a bar of its colors, blended for Gradient and in bands for Coaxial; tap a dot to pick which color the recent colors and the color view change. Removing colors down to one makes the spool single-color again. On a slot that can keep only one color, a multi-color spool shows its first color, and picking a color replaces all of them. A linked Spoolman spool saves its colors and Gradient or Coaxial to its filament in Spoolman.
 
 **From tag.** On systems that read the spool's RFID or NFC tag, a small **from tag** pill marks each value the tag supplied. Change a value and its pill goes away. While anything differs from the tag, an NFC button at the end of the Filament row puts back every value the tag states.
+
+### Favorite filaments
+
+Star the filaments you use most, and the spool editor offers them first:
+
+1. Tap a slot and choose **Edit Spool**, then tap the spool card to open the Filament page.
+2. Pick the brand and product. Tap the **star** beside the product. It fills in to show the product is a favorite.
+
+You can also tap the star on any row in the filament catalog (**Browse catalog...**).
+
+Your favorites then:
+
+- lead the spool tiles when you add a new spool, before the common ones;
+- lead the brand list as **★ Favorites**, which opens the catalog on just your starred filaments;
+- lead the catalog's own vendor list in a **Favorites** section, and float to the top of their own vendor's list.
+
+Favorites belong to the screen, not the printer, so they are the same on every printer you switch to. Tap a star again to take a filament out of your favorites.
 
 ### Lane Settings
 
@@ -329,8 +348,6 @@ Tapping Back with unsaved changes asks whether to **Save** or **Discard** them.
 **Spoolman spools in more than one place.** One physical spool can't sit in two places, so a spool linked to a slot is moved, not copied, when you use it somewhere else. The External Spool editor treats every spool linked to a slot the same way. Linking a spool to a slot also decides which spool Spoolman charges when that slot is loaded: see [Which spool Spoolman charges](filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
 > **Adding brands and products from a file.** The catalog can be extended or corrected by editing `user_filaments.json` instead of using the screen. See [Editing materials and brands by hand](settings/printing.md#editing-materials-and-brands-by-hand).
-
-> **Tip: favorite filaments.** Tap the star on any row in the filament catalog (the brand and material picker). Starred filaments lead the vendor list in a **Favorites** section and float to the top of their own vendor's list too, on every printer. Tap the star again to unstar.
 
 > **Material names with punctuation or spaces.** On AFC and Happy Hare the material is stored
 > by the firmware itself, so the name has to be something Klipper accepts. Names like `PLA+`,

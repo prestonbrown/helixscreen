@@ -842,7 +842,11 @@ everywhere; `toggle_favorite()` persists immediately, with no separate save
 step. In the selector, favorites surface as a pseudo-vendor row that leads
 the vendor list (a control byte in its internal name keeps it from colliding
 with a real vendor), and starred rows float to the top of their vendor's
-list.
+list. The picker can open on a given vendor, the Favorites view included
+(`FilamentCatalogPickerModal::set_seed_vendor()`,
+`FilamentCatalogSelector::favorites_vendor()`): the spool editor's **★ Favorites**
+brand entry opens it there. The spool editor reads the same ids for its spool tiles
+and stars a product from its Filament page (§ "The lane spool editor").
 
 ### User overlay format
 
@@ -1612,13 +1616,22 @@ Rows read as sentences, a label column on the left and the controls on the right
 **Filament** is Brand, then what the spool is, so a material is picked in exactly one
 place (`rebuild_option_lists()`):
 
-- **Brand**: Generic, then the recent brands (from Spoolman's spools), then every other
-  catalog maker, then "Browse catalog...". A value the catalog lacks stays in the list,
+- **Brand**: **★ Favorites** while the user has starred any product, then Generic, then
+  the recent brands (from Spoolman's spools), then every other catalog maker, then
+  "Browse catalog...". **★ Favorites** opens the catalog picker on its Favorites view
+  (`FilamentCatalogPickerModal::set_seed_vendor()` with
+  `FilamentCatalogSelector::favorites_vendor()`), and a pick there applies as any catalog
+  pick does (`apply_catalog_pick()`). A value the catalog lacks stays in the list,
   selected, so an untouched open and Save round-trips it.
 - **Product**, under a named brand: that brand's catalog lines, then
   "Other…". A product carries its own material and type, so a product pick sets both.
   Firmware that names a product without a catalog id (the CFS fork's `NAME`) opens on the
-  line of that name, or on the name itself when the catalog has none.
+  line of that name, or on the name itself when the catalog has none. A star beside the
+  Product list (`btn_favorite`, on the `ams_edit_star_state` subject: 0 hidden, 1 outlined,
+  2 filled; `update_star_state()`) adds the selected product to the favorites or takes it
+  out (`filament_favorites::toggle_favorite()`, `handle_star_toggle()`). It shows only for
+  a product the catalog resolves, never under Generic, "Other…" or a product named without
+  a catalog id, and the Brand list and the spool tiles follow the change at once.
 - **Material**, under Generic, under "Other…", or for a product the catalog does not know:
   one flat list of precise types ("ASA", "ASA-CF", "Silk PLA"), each family's catalog
   variants in order, spelled by `filament::compose_family_type()`. The families lead with
@@ -1683,10 +1696,18 @@ only in spelling count as the same filament.
 product's range, else the material database's range once the selection moved or on a lane
 with no material, else the slot's stored values.
 
-While adding a spool (`ams_edit_adding`), the page also shows the common spool tiles
-(`spool_assign::common_spools()`: PLA, PETG, ABS and ASA in Black, White and Gray, twelve
-tiles, hidden at the two smallest breakpoints), where a tap fills Brand (Generic), Material and
-Color; and, where Spoolman is set up, the **Add to Spoolman** checkbox (checked by
+While adding a spool (`ams_edit_adding`), the page also shows the spool tiles
+(`spool_assign::spool_tiles()`, rebuilt by `refresh_spool_tiles()` with every option
+rebuild): the user's favorites in star order, each a star and its name, then the common
+spools (`common_spools()`) a color at a time, every material in Black, then White, then
+Gray, twelve tiles in all. `spool_tile_label()` names the vendor once ("Generic PLA",
+"Creality CR-PETG", "Bambu ASA" for a Bambu Lab product already named after its maker).
+A favorite tile fills the form as a catalog pick does; a common one sets Generic, its
+material and its color (`handle_spool_tile()`). At the two smallest breakpoints (480x320
+and 480x272) the grid is hidden and one row of up to four favorite tiles shows instead,
+only while there are favorites (`favorite_spools`, on `ams_edit_has_favorites`). That row
+shows before the color row is measured, so the swatches give up a row for it. The page
+also shows, where Spoolman is set up, the **Add to Spoolman** checkbox (checked by
 default), which decides whether the summary's Save files the new spool in Spoolman
 (`CreateAndRebind`) or assigns it to the lane alone (`handle_assign_local()`, which also
 drops any link the lane had). On a linked lane the **Spoolman Details** row ("Price,
@@ -1832,7 +1853,7 @@ are pure functions with their own tests:
 | The weight step, kept within the size | `spool_assign::step_remaining()` |
 | When Clear pre-checks the archive | `spool_assign::kArchiveBelowGrams` |
 | The list's order and close-match notes | `spool_assign::rank_spools()`, `close_note()` |
-| The starter tiles | `spool_assign::common_spools()` |
+| The spool tiles: favorites first, then the common spools, and their labels | `spool_assign::spool_tiles()`, `spool_tile_label()`, `common_spools()` |
 | Whether a card line repeats the material | `spool_assign::product_names_material()` |
 | Whether Undo still applies, and whether a save left anything to undo | `spool_assign::undo_still_applies()`, `save_changed_lane()` |
 | How a remaining weight reads | `include/spool_remaining_format.h` (below) |
