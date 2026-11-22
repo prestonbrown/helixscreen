@@ -39,6 +39,11 @@ template <typename BackendT> class RegisteredBackend {
     }
 
     ~RegisteredBackend() {
+        // A started backend may still be polling on its own thread (ACE's REST
+        // fallback), and a poll landing after the drain would queue a callback
+        // the next test inherits. stop() joins those threads and is a no-op on a
+        // backend that never started.
+        backend_->stop();
         // Drain ahead of clear_backends(), not after. Driving the backend leaves
         // AmsState::on_backend_event callbacks queued, and each one resolves its
         // work through get_backend(0); once the backends are gone that answers
