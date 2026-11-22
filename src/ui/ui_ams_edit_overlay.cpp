@@ -282,31 +282,17 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     if (completion_callback_) {
         fire_completion(false);
     }
-    ++session_;
     slot_index_ = slot_index;
-    original_info_ = initial_info;
-    last_held_ = initial_info;
-    working_info_ = initial_info;
-    note_action_form_.reset();
-    held_form_.reset();
-    color_page_open_ = false;
     api_ = api ? api : get_moonraker_api();
     completion_callback_ = std::move(on_complete);
     completion_fired_ = false;
-    save_in_flight_ = false;
-    set_save_state(kSaveIdle);
-    editor_entered_ = false;
-    sel_ = selection_from_slot(working_info_);
-    selection_moved_ = false;
-    identity_reset_ = false;
-    reset_color_draft();
-    tag_.reset();
-    linked_fetch_pending_ = false;
+    // The previous session's lane stops being followed before this one opens.
+    lane_observer_.reset();
+    start_lane_session(initial_info);
     recents_pending_ = false;
     recents_loaded_ = false;
     recent_families_.clear();
     recent_brands_.clear();
-    reseed_details_for_spool();
     cached_spools_.clear();
     cached_searchables_.clear();
     listed_.clear();
@@ -316,13 +302,6 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     edited_spoolman_record_ = false;
     spools_from_spoolman_ = false;
     picker_search_debounce_.cancel();
-    // Assign Spool on a lane that reads a weight keeps that weight; a spool
-    // going in over one (begin_fresh_assign) starts at 1 kg instead.
-    const spool_assign::SpoolSize size = spool_assign::size_for_reading(
-        initial_info.remaining_weight_g, initial_info.total_weight_g);
-    size_chip_ = size.chip;
-    size_remaining_g_ = size.remaining_g;
-    size_total_g_ = size.total_g;
     created_spool_id_ = 0;
 
     // Always prefer the active screen so the overlay renders above everything
@@ -334,14 +313,52 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     // After show(): the first one initialises the subjects this writes.
     load_lane_settings();
 
-    // Reset per-session view state HERE (covered-safe — on_deactivate must not
+    open_lane_page(initial_info, open_on_picker);
+    observe_lane();
+
+    spdlog::info(
+        "[AmsEditOverlay] Shown for slot {} (spoolman_id={}, brand={}, material={}, status={})",
+        slot_index, initial_info.spoolman_id, initial_info.brand, initial_info.material,
+        slot_status_to_string(initial_info.status));
+    return true;
+}
+
+void AmsEditOverlay::start_lane_session(const SlotInfo& info) {
+    ++session_;
+    original_info_ = info;
+    last_held_ = info;
+    working_info_ = info;
+    note_action_form_.reset();
+    held_form_.reset();
+    color_page_open_ = false;
+    save_in_flight_ = false;
+    set_save_state(kSaveIdle);
+    editor_entered_ = false;
+    sel_ = selection_from_slot(working_info_);
+    selection_moved_ = false;
+    identity_reset_ = false;
+    reset_color_draft();
+    tag_.reset();
+    linked_fetch_pending_ = false;
+    reseed_details_for_spool();
+    // Assign Spool on a lane that reads a weight keeps that weight; a spool
+    // going in over one (begin_fresh_assign) starts at 1 kg instead.
+    const spool_assign::SpoolSize size =
+        spool_assign::size_for_reading(info.remaining_weight_g, info.total_weight_g);
+    size_chip_ = size.chip;
+    size_remaining_g_ = size.remaining_g;
+    size_total_g_ = size.total_g;
+}
+
+void AmsEditOverlay::open_lane_page(const SlotInfo& info, bool open_on_picker) {
+    // Per-session view state is set HERE (covered-safe: on_deactivate must not
     // touch it, since it also fires when the QR scanner merely covers us). A
     // lane holding a spool opens on Edit Spool; an empty one, or a request to
     // pick a spool, on Assign Spool.
-    const bool edit = !open_on_picker &&
-                      spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit;
+    const bool holds_spool = spool_assign::screen_for_lane(info) == spool_assign::LaneScreen::Edit;
+    const bool edit = !open_on_picker && holds_spool;
     lv_subject_set_int(&mode_subject_, edit ? kModeEdit : kModeAssign);
-    if (!edit && spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit) {
+    if (!edit && holds_spool) {
         // Asked to pick a spool for a lane that holds one.
         begin_fresh_assign();
     }
@@ -355,17 +372,73 @@ bool AmsEditOverlay::show_for_slot(lv_obj_t* parent, int slot_index, const SlotI
     // A lane holding a spool opens on its summary, an empty one on the empty
     // page; a request to pick a spool opens the list, which goes back to the
     // page the lane would have opened on.
-    list_return_page_ =
-        edit || spool_assign::screen_for_lane(initial_info) == spool_assign::LaneScreen::Edit
-            ? kPageSummary
-            : kPageEmpty;
+    list_return_page_ = holds_spool ? kPageSummary : kPageEmpty;
     set_page(open_on_picker ? kPageList : edit ? kPageSummary : kPageEmpty);
+}
 
-    spdlog::info(
-        "[AmsEditOverlay] Shown for slot {} (spoolman_id={}, brand={}, material={}, status={})",
-        slot_index, initial_info.spoolman_id, initial_info.brand, initial_info.material,
-        slot_status_to_string(initial_info.status));
-    return true;
+std::optional<spool_assign::LaneScreen> AmsEditOverlay::lane_screen_now() const {
+    const AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend || slot_index_ < 0) {
+        return std::nullopt;
+    }
+    const SlotInfo lane = backend->get_slot_info(slot_index_);
+    if (lane.slot_index < 0 && lane.global_index < 0) {
+        return std::nullopt; // the backend has no such lane
+    }
+    return spool_assign::screen_for_lane(lane);
+}
+
+void AmsEditOverlay::observe_lane() {
+    lane_observer_.reset();
+    // The editor follows changes to the lane from here on, not a difference
+    // between what its opener passed and what the backend reads.
+    lane_screen_seen_ = lane_screen_now();
+    auto& ams = AmsState::instance();
+    // The external spool has no sensor to follow.
+    if (slot_index_ < 0 || !ams.are_subjects_initialized()) {
+        return;
+    }
+    lane_observer_ = helix::ui::observe<int>(
+        ams.get_slots_version_subject(), this,
+        [](AmsEditOverlay* self, int) { self->follow_lane(); }, ams.get_subjects_lifetime());
+}
+
+bool AmsEditOverlay::editing_lane() const {
+    return save_in_flight_ || color_page_open_ || is_dirty();
+}
+
+void AmsEditOverlay::follow_lane() {
+    // Covered (a keypad, the scanner) or closing, the editor stays put;
+    // on_activate() catches up when it shows again.
+    if (!subjects_initialized_ || !editor_entered_ || !is_visible() || completion_fired_ ||
+        !lane_observer_) {
+        return;
+    }
+    const std::optional<spool_assign::LaneScreen> now = lane_screen_now();
+    if (!now || now == lane_screen_seen_) {
+        return;
+    }
+    const int page = lv_subject_get_int(&page_subject_);
+    const spool_assign::EditorPage shown = page == kPageSummary ? spool_assign::EditorPage::Summary
+                                           : page == kPageEmpty ? spool_assign::EditorPage::Empty
+                                                                : spool_assign::EditorPage::Other;
+    const spool_assign::LaneFollow follow =
+        spool_assign::page_after_lane_change(shown, editing_lane(), *now);
+    if (follow == spool_assign::LaneFollow::Stay) {
+        // Unseen still: the change applies once the user is back on the
+        // summary or the empty page with nothing held.
+        return;
+    }
+    lane_screen_seen_ = now;
+    const SlotInfo fresh = AmsState::instance().get_backend()->get_slot_info(slot_index_);
+    spdlog::info("[AmsEditOverlay] Slot {} now reads {}: showing its {} page", slot_index_,
+                 slot_status_to_string(fresh.status),
+                 follow == spool_assign::LaneFollow::ToSummary ? "summary" : "empty");
+    start_lane_session(fresh);
+    load_lane_settings();
+    open_lane_page(fresh, false);
+    update_ui();
+    update_sync_button_state();
 }
 
 void AmsEditOverlay::fetch_linked_spool() {
@@ -567,6 +640,7 @@ lv_obj_t* AmsEditOverlay::create(lv_obj_t* parent) {
 void AmsEditOverlay::on_ui_destroyed() {}
 
 void AmsEditOverlay::on_dismissed() {
+    lane_observer_.reset();
     // Idempotent: Save and Back have already fired it on their own paths.
     fire_completion(false);
 }
@@ -591,6 +665,8 @@ void AmsEditOverlay::on_activate() {
         if (picker_pending_ && lv_subject_get_int(&mode_subject_) == kModeAssign) {
             populate_picker();
         }
+        // The lane may have filled or run out while the editor was covered.
+        follow_lane();
     }
 }
 
@@ -739,6 +815,7 @@ void AmsEditOverlay::init_subjects() {
 }
 
 void AmsEditOverlay::deinit_subjects() {
+    lane_observer_.reset();
     // The pools are file-wide; only the instance that registered them gives
     // them back, so a second editor object (a test's) leaves the live one alone.
     if (subjects_initialized_) {
@@ -1028,6 +1105,10 @@ void AmsEditOverlay::set_page(int page) {
     if (page == kPageFilament || page == kPageSummary) {
         // The color row is measured at the width it shows at.
         size_color_row();
+    }
+    if (page == kPageSummary || page == kPageEmpty) {
+        // Back on a lane page: a fill or runout seen elsewhere applies now.
+        follow_lane();
     }
 }
 
