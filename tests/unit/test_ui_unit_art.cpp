@@ -616,6 +616,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: a translucent lane shows checks ove
     REQUIRE(checks != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(checks));
     CHECK(lv_image_get_src(checks) != nullptr);
+    // It covers the lane's spool, not the whole drawing.
+    lv_obj_update_layout(art);
+    CHECK(lv_obj_get_width(checks) < lv_obj_get_width(art) / 2);
+    CHECK(lv_obj_get_x(checks) > 0);
     lv_obj_t* opaque = lv_obj_find_by_name(art, "lane1_checks");
     REQUIRE(opaque != nullptr);
     CHECK(lv_obj_is_hidden(opaque));

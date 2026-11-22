@@ -565,7 +565,8 @@ std::vector<uint8_t> layer_alpha(lv_obj_t* art, ArtData* data, const std::vector
 }
 
 /// Lay the swatch checkerboard over lane @p i's tint, where its filament is drawn: an image
-/// at the widget's size, rebuilt only when the tint's outline, the size or the theme moves.
+/// over the tint's bounds, rebuilt only when the tint's outline, the size or the check tones
+/// move.
 void refresh_lane_checks(lv_obj_t* art, ArtData* data, int i, int32_t w, int32_t h) {
     LaneImages& lane = data->lanes[static_cast<size_t>(i)];
     if (!lane.checks || !lane.filled || !lane.translucent || w <= 0 || h <= 0)
@@ -582,27 +583,43 @@ void refresh_lane_checks(lv_obj_t* art, ArtData* data, int i, int32_t w, int32_t
     const std::vector<uint8_t> tint = layer_alpha(art, data, {lane.color}, w, h);
     if (tint.empty())
         return;
-    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+    // The image covers only the tint's own bounds, not the whole drawing: a
+    // lane's spool is a fraction of the widget, and small boards keep one per
+    // translucent lane.
+    int32_t x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (int32_t y = 0; y < h; ++y) {
+        for (int32_t x = 0; x < w; ++x) {
+            if (tint[static_cast<size_t>(y) * static_cast<size_t>(w) + static_cast<size_t>(x)]) {
+                x0 = std::min(x0, x);
+                y0 = std::min(y0, y);
+                x1 = std::max(x1, x);
+                y1 = std::max(y1, y);
+            }
+        }
+    }
+    if (x1 < x0 || y1 < y0)
+        return;
+    const int32_t bw = x1 - x0 + 1;
+    const int32_t bh = y1 - y0 + 1;
+    lv_draw_buf_t* buf = lv_draw_buf_create(bw, bh, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
     if (!buf)
         return;
     lv_draw_buf_clear(buf, nullptr);
-    const helix::ui::SwatchCoverage cover = [&tint, w, h](float x, float y) {
-        const auto px = static_cast<int32_t>(x);
-        const auto py = static_cast<int32_t>(y);
-        if (px < 0 || py < 0 || px >= w || py >= h)
-            return 0.0f;
+    const helix::ui::SwatchCoverage cover = [&tint, w, x0, y0](float x, float y) {
+        const auto px = static_cast<int32_t>(x) + x0;
+        const auto py = static_cast<int32_t>(y) + y0;
         return static_cast<float>(tint[static_cast<size_t>(py) * static_cast<size_t>(w) +
                                        static_cast<size_t>(px)]) /
                255.0f;
     };
     // The squares are sized to the spool, as a swatch's are to its shape.
-    const Content c = content_of(data, w, h);
-    const int32_t spool_px =
-        data->geom ? static_cast<int32_t>(std::lround(
-                         (data->geom->lane[i].box_y1 - data->geom->lane[i].box_y0) * c.w))
-                   : h;
-    helix::ui::swatch_paint_check_pixels(buf, {0, 0, w - 1, h - 1}, cover,
-                                         helix::ui::swatch_check_cell_px(spool_px / 3), tones);
+    helix::ui::swatch_paint_check_pixels(buf, {0, 0, bw - 1, bh - 1}, cover,
+                                         helix::ui::swatch_check_cell_px(bh / 3), tones);
+    spdlog::debug("[UnitArt] lane {} checks {}x{} at ({}, {}) of {}x{}: {} bytes", i, bw, bh, x0,
+                  y0, w, h, buf->data_size);
+    // DECLARATIVE_OK: the checks image follows its lane's tint, measured at runtime.
+    lv_obj_set_pos(lane.checks, x0, y0);
+    lv_obj_set_size(lane.checks, bw, bh);
     lv_image_set_src(lane.checks, buf);
     if (lane.checks_buf)
         destroy_buf(lane.checks_buf);
