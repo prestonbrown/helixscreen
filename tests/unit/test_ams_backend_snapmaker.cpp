@@ -4801,6 +4801,21 @@ json make_detect_card(int head, const json& card_uid) {
 } // namespace
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a real card's official record is the tag's, a card-less one is not",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    FilamentRecordHarness h("tag_owns_record");
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+    h.frame(make_detect_card(1, json::array({144, 32, 196, 2})));
+    h.frame(make_task_filament({"NONE", "PLA", "NONE", "NONE"}, {false, true, false, false}));
+    CHECK(h.backend.tag_owns_filament_record(1));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(2));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(9));
+    // Official only by an endpoint write, no card behind it: an edit is forced through.
+    h.frame(make_detect_card(1, 0));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker an edit forces the record of an official head with no card",
                  "[ams][snapmaker][filament_record]") {
     lv_init_safe();

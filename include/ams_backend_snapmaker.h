@@ -424,6 +424,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// The channel's last tag reading. An entry whose CARD_UID names no card
     /// was written over the API, not read off a spool, and is none.
     [[nodiscard]] std::optional<helix::ams::TagReading> tag_reading(int slot_index) const override;
+    /// A head holding a real RFID card's official record: the firmware takes
+    /// no record write without FORCE, and the backend leaves it to the tag.
+    [[nodiscard]] bool tag_owns_filament_record(int slot_index) const override;
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
 
     // clear_slot_override()'s Snapmaker half: the spool name goes back to the

@@ -5,7 +5,8 @@
      there): a Multi-Color switch that turns the spool into two to four colors,
      the colors as dots (tap one to edit it in the picker below, hold to remove
      it, "+" to add one), how they run, Gradient or Coaxial, and a Translucent
-     checkbox for a clear or see-through filament. Both are staged with the
+     checkbox for a clear or see-through filament, disabled with a "from tag"
+     pill where the spool's tag owns the record. Both are staged with the
      editor's other edits and committed by Save. Subjects and callbacks:
      ui_ams_edit_overlay.cpp. -->
 <component>
@@ -33,9 +34,16 @@
         <event_cb trigger="value_changed" callback="ams_edit_color_mode_cb"/>
       </lv_dropdown>
     </lv_obj>
-    <lv_checkbox name="translucent_check" text="Translucent">
-      <bind_state_if_eq subject="ams_edit_translucent" state="checked" ref_value="1"/>
-      <event_cb trigger="value_changed" callback="ams_edit_translucent_cb"/>
-    </lv_checkbox>
+    <lv_obj width="content"
+            height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_xs"
+            style_bg_opa="0" style_border_width="0" scrollable="false" clickable="false">
+      <lv_checkbox name="translucent_check" text="Translucent">
+        <bind_state_if_eq subject="ams_edit_translucent" state="checked" ref_value="1"/>
+        <bind_state_if_eq subject="ams_edit_translucent_locked" state="disabled" ref_value="1"/>
+        <event_cb trigger="value_changed" callback="ams_edit_translucent_cb"/>
+      </lv_checkbox>
+      <!-- A head whose record its RFID tag owns: the tag says it, no edit reaches it. -->
+      <tag_badge subject="ams_edit_translucent_locked"/>
+    </lv_obj>
   </view>
 </component>

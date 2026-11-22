@@ -2746,6 +2746,15 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
     }
 }
 
+bool AmsBackendSnapmaker::tag_owns_filament_record(int slot_index) const {
+    if (slot_index < 0 || slot_index >= kNumTools) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    // plan_record_write_locked() sends nothing for such a head.
+    return !record_write_needs_force_locked(slot_index).has_value();
+}
+
 std::optional<helix::ams::TagReading> AmsBackendSnapmaker::tag_reading(int slot_index) const {
     if (slot_index < 0 || slot_index >= kNumTools) {
         return std::nullopt;

@@ -702,6 +702,8 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
         UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
         UI_MANAGED_SUBJECT_INT(translucent_subject_, 0, "ams_edit_translucent", subjects_);
+        UI_MANAGED_SUBJECT_INT(translucent_locked_subject_, 0, "ams_edit_translucent_locked",
+                               subjects_);
         // The spool tiles, the common spools until favorites are known.
         refresh_spool_tiles();
 
@@ -2761,6 +2763,10 @@ void AmsEditOverlay::reset_color_draft() {
 }
 
 void AmsEditOverlay::handle_translucent(bool on) {
+    // The tag states the filament's translucency; an edit would never be sent.
+    if (lv_subject_get_int(&translucent_locked_subject_) != 0) {
+        return;
+    }
     translucent_set_ = true;
     draft_translucent_ = on;
     if (color_page_open_) {
@@ -2974,6 +2980,9 @@ void AmsEditOverlay::update_color_row() {
     set_int(multi_capable_subject_, capable ? 1 : 0);
     set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
     set_int(translucent_subject_, draft_translucent() ? 1 : 0);
+    const AmsBackend* backend = AmsState::instance().get_backend();
+    set_int(translucent_locked_subject_,
+            backend && backend->tag_owns_filament_record(slot_index_) ? 1 : 0);
 
     // As many recents as size_color_row() measured room for.
     // The newest recents first, then the color page's filament palette to fill

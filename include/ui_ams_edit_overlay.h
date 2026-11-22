@@ -466,7 +466,9 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject seg_count_subject_{};           ///< color dots shown
     helix::Subject seg_selected_subject_{};        ///< the ringed dot
     helix::Subject translucent_subject_{};         ///< the Translucent checkbox: 0 or 1
-    helix::Subject color_mode_subject_{};          ///< dropdown: 0 gradient, 1 coaxial
+    /// 1 while the spool's tag owns the head's record, which no edit reaches.
+    helix::Subject translucent_locked_subject_{};
+    helix::Subject color_mode_subject_{}; ///< dropdown: 0 gradient, 1 coaxial
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
     helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's

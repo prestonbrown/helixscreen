@@ -62,7 +62,9 @@ and carry `helix_translucent` beside it (docs/specs/filament_slots.md § 3). A s
 translucency with its color, so a stronger source naming another color drops it
 (`helix::ams::resolve()`). The slot editor's color page has a **Translucent** checkbox beside
 Multi-Color (`ui_xml/components/ams_edit_multi_color.xml`), staged with the editor's other
-edits. Writes carry the alpha the store keeps: `helix::kTranslucentFilamentAlpha` (0x80) or FF
+edits, and disabled with a "from tag" pill where `AmsBackend::tag_owns_filament_record()` says
+the spool's tag owns the record (a U1 head holding a real Snapmaker card), since no edit
+reaches it and the tag states its alpha. Writes carry the alpha the store keeps: `helix::kTranslucentFilamentAlpha` (0x80) or FF
 in the U1's `FILAMENT_COLOR_RGBA`, and in a Spoolman filament's `color_hex`
 (`helix::spoolman::color_hex_for()`), which Spoolman stores and returns as written.
 
