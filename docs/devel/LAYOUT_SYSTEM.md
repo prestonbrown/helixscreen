@@ -670,10 +670,12 @@ the file is kept by `load_default_table()` until its mtime or size changes, so t
 runtime-editable table still takes effect without a per-call read.
 
 The three shipped tables are the base (landscape), `variants.ultrawide` (1480x320,
-1920x440) and `variants.portrait`. The base and portrait tables author all seven tiers; see
+1920x440, 1920x480) and `variants.portrait`. The base and portrait tables author all seven tiers; see
 the fallback warning above for why leaving one out is dangerous rather than merely terse.
-`variants.ultrawide` authors `tiny` and `small` only, the tiers an ultrawide strip reaches
-(`micro` inherits `tiny`). The xxlarge landscape table is authored on the 12x7-cell grid
+`variants.ultrawide` authors `tiny`, `small` and `medium` (1920x480 on a 30x8 grid);
+`micro` inherits `tiny`. A tier the variant leaves out places nothing and does not fall back to
+the base table, so an ultrawide panel at that tier gets `build_default_grid`'s hardcoded
+printer image, print status and tips, and little else. The xxlarge landscape table is authored on the 12x7-cell grid
 (portrait xxlarge is 14 tracks wide). Four grids carry grid-qualified tables of their own:
 the 320x240 micro panel (`micro@8x6`), the two ultratall portrait strips, 320x1480
 (`tiny@8x34`) and 440x1920 (`small@10x44`), and the 1080x2400 portrait panel
