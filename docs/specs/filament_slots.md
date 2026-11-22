@@ -189,7 +189,7 @@ does not know is `null` (RFC 0001 V-S2), never `""`, `0` or a placeholder.
 | `helix_filament_id_source` | string | `"spoolman"` when `filament_id` came from the linked spool (above). |
 | `helix_fingerprint` | string | The spool identity HelixScreen's swap detection last observed (§6). Not filament metadata; carry it through unchanged on a rewrite. |
 | `helix_external` | bool | `true` on the external spool's lane (§4). |
-| `helix_translucent` | bool | Whether the filament is translucent or clear, beside a `color`. `color` stays `#RRGGBB` for every reader. HelixScreen also reads an 8-digit `#RRGGBBAA` `color` from another writer as translucent when its alpha is below `FF`. A record without either says nothing about it. |
+| `helix_translucent` | bool | Whether the filament is translucent or clear, beside a `color`. `color` stays `#RRGGBB` for every reader. HelixScreen also reads an 8-digit `#RRGGBBAA` `color` from another writer as translucent when its alpha is below `FF`, and that alpha outranks a `helix_translucent: false` beside it, which another writer would not have updated. A record without either says nothing about it. |
 
 ### Reading records HelixScreen did not write
 
