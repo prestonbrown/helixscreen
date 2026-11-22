@@ -1870,6 +1870,15 @@ Mock scenarios that put a filament buffer reading on the Filament Buffer widget,
 
 The trace holds each reading as a step, so a scenario change shows as a step in the last minute.
 
+### Lane sensor scenarios
+
+`lane2_filled` and `lane2_empty` set the second lane's sensor to reading a spool or reading empty, as a spool fed in or a runout reports it, so an open spool editor can be watched following its lane. They need the mock AMS backend (`HELIX_MOCK_AMS=multi` and the other types not marked "real backend"); on a real backend they log a warning and change nothing.
+
+```bash
+HELIX_MOCK_AMS=multi ./build/bin/helix-screen --test -vv --remote-socket "$HELIX_SOCK"
+./build/bin/helix-screen ctl -s "$HELIX_SOCK" scenario lane2_empty
+```
+
 ### `HELIX_MOCK_THROTTLE`
 
 Inject host throttle flags into the mock performance sampler so the performance panel's under-voltage / frequency-capped warnings can be seen without an actually-throttled Pi.

@@ -4165,6 +4165,8 @@ translations:
     several times.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
   The lane forgets this spool. The filament itself stays where it is.: The lane forgets this spool. The filament itself stays where it is.
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.
+  The lane settings weren't changed.: The lane settings weren't changed.
   The lane that takes over when this one runs out: The lane that takes over when this one runs out
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service

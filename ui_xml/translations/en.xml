@@ -3902,6 +3902,8 @@
   <translation tag="The heater will cycle on and off several times." en="The heater will cycle on and off several times."/>
   <translation tag="The helper macros are installed and activate after Klipper restarts." en="The helper macros are installed and activate after Klipper restarts."/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." en="The lane forgets this spool. The filament itself stays where it is."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." en="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool."/>
+  <translation tag="The lane settings weren&apos;t changed." en="The lane settings weren&apos;t changed."/>
   <translation tag="The lane that takes over when this one runs out" en="The lane that takes over when this one runs out"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." en="The latch opens and {} can drop. Hold it before you continue, then put it in its dock."/>
   <translation tag="The left RFID reader in this CFS unit may need service" en="The left RFID reader in this CFS unit may need service"/>

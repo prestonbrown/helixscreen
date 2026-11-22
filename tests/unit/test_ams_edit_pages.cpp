@@ -1367,3 +1367,78 @@ TEST_CASE_METHOD(PagesFixture, "the weight bar's knob stays whole at both ends",
     }
     theme_manager_refresh_layout_constants(disp);
 }
+
+namespace {
+/// The lane's sensor now reads @p status, as the backend's next sync reports it.
+void lane_reads(AmsBackendMock& backend, int slot, SlotStatus status) {
+    backend.force_slot_status(slot, status);
+    AmsState::instance().sync_from_backend();
+}
+} // namespace
+
+TEST_CASE_METHOD(PagesFixture, "the editor follows its lane as a spool goes in and runs out",
+                 "[ams_edit_overlay][pages]") {
+    backend->force_slot_status(1, SlotStatus::EMPTY);
+    open(1, backend->get_slot_info(1));
+    REQUIRE(access.page() == AmsEditOverlay::kPageEmpty);
+
+    lane_reads(*backend, 1, SlotStatus::AVAILABLE);
+    settle();
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.mode() == AmsEditOverlay::kModeEdit);
+    CHECK_FALSE(access.is_dirty());
+
+    lane_reads(*backend, 1, SlotStatus::EMPTY);
+    settle();
+    CHECK(access.page() == AmsEditOverlay::kPageEmpty);
+    CHECK(access.subject_text("ams_edit_empty_title") == "Gate 2 is empty");
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "a lane change never moves an edit in progress or the spools list",
+                 "[ams_edit_overlay][pages]") {
+    SECTION("an edit held on the summary stays through a runout") {
+        const SlotInfo lane = describe_lane(*backend, 1, "PLA");
+        open(1, lane);
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        access.click("summary_card");
+        REQUIRE(access.pick_dropdown("dropdown_material", "PETG"));
+        back();
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        REQUIRE(access.is_dirty());
+
+        lane_reads(*backend, 1, SlotStatus::EMPTY);
+        settle();
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
+        CHECK(access.is_dirty());
+        CHECK(access.subject_text("ams_edit_material_line").rfind("PETG", 0) == 0);
+    }
+    SECTION("a staged lane setting holds the summary through a runout") {
+        const SlotInfo lane = describe_lane(*backend, 1, "PLA");
+        open(1, lane);
+        access.open_page(AmsEditOverlay::kPageLane);
+        REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
+        back();
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        REQUIRE(access.is_dirty());
+
+        lane_reads(*backend, 1, SlotStatus::EMPTY);
+        settle();
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
+        CHECK(access.is_dirty());
+    }
+    SECTION("the list stays open, and Back from it lands on the lane's new page") {
+        backend->force_slot_status(1, SlotStatus::EMPTY);
+        open(1, backend->get_slot_info(1));
+        access.click("btn_choose_spool");
+        REQUIRE(access.page() == AmsEditOverlay::kPageList);
+
+        lane_reads(*backend, 1, SlotStatus::AVAILABLE);
+        settle();
+        CHECK(access.page() == AmsEditOverlay::kPageList);
+        back();
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    }
+    ModalStack::instance().clear();
+    close_editor_overlay();
+}

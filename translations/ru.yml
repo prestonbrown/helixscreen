@@ -4305,6 +4305,8 @@ translations:
     включаться и выключаться.
   The helper macros are installed and activate after Klipper restarts.: 'Вспомогательные макросы установлены и активируются после перезапуска Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'Канал забудет эту катушку. Сам филамент останется на месте.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Настройки канала не изменены, и катушка не сохранена. Нажмите «Сохранить», чтобы сохранить катушку.'
+  The lane settings weren't changed.: 'Настройки канала не изменены.'
   The lane that takes over when this one runs out: 'Канал, который продолжит, когда этот закончится'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.
   The left RFID reader in this CFS unit may need service: Левому RFID-считывателю этого блока CFS может требоваться обслуживание

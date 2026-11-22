@@ -4252,6 +4252,8 @@ translations:
     varias veces.
   The helper macros are installed and activate after Klipper restarts.: 'Las macros de ayuda están instaladas y se activan tras reiniciar Klipper.'
   The lane forgets this spool. The filament itself stays where it is.: 'El carril olvida esta bobina. El filamento se queda donde está.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Los ajustes del carril no se cambiaron y la bobina no se guardó. Pulsa Guardar para guardar la bobina.'
+  The lane settings weren't changed.: 'Los ajustes del carril no se cambiaron.'
   The lane that takes over when this one runs out: 'El carril que toma el relevo cuando este se agota'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base.
   The left RFID reader in this CFS unit may need service: Puede que el lector RFID izquierdo de esta unidad CFS necesite servicio

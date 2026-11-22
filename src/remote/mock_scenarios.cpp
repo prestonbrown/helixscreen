@@ -57,7 +57,7 @@ static void apply_clog_state(const std::function<void(AmsBackendMock&)>& mutate)
     auto* backend = AmsState::instance().get_backend();
     auto* mock = backend ? backend->as_mock() : nullptr;
     if (!mock) {
-        spdlog::warn("[Scenario] No mock AMS backend — clog scenario skipped");
+        spdlog::warn("[Scenario] No mock AMS backend — scenario skipped");
         return;
     }
     mutate(*mock);
@@ -515,6 +515,18 @@ static std::vector<MockScenario> build_scenarios() {
     for (const auto& c : clog_scenarios()) {
         scenarios.push_back(c);
     }
+
+    // A spool fed into the second lane, and that lane running out, as its
+    // sensor reports them to an open spool editor.
+    scenarios.push_back({"lane2_filled", "The second lane's sensor reads a spool", []() {
+                             apply_clog_state([](AmsBackendMock& m) {
+                                 m.force_slot_status(1, SlotStatus::AVAILABLE);
+                             });
+                         }});
+    scenarios.push_back(
+        {"lane2_empty", "The second lane's sensor reads empty", []() {
+             apply_clog_state([](AmsBackendMock& m) { m.force_slot_status(1, SlotStatus::EMPTY); });
+         }});
 
     return scenarios;
 }

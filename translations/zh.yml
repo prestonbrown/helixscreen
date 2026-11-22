@@ -4034,6 +4034,8 @@ translations:
   The heater will cycle on and off several times.: 加热器将多次开关循环。
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
   The lane forgets this spool. The filament itself stays where it is.: '耗材通道将忘记此料盘。耗材本身保持原位。'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: '耗材通道设置未更改，料盘也未保存。请点击保存以保存料盘。'
+  The lane settings weren't changed.: '耗材通道设置未更改。'
   The lane that takes over when this one runs out: '此耗材通道用尽时接替的耗材通道'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修

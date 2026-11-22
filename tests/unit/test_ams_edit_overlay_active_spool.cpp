@@ -759,7 +759,7 @@ class RefusingLaneBackend : public AmsBackendMock {
 } // namespace
 
 TEST_CASE_METHOD(OverlayCommitFixture,
-                 "a lane write the backend refuses stays staged and the next Save retries it",
+                 "a lane write the backend refuses rolls back, and the written one stands",
                  "[ams_edit_overlay][lane_settings]") {
     auto owned = std::make_unique<RefusingLaneBackend>(4);
     RefusingLaneBackend* lanes = owned.get();
@@ -792,12 +792,15 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     REQUIRE(lanes->get_tool_mapping().size() > 2);
     CHECK(lanes->get_tool_mapping()[2] == 1);
     CHECK(lanes->tool_writes == 1);
-    CHECK(access.lane_dirty());
+    // The refused backup goes back to what the lane holds; the tool that
+    // landed is the lane's now.
+    CHECK_FALSE(access.lane_dirty());
     CHECK_FALSE(completion_fired);
 
-    // The backend accepts it now. Save writes the backup and does not resend
-    // the tool, which already landed.
+    // Picked again once the backend accepts it, Save writes the backup and
+    // does not resend the tool.
     lanes->refuse_backup = false;
+    access.set_lane_settings(2, backup_before, 2, 3);
     access.call_handle_save();
     UpdateQueue::instance().drain();
 
