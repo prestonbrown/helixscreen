@@ -303,6 +303,7 @@ MDI_ICONS+=",0xF02EE"    # image-broken-variant (missing/broken image fallback)
 MDI_ICONS+=",0xF1274"    # inbox-outline
 MDI_ICONS+=",0xF01A7"    # cube-outline
 MDI_ICONS+=",0xF04CE"    # star (favorites/recent)
+MDI_ICONS+=",0xF04D2"    # star-outline (favorite toggle)
 MDI_ICONS+=",0xF1A45"    # heat-wave (for heated bed icon)
 MDI_ICONS+=",0xF15EE"    # fridge-industrial (chamber temperature)
 MDI_ICONS+=",0xF1B35"    # train-car-flatbed (print bed base)

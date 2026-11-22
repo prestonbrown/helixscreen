@@ -501,6 +501,24 @@
             <bind_flag_if_eq subject="ams_edit_product_hidden" flag="hidden" ref_value="1"/>
             <event_cb trigger="value_changed" callback="ams_edit_product_dd_cb"/>
           </lv_dropdown>
+          <!-- The product's favorite star: outlined until starred, filled after. -->
+          <lv_obj name="btn_favorite"
+                  width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit"
+                  style_pad_all="0" style_radius="#border_radius" style_bg_opa="0" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_flex_track_place="center" scrollable="false" clickable="true" hidden="true">
+            <style name="styles.press_wash" selector="pressed"/>
+            <bind_flag_if_eq subject="ams_edit_star_state" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="ams_edit_star_cb"/>
+            <icon name="favorite_star_outline"
+                  src="star_outline" size="sm" variant="muted" clickable="false" event_bubble="true">
+              <bind_flag_if_not_eq subject="ams_edit_star_state" flag="hidden" ref_value="1"/>
+            </icon>
+            <icon name="favorite_star"
+                  src="star" size="sm" variant="warning" clickable="false" event_bubble="true" hidden="true">
+              <bind_flag_if_not_eq subject="ams_edit_star_state" flag="hidden" ref_value="2"/>
+            </icon>
+          </lv_obj>
           <lv_dropdown name="dropdown_material"
                        width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
             <bind_flag_if cond="ams_edit_product_hidden eq 0 and ams_edit_no_product eq 0" flag="hidden"/>

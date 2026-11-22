@@ -1014,3 +1014,52 @@ TEST_CASE_METHOD(PagesFixture, "Brand leads with Favorites only while there are 
     }
     close_editor_overlay();
 }
+
+TEST_CASE_METHOD(PagesFixture, "the Filament row's star adds the lane's product to the favorites",
+                 "[ams_edit_overlay][pages][favorites]") {
+    StarredFavorites starred({});
+    const auto star_state = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_star_state"));
+    };
+    SECTION("Generic: no star") {
+        open(1, describe_lane(*backend, 1, "PLA"));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
+        settle();
+        CHECK_FALSE(access.shown("btn_favorite"));
+        CHECK(star_state() == 0);
+    }
+    SECTION("a catalog product: outlined, and a tap stars it") {
+        const auto catalog = helix::printer::FilamentCatalog::load_full();
+        const auto* product = catalog_products(catalog, 1).front();
+        SlotInfo lane = describe_lane(*backend, 1, "PLA");
+        lane.brand = product->brand;
+        lane.catalog_id = product->id;
+        lane.material = product->type;
+        REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+        open(1, backend->get_slot_info(1));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        settle();
+        REQUIRE(access.sel().product_id == product->id);
+        REQUIRE(access.shown("btn_favorite"));
+        CHECK(access.shown("favorite_star_outline"));
+        CHECK_FALSE(access.shown("favorite_star"));
+
+        access.click("btn_favorite");
+        settle();
+        const auto ids = helix::filament_favorites::load_favorite_ids();
+        CHECK(std::find(ids.begin(), ids.end(), product->id) != ids.end());
+        CHECK(star_state() == 2);
+        CHECK(access.shown("favorite_star"));
+        CHECK_FALSE(access.shown("favorite_star_outline"));
+        // It leads the spool tiles now.
+        CHECK(access.subject_text("ams_edit_tile_label_0") == product->name);
+
+        // A second tap takes it off again.
+        access.click("btn_favorite");
+        settle();
+        CHECK(helix::filament_favorites::load_favorite_ids().empty());
+        CHECK(star_state() == 1);
+    }
+    close_editor_overlay();
+}
