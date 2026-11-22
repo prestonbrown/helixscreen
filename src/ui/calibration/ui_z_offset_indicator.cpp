@@ -834,7 +834,7 @@ static void step_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* data = static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj));
     if (!data)
         return;
-    data->step_microns = std::max(1, lv_subject_get_int(subject));
+    data->step_microns = std::max<int32_t>(1, lv_subject_get_int(subject));
     lv_obj_invalidate(obj);
 }
 

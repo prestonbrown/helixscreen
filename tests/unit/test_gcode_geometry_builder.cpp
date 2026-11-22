@@ -680,6 +680,9 @@ TEST_CASE("prepare_interleaved_buffers data matches manual expansion",
     seg.end = {20.0f, 10.0f, 0.2f};
     seg.is_extrusion = true;
     seg.width = 0.4f;
+    // An outer wall's strips carry the rim flag in alpha; any other line, 0.
+    const bool outer_wall = GENERATE(false, true);
+    seg.feature_type = outer_wall ? FeatureType::OuterWall : FeatureType::InnerWall;
     layer.segments.push_back(seg);
     gcode.layers.push_back(std::move(layer));
     gcode.total_segments = 1;
@@ -693,6 +696,7 @@ TEST_CASE("prepare_interleaved_buffers data matches manual expansion",
 
     REQUIRE(!geom.strips.empty());
     REQUIRE(!geom.vertices.empty());
+    REQUIRE(geom.strip_is_outer_wall(0) == outer_wall);
 
     geom.prepare_interleaved_buffers();
 
@@ -711,11 +715,10 @@ TEST_CASE("prepare_interleaved_buffers data matches manual expansion",
         glm::vec3 pos = geom.quantization.dequantize_vec3(vert.position);
 
         // Color is per-strip, not per-vertex.
-        uint32_t rgb = 0x26A69A; // Default teal
-        if (!geom.strip_color_index.empty() &&
-            geom.strip_color_index[0] < geom.color_palette.size()) {
-            rgb = geom.color_palette[geom.strip_color_index[0]];
-        }
+        // The flag shares the index byte, so the palette lookup masks it off.
+        REQUIRE(!geom.color_palette.empty());
+        const uint32_t rgb = geom.color_palette[0];
+        REQUIRE(geom.strip_color(0) == rgb);
         uint8_t expected_color[4];
         PackedVertex::encode_color(rgb, expected_color);
         // Normals are stored pre-encoded in the vertex — the packed bytes must
@@ -739,7 +742,7 @@ TEST_CASE("prepare_interleaved_buffers data matches manual expansion",
         REQUIRE(pv.color[0] == expected_color[0]);
         REQUIRE(pv.color[1] == expected_color[1]);
         REQUIRE(pv.color[2] == expected_color[2]);
-        REQUIRE(pv.color[3] == expected_color[3]);
+        REQUIRE(pv.color[3] == (outer_wall ? 255 : 0));
         REQUIRE(pv.normal[0] == expected_normal[0]);
         REQUIRE(pv.normal[1] == expected_normal[1]);
     }

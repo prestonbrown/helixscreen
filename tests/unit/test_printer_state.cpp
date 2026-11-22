@@ -47,6 +47,12 @@ struct InitedPrinterState {
     InitedPrinterState() {
         state.init_subjects();
     }
+    // The singletons every case starts with observe this PrinterState deferred, so a
+    // change the test makes leaves their updates queued; they run here, while the
+    // state they read is still up.
+    ~InitedPrinterState() {
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+    }
 };
 
 // ============================================================================

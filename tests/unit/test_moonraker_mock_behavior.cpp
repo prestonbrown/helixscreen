@@ -2510,8 +2510,9 @@ TEST_CASE("MoonrakerClientMock M112 reports Klipper's shutdown reason until a re
 
     mock.stop_temperature_simulation();
     mock.disconnect();
-    // M112 also reports the shutdown to the global PrinterState from the UI thread.
-    helix::ui::UpdateQueue::instance().drain();
+    // M112 also reports the shutdown to the global PrinterState from the UI thread, and
+    // the observers of that state queue their own updates on the pass that delivers it.
+    helix::ui::UpdateQueue::instance().drain_until_empty();
 }
 
 // ============================================================================
@@ -3196,6 +3197,9 @@ TEST_CASE("MoonrakerClientMock handles emergency_stop", "[mock][emergency][slow]
         MoonrakerClientMock& m;
         ~Cleanup() {
             m.disconnect();
+            // The stop reports Klipper's shutdown to the global PrinterState from the UI
+            // thread.
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     } cleanup{mock};
 
