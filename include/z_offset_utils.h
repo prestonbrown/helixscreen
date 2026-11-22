@@ -286,6 +286,22 @@ struct SavedOffsetLine {
                                                                std::optional<int> saved_microns,
                                                                int live_microns);
 
+/// What the Tune readout leads with. A firmware that re-applies each head's own
+/// offset at pickup mixes the mounted head's calibration into the live offset,
+/// so there the readout leads with the session's babystep, which is also what a
+/// save folds in; elsewhere it leads with the live offset.
+[[nodiscard]] constexpr int headline_offset_microns(bool reapplied_per_head, int live_microns,
+                                                    int pending_microns) {
+    return reapplied_per_head ? pending_microns : live_microns;
+}
+
+/// headline_offset_microns() asked of live state.
+[[nodiscard]] int headline_offset_microns(int live_microns);
+
+/// Whether the Tune readout leads with the babystep (signed) rather than the
+/// live offset.
+[[nodiscard]] bool headline_is_babystep();
+
 /// saved_offset_line() asked of live state.
 [[nodiscard]] std::optional<SavedOffsetLine> saved_offset_line();
 

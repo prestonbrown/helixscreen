@@ -469,14 +469,24 @@ std::optional<SavedOffsetLine> saved_offset_line() {
     if (configured != 0 && !(probe && configured == -1)) {
         saved = configured;
     }
-    // A firmware that re-applies each head's own offset at pickup is per-tool
-    // too: the live offset belongs to the mounted head.
+    // A firmware that re-applies each head's own offset at pickup saves the
+    // babystep into the offset every head shares, so the line compares the
+    // saved value with the babystep, not with the mounted head's live offset.
     const bool per_tool_z =
         lv_subject_get_int(
-            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1 ||
-        ps.profile_state().z_offset_reapplied_per_head();
+            helix::ToolState::instance().get_per_tool_axis_supported_subject(Axis::Z)) == 1;
     return saved_offset_line(current_save_availability(), per_tool_z, saved,
-                             lv_subject_get_int(ps.motion_state().get_gcode_z_offset_subject()));
+                             headline_offset_microns(lv_subject_get_int(
+                                 ps.motion_state().get_gcode_z_offset_subject())));
+}
+
+bool headline_is_babystep() {
+    return get_printer_state().profile_state().z_offset_reapplied_per_head();
+}
+
+int headline_offset_microns(int live_microns) {
+    return headline_offset_microns(headline_is_babystep(), live_microns,
+                                   get_printer_state().motion_state().get_pending_z_offset_delta());
 }
 
 std::string format_saved_offset_line(const SavedOffsetLine& line) {
