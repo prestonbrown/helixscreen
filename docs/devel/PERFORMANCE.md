@@ -140,9 +140,9 @@ The MIPS target (K1, AD5X, Creator 5) builds at `-O2`: the AD5X has 474 MB, abou
 available. The AD5M (108 MB, about 46 MB available) stays at `-Os`, since 4.4 MB more resident
 is too much there.
 
-`-O2` on `src/ui/screensaver/*.cpp` alone, over an `-Os` build of the same commit (a
-target-specific `override CXXFLAGS += -O2` on those objects), gets the AD5M nearly all of the
-speed for none of the memory:
+`-O2` on `src/ui/screensaver/*.cpp` alone, over an `-Os` build of the same commit, gets the AD5M
+nearly all of the speed for none of the memory, so every `-Os` build compiles the screensavers at
+`-O2` (`mk/rules.mk`, keyed on `-Os` in `CXXFLAGS`):
 
 | AD5M, Aqua level 3 | `-Os` | Screensavers `-O2` | Whole build `-O2` |
 |---|---:|---:|---:|
