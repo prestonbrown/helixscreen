@@ -68,12 +68,15 @@ struct ResolvedDefault {
     /// subject, sorted, then |table=<version> when the table carries a positive
     /// `version`, so changing the shipped table re-resolves every unedited default.
     std::string signature;
-    bool ok = false; // false: table unusable (missing, no anchors for this tier); caller falls back
+    bool ok = false; // false: table unusable (missing, no tier it authors fits); caller falls back
 };
 
 /// Resolve @p table (with @p overlay applied when non-null) for one tier and
 /// grid. @p variant_chain is most-specific first, as LayoutManager orders it;
 /// the first variant with a non-empty `anchors` wins, else the top-level table.
+/// A table that places nothing at @p tier, even through its fallback chain,
+/// resolves as a whole at the nearest tier it authors whose every placement
+/// fits the grid, the smaller tier on a tie.
 ResolvedDefault resolve_default_layout(const nlohmann::json& table,
                                        const nlohmann::json* overlay, // preset seed or nullptr
                                        std::string_view tier, int cols, int rows,
