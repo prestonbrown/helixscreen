@@ -2,12 +2,17 @@
 
 #include "../fake_moonraker_client.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/loopback_http_server.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "event_journal_recorder.h"
 #include "gcode_response_routing.h"
+#include "moonraker_api_mock.h"
+#include "moonraker_client_mock.h"
+#include "printer_discovery.h"
+#include "printer_event_journal.h"
 #include "printer_state.h"
 #include "test_helpers/printer_state_test_access.h"
 
@@ -41,6 +46,13 @@ json history(const char* action, const char* status = "in_progress") {
          {"job", {{"job_id", "00002A"}, {"filename", "benchy.gcode"}, {"status", status}}}});
 }
 
+/// A FlashForge printer running ZMOD, whose IFS faults only its own wording rows read.
+PrinterDiscovery zmod_printer() {
+    PrinterDiscovery hw;
+    hw.parse_objects(json::array({"zmod_ifs", "extruder", "heater_bed"}));
+    return hw;
+}
+
 class RecorderFixture : public LVGLTestFixture {
   public:
     RecorderFixture()
@@ -56,6 +68,7 @@ class RecorderFixture : public LVGLTestFixture {
 
     ~RecorderFixture() override {
         recorder_.reset();
+        get_printer_state().set_hardware(PrinterDiscovery{});
         auto& plugin = get_printer_state().plugin_status_state();
         plugin.set_installed(false);
         plugin.set_features({});
@@ -216,6 +229,141 @@ TEST_CASE_METHOD(RecorderFixture, "recorder backfills from a bounded slice of th
     // 1000-entry store of verbose macro output can outgrow the client's frame cap.
     REQUIRE(client_.last_gcode_store_count > 0);
     CHECK(client_.last_gcode_store_count <= 200);
+}
+
+TEST_CASE_METHOD(RecorderFixture, "recorder classifies a live error by the printer's firmware",
+                 "[plugin_event_journal][event_journal_recorder][error-wording]") {
+    get_printer_state().set_hardware(zmod_printer());
+    REQUIRE(client_.fire_notification("notify_gcode_response",
+                                      json{{"params", {"!! No filament 2 in IFS"}}}));
+    settle();
+
+    const auto held = journal_.snapshot();
+    REQUIRE(held.size() == 1);
+    CHECK(held[0].kind == journal_kind::kGcodeError);
+    CHECK(held[0].cls == "filament");
+}
+
+TEST_CASE_METHOD(RecorderFixture, "recorder classifies a shutdown reason by the printer's firmware",
+                 "[plugin_event_journal][event_journal_recorder][error-wording]") {
+    get_printer_state().set_hardware(zmod_printer());
+    REQUIRE(client_.fire_notification("notify_klippy_shutdown", json::object()));
+    settle();
+    const auto* query = rpc("printer.objects.query");
+    REQUIRE(query != nullptr);
+
+    json status = {{"webhooks", {{"state_message", "IFS driver failure"}}}};
+    query->success_cb(json{{"result", {{"status", status}}}});
+    settle();
+
+    const auto held = journal_.snapshot();
+    REQUIRE(held.size() == 1);
+    CHECK(held[0].kind == journal_kind::kShutdown);
+    CHECK(held[0].cls == "filament");
+}
+
+TEST_CASE_METHOD(RecorderFixture,
+                 "recorder classifies a console backfill by the printer's firmware",
+                 "[plugin_event_journal][event_journal_recorder][error-wording]") {
+    get_printer_state().set_hardware(zmod_printer());
+    client_.fire_notification("notify_klippy_ready", json::object());
+    settle();
+    const double since = journal_.latest_time();
+    EventJournalRecorderTestAccess::connected(*recorder_);
+    REQUIRE(client_.last_gcode_store_cb);
+
+    client_.last_gcode_store_cb({{"!! No filament 2 in IFS", since + 5, "response"}});
+    settle();
+
+    const auto held = journal_.snapshot();
+    REQUIRE(held.size() == 2);
+    CHECK(held[1].kind == journal_kind::kGcodeError);
+    CHECK(held[1].recovered);
+    CHECK(held[1].cls == "filament");
+}
+
+namespace {
+
+/// Moonraker's file endpoint serving one klippy.log body.
+class KlippyLogServer : public test::LoopbackHttpServer {
+  public:
+    explicit KlippyLogServer(std::string log) : log_(std::move(log)) {
+        service().GET("/server/files/klippy.log", [this](HttpRequest*, HttpResponse* resp) {
+            resp->body = log_;
+            return 200;
+        });
+        start();
+    }
+
+  private:
+    std::string log_;
+};
+
+/// Installs an API as the app's for the life of the object.
+class ScopedMoonrakerApi {
+  public:
+    explicit ScopedMoonrakerApi(IMoonrakerAPI* api) : previous_(get_moonraker_api()) {
+        set_moonraker_api(api);
+    }
+    ~ScopedMoonrakerApi() {
+        set_moonraker_api(previous_);
+    }
+    ScopedMoonrakerApi(const ScopedMoonrakerApi&) = delete;
+    ScopedMoonrakerApi& operator=(const ScopedMoonrakerApi&) = delete;
+
+  private:
+    IMoonrakerAPI* previous_;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(RecorderFixture,
+                 "recorder classifies a klippy.log backfill by the printer's firmware",
+                 "[plugin_event_journal][event_journal_recorder][error-wording]") {
+    get_printer_state().set_hardware(zmod_printer());
+    client_.fire_notification("notify_klippy_ready", json::object());
+    settle();
+    const double since = journal_.latest_time();
+
+    // Klipper started after the last entry, so its shutdown falls in the gap.
+    const std::string start_wall = std::to_string(since + 10);
+    KlippyLogServer server("Start printer at Tue Oct 21 10:00:00 2026 (" + start_wall +
+                           " 1000.0)\n"
+                           "Stats 1005.0: gcodein=0 mcu: mcu_awake=0.001\n"
+                           "Transition to shutdown state: IFS driver failure\n");
+    REQUIRE(server.started());
+    MoonrakerClientMock api_client;
+    PrinterState api_state;
+    MoonrakerAPIMock api(api_client, api_state);
+    api.set_http_base_url(server.url(""));
+    ScopedMoonrakerApi installed(&api);
+
+    EventJournalRecorderTestAccess::connected(*recorder_);
+    const auto* list = rpc("server.history.list");
+    REQUIRE(list != nullptr);
+    json job = {{"job_id", "00002B"},
+                {"filename", "gap.gcode"},
+                {"status", "klippy_shutdown"},
+                {"end_time", since + 20}};
+    list->success_cb(json{{"result", {{"jobs", json::array({job})}}}});
+
+    const auto shutdown_recorded = [this] {
+        settle();
+        for (const auto& e : journal_.snapshot()) {
+            if (e.kind == journal_kind::kShutdown) {
+                return true;
+            }
+        }
+        return false;
+    };
+    REQUIRE(wait_until(shutdown_recorded));
+
+    for (const auto& e : journal_.snapshot()) {
+        if (e.kind == journal_kind::kShutdown) {
+            CHECK(e.text == "IFS driver failure");
+            CHECK(e.cls == "filament");
+        }
+    }
 }
 
 TEST_CASE_METHOD(RecorderFixture, "recorder leaves no handler behind",

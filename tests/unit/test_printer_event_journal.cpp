@@ -342,6 +342,37 @@ TEST_CASE("backfill from klippy.log places shutdowns on the wall clock", "[plugi
     CHECK(backfill_from_klippy_log(log, 1761041500.0).size() == 1);
 }
 
+TEST_CASE("backfill from the gcode store reads a firmware's own errors on that firmware",
+          "[plugin_event_journal][error-wording]") {
+    PrinterDiscovery zmod;
+    zmod.parse_objects(json::array({"zmod_ifs"}));
+    const std::vector<GcodeStoreEntry> store = {
+        {"!! No filament 2 in IFS", kT0 + 5, "response"},
+    };
+    const auto on_zmod = backfill_from_gcode_store(store, kT0, &zmod);
+    REQUIRE(on_zmod.size() == 1);
+    CHECK(on_zmod[0].cls == "filament");
+    const auto elsewhere = backfill_from_gcode_store(store, kT0);
+    REQUIRE(elsewhere.size() == 1);
+    CHECK(elsewhere[0].cls == "other");
+}
+
+TEST_CASE("backfill from klippy.log reads a firmware's own shutdowns on that firmware",
+          "[plugin_event_journal][error-wording]") {
+    PrinterDiscovery zmod;
+    zmod.parse_objects(json::array({"zmod_ifs"}));
+    const std::string log = "Start printer at Tue Oct 21 10:00:00 2026 (1761040800.0 1000.0)\n"
+                            "Stats 1100.0: gcodein=0 mcu: mcu_awake=0.001\n"
+                            "Transition to shutdown state: IFS driver failure\n";
+    const auto on_zmod = backfill_from_klippy_log(log, 0, &zmod);
+    REQUIRE(on_zmod.size() == 1);
+    CHECK(on_zmod[0].kind == journal_kind::kShutdown);
+    CHECK(on_zmod[0].cls == "filament");
+    const auto elsewhere = backfill_from_klippy_log(log, 0);
+    REQUIRE(elsewhere.size() == 1);
+    CHECK(elsewhere[0].cls == "other");
+}
+
 TEST_CASE("view and bundle read the plugin's journal and the screen's alike",
           "[plugin_event_journal]") {
     const json plugin_result = {{"entries",

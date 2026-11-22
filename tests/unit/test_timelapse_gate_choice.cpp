@@ -3,6 +3,7 @@
 #include "ui_print_preparation_manager.h"
 #include "ui_print_start_controller.h"
 
+#include "../test_helpers/loopback_http_server.h"
 #include "../test_helpers/moonraker_client_mock_test_access.h"
 #include "../test_helpers/print_select_panel_fixture.h"
 #include "../test_helpers/print_start_controller_test_access.h"
@@ -21,6 +22,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -188,4 +190,114 @@ TEST_CASE_METHOD(GateChoiceFixture, "Use Hyperlapse changes nothing when the sta
     drain();
     CHECK(cancelled == 1);
     CHECK(owed().empty());
+}
+
+namespace {
+
+/// moonraker-timelapse's settings endpoint, recording in Layer mode with head
+/// parking on; writes are accepted and change nothing.
+class TimelapsePluginServer : public helix::test::LoopbackHttpServer {
+  public:
+    TimelapsePluginServer() {
+        service().GET("/machine/timelapse/settings", [](HttpRequest*, HttpResponse* resp) {
+            resp->content_type = APPLICATION_JSON;
+            resp->body = R"({"result":{"enabled":true,"mode":"layermacro","parkhead":true}})";
+            return 200;
+        });
+        service().POST("/machine/timelapse/settings", [](HttpRequest*, HttpResponse* resp) {
+            resp->content_type = APPLICATION_JSON;
+            resp->body = R"({"result":{}})";
+            return 200;
+        });
+        start();
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(GateChoiceFixture, "Use Hyperlapse switches the plugin once the start is accepted",
+                 "[timelapse][gate-choice]") {
+    TimelapsePluginServer plugin;
+    REQUIRE(plugin.started());
+    api->set_http_base_url(plugin.url(""));
+    answer_print_start(true);
+    click(open_dialog(), "btn_primary");
+
+    REQUIRE(wait_until([] {
+        drain();
+        return !owed().empty();
+    }));
+    CHECK(started == 1);
+    const std::vector<helix::timelapse::OwedSetting> want = {{"mode", "layermacro", "hyperlapse"},
+                                                             {"parkhead", "True", "False"}};
+    CHECK(helix::timelapse::decode_owed(owed()) == want);
+}
+
+TEST_CASE_METHOD(GateChoiceFixture, "Off for This Print owes nothing once the start is refused",
+                 "[timelapse][gate-choice]") {
+    TimelapsePluginServer plugin;
+    REQUIRE(plugin.started());
+    api->set_http_base_url(plugin.url(""));
+    answer_print_start(false);
+    click(open_dialog(), "btn_secondary");
+    REQUIRE(cancelled == 1);
+
+    // The flag was owed before the start went out; the refusal settles it at
+    // once rather than at a print end that never comes.
+    CHECK(wait_until([] {
+        drain();
+        return owed().empty();
+    }));
+}
+
+TEST_CASE_METHOD(GateChoiceFixture, "a timelapse answer from a cancelled start is not reused",
+                 "[timelapse][gate-choice]") {
+    // The timelapse dialog, then one the user cancels.
+    PrintStartControllerTestAccess::set_gates(
+        *controller, {{"timelapse_frames",
+                       [](const helix::PrintStartContext&) {
+                           helix::PrintStartContext ctx;
+                           ctx.timelapse_on = true;
+                           ctx.timelapse_layer_mode = true;
+                           ctx.timelapse_frames = helix::timelapse::FrameCalls::Missing;
+                           return helix::gate_timelapse_frames(ctx);
+                       }},
+                      {"second", [](const helix::PrintStartContext&) {
+                           helix::PrintStartContext ctx;
+                           ctx.timelapse_on = true;
+                           ctx.timelapse_layer_mode = true;
+                           ctx.timelapse_frames = helix::timelapse::FrameCalls::Missing;
+                           return helix::gate_timelapse_frames(ctx);
+                       }}});
+    click(open_dialog(), "btn_secondary");
+    drain();
+    process_lvgl(20);
+    drain();
+    REQUIRE(PrintStartControllerTestAccess::gate_resume_index(*controller) == 1);
+    PrintStartControllerTestAccess::gate_cancel(*controller);
+    drain();
+    REQUIRE(started == 0);
+    REQUIRE(owed().empty());
+
+    // The next start asks nothing and prints with timelapse as configured.
+    PrintStartControllerTestAccess::set_gates(*controller, {});
+    answer_print_start(true);
+    controller->initiate();
+    drain();
+    REQUIRE(started == 1);
+    CHECK(owed().empty());
+}
+
+TEST_CASE_METHOD(GateChoiceFixture, "the gates read the timelapse option and the plugin's mode",
+                 "[timelapse][gate-choice]") {
+    prep->set_option_state_provider(
+        [](const std::string& id) { return id == "timelapse" ? 1 : -1; });
+    helix::TimelapseState::instance().set_mode("layermacro");
+    const auto ctx = PrintStartControllerTestAccess::gather(*controller);
+    helix::TimelapseState::instance().set_mode("");
+    CHECK(ctx.timelapse_on);
+    CHECK(ctx.timelapse_layer_mode);
+
+    prep->set_option_state_provider([](const std::string&) { return 0; });
+    CHECK_FALSE(PrintStartControllerTestAccess::gather(*controller).timelapse_on);
 }
