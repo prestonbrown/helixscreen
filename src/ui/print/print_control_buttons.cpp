@@ -18,6 +18,7 @@
 #include "i_moonraker_api.h"
 #include "lvgl.h"
 #include "moonraker_error.h"
+#include "observe_language.h"
 #include "print_job_ref.h"
 #include "print_lifecycle_state.h"
 #include "printer_state.h"
@@ -104,11 +105,15 @@ void PrintControlButtons::init_subjects() {
         },
         get_printer_state().get_subjects_lifetime());
 
+    language_observer_ =
+        observe_language_change(this, [](PrintControlButtons* self) { self->recompute(); });
+
     // Self-register cleanup so subjects/observer are torn down before lv_deinit().
     StaticSubjectRegistry::instance().register_deinit("PrintControlButtons", []() {
         auto& self = PrintControlButtons::instance();
         // release() (NOT reset()) is correct here: this runs pre-lv_deinit when
         // the observed subject is already being destroyed by its own owner.
+        self.language_observer_.release();
         self.print_state_observer_.release();
         self.print_lifecycle_observer_.release();
         self.preparing_start_observer_.release();
@@ -148,7 +153,7 @@ void PrintControlButtons::recompute() {
     ControlButtonView v = current_view();
 
     std::snprintf(primary_icon_buf_, sizeof(primary_icon_buf_), "%s", v.primary_icon);
-    std::snprintf(primary_label_buf_, sizeof(primary_label_buf_), "%s", v.primary_label);
+    std::snprintf(primary_label_buf_, sizeof(primary_label_buf_), "%s", lv_tr(v.primary_label));
     lv_subject_set_string(&primary_icon_subject_, primary_icon_buf_);
     lv_subject_set_string(&primary_label_subject_, primary_label_buf_);
     lv_subject_set_int(&primary_enabled_subject_, v.primary_enabled ? 1 : 0);
