@@ -24,6 +24,7 @@
 #include "../test_helpers/panel_widget_size_harness.h"
 #include "../test_helpers/scoped_breakpoint.h"
 #include "../test_helpers/tile_boxes.h"
+#include "../test_helpers/tool_topologies.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "app_globals.h"
 #include "bed_occupancy_state.h"
@@ -467,6 +468,23 @@ TEST_CASE_METHOD(ToolheadFixture, "toolhead: a tool changer names its active too
     h.resize(1, 1, kFull.w, kFull.h);
     settle();
     CHECK_FALSE(subject_text("toolhead_tool_text").empty());
+}
+
+TEST_CASE_METHOD(ToolheadFixture, "toolhead: a lane rig names the head, not the mounted lane",
+                 "[widget_size][toolhead][head-identity]") {
+    // LB6LEZ44: lane T0 is mounted, in extruder2.
+    state().set_hardware(helix::test::make_lb6lez44_discovery());
+    ToolState::instance().init_tools(state().get_discovery());
+    ToolState::instance().set_ams_topology(helix::test::make_lb6lez44_topology());
+    drain();
+    set_homed("xyz");
+    set_print_active(true);
+    PanelWidgetHarness<ToolheadWidget> h(test_screen(), state());
+    h.resize(1, 1, kFull.w, kFull.h);
+    settle();
+    CHECK(subject_text("toolhead_tool_text") == "Tool 3");
+    ToolState::instance().clear_ams_topology();
+    drain();
 }
 
 TEST_CASE_METHOD(ToolheadFixture, "toolhead: the crosshair follows the position on the plate",

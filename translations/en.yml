@@ -381,6 +381,7 @@ translations:
   Assign a role to enable sensor monitoring: Assign a role to enable sensor monitoring
   Assign a slot first: Assign a slot first
   Assigned Tool: Assigned Tool
+  Assigned {}: Assigned {}
   Assisted Retract: Assisted Retract
   Assisting: Assisting
   At least {} lines in helixscreen.env were ignored: At least {} lines in helixscreen.env were ignored
@@ -1579,9 +1580,6 @@ translations:
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
-  Feeds Tool: Feeds Tool
-  Feeds no tool: Feeds no tool
-  Feeds {}: Feeds {}
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
   Filament Control: Filament Control
@@ -2652,6 +2650,7 @@ translations:
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
   No timelapse videos found: No timelapse videos found
+  No tool assigned: No tool assigned
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?'
   No tool is mounted: No tool is mounted
   No tool mounted: No tool mounted

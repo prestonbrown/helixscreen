@@ -28,6 +28,7 @@
 #include "observer_factory.h"
 #include "print_lifecycle_state.h"
 #include "static_panel_registry.h"
+#include "tool_state.h"
 #include "ui/ui_widget_helpers.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -242,9 +243,15 @@ void AmsDeviceSectionDetailOverlay::refresh() {
 
 std::string device_action_label(const helix::printer::DeviceAction& action) {
     std::string label = lv_tr(action.label.c_str());
+    // Punctuation only, so the format stays untranslated: a translated format whose
+    // placeholders differ would throw, and the firmware builds without exceptions.
+    if (!action.extruder.empty()) {
+        const HeadIdentity head = ToolState::instance().head_identity_for_extruder(action.extruder);
+        if (head.index >= 0) {
+            return fmt::format("{} - {}", label, active_head_label(head, ToolLabelForm::Full));
+        }
+    }
     if (action.tool_index >= 0) {
-        // Punctuation only, so the format stays untranslated: a translated format whose
-        // placeholders differ would throw, and the firmware builds without exceptions.
         label = fmt::format("{} - {}", label,
                             active_tool_label(tool_label(action.tool_index), action.tool_index,
                                               ToolLabelForm::Full));

@@ -16,13 +16,15 @@ class PrinterState;
 class NozzleTempsTestAccess;
 struct ToolInfo;
 
-/// Collapse a tool list to the distinct physical extruders feeding it, preserving
-/// first-seen order. Multiplexing backends (AFC BoxTurtle, Happy Hare, ERCF) expose
-/// one logical tool per spool lane that all share a single extruder; a true
-/// toolchanger maps each tool to its own extruder. The nozzle-temps widget shows
+/// Collapse a tool list to the distinct physical extruders feeding it, in
+/// physical_heads() order: first seen, or by extruder with @p tools_are_lanes,
+/// so a row sits where the same head sits on every other surface. Multiplexing backends (AFC
+/// BoxTurtle, Happy Hare, ERCF) expose one logical tool per spool lane that all share a single
+/// extruder; a true toolchanger maps each tool to its own extruder. The nozzle-temps widget shows
 /// one row per physical nozzle, so it iterates this rather than tools() directly.
 /// Tools with no extruder_name are dropped.
-[[nodiscard]] std::vector<std::string> distinct_extruder_names(const std::vector<ToolInfo>& tools);
+[[nodiscard]] std::vector<std::string> distinct_extruder_names(const std::vector<ToolInfo>& tools,
+                                                               bool tools_are_lanes = false);
 
 /// Panel widget showing per-extruder temperature rows.
 /// Gated on show_tool_badge (multi-tool printers only). Displays each
@@ -91,6 +93,7 @@ class NozzleTempsWidget : public PanelWidget {
     /// Rebuilds the row names when the mounted tool changes on nozzles that
     /// share one heater: the one row is named after the mounted nozzle.
     ObserverGuard mounted_tool_observer_;
+    ObserverGuard tools_version_observer_;
     int named_mounted_tool_ = -1;
     int rebuild_gen_ = 0;     // Generation counter to break infinite rebuild cycles (L074)
     bool rebuilding_ = false; // Re-entrancy guard: drain() inside clear_rows() can fire

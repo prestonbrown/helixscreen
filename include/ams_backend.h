@@ -1706,6 +1706,17 @@ class AmsBackend {
     }
 
     /**
+     * @brief The G-code a generated print sends to put tool @p tool's head on
+     *        the carriage, moving no filament.
+     *
+     * T<n> where a tool number selects a head. A backend whose T<n> also loads
+     * a lane answers with its head-only command. Empty where no command can.
+     */
+    [[nodiscard]] virtual std::string head_select_gcode(int tool) const {
+        return tool < 0 ? std::string() : "T" + std::to_string(tool);
+    }
+
+    /**
      * @brief Open or close the frame-side filament feeder (async)
      *
      * Only a machine whose filament is held by a gripper on the frame, not by
@@ -3335,6 +3346,19 @@ class AmsBackend {
      */
     [[nodiscard]] virtual bool owns_tool_mapping_table() const {
         return false;
+    }
+
+    /**
+     * @brief Whether a tool number names a lane rather than a head.
+     *
+     * Where it does, T<n> loads the lane its map names, on whichever head that
+     * lane feeds, so a head is never called by a tool number
+     * (helix::head_identity()). A backend multiplexing lanes through a table
+     * answers true; a tool changer, whose tools are its heads, answers false.
+     * Asked only of a backend that owns a table.
+     */
+    [[nodiscard]] virtual bool tool_numbers_name_lanes() const {
+        return owns_tool_mapping_table();
     }
 
     /**

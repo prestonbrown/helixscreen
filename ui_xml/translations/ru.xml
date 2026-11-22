@@ -384,6 +384,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
   <translation tag="Assign a slot first" ru="Сначала назначьте слот"/>
   <translation tag="Assigned Tool" ru="Назначенный инструмент"/>
+  <translation tag="Assigned {}" ru="Назначен {}"/>
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
   <translation tag="Assisting" ru="Помощь"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
@@ -1511,9 +1512,6 @@
   <translation tag="Feeder" ru="Фидер"/>
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament forward" ru="Подача филамента вперёд"/>
-  <translation tag="Feeds Tool" ru="Подаёт в инструмент"/>
-  <translation tag="Feeds no tool" ru="Не подаёт ни в один инструмент"/>
-  <translation tag="Feeds {}" ru="Подаёт в {}"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -2528,6 +2526,7 @@
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
+  <translation tag="No tool assigned" ru="Инструмент не назначен"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ru="Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?"/>
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool mounted" ru="Инструмент не установлен"/>

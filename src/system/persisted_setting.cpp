@@ -49,6 +49,17 @@ int get_setting(const PersistedSetting& s, const lv_subject_t& subject) {
     return lv_subject_get_int(const_cast<lv_subject_t*>(&subject));
 }
 
+bool setting_stored(const PersistedSetting& s) {
+    const Config* config = Config::get_instance();
+    return config->exists(path_of(s, *config));
+}
+
+void show_setting(const PersistedSetting& s, lv_subject_t& subject, int value) {
+    if (subject.type == LV_SUBJECT_TYPE_INT) {
+        lv_subject_set_int(&subject, normalize(s, value));
+    }
+}
+
 void set_setting(const PersistedSetting& s, lv_subject_t& subject, int value) {
     value = normalize(s, value);
     Config* config = Config::get_instance();

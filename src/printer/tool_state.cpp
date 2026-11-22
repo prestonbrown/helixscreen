@@ -41,6 +41,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace helix {
 
@@ -146,7 +147,13 @@ void ToolState::deinit_subjects() {
 }
 
 void ToolState::refresh_display_labels() {
+    // A lane is no physical tool, so it carries no physical label: a head's
+    // label comes from head_identity().
+    const bool lanes = tools_are_lanes();
     for (auto& tool : tools_) {
+        tool.display_label = lanes ? std::string() : noun_tool_label(tool.index);
+    }
+    for (auto& tool : head_tools_) {
         tool.display_label = noun_tool_label(tool.index);
     }
     lv_subject_set_int(&tools_version_, lv_subject_get_int(&tools_version_) + 1);
@@ -168,6 +175,7 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
     }
     std::sort(discovered_extruders_.begin(), discovered_extruders_.end());
     toolchanger_reports_mount_ = false;
+    head_tools_.clear();
 
     // init_tools enumerates tools from extruders/toolchanger — semantically
     // incompatible with an AMS-backend topology override. Drop any prior
@@ -287,6 +295,9 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             tools_[0].fan_name = "fan";
         }
     }
+    // The printer's own tools, kept apart from any lane list a filament system
+    // later lays over them: their status objects and offsets belong to heads.
+    head_tools_ = tools_;
 
     heads_cache_.reset();
 
@@ -314,8 +325,10 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
     bool needs_rebuild = !ams_topology_active_ || ams_topology_tool_count_ != topo.tool_count ||
                          ams_topology_tool_to_slot_ != topo.tool_to_slot ||
                          ams_topology_tool_extruder_ != topo.tool_extruder;
-    if (heads_share_heater_ != topo.heads_share_heater) {
+    if (heads_share_heater_ != topo.heads_share_heater ||
+        tools_are_lanes_ != topo.tools_are_lanes) {
         heads_share_heater_ = topo.heads_share_heater;
+        tools_are_lanes_ = topo.tools_are_lanes;
         heads_cache_.reset();
     }
 
@@ -338,7 +351,8 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
             ToolInfo t;
             t.index = i;
             t.name = helix::ui::tool_label(i);
-            t.display_label = noun_tool_label(i);
+            // A lane is no physical tool: its head's label is head_identity()'s.
+            t.display_label = topo.tools_are_lanes ? std::string() : noun_tool_label(i);
             t.backend_index = topo.backend_index;
             t.backend_slot =
                 (i < static_cast<int>(topo.tool_to_slot.size())) ? topo.tool_to_slot[i] : -1;
@@ -433,6 +447,7 @@ void ToolState::clear_ams_topology() {
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_extruder_.clear();
     heads_share_heater_ = false;
+    tools_are_lanes_ = false;
     tools_.clear();
     heads_cache_.reset();
     active_tool_index_ = 0;
@@ -551,8 +566,10 @@ void ToolState::update_from_status(const nlohmann::json& status) {
         }
     }
 
-    // Parse per-tool status updates
-    for (auto& tool : tools_) {
+    // Parse per-tool status updates. A `tool T<n>` object describes one of the
+    // printer's own tools; where the tool list is lanes, lane T<n> is another
+    // thing, so the objects update the printer's tools and never a lane.
+    for (auto& tool : object_tools()) {
         std::string key = "tool " + tool.name;
         if (!status.contains(key) || !status[key].is_object()) {
             continue;
@@ -624,20 +641,21 @@ void ToolState::update_from_status(const nlohmann::json& status) {
     // this frame, and on a firmware that keeps every tool's offset on ONE
     // object (see helix::tool_offsets) that would skip the offsets entirely.
     if (per_tool_offsets_supported()) {
-        for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+        auto& offset_tools = object_tools();
+        for (int i = 0; i < static_cast<int>(offset_tools.size()); ++i) {
             for (Axis axis : kAllAxes) {
                 if (lv_subject_get_int(get_per_tool_axis_supported_subject(axis)) != 1) {
                     continue;
                 }
                 auto microns = helix::tool_offsets::read_tool_offset_microns(
-                    offset_reader_, status, axis, i, tools_[i].name);
+                    offset_reader_, status, axis, i, offset_tools[i].name);
                 if (!microns) {
                     // No news. Moonraker republishes only what CHANGED, per
                     // field, so this is routine and must not be read as a
                     // reset to zero.
                     continue;
                 }
-                ToolAxisOffset& offset = tools_[i].gcode_offset(axis);
+                ToolAxisOffset& offset = offset_tools[i].gcode_offset(axis);
                 const float mm = static_cast<float>(*microns) / 1000.0f;
                 if (!offset.known) {
                     // First value seen for this axis is the persisted one: on
@@ -678,7 +696,7 @@ bool ToolState::per_tool_offsets_supported() const {
 
 void ToolState::query_tool_offsets(IMoonrakerClient* client,
                                    const helix::PrinterDiscovery& hardware) {
-    if (!client || tools_.empty() || !per_tool_offsets_supported()) {
+    if (!client || object_tools().empty() || !per_tool_offsets_supported()) {
         return;
     }
 
@@ -686,7 +704,7 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
     // offsets in. The module owns the second list so a machine that stores all
     // four on one macro is covered without naming it here.
     nlohmann::json objects = nlohmann::json::object();
-    for (const auto& tool : tools_) {
+    for (const auto& tool : object_tools()) {
         objects["tool " + tool.name] = nullptr;
     }
     for (const auto& obj : helix::tool_offsets::required_status_objects(hardware)) {
@@ -705,7 +723,7 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
                 return;
             }
             update_from_status(response["result"]["status"]);
-            for (const auto& tool : tools_) {
+            for (const auto& tool : object_tools()) {
                 spdlog::debug(
                     "[ToolState] Seeded per-tool offsets from query: {} x={:.3f}{} "
                     "y={:.3f}{} z={:.3f}{}",
@@ -719,11 +737,48 @@ void ToolState::query_tool_offsets(IMoonrakerClient* client,
                          std::move(cb));
 }
 
+std::vector<ToolInfo>& ToolState::object_tools() {
+    return tools_are_lanes() ? head_tools_ : tools_;
+}
+
+const std::vector<ToolInfo>& ToolState::object_tools() const {
+    return tools_are_lanes() ? head_tools_ : tools_;
+}
+
+int ToolState::offset_tool_for(int tool_index) const {
+    if (!tools_are_lanes()) {
+        return tool_index >= 0 && tool_index < static_cast<int>(tools_.size()) ? tool_index : -1;
+    }
+    // A lane's offset is its head's: the printer tool on the head's extruder.
+    const std::string extruder = extruder_name_for_tool(tool_index);
+    if (extruder.empty()) {
+        return -1;
+    }
+    for (int i = 0; i < static_cast<int>(head_tools_.size()); ++i) {
+        if (head_tools_[static_cast<size_t>(i)].extruder_name == extruder) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+HeadIdentity ToolState::head_identity_for_offset_tool(int offset_tool) const {
+    if (!tools_are_lanes()) {
+        return head_identity_for_tool(offset_tool);
+    }
+    if (offset_tool < 0 || offset_tool >= static_cast<int>(head_tools_.size())) {
+        return {};
+    }
+    const auto& extruder = head_tools_[static_cast<size_t>(offset_tool)].extruder_name;
+    return extruder ? head_identity_for_extruder(*extruder) : HeadIdentity{};
+}
+
 std::vector<int> ToolState::dirty_tool_indices() const {
     std::vector<int> dirty;
-    for (int i = 0; i < static_cast<int>(tools_.size()); ++i) {
+    const auto& tools = object_tools();
+    for (int i = 0; i < static_cast<int>(tools.size()); ++i) {
         for (Axis axis : kAllAxes) {
-            if (tools_[i].gcode_offset(axis).dirty()) {
+            if (tools[static_cast<size_t>(i)].gcode_offset(axis).dirty()) {
                 dirty.push_back(i);
                 break;
             }
@@ -733,41 +788,45 @@ std::vector<int> ToolState::dirty_tool_indices() const {
 }
 
 bool ToolState::tool_offset_dirty(int tool_index, Axis axis) const {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    const auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return false;
     }
-    return tools_[tool_index].gcode_offset(axis).dirty();
+    return tools[static_cast<size_t>(tool_index)].gcode_offset(axis).dirty();
 }
 
 float ToolState::tool_offset_mm(int tool_index, Axis axis) const {
     if (!tool_offset_known(tool_index, axis)) {
         return 0.0f;
     }
-    return tools_[tool_index].gcode_offset(axis).mm;
+    return object_tools()[static_cast<size_t>(tool_index)].gcode_offset(axis).mm;
 }
 
 bool ToolState::tool_offset_known(int tool_index, Axis axis) const {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    const auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return false;
     }
-    return tools_[tool_index].gcode_offset(axis).known;
+    return tools[static_cast<size_t>(tool_index)].gcode_offset(axis).known;
 }
 
 void ToolState::set_tool_offset_local(int tool_index, Axis axis, int microns) {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return;
     }
-    ToolAxisOffset& offset = tools_[tool_index].gcode_offset(axis);
+    ToolAxisOffset& offset = tools[static_cast<size_t>(tool_index)].gcode_offset(axis);
     offset.mm = static_cast<float>(microns) / 1000.0f;
     offset.known = true;
     refresh_any_tool_dirty();
 }
 
 void ToolState::mark_tool_offsets_saved(int tool_index) {
-    if (tool_index < 0 || tool_index >= static_cast<int>(tools_.size())) {
+    auto& tools = object_tools();
+    if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return;
     }
-    for (ToolAxisOffset& offset : tools_[tool_index].gcode_offsets) {
+    for (ToolAxisOffset& offset : tools[static_cast<size_t>(tool_index)].gcode_offsets) {
         offset.saved_mm = offset.mm;
     }
     refresh_any_tool_dirty();
@@ -790,7 +849,7 @@ int PhysicalHead::representative_tool(int active_tool) const {
 }
 
 std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
-                                         bool heads_share_heater) {
+                                         bool heads_share_heater, bool tools_are_lanes) {
     std::vector<PhysicalHead> heads;
     for (size_t i = 0; i < tools.size(); ++i) {
         const auto& extruder = tools[i].extruder_name;
@@ -806,6 +865,20 @@ std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
             shared = heads.end() - 1;
         }
         shared->tool_indices.push_back(static_cast<int>(i));
+    }
+    // Lane tools are numbered by whatever a lane map says, so the lowest lane
+    // says nothing about where a head stands. The extruders do: "extruder",
+    // "extruder1", ... in that order, with any head naming none after them.
+    if (tools_are_lanes) {
+        const auto position = [](const PhysicalHead& head) {
+            const auto n =
+                head.extruder_name ? tool_number_for_extruder(*head.extruder_name) : std::nullopt;
+            return n.value_or(std::numeric_limits<int>::max());
+        };
+        std::stable_sort(heads.begin(), heads.end(),
+                         [&](const PhysicalHead& a, const PhysicalHead& b) {
+                             return position(a) < position(b);
+                         });
     }
     for (PhysicalHead& head : heads) {
         int seated_count = 0;
@@ -833,7 +906,7 @@ int head_index_for_tool(const std::vector<PhysicalHead>& heads, int tool_index) 
 
 const std::vector<PhysicalHead>& ToolState::physical_heads() const {
     if (!heads_cache_) {
-        heads_cache_ = helix::physical_heads(tools_, heads_share_heater());
+        heads_cache_ = helix::physical_heads(tools_, heads_share_heater(), tools_are_lanes());
     }
     return *heads_cache_;
 }
@@ -846,6 +919,53 @@ bool ToolState::head_reads_heater(int head_index) const {
     }
     return !heads_share_heater() ||
            heads[static_cast<size_t>(head_index)].holds_tool(active_tool_index_);
+}
+
+HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
+                           const std::vector<PhysicalHead>& heads, int head_index, int active_tool,
+                           bool tools_are_lanes) {
+    HeadIdentity id;
+    if (head_index < 0 || head_index >= static_cast<int>(heads.size())) {
+        return id;
+    }
+    const int rep = heads[static_cast<size_t>(head_index)].representative_tool(active_tool);
+    if (rep < 0 || rep >= static_cast<int>(tools.size())) {
+        return id;
+    }
+    const ToolInfo& tool = tools[static_cast<size_t>(rep)];
+    if (!tools_are_lanes) {
+        id.name = tool.name;
+        id.index = rep;
+        return id;
+    }
+    const PhysicalHead& head = heads[static_cast<size_t>(head_index)];
+    const auto extruder =
+        head.extruder_name ? tool_number_for_extruder(*head.extruder_name) : std::nullopt;
+    id.index = extruder.value_or(head_index);
+    id.lane_code = tool.name;
+    return id;
+}
+
+HeadIdentity ToolState::head_identity(const PhysicalHead& head) const {
+    const auto& heads = physical_heads();
+    const int index =
+        head.tool_indices.empty() ? -1 : head_index_for_tool(heads, head.tool_indices.front());
+    return helix::head_identity(tools_, heads, index, active_tool_index_, tools_are_lanes());
+}
+
+HeadIdentity ToolState::head_identity_for_tool(int tool_index) const {
+    const auto& heads = physical_heads();
+    const int index = head_index_for_tool(heads, tool_index);
+    return index < 0 ? HeadIdentity{} : head_identity(heads[static_cast<size_t>(index)]);
+}
+
+HeadIdentity ToolState::head_identity_for_extruder(const std::string& extruder_name) const {
+    for (const PhysicalHead& head : physical_heads()) {
+        if (head.extruder_name == extruder_name) {
+            return head_identity(head);
+        }
+    }
+    return {};
 }
 
 std::vector<PhysicalHead> ToolState::heated_heads() const {
@@ -903,7 +1023,8 @@ std::string ToolState::nozzle_label(int tool_index) const {
         // status widget) all spell this nozzle with lane_number_text(), and two
         // names for one physical nozzle is the confusion. A tool its owner
         // named keeps that name.
-        const std::string suffix = helix::ui::tool_number_or_name(tool->name, tool->index);
+        const std::string suffix =
+            helix::ui::head_number_or_name(head_identity_for_tool(tool_index));
         if (!suffix.empty()) {
             return std::string(lv_tr("Nozzle")) + " " + suffix;
         }
@@ -918,6 +1039,10 @@ bool ToolState::names_mounted_nozzle() const {
 // Tool badge formatting moved to UI layer (ui_ams_tool_text.cpp)
 
 std::string ToolState::tool_name_for_extruder(const std::string& extruder_name) const {
+    // A lane's name says which lane loads, not which head heats.
+    if (tools_are_lanes()) {
+        return head_identity_for_extruder(extruder_name).name;
+    }
     if (heads_share_heater()) {
         const ToolInfo* tool = active_tool();
         return tool && tool->extruder_name == extruder_name ? tool->name : std::string();
@@ -938,6 +1063,10 @@ std::string ToolState::extruder_name_for_tool(int tool_index) const {
 }
 
 std::string ToolState::display_label_for_extruder(const std::string& extruder_name) const {
+    if (tools_are_lanes()) {
+        const HeadIdentity head = head_identity_for_extruder(extruder_name);
+        return head.index < 0 ? std::string() : helix::ui::active_head_name_label(head);
+    }
     if (heads_share_heater()) {
         const ToolInfo* tool = active_tool();
         return tool && tool->extruder_name == extruder_name ? tool->display_label : std::string();

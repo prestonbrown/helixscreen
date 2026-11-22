@@ -79,6 +79,8 @@ class PreheatWidget : public PanelWidget {
 
     /// The tool whose heater tool_target_ aims at, or -1 for every head.
     [[nodiscard]] int target_tool_index() const;
+    /// What tool_target_'s head is called ("Tool 2"), or empty for every head.
+    [[nodiscard]] std::string target_head_label() const;
 
     void handle_apply();
     void handle_cooldown();

@@ -515,6 +515,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     print_start_params(const std::map<int, int>& tool_slots) const override;
 
     /// AFC owns the lane->tool map (SET_MAP) and get_tool_mapping() returns it.
+    /// On a toolchanger AFC_SELECT_TOOL on the head @p tool's lane feeds: T<n>
+    /// there runs CHANGE_TOOL and swaps filament.
+    [[nodiscard]] std::string head_select_gcode(int tool) const override;
     [[nodiscard]] bool owns_tool_mapping_table() const override {
         return true;
     }

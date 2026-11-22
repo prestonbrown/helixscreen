@@ -351,6 +351,7 @@
   <translation tag="Assign a role to enable sensor monitoring" pt="Atribua uma função para habilitar o monitoramento do sensor"/>
   <translation tag="Assign a slot first" pt="Atribua um slot primeiro"/>
   <translation tag="Assigned Tool" pt="Ferramenta atribuída"/>
+  <translation tag="Assigned {}" pt="Atribuída {}"/>
   <translation tag="Assisted Retract" pt="Retração assistida"/>
   <translation tag="Assisting" pt="Assistindo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" pt="Pelo menos {} linhas do helixscreen.env foram ignoradas"/>
@@ -1469,9 +1470,6 @@
   <translation tag="Feeder" pt="Alimentador"/>
   <translation tag="Feeders" pt="Alimentadores"/>
   <translation tag="Feeding filament forward" pt="Avançando filamento"/>
-  <translation tag="Feeds Tool" pt="Alimenta ferramenta"/>
-  <translation tag="Feeds no tool" pt="Não alimenta nenhuma ferramenta"/>
-  <translation tag="Feeds {}" pt="Alimenta {}"/>
   <translation tag="Filament" pt="Filamento"/>
   <translation tag="Filament Buffer" pt="Buffer de filamento"/>
   <translation tag="Filament Control" pt="Controle de Filamento"/>
@@ -2483,6 +2481,7 @@
   <translation tag="No target printer configured" pt="Nenhuma impressora de destino configurada"/>
   <translation tag="No temperature sensors detected" pt="Nenhum sensor de temperatura detectado"/>
   <translation tag="No timelapse videos found" pt="Nenhum vídeo timelapse encontrado"/>
+  <translation tag="No tool assigned" pt="Nenhuma ferramenta atribuída"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" pt="Não se sabe qual ferramenta está montada. Com uma sonda compartilhada, calibre com {}. Continuar mesmo assim?"/>
   <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool mounted" pt="Nenhuma ferramenta montada"/>

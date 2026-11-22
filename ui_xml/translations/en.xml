@@ -351,6 +351,7 @@
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
   <translation tag="Assign a slot first" en="Assign a slot first"/>
   <translation tag="Assigned Tool" en="Assigned Tool"/>
+  <translation tag="Assigned {}" en="Assigned {}"/>
   <translation tag="Assisted Retract" en="Assisted Retract"/>
   <translation tag="Assisting" en="Assisting"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" en="At least {} lines in helixscreen.env were ignored"/>
@@ -1469,9 +1470,6 @@
   <translation tag="Feeder" en="Feeder"/>
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament forward" en="Feeding filament forward"/>
-  <translation tag="Feeds Tool" en="Feeds Tool"/>
-  <translation tag="Feeds no tool" en="Feeds no tool"/>
-  <translation tag="Feeds {}" en="Feeds {}"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Buffer" en="Filament Buffer"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -2483,6 +2481,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tool assigned" en="No tool assigned"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
   <translation tag="No tool mounted" en="No tool mounted"/>

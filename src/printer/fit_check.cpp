@@ -350,17 +350,26 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
 
     // A file naming its tools is judged on those tools' nozzles alone: a slicer
     // lists a nozzle for every extruder, used or not. File tool i is compared
-    // with extruder i; the printer's own filament mapping is not followed.
+    // with the extruder it prints on: through the lane map where tool numbers
+    // name lanes, else extruder i. A printer's own filament remapping at print
+    // start is not followed.
     const auto used = [&file](size_t i) {
         return file.tools.empty() || file.tools.count(static_cast<int>(i)) != 0;
     };
-    const size_t nozzles = std::min(file.nozzle_diameters.size(), machine.nozzle_diameters.size());
-    for (size_t i = 0; i < nozzles; ++i) {
-        if (!used(i)) {
+    const auto extruder_of = [&machine](size_t tool) -> int {
+        if (machine.tool_extruder.empty()) {
+            return static_cast<int>(tool);
+        }
+        return tool < machine.tool_extruder.size() ? machine.tool_extruder[tool] : -1;
+    };
+    for (size_t i = 0; i < file.nozzle_diameters.size(); ++i) {
+        const int extruder = extruder_of(i);
+        if (!used(i) || extruder < 0 ||
+            extruder >= static_cast<int>(machine.nozzle_diameters.size())) {
             continue;
         }
         const double want = file.nozzle_diameters[i];
-        const double have = machine.nozzle_diameters[i];
+        const double have = machine.nozzle_diameters[static_cast<size_t>(extruder)];
         if (std::fabs(want - have) > kNozzleTolerance) {
             FitFinding f = finding(FitKind::NozzleMismatch, FitSeverity::Warn);
             f.tool = static_cast<int>(i);
@@ -374,11 +383,14 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
     // necessarily the head that prints it once the printer's own filament
     // mapping applies, and Snapmaker's U1 firmware refuses a real High Flow
     // job on a standard nozzle itself.
-    const size_t types =
-        std::min(file.nozzle_volume_types.size(), machine.nozzle_volume_types.size());
-    for (size_t i = 0; i < types; ++i) {
+    for (size_t i = 0; i < file.nozzle_volume_types.size(); ++i) {
+        const int extruder = extruder_of(i);
+        if (extruder < 0 || extruder >= static_cast<int>(machine.nozzle_volume_types.size())) {
+            continue;
+        }
         const std::string want = fit_nozzle_volume_type(file.nozzle_volume_types[i]);
-        const std::string have = fit_nozzle_volume_type(machine.nozzle_volume_types[i]);
+        const std::string have =
+            fit_nozzle_volume_type(machine.nozzle_volume_types[static_cast<size_t>(extruder)]);
         if (!used(i) || want.empty() || have.empty() || want == have) {
             continue;
         }

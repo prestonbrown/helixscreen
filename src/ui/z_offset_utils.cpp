@@ -90,11 +90,14 @@ std::string build_z_adjust_gcode(int base_microns, int live_microns, int delta_m
                        static_cast<double>(base_microns + delta_microns) / 1000.0, move);
 }
 
-bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, double delta_mm) {
+bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool, double delta_mm) {
     if (!api || !ps) {
         return false;
     }
     auto& ts = ToolState::instance();
+    // The offset belongs to the head @p tool prints through, and so does the
+    // command: on a lane rig lane T0 in extruder2 moves tool T2's offset.
+    const int tool_index = ts.offset_tool_for(tool);
     // Adjust from the value we DISPLAYED: the firmware takes an absolute offset, so a
     // delta applied to anything else would land somewhere the user did not ask for.
     // Without a reported value there is no base, so refuse rather than assume zero
@@ -113,7 +116,7 @@ bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, do
         return false;
     }
     const std::string activate = tool_offsets::activate_mounted_offset_gcode(
-        ps->get_discovery(), tool_index, ts.active_tool_index());
+        ps->get_discovery(), tool_index, ts.offset_tool_for(ts.active_tool_index()));
     if (!activate.empty()) {
         gcode += "\n" + activate;
     }
@@ -890,8 +893,8 @@ void save_dirty_offsets(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_wat
             wrote = true;
         }
         // Once per tool, after every axis has landed in the store it reads.
-        const std::string activate =
-            helix::tool_offsets::activate_mounted_offset_gcode(hw, tool, ts.active_tool_index());
+        const std::string activate = helix::tool_offsets::activate_mounted_offset_gcode(
+            hw, tool, ts.offset_tool_for(ts.active_tool_index()));
         if (wrote && !activate.empty()) {
             api->execute_gcode(activate, nullptr, nullptr);
         }

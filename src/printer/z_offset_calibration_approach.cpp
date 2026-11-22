@@ -3,6 +3,7 @@
 #include "z_offset_calibration_approach.h"
 
 #include "motion_presets.h"
+#include "tool_state.h"
 
 #include <spdlog/fmt/fmt.h>
 
@@ -16,6 +17,12 @@ ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<
         return ToolGate::Proceed;
     }
     return active_tool == *reference_tool ? ToolGate::Proceed : ToolGate::ConfirmFirst;
+}
+
+ToolGate mounted_reference_gate(ZOffsetCalibrationStrategy strategy,
+                                std::optional<int> reference_tool, const ToolState& tools) {
+    return reference_tool_gate(strategy, reference_tool,
+                               tools.offset_tool_for(tools.active_tool_index()));
 }
 
 bool is_scanning_probe(sensors::ProbeSensorType probe_type) {

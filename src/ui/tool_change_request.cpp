@@ -131,8 +131,9 @@ std::string full_tool_label(int tool_index) {
     if (tool_index < 0 || tool_index >= static_cast<int>(tools.size())) {
         return tool_label(tool_index);
     }
-    const ToolInfo& tool = tools[static_cast<size_t>(tool_index)];
-    return active_tool_label(tool.name, tool.index, ToolLabelForm::Full);
+    // The head the change mounts, not the lane it sends.
+    return active_head_label(ToolState::instance().head_identity_for_tool(tool_index),
+                             ToolLabelForm::Full);
 }
 
 /// What an open confirmation owes its caller: the change on the primary

@@ -134,6 +134,7 @@ class TempGraphWidget : public PanelWidget {
     /// connects) otherwise renders with no nozzle series until the next launch.
     ObserverGuard extruder_version_observer_;
     ObserverGuard language_observer_;
+    ObserverGuard tools_version_observer_;
 
     /// Rename every series to its display name in the current language.
     void refresh_series_names();

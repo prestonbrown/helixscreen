@@ -218,13 +218,14 @@ ZOffsetWidget::LiveState ZOffsetWidget::read_live() const {
         lv_subject_get_int(tools.get_per_tool_axis_supported_subject(Axis::Z)) == 1;
     s.tool_index = lv_subject_get_int(tools.get_active_tool_subject());
     if (s.readings.tool_changer) {
-        if (tools.tool_offset_known(s.tool_index, Axis::Z)) {
+        const int offset_tool = tools.offset_tool_for(s.tool_index);
+        if (tools.tool_offset_known(offset_tool, Axis::Z)) {
             s.readings.microns =
-                static_cast<int>(std::lround(tools.tool_offset_mm(s.tool_index, Axis::Z) * 1000.0));
+                static_cast<int>(std::lround(tools.tool_offset_mm(offset_tool, Axis::Z) * 1000.0));
         }
-        const auto* active = tools.active_tool();
-        s.tool_label =
-            active ? active->display_label : ui::lane_label(ui::active_tool_noun(), s.tool_index);
+        s.tool_label = tools.active_tool()
+                           ? ui::active_head_name_label(tools.head_identity_for_tool(s.tool_index))
+                           : ui::lane_label(ui::active_tool_noun(), s.tool_index);
     } else {
         s.readings.microns = zoffset::displayed_z_offset_microns(printer_state_);
     }

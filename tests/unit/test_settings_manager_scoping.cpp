@@ -44,6 +44,7 @@
 #include "../helix_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
 #include "ams_backend_cfs.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "config.h"
 #include "settings_manager.h"
@@ -519,6 +520,70 @@ TEST_CASE_METHOD(SettingsScopeFixture,
           static_cast<int>(ToolheadStyle::STEALTHBURNER));
 
     sm.set_toolhead_style(ToolheadStyle::AUTO);
+}
+
+TEST_CASE_METHOD(SettingsScopeFixture,
+                 "SettingsManager: lanes count as the filament system does until the user picks",
+                 "[settings][multi-printer][lane-numbering]") {
+    struct DefaultReset {
+        ~DefaultReset() {
+            SettingsManager::instance().set_lane_numbering_default(false);
+        }
+    } reset;
+    const auto shown = [&] { return lv_subject_get_int(sm.subject_number_lanes_from_zero()) != 0; };
+    REQUIRE_FALSE(cfg->exists(a("ams/number_lanes_from_zero")));
+
+    SECTION("a system that counts from 0, arriving after connect, re-resolves") {
+        REQUIRE_FALSE(helix::ui::lane_numbering_from_zero());
+        sm.set_lane_numbering_default(true);
+        CHECK(helix::ui::lane_numbering_from_zero());
+        CHECK(shown());
+        // A default shown is not a choice stored.
+        CHECK_FALSE(cfg->exists(a("ams/number_lanes_from_zero")));
+        // And it leaves with its system.
+        sm.set_lane_numbering_default(false);
+        CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+        CHECK_FALSE(shown());
+    }
+
+    SECTION("a stored choice wins over the system's numbering") {
+        sm.set_number_lanes_from_zero(false);
+        sm.set_lane_numbering_default(true);
+        CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+        CHECK_FALSE(shown());
+        // On another printer, never set, the system's numbering applies.
+        switch_to(kPrinterB);
+        CHECK(helix::ui::lane_numbering_from_zero());
+        switch_to(kPrinterA);
+        CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+    }
+
+    SECTION("a filament system connecting picks the default, a generic one keeps 1") {
+        auto& ams = AmsState::instance();
+        ams.init_subjects(false);
+        auto afc = std::make_unique<AmsBackendMock>(4);
+        afc->set_afc_mode(true);
+        ams.set_backend(std::move(afc));
+        ams.sync_from_backend();
+        CHECK(helix::ui::lane_numbering_from_zero());
+        CHECK(shown());
+
+        ams.set_backend(std::make_unique<helix::printer::AmsBackendCfs>(nullptr, nullptr));
+        ams.sync_from_backend();
+        CHECK_FALSE(helix::ui::lane_numbering_from_zero());
+        ams.set_backend(nullptr);
+    }
+
+    SECTION("only the systems that count from 0 say so") {
+        CHECK(ams_type_traits(AmsType::AFC).lanes_count_from_zero);
+        CHECK(ams_type_traits(AmsType::HAPPY_HARE).lanes_count_from_zero);
+        for (const auto& row : kAmsTypeTraits) {
+            if (row.type != AmsType::AFC && row.type != AmsType::HAPPY_HARE) {
+                CAPTURE(row.name);
+                CHECK_FALSE(row.lanes_count_from_zero);
+            }
+        }
+    }
 }
 
 // ============================================================================

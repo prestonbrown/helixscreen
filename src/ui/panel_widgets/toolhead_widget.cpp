@@ -554,10 +554,10 @@ ToolheadWidget::LiveState ToolheadWidget::read_live() const {
     auto& tools = ToolState::instance();
     // Several toolheads name the active one; AMS slots feeding one hotend need no label.
     if (tools.has_multiple_toolheads()) {
-        const auto* active = tools.active_tool();
-        s.tool_label = active ? active->display_label
-                              : ui::lane_label(ui::active_tool_noun(),
-                                               lv_subject_get_int(tools.get_active_tool_subject()));
+        const int active = lv_subject_get_int(tools.get_active_tool_subject());
+        s.tool_label = tools.active_tool()
+                           ? ui::active_head_name_label(tools.head_identity_for_tool(active))
+                           : ui::lane_label(ui::active_tool_noun(), active);
     }
     return s;
 }

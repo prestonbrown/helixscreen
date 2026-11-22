@@ -362,7 +362,9 @@ void TempGraphOverlay::discover_series() {
 
         for (const auto* ext : sorted_extruders) {
             SeriesInfo s;
-            s.display_name = ext->display_name;
+            // A lane rig names the head, not the extruder's discovery name.
+            s.display_name =
+                helix::ui::temperature::nozzle_display_name(ext->name, ext->display_name);
             s.heater_name = ext->name;
             s.klipper_name = ext->name;
             s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
@@ -822,10 +824,11 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
     // its extruder.
     std::string title = helix::ui::temperature::heater_keypad_title(type);
     if (type == helix::HeaterType::Nozzle && overlay.printer_state_) {
-        const auto& extruders = overlay.printer_state_->temperature_state().extruders();
-        const auto it = extruders.find(helix::ui::TargetTool::instance().extruder_name());
-        if (it != extruders.end() && !it->second.display_name.empty()) {
-            title = it->second.display_name;
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                overlay.printer_state_->temperature_state(),
+                helix::ui::TargetTool::instance().extruder_name());
+            !name.empty()) {
+            title = std::move(name);
         }
     }
     ui_keypad_config_t keypad_config = {

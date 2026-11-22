@@ -255,7 +255,7 @@ void SettingsManager::init_subjects() {
     MaterialSettingsManager::instance().init();
 
     settings_.init(subjects_);
-    helix::ui::set_lane_numbering_from_zero(get_number_lanes_from_zero());
+    resolve_lane_numbering();
 
     // Apply a non-Auto Z movement override to printer state now, even if
     // set_kinematics() has not run yet (e.g. on reconnect).
@@ -340,12 +340,32 @@ void SettingsManager::set_number_lanes_from_zero(bool enabled) {
     apply_lane_numbering(enabled);
 }
 
+void SettingsManager::set_lane_numbering_default(bool from_zero) {
+    if (lane_numbering_default_ == from_zero) {
+        return;
+    }
+    lane_numbering_default_ = from_zero;
+    if (subjects_initialized_) {
+        resolve_lane_numbering();
+    } else if (!settings_.stored(Key::NumberLanesFromZero)) {
+        // Nothing renders yet to be told; init_subjects() resolves again.
+        helix::ui::set_lane_numbering_from_zero(from_zero);
+    }
+}
+
+void SettingsManager::resolve_lane_numbering() {
+    if (!settings_.stored(Key::NumberLanesFromZero)) {
+        settings_.show_default(Key::NumberLanesFromZero, lane_numbering_default_ ? 1 : 0);
+    }
+    apply_lane_numbering(get_number_lanes_from_zero());
+}
+
 void SettingsManager::reload_from_config() {
     if (!subjects_initialized_) {
         return;
     }
     settings_.reload();
-    apply_lane_numbering(get_number_lanes_from_zero());
+    resolve_lane_numbering();
     load_jog_distances();
 }
 

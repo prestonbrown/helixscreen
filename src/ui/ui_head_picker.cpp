@@ -31,12 +31,12 @@ void HeadPicker::refresh() {
     if (selected_ >= count) {
         selected_ = 0;
     }
-    const int active = tools.active_tool_index();
     for (int i = 0; i < kMaxHeads; ++i) {
         lv_subject_set_int(&tool_selected_[i], i == selected_ ? 1 : 0);
         std::string label;
         if (i < static_cast<int>(heads.size())) {
-            label = tool_label(heads[static_cast<size_t>(i)].representative_tool(active));
+            label = active_head_label(tools.head_identity(heads[static_cast<size_t>(i)]),
+                                      ToolLabelForm::Code);
         }
         lv_subject_copy_string(&tool_label_[i], label.c_str());
     }

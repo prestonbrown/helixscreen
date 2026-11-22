@@ -75,6 +75,20 @@ static json mock_object_entry(const std::string& name, int index, int total,
 
 namespace {
 
+std::string effective_mock_ams_env();
+
+/// The extruders an AFC toolchanger profile's lanes feed (AmsBackendMock's
+/// stealth and afc_direct lane tables), which Klipper lists as objects of their
+/// own. 1 for every other mode.
+int afc_toolchanger_extruders() {
+    const std::string ams = effective_mock_ams_env();
+    if (ams == "stealth")
+        return 7;
+    if (ams == "afc_direct")
+        return 4;
+    return 1;
+}
+
 /// connect()'s pause before CONNECTED, in simulated ms; see set_connect_delay_ms().
 std::atomic<int> g_connect_delay_ms{250};
 
@@ -1128,6 +1142,9 @@ void MoonrakerClientMock::populate_capabilities() {
     // The second hub lane feeds a second extruder.
     if (is_mock_openams() && (openams_two_lane_units() || openams_fleet_lane_units())) {
         mock_objects.push_back("extruder1");
+    }
+    for (int e = 1; e < afc_toolchanger_extruders(); ++e) {
+        mock_objects.push_back("extruder" + std::to_string(e));
     }
     mock_objects.push_back("bed_mesh");
 

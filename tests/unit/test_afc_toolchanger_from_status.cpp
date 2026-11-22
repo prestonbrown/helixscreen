@@ -276,7 +276,7 @@ nlohmann::json multi_extruder_no_toolchanger_status() {
 } // namespace
 
 TEST_CASE("AFC load and tool change name the lane or T number on every topology",
-          "[ams][afc][toolchanger][status][1200][1824][1850]") {
+          "[ams][afc][toolchanger][status][1200][1824][1850][head-identity]") {
     // AFC owns lane -> extruder and T -> lane, so a load names the lane on
     // every topology. A tool change sends T{n} except on a toolchanger, where
     // it only mounts the head that T number's lane feeds.
@@ -295,11 +295,16 @@ TEST_CASE("AFC load and tool change name the lane or T number on every topology"
 
         AfcStatusDispatchHelper change;
         change.feed(frame);
+        // A generated print mounts a head the same way, without a filament
+        // change (the PA tower).
+        const std::string select = change.head_select_gcode(1);
         REQUIRE(change.change_tool(1));
         if (std::string(label) == "toolchanger") {
             CHECK(change.captured == std::vector<std::string>{"AFC_SELECT_TOOL TOOL=extruder1"});
+            CHECK(select == "AFC_SELECT_TOOL TOOL=extruder1");
         } else {
             CHECK(change.captured == std::vector<std::string>{"T1"});
+            CHECK(select == "T1");
         }
     }
 }
@@ -315,7 +320,7 @@ TEST_CASE("AFC toolchanger refuses a tool change while lanes have named no head"
 }
 
 TEST_CASE("Per-extruder actions follow the frame's extruder order, not name order",
-          "[ams][afc][toolchanger][status][1200]") {
+          "[ams][afc][toolchanger][status][1200][head-identity]") {
     // The webhook parse sorts its map keys; the status parse must not, or the
     // _T0 and _T1 actions silently swap heads.
     AfcStatusDispatchHelper afc;
@@ -325,6 +330,13 @@ TEST_CASE("Per-extruder actions follow the frame's extruder order, not name orde
 
     REQUIRE(afc.execute_device_action("led_extruder_T0"));
     CHECK(afc.sent("AFC_SET_EXTRUDER_LED EXTRUDER=extruder_b TURN_ON=1"));
+
+    // And each names the head it belongs to, so the screen labels the head.
+    const auto actions = afc.get_device_actions();
+    const auto led = std::find_if(actions.begin(), actions.end(),
+                                  [](const auto& a) { return a.id == "led_extruder_T0"; });
+    REQUIRE(led != actions.end());
+    CHECK(led->extruder == "extruder_b");
 }
 
 TEST_CASE("Per-extruder device actions materialise from the status payload alone (#1200)",

@@ -49,8 +49,9 @@
  * - tool_cal_status (string) - one-line status
  * - tool_cal_hint (string) - the macro's `description:`, or a built-in note
  * - tool_cal_active (int) - a run is in flight
- * - tool_cal_tool_count (int) - rows the <repeat> builds, one per tool
- * - tool_cal_x_N / _y_N / _z_N (string) - the tool's offsets, mm
+ * - tool_cal_tool_count (int) - rows the <repeat> builds, one per head
+ * - tool_cal_x_N / _y_N / _z_N (string) - the head's offsets, mm
+ * - tool_cal_label_N (string) - the head's name; tool_cal_mounted_N (int) its mount
  *
  * Save binds ToolState's own any_tool_offset_dirty: an offset the macro wrote
  * (or anything else changed at runtime) that printer.cfg does not yet hold.
@@ -136,7 +137,9 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
     void on_run_finished(bool ok, const std::string& error);
     /// Repaint every row from ToolState
     void refresh_rows();
-    void refresh_row_values(int tool);
+    void refresh_row_values(int head_index);
+    /// Light the row of the head the mounted tool prints through.
+    void refresh_mounted();
     /// ToolState's tools changed: the rows follow its offsets
     void on_tools_changed();
     /// The rpc timed out under a still-busy printer: finish on the idle edge,
@@ -175,10 +178,17 @@ class ToolOffsetCalibrationPanel : public OverlayBase {
                                           helix::xml::IndexedSubjectPool::Type::String, 16};
     helix::xml::IndexedSubjectPool row_z_{"tool_cal_z",
                                           helix::xml::IndexedSubjectPool::Type::String, 16};
+    /// Each row's head as the screen names it (head_label_in_form(), Code).
+    helix::xml::IndexedSubjectPool row_label_{"tool_cal_label",
+                                              helix::xml::IndexedSubjectPool::Type::String, 32};
+    /// 1 on the row whose head is mounted, the one a run is measuring.
+    helix::xml::IndexedSubjectPool row_mounted_{"tool_cal_mounted",
+                                                helix::xml::IndexedSubjectPool::Type::Int, 0};
 
     SubjectManager subjects_;
     /// Follows ToolState's tools_version so the values track the printer.
     ObserverGuard tools_observer_;
+    ObserverGuard active_tool_observer_;
     helix::ui::SaveConfigWatch save_watch_;
     /// The wait for the busy->idle edge after the rpc ceiling expired under a
     /// macro that was still running (see on_run_rpc_error).

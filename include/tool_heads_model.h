@@ -74,8 +74,8 @@ class ToolHeadsModel {
     void publish();
 
     [[nodiscard]] int head_count() const;
-    /// Head @p i as the tool it stands for, numbered as the head.
-    [[nodiscard]] ToolInfo head_tool(int i) const;
+    /// Head @p i as its labels name it (ToolState::head_identity()).
+    [[nodiscard]] HeadIdentity head_identity(int i) const;
     /// The mounted head; -1 with the carriage empty, head_count() where the
     /// active tool is one the heads do not hold.
     [[nodiscard]] int mounted_head() const;
@@ -86,7 +86,9 @@ class ToolHeadsModel {
     /// Whether a changer whose heads dock reports a fault.
     [[nodiscard]] static bool changer_fault();
 
-    /// Head @p i's two lines in a picker cell in @p form.
+    /// Head @p i's two lines in a picker cell in @p form: the head over its
+    /// G-code name, or in Code over its temperature. A head of several lanes
+    /// shows its lane's G-code name in the second line, beside the temperature.
     [[nodiscard]] std::pair<std::string, std::string> picker_lines(int i, ToolLabelForm form) const;
 
     /// Head @p i as a target surface names it: "Tool 2" (or a configured

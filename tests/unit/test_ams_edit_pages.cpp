@@ -1398,7 +1398,8 @@ TEST_CASE_METHOD(PagesFixture, "the editor follows its lane as a spool goes in a
     lane_reads(*backend, 1, SlotStatus::EMPTY);
     settle();
     CHECK(access.page() == AmsEditOverlay::kPageEmpty);
-    CHECK(access.subject_text("ams_edit_empty_title") == "Gate 2 is empty");
+    CHECK(access.subject_text("ams_edit_empty_title") ==
+          "Gate 1 is empty"); // Happy Hare counts from 0
     close_editor_overlay();
 }
 

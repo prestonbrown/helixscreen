@@ -404,6 +404,7 @@ translations:
     du capteur
   Assign a slot first: 'Attribuez d''abord un slot'
   Assigned Tool: Outil attribué
+  Assigned {}: 'Attribué {}'
   Assisted Retract: 'Rétraction assistée'
   Assisting: Assistance
   At least {} lines in helixscreen.env were ignored: 'Au moins {} lignes de helixscreen.env ont été ignorées'
@@ -1647,9 +1648,6 @@ translations:
   Feeder: Alimentateur
   Feeders: Alimentateurs
   Feeding filament forward: Avancement du filament
-  Feeds Tool: 'Alimente l''outil'
-  Feeds no tool: 'N''alimente aucun outil'
-  Feeds {}: 'Alimente {}'
   Filament: Filament
   Filament Buffer: 'Tampon de filament'
   Filament Control: Contrôle du filament
@@ -2738,6 +2736,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool assigned: 'Aucun outil attribué'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Aucun outil n''est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?'
   No tool is mounted: 'Aucun outil n''est monté'
   No tool mounted: 'Aucun outil monté'

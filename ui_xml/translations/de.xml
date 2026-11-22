@@ -351,6 +351,7 @@
   <translation tag="Assign a role to enable sensor monitoring" de="Rolle zuweisen, um Sensorüberwachung zu aktivieren"/>
   <translation tag="Assign a slot first" de="Zuerst einen Slot zuweisen"/>
   <translation tag="Assigned Tool" de="Zugewiesenes Werkzeug"/>
+  <translation tag="Assigned {}" de="Zugewiesen {}"/>
   <translation tag="Assisted Retract" de="Unterstützter Einzug"/>
   <translation tag="Assisting" de="Unterstützend"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" de="Mindestens {} Zeilen in helixscreen.env wurden ignoriert"/>
@@ -1469,9 +1470,6 @@
   <translation tag="Feeder" de="Zuführung"/>
   <translation tag="Feeders" de="Zuführungen"/>
   <translation tag="Feeding filament forward" de="Filament wird vorwärts geführt"/>
-  <translation tag="Feeds Tool" de="Speist Werkzeug"/>
-  <translation tag="Feeds no tool" de="Speist kein Werkzeug"/>
-  <translation tag="Feeds {}" de="Speist {}"/>
   <translation tag="Filament" de="Filament"/>
   <translation tag="Filament Buffer" de="Filamentpuffer"/>
   <translation tag="Filament Control" de="Filamentsteuerung"/>
@@ -2483,6 +2481,7 @@
   <translation tag="No target printer configured" de="Kein Zieldrucker konfiguriert"/>
   <translation tag="No temperature sensors detected" de="Keine Temperatursensoren erkannt"/>
   <translation tag="No timelapse videos found" de="Keine Zeitraffer-Videos gefunden"/>
+  <translation tag="No tool assigned" de="Kein Werkzeug zugewiesen"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" de="Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?"/>
   <translation tag="No tool is mounted" de="Kein Werkzeug montiert"/>
   <translation tag="No tool mounted" de="Kein Werkzeug montiert"/>

@@ -129,15 +129,18 @@ struct AmsTypeTraits {
     /// The clog meter's name for this system's buffer fault counter; nullptr
     /// for the generic wording. Translated at the point of use.
     const char* buffer_fault_label;
+    /// The system counts its lanes from 0 in its own tools, so the screen does
+    /// too until the user picks a numbering for the printer.
+    bool lanes_count_from_zero = false;
 };
 
 // i18n: do not translate - the names below are product names
 inline constexpr AmsTypeTraits kAmsTypeTraits[] = {
     {AmsType::NONE, "None", "", "unknown", "", AmsBufferRows::None, nullptr},
     {AmsType::HAPPY_HARE, "Happy Hare", "Happy Hare MMU", "happy_hare", "mmu",
-     AmsBufferRows::SyncDrive, nullptr},
+     AmsBufferRows::SyncDrive, nullptr, true},
     {AmsType::AFC, "AFC", "AFC (Armored Turtle)", "afc", "AFC", AmsBufferRows::UnitBuffer,
-     TR_NOOP("AFC buffer")},
+     TR_NOOP("AFC buffer"), true},
     {AmsType::ACE, "ACE", "ACE", "ace", "ace", AmsBufferRows::None, nullptr},
     {AmsType::TOOL_CHANGER, "Tool Changer", "Tool Changer", "tool_changer", "toolchanger",
      AmsBufferRows::None, nullptr},
@@ -2755,6 +2758,10 @@ struct DeviceAction {
     /// The tool this action applies to (0-based G-code number), or -1. The UI names
     /// the tool after the label, in the app's one tool-label form.
     int tool_index = -1;
+    /// The Klipper extruder whose head this action applies to, where the
+    /// action is per head and tool numbers may name lanes. The UI names that
+    /// head after the label (helix::head_identity()) and ignores tool_index.
+    std::string extruder;
     bool enabled = true; ///< Whether action is currently available
     /// Running it moves the printer (toolhead, homing, a purge or wipe): the UI greys it
     /// while anything forbids motion and the backend refuses it during a print.
