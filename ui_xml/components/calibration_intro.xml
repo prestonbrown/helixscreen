@@ -12,7 +12,7 @@
      (cal_intro_badge pills). The primary carries the toolhead guard unless a
      caller turns primary_moves_machine off, and is also disabled while the int subject
      primary_enable_subject reads 0; primary_bind_text retitles it live.
-     Sizes: calibration_intro_tokens.xml and calibration_wizard_tokens.xml. -->
+     Sizes: calibration_wizard_tokens.xml (its intro block). -->
 <component>
   <api>
     <slot name="now" target="cal_intro_now" default="true"/>
