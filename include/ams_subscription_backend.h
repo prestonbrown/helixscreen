@@ -603,8 +603,9 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// (what mirror_firmware_identity_locked() last copied from the firmware)
     /// and never states a value the firmware has not taken. Translucency is
     /// kept the same way only where firmware_states_translucency(); elsewhere
-    /// the firmware never echoes it, so the record takes the edit's. Caller
-    /// holds mutex_.
+    /// the firmware never echoes it, so the record takes the edit's, and an
+    /// edit that also moves the colour keeps it through that colour's echo.
+    /// Caller holds mutex_.
     void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
 
     /// Whether this backend's firmware keeps a filament's alpha beside its
@@ -753,6 +754,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     bool lane_records_unread_ = false;
     /// Reads filed since the store opened (lane_record_reads()).
     uint64_t lane_record_reads_ = 0;
+    /// Per slot, the translucency of an edit that moved the colour, on a
+    /// backend whose firmware states no alpha: the next colour the firmware
+    /// reports is that edit's echo, which keeps it rather than clearing it as
+    /// another filament's. Guarded by mutex_.
+    std::unordered_map<int, bool> translucency_awaiting_echo_;
     /// One firmware write from record_once_written(): whether a Clear waits on it.
     struct FirmwareEditFate {
         bool clear_after = false;
