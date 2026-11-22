@@ -582,7 +582,8 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         // One heater, several nozzles: the row is the mounted nozzle, named
         // exactly as every other nozzle readout names it.
         long_name = tool_state.nozzle_label();
-    } else if (helix::ui::is_generated_tool_name(gcode_name)) {
+    } else if (helix::ui::is_generated_tool_name(gcode_name) ||
+               (gcode_name.empty() && tool_state.tools_are_lanes())) {
         const auto& exts = printer_state_.temperature_state().extruders();
         auto it = exts.find(row.name);
         if (it != exts.end() && !it->second.display_name.empty())
@@ -594,8 +595,13 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     // The number rung: the tool's number in the printer's style ("1" or "T0"),
     // the one label that fits where no spelling does and still tells four icon
     // rows apart.
-    row.number_name = helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
-                                                  static_cast<int>(extruder_rows_.size()));
+    // Lane tools name no head, so a lane printer's row is its head's number.
+    row.number_name =
+        tool_state.tools_are_lanes()
+            ? helix::ui::head_number_text(helix::ui::active_tool_number_style(),
+                                          tool_state.head_identity_for_extruder(row.name))
+            : helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
+                                          static_cast<int>(extruder_rows_.size()));
 
     // Create row from XML template. All three spellings are written once as
     // data; which one shows, the row width and the font are bound off the

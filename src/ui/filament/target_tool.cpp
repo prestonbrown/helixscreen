@@ -256,9 +256,9 @@ void TargetTool::publish() {
     std::string name;
     std::string number;
     if (multi && t < ts.tool_count()) {
-        const auto& info = ts.tools()[static_cast<size_t>(t)];
-        name = active_tool_name_label(info.name, info.index);
-        number = active_tool_badge_label(info.name, info.index);
+        const HeadIdentity head = ts.head_identity_for_tool(t);
+        name = active_head_name_label(head);
+        number = active_head_badge_label(head);
     }
     set_int_if_changed(&multi_head_subject_, multi ? 1 : 0);
     auto& ams = AmsState::instance();

@@ -51,6 +51,11 @@ std::string tool_label(int gcode_tool) {
     return "T" + std::to_string(gcode_tool);
 }
 
+std::string extruder_label(int index) {
+    const int n = lane_number(index);
+    return n < 0 ? std::string() : "E" + std::to_string(n);
+}
+
 std::string tool_number_text(ToolNumberStyle style, std::string_view name, int index) {
     if (index < 0)
         return {};
@@ -94,28 +99,34 @@ std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string
 
 std::string head_number_text(ToolNumberStyle style, const HeadIdentity& head) {
     if (head.name.empty())
-        return lane_number_text(head.index);
+        return style == ToolNumberStyle::Gcode ? extruder_label(head.index)
+                                               : lane_number_text(head.index);
     return tool_number_text(style, head.name, head.index);
 }
 
 std::string head_badge_label(ToolNumberStyle style, const HeadIdentity& head) {
     if (head.name.empty())
-        return lane_number_text(head.index);
+        return head_number_text(style, head);
     return tool_badge_label(style, head.name, head.index);
 }
 
 std::string head_name_label(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head) {
     if (head.name.empty())
-        return lane_label(noun, head.index);
+        return style == ToolNumberStyle::Gcode ? extruder_label(head.index)
+                                               : lane_label(noun, head.index);
     return tool_name_label(noun, style, head.name, head.index);
 }
 
 std::string head_label_in_form(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head,
                                ToolLabelForm form) {
-    if (head.name.empty())
-        return form == ToolLabelForm::Code ? lane_number_text(head.index)
-                                           : lane_label(noun, head.index);
-    return tool_label_in_form(noun, style, head.name, head.index, form);
+    if (!head.name.empty())
+        return tool_label_in_form(noun, style, head.name, head.index, form);
+    const std::string code = extruder_label(head.index);
+    if (form == ToolLabelForm::Code || style == ToolNumberStyle::Gcode || code.empty())
+        return code;
+    // Never shortened to the label alone, as a counted-from-zero "Tool 0 (T0)"
+    // is: "Tool 5" there reads as T5, which on a lane rig loads some lane.
+    return fmt::format(lv_tr("{} ({})"), lane_label(noun, head.index), code);
 }
 
 std::string fed_lane_tool_label(std::string_view lane, int tool, ToolLabelForm form) {

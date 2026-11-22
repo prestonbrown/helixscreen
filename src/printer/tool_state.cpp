@@ -941,6 +941,21 @@ HeadIdentity ToolState::head_identity(const PhysicalHead& head) const {
     return helix::head_identity(tools_, heads, index, active_tool_index_, tools_are_lanes());
 }
 
+HeadIdentity ToolState::head_identity_for_tool(int tool_index) const {
+    const auto& heads = physical_heads();
+    const int index = head_index_for_tool(heads, tool_index);
+    return index < 0 ? HeadIdentity{} : head_identity(heads[static_cast<size_t>(index)]);
+}
+
+HeadIdentity ToolState::head_identity_for_extruder(const std::string& extruder_name) const {
+    for (const PhysicalHead& head : physical_heads()) {
+        if (head.extruder_name == extruder_name) {
+            return head_identity(head);
+        }
+    }
+    return {};
+}
+
 std::vector<PhysicalHead> ToolState::heated_heads() const {
     std::vector<PhysicalHead> heated;
     const auto& heads = physical_heads();
@@ -1002,7 +1017,8 @@ std::string ToolState::nozzle_label(int tool_index) const {
         // and the other-tools chip spell one nozzle one way: "Nozzle 2" or
         // "Nozzle T1" by the printer's tool number style, "Nozzle Left" for a
         // tool its owner named.
-        const std::string suffix = helix::ui::active_tool_badge_label(tool->name, tool->index);
+        const std::string suffix =
+            helix::ui::active_head_badge_label(head_identity_for_tool(tool_index));
         if (!suffix.empty()) {
             return std::string(lv_tr("Nozzle")) + " " + suffix;
         }
@@ -1017,6 +1033,10 @@ bool ToolState::names_mounted_nozzle() const {
 // Tool badge formatting moved to UI layer (ui_ams_tool_text.cpp)
 
 std::string ToolState::tool_name_for_extruder(const std::string& extruder_name) const {
+    // A lane's name says which lane loads, not which head heats.
+    if (tools_are_lanes()) {
+        return head_identity_for_extruder(extruder_name).name;
+    }
     if (heads_share_heater()) {
         const ToolInfo* tool = active_tool();
         return tool && tool->extruder_name == extruder_name ? tool->name : std::string();
@@ -1037,6 +1057,10 @@ std::string ToolState::extruder_name_for_tool(int tool_index) const {
 }
 
 std::string ToolState::display_label_for_extruder(const std::string& extruder_name) const {
+    if (tools_are_lanes()) {
+        const HeadIdentity head = head_identity_for_extruder(extruder_name);
+        return head.index < 0 ? std::string() : helix::ui::active_head_name_label(head);
+    }
     if (heads_share_heater()) {
         const ToolInfo* tool = active_tool();
         return tool && tool->extruder_name == extruder_name ? tool->display_label : std::string();

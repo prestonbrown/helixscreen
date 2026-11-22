@@ -283,6 +283,12 @@ class ToolState {
     /// helix::head_identity() of @p head, one of physical_heads() or
     /// heated_heads(), against the current tools and active tool.
     [[nodiscard]] HeadIdentity head_identity(const PhysicalHead& head) const;
+    /// head_identity() of the head @p tool_index prints through, or of the
+    /// head heating @p extruder_name (the first, where heads share a heater).
+    /// Where every tool is a head that is the tool itself, by name and index.
+    /// Index -1 for no such head.
+    [[nodiscard]] HeadIdentity head_identity_for_tool(int tool_index) const;
+    [[nodiscard]] HeadIdentity head_identity_for_extruder(const std::string& extruder_name) const;
 
     /// Whether head @p head_index (into physical_heads()) shows its extruder's
     /// temperature as its own: it names an extruder, and either its heater is
