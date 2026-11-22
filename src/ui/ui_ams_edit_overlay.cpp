@@ -2303,7 +2303,10 @@ int AmsEditOverlay::color_row_rows(lv_obj_t* row) const {
                      lv_obj_get_style_pad_bottom(row, LV_PART_MAIN);
     lv_area_t row_box;
     lv_obj_get_coords(row, &row_box);
-    const int room = page_box.y2 - row_box.y1 - below - pads;
+    // The row's max height caps the lines however tall the page is.
+    const int room =
+        std::min(page_box.y2 - row_box.y1 - below, lv_obj_get_style_max_height(row, LV_PART_MAIN)) -
+        pads;
     return std::max(1, (room + row_gap_) / (row_chip_ + row_gap_));
 }
 
