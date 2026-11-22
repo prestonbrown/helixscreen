@@ -509,7 +509,8 @@ class AmsState {
      * Teardown calls it before the client disconnects. The consumption sinks
      * are unregistered here, which flushes their metered weight while the
      * client still reaches the printer the weight belongs to; clear_backends()
-     * then finds none left to flush. Main thread.
+     * then finds none left to flush. The external spool's sink outlives the
+     * backends, so it is flushed here and stays registered. Main thread.
      */
     void before_disconnect();
 

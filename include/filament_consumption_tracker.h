@@ -65,6 +65,11 @@ class FilamentConsumptionTracker {
     /// **Thread safety**: main thread only. See register_sink().
     void unregister_sink(SinkHandle handle);
 
+    /// Persist the external spool's metered weight now, if it counted any past
+    /// its last persist. Teardown calls it, through AmsState::before_disconnect(),
+    /// while the client still reaches the printer the bypass record lives on.
+    void flush_external_sink();
+
   private:
     friend struct FilamentConsumptionTrackerTestAccess;
 
