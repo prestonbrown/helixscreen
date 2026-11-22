@@ -1642,25 +1642,42 @@ every tag field back (`ams::reset_to_tag()`).
 room for, then the rainbow tile. `size_color_row()` measures the row's width and
 `color_row_rows()` the rows the page has height for, and runs again from `on_activate()`
 and on every switch to this page, because the push sets the overlay's final width after
-the editor was built. A swatch stages its color in the draft at once; the dots and the
-rainbow tile push the color page, which edits the same draft live. Where the lane can
-store several colors (`multi_color_capable()`: `AmsBackend::stores_multi_color()`, or a
-lane linked to a Spoolman spool, whose filament holds them), the color page carries the
-**Multi-Color** row (`ui_xml/components/ams_edit_multi_color.xml`): a switch, two to four
-colors as dots (tap to edit one in the picker, hold to remove it, "+" to add one) and
-Gradient or Coaxial. Other hosts of the color page open the bare picker. A multi-color
-spool then shows a Colors bar on the Filament page, blended for Gradient and banded for
-Coaxial. Where the lane cannot store several colors, a multi-color spool shows its first
-color and a pick replaces them. Save writes `SlotInfo::multi_color_hexes` and
-`color_mode` (the lane record's `colors` and `color_mode`,
-docs/specs/filament_slots.md §3), and on a linked spool files a Spoolman filament with
-`multi_color_hexes` and `multi_color_direction` (`longitudinal` for Gradient).
-`SpoolmanSlotSaver` (`src/spoolman/spoolman_slot_saver.cpp`) finds or creates the filament with
-the same list and direction; a PATCH of a multi-color filament sends the normalized list, the
-direction (Gradient when unset) and `color_hex: null`, and going back to one color sends both
-multi-color fields `null` with the `color_hex`. Lists that differ only in spelling count as the
-same filament. Every color of the save joins the filament recents in one write once the lane
-holds it (`ColorRecents::remember_all()`).
+the editor was built. The color row and the color page it opens are described under
+"Color and the color page" and "Multi-color" below.
+
+**Color and the color page.** A recent or palette chip stages its color in the editor's draft
+at once. Tapping the selected dot or the rainbow tile pushes the color page (`ColorPickerPage`,
+`COLOR_SWATCHES.md` § "The color picker"), which edits the same draft live: Back keeps it and
+only Save commits it, adding every color to the filament recents in one write
+(`ColorRecents::remember_all()`) once the lane holds the save. The spool card shows the draft.
+
+**Multi-color.** A lane can keep several colors where `multi_color_capable()` holds:
+`AmsBackend::stores_multi_color()` (true where HelixScreen's own full lane record holds them:
+`AmsSubscriptionBackend` with a store that is not extras-only, and the mock; false for AFC's and
+Happy Hare's narrowed records), or the lane is linked to a Spoolman spool, whose filament holds
+them. Only then does the color page carry the **Multi-Color** row
+(`ui_xml/components/ams_edit_multi_color.xml`, passed as the page's `host_controls`); other hosts
+of the color page open the bare picker. The row is a switch, the colors as dots, an outlined "+"
+while there are fewer than four (`kMaxColors`), and a Gradient / Coaxial dropdown. Turning the
+switch on adds a second color to edit; turning it off keeps the color being edited. Tapping a dot
+on the page points the picker below at that color (`edit_selected_on_color_page()`), a long press
+removes it, and one left makes the spool single-color. On the Filament page a multi-color spool
+shows its dots in the color row (no "+" there) and a Colors bar of its colors: blended for
+Gradient (`swatch_paint blend="on"`), banded for Coaxial. Tapping a dot selects it, and the
+recents and the page then edit that one; tapping the selected dot opens the page. A list longer
+than four keeps its later colors; only the first four show as dots. Where the lane cannot store
+several colors, a multi-color spool shows its first color as one dot, the spool drawing shows
+its colors, and a pick replaces them.
+
+Save writes `SlotInfo::multi_color_hexes` and `SlotInfo::color_mode` (`"gradient"` or
+`"coaxial"`, empty for one color; `include/filament_color_mode.h`), which the lane record carries
+as `colors` and `color_mode` (`FILAMENT_SLOT_METADATA.md`, `docs/specs/filament_slots.md` §3). On
+a linked spool `SpoolmanSlotSaver` (`src/spoolman/spoolman_slot_saver.cpp`) finds or creates the
+Spoolman filament with the same list and direction, and a PATCH of a multi-color filament sends
+`multi_color_hexes` (normalized, comma-separated), `multi_color_direction` (`longitudinal` for
+Gradient, `coaxial`; Gradient when unset) and `color_hex: null`. Going back to one color sends
+`multi_color_hexes: null`, `multi_color_direction: null` and the `color_hex`. Lists that differ
+only in spelling count as the same filament.
 
 **Temps** is read-only and follows the selection live (`update_temp_display()`): a picked
 product's range, else the material database's range once the selection moved or on a lane
