@@ -6114,6 +6114,7 @@ translations:
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: 詰まりまでの距離 (mm)
+  'mm:': 'mm:'
   needs: 必要
   needs approval: 承認が必要
   needs you: '操作が必要'

@@ -611,15 +611,16 @@
     <px name="dialog_close_inset_large" value="0"/>
     <px name="dialog_close_inset_xlarge" value="0"/>
     <px name="dialog_close_inset_xxlarge" value="0"/>
-    <!-- Filament panel motion glyph (toolhead + filament column) between
-         Extrude and Retract: narrow enough to leave both buttons their labels -->
-    <px name="filament_motion_glyph_w_micro" value="24"/>
-    <px name="filament_motion_glyph_w_tiny" value="28"/>
-    <px name="filament_motion_glyph_w_small" value="36"/>
-    <px name="filament_motion_glyph_w_medium" value="44"/>
-    <px name="filament_motion_glyph_w_large" value="44"/>
-    <px name="filament_motion_glyph_w_xlarge" value="52"/>
-    <px name="filament_motion_glyph_w_xxlarge" value="64"/>
+    <!-- Filament panel motion glyph (toolhead + filament column), a column
+         beside the length and Extrude/Retract rows: wide enough for the head
+         to read, narrow enough to leave the length choices their labels -->
+    <px name="filament_motion_glyph_w_micro" value="32"/>
+    <px name="filament_motion_glyph_w_tiny" value="40"/>
+    <px name="filament_motion_glyph_w_small" value="48"/>
+    <px name="filament_motion_glyph_w_medium" value="60"/>
+    <px name="filament_motion_glyph_w_large" value="60"/>
+    <px name="filament_motion_glyph_w_xlarge" value="72"/>
+    <px name="filament_motion_glyph_w_xxlarge" value="88"/>
 
     <!-- jog_mode_h / jog_mode_w: a jog mode key in the pad layout (icon over
          label). The height holds touch_target_min; the width cap keeps the key

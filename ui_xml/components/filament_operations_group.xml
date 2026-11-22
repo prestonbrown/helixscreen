@@ -134,70 +134,123 @@
         <text_small width="0" flex_grow="1" bind_text="filament_safety_warning_text" long_mode="wrap"/>
       </lv_obj>
     </lv_obj>
-    <!-- Length Selector: tap picks a length, hold edits that button's length -->
-    <lv_obj name="extrude_length_row"
+    <!-- Length and Extrude/Retract, with the toolhead in a column of its own
+         beside both rows, so it draws large enough to read. -->
+    <lv_obj name="extrude_block"
             width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <!-- Narrow screens give the label's width to the choices; their units
-           (mm, mm/s) say what each one sets. -->
-      <text_small text="Length:">
-        <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
-      </text_small>
-      <ui_button name="extrude_length_0"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="0"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
-        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
-      </ui_button>
-      <ui_button name="extrude_length_1"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="1"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
-        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
-      </ui_button>
-      <ui_button name="extrude_length_2"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="2"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="2"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
-        <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
-      </ui_button>
-      <!-- Extrude/retract speed: presets of the extrude_speed setting that
-           Machine Limits also edits. C++ fills the options and the shown speed. -->
-      <lv_dropdown name="extrude_speed_dropdown"
-                   width="content" height="$length_height" style_radius="#border_radius_sm" style_pad_ver="0"
-                   style_pad_hor="#space_sm" style_text_font="#font_small">
-        <event_cb trigger="value_changed" callback="on_filament_extrude_speed_changed"/>
-      </lv_dropdown>
-    </lv_obj>
-    <!-- Extrude/Retract Row (length-based operations) -->
-    <lv_obj width="100%"
-            height="$row_height" style_pad_all="0" scrollable="false" flex_flow="row"
-            style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
-      <ui_button name="btn_extrude"
-                 height="100%" flex_grow="1" icon="arrow_down" text="Extrude" style_text_font="#font_small"
-                 bind_op_state="filament_op_extrude_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude"/>
-      </ui_button>
+            style_flex_cross_place="start" style_pad_gap="#space_sm">
+      <lv_obj width="0"
+              height="content" flex_grow="1" style_pad_all="0" scrollable="false" flex_flow="column"
+              style_pad_gap="#space_sm">
+        <!-- Length Selector: tap picks a length, hold edits that button's length -->
+        <lv_obj name="extrude_length_row"
+                width="100%" height="content" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="start" style_flex_cross_place="center" style_pad_gap="#space_sm">
+          <!-- Where there is room the label carries the unit and the choices
+               are bare numbers; a narrow row has no room for the label, so each
+               choice carries its unit. The <if> has a container of its own
+               because a rebuilt body lands after its siblings. -->
+          <lv_obj name="extrude_length_choices"
+                  width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" flex_flow="row" style_flex_cross_place="center" style_pad_gap="#space_sm">
+            <if cond="ui_breakpoint ge 2">
+              <text_small text="mm:"/>
+              <ui_button name="extrude_length_0"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%d"
+                         style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="0"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="0"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
+              </ui_button>
+              <ui_button name="extrude_length_1"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%d"
+                         style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="1"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
+              </ui_button>
+              <ui_button name="extrude_length_2"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%d"
+                         style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="2"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="2"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
+              </ui_button>
+              <else/>
+              <ui_button name="extrude_length_0"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0"
+                         bind_text-fmt="%dmm" style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="0"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="0"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
+              </ui_button>
+              <ui_button name="extrude_length_1"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1"
+                         bind_text-fmt="%dmm" style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="1"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
+              </ui_button>
+              <ui_button name="extrude_length_2"
+                         height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2"
+                         bind_text-fmt="%dmm" style_text_font="#font_small">
+                <bind_style_if_eq name="extrude_length_btn_selected"
+                                  subject="filament_extrude_length_index" ref_value="2"/>
+                <bind_style_if_not_eq name="extrude_length_btn_unselected"
+                                      subject="filament_extrude_length_index" ref_value="2"/>
+                <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
+                <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
+              </ui_button>
+            </if>
+          </lv_obj>
+          <!-- Extrude/retract speed: presets of the extrude_speed setting that
+               Machine Limits also edits. C++ fills the options and the shown speed. -->
+          <lv_dropdown name="extrude_speed_dropdown"
+                       width="content" height="$length_height" style_radius="#border_radius_sm" style_pad_ver="0"
+                       style_pad_hor="#space_sm" style_text_font="#font_small">
+            <event_cb trigger="value_changed" callback="on_filament_extrude_speed_changed"/>
+          </lv_dropdown>
+        </lv_obj>
+        <!-- Extrude/Retract Row (length-based operations) -->
+        <lv_obj width="100%"
+                height="$row_height" style_pad_all="0" scrollable="false" flex_flow="row"
+                style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
+          <ui_button name="btn_extrude"
+                     height="100%" flex_grow="1" icon="arrow_down" text="Extrude" style_text_font="#font_small"
+                     bind_op_state="filament_op_extrude_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_extrude"/>
+          </ui_button>
+          <ui_button name="btn_retract"
+                     height="100%" flex_grow="1" icon="arrow_up" text="Retract" style_text_font="#font_small"
+                     bind_op_state="filament_op_retract_state">
+            <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
+            <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
+            <event_cb trigger="clicked" callback="on_filament_retract"/>
+          </ui_button>
+        </lv_obj>
+      </lv_obj>
       <!-- Chevrons stream down the column while extruding, up while retracting -->
       <filament_motion_glyph name="filament_motion_glyph"
                              width="#filament_motion_glyph_w" height="100%" bind_motion="filament_manual_motion"
                              bind_color="current_color" style_line_color="#info" style_border_color="#text_muted"
                              style_bg_color="#text_muted"/>
-      <ui_button name="btn_retract"
-                 height="100%" flex_grow="1" icon="arrow_up" text="Retract" style_text_font="#font_small"
-                 bind_op_state="filament_op_retract_state">
-        <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
-        <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_retract"/>
-      </ui_button>
     </lv_obj>
   </view>
 </component>
