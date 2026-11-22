@@ -162,8 +162,11 @@ translations:
   1 more tap to {} beta features: 1 нажатие до {} бета-функций
   1 print: '1 печать'
   1 profile: '1 профиль'
+  1 step in {} min · review, then save once: ''
   1 step never run · about {} min: '1 шаг не выполнялся · около {} мин'
   1 step · about {} min: '1 шаг · около {} мин'
+  1 step · {} min: ''
+  1 thing left to confirm: ''
   '1 unit': '1 ед.'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Каждое сопло нагревается, протирается и паркуется спереди, чтобы вы его почистили щёткой
@@ -366,6 +369,7 @@ translations:
   Accel to Decel: Ускорение к торможению
   Acceleration to deceleration limit (mm/s²): Предел ускорения к торможению (мм/с²)
   Accelerometer: Акселерометр
+  Accelerometer attached: ''
   Accelerometer communication failed: Ошибка связи с акселерометром
   Accelerometer communication failed. Try again.: Связь с акселерометром потеряна. Попробуйте снова.
   Accelerometer not connected: Акселерометр не подключён
@@ -444,6 +448,7 @@ translations:
   All fields are required: Все поля обязательны для заполнения
   All healthy: Всё в порядке
   All lights: Вся подсветка
+  All set: ''
   All steps done: 'Все шаги выполнены'
   All time: 'За всё время'
   All toolheads must be docked for this step.: 'Для этого шага все печатающие головки должны быть в доках.'
@@ -632,6 +637,7 @@ translations:
 
   Bed is Level!: Стол выровнен!
   Bed is at {}, the print needs {}.: Стол нагрет до {}, печати нужно {}.
+  Bed is clear: ''
   Bed mesh: Сетка стола
   'Bed mesh calibration failed: {}': 'Ошибка калибровки сетки стола: {}'
   Bed mesh operation timed out: Сетка стола — время ожидания истекло
@@ -650,6 +656,7 @@ translations:
   Bed {} °C: "Стол {} °C"
   Before: 'До'
   Before starting: 'Перед началом'
+  Before you start: ''
   Below target: Ниже цели
   Belt Tension: Натяжение ремня
   Belt Tension Check: Проверка натяжения ремня
@@ -790,6 +797,7 @@ translations:
   Calibrate your printer: 'Откалибруйте принтер'
   Calibrate your touchscreen for accurate input: Калибровка сенсорного экрана для точного ввода
   Calibrated: Откалиброван
+  Calibrating: ''
   Calibrating Probe...: Калибровка зонда...
   Calibrating bed mesh...: Калибровка сетки стола...
   Calibrating {} axis...: 'Калибровка оси {}...'
@@ -810,6 +818,7 @@ translations:
   Calibration failed: Калибровка не удалась
   Calibration failed - touch targets more precisely.: Калибровка не удалась – нажимайте на цели точнее.
   'Calibration failed: {}': 'Ошибка калибровки: {}'
+  Calibration finished: ''
   Calibration finished, not saved yet: Калибровка завершена, ещё не сохранена
   Calibration in progress: "Идёт калибровка"
   Calibration kept timing out. Your previous settings were kept.: Калибровка постоянно завершалась по тайм-ауту. Прежние настройки сохранены.
@@ -819,6 +828,7 @@ translations:
   Calibration request not valid: 'Недопустимый запрос калибровки'
   Calibration saved: Калибровка сохранена
   Calibration saved but cannot apply on SDL display: Калибровка сохранена, но не может быть применена на SDL дисплее
+  Calibration stopped: ''
   Calibration succeeded, but the frequency chart data couldn't be read.: Калибровка завершена успешно, но не удалось прочитать данные графика частот.
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: Калибровка завершена успешно. График частот доступен, только когда HelixScreen работает на принтере.
   Calibration timed out. Please try again.: Время истекло. Попробуйте снова.
@@ -916,6 +926,7 @@ translations:
   Check AFC configuration: 'Проверьте конфигурацию AFC'
   Check Again: Проверить снова
   Check Klipper console for details: Подробности смотрите в консоли Klipper
+  Check back around {}. The screen shows if it needs you.: ''
   Check both belts for wear and frayed edges.: "Проверьте оба ремня на износ и потёртые края."
   Check each fan spins freely.: "Проверьте, что вентиляторы вращаются свободно."
   Check every dock: Проверить каждый док
@@ -2013,6 +2024,7 @@ translations:
   Filament jammed at the extruder gear: Филамент застрял в шестерне экструдера
   ? "Filament left the Box but never reached the toolhead's filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."
   : 'Филамент вышел из Бокса, но не дошёл до датчика филамента печатающей головки: зазор в трубке PTFE, засор на входе в головку или оставшийся обрезанный кончик.'
+  Filament loaded: ''
   Filament move too long: Слишком длинное перемещение филамента
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'В экструдере должен быть филамент, стол установлен, и ничто не мешает печатающей головке.'
   Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
@@ -2379,6 +2391,7 @@ translations:
   Host Terminal: 'Терминал хоста'
   Host and MCU load, temperature, and memory: Нагрузка, температура и память хоста и MCU
   'Host: ': 'Хост: '
+  Hot at times.: ''
   Hotend: Хотенд
   Hotend Fan: Вентилятор хотенда
   Hotend Heater: Нагреватель хотенда
@@ -2531,6 +2544,7 @@ translations:
   Issue description: Описание проблемы
   It applies after the next Klipper restart.: "Вступит в силу после следующего перезапуска Klipper."
   It can be un-archived in Spoolman's web UI.: Это можно восстановить из архива в веб-интерфейсе Spoolman.
+  It chimes if it needs you, and when it is done.: ''
   It has not reported its slots yet. Try again in a moment.: Она ещё не сообщила о своих слотах. Повторите попытку через минуту.
   It homes and heats on its own (no start macro found).: Парковка и нагрев выполняются самостоятельно (стартовый макрос не найден).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: Он зажат между датчиком хаба и его шестернёй. Откройте CFS, освободите хаб и повторите
@@ -2614,6 +2628,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper не загрузил макросы таймлапса, поэтому кадры не снимаются. Добавьте эту строку в printer.cfg и перезапустите Klipper:'
   Klipper is halted — restart firmware to continue: Klipper остановлен — перезапустите прошивку, чтобы продолжить
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper перезапускается. Кадры таймлапса будут сниматься со следующей печати.'
+  Klipper may restart: ''
   ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
   : Klipper на хосте обновлён, а прошивка на одной или нескольких платах управления старше. Платы перечислены в сообщении Klipper ниже.
   Klipper or Moonraker may restart while it updates.: 'Во время обновления Klipper или Moonraker могут перезапуститься.'
@@ -2801,6 +2816,8 @@ translations:
   Lost the printer.: "Связь с принтером потеряна."
   'Lot # (optional)': 'Партия # (необязательно)'
   Lot/Batch Nr: Nr. партии/серии
+  Loud and hot at times.: ''
+  Loud at times.: ''
   Low Memory: Мало памяти
   Lower: Опустить
   Lower belt: "Нижний ремень"
@@ -3076,6 +3093,7 @@ translations:
   Next Zone: "Следующая зона"
   Next Zone (~{} min): "След. зона (~{} мин)"
   Next Layer: 'Следующий слой'
+  Next, review the results and save them once: ''
   'Next: {}': 'Далее: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'Часы на газоразрядных лампах'
@@ -3266,6 +3284,7 @@ translations:
   'Which lane is in the toolhead?': 'Какая дорожка в печатающей головке?'
   'Choose which lane is in the toolhead to unload it': 'Выберите, какая дорожка в печатающей головке, чтобы выгрузить её'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Ничего не изменилось. Температура и материал сохранены, повторить можно одним нажатием.'
+  Nothing was saved: ''
   Nothing was saved and the heaters are off.: Ничего не сохранено, нагреватели выключены.
   Nothing was saved.: 'Ничего не сохранено.'
   Notification: Уведомление
@@ -3346,6 +3365,7 @@ translations:
   One tap runs this macro. Dangerous macros still ask.: 'Один тап запускает этот макрос. Опасные макросы всё равно запрашивают подтверждение.'
   One-time setup: "Первоначальная настройка"
   'Only on {0}: {1} Hz': "Только {0}: {1} Гц"
+  Only what the steps you picked need, asked once: ''
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'Только пока это приложение подключено. Установите плагин HelixPrint, чтобы охватить всю печать.'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'Только пока это приложение подключено. Обновите плагин HelixPrint, чтобы охватить всю печать.'
   ? Only {} MB of memory is free, and Klipper's analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled.
@@ -3377,6 +3397,7 @@ translations:
   Operations: Операции
   Optimize Your Printing: Оптимизируйте вашу печать
   Optimizes temperature control for stable, consistent heating.: Оптимизирует контроль температуры для стабильного и равномерного нагрева.
+  Optional: ''
   Optional - select your main lighting source, or skip if your printer doesn't have one: Необязательно — выберите основной источник освещения или пропустите, если его нет
   Options: Параметры
   Or Enter Manually: Или введите вручную
@@ -4003,6 +4024,7 @@ translations:
   Request timed out. The printer may be busy.: Время ожидания запроса истекло. Возможно, принтер занят.
   Require Confirmation?: Запрашивать подтверждение?
   Require confirmation before emergency stop: Требовать подтверждение перед аварийной остановкой
+  Required: ''
   Requires Moonraker power device: 'Требуется устройство питания Moonraker'
   Requires Moonraker-Timelapse plugin: Требуется плагин Moonraker-Timelapse
   Requires Multi-Filament System or MMU hardware: 'Требуется мультифиламентная система или оборудование MMU'
@@ -4083,6 +4105,7 @@ translations:
   Restored to {:.3f} mm: 'Восстановлено: {:.3f} мм'
   Restoring position: Восстановление позиции
   Restoring the print settings: Восстановление настроек печати
+  Results are saved together at the end: ''
   Resume: Продолжить
   Resume Print: Продолжить печать
   Resume Requires Restart: 'Для возобновления нужен перезапуск'
@@ -4125,6 +4148,7 @@ translations:
   Revert now: 'Вернуть сейчас'
   Review: Проверить
   Review detected hardware validation issues: Просмотр обнаруженных проблем валидации оборудования
+  Review the results, then save once.: ''
   Review the results, then save them all at once.: 'Проверьте результаты и сохраните их все сразу.'
   Review your configuration below, then click Finish to save: Проверьте конфигурацию ниже, затем нажмите «Готово» для сохранения
   Rewinding: Перемотка
@@ -4170,6 +4194,7 @@ translations:
   Runout: 'Окончание'
   Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
+  Runs on its own once started: ''
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -4210,6 +4235,7 @@ translations:
   Save Z-Offset Buttons: 'Кнопки сохранения Z-Offset'
   Save Z-Offset?: Сохранить Z-Offset?
   Save all: 'Сохранить все'
+  Save and restart Klipper: ''
   Save as {} mesh?: "Сохранить как сетку {}?"
   Save calibration: Сохранить калибровку
   Save changes to persist them across restarts?: Сохранить изменения, чтобы они сохранились после перезапуска?
@@ -4244,6 +4270,7 @@ translations:
   Saves when the load on {} finishes.: 'Сохранится после завершения загрузки: {}.'
   Saves when the unload finishes.: 'Сохранится после завершения выгрузки.'
   Saves when the unload on {} finishes.: 'Сохранится после завершения выгрузки: {}.'
+  Saving 1 result: ''
   Saving Configuration...: Сохранение конфигурации...
   Saving Z-offset...: Сохранение Z-offset...
   Saving and finishing...: Сохранение и завершение...
@@ -4255,6 +4282,7 @@ translations:
   Saving the position and parking the toolhead.: Сохранение позиции и парковка печатающей головки.
 
   Saving will restart Klipper and CANCEL any active print!: Сохранение перезапустит Klipper и ОТМЕНИТ любую активную печать!
+  Saving {} results: ''
   Saving...: Сохранение...
   Scan: Поиск
   Scan Cal: Кал. скана
@@ -4635,6 +4663,7 @@ translations:
   Static: 'Статический'
   Status: Статус
   Status icons: Иконки статуса
+  Stay at the printer.: ''
   Std Deviation: Станд. отклонение
   Stealth: Тихий
   Stealth is quiet, Sport is fastest: Тихий самый тихий, Спорт самый быстрый
@@ -4673,6 +4702,7 @@ translations:
   Stopped between Spool and Lane: Остановка между катушкой и каналом
   Stopped drying %s: 'Сушка остановлена: %s'
   Stopping after the current test line.: 'Остановка после текущей тестовой линии.'
+  Stopping restarted the printer, so nothing can be saved: ''
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: 'Остановка перезапустила принтер, и результаты завершённых шагов потеряны. Сохранить нечего.'
   Stops all motion. Requires firmware restart.: Останавливает всё движение. Требуется перезапуск прошивки.
   Storage: 'Хранилище'
@@ -5465,6 +5495,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Положение и парковка печатающей головки, с видом стола и кнопкой «Парковка всех осей»"
   Toolhead position unknown: Положение печатающей головки неизвестно
   Toolhead sensors disagree: Датчики печатающей головки не согласуются
+  Toolhead unloaded: ''
   Toolheads: Печатающие головки
   Tools: Инструменты
   Tools Used: Использовано инструментов
@@ -5739,6 +5770,7 @@ translations:
   Waiting for the printer's status; try again once it is connected: 'Ожидание состояния принтера; повторите попытку после подключения'
   Waiting for you at the Z offset screen: 'Ожидание вас на экране смещения Z'
   Waiting to read the printer's configuration from Klipper.: "Ожидание чтения конфигурации принтера из Klipper."
+  Walk away, about {} min: ''
   Wall Speed Shakes This Printer: 'Скорость стенок вызывает тряску принтера'
   Warm: Тёплый
   Warm Bed: Прогреть стол
@@ -5852,6 +5884,7 @@ translations:
   Year: Год
   Year Month Day: Год Месяц День
   'Yes': Да
+  You are needed for the first {} min, then it runs on its own: ''
   You can skip this and calibrate later in Settings.: Вы можете пропустить это и откалибровать позже в настройках.
   You have unsaved changes. Discard them?: У вас есть несохранённые изменения. Отменить их?
   You, about {} min: 'Вы, около {} мин'
@@ -5924,6 +5957,10 @@ translations:
   a newer version: 'более новая версия'
   a temporary mesh profile '{}': 'временный профиль сетки ''{}'''
   about {} min: 'около {} мин'
+  about {} min left: ''
+  about {} min left · you can leave: ''
+  accelerometer: ''
+  all done: ''
   already loaded: 'уже загружен'
   assign without adding to Spoolman: назначить без добавления в Spoolman
   attempt {}: 'попытка {}'
@@ -5975,6 +6012,9 @@ translations:
   filament sensor disabled: 'датчик филамента отключён'
   heated bed: подогреваемый стол
   heats: 'нагрев'
+  heats bed: ''
+  heats nozzle: ''
+  heats nozzle + bed: ''
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env проигнорирован: принадлежит uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env проигнорирован: недоверенная цепочка символических ссылок'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env проигнорирован: доступен на запись другим пользователям'
@@ -6003,6 +6043,7 @@ translations:
   needs approval: требует подтверждения
   needs you: 'нужны вы'
   never sleeps: никогда не спит
+  no restart: ''
   not detected: не обнаружено
   not loaded: 'не загружен'
   nozzle: сопло
@@ -6015,6 +6056,8 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Отслеживание дефектов печати (на основе камеры K2 Plus)
   Monitor for print abnormalities (camera-based): 'Отслеживание дефектов печати (на основе камеры)'
   on unit {}: 'на блоке {}'
+  one restart: ''
+  optional: ''
   or type a macro name: или введите название макроса
   over memory budget: превышен бюджет памяти
   paper test: 'проверка бумагой'
@@ -6027,7 +6070,9 @@ translations:
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора
   rendering: рендеринг
+  required: ''
   reset at {} h: 'сброс на {} ч'
+  runs on its own: ''
   set manually: 'вручную'
   similar color: похожий цвет
   sleep {} min: сон через {} мин
@@ -6063,6 +6108,7 @@ translations:
   within one bin: "в пределах одного бина"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant не запущен. Функции WiFi недоступны.
   you have: у вас
+  'you: first {} min': ''
   '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: пульсация {2}x совпадает с резонансом {3:.0f} Hz'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} открыты. {1} лучше всего печатается в тёплом закрытом корпусе; открытая дверь охлаждает камеру и может вызвать коробление или расслоение. Закройте их или начните всё равно.'
@@ -6222,10 +6268,13 @@ translations:
     other: '{} слота'
   '{} spool cleared': '{}: катушка удалена'
   '{} started': '{} запущено'
+  '{} steps in {} min · review, then save once': ''
   '{} steps never run · about {} min': 'Не выполнялось шагов: {} · около {} мин'
   '{} steps · about {} min': 'Шагов: {} · около {} мин'
+  '{} steps · {} min': ''
   '{} target set to {}°C': Целевая температура {} — {}°C
   '{} temperature reading failed': '{}: ошибка датчика температуры'
+  '{} things left to confirm': ''
   '{} turn': "{} об."
   '{} turns': "{} об."
   '{} updated': '{}: обновлено'
@@ -6233,7 +6282,9 @@ translations:
   '{} width sensor': 'Датчик диаметра {}'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} переключится на слот, у которого тип филамента И цвет совпадают с активной катушкой, а собственный датчик порта видит филамент.'
+  '{} · pick what to run, then it runs on its own': ''
   '{} · {}': '{} · {}'
+  '{} · {} firmware': ''
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — время ожидания ответа истекло'
   '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
