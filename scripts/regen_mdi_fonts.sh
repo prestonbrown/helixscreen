@@ -130,6 +130,7 @@ MDI_ICONS+=",0xF1276"    # magnify-scan (BT discovery)
 MDI_ICONS+=",0xF0347"    # magnet (Klicky probe)
 MDI_ICONS+=",0xF0369"    # message-text (discord/chat)
 MDI_ICONS+=",0xF0374"    # minus
+MDI_ICONS+=",0xF0398"    # nfc-variant (reset to tag)
 MDI_ICONS+=",0xF0F1B"    # play-outline
 MDI_ICONS+=",0xF0415"    # plus
 MDI_ICONS+=",0xF046D"    # ruler (print height)

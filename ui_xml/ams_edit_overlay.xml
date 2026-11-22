@@ -468,8 +468,8 @@
             <event_cb trigger="value_changed" callback="ams_edit_material_dd_cb"/>
           </lv_dropdown>
           <ui_button name="btn_reset_tag"
-                     width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit" icon="undo"
-                     icon_size="sm" variant="secondary" hidden="true">
+                     width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit"
+                     icon="nfc_variant" icon_size="sm" variant="outline" hidden="true">
             <bind_flag_if_eq subject="ams_edit_reset_tag_visible" flag="hidden" ref_value="0"/>
             <event_cb trigger="clicked" callback="ams_edit_reset_tag_cb"/>
           </ui_button>
