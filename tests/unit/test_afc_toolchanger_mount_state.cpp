@@ -368,6 +368,88 @@ TEST_CASE("AFC toolchanger: on_shuttle picks the mounted extruder's own lane",
     CHECK(info.current_slot == 0);
 }
 
+// Klipper's toolchanger numbers the HEADS (tool T2 is extruder2); AFC numbers
+// its LANES (lane4 maps to T4, and AFC's T2 is the extruder4 lane). The first
+// frame of a connection carries toolchanger.tool_number and the mounted
+// extruder's lane together, and the head on the carriage must come out of it
+// named by its own lane's AFC tool.
+TEST_CASE("AFC toolchanger: a fresh connection names the mounted head by its seated lane",
+          "[ams][afc][2158][toolchanger]") {
+    auto fixture = load_fixture("afc_toolchanger_multiunit.json");
+
+    nlohmann::json mounted = fixture["status"];
+    mounted["AFC_extruder extruder2"]["on_shuttle"] = true;
+    mounted["AFC_extruder extruder2"]["lane_loaded"] = "lane4";
+    mounted["AFC"]["current_load"] = "lane4";
+    mounted["toolchanger"]["tool_number"] = 2;
+    mounted["toolchanger"]["tool"] = "tool T2";
+    REQUIRE(mounted["AFC_lane lane4"]["map"] == "T4");
+    REQUIRE(mounted["AFC_lane extruder4"]["map"] == "T2");
+
+    AfcToolchangerHelper afc;
+    afc.discover(fixture["object_list"]);
+    afc.feed_until_settled(mounted);
+
+    const AmsSystemInfo info = afc.get_system_info();
+    dump_state(info, afc.discovered_lanes());
+    require_lane_data_landed(info);
+
+    INFO("the mounted head was named by Klipper's tool number, not by its seated lane");
+    CHECK(info.current_tool == 4);
+}
+
+// A head with nothing loaded is still the head on the carriage: it stands for
+// the lowest AFC tool its lanes carry, never for Klipper's head number.
+TEST_CASE("AFC toolchanger: a mounted head holding no lane names its lowest tool",
+          "[ams][afc][2158][toolchanger]") {
+    auto fixture = load_fixture("afc_toolchanger_multiunit.json");
+
+    nlohmann::json mounted = fixture["status"];
+    mounted["AFC_extruder extruder2"]["on_shuttle"] = true;
+    mounted["toolchanger"]["tool_number"] = 2;
+    mounted["toolchanger"]["tool"] = "tool T2";
+    REQUIRE(mounted["AFC_extruder extruder2"]["lane_loaded"].is_null());
+    REQUIRE(mounted["AFC_lane lane3"]["map"] == "T6");
+    REQUIRE(mounted["AFC_lane lane4"]["map"] == "T4");
+
+    AfcToolchangerHelper afc;
+    afc.discover(fixture["object_list"]);
+    afc.feed_until_settled(mounted);
+
+    const AmsSystemInfo info = afc.get_system_info();
+    dump_state(info, afc.discovered_lanes());
+    require_lane_data_landed(info);
+
+    INFO("an empty mounted head was named by Klipper's tool number, not by its lanes");
+    CHECK(info.current_tool == 4);
+    CHECK(info.current_slot == -1);
+}
+
+TEST_CASE("AFC toolchanger: a mounted head no lane feeds names no tool",
+          "[ams][afc][2158][toolchanger]") {
+    auto fixture = load_fixture("afc_toolchanger_multiunit.json");
+
+    // lane2 is extruder1's only lane; route it elsewhere so no tool prints
+    // through extruder1.
+    nlohmann::json mounted = fixture["status"];
+    REQUIRE(mounted["AFC_lane lane2"]["extruder"] == "extruder1");
+    mounted["AFC_lane lane2"]["extruder"] = "extruder";
+    mounted["AFC_extruder extruder1"]["on_shuttle"] = true;
+    mounted["toolchanger"]["tool_number"] = 1;
+    mounted["toolchanger"]["tool"] = "tool T1";
+
+    AfcToolchangerHelper afc;
+    afc.discover(fixture["object_list"]);
+    afc.feed_until_settled(mounted);
+
+    const AmsSystemInfo info = afc.get_system_info();
+    dump_state(info, afc.discovered_lanes());
+    require_lane_data_landed(info);
+
+    INFO("a head no lane feeds kept a tool from an earlier source");
+    CHECK(info.current_tool == -1);
+}
+
 // ============================================================================
 // Shape — the units and lanes the capture actually describes
 // ============================================================================
