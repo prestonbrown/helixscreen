@@ -98,6 +98,24 @@ std::string model_key(std::string_view name) {
     return out;
 }
 
+/// A printer name as the model comparison reads it: model_key() with each point
+/// revision (".1", ".2", ".4") dropped, so a file sliced for a Voron V0.1 fits a
+/// V0.2.
+std::string model_family_key(std::string_view name) {
+    std::string cut;
+    for (size_t i = 0; i < name.size(); ++i) {
+        if (name[i] == '.') {
+            while (i + 1 < name.size() &&
+                   std::isalnum(static_cast<unsigned char>(name[i + 1])) != 0) {
+                ++i;
+            }
+            continue;
+        }
+        cut.push_back(name[i]);
+    }
+    return model_key(cut);
+}
+
 std::vector<double> numbers_in(std::string_view text) {
     std::vector<double> out;
     std::string normalized(text);
@@ -371,8 +389,8 @@ std::vector<FitFinding> check_fit(const FitMachine& machine, const FitFile& file
         out.push_back(std::move(f));
     }
 
-    const std::string a = model_key(file.printer_model);
-    const std::string b = model_key(machine.model);
+    const std::string a = model_family_key(file.printer_model);
+    const std::string b = model_family_key(machine.model);
     if (!a.empty() && !b.empty() && a.find(b) == std::string::npos &&
         b.find(a) == std::string::npos) {
         FitFinding f = finding(FitKind::PrinterModelMismatch, FitSeverity::Note);
