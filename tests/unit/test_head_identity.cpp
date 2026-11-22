@@ -4,6 +4,7 @@
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
+#include "src/ui/panel_widgets/nozzle_temps_widget.h"
 #include "test_helpers/tool_topologies.h"
 #include "tool_heads_model.h"
 #include "tool_state.h"
@@ -24,23 +25,12 @@ using helix::ui::UpdateQueue;
 
 namespace {
 
-ToolInfo tool_on(int index, const char* extruder, std::string head_name = {}) {
+ToolInfo tool_on(int index, const char* extruder) {
     ToolInfo t;
     t.index = index;
     t.name = helix::ui::tool_label(index);
     t.extruder_name = extruder;
-    t.head_name = std::move(head_name);
     return t;
-}
-
-/// Five lanes on three heads: T0 alone on the first, T1..T3 through a hub
-/// into the second, T4 alone on the third. A head's tools are lanes here
-/// even where it has one.
-std::vector<ToolInfo> hub_lanes(bool changer_names) {
-    const auto name = [&](const char* n) { return changer_names ? std::string(n) : std::string(); };
-    return {tool_on(0, "extruder", name("T0")), tool_on(1, "extruder1", name("T1")),
-            tool_on(2, "extruder1", name("T1")), tool_on(3, "extruder1", name("T1")),
-            tool_on(4, "extruder2", name("T2"))};
 }
 
 std::string label(const HeadIdentity& head, ToolNumberStyle style, ToolLabelForm form) {
@@ -94,62 +84,86 @@ TEST_CASE("A head that is its own tool is named and numbered as that tool", "[he
                 ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 3 (T2)");
 }
 
-TEST_CASE("A hub-fed head with no name of its own goes by its number, its lane beside it",
+TEST_CASE("Where tool numbers name lanes a head goes by its extruder, its lane beside it",
           "[head-identity]") {
-    const auto tools = hub_lanes(/*changer_names=*/false);
+    // T0 alone on extruder, T1..T3 through a hub into extruder2 (no extruder1),
+    // T4 alone on extruder3.
+    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder2"),
+                                         tool_on(2, "extruder2"), tool_on(3, "extruder2"),
+                                         tool_on(4, "extruder3")};
     const auto heads = helix::physical_heads(tools, false, true);
     REQUIRE(heads.size() == 3);
 
-    // Lane T3 is mounted on the second head: that head is head 2, holding T3.
+    // Lane T3 is mounted on the second head, which is extruder2's.
     const HeadIdentity second = helix::head_identity(tools, heads, 1, 3, true);
     CHECK(second.name.empty());
-    CHECK(second.index == 1);
+    CHECK(second.index == 2);
     CHECK(second.lane_code == "T3");
-    // No G-code name selects the head: T1 would load lane T1.
-    CHECK(label(second, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E2");
+    CHECK(label(second, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E3");
 
     // A head fed by one lane is still a head of lanes: the third head is not "T4".
     const HeadIdentity third = helix::head_identity(tools, heads, 2, 3, true);
     CHECK(third.lane_code == "T4");
-    CHECK(label(third, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E3");
+    CHECK(label(third, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E4");
+
+    // A single head fed by lanes is extruder's, whichever lane it holds.
+    const std::vector<ToolInfo> one = {tool_on(0, "extruder"), tool_on(1, "extruder")};
+    const auto one_head = helix::physical_heads(one, false, true);
+    REQUIRE(one_head.size() == 1);
+    const HeadIdentity only = helix::head_identity(one, one_head, 0, 1, true);
+    CHECK(only.index == 0);
+    CHECK(only.lane_code == "T1");
+    CHECK(helix::head_identity(one, one_head, 1, 1, true).index == -1);
 }
 
-TEST_CASE("A hub-fed head behind a changer tool is named by that tool, its lane beside it",
+TEST_CASE("Every head label in each style and numbering, lane rig or tool changer",
           "[head-identity]") {
-    const auto tools = hub_lanes(/*changer_names=*/true);
-    const auto heads = helix::physical_heads(tools, false, true);
-
-    const HeadIdentity second = helix::head_identity(tools, heads, 1, 3, true);
-    CHECK(second.name == "T1");
-    CHECK(second.index == 1);
-    CHECK(second.lane_code == "T3");
-    CHECK(label(second, ToolNumberStyle::Physical, ToolLabelForm::Code) == "T1");
-    CHECK(label(second, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 2 (T1)");
-    CHECK(label(second, ToolNumberStyle::Gcode, ToolLabelForm::Full) == "T1");
-
-    const HeadIdentity third = helix::head_identity(tools, heads, 2, 3, true);
-    CHECK(third.name == "T2");
-    CHECK(third.lane_code == "T4");
-}
-
-TEST_CASE("A single head fed by lanes is head 1 whichever lane it holds", "[head-identity]") {
-    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder"),
-                                         tool_on(2, "extruder"), tool_on(3, "extruder")};
-    const auto heads = helix::physical_heads(tools);
-    REQUIRE(heads.size() == 1);
-    const HeadIdentity head = helix::head_identity(tools, heads, 0, 2, true);
-    CHECK(head.name.empty());
-    CHECK(head.index == 0);
-    CHECK(head.lane_code == "T2");
-    CHECK(label(head, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 1 (E1)");
-    CHECK(label(head, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E1");
-
-    CHECK(helix::head_identity(tools, heads, 1, 2, true).index == -1);
+    struct Row {
+        ToolNumberStyle style;
+        bool from_zero;
+        bool lanes;
+        const char* code;
+        const char* full;
+        const char* name;
+        const char* badge;
+    };
+    // The head on extruder1: a tool changer's T1, or on a lane rig a head no
+    // T number selects, so E<n> in the screen's numbering, never T<n>.
+    const Row rows[] = {
+        {ToolNumberStyle::Physical, false, false, "T1", "Tool 2 (T1)", "Tool 2", "2"},
+        {ToolNumberStyle::Physical, true, false, "T1", "Tool 1", "Tool 1", "1"},
+        {ToolNumberStyle::Gcode, false, false, "T1", "T1", "T1", "T1"},
+        {ToolNumberStyle::Gcode, true, false, "T1", "T1", "T1", "T1"},
+        {ToolNumberStyle::Physical, false, true, "2", "Tool 2 (E2)", "Tool 2", "2"},
+        {ToolNumberStyle::Physical, true, true, "1", "Tool 1 (E1)", "Tool 1", "1"},
+        {ToolNumberStyle::Gcode, false, true, "E2", "E2", "E2", "E2"},
+        {ToolNumberStyle::Gcode, true, true, "E1", "E1", "E1", "E1"},
+    };
+    struct NumberingReset {
+        ~NumberingReset() {
+            helix::ui::set_lane_numbering_from_zero(false);
+        }
+    } reset;
+    const std::vector<ToolInfo> tools = {tool_on(0, "extruder"), tool_on(1, "extruder1"),
+                                         tool_on(2, "extruder2")};
+    for (const Row& r : rows) {
+        CAPTURE(static_cast<int>(r.style), r.from_zero, r.lanes);
+        helix::ui::set_lane_numbering_from_zero(r.from_zero);
+        const auto heads = helix::physical_heads(tools, false, r.lanes);
+        const HeadIdentity head = helix::head_identity(tools, heads, 1, 0, r.lanes);
+        CHECK(label(head, r.style, ToolLabelForm::Code) == r.code);
+        CHECK(label(head, r.style, ToolLabelForm::Full) == r.full);
+        CHECK(helix::ui::head_name_label(LaneNoun::Tool, r.style, head) == r.name);
+        CHECK(helix::ui::head_badge_label(r.style, head) == r.badge);
+        CHECK(helix::ui::head_number_text(r.style, head) == r.badge);
+    }
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
-                 "Lanes on a tool changer keep each head's changer name through every rebuild",
+                 "Lanes on a tool changer name each head by its extruder through every rebuild",
                  "[head-identity][tool-state][ams-topology]") {
+    // klipper-toolchanger tools T0..T6 sit on the heads, but T<n> loads lane
+    // T<n>: the changer's T5 does not select the sixth head here.
     auto& ts = ToolState::instance();
     ts.init_tools(helix::test::make_head_discovery(7));
     // Lane 9 is mounted on the sixth head; lane 14 is seated in the parked seventh.
@@ -160,13 +174,12 @@ TEST_CASE_METHOD(ToolStateFixture,
         const auto& heads = ts.physical_heads();
         REQUIRE(heads.size() == 7);
         const HeadIdentity sixth = ts.head_identity(heads[5]);
-        CHECK(sixth.name == "T5");
+        CHECK(sixth.name.empty());
         CHECK(sixth.index == 5);
         CHECK(sixth.lane_code == "T9");
         const HeadIdentity seventh = ts.head_identity(heads[6]);
-        CHECK(seventh.name == "T6");
+        CHECK(seventh.index == 6);
         CHECK(seventh.lane_code == "T14");
-        CHECK(ts.head_identity(heads[0]).name == "T0");
     };
     check();
 
@@ -182,35 +195,15 @@ TEST_CASE_METHOD(ToolStateFixture,
     const auto heated = ts.heated_heads();
     REQUIRE(heated.size() == 7);
     CHECK(ts.head_identity(heated[5]).lane_code == "T9");
-}
 
-TEST_CASE_METHOD(ToolStateFixture,
-                 "The tool chooser names a hub-fed head by the head, the lane on its second line",
-                 "[head-identity][tool-state][ams-topology]") {
-    auto& ts = ToolState::instance();
-    // Seven extruders and no changer: nothing names a head.
-    nlohmann::json objects = nlohmann::json::array({"extruder"});
-    for (int i = 1; i < 7; ++i) {
-        objects.push_back("extruder" + std::to_string(i));
-    }
-    helix::PrinterDiscovery disc;
-    disc.parse_objects(objects);
-    ts.init_tools(disc);
-    ts.set_ams_topology(helix::test::make_hub_topology(9));
-    UpdateQueue::instance().drain();
-
+    // The tool chooser: the head over the lane it holds.
     const auto& model = helix::ui::ToolHeadsModel::instance();
-    REQUIRE(model.head_count() == 7);
-    REQUIRE(ts.tools()[9].head_name.empty());
-    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "E6");
+    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "6");
     CHECK(model.picker_lines(5, ToolLabelForm::Code).second == "T9");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).first == "Tool 6");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).second == "T9");
     CHECK(model.row_label(5, true) == "Tool 6");
     CHECK(model.row_label(5, false) == "6");
-    // A head of one lane on the same printer is numbered as a head too.
-    CHECK(model.picker_lines(1, ToolLabelForm::Code).first == "E2");
-    CHECK(model.picker_lines(1, ToolLabelForm::Code).second == "T1");
 }
 
 namespace {
@@ -306,53 +299,51 @@ TEST_CASE_METHOD(ToolStateFixture,
         CHECK(ts.tools()[static_cast<size_t>(sent)].extruder_name == heads[i].extruder_name);
     }
 
-    // The five changer heads are their tool objects: T0 is extruder, not the
-    // extruder2 head that lane T0 happens to be seated in.
-    for (int i = 0; i < 5; ++i) {
-        const HeadIdentity head = ts.head_identity(heads[static_cast<size_t>(i)]);
-        CHECK(head.name == helix::ui::tool_label(i));
-        CHECK(label(head, ToolNumberStyle::Physical, ToolLabelForm::Code) ==
-              helix::ui::tool_label(i));
+    // No head is a T number, though tool objects T0..T4 sit on five of them:
+    // the T0 G-code loads lane4 on extruder2, so a "T0" on the extruder head
+    // would promise what typing it does not do. Each head is its extruder.
+    const char* gcode[] = {"E1", "E2", "E3", "E4", "E5", "E6"};
+    for (size_t i = 0; i < heads.size(); ++i) {
+        CAPTURE(i);
+        const HeadIdentity head = ts.head_identity(heads[i]);
+        CHECK(head.name.empty());
+        CHECK(label(head, ToolNumberStyle::Gcode, ToolLabelForm::Code) == gcode[i]);
+        CHECK(label(head, ToolNumberStyle::Physical, ToolLabelForm::Code) == std::to_string(i + 1));
     }
     CHECK(label(ts.head_identity(heads[2]), ToolNumberStyle::Physical, ToolLabelForm::Full) ==
-          "Tool 3 (T2)");
-
-    // extruder5 has no tool object. AFC's T5 is the extruder4 lane, so a "T5"
-    // would name another head: it goes by its extruder.
-    const HeadIdentity sixth = ts.head_identity(heads[5]);
-    CHECK(sixth.name.empty());
-    CHECK(label(sixth, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E6");
-    CHECK(label(sixth, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 6 (E6)");
+          "Tool 3 (E3)");
 
     const auto& model = helix::ui::ToolHeadsModel::instance();
-    CHECK(model.picker_lines(2, ToolLabelForm::Code).first == "T2");
+    CHECK(model.picker_lines(2, ToolLabelForm::Code).first == "3");
     CHECK(model.picker_lines(2, ToolLabelForm::Code).second == "T0");
-    CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "E6");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).first == "Tool 6");
     CHECK(model.mounted_head() == 2);
 
     // Every other surface naming the mounted nozzle or a head by its
-    // extruder names the head: lane T0 is mounted, on Tool 3 (T2).
+    // extruder names the head: lane T0 is mounted, on extruder2's head.
     CHECK(ts.nozzle_label() == "Nozzle 3");
     CHECK(ts.display_label_for_extruder("extruder2") == "Tool 3");
     CHECK(ts.display_label_for_extruder("extruder5") == "Tool 6");
-    CHECK(ts.tool_name_for_extruder("extruder2") == "T2");
-    CHECK(ts.tool_name_for_extruder("extruder5").empty());
+    CHECK(ts.tool_name_for_extruder("extruder2").empty());
+
+    // The nozzle temperature rows stand in the same order as the heads.
+    const std::vector<std::string> by_extruder(std::begin(extruders), std::end(extruders));
+    CHECK(helix::distinct_extruder_names(ts.tools(), ts.tools_are_lanes()) == by_extruder);
+    CHECK(helix::distinct_extruder_names(ts.tools()).front() == "extruder2");
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
                  "One lane per head still names each head by the head when tool numbers name lanes",
                  "[head-identity][tool-state][ams-topology][physical-heads]") {
-    // Four lanes on four changer heads (tool objects T0..T3, so every head has
-    // a T code of its own), lane T2 mapped to the head on extruder3 and T3 to
-    // extruder2: T2 loads the extruder3 head.
+    // Four lanes on four changer heads (tool objects T0..T3), lane T2 mapped to
+    // the head on extruder3 and T3 to extruder2: T2 loads the extruder3 head.
     auto& ts = ToolState::instance();
     ts.init_tools(helix::test::make_head_discovery(4));
     helix::ToolTopology topo = helix::test::make_head_topology(4, 2);
     topo.tool_extruder[2] = "extruder3";
     topo.tool_extruder[3] = "extruder2";
 
-    SECTION("lane maps: the heads are T0..T3 by extruder, the lane beside each") {
+    SECTION("lane maps: each head is its extruder, the lane beside it") {
         topo.tools_are_lanes = true;
         ts.set_ams_topology(topo);
         UpdateQueue::instance().drain();
@@ -360,11 +351,13 @@ TEST_CASE_METHOD(ToolStateFixture,
         REQUIRE(heads.size() == 4);
         REQUIRE(heads[3].extruder_name == std::optional<std::string>("extruder3"));
         const HeadIdentity fourth = ts.head_identity(heads[3]);
-        CHECK(fourth.name == "T3");
+        CHECK(fourth.name.empty());
+        CHECK(fourth.index == 3);
         CHECK(fourth.lane_code == "T2");
-        CHECK(label(fourth, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 4 (T3)");
+        CHECK(label(fourth, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "E4");
+        CHECK(label(fourth, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 4 (E4)");
         const HeadIdentity third = ts.head_identity(heads[2]);
-        CHECK(third.name == "T2");
+        CHECK(third.index == 2);
         CHECK(third.lane_code == "T3");
         // The mounted lane T2 is on the fourth head, and a tap there mounts it.
         CHECK(helix::ui::ToolHeadsModel::instance().mounted_head() == 3);
@@ -380,45 +373,5 @@ TEST_CASE_METHOD(ToolStateFixture,
         CHECK(third.name == "T2");
         CHECK(third.index == 2);
         CHECK(third.lane_code.empty());
-    }
-}
-
-TEST_CASE("Every head label in each style and numbering, with and without a changer tool",
-          "[head-identity]") {
-    struct Row {
-        ToolNumberStyle style;
-        bool from_zero;
-        bool named;
-        const char* code;
-        const char* full;
-        const char* name;
-        const char* badge;
-    };
-    // The second head: changer tool T1, or no tool of its own on extruder1.
-    // A head without a T code is E<n> in the screen's numbering, never T<n>.
-    const Row rows[] = {
-        {ToolNumberStyle::Physical, false, true, "T1", "Tool 2 (T1)", "Tool 2", "2"},
-        {ToolNumberStyle::Physical, true, true, "T1", "Tool 1", "Tool 1", "1"},
-        {ToolNumberStyle::Gcode, false, true, "T1", "T1", "T1", "T1"},
-        {ToolNumberStyle::Gcode, true, true, "T1", "T1", "T1", "T1"},
-        {ToolNumberStyle::Physical, false, false, "E2", "Tool 2 (E2)", "Tool 2", "2"},
-        {ToolNumberStyle::Physical, true, false, "E1", "Tool 1 (E1)", "Tool 1", "1"},
-        {ToolNumberStyle::Gcode, false, false, "E2", "E2", "E2", "E2"},
-        {ToolNumberStyle::Gcode, true, false, "E1", "E1", "E1", "E1"},
-    };
-    struct NumberingReset {
-        ~NumberingReset() {
-            helix::ui::set_lane_numbering_from_zero(false);
-        }
-    } reset;
-    for (const Row& r : rows) {
-        CAPTURE(static_cast<int>(r.style), r.from_zero, r.named);
-        helix::ui::set_lane_numbering_from_zero(r.from_zero);
-        const HeadIdentity head{r.named ? "T1" : "", 1, "T7"};
-        CHECK(label(head, r.style, ToolLabelForm::Code) == r.code);
-        CHECK(label(head, r.style, ToolLabelForm::Full) == r.full);
-        CHECK(helix::ui::head_name_label(LaneNoun::Tool, r.style, head) == r.name);
-        CHECK(helix::ui::head_badge_label(r.style, head) == r.badge);
-        CHECK(helix::ui::head_number_text(r.style, head) == r.badge);
     }
 }

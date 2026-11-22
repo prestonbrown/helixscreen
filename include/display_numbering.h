@@ -116,20 +116,21 @@ std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string
                                int index, ToolLabelForm form);
 
 /**
- * @brief A head with no tool of its own, by its extruder: "E5", in the
- *        display numbering (lane_number()), as the filament path names it.
+ * @brief A head by its extruder: "E5", in the display numbering
+ *        (lane_number()), as the filament path names it.
  * @return empty when @p index is negative
  */
 std::string extruder_label(int index);
 
 /**
- * @brief The tool_*_label() family for a head (helix::head_identity()).
+ * @brief The tool_*_label() family for a head (helix::head_identity()): the
+ *        one place a head's label is spelled.
  *
  * A head with a name is labeled as the tool of that name would be. A head
- * without one has no G-code name, since none selects it, so its short identity
- * is extruder_label() ("E5"), never a T number: Code is that in either style,
- * Full is "Tool 6 (E5)" as "Tool 1 (T0)" reads (Gcode style: "E5"), the name
- * label "Tool 6" (Gcode: "E5"), and the badge and number "6" (Gcode: "E5").
+ * without one (tool numbers name lanes) has no G-code name, so it goes by its
+ * extruder and never a T number: in Gcode style every form is extruder_label()
+ * ("E5"); in Physical style the badge, number and Code are its number ("6"),
+ * the name label "Tool 6", and Full "Tool 6 (E6)" as "Tool 1 (T0)" reads.
  *
  * @return empty when the head's index is negative
  */
