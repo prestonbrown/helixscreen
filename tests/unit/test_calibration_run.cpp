@@ -405,6 +405,36 @@ TEST_CASE_METHOD(RunFixture, "a run whose only result was restored needs no rest
     CHECK(run->phase() == RunPhase::Discarded);
 }
 
+TEST_CASE_METHOD(RunFixture,
+                 "a result the firmware persisted can be discarded though none can be saved",
+                 "[calibration_run]") {
+    make_run(2);
+    fakes[0]->restorable = true;
+    run->start();
+    CHECK_FALSE(run->can_discard());
+    fakes[0]->finish("Accepted at Z 1.235 mm");
+    fakes[1]->fail("heater fault");
+    REQUIRE(run->phase() == RunPhase::Results);
+    CHECK_FALSE(run->can_save());
+    CHECK(run->can_discard());
+
+    FakeFinisher finisher;
+    finisher.pending = false;
+    run->discard_all(finisher);
+    CHECK(fakes[0]->restores == 1);
+    fakes[0]->restored("Restored to -1.245 mm");
+    CHECK(run->phase() == RunPhase::Discarded);
+    CHECK_FALSE(run->can_discard());
+}
+
+TEST_CASE_METHOD(RunFixture, "a run with nothing kept offers no discard", "[calibration_run]") {
+    make_run(1);
+    run->start();
+    fakes[0]->fail("heater fault");
+    REQUIRE(run->phase() == RunPhase::Results);
+    CHECK_FALSE(run->can_discard());
+}
+
 TEST_CASE("a firmware-managed Z offset is set, and restored, by one command",
           "[calibration_run][zoffset]") {
     const helix::PrinterDiscovery plain;

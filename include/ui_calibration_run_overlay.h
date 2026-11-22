@@ -70,6 +70,9 @@ class CalibrationRunOverlay : public OverlayBase {
     void back();
     void start();
     void stop();
+    /// The Stop dialog's confirm: stops, unless stopping now does something
+    /// other than what @p shown told the owner, which asks again.
+    void confirm_stop(calibration::CalibrationRun::StopEffect shown);
     void see_results();
     void save();
     void discard();
@@ -212,6 +215,8 @@ class CalibrationRunOverlay : public OverlayBase {
     helix::Subject results_primary_;
     char results_primary_buf_[kShortLen]{};
     helix::Subject results_busy_;
+    /// 1 while the results primary is a save, which needs the printer.
+    helix::Subject offers_save_;
     helix::Subject hide_discard_;
     helix::Subject results_sub_;
     char results_sub_buf_[kLongLen]{};

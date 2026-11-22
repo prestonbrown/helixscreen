@@ -309,6 +309,7 @@ void CalibrationRunOverlay::init_subjects() {
     add_int(results_warn_, 0, "cal_run_results_warn");
     add_string(results_primary_, results_primary_buf_, kShortLen, "cal_run_results_primary");
     add_int(results_busy_, 0, "cal_run_results_busy");
+    add_int(offers_save_, 0, "cal_run_offers_save");
     add_int(hide_discard_, 1, "cal_run_hide_discard");
     add_string(results_sub_, results_sub_buf_, kLongLen, "cal_run_results_sub");
     add_string(save_line_, save_line_buf_, kLongLen, "cal_run_save_line");
@@ -552,6 +553,7 @@ void CalibrationRunOverlay::publish_run() {
         lv_subject_set_int(&overall_, 0);
         lv_subject_set_int(&hide_discard_, 1);
         lv_subject_set_int(&results_busy_, 0);
+        lv_subject_set_int(&offers_save_, 0);
         return;
     }
     const auto& entries = run_->entries();
@@ -636,7 +638,7 @@ void CalibrationRunOverlay::publish_run() {
     const bool can_save = run_->can_save();
     const bool busy = phase == RunPhase::Saving || phase == RunPhase::Discarding;
     lv_subject_set_int(&results_busy_, busy ? 1 : 0);
-    lv_subject_set_int(&hide_discard_, can_save && !busy ? 0 : 1);
+    lv_subject_set_int(&hide_discard_, run_->can_discard() && !busy ? 0 : 1);
     lv_subject_set_int(&results_warn_, run_->results_lost() || any_unfinished ? 1 : 0);
     const char* title = lv_tr("Calibration finished");
     if (phase == RunPhase::Saved) {
@@ -661,6 +663,7 @@ void CalibrationRunOverlay::publish_run() {
                                    finished, minutes));
     }
     const bool offers_save = can_save && !busy;
+    lv_subject_set_int(&offers_save_, offers_save ? 1 : 0);
     set_text(results_primary_, results_primary_label(offers_save, restart_known_, save_restarts_));
     switch (phase) {
     case RunPhase::Saving:
@@ -780,17 +783,26 @@ void CalibrationRunOverlay::stop() {
     ConfirmOptions opts;
     opts.owner_token = lifetime_.token();
     opts.destructive = true;
+    const auto shown = run_->stop_effect();
     modal_confirm(
-        lv_tr("Stop calibration?"), stop_confirm_message(run_->stop_effect()).c_str(),
-        ModalSeverity::Warning, lv_tr("Stop"),
-        [this]() {
-            if (run_) {
-                run_->stop();
-                set_page(RunPage::Results);
-                publish_run();
-            }
-        },
-        opts);
+        lv_tr("Stop calibration?"), stop_confirm_message(shown).c_str(), ModalSeverity::Warning,
+        lv_tr("Stop"), [this, shown]() { confirm_stop(shown); }, opts);
+}
+
+void CalibrationRunOverlay::confirm_stop(calibration::CalibrationRun::StopEffect shown) {
+    if (!run_) {
+        return;
+    }
+    // The run moved on while the dialog was open: the owner agreed to a
+    // different stop, so ask again with what stopping does now.
+    if (run_->phase() == RunPhase::Running && run_->stop_effect() != shown) {
+        spdlog::info("[CalibrationRun] The stop's effect changed while confirming; asking again");
+        stop();
+        return;
+    }
+    run_->stop();
+    set_page(RunPage::Results);
+    publish_run();
 }
 
 void CalibrationRunOverlay::see_results() {

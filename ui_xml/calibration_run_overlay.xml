@@ -230,7 +230,7 @@
                                  back_hide_subject="cal_run_over" status_subject="cal_run_footer"
                                  primary_text="See results" primary_callback="on_cal_run_see_results"
                                  primary_name="btn_cal_run_results" primary_disabled_cond="cal_run_over eq 0"
-                                 primary_hide_subject="cal_run_running_now"/>
+                                 primary_needs_printer="0" primary_hide_subject="cal_run_running_now"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- RESULTS (3) -->
@@ -279,7 +279,8 @@
                                  back_name="btn_cal_run_discard" back_hide_subject="cal_run_hide_discard"
                                  status_subject="cal_run_save_line" primary_subject="cal_run_results_primary"
                                  primary_callback="on_cal_run_results_primary" primary_name="btn_cal_run_save"
-                                 primary_hide_subject="cal_run_results_busy"/>
+                                 primary_hide_subject="cal_run_results_busy"
+                                 primary_needs_printer="cal_run_offers_save eq 1"/>
     </lv_obj>
   </view>
 </component>

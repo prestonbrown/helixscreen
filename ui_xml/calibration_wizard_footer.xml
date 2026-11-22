@@ -19,8 +19,10 @@
      primary_icon             a trailing icon on the primary (Start's chevron)
      primary_moves_machine    "true" installs the toolhead guard on the primary
      primary_disabled_cond    an expression ("cal_run_prereq_ready eq 0") that disables
-                              the primary; the primary is always disabled while the
-                              printer is unreachable (nav_buttons_enabled 0)
+                              the primary
+     primary_needs_printer    an expression, default "1": while it holds, the primary is
+                              disabled with the printer unreachable (nav_buttons_enabled 0).
+                              "0" for a primary that sends nothing (See results, Done)
      status / status_subject  the status line; status_sub_subject a second line;
                               status_color and status_font its look
      status_compact="1"       at 480x272 the status shows status_compact_subject and
@@ -75,6 +77,7 @@
     <prop name="primary_name" type="string" default="cal_footer_primary"/>
     <prop name="primary_icon" type="string" default=""/>
     <prop name="primary_moves_machine" type="string" default="false"/>
+    <prop name="primary_needs_printer" type="string" default="1"/>
     <prop name="divider" type="string" default="1"/>
     <prop name="status" type="string" default=""/>
     <prop name="status_tag" type="string" default=""/>
@@ -231,10 +234,11 @@
         <style name="cal_footer_primary"/>
         <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
         <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
-        <!-- One condition for every reason: never live while the printer is
-             unreachable, whatever the caller's own condition says. The toolhead
-             guard (primary_moves_machine) composes with it as a separate binding. -->
-        <bind_state_if cond="nav_buttons_enabled eq 0 or (${primary_disabled_cond})" state="disabled"/>
+        <!-- One condition for every reason: a primary that needs the printer is never
+             live while it is unreachable, whatever the caller's own condition says. The
+             toolhead guard (primary_moves_machine) composes with it as a separate binding. -->
+        <bind_state_if cond="(nav_buttons_enabled eq 0 and (${primary_needs_printer})) or (${primary_disabled_cond})"
+                       state="disabled"/>
         <event_cb trigger="clicked" callback="$primary_callback"/>
       </ui_button>
     </lv_obj>

@@ -263,6 +263,15 @@ bool CalibrationRun::has_pending_result() const {
     return std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) { return saves(e); });
 }
 
+bool CalibrationRun::can_discard() const {
+    if (phase_ != RunPhase::Results && phase_ != RunPhase::SaveFailed) {
+        return false;
+    }
+    return can_save() || std::any_of(entries_.begin(), entries_.end(), [](const Entry& e) {
+               return e.status == StepStatus::Finished && e.step->restores_on_discard();
+           });
+}
+
 void CalibrationRun::klippy_restarted() {
     // The restarts Save all and Discard all cause are their own; a stop's has
     // already marked what it lost.

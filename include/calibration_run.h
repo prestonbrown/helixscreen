@@ -129,6 +129,9 @@ class CalibrationRun {
         return (phase_ == RunPhase::Results || phase_ == RunPhase::SaveFailed) &&
                has_pending_result() && !results_lost_;
     }
+    /// There is something Discard all would undo: a result a save would write,
+    /// or a finished one the firmware already persisted.
+    [[nodiscard]] bool can_discard() const;
     /// Klipper went down (a shutdown or a restart) without the run asking: the
     /// staged results are gone. Main thread.
     void klippy_restarted();

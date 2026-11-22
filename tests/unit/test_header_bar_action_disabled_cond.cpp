@@ -76,7 +76,8 @@ std::string read_disabled_cond(const std::string& xml_path) {
     if (framed != std::string::npos) {
         const size_t open = src.rfind('<', framed);
         const std::string own = value_in("primary_disabled_cond=\"", open, src.find('>', framed));
-        return "nav_buttons_enabled eq 0 or (" + (own.empty() ? std::string("0") : own) + ")";
+        return "(nav_buttons_enabled eq 0 and (1)) or (" + (own.empty() ? std::string("0") : own) +
+               ")";
     }
     // A screen whose primary action sits in its own footer names it btn_start.
     const size_t start = src.find("name=\"btn_start\"");
@@ -210,4 +211,82 @@ TEST_CASE_METHOD(
     lv_obj_delete(footer);
     UpdateQueue::instance().drain();
     ready.reset();
+}
+
+namespace {
+
+/// The quoted value of @p attr on the `<calibration_wizard_footer name="footer">`
+/// element of @p xml_path, or empty.
+std::string footer_attr(const std::string& xml_path, const std::string& footer,
+                        const std::string& attr) {
+    std::ifstream f(xml_path);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    const std::string src = ss.str();
+    const size_t at = src.find("<calibration_wizard_footer name=\"" + footer + "\"");
+    if (at == std::string::npos) {
+        return {};
+    }
+    const size_t end = src.find("/>", at);
+    const std::string key = attr + "=\"";
+    const size_t start = src.find(key, at);
+    if (start == std::string::npos || start > end) {
+        return {};
+    }
+    const size_t value_start = start + key.size();
+    return src.substr(value_start, src.find('"', value_start) - value_start);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "the run's See results and Done stay live while offline, and its Save does not",
+                 "[calibration_gate][calibration_run]") {
+    REQUIRE(register_component("calibration_wizard_footer"));
+    static helix::Subject offers_save;
+    offers_save.init_int(1);
+    lv_xml_register_subject(nullptr, "cal_run_offers_save", &offers_save);
+    lv_subject_t* nav = state().network_state().get_nav_buttons_enabled_subject();
+    REQUIRE(nav != nullptr);
+
+    auto make_footer = [this](const std::string& needs) {
+        const char* attrs[] = {"primary_text",          "Go",           "primary_callback",
+                               "on_test_footer_go",     "primary_name", "test_footer_go",
+                               "primary_needs_printer", needs.c_str(),  nullptr};
+        lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+        REQUIRE(footer != nullptr);
+        return footer;
+    };
+    auto disabled = [](lv_obj_t* footer) {
+        UpdateQueue::instance().drain();
+        lv_obj_t* btn = lv_obj_find_by_name(footer, "test_footer_go");
+        REQUIRE(btn != nullptr);
+        return lv_obj_has_state(btn, LV_STATE_DISABLED);
+    };
+
+    const std::string see_results = footer_attr("ui_xml/calibration_run_overlay.xml",
+                                                "cal_run_running_footer", "primary_needs_printer");
+    const std::string results = footer_attr("ui_xml/calibration_run_overlay.xml",
+                                            "cal_run_results_footer", "primary_needs_printer");
+    REQUIRE_FALSE(see_results.empty());
+    REQUIRE_FALSE(results.empty());
+
+    lv_subject_set_int(nav, 0);
+    lv_obj_t* running = make_footer(see_results);
+    lv_obj_t* finished = make_footer(results);
+    CHECK_FALSE(disabled(running));
+    // Save needs the printer.
+    CHECK(disabled(finished));
+    // Done sends nothing.
+    lv_subject_set_int(&offers_save, 0);
+    CHECK_FALSE(disabled(finished));
+
+    lv_subject_set_int(nav, 1);
+    lv_subject_set_int(&offers_save, 1);
+    CHECK_FALSE(disabled(finished));
+
+    lv_obj_delete(running);
+    lv_obj_delete(finished);
+    UpdateQueue::instance().drain();
+    offers_save.reset();
 }
