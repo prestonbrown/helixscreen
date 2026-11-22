@@ -668,10 +668,32 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     set_live_offset(-0.037);
     set_printing(true);
     set_homed(true);
-    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    // Built as build_inline_tune() does, checked before the queue drains: the
+    // indicator leads with the babystep from the moment the section shows.
+    auto& tune = get_print_tune_overlay();
+    tune.prepare_inline(capture_api.get(), state(), lv_screen_active());
+    auto* section =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "print_status_tune", nullptr));
+    REQUIRE(section != nullptr);
+    lv_obj_update_layout(section);
+    tune.activate_inline(section);
+    lv_subject_t* indicator_microns = lv_xml_get_subject(nullptr, "tune_z_offset_microns");
+    REQUIRE(indicator_microns != nullptr);
+    CHECK(lv_subject_get_int(indicator_microns) == 0);
+    helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* z = lv_obj_find_by_name(section, "z_offset_display");
     REQUIRE(z != nullptr);
     CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
+
+    // The arrows follow the kinematics while the section shows.
+    lv_subject_t* closer_icon = lv_xml_get_subject(nullptr, "tune_z_closer_icon");
+    REQUIRE(closer_icon != nullptr);
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_expand_up");
+    lv_subject_set_int(bed_moves, 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_down");
+    lv_subject_set_int(bed_moves, 1);
+    helix::ui::UpdateQueue::instance().drain();
 
     // Bed up sits above bed down; the head-moves pair's lower button gives way.
     CHECK_FALSE(
@@ -683,7 +705,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
           "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     set_live_offset(-0.047); // Klipper's echo of the step
     CHECK(std::string(lv_label_get_text(z)) == "-0.010 mm");
-    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "tune_z_offset_microns")) == -10);
+    CHECK(lv_subject_get_int(indicator_microns) == -10);
 
     get_print_tune_overlay().handle_z_adjust(1);
     get_print_tune_overlay().handle_z_adjust(1);
