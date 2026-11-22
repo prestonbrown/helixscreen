@@ -58,6 +58,8 @@ void PrintTuneOverlay::release_observers() {
     extruder_vel_observer_.reset();
     units_observer_.reset();
     pa_observer_.reset();
+    pending_z_observer_.reset();
+    per_head_z_observer_.reset();
 }
 
 void PrintTuneOverlay::on_ui_destroyed() {
@@ -282,6 +284,16 @@ void PrintTuneOverlay::install_observers() {
             printer_state_->motion_state().get_live_extruder_velocity_subject(), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_display(); },
             printer_state_->get_subjects_lifetime());
+        // The babystep total moves without the live offset at a print start
+        // and after a save, and the readout leads with it on some printers.
+        pending_z_observer_ = helix::ui::observe<int>(
+            printer_state_->motion_state().get_pending_z_offset_delta_subject(), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            printer_state_->get_subjects_lifetime());
+        per_head_z_observer_ = helix::ui::observe<int>(
+            printer_state_->profile_state().get_z_offset_reapplied_per_head_subject(), this,
+            [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
+            printer_state_->get_subjects_lifetime());
         pa_observer_ = helix::ui::observe<int>(
             printer_state_->temperature_state().get_active_extruder_pressure_advance_subject(),
             this, [](PrintTuneOverlay* self, int /*value*/) { self->update_pa_display(); },
@@ -456,7 +468,6 @@ void PrintTuneOverlay::update_z_offset_display(int microns) {
         // belongs to the tool, and clobbering it here would put the
         // machine-wide value back under a T<n> label.
         update_tool_z_displays();
-        lv_subject_set_int(&tune_z_offset_microns_subject_, microns);
     }
 
     spdlog::trace("[PrintTuneOverlay] Z-offset display updated: {}um ({}mm)", microns,
@@ -545,8 +556,6 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
     current_z_offset_ = r.new_offset_mm;
     update_tool_z_displays();
 
-    lv_subject_set_int(&tune_z_offset_microns_subject_,
-                       static_cast<int>(std::lround(current_z_offset_ * 1000.0)));
     for_each_z_indicator([&](lv_obj_t* indicator) {
         ui_z_offset_indicator_flash_direction(indicator, r.applied_delta_mm > 0 ? 1 : -1);
     });
@@ -599,8 +608,19 @@ void PrintTuneOverlay::update_tool_z_displays() {
                   tool_display_label.c_str());
     lv_subject_set_string(&tune_z_tool_label_subject_, tune_z_tool_label_buf_);
 
+    const int live_microns = static_cast<int>(std::lround(current_z_offset_ * 1000.0));
+    const int headline_microns = helix::zoffset::headline_offset_microns(live_microns);
+    lv_subject_set_int(&tune_z_offset_microns_subject_, headline_microns);
+
     char global_mm[16];
-    helix::format::format_distance_mm(current_z_offset_, 3, global_mm, sizeof(global_mm));
+    if (helix::zoffset::headline_is_babystep()) {
+        // Signed, so a raise reads as "+": the mounted head's own calibrated
+        // offset is not part of this number.
+        std::snprintf(global_mm, sizeof(global_mm), headline_microns == 0 ? "%.3f mm" : "%+.3f mm",
+                      headline_microns / 1000.0);
+    } else {
+        helix::format::format_distance_mm(current_z_offset_, 3, global_mm, sizeof(global_mm));
+    }
 
     char tool_mm[16] = {};
     if (tool_known) {
