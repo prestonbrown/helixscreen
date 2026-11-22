@@ -177,6 +177,8 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(subj_method_text_, buf_method_text_, "", "pid_method_text",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(subj_cta_text_, buf_cta_text_, "", "pid_cta_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_restart_note_, buf_restart_note_, "", "pid_restart_note",
+                              subjects_);
     UI_MANAGED_SUBJECT_INT(subj_fan_row_shown_, 0, "cal_fan_row_shown", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_fan_locked_, 0, "cal_fan_locked", subjects_);
     UI_MANAGED_SUBJECT_INT(subj_power_known_, 0, "cal_power_known", subjects_);
@@ -2029,6 +2031,11 @@ void PIDCalibrationPanel::update_cta() {
                    : lv_tr("Calibrate nozzle");
     }
     lv_subject_set_string(&subj_cta_text_, text);
+    // The footer warns whenever Start rewrites printer.cfg first.
+    lv_subject_set_string(&subj_restart_note_,
+                          (needs_migration_ || adding_cooling_fan())
+                              ? lv_tr("Changes printer.cfg and restarts Klipper first")
+                              : "");
 }
 
 void PIDCalibrationPanel::show_switch_page() {
@@ -2082,6 +2089,7 @@ void PIDCalibrationPanel::handle_measure_fan_row_clicked() {
     lv_subject_set_int(&subj_add_cooling_fan_, on);
     spdlog::debug("[PIDCal] Measure part fan: {}", on == 1);
     update_badges();
+    update_cta();
 }
 
 void PIDCalibrationPanel::handle_power_pick(int pick) {

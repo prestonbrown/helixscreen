@@ -467,6 +467,8 @@ class PIDCalibrationPanel : public OverlayBase {
     char buf_method_text_[32];
     helix::Subject subj_cta_text_{};
     char buf_cta_text_[32];
+    helix::Subject subj_restart_note_{};
+    char buf_restart_note_[96];
     helix::Subject subj_fan_row_shown_{}; // int 0/1
     helix::Subject subj_fan_locked_{};    // int 0/1: the heater already names its fan
     helix::Subject subj_power_known_{};   // int 0/1: heater power from the printer database

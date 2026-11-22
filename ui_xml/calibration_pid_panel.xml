@@ -40,9 +40,11 @@
               width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 0" flag="hidden"/>
         <calibration_intro name="heater_intro"
-                           left_label="Heater" right_label="Calibrate at" primary_name="btn_start"
+                           left_label="Heater" left_label_tag="Heater" right_label="Calibrate at"
+                           right_label_tag="Calibrate at" secondary_name="btn_advanced" secondary_text="Advanced"
+                           secondary_tag="Advanced" secondary_callback="on_pid_advanced" primary_name="btn_start"
                            primary_bind_text="pid_cta_text" primary_callback="on_pid_start"
-                           disabled_cond="pid_cal_not_idle or nav_buttons_enabled eq 0">
+                           status_subject="pid_restart_note" status_color="#warning">
           <!-- What is calibrated, and what it runs today -->
           <lv_obj name="btn_heater_extruder"
                   width="100%" height="content" style_radius="#border_radius" style_border_width="2"
@@ -165,17 +167,6 @@
             <cal_intro_badge bind="pid_heats_to_text" warm="true"/>
             <cal_intro_badge bind="pid_method_text"/>
           </calibration_intro-badges>
-          <calibration_intro-footer_left>
-            <cal_intro_footer_button name="btn_advanced" text="Advanced" callback="on_pid_advanced"/>
-          </calibration_intro-footer_left>
-          <calibration_intro-footer_note>
-            <text_small width="100%"
-                        text="Changes printer.cfg and restarts Klipper first" style_text_font="#cal_font_detail"
-                        style_text_color="#warning" style_text_align="center" long_mode="wrap">
-              <bind_style_if name="styles.invisible"
-                             cond="not (cal_needs_migration or (cal_offer_cooling_fan and cal_add_cooling_fan))"/>
-            </text_small>
-          </calibration_intro-footer_note>
         </calibration_intro>
       </lv_obj>
       <!-- ================================================================== -->
@@ -186,9 +177,10 @@
               hidden="true">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 1" flag="hidden"/>
         <calibration_intro name="switch_intro"
-                           primary_name="btn_switch_mpc" primary_text="Switch and calibrate"
-                           primary_callback="on_pid_switch_mpc"
-                           disabled_cond="cal_switch_ready eq 0 or pid_cal_not_idle or nav_buttons_enabled eq 0">
+                           secondary_name="btn_keep_pid" secondary_text="Keep PID" secondary_tag="Keep PID"
+                           secondary_callback="on_pid_keep_pid" primary_name="btn_switch_mpc"
+                           primary_text="Switch and calibrate" primary_tag="Switch and calibrate"
+                           primary_callback="on_pid_switch_mpc" primary_enable_subject="cal_switch_ready">
           <!-- What MPC is, and the same fan change under both methods -->
           <text_small width="100%"
                       text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."
@@ -232,13 +224,18 @@
                 <lv_obj width="0"
                         height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
                         scrollable="false">
-                  <cal_intro_section_label text="Heater power"/>
+                  <cal_intro_section_label text="Heater power" text_tag="Heater power"/>
                   <text_heading bind_text="cal_wattage_display"/>
                   <text_small width="100%"
                               bind_text="cal_power_source" style_text_font="#cal_font_detail"
                               style_text_color="#text_muted" long_mode="wrap"/>
                 </lv_obj>
-                <cal_intro_footer_button name="btn_power_change" text="Change" callback="on_cal_power_change"/>
+                <ui_button name="btn_power_change"
+                           height="#cal_button_h" variant="outline" text="Change" style_pad_hor="#space_lg"
+                           style_border_width="1" style_border_color="#border" style_text_font="#cal_font_button"
+                           style_text_color="#text_muted">
+                  <event_cb trigger="clicked" callback="on_cal_power_change"/>
+                </ui_button>
               </lv_obj>
               <!-- Power unknown: ask, with where to find it -->
               <lv_obj name="power_ask"
@@ -308,9 +305,6 @@
               </heater_mpc_switch_steps>
             </lv_obj>
           </calibration_intro-settings>
-          <calibration_intro-footer_left>
-            <cal_intro_footer_button name="btn_keep_pid" text="Keep PID" callback="on_pid_keep_pid"/>
-          </calibration_intro-footer_left>
         </calibration_intro>
       </lv_obj>
       <!-- ================================================================== -->
