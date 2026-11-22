@@ -21,7 +21,7 @@
                          more draw the spool's multi-colour split
        finish_subject    string subject naming the filament ("PLA Silk"); its
                          finish (silk, matte, marble, sparkle) is drawn
-       translucent_subject  int subject; nonzero draws the colour over the
+       translucent_subject  int subject; nonzero draws the color over the
                          translucent filament's checkerboard
        fill              a style for the disc (a gradient fill: custom_color_swatch)
        selected_subject  int subject naming the ringed index; empty for no ring

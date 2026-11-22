@@ -142,7 +142,7 @@ struct PrintTaskConfigDelta {
 /// none.
 [[nodiscard]] std::optional<uint32_t> rgb_from_rgba_hex(const std::string& hex);
 
-/// The colour a `filament_color_rgba` entry names, with its translucency: an
+/// The color a `filament_color_rgba` entry names, with its translucency: an
 /// alpha byte below FF (a tag's ALPHA, or one written back) is a translucent
 /// filament. nullopt when it names none.
 [[nodiscard]] std::optional<ams::ColorReading> color_from_rgba_hex(const std::string& hex);

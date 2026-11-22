@@ -23,7 +23,7 @@ struct SpoolCacheKey {
     uint16_t size;
     uint8_t fill_bucket; // 0..kFillBuckets
     SpoolGlow glow;
-    uint32_t filament_hash = 0; // multi-colour list, finish, translucency; 0 for plain
+    uint32_t filament_hash = 0; // multi-color list, finish, translucency; 0 for plain
     helix::ui::SpoolView view = helix::ui::SpoolView::Side;
     uint8_t vent_phase = 0; // rotation of the vents; 0 unless the spool has turned
 

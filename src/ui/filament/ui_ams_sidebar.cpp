@@ -681,7 +681,7 @@ void AmsOperationSidebar::init_observers() {
         AmsState::instance().get_current_finish_subject(), this,
         [](AmsOperationSidebar* self, const char*) { self->paint_loaded_filament(); },
         AmsState::instance().get_subjects_lifetime());
-    // A translucency change alone leaves the colour as it was.
+    // A translucency change alone leaves the color as it was.
     translucent_observer_ = observe<int>(
         AmsState::instance().get_current_translucent_subject(), this,
         [](AmsOperationSidebar* self, int) { self->paint_loaded_filament(); },

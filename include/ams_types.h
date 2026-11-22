@@ -1100,7 +1100,7 @@ struct SlotInfo {
     /// How the multi-color list runs: "gradient" or "coaxial"
     /// (filament_color_mode.h); empty while the slot is one color.
     std::string color_mode;
-    /// A clear or see-through filament: its colour is drawn tinted over a
+    /// A clear or see-through filament: its color is drawn tinted over a
     /// checkerboard. One level; any source alpha below FF sets it.
     bool translucent = false;
     std::string material; ///< Material type (e.g., "PLA", "PETG", "ABS")
@@ -1231,7 +1231,7 @@ struct SlotInfo {
 
     /**
      * @brief A key for how a swatch paints this slot beyond its colour: its
-     *        multi-colour list, finish and translucency. Equal keys paint alike.
+     *        multi-color list, finish and translucency. Equal keys paint alike.
      */
     [[nodiscard]] int paint_key() const {
         uint32_t h = 2166136261u ^ static_cast<uint32_t>(finish()) ^ (translucent ? 0x100u : 0u);

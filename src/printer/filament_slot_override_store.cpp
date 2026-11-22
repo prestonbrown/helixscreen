@@ -226,7 +226,7 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
                 o.translucent = true;
         }
     }
-    // An alpha below FF in the colour is the newer statement: a third-party
+    // An alpha below FF in the color is the newer statement: a third-party
     // writer that sets one never touches our key, so a stale false must not
     // outrank it.
     if (const auto translucent = helix::json_util::read_field<bool>(j, "helix_translucent");

@@ -486,7 +486,7 @@ class AmsBackend : public AmsCapabilityHost {
      * @brief Whether the firmware keeps @p slot_index's filament record from
      *        the spool's tag and refuses edits to it
      *
-     * The tag then states the filament's colour and translucency, and an edit
+     * The tag then states the filament's color and translucency, and an edit
      * to either never reaches the firmware. False for an out-of-range slot.
      * Thread-safe.
      */

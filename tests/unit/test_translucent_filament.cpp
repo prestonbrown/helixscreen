@@ -148,7 +148,7 @@ TEST_CASE("A lane record keeps translucency beside an #RRGGBB color", "[transluc
     CHECK(theirs->second.color_rgb == 0xE8E8FFu);
     CHECK(theirs->second.translucent == std::optional<bool>(true));
 
-    // A colour alpha below FF outranks our own key's stale false.
+    // A color alpha below FF outranks our own key's stale false.
     other["color"] = "#E8E8FF7F";
     other["helix_translucent"] = false;
     const auto newer = ams::from_lane_data_record(other);

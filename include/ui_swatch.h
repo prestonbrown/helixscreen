@@ -56,9 +56,9 @@ inline constexpr int32_t kSwatchFinishMinPx = 16;
 /// near 1.9.
 inline constexpr double kSwatchEdgeContrastRatio = 1.75;
 
-/// How strongly a translucent filament's checkerboard shows through its colour:
-/// the checks are laid over the colour at this alpha, which reads the same as
-/// the colour laid over the checks at the rest.
+/// How strongly a translucent filament's checkerboard shows through its color:
+/// the checks are laid over the color at this alpha, which reads the same as
+/// the color laid over the checks at the rest.
 inline constexpr lv_opa_t kSwatchCheckOpa = 110;
 
 // ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ struct SwatchPaint {
     /// The colour the swatch sits on, when known; else the theme surfaces.
     std::optional<uint32_t> backdrop;
     SwatchFinish finish = SwatchFinish::Plain;
-    /// A clear or see-through filament: the colour is drawn tinted over a
+    /// A clear or see-through filament: the color is drawn tinted over a
     /// checkerboard (SlotInfo::translucent). Needs @ref cache.
     bool translucent = false;
     lv_opa_t opa = LV_OPA_COVER;
@@ -243,7 +243,7 @@ void swatch_paint_finish_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
 
 /// Lay a translucent filament's checkerboard over the pixels of @p area that
 /// @p cover covers in the ARGB8888 @p buf: squares of @p cell px in @p tones,
-/// at kSwatchCheckOpa, so whatever colour is there reads as seen through.
+/// at kSwatchCheckOpa, so whatever color is there reads as seen through.
 /// The squares count from @p area's top-left corner.
 void swatch_paint_check_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
                                const SwatchCoverage& cover, int32_t cell, SwatchCheckTones tones);
@@ -262,7 +262,7 @@ SwatchPaint swatch_paint_for(const helix::SlotInfo& slot);
 
 /**
  * Paint an object (or a <color_swatch>'s disc) as a swatch of @p primary_rgb, or of @p
- * multi_color_hexes when that lists two or more colours, with @p finish, over a
+ * multi_color_hexes when that lists two or more colors, with @p finish, over a
  * checkerboard when @p translucent.
  *
  * The object keeps its own size and radius; its background and border are
@@ -273,7 +273,7 @@ void apply_swatch_color(lv_obj_t* swatch, uint32_t primary_rgb,
                         const std::string& multi_color_hexes,
                         SwatchFinish finish = SwatchFinish::Plain, bool translucent = false);
 
-/// apply_swatch_color() from a slot's colour, multi-colour list, finish and
+/// apply_swatch_color() from a slot's color, multi-color list, finish and
 /// translucency.
 void apply_swatch_color(lv_obj_t* swatch, const helix::SlotInfo& slot);
 

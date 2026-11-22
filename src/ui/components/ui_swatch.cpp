@@ -1064,7 +1064,7 @@ void draw_swatch(lv_layer_t* layer, const lv_area_t& area, const SwatchPaint& pa
         }
     }
 
-    // Checks over the colour: the colour reads as seen through, every hue its own.
+    // Checks over the color: the color reads as seen through, every hue its own.
     if (paint.translucent && paint.cache) {
         if (const lv_draw_buf_t* tex =
                 paint.cache->checks(w, h, paint.radius, swatch_check_tones())) {

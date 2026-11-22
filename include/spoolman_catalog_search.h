@@ -64,8 +64,8 @@ class SpoolmanCatalogSearch {
 namespace spoolman {
 
 /// @p hex uppercased without '#' when it is 6 or 8 hex digits (Spoolman's
-/// colour form, alpha last), else empty. An FF alpha is dropped: it says
-/// nothing a 6-digit colour does not, and Spoolman's own UI writes neither.
+/// color form, alpha last), else empty. An FF alpha is dropped: it says
+/// nothing a 6-digit color does not, and Spoolman's own UI writes neither.
 std::string normalize_color_hex(const std::string& hex);
 
 /// @p csv (each entry RRGGBB or RRGGBBAA, '#' optional) with every entry's

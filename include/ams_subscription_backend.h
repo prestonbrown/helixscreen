@@ -615,7 +615,7 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// is copied before the first record read lands (a save then would replace
     /// the stored record with a bare one), nor into a record another writer
     /// owns. @p translucent is the firmware's alpha, for a firmware that
-    /// states one beside the colour. True when the record changed. Caller holds mutex_.
+    /// states one beside the color. True when the record changed. Caller holds mutex_.
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
                                          const std::string& material,
                                          std::optional<bool> translucent = std::nullopt);

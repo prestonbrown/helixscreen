@@ -85,7 +85,7 @@ enum class ColorReadingKind {
 struct ColorReading {
     ColorReadingKind kind;
     uint32_t rgb{0}; ///< Meaningful only when kind is Observed.
-    /// The colour states an alpha below FF (`#RRGGBBAA`): a translucent
+    /// The color states an alpha below FF (`#RRGGBBAA`): a translucent
     /// filament. Meaningful only when kind is Observed.
     bool translucent{false};
 };

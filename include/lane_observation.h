@@ -44,7 +44,7 @@ struct Observation {
     /// "gradient" or "coaxial" (filament_color_mode.h); empty states solid.
     std::optional<std::string> color_mode;
     /// A clear or see-through filament (SlotInfo::translucent). A source that
-    /// reads its colour from RRGGBBAA states it beside the colour.
+    /// reads its color from RRGGBBAA states it beside the color.
     std::optional<bool> translucent;
     std::optional<std::string> color_name;
     std::optional<std::string> material;

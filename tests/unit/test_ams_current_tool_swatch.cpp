@@ -114,7 +114,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     drain();
     REQUIRE_FALSE(ui::swatch_paint_translucent(disc));
 
-    // The colour stays; only the flag moves.
+    // The color stays; only the flag moves.
     lv_subject_set_int(ams.get_current_translucent_subject(), 1);
     drain();
     CHECK(ui::swatch_paint_translucent(disc));

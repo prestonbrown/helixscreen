@@ -5012,7 +5012,7 @@ void translucent_head_echoed(FilamentRecordHarness& h) {
 } // namespace
 
 TEST_CASE_METHOD(SnapmakerFixture,
-                 "Snapmaker an edit changing colour and translucency keeps it in the record",
+                 "Snapmaker an edit changing color and translucency keeps it in the record",
                  "[ams][snapmaker][filament_record][translucent]") {
     lv_init_safe();
     helix::ui::UpdateQueue::instance().init();
@@ -5032,7 +5032,7 @@ TEST_CASE_METHOD(SnapmakerFixture,
     pause_on_runout();
     FilamentRecordHarness h("translucent_repair");
     translucent_head_echoed(h);
-    // The firmware resets the head's record: its type NONE, its colour FFFFFFFF.
+    // The firmware resets the head's record: its type NONE, its color FFFFFFFF.
     json cleared =
         make_task_filament({"NONE", "NONE", "NONE", "NONE"}, {false, false, false, false},
                            std::vector<bool>{false, true, false, false});

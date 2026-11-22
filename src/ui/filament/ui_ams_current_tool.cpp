@@ -93,7 +93,7 @@ static void on_widget_created(lv_obj_t* widget) {
     data->finish_observer = observe<const char*>(
         ams.get_current_finish_subject(), widget, [](lv_obj_t* obj, const char*) { repaint(obj); },
         ams.get_subjects_lifetime());
-    // A translucency change alone leaves the colour as it was.
+    // A translucency change alone leaves the color as it was.
     data->translucent_observer = observe<int>(
         ams.get_current_translucent_subject(), widget, [](lv_obj_t* obj, int) { repaint(obj); },
         ams.get_subjects_lifetime());

@@ -71,17 +71,17 @@ namespace helix::ui {
 
 /**
  * @brief Paint the spool's filament: @p rgb, split into @p multi_color_hexes'
- *        colours when it lists two or more, in @p finish, and over the
+ *        colors when it lists two or more, in @p finish, and over the
  *        checkerboard when @p translucent.
  *
- * The split, the matte colour, the silk, marble and sparkle textures and the
+ * The split, the matte color, the silk, marble and sparkle textures and the
  * checkerboard are the swatch painter's (ui_swatch.h), so a spool and its
  * swatch agree.
  */
 void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string& multi_color_hexes,
                                SwatchFinish finish, bool translucent = false);
 
-/// spool_canvas_set_filament() from a slot's colour, multi-colour list, finish
+/// spool_canvas_set_filament() from a slot's color, multi-color list, finish
 /// and translucency.
 void spool_canvas_set_filament(lv_obj_t* canvas, const SlotInfo& slot);
 
