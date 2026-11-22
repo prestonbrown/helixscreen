@@ -52,7 +52,7 @@ class TreeOrderModal : public Modal {
 void fire_one_shots_before_queue() {
     for (int safety = 0; safety < 100; ++safety) {
         lv_timer_t* t = lv_timer_get_next(nullptr);
-        while (t && !(t->repeat_count > 0 && t->period == 0 && t->timer_cb))
+        while (t && !(t->repeat_count > 0 && t->period == 0 && t->timer_cb && !t->paused))
             t = lv_timer_get_next(t);
         if (!t)
             return;

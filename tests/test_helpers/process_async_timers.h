@@ -19,19 +19,31 @@ inline bool timer_is_live(const lv_timer_t* timer) {
 
 namespace helix::test {
 
-/// Run @p timer once the way lv_timer_exec() does: spend one repeat, then
-/// delete it once its count is spent, unless its callback already deleted it.
+/// Run @p timer once the way lv_timer_exec() does: spend one repeat, run its
+/// callback, then, once its count is spent and the callback has not deleted it,
+/// delete it if it auto-deletes or pause it if its owner keeps it
+/// (lib/lvgl/src/misc/lv_timer.c#lv_timer_exec). A paused timer, one with no
+/// callback and one with no repeats left are not run. Returns whether it ran.
+///
 /// A one-shot fired by hand and left armed fires again later, and one that
 /// re-arms from its own callback then doubles on every pass (#2153).
-inline void fire_timer_once(lv_timer_t* timer) {
+inline bool fire_timer_once(lv_timer_t* timer) {
+    if (timer->paused || !timer->timer_cb || timer->repeat_count == 0) {
+        return false;
+    }
     if (timer->repeat_count > 0) {
         timer->repeat_count--;
     }
     timer->last_run = lv_tick_get();
     timer->timer_cb(timer);
     if (timer_is_live(timer) && timer->repeat_count == 0) {
-        lv_timer_delete(timer);
+        if (timer->auto_delete) {
+            lv_timer_delete(timer);
+        } else {
+            lv_timer_pause(timer);
+        }
     }
+    return true;
 }
 
 /// The timers in LVGL's list at one moment, so a test can tell which ones
@@ -88,8 +100,7 @@ inline void process_async_timers() {
         lv_timer_t* t = lv_timer_get_next(nullptr);
         while (t) {
             lv_timer_t* next = lv_timer_get_next(t);
-            if (t->repeat_count > 0 && t->timer_cb) {
-                helix::test::fire_timer_once(t);
+            if (t->repeat_count > 0 && helix::test::fire_timer_once(t)) {
                 fired = true;
                 break; // Restart — list may have changed
             }

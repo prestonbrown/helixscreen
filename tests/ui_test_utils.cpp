@@ -86,6 +86,10 @@ uint32_t lv_timer_handler_safe() {
     // Execute one-shot timers (repeat_count >= 1) that are ready.
     // These include lv_async_call (period=0, repeat=1) and scheduled
     // retry timers. Process in a loop since callbacks may create new ones.
+    //
+    // Not helix::test::fire_timer_once(): every timer is paused here on purpose,
+    // and that helper, like lv_timer_exec(), never runs a paused timer. The
+    // spent ones are reaped by the pass below.
     uint32_t now = lv_tick_get();
     for (int safety = 0; safety < 100; safety++) {
         bool found = false;
