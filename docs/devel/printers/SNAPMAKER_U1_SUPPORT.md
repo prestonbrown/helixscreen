@@ -302,7 +302,11 @@ here `homing_origin.z` also holds the mounted head's own offset. So the save fol
 user's adjustment alone (`src/ui/z_offset_utils.cpp#per_head_fold_gcode`): it sets the
 live offset to the pending delta, then applies, in one script, then runs `SAVE_CONFIG`.
 What counts as unsaved is that pending delta, never the live offset
-(`current_save_availability()`). The Save buttons are machine-moving and stay disabled
+(`current_save_availability()`). Adjustments on several heads in one print add up.
+The apply spends the delta as soon as it lands, before the restart, so a
+`SAVE_CONFIG` reported failed never leaves a Save that would fold it twice. A print
+start drops a delta left unsaved from an earlier print, which the firmware has
+already dropped (`drop_unsaved_delta_at_print_start()`). The Save buttons are machine-moving and stay disabled
 while a print runs, so the save always happens after the print. `SAVE_CONFIG`'s restart
 drops the mounted head's offset until its next pickup, which every print starts with.
 

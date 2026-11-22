@@ -203,15 +203,26 @@ void apply_and_save_or(IMoonrakerAPI* api, helix::ui::SaveConfigWatch& save_watc
     // the apply itself.
     std::string apply_script =
         pre_apply.empty() ? std::string(apply_cmd) : pre_apply + "\n" + apply_cmd;
-    auto send_apply = [api, apply_cmd, apply_script, &save_watch, on_saved, on_error]() {
+    // A fold of the pending delta has spent it once the apply lands: the probe's
+    // staged z_offset now holds it. Clearing it there rather than after the
+    // restart means a SAVE_CONFIG reported failed (a restart outlasting the watch)
+    // cannot leave a Save up that would fold the same delta a second time.
+    const bool spends_pending_delta = ps && !pre_apply.empty();
+    auto send_apply = [api, apply_cmd, apply_script, &save_watch, on_saved, on_error, ps,
+                       spends_pending_delta]() {
         // ERROR_OWNERSHIP_OK: the error callback forwards to on_error, which every
         // caller surfaces (a toast in ControlsPanel and PrintTuneOverlay, the
         // calibration result in ZOffsetCalibrationPanel). The gate reads only the
         // callback body, where that hand-off looks like logging and nothing else.
         api->execute_gcode(
             apply_script,
-            [api, apply_cmd, &save_watch, on_saved, on_error]() {
+            [api, apply_cmd, &save_watch, on_saved, on_error, ps, spends_pending_delta]() {
                 spdlog::info("[ZOffsetUtils] {} success, executing SAVE_CONFIG", apply_cmd);
+                if (spends_pending_delta) {
+                    helix::ui::run_on_main("ZOffsetUtils::spend_pending_delta", [ps]() {
+                        ps->motion_state().clear_pending_z_offset_delta();
+                    });
+                }
                 begin_save_config(api, save_watch, on_saved, on_error);
             },
             [apply_cmd, on_error](const MoonrakerError& err) {
@@ -486,6 +497,7 @@ void set_save_enabled(bool enabled) {
 namespace {
 
 void republish_save_available(lv_observer_t*, lv_subject_t*);
+void drop_unsaved_delta_at_print_start(lv_observer_t*, lv_subject_t* subject);
 
 /// Publishes `z_offset_save_available` and holds the observers that keep it
 /// current.
@@ -505,6 +517,9 @@ struct SaveAvailabilityPublisher {
     ObserverGuard global_offset_obs;
     ObserverGuard pending_delta_obs;
     ObserverGuard per_head_obs;
+    ObserverGuard print_active_obs;
+    /// print_active as last seen, so only a start (0 to 1) drops the delta.
+    int last_print_active = 0;
     ObserverGuard tools_dirty_obs;
     ObserverGuard can_save_obs;
     ObserverGuard per_tool_z_obs;
@@ -522,6 +537,11 @@ struct SaveAvailabilityPublisher {
                 ps.get_subjects_lifetime());
         observe(per_head_obs, ps.profile_state().get_z_offset_reapplied_per_head_subject(),
                 ps.get_subjects_lifetime());
+        if (lv_subject_t* active = ps.print_state().get_print_active_subject()) {
+            last_print_active = lv_subject_get_int(active);
+            print_active_obs = ObserverGuard(active, drop_unsaved_delta_at_print_start, nullptr);
+            print_active_obs.set_alive_token(ps.get_subjects_lifetime());
+        }
         observe(can_save_obs, ps.profile_state().get_z_offset_can_save_subject(),
                 ps.get_subjects_lifetime());
         observe(tools_dirty_obs, ts.get_any_tool_offset_dirty_subject(),
@@ -557,6 +577,28 @@ struct SaveAvailabilityPublisher {
 std::optional<SaveAvailabilityPublisher>& save_available_storage() {
     static std::optional<SaveAvailabilityPublisher> storage;
     return storage;
+}
+
+/// Where each pickup re-applies the head's own offset, the firmware has already
+/// dropped an adjustment the user never saved by the time the next print starts,
+/// and Print Tune shows that print's offsets. A delta still pending from an
+/// earlier print would fold an adjustment nobody can see into every head, so a
+/// print start drops it.
+void drop_unsaved_delta_at_print_start(lv_observer_t*, lv_subject_t* subject) {
+    auto& storage = save_available_storage();
+    if (!storage) {
+        return;
+    }
+    const int active = lv_subject_get_int(subject);
+    const bool started = storage->last_print_active == 0 && active != 0;
+    storage->last_print_active = active;
+    PrinterState& ps = get_printer_state();
+    if (started && ps.profile_state().z_offset_reapplied_per_head() &&
+        ps.motion_state().get_pending_z_offset_delta() != 0) {
+        spdlog::info("[ZOffsetUtils] Print started: dropping an unsaved {} um adjustment",
+                     ps.motion_state().get_pending_z_offset_delta());
+        ps.motion_state().clear_pending_z_offset_delta();
+    }
 }
 
 void republish_save_available(lv_observer_t*, lv_subject_t*) {
