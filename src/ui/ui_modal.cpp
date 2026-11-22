@@ -13,12 +13,14 @@
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
+#include "backdrop_blur.h"
 #include "content_width_cap.h"
 #include "core/update_queue.h"
 #include "display_settings_manager.h"
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
+#include "lvgl/src/core/lv_group_private.h" // frozen: no public getter
 #include "memory_utils.h"
 #include "settings_manager.h"
 #include "system/crash_handler.h"
@@ -28,6 +30,7 @@
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <string>
@@ -338,6 +341,7 @@ void ModalStack::assume_ownership(lv_obj_t* backdrop, std::unique_ptr<Modal> ins
 }
 
 void ModalStack::clear() {
+    refresh_timer_.reset();
     // Drain from the top, one entry at a time: freeing an owned instance can
     // erase its own entry (~Modal -> remove()), so holding an iterator across
     // the loop body is unsafe. Each entry is moved out first.
@@ -533,6 +537,105 @@ std::vector<lv_obj_t*> ModalStack::exiting_backdrops() const {
         }
     }
     return out;
+}
+
+namespace {
+
+/// Holds the default group's focus in place: LVGL moves focus on to the next
+/// group member when a focused object is hidden, and showing it again does not
+/// give it back. A backdrop hidden for one snapshot would hand ESC and Enter to
+/// the panel behind its dialog.
+class ScopedFocusFreeze {
+  public:
+    ScopedFocusFreeze() : group_(lv_group_get_default()) {
+        if (group_) {
+            was_frozen_ = group_->frozen;
+            lv_group_focus_freeze(group_, true);
+        }
+    }
+    ~ScopedFocusFreeze() {
+        if (group_) {
+            lv_group_focus_freeze(group_, was_frozen_);
+        }
+    }
+    ScopedFocusFreeze(const ScopedFocusFreeze&) = delete;
+    ScopedFocusFreeze& operator=(const ScopedFocusFreeze&) = delete;
+
+  private:
+    lv_group_t* group_;
+    bool was_frozen_ = false;
+};
+
+} // namespace
+
+void ModalStack::refresh_backdrops() {
+    refresh_timer_.reset();
+    lv_obj_t* screen = lv_screen_active();
+    if (!screen) {
+        return;
+    }
+
+    // A dim layer is translucent over the live screen, so with no snapshot among
+    // the visible backdrops there is nothing to re-take.
+    const bool any_snapshot = std::any_of(stack_.begin(), stack_.end(), [](const ModalEntry& e) {
+        lv_obj_t* b = e.backdrop;
+        return !e.exiting && b && !lv_obj_is_hidden(b) && lv_obj_check_type(b, &lv_image_class);
+    });
+    if (!any_snapshot) {
+        return;
+    }
+
+    // Every modal backdrop on screen leaves the shots, then each visible one is
+    // re-taken lowest first and shown again, so the next one up captures it.
+    ScopedFocusFreeze focus_held;
+    std::vector<lv_obj_t*> hidden;
+    std::vector<lv_obj_t*> visible;
+    for (const auto& entry : stack_) {
+        lv_obj_t* backdrop = entry.backdrop;
+        if (!backdrop || lv_obj_get_screen(backdrop) != screen || lv_obj_is_hidden(backdrop)) {
+            continue;
+        }
+        // DECLARATIVE_OK: left out of the snapshots below, restored after them
+        lv_obj_set_hidden(backdrop, true);
+        hidden.push_back(backdrop);
+        if (!entry.exiting) {
+            visible.push_back(backdrop);
+        }
+    }
+
+    const auto started = std::chrono::steady_clock::now();
+    const lv_opa_t opacity = get_modal_backdrop_opacity();
+    int retaken = 0;
+    for (lv_obj_t* backdrop : visible) {
+        if (helix::ui::retake_backdrop(backdrop, opacity)) {
+            ++retaken;
+        }
+        lv_obj_set_hidden(backdrop, false); // DECLARATIVE_OK: restores the flag set above
+    }
+    for (lv_obj_t* backdrop : hidden) {
+        lv_obj_set_hidden(backdrop, false); // DECLARATIVE_OK: restores the flag set above
+    }
+    if (retaken > 0) {
+        const std::chrono::duration<double, std::milli> took =
+            std::chrono::steady_clock::now() - started;
+        spdlog::debug("[ModalStack] Re-took {} modal backdrop(s) in {:.1f}ms", retaken,
+                      took.count());
+    }
+}
+
+void ModalStack::schedule_backdrop_refresh(uint32_t delay_ms) {
+    if (empty()) {
+        return;
+    }
+    lv_timer_t* timer = lv_timer_create(
+        [](lv_timer_t* t) {
+            auto* self = static_cast<ModalStack*>(lv_timer_get_user_data(t));
+            self->refresh_timer_.release(); // a one-shot timer deletes itself
+            self->refresh_backdrops();
+        },
+        delay_ms, this);
+    lv_timer_set_repeat_count(timer, 1);
+    refresh_timer_.reset(timer);
 }
 
 bool ModalStack::is_exiting(lv_obj_t* backdrop) const {

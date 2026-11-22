@@ -39,6 +39,17 @@ on a navbar button. The one exception is the E-stop's own confirmation, which ca
 
 Backdrops are always created in C++, never in XML, so a dialog never ends up with two.
 
+**A backdrop is a picture of the screen taken when the modal opened** (blurred on 32-bit
+displays, darkened on RGB565, a plain translucent dim layer on ESP32 or once a snapshot has
+failed). An open modal does not track what changes beneath it, so `NavigationManager` asks
+`ModalStack::schedule_backdrop_refresh()` to re-take every visible modal's picture after a panel
+switch, an overlay push or pop, a theme or light/dark switch, and the printer switcher appearing
+in or leaving the navbar. The re-take waits a fixed 250ms (`kModalBackdropSettleMs`), long
+enough for the 200ms overlay slide and the navbar's 180ms crossfade to finish; content a panel
+fills in later than that is not in the picture until the next re-take. `ModalStack::refresh_backdrops()` re-takes them
+lowest first, each into the buffer it already owns, with itself and every modal above it hidden.
+A change beneath an open modal that navigation does not cover calls it directly.
+
 ---
 
 ## When to Use What
