@@ -122,6 +122,27 @@ class PrinterProfileState {
     void init_subjects(bool register_xml = true);
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        printer_type_.clear();
+        pre_print_option_set_ = PrePrintOptionSet();
+        z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+        z_offset_save_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+        external_persistence_ = false;
+        // The tune hint subject is seeded from this cached value on re-init.
+        z_offset_tune_hint_value_ = ZOffsetTuneHint::SAVE_ON_CONTROLS;
+        z_offset_save_enabled_ = true;
+        db_z_offset_persists_ = true;
+        db_tool_change_resets_z_offset_ = false;
+        z_position_endstop_numeric_ = false;
+        kinematics_.clear();
+        db_enclosed_ = false;
+        db_hides_dot_dirs_ = false;
+        timelapse_default_enabled_ = false;
+        firmware_option_defaults_.clear();
+    }
+
     /**
      * @brief Resolve @p type against the printer database
      *
