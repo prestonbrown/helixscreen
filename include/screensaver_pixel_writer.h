@@ -42,8 +42,8 @@ constexpr DitherTable make_dither_table(uint8_t max_level) {
     DitherTable t{};
     for (int threshold = 0; threshold < 16; threshold++) {
         for (int c = 0; c < 256; c++) {
-            t.v[threshold][c] = dither_channel(static_cast<uint8_t>(c), max_level,
-                                               static_cast<uint8_t>(threshold));
+            t.v[threshold][c] =
+                dither_channel(static_cast<uint8_t>(c), max_level, static_cast<uint8_t>(threshold));
         }
     }
     return t;
