@@ -111,6 +111,9 @@ translations:
   1 min: '1 Min'
   1 min ago: vor 1 Min.
   1 minute: 1 Minute
+  1 mm steps can press the nozzle into the bed.: "1-mm-Schritte können die Düse ins Heizbett drücken."
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: "1-mm-Schritte können die Düse ins Heizbett drücken. Wechsle auf 0.1, bevor es knapp wird."
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: "1-mm-Schritte können die Düse ins Heizbett drücken. Behalte den Spalt im Blick und wechsle auf 0.1, bevor es knapp wird."
   1 more tap to {} beta features: 1 weiteres Mal tippen, um Beta-Funktionen zu {}
   1 print: '1 Druck'
   1 profile: '1 Profil'
@@ -617,6 +620,9 @@ translations:
   Beta: Beta
   'Beta features: OFF': 'Beta-Funktionen: AUS'
   'Beta features: ON': 'Beta-Funktionen: EIN'
+  Big steps first, then 0.01.: "Erst große Schritte, dann 0.01."
+  Big steps first, then 0.01. Never force the nozzle into the bed.: "Erst große Schritte, dann 0.01. Drücke die Düse nie ins Heizbett."
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: "Große Schritte, bis das Papier zum ersten Mal schleift, dann 0.01. Drücke die Düse nie ins Heizbett."
   Black: Schwarz
   Blade change and parking: 'Klingenwechsel und Parken'
   Blocked: Blockiert
@@ -2757,8 +2763,10 @@ translations:
   Loud at times.: Zeitweise laut.
   Low Memory: Wenig Speicher
   Lower: Senken
+  Lower bed: "Heizbett senken"
   Lower belt: "Riemen unten"
   Lower fan speed?: 'Lüfterdrehzahl senken?'
+  Lower nozzle: "Düse senken"
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: Microsteps oder Maximalgeschwindigkeit in der Druckerkonfiguration senken, dann die Firmware neu starten.
   Lower the nozzle until it just touches the top of the print, then resume.: Senken Sie die Düse, bis sie die Oberseite des Drucks gerade berührt, und setzen Sie dann fort.
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: Temperatur im Filamentprofil des Slicers senken, oder max_temp nur erhöhen, wenn das Hotend dafür ausgelegt ist.
@@ -3388,6 +3396,7 @@ translations:
   Pairing...: Kopplung...
   Panel Usage: Panel-Nutzung
   Paper Test Calibration: Papiertest-Kalibrierung
+  'Paper drags: done': "Papier schleift: fertig"
   Parameters: Parameter
   Park: 'Parken'
   Park the AFC system: 'Das AFC-System parken'
@@ -3805,6 +3814,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : Z anheben, dann QUERY_PROBE mit dem Taster frei vom Bett ausführen. Wenn er weiterhin TRIGGERED meldet, den Taster oder seine Pin-Invertierung korrigieren.
   Raise and lower the bed or gantry through its travel.: "Bett oder Portal über den ganzen Weg auf und ab fahren."
+  Raise bed: "Heizbett anheben"
+  Raise nozzle: "Düse anheben"
   Ramming Volume: 'Ramming-Volumen'
   'Ramp: band {} of {}': 'Rampe: Bereich {} von {}'
   'Ramp: base layers': 'Rampe: Basisschichten'
@@ -4130,6 +4141,7 @@ translations:
   SSH did not start although Root access is on: 'SSH wurde nicht gestartet, obwohl der Root-Zugriff aktiviert ist'
   STANDARD MACROS: STANDARD-MAKROS
   STARTUP: START
+  STEP: "SCHRITT"
   STOP: STOPP
   STYLE PROPERTIES: STIL-EIGENSCHAFTEN
   SWITCH SENSORS: SCHALTSENSOREN
@@ -4176,6 +4188,7 @@ translations:
   "Saved {} mm": "Gespeichert {} mm"
   Saved {} mm for {}: "{} mm für {} gespeichert"
   "Saved {} mm, {} mm after Save": "Gespeichert {} mm, {} mm nach dem Speichern"
+  Saved offset: "Gespeicherter Offset"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'In Spoolman gespeichert, aber Preis, Standort, Los und Notizen der Spule wurden nicht gespeichert.'
   Saved to crash_report.txt (QR not available): In crash_report.txt gespeichert (QR nicht verfügbar)
   Saved to printer configuration.: In Druckerkonfiguration gespeichert.
@@ -4438,6 +4451,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Für eine {:g}-mm-Düse an T{} gesliced; der Drucker hat {:g} mm.'
   Sliced for {}, not {}.: 'Für {} gesliced, nicht für {}.'
   Slicer: Slicer
+  Slide the paper back and forth.: "Schiebe das Papier hin und her."
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Schiebe das Papier hin und her. Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Sliders: Regler
   Slot: Slot
   Slot 1: Slot 1
@@ -4587,6 +4602,7 @@ translations:
   Step 1 of 3: Schritt 1 von 3
   Step {} of {}: Schritt {} von {}
   Step {} of {} · about {} min left: 'Schritt {} von {} · noch etwa {} Min.'
+  Step {} of {} · needs you: "Schritt {} von {} · braucht dich"
   Stepper driver {1} detected a short: Schrittmotortreiber {1} hat einen Kurzschluss erkannt
   Stepper driver {1} lost motor power: Schrittmotortreiber {1} hat die Motorstromversorgung verloren
   Stepper driver {1} overheated: Schrittmotortreiber {1} ist überhitzt
@@ -4611,6 +4627,7 @@ translations:
   Stop the running cycle before starting another: 'Beenden Sie den laufenden Zyklus, bevor Sie einen neuen starten'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Webcams, Zeitraffer und zusätzliche Dienste auf dem Host stoppen, Netzteil und SD-Karte prüfen, dann die Firmware neu starten. Wenn es an derselben Stelle erneut passiert, die Geschwindigkeit oder die Microsteps senken.
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Stop with an emergency stop?: 'Mit Notaus stoppen?'
   Stopped: Gestoppt
   Stopped between Hub and Toolhead: Zwischen Hub und Werkzeugkopf gestoppt
@@ -5834,6 +5851,7 @@ translations:
   Z Offset by Material: "Z-Offset nach Material"
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : "Z-Offset nach Material ist hier aus, war auf dem Drucker aber noch an, daher enthält dieser Offset den eines Materials. Es ist jetzt auf dem Drucker ausgeschaltet; tippe erneut auf Speichern, um den Offset in der Sonde zu speichern."
+  Z POSITION: "Z-POSITION"
   Z Probe: Z-Sonde
   Z Range: Z-Bereich
   Z Tilt Adjust...: Z-Neigung anpassen...
@@ -5883,12 +5901,18 @@ translations:
   about {} min left · you can leave: noch etwa {} Min. · du kannst gehen
   accelerometer: Beschleunigungssensor
   all done: alles erledigt
+  about {} mm above where the paper dragged last time: "etwa {} mm über der Stelle, an der das Papier letztes Mal schleifte"
+  about {} mm below where the paper dragged last time: "etwa {} mm unter der Stelle, an der das Papier letztes Mal schleifte"
   already loaded: 'bereits geladen'
   assign without adding to Spoolman: ohne Spoolman zuweisen
+  at last time’s drag point: "am Schleifpunkt vom letzten Mal"
   attempt {}: 'Versuch {}'
   auto: auto
   automatic: 'automatisch'
   bed: Bett
+  bed further below: "Heizbett weiter unten"
+  'bed: distance unknown': "Heizbett: Abstand unbekannt"
+  'bed: distance unknown until the paper drags': "Heizbett: Abstand unbekannt, bis das Papier schleift"
   buffer|Neutral: Mittelstellung
   busy: 'belegt'
   by: 'von'
@@ -5906,6 +5930,8 @@ translations:
   disabled: deaktiviert
   done: 'fertig'
   done at {} · {}%: "fertig um {} · {}%"
+  down {} from start: "{} unter dem Start"
+  down {} mm from start: "{} mm unter dem Start"
   drying: trocknen
   e.g. Jet Black: z.B. Tiefschwarz
   e.g. NAME=my_var VALUE=123: z. B. NAME=my_var VALUE=123
@@ -5917,6 +5943,9 @@ translations:
   enable: aktivieren
   enabled: aktiviert
   error: Fehler
+  estimated bed: "geschätztes Heizbett"
+  estimated bed is further below: "das geschätzte Heizbett liegt weiter unten"
+  estimated bed, from your last calibration: "geschätztes Heizbett, aus deiner letzten Kalibrierung"
   every {} days: "alle {} Tage"
   exact match: 'exakte Übereinstimmung'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: gleiches Material und gleiche Farbe. material: gleiches Material. next: beliebiger bereiter Slot, auch anderes Material'
@@ -5982,6 +6011,8 @@ translations:
   over memory budget: über dem Speicherbudget
   paper test: 'Papiertest'
   passive: passiv
+  past last time: "über letztes Mal hinaus"
+  past last time’s position: "über die Position vom letzten Mal hinaus"
   preparing: Vorbereitung
   printer default: Druckerstandard
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg lädt mehr als {} Konfigurationsdateien; [{}] wurde nicht in allen gesucht"
@@ -5993,10 +6024,12 @@ translations:
   required: erforderlich
   reset at {} h: 'zurückgesetzt bei {} Std'
   runs on its own: läuft von selbst
+  right where the paper dragged last time: "genau dort, wo das Papier letztes Mal schleifte"
   set manually: 'manuell gesetzt'
   similar color: ähnliche Farbe
   sleep {} min: Ruhezustand nach {} Min.
   slots): Slots)
+  start position: "Startposition"
   started: gestartet
   steppers: Schrittmotoren
   sweeping: wird gemessen
@@ -6018,6 +6051,8 @@ translations:
   this week: diese Woche
   too slow: zu langsam
   tool(s): Werkzeug(e)
+  up {} from start: "{} über dem Start"
+  up {} mm from start: "{} mm über dem Start"
   used: verbraucht
   v%s available: v%s verfügbar
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s hat keinen Build für %s und kann hier nicht installiert werden. Wähle einen Update-Kanal mit einer neueren Version.
@@ -6143,6 +6178,8 @@ translations:
   '{} min': '{} Min'
   '{} min ago': vor {} Min.
   '{} missing': '{} fehlend'
+  '{} mm above last time': "{} mm über letztem Mal"
+  '{} mm below last time': "{} mm unter letztem Mal"
   '{} more taps to {} beta features': '{} weitere Male tippen, um Beta-Funktionen zu {}'
   '{} needs the HelixPrint plugin. Printing original file.': '{} benötigt das HelixPrint-Plugin. Die Originaldatei wird gedruckt.'
   '{} new': '{} neu'
@@ -6189,6 +6226,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: kein Filament geladen.'
   "{}'s nozzle is still heating": 'Düse von {} heizt noch'
   '{}, {}': '{}, {}'
+  '{}/{} · needs you': "{}/{} · braucht dich"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: Das Tag nennt Spoolman-Spule #{}, die nicht existiert'
   '{}: {} at {}°C': '{}: {} bei {}°C'
   '{}:{:02} elapsed': '{}:{:02} vergangen'

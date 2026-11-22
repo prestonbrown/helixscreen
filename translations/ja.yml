@@ -111,6 +111,9 @@ translations:
   1 min: '1分'
   1 min ago: 1分前
   1 minute: 1分
+  1 mm steps can press the nozzle into the bed.: "1 mm ステップではノズルがベッドに押し付けられることがあります。"
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: "1 mm ステップではノズルがベッドに押し付けられることがあります。近づく前に 0.1 に切り替えてください。"
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: "1 mm ステップではノズルがベッドに押し付けられることがあります。すき間を見ながら、近づく前に 0.1 に切り替えてください。"
   1 more tap to {} beta features: あと1回タップでベータ機能を{}
   1 print: '1 件'
   1 profile: '1 個のプロファイル'
@@ -617,6 +620,9 @@ translations:
   Beta: ベータ
   'Beta features: OFF': 'ベータ機能: OFF'
   'Beta features: ON': 'ベータ機能: ON'
+  Big steps first, then 0.01.: "まず大きなステップ、その後 0.01。"
+  Big steps first, then 0.01. Never force the nozzle into the bed.: "まず大きなステップ、その後 0.01。ノズルをベッドに押し付けないでください。"
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: "紙が最初に引っかかるまでは大きなステップ、その後 0.01。ノズルをベッドに押し付けないでください。"
   Black: ブラック
   Blade change and parking: 'ブレード交換とパーキング'
   Blocked: ブロック中
@@ -2757,8 +2763,10 @@ translations:
   Loud at times.: ときどき大きな音がします。
   Low Memory: メモリ不足
   Lower: 下げる
+  Lower bed: "ベッドを下げる"
   Lower belt: "下ベルト"
   Lower fan speed?: 'ファン速度を下げますか？'
+  Lower nozzle: "ノズルを下げる"
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: プリンター設定のマイクロステップまたは最高速度を下げてから、ファームウェアを再起動してください。
   Lower the nozzle until it just touches the top of the print, then resume.: ノズルが印刷物の上面にちょうど触れるまで下げてから、再開してください。
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: スライサーのフィラメントプロファイルで温度を下げるか、ホットエンドが対応している場合に限り max_temp を上げてください。
@@ -3388,6 +3396,7 @@ translations:
   Pairing...: ペアリング中...
   Panel Usage: パネル使用状況
   Paper Test Calibration: 紙テストキャリブレーション
+  'Paper drags: done': "紙が引っかかる：完了"
   Parameters: パラメータ
   Park: 'パーキング'
   Park the AFC system: 'AFCシステムをパーキング'
@@ -3805,6 +3814,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : Z を上げ、プローブがベッドから離れた状態で QUERY_PROBE を実行してください。それでも TRIGGERED の場合は、プローブまたはピンの反転設定を修正してください。
   Raise and lower the bed or gantry through its travel.: "ベッドまたはガントリーを全行程で上下させます。"
+  Raise bed: "ベッドを上げる"
+  Raise nozzle: "ノズルを上げる"
   Ramming Volume: 'ラミング量'
   'Ramp: band {} of {}': 'ランプ: 区間 {} / {}'
   'Ramp: base layers': 'ランプ: ベースレイヤー'
@@ -4130,6 +4141,7 @@ translations:
   SSH did not start although Root access is on: 'ルートアクセスがオンですが、SSHが起動しませんでした'
   STANDARD MACROS: 標準マクロ
   STARTUP: 起動
+  STEP: "ステップ"
   STOP: 停止
   STYLE PROPERTIES: スタイルプロパティ
   SWITCH SENSORS: スイッチセンサー
@@ -4176,6 +4188,7 @@ translations:
   "Saved {} mm": "保存値 {} mm"
   Saved {} mm for {}: "{} mm を {} に保存しました"
   "Saved {} mm, {} mm after Save": "保存値 {} mm、保存後 {} mm"
+  Saved offset: "保存済みオフセット"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Spoolmanに保存しましたが、スプールの価格、場所、ロット、メモは保存されませんでした。'
   Saved to crash_report.txt (QR not available): crash_report.txt に保存しました（QR 利用不可）
   Saved to printer configuration.: プリンター設定に保存しました。
@@ -4438,6 +4451,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '{:g} mmノズル（T{}）用にスライスされています。プリンターは{:g} mmです。'
   Sliced for {}, not {}.: '{}用にスライスされています。{}用ではありません。'
   Slicer: スライサー
+  Slide the paper back and forth.: "紙を前後に動かしてください。"
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "紙を前後に動かしてください。ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Sliders: スライダー
   Slot: スロット
   Slot 1: スロット1
@@ -4587,6 +4602,7 @@ translations:
   Step 1 of 3: ステップ 1/3
   Step {} of {}: ステップ {} / {}
   Step {} of {} · about {} min left: 'ステップ {}/{} · 残り約{}分'
+  Step {} of {} · needs you: "ステップ {}/{} · 操作が必要"
   Stepper driver {1} detected a short: ステッピングドライバー {1} がショートを検出しました
   Stepper driver {1} lost motor power: ステッピングドライバー {1} のモーター電源が失われました
   Stepper driver {1} overheated: ステッピングドライバー {1} が過熱しました
@@ -4611,6 +4627,7 @@ translations:
   Stop the running cycle before starting another: '新しく開始する前に、実行中のサイクルを停止してください'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : ホストのウェブカメラ、タイムラプス、余分なサービスを停止し、電源と SD カードを確認してから、ファームウェアを再起動してください。同じ箇所で再発する場合は、速度またはマイクロステップを下げてください。
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "ノズルとベッドの間で紙が軽く引っかかったら止めます。"
   Stop with an emergency stop?: '緊急停止で停止しますか？'
   Stopped: 停止しました
   Stopped between Hub and Toolhead: ハブとツールヘッドの間で停止
@@ -5834,6 +5851,7 @@ translations:
   Z Offset by Material: "素材別 Z-Offset"
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : "素材別 Z-Offset はここではオフですが、プリンター側ではまだオンだったため、このオフセットには素材の分が含まれています。プリンター側でもオフにしました。もう一度保存をタップするとプローブに保存します。"
+  Z POSITION: "Z 位置"
   Z Probe: Zプローブ
   Z Range: Z 範囲
   Z Tilt Adjust...: Zチルト調整中...
@@ -5883,12 +5901,18 @@ translations:
   about {} min left · you can leave: 残り約{}分 · 離れてかまいません
   accelerometer: 加速度センサー
   all done: すべて完了
+  about {} mm above where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 上"
+  about {} mm below where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 下"
   already loaded: '装填済み'
   assign without adding to Spoolman: Spoolmanに追加せずに割り当て
+  at last time’s drag point: "前回の引っかかり位置"
   attempt {}: '試行 {}'
   auto: 自動
   automatic: '自動'
   bed: ベッド
+  bed further below: "ベッドはさらに下"
+  'bed: distance unknown': "ベッド：距離不明"
+  'bed: distance unknown until the paper drags': "ベッド：紙が引っかかるまで距離不明"
   buffer|Neutral: 中央
   busy: 'ビジー状態'
   by: '作成者:'
@@ -5906,6 +5930,8 @@ translations:
   disabled: 無効
   done: '完了'
   done at {} · {}%: "{} に完了 · {}%"
+  down {} from start: "開始位置から {} 下"
+  down {} mm from start: "開始位置から {} mm 下"
   drying: 乾燥中
   e.g. Jet Black: 例：ジェットブラック
   e.g. NAME=my_var VALUE=123: '例: NAME=my_var VALUE=123'
@@ -5917,6 +5943,9 @@ translations:
   enable: 有効化
   enabled: 有効
   error: エラー
+  estimated bed: "推定ベッド"
+  estimated bed is further below: "推定ベッドはさらに下にあります"
+  estimated bed, from your last calibration: "推定ベッド（前回のキャリブレーションより）"
   every {} days: "{}日ごと"
   exact match: '完全一致'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: 同じ素材と同じ色。material: 同じ素材。next: 準備済みの任意のスロット (別の素材でも可)'
@@ -5982,6 +6011,8 @@ translations:
   over memory budget: メモリ予算超過
   paper test: '紙テスト'
   passive: パッシブ
+  past last time: "前回を超過"
+  past last time’s position: "前回の位置を超過"
   preparing: 準備中
   printer default: プリンター既定
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"
@@ -5993,10 +6024,12 @@ translations:
   required: 必須
   reset at {} h: '{} 時間時点でリセット'
   runs on its own: 自動で進む
+  right where the paper dragged last time: "前回紙が引っかかった位置ちょうど"
   set manually: '手動設定'
   similar color: 近い色
   sleep {} min: '{}分でスリープ'
   slots): スロット)
+  start position: "開始位置"
   started: 開始
   steppers: ステッパー
   sweeping: 測定中
@@ -6018,6 +6051,8 @@ translations:
   this week: 今週
   too slow: 遅すぎ
   tool(s): ツール
+  up {} from start: "開始位置から {} 上"
+  up {} mm from start: "開始位置から {} mm 上"
   used: 使用
   v%s available: v%s が利用可能です
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s には %s 用のビルドがないため、ここにはインストールできません。より新しいリリースがある更新チャンネルを選んでください。
@@ -6143,6 +6178,8 @@ translations:
   '{} min': '{} 分'
   '{} min ago': '{}分前'
   '{} missing': '未検出 {} 件'
+  '{} mm above last time': "前回より {} mm 上"
+  '{} mm below last time': "前回より {} mm 下"
   '{} more taps to {} beta features': あと{}回タップでベータ機能を{}
   '{} needs the HelixPrint plugin. Printing original file.': '{} には HelixPrint プラグインが必要です。元のファイルを印刷します。'
   '{} new': '新規 {} 件'
@@ -6189,6 +6226,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: フィラメントが装填されていません。'
   "{}'s nozzle is still heating": '{}のノズルはまだ加熱中です'
   '{}, {}': '{}、{}'
+  '{}/{} · needs you': "{}/{} · 操作が必要"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: タグが示す Spoolman スプール #{} は存在しません'
   '{}: {} at {}°C': '{}: {}（{}°C）'
   '{}:{:02} elapsed': 経過 {}:{:02}

@@ -509,7 +509,7 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
     REQUIRE(p.show(lv_screen_active()));
     settle();
     p.update_z_position(0.2f);
-    CHECK(text("z_position_display") == "Z: 0.200");
+    CHECK(text("z_position_display") == "0.200");
     p.on_calibration_result(false, "probe failed");
     settle();
     CHECK(text("error_message") == "probe failed");
@@ -518,7 +518,7 @@ TEST_CASE_METHOD(DestroyOnCloseFixture,
 
     REQUIRE(p.show(lv_screen_active()));
     settle();
-    CHECK(text("z_position_display") == "Z: 0.000");
+    CHECK(text("z_position_display") == "0.000");
     CHECK(text("error_message") == "An error occurred during calibration.");
     NavigationManager::instance().go_back();
     settle();

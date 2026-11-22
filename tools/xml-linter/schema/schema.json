@@ -1964,7 +1964,16 @@
     },
     "z_offset_indicator": {
       "attributes": {
+        "mode": {
+          "type": "string"
+        },
         "bind_microns": {
+          "type": "string"
+        },
+        "bind_step": {
+          "type": "string"
+        },
+        "bind_estimate": {
           "type": "string"
         }
       },
@@ -5049,6 +5058,40 @@
     "z_tune_indicator_w_micro",
     "z_tune_indicator_w_small",
     "z_tune_indicator_w_tiny",
-    "z_tune_indicator_w_xlarge"
+    "z_tune_indicator_w_xlarge",
+    "zo_ctrl_gap",
+    "zo_ctrl_h",
+    "zo_ctrl_radius",
+    "zo_ctrl_w",
+    "zo_fig_gap",
+    "zo_fig_pad",
+    "zo_fig_pad_top",
+    "zo_fig_radius",
+    "zo_fig_w",
+    "zo_gap_main",
+    "zo_gap_sec",
+    "zo_head_box",
+    "zo_m_btn_h",
+    "zo_m_col_gap",
+    "zo_m_col_w",
+    "zo_m_gap",
+    "zo_m_pad_h",
+    "zo_m_pad_v",
+    "zo_m_radius",
+    "zo_m_step_gap",
+    "zo_m_step_radius",
+    "zo_m_tape_w",
+    "zo_m_z_gap",
+    "zo_pad_bottom",
+    "zo_pad_h",
+    "zo_pad_top",
+    "zo_saved_drop",
+    "zo_saved_gap",
+    "zo_step_border",
+    "zo_step_gap",
+    "zo_step_h",
+    "zo_step_radius",
+    "zo_unit_drop",
+    "zo_unit_gap"
   ]
 }

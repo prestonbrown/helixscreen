@@ -11,6 +11,7 @@
 #include "lvgl/lvgl.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
+#include "src/ui/calibration/z_offset_tape.h"
 #include "subject_managed_panel.h"
 #include "z_offset_utils.h"
 
@@ -143,14 +144,19 @@ class ZOffsetCalibrationPanel : public OverlayBase {
         api_ = api;
     }
 
+    /// How a guided run's step ended.
+    enum class RunEnd {
+        Accepted, ///< Continue after ACCEPT answered; z is the accepted position
+        Skipped,  ///< the owner chose Skip this step
+        Left      ///< closed without accepting or skipping
+    };
+    using RunDone = std::function<void(RunEnd end, float z, helix::ZOffsetCalibrationStrategy)>;
+
     /// Open for a guided calibration run. Accept only stages the result (ACCEPT,
     /// no SAVE_CONFIG: the run saves everything at once) and Continue returns to
-    /// the run. @p on_done runs once on the main thread: with true and the
-    /// accepted Z position, or with false when the owner leaves without accepting.
-    void open_for_run(
-        helix::IMoonrakerAPI* api,
-        std::function<void(bool accepted, float z, helix::ZOffsetCalibrationStrategy strategy)>
-            on_done);
+    /// the run. @p on_done runs once on the main thread with how the step ended.
+    /// @p step_index (0-based) and @p step_count place it in the run's header.
+    void open_for_run(helix::IMoonrakerAPI* api, int step_index, int step_count, RunDone on_done);
     /// The guided run stops while this panel serves it: a manual probe ends with
     /// ABORT (nothing is sent when none is running) and the panel closes.
     void abort_run();
@@ -264,11 +270,52 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     char error_text_buf_[512] = {0};
 
     /// Set while the panel serves a guided run; see open_for_run().
-    std::function<void(bool, float, helix::ZOffsetCalibrationStrategy)> run_done_;
+    RunDone run_done_;
     /// 1 while the panel serves a guided run.
     helix::Subject run_mode_subject_{};
+    /// 1 outside a guided run: the footer hides Skip there.
+    helix::Subject not_run_subject_{};
+    helix::Subject back_text_subject_{};
+    char back_text_buf_[32] = {0};
+    // The run's header: where this step sits in the run.
+    helix::Subject run_step_count_subject_{};
+    helix::Subject run_step_current_subject_{};
+    helix::Subject run_subtitle_subject_{};
+    helix::Subject run_subtitle_short_subject_{};
+    char run_subtitle_buf_[64] = {0};
+    char run_subtitle_short_buf_[32] = {0};
+    int run_step_index_ = 0;
+    int run_step_count_ = 1;
+    /// Texts this panel formats from translated strings, written again on a
+    /// live language switch.
+    void render_translated_texts();
+    ObserverGuard language_observer_;
+
+    // The paper test's tape: the selected step (an index into ztape::kStepMicrons),
+    // the estimated drag point in microns (ztape::kNoEstimate for none), and the
+    // line under the readout in two lengths with its tone (ztape::GuideTone).
+    helix::Subject step_subject_{};
+    helix::Subject estimate_subject_{};
+    helix::Subject guide_text_subject_{};
+    helix::Subject guide_short_subject_{};
+    helix::Subject guide_tone_subject_{};
+    char guide_text_buf_[128] = {0};
+    char guide_short_buf_[64] = {0};
+    /// Where the estimate comes from, set by the calibrate command sent.
+    helix::ztape::EstimateSource estimate_source_ = helix::ztape::EstimateSource::None;
+    /// The first Z of this adjusting session, and whether this panel's own
+    /// calibrate command put the nozzle there.
+    std::optional<int> session_start_microns_;
+    bool session_from_probe_ = false;
+    void begin_adjust_session(bool from_probe);
+    void refresh_guide();
+    void set_run_mode(bool on);
+    void handle_step_pick(int index);
+    void handle_nudge(int direction);
+    void handle_back_clicked();
+    void handle_skip_clicked();
     /// Tell the run how the step ended and leave run mode.
-    void finish_run(bool accepted);
+    void finish_run(RunEnd end);
 
     // Current Z position during calibration
     float current_z_ = 0.0f;

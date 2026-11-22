@@ -4,22 +4,92 @@
 <!-- Z-Offset Calibration Panel -->
 <!-- Interactive calibration using PROBE_CALIBRATE, TESTZ, ACCEPT, ABORT commands -->
 <component>
+  <!-- Sizes are the design canvas's (WizardHandsOn 800x480, ZOffsetPortrait
+       480x800, ZOffsetMicro 480x272; the zo_m_ ones are the micro screen's). -->
+  <consts>
+    <px name="zo_pad_top" value="12"/>
+    <px name="zo_pad_bottom" value="8"/>
+    <px name="zo_pad_h" value="16"/>
+    <px name="zo_gap_main" value="16"/>
+    <px name="zo_gap_sec" value="12"/>
+    <px name="zo_fig_w" value="300"/>
+    <px name="zo_fig_pad_top" value="8"/>
+    <px name="zo_fig_pad" value="10"/>
+    <px name="zo_fig_gap" value="6"/>
+    <px name="zo_fig_radius" value="10"/>
+    <px name="zo_unit_gap" value="6"/>
+    <px name="zo_unit_drop" value="6"/>
+    <px name="zo_saved_drop" value="6"/>
+    <px name="zo_saved_gap" value="2"/>
+    <px name="zo_ctrl_w" value="190"/>
+    <px name="zo_ctrl_gap" value="6"/>
+    <px name="zo_ctrl_h" value="52"/>
+    <px name="zo_ctrl_radius" value="10"/>
+    <px name="zo_head_box" value="64"/>
+    <px name="zo_step_gap" value="8"/>
+    <px name="zo_step_h" value="52"/>
+    <px name="zo_step_radius" value="8"/>
+    <px name="zo_step_border" value="2"/>
+    <px name="zo_m_pad_v" value="6"/>
+    <px name="zo_m_pad_h" value="8"/>
+    <px name="zo_m_gap" value="8"/>
+    <px name="zo_m_tape_w" value="128"/>
+    <px name="zo_m_radius" value="8"/>
+    <px name="zo_m_col_w" value="132"/>
+    <px name="zo_m_col_gap" value="3"/>
+    <px name="zo_m_z_gap" value="6"/>
+    <px name="zo_m_btn_h" value="44"/>
+    <px name="zo_m_step_gap" value="4"/>
+    <px name="zo_m_step_radius" value="6"/>
+  </consts>
+  <styles>
+    <style name="zo_w_transient" width="#overlay_width_transient"/>
+    <style name="zo_w_full" width="100%"/>
+    <style name="zo_tone_neutral" text_color="#text_subtle"/>
+    <style name="zo_tone_above" text_color="#secondary"/>
+    <style name="zo_tone_past" text_color="#warning"/>
+    <style name="zo_body_row" layout="flex" flex_flow="row"/>
+    <style name="zo_body_col" layout="flex" flex_flow="column"/>
+    <style name="zo_fig_side" width="#zo_fig_w" height="100%"/>
+    <style name="zo_fig_top" width="100%" height="0" flex_grow="1"/>
+    <style name="zo_sec_side" width="0" height="100%" flex_grow="1"/>
+    <style name="zo_sec_below" width="100%" height="content" flex_grow="0"/>
+    <style name="zo_step"
+           radius="#zo_step_radius" border_width="#zo_step_border" border_color="#elevated_bg" border_opa="255"
+           text_font="#cal_font_button"/>
+    <style name="zo_step_micro" radius="#zo_m_step_radius"/>
+    <style name="zo_step_on" bg_color="#primary" bg_opa="255" border_width="0" text_font="#cal_font_name_bold"/>
+  </styles>
   <view name="calibration_zoffset_panel"
-        extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
-        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+        extends="lv_obj" height="100%" align="right_mid" style_bg_opa="255" style_bg_color="#screen_bg"
+        style_pad_all="0" style_pad_gap="0" style_border_width="0" scrollable="false" flex_flow="column">
     <!-- Header Bar -->
-    <header_bar name="overlay_header" title="Z-Offset Calibration"/>
+    <!-- On its own the navigation sizes it; in a guided run it covers the
+         whole screen like the run's pages (create() leaves its width alone). -->
+    <bind_style name="zo_w_transient" subject="zoffset_cal_run_mode" ref_value="0"/>
+    <bind_style name="zo_w_full" subject="zoffset_cal_run_mode" ref_value="1"/>
+    <header_bar name="overlay_header" title="Z-Offset Calibration">
+      <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
+    </header_bar>
+    <!-- Inside a guided run the wizard's own header names the step and its place. -->
+    <calibration_wizard_header name="zo_run_header"
+                               title="Z offset" subtitle_subject="zoffset_run_subtitle" subtitle_color="#warning"
+                               subtitle_icon="hand" subtitle_compact="1"
+                               subtitle_compact_subject="zoffset_run_subtitle_short" progress="2"
+                               segment_style="seg_on_warn" step_count_subject="zoffset_run_step_count"
+                               step_current_subject="zoffset_run_step_current">
+      <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="0"/>
+    </calibration_wizard_header>
     <!-- Content Area -->
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_lg"
-            scrollable="false">
+            width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- ================================================================== -->
       <!-- STATE: IDLE (0) - Instructions and Start Button -->
       <!-- ================================================================== -->
       <lv_obj name="state_idle"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="0"/>
         <!-- Instructions -->
@@ -81,7 +151,7 @@
       <!-- STATE: PROBING (1) - Waiting for probe to complete -->
       <!-- ================================================================== -->
       <lv_obj name="state_probing"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="1"/>
         <spinner size="lg"/>
@@ -93,107 +163,326 @@
         </ui_button>
       </lv_obj>
       <!-- ================================================================== -->
-      <!-- STATE: ADJUSTING (2) - Interactive Z adjustment -->
+      <!-- STATE: ADJUSTING (2) - the paper test: a tape diagram, the Z readout,
+           Raise / Lower around what moves in Z, and four step sizes. The 480x272
+           screen packs the same parts into three tight columns. -->
       <!-- ================================================================== -->
       <lv_obj name="state_adjusting"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="start"
-              style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
+              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="2"/>
-        <!-- Z Position + Indicator side by side -->
-        <lv_obj width="100%"
-                flex_grow="1" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <!-- Z Position Display (left) -->
-          <lv_obj height="100%"
-                  flex_grow="1" style_bg_color="#section_bg_color" style_radius="#border_radius"
-                  style_pad_all="#space_md" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
-            <!-- Saved Z-Offset (left side) -->
-            <lv_obj height="content"
-                    flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-                    style_pad_gap="#space_xs" scrollable="false">
-              <text_small text="Saved Z-Offset" style_text_color="#text_muted"/>
-              <text_heading name="saved_z_offset_display" bind_text="zoffset_saved_text"/>
+        <if cond="ui_breakpoint eq 0">
+          <lv_obj name="zo_adjust_body"
+                  width="100%" flex_grow="1" style_pad_ver="#zo_m_pad_v" style_pad_hor="#zo_m_pad_h"
+                  style_pad_gap="#zo_m_gap" flex_flow="row" scrollable="false">
+            <lv_obj width="#zo_m_tape_w"
+                    height="100%" style_pad_all="0" style_bg_color="#card_bg" style_bg_opa="255"
+                    style_radius="#zo_m_radius" style_border_width="0" style_clip_corner="true" scrollable="false">
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="100%" height="100%" mode="tape" bind_step="zoffset_step"
+                                  bind_estimate="zoffset_estimate"/>
             </lv_obj>
-            <!-- Vertical divider -->
-            <divider_vertical height="80%"/>
-            <!-- Current Z Position (right side) -->
-            <lv_obj height="content"
-                    flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-                    style_pad_gap="#space_xs" scrollable="false">
-              <text_small text="Current Z Position" style_text_color="#text_muted"/>
-              <text_heading name="z_position_display" bind_text="zoffset_z_text"/>
+            <lv_obj width="#zo_m_col_w"
+                    height="100%" style_pad_all="0" style_pad_gap="#zo_m_col_gap" flex_flow="column" scrollable="false">
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_gap="#zo_m_z_gap" flex_flow="row" scrollable="false">
+                <lv_label text="Z" style_text_font="#font_xl" style_text_color="#text"/>
+                <lv_label name="z_position_display"
+                          bind_text="zoffset_z_text" style_text_font="#font_xl" style_text_color="#text"/>
+              </lv_obj>
+              <lv_label name="zo_guide"
+                        width="100%" bind_text="zoffset_guide_short" long_mode="wrap" style_text_font="#cal_font_detail">
+                <bind_style name="zo_tone_neutral" subject="zoffset_guide_tone" ref_value="0"/>
+                <bind_style name="zo_tone_above" subject="zoffset_guide_tone" ref_value="1"/>
+                <bind_style name="zo_tone_past" subject="zoffset_guide_tone" ref_value="2"/>
+              </lv_label>
+              <ui_button name="btn_z_raise_nozzle"
+                         width="100%" height="#zo_m_btn_h" variant="secondary" icon="chevron_up" text="Raise nozzle"
+                         style_radius="#zo_m_radius" style_bg_color="#elevated_bg" style_text_font="#cal_font_button">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_zoffset_nozzle_up"/>
+              </ui_button>
+              <ui_button name="btn_z_raise_bed"
+                         width="100%" height="#zo_m_btn_h" variant="secondary" icon="arrow_expand_up" text="Raise bed"
+                         style_radius="#zo_m_radius" style_bg_color="#elevated_bg" style_text_font="#cal_font_button">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                <event_cb trigger="clicked" callback="on_zoffset_nozzle_down"/>
+              </ui_button>
+              <lv_obj width="100%"
+                      height="0" flex_grow="1" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                      style_flex_cross_place="center" style_flex_track_place="center" scrollable="false">
+                <toolhead_view width="100%" height="100%">
+                  <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                </toolhead_view>
+                <icon src="bed" size="sm" variant="secondary">
+                  <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                </icon>
+              </lv_obj>
+              <ui_button name="btn_z_lower_nozzle"
+                         width="100%" height="#zo_m_btn_h" variant="secondary" icon="chevron_down" text="Lower nozzle"
+                         style_radius="#zo_m_radius" style_bg_color="#elevated_bg" style_text_font="#cal_font_button">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                <event_cb trigger="clicked" callback="on_zoffset_nozzle_down"/>
+              </ui_button>
+              <ui_button name="btn_z_lower_bed"
+                         width="100%" height="#zo_m_btn_h" variant="secondary" icon="arrow_expand_down" text="Lower bed"
+                         style_radius="#zo_m_radius" style_bg_color="#elevated_bg" style_text_font="#cal_font_button">
+                <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                <event_cb trigger="clicked" callback="on_zoffset_nozzle_up"/>
+              </ui_button>
+            </lv_obj>
+            <lv_obj width="0"
+                    height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#zo_m_step_gap" flex_flow="column"
+                    scrollable="false">
+              <lv_label text="STEP"
+                        style_text_font="#cal_font_detail" style_text_color="#text_muted" style_text_letter_space="1"/>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_gap="#zo_m_step_gap" flex_flow="row"
+                      scrollable="false">
+                <ui_button name="zo_step_0" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.01">
+                  <style name="zo_step"/>
+                  <style name="zo_step_micro"/>
+                  <style name="zo_step_on" selector="checked"/>
+                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="0"/>
+                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="0"/>
+                </ui_button>
+                <ui_button name="zo_step_1" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.05">
+                  <style name="zo_step"/>
+                  <style name="zo_step_micro"/>
+                  <style name="zo_step_on" selector="checked"/>
+                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="1"/>
+                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="1"/>
+                </ui_button>
+              </lv_obj>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_gap="#zo_m_step_gap" flex_flow="row"
+                      scrollable="false">
+                <ui_button name="zo_step_2" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="0.10">
+                  <style name="zo_step"/>
+                  <style name="zo_step_micro"/>
+                  <style name="zo_step_on" selector="checked"/>
+                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="2"/>
+                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="2"/>
+                </ui_button>
+                <ui_button name="zo_step_3" width="0" height="#zo_m_btn_h" flex_grow="1" variant="outline" text="1 mm">
+                  <style name="zo_step"/>
+                  <style name="zo_step_micro"/>
+                  <style name="zo_step_on" selector="checked"/>
+                  <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="3"/>
+                  <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="3"/>
+                </ui_button>
+              </lv_obj>
+              <lv_obj width="100%" height="0" flex_grow="1" style_pad_all="0" scrollable="false"/>
+              <lv_label width="100%"
+                        text="Big steps first, then 0.01." long_mode="wrap" wrap_at_spaces="true"
+                        style_text_font="#cal_font_detail" style_text_color="#text_subtle">
+                <bind_flag_if_eq subject="zoffset_step" flag="hidden" ref_value="3"/>
+              </lv_label>
+              <lv_label width="100%"
+                        text="1 mm steps can press the nozzle into the bed." long_mode="wrap" wrap_at_spaces="true"
+                        style_text_font="#cal_font_detail" style_text_color="#warning">
+                <bind_flag_if_not_eq subject="zoffset_step" flag="hidden" ref_value="3"/>
+              </lv_label>
             </lv_obj>
           </lv_obj>
-          <!-- Vertical meter indicator (right) -->
-          <z_offset_indicator name="z_offset_indicator" height="100%" flex_grow="1"/>
-        </lv_obj>
-        <!-- Instructions -->
-        <text_small width="100%"
-                    text="Move paper back and forth while adjusting. Stop when paper catches slightly but still slides."
-                    style_text_align="center"/>
-        <!-- Adjustment Buttons Grid (Mainsail-style: top=farther, bottom=closer) -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-          <!-- Row 1: Farther from bed (positive Z) — smallest to largest -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-            <text_small width="60" text="Farther"/>
-            <ui_button name="btn_z_farther_0_005" flex_grow="1" text="+.005">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.005"/>
-            </ui_button>
-            <ui_button name="btn_z_farther_0_01" flex_grow="1" text="+.01">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.01"/>
-            </ui_button>
-            <ui_button name="btn_z_farther_0_05" flex_grow="1" text="+.05">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.05"/>
-            </ui_button>
-            <ui_button name="btn_z_farther_0_1" flex_grow="1" text="+.1">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="0.1"/>
-            </ui_button>
-            <ui_button name="btn_z_farther_1" flex_grow="1" text="+1">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="1"/>
-            </ui_button>
+          <else/>
+          <!-- 800x480: diagram left, readout and controls right. Portrait: the
+               diagram on top, the same parts under it. -->
+          <lv_obj name="zo_adjust_body"
+                  width="100%" flex_grow="1" style_pad_top="#zo_pad_top" style_pad_bottom="#zo_pad_bottom"
+                  style_pad_hor="#zo_pad_h" style_pad_gap="#zo_gap_main" scrollable="false">
+            <bind_style name="zo_body_row" subject="ui_is_portrait" ref_value="0"/>
+            <bind_style name="zo_body_col" subject="ui_is_portrait" ref_value="1"/>
+            <lv_obj name="zo_figure"
+                    style_pad_top="#zo_fig_pad_top" style_pad_bottom="#zo_fig_pad" style_pad_hor="#zo_fig_pad"
+                    style_pad_gap="#zo_fig_gap" style_bg_color="#card_bg" style_bg_opa="255" style_border_width="1"
+                    style_border_color="#border" style_border_opa="255" style_radius="#zo_fig_radius" flex_flow="column"
+                    style_flex_cross_place="center" scrollable="false">
+              <bind_style name="zo_fig_side" subject="ui_is_portrait" ref_value="0"/>
+              <bind_style name="zo_fig_top" subject="ui_is_portrait" ref_value="1"/>
+              <z_offset_indicator name="z_offset_indicator"
+                                  width="100%" height="0" flex_grow="1" mode="tape" bind_step="zoffset_step"
+                                  bind_estimate="zoffset_estimate"/>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
+                <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="1"/>
+                <lv_label width="100%"
+                          text="Slide the paper back and forth." long_mode="wrap" style_text_font="#cal_font_detail"
+                          style_text_color="#text_muted" style_text_align="center"/>
+                <lv_label width="100%"
+                          text="Stop when the paper just lightly drags between the toolhead nozzle and the bed."
+                          long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#text_muted"
+                          style_text_align="center"/>
+              </lv_obj>
+              <lv_label width="100%"
+                        text="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."
+                        long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#text_muted"
+                        style_text_align="center">
+                <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
+              </lv_label>
+            </lv_obj>
+            <lv_obj name="zo_section"
+                    style_pad_all="0" style_pad_gap="#zo_gap_sec" flex_flow="column" scrollable="false">
+              <bind_style name="zo_sec_side" subject="ui_is_portrait" ref_value="0"/>
+              <bind_style name="zo_sec_below" subject="ui_is_portrait" ref_value="1"/>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="space_between"
+                      style_flex_cross_place="end" scrollable="false">
+                <lv_obj width="0"
+                        height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column"
+                        scrollable="false">
+                  <lv_label text="Z POSITION"
+                            style_text_font="#cal_font_detail" style_text_color="#text_muted"
+                            style_text_letter_space="1"/>
+                  <lv_obj width="content"
+                          height="content" style_pad_all="0" style_pad_gap="#zo_unit_gap" flex_flow="row"
+                          style_flex_cross_place="end" scrollable="false">
+                    <lv_label name="z_position_display"
+                              bind_text="zoffset_z_text" style_text_font="#font_display" style_text_color="#text"/>
+                    <lv_label text="mm"
+                              style_text_font="#font_body" style_text_color="#text_muted"
+                              style_pad_bottom="#zo_unit_drop"/>
+                  </lv_obj>
+                  <lv_label name="zo_guide"
+                            width="100%" bind_text="zoffset_guide_text" long_mode="wrap"
+                            style_text_font="#cal_font_detail">
+                    <bind_style name="zo_tone_neutral" subject="zoffset_guide_tone" ref_value="0"/>
+                    <bind_style name="zo_tone_above" subject="zoffset_guide_tone" ref_value="1"/>
+                    <bind_style name="zo_tone_past" subject="zoffset_guide_tone" ref_value="2"/>
+                  </lv_label>
+                </lv_obj>
+                <lv_obj width="content"
+                        height="content" style_pad_all="0" style_pad_bottom="#zo_saved_drop"
+                        style_pad_gap="#zo_saved_gap" flex_flow="column" style_flex_cross_place="end" scrollable="false">
+                  <lv_label text="Saved offset" style_text_font="#cal_font_detail" style_text_color="#text_muted"/>
+                  <lv_label name="saved_z_offset_display"
+                            bind_text="zoffset_saved_text" style_text_font="#cal_font_mono" style_text_color="#text"/>
+                </lv_obj>
+              </lv_obj>
+              <lv_obj width="100%"
+                      height="content" style_pad_all="0" style_pad_gap="#zo_gap_sec" flex_flow="row" scrollable="false">
+                <lv_obj width="#zo_ctrl_w"
+                        height="content" style_pad_all="0" style_pad_gap="#zo_ctrl_gap" flex_flow="column"
+                        scrollable="false">
+                  <ui_button name="btn_z_raise_nozzle"
+                             width="100%" height="#zo_ctrl_h" variant="secondary" icon="chevron_up" text="Raise nozzle"
+                             style_radius="#zo_ctrl_radius" style_bg_color="#elevated_bg"
+                             style_text_font="#cal_font_button">
+                    <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                    <event_cb trigger="clicked" callback="on_zoffset_nozzle_up"/>
+                  </ui_button>
+                  <ui_button name="btn_z_raise_bed"
+                             width="100%" height="#zo_ctrl_h" variant="secondary" icon="arrow_expand_up"
+                             text="Raise bed" style_radius="#zo_ctrl_radius" style_bg_color="#elevated_bg"
+                             style_text_font="#cal_font_button">
+                    <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                    <event_cb trigger="clicked" callback="on_zoffset_nozzle_down"/>
+                  </ui_button>
+                  <lv_obj width="100%"
+                          height="#zo_head_box" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                          style_flex_cross_place="center" style_flex_track_place="center" scrollable="false">
+                    <toolhead_view width="100%" height="100%">
+                      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                    </toolhead_view>
+                    <icon src="bed" size="lg" variant="secondary">
+                      <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                    </icon>
+                  </lv_obj>
+                  <ui_button name="btn_z_lower_nozzle"
+                             width="100%" height="#zo_ctrl_h" variant="secondary" icon="chevron_down"
+                             text="Lower nozzle" style_radius="#zo_ctrl_radius" style_bg_color="#elevated_bg"
+                             style_text_font="#cal_font_button">
+                    <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="1"/>
+                    <event_cb trigger="clicked" callback="on_zoffset_nozzle_down"/>
+                  </ui_button>
+                  <ui_button name="btn_z_lower_bed"
+                             width="100%" height="#zo_ctrl_h" variant="secondary" icon="arrow_expand_down"
+                             text="Lower bed" style_radius="#zo_ctrl_radius" style_bg_color="#elevated_bg"
+                             style_text_font="#cal_font_button">
+                    <bind_flag_if_eq subject="printer_bed_moves" flag="hidden" ref_value="0"/>
+                    <event_cb trigger="clicked" callback="on_zoffset_nozzle_up"/>
+                  </ui_button>
+                </lv_obj>
+                <lv_obj width="0"
+                        height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#zo_step_gap" flex_flow="column"
+                        scrollable="false">
+                  <lv_label text="STEP"
+                            style_text_font="#cal_font_detail" style_text_color="#text_muted"
+                            style_text_letter_space="1"/>
+                  <lv_obj width="100%"
+                          height="content" style_pad_all="0" style_pad_gap="#zo_step_gap" flex_flow="row"
+                          scrollable="false">
+                    <ui_button name="zo_step_0"
+                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.01">
+                      <style name="zo_step"/>
+                      <style name="zo_step_on" selector="checked"/>
+                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="0"/>
+                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="0"/>
+                    </ui_button>
+                    <ui_button name="zo_step_1"
+                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.05">
+                      <style name="zo_step"/>
+                      <style name="zo_step_on" selector="checked"/>
+                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="1"/>
+                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="1"/>
+                    </ui_button>
+                  </lv_obj>
+                  <lv_obj width="100%"
+                          height="content" style_pad_all="0" style_pad_gap="#zo_step_gap" flex_flow="row"
+                          scrollable="false">
+                    <ui_button name="zo_step_2"
+                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="0.10">
+                      <style name="zo_step"/>
+                      <style name="zo_step_on" selector="checked"/>
+                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="2"/>
+                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="2"/>
+                    </ui_button>
+                    <ui_button name="zo_step_3"
+                               width="0" height="#zo_step_h" flex_grow="1" variant="outline" text="1 mm">
+                      <style name="zo_step"/>
+                      <style name="zo_step_on" selector="checked"/>
+                      <bind_state_if_eq subject="zoffset_step" state="checked" ref_value="3"/>
+                      <event_cb trigger="clicked" callback="on_zoffset_step_pick" user_data="3"/>
+                    </ui_button>
+                  </lv_obj>
+                  <lv_label width="100%"
+                            text="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#text_subtle">
+                    <bind_flag_if cond="zoffset_step eq 3 or ui_is_portrait eq 1" flag="hidden"/>
+                  </lv_label>
+                  <lv_label width="100%"
+                            text="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#warning">
+                    <bind_flag_if cond="zoffset_step ne 3 or ui_is_portrait eq 1" flag="hidden"/>
+                  </lv_label>
+                  <lv_label width="100%"
+                            text="Big steps first, then 0.01. Never force the nozzle into the bed." long_mode="wrap"
+                            wrap_at_spaces="true" style_text_font="#cal_font_detail" style_text_color="#text_subtle">
+                    <bind_flag_if cond="zoffset_step eq 3 or ui_is_portrait eq 0" flag="hidden"/>
+                  </lv_label>
+                  <lv_label width="100%"
+                            text="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."
+                            long_mode="wrap" wrap_at_spaces="true" style_text_font="#cal_font_detail"
+                            style_text_color="#warning">
+                    <bind_flag_if cond="zoffset_step ne 3 or ui_is_portrait eq 0" flag="hidden"/>
+                  </lv_label>
+                </lv_obj>
+              </lv_obj>
+            </lv_obj>
           </lv_obj>
-          <!-- Row 2: Closer to bed (negative Z) — smallest to largest magnitude -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                  style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-            <text_small width="60" text="Closer"/>
-            <ui_button name="btn_z_closer_0_005" flex_grow="1" text="-.005">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.005"/>
-            </ui_button>
-            <ui_button name="btn_z_closer_0_01" flex_grow="1" text="-.01">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.01"/>
-            </ui_button>
-            <ui_button name="btn_z_closer_0_05" flex_grow="1" text="-.05">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.05"/>
-            </ui_button>
-            <ui_button name="btn_z_closer_0_1" flex_grow="1" text="-.1">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-0.1"/>
-            </ui_button>
-            <ui_button name="btn_z_closer_1" flex_grow="1" text="-1">
-              <event_cb trigger="clicked" callback="on_zoffset_z_adjust" user_data="-1"/>
-            </ui_button>
-          </lv_obj>
-        </lv_obj>
-        <!-- Accept / Abort Buttons -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                style_pad_gap="#space_md" scrollable="false">
-          <ui_button name="btn_abort" flex_grow="1" text="Abort" variant="danger">
-            <event_cb trigger="clicked" callback="on_zoffset_abort_clicked"/>
-          </ui_button>
-          <ui_button name="btn_accept" flex_grow="2" text="Accept" variant="success">
-            <event_cb trigger="clicked" callback="on_zoffset_accept_clicked"/>
-          </ui_button>
-        </lv_obj>
+        </if>
+        <calibration_wizard_footer name="zo_footer"
+                                   back_text="Back" back_callback="on_zoffset_back_clicked" back_name="btn_abort"
+                                   back_subject="zoffset_back_text" skip_callback="on_zoffset_skip_clicked"
+                                   skip_hide_subject="zoffset_not_run" primary_text="Paper drags: done"
+                                   primary_callback="on_zoffset_accept_clicked" primary_name="btn_accept"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: SAVING (3) - Saving configuration -->
       <!-- ================================================================== -->
       <lv_obj name="state_saving"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="3"/>
         <spinner size="lg"/>
@@ -211,7 +500,7 @@
       <!-- STATE: COMPLETE (4) - Calibration finished -->
       <!-- ================================================================== -->
       <lv_obj name="state_complete"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="4"/>
@@ -243,7 +532,7 @@
       <!-- STATE: ERROR (5) - Something went wrong -->
       <!-- ================================================================== -->
       <lv_obj name="state_error"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="5"/>
@@ -266,7 +555,7 @@
       <!-- STATE: WARMING (6) - Bed warming before calibration -->
       <!-- ================================================================== -->
       <lv_obj name="state_warming"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
         <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="6"/>
         <spinner size="lg"/>
