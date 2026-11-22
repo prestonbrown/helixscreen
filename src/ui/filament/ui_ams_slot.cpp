@@ -538,6 +538,17 @@ static void evaluate_pulse_state(AmsSlotData* data) {
     }
 }
 
+bool helix::ui::slot_tool_badges_informative() {
+    // Tool changers: the badge repeats the toolhead label.
+    auto* backend = AmsState::instance().get_backend();
+    if (backend && backend->should_hide_slot_tool_badge())
+        return false;
+    // A tool feeding the lane of its own number only repeats the lane badge.
+    if (const auto info = AmsState::instance().system_info(0))
+        return helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots);
+    return true;
+}
+
 /**
  * @brief Update tool badge based on slot's mapped_tool value
  *
@@ -552,19 +563,9 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         return;
     }
 
-    // Tool changers: badge is redundant with toolhead label below
-    auto* backend = AmsState::instance().get_backend();
-    if (backend && backend->should_hide_slot_tool_badge()) {
+    if (!helix::ui::slot_tool_badges_informative()) {
         lv_obj_set_hidden(data->tool_badge_bg, true);
         return;
-    }
-
-    // A tool feeding the lane of its own number only repeats the lane badge.
-    if (const auto info = AmsState::instance().system_info(0)) {
-        if (!helix::ui::tool_badges_add_information(info->tool_to_slot_map, info->total_slots)) {
-            lv_obj_set_hidden(data->tool_badge_bg, true);
-            return;
-        }
     }
 
     if (mapped_tool >= 0) {
