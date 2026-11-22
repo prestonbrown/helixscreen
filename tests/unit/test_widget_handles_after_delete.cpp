@@ -11,7 +11,7 @@
 #include "ui_bypass_spool_widget.h"
 #include "ui_effects.h"
 
-#include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -47,10 +47,12 @@ TEST_CASE_METHOD(LVGLTestFixture, "always-on-top chrome skips a widget that died
     remove_always_on_top(kept);
 }
 
-TEST_CASE_METHOD(LVGLTestFixture, "bypass spool visibility skips parts that died",
+// The captions extend text_body, which only XMLTestFixture registers.
+TEST_CASE_METHOD(XMLTestFixture, "bypass spool visibility skips parts that died",
                  "[widget_handles][ams]") {
     BypassSpoolWidgets w = bypass_spool_create(test_screen(), nullptr, nullptr);
     REQUIRE(w.valid());
+    REQUIRE(w.bypass_label != nullptr);
 
     lv_obj_delete(w.material_label);
     lv_obj_delete(w.box);
