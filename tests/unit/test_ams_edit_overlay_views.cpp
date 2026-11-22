@@ -5491,6 +5491,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
         {
             ScopedResolution res(disp, w, h);
             theme_manager_refresh_layout_constants(disp);
+            const int32_t touch_min = theme_manager_get_spacing("touch_target_min");
+            REQUIRE(touch_min > 0);
             auto& overlay = get_ams_edit_overlay();
             AmsEditOverlayViewTestAccess access(overlay);
             REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
@@ -5541,7 +5543,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
                 lv_obj_get_click_area(targets[i], &hit);
                 INFO("target " << i);
                 CHECK(area_within(hit, box));
-                CHECK(lv_area_get_height(&hit) >= 40);
+                // Each swatch and its hit reach make a finger-sized target.
+                CHECK(lv_area_get_width(&hit) >= touch_min);
+                CHECK(lv_area_get_height(&hit) >= touch_min);
                 // Neighbors on one line never share a pixel; a new line starts below.
                 if (i > 0) {
                     CHECK((hit.y1 == prev.y1 ? prev.x2 < hit.x1 : prev.y2 <= hit.y1 + 1));
@@ -5563,6 +5567,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             }
             lv_area_t last_box;
             lv_obj_get_coords(last, &last_box);
+            // Nothing reaches past the page's bottom: it never scrolls.
+            CHECK(last_box.y2 <= page_box.y2);
+            CHECK(lv_obj_get_scroll_bottom(page) <= 0);
             const int line = lv_obj_get_width(access.widget("btn_all_colors")) +
                              lv_obj_get_style_pad_row(row, LV_PART_MAIN);
             const int cap = std::atoi(lv_xml_get_const(
