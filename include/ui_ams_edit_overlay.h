@@ -55,9 +55,11 @@ namespace helix::ui {
  * working spool is the one in the lane (kModeEdit) or one going in
  * (kModeAssign, helix::spool_assign::screen_for_lane).
  *
- * The Filament screen is a cascading dropdown grid: Material family, Type,
- * Brand, Product (each list ends in a browse-the-catalog entry), then the
- * color dots, recents and the color page. Its edits, and the Details
+ * The Filament screen names the spool on one row: Brand, then Product for a
+ * catalog product (with its favorite star), or one Material list of precise
+ * types under Generic or "Other…" (each list ends in a browse-the-catalog
+ * entry; Brand leads with the favorites). Then the color dots, the swatches
+ * and the color page, and for a new spool the spool tiles. Its edits, and the Details
  * screen's, are held until the summary's Save. Lane Settings shows Feeds
  * Tool and Runout Backup, each only where the backend supports it.
  * Selection state lives in SpoolEditSelection; Save stages it into the
@@ -387,8 +389,9 @@ class AmsEditOverlay : public OverlayBase {
     /// One option's label and the value picking it stages.
     struct Option {
         std::string label;
-        std::string payload; ///< family / variant / brand / catalog id
-        bool more = false;   ///< the trailing "Browse catalog..." entry
+        std::string payload;    ///< family / variant / brand / catalog id
+        bool more = false;      ///< opens the catalog picker ("Browse catalog...")
+        bool favorites = false; ///< ... on its Favorites view (Brand's "Favorites")
     };
     std::vector<Option> material_options_;
     std::vector<Option> brand_options_;
@@ -633,6 +636,21 @@ class AmsEditOverlay : public OverlayBase {
     void handle_row_use(size_t row);
     /// A common spool tile: fill the form with its material and color.
     void handle_common_spool(size_t index);
+    /// The spool tile at @p slot (spool_tiles_): a favorite fills the form as
+    /// a catalog pick does, a common spool as handle_common_spool().
+    void handle_spool_tile(size_t slot);
+    /// Rebuild spool_tiles_ from the favorites and publish the tiles.
+    void refresh_spool_tiles();
+    /// The Filament row's star: 0 hidden (no catalog product), 1 not a
+    /// favorite, 2 a favorite ("ams_edit_star_state").
+    void update_star_state();
+    /// The star's tap: the selected product joins or leaves the favorites.
+    void handle_star_toggle();
+    helix::Subject star_state_subject_{};
+    helix::Subject has_favorites_subject_{}; ///< 1 while any tile is a favorite
+    /// A catalog product picked: family, variant, brand and product at once.
+    void apply_catalog_pick(const helix::printer::EffectiveFilament& ef);
+    std::vector<spool_assign::SpoolTile> spool_tiles_;
     void apply_size_chip(int chip, float remaining_g, float total_g);
     void handle_remaining_step(float delta_g);
     /// Assign without Spoolman, or without adding the spool to it.

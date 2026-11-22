@@ -119,6 +119,9 @@ class FilamentCatalogSelector {
     /// starred-products view that bypasses the Type dropdown). The sentinel
     /// string never matches a catalog or Spoolman brand.
     [[nodiscard]] static bool is_favorites_vendor(const std::string& vendor);
+    /// The Favorites pseudo-vendor, for configure()'s seed_vendor: the
+    /// selector then opens on the starred-products view.
+    [[nodiscard]] static const std::string& favorites_vendor();
     [[nodiscard]] std::string current_vendor() const;
     /// Selected Type-dropdown text: a material FAMILY heading ("PLA"), not
     /// necessarily a catalog type: a family collapses
