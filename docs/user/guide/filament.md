@@ -241,7 +241,8 @@ Spoolman is an optional filament-inventory server. Once it's connected, the AMS 
 
 - Spool name and material type shown per slot
 - Remaining filament weight shown
-- Tap a slot's **Select Spool**, or **Edit Spool** and the Spoolman button in its header, to assign a saved spool. See [Editing Filament Properties](#editing-filament-properties) and the [Slot Context Menu](#slot-context-menu)
+- Tap a slot's **Select Spool**, or **Edit Spool** and **New Spool** at its top, to put a saved spool in the slot. See [Editing Filament Properties](#editing-filament-properties) and the [Slot Context Menu](#slot-context-menu)
+- Add a slot's spool to Spoolman in one tap, and archive a spool that ran out when you clear its slot. See [Filament Tracking & Spoolman](filament-tracking.md#adding-a-slots-spool-to-spoolman)
 
 Connecting a server, the full spool-inventory panel, the new-spool wizard, and how remaining weight is tracked all live on their own page: **[Filament Tracking & Spoolman](filament-tracking.md)**.
 
