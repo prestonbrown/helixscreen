@@ -513,7 +513,7 @@ TEST_CASE("gate material_compatibility: grade-only dialog names the abrasive dir
     // Loaded spool is the filled one: the direction that costs a nozzle.
     auto abrasive = gate.evaluate(ctx_for("ASA", "ASA-GF"));
     REQUIRE(abrasive.verdict == CheckResult::Verdict::Warn);
-    CHECK(abrasive.title != "Material Mismatch"); // lv_tr identity in the test locale
+    CHECK_FALSE(abrasive.title.empty());
     CHECK(abrasive.body.find("hardened") != std::string::npos);
 
     // File is the filled one: slower and hotter than needed, no hardware risk.
@@ -526,6 +526,7 @@ TEST_CASE("gate material_compatibility: grade-only dialog names the abrasive dir
     auto hard = gate.evaluate(ctx_for("PETG", "PLA"));
     REQUIRE(hard.verdict == CheckResult::Verdict::Warn);
     CHECK_FALSE(hard.title.empty());
+    CHECK(hard.title != abrasive.title);
 }
 
 TEST_CASE("material_mismatches_in: bypass falls back to palette materials",
@@ -931,7 +932,7 @@ TEST_CASE("gate unresolved_tools: warns with Start Anyway and verbatim title",
     CHECK(r.proceed_label == "Start Anyway");
 }
 
-TEST_CASE("gate material_compatibility: warns with verbatim title",
+TEST_CASE("gate material_compatibility: warns with a title and a body in the display unit",
           "[print-start][gate-pipeline]") {
     auto ctx = ctx_with([](PrintStartContext& c) {
         c.has_file_facts = true;

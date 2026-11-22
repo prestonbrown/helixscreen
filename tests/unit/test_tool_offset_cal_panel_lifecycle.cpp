@@ -376,11 +376,12 @@ TEST_CASE_METHOD(ToolCalPanelFixture, "tool offset panel: Save with nothing dirt
     panel.init_subjects();
     panel.on_activate();
     client->clear_gcode_script_history();
+    const std::string status_before(lv_subject_get_string(panel.get_status_subject()));
     panel.send_save();
     pump_until([] { return false; }, 20);
 
     CHECK(client->gcode_script_history().empty());
-    CHECK_FALSE(std::string(lv_subject_get_string(panel.get_status_subject())).empty());
+    CHECK(std::string(lv_subject_get_string(panel.get_status_subject())) == status_before);
 
     panel.on_deactivate(DeactivateReason::NavigateAway);
     panel.cleanup();

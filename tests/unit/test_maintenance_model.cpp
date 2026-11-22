@@ -171,7 +171,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(SettingsManager::instance().get_maintenance_record(prefix()).has_value());
     CHECK(subject_int("maintenance_any_on") == 1);
     CHECK(subject_text("maintenance_m4_left") == "200 h");
-    CHECK(subject_text("maintenance_total_text").find("0 h") != std::string::npos);
+    CHECK(subject_text("maintenance_total_text").find(": 0 h") != std::string::npos);
     // The seeded meters reach the record with their intervals.
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     CHECK(saved->meters[kFilter].seeded);
@@ -367,7 +367,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(meter(kNozzle).interval_h == 750);
     CHECK(meter(kNozzle).used_h == Catch::Approx(123.5));
     CHECK(meter(kRails).used_h == 0.0);
-    CHECK(subject_text("maintenance_total_text").find("124 h") != std::string::npos);
+    CHECK(subject_text("maintenance_total_text").find(": 124 h") != std::string::npos);
     CHECK(subject_text("maintenance_m2_left") == "627 h");
 }
 

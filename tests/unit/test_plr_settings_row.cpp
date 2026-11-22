@@ -310,12 +310,15 @@ TEST_CASE_METHOD(PlrSettingsRowFixture, "the mesh-include row changes printer.cf
         process_lvgl(5);
         tap(find("row_plr_mesh_include_add"));
         CHECK(confirm_is_up());
+        const std::string reload_title = modal_text("dialog_title");
         confirm_modal();
 
         CHECK(lv_subject_get_int(plugin.get_plr_mesh_include_subject()) == 1);
         process_lvgl(5);
         CHECK(visible(find("row_plr_mesh_include_remove")));
+        // The restart prompt replaces the reload confirm.
         CHECK(confirm_is_up());
+        CHECK(modal_text("dialog_title") != reload_title);
         confirm_modal();
     }
     SECTION("removing") {
