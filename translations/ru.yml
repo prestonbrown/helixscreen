@@ -4678,6 +4678,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman не настроен — удалять нечего.
   Spoolman is offline, so brand and material can't be saved.: Spoolman не в сети, поэтому бренд и материал не могут быть сохранены.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman не в сети. Бренд и материал можно будет изменить после его восстановления.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman настраивается через прошивку принтера, а не на этом экране.'
   Spoolman needs a brand for this filament.: Spoolman требует бренд для этого филамента.
   Spoolman needs a color for this filament.: Spoolman требует цвет для этого филамента.
   Spoolman needs a material for this filament.: Spoolman требует материал для этого филамента.
@@ -6034,6 +6035,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'

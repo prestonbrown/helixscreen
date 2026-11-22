@@ -4457,6 +4457,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." es="Spoolman no está configurado — no hay nada que eliminar."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." es="Spoolman está desconectado, por lo que no se pueden guardar la marca y el material."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." es="Spoolman está desconectado. La marca y el material se podrán cambiar cuando vuelva."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." es="Spoolman se configura desde el firmware de tu impresora, no en esta pantalla."/>
   <translation tag="Spoolman needs a brand for this filament." es="Spoolman necesita una marca para este filamento."/>
   <translation tag="Spoolman needs a color for this filament." es="Spoolman necesita un color para este filamento."/>
   <translation tag="Spoolman needs a material for this filament." es="Spoolman necesita un material para este filamento."/>
@@ -5735,6 +5736,7 @@
   <translation tag="Your printer has an automatic filament changer" es="Tu impresora tiene un cambiador de filamento automático"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" es="Su impresora estaba desconectada durante la configuración, por lo que se omitieron las opciones de hardware. ¿Configurarlas ahora?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." es="El firmware de tu impresora gestiona el software de HelixScreen, así que el plugin HelixPrint debe proporcionarlo el firmware. No se puede instalar desde esta pantalla."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." es="El firmware de tu impresora gestiona su configuración, así que ajusta estos valores allí."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." es="El manual de tu impresora indica piezas y lubricante para tu modelo."/>
   <translation tag="Your usual build plate is on" es="Tu placa de impresión habitual está puesta"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." es="Tu {0} está configurada para {1}, pero parece de serie."/>

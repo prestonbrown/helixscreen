@@ -4457,6 +4457,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." en="Spoolman is not configured — nothing to remove."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." en="Spoolman is offline, so brand and material can&apos;t be saved."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." en="Spoolman is offline. Brand and material can change once it&apos;s back."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." en="Spoolman is set up through your printer&apos;s firmware, not on this screen."/>
   <translation tag="Spoolman needs a brand for this filament." en="Spoolman needs a brand for this filament."/>
   <translation tag="Spoolman needs a color for this filament." en="Spoolman needs a color for this filament."/>
   <translation tag="Spoolman needs a material for this filament." en="Spoolman needs a material for this filament."/>
@@ -5735,6 +5736,7 @@
   <translation tag="Your printer has an automatic filament changer" en="Your printer has an automatic filament changer"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" en="Your printer was offline during setup, so hardware options were skipped. Set them up now?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." en="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." en="Your printer&apos;s firmware manages its configuration, so set these values there."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." en="Your printer&apos;s manual has the parts and lubricant for your model."/>
   <translation tag="Your usual build plate is on" en="Your usual build plate is on"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." en="Your {0} is set up for {1}, but it looks stock."/>

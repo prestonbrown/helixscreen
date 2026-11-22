@@ -105,7 +105,8 @@
            two bind_flags on a single element, where last-observer-wins
            semantics produce an OR-show race. -->
         <lv_obj width="100%" height="content" style_pad_all="0" style_pad_gap="0">
-          <bind_flag_if_not_eq subject="timelapse_owner" flag="hidden" ref_value="0"/>
+          <!-- Firmware that supervises HelixScreen installs components itself (#2154). -->
+          <bind_flag_if cond="timelapse_owner ne 0 or firmware_supervised eq 1" flag="hidden"/>
           <setting_action_row name="row_timelapse_setup"
                               label="Setup Timelapse" icon="camera_timer" description="Install timelapse plugin">
             <bind_flag_if_eq subject="printer_has_webcam" flag="hidden" ref_value="0"/>
@@ -118,7 +119,7 @@
         <lv_obj name="container_helix_plugin_install"
                 width="100%" height="content" style_pad_top="0" style_pad_left="0" style_pad_bottom="0"
                 scrollable="false">
-          <bind_flag_if_not_eq subject="helix_plugin_installed" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="helix_plugin_installed ne 0 or firmware_supervised eq 1" flag="hidden"/>
           <setting_action_row name="row_helix_plugin_install"
                               label="Install HelixPrint Plugin" icon="puzzle_outline"
                               description="Control optional print start features">
@@ -141,7 +142,7 @@
           <setting_action_row name="row_helix_plugin_uninstall"
                               label="Uninstall HelixPrint Plugin" icon="puzzle_outline"
                               description="Remove plugin from printer">
-            <bind_flag_if_not_eq subject="helix_plugin_installed" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="helix_plugin_installed ne 1 or firmware_supervised eq 1" flag="hidden"/>
             <event_cb trigger="clicked" callback="on_helix_plugin_uninstall_clicked"/>
           </setting_action_row>
         </lv_obj>
@@ -169,13 +170,13 @@
         <setting_action_row name="row_helix_macros_install"
                             label="Install Helper Macros" icon="script_text"
                             description="Enable Clean Nozzle and other print helpers">
-          <bind_flag_if_not_eq subject="helix_macros_status" flag="hidden" ref_value="0"/>
+          <bind_flag_if cond="helix_macros_status ne 0 or firmware_supervised eq 1" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_helix_macros_install_clicked"/>
         </setting_action_row>
         <setting_action_row name="row_helix_macros_update"
                             label="Update Helper Macros" icon="script_text"
                             description="A newer version of the helper macros is available">
-          <bind_flag_if_not_eq subject="helix_macros_status" flag="hidden" ref_value="2"/>
+          <bind_flag_if cond="helix_macros_status ne 2 or firmware_supervised eq 1" flag="hidden"/>
           <event_cb trigger="clicked" callback="on_helix_macros_update_clicked"/>
         </setting_action_row>
         <lv_obj name="container_helix_macros_installed" width="100%" style_pad_all="0" scrollable="false">

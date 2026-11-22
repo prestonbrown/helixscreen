@@ -12,6 +12,7 @@
 #include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "moonraker_error.h"
+#include "platform_info.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -1267,6 +1268,24 @@ void KlipperConfigEditor::revert_after_failed_restart(IMoonrakerAPI& api,
 
 // ============================================================================
 // Safe edits: write, FIRMWARE_RESTART, revert if Klipper does not come back
+namespace {
+/// True, after reporting it, when firmware that supervises HelixScreen owns the Klipper
+/// config (#2154). Every edit entry asks before choosing a route, so neither the file
+/// route nor the HelixPrint plugin's config_edit writes it.
+bool refuse_while_supervised(const std::string& section,
+                             const KlipperConfigEditor::ErrorCallback& on_error) {
+    if (!helix::firmware_supervised()) {
+        return false;
+    }
+    spdlog::warn("[ConfigEditor] Not editing [{}]: {}", section,
+                 helix::kFirmwareSupervisedConfigRefusal);
+    if (on_error) {
+        on_error(helix::kFirmwareSupervisedConfigRefusal);
+    }
+    return true;
+}
+} // namespace
+
 // ============================================================================
 
 void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
@@ -1276,6 +1295,9 @@ void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string&
                                           std::vector<ExpectedSetting> expected) {
     spdlog::info("[ConfigEditor] Starting safe multi-edit on [{}] ({} edits)", section,
                  edits.size());
+    if (refuse_while_supervised(section, on_error)) {
+        return;
+    }
     if (route() == ConfigEditRoute::Plugin) {
         plugin_multi_edit(api, section, edits, std::move(on_success), std::move(on_error),
                           restart_timeout_ms, std::move(expected));
@@ -1290,6 +1312,9 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                                             SuccessCallback on_success, ErrorCallback on_error,
                                             int restart_timeout_ms,
                                             std::vector<ExpectedSetting> expected) {
+    if (refuse_while_supervised(section, on_error)) {
+        return;
+    }
     spdlog::info("[ConfigEditor] Editing [{}] through the HelixPrint plugin", section);
     api.get_client().send_jsonrpc(
         "server.helix.config", nlohmann::json{{"section", section}},
@@ -1560,6 +1585,9 @@ void KlipperConfigEditor::safe_edit_value(IMoonrakerAPI& api, const std::string&
                                           SuccessCallback on_success, ErrorCallback on_error,
                                           int restart_timeout_ms) {
     spdlog::info("[ConfigEditor] Starting safe edit: [{}] {} = {}", section, key, new_value);
+    if (refuse_while_supervised(section, on_error)) {
+        return;
+    }
     if (route() == ConfigEditRoute::Plugin) {
         plugin_multi_edit(api, section, {{ConfigEdit::Type::SET_VALUE, key, new_value}},
                           std::move(on_success), std::move(on_error), restart_timeout_ms, {});

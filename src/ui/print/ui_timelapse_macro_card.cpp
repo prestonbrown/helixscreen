@@ -15,6 +15,7 @@
 #include "local_plugin_installer.h"
 #include "lvgl.h"
 #include "macro_manager.h"
+#include "platform_info.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
@@ -91,6 +92,11 @@ void TimelapseMacroCard::clear() {
 void TimelapseMacroCard::refresh(IMoonrakerAPI* api, const PrinterDiscovery& discovery,
                                  bool moonraker_local, std::function<void()> on_shown) {
     clear();
+    // Firmware that supervises HelixScreen owns the macro files and their includes
+    // (#2154), so this card neither edits them nor offers to.
+    if (helix::firmware_supervised()) {
+        return;
+    }
     on_shown_ = std::move(on_shown);
     const unsigned gen = generation_;
 

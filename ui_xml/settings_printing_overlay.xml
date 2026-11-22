@@ -110,7 +110,8 @@
              plr_mesh_include subject: 0 the include is missing, 1 it is there;
              -1 (not asked yet, or the ask failed) shows neither. -->
         <lv_obj name="container_plr_mesh_include" width="100%" style_pad_all="0" scrollable="false">
-          <bind_flag_if_eq subject="plr_feature_state" flag="hidden" ref_value="0"/>
+          <!-- The include edits printer.cfg, which supervising firmware owns (#2154). -->
+          <bind_flag_if cond="plr_feature_state eq 0 or firmware_supervised eq 1" flag="hidden"/>
           <setting_action_row name="row_plr_mesh_include_add"
                               label="Resume reloads the saved bed mesh" icon="grid_view"
                               description="Add [include helix-plr/*.cfg] to printer.cfg, so a resume reloads the mesh the print started with"

@@ -4598,6 +4598,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman non è configurato — niente da rimuovere.
   Spoolman is offline, so brand and material can't be saved.: Spoolman è offline, quindi marca e materiale non possono essere salvati.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman è offline. Marca e materiale potranno essere modificati al suo ritorno.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman si configura tramite il firmware della stampante, non da questo schermo.'
   Spoolman needs a brand for this filament.: Spoolman richiede una marca per questo filamento.
   Spoolman needs a color for this filament.: Spoolman richiede un colore per questo filamento.
   Spoolman needs a material for this filament.: Spoolman richiede un materiale per questo filamento.
@@ -5946,6 +5947,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: La stampante era offline durante la configurazione, quindi le opzioni hardware sono state saltate. Configurarle ora?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Il firmware della stampante gestisce il software di HelixScreen, quindi il plugin HelixPrint deve essere fornito dal firmware. Non può essere installato da questa schermata.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Il firmware della stampante gestisce la sua configurazione, quindi imposta questi valori lì.'
   Your printer's manual has the parts and lubricant for your model.: "Il manuale della stampante indica ricambi e lubrificante per il tuo modello."
   Your usual build plate is on: 'Il tuo piatto di stampa abituale è montato'
   Your {0} is set up for {1}, but it looks stock.: 'La tua {0} è configurata per {1}, ma sembra di serie.'

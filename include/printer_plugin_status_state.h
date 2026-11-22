@@ -342,6 +342,7 @@ class PrinterPluginStatusState {
 
     helix::Subject plr_feature_state_{};
     helix::Subject helix_plugin_probe_seq_{};
+    helix::Subject firmware_supervised_{};
     helix::Subject plr_saving_enabled_{};
     helix::Subject plr_mesh_include_{};
     std::function<bool()> is_local_;

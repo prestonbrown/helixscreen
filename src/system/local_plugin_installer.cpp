@@ -4,6 +4,7 @@
 #include "local_plugin_installer.h"
 
 #include "helix_fs.h"
+#include "platform_info.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -45,7 +46,8 @@ bool has_program(const ProcessRunner& run, const std::string& program) {
 
 bool attach_checkout_to_branch(const LocalPluginRecipe& recipe, const std::string& repo_dir,
                                const ProcessRunner& run, const ProcessRunner& switch_run) {
-    if (recipe.repo_branch.empty()) {
+    // Firmware that supervises HelixScreen owns every component checkout (#2154).
+    if (recipe.repo_branch.empty() || firmware_supervised()) {
         return false;
     }
     auto git = [&](std::vector<std::string> args) {
@@ -134,6 +136,19 @@ LocalPluginResult install_plugin_locally(const LocalPluginRecipe& recipe,
             on_stage(s);
         }
     };
+
+    // Firmware that supervises HelixScreen installs the components itself (#2154).
+    if (firmware_supervised()) {
+        spdlog::info("[PluginInstaller] Not installing {}: the printer's firmware manages "
+                     "HelixScreen's software",
+                     recipe.repo_dir_name.empty() ? std::string("the plugin")
+                                                  : recipe.repo_dir_name);
+        LocalPluginResult refused;
+        refused.failed_stage =
+            recipe.repo_url.empty() ? LocalPluginStage::Install : LocalPluginStage::Fetch;
+        refused.detail = "the printer's firmware manages HelixScreen's software";
+        return refused;
+    }
 
     if (!recipe.repo_url.empty() && !plan.repo_present) {
         stage(LocalPluginStage::Fetch);
