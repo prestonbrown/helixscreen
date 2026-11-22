@@ -426,14 +426,18 @@ MoonrakerClientMock::gcode_test_resonances(const std::string& gcode) {
     return std::nullopt;
 }
 
-// PROBE_CALIBRATE or Z_ENDSTOP_CALIBRATE - Start Z-offset calibration
+// PROBE_CALIBRATE, Z_ENDSTOP_CALIBRATE or a scan probe's calibration - Start
+// Z-offset calibration
 // - PROBE_CALIBRATE: For printers with probe (BLTouch, inductive, etc.)
 // - Z_ENDSTOP_CALIBRATE: For printers with only mechanical Z endstop
-// Both enter manual probe mode, home if needed, and work identically
+// - CARTOGRAPHER_SCAN_CALIBRATE, BEACON_CALIBRATE, PROBE_EDDY_CURRENT_CALIBRATE
+// All enter manual probe mode, home if needed, and work identically
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_probe_calibrate(const std::string& gcode) {
-    const bool is_probe_calibrate = gcode.find("PROBE_CALIBRATE") != std::string::npos;
-    const char* cmd_name = is_probe_calibrate ? "PROBE_CALIBRATE" : "Z_ENDSTOP_CALIBRATE";
+    // The calibration word itself, for the log: the script may lead with moves.
+    const size_t at = gcode.rfind('\n', gcode.find("CALIBRATE"));
+    const size_t from = at == std::string::npos ? 0 : at + 1;
+    const std::string cmd_name = gcode.substr(from, gcode.find_first_of(" \n", from) - from);
 
     if (manual_probe_active_.load()) {
         spdlog::warn("[MoonrakerClientMock] {}: Already in manual probe mode", cmd_name);

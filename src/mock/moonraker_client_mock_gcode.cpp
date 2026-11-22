@@ -1663,7 +1663,13 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
     if (has_token(g, "Z_OFFSET_APPLY_ENDSTOP")) {
         stage_config_change("stepper_z", "position_endstop", "0.000");
     }
-    if (has_token(g, "PROBE_CALIBRATE") || has_token(g, "Z_ENDSTOP_CALIBRATE")) {
+    // The scan probes' calibrations open the same manual probe for a paper
+    // test: Cartographer's SCAN_CALIBRATE (METHOD=manual is its default),
+    // BEACON_CALIBRATE and Klipper's PROBE_EDDY_CURRENT_CALIBRATE all start
+    // a ManualProbeHelper.
+    if (has_token(g, "PROBE_CALIBRATE") || has_token(g, "Z_ENDSTOP_CALIBRATE") ||
+        has_token(g, "CARTOGRAPHER_SCAN_CALIBRATE") || has_token(g, "BEACON_CALIBRATE") ||
+        has_token(g, "PROBE_EDDY_CURRENT_CALIBRATE")) {
         gcode_probe_calibrate(g);
     }
     if (has_token(g, "TESTZ") && (r = gcode_testz(g))) {
