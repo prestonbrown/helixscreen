@@ -84,10 +84,36 @@ inline constexpr FastSinTable kFastSinTable = make_fast_sin_table();
 /// e^-s for s from 0 to kFastExpMax in kFastExpN steps.
 inline constexpr FastExpTable kFastExpTable = make_fast_exp_table();
 
+/// Floats this large are whole numbers already.
+inline constexpr float kSaverWholeFloat = 8388608.0f;
+
+/**
+ * @brief std::floor(v), bit for bit but for the sign of a zero, without a libm call
+ *
+ * MIPS32r2 has no rounding instruction, so std::floor and std::ceil are calls; in a per-pixel
+ * loop they cost more than the arithmetic around them. NaN and infinities pass through.
+ */
+inline float saver_floor(float v) {
+    if (!(std::fabs(v) < kSaverWholeFloat)) {
+        return v;
+    }
+    const auto t = static_cast<float>(static_cast<int32_t>(v));
+    return t > v ? t - 1.0f : t;
+}
+
+/// std::ceil(v), as saver_floor.
+inline float saver_ceil(float v) {
+    if (!(std::fabs(v) < kSaverWholeFloat)) {
+        return v;
+    }
+    const auto t = static_cast<float>(static_cast<int32_t>(v));
+    return t < v ? t + 1.0f : t;
+}
+
 inline float fast_sin(float x) {
     constexpr float steps_per_radian = static_cast<float>(kFastSinN) / 6.28318530717958f;
     const float f = x * steps_per_radian;
-    const float fl = std::floor(f);
+    const float fl = saver_floor(f);
     const float frac = f - fl;
     const int i = static_cast<int>(static_cast<int64_t>(fl) & (kFastSinN - 1));
     return kFastSinTable.v[i] + (kFastSinTable.v[i + 1] - kFastSinTable.v[i]) * frac;
