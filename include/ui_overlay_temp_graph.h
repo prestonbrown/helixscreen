@@ -125,6 +125,12 @@ class TempGraphOverlay : public OverlayBase {
     void discover_series();
     void apply_default_visibility();
     void create_chips();
+    /// A heater series' name (bed, chamber, an extruder, else "Nozzle"), in the UI language.
+    [[nodiscard]] std::string heater_series_name(const std::string& heater_name) const;
+    /// Re-word the heater series' chips and legend after a language change.
+    void retranslate_series();
+    /// The chip's text for @p display_name: without a trailing " Temperature".
+    [[nodiscard]] static std::string chip_label_for(const std::string& display_name);
 
     // Publish currently-visible klipper names to the global snapshot consumed
     // by widgets that opt into "follow my graph selection" mode.
@@ -215,6 +221,9 @@ class TempGraphOverlay : public OverlayBase {
     /// Per chamber preset 1-3: its temperature as the user reads it ("40°C").
     helix::Subject chamber_preset_text_subjects_[3]{};
     char chamber_preset_text_bufs_[3][16]{};
+
+    /// Bound while active: re-words the heater chips on a language switch.
+    ObserverGuard language_observer_;
 
     // Subject management
     SubjectManager subjects_;

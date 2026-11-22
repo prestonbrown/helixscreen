@@ -48,6 +48,7 @@ DATA_PATH = re.compile(
     r"licenses_text|row_install_root|loaded_material|macro_label|macro_desc|"
     r"filename_label|spool_name|ams_slot_view\[\d+\]/name_label|led_tab_\d+/0/tab_label|"
     r"temp_sensors_list/sensor_row(\[\d+\])?/0/0/name_label|"
+    r"temp_sensor_chip_\d+/chip_label|"
     r"action_prompt_modal/.*(dialog_title|content_container|button_container|footer_container)")
 
 # Fan names generated from the mock printer's config object names.
