@@ -3446,7 +3446,8 @@ void AmsEditOverlay::handle_link_to_spoolman() {
     const helix::MissingFilamentFields missing =
         helix::SpoolmanSlotSaver::missing_filament_fields(working_info_);
     if (missing.any()) {
-        report_save_problem(true, missing_filament_message(missing));
+        // A toast, like the add's other failures: the summary keeps its rows.
+        report_save_problem(false, missing_filament_message(missing));
         return;
     }
     SaveCapture cap = capture_save();
