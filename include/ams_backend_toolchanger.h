@@ -256,6 +256,11 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         return true;
     }
 
+    /// Every tool is a head of its own.
+    [[nodiscard]] bool tool_numbers_name_lanes() const override {
+        return false;
+    }
+
     /// Each slot as its 1-based head, where the print start takes the map
     /// (helix::print_start).
     [[nodiscard]] helix::PrintStartParams

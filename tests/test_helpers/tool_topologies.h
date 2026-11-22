@@ -52,6 +52,7 @@ inline ToolTopology make_hub_topology(int active_tool = 0,
     ToolTopology topo;
     topo.tool_count = 18;
     topo.active_tool = active_tool;
+    topo.tools_are_lanes = true;
     for (int i = 0; i < 18; ++i) {
         topo.tool_to_slot.push_back(i);
         topo.tool_extruder.emplace_back(extruders[i]);

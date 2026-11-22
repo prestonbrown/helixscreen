@@ -66,6 +66,7 @@ std::optional<helix::ToolTopology> build_ams_topology(AmsBackend* backend, int b
     topo.allows_empty_carriage = backend->carriage_can_be_empty();
     topo.backend_index = backend_index;
     topo.heads_share_heater = backend->heads_share_heater();
+    topo.tools_are_lanes = backend->tool_numbers_name_lanes();
     return topo;
 }
 

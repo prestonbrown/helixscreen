@@ -2686,6 +2686,19 @@ class AmsBackend : public AmsCapabilityHost {
     }
 
     /**
+     * @brief Whether a tool number names a lane rather than a head.
+     *
+     * Where it does, T<n> loads the lane its map names, on whichever head that
+     * lane feeds, so a head is never called by a tool number
+     * (helix::head_identity()). A backend multiplexing lanes through a table
+     * answers true; a tool changer, whose tools are its heads, answers false.
+     * Asked only of a backend that owns a table.
+     */
+    [[nodiscard]] virtual bool tool_numbers_name_lanes() const {
+        return owns_tool_mapping_table();
+    }
+
+    /**
      * @brief Whether the idle filament-runout guidance modal should be suppressed.
      *
      * Some backends (Snapmaker U1) drive load/unload entirely on their own, so an

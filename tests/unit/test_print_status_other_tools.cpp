@@ -138,7 +138,7 @@ TEST_CASE("other tools: each head is labeled in the printer's tool number style"
         std::vector<std::string> out;
         for (const OtherHead& head : others) {
             const OtherToolReading r =
-                other_tool_label(style, head_identity(tools, heads, head.head, 1));
+                other_tool_label(style, head_identity(tools, heads, head.head, 1, false));
             // The fallback number is empty where it would only repeat the badge.
             CHECK(r.number.empty());
             out.push_back(r.badge);

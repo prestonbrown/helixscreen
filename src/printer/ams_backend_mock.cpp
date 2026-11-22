@@ -4283,6 +4283,13 @@ bool AmsBackendMock::owns_tool_mapping_table() const {
     return !snapmaker_mode_;
 }
 
+bool AmsBackendMock::tool_numbers_name_lanes() const {
+    if (!owns_tool_mapping_table())
+        return false;
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !tool_changer_mode_;
+}
+
 HeadFilamentOps AmsBackendMock::head_filament_ops(int head) const {
     bool changer = false;
     {

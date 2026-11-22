@@ -71,7 +71,7 @@ TEST_CASE("A head that is its own tool is named and numbered as that tool", "[he
         REQUIRE(heads.size() == tools.size());
         for (int i = 0; i < static_cast<int>(heads.size()); ++i) {
             CAPTURE(shared, i);
-            const HeadIdentity head = helix::head_identity(tools, heads, i, 2);
+            const HeadIdentity head = helix::head_identity(tools, heads, i, 2, false);
             CHECK(head.name == tools[static_cast<size_t>(i)].name);
             CHECK(head.index == i);
             CHECK(head.lane_code.empty());
@@ -90,18 +90,18 @@ TEST_CASE("A head that is its own tool is named and numbered as that tool", "[he
             }
         }
     }
-    CHECK(label(helix::head_identity(tools, helix::physical_heads(tools), 2, 0),
+    CHECK(label(helix::head_identity(tools, helix::physical_heads(tools), 2, 0, false),
                 ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 3 (T2)");
 }
 
 TEST_CASE("A hub-fed head with no name of its own goes by its number, its lane beside it",
           "[head-identity]") {
     const auto tools = hub_lanes(/*changer_names=*/false);
-    const auto heads = helix::physical_heads(tools);
+    const auto heads = helix::physical_heads(tools, false, true);
     REQUIRE(heads.size() == 3);
 
     // Lane T3 is mounted on the second head: that head is head 2, holding T3.
-    const HeadIdentity second = helix::head_identity(tools, heads, 1, 3);
+    const HeadIdentity second = helix::head_identity(tools, heads, 1, 3, true);
     CHECK(second.name.empty());
     CHECK(second.index == 1);
     CHECK(second.lane_code == "T3");
@@ -117,7 +117,7 @@ TEST_CASE("A hub-fed head with no name of its own goes by its number, its lane b
     }
 
     // A head fed by one lane is still a head of lanes: the third head is not "T4".
-    const HeadIdentity third = helix::head_identity(tools, heads, 2, 3);
+    const HeadIdentity third = helix::head_identity(tools, heads, 2, 3, true);
     CHECK(third.lane_code == "T4");
     CHECK(label(third, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "3");
 }
@@ -125,9 +125,9 @@ TEST_CASE("A hub-fed head with no name of its own goes by its number, its lane b
 TEST_CASE("A hub-fed head behind a changer tool is named by that tool, its lane beside it",
           "[head-identity]") {
     const auto tools = hub_lanes(/*changer_names=*/true);
-    const auto heads = helix::physical_heads(tools);
+    const auto heads = helix::physical_heads(tools, false, true);
 
-    const HeadIdentity second = helix::head_identity(tools, heads, 1, 3);
+    const HeadIdentity second = helix::head_identity(tools, heads, 1, 3, true);
     CHECK(second.name == "T1");
     CHECK(second.index == 1);
     CHECK(second.lane_code == "T3");
@@ -135,7 +135,7 @@ TEST_CASE("A hub-fed head behind a changer tool is named by that tool, its lane 
     CHECK(label(second, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 2 (T1)");
     CHECK(label(second, ToolNumberStyle::Gcode, ToolLabelForm::Full) == "T1");
 
-    const HeadIdentity third = helix::head_identity(tools, heads, 2, 3);
+    const HeadIdentity third = helix::head_identity(tools, heads, 2, 3, true);
     CHECK(third.name == "T2");
     CHECK(third.lane_code == "T4");
 }
@@ -145,14 +145,14 @@ TEST_CASE("A single head fed by lanes is head 1 whichever lane it holds", "[head
                                          tool_on(2, "extruder"), tool_on(3, "extruder")};
     const auto heads = helix::physical_heads(tools);
     REQUIRE(heads.size() == 1);
-    const HeadIdentity head = helix::head_identity(tools, heads, 0, 2);
+    const HeadIdentity head = helix::head_identity(tools, heads, 0, 2, true);
     CHECK(head.name.empty());
     CHECK(head.index == 0);
     CHECK(head.lane_code == "T2");
     CHECK(label(head, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 1");
     CHECK(label(head, ToolNumberStyle::Gcode, ToolLabelForm::Code) == "1");
 
-    CHECK(helix::head_identity(tools, heads, 1, 2).index == -1);
+    CHECK(helix::head_identity(tools, heads, 1, 2, true).index == -1);
 }
 
 TEST_CASE_METHOD(ToolStateFixture,
@@ -267,6 +267,7 @@ helix::ToolTopology lb6lez44_topology() {
     topo.tool_count = 12;
     topo.active_tool = 0;
     topo.allows_empty_carriage = true;
+    topo.tools_are_lanes = true;
     topo.tool_to_slot.assign(12, -1);
     topo.tool_extruder.assign(12, "");
     topo.tool_seated.assign(12, false);
@@ -339,4 +340,46 @@ TEST_CASE_METHOD(ToolStateFixture,
     CHECK(model.picker_lines(5, ToolLabelForm::Code).first == "6");
     CHECK(model.picker_lines(5, ToolLabelForm::Full).first == "Tool 6");
     CHECK(model.mounted_head() == 2);
+}
+
+TEST_CASE_METHOD(ToolStateFixture,
+                 "One lane per head still names each head by the head when tool numbers name lanes",
+                 "[head-identity][tool-state][ams-topology][physical-heads]") {
+    // Four lanes on four changer heads, lane T2 mapped to the head on
+    // extruder3 and T3 to extruder2: T2 loads the extruder3 head.
+    auto& ts = ToolState::instance();
+    ts.init_tools(helix::test::make_head_discovery(4));
+    helix::ToolTopology topo = helix::test::make_head_topology(4, 2);
+    topo.tool_extruder[2] = "extruder3";
+    topo.tool_extruder[3] = "extruder2";
+
+    SECTION("lane maps: the heads are T0..T3 by extruder, the lane beside each") {
+        topo.tools_are_lanes = true;
+        ts.set_ams_topology(topo);
+        UpdateQueue::instance().drain();
+        const auto& heads = ts.physical_heads();
+        REQUIRE(heads.size() == 4);
+        REQUIRE(heads[3].extruder_name == std::optional<std::string>("extruder3"));
+        const HeadIdentity fourth = ts.head_identity(heads[3]);
+        CHECK(fourth.name == "T3");
+        CHECK(fourth.lane_code == "T2");
+        CHECK(label(fourth, ToolNumberStyle::Physical, ToolLabelForm::Full) == "Tool 4 (T3)");
+        const HeadIdentity third = ts.head_identity(heads[2]);
+        CHECK(third.name == "T2");
+        CHECK(third.lane_code == "T3");
+        // The mounted lane T2 is on the fourth head, and a tap there mounts it.
+        CHECK(helix::ui::ToolHeadsModel::instance().mounted_head() == 3);
+        CHECK(heads[3].representative_tool(ts.active_tool_index()) == 2);
+    }
+
+    SECTION("a tool changer's tools are its heads, so the same shape reads as before") {
+        ts.set_ams_topology(topo);
+        UpdateQueue::instance().drain();
+        const auto& heads = ts.physical_heads();
+        REQUIRE(heads.size() == 4);
+        const HeadIdentity third = ts.head_identity(heads[2]);
+        CHECK(third.name == "T2");
+        CHECK(third.index == 2);
+        CHECK(third.lane_code.empty());
+    }
 }
