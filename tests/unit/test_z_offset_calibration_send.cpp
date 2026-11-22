@@ -17,6 +17,7 @@
  * the tune overlay's baby-step path.
  */
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -1091,9 +1092,9 @@ class ZOffsetRunFixture : public CalibrationSendFixture {
         helix::SettingsManager::instance().set_z_offset_save_mode(static_cast<int>(mode));
     }
 
-    void open() {
+    void open(bool warm_bed = false) {
         panel.open_for_run(
-            &api, 0, 1,
+            &api, 0, 1, warm_bed,
             [this](ZOffsetCalibrationPanel::RunEnd end, float, ZOffsetCalibrationStrategy s) {
                 done.emplace_back(end == ZOffsetCalibrationPanel::RunEnd::Accepted, s);
             });
@@ -1258,5 +1259,175 @@ TEST_CASE_METHOD(ZOffsetRunFixture, "Calibration run: Skip this step moves on wi
     CHECK(run.entries()[0].status == StepStatus::Skipped);
     CHECK(run.entries()[1].status == StepStatus::Running);
     run.stop();
+    settle();
+}
+
+namespace {
+
+/// A Z offset step and a heater step, as a guided run takes them, with @p options.
+std::vector<std::unique_ptr<helix::calibration::CalibrationStep>>
+zoffset_then_heaters(const helix::calibration::RunOptions& options) {
+    using namespace helix::calibration;
+    StepInfo zoffset;
+    zoffset.kind = StepKind::ZOffset;
+    zoffset.id = "z_offset";
+    zoffset.name = "Z offset";
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(zoffset, options));
+    steps.push_back(make_run_step(heaters, options));
+    return steps;
+}
+
+bool sent_bed_heat(const std::vector<std::string>& scripts) {
+    return std::any_of(scripts.begin(), scripts.end(), [](const std::string& s) {
+        return s.rfind("M140 S", 0) == 0 && s != "M140 S0";
+    });
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: the Z offset step probes at once, without the intro",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    client.clear_gcode_script_history();
+    open();
+    settle();
+    CHECK(panel.get_state() != ZOffsetCalibrationPanel::State::IDLE);
+    CHECK(hidden("state_idle"));
+    CHECK(sent_any(client.gcode_script_history(), "PROBE_CALIBRATE"));
+    CHECK_FALSE(sent_bed_heat(client.gcode_script_history()));
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: Warm the bed first heats as the screen's Warm Bed does",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    using namespace helix::calibration;
+    // What the standalone screen's Warm Bed sends.
+    panel.init_subjects();
+    panel.set_api(&api);
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+    client.clear_gcode_script_history();
+    lv_xml_get_event_cb(nullptr, "on_zoffset_start_clicked")(nullptr);
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+    REQUIRE_FALSE(client.gcode_script_history().empty());
+    const std::string warm = client.gcode_script_history().front();
+    REQUIRE(warm.rfind("M140 S", 0) == 0);
+    lv_xml_get_event_cb(nullptr, "on_zoffset_retry_clicked")(nullptr);
+    // The run follows its own option, not the screen's switch.
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+    settle();
+    client.clear_gcode_script_history();
+
+    SECTION("on: the same bed heat, then the warm-up before probing") {
+        RunOptions options;
+        options.zoffset_warm_bed = true;
+        CalibrationRun run(api, zoffset_then_heaters(options), nullptr);
+        run.start();
+        settle();
+        REQUIRE_FALSE(client.gcode_script_history().empty());
+        CHECK(client.gcode_script_history().front() == warm);
+        CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+        CHECK_FALSE(sent_any(client.gcode_script_history(), "PROBE_CALIBRATE"));
+        run.stop();
+        settle();
+    }
+    SECTION("off: no bed heat, straight to probing") {
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 1);
+        CalibrationRun run(api, zoffset_then_heaters(RunOptions{}), nullptr);
+        run.start();
+        settle();
+        CHECK_FALSE(sent_bed_heat(client.gcode_script_history()));
+        CHECK(sent_any(client.gcode_script_history(), "PROBE_CALIBRATE"));
+        run.stop();
+        settle();
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "zoffset_warm_bed"), 0);
+    }
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration: on its own the Z offset screen opens on its intro",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    panel.init_subjects();
+    panel.set_api(&api);
+    client.clear_gcode_script_history();
+    REQUIRE(panel.show(lv_screen_active()));
+    settle();
+    REQUIRE(panel.get_root() != nullptr);
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    CHECK_FALSE(hidden("state_idle"));
+    CHECK_FALSE(hidden("btn_start"));
+    CHECK(client.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: Abort leaves the Z offset step and asks, never the intro",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    using namespace helix::calibration;
+    RunOptions options;
+    options.zoffset_warm_bed = true;
+    CalibrationRun run(api, zoffset_then_heaters(options), nullptr);
+    run.start();
+    settle();
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+
+    lv_xml_get_event_cb(nullptr, "on_zoffset_abort_clicked")(nullptr);
+    // The warm-up is cancelled, and the intro stays hidden while the panel leaves.
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    REQUIRE(panel.get_root() != nullptr);
+    CHECK(hidden("state_idle"));
+    settle();
+    CHECK(client.last_send_script() == "M140 S0");
+    REQUIRE(Modal::get_top() != nullptr);
+    CHECK(run.entries()[1].status == StepStatus::Pending);
+
+    SECTION("Stop calibration ends the run before the heaters") {
+        helix::test::answer_top_modal("btn_secondary");
+        settle();
+        CHECK(run.phase() == RunPhase::Results);
+        CHECK(run.entries()[1].status == StepStatus::NotRun);
+    }
+    SECTION("Continue skips the Z offset and runs the heaters") {
+        helix::test::answer_top_modal("btn_primary");
+        settle();
+        CHECK(run.entries()[0].status == StepStatus::Skipped);
+        CHECK(run.entries()[1].status == StepStatus::Running);
+        run.stop();
+        settle();
+    }
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: the warm-up chip shows only while Z offset is ticked, and "
+                 "keeps its value",
+                 "[ui_integration][zoffset][zoffset_run][calibration_run]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe", "heater_bed", "extruder"}));
+    state().set_hardware(hw);
+    auto& overlay = helix::ui::get_calibration_run_overlay();
+    overlay.open();
+    settle();
+    REQUIRE(overlay.get_root() != nullptr);
+    lv_obj_t* chip = lv_obj_find_by_name(overlay.get_root(), "cal_run_zoffset_warm");
+    REQUIRE(chip != nullptr);
+    lv_subject_t* warm = lv_xml_get_subject(nullptr, "cal_run_zoffset_warm");
+    REQUIRE(warm != nullptr);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "cal_run_picked_z_offset")) == 1);
+    CHECK_FALSE(lv_obj_is_hidden(chip));
+
+    overlay.toggle_zoffset_warm_bed();
+    REQUIRE(lv_subject_get_int(warm) == 1);
+    overlay.toggle_pick("z_offset");
+    settle();
+    CHECK(lv_obj_is_hidden(chip));
+    overlay.toggle_pick("z_offset");
+    settle();
+    CHECK_FALSE(lv_obj_is_hidden(chip));
+    CHECK(lv_subject_get_int(warm) == 1);
+
+    overlay.close();
     settle();
 }

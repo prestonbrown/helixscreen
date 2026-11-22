@@ -5428,6 +5428,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: 'Филамент слишком долго шёл до датчика фидера.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Филамент вставлен в печатающую головку в обход фидера. Загрузите его вручную."
   This toolhead has no automatic feeder. Load the filament by hand.: "У этой печатающей головки нет автоматического фидера. Загрузите филамент вручную."
+  This head until a tool change; Save after the print to apply it to every head: 'Эта головка до смены инструмента; сохраните после печати, чтобы применить ко всем головкам'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper.'
@@ -5894,6 +5895,7 @@ translations:
   Wall Speed Shakes This Printer: 'Скорость стенок вызывает тряску принтера'
   Warm: Тёплый
   Warm Bed: Прогреть стол
+  Warm the bed first: Сначала прогреть стол
   Warm up for a material in one tap: Преднагрев под материал одним нажатием
   Warming Bed...: Прогрев стола...
   Warn: Предупреждение
@@ -6096,6 +6098,7 @@ translations:
   about {} min left · you can leave: осталось около {} мин · можно отойти
   accelerometer: акселерометр
   all done: всё готово
+  about {} min with heat-up: 'около {} мин с нагревом'
   about {} mm above where the paper dragged last time: "примерно на {} мм выше места, где бумага цеплялась в прошлый раз"
   about {} mm below where the paper dragged last time: "примерно на {} мм ниже места, где бумага цеплялась в прошлый раз"
   already loaded: 'уже загружен'

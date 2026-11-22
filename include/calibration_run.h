@@ -27,6 +27,23 @@ namespace helix::calibration {
 /// Whether a run starts with this step ticked: everything but Optional.
 [[nodiscard]] bool picked_by_default(const StepInfo& step);
 
+/// What the Pick page sets beside which steps run.
+struct RunOptions {
+    /// The Z offset step warms the bed before it homes and probes, as the Z
+    /// offset screen's Warm Bed switch does.
+    bool zoffset_warm_bed = false;
+    /// The warm-up's minutes, which the caller prices from the shared thermal
+    /// model (ThermalRateManager) for the bed as it is now.
+    int zoffset_warm_bed_minutes = 0;
+};
+
+/// Whole minutes for @p heating_seconds of heating; 0 when nothing is left to heat.
+[[nodiscard]] int heating_minutes(float heating_seconds);
+
+/// @p step as a run with @p options runs it: a warmed Z offset takes the
+/// warm-up's minutes longer and heats the bed.
+[[nodiscard]] StepInfo with_run_options(StepInfo step, const RunOptions& options);
+
 /// One line of the "Before you start" list: a prerequisite and the picked steps
 /// that need it, in run order.
 struct PrereqLine {

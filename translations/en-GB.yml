@@ -5303,6 +5303,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: ''
   The filament went into the toolhead past its feeder. Load it by hand.: ''
   This toolhead has no automatic feeder. Load the filament by hand.: ''
+  This head until a tool change; Save after the print to apply it to every head: ''
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : ''
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: ''
@@ -5775,6 +5776,7 @@ translations:
   Wall Speed Shakes This Printer: ''
   Warm: ''
   Warm Bed: ''
+  Warm the bed first: ''
   Warm up for a material in one tap: ''
   Warming Bed...: ''
   Warn: ''
@@ -5973,6 +5975,7 @@ translations:
   about 4 min: ''
   about 6 min with heat-up: ''
   about {} min: ''
+  about {} min with heat-up: 'about {} min with heat-up'
   about {} mm above where the paper dragged last time: ''
   about {} mm below where the paper dragged last time: ''
   about {} min left: ''

@@ -5340,6 +5340,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: 'Das Filament brauchte zu lange bis zum Sensor der Zuführung.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Das Filament wurde an der Zuführung vorbei in den Werkzeugkopf geschoben. Lade es von Hand."
   This toolhead has no automatic feeder. Load the filament by hand.: "Dieser Werkzeugkopf hat keine automatische Zuführung. Lade das Filament von Hand."
+  This head until a tool change; Save after the print to apply it to every head: 'Dieser Werkzeugkopf bis zum nächsten Werkzeugwechsel; nach dem Druck speichern, um es auf alle Werkzeugköpfe anzuwenden'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker und fügt sie zu printer.cfg hinzu. Ein Druck läuft, daher wird Klipper nach dessen Abschluss neu gestartet.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Dies installiert die HelixScreen-Hilfsmakros auf dem Drucker, fügt sie zu printer.cfg hinzu und startet Klipper neu.'
@@ -5806,6 +5807,7 @@ translations:
   Wall Speed Shakes This Printer: 'Wandgeschwindigkeit bringt diesen Drucker zum Vibrieren'
   Warm: Warm
   Warm Bed: Bett vorheizen
+  Warm the bed first: Zuerst das Bett vorheizen
   Warm up for a material in one tap: Material mit einem Tipp vorheizen
   Warming Bed...: Bett wird vorgeheizt...
   Warn: Warnung
@@ -6008,6 +6010,7 @@ translations:
   about {} min left · you can leave: noch etwa {} Min. · du kannst gehen
   accelerometer: Beschleunigungssensor
   all done: alles erledigt
+  about {} min with heat-up: 'etwa {} Min. mit Aufheizen'
   about {} mm above where the paper dragged last time: "etwa {} mm über der Stelle, an der das Papier letztes Mal schleifte"
   about {} mm below where the paper dragged last time: "etwa {} mm unter der Stelle, an der das Papier letztes Mal schleifte"
   already loaded: 'bereits geladen'

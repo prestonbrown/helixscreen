@@ -174,6 +174,7 @@ class PrinterProfileStateTestAccess {
         s.printer_type_.clear();
         s.pre_print_option_set_ = PrePrintOptionSet();
         s.z_offset_calibration_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
+        s.z_offset_save_strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
         // A latched external-persistence flag would hold FIRMWARE_MANAGED
         // across every later test in the binary after a mid-test failure.
         s.external_persistence_ = false;
@@ -193,6 +194,7 @@ class PrinterProfileStateTestAccess {
 
     static void pin_strategy(PrinterProfileState& s, ZOffsetCalibrationStrategy strategy) {
         s.z_offset_calibration_strategy_ = strategy;
+        s.z_offset_save_strategy_ = strategy;
     }
 
     static void set_option_set(PrinterProfileState& s, PrePrintOptionSet set) {

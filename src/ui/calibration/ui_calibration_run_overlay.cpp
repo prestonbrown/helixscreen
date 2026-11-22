@@ -5,6 +5,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
+#include "ui_panel_calibration_zoffset.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -19,11 +20,15 @@
 #include "display_format.h"
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "klippy_state.h"
 #include "observe_language.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "printer_temperature_state.h"
 #include "sound_manager.h"
+#include "temperature_rules.h"
+#include "thermal_rate_model.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -133,11 +138,51 @@ const char* walk_away_note(const std::vector<const StepInfo*>& away) {
 
 } // namespace
 
+namespace {
+
+/// The heaters a run's heater step tunes, as their tuning stands: each from the
+/// last run's values, else from the config. Empty when none is tuned.
+std::string heaters_before_text() {
+    auto& ps = get_printer_state();
+    const auto& hardware = ps.get_discovery();
+    std::vector<std::string> names{ps.temperature_state().active_extruder_name()};
+    if (hardware.has_heater_bed()) {
+        names.emplace_back("heater_bed");
+    }
+    const auto* last = calibration::CalibrationHistory::instance().entry("heaters");
+    const auto& in_config = hardware.heater_controls_in_config();
+    std::vector<calibration::HeaterControl> controls;
+    for (const auto& name : names) {
+        std::string control;
+        if (last) {
+            if (const auto* values = json_util::find_member(last->values, name.c_str())) {
+                control = json_util::safe_string(*values, "control");
+            }
+        }
+        if (control.empty()) {
+            const auto found = in_config.find(name);
+            if (found != in_config.end()) {
+                control = found->second;
+            }
+        }
+        if (!control.empty()) {
+            controls.push_back({name == "heater_bed", control});
+        }
+    }
+    return calibration::format_heater_controls(controls);
+}
+
+} // namespace
+
 std::string run_before_text(const StepInfo& s, int configured_z_offset_microns) {
     // The offset the Z offset screen shows as saved is the one its step starts
     // from; zero is an untuned probe, read from the history and config below.
     if (s.kind == calibration::StepKind::ZOffset && configured_z_offset_microns != 0) {
         return calibration::format_z_offset(configured_z_offset_microns / 1000.0);
+    }
+    if (s.kind == calibration::StepKind::Heaters) {
+        const std::string tuned = heaters_before_text();
+        return tuned.empty() ? lv_tr("not set") : tuned;
     }
     if (const auto* last = calibration::CalibrationHistory::instance().entry(s.id)) {
         if (!last->summary.empty()) {
@@ -267,6 +312,8 @@ void CalibrationRunOverlay::init_subjects() {
     add_string(pick_summary_short_, pick_summary_short_buf_, kShortLen,
                "cal_run_pick_summary_short");
     add_string(hands_short_, hands_short_buf_, kShortLen, "cal_run_hands_short");
+    add_int(zoffset_warm_shown_, 0, "cal_run_zoffset_warm_shown");
+    add_int(zoffset_warm_, 0, "cal_run_zoffset_warm");
     for (size_t i = 0; i < kSteps; ++i) {
         const std::string id = kRunStepIds[i];
         add_int(shown_[i], 0, "cal_run_shown_" + id);
@@ -385,6 +432,7 @@ void CalibrationRunOverlay::prepare_pick() {
         calibration::guided_run_steps(calibration::current_printer_steps(get_printer_state()));
     picked_.fill(false);
     ticked_.fill(false);
+    zoffset_warm_bed_ = false;
     for (const auto& s : candidates_) {
         const int i = step_index(s.id);
         if (i >= 0) {
@@ -395,14 +443,30 @@ void CalibrationRunOverlay::prepare_pick() {
 }
 
 std::vector<StepInfo> CalibrationRunOverlay::picked_steps() const {
+    const auto options = run_options();
     std::vector<StepInfo> out;
     for (const auto& s : candidates_) {
         const int i = step_index(s.id);
         if (i >= 0 && picked_[static_cast<size_t>(i)]) {
-            out.push_back(s);
+            out.push_back(calibration::with_run_options(s, options));
         }
     }
     return out;
+}
+
+calibration::RunOptions CalibrationRunOverlay::run_options() const {
+    calibration::RunOptions options;
+    auto& ps = get_printer_state();
+    options.zoffset_warm_bed = zoffset_warm_bed_ && ps.get_discovery().has_heater_bed();
+    if (options.zoffset_warm_bed) {
+        // The shared thermal model prices every other warm-up in the app.
+        const float bed_c = temperature_rules::deci_to_degrees_f(
+            lv_subject_get_int(ps.temperature_state().get_bed_temp_subject()));
+        options.zoffset_warm_bed_minutes =
+            calibration::heating_minutes(ThermalRateManager::instance().estimate_heating_seconds(
+                "heater_bed", bed_c, static_cast<float>(zoffset_cal::warm_bed_target_c())));
+    }
+    return options;
 }
 
 void CalibrationRunOverlay::set_page(RunPage page) {
@@ -427,17 +491,22 @@ void CalibrationRunOverlay::publish_pick() {
     set_text(pick_subtitle_,
              fmt::format(fmt::runtime(lv_tr("{} · pick what to run, then it runs on its own")),
                          short_line));
+    const auto options = run_options();
+    bool zoffset_offered = false;
     for (size_t i = 0; i < kSteps; ++i) {
-        const StepInfo* step = nullptr;
+        const StepInfo* candidate = nullptr;
         for (const auto& s : candidates_) {
             if (std::strcmp(s.id, kRunStepIds[i]) == 0) {
-                step = &s;
+                candidate = &s;
             }
         }
-        lv_subject_set_int(&shown_[i], step ? 1 : 0);
-        if (!step) {
+        lv_subject_set_int(&shown_[i], candidate ? 1 : 0);
+        if (!candidate) {
             continue;
         }
+        zoffset_offered = zoffset_offered || candidate->kind == calibration::StepKind::ZOffset;
+        const StepInfo shown_step = calibration::with_run_options(*candidate, options);
+        const StepInfo* step = &shown_step;
         const bool locked = step->tier == calibration::Tier::Required;
         if (locked) {
             picked_[i] = true;
@@ -454,6 +523,8 @@ void CalibrationRunOverlay::publish_pick() {
                              found != in_config.end() ? &found->second : nullptr)
                      .text);
     }
+    lv_subject_set_int(&zoffset_warm_shown_, zoffset_offered && has_bed ? 1 : 0);
+    lv_subject_set_int(&zoffset_warm_, options.zoffset_warm_bed ? 1 : 0);
     const auto picked = picked_steps();
     const int n = static_cast<int>(picked.size());
     const int minutes = calibration::total_minutes(picked);
@@ -728,6 +799,15 @@ void CalibrationRunOverlay::toggle_pick(const std::string& step_id) {
     publish_pick();
 }
 
+void CalibrationRunOverlay::toggle_zoffset_warm_bed() {
+    if (page_ != RunPage::Pick) {
+        return;
+    }
+    zoffset_warm_bed_ = !zoffset_warm_bed_;
+    spdlog::info("[{}] Warm the bed first: {}", get_name(), zoffset_warm_bed_ ? "on" : "off");
+    publish_pick();
+}
+
 void CalibrationRunOverlay::toggle_prereq(const std::string& prereq_id) {
     for (size_t i = 0; i < kPrereqs; ++i) {
         if (prereq_id == kRunPrereqIds[i] && !lv_subject_get_int(&prereq_detected_[i])) {
@@ -756,12 +836,13 @@ void CalibrationRunOverlay::start() {
         return;
     }
     std::vector<std::unique_ptr<calibration::CalibrationStep>> steps;
+    const auto options = run_options();
     for (const auto& info : picked_steps()) {
         if (const int i = step_index(info.id); i >= 0) {
             before_text_[static_cast<size_t>(i)] =
                 run_before_text(info, get_printer_state().get_configured_z_offset_microns());
         }
-        if (auto step = calibration::make_run_step(info)) {
+        if (auto step = calibration::make_run_step(info, options)) {
             steps.push_back(std::move(step));
         }
     }
@@ -863,6 +944,8 @@ void init_calibration_run_handlers() {
              const char* id = static_cast<const char*>(lv_event_get_user_data(e));
              get_calibration_run_overlay().toggle_pick(id ? id : "");
          }},
+        {"on_cal_run_zoffset_warm_toggle",
+         [](lv_event_t*) { get_calibration_run_overlay().toggle_zoffset_warm_bed(); }},
         {"on_cal_run_prereq_toggle",
          [](lv_event_t* e) {
              const char* id = static_cast<const char*>(lv_event_get_user_data(e));

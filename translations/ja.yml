@@ -5340,6 +5340,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: 'フィラメントがフィーダーのセンサーに届くまで時間がかかりすぎました。'
   The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"
   This toolhead has no automatic feeder. Load the filament by hand.: "このツールヘッドには自動フィーダーがありません。フィラメントを手動で装填してください。"
+  This head until a tool change; Save after the print to apply it to every head: 'ツール交換まではこのツールヘッドのみ。印刷後に保存すると全ツールヘッドに適用されます'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加します。印刷中のため、Klipper は印刷完了後に再起動されます。'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'HelixScreen のヘルパーマクロをプリンターにインストールし、printer.cfg に追加して、Klipper を再起動します。'
@@ -5806,6 +5807,7 @@ translations:
   Wall Speed Shakes This Printer: '壁の速度でこのプリンターが揺れます'
   Warm: ウォーム
   Warm Bed: ベッドを予熱
+  Warm the bed first: 先にベッドを予熱
   Warm up for a material in one tap: 素材に合わせてワンタップで予熱
   Warming Bed...: ベッド予熱中...
   Warn: 警告
@@ -6008,6 +6010,7 @@ translations:
   about {} min left · you can leave: 残り約{}分 · 離れてかまいません
   accelerometer: 加速度センサー
   all done: すべて完了
+  about {} min with heat-up: '加熱込みで約{}分'
   about {} mm above where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 上"
   about {} mm below where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 下"
   already loaded: '装填済み'

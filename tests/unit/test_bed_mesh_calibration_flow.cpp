@@ -25,6 +25,7 @@
 #include "printer_state.h"
 #include "standard_macros.h"
 #include "temperature_controller.h"
+#include "thermal_rate_model.h"
 
 #include <algorithm>
 #include <memory>
@@ -542,6 +543,46 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
     drain();
     CHECK(lv_subject_get_int(choice) == 1);
     CHECK(lv_subject_get_int(view) == 0);
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture,
+                 "the intro's duration prices the heat-up from the bed's own heating rate",
+                 "[bed_mesh_flow][calibration_intro]") {
+    struct RatesScope {
+        RatesScope() {
+            ThermalRateManager::instance().reset();
+            ThermalRateManager::instance().get_model("heater_bed").set_default_rate(2.0f);
+        }
+        ~RatesScope() {
+            ThermalRateManager::instance().reset();
+        }
+    } rates;
+    const auto pla = filament::find_material("PLA");
+    REQUIRE(pla);
+    const double pla_c = pla->bed_temp;
+    set_bed(pla_c - 20.0, 0.0);
+    BedMeshPanel panel;
+    panel.set_api(&api);
+    panel.init_subjects();
+    lv_subject_t* duration = lv_xml_get_subject(nullptr, "bed_mesh_intro_duration");
+    REQUIRE(duration != nullptr);
+    panel.on_activate();
+    drain();
+    const auto chip = [&] { return std::string(lv_subject_get_string(duration)); };
+
+    // 20° to go at 2 s/°C is 40 s, a minute, on top of two minutes probing.
+    CHECK(chip() == "about 3 min with heat-up");
+    panel.pick_heat_choice(0);
+    CHECK(chip() == "about 2 min");
+    panel.pick_heat_choice(1);
+    CHECK(chip() == "about 3 min with heat-up");
+
+    // A colder bed takes longer, priced again when the panel opens.
+    panel.on_deactivate(DeactivateReason::NavigateAway);
+    set_bed(pla_c - 50.0, 0.0);
+    panel.on_activate();
+    drain();
+    CHECK(chip() == "about 4 min with heat-up");
 }
 
 TEST_CASE_METHOD(BedMeshPanelFlowFixture,

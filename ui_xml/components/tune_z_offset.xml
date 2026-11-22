@@ -143,7 +143,7 @@
             height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
             scrollable="false">
       <bind_flag_if cond="$help_hidden_cond" flag="hidden"/>
-      <!-- One of five, picked by z_offset_tune_hint (ZOffsetTuneHint in
+      <!-- One of six, picked by z_offset_tune_hint (ZOffsetTuneHint in
            include/printer_profile_state.h). -->
       <text_small name="z_offset_help_text_manual"
                   width="100%" long_mode="wrap"
@@ -166,6 +166,11 @@
                   width="100%" long_mode="wrap" text="Saved for the mounted head; other heads keep their own"
                   hidden="true">
         <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="4"/>
+      </text_small>
+      <text_small name="z_offset_help_text_all_heads"
+                  width="100%" long_mode="wrap"
+                  text="This head until a tool change; Save after the print to apply it to every head" hidden="true">
+        <bind_flag_if_not_eq subject="z_offset_tune_hint" flag="hidden" ref_value="5"/>
       </text_small>
     </lv_obj>
   </view>

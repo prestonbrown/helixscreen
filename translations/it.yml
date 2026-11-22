@@ -5340,6 +5340,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: 'Il filamento ha impiegato troppo a raggiungere il sensore dell''alimentatore.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Il filamento è entrato nella testina senza passare dal suo alimentatore. Caricalo a mano."
   This toolhead has no automatic feeder. Load the filament by hand.: "Questa testina non ha un alimentatore automatico. Carica il filamento a mano."
+  This head until a tool change; Save after the print to apply it to every head: 'Questa testina fino a un cambio utensile; salva dopo la stampa per applicarlo a tutte le testine'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : 'Installa le macro di ausilio di HelixScreen sulla stampante e le aggiunge a printer.cfg. Una stampa è in corso, quindi Klipper verrà riavviato al termine.'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: 'Installa le macro di ausilio di HelixScreen sulla stampante, le aggiunge a printer.cfg e riavvia Klipper.'
@@ -5806,6 +5807,7 @@ translations:
   Wall Speed Shakes This Printer: 'La velocità delle pareti fa vibrare questa stampante'
   Warm: Caldo
   Warm Bed: Preriscalda piano
+  Warm the bed first: Preriscalda prima il piano
   Warm up for a material in one tap: Preriscalda un materiale con un tocco
   Warming Bed...: Preriscaldamento piano...
   Warn: Avviso
@@ -6008,6 +6010,7 @@ translations:
   about {} min left · you can leave: circa {} min rimanenti · puoi allontanarti
   accelerometer: accelerometro
   all done: tutto fatto
+  about {} min with heat-up: 'circa {} min con riscaldamento'
   about {} mm above where the paper dragged last time: "circa {} mm sopra il punto in cui la carta ha strisciato l'ultima volta"
   about {} mm below where the paper dragged last time: "circa {} mm sotto il punto in cui la carta ha strisciato l'ultima volta"
   already loaded: 'già caricato'

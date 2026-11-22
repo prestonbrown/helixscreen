@@ -5130,6 +5130,7 @@
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." it="Questo file è stato sezionato per {}, ma è caricato {}. La stampa sarà più lenta e più calda di quanto richiesto dalla bobina caricata."/>
   <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." it="Questo file non catturerà fotogrammi del timelapse. La modalità strato scatta un fotogramma solo quando il file esegue questa riga a ogni cambio di strato, e lo slicer non l&apos;ha aggiunta:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse invece scatta fotogrammi a intervalli regolari."/>
   <translation tag="This firmware can only switch slots by loading them" it="Questo firmware può cambiare slot solo caricandoli"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" it="Questa testina fino a un cambio utensile; salva dopo la stampa per applicarlo a tutte le testine"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." it="Installa le macro di ausilio di HelixScreen sulla stampante e le aggiunge a printer.cfg. Una stampa è in corso, quindi Klipper verrà riavviato al termine."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." it="Installa le macro di ausilio di HelixScreen sulla stampante, le aggiunge a printer.cfg e riavvia Klipper."/>
   <translation tag="This is a shell on the machine running this screen, as the user &apos;{}&apos;. Commands typed here run with that user&apos;s rights and can change or break the system, including the printer&apos;s firmware." it="Questa è una shell sulla macchina che esegue questo schermo, come utente &apos;{}&apos;. I comandi digitati qui vengono eseguiti con i permessi di quell&apos;utente e possono modificare o danneggiare il sistema, compreso il firmware della stampante."/>
@@ -5593,6 +5594,7 @@
   <translation tag="Wall Speed Shakes This Printer" it="La velocità delle pareti fa vibrare questa stampante"/>
   <translation tag="Warm" it="Caldo"/>
   <translation tag="Warm Bed" it="Preriscalda piano"/>
+  <translation tag="Warm the bed first" it="Preriscalda prima il piano"/>
   <translation tag="Warm up for a material in one tap" it="Preriscalda un materiale con un tocco"/>
   <translation tag="Warming Bed..." it="Preriscaldamento piano..."/>
   <translation tag="Warn" it="Avviso"/>
@@ -5793,6 +5795,7 @@
   <translation tag="about {} min" it="circa {} min"/>
   <translation tag="about {} min left" it="circa {} min rimanenti"/>
   <translation tag="about {} min left · you can leave" it="circa {} min rimanenti · puoi allontanarti"/>
+  <translation tag="about {} min with heat-up" it="circa {} min con riscaldamento"/>
   <translation tag="about {} mm above where the paper dragged last time" it="circa {} mm sopra il punto in cui la carta ha strisciato l&apos;ultima volta"/>
   <translation tag="about {} mm below where the paper dragged last time" it="circa {} mm sotto il punto in cui la carta ha strisciato l&apos;ultima volta"/>
   <translation tag="accelerometer" it="accelerometro"/>

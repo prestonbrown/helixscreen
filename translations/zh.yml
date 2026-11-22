@@ -5340,6 +5340,7 @@ translations:
   The filament took too long to reach the feeder's sensor.: '耗材到达送料器传感器用时过长。'
   The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"
   This toolhead has no automatic feeder. Load the filament by hand.: "此工具头没有自动送料器。请手动装入耗材。"
+  This head until a tool change; Save after the print to apply it to every head: '换工具前仅作用于此工具头；打印后保存即可应用到所有工具头'
   ? This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes.
   : '这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。'
   This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper.: '这会在打印机上安装 HelixScreen 帮助宏，添加到 printer.cfg，并重启 Klipper。'
@@ -5806,6 +5807,7 @@ translations:
   Wall Speed Shakes This Printer: '外墙速度会使此打印机抖动'
   Warm: 暖色
   Warm Bed: 预热热床
+  Warm the bed first: 先预热热床
   Warm up for a material in one tap: 一键为材料预热
   Warming Bed...: 正在预热热床...
   Warn: 警告
@@ -6008,6 +6010,7 @@ translations:
   about {} min left · you can leave: 约剩 {} 分钟 · 您可以离开
   accelerometer: 加速度传感器
   all done: 全部完成
+  about {} min with heat-up: '含加热约 {} 分钟'
   about {} mm above where the paper dragged last time: "比上次纸张有阻力的位置高约 {} mm"
   about {} mm below where the paper dragged last time: "比上次纸张有阻力的位置低约 {} mm"
   already loaded: '已加载'

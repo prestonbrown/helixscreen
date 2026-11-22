@@ -8,6 +8,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
+#include <optional>
 #include <string_view>
 
 #include "hv/json.hpp"
@@ -104,21 +105,32 @@ void z_offset(const json& settings, ConfigResults& out) {
     }
 }
 
-// The hotend's control, when it is a tuned one: watermark has nothing to tune.
-// Klipper requires control on every heater, so a stock config shows its
-// vendor's values here.
+// A heater section's control when it is a tuned one, "pid_v" read as "pid";
+// watermark has nothing to tune.
+std::optional<std::string> tuned_control(const json& section) {
+    const auto control = section.find("control");
+    if (control == section.end() || !control->is_string()) {
+        return std::nullopt;
+    }
+    const std::string kind = control->get<std::string>();
+    if (kind == "pid" || kind == "pid_v") {
+        return std::string("pid");
+    }
+    if (kind == "mpc") {
+        return kind;
+    }
+    return std::nullopt;
+}
+
+// The hotend's control, when it is a tuned one. Klipper requires control on
+// every heater, so a stock config shows its vendor's values here.
 void heaters(const json& settings, ConfigResults& out) {
     const json* extruder = section_of(settings, "extruder");
     if (!extruder) {
         return;
     }
-    const auto control = extruder->find("control");
-    if (control == extruder->end() || !control->is_string()) {
-        return;
-    }
-    const std::string kind = control->get<std::string>();
-    if (kind == "pid" || kind == "pid_v" || kind == "mpc") {
-        out["heaters"] = text_io::to_upper(kind == "pid_v" ? std::string("pid") : kind);
+    if (const auto kind = tuned_control(*extruder)) {
+        out["heaters"] = text_io::to_upper(*kind);
     }
 }
 
@@ -223,6 +235,18 @@ std::string format_mpc(double block_heat_capacity) {
     return fmt::format("MPC {:.1f} J/K", block_heat_capacity);
 }
 
+std::string format_heater_controls(const std::vector<HeaterControl>& heaters) {
+    std::string out;
+    for (const auto& h : heaters) {
+        const char* who = h.bed ? lv_tr("bed") : lv_tr("nozzle");
+        const std::string one = h.control == "mpc"
+                                    ? fmt::format(fmt::runtime(lv_tr("{} MPC")), who)
+                                    : fmt::format(fmt::runtime(lv_tr("{} PID")), who);
+        out += out.empty() ? one : " · " + one;
+    }
+    return out;
+}
+
 std::string format_mesh_range(double range_mm) {
     return fmt::format(fmt::runtime(lv_tr("{:.2f} mm range")), range_mm);
 }
@@ -285,6 +309,22 @@ ConfigResults results_in_config(const json& settings) {
     heaters(settings, out);
     bed_mesh(settings, out);
     input_shaper(settings, out);
+    return out;
+}
+
+HeaterControls heater_controls_in_config(const json& settings) {
+    HeaterControls out;
+    if (!settings.is_object()) {
+        return out;
+    }
+    for (auto it = settings.begin(); it != settings.end(); ++it) {
+        if (!it->is_object()) {
+            continue;
+        }
+        if (const auto kind = tuned_control(*it)) {
+            out[it.key()] = *kind;
+        }
+    }
     return out;
 }
 

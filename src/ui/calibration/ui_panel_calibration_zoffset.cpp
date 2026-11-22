@@ -42,6 +42,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <utility>
 
 using namespace helix;
 using helix::ui::observe;
@@ -225,6 +226,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 // externally
                 spdlog::info("[ZOffsetCal] Manual probe ended externally, returning to IDLE");
                 self->set_state(State::IDLE);
+                self->leave_run_unaccepted();
             }
         },
         ps.get_subjects_lifetime());
@@ -284,6 +286,8 @@ void ZOffsetCalibrationPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[ZOffsetCal] on_activate()");
+    // A run's step starts on the activation its open queued, and only that one.
+    const bool start_run = std::exchange(run_start_pending_, false) && run_done_;
 
     // A wake from the screensaver resumes what the panel showed: a warm-up, a
     // probe, a save or a result that landed behind it, and the reference-tool
@@ -327,6 +331,11 @@ void ZOffsetCalibrationPanel::on_activate() {
         if (indicator) {
             ui_z_offset_indicator_set_value(indicator, 0);
         }
+    }
+
+    if (start_run) {
+        spdlog::info("[ZOffsetCal] Guided run: starting without the intro");
+        start_calibration();
     }
 }
 
@@ -554,17 +563,26 @@ void ZOffsetCalibrationPanel::start_calibration() {
 }
 
 void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api, int step_index, int step_count,
-                                           RunDone on_done) {
+                                           bool warm_bed, RunDone on_done) {
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
+    run_warm_bed_ = warm_bed;
     run_step_index_ = step_index;
     run_step_count_ = step_count;
     lv_subject_set_int(&run_step_count_subject_, step_count);
     lv_subject_set_int(&run_step_current_subject_, step_index);
     set_run_mode(true);
-    spdlog::info("[ZOffsetCal] Opened for a guided run");
+    spdlog::info("[ZOffsetCal] Opened for a guided run{}", warm_bed ? ", warming the bed" : "");
+    run_start_pending_ = true;
     show(lv_screen_active());
+}
+
+bool ZOffsetCalibrationPanel::wants_warm_bed() const {
+    if (run_done_) {
+        return run_warm_bed_;
+    }
+    return lv_subject_get_int(&warm_bed_subject_) == 1;
 }
 
 void ZOffsetCalibrationPanel::finish_run(RunEnd end) {
@@ -589,6 +607,7 @@ void ZOffsetCalibrationPanel::finish_run(RunEnd end) {
 
 void ZOffsetCalibrationPanel::abort_run() {
     run_done_ = nullptr;
+    run_start_pending_ = false;
     if (state_ == State::PROBING || state_ == State::ADJUSTING || state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Guided run stopped: aborting the calibration");
         send_abort();
@@ -690,6 +709,7 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
     auto declined = [this]() {
         tool_confirm_pending_ = false;
         tool_confirm_dialog_ = nullptr;
+        leave_run_unaccepted();
     };
     opts.on_cancel = declined;
     opts.on_dismiss = declined;
@@ -733,11 +753,8 @@ void ZOffsetCalibrationPanel::close_tool_confirm() {
 }
 
 void ZOffsetCalibrationPanel::begin_calibration() {
-    // Check if warm bed is requested
-    bool warm_bed = lv_subject_get_int(&warm_bed_subject_) == 1;
-    if (warm_bed) {
-        auto* cfg = Config::get_instance();
-        int temp = cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp);
+    if (wants_warm_bed()) {
+        const int temp = zoffset_cal::warm_bed_target_c();
         warm_bed_target_deci_ =
             helix::temperature_rules::degrees_to_deci(temp); // Convert °C to decidegrees
 
@@ -789,6 +806,12 @@ void ZOffsetCalibrationPanel::begin_calibration() {
         // No warming, go straight to probing
         begin_probe_sequence();
     }
+}
+
+int helix::zoffset_cal::warm_bed_target_c() {
+    const Config* cfg = Config::get_instance();
+    return cfg ? cfg->get<int>("/calibration/warm_bed_temp", kDefaultWarmBedTemp)
+               : kDefaultWarmBedTemp;
 }
 
 ZOffsetCalibrationStrategy ZOffsetCalibrationPanel::run_strategy() const {
@@ -1244,6 +1267,15 @@ void ZOffsetCalibrationPanel::handle_accept_clicked() {
 void ZOffsetCalibrationPanel::handle_abort_clicked() {
     spdlog::debug("[ZOffsetCal] Abort clicked");
     send_abort();
+    leave_run_unaccepted();
+}
+
+void ZOffsetCalibrationPanel::leave_run_unaccepted() {
+    // A run has no intro to fall back to: the panel closes and the run asks
+    // whether to go on without a Z offset (on_dismissed()).
+    if (run_done_ && is_visible()) {
+        helix::nav::go_back();
+    }
 }
 
 void ZOffsetCalibrationPanel::handle_done_clicked() {
@@ -1256,6 +1288,10 @@ void ZOffsetCalibrationPanel::handle_retry_clicked() {
     spdlog::debug("[ZOffsetCal] Retry clicked");
     abort_manual_probe_if_active();
     set_state(State::IDLE);
+    // A run has no intro to return to: Retry starts over at once.
+    if (run_done_) {
+        start_calibration();
+    }
 }
 
 void ZOffsetCalibrationPanel::handle_warm_bed_toggled() {

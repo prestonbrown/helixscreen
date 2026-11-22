@@ -140,6 +140,7 @@
   <translation tag="WiFi initialization failed: {}" en-GB="WiFi initialisation failed: {}"/>
   <translation tag="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)." en-GB="Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artefact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters)."/>
   <translation tag="Z probes for bed leveling and mesh generation" en-GB="Z probes for bed levelling and mesh generation"/>
+  <translation tag="about {} min with heat-up" en-GB="about {} min with heat-up"/>
   <translation tag="color differs" en-GB="colour differs"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" en-GB="exact: same material and colour. material: same material. next: any ready slot, even a different material"/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." en-GB="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}."/>
