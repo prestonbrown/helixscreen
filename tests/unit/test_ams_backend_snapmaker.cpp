@@ -5525,6 +5525,34 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(writes_for_head(h, 0) == 2 * 2);
         CHECK(writes_for_head(h, 2) == 2 * 2);
     }
+    SECTION("an edit the record never echoed is not rewritten with the pre-edit filament") {
+        // The edit's write fails or a queued clear overtakes it: the record
+        // still names no type, and the lane's override still holds the type
+        // and color the firmware last stated.
+        SlotInfo edit = polymaker_asa();
+        edit.material = "PETG";
+        edit.color_rgb = 0x0000FF;
+        helix::test::edit_slot_as_user(h.backend, 0, edit);
+        FilamentRecordHarness::drain();
+        REQUIRE(writes_for_head(h, 0) == 2);
+        h.printer.client.clear_gcode_script_history();
+
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.frame(heads_0_and_2_cleared());
+        REQUIRE(writes_for_head(h, 2) == 2);
+        for (const auto& w : h.config_writes()) {
+            if (w.find("CONFIG_EXTRUDER=0") == std::string::npos) {
+                continue;
+            }
+            INFO(w);
+            if (w.find("FILAMENT_TYPE=") != std::string::npos) {
+                CHECK(w.find("FILAMENT_TYPE=PETG") != std::string::npos);
+            }
+            if (w.find("FILAMENT_COLOR_RGBA=") != std::string::npos) {
+                CHECK(w.find("FILAMENT_COLOR_RGBA=0000FFFF") != std::string::npos);
+            }
+        }
+    }
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,

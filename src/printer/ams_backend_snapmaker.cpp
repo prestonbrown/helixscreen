@@ -1639,9 +1639,11 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         persist_record_beside_firmware_locked(slot_index, info);
         if (record_write) {
             const auto idx = static_cast<size_t>(slot_index);
-            // This write is the record's restore until the firmware echoes it.
-            record_restores_made_[idx] = 0;
+            // This write is the record's restore until the firmware echoes it,
+            // and it is never repeated: a restore is built from the override,
+            // which keeps the pre-edit type and color until that echo.
             note_record_written_locked(idx);
+            record_restores_made_[idx] = kMaxRecordRestores;
             sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu};
         }
     }
