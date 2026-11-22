@@ -1173,6 +1173,7 @@ translations:
   Continue: 继续
   Continue on Another Toolhead: '在另一个工具头上继续'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '在{}上继续打印？打印机会将剩余打印转到该工具头，加热后继续。'
+  Continue with the remaining steps, or stop the calibration?: '继续剩余步骤，还是停止校准？'
   Continues from {} on runout: '用尽时从{}继续'
   Control optional print start features: 控制可选的打印启动功能
   Control power relays and smart outlets: 控制电源继电器和智能插座
@@ -4565,6 +4566,7 @@ translations:
   Stop: 停止
   Stop Drying: 停止干燥
   Stop Print?: 停止打印？
+  Stop calibration: '停止校准'
   Stop calibration?: '停止校准？'
   Stop drying?: 停止烘干?
 
@@ -5801,6 +5803,7 @@ translations:
   Z motor calibration failed: Z 电机校准失败
   Z offset: 'Z 偏移'
   Z offset by material: "按材料 Z 偏移"
+  Z offset not set: 'Z 偏移未设置'
   Z probes for bed leveling and mesh generation: 用于热床调平和网格生成的 Z 探针
   Z tilt: Z倾斜
   Z {:.2f} mm: Z {:.2f} mm

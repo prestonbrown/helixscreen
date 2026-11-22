@@ -288,6 +288,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     const HistoryEntry done{"2026-11-20", "-1.300 mm", json::object()};
     s = helix::ui::tile_status(step, &done, &in_config);
     CHECK(s.text == "Done Nov 20 · -1.300 mm");
+
+    // An input shaper's two axes fill the tile without the label.
+    StepInfo shaper;
+    shaper.kind = StepKind::InputShaper;
+    const std::string axes = "X: MZV 50.0 · Y: MZV 50.0";
+    CHECK(helix::ui::tile_status(shaper, nullptr, &axes).text == axes);
     CHECK(s.tone == helix::ui::TileTone::Done);
 }
 

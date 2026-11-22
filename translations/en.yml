@@ -1174,6 +1174,7 @@ translations:
   Continue: Continue
   Continue on Another Toolhead: Continue on Another Toolhead
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.
+  Continue with the remaining steps, or stop the calibration?: Continue with the remaining steps, or stop the calibration?
   Continues from {} on runout: Continues from {} on runout
   Control optional print start features: Control optional print start features
   Control power relays and smart outlets: Control power relays and smart outlets
@@ -4543,6 +4544,7 @@ translations:
   Stop: Stop
   Stop Drying: Stop Drying
   Stop Print?: Stop Print?
+  Stop calibration: Stop calibration
   Stop calibration?: Stop calibration?
   Stop drying?: Stop drying?
   Stop failed: Stop failed
@@ -5780,6 +5782,7 @@ translations:
   Z motor calibration failed: Z motor calibration failed
   Z offset: Z offset
   Z offset by material: Z offset by material
+  Z offset not set: Z offset not set
   Z probes for bed leveling and mesh generation: Z probes for bed leveling and mesh generation
   Z tilt: Z tilt
   Z {:.2f} mm: Z {:.2f} mm

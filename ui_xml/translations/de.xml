@@ -1129,6 +1129,7 @@
   <translation tag="Continue" de="Fortfahren"/>
   <translation tag="Continue on Another Toolhead" de="Auf anderem Werkzeugkopf fortfahren"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." de="Druck auf {} fortsetzen? Der Drucker verlegt den Rest des Drucks dorthin, heizt ihn auf und setzt fort."/>
+  <translation tag="Continue with the remaining steps, or stop the calibration?" de="Mit den übrigen Schritten fortfahren oder die Kalibrierung stoppen?"/>
   <translation tag="Continues from {} on runout" de="Bei Auslauf weiter mit {}"/>
   <translation tag="Control optional print start features" de="Optionale Druckstartfunktionen steuern"/>
   <translation tag="Control power relays and smart outlets" de="Relais und smarte Steckdosen steuern"/>
@@ -4433,6 +4434,7 @@
   <translation tag="Stop" de="Stoppen"/>
   <translation tag="Stop Drying" de="Trocknen stoppen"/>
   <translation tag="Stop Print?" de="Druck stoppen?"/>
+  <translation tag="Stop calibration" de="Kalibrierung stoppen"/>
   <translation tag="Stop calibration?" de="Kalibrierung stoppen?"/>
   <translation tag="Stop drying?" de="Trocknung stoppen?"/>
   <translation tag="Stop failed" de="Stopp fehlgeschlagen"/>
@@ -5607,6 +5609,7 @@
   <translation tag="Z motor calibration failed" de="Kalibrierung des Z-Motors fehlgeschlagen"/>
   <translation tag="Z offset" de="Z-Offset"/>
   <translation tag="Z offset by material" de="Z-Offset nach Material"/>
+  <translation tag="Z offset not set" de="Z-Offset nicht eingestellt"/>
   <translation tag="Z probes for bed leveling and mesh generation" de="Z-Sonden für Bettnivellierung und Netzerzeugung"/>
   <translation tag="Z tilt" de="Z-Neigung"/>
   <translation tag="Z {:.2f} mm" de="Z {:.2f} mm"/>

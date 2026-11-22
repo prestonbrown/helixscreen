@@ -1129,6 +1129,7 @@
   <translation tag="Continue" zh="继续"/>
   <translation tag="Continue on Another Toolhead" zh="在另一个工具头上继续"/>
   <translation tag="Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes." zh="在{}上继续打印？打印机会将剩余打印转到该工具头，加热后继续。"/>
+  <translation tag="Continue with the remaining steps, or stop the calibration?" zh="继续剩余步骤，还是停止校准？"/>
   <translation tag="Continues from {} on runout" zh="用尽时从{}继续"/>
   <translation tag="Control optional print start features" zh="控制可选的打印启动功能"/>
   <translation tag="Control power relays and smart outlets" zh="控制电源继电器和智能插座"/>
@@ -4433,6 +4434,7 @@
   <translation tag="Stop" zh="停止"/>
   <translation tag="Stop Drying" zh="停止干燥"/>
   <translation tag="Stop Print?" zh="停止打印？"/>
+  <translation tag="Stop calibration" zh="停止校准"/>
   <translation tag="Stop calibration?" zh="停止校准？"/>
   <translation tag="Stop drying?" zh="停止烘干?"/>
   <translation tag="Stop failed" zh="停止失败"/>
@@ -5607,6 +5609,7 @@
   <translation tag="Z motor calibration failed" zh="Z 电机校准失败"/>
   <translation tag="Z offset" zh="Z 偏移"/>
   <translation tag="Z offset by material" zh="按材料 Z 偏移"/>
+  <translation tag="Z offset not set" zh="Z 偏移未设置"/>
   <translation tag="Z probes for bed leveling and mesh generation" zh="用于热床调平和网格生成的 Z 探针"/>
   <translation tag="Z tilt" zh="Z倾斜"/>
   <translation tag="Z {:.2f} mm" zh="Z {:.2f} mm"/>

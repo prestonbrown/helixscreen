@@ -1173,6 +1173,7 @@ translations:
   Continue: 続行
   Continue on Another Toolhead: '別のツールヘッドで続行'
   Continue the print on {}? The printer moves the rest of the print to it, heats it and resumes.: '{}で印刷を続行しますか？プリンターは残りの印刷をそこへ移し、加熱して再開します。'
+  Continue with the remaining steps, or stop the calibration?: '残りのステップを続けますか、それともキャリブレーションを停止しますか？'
   Continues from {} on runout: 'フィラメント切れ時は{}から続行'
   Control optional print start features: オプションの印刷開始機能を制御
   Control power relays and smart outlets: 電源リレーとスマートコンセントを制御
@@ -4565,6 +4566,7 @@ translations:
   Stop: 停止
   Stop Drying: 乾燥を停止
   Stop Print?: 印刷を停止しますか？
+  Stop calibration: 'キャリブレーションを停止'
   Stop calibration?: 'キャリブレーションを停止しますか？'
   Stop drying?: 乾燥を停止しますか?
 
@@ -5801,6 +5803,7 @@ translations:
   Z motor calibration failed: Z モーターの校正に失敗しました
   Z offset: 'Zオフセット'
   Z offset by material: "素材別 Z-Offset"
+  Z offset not set: 'Zオフセット未設定'
   Z probes for bed leveling and mesh generation: ベッドレベリングとメッシュ生成用 Z プローブ
   Z tilt: Zチルト
   Z {:.2f} mm: Z {:.2f} mm
