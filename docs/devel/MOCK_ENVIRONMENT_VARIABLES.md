@@ -27,6 +27,14 @@ HELIX_AMS_GATES=8 ./build/bin/helix-screen --test
 HELIX_AMS_GATES=16 ./build/bin/helix-screen --test
 ```
 
+### `HELIX_MOCK_CHAMBER_AIR_NOTICE`
+
+Show a chamber air accessory's first-fit notice in a `--test` run. A mock run starts from an empty config and a mock such as the Snapmaker U1 reports its top module fitted, so every run would open the "detected" and "Recalibrate input shaping?" dialogs over whatever a screenshot or ctl script drives; test mode therefore counts the notice as already shown unless this is set to a truthy value. Real printers are unaffected (`RuntimeConfig::should_show_chamber_air_first_fit()`, `src/ui/ui_chamber_air_notices.cpp`).
+
+```bash
+HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_CHAMBER_AIR_NOTICE=1 ./build/bin/helix-screen --test -vv
+```
+
 ### `HELIX_MOCK_DOOR_OPEN`
 
 Makes every door-named `gcode_button` (`frontDoor`, `topDoor` on the Creator 5 personas, or one added with `HELIX_MOCK_OBJECTS="gcode_button door"`) report `RELEASED`, which a Door input reads as open. Without it door buttons report `PRESSED` (closed); every other button reports `RELEASED`.
