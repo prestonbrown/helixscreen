@@ -148,8 +148,8 @@ struct PackedVertex {
     /// See GCodeGLESRenderer::dequant_matrix().
     int16_t position[3];
     int8_t normal[2]; ///< Octahedral-encoded unit normal; decode in vertex shader.
-    uint8_t color[4]; ///< RGBA8 — alpha unused (filled with 255) but pads the color attribute to a
-                      ///< sane 4-byte unit.
+    uint8_t color[4]; ///< RGB8 plus the outer-wall flag in alpha: 255 on an outer wall's strips,
+                      ///< 0 elsewhere. The shader rim-lights only where it is set.
 
     static constexpr size_t stride() {
         return sizeof(PackedVertex);
@@ -352,11 +352,22 @@ struct RibbonGeometry {
      * Falls back to kDefaultToolpathColor when the strip has no recorded index or
      * the index is stale relative to the palette.
      */
+    /// Top bit of a strip_color_index entry: the strip belongs to an outer
+    /// wall. The palette stops at kStripColorMask + 1 entries so the bit never
+    /// collides with an index.
+    static constexpr uint8_t kOuterWallStripFlag = 0x80;
+    static constexpr uint8_t kStripColorMask = 0x7F;
+
+    [[nodiscard]] bool strip_is_outer_wall(size_t strip_idx) const {
+        return strip_idx < strip_color_index.size() &&
+               (strip_color_index[strip_idx] & kOuterWallStripFlag) != 0;
+    }
+
     uint32_t strip_color(size_t strip_idx) const {
         if (strip_idx >= strip_color_index.size()) {
             return kDefaultToolpathColor;
         }
-        uint8_t ci = strip_color_index[strip_idx];
+        uint8_t ci = strip_color_index[strip_idx] & kStripColorMask;
         if (ci >= color_palette.size()) {
             return kDefaultToolpathColor;
         }

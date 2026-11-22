@@ -196,6 +196,7 @@ void RibbonGeometry::expand_strips(size_t first_strip, size_t strip_count,
         // per strip rather than once per expanded vertex.
         uint8_t rgba[4];
         PackedVertex::encode_color(strip_color(strip_idx), rgba);
+        rgba[3] = strip_is_outer_wall(strip_idx) ? 255 : 0;
 
         for (int ti = 0; ti < 6; ++ti) {
             const auto& vert = vertices[strip[static_cast<size_t>(kTriIndices[ti])]];
@@ -295,6 +296,7 @@ void RibbonGeometry::patch_prepared_buffer_colors() {
         for (size_t s = 0; s < strip_count; ++s) {
             uint8_t rgba[4];
             PackedVertex::encode_color(strip_color(first_strip + s), rgba);
+            rgba[3] = strip_is_outer_wall(first_strip + s) ? 255 : 0;
             for (int ti = 0; ti < 6; ++ti) {
                 out->color[0] = rgba[0];
                 out->color[1] = rgba[1];
@@ -424,7 +426,7 @@ void RibbonGeometry::validate() const {
     size_t color_palette_size = color_palette.size();
     for (size_t i = 0; i < strip_color_index.size();
          i += std::max(size_t(1), strip_color_index.size() / 200)) {
-        if (strip_color_index[i] >= color_palette_size) {
+        if ((strip_color_index[i] & kStripColorMask) >= color_palette_size) {
             spdlog::warn("[GCode::Builder] Strip {} color_index {} >= palette size {}", i,
                          strip_color_index[i], color_palette_size);
             ++issues;
@@ -508,13 +510,15 @@ uint8_t GeometryBuilder::add_to_color_palette(RibbonGeometry& geometry, uint32_t
     }
 
     // Not in cache - add to palette
-    if (geometry.color_palette.size() >= 256) {
+    constexpr size_t kPaletteCapacity = RibbonGeometry::kStripColorMask + 1;
+    if (geometry.color_palette.size() >= kPaletteCapacity) {
         static bool color_warned = false;
         if (!color_warned) {
-            spdlog::warn("[GCode Geometry] Color palette full (256 entries), reusing last entry");
+            spdlog::warn("[GCode Geometry] Color palette full ({} entries), reusing last entry",
+                         kPaletteCapacity);
             color_warned = true;
         }
-        return 255;
+        return static_cast<uint8_t>(kPaletteCapacity - 1);
     }
 
     uint8_t index = static_cast<uint8_t>(geometry.color_palette.size());
@@ -1280,6 +1284,15 @@ GeometryBuilder::generate_ribbon_vertices(const ToolpathSegment& segment, Ribbon
     bool is_first_segment = !prev_start_cap.has_value();
 
     // Declared out here because the start-cap *strips* below need the same color.
+    // Outer walls carry the rim light that outlines a dark part; the flanks of
+    // lines inside a surface would alias it into streaks.
+    if (!debug_face_colors_ && (segment.feature_type == FeatureType::OuterWall ||
+                                segment.feature_type == FeatureType::OverhangWall)) {
+        for (auto& fc : face_colors) {
+            fc |= RibbonGeometry::kOuterWallStripFlag;
+        }
+    }
+
     uint8_t start_cap_color_idx = 0;
 
     // ========== START CAP VERTICES (first segment only) ==========

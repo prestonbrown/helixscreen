@@ -239,7 +239,7 @@ static const char* kVertexShaderDecls = R"(
     // Per-pixel Phong shading with camera-following light.
     // Vertex format is packed (see PackedVertex):
     //   a_position : vec3 float
-    //   a_color    : vec4 unorm8  (alpha unused)
+    //   a_color    : vec4 unorm8  (alpha = outer-wall flag)
     //   a_normal   : vec2 snorm8  (octahedral-encoded unit normal)
     uniform mat4 u_mvp;
     uniform mat4 u_model_view;
@@ -255,6 +255,7 @@ static const char* kVertexShaderDecls = R"(
     varying vec3 v_normal;
     varying vec3 v_position;
     varying vec3 v_base_color;
+    varying float v_outer_wall;
 )";
 
 /// The octahedral normal decoder, kept as ONE piece of GLSL text and spliced into
@@ -288,6 +289,7 @@ static const char* kVertexShaderMain = R"(
         v_normal = normalize(u_normal_matrix * normal);
         v_position = (u_model_view * vec4(a_position, 1.0)).xyz;
         v_base_color = mix(u_base_color.rgb, a_color.rgb, u_use_vertex_color) * u_color_scale;
+        v_outer_wall = a_color.a;
     }
 )";
 
@@ -296,6 +298,7 @@ static const char* kFragmentShaderSource = R"(
     varying vec3 v_normal;
     varying vec3 v_position;
     varying vec3 v_base_color;
+    varying float v_outer_wall;
 
     uniform vec3 u_light_dir[2];
     uniform vec3 u_light_color[2];
@@ -304,6 +307,8 @@ static const char* kFragmentShaderSource = R"(
     uniform float u_specular_shininess;
     uniform float u_base_alpha;
     uniform float u_lift_strength;
+    uniform float u_rim_strength;
+    uniform float u_rim_power;
 
     void main() {
         vec3 n = normalize(v_normal);
@@ -333,9 +338,18 @@ static const char* kFragmentShaderSource = R"(
         // gives a dark filament the range it lacks while a light one, having
         // almost no headroom, is left essentially as it was.
         float lit = clamp((diffuse.r + diffuse.g + diffuse.b) / 3.0, 0.0, 1.0);
-        vec3 lift = (vec3(1.0) - v_base_color) * lit * u_lift_strength;
+        vec3 headroom = vec3(1.0) - v_base_color;
+        vec3 lift = headroom * lit * u_lift_strength;
 
-        vec3 color = v_base_color * diffuse + lift + vec3(spec * u_specular_intensity);
+        // Rim light on outer walls: a glow where the wall turns away from the
+        // viewer, which outlines a dark part against the backdrop while its
+        // faces stay dark. Scaled by headroom like the lift, so a light
+        // filament, already distinct, barely changes.
+        float facing = max(dot(n, view_dir), 0.0);
+        float rim = pow(1.0 - facing, u_rim_power) * u_rim_strength * v_outer_wall;
+
+        vec3 color = v_base_color * diffuse + lift + headroom * rim +
+                     vec3(spec * u_specular_intensity);
         gl_FragColor = vec4(color, u_base_alpha);
     }
 )";
@@ -703,6 +717,8 @@ bool GCodeGLESRenderer::compile_shaders() {
     u_model_view_ = glGetUniformLocation(program_, "u_model_view");
     u_base_alpha_ = glGetUniformLocation(program_, "u_base_alpha");
     u_lift_strength_ = glGetUniformLocation(program_, "u_lift_strength");
+    u_rim_strength_ = glGetUniformLocation(program_, "u_rim_strength");
+    u_rim_power_ = glGetUniformLocation(program_, "u_rim_power");
     a_position_ = glGetAttribLocation(program_, "a_position");
     a_normal_ = glGetAttribLocation(program_, "a_normal");
     a_color_ = glGetAttribLocation(program_, "a_color");
@@ -1535,9 +1551,9 @@ bool GCodeGLESRenderer::setup_frame(const GCodeCamera& camera, float scale, bool
     // Material
     glUniform1f(u_specular_intensity_, specular_intensity_);
     glUniform1f(u_specular_shininess_, specular_shininess_);
-    // Matches depth_shading::kLiftStrength on the 2D path, so the same model in
-    // the same filament reads the same way in either renderer.
-    glUniform1f(u_lift_strength_, helix::gcode::depth_shading::kLiftStrength);
+    glUniform1f(u_lift_strength_, kLiftStrength);
+    glUniform1f(u_rim_strength_, kOuterWallRimStrength);
+    glUniform1f(u_rim_power_, kOuterWallRimPower);
 
     // Per-vertex color mode: use vertex colors when geometry has a color palette.
     // With per-tool AMS overrides, the palette is updated in-place so vertex colors
