@@ -677,6 +677,37 @@ TEST_CASE("MedusaHC cancels a multi-tool load mid-sequence and unwinds every hea
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
 
+TEST_CASE("MedusaHC words a single-load failure differently from a batch stop",
+          "[toolchanger][mount_feed][medusahc][batch]") {
+    std::string single_failure;
+    {
+        AckingChanger tc(4);
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament(1).success());
+        tc.ack();
+        ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+        tc.ack();  // mounted
+        tc.fail(); // the heat failed
+        single_failure = ToolChangerTestAccess::feed_last_toast(tc);
+    }
+    std::string batch_stop;
+    {
+        AckingChanger tc(4);
+        tc.feed_status("ready", 0);
+        REQUIRE(tc.load_filament_batch({1, 3}).success());
+        tc.ack();
+        ToolChangerTestAccess::feed_operator_reply(tc, mf::Reply::Continue);
+        tc.ack(); // mounted tool 1
+        tc.ack(); // heated
+        tc.ack(); // purged
+        REQUIRE(tc.cancel().success());
+        batch_stop = ToolChangerTestAccess::feed_last_toast(tc);
+    }
+    CHECK_FALSE(single_failure.empty());
+    CHECK_FALSE(batch_stop.empty());
+    CHECK(single_failure != batch_stop);
+}
+
 TEST_CASE("MedusaHC counts a dismissed prompt as a Cancel", "[toolchanger][mount_feed][medusahc]") {
     AckingChanger tc(4);
     tc.feed_status("ready", 0);
@@ -702,6 +733,7 @@ TEST_CASE("MedusaHC times a single-tool load out when nobody inserts",
     CHECK(tc.sent_.back() == mf::prompt_end_gcode());
     // The toast claims nothing about heaters or the carriage: neither was touched.
     CHECK_FALSE(ToolChangerTestAccess::feed_last_toast(tc).empty());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc).find("eater") == std::string::npos);
     tc.ack();
     CHECK(tc.get_current_action() == AmsAction::IDLE);
 }
@@ -1953,6 +1985,7 @@ TEST_CASE("MedusaHC: a cleanup that only closes the prompt never claims the heat
     }
     CHECK(tc.get_current_action() == AmsAction::IDLE);
     CHECK_FALSE(ToolChangerTestAccess::feed_last_toast(tc).empty());
+    CHECK(ToolChangerTestAccess::feed_last_toast(tc).find("eater") == std::string::npos);
     CHECK(tc.sent_.back() == mf::prompt_end_gcode());
 }
 

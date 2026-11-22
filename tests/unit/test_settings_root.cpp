@@ -266,16 +266,15 @@ TEST_CASE_METHOD(RootFixture, "settings root: status lines follow values on retu
     get_global_settings_panel().refresh_status_lines();
     process_lvgl(5);
     const std::string at_forty = status_text(root_, "row_sound");
-    CHECK(at_forty.find("40") != std::string::npos);
+    CHECK(at_forty == helix::settings::status::sound(true, 40));
 
     set_int("settings_volume", 0);
     CHECK(status_text(root_, "row_sound") == at_forty); // no observer: stale until return
     get_global_settings_panel().on_activate();
     process_lvgl(5);
     const std::string muted = status_text(root_, "row_sound");
-    CHECK_FALSE(muted.empty());
+    CHECK(muted == helix::settings::status::sound(true, 0));
     CHECK(muted != at_forty);
-    CHECK(muted.find("40") == std::string::npos);
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: rows without state show no status",
@@ -491,7 +490,7 @@ TEST_CASE_METHOD(RootFixture, "settings root: Updates status reads firmware-mana
     set_int("updates_firmware_managed", 1);
     get_global_settings_panel().refresh_status_lines();
     process_lvgl(5);
-    CHECK_FALSE(status_text(root_, "row_updates").empty());
+    CHECK(status_text(root_, "row_updates") == helix::settings::status::updates(0, "", "", true));
     CHECK(status_text(root_, "row_updates") != unmanaged);
 }
 
@@ -534,9 +533,11 @@ TEST_CASE_METHOD(RootFixture, "settings root: refresh reads every stateful row's
     CHECK(status_text(root_, "row_display") == "65% · sleep 10 min");
     CHECK(status_text(root_, "row_appearance") ==
           "Dark Mode · " + theme_manager_get_active_theme().name);
-    CHECK_FALSE(status_text(root_, "row_devices").empty());
+    CHECK(status_text(root_, "row_devices") == helix::settings::status::devices(1));
     CHECK(status_text(root_, "row_devices") != devices_ok);
-    CHECK(status_text(root_, "row_language_time").find("24") != std::string::npos);
+    CHECK(status_text(root_, "row_language_time") ==
+          helix::settings::status::language_time(
+              SystemSettingsManager::instance().get_language_display_name(), 1));
 
     lv_subject_set_int(hw_level, saved_hw_level);
     lv_subject_set_int(brightness, saved_brightness);

@@ -387,7 +387,8 @@ TEST_CASE_METHOD(HelixTestFixture,
         FormatterScope fs;
         UpdateQueue::instance().drain_until_empty();
 
-        // Exactly the presentation used when there is no history at all.
+        // The never-printed presentation: no filename or meta, and a placeholder in place
+        // of a time.
         REQUIRE(subject_text("print_status_idle_filename").empty());
         REQUIRE_FALSE(subject_text("print_status_idle_when").empty());
         REQUIRE(subject_text("print_status_idle_meta").empty());

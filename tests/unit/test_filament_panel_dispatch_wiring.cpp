@@ -353,3 +353,25 @@ TEST_CASE("A refused unload arms nothing", "[filament][dispatch][wiring][bypass]
     REQUIRE(out.tier == FilamentTier::Refused);
     CHECK_FALSE(out.arm_manual_pull);
 }
+
+TEST_CASE("The three refusals each warn with their own message", "[filament][dispatch][wiring]") {
+    AmsSystemInfo no_slot = make_sys(4, /*current_slot=*/-1);
+    AmsSystemInfo bypass = make_sys(4, /*current_slot=*/-1);
+    bypass.filament_loaded = true;
+
+    const std::string pick_slot =
+        load_outcome(no_slot, fresh_ams(), /*target_slot=*/-1, /*macro_available=*/true).toast;
+    const std::string bypass_loaded =
+        load_outcome(bypass, bypassed_ams(), /*target_slot=*/2, /*macro_available=*/true).toast;
+    const std::string nothing_loaded =
+        unload_outcome(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/false,
+                       /*macro_available=*/true)
+            .toast;
+
+    CHECK_FALSE(pick_slot.empty());
+    CHECK_FALSE(bypass_loaded.empty());
+    CHECK_FALSE(nothing_loaded.empty());
+    CHECK(pick_slot != bypass_loaded);
+    CHECK(pick_slot != nothing_loaded);
+    CHECK(bypass_loaded != nothing_loaded);
+}

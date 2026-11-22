@@ -438,11 +438,12 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     // A user M117 arrives on the same notify_status_update path the collector
     // listens on. It must NOT clobber the collector's phase label — user text
     // belongs in display_message, which PrinterPrintState owns.
+    const std::string label_before = get_current_message();
     client().dispatch_status_update({{"display_status", {{"message", "Leveling 3/9"}}}});
     drain_async_updates();
     drain_async_updates();
 
-    REQUIRE(get_current_message() == "Heating Bed...");
+    REQUIRE(get_current_message() == label_before);
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
@@ -2240,12 +2241,14 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 
         // The bed sags past the 2C band during the dwell: the heating_bed rule
         // re-arms and holds again, and the temperature tick sees a heating bed.
+        const std::string soak_message = get_current_message();
         set_bed_temps(1020, 1050);
         client().dispatch_status_update(
             {{"heater_bed", {{"temperature", 102.0}, {"target", 105.0}}}});
         drain_async_updates();
         tick_fallbacks();
         CHECK(get_current_phase() == PrintStartPhase::SOAKING);
+        CHECK(get_current_message() == soak_message);
     }
 
     SECTION("a chamber wait while the bed is still climbing") {

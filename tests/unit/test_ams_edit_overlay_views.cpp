@@ -39,6 +39,7 @@
 #include "config.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "display_numbering.h"
 #include "display_settings_manager.h"
 #include "filament_op_dispatch.h"
 #include "lane_source_store.h"
@@ -3831,7 +3832,8 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     show_editor_on_lane(*this, *backend, 2, &completions, &saved);
     // The summary's lane line opens the Lane Settings page.
     REQUIRE(access.shown("lane_line"));
-    CHECK_FALSE(access.subject_text("ams_edit_lane_title").empty());
+    CHECK(access.subject_text("ams_edit_lane_title")
+              .find(helix::ui::noun_text(helix::ui::LaneNoun::Gate)) != std::string::npos);
     CHECK(access.subject_text("ams_edit_lane_line") == "Feeds T2 · Pauses on runout");
     access.click("lane_line");
     REQUIRE(access.page() == AmsEditOverlay::kPageLane);
