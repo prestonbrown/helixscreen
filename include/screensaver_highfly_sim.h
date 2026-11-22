@@ -182,9 +182,9 @@ inline constexpr float kHighflyPausedSpeed = 0.25f;
 inline constexpr float kHighflySwayTexels = 24.0f;
 inline constexpr float kHighflySwayRate = 0.15f;
 
-/// The word the big numerals spell in place of a time once a print ends: "DONE", "FAILED" or
-/// "CANCELED", or where the reading spells no states the flip clock's symbol for it (kGlyphCheck,
-/// kGlyphCross, kGlyphSquare); "" while they show numbers.
+/// The word the big numerals spell in place of a time once a print ends: "DONE", "FAIL" or
+/// "STOP" as the flip clock spells them, or where the reading spells no states the flip clock's
+/// symbol for it (kGlyphCheck, kGlyphCross, kGlyphSquare); "" while they show numbers.
 const char* highfly_word(const ClockReading& r);
 /// Most glyphs highfly_word() returns.
 inline constexpr size_t kHighflyWordMax = 8;

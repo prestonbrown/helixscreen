@@ -923,8 +923,8 @@ TEST_CASE("an ended print spells its state, or the flip clock's symbol, in place
         char symbol;
     };
     for (const End e : {End{ClockMode::DONE, "DONE", helix::ui::kGlyphCheck},
-                        End{ClockMode::FAILED, "FAILED", helix::ui::kGlyphCross},
-                        End{ClockMode::CANCELLED, "CANCELED", helix::ui::kGlyphSquare}}) {
+                        End{ClockMode::FAILED, "FAIL", helix::ui::kGlyphCross},
+                        End{ClockMode::CANCELLED, "STOP", helix::ui::kGlyphSquare}}) {
         CAPTURE(e.word);
         ClockReading r = print_reading(e.mode, 100);
         CHECK(std::string(highfly_word(r)) == e.word);
@@ -940,7 +940,7 @@ TEST_CASE("an ended print spells its state, or the flip clock's symbol, in place
     }
 }
 
-TEST_CASE("an end word is the numerals' height where it fits their span and fills it where not",
+TEST_CASE("end words are the numerals' height, and a longer word fills their span",
           "[screensaver][highfly][clock]") {
     using helix::ui::highfly_word_layout;
     using helix::ui::HighflyWordLayout;
@@ -959,6 +959,18 @@ TEST_CASE("an end word is the numerals' height where it fits their span and fill
                 const int32_t center_x = l.digits[0].x1 + l.digits[4].x2;
                 const int32_t center_y = l.digits[0].y1 + l.digits[0].y2;
                 const int32_t span = l.digits[4].x2 - l.digits[0].x1 + 1;
+                // Every end word stands at the numerals' full height, centered on them.
+                for (const ClockMode m :
+                     {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+                    const char* word = helix::ui::highfly_word(print_reading(m, 100));
+                    CAPTURE(word);
+                    const size_t n = std::strlen(word);
+                    const HighflyWordLayout wl = highfly_word_layout(l, n);
+                    CHECK(wl.unit == l.digit_unit);
+                    CHECK(wl.boxes[0].y2 - wl.boxes[0].y1 + 1 == numeral_h);
+                    CHECK(std::abs(wl.boxes[0].x1 + wl.boxes[n - 1].x2 - center_x) <= 2);
+                    CHECK(std::abs(wl.boxes[0].y1 + wl.boxes[0].y2 - center_y) <= 2);
+                }
                 for (size_t count = 1; count <= helix::ui::kHighflyWordMax; count++) {
                     CAPTURE(count);
                     const HighflyWordLayout wl = highfly_word_layout(l, count);
@@ -968,12 +980,12 @@ TEST_CASE("an end word is the numerals' height where it fits their span and fill
                     CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - center_x) <= 2);
                     CHECK(std::abs(boxes[0].y1 + boxes[0].y2 - center_y) <= 2);
                     if (count <= 4) {
-                        // DONE: the numerals' own size and halo.
+                        // DONE, FAIL, STOP: the numerals' own size and halo.
                         CHECK(glyph_h == numeral_h);
                         CHECK(wl.unit == l.digit_unit);
                         CHECK(wl.halo == l.halo);
                     } else {
-                        // FAILED, CANCELED: shrunk only as far as the span needs.
+                        // A longer word: shrunk only as far as the span needs.
                         CHECK(glyph_h < numeral_h);
                         CHECK(run * 10 >= span * 9);
                         CHECK(wl.halo <= l.halo);

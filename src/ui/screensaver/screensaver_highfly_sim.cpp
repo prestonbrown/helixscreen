@@ -776,9 +776,9 @@ const char* highfly_word(const ClockReading& r) {
     case ClockMode::DONE:
         return r.spell_states ? "DONE" : kCheck;
     case ClockMode::FAILED:
-        return r.spell_states ? "FAILED" : kCross;
+        return r.spell_states ? "FAIL" : kCross;
     case ClockMode::CANCELLED:
-        return r.spell_states ? "CANCELED" : kSquare;
+        return r.spell_states ? "STOP" : kSquare;
     default:
         return "";
     }
