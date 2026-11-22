@@ -6,8 +6,8 @@
 // same lists, so every writer here holds discovery_mutex_.
 
 #include "chamber_heater_backend.h"
+#include "core/text_io.h"
 #include "env_knobs.h"
-#include "klipper_config_editor.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
@@ -20,8 +20,10 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cctype>
 #include <cstddef>
 #include <cstdlib>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -95,6 +97,41 @@ std::vector<std::string> first_listed(const json& objects) {
 
 } // namespace
 
+namespace {
+
+/// The one-line options of a config file's [extruder] section, by lowercased
+/// name, as a restart reads them; nullopt when the file has no [extruder].
+/// Enough for the keys a mock restart reads back, not a config parser.
+std::optional<std::map<std::string, std::string>> extruder_options(const std::string& content) {
+    std::optional<std::map<std::string, std::string>> options;
+    bool in_extruder = false;
+    std::istringstream lines(content);
+    std::string raw;
+    while (std::getline(lines, raw)) {
+        const std::string line =
+            std::string(helix::text_io::trim(std::string_view(raw).substr(0, raw.find('#'))));
+        if (line.empty() || line[0] == ';' || std::isspace(static_cast<unsigned char>(raw[0]))) {
+            continue;
+        }
+        if (line.front() == '[') {
+            in_extruder = line == "[extruder]";
+            if (in_extruder && !options) {
+                options.emplace();
+            }
+            continue;
+        }
+        const auto delim = line.find_first_of(":=");
+        if (!in_extruder || delim == std::string::npos) {
+            continue;
+        }
+        (*options)[helix::text_io::to_lower(helix::text_io::trim(line.substr(0, delim)))] =
+            std::string(helix::text_io::trim(line.substr(delim + 1)));
+    }
+    return options;
+}
+
+} // namespace
+
 void MoonrakerClientMock::simulate_config_file_written(const std::string& path,
                                                        const std::string& content) {
     std::lock_guard<std::mutex> lock(written_config_mutex_);
@@ -108,17 +145,16 @@ void MoonrakerClientMock::apply_written_config() {
         written.swap(written_config_);
     }
     for (const auto& [path, content] : written) {
-        const auto structure = helix::system::KlipperConfigEditor::parse_structure(content);
-        const auto extruder = structure.sections.find("extruder");
-        if (extruder == structure.sections.end()) {
+        const auto extruder = extruder_options(content);
+        if (!extruder) {
             continue;
         }
-        const auto control = structure.find_key("extruder", "control");
-        const auto fan = structure.find_key("extruder", "cooling_fan");
-        if (control) {
-            extruder_control_ = control->value;
+        const auto control = extruder->find("control");
+        const auto fan = extruder->find("cooling_fan");
+        if (control != extruder->end()) {
+            extruder_control_ = control->second;
         }
-        extruder_cooling_fan_ = fan ? fan->value : std::string();
+        extruder_cooling_fan_ = fan != extruder->end() ? fan->second : std::string();
         spdlog::info("[MoonrakerClientMock] Restart reads {}: [extruder] control={} "
                      "cooling_fan='{}'",
                      path, kalico_extruder_control(), extruder_cooling_fan_);
