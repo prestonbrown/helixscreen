@@ -194,11 +194,7 @@ TEST_CASE("Geometry data supports CPU re-expansion after prepared_buffers cleare
         const auto& strip = geom->strips[strip_idx];
 
         // Color is per-strip; normals come pre-encoded off the vertex.
-        uint32_t rgb = 0x26A69A;
-        if (strip_idx < geom->strip_color_index.size() &&
-            geom->strip_color_index[strip_idx] < geom->color_palette.size()) {
-            rgb = geom->color_palette[geom->strip_color_index[strip_idx]];
-        }
+        const uint32_t rgb = geom->strip_color(strip_idx);
 
         for (int ti = 0; ti < 6; ++ti) {
             const auto& vert = geom->vertices[strip[static_cast<size_t>(kTriIndices[ti])]];
@@ -208,6 +204,7 @@ TEST_CASE("Geometry data supports CPU re-expansion after prepared_buffers cleare
             out->position[2] = vert.position.z;
 
             PackedVertex::encode_color(rgb, out->color);
+            out->color[3] = geom->strip_is_outer_wall(strip_idx) ? 255 : 0;
             out->normal[0] = vert.normal[0];
             out->normal[1] = vert.normal[1];
             ++out;
