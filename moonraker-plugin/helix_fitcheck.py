@@ -287,6 +287,23 @@ def _model_key(name: Any) -> str:
     return "".join(c for c in name.lower() if c.isascii() and c.isalnum())
 
 
+def _model_family_key(name: Any) -> str:
+    """_model_key() with each point revision (".1", ".2", ".4") dropped, so a
+    file sliced for a Voron V0.1 fits a V0.2."""
+    if not isinstance(name, str):
+        return ""
+    cut, i = [], 0
+    while i < len(name):
+        if name[i] == ".":
+            i += 1
+            while i < len(name) and name[i].isascii() and name[i].isalnum():
+                i += 1
+            continue
+        cut.append(name[i])
+        i += 1
+    return _model_key("".join(cut))
+
+
 def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Every way the file `facts` describe does not fit `machine`, in a fixed order: bounds by
     axis (min before max, radius last), temperatures (hotend, bed), tools,
@@ -364,7 +381,7 @@ def check_fit(machine: Dict[str, Any], facts: Dict[str, Any]) -> List[Dict[str, 
                                  tool=tool, file=want_type, printer=have_type))
 
     file_model, machine_model = facts.get("printer_model"), machine.get("model")
-    a, b = _model_key(file_model), _model_key(machine_model)
+    a, b = _model_family_key(file_model), _model_family_key(machine_model)
     if a and b and a not in b and b not in a:
         findings.append(_finding(KIND_PRINTER_MODEL_MISMATCH, SEVERITY_NOTE,
                                  file=file_model, printer=machine_model))
