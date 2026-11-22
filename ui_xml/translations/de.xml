@@ -128,8 +128,8 @@
   <translation tag="2 min" de="2 Min"/>
   <translation tag="2 minutes" de="2 Minuten"/>
   <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" de="2. Füge in PRINT_START nach dem Referenzieren und Abtasten und vor deinem eigenen Bettnetz-Schritt diese Zeile ein:"/>
-  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" de="2. X und Y verfahren, bis die Düse mittig über der Rinnenöffnung steht"/>
-  <translation tag="2. Jog Y until the nozzle is centered over the chute opening" de="2. Y verfahren, bis die Düse mittig über der Rinnenöffnung steht"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" de="2. X und Y verfahren, bis die Düse mittig über der Schachtöffnung steht"/>
+  <translation tag="2. Jog Y until the nozzle is centered over the chute opening" de="2. Y verfahren, bis die Düse mittig über der Schachtöffnung steht"/>
   <translation tag="2. Place paper between nozzle and bed" de="2. Papier zwischen Düse und Bett legen"/>
   <translation tag="2. Results show how much to turn each screw" de="2. Ergebnisse zeigen, wie viel jede Schraube gedreht werden muss"/>
   <translation tag="2. Take the PEI sheet off the bed when asked" de="2. Nimm die PEI-Platte vom Bett, wenn du dazu aufgefordert wirst"/>
@@ -712,7 +712,7 @@
   <translation tag="Calibrate Encoder" de="Encoder kalibrieren"/>
   <translation tag="Calibrate Gates" de="Gates kalibrieren"/>
   <translation tag="Calibrate Gear" de="Zahnrad kalibrieren"/>
-  <translation tag="Calibrate Purge Chute" de="Entlüftungsrinne kalibrieren"/>
+  <translation tag="Calibrate Purge Chute" de="Auswurfschacht kalibrieren"/>
   <translation tag="Calibrate Toolhead" de="Werkzeugkopf kalibrieren"/>
   <translation tag="Calibrate Toolhead Offsets" de="Werkzeugkopf-Offsets kalibrieren"/>
   <translation tag="Calibrate X" de="X kalibrieren"/>
@@ -963,7 +963,7 @@
   <translation tag="Choose what to power off or restart." de="Wählen Sie, was ausgeschaltet oder neu gestartet werden soll."/>
   <translation tag="Choose which lane is in the toolhead to unload it" de="Wähle, welche Spur im Druckkopf steckt, um sie zu entladen"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." de="Wähle, welche Versionen du erhältst und ob du anonyme Statistiken teilst."/>
-  <translation tag="Chute position: X {:.1f}, Y {:.1f}" de="Position der Entlüftungsrinne: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Chute position: X {:.1f}, Y {:.1f}" de="Position des Auswurfschachts: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" de="Bürste reinigen"/>
   <translation tag="Clean Nozzle" de="Düse reinigen"/>
   <translation tag="Clean Up Storage" de="Speicher bereinigen"/>
@@ -1008,7 +1008,7 @@
   <translation tag="Clear the clog in head T{1} (a cold pull works), then resume." de="Verstopfung in Kopf T{1} beseitigen (ein Cold Pull hilft), dann fortsetzen."/>
   <translation tag="Clear the extruder?" de="Extruder leeren?"/>
   <translation tag="Clear the nozzle and the part, then restart the firmware." de="Düse und Teil freimachen, dann die Firmware neu starten."/>
-  <translation tag="Clear the nozzle and the purge chute, load {}, then resume." de="Düse und Entlüftungsrinne freimachen, {} laden, dann fortsetzen."/>
+  <translation tag="Clear the nozzle and the purge chute, load {}, then resume." de="Düse und Auswurfschacht freimachen, {} laden, dann fortsetzen."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." de="Räume das Heizbett und lade {}. Der Turm wird in der Mitte des Betts gedruckt."/>
   <translation tag="Clear {}?" de="{} leeren?"/>
   <translation tag="Cleared" de="Geräumt"/>
@@ -1302,7 +1302,7 @@
   <translation tag="Cut tip" de="Spitze schneiden"/>
   <translation tag="Cutter Calibration" de="Schneider-Kalibrierung"/>
   <translation tag="Cutter Enabled" de="Schneider aktiviert"/>
-  <translation tag="Cutter and purge chute calibration" de="Schneider- und Entlüftungsrinnen-Kalibrierung"/>
+  <translation tag="Cutter and purge chute calibration" de="Kalibrierung von Schneider und Auswurfschacht"/>
   <translation tag="Cutter blade didn&apos;t sever filament" de="Schneidklinge hat das Filament nicht durchtrennt"/>
   <translation tag="Cutter calibration completed" de="Schneider-Kalibrierung abgeschlossen"/>
   <translation tag="Cutter calibration failed: {}" de="Schneider-Kalibrierung fehlgeschlagen: {}"/>
@@ -1526,7 +1526,7 @@
   <translation tag="Enable Bypass Controls" de="Bypass-Steuerung aktivieren"/>
   <translation tag="Enable Clean Nozzle and other print helpers" de="Düse reinigen und weitere Druck-Hilfen aktivieren"/>
   <translation tag="Enable Monitoring" de="Überwachung aktivieren"/>
-  <translation tag="Enable Purge" de="Entlüften aktivieren"/>
+  <translation tag="Enable Purge" de="Spülen aktivieren"/>
   <translation tag="Enable Retraction" de="Retraktion aktivieren"/>
   <translation tag="Enable Timelapse" de="Zeitraffer aktivieren"/>
   <translation tag="Enable UI motion effects" de="UI-Bewegungseffekte aktivieren"/>
@@ -1535,10 +1535,10 @@
   <translation tag="Enable anonymous statistics" de="Anonyme Statistiken aktivieren"/>
   <translation tag="Enable assisted retraction at hub" de="Unterstützten Einzug am Hub aktivieren"/>
   <translation tag="Enable audio feedback" de="Akustisches Feedback aktivieren"/>
-  <translation tag="Enable brush wipe after purging" de="Bürstenreinigung nach dem Entlüften aktivieren"/>
+  <translation tag="Enable brush wipe after purging" de="Bürstenreinigung nach dem Spülen aktivieren"/>
   <translation tag="Enable or disable the hub cutter" de="Den Hub-Schneider aktivieren oder deaktivieren"/>
   <translation tag="Enable plugin?" de="Plugin aktivieren?"/>
-  <translation tag="Enable purging during tool changes" de="Entlüften bei Werkzeugwechseln aktivieren"/>
+  <translation tag="Enable purging during tool changes" de="Spülen bei Werkzeugwechseln aktivieren"/>
   <translation tag="Enable/disable quiet operation mode" de="Leisen Betriebsmodus aktivieren/deaktivieren"/>
   <translation tag="Enabled" de="Aktiviert"/>
   <translation tag="Enabled. Open its settings, or disable it?" de="Aktiviert. Einstellungen öffnen oder deaktivieren?"/>
@@ -1740,7 +1740,7 @@
   <translation tag="Failed to open history list" de="Verlaufsliste konnte nicht geöffnet werden"/>
   <translation tag="Failed to open temperature graph" de="Temperaturgraph konnte nicht geöffnet werden"/>
   <translation tag="Failed to pause print: {}" de="Druck pausieren fehlgeschlagen: {}"/>
-  <translation tag="Failed to purge: {}" de="Purge fehlgeschlagen: {}"/>
+  <translation tag="Failed to purge: {}" de="Spülen fehlgeschlagen: {}"/>
   <translation tag="Failed to read G-code for Filament Mapping" de="G-code für die Filament-Zuordnung konnte nicht gelesen werden"/>
   <translation tag="Failed to read config." de="Konfiguration konnte nicht gelesen werden."/>
   <translation tag="Failed to read config. Check connection." de="Konfiguration konnte nicht gelesen werden. Verbindung prüfen."/>
@@ -2061,7 +2061,7 @@
   <translation tag="Grip filament" de="Filament greifen"/>
   <translation tag="Grip the filament" de="Filament greifen"/>
   <translation tag="Groups follow each slot&apos;s material and color" de="Gruppen folgen Material und Farbe jedes Slots"/>
-  <translation tag="Guide the toolhead to the chute&apos;s extrude position" de="Werkzeugkopf zur Extrusionsposition der Rinne führen"/>
+  <translation tag="Guide the toolhead to the chute&apos;s extrude position" de="Werkzeugkopf zur Extrusionsposition des Schachts führen"/>
   <translation tag="Guided calibration" de="Geführte Kalibrierung"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" de="Geführte Kalibrierung: Sensor zur Düse, Entladeweg und Einzug des Schneiders"/>
   <translation tag="H" de="H"/>
@@ -2432,7 +2432,7 @@
   <translation tag="Jog Speed XY" de="Bewegungsgeschwindigkeit XY"/>
   <translation tag="Jog Speed Z" de="Bewegungsgeschwindigkeit Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" de="X auf {:.1f} mm zurückfahren, bevor Y weiter bewegt wird"/>
-  <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." de="Verfahren Sie Y, bis die Düse mittig über der Rinnenöffnung steht, und tippen Sie dann auf Speichern."/>
+  <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." de="Verfahren Sie Y, bis die Düse mittig über der Schachtöffnung steht, und tippen Sie dann auf Speichern."/>
   <translation tag="Jog failed: {}" de="Bewegung fehlgeschlagen: {}"/>
   <translation tag="Jog layout, speeds and step distances" de="Verfahr-Layout, Geschwindigkeiten und Schrittweiten"/>
   <translation tag="Jog speeds and step distances" de="Bewegungsgeschwindigkeiten und Schrittweiten"/>
@@ -2571,7 +2571,7 @@
   <translation tag="Left" de="Links"/>
   <translation tag="Left belt" de="Riemen links"/>
   <translation tag="Leftover material found" de="Materialreste gefunden"/>
-  <translation tag="Length of filament to purge" de="Zu entlüftende Filamentlänge"/>
+  <translation tag="Length of filament to purge" de="Zu spülende Filamentlänge"/>
   <translation tag="Length of the cooling tube section" de="Länge des Kühlrohrabschnitts"/>
   <translation tag="Length:" de="Länge:"/>
   <translation tag="Let a browser tap and drag on this screen" de="Einem Browser erlauben, auf diesem Bildschirm zu tippen und zu ziehen"/>
@@ -2589,7 +2589,7 @@
   <translation tag="Light will switch when the current operation finishes" de="Das Licht schaltet sich, sobald der aktuelle Vorgang abgeschlossen ist."/>
   <translation tag="Lights that follow the printer&apos;s state" de="Leuchten, die sich nach dem Druckerstatus richten"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." de="Lichter, die der Drucker steuern kann. Wähle in den LED-Einstellungen, welche HelixScreen verwendet."/>
-  <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." de="Richten Sie die Düse über der Entlüftungsrinne aus, damit das entlüftete Filament direkt hineinfällt."/>
+  <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." de="Richten Sie die Düse über dem Auswurfschacht aus, damit das gespülte Filament direkt hineinfällt."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." de="Zeile {} ruft {} auf, das dieser Drucker als Notaus behandelt. Slicen Sie die Datei mit einem Profil für diesen Drucker neu."/>
   <translation tag="Linear rails" de="Linearschienen"/>
   <translation tag="Linear rails interval" de="Intervall Linearschienen"/>
@@ -2638,7 +2638,7 @@
   <translation tag="Load stopped" de="Laden gestoppt"/>
   <translation tag="Load the head again. If it fails again, unload it, cut the filament end square and load it once more." de="Kopf erneut laden. Schlägt es wieder fehl, entladen, das Filamentende gerade abschneiden und noch einmal laden."/>
   <translation tag="Load the required filaments or start anyway?" de="Benötigte Filamente laden oder trotzdem starten?"/>
-  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." de="Hier laden, entladen und entlüften. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." de="Hier laden, entladen und spülen. Wählen Sie zuerst ein Material, um seine Temperaturen einzustellen."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." de="Spulen laden, entladen und wechseln, Temperaturen einstellen und Filamentsensoren überwachen."/>
   <translation tag="Load, unload, purge, and extrude filament" de="Filament laden, entladen, spülen und extrudieren"/>
   <translation tag="Load..." de="Laden..."/>
@@ -2742,7 +2742,7 @@
   <translation tag="Macro to load filament into extruder" de="Makro zum Laden von Filament in den Extruder"/>
   <translation tag="Macro to park the toolhead at a safe position" de="Makro, um den Werkzeugkopf in eine sichere Position zu fahren"/>
   <translation tag="Macro to pause an active print" de="Makro zum Pausieren eines aktiven Drucks"/>
-  <translation tag="Macro to purge/prime the nozzle" de="Makro zum Entlüften/Primen der Düse"/>
+  <translation tag="Macro to purge/prime the nozzle" de="Makro zum Spülen/Primen der Düse"/>
   <translation tag="Macro to resume a paused print" de="Makro zum Fortsetzen eines pausierten Drucks"/>
   <translation tag="Macro to unload filament from extruder" de="Makro zum Entladen von Filament aus dem Extruder"/>
   <translation tag="Macro {1} has a syntax error" de="Makro {1} hat einen Syntaxfehler"/>
@@ -3688,22 +3688,22 @@
   <translation tag="Pulled" de="Gezogen"/>
   <translation tag="Pulling the filament back from the toolhead never cleared the Box&apos;s buffer sensor: the filament was not cut through, its tip swelled, or it tangled." de="Beim Zurückziehen des Filaments aus dem Werkzeugkopf wurde der Puffersensor der Box nie frei: Das Filament wurde nicht ganz durchgeschnitten, seine Spitze ist aufgequollen oder es hat sich verheddert."/>
   <translation tag="Pulling the filament back into the Box did not clear the slot&apos;s sensor: a tangled spool, or stuck or snapped filament." de="Beim Zurückziehen des Filaments in die Box wurde der Sensor des Slots nicht frei: eine verhedderte Spule oder festsitzendes oder gerissenes Filament."/>
-  <translation tag="Purge" de="Entlüften"/>
-  <translation tag="Purge &amp; Wipe" de="Entlüften &amp; Abwischen"/>
-  <translation tag="Purge Chute Calibration" de="Entlüftungsrinnen-Kalibrierung"/>
-  <translation tag="Purge Length" de="Entlüftungslänge"/>
+  <translation tag="Purge" de="Spülen"/>
+  <translation tag="Purge &amp; Wipe" de="Spülen &amp; Abwischen"/>
+  <translation tag="Purge Chute Calibration" de="Auswurfschacht-Kalibrierung"/>
+  <translation tag="Purge Length" de="Spüllänge"/>
   <translation tag="Purge Line" de="Spüllinie"/>
-  <translation tag="Purge chute calibration failed: {}" de="Kalibrierung der Entlüftungsrinne fehlgeschlagen: {}"/>
-  <translation tag="Purge chute position saved." de="Position der Entlüftungsrinne gespeichert."/>
-  <translation tag="Purge failed: {}" de="Purge fehlgeschlagen: {}"/>
-  <translation tag="Purge may still be running — response timed out" de="Purge läuft möglicherweise noch — Zeitüberschreitung"/>
+  <translation tag="Purge chute calibration failed: {}" de="Kalibrierung des Auswurfschachts fehlgeschlagen: {}"/>
+  <translation tag="Purge chute position saved." de="Position des Auswurfschachts gespeichert."/>
+  <translation tag="Purge failed: {}" de="Spülen fehlgeschlagen: {}"/>
+  <translation tag="Purge may still be running — response timed out" de="Spülen läuft möglicherweise noch — Zeitüberschreitung"/>
   <translation tag="Purge the loaded filament" de="Geladenes Filament spülen"/>
-  <translation tag="Purge to bucket" de="In den Behälter entlüften"/>
+  <translation tag="Purge to bucket" de="In den Behälter spülen"/>
   <translation tag="Purge tower and brush settings" de="Einstellungen für Reinigungsturm und Bürste"/>
   <translation tag="Purging" de="Spülen"/>
   <translation tag="Purging nozzle" de="Düse wird gespült"/>
   <translation tag="Purging old filament" de="Altes Filament wird gespült"/>
-  <translation tag="Purging..." de="Entlüften..."/>
+  <translation tag="Purging..." de="Spülen..."/>
   <translation tag="Push filament into the toolhead by hand, then tap Resume." de="Schieben Sie das Filament von Hand in den Werkzeugkopf und tippen Sie dann auf Fortsetzen."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." de="Reinigungsfilament bis zum Anschlag in den Extruder schieben, dann Extrudieren antippen."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." de="Schiebe das Filament bis zum Anschlag in den Extruder. Es wird automatisch gegriffen, oder tippe auf Extrudieren."/>
@@ -5055,7 +5055,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" de="Der Werkzeugkopf ist nicht referenziert, das Referenzieren würde in den Druck fahren"/>
   <translation tag="The toolhead is not loaded" de="Der Werkzeugkopf ist nicht geladen"/>
   <translation tag="The toolhead is unloaded" de="Der Druckkopf ist entladen"/>
-  <translation tag="The toolhead may still be at the chute. Move it away before printing." de="Der Druckkopf befindet sich möglicherweise noch an der Rinne. Bewege ihn vor dem Drucken weg."/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." de="Der Werkzeugkopf befindet sich möglicherweise noch am Schacht. Bewegen Sie ihn vor dem Drucken weg."/>
   <translation tag="The toolhead moves. Keep hands clear." de="Der Druckkopf bewegt sich. Hände weg."/>
   <translation tag="The toolhead on the carriage is not the one the printer expected." de="Der Werkzeugkopf auf dem Schlitten ist nicht der, den der Drucker erwartet hat."/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." de="Der Werkzeugkopf fährt mit Geschwindigkeiten von 20 bis 300 mm/s hin und her, während der Beschleunigungssensor misst, wie stark jeder Motor vibriert. Das dauert etwa {0} Minuten und ist laut. Von den Geschwindigkeiten mit der stärksten Vibration solltest du deine Außenwände fernhalten."/>
@@ -5282,7 +5282,7 @@
   <translation tag="Tool offsets saved" de="Werkzeug-Offsets gespeichert"/>
   <translation tag="Tool swap" de="Werkzeugwechsel"/>
   <translation tag="Tool, runout backup" de="Werkzeug, Ersatz bei Filamentende"/>
-  <translation tag="Toolchange purge" de="Werkzeugwechsel-Entlüftung"/>
+  <translation tag="Toolchange purge" de="Spülen beim Werkzeugwechsel"/>
   <translation tag="Toolhead" de="Werkzeugkopf"/>
   <translation tag="Toolhead Calibration Running" de="Werkzeugkopf-Kalibrierung läuft"/>
   <translation tag="Toolhead LED" de="Werkzeugkopf-LED"/>

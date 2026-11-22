@@ -5055,7 +5055,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" zh="工具头尚未归位，归位会使喷嘴碰到打印件"/>
   <translation tag="The toolhead is not loaded" zh="工具头未加载"/>
   <translation tag="The toolhead is unloaded" zh="打印头已退料"/>
-  <translation tag="The toolhead may still be at the chute. Move it away before printing." zh="打印头可能仍在清料槽处。打印前请将其移开。"/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." zh="工具头可能仍在排料口处。打印前请将其移开。"/>
   <translation tag="The toolhead moves. Keep hands clear." zh="打印头会移动。请让手远离。"/>
   <translation tag="The toolhead on the carriage is not the one the printer expected." zh="滑架上的工具头不是打印机预期的工具头。"/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." zh="工具头以 20 到 300 mm/s 的速度来回移动，同时加速度传感器测量每个电机的抖动强度。大约需要 {0} 分钟，并且噪音较大。抖动最强的速度就是外墙应避开的速度。"/>

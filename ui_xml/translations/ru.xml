@@ -164,8 +164,8 @@
   <translation tag="2 min" ru="2 мин"/>
   <translation tag="2 minutes" ru="2 минуты"/>
   <translation tag="2. In PRINT_START, after homing and probing and before your own mesh step, add this line:" ru="2. В PRINT_START после парковки и зондирования, но до вашего шага построения сетки, добавьте строку:"/>
-  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ru="2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба"/>
-  <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ru="2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба"/>
+  <translation tag="2. Jog X and Y until the nozzle is centered over the chute opening" ru="2. Двигайте X и Y, пока сопло не встанет по центру отверстия лотка"/>
+  <translation tag="2. Jog Y until the nozzle is centered over the chute opening" ru="2. Двигайте Y, пока сопло не встанет по центру отверстия лотка"/>
   <translation tag="2. Place paper between nozzle and bed" ru="2. Положите бумагу между соплом и столом"/>
   <translation tag="2. Results show how much to turn each screw" ru="2. Результаты покажут, насколько повернуть каждый винт"/>
   <translation tag="2. Take the PEI sheet off the bed when asked" ru="2. Снимите лист PEI со стола, когда появится запрос"/>
@@ -754,7 +754,7 @@
   <translation tag="Calibrate Encoder" ru="Калибровать энкодер"/>
   <translation tag="Calibrate Gates" ru="Калибровать шлюзы"/>
   <translation tag="Calibrate Gear" ru="Калибровать шестерню"/>
-  <translation tag="Calibrate Purge Chute" ru="Калибровать жёлоб продувки"/>
+  <translation tag="Calibrate Purge Chute" ru="Калибровать лоток прочистки"/>
   <translation tag="Calibrate Toolhead" ru="Калибровать печатающую головку"/>
   <translation tag="Calibrate Toolhead Offsets" ru="Калибровать смещения головок"/>
   <translation tag="Calibrate X" ru="Калибровать X"/>
@@ -926,7 +926,7 @@
   <translation tag="Check that the camera&apos;s live view works, or turn off timelapse for this print, then resume." ru="Проверьте, что изображение с камеры работает, или выключите таймлапс для этой печати, затем продолжите."/>
   <translation tag="Check that the cutter cut fully and pull the filament back by hand if needed, then retry." ru="Убедитесь, что резак полностью обрезал филамент, при необходимости вытяните его вручную, затем повторите."/>
   <translation tag="Check that the cutter mechanism is properly installed" ru="Проверьте правильность установки режущего механизма"/>
-  <translation tag="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge." ru="Убедитесь, что модель помещается на столе и что размер стола в слайсере совпадает с этим принтером, и проверьте макросы парковки и продувки."/>
+  <translation tag="Check that the model fits the bed and that the slicer&apos;s bed size matches this printer, and check macros that park or purge." ru="Убедитесь, что модель помещается на столе и что размер стола в слайсере совпадает с этим принтером, и проверьте макросы парковки и прочистки."/>
   <translation tag="Check that the printer is powered on and connected to the network" ru="Проверьте, что принтер включён и подключён к сети"/>
   <translation tag="Check that the spool turns freely and lane {1}&apos;s tube is not kinked, and clear debris from the pinch roller." ru="Убедитесь, что катушка вращается свободно, а трубка канала {1} не пережата, и очистите прижимной ролик от мусора."/>
   <translation tag="Check that the toolhead is really empty, then resume." ru="Убедитесь, что печатающая головка действительно пуста, затем продолжите."/>
@@ -1005,7 +1005,7 @@
   <translation tag="Choose what to power off or restart." ru="Выберите, что выключить или перезагрузить."/>
   <translation tag="Choose which lane is in the toolhead to unload it" ru="Выберите, какая дорожка в печатающей головке, чтобы выгрузить её"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." ru="Выберите, какие выпуски получать и делиться ли анонимной статистикой."/>
-  <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция жёлоба продувки: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция лотка прочистки: X {:.1f}, Y {:.1f}"/>
   <translation tag="Clean Brush" ru="Очистить щётку"/>
   <translation tag="Clean Nozzle" ru="Очистить сопло"/>
   <translation tag="Clean Up Storage" ru="Очистка хранилища"/>
@@ -1039,7 +1039,7 @@
   <translation tag="Clear Spool" ru="Убрать катушку"/>
   <translation tag="Clear and clean the build plate, then resume." ru="Освободите и очистите печатную пластину, затем продолжите."/>
   <translation tag="Clear any debris from the carriage and the head&apos;s latch, seat the head again, then home and resume." ru="Уберите мусор с каретки и защёлки головки, заново установите головку, затем выполните парковку и продолжите."/>
-  <translation tag="Clear any filament from around the nozzle and the purge area, then load the head again." ru="Уберите филамент вокруг сопла и в зоне продувки, затем снова загрузите головку."/>
+  <translation tag="Clear any filament from around the nozzle and the purge area, then load the head again." ru="Уберите филамент вокруг сопла и в зоне прочистки, затем снова загрузите головку."/>
   <translation tag="Clear every Endless Spool backup" ru="Очистить все резервы бесконечной катушки"/>
   <translation tag="Clear extruder only" ru="Только очистить экструдер"/>
   <translation tag="Clear failed" ru="Ошибка очистки"/>
@@ -1050,7 +1050,7 @@
   <translation tag="Clear the clog in head T{1} (a cold pull works), then resume." ru="Устраните засор в головке T{1} (поможет холодная протяжка), затем продолжите."/>
   <translation tag="Clear the extruder?" ru="Очистить экструдер?"/>
   <translation tag="Clear the nozzle and the part, then restart the firmware." ru="Освободите сопло и деталь, затем перезапустите прошивку."/>
-  <translation tag="Clear the nozzle and the purge chute, load {}, then resume." ru="Очистите сопло и жёлоб продувки, загрузите {}, затем продолжите."/>
+  <translation tag="Clear the nozzle and the purge chute, load {}, then resume." ru="Очистите сопло и лоток прочистки, загрузите {}, затем продолжите."/>
   <translation tag="Clear the plate and load {}. The tower prints in the middle of the bed." ru="Освободите стол и загрузите {}. Башня печатается в центре стола."/>
   <translation tag="Clear {}?" ru="Очистить {}?"/>
   <translation tag="Cleared" ru="Очищено"/>
@@ -1347,7 +1347,7 @@
   <translation tag="Cut tip" ru="Обрезка кончика"/>
   <translation tag="Cutter Calibration" ru="Калибровка резака"/>
   <translation tag="Cutter Enabled" ru="Резак включён"/>
-  <translation tag="Cutter and purge chute calibration" ru="Калибровка резака и жёлоба продувки"/>
+  <translation tag="Cutter and purge chute calibration" ru="Калибровка резака и лотка прочистки"/>
   <translation tag="Cutter blade didn&apos;t sever filament" ru="Лезвие не перерезало филамент"/>
   <translation tag="Cutter calibration completed" ru="Калибровка резака завершена"/>
   <translation tag="Cutter calibration failed: {}" ru="Не удалось калибровать резак: {}"/>
@@ -1518,7 +1518,7 @@
   <translation tag="Duplicated" ru="Дублировано"/>
   <translation tag="Duration" ru="Длительность"/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." ru="Во время печати вы видите индикатор каждого нагревателя, вентилятора и подсветки, список шагов запуска, а также прогресс и управление в одной полосе."/>
-  <translation tag="During auto refill, the old filament would not purge out of the toolhead." ru="Во время автопополнения старый филамент не удалось продуть из печатающей головки."/>
+  <translation tag="During auto refill, the old filament would not purge out of the toolhead." ru="Во время автопополнения не удалось прочистить печатающую головку от старого филамента."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." ru="Пыль и старая смазка на рельсах или валах X и Y вызывают шум, рябь и износ."/>
   <translation tag="Dusty board and power supply fans run hot and fail early." ru="Пыльные вентиляторы платы и БП перегреваются и быстро выходят из строя."/>
   <translation tag="E-Stop (M112)" ru="Авар. стоп (M112)"/>
@@ -1571,7 +1571,7 @@
   <translation tag="Enable Bypass Controls" ru="Включить управление байпасом"/>
   <translation tag="Enable Clean Nozzle and other print helpers" ru="Включить очистку сопла и другие вспомогательные функции печати"/>
   <translation tag="Enable Monitoring" ru="Включить мониторинг"/>
-  <translation tag="Enable Purge" ru="Включить продувку"/>
+  <translation tag="Enable Purge" ru="Включить прочистку"/>
   <translation tag="Enable Retraction" ru="Включить аппаратный ретракт"/>
   <translation tag="Enable Timelapse" ru="Включить таймлапс"/>
   <translation tag="Enable UI motion effects" ru="Включить эффекты движения интерфейса"/>
@@ -1580,10 +1580,10 @@
   <translation tag="Enable anonymous statistics" ru="Включить анонимную статистику"/>
   <translation tag="Enable assisted retraction at hub" ru="Включить ретракцию с поддержкой на хабе"/>
   <translation tag="Enable audio feedback" ru="Включить звуковую обратную связь"/>
-  <translation tag="Enable brush wipe after purging" ru="Включить очистку щёткой после продувки"/>
+  <translation tag="Enable brush wipe after purging" ru="Включить очистку щёткой после прочистки"/>
   <translation tag="Enable or disable the hub cutter" ru="Включить или выключить резак хаба"/>
   <translation tag="Enable plugin?" ru="Включить плагин?"/>
-  <translation tag="Enable purging during tool changes" ru="Включить продувку при смене инструмента"/>
+  <translation tag="Enable purging during tool changes" ru="Включить прочистку при смене инструмента"/>
   <translation tag="Enable/disable quiet operation mode" ru="Включить/выключить тихий режим работы"/>
   <translation tag="Enabled" ru="Включено"/>
   <translation tag="Enabled. Open its settings, or disable it?" ru="Включено. Открыть его настройки или отключить?"/>
@@ -2033,7 +2033,7 @@
   <translation tag="Flow calibration is on for a filament and nozzle pair that does not allow it." ru="Калибровка потока включена для пары филамента и сопла, где она недоступна."/>
   <translation tag="Flow calibration not allowed for {}" ru="Калибровка потока недоступна: {}"/>
   <translation tag="Flowguard" ru="Flowguard"/>
-  <translation tag="Flushing Filament..." ru="Промывка филамента..."/>
+  <translation tag="Flushing Filament..." ru="Прочистка филамента..."/>
   <translation tag="Flying Toasters" ru="Летающие тостеры"/>
   <translation tag="Focused" ru="Сосредоточенный"/>
   <translation tag="Follow active tool" ru="Следовать активному инструменту"/>
@@ -2109,7 +2109,7 @@
   <translation tag="Grip filament" ru="Зажать филамент"/>
   <translation tag="Grip the filament" ru="Зажать филамент"/>
   <translation tag="Groups follow each slot&apos;s material and color" ru="Группы следуют материалу и цвету каждого слота"/>
-  <translation tag="Guide the toolhead to the chute&apos;s extrude position" ru="Подведите печатающую головку к позиции экструзии жёлоба"/>
+  <translation tag="Guide the toolhead to the chute&apos;s extrude position" ru="Подведите печатающую головку к позиции экструзии лотка"/>
   <translation tag="Guided calibration" ru="Пошаговая калибровка"/>
   <translation tag="Guided sensor-to-nozzle, unload and cutter retract calibration" ru="Пошаговая калибровка: датчик до сопла, выгрузка и ретракция резака"/>
   <translation tag="H" ru="Х"/>
@@ -2480,7 +2480,7 @@
   <translation tag="Jog Speed XY" ru="Скорость перемещения XY"/>
   <translation tag="Jog Speed Z" ru="Скорость перемещения Z"/>
   <translation tag="Jog X back to {:.1f} mm before moving Y further" ru="Верните X на {:.1f} мм, прежде чем двигать Y дальше"/>
-  <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ru="Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить»."/>
+  <translation tag="Jog Y until the nozzle is centered over the chute opening, then tap Save." ru="Двигайте Y, пока сопло не встанет по центру отверстия лотка, затем нажмите «Сохранить»."/>
   <translation tag="Jog failed: {}" ru="Перемещение не удалось: {}"/>
   <translation tag="Jog layout, speeds and step distances" ru="Раскладка, скорости и шаги перемещения"/>
   <translation tag="Jog speeds and step distances" ru="Скорости и шаги перемещения"/>
@@ -2619,7 +2619,7 @@
   <translation tag="Left" ru="Слева"/>
   <translation tag="Left belt" ru="Левый ремень"/>
   <translation tag="Leftover material found" ru="Обнаружены остатки материала"/>
-  <translation tag="Length of filament to purge" ru="Длина продуваемого филамента"/>
+  <translation tag="Length of filament to purge" ru="Длина филамента для прочистки"/>
   <translation tag="Length of the cooling tube section" ru="Длина участка трубки охлаждения"/>
   <translation tag="Length:" ru="Длина:"/>
   <translation tag="Let a browser tap and drag on this screen" ru="Разрешить браузеру нажимать и перетаскивать на этом экране"/>
@@ -2637,7 +2637,7 @@
   <translation tag="Light will switch when the current operation finishes" ru="Подсветка переключится после завершения текущей операции"/>
   <translation tag="Lights that follow the printer&apos;s state" ru="Подсветка, которая меняется в зависимости от состояния принтера"/>
   <translation tag="Lights the printer can control. Choose which ones HelixScreen uses in the LED settings." ru="Освещение, которым может управлять принтер. Какие из них использует HelixScreen, выбирается в настройках LED."/>
-  <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." ru="Выровняйте сопло над жёлобом продувки, чтобы продутый филамент падал прямо внутрь."/>
+  <translation tag="Line the nozzle up with the purge chute so purged filament drops straight in." ru="Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь."/>
   <translation tag="Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer." ru="Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера."/>
   <translation tag="Linear rails" ru="Линейные направляющие"/>
   <translation tag="Linear rails interval" ru="Интервал линейных направляющих"/>
@@ -2686,7 +2686,7 @@
   <translation tag="Load stopped" ru="Загрузка остановлена"/>
   <translation tag="Load the head again. If it fails again, unload it, cut the filament end square and load it once more." ru="Снова загрузите головку. Если снова не удастся, выгрузите её, ровно обрежьте конец филамента и загрузите ещё раз."/>
   <translation tag="Load the required filaments or start anyway?" ru="Загрузить нужные филаменты или начать без них?"/>
-  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."/>
+  <translation tag="Load, unload, and purge from here. Choose a material to set its temperatures first." ru="Здесь можно загрузить, выгрузить и прочистить филамент. Сначала выберите материал, чтобы задать его температуру."/>
   <translation tag="Load, unload, and swap spools, set temperatures, and monitor runout sensors." ru="Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."/>
   <translation tag="Load, unload, purge, and extrude filament" ru="Загрузка, выгрузка, прочистка и экструзия филамента"/>
   <translation tag="Load..." ru="Загрузить..."/>
@@ -2790,7 +2790,7 @@
   <translation tag="Macro to load filament into extruder" ru="Макрос для загрузки филамента в экструдер"/>
   <translation tag="Macro to park the toolhead at a safe position" ru="Макрос для парковки печатающей головы в безопасное положение"/>
   <translation tag="Macro to pause an active print" ru="Макрос для паузы текущей печати"/>
-  <translation tag="Macro to purge/prime the nozzle" ru="Макрос для продувки/подготовки сопла"/>
+  <translation tag="Macro to purge/prime the nozzle" ru="Макрос для прочистки/подготовки сопла"/>
   <translation tag="Macro to resume a paused print" ru="Макрос для возобновления приостановленной печати"/>
   <translation tag="Macro to unload filament from extruder" ru="Макрос для выгрузки филамента из экструдера"/>
   <translation tag="Macro {1} has a syntax error" ru="Синтаксическая ошибка в макросе {1}"/>
@@ -2810,7 +2810,7 @@
   <translation tag="Make sure no filament is loaded at the toolhead: it can soften in the extruder while the bed heats." ru="Убедитесь, что в печатающей головке нет филамента: он может размягчиться в экструдере, пока греется стол."/>
   <translation tag="Make sure one toolhead is on the carriage and the rest are docked, then home." ru="Убедитесь, что одна печатающая головка на каретке, а остальные в доках, затем выполните парковку."/>
   <translation tag="Make sure the printer is safe, then restart the firmware." ru="Убедитесь, что принтер в безопасном состоянии, затем перезапустите прошивку."/>
-  <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." ru="Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии продувки."/>
+  <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." ru="Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии прочистки."/>
   <translation tag="MakeID (Bluetooth)" ru="MakeID (Bluetooth)"/>
   <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." ru="Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки."/>
   <translation tag="Manage" ru="Управление"/>
@@ -3748,22 +3748,22 @@
   <translation tag="Pulled" ru="Вытянуто"/>
   <translation tag="Pulling the filament back from the toolhead never cleared the Box&apos;s buffer sensor: the filament was not cut through, its tip swelled, or it tangled." ru="Обратная протяжка филамента из печатающей головки так и не освободила датчик буфера Бокса: филамент не обрезан до конца, его кончик разбух или он запутался."/>
   <translation tag="Pulling the filament back into the Box did not clear the slot&apos;s sensor: a tangled spool, or stuck or snapped filament." ru="Обратная протяжка филамента в Бокс не освободила датчик слота: катушка запутана, филамент застрял или оборвался."/>
-  <translation tag="Purge" ru="Продуть"/>
-  <translation tag="Purge &amp; Wipe" ru="Продувка и очистка"/>
-  <translation tag="Purge Chute Calibration" ru="Калибровка жёлоба продувки"/>
-  <translation tag="Purge Length" ru="Длина продувки"/>
+  <translation tag="Purge" ru="Прочистить"/>
+  <translation tag="Purge &amp; Wipe" ru="Прочистка и протирка"/>
+  <translation tag="Purge Chute Calibration" ru="Калибровка лотка прочистки"/>
+  <translation tag="Purge Length" ru="Длина прочистки"/>
   <translation tag="Purge Line" ru="Линия прочистки"/>
-  <translation tag="Purge chute calibration failed: {}" ru="Не удалось калибровать жёлоб продувки: {}"/>
-  <translation tag="Purge chute position saved." ru="Позиция жёлоба продувки сохранена."/>
+  <translation tag="Purge chute calibration failed: {}" ru="Не удалось калибровать лоток прочистки: {}"/>
+  <translation tag="Purge chute position saved." ru="Позиция лотка прочистки сохранена."/>
   <translation tag="Purge failed: {}" ru="Ошибка прочистки: {}"/>
   <translation tag="Purge may still be running — response timed out" ru="Прочистка может ещё выполняться — время ожидания истекло"/>
   <translation tag="Purge the loaded filament" ru="Прочистить загруженный филамент"/>
-  <translation tag="Purge to bucket" ru="Продувка в контейнер"/>
-  <translation tag="Purge tower and brush settings" ru="Настройки башни продувки и щётки"/>
-  <translation tag="Purging" ru="Продувка"/>
-  <translation tag="Purging nozzle" ru="Продувка сопла"/>
-  <translation tag="Purging old filament" ru="Продувка старого филамента"/>
-  <translation tag="Purging..." ru="Продувка..."/>
+  <translation tag="Purge to bucket" ru="Прочистка в контейнер"/>
+  <translation tag="Purge tower and brush settings" ru="Настройки башни очистки и щётки"/>
+  <translation tag="Purging" ru="Прочистка"/>
+  <translation tag="Purging nozzle" ru="Прочистка сопла"/>
+  <translation tag="Purging old filament" ru="Прочистка от старого филамента"/>
+  <translation tag="Purging..." ru="Прочистка..."/>
   <translation tag="Push filament into the toolhead by hand, then tap Resume." ru="Вставьте филамент в печатающую головку вручную, затем нажмите «Продолжить»."/>
   <translation tag="Push the cleaning filament into the extruder until it stops, then tap Extrude." ru="Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."/>
   <translation tag="Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude." ru="Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."/>
@@ -4895,7 +4895,7 @@
   <translation tag="The filament may have snapped or the feed tube come loose. Clear any broken piece and seat the tube at both ends, then load the head again." ru="Возможно, филамент оборвался или трубка подачи отошла. Уберите обломок и закрепите трубку с обоих концов, затем снова загрузите головку."/>
   <translation tag="The filament may not have fully retracted — try again or manually pull" ru="Возможно, филамент втянут не полностью. Повторите или вытяните вручную"/>
   <translation tag="The filament ran out or slipped out of the feeder during the load." ru="Во время загрузки филамент закончился или выскользнул из фидера."/>
-  <translation tag="The filament reached the nozzle, but purging it failed." ru="Филамент дошёл до сопла, но продувка не удалась."/>
+  <translation tag="The filament reached the nozzle, but purging it failed." ru="Филамент дошёл до сопла, но прочистка не удалась."/>
   <translation tag="The filament sensor reads empty." ru="Датчик филамента показывает пусто."/>
   <translation tag="The filament sensor saw the filament stop: the spool is empty, or the filament is not moving." ru="Датчик филамента зафиксировал остановку филамента: катушка пуста или филамент не движется."/>
   <translation tag="The filament sensor still reads empty, so the firmware refused to resume." ru="Датчик филамента всё ещё показывает пусто, поэтому прошивка отказалась продолжить печать."/>
@@ -4979,7 +4979,7 @@
   <translation tag="The nozzle temperature asked for is outside the allowed range." ru="Запрошенная температура сопла вне допустимого диапазона."/>
   <translation tag="The nozzle temperature reading is out of range: its sensor is loose or damaged." ru="Показание температуры сопла вне диапазона: датчик отошёл или повреждён."/>
   <translation tag="The nozzle waited too long; start again." ru="Сопло ждало слишком долго; начните заново."/>
-  <translation tag="The old filament would not purge" ru="Старый филамент не удалось продуть"/>
+  <translation tag="The old filament would not purge" ru="Не удалось прочистить от старого филамента"/>
   <translation tag="The part on the bed is too tall to clear. Remove it, then tap Cleared." ru="Деталь на столе слишком высокая, над ней не пройти. Уберите её, затем нажмите «Очищено»."/>
   <translation tag="The peak of {0} left the zone. Check that only {1}&apos;s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts." ru="Пик ({0}) вышел из зоны. Проверьте, что крутили только натяжитель: {1}. Не знаете, где какой? Коснитесь значка карандаша, чтобы определить ремни."/>
   <translation tag="The peak of {} moved out of the zone. Widening it." ru="Пик ({}) вышел из зоны. Расширяем её."/>
@@ -5121,7 +5121,7 @@
   <translation tag="The toolhead is not homed, so this would home into the print" ru="Печатающая головка не запаркована, парковка ударит её о модель"/>
   <translation tag="The toolhead is not loaded" ru="Печатающая головка не загружена"/>
   <translation tag="The toolhead is unloaded" ru="Филамент из печатающей головки выгружен"/>
-  <translation tag="The toolhead may still be at the chute. Move it away before printing." ru="Печатающая головка может всё ещё находиться у желоба. Отведите её перед печатью."/>
+  <translation tag="The toolhead may still be at the chute. Move it away before printing." ru="Печатающая головка может всё ещё находиться у лотка. Отведите её перед печатью."/>
   <translation tag="The toolhead moves. Keep hands clear." ru="Печатающая головка движется. Держите руки подальше."/>
   <translation tag="The toolhead on the carriage is not the one the printer expected." ru="Печатающая головка на каретке не та, которую ожидал принтер."/>
   <translation tag="The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from." ru="Печатающая головка движется взад и вперёд на скоростях от 20 до 300 mm/s, а акселерометр измеряет, насколько сильно трясёт каждый мотор. Это займёт около {0} минут и будет шумно. Скорости с самой сильной тряской и есть те, которых следует избегать для внешних стенок."/>
@@ -5348,7 +5348,7 @@
   <translation tag="Tool offsets saved" ru="Смещения инструментов сохранены"/>
   <translation tag="Tool swap" ru="Смена инструмента"/>
   <translation tag="Tool, runout backup" ru="Инструмент, резерв при окончании филамента"/>
-  <translation tag="Toolchange purge" ru="Продувка при смене инструмента"/>
+  <translation tag="Toolchange purge" ru="Прочистка при смене инструмента"/>
   <translation tag="Toolhead" ru="Печатающая головка"/>
   <translation tag="Toolhead Calibration Running" ru="Идёт калибровка головок"/>
   <translation tag="Toolhead LED" ru="LED печатающей головки"/>

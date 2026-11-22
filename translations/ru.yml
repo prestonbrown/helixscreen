@@ -189,8 +189,8 @@ translations:
   2 min: '2 мин'
   2 minutes: 2 минуты
   '2. In PRINT_START, after homing and probing and before your own mesh step, add this line:': "2. В PRINT_START после парковки и зондирования, но до вашего шага построения сетки, добавьте строку:"
-  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Двигайте X и Y, пока сопло не встанет по центру отверстия жёлоба
-  2. Jog Y until the nozzle is centered over the chute opening: 2. Двигайте Y, пока сопло не встанет по центру отверстия жёлоба
+  2. Jog X and Y until the nozzle is centered over the chute opening: 2. Двигайте X и Y, пока сопло не встанет по центру отверстия лотка
+  2. Jog Y until the nozzle is centered over the chute opening: 2. Двигайте Y, пока сопло не встанет по центру отверстия лотка
 
   2. Place paper between nozzle and bed: 2. Положите бумагу между соплом и столом
   2. Results show how much to turn each screw: 2. Результаты покажут, насколько повернуть каждый винт
@@ -795,7 +795,7 @@ translations:
   Calibrate Encoder: 'Калибровать энкодер'
   Calibrate Gates: 'Калибровать шлюзы'
   Calibrate Gear: 'Калибровать шестерню'
-  Calibrate Purge Chute: Калибровать жёлоб продувки
+  Calibrate Purge Chute: Калибровать лоток прочистки
   Calibrate Toolhead: 'Калибровать печатающую головку'
   Calibrate Toolhead Offsets: Калибровать смещения головок
   Calibrate X: Калибровать X
@@ -970,7 +970,7 @@ translations:
   Check that the cutter cut fully and pull the filament back by hand if needed, then retry.: Убедитесь, что резак полностью обрезал филамент, при необходимости вытяните его вручную, затем повторите.
   Check that the cutter mechanism is properly installed: Проверьте правильность установки режущего механизма
   ? Check that the model fits the bed and that the slicer's bed size matches this printer, and check macros that park or purge.
-  : Убедитесь, что модель помещается на столе и что размер стола в слайсере совпадает с этим принтером, и проверьте макросы парковки и продувки.
+  : Убедитесь, что модель помещается на столе и что размер стола в слайсере совпадает с этим принтером, и проверьте макросы парковки и прочистки.
   Check that the printer is powered on and connected to the network: Проверьте, что принтер включён и подключён к сети
   Check that the spool turns freely and lane {1}'s tube is not kinked, and clear debris from the pinch roller.: Убедитесь, что катушка вращается свободно, а трубка канала {1} не пережата, и очистите прижимной ролик от мусора.
   Check that the toolhead is really empty, then resume.: Убедитесь, что печатающая головка действительно пуста, затем продолжите.
@@ -1057,7 +1057,7 @@ translations:
   Choose the order of day, month and year: Выберите порядок дня, месяца и года
   Choose what to power off or restart.: Выберите, что выключить или перезагрузить.
   Choose which releases to get, and whether to share anonymous statistics.: 'Выберите, какие выпуски получать и делиться ли анонимной статистикой.'
-  'Chute position: X {:.1f}, Y {:.1f}': 'Позиция жёлоба продувки: X {:.1f}, Y {:.1f}'
+  'Chute position: X {:.1f}, Y {:.1f}': 'Позиция лотка прочистки: X {:.1f}, Y {:.1f}'
 
   Clean Brush: 'Очистить щётку'
   Clean Nozzle: Очистить сопло
@@ -1092,7 +1092,7 @@ translations:
   Clear Spool: Убрать катушку
   Clear and clean the build plate, then resume.: 'Освободите и очистите печатную пластину, затем продолжите.'
   Clear any debris from the carriage and the head's latch, seat the head again, then home and resume.: 'Уберите мусор с каретки и защёлки головки, заново установите головку, затем выполните парковку и продолжите.'
-  Clear any filament from around the nozzle and the purge area, then load the head again.: 'Уберите филамент вокруг сопла и в зоне продувки, затем снова загрузите головку.'
+  Clear any filament from around the nozzle and the purge area, then load the head again.: 'Уберите филамент вокруг сопла и в зоне прочистки, затем снова загрузите головку.'
   Clear every Endless Spool backup: Очистить все резервы бесконечной катушки
   Clear extruder only: 'Только очистить экструдер'
   Clear failed: Ошибка очистки
@@ -1106,7 +1106,7 @@ translations:
   Clear the clog in head T{1} (a cold pull works), then resume.: Устраните засор в головке T{1} (поможет холодная протяжка), затем продолжите.
   Clear the extruder?: 'Очистить экструдер?'
   Clear the nozzle and the part, then restart the firmware.: Освободите сопло и деталь, затем перезапустите прошивку.
-  Clear the nozzle and the purge chute, load {}, then resume.: Очистите сопло и жёлоб продувки, загрузите {}, затем продолжите.
+  Clear the nozzle and the purge chute, load {}, then resume.: Очистите сопло и лоток прочистки, загрузите {}, затем продолжите.
   Clear the plate and load {}. The tower prints in the middle of the bed.: Освободите стол и загрузите {}. Башня печатается в центре стола.
   Clear {}?: 'Очистить {}?'
   Cleared: Очищено
@@ -1321,7 +1321,7 @@ translations:
   : Загружайте или выгружайте более короткими шагами или увеличьте max_extrude_only_distance в секции экструдера. Убедитесь, что слайсер и стартовый G-code согласованы по относительной или абсолютной экструзии.
   Load stopped: 'Загрузка остановлена'
   "Load, unload, purge, and extrude filament": "Загрузка, выгрузка, прочистка и экструзия филамента"
-  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Здесь можно загрузить, выгрузить и продуть филамент. Сначала выберите материал, чтобы задать его температуру."
+  "Load, unload, and purge from here. Choose a material to set its temperatures first.": "Здесь можно загрузить, выгрузить и прочистить филамент. Сначала выберите материал, чтобы задать его температуру."
   "Load, unload, and swap spools, set temperatures, and monitor runout sensors.": "Загружайте, выгружайте и меняйте катушки, задавайте температуру и следите за датчиками филамента."
   ? "Long-press any tile to enter edit mode. The rebuilt grid lets you rearrange, resize, remove, or add widgets, and drag them between pages."
   : "Удерживайте плитку, чтобы войти в режим редактирования. Новая сетка позволяет переставлять, менять размер, удалять и добавлять виджеты, а также перетаскивать их между страницами."
@@ -1443,7 +1443,7 @@ translations:
   Cut the filament end square and push it into this head's feeder until it grabs, then load the head again.: 'Ровно обрежьте конец филамента и вставьте его в фидер этой головки до захвата, затем снова загрузите головку.'
   Cut tip: 'Обрезка кончика'
   Cutter Enabled: 'Резак включён'
-  Cutter and purge chute calibration: Калибровка резака и жёлоба продувки
+  Cutter and purge chute calibration: Калибровка резака и лотка прочистки
   Cutter blade didn't sever filament: Лезвие не перерезало филамент
   Cutter calibration completed: Калибровка резака завершена
   'Cutter calibration failed: {}': 'Не удалось калибровать резак: {}'
@@ -1619,7 +1619,7 @@ translations:
   Duplicate command in the configuration: 'Дублирующаяся команда в конфигурации'
   Duplicated: Дублировано
   Duration: Длительность
-  During auto refill, the old filament would not purge out of the toolhead.: Во время автопополнения старый филамент не удалось продуть из печатающей головки.
+  During auto refill, the old filament would not purge out of the toolhead.: Во время автопополнения не удалось прочистить печатающую головку от старого филамента.
   Dust and old grease on the X and Y rails or rods cause noise, ringing and wear.: "Пыль и старая смазка на рельсах или валах X и Y вызывают шум, рябь и износ."
   Dusty board and power supply fans run hot and fail early.: "Пыльные вентиляторы платы и БП перегреваются и быстро выходят из строя."
   E-Stop (M112): Авар. стоп (M112)
@@ -1673,7 +1673,7 @@ translations:
   Enable Bypass Controls: Включить управление байпасом
   Enable Clean Nozzle and other print helpers: 'Включить очистку сопла и другие вспомогательные функции печати'
   Enable Monitoring: Включить мониторинг
-  Enable Purge: 'Включить продувку'
+  Enable Purge: 'Включить прочистку'
   Enable Retraction: Включить аппаратный ретракт
   Enable Timelapse: Включить таймлапс
   Enable UI motion effects: Включить эффекты движения интерфейса
@@ -1682,10 +1682,10 @@ translations:
   Enable anonymous statistics: Включить анонимную статистику
   Enable assisted retraction at hub: 'Включить ретракцию с поддержкой на хабе'
   Enable audio feedback: Включить звуковую обратную связь
-  Enable brush wipe after purging: 'Включить очистку щёткой после продувки'
+  Enable brush wipe after purging: 'Включить очистку щёткой после прочистки'
   Enable or disable the hub cutter: 'Включить или выключить резак хаба'
   Enable plugin?: 'Включить плагин?'
-  Enable purging during tool changes: 'Включить продувку при смене инструмента'
+  Enable purging during tool changes: 'Включить прочистку при смене инструмента'
   Enable/disable quiet operation mode: 'Включить/выключить тихий режим работы'
   Enabled: Включено
   Enabled. Open its settings, or disable it?: 'Включено. Открыть его настройки или отключить?'
@@ -2142,7 +2142,7 @@ translations:
   Flow calibration is on for a filament and nozzle pair that does not allow it.: 'Калибровка потока включена для пары филамента и сопла, где она недоступна.'
   Flow calibration not allowed for {}: 'Калибровка потока недоступна: {}'
   Flowguard: Flowguard
-  Flushing Filament...: Промывка филамента...
+  Flushing Filament...: Прочистка филамента...
   Flying Toasters: Летающие тостеры
   Focused: 'Сосредоточенный'
   Follow active tool: Следовать активному инструменту
@@ -2219,7 +2219,7 @@ translations:
   Grip filament: Зажать филамент
   Grip the filament: Зажать филамент
   Groups follow each slot's material and color: "Группы следуют материалу и цвету каждого слота"
-  Guide the toolhead to the chute's extrude position: Подведите печатающую головку к позиции экструзии жёлоба
+  Guide the toolhead to the chute's extrude position: Подведите печатающую головку к позиции экструзии лотка
   Guided calibration: 'Пошаговая калибровка'
   Guided sensor-to-nozzle, unload and cutter retract calibration: 'Пошаговая калибровка: датчик до сопла, выгрузка и ретракция резака'
   H: Х
@@ -2598,7 +2598,7 @@ translations:
   Jog Speed XY: Скорость перемещения XY
   Jog Speed Z: Скорость перемещения Z
   Jog X back to {:.1f} mm before moving Y further: Верните X на {:.1f} мм, прежде чем двигать Y дальше
-  Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия жёлоба, затем нажмите «Сохранить».
+  Jog Y until the nozzle is centered over the chute opening, then tap Save.: Двигайте Y, пока сопло не встанет по центру отверстия лотка, затем нажмите «Сохранить».
 
   'Jog failed: {}': 'Перемещение не удалось: {}'
   Jog layout, speeds and step distances: 'Раскладка, скорости и шаги перемещения'
@@ -2756,7 +2756,7 @@ translations:
   Left: 'Слева'
   Left belt: "Левый ремень"
   Leftover material found: 'Обнаружены остатки материала'
-  Length of filament to purge: 'Длина продуваемого филамента'
+  Length of filament to purge: 'Длина филамента для прочистки'
   Length of the cooling tube section: 'Длина участка трубки охлаждения'
   'Length:': 'Длина:'
   Let a browser tap and drag on this screen: 'Разрешить браузеру нажимать и перетаскивать на этом экране'
@@ -2772,7 +2772,7 @@ translations:
   Light will switch when the current operation finishes: Подсветка переключится после завершения текущей операции
   Lights that follow the printer's state: Подсветка, которая меняется в зависимости от состояния принтера
   Lights the printer can control. Choose which ones HelixScreen uses in the LED settings.: 'Освещение, которым может управлять принтер. Какие из них использует HelixScreen, выбирается в настройках LED.'
-  Line the nozzle up with the purge chute so purged filament drops straight in.: Выровняйте сопло над жёлобом продувки, чтобы продутый филамент падал прямо внутрь.
+  Line the nozzle up with the purge chute so purged filament drops straight in.: Выровняйте сопло над лотком прочистки, чтобы выдавленный филамент падал прямо внутрь.
 
   Line {} calls {}, which this printer treats as an emergency stop. Re-slice the file with a profile made for this printer.: 'Строка {} вызывает {}, что этот принтер считает аварийной остановкой. Нарежьте файл заново с профилем для этого принтера.'
   Linear rails: 'Линейные направляющие'
@@ -2918,7 +2918,7 @@ translations:
   Macro to load filament into extruder: Макрос для загрузки филамента в экструдер
   Macro to park the toolhead at a safe position: 'Макрос для парковки печатающей головы в безопасное положение'
   Macro to pause an active print: Макрос для паузы текущей печати
-  Macro to purge/prime the nozzle: Макрос для продувки/подготовки сопла
+  Macro to purge/prime the nozzle: Макрос для прочистки/подготовки сопла
   Macro to resume a paused print: Макрос для возобновления приостановленной печати
   Macro to unload filament from extruder: Макрос для выгрузки филамента из экструдера
   Macro {1} has a syntax error: Синтаксическая ошибка в макросе {1}
@@ -2941,7 +2941,7 @@ translations:
   Make sure one toolhead is on the carriage and the rest are docked, then home.: 'Убедитесь, что одна печатающая головка на каретке, а остальные в доках, затем выполните парковку.'
   Make sure the printer is safe, then restart the firmware.: 'Убедитесь, что принтер в безопасном состоянии, затем перезапустите прошивку.'
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
-  : Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии продувки.
+  : Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии прочистки.
   MakeID (Bluetooth): MakeID (Bluetooth)
   ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
   : 'Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки.'
@@ -3897,23 +3897,23 @@ translations:
   ? "Pulling the filament back from the toolhead never cleared the Box's buffer sensor: the filament was not cut through, its tip swelled, or it tangled."
   : 'Обратная протяжка филамента из печатающей головки так и не освободила датчик буфера Бокса: филамент не обрезан до конца, его кончик разбух или он запутался.'
   "Pulling the filament back into the Box did not clear the slot's sensor: a tangled spool, or stuck or snapped filament.": 'Обратная протяжка филамента в Бокс не освободила датчик слота: катушка запутана, филамент застрял или оборвался.'
-  Purge: Продуть
-  Purge & Wipe: 'Продувка и очистка'
-  Purge Chute Calibration: Калибровка жёлоба продувки
-  Purge Length: 'Длина продувки'
+  Purge: Прочистить
+  Purge & Wipe: 'Прочистка и протирка'
+  Purge Chute Calibration: Калибровка лотка прочистки
+  Purge Length: 'Длина прочистки'
   Purge Line: 'Линия прочистки'
-  'Purge chute calibration failed: {}': 'Не удалось калибровать жёлоб продувки: {}'
-  Purge chute position saved.: Позиция жёлоба продувки сохранена.
+  'Purge chute calibration failed: {}': 'Не удалось калибровать лоток прочистки: {}'
+  Purge chute position saved.: Позиция лотка прочистки сохранена.
 
   'Purge failed: {}': 'Ошибка прочистки: {}'
   Purge may still be running — response timed out: Прочистка может ещё выполняться — время ожидания истекло
   Purge the loaded filament: "Прочистить загруженный филамент"
-  Purge to bucket: 'Продувка в контейнер'
-  Purge tower and brush settings: 'Настройки башни продувки и щётки'
-  Purging: Продувка
-  Purging nozzle: Продувка сопла
-  Purging old filament: "Продувка старого филамента"
-  Purging...: Продувка...
+  Purge to bucket: 'Прочистка в контейнер'
+  Purge tower and brush settings: 'Настройки башни очистки и щётки'
+  Purging: Прочистка
+  Purging nozzle: Прочистка сопла
+  Purging old filament: "Прочистка от старого филамента"
+  Purging...: Прочистка...
   Push the cleaning filament into the extruder until it stops, then tap Extrude.: "Вставьте чистящий филамент в экструдер до упора и нажмите Экструзия."
   Push the filament into the extruder until it stops. It is gripped automatically, or tap Extrude.: "Вставьте филамент в экструдер до упора. Он будет захвачен автоматически, или нажмите «Экструзия»."
   Push the filament into the head until the extruder grabs it, then try again.: 'Вставьте филамент в головку до захвата экструдером, затем попробуйте снова.'
@@ -5083,7 +5083,7 @@ translations:
   : 'Возможно, филамент оборвался или трубка подачи отошла. Уберите обломок и закрепите трубку с обоих концов, затем снова загрузите головку.'
   The filament may not have fully retracted — try again or manually pull: Возможно, филамент втянут не полностью. Повторите или вытяните вручную
   The filament ran out or slipped out of the feeder during the load.: 'Во время загрузки филамент закончился или выскользнул из фидера.'
-  The filament reached the nozzle, but purging it failed.: 'Филамент дошёл до сопла, но продувка не удалась.'
+  The filament reached the nozzle, but purging it failed.: 'Филамент дошёл до сопла, но прочистка не удалась.'
   The filament sensor reads empty.: Датчик филамента показывает пусто.
   'The filament sensor saw the filament stop: the spool is empty, or the filament is not moving.': 'Датчик филамента зафиксировал остановку филамента: катушка пуста или филамент не движется.'
   The filament sensor still reads empty, so the firmware refused to resume.: Датчик филамента всё ещё показывает пусто, поэтому прошивка отказалась продолжить печать.
@@ -5178,7 +5178,7 @@ translations:
   The nozzle temperature asked for is outside the allowed range.: 'Запрошенная температура сопла вне допустимого диапазона.'
   'The nozzle temperature reading is out of range: its sensor is loose or damaged.': 'Показание температуры сопла вне диапазона: датчик отошёл или повреждён.'
   The nozzle waited too long; start again.: "Сопло ждало слишком долго; начните заново."
-  The old filament would not purge: Старый филамент не удалось продуть
+  The old filament would not purge: Не удалось прочистить от старого филамента
   The part on the bed is too tall to clear. Remove it, then tap Cleared.: 'Деталь на столе слишком высокая, над ней не пройти. Уберите её, затем нажмите «Очищено».'
   ? The peak of {0} left the zone. Check that only {1}'s tensioner was turned. Not sure which is which? Tap the pencil to identify the belts.
   : "Пик ({0}) вышел из зоны. Проверьте, что крутили только натяжитель: {1}. Не знаете, где какой? Коснитесь значка карандаша, чтобы определить ремни."
@@ -5325,7 +5325,7 @@ translations:
   The toolhead is not homed, so this would home into the print: 'Печатающая головка не запаркована, парковка ударит её о модель'
   The toolhead is not loaded: Печатающая головка не загружена
   The toolhead is unloaded: 'Филамент из печатающей головки выгружен'
-  'The toolhead may still be at the chute. Move it away before printing.': 'Печатающая головка может всё ещё находиться у желоба. Отведите её перед печатью.'
+  'The toolhead may still be at the chute. Move it away before printing.': 'Печатающая головка может всё ещё находиться у лотка. Отведите её перед печатью.'
   The toolhead moves. Keep hands clear.: 'Печатающая головка движется. Держите руки подальше.'
   The toolhead on the carriage is not the one the printer expected.: 'Печатающая головка на каретке не та, которую ожидал принтер.'
   ? The toolhead runs back and forth at speeds from 20 to 300 mm/s while the accelerometer measures how hard each motor shakes. It takes about {0} minutes and it is loud. The speeds that shake most are the ones to keep your outer walls away from.
@@ -5592,7 +5592,7 @@ translations:
   Tool offsets saved: Смещения инструментов сохранены
   Tool swap: Смена инструмента
   Tool, runout backup: Инструмент, резерв при окончании филамента
-  Toolchange purge: 'Продувка при смене инструмента'
+  Toolchange purge: 'Прочистка при смене инструмента'
   Toolhead: 'Печатающая головка'
   Toolhead Calibration Running: 'Идёт калибровка головок'
   Toolhead LED: 'LED печатающей головки'
