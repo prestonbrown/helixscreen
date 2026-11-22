@@ -5,6 +5,30 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0-rc.6] - 2026-11-22
+
+### Added
+- **A new spool editor for each lane** - editing a lane shows one job per page: a summary of the lane's spool, the empty lane, New Spool, Filament and Lane Settings. A new spool starts from your favorite filaments, and a star on the Filament row adds the lane's product to them. Every spool tile names its vendor, such as Generic PLA or Creality CR-PETG. An untracked spool joins Spoolman in one tap, the summary says what a runout will do where the firmware keeps the backup, and the editor follows its lane as a spool goes in or runs out.
+- **One color picker everywhere** - the lane editor, LEDs, Spoolman and themes share one color picker, with palettes and recent colors.
+- **A larger spool widget on the Home screen** - when its tile has room, the spool widget draws each unit as a group of larger spools with readable type. Lanes never shrink below a usable size, and the ones that do not fit scroll sideways.
+- **Snapmaker U1: Z offset saves to the probe** - a babystep saves to the probe offset that every toolhead shares.
+- **Firmware that runs HelixScreen itself** (#2154) - when the printer's firmware supervises HelixScreen, the install is hands-off: HelixScreen does not edit the printer's configuration or install its plugin.
+
+### Changed
+- **Lanes are numbered from 0 on systems that count from 0**, such as AFC and Happy Hare. The tool numbering setting still changes it.
+- **Toolheads on AFC lane rigs are named by the toolhead** (#2158) - on a printer where each lane is its own tool, toolheads read E0, E1 and so on, following the tool numbering setting, and the mounted toolhead names the tool its seated lane feeds. Temperatures, offsets, nozzle checks and the PA tower all act on the toolhead itself.
+
+### Fixed
+- **Calibration config edits** (#2157) - a saved calibration value replaces the copy in the SAVE_CONFIG block, and an edit counts as done only once Klipper is running it.
+- **Switching printers** - the previous printer's data and fans no longer carry over to the new one.
+- **Snapmaker U1: filament edits stick** - an edit made while the firmware rewrites its filament record is no longer replaced by the old filament.
+- **Touch panels found after startup** - a touch panel that appears after HelixScreen starts gets its stored calibration, and HelixScreen waits for it instead of opening the wrong input device.
+- **AFC bypass** - an engaged bypass loads only as far as the toolhead sensor says, Load stays available for it, and its linked spool becomes active in Spoolman.
+- **Black filament renders black** in the 3D preview, outlined by its outer walls.
+- **Moonraker's update manager** (#2147) - HelixScreen stays off its list while a prerelease runs.
+- **The new-hardware notice** names only hardware that is new since HelixScreen started.
+- **Layout fixes** - the spool editor's buttons, the Filament page's color swatches, the Load, Unload and Purge labels at 480x272, the Manage button, the busy overlay's text and the Print Tune screen after a rotation all fit and are full-size touch targets.
+
 ## [1.1.0-rc.5] - 2026-11-21
 
 ### Added
@@ -10498,6 +10522,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0-rc.6]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.2...v1.1.0-rc.3
