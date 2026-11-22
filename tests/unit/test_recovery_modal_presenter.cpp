@@ -10,9 +10,11 @@
 #include "../test_helpers/modal_answer.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/recovery_modal_presenter_test_access.h"
+#include "../test_helpers/registered_backend.h"
 #include "../test_helpers/scoped_shared_resource.h"
 #include "../ui_test_utils.h"
 #include "action_prompt_manager.h"
+#include "ams_backend_mock.h"
 #include "ams_state.h"
 #include "app_constants.h"
 #include "app_globals.h"
@@ -834,6 +836,57 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "A lane flow starts on the lane its act
     CHECK(started_on == 2);
     CHECK(mock_client_.gcode_script_history().empty());
     helix::ui::register_recovery_flows();
+}
+
+namespace {
+
+/// A filament system that records the lanes it is asked to load and unload.
+class LaneRecordingBackend : public helix::AmsBackendMock {
+  public:
+    LaneRecordingBackend() : helix::AmsBackendMock(4) {}
+    helix::AmsError load_filament(int slot_index) override {
+        loads.push_back(slot_index);
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError change_tool(int tool) override {
+        loads.push_back(tool);
+        return helix::AmsErrorHelper::success();
+    }
+    helix::AmsError unload_filament(int slot_index) override {
+        unloads.push_back(slot_index);
+        return helix::AmsErrorHelper::success();
+    }
+    std::vector<int> loads;
+    std::vector<int> unloads;
+};
+
+} // namespace
+
+TEST_CASE_METHOD(RecoveryPreheatFixture,
+                 "The fault dialog's Load and Unload flows act on the fault's lane",
+                 "[error-center][recovery-presenter][recovery-flows]") {
+    helix::test::RegisteredBackend<LaneRecordingBackend> backend;
+    set_nozzle_c(220);
+    helix::ui::register_recovery_flows();
+
+    SECTION("Load loads that lane") {
+        const auto* flow = helix::ui::find_guided_device_flow(helix::kLoadLaneFlowId);
+        REQUIRE(flow != nullptr);
+        REQUIRE(flow->start_on_lane);
+        flow->start_on_lane(2);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(backend->loads == std::vector<int>{2});
+        CHECK(backend->unloads.empty());
+    }
+    SECTION("Unload unloads that lane") {
+        const auto* flow = helix::ui::find_guided_device_flow(helix::kUnloadLaneFlowId);
+        REQUIRE(flow != nullptr);
+        REQUIRE(flow->start_on_lane);
+        flow->start_on_lane(2);
+        helix::ui::UpdateQueue::instance().drain_until_empty();
+        CHECK(backend->unloads == std::vector<int>{2});
+        CHECK(backend->loads.empty());
+    }
 }
 
 TEST_CASE_METHOD(RecoveryPreheatFixture,
