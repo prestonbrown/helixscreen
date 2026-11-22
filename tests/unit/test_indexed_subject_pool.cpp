@@ -1,8 +1,6 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
-#include "../test_fixtures.h"
 #include "helix-xml/src/xml/lv_xml.h"
-#include "helix-xml/src/xml/lv_xml_component.h"
 #include "helix/xml/indexed_subject_pool.h"
 #include "helix_test_fixture.h"
 
@@ -82,30 +80,4 @@ TEST_CASE_METHOD(HelixTestFixture, "IndexedSubjectPool: a long string is cut bet
     CHECK(std::string(lv_subject_get_string(pool.at(0))) == "abc\xc2\xb7"
                                                             "de");
     pool.reclaim();
-}
-
-TEST_CASE_METHOD(XMLTestFixture,
-                 "IndexedSubjectPool: a pool sharing a prefix keeps its names when the other goes",
-                 "[xml][pool]") {
-    lv_xml_component_unregister("pooltest_shared_row");
-    REQUIRE(lv_xml_register_component_from_data(
-                "pooltest_shared_row",
-                "<component><view extends=\"lv_obj\"><bind_state_if_eq "
-                "subject=\"pooltest_shared_0\" state=\"checked\" ref_value=\"1\"/>"
-                "</view></component>") == LV_RESULT_OK);
-
-    IndexedSubjectPool survivor("pooltest_shared", IndexedSubjectPool::Type::Int);
-    survivor.ensure_size(1);
-    {
-        IndexedSubjectPool other("pooltest_shared", IndexedSubjectPool::Type::Int);
-        other.ensure_size(1);
-        REQUIRE(lv_xml_get_subject(nullptr, "pooltest_shared_0") == other.at(0));
-    }
-
-    // The survivor's next row build resolves the name to the survivor's subject.
-    lv_obj_t* row = create_component("pooltest_shared_row");
-    REQUIRE(row != nullptr);
-    CHECK_FALSE(lv_obj_has_state(row, LV_STATE_CHECKED));
-    survivor.set_int(0, 1);
-    CHECK(lv_obj_has_state(row, LV_STATE_CHECKED));
 }

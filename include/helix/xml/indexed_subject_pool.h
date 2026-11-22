@@ -63,8 +63,7 @@ class IndexedSubjectPool {
     lv_subject_t* at(size_t i);
     size_t size() const;
 
-    // Withdraws every slot's name (handing it back to the newest other live pool
-    // that published it, if any), deinits every subject, and frees all
+    // Unregisters every slot's name, deinits every subject, and frees all
     // backing storage. Idempotent — safe to call more than once, and safe
     // to call on an empty pool. Called automatically by the destructor.
     void reclaim();

@@ -2,7 +2,6 @@
 #include "helix/xml/indexed_subject_pool.h"
 
 #include "core/text_io.h"
-#include "helix/xml/scoped_subject_registry.h"
 #include "lvgl/lvgl.h"
 
 extern "C" {
@@ -50,11 +49,7 @@ void IndexedSubjectPool::ensure_size(size_t n) {
             string_bufs_.push_back(std::move(buf));
         }
 
-        // Owned publication, as SubjectManager::publish does: another pool can hold
-        // the same prefix (a test's own owner beside the app's), and the newest wins.
-        const std::string name = slot_name(i);
-        register_subject_in_current_scope(name.c_str(), subject->get());
-        note_subject_owner(name.c_str(), subject->get());
+        lv_xml_register_subject(nullptr, slot_name(i).c_str(), subject->get());
         subjects_.push_back(std::move(subject));
     }
 }
@@ -87,9 +82,7 @@ size_t IndexedSubjectPool::size() const {
 
 void IndexedSubjectPool::reclaim() {
     for (size_t i = 0; i < subjects_.size(); ++i) {
-        // Before the reset: a name this pool still holds goes back to the newest
-        // other live owner of it, and only a live subject can take it.
-        withdraw_owned_subject(slot_name(i).c_str(), subjects_[i]->get());
+        lv_xml_unregister_subject(nullptr, slot_name(i).c_str());
         subjects_[i]->reset();
     }
     subjects_.clear();
