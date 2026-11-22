@@ -4301,6 +4301,7 @@
   <translation tag="Skip Objects..." de="Objekte überspringen..."/>
   <translation tag="Skip for now" de="Vorerst überspringen"/>
   <translation tag="Skip the rest of this layer and resume at the next one" de="Rest dieser Schicht überspringen und bei der nächsten fortsetzen"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" de="Übersprungen"/>
   <translation tag="Sleep While Printing" de="Ruhemodus beim Drucken"/>
   <translation tag="Sleep adjusted to match dim timeout" de="Ruhemodus-Zeitlimit angepasst"/>

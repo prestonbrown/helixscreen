@@ -31,6 +31,12 @@ inline constexpr std::array<const char*, 6> kRunPrereqIds = {
 
 enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 
+/// The Results page's primary button: "Done" when nothing is left to save or a
+/// save or discard is under way; "Save" only once Klipper said the save skips its
+/// restart; "Save and restart Klipper" otherwise, before that answer too.
+[[nodiscard]] std::string results_primary_label(bool offers_save, bool restart_known,
+                                                bool save_restarts);
+
 class CalibrationRunOverlay : public OverlayBase {
   public:
     const char* get_name() const override {
@@ -100,6 +106,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
     /// Tells the run when Klipper goes down under it.
     ObserverGuard klippy_obs_;
+    /// Re-publishes every composed line in the new language.
+    ObserverGuard language_obs_;
     RunPage page_ = RunPage::Pick;
     /// Answers whether the one save restarts Klipper; MoonrakerRunFinisher saves.
     SaveConfigWatch restart_query_;

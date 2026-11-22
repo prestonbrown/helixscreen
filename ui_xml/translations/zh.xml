@@ -4301,6 +4301,7 @@
   <translation tag="Skip Objects..." zh="跳过对象..."/>
   <translation tag="Skip for now" zh="暂时跳过"/>
   <translation tag="Skip the rest of this layer and resume at the next one" zh="跳过本层剩余部分并从下一层恢复"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" zh="已跳过"/>
   <translation tag="Sleep While Printing" zh="打印时休眠"/>
   <translation tag="Sleep adjusted to match dim timeout" zh="休眠超时已调整"/>

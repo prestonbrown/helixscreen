@@ -16,6 +16,7 @@
   <api>
     <prop name="step" type="string" default=""/>
     <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
   </api>
   <consts>
     <px name="tile_radius" value="10"/>
@@ -26,19 +27,18 @@
     <style name="tile_off" bg_color="#card_bg" bg_opa="255" border_color="#border"/>
     <style name="tile_on" bg_color="#primary" bg_opa="38" border_color="#primary"/>
     <style name="tile_roomy"
-           min_height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg"
-           radius="#tile_radius"/>
+           height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg" radius="#tile_radius"/>
     <style name="tile_micro"
-           min_height="#cal_tile_h" pad_left="#space_md" pad_right="#space_md" pad_column="#space_md"
+           height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_md"
            radius="#tile_radius_tight"/>
     <style name="box_locked" bg_color="#elevated_bg" bg_opa="255" border_width="0"/>
     <style name="box_on" bg_color="#primary" bg_opa="255" border_width="0"/>
     <style name="box_off" bg_opa="0" border_width="2" border_color="#text_subtle"/>
   </styles>
   <view extends="lv_button"
-        height="content" style_pad_top="0" style_pad_bottom="0" style_border_width="2" style_border_opa="255"
-        style_shadow_width="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
-        style_flex_cross_place="center">
+        style_pad_top="0" style_pad_bottom="0" style_border_width="2" style_border_opa="255" style_shadow_width="0"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+        style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_run_shown_${step}" flag="hidden" ref_value="0"/>
     <bind_style name="tile_off" subject="cal_run_picked_${step}" ref_value="0"/>
     <bind_style name="tile_on" subject="cal_run_picked_${step}" ref_value="1"/>
@@ -52,10 +52,10 @@
       <bind_style_if name="box_on" cond="cal_run_locked_${step} eq 0 and cal_run_picked_${step} eq 1"/>
       <bind_style_if name="box_off" cond="cal_run_picked_${step} eq 0"/>
       <icon name="pick_check"
-            src="check_bold" size="xs" color="0xFFFFFF" align="center" clickable="false" event_bubble="true">
+            src="check_bold" size="xs" contrast="true" align="center" clickable="false" event_bubble="true">
         <bind_flag_if cond="cal_run_locked_${step} eq 1 or cal_run_picked_${step} eq 0" flag="hidden"/>
       </icon>
-      <icon name="pick_lock" src="lock" size="xs" color="0xFFFFFF" align="center" clickable="false" event_bubble="true">
+      <icon name="pick_lock" src="lock" size="xs" contrast="true" align="center" clickable="false" event_bubble="true">
         <bind_flag_if_eq subject="cal_run_locked_${step}" flag="hidden" ref_value="0"/>
       </icon>
     </lv_obj>
@@ -67,8 +67,8 @@
               style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false"
               clickable="false" event_bubble="true">
         <text_body name="pick_name"
-                   text="$label" long_mode="dots" style_text_font="#cal_font_name" style_text_color="#text"
-                   clickable="false" event_bubble="true"/>
+                   text="$label" translation_tag="$label_tag" long_mode="dots" style_text_font="#cal_font_name"
+                   style_text_color="#text" clickable="false" event_bubble="true"/>
         <text_small name="pick_required"
                     text="Required" text_transform="uppercase" style_text_font="#cal_font_badge"
                     style_text_color="#warning" clickable="false" event_bubble="true">

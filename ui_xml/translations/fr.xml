@@ -4307,6 +4307,7 @@
   <translation tag="Skip Objects..." fr="Passer des objets..."/>
   <translation tag="Skip for now" fr="Ignorer pour l&apos;instant"/>
   <translation tag="Skip the rest of this layer and resume at the next one" fr="Ignorer le reste de cette couche et reprendre à la suivante"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" fr="Ignoré"/>
   <translation tag="Sleep While Printing" fr="Veille pendant impression"/>
   <translation tag="Sleep adjusted to match dim timeout" fr="Délai de veille ajusté"/>

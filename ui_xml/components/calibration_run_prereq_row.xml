@@ -13,6 +13,7 @@
   <api>
     <prop name="prereq" type="string" default=""/>
     <prop name="label" type="string" default=""/>
+    <prop name="label_tag" type="string" default=""/>
   </api>
   <consts>
     <px name="row_radius" value="10"/>
@@ -27,7 +28,7 @@
         width="100%" height="content" style_min_height="#cal_tile_h" style_border_width="2" style_shadow_width="0"
         style_radius="#row_radius" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_sm"
         style_pad_bottom="#space_sm" style_pad_gap="#space_lg" scrollable="false" flex_flow="row"
-        style_flex_main_place="start" style_flex_cross_place="center">
+        style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_prereq_shown_${prereq}" flag="hidden" ref_value="0"/>
     <bind_style name="row_open" subject="cal_prereq_checked_${prereq}" ref_value="0"/>
     <bind_style name="row_done" subject="cal_prereq_checked_${prereq}" ref_value="1"/>
@@ -37,7 +38,7 @@
             clickable="false" event_bubble="true">
       <bind_style name="tick_open" subject="cal_prereq_checked_${prereq}" ref_value="0"/>
       <bind_style name="tick_done" subject="cal_prereq_checked_${prereq}" ref_value="1"/>
-      <icon src="check_bold" size="xs" color="0xFFFFFF" align="center" clickable="false" event_bubble="true">
+      <icon src="check_bold" size="xs" contrast="true" align="center" clickable="false" event_bubble="true">
         <bind_flag_if_eq subject="cal_prereq_checked_${prereq}" flag="hidden" ref_value="0"/>
       </icon>
     </lv_obj>
@@ -45,8 +46,8 @@
             height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
             style_border_width="0" flex_flow="column" scrollable="false" clickable="false" event_bubble="true">
       <text_body name="prereq_name"
-                 width="100%" text="$label" long_mode="wrap" style_text_font="#cal_font_name" style_text_color="#text"
-                 clickable="false" event_bubble="true"/>
+                 width="100%" text="$label" translation_tag="$label_tag" long_mode="wrap"
+                 style_text_font="#cal_font_name" style_text_color="#text" clickable="false" event_bubble="true"/>
       <text_small name="prereq_for"
                   width="100%" bind_text="cal_prereq_for_${prereq}" long_mode="wrap" style_text_font="#cal_font_detail"
                   style_text_color="#text_muted" clickable="false" event_bubble="true"/>

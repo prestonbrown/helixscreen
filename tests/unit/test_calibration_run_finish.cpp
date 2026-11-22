@@ -5,6 +5,7 @@
 // Klipper is back from the restart that save causes; Discard all is one host
 // RESTART, which drops what the steps staged, and writes nothing.
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_panel_bed_mesh.h"
 
 #include "../lvgl_test_fixture.h"
@@ -231,4 +232,14 @@ TEST_CASE_METHOD(FinishFixture,
     CHECK(run->entries()[0].status == StepStatus::Aborted);
     // The panel is process-wide; it must not keep this fixture's API.
     panel.set_api(nullptr);
+}
+
+TEST_CASE("the results button promises a restart unless Klipper said the save skips it",
+          "[calibration_run]") {
+    using helix::ui::results_primary_label;
+    CHECK(results_primary_label(true, false, true) == "Save and restart Klipper");
+    CHECK(results_primary_label(true, true, true) == "Save and restart Klipper");
+    CHECK(results_primary_label(true, true, false) == "Save");
+    CHECK(results_primary_label(false, true, false) == "Done");
+    CHECK(results_primary_label(false, false, true) == "Done");
 }

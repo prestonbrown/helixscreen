@@ -81,10 +81,10 @@
               style_border_width="0" scrollable="false" hidden_if_empty="$lead_icon">
         <style name="cal_lead_ok"/>
         <bind_style name="cal_lead_warn" subject="$lead_warn_subject" ref_value="1"/>
-        <icon src="$lead_icon" size="xs" color="0xFFFFFF" align="center">
+        <icon src="$lead_icon" size="xs" contrast="true" align="center">
           <bind_flag_if_eq subject="$lead_warn_subject" flag="hidden" ref_value="1"/>
         </icon>
-        <icon src="alert" size="xs" color="0xFFFFFF" align="center" hidden="true">
+        <icon src="alert" size="xs" contrast="true" align="center" hidden="true">
           <bind_flag_if_eq subject="$lead_warn_subject" flag="hidden" ref_value="0"/>
         </icon>
       </lv_obj>
