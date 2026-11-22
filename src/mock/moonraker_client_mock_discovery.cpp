@@ -7,6 +7,7 @@
 
 #include "chamber_heater_backend.h"
 #include "env_knobs.h"
+#include "klipper_config_editor.h"
 #include "macro_param_cache.h"
 #include "mock_persona.h"
 #include "moonraker_client_mock.h"
@@ -93,6 +94,49 @@ std::vector<std::string> first_listed(const json& objects) {
 }
 
 } // namespace
+
+void MoonrakerClientMock::simulate_config_file_written(const std::string& path,
+                                                       const std::string& content) {
+    std::lock_guard<std::mutex> lock(written_config_mutex_);
+    written_config_[path] = content;
+}
+
+void MoonrakerClientMock::apply_written_config() {
+    std::map<std::string, std::string> written;
+    {
+        std::lock_guard<std::mutex> lock(written_config_mutex_);
+        written.swap(written_config_);
+    }
+    for (const auto& [path, content] : written) {
+        const auto structure = helix::system::KlipperConfigEditor::parse_structure(content);
+        const auto extruder = structure.sections.find("extruder");
+        if (extruder == structure.sections.end()) {
+            continue;
+        }
+        const auto control = structure.find_key("extruder", "control");
+        const auto fan = structure.find_key("extruder", "cooling_fan");
+        if (control) {
+            extruder_control_ = control->value;
+        }
+        extruder_cooling_fan_ = fan ? fan->value : std::string();
+        spdlog::info("[MoonrakerClientMock] Restart reads {}: [extruder] control={} "
+                     "cooling_fan='{}'",
+                     path, kalico_extruder_control(), extruder_cooling_fan_);
+    }
+}
+
+std::map<std::string, std::string> MoonrakerClientMock::kalico_heater_config_files() {
+    const char* control = std::getenv("HELIX_MOCK_KALICO_CONTROL");
+    if (!helix::env_flag("HELIX_MOCK_KALICO") || control == nullptr ||
+        std::string(control) != "pid") {
+        return {};
+    }
+    return {{"printer.cfg", "[printer]\nkinematics: corexy\n\n"
+                            "[extruder]\ncontrol: pid\npid_kp: 22.865\npid_ki: 1.292\n"
+                            "pid_kd: 101.178\n\n"
+                            "[heater_bed]\ncontrol: pid\npid_kp: 70.0\npid_ki: 1.5\n"
+                            "pid_kd: 900.0\n"}};
+}
 
 std::string MoonrakerClientMock::kalico_extruder_control() const {
     if (!extruder_control_.empty()) {

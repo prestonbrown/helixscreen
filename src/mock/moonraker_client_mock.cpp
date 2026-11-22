@@ -4059,6 +4059,7 @@ void MoonrakerClientMock::advance_print_start_simulation() {
 
 void MoonrakerClientMock::trigger_restart(bool is_firmware) {
     klippy_state_.store(KlippyState::STARTUP);
+    apply_written_config();
 
     // Clear any active print state
     if (print_phase_.load() != MockPrintPhase::IDLE) {

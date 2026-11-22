@@ -11,6 +11,7 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
+#include "../test_helpers/scoped_env.h"
 #include "core/http_executor.h"
 #include "core/update_queue.h"
 #include "helix_plugin_features.h"
@@ -833,4 +834,43 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(copies.size() == 1);
     CHECK(copies[0]["source"] == "config/printer.cfg");
     CHECK(copies[0]["dest"] == "config/.helix_backups/printer.cfg.helix_backup");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the --test Kalico printer on PID switches to MPC and calibrates",
+                 "[plugin_config_edit][config][pid][restart_watch]") {
+    // HELIX_MOCK_KALICO_CONTROL=pid: the mock serves a printer.cfg on PID, and a
+    // restart reads the [extruder] the migration wrote back.
+    ScopedEnv kalico("HELIX_MOCK_KALICO", "1");
+    ScopedEnv control("HELIX_MOCK_KALICO_CONTROL", "pid");
+    PrinterState state;
+    MoonrakerClientMock client;
+    client.set_simulation_speedup(1000.0);
+    MoonrakerAPIMock api(client, state);
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+
+    PIDCalibrationPanel panel;
+    panel.init_subjects();
+    panel.set_api(&api);
+    using Access = helix::ui::PIDCalibrationPanelTestAccess;
+    Access::use_mpc(panel);
+    auto& editor = Access::config_editor(panel);
+    // As in --test: the plugin route is offered, the mock has no
+    // server.helix.config, and the file API serves the edit.
+    editor.set_feature_state_source([]() { return PluginFeatureState::Ready; });
+    editor.set_restart_poll_interval(std::chrono::milliseconds(1));
+    Access::set_migration_restart_timeout_ms(panel, 2000);
+
+    Access::start_mpc_migration(panel);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
+    helix::ui::UpdateQueue::instance().drain();
+
+    INFO("error: " << Access::error_message(panel));
+    CHECK(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+    CHECK(client.kalico_extruder_control() == "mpc");
+    auto written = api.get_uploaded_config("printer.cfg");
+    REQUIRE(written.has_value());
+    CHECK(written->find("control: mpc") != std::string::npos);
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
 }
