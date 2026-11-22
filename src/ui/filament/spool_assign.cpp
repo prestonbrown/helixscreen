@@ -206,8 +206,42 @@ const std::vector<CommonSpool>& common_spools() {
     return kCommon;
 }
 
-bool show_common_spools(size_t spool_count) {
-    return spool_count < kFewSpools;
+std::string spool_tile_label(const std::string& vendor, const std::string& name) {
+    // A product named after its maker ("Bambu ASA") says the vendor already.
+    // So does one led by the maker's first word: "Bambu Lab" makes "Bambu ASA".
+    const auto led_by = [&name](const std::string& word) {
+        return !word.empty() && name.size() > word.size() && name[word.size()] == ' ' &&
+               helix::text_io::equals_ignore_case(name.substr(0, word.size()), word);
+    };
+    if (vendor.empty() || led_by(vendor) || led_by(vendor.substr(0, vendor.find(' ')))) {
+        return name;
+    }
+    return name.empty() ? vendor : vendor + " " + name;
+}
+
+std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites, size_t count) {
+    std::vector<SpoolTile> tiles;
+    for (const auto& fav : favorites) {
+        if (tiles.size() >= count) {
+            return tiles;
+        }
+        tiles.push_back({spool_tile_label(fav.brand, fav.name), 0, fav.product_id, 0});
+    }
+    // common_spools() is material-major with three colors each; the grid reads
+    // a color at a time.
+    const auto& common = common_spools();
+    constexpr size_t kColors = 3;
+    const size_t materials = common.size() / kColors;
+    for (size_t c = 0; c < kColors; ++c) {
+        for (size_t m = 0; m < materials && tiles.size() < count; ++m) {
+            const size_t index = m * kColors + c;
+            tiles.push_back({spool_tile_label("Generic", common[index].material),
+                             common[index].rgb,
+                             {},
+                             index});
+        }
+    }
+    return tiles;
 }
 
 bool product_names_material(const std::string& product, const std::string& material) {
@@ -233,16 +267,17 @@ LaneScreen screen_for_lane(const SlotInfo& lane) {
     if (lane.status == SlotStatus::EMPTY) {
         return LaneScreen::Assign;
     }
+    // Filament the lane reports is a spool, recorded or not: a tagless spool
+    // opens on its summary to be described, never on the empty page.
+    if (slot_status_reports_filament(lane.status).value_or(false)) {
+        return LaneScreen::Edit;
+    }
     return (lane.spoolman_id > 0 || !lane.material.empty()) ? LaneScreen::Edit : LaneScreen::Assign;
 }
 
-BottomAction bottom_action(bool spoolman_connected, size_t listed) {
-    if (!spoolman_connected) {
-        return BottomAction::AssignLocal;
-    }
-    return listed > 0 ? BottomAction::AddNewSecondary : BottomAction::AddToSpoolmanAndUse;
-}
-
+namespace {
+/// The chip a spool with @p remaining_g of @p total_g left lights: a full
+/// spool of a chip's size lights that chip, anything else lights Partial.
 int size_chip_for(float remaining_g, float total_g) {
     if (std::fabs(remaining_g - total_g) < 0.5f) {
         for (int i = 0; i < kPartialChip; ++i) {
@@ -253,6 +288,7 @@ int size_chip_for(float remaining_g, float total_g) {
     }
     return kPartialChip;
 }
+} // namespace
 
 SpoolSize size_for_reading(float remaining_g, float total_g) {
     if (remaining_g < 0 && total_g <= 0) {

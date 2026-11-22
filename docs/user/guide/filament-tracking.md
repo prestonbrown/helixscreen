@@ -27,7 +27,7 @@ Nothing needs to be turned on.
 
 **A single spool (no multi-filament system):** tap the spool icon on the Filament panel to set up the **external spool**: material, color and brand. Once it is set, the preset heat buttons, the purge temperature and the **Active Spool** widget on the Home panel all use it. See [External Spool Configuration](filament.md#external-spool-configuration).
 
-**A multi-filament system:** each slot has its own material, color, brand and remaining weight. Systems that read a spool's tag (Creality CFS, Snapmaker U1) fill these in when you seat a spool. On other systems, tap a slot and choose **Edit Spool** to enter them yourself. See [Editing Filament Properties](filament.md#editing-filament-properties).
+**A multi-filament system:** each slot has its own material, color, brand and remaining weight. Systems that read a spool's tag (Creality CFS, Snapmaker U1) fill these in when you seat a spool. On other systems, tap a slot and choose **Edit Spool** to enter them yourself. See [Editing Filament Properties](filament-ams-panel.md#editing-filament-properties).
 
 ### Where a lane's details come from
 
@@ -40,7 +40,7 @@ HelixScreen keeps no private copy of your lanes. A lane shows, in this order of 
 Because everything lives on the printer:
 
 - **A second screen agrees with this one.** Another HelixScreen, Mainsail or Fluidd showing the same printer sees the same lanes, and a change made on any of them shows up here within about ten seconds.
-- **Saving waits for the printer.** The spool editor shows **Saving...** and closes once the printer has the new details. If the printer cannot take them, the editor stays open, keeps what you typed and shows a line under Save, for example **Not saved: the printer did not confirm it. Try again.** Nothing is queued to retry later.
+- **Saving waits for the printer.** The spool editor shows **Saving...** and closes once the printer has the new details. While the filament system is busy loading or unloading, it says the save waits for that instead, for example **Saves when the load on Lane 2 finishes.** If the printer cannot take the details, the editor stays open, keeps what you typed and shows a line above the spool, for example **Not saved: the printer did not confirm it. Try again.** Nothing is queued to retry later.
 - **Editing waits for the connection.** While HelixScreen is connecting or reading the lanes for the first time, **Edit Spool** is unavailable and the editor shows **Loading lane details...**. While the printer is disconnected, edits are refused.
 
 ### How remaining weight is estimated
@@ -112,7 +112,7 @@ With Spoolman connected, **Advanced > Spoolman** opens the spool inventory:
 - **Header buttons.** **+** creates a spool (below), the refresh button reloads the list, and the gear opens [Spoolman settings](settings/printing.md#spoolman).
 - **The spool menu.** Tap a spool for **Set Active**, **Edit**, **Print Label** (which asks you to set up a label printer first if you have none), **Duplicate**, **Archive** and **Delete**. Archive asks you to confirm and can be undone from Spoolman's own web page. It is not offered for the active spool.
 - **Set Active** tells Spoolman and HelixScreen that this is the spool feeding the printer. The Home panel's **Active Spool** widget shows it.
-- **Link a spool to a slot.** Tap a slot and choose **Select Spool**, or tap the Spoolman button in the spool editor's header, to pick from Spoolman and fill in that slot's brand, material, color and temperatures. A spool already linked to another slot is grayed out. See [Editing Filament Properties](filament.md#editing-filament-properties).
+- **Link a spool to a slot.** Tap a slot and choose **Select Spool**, or tap **New Spool** at the top of the slot's spool editor, then tap **Use** on a spool. The slot takes that spool's brand, material, color and temperatures. A spool already in another slot moves to this one, unless it is feeding the current print. See [Putting in a different spool](filament-ams-panel.md#putting-in-a-different-spool).
 - **Scan to link.** Scan a QR-coded spool label to look the spool up and link it. See [Barcode Scanner](barcode-scanner.md) and [Label Printing](label-printing.md).
 
 ### Adding a spool
@@ -124,6 +124,28 @@ Tap **+** to start **New Spool**, which has three steps:
 3. **Spool details.** Set **Remaining Weight (g)**, **Price**, an optional lot number and optional notes, then tap **Create Spool**.
 
 HelixScreen creates the vendor, filament and spool in Spoolman together, so the new spool is ready to link right away.
+
+### Adding a slot's spool to Spoolman
+
+A slot you set up by hand, or one whose spool came from a tag, isn't in Spoolman until you add it. When Spoolman is set up, the slot's spool editor offers this in one tap:
+
+1. Tap the slot and choose **Edit Spool**.
+2. Tap **Add to Spoolman** (**Track this spool's weight there**).
+3. HelixScreen adds the spool to Spoolman with the slot's brand, material, color and weight, and links the slot to it. If Spoolman already has that brand's filament in a close color, it asks whether to use it or add a new one.
+
+From then on Spoolman tracks the spool's weight. Spoolman needs a brand, a material and a color; if one is missing, a message says which, so you can pick it on the editor's Filament page and try again. See [Adding a slot's spool to Spoolman](filament-ams-panel.md#adding-a-slots-spool-to-spoolman).
+
+Putting a new spool in an empty slot adds it to Spoolman too: **Same Filament, New Spool** on the empty slot does it in one tap, and **Not Listed? Add New Spool** in the spool list does it while **Add to Spoolman** is ticked. The spool tiles there start with your [favorite filaments](filament-ams-panel.md#favorite-filaments), so a spool you buy often is one tap to describe.
+
+### Archiving a spool when you clear its slot
+
+When a Spoolman spool runs out, clearing its slot can archive it in Spoolman at the same time:
+
+1. Tap the slot, choose **Edit Spool**, and tap **Clear Lane**.
+2. Leave **Spool is empty, archive it in Spoolman** ticked. It is ticked for you when the spool ran out or has less than 20 g left; untick it to keep the spool in your inventory.
+3. Tap **Clear**.
+
+The spool is archived only once the slot has really been cleared, and only the spool that was in that slot. An archived spool can be brought back from Spoolman's own web page.
 
 ### Which spool Spoolman charges on a multi-filament system
 
@@ -161,14 +183,14 @@ However it is tracked, remaining filament shows in the same places:
 
 | Where | What it shows |
 |---|---|
-| **Active Spool** widget (Home panel) | The loaded spool's color, material, brand and, at wider sizes, remaining and total weight, for example 750g / 1000g. Works with or without Spoolman |
-| **Multi-filament system screens** | Remaining weight of the loaded slot and of each slot |
-| **Edit Spool** editor | The slot's remaining weight, and its full weight when known |
+| **Active Spool** widget (Home panel) | The loaded spool's color, material, brand and, at wider sizes, what is left, for example 750 g · 75%. Works with or without Spoolman |
+| **Multi-filament system screens** | What is left on the loaded slot and on each slot, as grams and a percent (850 g · 85%), or the percent alone where space is tight |
+| **Edit Spool** editor | The slot's remaining weight, its spool size and the percent left, for example 850 g of 1 kg · 85% |
 | **Spoolman inventory** | Weight and percentage left for every spool, with a warning icon under 100 g |
 
 **Running out** mid-print is caught by your filament sensors and multi-filament hardware, not by the weight number. The printer's firmware pauses the print and HelixScreen guides you through reloading. On **AFC** and **Happy Hare**, a backup slot you configured can take over automatically (Endless Spool). On the **Creality CFS**, **Auto-Refill** is run by the box and always pauses first: it switches only when Auto-Refill is on and another slot holds the exact same material and color. See [Reading Error States](filament.md#reading-error-states), [Slot Context Menu](filament.md#slot-context-menu) and [Sensors](sensors.md).
 
-> **Tip:** The remaining weight is only as good as the starting number. When you load a fresh spool, set its weight (enter the grams in the Edit Spool editor, or link a fresh Spoolman spool) so the estimate starts from the right place.
+> **Tip:** The remaining weight is only as good as the starting number. When you load a fresh spool, set its weight (in the Edit Spool editor, or by linking a fresh Spoolman spool) so the estimate starts from the right place. A spool whose weight HelixScreen doesn't know shows as full: a full spool of its size, or 1 kg when the size isn't known either.
 
 ---
 

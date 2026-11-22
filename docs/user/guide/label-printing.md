@@ -95,7 +95,7 @@ Once a printer is set up, **Print Label** appears in three places:
 
 - The menu you get when you tap a spool in the Spoolman spool list (reached from **Advanced > Spoolman**).
 - The spool editor for a Spoolman spool.
-- The slot editor on the filament system screen, for a slot linked to a Spoolman spool.
+- The slot editor on the filament system screen, for a slot linked to a Spoolman spool: on its **Spoolman Details** page, and on the message that appears after you save the slot.
 
 A message confirms **Label printed**, or names what went wrong. Until a printer is configured, **Print Label** in the spool menu says "Set up your label printer in Settings".
 

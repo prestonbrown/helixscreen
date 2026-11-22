@@ -149,7 +149,7 @@ The U1 can measure each toolhead's pressure advance at the start of a print, usi
 
   `FORCE=1` is needed because the printer refuses this setting once a print is running without it.
 
-- **One toolhead, outside a print:** `FLOW_CALIBRATE TEMP=220` calibrates the mounted toolhead at 220 °C (use your filament's printing temperature) and saves the result. The **Pressure Advance** row under **Advanced > Calibration** and the **Pressure Adv.** button on the Controls panel run the same measurement from the touchscreen (see [Calibration](calibration.md)).
+- **One toolhead, outside a print:** `FLOW_CALIBRATE TEMP=220` calibrates the mounted toolhead at 220 °C (use your filament's printing temperature) and saves the result. The **Pressure advance** tile under **Advanced > Calibration** and the **Pressure Adv.** button on the Controls panel run the same measurement from the touchscreen (see [Calibration](calibration.md)).
 
 The manual commands above come from the U1 firmware and have not been tested end to end with HelixScreen yet.
 
@@ -257,6 +257,11 @@ The Print Status panel shows:
 - **A job tile** with the live preview of the print (including the exclude-object button), the filename, and the current layer and Z height
 - **A printer tile** with a picture of your printer and a chip for each heater, fan, the light, and speed/flow. On printers whose picture has been mapped, each chip sits beside its part with a dotted line to it, and the part glows while it is active (the nozzle warming up, a fan spinning, the light on). The bed's plate and a heated chamber glow by how hot they are, and where the picture knows the enclosure's windows the chamber's red stays inside the glass; when the chamber is warm, its glow takes the place of the light's. A heater chip turns amber when it is off its target. The speed/flow chip shows how fast the toolhead is moving right now in mm/s, with the volumetric flow in mm³/s under it, and turns amber when speed or flow is not 100%. Tap a chip for its detail; tapping speed/flow opens Tune, and tapping the light toggles it. Chips that show an ordinary value (a fan at 0%, the light off) are the first to be left out when the screen is too small for all of them
 - **A strip** along the bottom with the percentage, time remaining, finish time, time elapsed, the filament in use, the next queued job, and the buttons
+
+**On ultrawide and portrait screens** the panel has room for more:
+
+- **The lane tray.** On a printer with a multi-material system or several toolheads, a card shows your slots with their filament colors and follows the active slot through the print. Tap it to open the Filament System panel. On an ultrawide screen it takes the place of the readings column, since the chips on the printer picture already show those readings. On a portrait screen it sits as a strip under the progress strip, using only height the job tile can spare. While the pre-print steps are showing, the checklist keeps the room it needs for every step, so the tray may be smaller or hidden until printing begins. On a screen too short for it, there is no tray.
+- **Tune on the screen.** While a print runs, if there is room, the Print Tuning controls (Print Speed, Flow Rate, PA and Z-Offset) appear right on the Print Status panel, and the **Tune** button disappears because you no longer need it. On an ultrawide screen they are a column just left of the buttons. On a tall portrait screen they are a card under the lane tray, without the help lines. Where there is not enough room, the **Tune** button stays and opens the overlay as usual. See [Print Tune Overlay](#print-tune-overlay) for what each control does.
 
 > **Note:** Exact layer counts and the most accurate time-remaining estimate require your slicer to report layer info to Klipper via `SET_PRINT_STATS_INFO`. If the count or ETA looks off, see [Troubleshooting → Layer count is wrong, stuck at 0, or total layers missing](../TROUBLESHOOTING.md#layer-count-is-wrong-stuck-at-0-or-total-layers-missing).
 
@@ -366,7 +371,7 @@ You don't have to wait for a print to end before picking the next one. While a p
 3. Reset Speed & Flow, which returns both to 100%.
 4. Z-Offset, with its step sizes and the two arrow buttons.
 
-Tap **Tune** during a print to open **Print Tuning**. You can also keep the Speed / Flow and Z-Offset readings on the home screen and tap them to open it: see the [Speed / Flow](home-widgets-print.md#speed--flow-widget) and [Z-Offset](home-widgets-print.md#z-offset-widget) widgets.
+Tap **Tune** during a print to open **Print Tuning**. On an ultrawide or tall portrait screen the same controls may already be on the Print Status panel itself, with no **Tune** button (see [During a Print](#during-a-print)); they work exactly as they do here. You can also keep the Speed / Flow and Z-Offset readings on the home screen and tap them to open it: see the [Speed / Flow](home-widgets-print.md#speed--flow-widget) and [Z-Offset](home-widgets-print.md#z-offset-widget) widgets.
 
 | Setting | Range | Buttons |
 |---------|-------|---------|

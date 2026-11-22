@@ -133,7 +133,7 @@ The U1 will not resume while a toolhead the print uses has no material recorded 
 
 **Solution:**
 1. Open the filament system screen and tap the slot the message names
-2. Tap **Edit Spool** and set the material (and color, if you like), then save
+2. Tap **Edit Spool**, tap the spool card, and set the material (and color, if you like) on the Filament page. Tap **Back**, then **Save**
 3. Tap **Resume** again
 
 If the printer refuses the resume for some other reason, HelixScreen shows the printer's own message as "Failed to resume: ..." instead.
