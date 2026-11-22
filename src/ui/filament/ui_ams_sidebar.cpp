@@ -681,6 +681,11 @@ void AmsOperationSidebar::init_observers() {
         AmsState::instance().get_current_finish_subject(), this,
         [](AmsOperationSidebar* self, const char*) { self->paint_loaded_filament(); },
         AmsState::instance().get_subjects_lifetime());
+    // A translucency change alone leaves the colour as it was.
+    translucent_observer_ = observe<int>(
+        AmsState::instance().get_current_translucent_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->paint_loaded_filament(); },
+        AmsState::instance().get_subjects_lifetime());
 
     // Fill observer: how much is left on the loaded spool, in the
     // SlotInfo::display_fill_pct() encoding. -1 (no weight data) draws a full
@@ -777,6 +782,7 @@ void AmsOperationSidebar::cleanup() {
     color_observer_.reset();
     colors_observer_.reset();
     finish_observer_.reset();
+    translucent_observer_.reset();
     fill_observer_.reset();
     step_index_observer_.reset(); // [L085] reset(), never release()
     extruder_temp_observer_.reset();
