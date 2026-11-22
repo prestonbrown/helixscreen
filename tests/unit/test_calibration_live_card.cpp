@@ -32,9 +32,13 @@ TEST_CASE("the live card picks its view, badge and warning from the step's kind"
     CHECK(other.kind == LiveKind::None);
     CHECK(other.badge.empty());
 
-    const auto done = helix::ui::live_card_done_text();
+    using helix::calibration::RunTally;
+    const auto done = helix::ui::live_card_done_text(RunTally{3, 3});
     CHECK(done.kind == LiveKind::Done);
     CHECK(done.badge_tone == 4);
+    // Success's tone only when every step finished.
+    CHECK(helix::ui::live_card_done_text(RunTally{2, 3}).badge_tone == 5);
+    CHECK(helix::ui::live_card_done_text(RunTally{0, 3}).badge_tone == 5);
 }
 
 TEST_CASE("the heater card says which heater and method it is tuning", "[calibration_live]") {

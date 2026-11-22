@@ -376,7 +376,8 @@ class MoonrakerAdvancedAPI : public helix::IAdvancedAPI {
      */
     void start_pid_calibrate(const std::string& heater, int target_temp,
                              PIDCalibrateCallback on_complete, ErrorCallback on_error,
-                             PIDProgressCallback on_progress = nullptr) override;
+                             PIDProgressCallback on_progress = nullptr,
+                             uint32_t expected_ms = 0) override;
 
     /**
      * @brief Start MPC calibration for a heater (Kalico)

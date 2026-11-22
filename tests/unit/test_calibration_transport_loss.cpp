@@ -27,10 +27,12 @@
 #include "lib/lvgl/src/misc/lv_timer_private.h"
 #include "printer_state.h"
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "../catch_amalgamated.hpp"
 
@@ -124,6 +126,26 @@ bool timer_can_still_fire(lv_timer_t* timer) {
         }
     }
     return false;
+}
+
+/// Silence the mock's own PID playback started since @p before: its sample
+/// lines would restart the backstop the case is timing.
+void pause_timers_since(const std::vector<lv_timer_t*>& before) {
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        if (std::find(before.begin(), before.end(), t) == before.end() &&
+            (!helix::calibration::armed_idle_backstop() ||
+             t != helix::calibration::armed_idle_backstop()->pending_timer())) {
+            lv_timer_pause(t);
+        }
+    }
+}
+
+std::vector<lv_timer_t*> live_timers() {
+    std::vector<lv_timer_t*> out;
+    for (lv_timer_t* t = lv_timer_get_next(nullptr); t != nullptr; t = lv_timer_get_next(t)) {
+        out.push_back(t);
+    }
+    return out;
 }
 
 } // namespace
@@ -438,6 +460,85 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(error_.load());
     REQUIRE_FALSE(success_.load());
     REQUIRE(captured_error_.find("still busy") != std::string::npos);
+}
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "A PID calibration that keeps reporting cycles outlives the backstop",
+                 "[calibration][transport][pid]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1); // a large bed cycling under Kalico's TOLERANCE
+
+    const auto before = live_timers();
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out",
+                                        "PID_CALIBRATE");
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+    REQUIRE(helix::calibration::armed_idle_backstop() != nullptr);
+    pause_timers_since(before);
+    constexpr uint32_t kMinute = 60u * 1000u;
+    const auto run_timers_after = [this](uint32_t ms) {
+        lv_tick_inc(ms);
+        lv_timer_handler();
+        settle();
+    };
+
+    // Two cycles ten minutes apart: a stall is now three such cycles, longer
+    // than the backstop's own 20 minutes.
+    mock_client_.dispatch_gcode_response(
+        "// sample:6 pwm:0.2310 asymmetry:0.2400 tolerance:0.0950");
+    settle();
+    run_timers_after(10 * kMinute);
+    mock_client_.dispatch_gcode_response(
+        "// sample:7 pwm:0.2298 asymmetry:0.2052 tolerance:0.0823");
+    settle();
+    run_timers_after(IAdvancedAPI::kPidTimeoutMs + 1000);
+    REQUIRE_FALSE(error_.load());
+
+    // Then the cycles stop: three cycles with no report is a stall.
+    run_timers_after(10 * kMinute);
+    REQUIRE(error_.load());
+    CHECK(captured_error_.find("still busy") != std::string::npos);
+    CHECK_FALSE(success_.load());
+}
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "A PID calibration priced past the timeout waits for its price",
+                 "[calibration][transport][pid]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1); // mainline's fixed cycles print no progress lines
+
+    constexpr uint32_t kMinute = 60u * 1000u;
+    const auto before = live_timers();
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out",
+                                        "PID_CALIBRATE");
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        },
+        nullptr, /*expected_ms=*/60 * kMinute);
+    settle();
+    REQUIRE(helix::calibration::armed_idle_backstop() != nullptr);
+    pause_timers_since(before);
+
+    lv_tick_inc(IAdvancedAPI::kPidTimeoutMs + 1000);
+    lv_timer_handler();
+    settle();
+    REQUIRE_FALSE(error_.load());
+
+    // An hour's estimate waits an hour and a half.
+    lv_tick_inc(90 * kMinute);
+    lv_timer_handler();
+    settle();
+    CHECK(error_.load());
 }
 
 TEST_CASE_METHOD(TransportLossFixture, "The backstop completes a run whose idle edge was missed",
