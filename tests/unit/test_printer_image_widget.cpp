@@ -37,8 +37,7 @@ namespace {
 /// runs off a repeating timer.
 bool fire_one_async_call() {
     for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-        if (t->repeat_count > 0 && t->timer_cb) {
-            helix::test::fire_timer_once(t);
+        if (t->repeat_count > 0 && helix::test::fire_timer_once(t)) {
             return true;
         }
     }
@@ -52,9 +51,8 @@ void fire_due_one_shots() {
     for (int safety = 0; safety < 100; ++safety) {
         bool fired = false;
         for (lv_timer_t* t = lv_timer_get_next(nullptr); t; t = lv_timer_get_next(t)) {
-            if (t->repeat_count > 0 && t->timer_cb && !t->paused &&
-                lv_tick_elaps(t->last_run) >= t->period) {
-                helix::test::fire_timer_once(t);
+            if (t->repeat_count > 0 && lv_tick_elaps(t->last_run) >= t->period &&
+                helix::test::fire_timer_once(t)) {
                 fired = true;
                 break; // the callback may have changed the list
             }

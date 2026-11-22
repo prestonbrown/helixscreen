@@ -17,6 +17,7 @@
 // first test below goes red.
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/process_async_timers.h"
 #include "../ui_test_utils.h"
 #include "lvgl/lvgl.h"
 
@@ -166,4 +167,65 @@ TEST_CASE_METHOD(LVGLTestFixture,
     lv_timer_handler_safe();
 
     CHECK(g_reentrant_user_fn_calls == 1);
+}
+
+namespace {
+
+void count_fire(lv_timer_t* t) {
+    ++*static_cast<int*>(lv_timer_get_user_data(t));
+}
+
+} // namespace
+
+TEST_CASE_METHOD(LVGLTestFixture, "fire_timer_once keeps a spent one-shot its owner holds",
+                 "[core][fixture][timer]") {
+    int fires = 0;
+    lv_timer_t* kept = lv_timer_create(count_fire, 1000, &fires);
+    lv_timer_set_repeat_count(kept, 1);
+    lv_timer_set_auto_delete(kept, false);
+
+    REQUIRE(helix::test::fire_timer_once(kept));
+    CHECK(fires == 1);
+    REQUIRE(timer_is_live(kept));
+    CHECK(kept->paused);
+    CHECK(kept->repeat_count == 0);
+
+    CHECK_FALSE(helix::test::fire_timer_once(kept));
+    CHECK(fires == 1);
+    lv_timer_delete(kept);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "fire_timer_once runs only what lv_timer_exec would",
+                 "[core][fixture][timer]") {
+    int fires = 0;
+    lv_timer_t* t = lv_timer_create(count_fire, 1000, &fires);
+    lv_timer_set_repeat_count(t, 1);
+
+    SECTION("a spent one-shot that deletes itself is gone") {
+        REQUIRE(helix::test::fire_timer_once(t));
+        CHECK(fires == 1);
+        CHECK_FALSE(timer_is_live(t));
+        t = nullptr;
+    }
+    SECTION("a paused timer does not run") {
+        lv_timer_pause(t);
+        CHECK_FALSE(helix::test::fire_timer_once(t));
+        CHECK(t->repeat_count == 1);
+    }
+    SECTION("a timer with no callback does not run") {
+        lv_timer_set_cb(t, nullptr);
+        CHECK_FALSE(helix::test::fire_timer_once(t));
+        CHECK(t->repeat_count == 1);
+    }
+    SECTION("a periodic timer runs and stays armed") {
+        lv_timer_set_repeat_count(t, -1);
+        REQUIRE(helix::test::fire_timer_once(t));
+        CHECK(timer_is_live(t));
+        CHECK_FALSE(t->paused);
+        CHECK(t->repeat_count == -1);
+    }
+    CHECK(fires <= 1);
+    if (t) {
+        lv_timer_delete(t);
+    }
 }
