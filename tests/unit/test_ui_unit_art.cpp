@@ -605,6 +605,30 @@ uint32_t pixel(lv_obj_t* art, int32_t x, int32_t y) {
 
 } // namespace
 
+TEST_CASE_METHOD(LVGLTestFixture, "unit art: a translucent lane shows checks over its tint",
+                 "[ams][unit-art][translucent]") {
+    lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
+    lv_obj_set_size(art, 230, 195);
+    AmsSystemInfo info = turtle_system();
+    info.units[0].slots[0].translucent = true;
+    unit_art_set_unit(art, info, 0);
+    lv_obj_t* checks = lv_obj_find_by_name(art, "lane0_checks");
+    REQUIRE(checks != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(checks));
+    CHECK(lv_image_get_src(checks) != nullptr);
+    // It covers the lane's spool, not the whole drawing.
+    lv_obj_update_layout(art);
+    CHECK(lv_obj_get_width(checks) < lv_obj_get_width(art) / 2);
+    CHECK(lv_obj_get_x(checks) > 0);
+    lv_obj_t* opaque = lv_obj_find_by_name(art, "lane1_checks");
+    REQUIRE(opaque != nullptr);
+    CHECK(lv_obj_is_hidden(opaque));
+
+    info.units[0].slots[0].translucent = false;
+    unit_art_set_unit(art, info, 0);
+    CHECK(lv_obj_is_hidden(checks));
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left to right",
                  "[ams][unit-art][marks]") {
     lv_obj_t* art = unit_art_create(test_screen(), UnitArtTier::Full);
@@ -615,7 +639,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "unit art: composes back to front, lanes left 
         const std::string n = "lane" + std::to_string(lane);
         // A spool-only stack dims by recoloring itself, with no layer of its own.
         // Its ghost rim stands in its own place in the depth, so nearer lanes cover it.
-        for (const char* part : {"_glow", "_body", "_tint", "_shade", "_rim"})
+        // A translucent filament's checks lie over its tint, under its shade.
+        for (const char* part : {"_glow", "_body", "_tint", "_checks", "_shade", "_rim"})
             want.push_back(n + part);
     }
     want.push_back("front");

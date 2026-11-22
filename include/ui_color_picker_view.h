@@ -97,6 +97,13 @@ class ColorPickerView {
     /// role being edited); empty restores the color name.
     void set_label(const std::string& label);
 
+    /// Draw the readout's swatch translucent: the host edits a clear or
+    /// see-through filament. attach() starts opaque.
+    void set_translucent(bool translucent);
+    bool translucent() const {
+        return translucent_;
+    }
+
     /// Re-read the strip's colors (a Custom strip whose source changed).
     void refresh_strip();
 
@@ -152,6 +159,7 @@ class ColorPickerView {
     bool keypad_open_ = false;
     bool strip_editing_ = false;
     bool publishing_ = false;
+    bool translucent_ = false;
     std::string label_;
     std::vector<uint32_t> strip_;
     std::function<void(uint32_t)> on_change_;

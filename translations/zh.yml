@@ -5549,6 +5549,7 @@ translations:
   Trigger: 触发器
   Track this spool's weight there: '在其中跟踪此料盘的重量'
   Trailing: 滞后
+  Translucent: '半透明'
   'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件

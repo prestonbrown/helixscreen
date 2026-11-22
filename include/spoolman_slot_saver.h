@@ -352,9 +352,11 @@ class SpoolmanSlotSaver {
                          ErrorCallback on_error);
 
     /**
-     * @brief Convert uint32_t RGB to hex string like "FF0000" (no # prefix)
+     * @brief Convert uint32_t RGB to Spoolman's hex string, "FF0000" (no #
+     *        prefix), with helix::kTranslucentFilamentAlpha appended
+     *        ("FF000080") for a translucent filament
      */
-    static std::string color_to_hex(uint32_t rgb);
+    static std::string color_to_hex(uint32_t rgb, bool translucent = false);
 
     /**
      * @brief Update spool weight via API

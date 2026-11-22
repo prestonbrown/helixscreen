@@ -35,6 +35,7 @@ struct AmsCurrentToolData {
     ObserverGuard color_observer;
     ObserverGuard colors_observer;
     ObserverGuard finish_observer;
+    ObserverGuard translucent_observer;
 };
 
 // Registry for cleanup
@@ -49,7 +50,7 @@ static void repaint(lv_obj_t* widget) {
         return;
     const auto paint = helix::AmsState::instance().current_paint();
     helix::ui::apply_swatch_color(it->second->color_swatch, paint.rgb, paint.multi_color_hexes,
-                                  helix::ui::swatch_finish(paint.finish));
+                                  helix::ui::swatch_finish(paint.finish), paint.translucent);
 }
 
 // Cleanup callback when widget is deleted
@@ -60,6 +61,7 @@ static void on_delete(lv_event_t* e) {
         it->second->color_observer.reset();
         it->second->colors_observer.reset();
         it->second->finish_observer.reset();
+        it->second->translucent_observer.reset();
         s_registry.erase(it);
         spdlog::trace("[AmsCurrentTool] Widget cleaned up");
     }
@@ -90,6 +92,10 @@ static void on_widget_created(lv_obj_t* widget) {
         ams.get_subjects_lifetime());
     data->finish_observer = observe<const char*>(
         ams.get_current_finish_subject(), widget, [](lv_obj_t* obj, const char*) { repaint(obj); },
+        ams.get_subjects_lifetime());
+    // A translucency change alone leaves the color as it was.
+    data->translucent_observer = observe<int>(
+        ams.get_current_translucent_subject(), widget, [](lv_obj_t* obj, int) { repaint(obj); },
         ams.get_subjects_lifetime());
 
     // Register cleanup callback

@@ -4458,6 +4458,42 @@ size_t index_of_containing(const std::vector<std::string>& history, const std::s
 
 } // namespace
 
+TEST_CASE("Snapmaker filament config gcode sends a translucent filament's alpha",
+          "[ams][snapmaker][filament_record][translucent]") {
+    SlotInfo s;
+    s.material = "PETG";
+    s.color_rgb = 0xD32F2F;
+    s.translucent = true;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2F80");
+    s.translucent = false;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2FFF");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config's alpha makes a lane translucent",
+                 "[ams][snapmaker][translucent]") {
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_type", json::array({"PETG", "PLA", "PLA", "PLA"})},
+                   {"filament_color_rgba",
+                    json::array({"E8E8FF80", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK(backend.get_slot_info(0).color_rgb == 0xE8E8FFu);
+    CHECK(backend.get_slot_info(0).translucent);
+    CHECK_FALSE(backend.get_slot_info(1).translucent);
+
+    // A record written back opaque is opaque again.
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_color_rgba",
+                    json::array({"E8E8FFFF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK_FALSE(backend.get_slot_info(0).translucent);
+}
+
 TEST_CASE("Snapmaker filament config gcode maps vendor and subtype to firmware values",
           "[ams][snapmaker][filament_record]") {
     SECTION("an unknown vendor and a free-form spool name take Generic / Basic") {
@@ -4765,6 +4801,21 @@ json make_detect_card(int head, const json& card_uid) {
 } // namespace
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a real card's official record is the tag's, a card-less one is not",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    FilamentRecordHarness h("tag_owns_record");
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+    h.frame(make_detect_card(1, json::array({144, 32, 196, 2})));
+    h.frame(make_task_filament({"NONE", "PLA", "NONE", "NONE"}, {false, true, false, false}));
+    CHECK(h.backend.tag_owns_filament_record(1));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(2));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(9));
+    // Official only by an endpoint write, no card behind it: an edit is forced through.
+    h.frame(make_detect_card(1, 0));
+    CHECK_FALSE(h.backend.tag_owns_filament_record(1));
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker an edit forces the record of an official head with no card",
                  "[ams][snapmaker][filament_record]") {
     lv_init_safe();
@@ -4937,6 +4988,65 @@ TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker resume repairs a used head's blank
             }
         }
     }
+}
+
+namespace {
+
+/// Head 1 edited to a translucent clear PETG, and the firmware's echo of that
+/// edit: its record now holds E8E8FF80.
+void translucent_head_echoed(FilamentRecordHarness& h) {
+    h.frame(make_feed_status(1, "load_finish"));
+    REQUIRE(h.backend.get_slot_info(1).is_present());
+    SlotInfo clear;
+    clear.brand = "Inland";
+    clear.material = "PETG";
+    clear.color_rgb = 0xE8E8FF;
+    clear.translucent = true;
+    helix::test::edit_slot_as_user(h.backend, 1, clear);
+    json echo = make_task_filament({"NONE", "PETG", "NONE", "NONE"});
+    echo["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "E8E8FF80", "FFFFFFFF", "FFFFFFFF"});
+    h.frame(echo);
+}
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an edit changing color and translucency keeps it in the record",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("translucent_echo");
+    translucent_head_echoed(h);
+    const auto record = SnapmakerTestAccess::get_override(h.backend, 1);
+    REQUIRE(record.has_value());
+    CHECK(record->color_rgb == 0xE8E8FFu);
+    CHECK(record->translucent == std::optional<bool>(true));
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker a translucent head the firmware cleared is repaired with its alpha",
+                 "[ams][snapmaker][filament_record][resume][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    pause_on_runout();
+    FilamentRecordHarness h("translucent_repair");
+    translucent_head_echoed(h);
+    // The firmware resets the head's record: its type NONE, its color FFFFFFFF.
+    json cleared =
+        make_task_filament({"NONE", "NONE", "NONE", "NONE"}, {false, false, false, false},
+                           std::vector<bool>{false, true, false, false});
+    cleared["print_task_config"]["filament_color_rgba"] =
+        json::array({"FFFFFFFF", "FFFFFFFF", "FFFFFFFF", "FFFFFFFF"});
+    h.frame(cleared);
+    SnapmakerTestAccess::set_current_slot(h.backend, 1);
+    h.printer.client.clear_gcode_script_history();
+
+    h.backend.prepare_for_resume(1, [](const AmsError&) {});
+    FilamentRecordHarness::drain();
+    const auto hist = h.history();
+    CHECK(index_of_containing(hist, "CONFIG_EXTRUDER=1 FILAMENT_COLOR_RGBA=E8E8FF80") <
+          hist.size());
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,

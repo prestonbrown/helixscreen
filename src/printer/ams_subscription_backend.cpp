@@ -523,11 +523,14 @@ void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_inde
     const uint32_t color = had_prior ? prior->second.color_rgb : 0;
     const bool color_set = had_prior && prior->second.color_set;
     const std::string material = had_prior ? prior->second.material : std::string{};
+    const std::optional<bool> translucent =
+        had_prior ? prior->second.translucent : std::optional<bool>{};
 
     helix::ams::FilamentSlotOverride& staged =
         helix::ams::stage_user_override(overrides_, slot_index, info);
     staged.color_rgb = color;
     staged.color_set = color_set;
+    staged.translucent = translucent;
     staged.material = material;
     if (override_store_) {
         helix::ams::save_override_async(override_store_.get(), slot_index, staged,
@@ -561,7 +564,8 @@ void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
 }
 
 bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
-                                                             const std::string& material) {
+                                                             const std::string& material,
+                                                             std::optional<bool> translucent) {
     // Another writer's record is not ours to copy into: the save would be
     // refused, and refused again at every frame or poll.
     if (lane_records_unread_ ||
@@ -570,7 +574,8 @@ bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uin
     }
     return helix::ams::mirror_firmware_to_lane_data(
         override_store_.get(), overrides_, slot_index, color, material,
-        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
+        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag(),
+        translucent);
 }
 
 void AmsSubscriptionBackend::restate_pending_as_stored(int slot_index,

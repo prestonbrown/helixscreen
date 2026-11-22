@@ -6,6 +6,7 @@
      it: the color page's Multi-Color row) an outlined "+" while there is room
      and the lane can store several colors. Tapping a dot selects it; tapping
      the selected dot opens the color page for it; a long press removes it.
+     A translucent draft draws every dot over the checkerboard.
      Subjects and callbacks: ui_ams_edit_overlay.cpp.
 
      LVGL hit-tests a child only inside its parent's box, so a host that needs
@@ -29,9 +30,9 @@
             style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
       <repeat count="ams_edit_seg_count">
         <color_swatch index="${i}"
-                      color_subject="ams_edit_seg_${i}" selected_subject="ams_edit_seg_selected"
-                      callback="ams_edit_seg_cb" size="$size" hit="$hit" reach="#swatch_grid_ring_reach"
-                      ring="styles.grid_swatch_ring">
+                      color_subject="ams_edit_seg_${i}" translucent_subject="ams_edit_translucent"
+                      selected_subject="ams_edit_seg_selected" callback="ams_edit_seg_cb" size="$size" hit="$hit"
+                      reach="#swatch_grid_ring_reach" ring="styles.grid_swatch_ring">
           <event_cb trigger="long_pressed" callback="ams_edit_seg_hold_cb" user_data="${i}"/>
         </color_swatch>
       </repeat>

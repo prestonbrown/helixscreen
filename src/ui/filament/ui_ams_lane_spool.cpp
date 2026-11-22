@@ -160,13 +160,14 @@ static SpoolVisual create_spool_visual(lv_obj_t* container, int32_t spool_size) 
     return sv;
 }
 
-/// Update the spool's filament: its colour, multi-colour split and finish, as
-/// every swatch paints them.
+/// Update the spool's filament: its color, multi-color split, finish and
+/// translucency, as every swatch paints them.
 static void spool_visual_set_color(const SpoolVisual& sv, uint32_t rgb,
                                    const std::string& multi_color_hexes,
-                                   helix::ui::SwatchFinish finish) {
+                                   helix::ui::SwatchFinish finish, bool translucent) {
     if (sv.canvas)
-        helix::ui::spool_canvas_set_filament(sv.canvas, rgb, multi_color_hexes, finish);
+        helix::ui::spool_canvas_set_filament(sv.canvas, rgb, multi_color_hexes, finish,
+                                             translucent);
 }
 
 /// Update spool fill level 0.0-1.0
@@ -419,16 +420,18 @@ static void apply_color(LaneSpoolData* d, int color_int) {
     if (!d)
         return;
     d->color_int = static_cast<uint32_t>(color_int);
-    // The colour subject carries the primary colour; the split and finish ride
-    // on the slot it names.
+    // The color subject carries the primary color; the split, finish and
+    // translucency ride on the slot it names.
     std::string multi;
     helix::ui::SwatchFinish finish = helix::ui::SwatchFinish::Plain;
+    bool translucent = false;
     if (AmsBackend* backend = AmsState::instance().get_backend()) {
         const SlotInfo slot = backend->get_slot_info(d->slot_index);
         multi = slot.multi_color_hexes;
         finish = helix::ui::swatch_finish_of(slot);
+        translucent = slot.translucent;
     }
-    spool_visual_set_color(d->sv, d->color_int, multi, finish);
+    spool_visual_set_color(d->sv, d->color_int, multi, finish, translucent);
     notify_listener(d);
 }
 

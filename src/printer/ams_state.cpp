@@ -2081,7 +2081,10 @@ void AmsState::set_current_loaded_defaults(bool write_header) {
 }
 
 void AmsState::set_current_paint(uint32_t rgb, const std::string& multi_color_hexes,
-                                 const std::string& finish_name) {
+                                 const std::string& finish_name, bool translucent) {
+    if (lv_subject_get_int(&current_translucent_) != (translucent ? 1 : 0)) {
+        lv_subject_set_int(&current_translucent_, translucent ? 1 : 0);
+    }
     if (strcmp(lv_subject_get_string(&current_colors_), multi_color_hexes.c_str()) != 0) {
         lv_subject_set_string(&current_colors_, multi_color_hexes.c_str());
     }
@@ -2100,7 +2103,7 @@ void AmsState::sync_current_loaded_from_backend() {
         if (const auto ext = get_external_spool_info();
             ext && ext->color_rgb != kAmsDefaultSlotColor) {
             set_current_paint(ext->color_rgb, ext->multi_color_hexes,
-                              filament_finish_name(ext->finish()));
+                              filament_finish_name(ext->finish()), ext->translucent);
         }
         return;
     }
@@ -2246,7 +2249,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         if (ext_spool.has_value()) {
             const auto& ext = ext_spool.value();
             set_current_paint(ext.color_rgb, ext.multi_color_hexes,
-                              filament_finish_name(ext.finish()));
+                              filament_finish_name(ext.finish()), ext.translucent);
             lv_subject_set_int(&current_fill_pct_, ext.display_fill_pct());
 
             // Build label from spool info — same resolver as the loaded-slot
@@ -2309,7 +2312,7 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
         }
 
         set_current_paint(slot_info.color_rgb, slot_info.multi_color_hexes,
-                          filament_finish_name(slot_info.finish()));
+                          filament_finish_name(slot_info.finish()), slot_info.translucent);
         lv_subject_set_int(&current_fill_pct_, slot_info.display_fill_pct());
 
         // Build the material label. The slot's own name/brand/material win, the

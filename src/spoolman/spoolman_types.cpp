@@ -24,6 +24,7 @@ void apply_spool_to_slot(helix::SlotInfo& info, const SpoolInfo& spool) {
     info.spool_name = stated.spool_name.value_or(std::string{});
     info.multi_color_hexes = stated.multi_color_hexes.value_or(spool.multi_color_hexes);
     info.color_mode = stated.color_mode.value_or(std::string{});
+    info.translucent = stated.translucent.value_or(false);
     info.remaining_weight_g = static_cast<float>(spool.remaining_weight_g);
     info.total_weight_g = static_cast<float>(spool.initial_weight_g);
     info.nozzle_temp_min = spool.nozzle_temp_min;
