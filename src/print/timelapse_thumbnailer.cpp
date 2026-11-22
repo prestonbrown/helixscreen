@@ -78,6 +78,10 @@ std::vector<std::string> build_player_args(const std::string& player,
     return {"ffplay", "-autoexit", "-exitonmousedown", "-fs", file_path};
 }
 
+bool external_player_can_show(bool player_installed, bool screen_hosts_windows) {
+    return player_installed && screen_hosts_windows;
+}
+
 VideoOpenAction choose_video_open_action(bool can_play, const std::string& phone_url) {
     if (can_play) {
         return VideoOpenAction::Play;

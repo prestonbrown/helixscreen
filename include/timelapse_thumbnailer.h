@@ -57,6 +57,10 @@ bool is_video_file(const std::string& filename);
 /// Build an argument list for video playback (safe from shell injection)
 std::vector<std::string> build_player_args(const std::string& player, const std::string& file_path);
 
+/// Whether an installed external player (mpv, ffplay) can put a picture on this
+/// screen: it opens a window of its own, so the screen must host other windows.
+[[nodiscard]] bool external_player_can_show(bool player_installed, bool screen_hosts_windows);
+
 /// What a tap on a timelapse video does on this host.
 enum class VideoOpenAction {
     Play,          ///< An external player exists: launch it
