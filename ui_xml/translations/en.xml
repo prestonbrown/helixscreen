@@ -4043,6 +4043,7 @@
   <translation tag="This file was sliced for {} but {} is loaded." en="This file was sliced for {} but {} is loaded."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." en="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs."/>
   <translation tag="This firmware can only switch slots by loading them" en="This firmware can only switch slots by loading them"/>
+  <translation tag="This head until a tool change; Save after the print to apply it to every head" en="This head until a tool change; Save after the print to apply it to every head"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." en="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." en="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper."/>
   <translation tag="This is an emergency stop: the printer halts and Klipper restarts." en="This is an emergency stop: the printer halts and Klipper restarts."/>

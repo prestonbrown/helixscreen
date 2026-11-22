@@ -341,5 +341,9 @@ reads the same key after discovery completes and calls
   "auto-saved by firmware" only for a `firmware_managed` printer whose firmware
   persists the offset: a latched provider here, or a database row that does not set
   `"z_offset_persists": false`. The Snapmaker U1 sets it, because its firmware keeps
-  a babystep only until the next tool change or the end of the print
+  a babystep only until the next tool change or the end of the print. Its row also
+  sets `"z_offset_save": "probe"`, a save target for a firmware-managed printer
+  (`resolve_z_offset_save_strategy()`): the save strategy, not the calibration one,
+  decides the Save step and the hint, and on a printer that re-applies each head's
+  offset at pickup a Save folds only the adjustment
   (`docs/devel/printers/SNAPMAKER_U1_SUPPORT.md`).
