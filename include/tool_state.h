@@ -397,6 +397,12 @@ class ToolState {
     /// until someone happened to move an offset.
     void query_tool_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
 
+    /// The tool whose offsets @p tool_index prints with: itself where every
+    /// tool is a head, else the printer's own tool on the head its lane feeds
+    /// (lane T0 in extruder2 takes tool T2's). -1 for none. The offset
+    /// accessors below take this index; the save and set G-code number it.
+    [[nodiscard]] int offset_tool_for(int tool_index) const;
+
     /// Tools with at least one axis whose offset differs from what is
     /// persisted, lowest index first. Empty when nothing needs saving. Ask
     /// tool_offset_dirty() which axes.
@@ -480,6 +486,14 @@ class ToolState {
     lv_subject_t any_tool_offset_dirty_{};
 
     std::vector<ToolInfo> tools_;
+    /// The tools init_tools() enumerated: the printer's own, one per head. The
+    /// same as tools_ until a filament system's lanes replace that list; then
+    /// `tool T<n>` status objects and per-tool offsets keep describing these.
+    std::vector<ToolInfo> head_tools_;
+    /// head_tools_ where tools are lanes, else tools_: what the printer's
+    /// `tool T<n>` objects and per-tool offsets describe.
+    std::vector<ToolInfo>& object_tools();
+    const std::vector<ToolInfo>& object_tools() const;
     /// physical_heads() of tools_, built on first ask after the list changes.
     mutable std::optional<std::vector<PhysicalHead>> heads_cache_;
     /// The extruder heaters init_tools() found, sorted: the names a backend's

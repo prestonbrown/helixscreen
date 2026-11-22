@@ -196,73 +196,12 @@ TEST_CASE_METHOD(ToolStateFixture,
     CHECK(model.row_label(5, false) == "6");
 }
 
-namespace {
-
-/// The reporter's Voron 2.4 (debug bundle LB6LEZ44): klipper-toolchanger tools
-/// T0..T4 on extruder..extruder4, a sixth AFC head on extruder5 with no tool
-/// object, and twelve AFC lanes whose T numbers follow AFC's lane map.
-helix::PrinterDiscovery lb6lez44_discovery() {
-    nlohmann::json objects = nlohmann::json::array({"toolchanger"});
-    for (int i = 0; i < 5; ++i) {
-        objects.push_back("tool T" + std::to_string(i));
-    }
-    objects.push_back("extruder");
-    for (int i = 1; i < 6; ++i) {
-        objects.push_back("extruder" + std::to_string(i));
-    }
-    helix::PrinterDiscovery disc;
-    disc.parse_objects(objects);
-    return disc;
-}
-
-/// AFC's lanes in its own order, each with the T number it maps and the head
-/// it feeds; tool Tn sources the lane mapped Tn. lane4 is Tooled in extruder2
-/// (mounted), lane2 is loaded in extruder1, the extruder4 lane is Tooled.
-helix::ToolTopology lb6lez44_topology() {
-    struct Lane {
-        int tool;
-        const char* extruder;
-        bool seated;
-    };
-    const Lane lanes[] = {
-        {5, "extruder4", true},   // extruder4
-        {6, "extruder5", false},  // extruder5
-        {8, "extruder", false},   // lane1
-        {2, "extruder1", true},   // lane2
-        {7, "extruder2", false},  // lane3, HTLF_1
-        {0, "extruder2", true},   // lane4, HTLF_1
-        {4, "extruder", false},   // lane5, NightOwl
-        {1, "extruder", false},   // lane6, NightOwl
-        {10, "extruder3", false}, // lane7, Turtle_1
-        {9, "extruder3", false},  // lane8
-        {3, "extruder3", false},  // lane9
-        {11, "extruder3", false}, // lane10
-    };
-    helix::ToolTopology topo;
-    topo.tool_count = 12;
-    topo.active_tool = 0;
-    topo.allows_empty_carriage = true;
-    topo.tools_are_lanes = true;
-    topo.tool_to_slot.assign(12, -1);
-    topo.tool_extruder.assign(12, "");
-    topo.tool_seated.assign(12, false);
-    for (int slot = 0; slot < 12; ++slot) {
-        const Lane& lane = lanes[slot];
-        topo.tool_to_slot[static_cast<size_t>(lane.tool)] = slot;
-        topo.tool_extruder[static_cast<size_t>(lane.tool)] = lane.extruder;
-        topo.tool_seated[static_cast<size_t>(lane.tool)] = lane.seated;
-    }
-    return topo;
-}
-
-} // namespace
-
 TEST_CASE_METHOD(ToolStateFixture,
                  "LB6LEZ44: every head is the physical toolhead, its lane beside it",
                  "[head-identity][tool-state][ams-topology][physical-heads]") {
     auto& ts = ToolState::instance();
-    ts.init_tools(lb6lez44_discovery());
-    ts.set_ams_topology(lb6lez44_topology());
+    ts.init_tools(helix::test::make_lb6lez44_discovery());
+    ts.set_ams_topology(helix::test::make_lb6lez44_topology());
     UpdateQueue::instance().drain();
 
     // Twelve lane tools, six heads: one per extruder, in the order they stand.
