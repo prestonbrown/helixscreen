@@ -86,12 +86,30 @@
     <px name="edit_spool_size_medium" value="168"/>
     <px name="edit_spool_size_large" value="210"/>
     <!-- A multi-color spool's mode dropdown (the color page's Multi-Color
-         row, ams_edit_multi_color.xml) and the bar of its colors. -->
+         row, ams_edit_multi_color.xml: its widest) and the bar of its colors. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
     <px name="ams_edit_mode_dd_w_tiny" value="110"/>
     <px name="ams_edit_mode_dd_w_small" value="130"/>
     <px name="ams_edit_mode_dd_w_medium" value="150"/>
     <px name="ams_edit_mode_dd_w_large" value="170"/>
+    <!-- The Multi-Color row's dots: the swatch_grid ladder, except that
+         480x320 holds the 44px pitch of its neighbors instead of 46, so four
+         dots, the switch and the dropdown share one line there. -->
+    <px name="ams_edit_multi_dot_size_micro" value="26"/>
+    <px name="ams_edit_multi_dot_size_tiny" value="28"/>
+    <px name="ams_edit_multi_dot_size_small" value="28"/>
+    <px name="ams_edit_multi_dot_size_medium" value="32"/>
+    <px name="ams_edit_multi_dot_size_large" value="32"/>
+    <px name="ams_edit_multi_dot_hit_micro" value="9"/>
+    <px name="ams_edit_multi_dot_hit_tiny" value="8"/>
+    <px name="ams_edit_multi_dot_hit_small" value="8"/>
+    <px name="ams_edit_multi_dot_hit_medium" value="6"/>
+    <px name="ams_edit_multi_dot_hit_large" value="6"/>
+    <px name="ams_edit_multi_dot_gap_micro" value="18"/>
+    <px name="ams_edit_multi_dot_gap_tiny" value="16"/>
+    <px name="ams_edit_multi_dot_gap_small" value="16"/>
+    <px name="ams_edit_multi_dot_gap_medium" value="12"/>
+    <px name="ams_edit_multi_dot_gap_large" value="12"/>
     <px name="ams_edit_preview_h_micro" value="18"/>
     <px name="ams_edit_preview_h_tiny" value="20"/>
     <px name="ams_edit_preview_h_small" value="22"/>
@@ -119,7 +137,8 @@
     <px name="ams_edit_label_pad_small" value="10"/>
     <px name="ams_edit_label_pad_medium" value="12"/>
     <px name="ams_edit_label_pad_large" value="12"/>
-    <!-- ↺'s hit reach: #button_height_sm plus twice this is 44 or more. -->
+    <!-- The hit reach of a #button_height_sm control (↺, the Multi-Color
+         mode dropdown): its height plus twice this is 44 or more. -->
     <px name="ams_edit_tag_hit_micro" value="10"/>
     <px name="ams_edit_tag_hit_tiny" value="8"/>
     <px name="ams_edit_tag_hit_small" value="2"/>
