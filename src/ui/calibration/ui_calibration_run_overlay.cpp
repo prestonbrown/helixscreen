@@ -11,20 +11,25 @@
 #include "calibration_catalog_inputs.h"
 #include "calibration_history_store.h"
 #include "calibration_live_card.h"
+#include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
+#include "display_format.h"
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
 #include "klippy_state.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "sound_manager.h"
 #include "translation_loader.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstring>
+#include <ctime>
 
 namespace helix::ui {
 
@@ -54,24 +59,74 @@ std::string join_names(const std::vector<const StepInfo*>& steps) {
     return out;
 }
 
-/// "5 min · needs you · heats · loud".
-std::string meta_line(const StepInfo& s) {
+/// "4 min · needs you · paper test", "12 min · heats nozzle + bed", "4 min · loud".
+std::string meta_line(const StepInfo& s, bool has_bed) {
     std::string out = fmt::format(fmt::runtime(lv_tr("{} min")), s.minutes);
     out += " · ";
-    out += s.needs_hands ? lv_tr("needs you") : lv_tr("automatic");
+    if (s.needs_hands) {
+        out += lv_tr("needs you");
+    } else if (s.heats) {
+        out += s.kind == calibration::StepKind::Heaters
+                   ? (has_bed ? lv_tr("heats nozzle + bed") : lv_tr("heats nozzle"))
+                   : lv_tr("heats bed");
+    } else if (s.loud) {
+        out += lv_tr("loud");
+    } else {
+        out += lv_tr("automatic");
+    }
     if (s.prereqs & calibration::kPrereqPaper) {
         out += " · ";
         out += lv_tr("paper test");
     }
-    if (s.heats) {
-        out += " · ";
-        out += lv_tr("heats");
-    }
-    if (s.loud) {
+    if (s.loud && (s.needs_hands || s.heats)) {
         out += " · ";
         out += lv_tr("loud");
     }
+    if (s.prereqs & calibration::kPrereqAccelerometer) {
+        out += " · ";
+        out += lv_tr("accelerometer");
+    }
     return out;
+}
+
+/// The 480x272 tile's one-line detail: "12 min · required", "4 min · needs you".
+std::string meta_short_line(const StepInfo& s) {
+    std::string out = fmt::format(fmt::runtime(lv_tr("{} min")), s.minutes);
+    const char* tag = nullptr;
+    if (s.tier == calibration::Tier::Required) {
+        tag = lv_tr("required");
+    } else if (s.needs_hands) {
+        tag = lv_tr("needs you");
+    } else if (s.tier == calibration::Tier::Optional) {
+        tag = lv_tr("optional");
+    } else if (s.loud) {
+        tag = lv_tr("loud");
+    }
+    if (tag) {
+        out += " · ";
+        out += tag;
+    }
+    return out;
+}
+
+/// "Loud and hot at times." for the walk-away stretch, or nothing.
+const char* walk_away_note(const std::vector<const StepInfo*>& away) {
+    bool loud = false;
+    bool hot = false;
+    for (const auto* s : away) {
+        loud = loud || s->loud;
+        hot = hot || s->heats;
+    }
+    if (loud && hot) {
+        return lv_tr("Loud and hot at times.");
+    }
+    if (loud) {
+        return lv_tr("Loud at times.");
+    }
+    if (hot) {
+        return lv_tr("Hot at times.");
+    }
+    return "";
 }
 
 /// What the printer had before the run: the step's last result, else what its
@@ -105,8 +160,13 @@ std::string entry_status_text(const calibration::CalibrationRun::Entry& e) {
     switch (e.status) {
     case StepStatus::Pending:
         return fmt::format(fmt::runtime(lv_tr("about {} min")), e.step->info().minutes);
-    case StepStatus::Running:
-        return e.progress.phase;
+    case StepStatus::Running: {
+        const int minutes = e.step->info().minutes;
+        const int left = e.progress.percent < 0
+                             ? minutes
+                             : std::max(1, (minutes * (100 - e.progress.percent) + 99) / 100);
+        return fmt::format(fmt::runtime(lv_tr("about {} min left")), left);
+    }
     case StepStatus::Finished:
         return e.result.summary;
     case StepStatus::Failed:
@@ -165,12 +225,21 @@ void CalibrationRunOverlay::init_subjects() {
     add_int(pick_count_, 0, "cal_run_pick_count");
     add_string(pick_summary_, pick_summary_buf_, kShortLen, "cal_run_pick_summary");
     add_string(hands_line_, hands_line_buf_, kLongLen, "cal_run_hands_line");
+    add_string(pick_subtitle_, pick_subtitle_buf_, kLongLen, "cal_run_pick_subtitle");
+    add_string(pick_subtitle_short_, pick_subtitle_short_buf_, kShortLen,
+               "cal_run_pick_subtitle_short");
+    add_string(pick_summary_short_, pick_summary_short_buf_, kShortLen,
+               "cal_run_pick_summary_short");
+    add_string(hands_short_, hands_short_buf_, kShortLen, "cal_run_hands_short");
     for (size_t i = 0; i < kSteps; ++i) {
         const std::string id = kRunStepIds[i];
         add_int(shown_[i], 0, "cal_run_shown_" + id);
         add_int(picked_subj_[i], 0, "cal_run_picked_" + id);
         add_int(locked_[i], 0, "cal_run_locked_" + id);
+        add_int(optional_[i], 0, "cal_run_optional_" + id);
+        add_int(keep_[i], 0, "cal_run_keep_" + id);
         add_string(meta_[i], meta_bufs_[i], kShortLen, "cal_run_meta_" + id);
+        add_string(meta_short_[i], meta_short_bufs_[i], kShortLen, "cal_run_meta_short_" + id);
         add_string(last_[i], last_bufs_[i], kShortLen, "cal_run_last_" + id);
         add_int(in_run_[i], 0, "cal_run_in_run_" + id);
         add_int(state_[i], 0, "cal_run_state_" + id);
@@ -189,6 +258,8 @@ void CalibrationRunOverlay::init_subjects() {
     add_string(prereq_left_, prereq_left_buf_, kShortLen, "cal_run_prereq_left");
     add_int(has_hands_, 0, "cal_run_has_hands");
     add_string(you_line_, you_line_buf_, kShortLen, "cal_run_you_line");
+    add_string(you_steps_, you_steps_buf_, kLongLen, "cal_run_you_steps");
+    add_string(chime_line_, chime_line_buf_, kLongLen, "cal_run_chime_line");
     add_string(away_line_, away_line_buf_, kShortLen, "cal_run_away_line");
     add_string(away_steps_, away_steps_buf_, kLongLen, "cal_run_away_steps");
     add_string(title_, title_buf_, kShortLen, "cal_run_title");
@@ -200,8 +271,15 @@ void CalibrationRunOverlay::init_subjects() {
     add_int(has_bed_, 0, "cal_run_has_bed");
     add_string(warn_, warn_buf_, kShortLen, "cal_run_warn");
     add_string(footer_, footer_buf_, kShortLen, "cal_run_footer");
-    add_int(run_phase_, 0, "cal_run_result_phase");
-    add_int(can_save_, 0, "cal_run_can_save");
+    add_string(header_title_, header_title_buf_, kShortLen, "cal_run_header_title");
+    add_string(eta_, eta_buf_, kShortLen, "cal_run_eta");
+    add_int(overall_, 0, "cal_run_overall");
+    add_int(running_now_, 0, "cal_run_running_now");
+    add_string(results_title_, results_title_buf_, kShortLen, "cal_run_results_title");
+    add_int(results_warn_, 0, "cal_run_results_warn");
+    add_string(results_primary_, results_primary_buf_, kShortLen, "cal_run_results_primary");
+    add_int(results_busy_, 0, "cal_run_results_busy");
+    add_int(hide_discard_, 1, "cal_run_hide_discard");
     add_string(results_sub_, results_sub_buf_, kLongLen, "cal_run_results_sub");
     add_string(save_line_, save_line_buf_, kLongLen, "cal_run_save_line");
     add_int(has_error_, 0, "cal_run_has_error");
@@ -225,6 +303,14 @@ bool CalibrationRunOverlay::run_pending() const {
     }
     const RunPhase p = run_->phase();
     return p != RunPhase::Saved && p != RunPhase::Discarded;
+}
+
+lv_obj_t* CalibrationRunOverlay::create(lv_obj_t* parent) {
+    lv_obj_t* root = OverlayBase::create(parent);
+    if (root) {
+        helix::nav::set_overlay_width_unmanaged(root);
+    }
+    return root;
 }
 
 void CalibrationRunOverlay::open() {
@@ -288,6 +374,16 @@ void CalibrationRunOverlay::publish() {
 }
 
 void CalibrationRunOverlay::publish_pick() {
+    auto& discovery = get_printer_state().get_discovery();
+    const bool has_bed = discovery.has_heater_bed();
+    const Config* config = Config::get_instance();
+    const std::string printer = config ? config->get_active_printer_name() : std::string();
+    const std::string short_line =
+        fmt::format(fmt::runtime(lv_tr("{} · {} firmware")), printer, discovery.firmware_name());
+    set_text(pick_subtitle_short_, short_line);
+    set_text(pick_subtitle_,
+             fmt::format(fmt::runtime(lv_tr("{} · pick what to run, then it runs on its own")),
+                         short_line));
     for (size_t i = 0; i < kSteps; ++i) {
         const StepInfo* step = nullptr;
         for (const auto& s : candidates_) {
@@ -305,7 +401,9 @@ void CalibrationRunOverlay::publish_pick() {
         }
         lv_subject_set_int(&picked_subj_[i], picked_[i] ? 1 : 0);
         lv_subject_set_int(&locked_[i], locked ? 1 : 0);
-        set_text(meta_[i], meta_line(*step));
+        lv_subject_set_int(&optional_[i], step->tier == calibration::Tier::Optional ? 1 : 0);
+        set_text(meta_[i], meta_line(*step, has_bed));
+        set_text(meta_short_[i], meta_short_line(*step));
         const auto& in_config = get_printer_state().get_discovery().calibration_in_config();
         const auto found = in_config.find(step->id);
         set_text(last_[i],
@@ -321,12 +419,16 @@ void CalibrationRunOverlay::publish_pick() {
     set_text(pick_summary_,
              n == 1 ? fmt::format(fmt::runtime(lv_tr("1 step · about {} min")), minutes)
                     : fmt::format(fmt::runtime(lv_tr("{} steps · about {} min")), n, minutes));
+    set_text(pick_summary_short_,
+             n == 1 ? fmt::format(fmt::runtime(lv_tr("1 step · {} min")), minutes)
+                    : fmt::format(fmt::runtime(lv_tr("{} steps · {} min")), n, minutes));
     set_text(hands_line_,
-             hands > 0
-                 ? fmt::format(fmt::runtime(lv_tr("You: about {} min at the start, then it runs "
-                                                  "on its own")),
-                               hands)
-                 : std::string(lv_tr("It runs on its own")));
+             hands > 0 ? fmt::format(fmt::runtime(lv_tr("You are needed for the first {} min, "
+                                                        "then it runs on its own")),
+                                     hands)
+                       : std::string(lv_tr("Runs on its own once started")));
+    set_text(hands_short_, hands > 0 ? fmt::format(fmt::runtime(lv_tr("you: first {} min")), hands)
+                                     : std::string(lv_tr("runs on its own")));
 }
 
 void CalibrationRunOverlay::publish_prereqs() {
@@ -358,22 +460,49 @@ void CalibrationRunOverlay::publish_prereqs() {
         }
     }
     lv_subject_set_int(&prereq_ready_, missing == 0 && !picked.empty() ? 1 : 0);
-    set_text(prereq_left_, missing == 0
-                               ? std::string(lv_tr("Ready"))
-                               : fmt::format(fmt::runtime(lv_tr("{} left to check")), missing));
+    set_text(prereq_left_,
+             missing == 0 ? std::string(lv_tr("All set"))
+             : missing == 1
+                 ? std::string(lv_tr("1 thing left to confirm"))
+                 : fmt::format(fmt::runtime(lv_tr("{} things left to confirm")), missing));
 
     const int hands = calibration::hands_on_minutes(picked);
+    const int total = calibration::total_minutes(picked);
+    std::vector<const StepInfo*> mine;
     std::vector<const StepInfo*> away;
+    bool paper = false;
     for (const auto& s : picked) {
-        if (!s.needs_hands) {
-            away.push_back(&s);
-        }
+        (s.needs_hands ? mine : away).push_back(&s);
+        paper = paper || (s.needs_hands && (s.prereqs & calibration::kPrereqPaper));
     }
     lv_subject_set_int(&has_hands_, hands > 0 ? 1 : 0);
     set_text(you_line_, fmt::format(fmt::runtime(lv_tr("You, about {} min")), hands));
-    set_text(away_line_, fmt::format(fmt::runtime(lv_tr("Then walk away, about {} min")),
-                                     calibration::total_minutes(picked) - hands));
-    set_text(away_steps_, join_names(away));
+    std::string you_steps = join_names(mine);
+    if (paper) {
+        you_steps += " ";
+        you_steps += lv_tr("paper test");
+    }
+    set_text(you_steps_, you_steps + ". " + lv_tr("Stay at the printer."));
+    set_text(away_line_,
+             fmt::format(fmt::runtime(lv_tr("Walk away, about {} min")), total - hands));
+    std::string away_steps = join_names(away);
+    if (!away_steps.empty()) {
+        away_steps += ".";
+        if (const char* note = walk_away_note(away); *note) {
+            away_steps += " ";
+            away_steps += note;
+        }
+    }
+    set_text(away_steps_, away_steps);
+    if (SoundManager::instance().is_available()) {
+        set_text(chime_line_, lv_tr("It chimes if it needs you, and when it is done."));
+    } else {
+        const std::time_t done_at = std::time(nullptr) + static_cast<std::time_t>(total) * 60;
+        set_text(chime_line_,
+                 fmt::format(fmt::runtime(lv_tr("Check back around {}. The screen shows if it "
+                                                "needs you.")),
+                             display_format::format_time(done_at)));
+    }
 }
 
 void CalibrationRunOverlay::publish_run() {
@@ -382,23 +511,49 @@ void CalibrationRunOverlay::publish_run() {
     if (!run_) {
         for (size_t i = 0; i < kSteps; ++i) {
             lv_subject_set_int(&in_run_[i], 0);
+            lv_subject_set_int(&keep_[i], 0);
         }
-        lv_subject_set_int(&run_phase_, static_cast<int>(RunPhase::Ready));
         lv_subject_set_int(&over_, 0);
+        lv_subject_set_int(&running_now_, 1);
+        lv_subject_set_int(&overall_, 0);
+        lv_subject_set_int(&hide_discard_, 1);
+        lv_subject_set_int(&results_busy_, 0);
         return;
     }
     const auto& entries = run_->entries();
+    const RunPhase phase = run_->phase();
+    const bool dropped_all =
+        run_->results_lost() || phase == RunPhase::Discarding || phase == RunPhase::Discarded;
     for (size_t i = 0; i < kSteps; ++i) {
         lv_subject_set_int(&in_run_[i], 0);
     }
+    int total_min = 0;
+    int done_min_x100 = 0;
     int remaining_min = 0;
+    int saving = 0;
+    bool any_unfinished = false;
     for (const auto& e : entries) {
+        const int minutes = e.step->info().minutes;
+        total_min += minutes;
+        if (e.status == StepStatus::Running) {
+            done_min_x100 += minutes * std::max(0, e.progress.percent);
+        } else if (e.status != StepStatus::Pending) {
+            done_min_x100 += minutes * 100;
+        }
+        if (e.status == StepStatus::Pending || e.status == StepStatus::Running) {
+            remaining_min += minutes;
+        }
+        any_unfinished =
+            any_unfinished || e.status == StepStatus::Failed || e.status == StepStatus::Aborted;
+        const bool keeps = !dropped_all && calibration::CalibrationRun::saves(e);
+        saving += keeps ? 1 : 0;
         const int i = step_index(e.step->info().id);
         if (i < 0) {
             continue;
         }
         const auto k = static_cast<size_t>(i);
         lv_subject_set_int(&in_run_[k], 1);
+        lv_subject_set_int(&keep_[k], keeps ? 1 : 0);
         const bool dropped = run_->results_lost() && e.status == StepStatus::Finished &&
                              !e.step->restores_on_discard();
         lv_subject_set_int(&state_[k], dropped ? 3 : dot_state(e.status));
@@ -408,16 +563,24 @@ void CalibrationRunOverlay::publish_run() {
         set_text(detail_[k], status);
         set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
         set_text(before_subj_[k], before_text_[k]);
-        if (e.status == StepStatus::Pending || e.status == StepStatus::Running) {
-            remaining_min += e.step->info().minutes;
-        }
     }
 
-    const RunPhase phase = run_->phase();
     const int current = run_->current();
     const bool over = phase != RunPhase::Running && phase != RunPhase::Ready;
+    if (over && run_minutes_ < 0) {
+        run_minutes_ = static_cast<int>(std::chrono::duration_cast<std::chrono::minutes>(
+                                            std::chrono::steady_clock::now() - run_started_)
+                                            .count());
+    }
     lv_subject_set_int(&over_, over ? 1 : 0);
-    lv_subject_set_int(&run_phase_, static_cast<int>(phase));
+    lv_subject_set_int(&running_now_, over ? 0 : 1);
+    lv_subject_set_int(&overall_, over ? 100 : (total_min > 0 ? done_min_x100 / total_min : 0));
+    set_text(header_title_, over ? lv_tr("Calibration finished") : lv_tr("Calibrating"));
+    set_text(eta_, over ? std::string(lv_tr("all done"))
+                        : fmt::format(fmt::runtime(lv_tr("about {} min left · you can leave")),
+                                      std::max(1, remaining_min)));
+    set_text(footer_, over ? lv_tr("Next, review the results and save them once")
+                           : lv_tr("Results are saved together at the end"));
     if (current >= 0) {
         const auto& e = entries[static_cast<size_t>(current)];
         const auto& info = e.step->info();
@@ -427,27 +590,46 @@ void CalibrationRunOverlay::publish_run() {
         lv_subject_set_int(&progress_, std::max(0, e.progress.percent));
         lv_subject_set_int(&live_heat_, info.kind == calibration::StepKind::Heaters ? 1 : 0);
         set_text(warn_, warning_for(info.kind));
-        set_text(footer_, fmt::format(fmt::runtime(lv_tr("Step {} of {} · about {} min left")),
-                                      current + 1, entries.size(), remaining_min));
     } else if (over) {
         set_text(title_, lv_tr("All steps done"));
-        set_text(phase_text_, lv_tr("Review the results, then save them all at once."));
+        set_text(phase_text_, lv_tr("Review the results, then save once."));
         lv_subject_set_int(&live_heat_, 0);
         set_text(warn_, "");
-        set_text(footer_, "");
     }
 
-    lv_subject_set_int(&can_save_, run_->can_save() ? 1 : 0);
+    // Results page.
+    const bool can_save = run_->can_save();
+    const bool busy = phase == RunPhase::Saving || phase == RunPhase::Discarding;
+    lv_subject_set_int(&results_busy_, busy ? 1 : 0);
+    lv_subject_set_int(&hide_discard_, can_save && !busy ? 0 : 1);
+    lv_subject_set_int(&results_warn_, run_->results_lost() || any_unfinished ? 1 : 0);
+    const char* title = lv_tr("Calibration finished");
+    if (phase == RunPhase::Saved) {
+        title = lv_tr("Calibration saved");
+    } else if (phase == RunPhase::Discarded) {
+        title = lv_tr("Nothing was saved");
+    } else if (run_->results_lost() || any_unfinished) {
+        title = lv_tr("Calibration stopped");
+    }
+    set_text(results_title_, title);
     const int finished = run_->finished_count();
     if (run_->results_lost()) {
-        set_text(results_sub_, lv_tr("Stopping restarted the printer, which dropped the results "
-                                     "of the steps that finished. Nothing can be saved."));
+        set_text(results_sub_, lv_tr("Stopping restarted the printer, so nothing can be saved"));
     } else {
+        const int minutes = std::max(1, run_minutes_);
         set_text(results_sub_,
-                 fmt::format(fmt::runtime(lv_tr("{} of {} steps finished. Review them, then save "
-                                                "them all at once.")),
-                             finished, entries.size()));
+                 finished == 1
+                     ? fmt::format(fmt::runtime(lv_tr("1 step in {} min · review, then save once")),
+                                   minutes)
+                     : fmt::format(fmt::runtime(lv_tr("{} steps in {} min · review, then save "
+                                                      "once")),
+                                   finished, minutes));
     }
+    const bool offers_save = can_save && !busy;
+    set_text(results_primary_, !offers_save ? lv_tr("Done")
+                               : restart_known_ && !save_restarts_
+                                   ? lv_tr("Save")
+                                   : lv_tr("Save and restart Klipper"));
     switch (phase) {
     case RunPhase::Saving:
         set_text(save_line_, lv_tr("Saving..."));
@@ -462,15 +644,36 @@ void CalibrationRunOverlay::publish_run() {
         set_text(save_line_, lv_tr("Nothing was saved."));
         break;
     default:
-        set_text(save_line_,
-                 run_->can_save()
-                     ? std::string(lv_tr("One save for everything. Klipper may restart."))
-                     : std::string(lv_tr("Nothing to save.")));
+        if (!can_save) {
+            set_text(save_line_, lv_tr("Nothing to save."));
+        } else {
+            const std::string count =
+                saving == 1 ? std::string(lv_tr("Saving 1 result"))
+                            : fmt::format(fmt::runtime(lv_tr("Saving {} results")), saving);
+            set_text(save_line_, count + " · " +
+                                     (!restart_known_  ? lv_tr("Klipper may restart")
+                                      : save_restarts_ ? lv_tr("one restart")
+                                                       : lv_tr("no restart")));
+        }
         break;
     }
     const std::string& err = run_->error();
     lv_subject_set_int(&has_error_, err.empty() ? 0 : 1);
     set_text(error_, err);
+}
+
+void CalibrationRunOverlay::query_save_restarts() {
+    if (restart_known_ || !run_ || !run_->can_save()) {
+        return;
+    }
+    restart_query_.query_restarts(get_moonraker_api(), [this](bool restarts) {
+        if (!run_) {
+            return;
+        }
+        restart_known_ = true;
+        save_restarts_ = restarts;
+        publish_run();
+    });
 }
 
 void CalibrationRunOverlay::toggle_pick(const std::string& step_id) {
@@ -530,6 +733,9 @@ void CalibrationRunOverlay::start() {
             }
         },
         get_printer_state().get_subjects_lifetime());
+    run_started_ = std::chrono::steady_clock::now();
+    run_minutes_ = -1;
+    restart_known_ = false;
     set_page(RunPage::Running);
     run_->start();
     publish_run();
@@ -560,6 +766,7 @@ void CalibrationRunOverlay::stop() {
 void CalibrationRunOverlay::see_results() {
     set_page(RunPage::Results);
     publish_run();
+    query_save_restarts();
 }
 
 void CalibrationRunOverlay::save() {
@@ -571,6 +778,20 @@ void CalibrationRunOverlay::save() {
 void CalibrationRunOverlay::discard() {
     if (run_ && finisher_) {
         run_->discard_all(*finisher_);
+    }
+}
+
+void CalibrationRunOverlay::results_primary() {
+    if (run_ && run_->can_save()) {
+        save();
+    } else {
+        done();
+    }
+}
+
+void CalibrationRunOverlay::close() {
+    if (!run_pending()) {
+        helix::nav::go_back();
     }
 }
 
@@ -602,9 +823,10 @@ void init_calibration_run_handlers() {
         {"on_cal_run_stop", [](lv_event_t*) { get_calibration_run_overlay().stop(); }},
         {"on_cal_run_see_results",
          [](lv_event_t*) { get_calibration_run_overlay().see_results(); }},
-        {"on_cal_run_save", [](lv_event_t*) { get_calibration_run_overlay().save(); }},
         {"on_cal_run_discard", [](lv_event_t*) { get_calibration_run_overlay().discard(); }},
-        {"on_cal_run_done", [](lv_event_t*) { get_calibration_run_overlay().done(); }},
+        {"on_cal_run_results_primary",
+         [](lv_event_t*) { get_calibration_run_overlay().results_primary(); }},
+        {"on_cal_run_close", [](lv_event_t*) { get_calibration_run_overlay().close(); }},
     });
 }
 
