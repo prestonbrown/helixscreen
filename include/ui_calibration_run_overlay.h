@@ -71,6 +71,8 @@ class CalibrationRunOverlay : public OverlayBase {
     [[nodiscard]] bool run_pending() const;
 
     void toggle_pick(const std::string& step_id);
+    /// The Z offset card's "Warm the bed first".
+    void toggle_zoffset_warm_bed();
     void toggle_prereq(const std::string& prereq_id);
     void next();
     void back();
@@ -98,7 +100,10 @@ class CalibrationRunOverlay : public OverlayBase {
     void set_page(RunPage page);
     /// Ask once whether the save restarts Klipper, so the Save button can say so.
     void query_save_restarts();
+    /// The picked steps as the run's options run them.
     [[nodiscard]] std::vector<calibration::StepInfo> picked_steps() const;
+    /// The Pick page's options; warming only where there is a heated bed.
+    [[nodiscard]] calibration::RunOptions run_options() const;
 
     void add_int(helix::Subject& subject, int initial, std::string name);
     void add_string(helix::Subject& subject, char* buf, size_t size, std::string name);
@@ -112,6 +117,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::vector<calibration::StepInfo> candidates_;
     std::array<bool, kSteps> picked_{};
     std::array<bool, kPrereqs> ticked_{};
+    /// "Warm the bed first" on the Z offset card.
+    bool zoffset_warm_bed_ = false;
     /// Each step's value when the run started: the history changes as soon as Save all lands.
     std::array<std::string, kSteps> before_text_{};
     std::unique_ptr<calibration::CalibrationRun> run_;
@@ -149,6 +156,9 @@ class CalibrationRunOverlay : public OverlayBase {
     char pick_summary_short_buf_[kShortLen]{};
     helix::Subject hands_short_;
     char hands_short_buf_[kShortLen]{};
+    /// The Z offset card's warm-up option: whether it shows, and whether it is on.
+    helix::Subject zoffset_warm_shown_;
+    helix::Subject zoffset_warm_;
 
     std::array<helix::Subject, kSteps> shown_{};
     std::array<helix::Subject, kSteps> picked_subj_{};

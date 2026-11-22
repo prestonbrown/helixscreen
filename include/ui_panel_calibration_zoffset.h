@@ -152,11 +152,15 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     };
     using RunDone = std::function<void(RunEnd end, float z, helix::ZOffsetCalibrationStrategy)>;
 
-    /// Open for a guided calibration run. Accept only stages the result (ACCEPT,
-    /// no SAVE_CONFIG: the run saves everything at once) and Continue returns to
-    /// the run. @p on_done runs once on the main thread with how the step ended.
-    /// @p step_index (0-based) and @p step_count place it in the run's header.
-    void open_for_run(helix::IMoonrakerAPI* api, int step_index, int step_count, RunDone on_done);
+    /// Open for a guided calibration run and start at once: the run's Before
+    /// you start page stands in for the intro, so the printer homes and probes
+    /// (after warming the bed when @p warm_bed) as soon as the panel shows.
+    /// Accept only stages the result (ACCEPT, no SAVE_CONFIG: the run saves
+    /// everything at once) and Continue returns to the run. @p on_done runs once
+    /// on the main thread with how the step ended. @p step_index (0-based) and
+    /// @p step_count place it in the run's header.
+    void open_for_run(helix::IMoonrakerAPI* api, int step_index, int step_count, bool warm_bed,
+                      RunDone on_done);
     /// The guided run stops while this panel serves it: a manual probe ends with
     /// ABORT (nothing is sent when none is running) and the panel closes.
     void abort_run();
@@ -271,6 +275,13 @@ class ZOffsetCalibrationPanel : public OverlayBase {
 
     /// Set while the panel serves a guided run; see open_for_run().
     RunDone run_done_;
+    /// The run's "Warm the bed first" choice, which stands in for the Warm Bed
+    /// switch while the panel serves a run.
+    bool run_warm_bed_ = false;
+    /// open_for_run() queued its show; the activation it brings starts probing.
+    bool run_start_pending_ = false;
+    /// Warm the bed before probing: the run's choice in a run, else the switch.
+    [[nodiscard]] bool wants_warm_bed() const;
     /// 1 while the panel serves a guided run.
     helix::Subject run_mode_subject_{};
     /// 1 outside a guided run: the footer hides Skip there.

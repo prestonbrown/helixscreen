@@ -11,12 +11,15 @@
        cal_run_optional_<step>    1 when its tier is Optional
        cal_run_meta_<step>        "4 min · needs you · paper test"
        cal_run_meta_short_<step>  "4 min · needs you"
-       cal_run_last_<step>        what it last measured, or "never" -->
+       cal_run_last_<step>        what it last measured, or "never"
+     An option of the step's own (the Z offset's warm-up) goes in the `extra`
+     slot, at the end of the name line; it shows at every size. -->
 <component>
   <api>
     <prop name="step" type="string" default=""/>
     <prop name="label" type="string" default=""/>
     <prop name="label_tag" type="string" default=""/>
+    <slot name="extra" target="pick_extra" hide_empty="true"/>
   </api>
   <consts>
     <px name="tile_radius" value="10"/>
@@ -85,6 +88,9 @@
                     clickable="false" event_bubble="true">
           <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
         </text_small>
+        <lv_obj name="pick_extra"
+                width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                scrollable="false" clickable="false" event_bubble="true"/>
       </lv_obj>
       <text_small name="pick_meta"
                   width="100%" bind_text="cal_run_meta_${step}" long_mode="dots" style_text_font="#cal_font_detail"

@@ -498,7 +498,7 @@ class InputShaperStep : public CalibrationStep {
 
 class ZOffsetStep : public CalibrationStep {
   public:
-    explicit ZOffsetStep(StepInfo info) : info_(std::move(info)) {}
+    ZOffsetStep(StepInfo info, bool warm_bed) : info_(std::move(info)), warm_bed_(warm_bed) {}
     const StepInfo& info() const override {
         return info_;
     }
@@ -512,7 +512,7 @@ class ZOffsetStep : public CalibrationStep {
                          1000.0;
         ctx.progress({lv_tr("Waiting for you at the Z offset screen"), -1, {}});
         get_global_zoffset_cal_panel().open_for_run(
-            &ctx.api, ctx.index, ctx.count,
+            &ctx.api, ctx.index, ctx.count, warm_bed_,
             [this, alive = std::weak_ptr<int>(alive_)](ZOffsetCalibrationPanel::RunEnd end, float z,
                                                        ZOffsetCalibrationStrategy strategy) {
                 if (alive.expired() ||
@@ -629,6 +629,8 @@ class ZOffsetStep : public CalibrationStep {
     }
 
     StepInfo info_;
+    /// The bed warms before probing, as the Z offset screen's Warm Bed does.
+    bool warm_bed_ = false;
     StepContext* ctx_ = nullptr;
     bool accepted_ = false;
     ZOffsetCalibrationStrategy strategy_ = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
@@ -639,10 +641,10 @@ class ZOffsetStep : public CalibrationStep {
 
 } // namespace
 
-std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info) {
+std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info, const RunOptions& options) {
     switch (info.kind) {
     case StepKind::ZOffset:
-        return std::make_unique<ZOffsetStep>(info);
+        return std::make_unique<ZOffsetStep>(info, options.zoffset_warm_bed);
     case StepKind::Heaters:
         return std::make_unique<HeatersStep>(info);
     case StepKind::BedMesh:

@@ -5590,6 +5590,7 @@
   <translation tag="Wall Speed Shakes This Printer" it="La velocità delle pareti fa vibrare questa stampante"/>
   <translation tag="Warm" it="Caldo"/>
   <translation tag="Warm Bed" it="Preriscalda piano"/>
+  <translation tag="Warm the bed first" it="Preriscalda prima il piano"/>
   <translation tag="Warm up for a material in one tap" it="Preriscalda un materiale con un tocco"/>
   <translation tag="Warming Bed..." it="Preriscaldamento piano..."/>
   <translation tag="Warn" it="Avviso"/>

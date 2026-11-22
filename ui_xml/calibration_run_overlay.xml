@@ -31,6 +31,11 @@
     <style name="steps_full" width="100%" height="content" flex_grow="0"/>
     <style name="live_side" width="0" height="100%" flex_grow="1"/>
     <style name="live_full" width="100%" height="0" flex_grow="1"/>
+    <!-- The Z offset card's warm-up chip, off and on. -->
+    <style name="chip_off" bg_opa="0" border_color="#border"/>
+    <style name="chip_on" bg_color="#warning" bg_opa="38" border_color="#warning"/>
+    <style name="chip_text_off" text_color="#text_muted"/>
+    <style name="chip_text_on" text_color="#warning"/>
   </styles>
   <consts>
     <px name="card_radius" value="10"/>
@@ -62,6 +67,31 @@
         <calibration_run_pick_row name="cal_run_pick_z_offset" step="z_offset" label="Z offset">
           <bind_style_if name="tile_half" cond="ui_breakpoint ne 0 and ui_is_portrait eq 0"/>
           <bind_style_if name="tile_full" cond="ui_breakpoint eq 0 or ui_is_portrait eq 1"/>
+          <calibration_run_pick_row-extra>
+            <lv_button name="cal_run_zoffset_warm"
+                       width="content" height="content" style_pad_hor="#space_sm" style_pad_ver="#space_xxs"
+                       style_pad_gap="#space_xs" style_radius="#card_radius" style_border_width="1"
+                       style_border_opa="255" style_shadow_width="0" flex_flow="row" style_flex_cross_place="center"
+                       scrollable="false">
+              <bind_flag_if_eq subject="cal_run_zoffset_warm_shown" flag="hidden" ref_value="0"/>
+              <bind_style name="chip_off" subject="cal_run_zoffset_warm" ref_value="0"/>
+              <bind_style name="chip_on" subject="cal_run_zoffset_warm" ref_value="1"/>
+              <style name="styles.press_wash" selector="pressed"/>
+              <icon src="fire" size="xs" variant="muted" clickable="false" event_bubble="true">
+                <bind_flag_if_eq subject="cal_run_zoffset_warm" flag="hidden" ref_value="1"/>
+              </icon>
+              <icon src="fire" size="xs" variant="warning" clickable="false" event_bubble="true">
+                <bind_flag_if_eq subject="cal_run_zoffset_warm" flag="hidden" ref_value="0"/>
+              </icon>
+              <text_small name="cal_run_zoffset_warm_text"
+                          text="Warm the bed first" style_text_font="#cal_font_detail" clickable="false"
+                          event_bubble="true">
+                <bind_style name="chip_text_off" subject="cal_run_zoffset_warm" ref_value="0"/>
+                <bind_style name="chip_text_on" subject="cal_run_zoffset_warm" ref_value="1"/>
+              </text_small>
+              <event_cb trigger="clicked" callback="on_cal_run_zoffset_warm_toggle"/>
+            </lv_button>
+          </calibration_run_pick_row-extra>
         </calibration_run_pick_row>
         <calibration_run_pick_row name="cal_run_pick_heaters" step="heaters" label="Heaters">
           <bind_style_if name="tile_half" cond="ui_breakpoint ne 0 and ui_is_portrait eq 0"/>

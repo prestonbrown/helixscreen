@@ -205,6 +205,23 @@ TEST_CASE("the hands-on Z offset runs first whatever order the steps arrive in",
           std::vector<std::string>{"z_offset", "heaters", "bed_mesh", "input_shaper"});
 }
 
+TEST_CASE("warming the bed first adds its warm-up to the Z offset step only", "[calibration_run]") {
+    StepInfo zoffset = step(StepKind::ZOffset, "z_offset");
+    zoffset.minutes = 5;
+    StepInfo heaters = step(StepKind::Heaters, "heaters");
+    heaters.minutes = 10;
+    RunOptions warm;
+    warm.zoffset_warm_bed = true;
+
+    const StepInfo warmed = with_run_options(zoffset, warm);
+    CHECK(warmed.minutes == 5 + kZOffsetWarmBedMinutes);
+    CHECK(warmed.heats);
+    CHECK(with_run_options(heaters, warm).minutes == 10);
+    CHECK(with_run_options(zoffset, RunOptions{}).minutes == 5);
+    CHECK_FALSE(with_run_options(zoffset, RunOptions{}).heats);
+    CHECK(total_minutes({warmed, heaters}) == 15 + kZOffsetWarmBedMinutes);
+}
+
 TEST_CASE("before you start lists each prerequisite once with the steps that need it",
           "[calibration_run]") {
     CatalogInputs in = everything();

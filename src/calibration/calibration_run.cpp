@@ -74,6 +74,14 @@ bool picked_by_default(const StepInfo& step) {
     return step.tier == Tier::Required || step.tier == Tier::Recommended;
 }
 
+StepInfo with_run_options(StepInfo step, const RunOptions& options) {
+    if (step.kind == StepKind::ZOffset && options.zoffset_warm_bed) {
+        step.minutes += kZOffsetWarmBedMinutes;
+        step.heats = true;
+    }
+    return step;
+}
+
 std::vector<PrereqLine> prereq_lines(const std::vector<StepInfo>& picked) {
     std::vector<PrereqLine> out;
     for (Prereq p : kPrereqOrder) {

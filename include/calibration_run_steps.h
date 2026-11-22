@@ -21,8 +21,10 @@ namespace helix::calibration {
 inline constexpr int kRunNozzleTempC = 210;
 inline constexpr int kRunBedTempC = 60;
 
-/// The step that runs @p info, or nullptr for a step a guided run does not run.
-[[nodiscard]] std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info);
+/// The step that runs @p info with @p options, or nullptr for a step a guided
+/// run does not run.
+[[nodiscard]] std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info,
+                                                             const RunOptions& options = {});
 
 /// Saves through SaveConfigWatch, discards with a host restart through the
 /// expected-restart contract, records into CalibrationHistory. Main thread.
