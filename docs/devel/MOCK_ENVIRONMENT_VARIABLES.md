@@ -2012,6 +2012,13 @@ itself as Kalico, and only when every pending item is already live in the runnin
 (`src/printer/save_config_live.cpp#restart_required`). A bed mesh profile save then settles on
 the command's reply; a Z-offset save (the mock stages `[probe] z_offset`) still restarts.
 
+`HELIX_MOCK_KALICO_CONTROL=pid` keeps a Kalico mock's extruder on `control: pid`, the
+state the heater calibration's "switch to MPC" page is for:
+
+```bash
+HELIX_MOCK_KALICO=1 HELIX_MOCK_KALICO_CONTROL=pid ./build/bin/helix-screen --test -vv
+```
+
 With `HELIX_MOCK_PRINTER=k2` it also swaps the K2 Plus objects for the Kalico port's:
 `belt_mdl x` / `belt_mdl y`, the `BELT_TENSION` macro and `motor_control`, and no
 `CALIBRATE_CUT_POS` macro (the port registers it as a Python command). Advanced >

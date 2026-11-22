@@ -16,6 +16,7 @@
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
 
+#include <array>
 #include <lvgl.h>
 #include <string>
 #include <vector>
@@ -133,6 +134,28 @@ class PIDCalibrationPanel : public OverlayBase {
     /// The edit naming @p cooling_fan, which leaves a fan the user already named.
     [[nodiscard]] static std::vector<helix::system::ConfigEdit>
     build_cooling_fan_edits(const std::string& cooling_fan);
+
+    /// The method a heater calibrates with unless Advanced changes it: MPC for a
+    /// nozzle where the firmware has it, otherwise whatever the heater runs today
+    /// (a bed stays on PID).
+    [[nodiscard]] static CalibMethod default_method(Heater heater, ControlType current,
+                                                    bool supports_mpc);
+
+    /// Rough minutes a run takes, shown before it starts. Measuring the part
+    /// fan adds MPC's fan breakpoints.
+    [[nodiscard]] static int estimate_minutes(Heater heater, CalibMethod method, bool measure_fan);
+
+    /// What a heater card says will happen to its control.
+    enum class HeaterNote { StaysPid, StaysMpc, SwitchesToMpc, SwitchesToPid };
+    [[nodiscard]] static HeaterNote heater_note(ControlType current, CalibMethod target);
+
+    /// Heater powers the switch page offers as one tap, in watts; a fourth chip
+    /// opens a stepper for any other value.
+    static constexpr std::array<int, 3> kPowerChoicesW = {40, 50, 60};
+    static constexpr int kPowerPickOther = 4;
+
+    /// The idle pages, published as pid_page.
+    enum class Page { INTRO = 0, SWITCH_MPC = 1, ADVANCED = 2 };
 
     PIDCalibrationPanel();
     ~PIDCalibrationPanel() override;
@@ -364,9 +387,6 @@ class PIDCalibrationPanel : public OverlayBase {
     helix::Subject subj_calibrating_heater_{};
     char buf_calibrating_heater_[32];
 
-    helix::Subject subj_migration_notice_{};
-    char buf_migration_notice_[128];
-
     helix::Subject subj_pid_kp_{};
     char buf_pid_kp_[32];
 
@@ -416,8 +436,56 @@ class PIDCalibrationPanel : public OverlayBase {
     helix::Subject subj_fan_is_thorough_{};   // int 0/1
     helix::Subject subj_show_pid_fan_{};      // 1 when extruder + PID method
 
-    // Int subject: 1 when not idle (disables Start button in header)
+    // Int subject: 1 when not idle (disables the primary action)
     helix::Subject subj_cal_not_idle_{};
+
+    // Intro, switch page and Advanced
+    Page page_ = Page::INTRO;
+    helix::Subject subj_page_{}; // int Page
+    /// What each heater's config runs today, by Heater index; the selected
+    /// heater's is also current_control_.
+    std::array<ControlType, 2> heater_control_{ControlType::UNKNOWN, ControlType::UNKNOWN};
+    std::array<std::string, 2> heater_control_name_;
+    helix::Subject subj_nozzle_today_{};
+    char buf_nozzle_today_[96];
+    helix::Subject subj_bed_today_{};
+    char buf_bed_today_[96];
+    helix::Subject subj_nozzle_note_{};
+    char buf_nozzle_note_[64];
+    helix::Subject subj_bed_note_{};
+    char buf_bed_note_[64];
+    helix::Subject subj_nozzle_note_warn_{}; // int 0/1
+    helix::Subject subj_bed_note_warn_{};    // int 0/1
+    std::array<helix::Subject, 4> subj_preset_deg_{};
+    char buf_preset_deg_[4][16];
+    helix::Subject subj_preset_sel_{}; // int slot, -1 for a typed temperature
+    helix::Subject subj_duration_text_{};
+    char buf_duration_text_[32];
+    helix::Subject subj_heats_to_text_{};
+    char buf_heats_to_text_[32];
+    helix::Subject subj_method_text_{};
+    char buf_method_text_[32];
+    helix::Subject subj_cta_text_{};
+    char buf_cta_text_[32];
+    helix::Subject subj_restart_note_{};
+    char buf_restart_note_[96];
+    helix::Subject subj_fan_row_shown_{}; // int 0/1
+    helix::Subject subj_fan_locked_{};    // int 0/1: the heater already names its fan
+    helix::Subject subj_power_known_{};   // int 0/1: heater power from the printer database
+    helix::Subject subj_power_pick_{};    // int 0 none, 1..3 kPowerChoicesW, 4 other
+    helix::Subject subj_switch_ready_{};  // int 0/1: a heater power is known or picked
+    helix::Subject subj_power_source_{};
+    char buf_power_source_[96];
+    std::array<helix::Subject, 4> subj_power_chip_{};
+    char buf_power_chip_[4][16];
+    helix::Subject subj_switch_step_gets_{};
+    char buf_switch_step_gets_[32];
+    helix::Subject subj_switch_step_power_{};
+    char buf_switch_step_power_[48];
+    helix::Subject subj_switch_run_text_{};
+    char buf_switch_run_text_[96];
+    ObserverGuard history_observer_;
+    ObserverGuard language_observer_;
 
     // Progress tracking for calibration
     helix::Subject subj_pid_progress_{}; // int 0-100
@@ -513,6 +581,21 @@ class PIDCalibrationPanel : public OverlayBase {
     void confirm_migration();
     void begin_calibration(CalibMethod method);
     void update_migration_notice();
+    void set_page(Page page);
+    void show_switch_page();
+    /// Re-renders every string this panel formats with lv_tr(): first show and a language switch.
+    void refresh_translated_text();
+    void refresh_switch_text();
+    void update_switch_ready();
+    void refresh_heater_controls();
+    void update_heater_cards();
+    void update_badges();
+    void update_cta();
+    void select_preset(int slot);
+    [[nodiscard]] int preset_temp(int slot) const;
+    void refresh_preset_temps();
+    /// The part-fan switch is shown and off: the user declined fan measurement.
+    [[nodiscard]] bool fan_declined() const;
     void on_mpc_result(const MoonrakerAdvancedAPI::MPCResult& result);
     void on_mpc_progress(int phase, int total_phases, const std::string& desc);
 
@@ -528,6 +611,8 @@ class PIDCalibrationPanel : public OverlayBase {
     /// The Klipper heater the selected heater calibrates: the picked head's
     /// heater, or "heater_bed".
     std::string heater_name() const;
+    /// The nozzle heater the Nozzle card means, whichever heater is selected.
+    std::string nozzle_heater_name() const;
     /// The extruder object of the picked head, which keys its temperature.
     std::string extruder_name() const;
     /// Part-fan gcode (M106/M107) drives the active tool's fan, so it only
@@ -560,6 +645,12 @@ class PIDCalibrationPanel : public OverlayBase {
     void handle_fan_quick_clicked();
     void handle_fan_detailed_clicked();
     void handle_fan_thorough_clicked();
+    void handle_back_clicked();
+    void handle_measure_fan_row_clicked();
+    void handle_power_pick(int pick);
+    void handle_power_change();
+    void handle_keep_pid_clicked();
+    void handle_switch_mpc_clicked();
 
     static void on_fan_slider_changed(lv_event_t* e);
     // Material preset callbacks
@@ -567,7 +658,6 @@ class PIDCalibrationPanel : public OverlayBase {
     // button's name ("btn_preset_mN" / "btn_preset_bed_mN") and resolved to a
     // material through helix::presets.
     static void on_pid_preset_material(lv_event_t* e);
-    static void on_pid_preset_bed_material(lv_event_t* e);
 };
 
 // Global instance accessor

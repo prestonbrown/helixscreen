@@ -3,8 +3,8 @@
 
 /**
  * @file test_header_bar_action_disabled_cond.cpp
- * @brief The calibration panels gate their header Start button on the
- *        printer connection while it is offline.
+ * @brief The calibration panels gate their Start button (in the header, or
+ *        the footer's btn_start) on the printer connection while it is offline.
  *
  * Context (K2 Plus, v0.99.98): the WebSocket to Moonraker
  * never opened. The PID panel greyed out its *content* — the gate lives on
@@ -66,10 +66,24 @@ std::string read_disabled_cond(const std::string& xml_path) {
     };
 
     const size_t actions = src.find("-actions>");
-    if (actions == std::string::npos) {
+    if (actions != std::string::npos) {
+        return value_in("<bind_state_if cond=\"", actions, src.find("-actions>", actions + 1));
+    }
+    // A screen on the calibration intro frame names its footer primary btn_start.
+    // The wizard footer composes the screen's primary_disabled_cond with the
+    // connection gate (pinned by the footer case below), so this is what it binds.
+    const size_t framed = src.find("primary_name=\"btn_start\"");
+    if (framed != std::string::npos) {
+        const size_t open = src.rfind('<', framed);
+        const std::string own = value_in("primary_disabled_cond=\"", open, src.find('>', framed));
+        return "nav_buttons_enabled eq 0 or (" + (own.empty() ? std::string("0") : own) + ")";
+    }
+    // A screen whose primary action sits in its own footer names it btn_start.
+    const size_t start = src.find("name=\"btn_start\"");
+    if (start == std::string::npos) {
         return {};
     }
-    return value_in("<bind_state_if cond=\"", actions, src.find("-actions>", actions + 1));
+    return value_in("<bind_state_if cond=\"", start, src.find("</ui_button>", start));
 }
 
 /// Registers a screen whose header actions slot holds one Start button

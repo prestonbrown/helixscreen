@@ -122,8 +122,8 @@ translations:
   1 step due · about {} min: '1 个步骤待完成 · 约 {} 分钟'
   1 step never run · about {} min: '1 个步骤从未运行 · 约 {} 分钟'
   1 step · about {} min: '1 个步骤 · 约 {} 分钟'
-  1 step · {} min: 1 个步骤 · {} 分钟
-  1 thing left to confirm: 还有 1 项待确认
+  1 step · {} min: ''
+  1 thing left to confirm: ''
   '1 unit': '1 个单元'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. 每个喷嘴依次加热、擦拭，并停在前方供你用刷子清洁
@@ -328,7 +328,7 @@ translations:
   Accel to Decel: 加速到减速
   Acceleration to deceleration limit (mm/s²): 加速到减速限制 (mm/s²)
   Accelerometer: 加速度传感器
-  Accelerometer attached: 已安装加速度传感器
+  Accelerometer attached: ''
   Accelerometer communication failed: 加速度计通信失败
   Accelerometer communication failed. Try again.: 加速度计通信失败，请重试。
   Accelerometer not connected: 加速度计未连接
@@ -408,7 +408,7 @@ translations:
   All fields are required: 所有字段均为必填项
   All healthy: 一切正常
   All lights: 全部灯光
-  All set: 全部就绪
+  All set: ''
   All steps done: '所有步骤已完成'
   All time: '全部时间'
   All toolheads must be docked for this step.: '此步骤需要所有工具头都已停靠。'
@@ -421,6 +421,7 @@ translations:
   Already connecting — wait a moment and try again: 正在连接中 — 请稍候再试
   Already mounted: '已装上'
   Also keep this mesh for {}. Its prints that do not mesh load it at the start.: "也为 {} 保存这个网格吗？其不做网格的打印会在开始时加载它。"
+  Also measure part-fan cooling: 同时测量零件风扇的冷却
   Always Show Bypass Spool: 始终显示旁路料盘
   Always show Android navigation bar instead of using gestures: 始终显示 Android 导航栏而不使用手势
   Ambient Transfer: 环境传热
@@ -589,7 +590,7 @@ translations:
 
   Bed is Level!: 热床已水平！
   Bed is at {}, the print needs {}.: 热床为 {}，打印需要 {}。
-  Bed is clear: 热床已清空
+  Bed is clear: ''
   Bed mesh: 热床网格
   'Bed mesh calibration failed: {}': '热床网格校准失败：{}'
   Bed mesh operation timed out: 热床网格操作超时
@@ -608,7 +609,7 @@ translations:
   Bed {} °C: "热床 {} °C"
   Before: '之前'
   Before starting: '开始之前'
-  Before you start: 开始之前
+  Before you start: ''
   Below target: 低于目标
   Belt Tension: 皮带张力
   Belt Tension Check: 皮带张力检查
@@ -744,16 +745,18 @@ translations:
   Calibrate Y: 校准 Y 轴
   Calibrate All Tools: 校准所有工具
   Calibrate at: 校准温度
+  Calibrate bed: 校准热床
   Calibrate heater: 校准加热器
   Calibrate input shaping to reduce ringing artifacts in prints: 校准输入整形以减少打印中的振纹
   Calibrate now: '立即校准'
+  Calibrate nozzle: 校准喷嘴
   Calibrate part fan: 校准模型风扇
   Calibrate this printer, step by step: '分步校准此打印机'
   Calibrate tool offsets?: 校准工具偏移？
   Calibrate your printer: '校准您的打印机'
   Calibrate your touchscreen for accurate input: 校准触摸屏以确保输入准确
   Calibrated: 已校准
-  Calibrating: 正在校准
+  Calibrating: ''
   Calibrating Probe...: 正在校准探针...
   Calibrating bed mesh...: 正在校准热床网格...
   Calibrating {} axis...: '正在校准 {} 轴...'
@@ -774,7 +777,7 @@ translations:
   Calibration failed: 校准失败
   Calibration failed - touch targets more precisely.: 校准失败 – 请更精确地触摸目标。
   'Calibration failed: {}': 校准失败：{}
-  Calibration finished: 校准完成
+  Calibration finished: ''
   Calibration finished, not saved yet: 校准完成，尚未保存
   Calibration in progress: "正在校准"
   Calibration kept timing out. Your previous settings were kept.: 校准反复超时，已保留您之前的设置。
@@ -782,9 +785,10 @@ translations:
   Calibration may still be running — response timed out: '校准可能仍在运行 — 响应超时'
   Calibration move may still be running — printer connection was interrupted: '校准移动可能仍在运行 — 打印机连接已中断'
   Calibration request not valid: '校准请求无效'
+  Calibration runs at {}, about {} min: 在 {} 下校准，约 {} 分钟
   Calibration saved: 校准已保存
   Calibration saved but cannot apply on SDL display: 校准已保存，但无法在 SDL 显示上应用
-  Calibration stopped: 校准已停止
+  Calibration stopped: ''
   Calibration succeeded, but the frequency chart data couldn't be read.: 校准成功，但无法读取频率图表数据。
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: 校准成功。频率图表仅在 HelixScreen 运行于打印机上时可用。
   Calibration timed out. Please try again.: 校准超时。请重试。
@@ -878,11 +882,12 @@ translations:
   Change tool: 切换工具
   Changes apply immediately. Adjust during print for tuning.: 更改立即生效。可在打印时调整进行调优。
   Changes are temporary and reset on printer reboot: 更改是临时的，打印机重启后会重置
+  Changes printer.cfg and restarts Klipper first: 先修改 printer.cfg 并重启 Klipper
   Changing filament: "正在更换耗材"
   Check AFC configuration: '请检查 AFC 配置'
   Check Again: 重新检查
   Check Klipper console for details: 详情请查看 Klipper 控制台
-  Check back around {}. The screen shows if it needs you.: 请在 {} 左右回来。需要您时屏幕会提示。
+  Check back around {}. The screen shows if it needs you.: ''
   Check both belts for wear and frayed edges.: "检查两条皮带是否磨损或边缘起毛。"
   Check each fan spins freely.: "检查每个风扇是否转动顺畅。"
   Check every dock: 检查每个停靠位
@@ -1894,6 +1899,7 @@ translations:
   Fan available but not assigned to any role: '风扇可用，但未分配任何角色'
   Fan control: '风扇控制'
   'Fan control failed: {}': '风扇控制失败: {}'
+  Fan points: 风扇测量点
   Fan {} is not spinning: 风扇 {} 未转动
   Fan {} stopped: 风扇 {} 已停转
   FanSelect: 选择风扇
@@ -1980,7 +1986,7 @@ translations:
   Filament jammed at the extruder gear: 耗材卡在挤出机齿轮处
   ? "Filament left the Box but never reached the toolhead's filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."
   : 耗材已离开料盒，但始终未到达工具头的耗材传感器：PTFE 管有间隙、工具头入口堵塞，或有残留的料头。
-  Filament loaded: 已装入耗材
+  Filament loaded: ''
   Filament move too long: 耗材移动距离过长
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: '挤出机中必须已装入耗材，打印板已装好，且没有任何物体挡住工具头。'
   Filament never reached the CFS hub sensor: 耗材未到达 CFS 集线器传感器
@@ -2219,6 +2225,8 @@ translations:
   Heater not heating as expected: '加热器未按预期加热'
   Heater offline: 加热器已断开
   Heater over-temperature: 加热器过热
+  Heater power: 加热器功率
+  Heater power needed: 需要加热器功率
   Heater sensor fault: 加热器传感器故障
   Heater {1} is not heating as expected: 加热器 {1} 未按预期升温
   HeaterSelect: 选择加热器
@@ -2292,6 +2300,7 @@ translations:
   Hold slicer prints that do not fit: '暂缓不适合的切片软件打印'
   Hold {} fully on the head. The latch locks onto it and it becomes the mounted tool.: 将{}完全按在打印头上。锁定装置会锁住它，它将成为已安装的工具。
   Holding nozzle at {} to purge previous filament.: 将喷嘴保持在 {} 以清洗之前的耗材。
+  Holds temperature better when the fan changes · +3 min: 风扇变化时更好地保持温度 · +3 分钟
   Home: 归位
   Home & Continue: 归位并继续
   Home All: "全部归位"
@@ -2348,7 +2357,7 @@ translations:
   Host Terminal: '主机终端'
   Host and MCU load, temperature, and memory: 主机和 MCU 的负载、温度和内存
   'Host: ': '主机: '
-  Hot at times.: 有时会很烫。
+  Hot at times.: ''
   Hotend: 热端
   Hotend Fan: 热端风扇
   Hotend Heater: 热端加热器
@@ -2501,7 +2510,7 @@ translations:
   Issue description: 问题描述
   It applies after the next Klipper restart.: "将在下次重启 Klipper 后生效。"
   It can be un-archived in Spoolman's web UI.: 可以在 Spoolman 的网页界面中取消归档。
-  It chimes if it needs you, and when it is done.: 需要您时以及完成时会发出提示音。
+  It chimes if it needs you, and when it is done.: ''
   It has not reported its slots yet. Try again in a moment.: 尚未报告其料槽。请稍后再试。
   It homes and heats on its own (no start macro found).: 自行归零并加热(未找到开始宏)。
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: 它卡在集线器传感器与集线器齿轮之间。请打开 CFS 清理集线器后重试
@@ -2539,6 +2548,7 @@ translations:
   Keep: '保留'
   Keep %s?: '保留 %s？'
   Keep Navigation Bar: 保留导航栏
+  Keep PID: 保留 PID
   Keep Printing: 继续打印
   Keep Spool Info on Eject: 弹出时保留料盘信息
   Keep clear of the printer while the toolhead is moving: 工具头移动时请远离打印机
@@ -2586,7 +2596,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper 尚未加载延时摄影宏，因此不会拍摄任何帧。请将这一行添加到 printer.cfg 并重启 Klipper：'
   Klipper is halted — restart firmware to continue: Klipper 已停止 — 请重启固件以继续
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper 正在重启。延时摄影帧将从下一次打印开始拍摄。'
-  Klipper may restart: Klipper 可能会重启
+  Klipper may restart: ''
   ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
   : 主机上的 Klipper 已更新，但一块或多块控制板上的固件较旧。下方 Klipper 的消息列出了这些主板。
   Klipper or Moonraker may restart while it updates.: '更新期间 Klipper 或 Moonraker 可能会重启。'
@@ -2594,6 +2604,7 @@ translations:
   Klipper reserves 'default' for new calibrations. Choose another name.: "Klipper 将 'default' 保留用于新的校准。请选择其他名称。"
   Klipper restarting - macros activating: '正在重启 Klipper - 正在启用宏'
   Klipper restarts before calibrating.: '校准前 Klipper 将重启。'
+  Klipper restarts, about 20 s: Klipper 重启，约 20 秒
   Klipper shut down: Klipper已关闭
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper 停止报告进度。在小型打印机上，其分析可能耗尽内存并使 Klipper 卡住，此时固件重启无法到达。请将打印机断电重启（或通过 SSH 重启 Klipper），然后重试。"
@@ -2646,6 +2657,7 @@ translations:
   Last measured: '上次测量'
   Last print canceled: 上次打印已取消
   Last print failed: 上次打印失败
+  Last tuned {}: 上次调校：{}
   Later: 稍后
   Layer: 层
   Layer 2: '第 2 层'
@@ -2778,8 +2790,8 @@ translations:
   Lost the printer.: "与打印机失去连接。"
   'Lot # (optional)': 批号（可选）
   Lot/Batch Nr: 批次号
-  Loud and hot at times.: 有时噪音大且很烫。
-  Loud at times.: 有时噪音大。
+  Loud and hot at times.: ''
+  Loud at times.: ''
   Low Memory: 内存不足
   Lower: 降低
   Lower bed: "降低热床"
@@ -3064,7 +3076,7 @@ translations:
   Next Zone: "下一区间"
   Next Zone (~{} min): "下一区间(约 {} 分钟)"
   Next Layer: '下一层'
-  Next, review the results and save them once: 接下来检查结果并一次保存
+  Next, review the results and save them once: ''
   'Next: {}': '下一个：{}'
   Niimbot (Bluetooth): Niimbot（蓝牙）
   Nixie Clock: '辉光管时钟'
@@ -3259,7 +3271,7 @@ translations:
   'Which lane is in the toolhead?': '哪个料道在打印头里？'
   'Choose which lane is in the toolhead to unload it': '请选择打印头里的料道以卸载'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: '没有更改任何内容。温度和材料保持不变，重试只需轻点一下。'
-  Nothing was saved: 未保存任何内容
+  Nothing was saved: ''
   Nothing was saved and the heaters are off.: 未保存任何内容，加热器已关闭。
   Nothing was saved.: '未保存任何内容。'
   Notification: 通知
@@ -3341,7 +3353,7 @@ translations:
   One tap runs this macro. Dangerous macros still ask.: '单击即可运行此宏。危险宏仍会询问。'
   One-time setup: "一次性设置"
   'Only on {0}: {1} Hz': "仅 {0}：{1} Hz"
-  Only what the steps you picked need, asked once: 只询问所选步骤需要的项目，仅问一次
+  Only what the steps you picked need, asked once: ''
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: '仅在此应用连接时生效。安装 HelixPrint 插件以覆盖所有打印。'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: '仅在此应用连接时生效。更新 HelixPrint 插件以覆盖所有打印。'
   ? Only {} MB of memory is free, and Klipper's analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled.
@@ -3373,7 +3385,7 @@ translations:
   Operations: 操作
   Optimize Your Printing: 优化您的打印
   Optimizes temperature control for stable, consistent heating.: 优化温度控制，实现稳定一致的加热。
-  Optional: 可选
+  Optional: ''
   Optional - select your main lighting source, or skip if your printer doesn't have one: 可选 - 选择主照明源，如打印机没有可跳过
   Options: 选项
   Or Enter Manually: 或手动输入
@@ -3400,6 +3412,8 @@ translations:
   PID: PID
   'PID: heating the bed in cycles to tune its control': 'PID：循环加热热床以调整控制'
   'PID: heating the nozzle in cycles to tune its control': 'PID：循环加热喷嘴以调整控制'
+  ? 'PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes.'
+  : PID 在温度偏离后才修正。MPC 预测偏离：它会记住加热器、加热块和风扇的热量变化，因此风扇或流量变化时喷嘴温度保持稳定。
   PIN must be 4-6 digits: PIN 码必须为 4-6 位数字
   PIN removed: PIN 码已移除
   PIN set: PIN 码已设置
@@ -3438,6 +3452,7 @@ translations:
   Part: 零件
   Part Cooling Fan: 零件冷却风扇
   Part Fan: 零件风扇
+  Part fan: 零件风扇
   Part of the plugin failed to load. Reinstall the plugin.: "插件的一部分加载失败。请重新安装插件。"
   Part of the plugin is missing. Reinstall the plugin.: "插件缺少一部分。请重新安装插件。"
   Part, hotend, and auxiliary fan speeds: '零件、热端与辅助风扇速度'
@@ -3994,7 +4009,7 @@ translations:
   Request timed out. The printer may be busy.: 请求超时。打印机可能正忙。
   Require Confirmation?: 需要确认？
   Require confirmation before emergency stop: 紧急停止前需要确认
-  Required: 必需
+  Required: ''
   Requires Moonraker power device: '需要 Moonraker 电源设备'
   Requires Moonraker-Timelapse plugin: 需要 Moonraker-Timelapse 插件
   Requires Multi-Filament System or MMU hardware: '需要多耗材系统或 MMU 硬件'
@@ -4075,7 +4090,7 @@ translations:
   Restored to {:.3f} mm: '已恢复为 {:.3f} mm'
   Restoring position: 正在恢复位置
   Restoring the print settings: 正在恢复打印设置
-  Results are saved together at the end: 结果在最后一起保存
+  Results are saved together at the end: ''
   Resume: 恢复
   Resume Print: 恢复打印
   Resume Requires Restart: '恢复打印需要重新开始'
@@ -4118,7 +4133,7 @@ translations:
   Revert now: '立即还原'
   Review: 查看
   Review detected hardware validation issues: 查看检测到的硬件验证问题
-  Review the results, then save once.: 检查结果，然后一次保存。
+  Review the results, then save once.: ''
   Review the results, then save them all at once.: '查看结果，然后一次性全部保存。'
   Review your configuration below, then click Finish to save: 请检查以下配置，然后点击完成以保存
   Rewinding: 回卷中
@@ -4189,6 +4204,7 @@ translations:
   Safety & Alerts: 安全与警报
   Same Filament, New Spool: '相同耗材，新料盘'
   Same filament: '相同耗材'
+  Same part-fan change, both methods: 同一零件风扇变化，两种方法
   Same spool in {}? Tap Clear if it is a new one.: '{} 是同一个料盘吗？如果是新料盘，请点击清除。'
   Sample: 样本
   Sample %d/%d: 样本 %d/%d
@@ -4207,7 +4223,7 @@ translations:
   Save Z-Offset Buttons: '保存 Z 偏移按钮'
   Save Z-Offset?: 保存 Z 偏移？
   Save all: '全部保存'
-  Save and restart Klipper: 保存并重启 Klipper
+  Save and restart Klipper: ''
   Save as {} mesh?: "另存为 {} 网格？"
   Save calibration: 保存校准
   Save changes to persist them across restarts?: 保存更改以便在重启后保留？
@@ -4243,7 +4259,7 @@ translations:
   Saves when the load on {} finishes.: '{} 装载完成后保存。'
   Saves when the unload finishes.: '卸载完成后保存。'
   Saves when the unload on {} finishes.: '{} 卸载完成后保存。'
-  Saving 1 result: 正在保存 1 项结果
+  Saving 1 result: ''
   Saving Configuration...: 正在保存配置...
   Saving Z-offset...: 正在保存 Z 偏移...
   Saving and finishing...: 正在保存并完成...
@@ -4255,7 +4271,7 @@ translations:
   Saving the position and parking the toolhead.: 正在保存位置并驻留工具头。
 
   Saving will restart Klipper and CANCEL any active print!: 保存将重启 Klipper 并取消任何正在进行的打印！
-  Saving {} results: 正在保存 {} 项结果
+  Saving {} results: ''
   Saving...: 保存中...
   Scan: 扫描
   Scan Cal: 扫描校准
@@ -4473,7 +4489,7 @@ translations:
   Skip Objects...: '跳过对象...'
   Skip for now: '暂时跳过'
   Skip the rest of this layer and resume at the next one: 跳过本层剩余部分并从下一层恢复
-  Skip this step: 跳过此步骤
+  Skip this step: ''
   Skipped: '已跳过'
   Sleep While Printing: 打印时休眠
   Sleep adjusted to match dim timeout: 休眠超时已调整
@@ -4636,7 +4652,9 @@ translations:
   Static: '静态'
   Status: 状态
   Status icons: 状态图标
-  Stay at the printer.: 请留在打印机旁。
+  Stay at the printer.: ''
+  Stays on MPC: 保持 MPC
+  Stays on PID: 保持 PID
   Std Deviation: 标准差
   Stealth: 静音
   Stealth is quiet, Sport is fastest: 静音最安静，运动最快
@@ -4677,7 +4695,7 @@ translations:
   Stopped between Spool and Lane: 停在料盘与耗材通道之间
   Stopped drying %s: '已停止烘干：%s'
   Stopping after the current test line.: '将在当前测试线后停止。'
-  Stopping restarted the printer, so nothing can be saved: 停止操作重启了打印机，因此无法保存任何内容
+  Stopping restarted the printer, so nothing can be saved: ''
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: '停止操作重启了打印机，已完成步骤的结果已丢弃，没有可保存的内容。'
   Stops all motion. Requires firmware restart.: 停止所有运动。需要固件重启。
   Storage: '存储'
@@ -4700,10 +4718,12 @@ translations:
   Switch Printer: 切换打印机
   Switch a power device on or off: 开启或关闭电源设备
   Switch Sensors: 开关传感器
+  Switch and calibrate: 切换并校准
   Switch back to the Snapmaker screen: '切换回 Snapmaker 屏幕'
   Switch between light and dark themes: 切换浅色和深色主题
   Switch spools at each tool change: '每次换工具时切换料盘'
   Switch the active tool or extruder: 切换当前工具或挤出机
+  Switch the nozzle to MPC?: 将喷嘴切换为 MPC？
   Switch to a backup slot on runout: 耗材用尽时切换到备用槽位
   Switch to a matching slot on runout: 耗材用尽时切换到匹配的槽位
   Switch to a matching spool when one runs out: '料盘用尽时切换到匹配的料盘'
@@ -5168,8 +5188,8 @@ translations:
   The requested position is outside the printer's bounds: '请求的位置超出打印机范围'
   The right RFID reader in this CFS unit may need service: 此 CFS 单元的右侧 RFID 读取器可能需要维修
   The running step stops at once and the printer restarts, which also drops the results of the steps that finished.: '正在运行的步骤会立即停止，打印机将重启，已完成步骤的结果也会丢弃。'
-  The running step stops at once and the printer restarts.: 正在运行的步骤会立即停止，打印机将重启。
-  The running step stops. The steps that finished keep their results.: 正在运行的步骤会停止。已完成的步骤保留其结果。
+  The running step stops at once and the printer restarts.: ''
+  The running step stops. The steps that finished keep their results.: ''
   The runout sensor indicates no filament is loaded. Start print anyway?: 断料传感器显示未装载耗材。仍要开始打印吗？
   The runout sensor reads empty, so the print did not start.: 断料传感器显示为空，打印未开始。
   The saved position is kept. Reconnect or restart the screen to be offered the resume again.: 已保存的位置会保留。重新连接或重启屏幕即可再次提供恢复。
@@ -5427,6 +5447,7 @@ translations:
   ? "To map filament, HelixScreen rewrites the job file before printing it. Without the HelixPrint plugin the rewritten copy is what lands in your print history, so finished jobs are listed under names like modified_1730824_benchy.gcode instead of the file you picked.\n\nInstalling the plugin takes a moment and needs no restart."
   : "为了映射耗材，HelixScreen 会在打印前改写任务文件。如果没有 HelixPrint 插件，进入打印历史的就是改写后的副本，因此完成的任务会以类似 modified_1730824_benchy.gcode 的名称显示，而不是您选择的文件。\n\n安装插件很快，无需重启。"
   To use the lanes, pull the filament out of the toolhead by hand.: "要使用耗材通道，请用手将耗材从工具头中拔出。"
+  'Today: {} · last tuned {}': 当前：{} · 上次调校：{}
   Toggle: 切换
   Toggle (fire-and-forget): 切换（无状态跟踪）
   Toggle AFC LED strip: '切换 AFC LED 灯带'
@@ -5478,7 +5499,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "工具头位置与归位，含热床视图和全部归位"
   Toolhead position unknown: 工具头位置未知
   Toolhead sensors disagree: 工具头传感器读数不一致
-  Toolhead unloaded: 打印头已退料
+  Toolhead unloaded: ''
   Toolheads: 工具头
   Tools: 工具
   Tools Used: 已使用工具
@@ -5754,7 +5775,7 @@ translations:
   Waiting for the printer's status; try again once it is connected: '正在等待打印机状态；连接后请重试'
   Waiting for you at the Z offset screen: '正在 Z 偏移界面等待您操作'
   Waiting to read the printer's configuration from Klipper.: "正在等待从 Klipper 读取打印机配置。"
-  Walk away, about {} min: 可以离开，约 {} 分钟
+  Walk away, about {} min: ''
   Wall Speed Shakes This Printer: '外墙速度会使此打印机抖动'
   Warm: 暖色
   Warm Bed: 预热热床
@@ -5768,6 +5789,7 @@ translations:
   Watch on Your Phone: '在手机上观看'
   Watch the camera during a print for failed prints: 打印期间监视摄像头以发现打印失败
   Watch which motor turns: "看看哪个电机在转动"
+  We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W.: 我们不知道此热端的加热器。功率印在加热管或其导线上，通常为 40 到 70 W。
   Weak battery: 电池电量低
   Webcam: 摄像头
   Website (optional): 网站（可选）
@@ -5828,6 +5850,8 @@ translations:
   Width Sensors: 宽度传感器
   Wifi: Wi-Fi
   Will not switch spools on runout: 耗材用尽时不会切换料盘
+  Will switch to MPC (more stable): 将切换为 MPC（更稳定）
+  Will switch to PID: 将切换为 PID
   Wipe each rail or rod clean with a lint-free cloth.: "用无绒布擦净每根导轨或光杆。"
   Wipe nozzle on silicone cleaning strip: '在硅胶清洁条上擦拭喷嘴'
   With exhaust cooling on, the recirculation fan cannot be turned on: '外循环冷却时无法开启循环风扇'
@@ -5873,11 +5897,12 @@ translations:
   Year: 年
   Year Month Day: 年 月 日
   'Yes': 是
-  You are needed for the first {} min, then it runs on its own: 前 {} 分钟需要您参与，之后自动运行
+  You are needed for the first {} min, then it runs on its own: ''
   You can skip this and calibrate later in Settings.: 您可以跳过此步骤，稍后在设置中进行校准。
   You have unsaved changes. Discard them?: 您有未保存的更改。是否丢弃？
   You, about {} min: '需要您约 {} 分钟'
   'You: about {} min at the start, then it runs on its own': '开始时需要您约 {} 分钟，之后自动运行'
+  Your PID values are kept. You can switch back here any time.: 您的 PID 值会保留。随时可以在这里切换回来。
   Your completed prints will appear here: 您完成的打印将显示在此处
   ? 'Your file asks for outer walls at {0:.0f} mm/s. This printer shook hardest at {1:.0f}-{2:.0f} mm/s in its last Vertical Artifact Check, which can print fine vertical lines on walls along X or Y. {3} (Orca: Outer wall speed; PrusaSlicer: External perimeters).'
   : '您的文件要求外墙速度为 {0:.0f} mm/s。此打印机在上次垂直纹路检查中于 {1:.0f}-{2:.0f} mm/s 抖动最强，这可能会在沿 X 或 Y 的墙面上印出细小的竖线。{3}（Orca: Outer wall speed; PrusaSlicer: External perimeters）。'
@@ -5959,6 +5984,7 @@ translations:
   about {} mm above where the paper dragged last time: "比上次纸张有阻力的位置高约 {} mm"
   about {} mm below where the paper dragged last time: "比上次纸张有阻力的位置低约 {} mm"
   already loaded: '已加载'
+  and the heater power: 以及加热器功率
   assign without adding to Spoolman: 分配但不添加到 Spoolman
   at last time’s drag point: "在上次的阻力点"
   at target: '已达目标'
@@ -5978,6 +6004,7 @@ translations:
   'close: {}': 相近：{}
   color differs: '颜色不同'
   complete: 完成
+  'control: mpc': 'control: mpc'
   cores: 核心
   cycle {}: 循环 {}
   cycle {}, {:.2f} (needs {:.2f}): 循环 {}，{:.2f}（目标 {:.2f}）
@@ -6013,6 +6040,7 @@ translations:
   feeder error: '送料器错误'
   feeder not in automatic mode: '送料器未处于自动模式'
   filament sensor disabled: '耗材传感器已禁用'
+  gets: 写入
   heated bed: 热床
   heats: '会加热'
   heats bed to {}°: 热床加热至 {}°
@@ -6020,6 +6048,7 @@ translations:
   heats bed: 加热热床
   heats nozzle: 加热喷嘴
   heats nozzle + bed: 加热喷嘴 + 热床
+  heats to {}: 加热至 {}
   'helixscreen.env ignored: owned by uid {}': '已忽略 helixscreen.env：属主为 uid {}'
   'helixscreen.env ignored: untrusted symlink chain': '已忽略 helixscreen.env：符号链接链不受信任'
   'helixscreen.env ignored: writable by other users': '已忽略 helixscreen.env：其他用户可写入'
@@ -6045,19 +6074,21 @@ translations:
   matched: 匹配
   material differs: '材料不同'
   measured {}: 测量于 {}
+  'method: {}': 方法：{}
   mm: mm
   mm Z-offset: mm Z 偏移
   mm before clog: 毫米后堵料
   needs: 需要
   needs approval: 需要批准
   needs you: '需要您参与'
+  never: 从未
   never sleeps: 从不休眠
   no heat: 不加热
   no restart: 无需重启
   none: 无
   not detected: 未检测到
   not loaded: '未加载'
-  not set: 未设置
+  not set: ''
   nozzle: 喷嘴
   of: 的
   'off': 关闭
@@ -6068,8 +6099,8 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): 监测打印异常（基于 K2 Plus 摄像头）
   Monitor for print abnormalities (camera-based): '监测打印异常（基于摄像头）'
   on unit {}: '在单元 {}'
-  one restart: 重启一次
-  optional: 可选
+  one restart: ''
+  optional: ''
   or type a macro name: 或输入宏名称
   over memory budget: 超出内存预算
   paper test: '纸张测试'
@@ -6079,6 +6110,7 @@ translations:
   plate must be clear: 打印板必须清空
   preparing: 准备中
   printer default: 打印机默认
+  printer.cfg: printer.cfg
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"
   prints: 打印次数
   pulling...: '张紧中...'
@@ -6087,7 +6119,7 @@ translations:
   remaining: 剩余
   remaining before clog detection triggers: 剩余即触发堵料检测
   rendering: 渲染中
-  required: 必需
+  required: ''
   reset at {} h: '于 {} 小时时重置'
   runs on its own: 自动运行
   right where the paper dragged last time: "正好在上次纸张有阻力的位置"
@@ -6130,7 +6162,7 @@ translations:
   within one bin: "在一个频点内"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant 未运行。WiFi 功能不可用。
   you have: 您有
-  'you: first {} min': 您：前 {} 分钟
+  'you: first {} min': ''
   '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s：{2}x 纹波与 {3:.0f} Hz 共振重合'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} 已打开。{1} 在温暖、封闭的机箱中打印效果最好；打开的门会使腔室降温，可能导致变形或层间开裂。请关闭，或仍然开始。'
@@ -6155,8 +6187,8 @@ translations:
   '{} Issues Detected': '检测到 {} 个问题'
   '{} LED strips available': '{} 条 LED 灯带可用'
   '{} MCUs': '{} 个 MCU'
-  '{} MPC': '{} MPC'
-  '{} PID': '{} PID'
+  '{} MPC': ''
+  '{} PID': ''
   '{} Settings': '{}设置'
   '{} Tools': '{} 个工具'
   '{} accelerometers': '{} 个加速度传感器'
@@ -6277,10 +6309,10 @@ translations:
   '{} steps due · about {} min': '{} 个步骤待完成 · 约 {} 分钟'
   '{} steps never run · about {} min': '{} 个步骤从未运行 · 约 {} 分钟'
   '{} steps · about {} min': '{} 个步骤 · 约 {} 分钟'
-  '{} steps · {} min': '{} 个步骤 · {} 分钟'
+  '{} steps · {} min': ''
   '{} target set to {}°C': '{} 目标已设为 {}°C'
   '{} temperature reading failed': '{} 温度读取失败'
-  '{} things left to confirm': 还有 {} 项待确认
+  '{} things left to confirm': ''
   '{} turn': "{} 圈"
   '{} turns': "{} 圈"
   '{} updated': '{} 已更新'
@@ -6288,9 +6320,9 @@ translations:
   '{} width sensor': '{} 宽度传感器'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} 将切换到耗材类型与颜色都与当前料盘一致、且其端口传感器检测到有耗材的槽位。'
-  '{} · pick what to run, then it runs on its own': '{} · 选择要运行的项目，之后自动运行'
+  '{} · pick what to run, then it runs on its own': ''
   '{} · {}': '{} · {}'
-  '{} · {} firmware': '{} · {} 固件'
+  '{} · {} firmware': ''
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — 响应超时'
   '{} → {}: no filament loaded.': '{} → {}: 未加载耗材。'

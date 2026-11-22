@@ -463,7 +463,7 @@ void register_object_handlers(std::unordered_map<std::string, MethodHandler>& re
                     {"max_temp", self->get_extruder_max_temp()},
                     {"min_extrude_temp", self->get_extruder_min_extrude_temp()},
                     {"nozzle_diameter", 0.4}};
-                if (is_mock_kalico()) {
+                if (is_mock_kalico() && self->kalico_extruder_control() == "mpc") {
                     extruder_settings["control"] = "mpc";
                     extruder_settings["heater_power"] = 50.0;
                     if (!self->extruder_cooling_fan().empty()) {

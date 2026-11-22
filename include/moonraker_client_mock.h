@@ -891,6 +891,14 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         return extruder_cooling_fan_;
     }
 
+    /// The `control` a Kalico-mode [extruder] reports: "mpc" unless set here or
+    /// by HELIX_MOCK_KALICO_CONTROL, so a Kalico printer still on PID can be mocked.
+    void set_extruder_control(std::string control) {
+        extruder_control_ = std::move(control);
+    }
+
+    [[nodiscard]] std::string kalico_extruder_control() const;
+
     /**
      * @brief Override the extruder max_temp reported in configfile.settings
      *
@@ -2674,6 +2682,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     double shaper_freq_y_{47.6};
     bool shaper_csv_writable_{true};   ///< When false, SHAPER_CALIBRATE skips writing the CSV
     std::string extruder_cooling_fan_; ///< Kalico-mode [extruder] cooling_fan; "" for none
+    std::string extruder_control_;     ///< Kalico-mode [extruder] control; "" for the default
     /// position_endstop reported as JSON null; unset follows the probe.
     std::optional<bool> stepper_z_endstop_null_;
     std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help

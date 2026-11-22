@@ -241,6 +241,26 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered 
         activate_and_detect();
         CHECK(subject_int("cal_offer_cooling_fan") == 0);
     }
+    SECTION("a PID nozzle moving to MPC stops at the switch page, which runs it") {
+        client.set_extruder_control("pid");
+        activate_and_detect();
+        REQUIRE(subject_int("cal_needs_migration") == 1);
+        start();
+        CHECK(subject_int("pid_page") == 1);
+        CHECK_FALSE(sent("MPC_CALIBRATE"));
+        // Switch and calibrate waits for a heater power.
+        CHECK(subject_int("cal_switch_ready") == 0);
+        Access::power_pick(panel, 3);
+        CHECK(subject_int("cal_switch_ready") == 1);
+        // The part fan rides along with the rewrite unless switched off.
+        CHECK(subject_int("cal_add_cooling_fan") == 1);
+        lv_subject_set_int(lv_xml_get_subject(nullptr, "cal_add_cooling_fan"), 0);
+        bool names_fan = false;
+        for (const auto& e : Access::mpc_migration_edits(panel)) {
+            names_fan = names_fan || e.key == "cooling_fan";
+        }
+        CHECK_FALSE(names_fan);
+    }
     SECTION("leaving the offer behind drops the choice") {
         activate_and_detect();
         lv_subject_set_int(lv_xml_get_subject(nullptr, "cal_add_cooling_fan"), 1);

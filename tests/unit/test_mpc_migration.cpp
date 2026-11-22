@@ -302,3 +302,36 @@ TEST_CASE("A confirmed rewrite runs only while the promise it showed still holds
     CHECK_FALSE(P::migration_still_valid(false, false, false));
     CHECK_FALSE(P::migration_still_valid(false, true, false));
 }
+
+TEST_CASE("A nozzle defaults to MPC where the firmware has it; a bed keeps what it runs",
+          "[mpc_migration][pid_intro]") {
+    using P = PIDCalibrationPanel;
+    using H = P::Heater;
+    CHECK(P::default_method(H::EXTRUDER, ControlType::PID, true) == CalibMethod::MPC);
+    CHECK(P::default_method(H::EXTRUDER, ControlType::PID, false) == CalibMethod::PID);
+    CHECK(P::default_method(H::EXTRUDER, ControlType::UNKNOWN, false) == CalibMethod::PID);
+    CHECK(P::default_method(H::BED, ControlType::PID, true) == CalibMethod::PID);
+    CHECK(P::default_method(H::BED, ControlType::MPC, true) == CalibMethod::MPC);
+}
+
+TEST_CASE("A heater card names the switch only when the config changes",
+          "[mpc_migration][pid_intro]") {
+    using P = PIDCalibrationPanel;
+    using N = P::HeaterNote;
+    CHECK(P::heater_note(ControlType::PID, CalibMethod::MPC) == N::SwitchesToMpc);
+    CHECK(P::heater_note(ControlType::MPC, CalibMethod::PID) == N::SwitchesToPid);
+    CHECK(P::heater_note(ControlType::PID, CalibMethod::PID) == N::StaysPid);
+    CHECK(P::heater_note(ControlType::MPC, CalibMethod::MPC) == N::StaysMpc);
+    // An unread config is never promised a rewrite.
+    CHECK(P::heater_note(ControlType::UNKNOWN, CalibMethod::MPC) == N::StaysMpc);
+}
+
+TEST_CASE("Measuring the part fan lengthens an MPC nozzle run only", "[mpc_migration][pid_intro]") {
+    using P = PIDCalibrationPanel;
+    using H = P::Heater;
+    CHECK(P::estimate_minutes(H::EXTRUDER, CalibMethod::MPC, true) >
+          P::estimate_minutes(H::EXTRUDER, CalibMethod::MPC, false));
+    CHECK(P::estimate_minutes(H::EXTRUDER, CalibMethod::PID, true) ==
+          P::estimate_minutes(H::EXTRUDER, CalibMethod::PID, false));
+    CHECK(P::estimate_minutes(H::BED, CalibMethod::PID, false) == 8);
+}

@@ -13,6 +13,7 @@
 
 #include "ams_state.h"
 #include "app_globals.h"
+#include "calibration_history_store.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -23,6 +24,8 @@
 #include "filament_database.h"
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"
+#include "locale_formats.h"
+#include "observe_language.h"
 #include "preset_materials.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -65,6 +68,9 @@ static constexpr uint32_t kMpcOvertimeBedMs = 60u * 60u * 1000u;      // 60 min
 // this file). Returns nullptr when the panel does not currently exist, so
 // shutdown callbacks can skip instead of resurrecting it through the getter.
 static PIDCalibrationPanel* existing_pid_cal_panel();
+
+static int get_material_nozzle_temp(const char* name);
+static int get_material_bed_temp(const char* name);
 
 // ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
@@ -126,9 +132,6 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(subj_calibrating_heater_, buf_calibrating_heater_,
                               "Extruder PID Tuning", "pid_calibrating_heater", subjects_);
 
-    UI_MANAGED_SUBJECT_STRING(subj_migration_notice_, buf_migration_notice_, "",
-                              "cal_migration_notice", subjects_);
-
     UI_MANAGED_SUBJECT_STRING(subj_pid_kp_, buf_pid_kp_, "0.000", "pid_kp", subjects_);
 
     UI_MANAGED_SUBJECT_STRING(subj_pid_ki_, buf_pid_ki_, "0.000", "pid_ki", subjects_);
@@ -147,8 +150,56 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(subj_heater_is_extruder_, 1, "pid_heater_is_extruder", subjects_);
     heads_.init_subjects("pid_cal", subjects_);
 
-    // Int subject: 1 when not idle (disables Start button in header)
+    // Int subject: 1 when not idle (disables the primary action)
     UI_MANAGED_SUBJECT_INT(subj_cal_not_idle_, 0, "pid_cal_not_idle", subjects_);
+
+    // Intro, switch page and Advanced
+    UI_MANAGED_SUBJECT_INT(subj_page_, 0, "pid_page", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_nozzle_today_, buf_nozzle_today_, "", "pid_nozzle_today",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_bed_today_, buf_bed_today_, "", "pid_bed_today", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_nozzle_note_, buf_nozzle_note_, "", "pid_nozzle_note",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_bed_note_, buf_bed_note_, "", "pid_bed_note", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_nozzle_note_warn_, 0, "pid_nozzle_note_warn", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_bed_note_warn_, 0, "pid_bed_note_warn", subjects_);
+    static constexpr const char* kPresetDegNames[4] = {"pid_preset_deg_0", "pid_preset_deg_1",
+                                                       "pid_preset_deg_2", "pid_preset_deg_3"};
+    for (size_t i = 0; i < subj_preset_deg_.size(); ++i) {
+        UI_MANAGED_SUBJECT_STRING(subj_preset_deg_[i], buf_preset_deg_[i], "", kPresetDegNames[i],
+                                  subjects_);
+    }
+    UI_MANAGED_SUBJECT_INT(subj_preset_sel_, 0, "pid_preset_sel", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_duration_text_, buf_duration_text_, "", "pid_duration_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_heats_to_text_, buf_heats_to_text_, "", "pid_heats_to_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_method_text_, buf_method_text_, "", "pid_method_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_cta_text_, buf_cta_text_, "", "pid_cta_text", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_restart_note_, buf_restart_note_, "", "pid_restart_note",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_fan_row_shown_, 0, "cal_fan_row_shown", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_fan_locked_, 0, "cal_fan_locked", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_power_known_, 0, "cal_power_known", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_power_pick_, 0, "cal_power_pick", subjects_);
+    UI_MANAGED_SUBJECT_INT(subj_switch_ready_, 0, "cal_switch_ready", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_power_source_, buf_power_source_, "", "cal_power_source",
+                              subjects_);
+    static constexpr const char* kPowerChipNames[4] = {"cal_power_chip_0", "cal_power_chip_1",
+                                                       "cal_power_chip_2", "cal_power_chip_3"};
+    for (size_t i = 0; i < subj_power_chip_.size(); ++i) {
+        UI_MANAGED_SUBJECT_STRING(subj_power_chip_[i], buf_power_chip_[i], "", kPowerChipNames[i],
+                                  subjects_);
+    }
+    // The first item reads "printer.cfg gets control: mpc and the heater power";
+    // the config names between these pieces are drawn in the code font.
+    UI_MANAGED_SUBJECT_STRING(subj_switch_step_gets_, buf_switch_step_gets_, "",
+                              "cal_switch_step_gets", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_switch_step_power_, buf_switch_step_power_, "",
+                              "cal_switch_step_power", subjects_);
+    UI_MANAGED_SUBJECT_STRING(subj_switch_run_text_, buf_switch_run_text_, "",
+                              "cal_switch_run_text", subjects_);
 
     // Progress tracking for calibration
     UI_MANAGED_SUBJECT_INT(subj_pid_progress_, 0, "pid_cal_progress", subjects_);
@@ -172,7 +223,7 @@ void PIDCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(subj_fan_speed_text_, buf_fan_speed_text_, "0%", "cal_fan_speed_text",
                               subjects_);
 
-    UI_MANAGED_SUBJECT_STRING(subj_wattage_display_, buf_wattage_display_, "50W",
+    UI_MANAGED_SUBJECT_STRING(subj_wattage_display_, buf_wattage_display_, "50 W",
                               "cal_wattage_display", subjects_);
 
     // MPC result subjects
@@ -221,20 +272,31 @@ void PIDCalibrationPanel::init_subjects() {
             {"on_pid_done", [](lv_event_t*) { get_global_pid_cal_panel().handle_done_clicked(); }},
             {"on_pid_retry",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_retry_clicked(); }},
-            // Material preset callbacks: one per heater, slot read from the
-            // button name.
+            // Temperature chips: the slot is read from the chip's name.
             {"on_pid_preset_material", on_pid_preset_material},
-            {"on_pid_preset_bed_material", on_pid_preset_bed_material},
+            {"on_pid_back", [](lv_event_t*) { get_global_pid_cal_panel().handle_back_clicked(); }},
+            {"on_pid_advanced",
+             [](lv_event_t*) { get_global_pid_cal_panel().set_page(Page::ADVANCED); }},
+            {"on_pid_advanced_done",
+             [](lv_event_t*) { get_global_pid_cal_panel().set_page(Page::INTRO); }},
+            {"on_pid_keep_pid",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_keep_pid_clicked(); }},
+            {"on_pid_switch_mpc",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_switch_mpc_clicked(); }},
+            {"on_cal_measure_fan_row",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_measure_fan_row_clicked(); }},
+            {"on_cal_power_pick",
+             [](lv_event_t* e) {
+                 get_global_pid_cal_panel().handle_power_pick(
+                     helix::ui::event_user_int(e).value_or(0));
+             }},
+            {"on_cal_power_change",
+             [](lv_event_t*) { get_global_pid_cal_panel().handle_power_change(); }},
             // MPC method/config callbacks
             {"on_cal_method_pid",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_method_pid_clicked(); }},
             {"on_cal_method_mpc",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_method_mpc_clicked(); }},
-            {"on_cal_add_cooling_fan_toggled",
-             [](lv_event_t* e) {
-                 lv_subject_set_int(&get_global_pid_cal_panel().subj_add_cooling_fan_,
-                                    helix::ui::event_checked(e) ? 1 : 0);
-             }},
             {"on_cal_wattage_up",
              [](lv_event_t*) { get_global_pid_cal_panel().handle_wattage_up(); }},
             {"on_cal_wattage_down",
@@ -342,15 +404,21 @@ void PIDCalibrationPanel::on_activate() {
         tools.get_active_tool_subject(), this,
         [](PIDCalibrationPanel* self, int) { self->on_active_tool_changed(); },
         tools.get_subjects_lifetime());
-    target_temp_ = kExtruderDefaultTemp;
+    auto& history = helix::calibration::CalibrationHistory::instance();
+    if (lv_subject_t* version = history.version_subject()) {
+        history_observer_ = helix::ui::observe<int>(
+            version, this, [](PIDCalibrationPanel* self, int) { self->update_heater_cards(); },
+            history.version_lifetime());
+    }
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](PIDCalibrationPanel* self) { self->refresh_translated_text(); });
     fan_speed_ = 0;
-    selected_material_.clear();
     has_old_values_ = false;
     update_fan_slider(0);
     lv_subject_set_int(&subj_heater_is_extruder_, 1);
-
-    update_temp_display();
-    update_temp_hint();
+    set_page(Page::INTRO);
+    refresh_preset_temps();
+    select_preset(0);
 
     // Reset MPC state
     selected_method_ = CalibMethod::PID;
@@ -368,7 +436,13 @@ void PIDCalibrationPanel::on_activate() {
     supports_mpc_ = false;
     current_control_ = ControlType::UNKNOWN;
     heater_names_cooling_fan_ = true;
-    lv_subject_set_string(&subj_migration_notice_, "");
+    heater_control_ = {ControlType::UNKNOWN, ControlType::UNKNOWN};
+    heater_control_name_ = {};
+    lv_subject_set_int(&subj_add_cooling_fan_, 1);
+    lv_subject_set_int(&subj_power_known_, 0);
+    lv_subject_set_int(&subj_power_pick_, 0);
+    lv_subject_set_int(&subj_switch_ready_, 0);
+    lv_subject_set_string(&subj_power_source_, "");
 
     update_fan_section_visibility();
 
@@ -385,6 +459,8 @@ void PIDCalibrationPanel::on_activate() {
     if (api_ && supports_mpc_) {
         detect_heater_control_type();
     }
+    refresh_heater_controls();
+    refresh_translated_text();
 
     // Demo mode: inject results after on_activate() finishes its reset
     if (demo_inject_pending_) {
@@ -444,6 +520,8 @@ void PIDCalibrationPanel::cleanup() {
     spdlog::debug("[PIDCal] Cleaning up");
     run_lifetime_.invalidate();
     active_tool_observer_.reset();
+    history_observer_.reset();
+    language_observer_.reset();
 
     // Stop progress tracking before cleanup
     stop_progress_tracking();
@@ -554,7 +632,7 @@ void PIDCalibrationPanel::format_pid_value(char* buf, size_t buf_size, float new
 
 void PIDCalibrationPanel::update_wattage_display() {
     char buf[16];
-    snprintf(buf, sizeof(buf), "%dW", heater_wattage_);
+    snprintf(buf, sizeof(buf), "%d W", heater_wattage_);
     lv_subject_set_string(&subj_wattage_display_, buf);
 }
 
@@ -569,6 +647,10 @@ std::string PIDCalibrationPanel::heater_name() const {
     if (selected_heater_ == Heater::BED) {
         return "heater_bed";
     }
+    return nozzle_heater_name();
+}
+
+std::string PIDCalibrationPanel::nozzle_heater_name() const {
     if (const auto head = heads_.selected_head()) {
         auto& tools = helix::ToolState::instance().tools();
         const int tool =
@@ -609,12 +691,29 @@ void PIDCalibrationPanel::update_fan_section_visibility() {
     lv_subject_set_int(&subj_show_pid_fan_, (part_fan_reaches_heater() && !is_mpc) ? 1 : 0);
     lv_subject_set_int(&subj_show_fan_config_, (is_extruder && is_mpc) ? 1 : 0);
 
-    const bool offer = offers_cooling_fan(current_control_, selected_method_,
-                                          heater_names_cooling_fan_, mpc_cooling_fan());
+    const std::string part_fan = mpc_cooling_fan();
+    const bool offer =
+        offers_cooling_fan(current_control_, selected_method_, heater_names_cooling_fan_, part_fan);
     lv_subject_set_int(&subj_offer_cooling_fan_, offer ? 1 : 0);
-    if (!offer) {
+
+    // An MPC heater that already names its fan always measures it.
+    const bool locked =
+        is_extruder && is_mpc && current_control_ == ControlType::MPC && heater_names_cooling_fan_;
+    const bool shown = is_extruder && is_mpc && (locked || !part_fan.empty());
+    lv_subject_set_int(&subj_fan_locked_, locked ? 1 : 0);
+    lv_subject_set_int(&subj_fan_row_shown_, shown ? 1 : 0);
+    spdlog::debug("[PIDCal] Part fan '{}' (reaches heater: {}), switch shown={} locked={}",
+                  part_fan, part_fan_reaches_heater(), shown, locked);
+    if (locked) {
+        lv_subject_set_int(&subj_add_cooling_fan_, 1);
+    } else if (!shown) {
         lv_subject_set_int(&subj_add_cooling_fan_, 0);
     }
+}
+
+bool PIDCalibrationPanel::fan_declined() const {
+    return lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
+           lv_subject_get_int(subj_add_cooling_fan_.get()) == 0;
 }
 
 bool PIDCalibrationPanel::adding_cooling_fan() {
@@ -854,11 +953,9 @@ void PIDCalibrationPanel::handle_heater_extruder_clicked() {
 
     spdlog::debug("[PIDCal] Extruder selected");
     selected_heater_ = Heater::EXTRUDER;
-    target_temp_ = kExtruderDefaultTemp;
-    selected_material_.clear();
     lv_subject_set_int(&subj_heater_is_extruder_, 1);
-    update_temp_display();
-    update_temp_hint();
+    refresh_preset_temps();
+    select_preset(0);
     update_fan_section_visibility();
     fetch_old_pid_values();
 
@@ -871,6 +968,9 @@ void PIDCalibrationPanel::handle_heater_extruder_clicked() {
         update_migration_notice();
         detect_heater_control_type();
     }
+    update_heater_cards();
+    update_badges();
+    update_cta();
 }
 
 void PIDCalibrationPanel::on_active_tool_changed() {
@@ -912,13 +1012,11 @@ void PIDCalibrationPanel::handle_heater_bed_clicked() {
 
     spdlog::debug("[PIDCal] Heated bed selected");
     selected_heater_ = Heater::BED;
-    target_temp_ = kBedDefaultTemp;
-    selected_material_.clear();
     fan_speed_ = 0;
     update_fan_slider(0);
     lv_subject_set_int(&subj_heater_is_extruder_, 0);
-    update_temp_display();
-    update_temp_hint();
+    refresh_preset_temps();
+    select_preset(0);
     update_fan_section_visibility();
     fetch_old_pid_values();
 
@@ -931,6 +1029,9 @@ void PIDCalibrationPanel::handle_heater_bed_clicked() {
         update_migration_notice();
         detect_heater_control_type();
     }
+    update_heater_cards();
+    update_badges();
+    update_cta();
 }
 
 void PIDCalibrationPanel::handle_temp_up() {
@@ -942,8 +1043,10 @@ void PIDCalibrationPanel::handle_temp_up() {
     if (target_temp_ < max_temp) {
         target_temp_ += 5;
         selected_material_.clear();
+        lv_subject_set_int(&subj_preset_sel_, -1);
         update_temp_display();
         update_temp_hint();
+        update_badges();
     }
 }
 
@@ -956,8 +1059,10 @@ void PIDCalibrationPanel::handle_temp_down() {
     if (target_temp_ > min_temp) {
         target_temp_ -= 5;
         selected_material_.clear();
+        lv_subject_set_int(&subj_preset_sel_, -1);
         update_temp_display();
         update_temp_hint();
+        update_badges();
     }
 }
 
@@ -972,6 +1077,13 @@ void PIDCalibrationPanel::handle_start_clicked() {
             NOTIFY_WARNING("{}", blocked);
             return;
         }
+    }
+    // The nozzle's move to MPC has its own confirm page; the rarer rewrites
+    // (back to PID, a bed to MPC, naming the part fan) confirm in a dialog.
+    if (needs_migration_ && selected_method_ == CalibMethod::MPC &&
+        selected_heater_ == Heater::EXTRUDER) {
+        show_switch_page();
+        return;
     }
     if (needs_migration_ || adding_cooling_fan()) {
         confirm_migration();
@@ -1063,6 +1175,7 @@ void PIDCalibrationPanel::handle_preset_clicked(int temp, const char* material_n
     selected_material_ = material_name;
     update_temp_display();
     update_temp_hint();
+    update_badges();
 }
 
 void PIDCalibrationPanel::handle_done_clicked() {
@@ -1487,7 +1600,8 @@ PIDCalibrationPanel::build_cooling_fan_edits(const std::string& cooling_fan) {
 
 std::vector<helix::system::ConfigEdit>
 PIDCalibrationPanel::control_migration_edits(CalibMethod target) const {
-    return build_control_migration_edits(target, heater_wattage_, mpc_cooling_fan());
+    return build_control_migration_edits(target, heater_wattage_,
+                                         fan_declined() ? std::string() : mpc_cooling_fan());
 }
 
 void PIDCalibrationPanel::update_migration_notice() {
@@ -1498,16 +1612,17 @@ void PIDCalibrationPanel::update_migration_notice() {
     const bool to_mpc = selected_method_ == CalibMethod::MPC;
     lv_subject_set_int(&subj_show_wattage_, (needs_migration_ && to_mpc) ? 1 : 0);
 
-    if (needs_migration_) {
-        lv_subject_set_string(
-            &subj_migration_notice_,
-            to_mpc ? lv_tr("Switching to MPC requires a config change and Klipper restart.")
-                   : lv_tr("Switching back to PID requires a config change and Klipper restart."));
-    } else {
-        lv_subject_set_string(&subj_migration_notice_, "");
-    }
-
     update_fan_section_visibility();
+    // The part-fan switch starts on where measuring it rides along with a
+    // rewrite already happening, and off where it alone would cost a restart.
+    if (lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
+        lv_subject_get_int(subj_fan_locked_.get()) == 0) {
+        lv_subject_set_int(&subj_add_cooling_fan_,
+                           lv_subject_get_int(subj_offer_cooling_fan_.get()) == 1 ? 0 : 1);
+    }
+    update_heater_cards();
+    update_badges();
+    update_cta();
 }
 
 void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
@@ -1528,11 +1643,14 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
 
                 current_control_ = (type == "mpc") ? ControlType::MPC : ControlType::PID;
                 heater_names_cooling_fan_ = names_cooling_fan;
+                const auto idx = static_cast<size_t>(selected_heater_);
+                heater_control_[idx] = current_control_;
+                heater_control_name_[idx] = type;
 
                 if (preselect_mpc) {
-                    // MPC is the recommended method on firmware that offers it
-                    selected_method_ = CalibMethod::MPC;
-                    lv_subject_set_int(&subj_method_is_mpc_, 1);
+                    selected_method_ = default_method(selected_heater_, current_control_, true);
+                    lv_subject_set_int(&subj_method_is_mpc_,
+                                       selected_method_ == CalibMethod::MPC ? 1 : 0);
                 }
                 update_migration_notice();
 
@@ -1761,6 +1879,271 @@ void PIDCalibrationPanel::handle_fan_thorough_clicked() {
 }
 
 // ============================================================================
+// INTRO, SWITCH PAGE AND ADVANCED
+// ============================================================================
+
+PIDCalibrationPanel::CalibMethod
+PIDCalibrationPanel::default_method(Heater heater, ControlType current, bool supports_mpc) {
+    if (heater == Heater::EXTRUDER && supports_mpc) {
+        return CalibMethod::MPC;
+    }
+    return current == ControlType::MPC ? CalibMethod::MPC : CalibMethod::PID;
+}
+
+int PIDCalibrationPanel::estimate_minutes(Heater heater, CalibMethod method, bool measure_fan) {
+    if (heater == Heater::BED) {
+        return method == CalibMethod::MPC ? 20 : 8;
+    }
+    if (method == CalibMethod::MPC) {
+        return measure_fan ? 10 : 7;
+    }
+    return 5;
+}
+
+PIDCalibrationPanel::HeaterNote PIDCalibrationPanel::heater_note(ControlType current,
+                                                                 CalibMethod target) {
+    if (needs_control_migration(current, target)) {
+        return target == CalibMethod::MPC ? HeaterNote::SwitchesToMpc : HeaterNote::SwitchesToPid;
+    }
+    return target == CalibMethod::MPC ? HeaterNote::StaysMpc : HeaterNote::StaysPid;
+}
+
+void PIDCalibrationPanel::set_page(Page page) {
+    page_ = page;
+    lv_subject_set_int(&subj_page_, static_cast<int>(page));
+}
+
+int PIDCalibrationPanel::preset_temp(int slot) const {
+    const std::string material = helix::presets::name(slot);
+    return selected_heater_ == Heater::EXTRUDER ? get_material_nozzle_temp(material.c_str())
+                                                : get_material_bed_temp(material.c_str());
+}
+
+void PIDCalibrationPanel::refresh_preset_temps() {
+    for (size_t i = 0; i < subj_preset_deg_.size(); ++i) {
+        lv_subject_set_string(
+            &subj_preset_deg_[i],
+            helix::units::format_display_temp(preset_temp(static_cast<int>(i))).c_str());
+    }
+}
+
+void PIDCalibrationPanel::select_preset(int slot) {
+    if (state_ != State::IDLE || slot < 0 || slot >= helix::presets::kPresetCount) {
+        return;
+    }
+    lv_subject_set_int(&subj_preset_sel_, slot);
+    handle_preset_clicked(preset_temp(slot), helix::presets::name(slot).c_str());
+}
+
+void PIDCalibrationPanel::refresh_heater_controls() {
+    if (!api_) {
+        return;
+    }
+    const std::array<std::string, 2> names = {nozzle_heater_name(), "heater_bed"};
+    auto token = lifetime_.token();
+    for (size_t idx = 0; idx < names.size(); ++idx) {
+        api_->advanced().get_heater_control_type(
+            names[idx],
+            [this, token, idx](const std::string& type, bool) {
+                token.defer([this, idx, type]() {
+                    heater_control_[idx] = type == "mpc" ? ControlType::MPC : ControlType::PID;
+                    heater_control_name_[idx] = type;
+                    update_heater_cards();
+                });
+            },
+            [](const MoonrakerError& err) {
+                spdlog::debug("[PIDCal] Heater control type unavailable: {}", err.message);
+            });
+    }
+}
+
+void PIDCalibrationPanel::update_heater_cards() {
+    const auto* last = helix::calibration::CalibrationHistory::instance().entry("heaters");
+    auto last_tuned = [last](const std::string& heater) -> std::string {
+        if (last && last->values.is_object() && last->values.contains(heater)) {
+            const auto date = helix::calibration::parse_iso_date(last->date);
+            return date ? helix::locale::format_localized_month_day(&*date) : last->date;
+        }
+        return lv_tr("never");
+    };
+    auto today = [&](size_t idx, const std::string& heater) -> std::string {
+        std::string control = heater_control_name_[idx];
+        if (control.empty()) {
+            return fmt::format(fmt::runtime(lv_tr("Last tuned {}")), last_tuned(heater));
+        }
+        std::transform(control.begin(), control.end(), control.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        return fmt::format(fmt::runtime(lv_tr("Today: {} · last tuned {}")), control,
+                           last_tuned(heater));
+    };
+    auto note = [&](Heater heater, helix::Subject& text, helix::Subject& warn) {
+        const auto idx = static_cast<size_t>(heater);
+        const CalibMethod target =
+            selected_heater_ == heater
+                ? selected_method_
+                : default_method(heater, heater_control_[idx], supports_mpc_);
+        const char* words = "";
+        switch (heater_note(heater_control_[idx], target)) {
+        case HeaterNote::StaysPid:
+            words = lv_tr("Stays on PID");
+            break;
+        case HeaterNote::StaysMpc:
+            words = lv_tr("Stays on MPC");
+            break;
+        case HeaterNote::SwitchesToMpc:
+            words = lv_tr("Will switch to MPC (more stable)");
+            break;
+        case HeaterNote::SwitchesToPid:
+            words = lv_tr("Will switch to PID");
+            break;
+        }
+        lv_subject_set_string(&text, words);
+        lv_subject_set_int(&warn, needs_control_migration(heater_control_[idx], target) ? 1 : 0);
+    };
+
+    lv_subject_set_string(&subj_nozzle_today_, today(0, nozzle_heater_name()).c_str());
+    lv_subject_set_string(&subj_bed_today_, today(1, "heater_bed").c_str());
+    note(Heater::EXTRUDER, subj_nozzle_note_, subj_nozzle_note_warn_);
+    note(Heater::BED, subj_bed_note_, subj_bed_note_warn_);
+}
+
+void PIDCalibrationPanel::update_badges() {
+    const bool mpc = selected_method_ == CalibMethod::MPC;
+    const bool measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
+                             lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
+    const int minutes = estimate_minutes(selected_heater_, selected_method_, measure_fan);
+    lv_subject_set_string(&subj_duration_text_,
+                          fmt::format(fmt::runtime(lv_tr("about {} min")), minutes).c_str());
+    lv_subject_set_string(&subj_heats_to_text_,
+                          fmt::format(fmt::runtime(lv_tr("heats to {}")),
+                                      helix::units::format_display_temp(target_temp_))
+                              .c_str());
+    lv_subject_set_string(
+        &subj_method_text_,
+        fmt::format(fmt::runtime(lv_tr("method: {}")), mpc ? "MPC" : "PID").c_str());
+}
+
+void PIDCalibrationPanel::update_cta() {
+    const char* text = lv_tr("Calibrate bed");
+    if (selected_heater_ == Heater::EXTRUDER) {
+        text = (needs_migration_ && selected_method_ == CalibMethod::MPC)
+                   ? lv_tr("Next")
+                   : lv_tr("Calibrate nozzle");
+    }
+    lv_subject_set_string(&subj_cta_text_, text);
+    // The footer warns whenever Start rewrites printer.cfg first.
+    lv_subject_set_string(&subj_restart_note_,
+                          (needs_migration_ || adding_cooling_fan())
+                              ? lv_tr("Changes printer.cfg and restarts Klipper first")
+                              : "");
+}
+
+void PIDCalibrationPanel::show_switch_page() {
+    // No printer-database heater power exists yet, so the page always asks.
+    lv_subject_set_int(&subj_power_known_, 0);
+    lv_subject_set_string(&subj_power_source_, "");
+    update_switch_ready();
+    refresh_switch_text();
+    set_page(Page::SWITCH_MPC);
+}
+
+void PIDCalibrationPanel::refresh_translated_text() {
+    update_heater_cards();
+    update_badges();
+    update_cta();
+    refresh_switch_text();
+}
+
+void PIDCalibrationPanel::refresh_switch_text() {
+    for (size_t i = 0; i < subj_power_chip_.size(); ++i) {
+        const std::string label = i < kPowerChoicesW.size() ? fmt::format("{} W", kPowerChoicesW[i])
+                                                            : std::string(lv_tr("Other"));
+        lv_subject_set_string(&subj_power_chip_[i], label.c_str());
+    }
+    lv_subject_set_string(&subj_switch_step_gets_, fmt::format(" {} ", lv_tr("gets")).c_str());
+    lv_subject_set_string(&subj_switch_step_power_,
+                          fmt::format(" {}", lv_tr("and the heater power")).c_str());
+    const bool measure_fan = lv_subject_get_int(subj_fan_row_shown_.get()) == 1 &&
+                             lv_subject_get_int(subj_add_cooling_fan_.get()) == 1;
+    lv_subject_set_string(
+        &subj_switch_run_text_,
+        fmt::format(fmt::runtime(lv_tr("Calibration runs at {}, about {} min")),
+                    helix::units::format_display_temp(target_temp_),
+                    estimate_minutes(selected_heater_, CalibMethod::MPC, measure_fan))
+            .c_str());
+}
+
+void PIDCalibrationPanel::handle_back_clicked() {
+    if (state_ == State::IDLE && page_ != Page::INTRO) {
+        set_page(Page::INTRO);
+        return;
+    }
+    helix::nav::go_back();
+}
+
+void PIDCalibrationPanel::handle_measure_fan_row_clicked() {
+    if (state_ != State::IDLE || lv_subject_get_int(subj_fan_locked_.get()) == 1) {
+        return;
+    }
+    const int on = lv_subject_get_int(subj_add_cooling_fan_.get()) == 1 ? 0 : 1;
+    lv_subject_set_int(&subj_add_cooling_fan_, on);
+    spdlog::debug("[PIDCal] Measure part fan: {}", on == 1);
+    update_badges();
+    update_cta();
+}
+
+void PIDCalibrationPanel::handle_power_pick(int pick) {
+    if (state_ != State::IDLE || pick < 1 || pick > kPowerPickOther) {
+        return;
+    }
+    if (pick <= static_cast<int>(kPowerChoicesW.size())) {
+        heater_wattage_ = kPowerChoicesW[static_cast<size_t>(pick - 1)];
+    }
+    lv_subject_set_int(&subj_power_pick_, pick);
+    update_switch_ready();
+    update_wattage_display();
+    spdlog::debug("[PIDCal] Heater power pick {} ({} W)", pick, heater_wattage_);
+}
+
+void PIDCalibrationPanel::handle_power_change() {
+    lv_subject_set_int(&subj_power_known_, 0);
+    update_switch_ready();
+}
+
+void PIDCalibrationPanel::update_switch_ready() {
+    const bool ready = lv_subject_get_int(subj_power_known_.get()) == 1 ||
+                       lv_subject_get_int(subj_power_pick_.get()) != 0;
+    lv_subject_set_int(&subj_switch_ready_, ready ? 1 : 0);
+}
+
+void PIDCalibrationPanel::handle_keep_pid_clicked() {
+    if (state_ != State::IDLE) {
+        return;
+    }
+    spdlog::info("[PIDCal] Keeping PID");
+    selected_method_ = CalibMethod::PID;
+    lv_subject_set_int(&subj_method_is_mpc_, 0);
+    update_migration_notice();
+    set_page(Page::INTRO);
+}
+
+void PIDCalibrationPanel::handle_switch_mpc_clicked() {
+    if (state_ != State::IDLE || page_ != Page::SWITCH_MPC) {
+        return;
+    }
+    if (lv_subject_get_int(subj_switch_ready_.get()) == 0) {
+        return;
+    }
+    set_page(Page::INTRO);
+    if (!needs_migration_ || selected_method_ != CalibMethod::MPC) {
+        spdlog::warn("[PIDCal] Switch to MPC no longer applies; nothing changed");
+        return;
+    }
+    set_state(State::MIGRATING);
+    start_migration(CalibMethod::MPC, false);
+}
+
+// ============================================================================
 // EVENT CALLBACKS
 // ============================================================================
 
@@ -1786,57 +2169,10 @@ static int get_material_bed_temp(const char* name) {
     return mat ? mat->bed_temp : 60;
 }
 
-// Material preset handlers — index-parameterized.
-//
-// These were eight near-identical trampolines, one per hardcoded material
-// (PLA/PETG/ABS/PA/TPU for the extruder, PLA/PETG/ABS for the bed), each
-// differing only in the string it looked a temperature up with. They are now
-// two handlers that read the preset SLOT from the clicked button's name and
-// resolve the material through helix::presets, so the PID panel offers exactly
-// the materials the user configured instead of a fixed list that disagreed with
-// every other preset surface in the app.
-
-/// Parse the preset slot from a button named "btn_preset_mN" / "btn_preset_bed_mN".
-/// Returns -1 if the name is missing or malformed.
-static int pid_preset_slot(lv_event_t* e) {
-    auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    const char* name = btn ? lv_obj_get_name(btn) : nullptr;
-    if (!name) {
-        spdlog::warn("[PIDCal] Preset button has no name; ignoring click");
-        return -1;
-    }
-    const char* suffix = std::strrchr(name, '_');
-    if (!suffix || suffix[1] != 'm' || !std::isdigit(static_cast<unsigned char>(suffix[2]))) {
-        spdlog::warn("[PIDCal] Preset button '{}' has no slot suffix; ignoring click", name);
-        return -1;
-    }
-    int slot = suffix[2] - '0';
-    if (slot < 0 || slot >= helix::presets::kPresetCount) {
-        spdlog::warn("[PIDCal] Preset button '{}' slot {} out of range", name, slot);
-        return -1;
-    }
-    return slot;
-}
-
 void PIDCalibrationPanel::on_pid_preset_material(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PIDCal] on_pid_preset_material");
-    int slot = pid_preset_slot(e);
-    if (slot >= 0) {
-        const std::string material = helix::presets::name(slot);
-        get_global_pid_cal_panel().handle_preset_clicked(get_material_nozzle_temp(material.c_str()),
-                                                         material.c_str());
-    }
-    LVGL_SAFE_EVENT_CB_END();
-}
-
-void PIDCalibrationPanel::on_pid_preset_bed_material(lv_event_t* e) {
-    LVGL_SAFE_EVENT_CB_BEGIN("[PIDCal] on_pid_preset_bed_material");
-    int slot = pid_preset_slot(e);
-    if (slot >= 0) {
-        const std::string material = helix::presets::name(slot);
-        get_global_pid_cal_panel().handle_preset_clicked(get_material_bed_temp(material.c_str()),
-                                                         material.c_str());
-    }
+    // The chip's tap index is the preset slot; select_preset() drops one out of range.
+    get_global_pid_cal_panel().select_preset(helix::ui::event_user_int(e).value_or(-1));
     LVGL_SAFE_EVENT_CB_END();
 }
 
