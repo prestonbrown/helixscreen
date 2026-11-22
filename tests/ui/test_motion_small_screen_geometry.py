@@ -275,8 +275,9 @@ def _assert_wide_values_rendered(app: HelixApp, prefix: str) -> None:
 def test_unfilled_header_slot_leaves_control_overlay_geometry(tmp_path):
     """A header_bar that fills nothing renders exactly as it did pre-slot.
 
-    bed_mesh uses header_bar with no slot children; its overlay header box is
-    pinned to the measured pre-slot value. The slot collapses to width=content
+    bed_mesh uses header_bar with no slot children; its overlay header box
+    (a full-width calibration screen, flush with the nav rail) is pinned to the
+    measured pre-slot value. The slot collapses to width=content
     with nothing inside, so this only breaks if the slot starts costing layout.
     """
     app, before = _run_app("800x480", tmp_path)
@@ -291,9 +292,9 @@ def test_unfilled_header_slot_leaves_control_overlay_geometry(tmp_path):
             assert any("bed_mesh" in o for o in overlays), (
                 "clicking btn_bed_mesh did not open the bed mesh overlay")
             header = _geom(app, "overlay_header")
-            assert (header["x"], header["y"], header["w"], header["h"]) == (92, 0, 708, 56), (
+            assert (header["x"], header["y"], header["w"], header["h"]) == (76, 0, 724, 56), (
                 f"bed_mesh header is {header['x'], header['y'], header['w'], header['h']}, "
-                "expected the pre-slot (92, 0, 708, 56) - an unfilled header_content "
+                "expected the pre-slot (76, 0, 724, 56) - an unfilled header_content "
                 "slot must cost no layout")
     finally:
         _restore_size(before)

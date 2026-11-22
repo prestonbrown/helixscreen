@@ -843,6 +843,7 @@ src/ui/home/ui_widget_catalog_overlay.cpp
 src/ui/ui_widget_ref.cpp
 src/ui/wizard/ui_wizard.cpp
 src/ui/calibration/ui_z_offset_indicator.cpp
+src/ui/calibration/z_offset_tape.cpp
 src/ui/filament/ui_zone_presentation.cpp
 src/ui/widgets/favorite_macro_config.cpp
 src/ui/widgets/favorite_macro_widget.cpp

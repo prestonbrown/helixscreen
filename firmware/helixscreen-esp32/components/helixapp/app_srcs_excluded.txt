@@ -370,6 +370,7 @@ src/ui/filament/ui_head_picker.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_calibration_zoffset.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/calibration_run_steps.cpp  # wraps the calibration panels, none in the cut
 src/ui/calibration/ui_calibration_run_overlay.cpp  # the guided run; its steps are excluded
+src/ui/calibration/calibration_live_card.cpp  # the guided run's live card; the run is excluded
 src/ui/debug/ui_panel_glyphs.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_panel_input_shaper.cpp  # not in the v1 Core+AMS cut
 src/ui/debug/ui_panel_memory_stats.cpp  # not in the v1 Core+AMS cut

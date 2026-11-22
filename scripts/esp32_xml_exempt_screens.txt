@@ -22,6 +22,13 @@ components/action_prompt_swatch.xml
 components/action_prompt_text_line.xml
 components/barcode_scanner_device_row.xml
 components/bed_check_modal.xml
+components/bed_mesh_intro_footer.xml
+components/bed_mesh_intro_settings.xml
+components/calibration_live_belt.xml
+components/calibration_live_card.xml
+components/calibration_live_heat.xml
+components/calibration_live_mesh.xml
+components/calibration_live_shaper.xml
 components/calibration_run_pick_row.xml
 components/calibration_run_prereq_row.xml
 components/calibration_run_result_row.xml
@@ -30,6 +37,7 @@ components/camera_config_modal.xml
 components/camera_fullscreen.xml
 components/firmware_update_entry_row.xml
 components/firmware_update_image_row.xml
+components/heater_mpc_switch_steps.xml
 components/panel_widget_camera.xml
 components/panel_widget_gcode_console.xml
 components/panel_widget_toolhead.xml

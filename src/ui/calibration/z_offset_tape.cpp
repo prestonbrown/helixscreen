@@ -4,9 +4,10 @@
 
 #include "lvgl/lvgl.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <cmath>
 #include <cstdlib>
-#include <fmt/format.h>
 
 namespace helix::ztape {
 

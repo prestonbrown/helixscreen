@@ -14,13 +14,13 @@
 #include "theme_manager.h"
 #include "z_offset_tape.h"
 
+#include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <fmt/format.h>
 #include <string>
 
 using namespace helix;

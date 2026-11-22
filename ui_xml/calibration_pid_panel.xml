@@ -40,9 +40,8 @@
               width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 0" flag="hidden"/>
         <calibration_intro name="heater_intro"
-                           left_label="Heater" left_label_tag="Heater" right_label="Calibrate at"
-                           right_label_tag="Calibrate at" secondary_name="btn_advanced" secondary_text="Advanced"
-                           secondary_tag="Advanced" secondary_callback="on_pid_advanced" primary_name="btn_start"
+                           left_label="Heater" right_label="Calibrate at" secondary_name="btn_advanced"
+                           secondary_text="Advanced" secondary_callback="on_pid_advanced" primary_name="btn_start"
                            primary_bind_text="pid_cta_text" primary_callback="on_pid_start"
                            primary_disabled_cond="pid_cal_not_idle eq 1" status_subject="pid_restart_note"
                            status_color="#warning">
@@ -181,9 +180,8 @@
               hidden="true">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 1" flag="hidden"/>
         <calibration_intro name="switch_intro"
-                           secondary_name="btn_keep_pid" secondary_text="Keep PID" secondary_tag="Keep PID"
-                           secondary_callback="on_pid_keep_pid" primary_name="btn_switch_mpc"
-                           primary_text="Switch and calibrate" primary_tag="Switch and calibrate"
+                           secondary_name="btn_keep_pid" secondary_text="Keep PID" secondary_callback="on_pid_keep_pid"
+                           primary_name="btn_switch_mpc" primary_text="Switch and calibrate"
                            primary_callback="on_pid_switch_mpc"
                            primary_disabled_cond="cal_switch_ready eq 0 or pid_cal_not_idle eq 1">
           <!-- What MPC is, and the same fan change under both methods -->
@@ -229,7 +227,7 @@
                 <lv_obj width="0"
                         height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
                         scrollable="false">
-                  <cal_intro_section_label text="Heater power" text_tag="Heater power"/>
+                  <cal_intro_section_label text="Heater power"/>
                   <text_heading bind_text="cal_wattage_display"/>
                   <text_small width="100%"
                               bind_text="cal_power_source" style_text_font="#cal_font_detail"
