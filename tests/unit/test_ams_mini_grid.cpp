@@ -3,11 +3,12 @@
 
 /**
  * @file test_ams_mini_grid.cpp
- * @brief The spool view's grid: how plan_ams_mini_grid() packs units into a
- * box, when the widget draws the grid instead of the one-row strip, and that a
- * lane count no grid can hold falls back to the strip, which scrolls.
+ * @brief The spool view's layouts: how plan_ams_mini_grid() packs units into
+ * a box, how plan_ams_mini_scroll() lays out lanes that do not fit, and that
+ * the widget never draws a lane below the usable minimum.
  */
 
+#include "ui_ams_lane_spool.h"
 #include "ui_ams_mini_status.h"
 #include "ui_toolhead_badge.h"
 
@@ -20,6 +21,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "theme_manager.h"
 
+#include <algorithm>
 #include <memory>
 #include <numeric>
 #include <random>
@@ -169,17 +171,41 @@ TEST_CASE("ams_mini grid: every plan fits its box", "[ams_mini][grid]") {
 // Grid or strip
 // ============================================================================
 
-TEST_CASE("ams_mini grid: when the widget draws the grid", "[ams_mini][grid]") {
-    using helix::ui::ams_mini_use_grid;
-    // A row tray never draws it.
-    CHECK_FALSE(ams_mini_use_grid(false, false, 80, 24, 24));
-    // A fill tray draws it whenever its spool reads.
-    CHECK(ams_mini_use_grid(true, false, 24, 56, 24));
-    CHECK_FALSE(ams_mini_use_grid(true, false, 23, 24, 24));
-    // An auto tray only for a larger spool than the strip's.
-    CHECK(ams_mini_use_grid(false, true, 31, 24, 24));
-    CHECK_FALSE(ams_mini_use_grid(false, true, 24, 24, 24));
-    CHECK_FALSE(ams_mini_use_grid(false, true, 22, 21, 24));
+TEST_CASE("ams_mini scroll: as many usable rows as the height holds", "[ams_mini][grid]") {
+    using helix::ui::plan_ams_mini_scroll;
+    const AmsMiniGridMetrics m = metrics(false);
+    // 216px holds two rows of 36px spools (8 + 36 + 34 = 78 each), not three.
+    const AmsMiniGridPlan p = plan_ams_mini_scroll({48}, 216, 50, 6, 36, m);
+    REQUIRE(p.groups.size() == 1);
+    CHECK(p.scrolls);
+    CHECK(p.groups[0].rows == 2);
+    CHECK(p.groups[0].cols == 24);
+    CHECK(p.spool >= 36);
+    CHECK(p.spool + m.badge_margin + m.text_h <= p.row_h);
+    CHECK(2 * p.row_h + m.gap <= 216 - 6);
+    // At least as wide as its text needs, and as its spool.
+    CHECK(p.cell_w == std::max(50, p.spool + m.badge_margin));
+}
+
+TEST_CASE("ams_mini scroll: each unit keeps its own box in one line", "[ams_mini][grid]") {
+    using helix::ui::plan_ams_mini_scroll;
+    const AmsMiniGridPlan p = plan_ams_mini_scroll({1, 4, 4}, 216, 40, 6, 36, metrics(true));
+    REQUIRE(p.groups.size() == 3);
+    CHECK(p.groups[0].new_line);
+    CHECK_FALSE(p.groups[1].new_line);
+    CHECK_FALSE(p.groups[2].new_line);
+    // A one-lane unit is one cell; four lanes in two rows are a 2x2 box.
+    CHECK(p.groups[0].rows == 1);
+    CHECK(p.groups[1].rows == 2);
+    CHECK(p.groups[1].cols == 2);
+}
+
+TEST_CASE("ams_mini scroll: a box too short for one usable row plans nothing", "[ams_mini][grid]") {
+    using helix::ui::plan_ams_mini_scroll;
+    const AmsMiniGridMetrics m = metrics(false);
+    // One row needs 8 + 36 + 34 = 78px plus the 6px scrollbar.
+    CHECK(plan_ams_mini_scroll({8}, 84, 40, 6, 36, m).spool >= 36);
+    CHECK(plan_ams_mini_scroll({8}, 83, 40, 6, 36, m).spool <= 0);
 }
 
 TEST_CASE("ams_mini grid: unit groups give way to one block when they cost a third",
@@ -224,7 +250,45 @@ lv_obj_t* auto_tray(lv_obj_t* screen, int32_t w, int32_t h, int lanes) {
 bool draws_grid(lv_obj_t* tray) {
     lv_obj_t* sc = UITest::find_by_name(tray, "ams_spools_container");
     REQUIRE(sc != nullptr);
-    return lv_obj_has_state(sc, LV_STATE_USER_1);
+    return !lv_obj_is_hidden(sc) && lv_obj_has_state(sc, LV_STATE_USER_1);
+}
+
+bool scrolls_sideways(lv_obj_t* tray) {
+    lv_obj_t* sc = UITest::find_by_name(tray, "ams_spools_container");
+    REQUIRE(sc != nullptr);
+    return !lv_obj_is_hidden(sc) && lv_obj_has_state(sc, LV_STATE_USER_2) &&
+           lv_obj_get_scroll_right(sc) > 0;
+}
+
+int text_w(lv_obj_t* label) {
+    lv_point_t size;
+    lv_text_get_size(&size, lv_label_get_text(label),
+                     lv_obj_get_style_text_font(label, LV_PART_MAIN), 0, 0, LV_COORD_MAX,
+                     LV_TEXT_FLAG_NONE);
+    return size.x;
+}
+
+/// Every lane is usable: a spool of at least kAmsMiniUsableSpoolPx, its
+/// number whole inside its badge, its material whole inside its label.
+void check_lanes_usable(lv_obj_t* tray, int lanes) {
+    for (int i = 0; i < lanes; ++i) {
+        INFO("lane " << i);
+        lv_obj_t* cell = UITest::find_by_name(tray, ("spool_cell_" + std::to_string(i)).c_str());
+        REQUIRE(cell != nullptr);
+        lv_obj_t* spool = lv_obj_find_by_name(cell, "lane_spool");
+        REQUIRE(spool != nullptr);
+        // The lane spool widget is its graphic plus the badge's slack.
+        CHECK(lv_obj_get_height(spool) >=
+              helix::ui::kAmsMiniUsableSpoolPx + helix::ui::kAmsLaneSpoolBadgeMarginPx);
+        lv_obj_t* badge = lv_obj_find_by_name(cell, ("spool_badge_" + std::to_string(i)).c_str());
+        REQUIRE(badge != nullptr);
+        lv_obj_t* number = lv_obj_find_by_name(badge, "lane_badge_label");
+        REQUIRE(number != nullptr);
+        CHECK(text_w(number) <= lv_obj_get_width(badge));
+        lv_obj_t* mat = lv_obj_find_by_name(cell, ("spool_material_" + std::to_string(i)).c_str());
+        REQUIRE(mat != nullptr);
+        CHECK(text_w(mat) <= lv_obj_get_width(mat));
+    }
 }
 
 /// Every lane's cell is laid out inside the tray or reachable by scrolling,
@@ -270,33 +334,44 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
-                 "ams_mini grid: more lanes than any grid holds fall back to the scrolling strip",
+                 "ams_mini scroll: lanes that do not fit stay usable and scroll in every row",
                  "[ams_mini][grid]") {
     lv_display_t* disp = lv_display_get_default();
     ScopedResolution medium(disp, 800, 480);
     theme_manager_refresh_layout_constants(disp);
     ui_ams_mini_status_init();
 
-    // 48 lanes (twelve four-lane units) in the 4x2 tile, and in a 2x2 one.
+    // 48 lanes in the 4x2 and 2x2 tiles: two rows, scrolling.
     for (const auto& [w, h] : {std::pair{466, 216}, std::pair{228, 216}}) {
         INFO(w << "x" << h);
         lv_obj_t* tray = auto_tray(test_screen(), w, h, 48);
-        CHECK_FALSE(draws_grid(tray));
-        lv_obj_t* sc = UITest::find_by_name(tray, "ams_spools_container");
-        CHECK(lv_obj_get_scroll_right(sc) > 0);
+        CHECK(scrolls_sideways(tray));
         check_no_lane_clipped(tray, 48);
+        check_lanes_usable(tray, 48);
+        lv_obj_t* first = UITest::find_by_name(tray, "spool_cell_0");
+        lv_obj_t* second_row = UITest::find_by_name(tray, "spool_cell_24");
+        REQUIRE((first && second_row));
+        CHECK(lv_obj_get_y(second_row) > lv_obj_get_y(first));
     }
+    // Eight lanes in the one-row 2x1 tile: one usable row, scrolling.
+    lv_obj_t* tray = auto_tray(test_screen(), 228, 99, 8);
+    CHECK(scrolls_sideways(tray));
+    check_lanes_usable(tray, 8);
     theme_manager_refresh_layout_constants(disp);
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini grid: a short home tile keeps the strip",
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_mini scroll: a tile too short for one usable row shows the bars",
                  "[ams_mini][grid]") {
     lv_display_t* disp = lv_display_get_default();
     ScopedResolution medium(disp, 800, 480);
     theme_manager_refresh_layout_constants(disp);
     ui_ams_mini_status_init();
 
-    lv_obj_t* tray = auto_tray(test_screen(), 466, 99, 4);
+    lv_obj_t* tray = auto_tray(test_screen(), 466, 50, 4);
+    lv_obj_t* bars = UITest::find_by_name(tray, "ams_bars_container");
+    REQUIRE(bars != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(bars));
     CHECK_FALSE(draws_grid(tray));
     theme_manager_refresh_layout_constants(disp);
 }
@@ -364,10 +439,12 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini grid: the home tile titles each un
     ui_ams_mini_status_init();
     install_afc_direct();
 
-    // The 4x2 home tile at 800x480.
-    lv_obj_t* tray = bound_tray(test_screen(), 466, 216, AmsMiniFill::Auto);
-    REQUIRE(draws_grid(tray));
+    // The 2x2 home tile at 800x480: the units scroll in titled boxes.
+    lv_obj_t* tray = bound_tray(test_screen(), 228, 216, AmsMiniFill::Auto);
+    REQUIRE(scrolls_sideways(tray));
     const auto snapshot = helix::AmsState::instance().system_info();
+    INFO("units " << snapshot->units.size() << ", groups "
+                  << lv_obj_get_child_count(UITest::find_by_name(tray, "ams_spools_container")));
     std::vector<std::string> expected;
     for (size_t u = 0; u < snapshot->units.size(); ++u)
         expected.push_back(helix::ui::unit_display_name(snapshot->units[u], static_cast<int>(u)));
@@ -401,8 +478,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini grid: a fill tray draws one untitl
     install_afc_direct();
 
     // The box where the home tile titles its groups: a fill tray does not.
-    lv_obj_t* tray = bound_tray(test_screen(), 466, 216, AmsMiniFill::On);
-    REQUIRE(draws_grid(tray));
+    lv_obj_t* tray = bound_tray(test_screen(), 228, 216, AmsMiniFill::On);
+    REQUIRE(scrolls_sideways(tray));
     CHECK(group_titles(tray).empty());
     check_no_lane_clipped(tray, helix::AmsState::instance().system_info()->total_slots);
     teardown_ams();
