@@ -34,6 +34,9 @@ namespace {
 /// helix_filament_id_source's value on a record whose `filament_id` is the
 /// linked spool's own Orca id rather than the catalog pick's.
 constexpr const char* kFilamentIdSourceSpoolman = "spoolman";
+/// ...and on one whose `filament_id` is the material family's Generic preset,
+/// standing in for a product no catalog entry or tracker names.
+constexpr const char* kFilamentIdSourceGeneric = "generic";
 
 // Outer Moonraker DB key for a slot. NOTE the two styles have DIFFERENT bases:
 //   Lane -> "lane<i+1>"  (1-based, AFC/Happy Hare convention)
@@ -158,16 +161,24 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
     j["spool_id"] = positive_or_null(o.spoolman_id);
     j["spoolman_filament_id"] = positive_or_null(o.spoolman_filament_id);
     // The linked spool's own Orca id first, because the tracker wins on
-    // identity (RFC 0001 §6); otherwise only an id the catalog records for this
-    // one product, never a guess.
+    // identity (RFC 0001 §6); then an id the catalog records for this one
+    // product. Failing both, the family's Generic preset: the same
+    // "Generic <family> @System" Orca's own map_filament_type_to_generic_id
+    // targets, a material claim rather than a product one. Orca reads
+    // filament_id and never vendor_name, and on a null id it picks the first
+    // visible preset of the type, of any brand and any bed temperature.
     j["filament_id"] = nullptr;
     if (o.spoolman_id > 0 && !o.spoolman_orca_filament_id.empty()) {
         j["filament_id"] = o.spoolman_orca_filament_id;
         j["helix_filament_id_source"] = kFilamentIdSourceSpoolman;
-    } else if (!o.catalog_id.empty()) {
-        if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
-            !orca.empty())
-            j["filament_id"] = std::move(orca);
+    } else if (std::string orca = helix::printer::FilamentCatalog::orca_id_for(o.catalog_id);
+               !orca.empty()) {
+        j["filament_id"] = std::move(orca);
+    } else if (std::string generic =
+                   helix::printer::FilamentCatalog::generic_orca_id_for(o.material, match);
+               !generic.empty()) {
+        j["filament_id"] = std::move(generic);
+        j["helix_filament_id_source"] = kFilamentIdSourceGeneric;
     }
     // Resolved at emit time, so a material change picks up fresh defaults.
     const ResolvedTemps temps = resolved_temps(o);
@@ -273,6 +284,10 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
     o.remaining_weight_g = helix::json_util::safe_float(j, "remaining_weight_g", -1.0f);
     o.total_weight_g = helix::json_util::safe_float(j, "total_weight_g", -1.0f);
     o.color_name = string_with_alias(j, "helix_color_name", "color_name");
+    // A name describe_color() could give is a cache of the hex, possibly from
+    // older naming: the display derives it afresh, and the next write omits it.
+    if (o.color_set && helix::is_derived_color_name(o.color_name))
+        o.color_name.clear();
     o.catalog_id = helix::json_util::safe_string(j, "helix_catalog_id");
     o.product_name = helix::json_util::safe_string(j, "helix_product_name");
     o.fingerprint = helix::json_util::safe_string(j, "helix_fingerprint");
