@@ -645,6 +645,7 @@ class AmsEditOverlay : public OverlayBase {
     /// The star's tap: the selected product joins or leaves the favorites.
     void handle_star_toggle();
     helix::Subject star_state_subject_{};
+    helix::Subject has_favorites_subject_{}; ///< 1 while any tile is a favorite
     /// A catalog product picked: family, variant, brand and product at once.
     void apply_catalog_pick(const helix::printer::EffectiveFilament& ef);
     std::vector<spool_assign::SpoolTile> spool_tiles_;

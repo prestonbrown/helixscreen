@@ -678,6 +678,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(product_hidden_subject_, 1, "ams_edit_product_hidden", subjects_);
         UI_MANAGED_SUBJECT_INT(no_product_subject_, 1, "ams_edit_no_product", subjects_);
         UI_MANAGED_SUBJECT_INT(star_state_subject_, 0, "ams_edit_star_state", subjects_);
+        UI_MANAGED_SUBJECT_INT(has_favorites_subject_, 0, "ams_edit_has_favorites", subjects_);
         // The color line and row (update_color_row).
         UI_MANAGED_SUBJECT_STRING(color_current_multi_subject_, color_current_multi_buf_, "",
                                   "ams_edit_color_current_multi", subjects_);
@@ -1763,6 +1764,9 @@ void AmsEditOverlay::refresh_spool_tiles() {
         s_tile_colors.set_color(i, spool_tiles_[i].rgb);
         s_tile_labels.set_string(i, spool_tiles_[i].label);
         s_tile_favorites.set_int(i, spool_tiles_[i].favorite() ? 1 : 0);
+    }
+    if (subjects_initialized_) {
+        lv_subject_set_int(&has_favorites_subject_, favorites.empty() ? 0 : 1);
     }
 }
 

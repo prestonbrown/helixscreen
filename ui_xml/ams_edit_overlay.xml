@@ -104,6 +104,9 @@
     <int name="ams_edit_swatch_cap" value="72"/>
     <!-- The spool tiles a new spool starts from: spool_assign::kSpoolTiles. -->
     <int name="ams_edit_spool_tiles" value="12"/>
+    <!-- One row of favorite tiles at the small classes: the first slots,
+         which are the favorites, four to a row. -->
+    <int name="ams_edit_favorite_row_tiles" value="4"/>
     <!-- The Filament page's label column, and the label's drop to sit level
          with the first line of swatches beside it. -->
     <px name="ams_edit_label_w_micro" value="64"/>
@@ -578,6 +581,20 @@
             <common_spool_tile tile_name="spool_tile_${i}"
                                color_subject="ams_edit_tile_color_${i}" label_subject="ams_edit_tile_label_${i}"
                                favorite_subject="ams_edit_tile_fav_${i}"/>
+          </repeat>
+        </lv_obj>
+
+        <!-- The small classes have room for one row: the favorites alone, and
+             only while there are some. Shown before the color row is measured,
+             so the swatches give up a row for it. -->
+        <lv_obj name="favorite_spools"
+                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_column="#space_xxs"
+                scrollable="false" hidden="true">
+          <bind_flag_if cond="ams_edit_adding eq 0 or ui_breakpoint gt 1 or ams_edit_has_favorites eq 0" flag="hidden"/>
+          <repeat count="#ams_edit_favorite_row_tiles">
+            <common_spool_tile tile_name="favorite_tile_${i}"
+                               color_subject="ams_edit_tile_color_${i}" label_subject="ams_edit_tile_label_${i}"
+                               favorite_subject="ams_edit_tile_fav_${i}" show_subject="ams_edit_tile_fav_${i}"/>
           </repeat>
         </lv_obj>
 
