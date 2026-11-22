@@ -754,7 +754,7 @@
   <translation tag="Calibration complete - save to keep the offsets" fr="Calibration terminée - enregistrez pour conserver les offsets"/>
   <translation tag="Calibration complete!" fr="Calibration terminée !"/>
   <translation tag="Calibration complete! Press &apos;Next&apos; to continue." fr="Calibration terminée ! Appuyez sur &apos;Suivant&apos; pour continuer."/>
-  <translation tag="Calibration ended"/>
+  <translation tag="Calibration ended" fr="Calibration terminée"/>
   <translation tag="Calibration failed" fr="Échec de la calibration"/>
   <translation tag="Calibration failed - touch targets more precisely." fr="Échec de calibration – touchez les cibles plus précisément."/>
   <translation tag="Calibration failed: {}" fr="Échec de la calibration : {}"/>
@@ -2304,7 +2304,7 @@
   <translation tag="IFS: loading" fr="IFS : chargement"/>
   <translation tag="IFS: unloading" fr="IFS : déchargement"/>
   <translation tag="IMPORT FROM USB" fr="IMPORTER DEPUIS USB"/>
-  <translation tag="INCOMPLETE"/>
+  <translation tag="INCOMPLETE" fr="INCOMPLÈTE"/>
   <translation tag="INDX dock positions are not calibrated" fr="Les positions des docks INDX ne sont pas calibrées"/>
   <translation tag="INDX macros not recognized" fr="Macros INDX non reconnues"/>
   <translation tag="INPUTS" fr="ENTRÉES"/>
@@ -2508,7 +2508,7 @@
   <translation tag="Klipper restarts before calibrating." fr="Klipper redémarre avant la calibration."/>
   <translation tag="Klipper restarts, about 20 s" fr="Klipper redémarre, environ 20 s"/>
   <translation tag="Klipper shut down" fr="Klipper arrêté"/>
-  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run."/>
+  <translation tag="Klipper stopped during the calibration, so the remaining steps did not run." fr="Klipper s&apos;est arrêté pendant la calibration, les étapes restantes n&apos;ont donc pas été lancées."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." fr="Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes et bloquer Klipper, qu&apos;un redémarrage firmware ne peut alors plus atteindre. Éteignez puis rallumez l&apos;imprimante (ou redémarrez Klipper via SSH), puis réessayez."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." fr="Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes ; redémarrez Klipper puis réessayez."/>
   <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
@@ -2941,7 +2941,7 @@
   <translation tag="NEW HIGH SCORE!&#10;{}&#10;Tap to play again" fr="NOUVEAU RECORD !&#10;{}&#10;Touchez pour rejouer"/>
   <translation tag="NEWLY DISCOVERED" fr="NOUVELLEMENT DÉCOUVERT"/>
   <translation tag="NOT AVAILABLE HERE" fr="NON DISPONIBLE ICI"/>
-  <translation tag="NOT DONE"/>
+  <translation tag="NOT DONE" fr="PAS FAIT"/>
   <translation tag="Name" fr="Nom"/>
   <translation tag="Name (optional)" fr="Nom (facultatif)"/>
   <translation tag="Name, image and model" fr="Nom, image et modèle"/>
@@ -2985,7 +2985,7 @@
   <translation tag="Next Zone" fr="Zone suivante"/>
   <translation tag="Next Zone (~{} min)" fr="Zone suiv. (~{} min)"/>
   <translation tag="Next, review the results and save them once" fr="Ensuite, vérifiez les résultats et enregistrez-les une fois"/>
-  <translation tag="Next, see what finished and why the rest did not"/>
+  <translation tag="Next, see what finished and why the rest did not" fr="Ensuite, voyez ce qui a abouti et pourquoi le reste non"/>
   <translation tag="Next: {}" fr="À suivre : {}"/>
   <translation tag="Niimbot (Bluetooth)" fr="Niimbot (Bluetooth)"/>
   <translation tag="Nixie Clock" fr="Horloge Nixie"/>
@@ -3097,7 +3097,7 @@
   <translation tag="No spools match. Add it as a new spool below." fr="Aucune bobine ne correspond. Ajoutez-la comme nouvelle bobine ci-dessous."/>
   <translation tag="No spools placed" fr="Aucune bobine posée"/>
   <translation tag="No spools to show. Add it as a new spool below." fr="Aucune bobine à afficher. Ajoutez-la ci-dessous comme nouvelle bobine."/>
-  <translation tag="No step finished"/>
+  <translation tag="No step finished" fr="Aucune étape terminée"/>
   <translation tag="No tape detected in printer" fr="Aucun ruban détecté dans l&apos;imprimante"/>
   <translation tag="No target printer configured" fr="Aucune imprimante cible configurée"/>
   <translation tag="No temperature sensors detected" fr="Aucun capteur de température détecté"/>
@@ -3171,9 +3171,9 @@
   <translation tag="Nothing starred yet. Tap the star on a filament to add it here." fr="Rien d&apos;étoilé pour le moment. Touchez l&apos;étoile d&apos;un filament pour l&apos;ajouter ici."/>
   <translation tag="Nothing to clean up" fr="Rien à nettoyer"/>
   <translation tag="Nothing to remap" fr="Rien à réaffecter"/>
-  <translation tag="Nothing to save"/>
+  <translation tag="Nothing to save" fr="Rien à enregistrer"/>
   <translation tag="Nothing to save." fr="Rien à enregistrer."/>
-  <translation tag="Nothing to save. Each step says why."/>
+  <translation tag="Nothing to save. Each step says why." fr="Rien à enregistrer. Chaque étape indique pourquoi."/>
   <translation tag="Nothing to tune here" fr="Rien à régler ici"/>
   <translation tag="Nothing to unload: no filament at the nozzle" fr="Rien à décharger : pas de filament à la buse"/>
   <translation tag="Nothing was changed. Temperature and material are kept, so a retry is one tap." fr="Rien n&apos;a été modifié. La température et le matériau sont conservés, réessayer ne demande qu&apos;un appui."/>
@@ -4034,7 +4034,7 @@
   <translation tag="Review detected hardware validation issues" fr="Examiner les problèmes de validation matérielle détectés"/>
   <translation tag="Review the results, then save once." fr="Vérifiez les résultats, puis enregistrez une fois."/>
   <translation tag="Review the results, then save them all at once." fr="Vérifiez les résultats, puis enregistrez-les tous d&apos;un coup."/>
-  <translation tag="Review what finished. The results say why the rest did not."/>
+  <translation tag="Review what finished. The results say why the rest did not." fr="Vérifiez ce qui a abouti. Les résultats expliquent pourquoi le reste non."/>
   <translation tag="Review your configuration below, then click Finish to save" fr="Vérifiez votre configuration ci-dessous, puis cliquez sur Terminer pour enregistrer"/>
   <translation tag="Rewinding" fr="Rembobinage"/>
   <translation tag="Right" fr="Droite"/>
@@ -4997,7 +4997,7 @@
   <translation tag="The printer homes, then probes each screw position." fr="L&apos;imprimante se met à l&apos;origine, puis palpe chaque position de vis."/>
   <translation tag="The printer is already resuming the print" fr="L&apos;imprimante reprend déjà l&apos;impression"/>
   <translation tag="The printer is busy. Run the check when no print or other motion is in progress." fr="L&apos;imprimante est occupée. Lancez la vérification lorsqu&apos;aucune impression ni aucun autre mouvement n&apos;est en cours."/>
-  <translation tag="The printer is finishing a step&apos;s command. Save once it is done."/>
+  <translation tag="The printer is finishing a step&apos;s command. Save once it is done." fr="L&apos;imprimante termine la commande d&apos;une étape. Enregistrez une fois terminé."/>
   <translation tag="The printer is not connected." fr="L&apos;imprimante n&apos;est pas connectée."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." fr="L&apos;imprimante n&apos;est pas référencée. Continuer référencera tous les axes et déplacera la tête d&apos;outil. Assurez-vous que le plateau est dégagé."/>
   <translation tag="The printer is not ready." fr="L&apos;imprimante n&apos;est pas prête."/>
@@ -5033,14 +5033,14 @@
   <translation tag="The printer shut down" fr="L&apos;imprimante s&apos;est arrêtée"/>
   <translation tag="The printer shut down while homing or probing." fr="L&apos;imprimante s&apos;est arrêtée pendant la prise d&apos;origine ou le palpage."/>
   <translation tag="The printer shut down while it was homing or probing." fr="L&apos;imprimante s&apos;est arrêtée pendant la prise d&apos;origine ou le palpage."/>
-  <translation tag="The printer stayed busy long after the step failed, so the remaining steps did not run."/>
+  <translation tag="The printer stayed busy long after the step failed, so the remaining steps did not run." fr="L&apos;imprimante est restée occupée longtemps après l&apos;échec de l&apos;étape, les étapes restantes n&apos;ont donc pas été lancées."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." fr="L&apos;imprimante s&apos;est arrêtée par sécurité ; le firmware n&apos;a donné aucune raison précise."/>
   <translation tag="The printer stops and cannot print until the update is done." fr="L&apos;imprimante s&apos;arrête et ne peut pas imprimer tant que la mise à jour n&apos;est pas terminée."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." fr="L&apos;imprimante change entre plusieurs têtes d&apos;outil. Gérez les outils sur l&apos;écran du système de filament."/>
   <translation tag="The printer was stopped" fr="L&apos;imprimante a été arrêtée"/>
   <translation tag="The printer&apos;s computer fell behind" fr="L&apos;ordinateur de l&apos;imprimante a pris du retard"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" fr="Le firmware de l&apos;imprimante choisit lui-même vers où basculer en fin de filament"/>
-  <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run."/>
+  <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run." fr="L&apos;état de l&apos;imprimante ne pouvait plus être lu, les étapes restantes n&apos;ont donc pas été lancées."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." fr="L&apos;état de l&apos;imprimante n&apos;est pas encore connu, une impression est peut-être en cours."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." fr="Le palpage avant l&apos;impression ne concorde pas avec le maillage du plateau enregistré : un autre plateau, une autre température, ou des débris sur le plateau."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." fr="La sonde n&apos;a jamais touché le plateau : la plaque PEI est mal placée."/>
@@ -5048,9 +5048,9 @@
   <translation tag="The probe was already triggered before the move started." fr="La sonde était déjà déclenchée avant le début du déplacement."/>
   <translation tag="The probe was used before the printer was homed." fr="La sonde a été utilisée avant la prise d&apos;origine de l&apos;imprimante."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." fr="La file d&apos;attente imprime la plaque par défaut de ce .3mf. Imprimez cette plaque d&apos;ici."/>
-  <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then."/>
+  <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then." fr="Les étapes restantes ne seront pas lancées. L&apos;imprimante termine d&apos;abord la commande en cours, et ses chauffages restent allumés jusque-là."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" fr="La position demandée est en dehors des limites de l&apos;imprimante"/>
-  <translation tag="The results say why."/>
+  <translation tag="The results say why." fr="Les résultats expliquent pourquoi."/>
   <translation tag="The right RFID reader in this CFS unit may need service" fr="Le lecteur RFID droit de cette unité CFS nécessite peut-être une intervention"/>
   <translation tag="The running step stops at once and the printer restarts, which also drops the results of the steps that finished." fr="L&apos;étape en cours s&apos;arrête immédiatement et l&apos;imprimante redémarre, ce qui perd aussi les résultats des étapes terminées."/>
   <translation tag="The running step stops at once and the printer restarts." fr="L&apos;étape en cours s&apos;arrête immédiatement et l&apos;imprimante redémarre."/>
@@ -5065,7 +5065,7 @@
   <translation tag="The slot asked to eject still has its filament loaded in the toolhead." fr="Le slot à éjecter a encore son filament chargé dans la tête d&apos;outil."/>
   <translation tag="The slot chosen for this tool change has no filament at its inlet." fr="Le slot choisi pour ce changement d&apos;outil n&apos;a pas de filament à son entrée."/>
   <translation tag="The speed of one fan you choose" fr="La vitesse d&apos;un ventilateur choisi"/>
-  <translation tag="The step didn&apos;t finish"/>
+  <translation tag="The step didn&apos;t finish" fr="L&apos;étape n&apos;a pas abouti"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." fr="Le masque de sous-réseau n&apos;est pas valide. Utilisez une forme comme 255.255.255.0 ou 24."/>
   <translation tag="The temperature was changed elsewhere." fr="La température a été modifiée ailleurs."/>
   <translation tag="The tensioners pull each belt to its target" fr="Les tendeurs amènent chaque courroie à sa tension cible"/>
@@ -5587,7 +5587,7 @@
   <translation tag="Volume" fr="Volume"/>
   <translation tag="Volume of filament used during ramming" fr="Volume de filament utilisé pendant le bourrage"/>
   <translation tag="Volume {}%" fr="Volume {}%"/>
-  <translation tag="WAITING"/>
+  <translation tag="WAITING" fr="EN ATTENTE"/>
   <translation tag="WEIGHT SYNC" fr="SYNCHRONISATION DU POIDS"/>
   <translation tag="WIDTH SENSORS" fr="CAPTEURS DE LARGEUR"/>
   <translation tag="WLED Preset" fr="Préréglage WLED"/>
@@ -5615,8 +5615,8 @@
   <translation tag="Waiting for the chamber to heat" fr="Attente du chauffage de la chambre"/>
   <translation tag="Waiting for the filament system to report its state" fr="En attente de l&apos;état du système de filament"/>
   <translation tag="Waiting for the printer" fr="Attente de l&apos;imprimante"/>
-  <translation tag="Waiting for the printer to finish"/>
-  <translation tag="Waiting for the printer to finish its command"/>
+  <translation tag="Waiting for the printer to finish" fr="En attente de la fin de l&apos;imprimante"/>
+  <translation tag="Waiting for the printer to finish its command" fr="En attente de la fin de la commande de l&apos;imprimante"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" fr="En attente de l&apos;état de l&apos;imprimante ; réessayez une fois qu&apos;elle est connectée"/>
   <translation tag="Waiting for you at the Z offset screen" fr="En attente de vous sur l&apos;écran de l&apos;offset Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." fr="En attente de la lecture de la configuration de l&apos;imprimante depuis Klipper."/>
@@ -6000,7 +6000,7 @@
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." fr="v%s n&apos;a pas de version pour %s et ne peut donc pas être installée ici. Choisissez un canal de mise à jour avec une version plus récente."/>
   <translation tag="v{} installed! Restarting..." fr="v{} installée ! Redémarrage..."/>
   <translation tag="v{} is available. Tap to update." fr="v{} est disponible. Appuyez pour mettre à jour."/>
-  <translation tag="waiting for the printer"/>
+  <translation tag="waiting for the printer" fr="en attente de l&apos;imprimante"/>
   <translation tag="was {:.0f}%" fr="était {:.0f}%"/>
   <translation tag="what you turned" fr="ce que vous avez tourné"/>
   <translation tag="within one bin" fr="à moins d&apos;un bin"/>
@@ -6060,8 +6060,8 @@
   <translation tag="{} days" fr="{} jours"/>
   <translation tag="{} detected" fr="{} détecté"/>
   <translation tag="{} did not arrive; nothing was sent" fr="{} n&apos;est pas arrivé ; rien n&apos;a été envoyé"/>
-  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle."/>
-  <translation tag="{} did not run"/>
+  <translation tag="{} did not finish, and the printer is still running its command. The next step starts once the printer is idle." fr="{} n&apos;a pas abouti et l&apos;imprimante exécute encore sa commande. L&apos;étape suivante démarre dès que l&apos;imprimante est libre."/>
+  <translation tag="{} did not run" fr="{} n&apos;a pas été lancé"/>
   <translation tag="{} did not switch to {}. The print continued without switching." fr="{} n&apos;est pas passé sur {}. L&apos;impression a continué sans changement."/>
   <translation tag="{} did not switch to {}. The print is still paused, and {} now carries the filament label of {}." fr="{} n&apos;est pas passé à {}. L&apos;impression reste en pause, et {} porte maintenant l&apos;étiquette de filament de {}."/>
   <translation tag="{} did not switch to {}. The print is still paused." fr="{} n&apos;est pas passé à {}. L&apos;impression reste en pause."/>
@@ -6133,7 +6133,7 @@
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." fr="{} nouveaux plugins disponibles. Activez-les dans Paramètres &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" fr="{} : défaut du capteur de buse"/>
   <translation tag="{} of {} points" fr="{} points sur {}"/>
-  <translation tag="{} of {} steps didn&apos;t finish"/>
+  <translation tag="{} of {} steps didn&apos;t finish" fr="{} étapes sur {} n&apos;ont pas abouti"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." fr="{} étapes sur {} terminées. Vérifiez-les, puis enregistrez-les toutes d&apos;un coup."/>
   <translation tag="{} packages to update" fr="{} paquets à mettre à jour"/>
   <translation tag="{} preset" fr="{} préréglage"/>
