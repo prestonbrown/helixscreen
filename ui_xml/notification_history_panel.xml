@@ -33,13 +33,8 @@
       </repeat>
     </lv_obj>
     <!-- Empty state (shown when no notifications) -->
-    <lv_obj name="empty_state"
-            width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
-            scrollable="false">
-      <bind_flag_if_eq subject="notification_has_entries" flag="hidden" ref_value="1"/>
-      <!-- Bell icon for empty state -->
-      <icon src="bell" size="xl" variant="muted"/>
-      <text_muted width="100%" text="No notifications" style_pad_top="#space_md" style_text_align="center"/>
-    </lv_obj>
+    <empty_state name="empty_state"
+                 flex_grow="1" icon="bell" icon_size="xl" icon_variant="muted" text="No notifications"
+                 shown_subject="notification_has_entries"/>
   </view>
 </component>

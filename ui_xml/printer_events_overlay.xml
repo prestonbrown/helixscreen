@@ -23,21 +23,15 @@
                                      timestamp_subject="printer_event_time_${i}"/>
         </repeat>
       </lv_obj>
-      <lv_obj name="empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_gap="#space_md" hidden="true" scrollable="false">
-        <bind_flag_if_not_eq subject="printer_events_count" flag="hidden" ref_value="0"/>
-        <icon src="script_text" size="xl" variant="secondary"/>
-        <text_muted width="content" text="No printer events yet" style_text_align="center">
-          <bind_flag_if_eq subject="printer_events_unavailable" flag="hidden" ref_value="1"/>
-        </text_muted>
-        <!-- No plugin journal, and this build records none of its own -->
-        <text_muted name="events_unavailable"
-                    width="100%" text="Printer events need the HelixPrint plugin on this screen"
-                    style_text_align="center" long_mode="wrap">
-          <bind_flag_if_eq subject="printer_events_unavailable" flag="hidden" ref_value="0"/>
-        </text_muted>
-      </lv_obj>
+      <empty_state name="empty_state" flex_grow="1" icon="script_text" icon_size="xl" text="No printer events yet">
+        <bind_flag_if cond="printer_events_count ne 0 or printer_events_unavailable eq 1" flag="hidden"/>
+      </empty_state>
+      <!-- No plugin journal, and this build records none of its own -->
+      <empty_state name="events_unavailable"
+                   flex_grow="1" icon="script_text" icon_size="xl"
+                   text="Printer events need the HelixPrint plugin on this screen">
+        <bind_flag_if cond="printer_events_count ne 0 or printer_events_unavailable eq 0" flag="hidden"/>
+      </empty_state>
     </overlay_panel-overlay_content>
   </view>
 </component>

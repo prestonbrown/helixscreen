@@ -165,11 +165,11 @@ struct BatchStepsFixture : public XMLTestFixture {
         REQUIRE(lv_obj_get_child_count(container) > 0);
         lv_obj_t* bar = lv_obj_get_child(container, 0);
         std::vector<std::string> out;
-        // Step rows carry an indicator and a label; the connectors carry nothing.
+        // Step rows carry a label; the connectors carry nothing.
         for (uint32_t i = 0; i < lv_obj_get_child_count(bar); ++i) {
             lv_obj_t* item = lv_obj_get_child(bar, static_cast<int32_t>(i));
-            if (lv_obj_get_child_count(item) >= 2) {
-                out.emplace_back(lv_label_get_text(lv_obj_get_child(item, 1)));
+            if (lv_obj_t* label = lv_obj_find_by_name(item, "step_label")) {
+                out.emplace_back(lv_label_get_text(label));
             }
         }
         return out;

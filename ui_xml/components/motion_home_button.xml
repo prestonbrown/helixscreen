@@ -15,8 +15,8 @@
   </api>
   <view extends="ui_button" style_min_width="0" icon="$icon" text="$text" moves_machine="true">
     <!-- Idle first, solid after: the later style wins while it is enabled. -->
-    <style name="styles.choice_idle"/>
-    <bind_style_if name="styles.choice_selected" cond="$needs_home"/>
+    <style name="styles.choice_fill_idle"/>
+    <bind_style_if name="styles.choice_fill_selected" cond="$needs_home"/>
     <event_cb trigger="clicked" callback="on_motion_home" user_data="$axis"/>
   </view>
 </component>

@@ -49,7 +49,6 @@
 #include "ui_panel_ams.h"
 #include "ui_panel_home.h"
 #include "ui_severity_card.h"
-#include "ui_status_pill.h"
 #include "ui_switch.h"
 #include "ui_temp_display.h"
 #include "ui_tile_rung.h"
@@ -217,7 +216,6 @@ HostPort parse_moonraker_kconfig_url(const std::string& url) {
 void register_widgets() {
     helix::ui::icon::register_widget();
     helix::ui::register_tile_rung_binding();
-    ui_status_pill_register_widget();
     ui_switch_register();
     ui_card_register();
     setting_group_register();

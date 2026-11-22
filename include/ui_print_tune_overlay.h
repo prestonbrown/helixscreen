@@ -112,15 +112,6 @@ class PrintTuneOverlay : public OverlayBase {
     void handle_z_adjust(int direction);
 
     /**
-     * @brief Update Z-offset icons based on printer kinematics
-     *
-     * Sets appropriate icons for CoreXY (bed moves) vs Cartesian (head moves).
-     *
-     * @param panel The tune panel widget
-     */
-    void update_z_offset_icons(lv_obj_t* panel);
-
-    /**
      * @brief Adjust speed by a delta and send G-code
      * @param delta Speed change in percent (e.g. -10, -5, -1, +1, +5, +10)
      */
@@ -219,8 +210,6 @@ class PrintTuneOverlay : public OverlayBase {
     /// Install or remove the observers by whether the overlay or an inline
     /// section shows.
     void update_observers();
-    /// Applies @p fn to each live Z indicator: the overlay's and the inline section's.
-    template <typename Fn> void for_each_z_indicator(Fn&& fn);
     /// Renders the speed/flow headlines and their live readouts, led by
     /// whichever units the speed/flow preference picks.
     void update_display();
@@ -256,6 +245,8 @@ class PrintTuneOverlay : public OverlayBase {
     /// and every selection wrote all four. The XML compares against it with
     /// bind_style_if (CLAUDE.md rule 7).
     helix::Subject z_step_selected_subject_{};
+    /// The selected step in microns: what zooms the Z adjuster's tape.
+    helix::Subject z_step_microns_subject_{};
 
     /// Which z-offset the direction buttons drive: 0 machine-wide, 1 the active
     /// tool's own. Only meaningful on a tool changer — see helix::tool_offsets.
@@ -267,8 +258,6 @@ class PrintTuneOverlay : public OverlayBase {
     /// Label for the tool button ("T1"). Not tool_badge_text: that one is
     /// deliberately index-only, sized for a disc overlaid on the nozzle glyph.
     helix::Subject tune_z_tool_label_subject_{};
-    helix::Subject z_closer_icon_subject_{};  ///< Icon name for closer button (kinematic-aware)
-    helix::Subject z_farther_icon_subject_{}; ///< Icon name for farther button (kinematic-aware)
 
     /// The active extruder's reported K ("0.0420"), and whether a tuning
     /// print is running that the tuner could be reopened for.
@@ -284,8 +273,6 @@ class PrintTuneOverlay : public OverlayBase {
     char tune_speed_buf_[32] = "100%";
     char tune_flow_buf_[32] = "100%";
     char tune_z_offset_buf_[16] = "0.000mm";
-    char z_closer_icon_buf_[24] = "arrow_down";
-    char z_farther_icon_buf_[24] = "arrow_up";
     char tune_actual_speed_buf_[32] = "";
     char tune_actual_flow_buf_[32] = "";
     // Carries a translated position label and its offset value together
@@ -327,7 +314,6 @@ class PrintTuneOverlay : public OverlayBase {
     ObserverGuard pa_observer_;
     ObserverGuard pending_z_observer_;
     ObserverGuard per_head_z_observer_;
-    ObserverGuard bed_moves_observer_;
 };
 
 /// Lazy singleton; shared by the XML event callbacks and the panels that open it.

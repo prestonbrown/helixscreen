@@ -6,11 +6,10 @@
  * @brief PowerPanel must not touch its widget tree after that tree is deleted
  *
  * PowerPanel caches raw pointers into a widget tree whose lifetime it does not
- * own, and both of its rebuild producers (populate_device_list() from the
- * get_power_devices reply, handle_chip_clicked() from a chip tap) hand the
- * rebuild to the UpdateQueue. AsyncLifetimeGuard guards `this`; nothing guarded
- * the tree. Deleting the tree between "queued" and "drained" left every cached
- * pointer dangling and the null checks satisfied, so the deferred rebuild ran
+ * own, and populate_device_list() (the get_power_devices reply) hands the chip
+ * rebuild to the UpdateQueue; a chip tap only republishes the chips' subjects. AsyncLifetimeGuard
+ * guards `this`; nothing guarded the tree. Deleting the tree between "queued" and "drained" left
+ * every cached pointer dangling and the null checks satisfied, so the deferred rebuild ran
  * safe_clean_children() and the chip creation on freed memory (#776 family).
  *
  * These tests reproduce that ordering directly: populate, delete the tree, then
@@ -26,6 +25,7 @@
 #include "lvgl/lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
+#include "theme_manager.h"
 
 #include <memory>
 #include <vector>
@@ -152,13 +152,37 @@ TEST_CASE_METHOD(PowerPanelTeardownFixture,
     PowerPanelTestAccess::populate_device_list(panel(), sample_devices());
     UpdateQueue::instance().drain(); // settle the initial build
 
-    // The second producer: a chip tap re-queues the rebuild.
+    // A chip tap after the tree is built, then the tree dies before the drain.
     PowerPanelTestAccess::handle_chip_clicked(panel(), "led_strip");
 
     delete_widget_tree();
     UpdateQueue::instance().drain();
 
     CHECK(PowerPanelTestAccess::chip_container(panel()) == nullptr);
+}
+
+TEST_CASE_METHOD(PowerPanelTeardownFixture,
+                 "A power device chip tap toggles that chip's light in place",
+                 "[power][choice_chip]") {
+    PowerPanelTestAccess::populate_device_list(panel(), sample_devices());
+    UpdateQueue::instance().drain();
+
+    lv_obj_t* container = PowerPanelTestAccess::chip_container(panel());
+    REQUIRE(lv_obj_get_child_count(container) == 3);
+    lv_obj_t* chip = lv_obj_get_child(container, 1); // led_strip
+    const lv_color_t primary = theme_manager_get_color("primary");
+    auto lit = [&] { return lv_color_eq(lv_obj_get_style_bg_color(chip, LV_PART_MAIN), primary); };
+
+    const bool before = lit();
+    PowerPanelTestAccess::handle_chip_clicked(panel(), "led_strip");
+    UpdateQueue::instance().drain();
+    // The same chip, not a rebuilt one, follows its subject.
+    REQUIRE(lv_obj_get_child(container, 1) == chip);
+    CHECK(lit() != before);
+
+    PowerPanelTestAccess::handle_chip_clicked(panel(), "led_strip");
+    UpdateQueue::instance().drain();
+    CHECK(lit() == before);
 }
 
 TEST_CASE_METHOD(PowerPanelTeardownFixture,

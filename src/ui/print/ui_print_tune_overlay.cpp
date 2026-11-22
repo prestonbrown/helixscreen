@@ -7,7 +7,6 @@
 #if !defined(HELIX_PLATFORM_ESP32)
 #include "ui_overlay_pa_tuning.h"
 #endif
-#include "ui_z_offset_indicator.h"
 
 #include "core/observer_factory.h"
 #include "display_numbering.h"
@@ -60,7 +59,6 @@ void PrintTuneOverlay::release_observers() {
     pa_observer_.reset();
     pending_z_observer_.reset();
     per_head_z_observer_.reset();
-    bed_moves_observer_.reset();
 }
 
 void PrintTuneOverlay::on_ui_destroyed() {
@@ -110,18 +108,15 @@ void PrintTuneOverlay::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(tune_pa_subject_, tune_pa_buf_, "--", "tune_pa_display", subjects_);
     UI_MANAGED_SUBJECT_INT(tune_pa_session_subject_, 0, "tune_pa_session_active", subjects_);
 
-    // Z-offset direction button icons (kinematic-aware, like motion panel)
-    UI_MANAGED_SUBJECT_STRING(z_closer_icon_subject_, z_closer_icon_buf_, "arrow_down",
-                              "tune_z_closer_icon", subjects_);
-    UI_MANAGED_SUBJECT_STRING(z_farther_icon_subject_, z_farther_icon_buf_, "arrow_up",
-                              "tune_z_farther_icon", subjects_);
-
     // Which z-step amount is selected. Seeded from the last-persisted choice
     // rather than a hardcoded default so the panel reopens on the step the
     // user left it on.
     selected_z_step_idx_ = helix::zoffset::persisted_step_index();
     UI_MANAGED_SUBJECT_INT(z_step_selected_subject_, selected_z_step_idx_, "z_step_selected_idx",
                            subjects_);
+    UI_MANAGED_SUBJECT_INT(z_step_microns_subject_,
+                           helix::zoffset::step_microns(selected_z_step_idx_),
+                           "tune_z_step_microns", subjects_);
 
     // Which z-offset the direction buttons drive. Always starts machine-wide:
     // that is the only target every printer has, and it is what the panel meant
@@ -205,8 +200,6 @@ void PrintTuneOverlay::on_deactivating(DeactivateReason) {
 }
 
 void PrintTuneOverlay::setup_panel() {
-    // Update Z-offset icons based on printer kinematics
-    update_z_offset_icons(overlay_root_);
     spdlog::debug("[PrintTuneOverlay] Panel setup complete");
 }
 
@@ -230,9 +223,6 @@ void PrintTuneOverlay::activate_inline(lv_obj_t* section) {
     }
     inline_root_ = section;
     update_observers();
-    // Kinematics are known only once the printer has connected, after the host
-    // view was built.
-    update_z_offset_icons(nullptr);
     sync_to_state();
 #if !defined(HELIX_PLATFORM_ESP32)
     lv_subject_set_int(&tune_pa_session_subject_,
@@ -250,19 +240,6 @@ void PrintTuneOverlay::update_observers() {
         install_observers();
     } else {
         release_observers();
-    }
-}
-
-template <typename Fn> void PrintTuneOverlay::for_each_z_indicator(Fn&& fn) {
-    if (overlay_root_) {
-        if (lv_obj_t* indicator =
-                helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name())) {
-            fn(indicator);
-        }
-    }
-    // The inline section may leave its indicator out (narrow layouts hide it).
-    if (lv_obj_t* indicator = helix::ui::find_optional(inline_root_, "z_offset_indicator")) {
-        fn(indicator);
     }
 }
 
@@ -290,11 +267,6 @@ void PrintTuneOverlay::install_observers() {
         pending_z_observer_ = helix::ui::observe<int>(
             printer_state_->motion_state().get_pending_z_offset_delta_subject(), this,
             [](PrintTuneOverlay* self, int /*value*/) { self->update_tool_z_displays(); },
-            printer_state_->get_subjects_lifetime());
-        // The button order follows this subject in XML; the arrows follow it here.
-        bed_moves_observer_ = helix::ui::observe<int>(
-            printer_state_->capabilities_state().subject(Capability::BedMoves), this,
-            [](PrintTuneOverlay* self, int /*value*/) { self->update_z_offset_icons(nullptr); },
             printer_state_->get_subjects_lifetime());
         per_head_z_observer_ = helix::ui::observe<int>(
             printer_state_->profile_state().get_z_offset_reapplied_per_head_subject(), this,
@@ -357,36 +329,6 @@ void PrintTuneOverlay::sync_to_state() {
     update_pa_display();
 
     spdlog::debug("[PrintTuneOverlay] Synced to state: speed={}%, flow={}%", speed, flow);
-}
-
-// ============================================================================
-// ICON UPDATES
-// ============================================================================
-
-void PrintTuneOverlay::update_z_offset_icons(lv_obj_t* /*panel*/) {
-    if (!printer_state_) {
-        spdlog::warn("[PrintTuneOverlay] Cannot update icons - no printer_state_");
-        return;
-    }
-
-    // 1 where the bed moves on Z, 0 where the head does.
-    int kin =
-        lv_subject_get_int(printer_state_->capabilities_state().subject(Capability::BedMoves));
-    bool bed_moves_z = (kin == 1);
-
-    // Set icon names via string subjects (bind_icon in XML)
-    // Closer = more squish. On bed-moves-Z (CoreXY): bed rises (expand_up).
-    // On head-moves-Z (Cartesian): head descends (arrow_down).
-    const char* closer_icon = bed_moves_z ? "arrow_expand_up" : "arrow_down";
-    const char* farther_icon = bed_moves_z ? "arrow_expand_down" : "arrow_up";
-
-    std::strncpy(z_closer_icon_buf_, closer_icon, sizeof(z_closer_icon_buf_) - 1);
-    lv_subject_set_string(&z_closer_icon_subject_, z_closer_icon_buf_);
-    std::strncpy(z_farther_icon_buf_, farther_icon, sizeof(z_farther_icon_buf_) - 1);
-    lv_subject_set_string(&z_farther_icon_subject_, z_farther_icon_buf_);
-
-    spdlog::debug("[PrintTuneOverlay] Z-offset icons: closer={}, farther={}", closer_icon,
-                  farther_icon);
 }
 
 // ============================================================================
@@ -558,10 +500,6 @@ void PrintTuneOverlay::handle_z_offset_changed(double delta) {
     }
     current_z_offset_ = r.new_offset_mm;
     update_tool_z_displays();
-
-    for_each_z_indicator([&](lv_obj_t* indicator) {
-        ui_z_offset_indicator_flash_direction(indicator, r.applied_delta_mm > 0 ? 1 : -1);
-    });
 }
 
 void PrintTuneOverlay::handle_z_step_select(int idx) {
@@ -572,6 +510,7 @@ void PrintTuneOverlay::handle_z_step_select(int idx) {
     selected_z_step_idx_ = idx;
     helix::zoffset::set_persisted_step_index(idx);
     lv_subject_set_int(&z_step_selected_subject_, idx);
+    lv_subject_set_int(&z_step_microns_subject_, helix::zoffset::step_microns(idx));
 
     spdlog::debug("[PrintTuneOverlay] Z-offset step selected: {}mm",
                   helix::zoffset::kZStepAmountsMm[idx]);
@@ -686,8 +625,4 @@ void PrintTuneOverlay::handle_tool_z_offset_changed(double delta) {
         return;
     }
     update_tool_z_displays();
-
-    for_each_z_indicator([&](lv_obj_t* indicator) {
-        ui_z_offset_indicator_flash_direction(indicator, delta > 0 ? 1 : -1);
-    });
 }

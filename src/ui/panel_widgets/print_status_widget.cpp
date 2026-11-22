@@ -1873,14 +1873,20 @@ void PrintStatusWidget::NozzleToolPicker::on_created(lv_obj_t* backdrop) {
         return;
     }
 
-    auto add_row = [this, option_list](const char* label, const std::string& tool_key) {
-        helix::ui::create_picker_option_row(
-            option_list, label, owner_.nozzle_tool_override_ == tool_key, [this, tool_key]() {
-                hide();
-                // apply_nozzle_tool_override records whichever pin actually took
-                // effect, so a name the formatter refuses never reaches config.
-                owner_.apply_nozzle_tool_override(tool_key);
-            });
+    constexpr const char* kNozzleChoice = "print_status_nozzle_choice";
+    helix::ui::set_choice(kNozzleChoice, -1);
+    int row = 0;
+    auto add_row = [this, option_list, &row](const char* label, const std::string& tool_key) {
+        if (owner_.nozzle_tool_override_ == tool_key)
+            helix::ui::set_choice(kNozzleChoice, row);
+        helix::ui::create_picker_option_row(option_list, label, kNozzleChoice, row++,
+                                            [this, tool_key]() {
+                                                hide();
+                                                // apply_nozzle_tool_override records whichever pin
+                                                // actually took effect, so a name the formatter
+                                                // refuses never reaches config.
+                                                owner_.apply_nozzle_tool_override(tool_key);
+                                            });
     };
 
     add_row(lv_tr("Follow active tool"), "auto");

@@ -8,7 +8,8 @@
  * @brief Reusable multi-select list widget with checkboxes
  *
  * Provides a vertical list of clickable rows, each with a label and
- * right-aligned checkbox. Items are set imperatively. The widget itself
+ * right-aligned checkbox bound to the row's own int subject
+ * (multiselect_checked_<i>). Items are set imperatively. The widget itself
  * doesn't scroll — consumers wrap it in a scrollable container.
  *
  * Usage:
@@ -20,6 +21,7 @@
  *   multiselect.set_on_change([](const std::string& key, bool selected) { ... });
  */
 
+#include "helix/xml/indexed_subject_pool.h"
 #include "lvgl/lvgl.h"
 
 #include <functional>
@@ -150,7 +152,7 @@ class UiMultiselect {
         bool selected = false;
         bool enabled = true;
         lv_obj_t* row = nullptr;
-        lv_obj_t* checkbox = nullptr;
+        size_t slot = 0;                // This row's multiselect_checked_<slot>
         UiMultiselect* owner = nullptr; // Back-pointer for static callback
     };
 
@@ -161,12 +163,19 @@ class UiMultiselect {
     std::string select_all_label_;
 
     std::unique_ptr<RowData> all_row_;
+    /// multiselect_checked_<slot>: 1 while that row is selected. Held by pointer so the
+    /// widget stays movable.
+    std::unique_ptr<helix::xml::IndexedSubjectPool> checked_pool_ =
+        std::make_unique<helix::xml::IndexedSubjectPool>("multiselect_checked",
+                                                         helix::xml::IndexedSubjectPool::Type::Int);
+    size_t next_slot_ = 0;
 
     /// A row for @p item, with a hairline under it when @p divider.
     std::unique_ptr<RowData> build_row(const MultiSelectItem& item, bool divider);
     void sync_all_row();
     void clear_rows();
-    void update_checkbox_visual(RowData* data);
+    /// Publishes @p data's selection to its checkbox's subject.
+    void publish_selected(RowData* data);
 
     static void on_row_clicked(lv_event_t* e);
 };

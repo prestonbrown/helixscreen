@@ -365,6 +365,7 @@ void PowerPanel::load_selected_devices() {
 
 void PowerPanel::set_selected_devices(const std::vector<std::string>& devices) {
     selected_devices_ = devices;
+    sync_chip_selection();
 
     Config* config = Config::get_instance();
     config->set(config->df() + "power/selected_devices", devices);
@@ -460,16 +461,21 @@ void PowerPanel::populate_device_chips_impl() {
 
     helix::ui::safe_clean_children(chip_container_);
 
-    std::set<std::string> selected_set(selected_devices_.begin(), selected_devices_.end());
+    chip_selected_pool_.ensure_size(discovered_devices_.size());
+    sync_chip_selection();
 
     for (size_t i = 0; i < discovered_devices_.size(); ++i) {
         const auto& device = discovered_devices_[i];
         const std::string index = std::to_string(i);
-        const char* attrs[] = {"index",    index.c_str(),
-                               "selected", selected_set.count(device) ? "true" : "false",
-                               "callback", "on_power_chip_clicked",
+        const std::string selected_subject = "power_chip_selected_" + index;
+        const char* attrs[] = {"index",
+                               index.c_str(),
+                               "selected_subject",
+                               selected_subject.c_str(),
+                               "callback",
+                               "on_power_chip_clicked",
                                nullptr};
-        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container_, "toggle_chip", attrs));
+        auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_container_, "choice_chip", attrs));
         // Device names are user text: set after creation, never as a prop.
         if (chip) {
             helix::ui::set_row_label_text(
@@ -491,11 +497,16 @@ void PowerPanel::handle_chip_clicked(const std::string& device_name) {
         selected_devices_.push_back(device_name);
     }
 
-    // Save immediately
+    // Save immediately; the chips follow through their subjects.
     set_selected_devices(selected_devices_);
+}
 
-    // Rebuild chips to update visual state
-    populate_device_chips();
+void PowerPanel::sync_chip_selection() {
+    const std::set<std::string> selected_set(selected_devices_.begin(), selected_devices_.end());
+    const size_t count = std::min(discovered_devices_.size(), chip_selected_pool_.size());
+    for (size_t i = 0; i < count; ++i) {
+        chip_selected_pool_.set_int(i, selected_set.count(discovered_devices_[i]) ? 1 : 0);
+    }
 }
 
 lv_obj_t* PowerPanel::get_or_create_overlay(lv_obj_t* parent_screen) {

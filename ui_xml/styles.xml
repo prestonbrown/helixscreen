@@ -175,12 +175,26 @@
     <style name="jog_grow_1" flex_grow="1"/>
     <style name="jog_grow_2" flex_grow="2"/>
     <style name="jog_grow_3" flex_grow="3"/>
-    <!-- A button in a row of mutually exclusive choices (jog modes, jog
-         steps): the chosen one solid, the rest a muted wash of the same
-         colour. Bind exactly one per state. Home buttons use the solid one
-         for an axis that still needs homing. -->
-    <style name="choice_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="choice_idle" bg_color="#primary" bg_opa="40"/>
+    <!-- The looks of a choice_button, one idle/selected pair per look. The
+         idle style sits on every button of the row and the selected one
+         applies in the checked state, so it outranks the idle style and any
+         default-state style the host adds. Each selected style sets every
+         property its idle one does, so the two never mix.
+         fill: the chosen one solid, the rest a muted wash of the same
+         color. Home buttons use the solid one for an axis that still needs
+         homing, bound in the default state. -->
+    <style name="choice_fill_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="choice_fill_idle" bg_color="#primary" bg_opa="40"/>
+    <!-- raised: the rest sit on the raised surface color. -->
+    <style name="choice_raised_selected" bg_color="#primary" bg_opa="255"/>
+    <style name="choice_raised_idle" bg_color="#elevated_bg" bg_opa="255"/>
+    <!-- outline: for variant="outline"; the rest are framed in the raised
+         surface color, the chosen one solid without a frame. -->
+    <style name="choice_outline_selected" bg_color="#primary" bg_opa="255" border_width="0" border_color="#primary"/>
+    <style name="choice_outline_idle" border_color="#elevated_bg" border_opa="255"/>
+    <!-- tab: for variant="ghost"; the chosen tab takes a primary tint. -->
+    <style name="choice_tab_selected" bg_color="#primary" bg_opa="30" text_color="#primary"/>
+    <style name="choice_tab_idle" bg_opa="0"/>
     <!-- A row of a single-choice picker list, and the chosen one. -->
     <style name="picker_row" bg_opa="0" border_width="0" radius="#border_radius" pad_hor="#space_sm" pad_ver="0"/>
     <style name="selected_row" bg_color="#primary" bg_opa="40"/>

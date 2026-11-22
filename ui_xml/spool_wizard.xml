@@ -83,19 +83,16 @@
               <wizard_catalog_row index="$i"/>
             </repeat>
           </lv_obj>
-          <centered_column name="catalog_empty_state" flex_grow="1" hidden="true">
-            <bind_flag_if_not_eq subject="spool_db_state" flag="hidden" ref_value="3"/>
-            <text_small text="No matches in SpoolmanDB" style_text_align="center" style_text_color="#text_muted"/>
-          </centered_column>
+          <empty_state name="catalog_empty_state"
+                       flex_grow="1" icon="" text="" hint="No matches in SpoolmanDB" shown_subject="spool_db_state"
+                       shown_value="3"/>
         </lv_obj>
 
         <!-- Empty state for vendor list -->
-        <centered_column name="vendor_empty_state" flex_grow="1" hidden="true">
+        <empty_state name="vendor_empty_state" flex_grow="1" icon_size="xl" text="No vendors found">
           <bind_flag_if cond="spool_wizard_vendor_count ne 0 or (spool_db_available eq 1 and spool_db_state ne 0)"
                         flag="hidden"/>
-          <icon src="inbox_outline" size="xl" variant="secondary"/>
-          <text_body text="No vendors found" style_text_align="center" style_text_color="#text_muted"/>
-        </centered_column>
+        </empty_state>
 
         <!-- Loading state for vendor list -->
         <centered_column name="vendor_loading_state" flex_grow="1" hidden="true">
@@ -132,11 +129,8 @@
                 style_pad_right="#space_md" style_pad_top="0" style_pad_bottom="0" style_pad_gap="#space_xs"/>
 
         <!-- Empty state for filament list -->
-        <centered_column name="filament_empty_state" flex_grow="1" hidden="true">
-          <bind_flag_if_not_eq subject="spool_wizard_filament_count" flag="hidden" ref_value="0"/>
-          <icon src="inbox_outline" size="xl" variant="secondary"/>
-          <text_body text="No filaments found" style_text_align="center" style_text_color="#text_muted"/>
-        </centered_column>
+        <empty_state name="filament_empty_state"
+                     flex_grow="1" icon_size="xl" text="No filaments found" shown_subject="spool_wizard_filament_count"/>
 
         <!-- Loading state for filament list -->
         <centered_column name="filament_loading_state" flex_grow="1" hidden="true">

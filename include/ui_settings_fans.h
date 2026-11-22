@@ -49,6 +49,10 @@ class FanSettingsOverlay : public OverlayBase {
   public:
     void register_callbacks() override;
 
+    /// Section count badges' subjects, and fan_settings_fan_count, which shows the
+    /// empty state at 0
+    void init_subjects() override;
+
     /// Default create() plus the lookups for the dynamic row containers
     lv_obj_t* create(lv_obj_t* parent) override;
 
@@ -83,9 +87,6 @@ class FanSettingsOverlay : public OverlayBase {
     /// Populate a specific fan list container
     void populate_fan_list(lv_obj_t* list, bool controllable);
 
-    /// Update badge count for a section
-    void update_section_count(const char* badge_name, size_t count);
-
     /// A fan row's tap: renames its fan. The row's index into row_objects_ is
     /// event user_data.
     static void on_row_clicked(lv_event_t* e);
@@ -95,12 +96,10 @@ class FanSettingsOverlay : public OverlayBase {
 
     lv_obj_t* controllable_list_ = nullptr;
     lv_obj_t* auto_list_ = nullptr;
-    lv_obj_t* no_fans_placeholder_ = nullptr;
 
     void on_ui_destroyed() override {
         controllable_list_ = nullptr;
         auto_list_ = nullptr;
-        no_fans_placeholder_ = nullptr;
     }
 
     // Rename modal state
@@ -109,6 +108,9 @@ class FanSettingsOverlay : public OverlayBase {
     SubjectManager subjects_; // declared ahead: tears down after the subject it owns
     char rename_old_name_buf_[64] = {};
     helix::Subject fan_rename_old_name_{}; ///< Subject for bind_text in modal
+    helix::Subject controllable_count_{};  ///< Fans in the controllable section's badge
+    helix::Subject auto_count_{};          ///< Fans in the auto section's badge
+    helix::Subject fan_count_{};           ///< Discovered fans, both sections
     bool rename_subject_initialized_ = false;
 };
 

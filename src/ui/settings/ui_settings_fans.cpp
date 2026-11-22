@@ -13,7 +13,6 @@
 #include "ui_fan_control_overlay.h"
 #include "ui_modal.h"
 #include "ui_row_text.h"
-#include "ui_status_pill.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -52,6 +51,15 @@ void FanSettingsOverlay::on_row_clicked(lv_event_t* e) {
     self.handle_fan_rename(object_name, current ? current : "");
 }
 
+void FanSettingsOverlay::init_subjects() {
+    init_subjects_guarded([this]() {
+        UI_MANAGED_SUBJECT_INT(fan_count_, 0, "fan_settings_fan_count", subjects_);
+        UI_MANAGED_SUBJECT_INT(controllable_count_, 0, "fan_settings_controllable_count",
+                               subjects_);
+        UI_MANAGED_SUBJECT_INT(auto_count_, 0, "fan_settings_auto_count", subjects_);
+    });
+}
+
 lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
         return nullptr;
@@ -60,7 +68,6 @@ lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     // Containers for dynamic row population
     controllable_list_ = find_required(overlay_root_, "controllable_fans_list", get_name());
     auto_list_ = find_required(overlay_root_, "auto_fans_list", get_name());
-    no_fans_placeholder_ = find_required(overlay_root_, "no_fans_placeholder", get_name());
     return overlay_root_;
 }
 
@@ -80,18 +87,6 @@ void FanSettingsOverlay::on_deactivating(DeactivateReason) {
 // ============================================================================
 // FAN LIST POPULATION
 // ============================================================================
-
-void FanSettingsOverlay::update_section_count(const char* badge_name, size_t count) {
-    if (!overlay_root_)
-        return;
-
-    lv_obj_t* badge = lv_obj_find_by_name(overlay_root_, badge_name);
-    if (badge) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "%zu", count);
-        ui_status_pill_set_text(badge, buf);
-    }
-}
 
 void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
     if (!list)
@@ -156,9 +151,8 @@ void FanSettingsOverlay::populate_fans() {
         }
     }
 
-    // Update section badges
-    update_section_count("controllable_fan_count", controllable_count);
-    update_section_count("auto_fan_count", auto_count);
+    lv_subject_set_int(&controllable_count_, static_cast<int>(controllable_count));
+    lv_subject_set_int(&auto_count_, static_cast<int>(auto_count));
 
     // Show/hide sections based on fan counts
     lv_obj_t* controllable_section =
@@ -172,10 +166,7 @@ void FanSettingsOverlay::populate_fans() {
         lv_obj_set_hidden(auto_section, auto_count == 0);
     }
 
-    // Show empty state if no fans at all
-    if (no_fans_placeholder_) {
-        lv_obj_set_hidden(no_fans_placeholder_, !fans.empty());
-    }
+    lv_subject_set_int(&fan_count_, static_cast<int>(fans.size()));
 
     // Populate row lists. Rows in both index row_objects_.
     row_objects_.clear();

@@ -70,14 +70,9 @@
            holding one icon and two lines. video_grid_container hides whenever
            this shows (both bind timelapse_videos_empty), so 100% of the parent
            is exactly the free space. -->
-      <lv_obj name="video_grid_empty"
-              width="100%" style_min_height="100%" scrollable="false" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md">
-        <bind_flag_if_eq subject="timelapse_videos_empty" flag="hidden" ref_value="0"/>
-        <icon src="video_off" size="lg" variant="secondary"/>
-        <text_body text="No timelapse videos found" style_text_color="#text_muted" style_text_align="center"/>
-        <text_small text="Recorded timelapses will appear here" style_text_color="#text_muted" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="video_grid_empty"
+                   height="content" style_min_height="100%" icon="video_off" text="No timelapse videos found"
+                   hint="Recorded timelapses will appear here" shown_subject="timelapse_videos_empty" shown_value="1"/>
     </overlay_panel-overlay_content>
   </view>
 </component>

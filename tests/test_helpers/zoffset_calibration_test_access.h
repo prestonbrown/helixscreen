@@ -72,4 +72,12 @@ class ZOffsetCalibrationTestAccess {
     static void force_state(ZOffsetCalibrationPanel& panel, ZOffsetCalibrationPanel::State state) {
         panel.state_ = state;
     }
+
+    /// What the Z adjuster's step chips and Raise / Lower pair call.
+    static void pick_step(ZOffsetCalibrationPanel& panel, int index) {
+        panel.handle_step_pick(index);
+    }
+    static void nudge(ZOffsetCalibrationPanel& panel, int direction) {
+        panel.handle_nudge(direction);
+    }
 };

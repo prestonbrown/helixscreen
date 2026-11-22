@@ -48,12 +48,9 @@
                 style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
                 style_pad_bottom="#space_md"/>
         <!-- Empty search result message -->
-        <lv_obj name="search_empty"
-                width="100%" flex_grow="1" scrollable="false" hidden="true" flex_flow="column"
-                style_flex_main_place="center" style_flex_cross_place="center">
+        <empty_state name="search_empty" flex_grow="1" icon="" text="No widgets found">
           <bind_flag_if cond="widget_catalog_view eq 1 and widget_catalog_match_count eq 0" flag="hidden" invert="true"/>
-          <text_body text="No widgets found" style_text_color="#text_muted" style_text_align="center"/>
-        </lv_obj>
+        </empty_state>
       </lv_obj>
     </overlay_panel-overlay_content>
 

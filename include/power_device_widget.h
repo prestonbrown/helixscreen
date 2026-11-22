@@ -109,11 +109,13 @@ class PowerDeviceWidget : public TiledPanelWidget {
         };
         std::vector<RowPick> rows_;
 
-        /// Create one row from @p component under @p parent, labelled @p label,
-        /// that hides the card and calls @p on_pick with its value when tapped.
-        void add_row(lv_obj_t* parent, const char* component, const char* label_name,
-                     const std::string& label, const std::string& value, bool selected,
-                     PickFn on_pick);
+        /// A device list row or an energy sensor chip.
+        enum class RowKind { Device, Sensor };
+        /// Create one row of @p kind under @p parent, labelled @p label, lit while it is
+        /// its list's current choice (@p selected), that hides the card and calls
+        /// @p on_pick with its value when tapped.
+        void add_row(lv_obj_t* parent, RowKind kind, const std::string& label,
+                     const std::string& value, bool selected, PickFn on_pick);
 
         PowerDeviceWidget& owner_;
     };

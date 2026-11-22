@@ -2,11 +2,6 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- Styles for reactive button selection (matches clog detection pattern) -->
-  <styles>
-    <style name="cam_btn_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="cam_btn_unselected" bg_color="#primary" bg_opa="40"/>
-  </styles>
 
   <!-- Camera Configuration Modal
        Opened from grid edit mode gear icon on the camera widget.
@@ -35,8 +30,8 @@
                     style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_gap="#space_sm"
                     style_radius="#border_radius_small" style_border_width="0">
               <style name="styles.press_wash" selector="pressed"/>
-              <bind_style name="cam_btn_selected" subject="cam_source_${i}_active" ref_value="1"/>
-              <bind_style name="cam_btn_unselected" subject="cam_source_${i}_active" ref_value="0"/>
+              <bind_style name="styles.choice_fill_selected" subject="cam_source_${i}_active" ref_value="1"/>
+              <bind_style name="styles.choice_fill_idle" subject="cam_source_${i}_active" ref_value="0"/>
               <text_small name="cam_source_${i}_name"
                           bind_text="cam_source_${i}_name" flex_grow="1" long_mode="dots" style_text_color="#text"/>
               <text_xs name="cam_source_${i}_note" bind_text="cam_source_${i}_note" style_text_color="#text_muted"/>
@@ -50,26 +45,18 @@
       <lv_obj width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
         <text_small text="Rotation" style_text_color="#text_muted"/>
         <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
-          <ui_button name="btn_rot_0" height="#modal_button_height" text="0°" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_rot_0_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_rot_0_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_rotate_0"/>
-          </ui_button>
-          <ui_button name="btn_rot_90" height="#modal_button_height" text="90°" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_rot_90_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_rot_90_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_rotate_90"/>
-          </ui_button>
-          <ui_button name="btn_rot_180" height="#modal_button_height" text="180°" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_rot_180_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_rot_180_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_rotate_180"/>
-          </ui_button>
-          <ui_button name="btn_rot_270" height="#modal_button_height" text="270°" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_rot_270_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_rot_270_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_rotate_270"/>
-          </ui_button>
+          <choice_button name="btn_rot_0"
+                         height="#modal_button_height" text="0°" flex_grow="1" clickable="true"
+                         subject="cam_rot_0_active" value="1" callback="on_cam_rotate_0"/>
+          <choice_button name="btn_rot_90"
+                         height="#modal_button_height" text="90°" flex_grow="1" clickable="true"
+                         subject="cam_rot_90_active" value="1" callback="on_cam_rotate_90"/>
+          <choice_button name="btn_rot_180"
+                         height="#modal_button_height" text="180°" flex_grow="1" clickable="true"
+                         subject="cam_rot_180_active" value="1" callback="on_cam_rotate_180"/>
+          <choice_button name="btn_rot_270"
+                         height="#modal_button_height" text="270°" flex_grow="1" clickable="true"
+                         subject="cam_rot_270_active" value="1" callback="on_cam_rotate_270"/>
         </lv_obj>
       </lv_obj>
 
@@ -77,16 +64,12 @@
       <lv_obj width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
         <text_small text="Flip" style_text_color="#text_muted"/>
         <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
-          <ui_button name="btn_flip_h" height="#modal_button_height" text="Horizontal" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_flip_h_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_flip_h_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_flip_h_toggled"/>
-          </ui_button>
-          <ui_button name="btn_flip_v" height="#modal_button_height" text="Vertical" flex_grow="1" clickable="true">
-            <bind_style name="cam_btn_selected" subject="cam_flip_v_active" ref_value="1"/>
-            <bind_style name="cam_btn_unselected" subject="cam_flip_v_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_cam_flip_v_toggled"/>
-          </ui_button>
+          <choice_button name="btn_flip_h"
+                         height="#modal_button_height" text="Horizontal" flex_grow="1" clickable="true"
+                         subject="cam_flip_h_active" value="1" callback="on_cam_flip_h_toggled"/>
+          <choice_button name="btn_flip_v"
+                         height="#modal_button_height" text="Vertical" flex_grow="1" clickable="true"
+                         subject="cam_flip_v_active" value="1" callback="on_cam_flip_v_toggled"/>
         </lv_obj>
       </lv_obj>
     </dialog_frame-body>

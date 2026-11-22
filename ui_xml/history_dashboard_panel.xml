@@ -11,11 +11,6 @@
     <percentage name="stats_section_width" value="55%"/>
     <percentage name="chart_section_width" value="43%"/>
   </consts>
-  <!-- Styles for reactive filter button state binding (L040: two bind_styles pattern) -->
-  <styles>
-    <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="filter_btn_unselected" bg_color="#primary" bg_opa="40"/>
-  </styles>
   <!-- View Full History rides in the header so it is on screen at every size,
        however tall the stats and charts below grow. -->
   <view name="history_dashboard_panel" extends="overlay_panel" title="Print History">
@@ -30,31 +25,21 @@
       <lv_obj width="100%"
               height="content" style_pad_all="0" style_pad_bottom="#space_md" flex_flow="row" style_pad_gap="#space_xs"
               scrollable="false">
-        <ui_button name="filter_day" text="Day" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_day_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_day_active" ref_value="0"/>
-          <event_cb trigger="clicked" callback="history_filter_day_clicked"/>
-        </ui_button>
-        <ui_button name="filter_week" text="Week" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_week_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_week_active" ref_value="0"/>
-          <event_cb trigger="clicked" callback="history_filter_week_clicked"/>
-        </ui_button>
-        <ui_button name="filter_month" text="Month" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_month_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_month_active" ref_value="0"/>
-          <event_cb trigger="clicked" callback="history_filter_month_clicked"/>
-        </ui_button>
-        <ui_button name="filter_year" text="Year" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_year_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_year_active" ref_value="0"/>
-          <event_cb trigger="clicked" callback="history_filter_year_clicked"/>
-        </ui_button>
-        <ui_button name="filter_all" text="All" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_all_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_all_active" ref_value="0"/>
-          <event_cb trigger="clicked" callback="history_filter_all_clicked"/>
-        </ui_button>
+        <choice_button name="filter_day"
+                       text="Day" flex_grow="1" subject="history_filter_day_active" value="1"
+                       callback="history_filter_day_clicked"/>
+        <choice_button name="filter_week"
+                       text="Week" flex_grow="1" subject="history_filter_week_active" value="1"
+                       callback="history_filter_week_clicked"/>
+        <choice_button name="filter_month"
+                       text="Month" flex_grow="1" subject="history_filter_month_active" value="1"
+                       callback="history_filter_month_clicked"/>
+        <choice_button name="filter_year"
+                       text="Year" flex_grow="1" subject="history_filter_year_active" value="1"
+                       callback="history_filter_year_clicked"/>
+        <choice_button name="filter_all"
+                       text="All" flex_grow="1" subject="history_filter_all_active" value="1"
+                       callback="history_filter_all_clicked"/>
       </lv_obj>
       <!-- Top Row: Stats (left) + Filament Chart (right) - hidden when no jobs -->
       <lv_obj name="top_row"
@@ -129,12 +114,9 @@
                 width="100%" height="content" style_min_height="50" style_pad_all="0" scrollable="false"/>
       </ui_card>
       <!-- Empty State (shown when no history) - centered in available space -->
-      <centered_column name="empty_state" flex_grow="1" style_pad_all="#space_xl" hidden="true">
-        <bind_flag_if_not_eq subject="history_has_jobs" flag="hidden" ref_value="0"/>
-        <icon src="clock" size="xl" variant="secondary"/>
-        <text_muted width="100%" text="No print history yet" style_text_align="center"/>
-        <text_small width="100%" text="Your completed prints will appear here" style_text_align="center"/>
-      </centered_column>
+      <empty_state name="empty_state"
+                   flex_grow="1" style_pad_all="#space_xl" icon="clock" icon_size="xl" text="No print history yet"
+                   hint="Your completed prints will appear here" shown_subject="history_has_jobs"/>
     </overlay_panel-overlay_content>
     <!-- End overlay_content -->
   </view>
