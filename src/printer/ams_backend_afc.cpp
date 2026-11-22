@@ -4969,6 +4969,14 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
                 const int slot = slots_.index_of(mounted->lane_loaded);
                 if (slot >= 0) {
                     system_info_.current_slot = slot;
+                    // The active tool is the seated lane's AFC tool, read from
+                    // this frame's slot order. toolchanger.tool_number counts
+                    // heads, not lanes, and a tool derived from current_load
+                    // earlier in the frame names a slot index the unit objects
+                    // may since have regrouped (#2158).
+                    if (const int lane_tool = slots_.tool_for_slot(slot); lane_tool >= 0) {
+                        system_info_.current_tool = lane_tool;
+                    }
                     const helix::printer::SlotEntry* entry = slots_.get(slot);
                     if (entry != nullptr && entry->info.status != SlotStatus::UNKNOWN) {
                         system_info_.filament_loaded = (entry->info.status == SlotStatus::LOADED);
