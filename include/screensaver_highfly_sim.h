@@ -182,11 +182,12 @@ inline constexpr float kHighflyPausedSpeed = 0.25f;
 inline constexpr float kHighflySwayTexels = 24.0f;
 inline constexpr float kHighflySwayRate = 0.15f;
 
-/// The word the big numerals spell in place of a time: "DONE" for a finished print, or the
-/// check mark (kGlyphCheck) where the reading spells no states; "" while they show numbers.
+/// The word the big numerals spell in place of a time once a print ends: "DONE", "FAIL" or
+/// "STOP" as the flip clock spells them, or where the reading spells no states the flip clock's
+/// symbol for it (kGlyphCheck, kGlyphCross, kGlyphSquare); "" while they show numbers.
 const char* highfly_word(const ClockReading& r);
 /// Most glyphs highfly_word() returns.
-inline constexpr size_t kHighflyWordMax = 4;
+inline constexpr size_t kHighflyWordMax = 8;
 
 /// Where the clock sits on a w x h canvas, moved by the drift (dx, dy).
 struct HighFlyClockLayout {
@@ -203,11 +204,18 @@ struct HighFlyClockLayout {
     DirtyRect bounds;
 };
 HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_t dy);
-/// Boxes of the first `count` (at most kHighflyWordMax) glyphs of a word the big numerals spell:
-/// each a numeral's size on the numerals' row, a numeral gap apart, the run centred on the
-/// numerals.
-std::array<DirtyRect, kHighflyWordMax> highfly_word_boxes(const HighFlyClockLayout& l,
-                                                          size_t count);
+/// Where a word the big numerals spell sits.
+struct HighflyWordLayout {
+    int32_t unit = 0; ///< glyph unit: the numerals' own, or less where that run is too wide
+    int32_t halo = 0; ///< soft shadow round the glyphs, px either side
+    /// The first `count` glyph boxes, a numeral gap (at `unit`) apart; the rest are empty.
+    std::array<DirtyRect, kHighflyWordMax> boxes{};
+};
+/// Lays out the first `count` (at most kHighflyWordMax) glyphs of a word in the numerals' place:
+/// at the numerals' size where the run fits the hours-and-minutes span, otherwise at the largest
+/// unit that does, so the word never reaches the left lines or past the numerals' layer; the run
+/// is centered on the numerals both ways.
+HighflyWordLayout highfly_word_layout(const HighFlyClockLayout& l, size_t count);
 
 class HighFlySim {
   public:

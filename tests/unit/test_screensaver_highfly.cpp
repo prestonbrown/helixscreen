@@ -899,34 +899,51 @@ TEST_CASE_METHOD(LVGLTestFixture, "the countdown numerals carry no AM/PM",
     CHECK(paused.second == clock_minute_text(14 * 60));
     CHECK(paused.meridiem.empty());
     // Numerals that show the time of day keep their AM/PM.
-    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::FAILED}) {
+    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS}) {
         CHECK_FALSE(highfly_clock_lines(print_reading(m, 40)).meridiem.empty());
     }
-    // Numerals that spell DONE leave the time of day and the weekday to the text block.
-    const ClockReading done = print_reading(ClockMode::DONE, 100);
-    const auto finished = highfly_clock_lines(done);
-    CHECK(finished.first == clock_minute_text(14 * 60));
-    CHECK(finished.second == helix::ui::clock_date_text(done.date).weekday);
-    CHECK(finished.meridiem.empty());
+    // Numerals that spell the end of a print leave the time of day and the weekday to the text
+    // block.
+    for (const ClockMode m : {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+        CAPTURE(static_cast<int>(m));
+        const ClockReading ended = print_reading(m, 100);
+        const auto lines_after = highfly_clock_lines(ended);
+        CHECK(lines_after.first == clock_minute_text(14 * 60));
+        CHECK(lines_after.second == helix::ui::clock_date_text(ended.date).weekday);
+        CHECK(lines_after.meridiem.empty());
+    }
 }
 
-TEST_CASE("a finished print spells DONE, or a check mark, in place of the time",
+TEST_CASE("an ended print spells its state, or the flip clock's symbol, in place of the time",
           "[screensaver][highfly][clock]") {
     using helix::ui::highfly_word;
+    struct End {
+        ClockMode mode;
+        const char* word;
+        char symbol;
+    };
+    for (const End e : {End{ClockMode::DONE, "DONE", helix::ui::kGlyphCheck},
+                        End{ClockMode::FAILED, "FAIL", helix::ui::kGlyphCross},
+                        End{ClockMode::CANCELLED, "STOP", helix::ui::kGlyphSquare}}) {
+        CAPTURE(e.word);
+        ClockReading r = print_reading(e.mode, 100);
+        CHECK(std::string(highfly_word(r)) == e.word);
+        CHECK(std::strlen(highfly_word(r)) <= helix::ui::kHighflyWordMax);
+        r.spell_states = false;
+        CHECK(std::string(highfly_word(r)) == std::string(1, e.symbol));
+    }
     ClockReading r = print_reading(ClockMode::DONE, 100);
-    CHECK(std::string(highfly_word(r)) == "DONE");
-    r.spell_states = false;
-    CHECK(std::string(highfly_word(r)) == std::string(1, helix::ui::kGlyphCheck));
-    for (const ClockMode m : {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::COUNTDOWN,
-                              ClockMode::PAUSED, ClockMode::FAILED, ClockMode::CANCELLED}) {
+    for (const ClockMode m :
+         {ClockMode::CLOCK, ClockMode::PROGRESS, ClockMode::COUNTDOWN, ClockMode::PAUSED}) {
         r.mode = m;
         CHECK(std::string(highfly_word(r)).empty());
     }
 }
 
-TEST_CASE("DONE's glyphs are the numerals' height, centred on them, at every screen and drift",
+TEST_CASE("end words are the numerals' height, and a longer word fills their span",
           "[screensaver][highfly][clock]") {
-    using helix::ui::highfly_word_boxes;
+    using helix::ui::highfly_word_layout;
+    using helix::ui::HighflyWordLayout;
     struct Size {
         int32_t w, h;
     };
@@ -939,17 +956,49 @@ TEST_CASE("DONE's glyphs are the numerals' height, centred on them, at every scr
                 CAPTURE(dx, dy);
                 const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, dx, dy);
                 const int32_t numeral_h = l.digits[0].y2 - l.digits[0].y1 + 1;
-                const int32_t centre = l.digits[0].x1 + l.digits[4].x2;
+                const int32_t center_x = l.digits[0].x1 + l.digits[4].x2;
+                const int32_t center_y = l.digits[0].y1 + l.digits[0].y2;
+                const int32_t span = l.digits[4].x2 - l.digits[0].x1 + 1;
+                // Every end word stands at the numerals' full height, centered on them.
+                for (const ClockMode m :
+                     {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+                    const char* word = helix::ui::highfly_word(print_reading(m, 100));
+                    CAPTURE(word);
+                    const size_t n = std::strlen(word);
+                    const HighflyWordLayout wl = highfly_word_layout(l, n);
+                    CHECK(wl.unit == l.digit_unit);
+                    CHECK(wl.boxes[0].y2 - wl.boxes[0].y1 + 1 == numeral_h);
+                    CHECK(std::abs(wl.boxes[0].x1 + wl.boxes[n - 1].x2 - center_x) <= 2);
+                    CHECK(std::abs(wl.boxes[0].y1 + wl.boxes[0].y2 - center_y) <= 2);
+                }
                 for (size_t count = 1; count <= helix::ui::kHighflyWordMax; count++) {
                     CAPTURE(count);
-                    const auto boxes = highfly_word_boxes(l, count);
-                    CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - centre) <= 2);
+                    const HighflyWordLayout wl = highfly_word_layout(l, count);
+                    const auto& boxes = wl.boxes;
+                    const int32_t run = boxes[count - 1].x2 - boxes[0].x1 + 1;
+                    const int32_t glyph_h = boxes[0].y2 - boxes[0].y1 + 1;
+                    CHECK(std::abs(boxes[0].x1 + boxes[count - 1].x2 - center_x) <= 2);
+                    CHECK(std::abs(boxes[0].y1 + boxes[0].y2 - center_y) <= 2);
+                    if (count <= 4) {
+                        // DONE, FAIL, STOP: the numerals' own size and halo.
+                        CHECK(glyph_h == numeral_h);
+                        CHECK(wl.unit == l.digit_unit);
+                        CHECK(wl.halo == l.halo);
+                    } else {
+                        // A longer word: shrunk only as far as the span needs.
+                        CHECK(glyph_h < numeral_h);
+                        CHECK(run * 10 >= span * 9);
+                        CHECK(wl.halo <= l.halo);
+                    }
                     for (size_t i = 0; i < count; i++) {
-                        CHECK(boxes[i].y2 - boxes[i].y1 + 1 >= numeral_h);
+                        CHECK(boxes[i].y2 - boxes[i].y1 + 1 == glyph_h);
                         CHECK(boxes[i].x1 >= l.digits[0].x1);
                         CHECK(boxes[i].x2 <= l.digits[4].x2);
-                        CHECK(boxes[i].x1 - l.halo >= 0);
-                        CHECK(boxes[i].x2 + l.halo < s.w);
+                        CHECK(boxes[i].x1 > l.date_line.x2);
+                        CHECK(boxes[i].x1 - wl.halo >= 0);
+                        CHECK(boxes[i].x2 + wl.halo < s.w);
+                        CHECK(boxes[i].y1 - wl.halo >= 0);
+                        CHECK(boxes[i].y2 + wl.halo < s.h);
                         if (i > 0) {
                             CHECK(boxes[i].x1 > boxes[i - 1].x2);
                         }
@@ -960,40 +1009,77 @@ TEST_CASE("DONE's glyphs are the numerals' height, centred on them, at every scr
     }
 }
 
-TEST_CASE("the sim draws DONE as tall as the numerals", "[screensaver][highfly][clock]") {
+TEST_CASE("the sim draws each end word at its layout's height, within the numerals' span",
+          "[screensaver][highfly][clock]") {
     // The still rung paints once, so two runs from one seed differ only where their numerals do.
-    const auto paint = [](bool spell, TestFrame& frame) {
+    const auto paint = [](ClockMode mode, bool spell, TestFrame& frame) {
         std::minstd_rand rng(3);
         HighFlySim sim;
-        ClockReading r = print_reading(ClockMode::DONE, 100);
+        ClockReading r = print_reading(mode, 100);
         r.spell_states = spell;
         sim.init(frame.target, rng, kHighflyLevelCount - 1, r);
     };
-    TestFrame word(800, 480, PixelFormat::XRGB8888);
-    TestFrame check(800, 480, PixelFormat::XRGB8888);
-    paint(true, word);
-    paint(false, check);
-    const HighFlyClockLayout l = layout_highfly_clock(800, 480, 0, 0);
-    // The D: the check mark sits a glyph and more away, centred on the run.
-    const DirtyRect d = helix::ui::highfly_word_boxes(l, 4)[0];
-    const PixelWriter a(word.target);
-    const PixelWriter b(check.target);
-    int32_t top = -1;
-    int32_t bottom = -1;
-    for (int32_t y = d.y1 - l.halo; y <= d.y2 + l.halo; y++) {
-        for (int32_t x = d.x1; x <= d.x2; x++) {
-            const Rgb p = a.get(x, y);
-            const Rgb q = b.get(x, y);
-            // A stroke: brighter than the scene under it.
-            if (luminance(p) > luminance(q) + 40.0f) {
-                top = top < 0 ? y : top;
-                bottom = y;
+    struct Size {
+        int32_t w, h;
+    };
+    for (const Size s : {Size{800, 480}, Size{480, 320}}) {
+        for (const ClockMode m : {ClockMode::DONE, ClockMode::FAILED, ClockMode::CANCELLED}) {
+            CAPTURE(s.w, s.h, static_cast<int>(m));
+            TestFrame word(s.w, s.h, PixelFormat::XRGB8888);
+            TestFrame symbol(s.w, s.h, PixelFormat::XRGB8888);
+            paint(m, true, word);
+            paint(m, false, symbol);
+            const HighFlyClockLayout l = layout_highfly_clock(s.w, s.h, 0, 0);
+            ClockReading r = print_reading(m, 100);
+            const size_t count = std::strlen(helix::ui::highfly_word(r));
+            const auto wl = helix::ui::highfly_word_layout(l, count);
+            // The first letter: the symbol sits a glyph and more away, centered on the run.
+            const DirtyRect d = wl.boxes[0];
+            const PixelWriter a(word.target);
+            const PixelWriter b(symbol.target);
+            int32_t top = -1;
+            int32_t bottom = -1;
+            int32_t left = s.w;
+            int32_t right = -1;
+            for (int32_t y = l.digits[0].y1 - l.halo; y <= l.digits[0].y2 + l.halo; y++) {
+                for (int32_t x = 0; x < s.w; x++) {
+                    // A stroke: brighter than the scene under it.
+                    if (luminance(a.get(x, y)) <= luminance(b.get(x, y)) + 40.0f) {
+                        continue;
+                    }
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                    if (x >= d.x1 && x <= d.x2) {
+                        top = top < 0 ? y : top;
+                        bottom = y;
+                    }
+                }
+            }
+            CAPTURE(top, bottom, d.y1, d.y2, left, right);
+            REQUIRE(top >= 0);
+            CHECK(bottom - top + 1 >= (d.y2 - d.y1 + 1) * 9 / 10);
+            CHECK(left >= l.digits[0].x1);
+            CHECK(right <= l.digits[4].x2);
+            if (m == ClockMode::CANCELLED) {
+                // The square is solid, not its outline and fill lines with sky between.
+                const DirtyRect q = helix::ui::highfly_word_layout(l, 1).boxes[0];
+                const int32_t cx = (q.x1 + q.x2) / 2;
+                const int32_t cy = (q.y1 + q.y2) / 2;
+                const int32_t r = std::max(2, l.digit_unit / 4);
+                float lo = 1e9f;
+                float hi = 0.0f;
+                for (int32_t y = cy - r; y <= cy + r; y++) {
+                    for (int32_t x = cx - r; x <= cx + r; x++) {
+                        const float v = luminance(b.get(x, y));
+                        lo = std::min(lo, v);
+                        hi = std::max(hi, v);
+                    }
+                }
+                CAPTURE(lo, hi);
+                CHECK(hi - lo < 12.0f);
             }
         }
     }
-    CAPTURE(top, bottom, d.y1, d.y2);
-    REQUIRE(top >= 0);
-    CHECK(bottom - top + 1 >= (d.y2 - d.y1 + 1) * 9 / 10);
 }
 
 TEST_CASE("the palette is today's sky without a print and warms with progress",

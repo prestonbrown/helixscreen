@@ -770,10 +770,18 @@ std::array<int, 6> highfly_numerals(const ClockReading& r) {
 
 const char* highfly_word(const ClockReading& r) {
     static constexpr char kCheck[] = {kGlyphCheck, '\0'};
-    if (r.mode != ClockMode::DONE) {
+    static constexpr char kCross[] = {kGlyphCross, '\0'};
+    static constexpr char kSquare[] = {kGlyphSquare, '\0'};
+    switch (r.mode) {
+    case ClockMode::DONE:
+        return r.spell_states ? "DONE" : kCheck;
+    case ClockMode::FAILED:
+        return r.spell_states ? "FAIL" : kCross;
+    case ClockMode::CANCELLED:
+        return r.spell_states ? "STOP" : kSquare;
+    default:
         return "";
     }
-    return r.spell_states ? "DONE" : kCheck;
 }
 
 HighflyPalette highfly_palette(const ClockReading& r) {
@@ -860,22 +868,38 @@ HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_
     return l;
 }
 
-std::array<DirtyRect, kHighflyWordMax> highfly_word_boxes(const HighFlyClockLayout& l,
-                                                          size_t count) {
-    std::array<DirtyRect, kHighflyWordMax> out{};
+HighflyWordLayout highfly_word_layout(const HighFlyClockLayout& l, size_t count) {
+    HighflyWordLayout out;
     count = std::min(count, kHighflyWordMax);
     if (count == 0) {
         return out;
     }
-    const DirtyRect& first = l.digits[0];
-    const int32_t gw = first.x2 - first.x1 + 1;
-    const int32_t gap = l.digits[1].x1 - first.x2 - 1;
+    const auto px = [](float v) { return static_cast<int32_t>(std::lround(v)); };
     const auto n = static_cast<int32_t>(count);
+    const int32_t span = l.digits[4].x2 - l.digits[0].x1 + 1;
+    // The glyph sizes StrokeGlyphSet builds at `unit`, and the run they make.
+    int32_t unit = l.digit_unit;
+    int32_t gw = 0;
+    int32_t gap = 0;
+    for (;; unit--) {
+        const auto u = static_cast<float>(unit);
+        gw = px((1.0f + kDigitStroke) * u);
+        gap = std::max(1, px(0.15f * u));
+        if (unit <= 1 || n * gw + (n - 1) * gap <= span) {
+            break;
+        }
+    }
+    const int32_t gh = px((kStrokeDigitPathH + kDigitStroke) * static_cast<float>(unit));
+    out.unit = unit;
+    // The numerals' halo rule (layout_highfly_clock()) at this unit.
+    out.halo = std::min(l.halo, std::max(3, px(0.12f * static_cast<float>(unit))));
     const int32_t total = n * gw + (n - 1) * gap;
-    const int32_t centre = (first.x1 + l.digits[4].x2 + 1) / 2;
-    int32_t x = centre - total / 2;
+    const int32_t center_x = (l.digits[0].x1 + l.digits[4].x2 + 1) / 2;
+    const int32_t center_y2 = l.digits[0].y1 + l.digits[0].y2 + 1;
+    const int32_t y1 = (center_y2 - gh) / 2;
+    int32_t x = center_x - total / 2;
     for (size_t i = 0; i < count; i++) {
-        out[i] = {x, first.y1, x + gw - 1, first.y2};
+        out.boxes[i] = {x, y1, x + gw - 1, y1 + gh - 1};
         x += gw + gap;
     }
     return out;
@@ -1619,14 +1643,21 @@ class HighFlySim::LayerWriter {
 void HighFlySim::draw_word(LayerWriter& writer, const char* word,
                            const HighFlyClockLayout& l) const {
     const size_t count = std::min(std::strlen(word), kHighflyWordMax);
-    const std::array<DirtyRect, kHighflyWordMax> boxes = highfly_word_boxes(l, count);
+    const HighflyWordLayout wl = highfly_word_layout(l, count);
+    const std::array<DirtyRect, kHighflyWordMax>& boxes = wl.boxes;
     // Built per bake and freed after it: a word bakes once when a print ends, never per frame.
+    // A symbol takes the stroke that fills it solid, its larger box centered on the glyph box.
     StrokeGlyphSet glyphs;
-    glyphs.init(l.digit_unit, kDigitStroke);
+    const bool symbol = count == 1 && is_stroke_symbol(word[0]);
+    glyphs.init(wl.unit, symbol ? kStrokeSymbolMinStroke : kDigitStroke);
     std::vector<uint8_t> halo;
-    const int32_t pad = std::max<int32_t>(1, l.halo);
+    const int32_t pad = std::max<int32_t>(1, wl.halo);
     const int32_t hw = glyphs.w + 2 * pad;
     const int32_t hh = glyphs.h + 2 * pad;
+    const auto corner = [&](const DirtyRect& box) {
+        return std::array<int32_t, 2>{box.x1 - (glyphs.w - (box.x2 - box.x1 + 1)) / 2,
+                                      box.y1 - (glyphs.h - (box.y2 - box.y1 + 1)) / 2};
+    };
     // Every shadow first, so none falls across a neighbour's strokes.
     for (size_t i = 0; i < count; i++) {
         glyphs.ensure(word[i]);
@@ -1634,15 +1665,15 @@ void HighFlySim::draw_word(LayerWriter& writer, const char* word,
         if (cov == nullptr) {
             continue;
         }
-        build_glyph_halo(cov, glyphs.w, glyphs.h, l.halo, halo);
-        blit_coverage(writer, halo.data(), hw, hh, boxes[i].x1 - pad, boxes[i].y1 - pad, kHalo,
-                      kHaloOpacity);
+        build_glyph_halo(cov, glyphs.w, glyphs.h, wl.halo, halo);
+        const auto at = corner(boxes[i]);
+        blit_coverage(writer, halo.data(), hw, hh, at[0] - pad, at[1] - pad, kHalo, kHaloOpacity);
     }
     for (size_t i = 0; i < count; i++) {
         const uint8_t* cov = glyphs.coverage(word[i]);
         if (cov != nullptr) {
-            blit_coverage(writer, cov, glyphs.w, glyphs.h, boxes[i].x1, boxes[i].y1, kNumeral,
-                          kNumeralOpacity);
+            const auto at = corner(boxes[i]);
+            blit_coverage(writer, cov, glyphs.w, glyphs.h, at[0], at[1], kNumeral, kNumeralOpacity);
         }
     }
 }
