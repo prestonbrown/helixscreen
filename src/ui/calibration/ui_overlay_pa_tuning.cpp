@@ -460,6 +460,9 @@ void PaTuningOverlay::confirm_once_bed_clear() {
         return;
     }
     const auto params = build_params();
+    if (refuse_unmountable_head(params)) {
+        return;
+    }
     const std::string msg = fmt::format(
         "{}\n\n{}",
         fmt::format(fmt::runtime(lv_tr("Clear the plate and load {}. The tower prints in the "
@@ -479,6 +482,23 @@ void PaTuningOverlay::fail_start(const std::string& message) {
     lv_subject_set_string(&error_, message.c_str());
     set_stage(SETUP);
     refresh_setup();
+}
+
+std::string PaTuningOverlay::head_mount_refusal(const helix::pa::TestPrintParams& params) {
+    if (params.tool < 0 || !params.select_head_gcode.empty()) {
+        return {};
+    }
+    return lv_tr("The printer did not say how to pick up this toolhead yet. Try again once "
+                 "its filament system has finished connecting.");
+}
+
+bool PaTuningOverlay::refuse_unmountable_head(const helix::pa::TestPrintParams& params) {
+    const std::string reason = head_mount_refusal(params);
+    if (reason.empty()) {
+        return false;
+    }
+    fail_start(reason);
+    return true;
 }
 
 bool PaTuningOverlay::refuse_blocked_nozzle() {
@@ -501,6 +521,9 @@ void PaTuningOverlay::begin_upload() {
         return;
     }
     const auto params = build_params();
+    if (refuse_unmountable_head(params)) {
+        return;
+    }
     const float size_needed = params.geometry.size_mm + 2.0f * kBedMarginMm;
     if (params.bed_x_max - params.bed_x_min < size_needed ||
         params.bed_y_max - params.bed_y_min < size_needed) {
