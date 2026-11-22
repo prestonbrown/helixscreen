@@ -1487,6 +1487,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: Do not cold pull a coated nozzle. The cold pull runs on the active tool.
   Do not power off your printer.: Do not power off your printer.
   Do not touch the filament yet.: Do not touch the filament yet.
+  Do not touch the nozzle or bed: Do not touch the nozzle or bed
   Do not touch the nozzle or the bed.: Do not touch the nozzle or the bed.
   Do not touch the printer during calibration: Do not touch the printer during calibration
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.
@@ -2121,6 +2122,7 @@ translations:
   Got it: Got it
   Gradient: Gradient
   Gray: Gray
+  'Green mark: the tension the printer aims for': 'Green mark: the tension the printer aims for'
   Grid: Grid
   Grip filament: Grip filament
   Grip the filament: Grip the filament
@@ -2136,6 +2138,7 @@ translations:
   HEPA filter interval: HEPA filter interval
   HOST: HOST
   HOST ACCESS: HOST ACCESS
+  HOT: HOT
   HTTP Code: HTTP Code
   'HTTP error: {} {}': 'HTTP error: {} {}'
   HUMIDITY SENSORS: HUMIDITY SENSORS
@@ -2516,6 +2519,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Keep clear of the printer while the toolhead is moving
   Keep current: Keep current
   Keep current ({}): Keep current ({})
+  Keep hands clear: Keep hands clear
   Keep hands clear except when asked. The printer moves on its own.: Keep hands clear except when asked. The printer moves on its own.
   Keep hands clear. The printer moves on its own.: Keep hands clear. The printer moves on its own.
   Keep its own data on this screen (up to 256 KB).: Keep its own data on this screen (up to 256 KB).
@@ -2587,6 +2591,7 @@ translations:
   LOADED: LOADED
   LOCKED: LOCKED
   LOT-2024-001: LOT-2024-001
+  LOUD: LOUD
   Label Printer: Label Printer
   Label Size: Label Size
   Label printed: Label printed
@@ -2772,8 +2777,11 @@ translations:
   MISSING CONFIGURED: MISSING CONFIGURED
   MMU command failed: MMU command failed
   MOTION & LEVELING: MOTION & LEVELING
+  MOTORS: MOTORS
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: MPC thermal model calibrated for {} at {}.
+  'MPC: measuring how fast the bed heats and loses heat': 'MPC: measuring how fast the bed heats and loses heat'
+  'MPC: measuring how fast the nozzle heats and loses heat': 'MPC: measuring how fast the nozzle heats and loses heat'
   Machine Limits: Machine Limits
   Macro: Macro
   Macro Browser: Macro Browser
@@ -3351,6 +3359,8 @@ translations:
   PC: PC
   PETG: PETG
   PID: PID
+  'PID: heating the bed in cycles to tune its control': 'PID: heating the bed in cycles to tune its control'
+  'PID: heating the nozzle in cycles to tune its control': 'PID: heating the nozzle in cycles to tune its control'
   PIN must be 4-6 digits: PIN must be 4-6 digits
   PIN removed: PIN removed
   PIN set: PIN set
@@ -3704,6 +3714,7 @@ translations:
   Probing stopped at {}: Probing stopped at {}
   'Probing stopped: toolhead state': 'Probing stopped: toolhead state'
   Probing the bed: Probing the bed
+  Probing the bed point by point: Probing the bed point by point
   Probing was asked for before homing.: Probing was asked for before homing.
   Probing... ({} points): Probing... ({} points)
   Problem found: Problem found
@@ -4363,6 +4374,7 @@ translations:
   Shadow Intensity: Shadow Intensity
   Shake&Tune: Shake&Tune
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.
+  Shaking each axis through a frequency sweep: Shaking each axis through a frequency sweep
   Shaking the {} axis: Shaking the {} axis
   Share Screen: Share Screen
   Share Usage Data: Share Usage Data
@@ -4820,6 +4832,7 @@ translations:
   The bed did not heat at the expected rate.: The bed did not heat at the expected rate.
   The bed has cooled. Take the spools off the plate, then confirm.: The bed has cooled. Take the spools off the plate, then confirm.
   The bed is clear: The bed is clear
+  The bed is hot: The bed is hot
   The bed is not heating: The bed is not heating
   The bed is too far out of level for automatic compensation.: The bed is too far out of level for automatic compensation.
   The bed is too small for settling laps.: The bed is too small for settling laps.
@@ -4863,6 +4876,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   The controller boards Klipper runs on. See their load in the system settings.: The controller boards Klipper runs on. See their load in the system settings.
+  The curve draws in as the axis sweeps: The curve draws in as the axis sweeps
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: The cutter blade didn't return — check for filament wrapped around the cutting mechanism
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.
@@ -5110,6 +5124,7 @@ translations:
   The speed of one fan you choose: The speed of one fan you choose
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
+  The tensioners pull each belt to its target: The tensioners pull each belt to its target
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: The thermocouple or PT100 amplifier reported a fault or a reading out of range.
   The time, date, and system uptime: The time, date, and system uptime
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
@@ -5245,6 +5260,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?
   This print never reports layer {}.: This print never reports layer {}.
   This printer cannot calibrate tool offsets automatically: This printer cannot calibrate tool offsets automatically
+  This printer cannot stream the sweep to the screen: This printer cannot stream the sweep to the screen
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'This printer has motor compensation, so the check runs twice: with it off, then on.'
@@ -5885,6 +5901,7 @@ translations:
   already loaded: already loaded
   assign without adding to Spoolman: assign without adding to Spoolman
   at last time’s drag point: at last time’s drag point
+  at target: at target
   attempt {}: attempt {}
   auto: auto
   automatic: automatic
@@ -5991,6 +6008,7 @@ translations:
   printer default: printer default
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: printer.cfg loads more than {} config files; [{}] was not searched for in all of them
   prints: prints
+  pulling...: pulling...
   ready to load: ready to load
   remaining: remaining
   remaining before clog detection triggers: remaining before clog detection triggers
@@ -6160,6 +6178,7 @@ translations:
   '{} new hardware available': '{} new hardware available'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} new plugins available. Enable them in Settings > Plugins.'
   '{} nozzle sensor fault': '{} nozzle sensor fault'
+  '{} of {} points': '{} of {} points'
   '{} of {} steps finished. Review them, then save them all at once.': '{} of {} steps finished. Review them, then save them all at once.'
   '{} packages to update': '{} packages to update'
   '{} preset': '{} preset'

@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Input shaper live view: the resonance curve drawing in as each axis sweeps, its peak
+     marked. CalibrationLiveCard streams the sweep into cal_live_shaper_chart; where the
+     printer cannot stream it (cal_live_shaper_streams 0) a line says so. -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+    <bind_flag_if_not_eq subject="cal_live_kind" flag="hidden" ref_value="3"/>
+    <lv_obj name="cal_live_shaper_chart"
+            width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <bind_flag_if_eq subject="cal_live_shaper_has_curve" flag="hidden" ref_value="0"/>
+    </lv_obj>
+    <text_xs name="cal_live_shaper_waiting"
+             width="100%" align="center" long_mode="wrap" style_text_align="center" bind_text="cal_live_shaper_note"
+             style_text_font="#cal_font_subtitle" style_text_color="#text_muted">
+      <bind_flag_if_eq subject="cal_live_shaper_has_curve" flag="hidden" ref_value="1"/>
+    </text_xs>
+  </view>
+</component>

@@ -1489,6 +1489,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "コーティングされたノズルにはコールドプルを行わないでください。コールドプルはアクティブなツールで実行されます。"
   Do not power off your printer.: プリンターの電源を切らないでください。
   Do not touch the filament yet.: "まだフィラメントに触れないでください。"
+  Do not touch the nozzle or bed: 'ノズルとベッドに触れないでください'
   Do not touch the nozzle or the bed.: 'ノズルとベッドに触れないでください。'
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完了するまでプリンターの電源を切らないでください。書き込み中に電源が切れると、プリンターが起動しなくなる可能性があります。'
@@ -2132,6 +2133,7 @@ translations:
   Got it: 了解
   Gradient: グラデーション
   Gray: グレー
+  'Green mark: the tension the printer aims for': 'グリーンの印: プリンターが目指す張力'
   Grid: グリッド
   Grip filament: フィラメントを把持
   Grip the filament: フィラメントを把持
@@ -2147,6 +2149,7 @@ translations:
   HEPA filter interval: 'HEPAフィルターの間隔'
   HOST: ホスト
   HOST ACCESS: 'ホストへのアクセス'
+  HOT: '高温'
   HTTP Code: HTTP コード
   'HTTP error: {} {}': 'HTTP エラー: {} {}'
   HUMIDITY SENSORS: 湿度センサー
@@ -2530,6 +2533,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: ツールヘッドが動いている間はプリンターから離れてください
   Keep current: 現状維持
   Keep current ({}): 現在の値を維持 ({})
+  Keep hands clear: '手を近づけないでください'
   Keep hands clear except when asked. The printer moves on its own.: 指示があるとき以外は手を近づけないでください。プリンターは自動で動きます。
   Keep hands clear. The printer moves on its own.: 手を近づけないでください。プリンターは自動で動きます。
 
@@ -2602,6 +2606,7 @@ translations:
   LOADED: 装填済み
   LOCKED: ロック中
   LOT-2024-001: LOT-2024-001
+  LOUD: '大きな音'
   Label Printer: ラベルプリンター
   Label Size: ラベルサイズ
   Label printed: ラベル印刷完了
@@ -2788,8 +2793,11 @@ translations:
   MISSING CONFIGURED: 設定済みが見つかりません
   MMU command failed: MMU コマンドに失敗しました
   MOTION & LEVELING: '動作とレベリング'
+  MOTORS: 'モーター'
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: '{} のMPC熱モデルを {} で校正しました。'
+  'MPC: measuring how fast the bed heats and loses heat': 'MPC: ベッドの加熱と放熱の速さを測定中'
+  'MPC: measuring how fast the nozzle heats and loses heat': 'MPC: ノズルの加熱と放熱の速さを測定中'
   Machine Limits: 機械制限
   Macro: マクロ
   Macro Browser: マクロブラウザ
@@ -3368,6 +3376,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  'PID: heating the bed in cycles to tune its control': 'PID: ベッドを繰り返し加熱して制御を調整中'
+  'PID: heating the nozzle in cycles to tune its control': 'PID: ノズルを繰り返し加熱して制御を調整中'
   PIN must be 4-6 digits: PIN は 4〜6 桁にしてください
   PIN removed: PIN を削除しました
   PIN set: PIN を設定しました
@@ -3721,6 +3731,7 @@ translations:
   Probing stopped at {}: '{} でプローブが停止しました'
   'Probing stopped: toolhead state': 'プローブ停止: ツールヘッドの状態'
   Probing the bed: 'ベッドをプローブ中'
+  Probing the bed point by point: 'ベッドを1点ずつプローブ中'
   Probing was asked for before homing.: 'ホーミング前にプローブが要求されました。'
   Probing... ({} points): 'プローブ中... ({} 点)'
   Problem found: 問題が見つかりました
@@ -4381,6 +4392,7 @@ translations:
   Shadow Intensity: 影の強度
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: ツールヘッドを対角線ごとに動かし、2つの結果を同時に表示します。張りが同じベルトは同じ位置でピークになります。
+  Shaking each axis through a frequency sweep: '各軸を周波数スイープで振動中'
   Shaking the {} axis: '{}軸を振動中'
   Share Screen: '画面を共有'
   Share Usage Data: 使用データを共有
@@ -4844,6 +4856,7 @@ translations:
   The bed has cooled. Take the spools off the plate, then confirm.: ベッドが冷えました。スプールをベッドから取り出してから確認してください。
 
   The bed is clear: 'ベッドの上に何もない'
+  The bed is hot: 'ベッドが高温です'
   The bed is not heating: 'ベッドが加熱していません'
   The bed is too far out of level for automatic compensation.: 'ベッドの傾きが大きすぎて自動補正できません。'
   The bed is too small for settling laps.: 'ベッドが小さすぎて、なじませ周回ができません。'
@@ -4888,6 +4901,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : 制御ボードが要求されたステップレートに追いつけませんでした。通常、高いマイクロステップと高速の組み合わせ、またはホストの処理停止が原因です。
   The controller boards Klipper runs on. See their load in the system settings.: 'Klipperが動作するコントローラーボード。負荷はシステム設定で確認できます。'
+  The curve draws in as the axis sweeps: '軸のスイープに合わせて曲線が描かれます'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: '{1} のドライバーが過熱しました。通常、run current の設定が高すぎるか、ドライバーの冷却不足が原因です。'
@@ -5138,6 +5152,7 @@ translations:
   The speed of one fan you choose: 選んだファン1つの速度
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'サブネットマスクが無効です。255.255.255.0 や 24 のような形式で入力してください。'
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
+  The tensioners pull each belt to its target: 'テンショナーが各ベルトを目標まで引っ張ります'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 熱電対または PT100 アンプが異常または範囲外の値を報告しました。
   The time, date, and system uptime: 時間、日付、稼働時間
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
@@ -5272,6 +5287,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: この印刷には約 %.0fg 必要ですが、スプールの残量は約 %.0fg です。それでも開始しますか？
   This print never reports layer {}.: 'この印刷はレイヤー {} を報告しません。'
   This printer cannot calibrate tool offsets automatically: このプリンターはツールオフセットを自動でキャリブレートできません
+  This printer cannot stream the sweep to the screen: 'このプリンターはスイープを画面に表示できません'
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: このプリンターのゲートは Spoolman から設定されます。HelixScreen 側のコピーはクリアしました。Spoolman でスプールを削除してください。
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: このプリンターのゲートは Spoolman から設定されます。色・素材・スプールの変更は Spoolman で行ってください。
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'このプリンターにはモーター補正があるため、チェックは補正オフ、続いてオンの 2 回実行されます。'
@@ -5906,6 +5922,7 @@ translations:
   already loaded: '装填済み'
   assign without adding to Spoolman: Spoolmanに追加せずに割り当て
   at last time’s drag point: "前回の引っかかり位置"
+  at target: '目標到達'
   attempt {}: '試行 {}'
   auto: 自動
   automatic: '自動'
@@ -6017,6 +6034,7 @@ translations:
   printer default: プリンター既定
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg は {} 個を超える設定ファイルを読み込んでいます。[{}] はすべてで検索されていません"
   prints: 印刷
+  pulling...: '引っ張り中...'
   ready to load: '装填可能'
   remaining: 残り
   remaining before clog detection triggers: 残りで詰まり検出が作動します
@@ -6186,6 +6204,7 @@ translations:
   '{} new hardware available': '{} 個の新しいハードウェアが利用可能です'
   '{} new plugins available. Enable them in Settings > Plugins.': '{} 個の新しいプラグインが利用可能です。設定 > プラグインで有効化してください。'
   '{} nozzle sensor fault': '{} のノズルセンサー異常'
+  '{} of {} points': '{} / {} 点'
   '{} of {} steps finished. Review them, then save them all at once.': '{}/{} ステップが完了しました。確認してから、まとめて保存してください。'
   '{} packages to update': '更新するパッケージ {} 件'
   '{} preset': '{} 個のプリセット'

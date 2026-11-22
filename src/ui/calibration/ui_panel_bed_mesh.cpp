@@ -1596,6 +1596,9 @@ void BedMeshPanel::on_probe_progress(int current, int total) {
     if (calibration_cancelled_) {
         return;
     }
+    if (in_run_ && run_hooks_.probed) {
+        run_hooks_.probed(current, total);
+    }
     if (total > 0) {
         lv_subject_set_int(&bed_mesh_probe_indeterminate_, 0);
         // Cap at 99% — completion signal handles the final transition.

@@ -3249,6 +3249,8 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     GcodeResult gcode_set_fan_speed(const std::string& gcode);
     GcodeResult gcode_pid_calibrate(const std::string& gcode);
     GcodeResult gcode_mpc_calibrate(const std::string& gcode);
+    /// Set (or with 0 clear) a calibration's heater target, its temperature with it.
+    void hold_heater_for_calibration(const std::string& heater, double target);
     GcodeResult gcode_save_config(const std::string& gcode);
     GcodeResult gcode_bed_mesh(const std::string& gcode);
     GcodeResult gcode_set_gcode_offset(const std::string& gcode);

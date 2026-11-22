@@ -1407,6 +1407,7 @@
   <translation tag="Do not cold pull a coated nozzle. The cold pull runs on the active tool." en="Do not cold pull a coated nozzle. The cold pull runs on the active tool."/>
   <translation tag="Do not power off your printer." en="Do not power off your printer."/>
   <translation tag="Do not touch the filament yet." en="Do not touch the filament yet."/>
+  <translation tag="Do not touch the nozzle or bed" en="Do not touch the nozzle or bed"/>
   <translation tag="Do not touch the nozzle or the bed." en="Do not touch the nozzle or the bed."/>
   <translation tag="Do not touch the printer during calibration" en="Do not touch the printer during calibration"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." en="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start."/>
@@ -2038,6 +2039,7 @@
   <translation tag="Got it" en="Got it"/>
   <translation tag="Gradient" en="Gradient"/>
   <translation tag="Gray" en="Gray"/>
+  <translation tag="Green mark: the tension the printer aims for" en="Green mark: the tension the printer aims for"/>
   <translation tag="Grid" en="Grid"/>
   <translation tag="Grip filament" en="Grip filament"/>
   <translation tag="Grip the filament" en="Grip the filament"/>
@@ -2053,6 +2055,7 @@
   <translation tag="HEPA filter interval" en="HEPA filter interval"/>
   <translation tag="HOST" en="HOST"/>
   <translation tag="HOST ACCESS" en="HOST ACCESS"/>
+  <translation tag="HOT" en="HOT"/>
   <translation tag="HTTP Code" en="HTTP Code"/>
   <translation tag="HTTP error: {} {}" en="HTTP error: {} {}"/>
   <translation tag="HUMIDITY SENSORS" en="HUMIDITY SENSORS"/>
@@ -2428,6 +2431,7 @@
   <translation tag="Keep clear of the printer while the toolhead is moving" en="Keep clear of the printer while the toolhead is moving"/>
   <translation tag="Keep current" en="Keep current"/>
   <translation tag="Keep current ({})" en="Keep current ({})"/>
+  <translation tag="Keep hands clear" en="Keep hands clear"/>
   <translation tag="Keep hands clear except when asked. The printer moves on its own." en="Keep hands clear except when asked. The printer moves on its own."/>
   <translation tag="Keep hands clear. The printer moves on its own." en="Keep hands clear. The printer moves on its own."/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." en="Keep its own data on this screen (up to 256 KB)."/>
@@ -2494,6 +2498,7 @@
   <translation tag="LOADED" en="LOADED"/>
   <translation tag="LOCKED" en="LOCKED"/>
   <translation tag="LOT-2024-001" en="LOT-2024-001"/>
+  <translation tag="LOUD" en="LOUD"/>
   <translation tag="Label Printer" en="Label Printer"/>
   <translation tag="Label Size" en="Label Size"/>
   <translation tag="Label printed" en="Label printed"/>
@@ -2687,8 +2692,11 @@
   <translation tag="MISSING CONFIGURED" en="MISSING CONFIGURED"/>
   <translation tag="MMU command failed" en="MMU command failed"/>
   <translation tag="MOTION &amp; LEVELING" en="MOTION &amp; LEVELING"/>
+  <translation tag="MOTORS" en="MOTORS"/>
   <translation tag="MPC" en="MPC"/>
   <translation tag="MPC thermal model calibrated for {} at {}." en="MPC thermal model calibrated for {} at {}."/>
+  <translation tag="MPC: measuring how fast the bed heats and loses heat" en="MPC: measuring how fast the bed heats and loses heat"/>
+  <translation tag="MPC: measuring how fast the nozzle heats and loses heat" en="MPC: measuring how fast the nozzle heats and loses heat"/>
   <translation tag="Machine Limits" en="Machine Limits"/>
   <translation tag="Macro" en="Macro"/>
   <translation tag="Macro Browser" en="Macro Browser"/>
@@ -3252,6 +3260,8 @@
   <translation tag="PC" en="PC"/>
   <translation tag="PETG" en="PETG"/>
   <translation tag="PID" en="PID"/>
+  <translation tag="PID: heating the bed in cycles to tune its control" en="PID: heating the bed in cycles to tune its control"/>
+  <translation tag="PID: heating the nozzle in cycles to tune its control" en="PID: heating the nozzle in cycles to tune its control"/>
   <translation tag="PIN must be 4-6 digits" en="PIN must be 4-6 digits"/>
   <translation tag="PIN removed" en="PIN removed"/>
   <translation tag="PIN set" en="PIN set"/>
@@ -3605,6 +3615,7 @@
   <translation tag="Probing stopped at {}" en="Probing stopped at {}"/>
   <translation tag="Probing stopped: toolhead state" en="Probing stopped: toolhead state"/>
   <translation tag="Probing the bed" en="Probing the bed"/>
+  <translation tag="Probing the bed point by point" en="Probing the bed point by point"/>
   <translation tag="Probing was asked for before homing." en="Probing was asked for before homing."/>
   <translation tag="Probing... ({} points)" en="Probing... ({} points)"/>
   <translation tag="Problem found" en="Problem found"/>
@@ -4254,6 +4265,7 @@
   <translation tag="Shadow Intensity" en="Shadow Intensity"/>
   <translation tag="Shake&amp;Tune" en="Shake&amp;Tune"/>
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." en="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together."/>
+  <translation tag="Shaking each axis through a frequency sweep" en="Shaking each axis through a frequency sweep"/>
   <translation tag="Shaking the {} axis" en="Shaking the {} axis"/>
   <translation tag="Share Screen" en="Share Screen"/>
   <translation tag="Share Usage Data" en="Share Usage Data"/>
@@ -4702,6 +4714,7 @@
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." en="The bed has cooled. Take the spools off the plate, then confirm."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." en="The bed heater. Set its temperature and watch its graph on the bed temperature screen."/>
   <translation tag="The bed is clear" en="The bed is clear"/>
+  <translation tag="The bed is hot" en="The bed is hot"/>
   <translation tag="The bed is not heating" en="The bed is not heating"/>
   <translation tag="The bed is too far out of level for automatic compensation." en="The bed is too far out of level for automatic compensation."/>
   <translation tag="The bed is too small for settling laps." en="The bed is too small for settling laps."/>
@@ -4739,6 +4752,7 @@
   <translation tag="The connection to Klipper was lost" en="The connection to Klipper was lost"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." en="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." en="The controller boards Klipper runs on. See their load in the system settings."/>
+  <translation tag="The curve draws in as the axis sweeps" en="The curve draws in as the axis sweeps"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" en="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" en="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." en="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers."/>
@@ -4974,6 +4988,7 @@
   <translation tag="The speed of one fan you choose" en="The speed of one fan you choose"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." en="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24."/>
   <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
+  <translation tag="The tensioners pull each belt to its target" en="The tensioners pull each belt to its target"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." en="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
@@ -5077,6 +5092,7 @@
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" en="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?"/>
   <translation tag="This print never reports layer {}." en="This print never reports layer {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" en="This printer cannot calibrate tool offsets automatically"/>
+  <translation tag="This printer cannot stream the sweep to the screen" en="This printer cannot stream the sweep to the screen"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." en="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." en="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." en="This printer has motor compensation, so the check runs twice: with it off, then on."/>
@@ -5711,6 +5727,7 @@
   <translation tag="already loaded" en="already loaded"/>
   <translation tag="assign without adding to Spoolman" en="assign without adding to Spoolman"/>
   <translation tag="at last time’s drag point" en="at last time’s drag point"/>
+  <translation tag="at target" en="at target"/>
   <translation tag="attempt {}" en="attempt {}"/>
   <translation tag="auto" en="auto"/>
   <translation tag="automatic" en="automatic"/>
@@ -5817,6 +5834,7 @@
   <translation tag="printer default" en="printer default"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" en="printer.cfg loads more than {} config files; [{}] was not searched for in all of them"/>
   <translation tag="prints" en="prints"/>
+  <translation tag="pulling..." en="pulling..."/>
   <translation tag="ready to load" en="ready to load"/>
   <translation tag="remaining" en="remaining"/>
   <translation tag="remaining before clog detection triggers" en="remaining before clog detection triggers"/>
@@ -5985,6 +6003,7 @@
   <translation tag="{} new hardware available" en="{} new hardware available"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." en="{} new plugins available. Enable them in Settings &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" en="{} nozzle sensor fault"/>
+  <translation tag="{} of {} points" en="{} of {} points"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." en="{} of {} steps finished. Review them, then save them all at once."/>
   <translation tag="{} packages to update" en="{} packages to update"/>
   <translation tag="{} preset" en="{} preset"/>

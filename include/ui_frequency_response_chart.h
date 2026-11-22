@@ -437,6 +437,20 @@ void ui_frequency_response_chart_mark_peak(ui_frequency_response_chart_t* chart,
                                            float peak_freq, float peak_amplitude);
 
 /**
+ * @brief Label only the axis ends (freq_min and freq_max), each with its unit,
+ *        instead of round ticks across the range
+ */
+// NAMESPACE_OK: matches this file's C-style chart API
+void ui_frequency_response_chart_set_x_end_labels_only(ui_frequency_response_chart_t* chart,
+                                                       bool end_only);
+
+/**
+ * @brief Write each marked peak's frequency ("52.4 Hz") above its dot
+ */
+// NAMESPACE_OK: matches this file's C-style chart API
+void ui_frequency_response_chart_set_peak_labels(ui_frequency_response_chart_t* chart, bool on);
+
+/**
  * @brief Clear the peak marker for a series
  *
  * Removes the peak marker if present. Safe to call when no marker exists.

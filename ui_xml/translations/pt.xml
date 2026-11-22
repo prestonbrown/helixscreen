@@ -1407,6 +1407,7 @@
   <translation tag="Do not cold pull a coated nozzle. The cold pull runs on the active tool." pt="Não faça extração a frio em um bico revestido. A extração a frio é feita na ferramenta ativa."/>
   <translation tag="Do not power off your printer." pt="Não desligue sua impressora."/>
   <translation tag="Do not touch the filament yet." pt="Ainda não toque no filamento."/>
+  <translation tag="Do not touch the nozzle or bed" pt="Não toque no bico nem na mesa"/>
   <translation tag="Do not touch the nozzle or the bed." pt="Não toque no bico nem na mesa."/>
   <translation tag="Do not touch the printer during calibration" pt="Não toque na impressora durante a calibração"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." pt="Não desligue a impressora até terminar. Uma queda de energia durante a gravação pode impedir a impressora de iniciar."/>
@@ -2038,6 +2039,7 @@
   <translation tag="Got it" pt="Entendi"/>
   <translation tag="Gradient" pt="Gradiente"/>
   <translation tag="Gray" pt="Cinza"/>
+  <translation tag="Green mark: the tension the printer aims for" pt="Marca verde: a tensão que a impressora procura"/>
   <translation tag="Grid" pt="Grade"/>
   <translation tag="Grip filament" pt="Segurar filamento"/>
   <translation tag="Grip the filament" pt="Segurar o filamento"/>
@@ -2053,6 +2055,7 @@
   <translation tag="HEPA filter interval" pt="Intervalo do filtro HEPA"/>
   <translation tag="HOST" pt="Host"/>
   <translation tag="HOST ACCESS" pt="ACESSO AO HOST"/>
+  <translation tag="HOT" pt="QUENTE"/>
   <translation tag="HTTP Code" pt="Código HTTP"/>
   <translation tag="HTTP error: {} {}" pt="Erro HTTP: {} {}"/>
   <translation tag="HUMIDITY SENSORS" pt="SENSORES DE UMIDADE"/>
@@ -2428,6 +2431,7 @@
   <translation tag="Keep clear of the printer while the toolhead is moving" pt="Afaste-se da impressora enquanto o cabeçote se move"/>
   <translation tag="Keep current" pt="Manter atual"/>
   <translation tag="Keep current ({})" pt="Manter atual ({})"/>
+  <translation tag="Keep hands clear" pt="Mantenha as mãos afastadas"/>
   <translation tag="Keep hands clear except when asked. The printer moves on its own." pt="Mantenha as mãos afastadas, exceto quando solicitado. A impressora se move sozinha."/>
   <translation tag="Keep hands clear. The printer moves on its own." pt="Mantenha as mãos afastadas. A impressora se move sozinha."/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." pt="Guarda seus próprios dados nesta tela (até 256 KB)."/>
@@ -2494,6 +2498,7 @@
   <translation tag="LOADED" pt="CARREGADO"/>
   <translation tag="LOCKED" pt="BLOQUEADO"/>
   <translation tag="LOT-2024-001" pt="LOT-2024-001"/>
+  <translation tag="LOUD" pt="BARULHENTO"/>
   <translation tag="Label Printer" pt="Impressora de Etiquetas"/>
   <translation tag="Label Size" pt="Tamanho da Etiqueta"/>
   <translation tag="Label printed" pt="Etiqueta impressa"/>
@@ -2687,8 +2692,11 @@
   <translation tag="MISSING CONFIGURED" pt="CONFIGURAÇÃO FALTANDO"/>
   <translation tag="MMU command failed" pt="Falha no comando MMU"/>
   <translation tag="MOTION &amp; LEVELING" pt="MOVIMENTO E NIVELAMENTO"/>
+  <translation tag="MOTORS" pt="MOTORES"/>
   <translation tag="MPC" pt="MPC"/>
   <translation tag="MPC thermal model calibrated for {} at {}." pt="Modelo térmico MPC calibrado para {} a {}."/>
+  <translation tag="MPC: measuring how fast the bed heats and loses heat" pt="MPC: medindo a rapidez com que a mesa aquece e perde calor"/>
+  <translation tag="MPC: measuring how fast the nozzle heats and loses heat" pt="MPC: medindo a rapidez com que o bico aquece e perde calor"/>
   <translation tag="Machine Limits" pt="Limites da Máquina"/>
   <translation tag="Macro" pt="Macro"/>
   <translation tag="Macro Browser" pt="Navegador de Macros"/>
@@ -3252,6 +3260,8 @@
   <translation tag="PC" pt="PC"/>
   <translation tag="PETG" pt="PETG"/>
   <translation tag="PID" pt="PID"/>
+  <translation tag="PID: heating the bed in cycles to tune its control" pt="PID: aquecendo a mesa em ciclos para ajustar o controle"/>
+  <translation tag="PID: heating the nozzle in cycles to tune its control" pt="PID: aquecendo o bico em ciclos para ajustar o controle"/>
   <translation tag="PIN must be 4-6 digits" pt="O PIN deve ter 4-6 dígitos"/>
   <translation tag="PIN removed" pt="PIN removido"/>
   <translation tag="PIN set" pt="PIN definido"/>
@@ -3605,6 +3615,7 @@
   <translation tag="Probing stopped at {}" pt="Sondagem interrompida em {}"/>
   <translation tag="Probing stopped: toolhead state" pt="Sondagem interrompida: estado do cabeçote"/>
   <translation tag="Probing the bed" pt="Sondando a mesa"/>
+  <translation tag="Probing the bed point by point" pt="Sondando a mesa ponto a ponto"/>
   <translation tag="Probing was asked for before homing." pt="A sondagem foi pedida antes do homing."/>
   <translation tag="Probing... ({} points)" pt="Sondando... ({} pontos)"/>
   <translation tag="Problem found" pt="Problema detectado"/>
@@ -4254,6 +4265,7 @@
   <translation tag="Shadow Intensity" pt="Intensidade da Sombra"/>
   <translation tag="Shake&amp;Tune" pt="Shake&amp;Tune"/>
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." pt="Agita o cabeçote ao longo de cada diagonal e sobrepõe as duas respostas. Correias equilibradas atingem o pico juntas."/>
+  <translation tag="Shaking each axis through a frequency sweep" pt="Vibrando cada eixo numa varredura de frequências"/>
   <translation tag="Shaking the {} axis" pt="Vibrando o eixo {}"/>
   <translation tag="Share Screen" pt="Compartilhar tela"/>
   <translation tag="Share Usage Data" pt="Compartilhar Dados de Uso"/>
@@ -4702,6 +4714,7 @@
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." pt="A mesa esfriou. Tire os carretéis da mesa e depois confirme."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." pt="O aquecedor da mesa. Defina a temperatura e acompanhe o gráfico na tela de temperatura da mesa."/>
   <translation tag="The bed is clear" pt="A mesa está livre"/>
+  <translation tag="The bed is hot" pt="A mesa está quente"/>
   <translation tag="The bed is not heating" pt="A mesa não está aquecendo"/>
   <translation tag="The bed is too far out of level for automatic compensation." pt="A mesa está desnivelada demais para a compensação automática."/>
   <translation tag="The bed is too small for settling laps." pt="A mesa é pequena demais para as voltas de assentamento."/>
@@ -4739,6 +4752,7 @@
   <translation tag="The connection to Klipper was lost" pt="A conexão com o Klipper foi perdida"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." pt="A placa controladora não conseguiu acompanhar a taxa de passos pedida, geralmente porque micropassos altos se somam a uma velocidade alta, ou o host travou."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." pt="As placas controladoras em que o Klipper roda. Veja a carga delas nas configurações do sistema."/>
+  <translation tag="The curve draws in as the axis sweeps" pt="A curva é desenhada durante a varredura do eixo"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" pt="A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" pt="O cortador está desalinhado. Recalibre com CALIBRATE_CUT_POS"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." pt="O driver de {1} esquentou demais, geralmente por uma corrente de operação alta demais ou pouco resfriamento sobre os drivers."/>
@@ -4974,6 +4988,7 @@
   <translation tag="The speed of one fan you choose" pt="A velocidade de uma ventoinha escolhida"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." pt="A máscara de sub-rede não é válida. Use um formato como 255.255.255.0 ou 24."/>
   <translation tag="The temperature was changed elsewhere." pt="A temperatura foi alterada em outro lugar."/>
+  <translation tag="The tensioners pull each belt to its target" pt="Os tensores puxam cada correia até a tensão alvo"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." pt="O amplificador do termopar ou do PT100 relatou uma falha ou uma leitura fora da faixa."/>
   <translation tag="The time, date, and system uptime" pt="Hora, data e tempo ativo"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." pt="A pasta de timelapse ou de logs sobrepõe-se a uma pasta protegida, por isso a limpeza está desligada."/>
@@ -5077,6 +5092,7 @@
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" pt="Esta impressão precisa de cerca de %.0fg, mas o carretel tem cerca de %.0fg restantes. Iniciar mesmo assim?"/>
   <translation tag="This print never reports layer {}." pt="Esta impressão nunca informa a camada {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" pt="Esta impressora não consegue calibrar os offsets de ferramenta automaticamente"/>
+  <translation tag="This printer cannot stream the sweep to the screen" pt="Esta impressora não consegue mostrar a varredura na tela"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." pt="Esta impressora preenche seus gates a partir do Spoolman. O HelixScreen limpou a própria cópia; remova a bobina no Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." pt="Esta impressora preenche seus gates a partir do Spoolman. Faça alterações de cor, material e bobina no Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." pt="Esta impressora tem compensação do motor, então a verificação é executada duas vezes: com ela desligada e depois ligada."/>
@@ -5711,6 +5727,7 @@
   <translation tag="already loaded" pt="já carregado"/>
   <translation tag="assign without adding to Spoolman" pt="atribuir sem adicionar ao Spoolman"/>
   <translation tag="at last time’s drag point" pt="no ponto de arraste da última vez"/>
+  <translation tag="at target" pt="no alvo"/>
   <translation tag="attempt {}" pt="tentativa {}"/>
   <translation tag="auto" pt="auto"/>
   <translation tag="automatic" pt="automático"/>
@@ -5817,6 +5834,7 @@
   <translation tag="printer default" pt="padrão da impressora"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" pt="printer.cfg carrega mais de {} arquivos de configuração; [{}] não foi procurado em todos"/>
   <translation tag="prints" pt="impressões"/>
+  <translation tag="pulling..." pt="tensionando..."/>
   <translation tag="ready to load" pt="pronto para carregar"/>
   <translation tag="remaining" pt="restante"/>
   <translation tag="remaining before clog detection triggers" pt="restante antes da detecção de obstrução ser acionada"/>
@@ -5985,6 +6003,7 @@
   <translation tag="{} new hardware available" pt="{} novo hardware disponível"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." pt="{} novos plugins disponíveis. Ative-os em Configurações &gt; Plugins."/>
   <translation tag="{} nozzle sensor fault" pt="Falha no sensor do bico de {}"/>
+  <translation tag="{} of {} points" pt="{} de {} pontos"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." pt="{} de {} etapas concluídas. Revise e depois salve todas de uma vez."/>
   <translation tag="{} packages to update" pt="{} pacotes para atualizar"/>
   <translation tag="{} preset" pt="{} predefinição"/>

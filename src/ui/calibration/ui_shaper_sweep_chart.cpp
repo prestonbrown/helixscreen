@@ -41,6 +41,17 @@ void ShaperSweepChart::set_source_factory(LiveSweepPreview::SourceFactory factor
     preview_.set_source_factory(std::move(factory));
 }
 
+void ShaperSweepChart::set_axis_follows_sweep(bool follows) {
+    axis_follows_sweep_ = follows;
+}
+
+void ShaperSweepChart::set_marks_peak(bool marks) {
+    marks_peak_ = marks;
+    if (!marks && chart_ != nullptr && series_ >= 0) {
+        ui_frequency_response_chart_clear_peak(chart_, series_);
+    }
+}
+
 void ShaperSweepChart::set_on_curve_changed(std::function<void(bool has_curve)> on_changed) {
     on_curve_changed_ = std::move(on_changed);
 }
@@ -70,6 +81,13 @@ bool ShaperSweepChart::begin(lv_obj_t* host, char axis,
         ui_frequency_response_chart_set_series_style(chart_, series_, kFrMeasuredCurveStyle);
     }
 
+    axis_lo_hz_ = 0.0f;
+    axis_hi_hz_ = kShaperChartMaxHz;
+    if (axis_follows_sweep_ && target->plan.valid()) {
+        axis_lo_hz_ = target->plan.freq_start_hz;
+        axis_hi_hz_ = target->plan.freq_end_hz;
+    }
+    ui_frequency_response_chart_set_freq_range(chart_, axis_lo_hz_, axis_hi_hz_);
     column_ = (axis == 'Y' || axis == 'y') ? SweepColumn::Y : SweepColumn::X;
     preview_.arm(*target, [this](const std::vector<SweepPoint>& points) { on_points(points); });
     return true;
@@ -147,7 +165,7 @@ const LiveSweepPreview& ShaperSweepChart::preview() const {
 }
 
 void ShaperSweepChart::on_points(const std::vector<SweepPoint>& points) {
-    const auto series = layout_preview(points, column_, 0.0f, kShaperChartMaxHz);
+    const auto series = layout_preview(points, column_, axis_lo_hz_, axis_hi_hz_);
     // Until a finite point exists, whatever is drawn (the previous axis's
     // curve) stays up.
     if (series.max_amp <= 0.0f) {
@@ -165,6 +183,18 @@ void ShaperSweepChart::draw(const std::vector<float>& freqs, const std::vector<f
     ui_frequency_response_chart_set_amplitude_range(
         chart_, 0.0f, max_amp > 0.0f ? max_amp * kShaperChartHeadroom : 1.0f);
     ui_frequency_response_chart_set_data(chart_, series_, freqs.data(), amps.data(), freqs.size());
+    if (!marks_peak_) {
+        return;
+    }
+    size_t peak = amps.size();
+    for (size_t i = 0; i < amps.size(); ++i) {
+        if (std::isfinite(amps[i]) && (peak == amps.size() || amps[i] > amps[peak])) {
+            peak = i;
+        }
+    }
+    if (peak < amps.size() && amps[peak] > 0.0f) {
+        ui_frequency_response_chart_mark_peak(chart_, series_, freqs[peak], amps[peak]);
+    }
 }
 
 void ShaperSweepChart::set_has_curve(bool has_curve) {

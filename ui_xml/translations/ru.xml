@@ -1452,6 +1452,7 @@
   <translation tag="Do not cold pull a coated nozzle. The cold pull runs on the active tool." ru="Не выполняйте холодную протяжку на сопле с покрытием. Протяжка выполняется на активном инструменте."/>
   <translation tag="Do not power off your printer." ru="Не выключайте принтер."/>
   <translation tag="Do not touch the filament yet." ru="Пока не трогайте филамент."/>
+  <translation tag="Do not touch the nozzle or bed" ru="Не трогайте сопло и стол"/>
   <translation tag="Do not touch the nozzle or the bed." ru="Не прикасайтесь к соплу и столу."/>
   <translation tag="Do not touch the printer during calibration" ru="Не трогайте принтер во время калибровки"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." ru="Не выключайте принтер до завершения. Пропадание питания во время прошивки может привести к тому, что принтер не запустится."/>
@@ -2086,6 +2087,7 @@
   <translation tag="Got it" ru="Понятно"/>
   <translation tag="Gradient" ru="Градиент"/>
   <translation tag="Gray" ru="Серый"/>
+  <translation tag="Green mark: the tension the printer aims for" ru="Зелёная метка: натяжение, к которому стремится принтер"/>
   <translation tag="Grid" ru="Сетка"/>
   <translation tag="Grip filament" ru="Зажать филамент"/>
   <translation tag="Grip the filament" ru="Зажать филамент"/>
@@ -2101,6 +2103,7 @@
   <translation tag="HEPA filter interval" ru="Интервал HEPA-фильтра"/>
   <translation tag="HOST" ru="Хост"/>
   <translation tag="HOST ACCESS" ru="ДОСТУП К ХОСТУ"/>
+  <translation tag="HOT" ru="ГОРЯЧО"/>
   <translation tag="HTTP Code" ru="Код HTTP"/>
   <translation tag="HTTP error: {} {}" ru="Ошибка HTTP: {} {}"/>
   <translation tag="HUMIDITY SENSORS" ru="ДАТЧИКИ ВЛАЖНОСТИ"/>
@@ -2476,6 +2479,7 @@
   <translation tag="Keep clear of the printer while the toolhead is moving" ru="Не приближайтесь к принтеру, пока перемещается печатающая головка"/>
   <translation tag="Keep current" ru="Оставить текущую"/>
   <translation tag="Keep current ({})" ru="Оставить текущее ({})"/>
+  <translation tag="Keep hands clear" ru="Держите руки подальше"/>
   <translation tag="Keep hands clear except when asked. The printer moves on its own." ru="Держите руки подальше, если не появится запрос. Принтер двигается сам."/>
   <translation tag="Keep hands clear. The printer moves on its own." ru="Держите руки подальше. Принтер двигается сам."/>
   <translation tag="Keep its own data on this screen (up to 256 KB)." ru="Хранит собственные данные на этом экране (до 256 КБ)."/>
@@ -2542,6 +2546,7 @@
   <translation tag="LOADED" ru="ЗАГРУЖЕН"/>
   <translation tag="LOCKED" ru="ЗАБЛОКИРОВАНО"/>
   <translation tag="LOT-2024-001" ru="LOT-2024-001"/>
+  <translation tag="LOUD" ru="ГРОМКО"/>
   <translation tag="Label Printer" ru="Принтер этикеток"/>
   <translation tag="Label Size" ru="Размер этикетки"/>
   <translation tag="Label printed" ru="Этикетка напечатана"/>
@@ -2735,8 +2740,11 @@
   <translation tag="MISSING CONFIGURED" ru="ОТСУТСТВУЕТ НАСТРОЕННОЕ"/>
   <translation tag="MMU command failed" ru="Ошибка команды MMU"/>
   <translation tag="MOTION &amp; LEVELING" ru="ДВИЖЕНИЕ И КАЛИБРОВКА"/>
+  <translation tag="MOTORS" ru="МОТОРЫ"/>
   <translation tag="MPC" ru="MPC"/>
   <translation tag="MPC thermal model calibrated for {} at {}." ru="Тепловая модель MPC откалибрована для {} при {}."/>
+  <translation tag="MPC: measuring how fast the bed heats and loses heat" ru="MPC: измеряем, как быстро стол нагревается и теряет тепло"/>
+  <translation tag="MPC: measuring how fast the nozzle heats and loses heat" ru="MPC: измеряем, как быстро сопло нагревается и теряет тепло"/>
   <translation tag="Machine Limits" ru="Ограничения принтера"/>
   <translation tag="Macro" ru="Макрос"/>
   <translation tag="Macro Browser" ru="Обзор макросов"/>
@@ -3300,6 +3308,8 @@
   <translation tag="PC" ru="PC"/>
   <translation tag="PETG" ru="PETG"/>
   <translation tag="PID" ru="PID"/>
+  <translation tag="PID: heating the bed in cycles to tune its control" ru="PID: циклический нагрев стола для настройки регулирования"/>
+  <translation tag="PID: heating the nozzle in cycles to tune its control" ru="PID: циклический нагрев сопла для настройки регулирования"/>
   <translation tag="PIN must be 4-6 digits" ru="PIN должен содержать 4-6 цифр"/>
   <translation tag="PIN removed" ru="PIN удалён"/>
   <translation tag="PIN set" ru="PIN установлен"/>
@@ -3662,6 +3672,7 @@
   <translation tag="Probing stopped at {}" ru="Измерение остановлено: {}"/>
   <translation tag="Probing stopped: toolhead state" ru="Измерение остановлено: состояние головки"/>
   <translation tag="Probing the bed" ru="Зондирование стола"/>
+  <translation tag="Probing the bed point by point" ru="Зондирование стола по точкам"/>
   <translation tag="Probing was asked for before homing." ru="Измерение запрошено до парковки."/>
   <translation tag="Probing... ({} points)" ru="Замер... ({} точки)"/>
   <translation tag="Probing... ({} points)_few" ru="Замер... ({} точки)"/>
@@ -4314,6 +4325,7 @@
   <translation tag="Shadow Intensity" ru="Интенсивность тени"/>
   <translation tag="Shake&amp;Tune" ru="Shake&amp;Tune"/>
   <translation tag="Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together." ru="Раскачивает печатающую головку вдоль каждой диагонали и накладывает два отклика. У одинаково натянутых ремней пики совпадают."/>
+  <translation tag="Shaking each axis through a frequency sweep" ru="Каждая ось проходит развёртку частот"/>
   <translation tag="Shaking the {} axis" ru="Раскачивание оси {}"/>
   <translation tag="Share Screen" ru="Поделиться экраном"/>
   <translation tag="Share Usage Data" ru="Делиться данными использования"/>
@@ -4768,6 +4780,7 @@
   <translation tag="The bed has cooled. Take the spools off the plate, then confirm." ru="Стол остыл. Снимите катушки со стола, затем подтвердите."/>
   <translation tag="The bed heater. Set its temperature and watch its graph on the bed temperature screen." ru="Нагреватель стола. Температура задается, а график виден на экране температуры стола."/>
   <translation tag="The bed is clear" ru="Стол свободен"/>
+  <translation tag="The bed is hot" ru="Стол горячий"/>
   <translation tag="The bed is not heating" ru="Стол не нагревается"/>
   <translation tag="The bed is too far out of level for automatic compensation." ru="Стол слишком сильно перекошен для автоматической компенсации."/>
   <translation tag="The bed is too small for settling laps." ru="Стол слишком мал для кругов приработки."/>
@@ -4805,6 +4818,7 @@
   <translation tag="The connection to Klipper was lost" ru="Связь с Klipper потеряна"/>
   <translation tag="The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled." ru="Плата управления не справилась с заданной частотой шагов, обычно из-за большого микрошага при высокой скорости или зависания хоста."/>
   <translation tag="The controller boards Klipper runs on. See their load in the system settings." ru="Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках."/>
+  <translation tag="The curve draws in as the axis sweeps" ru="Кривая строится по ходу развёртки оси"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" ru="Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" ru="Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." ru="Драйвер {1} перегрелся, обычно из-за слишком высокого тока мотора или недостаточного охлаждения драйверов."/>
@@ -5040,6 +5054,7 @@
   <translation tag="The speed of one fan you choose" ru="Скорость выбранного вентилятора"/>
   <translation tag="The subnet mask is not valid. Use a form such as 255.255.255.0 or 24." ru="Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24."/>
   <translation tag="The temperature was changed elsewhere." ru="Температуру изменили в другом месте."/>
+  <translation tag="The tensioners pull each belt to its target" ru="Натяжители тянут каждый ремень до целевого натяжения"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." ru="Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона."/>
   <translation tag="The time, date, and system uptime" ru="Время, дата и время работы системы"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." ru="Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."/>
@@ -5143,6 +5158,7 @@
   <translation tag="This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?" ru="Для этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?"/>
   <translation tag="This print never reports layer {}." ru="Эта печать никогда не сообщает слой {}."/>
   <translation tag="This printer cannot calibrate tool offsets automatically" ru="Этот принтер не может калибровать смещения инструментов автоматически"/>
+  <translation tag="This printer cannot stream the sweep to the screen" ru="Этот принтер не может показывать развёртку на экране"/>
   <translation tag="This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman."/>
   <translation tag="This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman." ru="Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman."/>
   <translation tag="This printer has motor compensation, so the check runs twice: with it off, then on." ru="У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой."/>
@@ -5777,6 +5793,7 @@
   <translation tag="already loaded" ru="уже загружен"/>
   <translation tag="assign without adding to Spoolman" ru="назначить без добавления в Spoolman"/>
   <translation tag="at last time’s drag point" ru="в точке касания прошлого раза"/>
+  <translation tag="at target" ru="на цели"/>
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
   <translation tag="automatic" ru="автоматически"/>
@@ -5886,6 +5903,7 @@
   <translation tag="printer default" ru="по умолчанию для принтера"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" ru="printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"/>
   <translation tag="prints" ru="печатей"/>
+  <translation tag="pulling..." ru="натяжение..."/>
   <translation tag="ready to load" ru="готов к загрузке"/>
   <translation tag="remaining" ru="осталось"/>
   <translation tag="remaining before clog detection triggers" ru="осталось до срабатывания обнаружения засора"/>
@@ -6063,6 +6081,7 @@
   <translation tag="{} new hardware available" ru="Доступно нового оборудования: {}"/>
   <translation tag="{} new plugins available. Enable them in Settings &gt; Plugins." ru="Доступно новых плагинов: {}. Включите их в разделе Настройки &gt; Плагины."/>
   <translation tag="{} nozzle sensor fault" ru="{}: неисправность датчика сопла"/>
+  <translation tag="{} of {} points" ru="{} из {} точек"/>
   <translation tag="{} of {} steps finished. Review them, then save them all at once." ru="Завершено шагов: {} из {}. Проверьте их и сохраните все сразу."/>
   <translation tag="{} packages to update" ru="Пакетов для обновления: {}"/>
   <translation tag="{} preset" ru="{} пресет"/>

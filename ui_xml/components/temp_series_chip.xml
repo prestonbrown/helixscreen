@@ -3,11 +3,13 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- One series toggle above the temperature graph: the series' colour dot and
      name on an elevated pill, dimmed while the series is hidden. TempGraphOverlay
-     creates one per series, sets the name (user text) and publishes
+     creates one per series, sets the name and publishes
      temp_graph_chip_color_<index> and temp_graph_chip_visible_<index>. -->
 <component>
   <api>
     <prop name="index" type="int" default="0"/>
+    <!-- temp_chip for a heater, temp_sensor_chip for a sensor named from the printer's config -->
+    <prop name="name_prefix" type="string" default="temp_chip"/>
   </api>
   <consts>
     <px name="dot_size" value="8"/>
@@ -17,7 +19,7 @@
   <styles>
     <style name="series_hidden" opa="40%"/>
   </styles>
-  <view name="temp_chip_${index}"
+  <view name="${name_prefix}_${index}"
         extends="lv_obj" width="content" height="content" style_pad_left="#space_sm" style_pad_right="#space_sm"
         style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" style_radius="9999" style_bg_opa="255"
         style_bg_color="#elevated_bg" style_border_width="1" style_border_color="#border"

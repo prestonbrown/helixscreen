@@ -1549,6 +1549,7 @@ translations:
   Do not cold pull a coated nozzle. The cold pull runs on the active tool.: "Не выполняйте холодную протяжку на сопле с покрытием. Протяжка выполняется на активном инструменте."
   Do not power off your printer.: Не выключайте принтер.
   Do not touch the filament yet.: "Пока не трогайте филамент."
+  Do not touch the nozzle or bed: 'Не трогайте сопло и стол'
   Do not touch the nozzle or the bed.: 'Не прикасайтесь к соплу и столу.'
   Do not touch the printer during calibration: Не трогайте принтер во время калибровки
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Не выключайте принтер до завершения. Пропадание питания во время прошивки может привести к тому, что принтер не запустится.'
@@ -2196,6 +2197,7 @@ translations:
   Got it: Понятно
   Gradient: Градиент
   Gray: Серый
+  'Green mark: the tension the printer aims for': 'Зелёная метка: натяжение, к которому стремится принтер'
   Grid: Сетка
   Grip filament: Зажать филамент
   Grip the filament: Зажать филамент
@@ -2211,6 +2213,7 @@ translations:
   HEPA filter interval: 'Интервал HEPA-фильтра'
   HOST: Хост
   HOST ACCESS: 'ДОСТУП К ХОСТУ'
+  HOT: 'ГОРЯЧО'
   HTTP Code: Код HTTP
   'HTTP error: {} {}': 'Ошибка HTTP: {} {}'
   HUMIDITY SENSORS: ДАТЧИКИ ВЛАЖНОСТИ
@@ -2594,6 +2597,7 @@ translations:
   Keep clear of the printer while the toolhead is moving: Не приближайтесь к принтеру, пока перемещается печатающая головка
   Keep current: Оставить текущую
   Keep current ({}): Оставить текущее ({})
+  Keep hands clear: 'Держите руки подальше'
   Keep hands clear except when asked. The printer moves on its own.: Держите руки подальше, если не появится запрос. Принтер двигается сам.
   Keep hands clear. The printer moves on its own.: Держите руки подальше. Принтер двигается сам.
 
@@ -2666,6 +2670,7 @@ translations:
   LOADED: ЗАГРУЖЕН
   LOCKED: ЗАБЛОКИРОВАНО
   LOT-2024-001: LOT-2024-001
+  LOUD: 'ГРОМКО'
   Label Printer: Принтер этикеток
   Label Size: Размер этикетки
   Label printed: Этикетка напечатана
@@ -2852,8 +2857,11 @@ translations:
   MISSING CONFIGURED: ОТСУТСТВУЕТ НАСТРОЕННОЕ
   MMU command failed: Ошибка команды MMU
   MOTION & LEVELING: 'ДВИЖЕНИЕ И КАЛИБРОВКА'
+  MOTORS: 'МОТОРЫ'
   MPC: MPC
   MPC thermal model calibrated for {} at {}.: Тепловая модель MPC откалибрована для {} при {}.
+  'MPC: measuring how fast the bed heats and loses heat': 'MPC: измеряем, как быстро стол нагревается и теряет тепло'
+  'MPC: measuring how fast the nozzle heats and loses heat': 'MPC: измеряем, как быстро сопло нагревается и теряет тепло'
   Machine Limits: Ограничения принтера
   Macro: Макрос
   Macro Browser: Обзор макросов
@@ -3432,6 +3440,8 @@ translations:
   PC: "PC"
   PETG: PETG
   PID: PID
+  'PID: heating the bed in cycles to tune its control': 'PID: циклический нагрев стола для настройки регулирования'
+  'PID: heating the nozzle in cycles to tune its control': 'PID: циклический нагрев сопла для настройки регулирования'
   PIN must be 4-6 digits: PIN должен содержать 4-6 цифр
   PIN removed: PIN удалён
   PIN set: PIN установлен
@@ -3797,6 +3807,7 @@ translations:
   Probing stopped at {}: 'Измерение остановлено: {}'
   'Probing stopped: toolhead state': 'Измерение остановлено: состояние головки'
   Probing the bed: 'Зондирование стола'
+  Probing the bed point by point: 'Зондирование стола по точкам'
   Probing was asked for before homing.: 'Измерение запрошено до парковки.'
   'Probing... ({} points)':
     one: 'Замер... ({} точка)'
@@ -4461,6 +4472,7 @@ translations:
   Shadow Intensity: Интенсивность тени
   Shake&Tune: 'Shake&Tune'
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Раскачивает печатающую головку вдоль каждой диагонали и накладывает два отклика. У одинаково натянутых ремней пики совпадают.
+  Shaking each axis through a frequency sweep: 'Каждая ось проходит развёртку частот'
   Shaking the {} axis: 'Раскачивание оси {}'
   Share Screen: 'Поделиться экраном'
   Share Usage Data: Делиться данными использования
@@ -4932,6 +4944,7 @@ translations:
   The bed has cooled. Take the spools off the plate, then confirm.: Стол остыл. Снимите катушки со стола, затем подтвердите.
 
   The bed is clear: 'Стол свободен'
+  The bed is hot: 'Стол горячий'
   The bed is not heating: 'Стол не нагревается'
   The bed is too far out of level for automatic compensation.: 'Стол слишком сильно перекошен для автоматической компенсации.'
   The bed is too small for settling laps.: 'Стол слишком мал для кругов приработки.'
@@ -4976,6 +4989,7 @@ translations:
   ? The controller board could not keep up with the step rate it was asked for, usually because high microsteps meet a high speed, or the host stalled.
   : Плата управления не справилась с заданной частотой шагов, обычно из-за большого микрошага при высокой скорости или зависания хоста.
   The controller boards Klipper runs on. See their load in the system settings.: 'Платы контроллеров, на которых работает Klipper. Их загрузку можно посмотреть в системных настройках.'
+  The curve draws in as the axis sweeps: 'Кривая строится по ходу развёртки оси'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: Драйвер {1} перегрелся, обычно из-за слишком высокого тока мотора или недостаточного охлаждения драйверов.
@@ -5226,6 +5240,7 @@ translations:
   The speed of one fan you choose: Скорость выбранного вентилятора
   The subnet mask is not valid. Use a form such as 255.255.255.0 or 24.: 'Недопустимая маска подсети. Используйте формат вроде 255.255.255.0 или 24.'
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
+  The tensioners pull each belt to its target: 'Натяжители тянут каждый ремень до целевого натяжения'
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона.
   The time, date, and system uptime: Время, дата и время работы системы
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
@@ -5360,6 +5375,7 @@ translations:
   This print needs about %.0fg but the spool has about %.0fg remaining. Start anyway?: Для этой печати нужно около %.0fг, но на катушке осталось около %.0fг. Всё равно начать?
   This print never reports layer {}.: 'Эта печать никогда не сообщает слой {}.'
   This printer cannot calibrate tool offsets automatically: Этот принтер не может калибровать смещения инструментов автоматически
+  This printer cannot stream the sweep to the screen: 'Этот принтер не может показывать развёртку на экране'
   This printer fills its gates from Spoolman. HelixScreen cleared its own copy; remove the spool in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. HelixScreen очистил свою копию; удалите катушку в Spoolman.
   This printer fills its gates from Spoolman. Make color, material and spool changes in Spoolman.: Этот принтер берёт данные шлюзов из Spoolman. Меняйте цвет, материал и катушку в Spoolman.
   'This printer has motor compensation, so the check runs twice: with it off, then on.': 'У этого принтера есть компенсация моторов, поэтому проверка выполняется дважды: сначала с выключенной, затем с включённой.'
@@ -5994,6 +6010,7 @@ translations:
   already loaded: 'уже загружен'
   assign without adding to Spoolman: назначить без добавления в Spoolman
   at last time’s drag point: "в точке касания прошлого раза"
+  at target: 'на цели'
   attempt {}: 'попытка {}'
   auto: авто
   automatic: 'автоматически'
@@ -6109,6 +6126,7 @@ translations:
   printer default: по умолчанию для принтера
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
   prints: печатей
+  pulling...: 'натяжение...'
   ready to load: 'готов к загрузке'
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора
@@ -6290,6 +6308,7 @@ translations:
   '{} new hardware available': 'Доступно нового оборудования: {}'
   '{} new plugins available. Enable them in Settings > Plugins.': 'Доступно новых плагинов: {}. Включите их в разделе Настройки > Плагины.'
   '{} nozzle sensor fault': '{}: неисправность датчика сопла'
+  '{} of {} points': '{} из {} точек'
   '{} of {} steps finished. Review them, then save them all at once.': 'Завершено шагов: {} из {}. Проверьте их и сохраните все сразу.'
   '{} packages to update': 'Пакетов для обновления: {}'
   '{} preset': '{} пресет'

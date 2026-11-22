@@ -230,9 +230,9 @@ void InputShaperCalibrator::run_both_axes(AxisProgressCallback on_progress,
                                           BothAxesCallback on_complete, ErrorCallback on_error) {
     results_ = {};
     auto progress_for = [on_progress](char axis) {
-        return [on_progress, axis](int percent, ShaperCalibrationPhase phase, float) {
+        return [on_progress, axis](int percent, ShaperCalibrationPhase phase, float freq_hz) {
             if (on_progress) {
-                on_progress(axis, percent, phase);
+                on_progress(axis, percent, phase, freq_hz);
             }
         };
     };

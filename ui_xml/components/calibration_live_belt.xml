@@ -1,0 +1,50 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Belt tension live view: each belt's pull rising to the tension the printer aims for,
+     drawn at 72% of the track. CalibrationLiveCard publishes, per belt i (0 X, 1 Y):
+       cal_live_belt_<i>        0-72, the fill up to the target mark
+       cal_live_belt_done_<i>   1 once that belt is at its target
+       cal_live_belt_name_<i>   "X belt", "Y belt"
+       cal_live_belt_state_<i>  "pulling...", "at target" -->
+<component>
+  <styles>
+    <style name="belt_pulling" bg_color="#primary"/>
+    <style name="belt_done" bg_color="#success"/>
+  </styles>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_left="#space_xs" style_pad_right="#space_xs" style_pad_top="0"
+        style_pad_bottom="0" style_bg_opa="0" style_border_width="0" flex_flow="column" style_flex_main_place="center"
+        style_pad_gap="#space_lg" scrollable="false">
+    <bind_flag_if_not_eq subject="cal_live_kind" flag="hidden" ref_value="4"/>
+    <repeat count="2">
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="column"
+              style_pad_gap="#space_xs" scrollable="false">
+        <lv_obj width="100%"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+                style_flex_main_place="space_between" scrollable="false">
+          <text_small bind_text="cal_live_belt_name_${i}" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
+          <text_small bind_text="cal_live_belt_state_${i}"
+                      style_text_font="#cal_font_subtitle" style_text_color="#text_muted"/>
+        </lv_obj>
+        <lv_obj width="100%"
+                height="content" style_pad_top="#space_xs" style_pad_bottom="#space_xs" style_pad_left="0"
+                style_pad_right="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+          <lv_bar width="100%"
+                  height="#space_md" min_value="0" max_value="100" bind_value="cal_live_belt_${i}"
+                  style_bg_color="#overlay_bg" style_bg_opa="255" style_radius="#space_md" style_bg_opa-indicator="255"
+                  style_radius-indicator="#space_md">
+            <bind_style name="belt_pulling" subject="cal_live_belt_done_${i}" ref_value="0" selector="indicator"/>
+            <bind_style name="belt_done" subject="cal_live_belt_done_${i}" ref_value="1" selector="indicator"/>
+          </lv_bar>
+          <lv_obj width="#space_xxs"
+                  height="100%" x="72%" y="0" style_bg_color="#success" style_bg_opa="255" style_border_width="0"
+                  style_radius="0" style_pad_all="0" scrollable="false"/>
+        </lv_obj>
+      </lv_obj>
+    </repeat>
+    <text_xs text="Green mark: the tension the printer aims for"
+             style_text_font="#cal_font_detail" style_text_color="#text_muted"/>
+  </view>
+</component>

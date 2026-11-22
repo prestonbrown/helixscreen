@@ -18,6 +18,7 @@
 #include "core/temperature_units.h"
 #include "heater_type.h"
 #include "lvgl.h"
+#include "observe_language.h"
 #include "panel_widget_manager.h"
 #include "preset_materials.h"
 #include "printer_state.h"
@@ -271,6 +272,9 @@ void TempGraphOverlay::on_activate() {
     }
     create_chips();
     configure_control_strip();
+    // The heater chips and legend name their heaters in the UI language.
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](TempGraphOverlay* self) { self->retranslate_series(); });
 
     spdlog::debug("[TempGraphOverlay] Activated with {} series, mode={}", series_.size(),
                   static_cast<int>(mode_));
@@ -291,6 +295,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
         helix::temp_graph_internal::temp_graph_tooltip_clear(controller_->graph());
     }
 
+    language_observer_.reset();
     // Destroy controller (tears down observers, destroys graph)
     controller_.reset();
 
@@ -304,6 +309,7 @@ void TempGraphOverlay::on_deactivating(DeactivateReason) {
 }
 
 void TempGraphOverlay::cleanup() {
+    language_observer_.reset();
     controller_.reset();
     series_.clear();
     OverlayBase::cleanup();
@@ -362,6 +368,49 @@ void TempGraphOverlay::before_show() {
 // Series discovery
 // ─────────────────────────────────────────────────────────────────────────────
 
+std::string TempGraphOverlay::heater_series_name(const std::string& heater_name) const {
+    if (heater_name == "heater_bed") {
+        return lv_tr("Bed");
+    }
+    if (heater_name == "chamber") {
+        return lv_tr("Chamber");
+    }
+    if (printer_state_) {
+        const auto& extruders = printer_state_->temperature_state().extruders();
+        if (auto it = extruders.find(heater_name); it != extruders.end()) {
+            return it->second.display_name;
+        }
+    }
+    return lv_tr("Nozzle");
+}
+
+void TempGraphOverlay::retranslate_series() {
+    for (auto& s : series_) {
+        if (s.is_sensor) {
+            continue; // named from the printer's config, not translated
+        }
+        s.display_name = heater_series_name(s.heater_name);
+        if (s.chip) {
+            helix::ui::set_row_label_text(s.chip, "chip_label",
+                                          chip_label_for(s.display_name).c_str());
+        }
+        if (controller_) {
+            controller_->set_series_name(s.klipper_name, s.display_name);
+        }
+    }
+}
+
+std::string TempGraphOverlay::chip_label_for(const std::string& display_name) {
+    // Strip the redundant " Temperature" suffix for chip brevity
+    std::string chip_label = display_name;
+    const std::string suffix = " Temperature";
+    if (chip_label.size() > suffix.size() &&
+        chip_label.compare(chip_label.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        chip_label.erase(chip_label.size() - suffix.size());
+    }
+    return chip_label;
+}
+
 void TempGraphOverlay::discover_series() {
     series_.clear();
     int color_idx = 0;
@@ -376,8 +425,8 @@ void TempGraphOverlay::discover_series() {
     if (extruders.empty()) {
         // Fallback: always add at least one nozzle
         SeriesInfo s;
-        s.display_name = lv_tr("Nozzle");
         s.heater_name = "extruder";
+        s.display_name = heater_series_name(s.heater_name);
         s.klipper_name = "extruder";
         s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
         s.has_target = true;
@@ -394,8 +443,8 @@ void TempGraphOverlay::discover_series() {
 
         for (const auto* ext : sorted_extruders) {
             SeriesInfo s;
-            s.display_name = ext->display_name;
             s.heater_name = ext->name;
+            s.display_name = heater_series_name(s.heater_name);
             s.klipper_name = ext->name;
             s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
             s.has_target = true;
@@ -407,8 +456,8 @@ void TempGraphOverlay::discover_series() {
     // 2. Bed
     {
         SeriesInfo s;
-        s.display_name = lv_tr("Bed");
         s.heater_name = "heater_bed";
+        s.display_name = heater_series_name(s.heater_name);
         s.klipper_name = "heater_bed";
         s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
         s.has_target = true;
@@ -426,8 +475,8 @@ void TempGraphOverlay::discover_series() {
             const std::string& klipper = temp_state.chamber_temperature_source();
             if (!klipper.empty()) {
                 SeriesInfo s;
-                s.display_name = lv_tr("Chamber");
                 s.heater_name = "chamber";
+                s.display_name = heater_series_name(s.heater_name);
                 s.klipper_name = klipper;
                 s.color = helix::kTempGraphSeriesColors[color_idx++ % helix::kTempGraphPaletteSize];
                 s.has_target = !heater.empty();
@@ -519,20 +568,14 @@ void TempGraphOverlay::create_chips() {
         chip_color_pool_.set_color(i, lv_color_to_u32(s.color) & 0xFFFFFF);
 
         const std::string index = std::to_string(i);
-        const char* attrs[] = {"index", index.c_str(), nullptr};
+        const char* attrs[] = {"index", index.c_str(), "name_prefix",
+                               s.is_sensor ? "temp_sensor_chip" : "temp_chip", nullptr};
         auto* chip = static_cast<lv_obj_t*>(lv_xml_create(chip_row_, "temp_series_chip", attrs));
         if (!chip)
             continue;
 
-        // Strip the redundant " Temperature" suffix for chip brevity
-        std::string chip_label = s.display_name;
-        const std::string suffix = " Temperature";
-        if (chip_label.size() > suffix.size() &&
-            chip_label.compare(chip_label.size() - suffix.size(), suffix.size(), suffix) == 0) {
-            chip_label.erase(chip_label.size() - suffix.size());
-        }
         // A sensor name is user text: as a prop a leading '#' would read as a const.
-        helix::ui::set_row_label_text(chip, "chip_label", chip_label.c_str());
+        helix::ui::set_row_label_text(chip, "chip_label", chip_label_for(s.display_name).c_str());
 
         s.chip = chip;
 

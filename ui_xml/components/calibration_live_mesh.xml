@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Bed mesh live view: the printer's mesh in 3D, dimmed where the probe has not reached
+     yet, and the point count. CalibrationLiveCard feeds cal_live_mesh_map and publishes
+     cal_live_mesh_unprobed (percent of the bed still dimmed, from the right) and
+     cal_live_mesh_count. -->
+<component>
+  <view extends="lv_obj"
+        width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+    <bind_flag_if_not_eq subject="cal_live_kind" flag="hidden" ref_value="2"/>
+    <lv_obj name="cal_live_mesh_box"
+            width="50%" height="100%" align="center" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+            scrollable="false">
+      <bed_mesh name="cal_live_mesh_map" width="100%" height="100%" style_border_width="0"/>
+      <lv_bar name="cal_live_mesh_veil"
+              width="100%" height="100%" min_value="0" max_value="100" bind_value="cal_live_mesh_unprobed"
+              style_base_dir="rtl" style_bg_opa="0" style_radius="0" style_bg_color-indicator="#card_bg"
+              style_bg_opa-indicator="65%" style_radius-indicator="0"/>
+    </lv_obj>
+    <text_xs name="cal_live_mesh_count"
+             align="bottom_right" bind_text="cal_live_mesh_count" style_text_font="#cal_font_detail"
+             style_text_color="#text_muted"/>
+  </view>
+</component>

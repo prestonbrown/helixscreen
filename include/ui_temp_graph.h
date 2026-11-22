@@ -221,6 +221,11 @@ struct ui_temp_graph_t {
 
     // Misuse is reported once, not once per call: an owner that outlives its
     // container keeps feeding the graph on every sample.
+    // Grid layout. The defaults draw five even horizontal divisions plus the
+    // time grid under the X labels; ui_temp_graph_set_grid() changes both.
+    bool grid_on_y_ticks = false; // horizontal lines at the Y labels' temperatures
+    bool time_grid = true;        // vertical lines at the time ticks
+
     bool chart_gone_reported = false;
     bool bad_range_reported = false;     // cleared by the next valid range
     std::vector<int> missing_series_ids; // ids already reported missing
@@ -467,6 +472,13 @@ void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, SeriesId series_i
  * @param show Whether to show Y-axis labels
  */
 void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show);
+
+/**
+ * @brief Choose the grid: horizontal lines at the Y labels' temperatures
+ *        (@p on_y_ticks) instead of five even divisions, and whether the
+ *        vertical time grid draws (@p time_grid). Default: false, true.
+ */
+void ui_temp_graph_set_grid(ui_temp_graph_t* graph, bool on_y_ticks, bool time_grid);
 
 /**
  * Set axis label font size
