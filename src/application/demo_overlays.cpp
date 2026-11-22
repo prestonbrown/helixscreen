@@ -42,6 +42,11 @@
 #include "led/ui_led_control_overlay.h"
 #include "preflight_validator.h"
 #include "recovery_fault_modal.h"
+#include "runtime_config.h"
+
+#ifdef HELIX_ENABLE_MOCKS
+#include "moonraker_client_mock.h"
+#endif
 
 #include <spdlog/spdlog.h>
 
@@ -399,6 +404,27 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
         PrintStatusPanel::push_overlay(screen);
         return true;
     }
+
+#ifdef HELIX_ENABLE_MOCKS
+    if (name == "print-live") {
+        // Starts the mock's sample print at high speed, so a capture can wait
+        // for a chosen print_progress and then `freeze` the simulation there.
+        auto* mock = get_moonraker_client_mock();
+        if (mock == nullptr) {
+            const std::string reason = name + ": needs the --test mock printer";
+            spdlog::warn("[Demo] {}", reason);
+            if (error != nullptr) {
+                *error = reason;
+            }
+            return false;
+        }
+        constexpr double kLivePrintSpeedup = 10.0;
+        mock->set_simulation_speedup(kLivePrintSpeedup);
+        mock->gcode_script(std::string("SDCARD_PRINT_FILE FILENAME=") +
+                           RuntimeConfig::kDefaultTestFile);
+        return true;
+    }
+#endif
 
     if (name == "spaghetti-detection") {
         // The response modal with the camera still attached the way a real
