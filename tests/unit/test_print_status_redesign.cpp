@@ -719,7 +719,8 @@ TEST_CASE_METHOD(Portrait272, "a narrow job tile shows the current step compactl
     UpdateQueue::instance().drain();
 }
 
-TEST_CASE_METHOD(Landscape800, "More hides when its menu has nothing to offer", "[print_status]") {
+TEST_CASE_METHOD(Landscape800, "More shows only for two entries; a lone entry gets its own button",
+                 "[print_status]") {
     lv_subject_t* webcam = lv_xml_get_subject(nullptr, "printer_has_webcam");
     lv_subject_t* leds = lv_xml_get_subject(nullptr, "led_controllable");
     lv_subject_t* timelapse = lv_xml_get_subject(nullptr, "timelapse_owner");
@@ -730,11 +731,20 @@ TEST_CASE_METHOD(Landscape800, "More hides when its menu has nothing to offer", 
     set_int(timelapse, 0);
     set_int(leds, 0);
     CHECK(hidden(root_, "btn_more"));
+    CHECK(hidden(root_, "btn_light"));
+    CHECK(hidden(root_, "btn_timelapse"));
     set_int(timelapse, 1);
-    CHECK_FALSE(hidden(root_, "btn_more"));
+    CHECK(hidden(root_, "btn_more"));
+    CHECK_FALSE(hidden(root_, "btn_timelapse"));
     set_int(timelapse, 0);
     set_int(leds, 1);
+    CHECK(hidden(root_, "btn_more"));
+    CHECK_FALSE(hidden(root_, "btn_light"));
+    set_int(timelapse, 1);
     CHECK_FALSE(hidden(root_, "btn_more"));
+    CHECK(hidden(root_, "btn_light"));
+    CHECK(hidden(root_, "btn_timelapse"));
+    set_int(timelapse, 0);
     set_int(leds, 0);
 
     // A webcam on a remote screen offers the Camera entry, unless the build has no camera.
@@ -746,9 +756,15 @@ TEST_CASE_METHOD(Landscape800, "More hides when its menu has nothing to offer", 
     UpdateQueue::instance().drain();
     CHECK(subject_int("print_status_camera_available") == HELIX_HAS_CAMERA);
     set_int(camera, 1);
+    CHECK(hidden(root_, "btn_more"));
+    CHECK_FALSE(hidden(root_, "btn_camera"));
+    set_int(leds, 1);
     CHECK_FALSE(hidden(root_, "btn_more"));
+    CHECK(hidden(root_, "btn_camera"));
+    set_int(leds, 0);
     set_int(camera, 0);
     CHECK(hidden(root_, "btn_more"));
+    CHECK(hidden(root_, "btn_camera"));
     set_int(webcam, 0);
     state().set_moonraker_is_remote(false);
     UpdateQueue::instance().drain();

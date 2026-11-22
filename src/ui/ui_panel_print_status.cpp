@@ -883,6 +883,16 @@ void PrintStatusPanel::init_subjects() {
              get_global_print_status_panel().handle_more_clicked(
                  static_cast<lv_obj_t*>(lv_event_get_current_target(e)));
          }},
+        {"on_print_status_open_camera",
+         [](lv_event_t*) {
+             get_global_print_status_panel().handle_more_action(
+                 helix::ui::PrintStatusMoreMenu::kActionCamera);
+         }},
+        {"on_print_status_timelapse",
+         [](lv_event_t*) {
+             get_global_print_status_panel().handle_more_action(
+                 helix::ui::PrintStatusMoreMenu::kActionTimelapse);
+         }},
         {"on_print_status_files",
          [](lv_event_t*) { get_global_print_status_panel().handle_files_click(); }},
         {"on_print_status_reprint",
