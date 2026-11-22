@@ -248,6 +248,40 @@ boots it with `mem=236M@0x0` only, where a 512 MB board also gets `mem=256M@0x30
 It is a 256 MB unit, or one whose second DRAM bank does not detect. Do not read its
 memory headroom as typical.
 
+### What the AMS views keep after closing, 2026-11-22
+
+Desktop mock at 800x480, live heap from glibc `mallinfo2().uordblks` read on the main
+thread 40 s after start (once the update check's TLS setup is done, which otherwise lands
+about 0.6 MB in the window), then after the first open and close. Owners come from a
+scratch `LD_PRELOAD` allocator shim that records a backtrace for every allocation made
+after the first sample and dumps the ones still live, symbolized with `addr2line` against
+the app binary. A second and third open and close move the heap by under 5 kB.
+
+| Kept after the Happy Hare unit view closes | Bytes | Owner |
+|---|---:|---|
+| Spool render cache | 572 K | process-wide LRU in `src/ui/filament/ui_spool_canvas.cpp`: 24 new renders, 10 at 96 px and 12 at 64 px, the size a slot's spool has before layout sizes it |
+| Widget tree, XML component registration, subjects, observers | about 410 K | the tree is kept between opens (below) |
+| Spool canvas buffers | 175 K | each canvas's own ARGB pixels, in the kept tree |
+| Current-spool glow | 99 K | the glow image, shared by its layer and the glow cache |
+| Baked unit art | 70 K | `src/rendering/baked_art.cpp` |
+| Total | 1.37 MB | |
+
+The multi-unit overview (`HELIX_MOCK_AMS=multi`) keeps 0.85 MB the same way: two flattened
+unit drawings of 122 K each, four lane fill masks of 30 K, about 56 K of spool canvases, 48
+K of spool renders, and its tree. Both views free their largest buffers on close already:
+the 1.5 MB backdrop snapshot and the unit view's 480 K path canvas.
+
+The tree stays built on purpose: building it is about 690 of 1250 ms of a reopen on the
+K-Touch, and critical memory pressure drops it (`src/ui/filament/ui_panel_ams.cpp#get_global_ams_panel`).
+Its buffers go with it. The spool render cache was bounded at 128 entries, which at 96 px
+is 4.7 MB. It is now bounded by bytes (`spool_render_cache_budget`): 2 MiB where spools
+turn, which holds the 24 vent phases of a turning 96 px spool (885 K) beside a screen of
+still ones, and 256 KiB where `reduced_effects()` holds (the AD5M, CC1 and K1 by memory,
+the K2 by board), since spools never turn there and every canvas keeps its own pixels, so
+an unchanged spool needs no cache entry on reopen. With reduced effects the unit view now
+keeps 0.84 MB instead of 1.33 MB. An evicted state costs one render when a spool returns
+to it: 216 us at 96 px and 61 us at 64 px on the desktop, not yet measured on a board.
+
 ## Where idle CPU goes
 
 The main loop sleeps until the next LVGL timer is due (`main_loop_sleep_ms`), so idle cost
