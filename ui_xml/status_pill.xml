@@ -1,15 +1,49 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Semantic status pill/badge with variant-based coloring. -->
-<!-- Usage: <status_pill text="Active" variant="success"/> -->
-<!-- Variants: success, warning, danger, info, muted, primary, secondary, tertiary, disabled -->
+<!-- The app's one tinted pill: a short label on its variant's color at low
+     opacity, the text in that color. Count badges, state pills ("Active"),
+     BETA, "Disconnected" and the calibration intro facts are all this.
+
+     Props:
+       text, text_tag  static text and its translation tag
+       bind_text       subject whose value is the text (an int shows as a number)
+       variant         success, warning, danger, info, muted (default), primary,
+                       secondary, tertiary, disabled; neutral (a quiet gray
+                       pill with muted text) and warm (a soft amber one)
+       radius          corner radius; 9999 for a fully round chip
+       pad_hor, pad_ver
+                       padding tokens
+
+     The pill is one label, so name/hidden/align and nested bind_* elements on
+     an instance act on it directly. A pill whose state changes is two pills
+     with bind_flag_if_* on one subject (ams_device_operations.xml). -->
 <component>
   <api>
     <prop name="text" type="string" default=""/>
-    <prop name="variant" type="string" default="muted"/>
-    <!-- Subject whose value (string, or int as a number) is the pill's text -->
+    <prop name="text_tag" type="string" default=""/>
     <prop name="bind_text" type="string" default=""/>
+    <prop name="variant" type="string" default="muted"/>
+    <prop name="radius" type="string" default="#border_radius_small"/>
+    <prop name="pad_hor" type="string" default="#space_xs"/>
+    <prop name="pad_ver" type="string" default="#space_xxs"/>
   </api>
-  <view extends="lv_obj"/>
+  <styles>
+    <style name="success" bg_color="#success" bg_opa="40" text_color="#success"/>
+    <style name="warning" bg_color="#warning" bg_opa="40" text_color="#warning"/>
+    <style name="danger" bg_color="#danger" bg_opa="40" text_color="#danger"/>
+    <style name="info" bg_color="#info" bg_opa="40" text_color="#info"/>
+    <style name="muted" bg_color="#text_muted" bg_opa="40" text_color="#text_muted"/>
+    <style name="primary" bg_color="#primary" bg_opa="40" text_color="#primary"/>
+    <style name="secondary" bg_color="#secondary" bg_opa="40" text_color="#secondary"/>
+    <style name="tertiary" bg_color="#tertiary" bg_opa="40" text_color="#tertiary"/>
+    <style name="disabled" bg_color="#text" bg_opa="40" text_color="#text" text_opa="50%"/>
+    <style name="neutral" bg_color="#elevated_bg" bg_opa="24%" text_color="#text_muted"/>
+    <style name="warm" bg_color="#warning" bg_opa="12%" text_color="#warning"/>
+  </styles>
+  <view extends="text_small"
+        text="$text" translation_tag="$text_tag" bind_text="$bind_text" style_radius="$radius" style_pad_hor="$pad_hor"
+        style_pad_ver="$pad_ver" style_border_width="0" scrollable="false">
+    <style name="$variant"/>
+  </view>
 </component>

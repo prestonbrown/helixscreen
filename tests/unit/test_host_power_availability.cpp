@@ -13,7 +13,6 @@
  */
 
 #include "ui_split_button.h"
-#include "ui_status_pill.h"
 
 #include "../../src/ui/panel_widgets/shutdown_widget.h"
 #include "../lvgl_ui_test_fixture.h"
@@ -88,7 +87,6 @@ class AdvancedPowerGroupFixture : public XMLTestFixture {
   public:
     AdvancedPowerGroupFixture() : XMLTestFixture() {
         setting_group_register();
-        ui_status_pill_register_widget();
         REQUIRE(register_component("setting_group_header"));
         REQUIRE(register_component("setting_action_row"));
         REQUIRE(register_component("advanced_panel"));

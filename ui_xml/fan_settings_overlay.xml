@@ -39,7 +39,7 @@
       <!-- ================================================================== -->
       <setting_group name="controllable_section">
         <setting_group_header title="CONTROLLABLE FANS"
-                              icon="fan" badge_name="controllable_fan_count" badge_text="0" hide_badge="false"/>
+                              icon="fan" badge_subject="fan_settings_controllable_count" hide_badge="false"/>
         <lv_obj name="controllable_fans_list"
                 width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
                 style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"
@@ -50,7 +50,7 @@
       <!-- AUTO FANS SECTION (heater_fan, controller_fan, temperature_fan) -->
       <!-- ================================================================== -->
       <setting_group name="auto_section">
-        <setting_group_header title="AUTO FANS" icon="fan" badge_name="auto_fan_count" badge_text="0" hide_badge="false"/>
+        <setting_group_header title="AUTO FANS" icon="fan" badge_subject="fan_settings_auto_count" hide_badge="false"/>
         <lv_obj name="auto_fans_list"
                 width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
                 style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"

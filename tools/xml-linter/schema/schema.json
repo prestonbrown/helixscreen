@@ -1759,21 +1759,6 @@
       },
       "inherits": "lv_obj"
     },
-    "status_pill": {
-      "attributes": {
-        "text": {
-          "type": "string"
-        },
-        "variant": {
-          "type": "enum",
-          "enum": "ui_variant"
-        },
-        "bind_text": {
-          "type": "string"
-        }
-      },
-      "inherits": "lv_obj"
-    },
     "temp_display": {
       "attributes": {
         "size": {
@@ -3093,7 +3078,6 @@
     "ui_confetti",
     "notification_badge",
     "severity_card",
-    "status_pill",
     "temp_display",
     "gcode_viewer",
     "bed_mesh",
