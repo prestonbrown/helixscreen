@@ -101,9 +101,10 @@ A message confirms **Label printed**, or names what went wrong. Until a printer 
 
 ### Labels for New Spools
 
-When a label printer is set up, a spool you add to Spoolman from a slot's editor (**Add to Spoolman**) prints its label right away. You get one message when the editor closes: it names the slot and the new spool, says **Label printed** or why the label didn't print, and has a **Print Label** button to print it again.
+When a label printer is set up, a spool you add to Spoolman from a slot's spool editor prints its label right away. That happens both ways the editor adds one:
 
-If the label printer is slow to answer (a Bluetooth printer that has gone to sleep can take half a minute), that message doesn't wait for it. It shows after a moment without the label line, and the label's own **Label printed** or error message follows when the printer answers.
+- **Saving a new spool with Add to Spoolman ticked** closes the editor with one message: it names the slot and the new spool, says **Label printed** or why the label didn't print, and has a **Print Label** button to print it again. If the label printer is slow to answer (a Bluetooth printer that has gone to sleep can take half a minute), that message doesn't wait for it. It shows after a moment without the label line, and the label's own **Label printed** or error message follows when the printer answers.
+- **Add to Spoolman on a slot's summary** keeps the editor open, so the label reports in its own message: **Label printed**, or why it didn't print.
 
 ---
 
