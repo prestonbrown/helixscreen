@@ -10,6 +10,7 @@
 | Find XML widget docs | `devel/LVGL9_XML_GUIDE.md` |
 | Understand modal patterns | `devel/MODAL_SYSTEM.md` |
 | Work on a screensaver | `devel/SCREENSAVERS.md` |
+| Work on calibration: the Calibration screen, the guided run, or saving calibration results | `devel/CALIBRATION.md` |
 | Know or measure what the UI costs a board (CPU, RAM) | `devel/PERFORMANCE.md` |
 | Work on the HelixPrint Moonraker plugin or a feature that uses it | `devel/HELIXPRINT_PLUGIN.md` (framework, decisions, per-feature); endpoints in `../moonraker-plugin/README.md` |
 | Check a feature's architecture | `devel/ARCHITECTURE.md` → the right chapter in `devel/architecture/` |

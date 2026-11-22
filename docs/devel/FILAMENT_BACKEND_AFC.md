@@ -915,6 +915,19 @@ turns its unload into the printer's stock `UNLOAD_FILAMENT`. With bypass off, fi
 toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
 UI with a toolhead that reads full and a unit that reads empty.
 
+**An engaged bypass is what the toolhead holds.** While `bypass_state` is true,
+`AmsBackendAfc::apply_bypass_to_system_info()` (`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`)
+sets `current_slot` to -2 and `filament_loaded` to true. It runs after every writer that
+derives those two from the lanes (`apply_afc_state()`, `apply_lane_data()`, and before
+`apply_mount_state()` in `handle_status()`), because AFC keeps sending lane-only frames
+while bypass is on and each of them would otherwise put the system back on "no lane, nothing
+loaded". That state is what enables **Unload** for the external spool: with the nozzle hot,
+the tap sends AFC's `TOOL_UNLOAD`, which AFC turns into the stock unload ("Bypass detected,
+calling manual unload filament routine"). Disengaging releases the slot: a frame whose
+`bypass_state` goes from true to false, even a lone delta carrying nothing else, sets
+`current_slot` back to -1 and `filament_loaded` to false when the bypass was the one holding
+them, and the next lane frame states what is really loaded.
+
 `recovers_filament_on_resume()` is left at its `kTraits` default (`false`), so an AFC runout
 gets the dialog with manual **Load** kept prominent, because Resume alone does not re-feed.
 `supports_per_tool_spool_assignment()` is not overridden either; it falls through to

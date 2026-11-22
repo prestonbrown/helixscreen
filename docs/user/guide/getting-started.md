@@ -101,10 +101,10 @@ These are the steps in the order they appear. Each one is shown only when its co
 | **Multi-Filament System Detected** | A filament system such as an AMS, CFS or Happy Hare unit is found, and your printer has no ready-made profile. |
 | **Printer Setup: LEDs** | LED lights are found, and your printer has no ready-made profile. |
 | **Printer Setup: Filament Sensor** | Two or more filament sensors are found, and your printer has no ready-made profile. With exactly one, HelixScreen uses it for runout on its own. |
-| **Printer Setup: Input Shaping** | An accelerometer is found, and your printer has no ready-made profile. |
 | **Preferences** | Always. A few choices you can change later in Settings. |
 | **Printer Setup: Review** | Your printer has no ready-made profile, or you are adding another printer. |
 | **Updates & Data** | Your printer has a ready-made profile and this is your first printer. It takes the place of the Review step. |
+| **Calibrate your printer** | Always, last, once HelixScreen is connected to your printer. It lists the calibrations this printer needs and how long they take. **Calibrate now** finishes setup and starts a [guided calibration](calibration.md#guided-calibration); **Skip for now** just finishes, and you can calibrate later from **Advanced > Calibration**. |
 
 You can go back to an earlier step with **Back** at any time. When you finish, HelixScreen opens the Home panel, your main dashboard. See the [Home Panel guide](home-panel.md).
 
@@ -175,7 +175,7 @@ If HelixScreen already recognized your printer, the step opens on it, inside its
 
 ### Preset Setup
 
-Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs, Filament Sensor and Input Shaping steps, and ends with **Updates & Data** instead of the Review step.
+Some install packages bring a ready-made profile for their printer: the Creality K2 series, the FlashForge Adventurer 5M, the Snapmaker U1 and the Elegoo Centauri Carbon. On those, HelixScreen already knows the heaters, fans and other hardware, so the wizard is shorter: it skips the Identity, Heaters, Fans, filament system, LEDs and Filament Sensor steps, and shows **Updates & Data** instead of the Review step.
 
 ![The Updates & Data step, with its Update Channel and Share Usage Data rows](../../images/user/wizard-telemetry.png)
 

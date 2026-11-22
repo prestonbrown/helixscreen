@@ -86,7 +86,7 @@ Yes. If your `[printer]` section sets `kinematics: none`, HelixScreen knows the 
 
 **Screen sizes.** HelixScreen picks the best layout for your display on its own. 800x480 and 1024x600 are fully supported. 480x320 runs, but a few screens are tight there.
 
-**Ultrawide and portrait screens work.** HelixScreen detects an ultrawide screen (wider than about 2.5:1, such as 1920x440) or a portrait screen (narrower than about 0.8:1, such as 480x800) and adapts the navigation bar and the home dashboard. The home dashboard grid is sized from the screen with square cells, so a portrait 480x800 panel gets 4 columns by 6 rows. Portrait also has its own layouts for several panels, and panels without one use an adaptive fallback, so landscape is still the most polished. See the [Home Panel guide](guide/home-panel.md#ultrawide-and-portrait-screens) and [Display](guide/settings/display.md).
+**Ultrawide and portrait screens work.** HelixScreen detects an ultrawide screen (wider than about 2.5:1, such as 1920x440) or a portrait screen (narrower than about 0.8:1, such as 480x800) and adapts the navigation bar and the home dashboard. On an ultrawide screen, Motion sits beside Controls and the Filament System panel beside Filament, and Print Status can show the lane tray and the Tune controls without opening another screen ([Motion](guide/motion.md#on-an-ultrawide-screen), [Filament](guide/filament.md#on-an-ultrawide-screen), [Printing](guide/printing.md#during-a-print)). The home dashboard grid is sized from the screen with square cells, so a portrait 480x800 panel gets 4 columns by 6 rows. Portrait also has its own layouts for several panels, and panels without one use an adaptive fallback, so landscape is still the most polished. See the [Home Panel guide](guide/home-panel.md#ultrawide-and-portrait-screens) and [Display](guide/settings/display.md).
 
 **Rotation.** If your display is upside down or sideways, go to **Settings > Display > Screen Rotation**, pick Normal, 90° Clockwise, 180° Upside Down or 270° Clockwise, then restart HelixScreen. Touch follows the rotation by itself.
 
@@ -285,15 +285,15 @@ Yes, for the power devices configured in Moonraker. Open **Settings > Devices > 
 <a id="can-i-view-and-run-bed-mesh"></a>
 ### Can I view the bed mesh and run a bed mesh calibration?
 
-Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. **Advanced > Calibration > Bed Leveling** also opens it. See [Calibration & Tuning](guide/calibration.md).
+Yes. **Controls > Bed Mesh** shows your mesh in 3D and runs a calibration. The **Bed mesh** tile under **Advanced > Calibration** also opens it. See [Calibration & Tuning](guide/calibration.md).
 
 ### Does it support input shaper?
 
-Yes, if an accelerometer is configured in Klipper. **Advanced > Calibration > Input Shaping** runs the whole calibration, with frequency response charts, per-axis results, a shaper comparison and a Save Config step. See [Calibration & Tuning](guide/calibration.md).
+Yes, if an accelerometer is configured in Klipper. **Advanced > Calibration > Input shaper** runs the whole calibration, with frequency response charts, per-axis results, a shaper comparison and a Save Config step. See [Calibration & Tuning](guide/calibration.md).
 
 ### Does it support pressure advance tuning?
 
-Yes. **Advanced > Calibration > Pressure Advance Tuning** prints a small test tower that raises pressure advance with height. You pick the height band that looked best, and HelixScreen applies the result. See [Calibration & Tuning](guide/calibration.md#pressure-advance-tuning-test-tower).
+Yes. **Advanced > Calibration > Pressure advance tuning** prints a small test tower that raises pressure advance with height. You pick the height band that looked best, and HelixScreen applies the result. See [Calibration & Tuning](guide/calibration.md#pressure-advance-tuning-test-tower).
 
 ### Does it support exclude objects?
 

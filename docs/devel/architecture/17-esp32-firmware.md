@@ -67,7 +67,7 @@ records each file left out with its reason. What stays out is the Linux shell ar
 remote screen and the ctl server) and the subsystems the panel cannot afford or has no hardware for. Those
 subsystems compile out through the definitions in `components/helixapp/CMakeLists.txt`: `HELIX_HAS_CAMERA`,
 `GCODE_VIEWER`, `BED_MESH_3D`, `LABEL_PRINTER`, `PLUGINS`, `TIMELAPSE_VIEWER`, `BELT_TUNER`, `HIDPI_FONTS`,
-`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays), `IMAGE_TAGGER` and `CJK` are 0, and
+`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays), `IMAGE_TAGGER`, `SIDE_BAND` (the ultrawide side band; the panel is never ultrawide) and `CJK` are 0, and
 `HELIX_ENABLE_SCREENSAVER` is 0. Every other gate, the filament backends (`CFS`, `IFS`, `ACE`, `QIDI`,
 `SNAPMAKER`) among them, keeps its default from `include/helix_features.h`, which `lvgl_pch.h` brings into every
 source. `HELIX_HAS_SOUND` is a presence flag and is left undefined, so the sound paths compile to their stubs. Shared code that needs a
