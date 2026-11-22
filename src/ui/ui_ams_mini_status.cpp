@@ -1474,9 +1474,17 @@ static void on_size_changed(lv_event_t* e) {
     }
 }
 
-/** Click callback to open AMS panel (routes to overview for multi-unit) */
+/**
+ * Tap on the strip (ams_mini_status_frame): open the AMS panel, or the overview
+ * for multi-unit. A host that embeds the strip with clickable="false" owns the
+ * tap: a press on the bars still bubbles through the frame to the host's own
+ * handler, which opens the panel, so the frame opening it as well is a second
+ * push of the same overlay.
+ */
 static void on_click(lv_event_t* e) {
-    (void)e;
+    if (!lv_obj_has_flag(lv_event_get_current_target_obj(e), LV_OBJ_FLAG_CLICKABLE)) {
+        return;
+    }
     spdlog::debug("[AmsMiniStatus] Clicked - navigating to AMS panel");
     navigate_to_ams_panel();
 }
