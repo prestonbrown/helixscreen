@@ -477,8 +477,8 @@ sets `exception_code[ch]`: 10-15 preload, 30-35 reaching the head, 50-51 at the 
 unload, 90 hand feed). `include/snapmaker_exceptions.h#word_fault` gives the cause and fix
 for each code (the full map is in `docs/devel/printers/SNAPMAKER_U1_SUPPORT.md`), with a generic load failure for a code it does not know, and the backend
 (`src/printer/ams_backend_snapmaker.cpp#classify_coded_fault`) titles it with the head
-("Toolhead 1 didn't load"). During a print it is a dialog with Open Filament, Cancel Print
-and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
+("Toolhead 1 didn't load"). During a print it is a dialog with Load (Unload for an unload
+fault; Open Filament when the fault names no head or has no retry), Cancel Print and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
 rather than the firmware's `channel_error` token.
 
 **Resume waits for a confirmed load.** `FEED_AUTO` answers OK without feeding when the
