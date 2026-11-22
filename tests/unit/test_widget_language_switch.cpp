@@ -363,12 +363,16 @@ TEST_CASE_METHOD(LanguageSwitchFixture,
     lv_obj_t* sensor_name = sensor.child("thermistor_name_prompt");
     REQUIRE(fan_name != nullptr);
     REQUIRE(sensor_name != nullptr);
-    REQUIRE(std::string(lv_label_get_text(fan_name)) == "Select fan");
-    REQUIRE(std::string(lv_label_get_text(sensor_name)) == "Select sensor");
+    const std::string fan_before = lv_label_get_text(fan_name);
+    const std::string sensor_before = lv_label_get_text(sensor_name);
+    REQUIRE_FALSE(fan_before.empty());
+    REQUIRE_FALSE(sensor_before.empty());
 
     SystemSettingsManager::instance().set_language("ru");
     helix::ui::UpdateQueue::instance().drain_until_empty();
     REQUIRE(std::string(lv_tr("Select fan")) != "Select fan");
+    CHECK(std::string(lv_label_get_text(fan_name)) != fan_before);
+    CHECK(std::string(lv_label_get_text(sensor_name)) != sensor_before);
     CHECK(std::string(lv_label_get_text(fan_name)) == lv_tr("Select fan"));
     CHECK(std::string(lv_label_get_text(sensor_name)) == lv_tr("Select sensor"));
 }

@@ -118,11 +118,17 @@ TEST_CASE_METHOD(ConnectionCallbacksFixture,
 
     config_->set(key_path, false);
     helix::settings::get_connection_settings_overlay().on_activate();
-    CHECK(std::string(lv_label_get_text(description)) == "Not set");
+    const std::string unset_text = lv_label_get_text(description);
+    CHECK_FALSE(unset_text.empty());
 
-    config_->set(key_path, std::string("0123456789abcdef0123456789abcdef"));
+    const std::string key = "0123456789abcdef0123456789abcdef";
+    config_->set(key_path, key);
     helix::settings::get_connection_settings_overlay().on_activate();
-    CHECK(std::string(lv_label_get_text(description)) == "Configured");
+    const std::string set_text = lv_label_get_text(description);
+    CHECK_FALSE(set_text.empty());
+    CHECK(set_text != unset_text);
+    CHECK(set_text.find(key) == std::string::npos);
+    CHECK(set_text.find(key.substr(0, 8)) == std::string::npos);
 
     config_->set(key_path, saved);
 }

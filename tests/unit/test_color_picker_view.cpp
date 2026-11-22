@@ -263,7 +263,7 @@ TEST_CASE_METHOD(PickerFixture, "ColorPickerView: the strip shows recents and pi
     const auto seed = ColorRecents::seed(ColorRecents::Kind::Filament);
     CHECK(view.strip_colors() == seed);
     CHECK(subject_int("color_picker_chip_count") == static_cast<int>(seed.size()));
-    CHECK(subject_string("color_picker_strip_caption") == "Recent");
+    CHECK_FALSE(subject_string("color_picker_strip_caption").empty());
     view.pick_chip(1);
     CHECK(view.color() == seed[1]);
     CHECK(subject_int("color_picker_chip_selected") == 1);

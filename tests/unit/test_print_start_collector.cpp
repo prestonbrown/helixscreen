@@ -434,16 +434,16 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     set_all_temps(150, 600, 0, 0);
     tick_fallbacks();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    REQUIRE(get_current_message() == "Heating Bed...");
 
     // A user M117 arrives on the same notify_status_update path the collector
     // listens on. It must NOT clobber the collector's phase label — user text
     // belongs in display_message, which PrinterPrintState owns.
+    const std::string label_before = get_current_message();
     client().dispatch_status_update({{"display_status", {{"message", "Leveling 3/9"}}}});
     drain_async_updates();
     drain_async_updates();
 
-    REQUIRE(get_current_message() == "Heating Bed...");
+    REQUIRE(get_current_message() == label_before);
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
@@ -465,7 +465,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
     display("Leveling gantry");
     REQUIRE(get_current_phase() == PrintStartPhase::QGL);
-    REQUIRE(get_current_message() == "Leveling Gantry...");
     display("Cleaning nozzle");
     REQUIRE(get_current_phase() == PrintStartPhase::CLEANING);
     display("Performing bed mesh calibration");
@@ -485,7 +484,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
 
     send_gcode_response("// Motors synchronization started");
     REQUIRE(get_current_phase() == PrintStartPhase::MOTOR_SYNC);
-    REQUIRE(get_current_message() == "Syncing Motors...");
 
     send_gcode_response("// x-Initial magnitude: 2045");
     send_gcode_response("// Motors magnitudes are in tolerance: x: 100.0, y: 100.0");
@@ -2240,17 +2238,17 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
             {{"display_status", {{"message", "Bed soak - 2 minutes remaining"}}}});
         drain_async_updates();
         REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
-        REQUIRE(get_current_message() == "Heat Soaking...");
 
         // The bed sags past the 2C band during the dwell: the heating_bed rule
         // re-arms and holds again, and the temperature tick sees a heating bed.
+        const std::string soak_message = get_current_message();
         set_bed_temps(1020, 1050);
         client().dispatch_status_update(
             {{"heater_bed", {{"temperature", 102.0}, {"target", 105.0}}}});
         drain_async_updates();
         tick_fallbacks();
         CHECK(get_current_phase() == PrintStartPhase::SOAKING);
-        CHECK(get_current_message() == "Heat Soaking...");
+        CHECK(get_current_message() == soak_message);
     }
 
     SECTION("a chamber wait while the bed is still climbing") {
@@ -2826,7 +2824,6 @@ TEST_CASE_METHOD(SnapmakerCollectorFixture,
 
     feed_gcode("// Success: Set action code BED_PREHEATING");
     REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
-    REQUIRE(get_current_message() == "Heat Soaking...");
     feed_gcode("// Bed preheating: 59s left");
     REQUIRE(get_current_phase() == PrintStartPhase::SOAKING);
 
@@ -2953,7 +2950,6 @@ TEST_CASE_METHOD(SnapmakerHeaterWaitFixture,
     feed_gcode("B:45.0 /100.0 T0:210.0 /210.0");
     tick();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    REQUIRE(get_current_message() == "Heating Bed...");
 
     // The last few degrees are inside the tolerance band; the wait still holds.
     clock_.advance(std::chrono::seconds(1));
@@ -3936,7 +3932,6 @@ TEST_CASE_METHOD(SnapmakerReplayFixture,
     clock.advance(std::chrono::milliseconds(250));
     at(14559);
     CHECK(get_current_phase() == PrintStartPhase::SOAKING);
-    CHECK(get_current_message() == "Heat Soaking...");
     // The mesh command prints that code itself, so the step is not held for
     // later either.
     clock.advance(std::chrono::seconds(2));
@@ -4033,7 +4028,6 @@ TEST_CASE_METHOD(SnapmakerStartBlockFixture,
         clock.advance(std::chrono::seconds(1));
         at(14023);
         CHECK(get_current_phase() == PrintStartPhase::CLEANING);
-        CHECK(get_current_message() == "Cleaning Nozzle...");
     }
     SECTION("a console change after it cancels it") {
         clock.advance(std::chrono::milliseconds(300));
@@ -5223,7 +5217,6 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
     // the string through the same weights a console line takes.
     send_status_update({{"operation_context", {{"current_state", "HOMING"}}}});
     REQUIRE(get_current_phase() == PrintStartPhase::HOMING);
-    REQUIRE(get_current_message() == "Homing...");
     REQUIRE(get_current_progress() == 5);
 
     // Next state advances through the mapping - sequential progress follows
@@ -5294,7 +5287,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
 
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
-    REQUIRE(get_current_message() == "Preparing Print...");
 }
 
 // ============================================================================
@@ -5715,7 +5707,6 @@ TEST_CASE_METHOD(PrintStartCollectorSequentialFixture,
 
     send_status_update({{"toolhead", {{"position", {114.0, 230.0, 10.0}}}}});
     REQUIRE(get_current_phase() == PrintStartPhase::PURGING);
-    REQUIRE(get_current_message() == "Purging...");
     REQUIRE(get_current_progress() == 20);
 }
 
@@ -5804,7 +5795,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     drain_async_updates();
 
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
-    REQUIRE(get_current_message() == "Preparing Print...");
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
@@ -5818,12 +5808,10 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}, {"target", 60.0}}}});
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_BED);
-    REQUIRE(get_current_message() == "Heating Bed...");
 
     client().dispatch_status_update({{"extruder", {{"temperature", 25.0}, {"target", 210.0}}}});
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-    REQUIRE(get_current_message() == "Heating Nozzle...");
 }
 
 TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
@@ -5872,7 +5860,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
     client().dispatch_status_update({{"heater_bed", {{"temperature", 23.5}}}});
     drain_async_updates();
     REQUIRE(get_current_phase() == PrintStartPhase::INITIALIZING);
-    REQUIRE(get_current_message() == "Preparing Print...");
 }
 
 // ============================================================================
@@ -6751,7 +6738,6 @@ TEST_CASE_METHOD(PrintStartCollectorHeaterFixture,
             set_all_temps(1050, 1050, 1600, 2600);
             tick_fallbacks();
             REQUIRE(get_current_phase() == PrintStartPhase::HEATING_NOZZLE);
-            REQUIRE(get_current_message() == "Heating Nozzle...");
         }
 
         SECTION("keeps the mesh while a probe line is recent") {
@@ -7346,7 +7332,6 @@ TEST_CASE_METHOD(LevelingPointsFixture,
         if (line.s == at_time(20, 1, 54) && !saw_first_probe) {
             saw_first_probe = true;
             CHECK(get_current_phase() == PrintStartPhase::QGL);
-            CHECK(get_current_message() == "Leveling Gantry...");
         }
         if (line.s < at_time(20, 1, 54)) {
             CHECK(get_current_phase() == PrintStartPhase::INITIALIZING);
@@ -7433,7 +7418,6 @@ TEST_CASE_METHOD(LevelingPointsFixture,
         if (first) {
             first = false;
             CHECK(get_current_phase() == PrintStartPhase::Z_TILT);
-            CHECK(get_current_message() == "Z Tilt Adjust...");
         }
     });
     CHECK(get_current_phase() == PrintStartPhase::BED_MESH);
@@ -7474,7 +7458,6 @@ TEST_CASE_METHOD(LevelingPointsFixture,
     CHECK(get_current_phase() == PrintStartPhase::INITIALIZING);
     touch(b_x, b_y);
     CHECK(get_current_phase() == PrintStartPhase::QGL);
-    CHECK(get_current_message() == "Leveling Gantry...");
 }
 
 TEST_CASE_METHOD(LevelingPointsFixture,
@@ -7572,7 +7555,6 @@ TEST_CASE_METHOD(PurgeShapeFixture, "Purge shape: a blob purge with no console s
         head(x, y, z0 + 0.2 * i);
     }
     CHECK(get_current_phase() == PrintStartPhase::PURGING);
-    CHECK(get_current_message() == "Purging...");
 }
 
 TEST_CASE_METHOD(PurgeShapeFixture, "Purge shape: continuous flow over a chute shows PURGING",

@@ -360,7 +360,8 @@ TEST_CASE_METHOD(LedPickerFixture, "LedWidget: a picker tap picks the row the us
     REQUIRE(row != nullptr);
     lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
     REQUIRE(title != nullptr);
-    CHECK(std::string(lv_label_get_text(title)) == "This button controls");
+    CHECK_FALSE(lv_obj_is_hidden(title));
+    CHECK(lv_label_get_text(title)[0] != '\0');
 
     // The device list reorders while the picker is open.
     LedController::instance().native().clear();

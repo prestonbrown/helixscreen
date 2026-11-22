@@ -8,6 +8,7 @@
 #include "ui_spaghetti_detection_modal.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/label_fits.h"
 
 #include <memory>
 #include <string>
@@ -170,7 +171,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the PIN pad's dots and error line follow it
     CHECK(entered == "1904");
     // A rejected PIN clears the dots and says why.
     CHECK(filled_dots(screen, "pin_dot_") == 0);
-    CHECK(label_text(screen, "pin_error_label") == "Wrong PIN");
+    CHECK(label_text(screen, "pin_error_label") == "Wrong PIN"); // the callback's own return
+    helix::test::require_label_fits(lv_obj_find_by_name(screen, "pin_error_label"),
+                                    "pin error line");
 
     ui::PinEntryModal::dismiss();
     process_lvgl(50);

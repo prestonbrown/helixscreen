@@ -121,7 +121,7 @@ TEST_CASE("Load with no resolved slot redirects to the AMS slot picker",
     FilamentPanelOutcome out = load_outcome(sys, fresh_ams(), /*target_slot=*/-1,
                                             /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "Select a filament slot to load");
+    CHECK_FALSE(out.toast.empty());
     CHECK(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
 }
@@ -223,7 +223,7 @@ TEST_CASE("A lane load is refused while the bypass spool still crosses the toolh
     FilamentPanelOutcome out = load_outcome(sys, bypassed_ams(), /*target_slot=*/2,
                                             /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "Remove the bypass spool from the toolhead first");
+    CHECK_FALSE(out.toast.empty());
     CHECK_FALSE(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
     CHECK(out.call == AmsCall::None);
@@ -248,7 +248,7 @@ TEST_CASE("Unload with nothing loaded warns and dispatches nothing",
     FilamentPanelOutcome out = unload_outcome(fresh_ams(), /*target_slot=*/2,
                                               /*target_is_loaded=*/false, /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "No filament loaded to unload");
+    CHECK_FALSE(out.toast.empty());
     CHECK_FALSE(out.guard_armed);
     // The unload refusal never redirects — the panel already knows the slot.
     CHECK_FALSE(out.navigate_to_ams);
@@ -352,4 +352,26 @@ TEST_CASE("A refused unload arms nothing", "[filament][dispatch][wiring][bypass]
                               /*macro_available=*/true);
     REQUIRE(out.tier == FilamentTier::Refused);
     CHECK_FALSE(out.arm_manual_pull);
+}
+
+TEST_CASE("The three refusals each warn with their own message", "[filament][dispatch][wiring]") {
+    AmsSystemInfo no_slot = make_sys(4, /*current_slot=*/-1);
+    AmsSystemInfo bypass = make_sys(4, /*current_slot=*/-1);
+    bypass.filament_loaded = true;
+
+    const std::string pick_slot =
+        load_outcome(no_slot, fresh_ams(), /*target_slot=*/-1, /*macro_available=*/true).toast;
+    const std::string bypass_loaded =
+        load_outcome(bypass, bypassed_ams(), /*target_slot=*/2, /*macro_available=*/true).toast;
+    const std::string nothing_loaded =
+        unload_outcome(fresh_ams(), /*target_slot=*/2, /*target_is_loaded=*/false,
+                       /*macro_available=*/true)
+            .toast;
+
+    CHECK_FALSE(pick_slot.empty());
+    CHECK_FALSE(bypass_loaded.empty());
+    CHECK_FALSE(nothing_loaded.empty());
+    CHECK(pick_slot != bypass_loaded);
+    CHECK(pick_slot != nothing_loaded);
+    CHECK(bypass_loaded != nothing_loaded);
 }

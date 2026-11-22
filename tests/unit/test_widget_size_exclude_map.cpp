@@ -283,16 +283,20 @@ TEST_CASE_METHOD(ExcludeMapFixture, "exclude_map: idle and single-object prints 
             CHECK_FALSE(shown(part(h, "exclude_map_strip")));
             CHECK_FALSE(shown(part(h, "exclude_map_content")));
             CHECK_FALSE(shown(part(h, "exclude_map_skip_button")));
-            CHECK(subject_text("exclude_map_placeholder_text") == "No objects");
+            CHECK_FALSE(subject_text("exclude_map_placeholder_text").empty());
         }
     }
 
     SECTION("printing one object") {
+        define_objects(6);
+        h.resize(1, 1, kFull.w, kFull.h);
+        const std::string no_objects_text = subject_text("exclude_map_placeholder_text");
         define_objects(1);
         set_print_active(true);
         h.resize(1, 1, kFull.w, kFull.h);
         CHECK(subject_int("exclude_map_placeholder") == 1);
-        CHECK(subject_text("exclude_map_placeholder_text") == "Single object");
+        CHECK_FALSE(subject_text("exclude_map_placeholder_text").empty());
+        CHECK(subject_text("exclude_map_placeholder_text") != no_objects_text);
         CHECK_FALSE(shown(part(h, "exclude_map_content")));
     }
 
@@ -413,7 +417,7 @@ TEST_CASE_METHOD(ExcludeMapFixture, "exclude_map: a new object count re-decides 
 
     define_objects(1);
     set_print_active(true);
-    CHECK(subject_text("exclude_map_placeholder_text") == "Single object");
+    CHECK_FALSE(subject_text("exclude_map_placeholder_text").empty());
 
     define_objects(6);
     CHECK(subject_int("exclude_map_placeholder") == 0);

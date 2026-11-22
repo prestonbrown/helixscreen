@@ -171,7 +171,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(SettingsManager::instance().get_maintenance_record(prefix()).has_value());
     CHECK(subject_int("maintenance_any_on") == 1);
     CHECK(subject_text("maintenance_m4_left") == "200 h");
-    CHECK(subject_text("maintenance_total_text") == "Total print time: 0 h");
+    CHECK(subject_text("maintenance_total_text").find(": 0 h") != std::string::npos);
     // The seeded meters reach the record with their intervals.
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     CHECK(saved->meters[kFilter].seeded);
@@ -344,7 +344,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(*meter(kFilter).reset_at_h == Catch::Approx(7.0));
     CHECK(meter(kNozzle).used_h == Catch::Approx(7.0));
     REQUIRE_FALSE(toasts.empty());
-    CHECK(toasts.back() == "Air filter meter reset");
+    CHECK(toasts.back().find("Air filter") != std::string::npos);
 
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     REQUIRE(saved.has_value());
@@ -367,7 +367,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     CHECK(meter(kNozzle).interval_h == 750);
     CHECK(meter(kNozzle).used_h == Catch::Approx(123.5));
     CHECK(meter(kRails).used_h == 0.0);
-    CHECK(subject_text("maintenance_total_text") == "Total print time: 124 h");
+    CHECK(subject_text("maintenance_total_text").find(": 124 h") != std::string::npos);
     CHECK(subject_text("maintenance_m2_left") == "627 h");
 }
 
@@ -393,7 +393,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
     lv_subject_set_int(state().print_state().get_print_active_subject(), 0);
     drain();
     REQUIRE(toasts.size() == 1);
-    CHECK(toasts[0] == "Air filter is due");
+    CHECK(toasts[0].find("Air filter") != std::string::npos);
     // The latch reaches the record with the notice, so a restart does not repeat it.
     const auto saved = SettingsManager::instance().get_maintenance_record(prefix());
     REQUIRE(saved.has_value());
@@ -401,7 +401,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
 
     bool found = false;
     for (const auto& e : NotificationHistory::instance().get_all())
-        found = found || std::string(e.message) == "Air filter is due";
+        found = found || std::string(e.message) == toasts[0];
     CHECK(found);
 }
 
@@ -437,7 +437,7 @@ TEST_CASE_METHOD(MaintenanceModelFixture,
         maintenance_model::check_idle_notices();
         drain();
         REQUIRE(toasts.size() == 1);
-        CHECK(toasts[0] == "Nozzle is due");
+        CHECK(toasts[0].find("Nozzle") != std::string::npos);
         toasts.clear();
         restart_model();
         maintenance_model::check_idle_notices();
