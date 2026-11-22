@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <string>
 
 namespace helix::ui {
 
@@ -17,12 +18,15 @@ namespace helix::ui {
  * switch in the header, the picker filling the body. A host with a draft of its
  * own (the slot editor) opens it: every change reaches on_change at once, Back
  * returns, and the host's own Save commits. on_close fires whenever the page
- * leaves the stack.
+ * leaves the stack. A host may add its own controls between the header and the
+ * picker: @p host_controls names an XML component the page builds there (the
+ * slot editor's Multi-Color row); without one the page is the bare picker.
  */
 class ColorPickerPage : public OverlayBase {
   public:
     void open(lv_obj_t* parent_screen, uint32_t initial_rgb, const ColorPickerConfig& config,
-              std::function<void(uint32_t rgb)> on_change, std::function<void()> on_close);
+              std::function<void(uint32_t rgb)> on_change, std::function<void()> on_close,
+              std::string host_controls = {});
 
     ColorPickerView& view() {
         return view_;
@@ -49,6 +53,7 @@ class ColorPickerPage : public OverlayBase {
     uint32_t initial_ = 0;
     std::function<void(uint32_t)> on_change_;
     std::function<void()> on_close_;
+    std::string host_controls_;
 };
 
 ColorPickerPage& get_color_picker_page();
