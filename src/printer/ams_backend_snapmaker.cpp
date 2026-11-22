@@ -3554,6 +3554,12 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         if (gcode.empty()) {
             continue;
         }
+        if (record_restore_sent_[idx]) {
+            spdlog::info("{} head {} record still names no filament {}s after write {} of {}; "
+                         "writing the declaration again",
+                         backend_log_tag(), head, kRecordRestoreSettle.count(),
+                         record_restores_made_[idx], kMaxRecordRestores);
+        }
         note_record_written_locked(idx);
         out.emplace_back(head, std::move(gcode));
     }
