@@ -70,7 +70,7 @@ static int grid_cells(lv_obj_t* root) {
     while (!stack.empty()) {
         lv_obj_t* o = stack.back();
         stack.pop_back();
-        if (lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) {
+        if (lv_obj_is_hidden(o)) {
             continue;
         }
         if (helix::ui::has_swatch_paint(o) && lv_obj_is_clickable(o)) {
