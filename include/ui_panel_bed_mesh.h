@@ -146,9 +146,12 @@ class BedMeshPanel : public OverlayBase {
     }
     /// Back from the profiles view returns to the intro; from the intro it leaves.
     void handle_back();
-    /// The intro's bed temperature choice: 0 cold, 1 PLA, 2 PETG, 3 ABS / ASA.
+    /// Shows the intro's bed temperature choice: 0 cold, 1 PLA, 2 PETG, 3 ABS / ASA.
     void set_heat_choice(int choice);
-    /// The bed temperature the intro's choice probes at, 0 for a cold bed.
+    /// The user's tap on a bed temperature: shows it and probes at it.
+    void pick_heat_choice(int choice);
+    /// The bed temperature a probe heats to: the intro's choice once the user
+    /// has picked one since the panel opened (0 for a cold bed), else the default.
     [[nodiscard]] int chosen_probe_bed_c() const;
     /// start_calibration() once the bed is known clear: the profile name dialog.
     void ask_calibration_name();
@@ -271,6 +274,9 @@ class BedMeshPanel : public OverlayBase {
     // bed temperature and the caption and badges.
     helix::Subject bed_mesh_view_{};
     int opening_view_ = 0;
+    /// The user picked a bed temperature on the intro since the panel opened.
+    /// Until then a probe keeps the bed target the printer already has.
+    bool heat_choice_picked_ = false;
     helix::Subject bed_mesh_heat_choice_{};
     std::array<helix::Subject, 3> bed_mesh_heat_temp_{};
     std::array<std::array<char, 16>, 3> heat_temp_bufs_{};

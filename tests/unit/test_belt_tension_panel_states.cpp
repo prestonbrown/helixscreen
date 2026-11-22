@@ -2987,13 +2987,20 @@ TEST_CASE("portrait START stacks the sketch over the text", "[belt][panel][portr
     lv_obj_update_layout(fx.view());
     lv_obj_t* sketch = named(fx, "bt_sketch");
     lv_obj_t* text = named(fx, "bt_start_text");
-    CHECK(lv_obj_get_y(text) > lv_obj_get_y(sketch));
-    CHECK(lv_obj_get_x(text) == lv_obj_get_x(sketch));
+    // The two sit in different columns of the intro, so compare screen coords.
+    lv_area_t s_area;
+    lv_area_t t_area;
+    lv_obj_get_coords(sketch, &s_area);
+    lv_obj_get_coords(text, &t_area);
+    CHECK(t_area.y1 > s_area.y1);
+    CHECK(t_area.x1 == s_area.x1);
 
     SECTION("landscape puts them side by side") {
         portrait.set(0);
         lv_obj_update_layout(fx.view());
-        CHECK(lv_obj_get_x(text) > lv_obj_get_x(sketch));
+        lv_obj_get_coords(sketch, &s_area);
+        lv_obj_get_coords(text, &t_area);
+        CHECK(t_area.x1 > s_area.x1);
     }
 }
 
@@ -3195,7 +3202,7 @@ TEST_CASE("the sweep fact line counts the laps, even when the toolhead reports l
     BeltPanelFixture fx;
     REQUIRE(fx.wait_gate_open());
     // At 500 mm/s the laps take seconds: two 130 s sweeps round to 5 min.
-    REQUIRE(fx.text("bt_hw_sweep") == "5-135 Hz · about 5 min");
+    REQUIRE(fx.text("bt_intro_minutes") == "about 5 min");
 
     // A toolhead frame after the [resonance_tester] answer: 10 mm/s max
     // velocity laps at 6 mm/s, minutes instead of seconds.
@@ -3215,7 +3222,7 @@ TEST_CASE("the sweep fact line counts the laps, even when the toolhead reports l
     REQUIRE(plan.refusal == helix::calibration::BeltSettleRefusal::NONE);
     const int minutes = static_cast<int>(std::ceil((260.0f + plan.seconds) / 60.0f));
     REQUIRE(minutes != 5); // the laps change the answer
-    CHECK(fx.text("bt_hw_sweep") == "5-135 Hz · about " + std::to_string(minutes) + " min");
+    CHECK(fx.text("bt_intro_minutes") == "about " + std::to_string(minutes) + " min");
 }
 
 TEST_CASE("a probe point answered behind the screensaver still starts the run",

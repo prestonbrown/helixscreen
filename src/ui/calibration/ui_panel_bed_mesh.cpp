@@ -575,7 +575,7 @@ void BedMeshPanel::register_callbacks() {
         {"on_bed_mesh_back", [](lv_event_t*) { get_global_bed_mesh_panel().handle_back(); }},
         {"on_bed_mesh_heat_choice",
          [](lv_event_t* e) {
-             get_global_bed_mesh_panel().set_heat_choice(helix::calibration::intro_chip_index(e));
+             get_global_bed_mesh_panel().pick_heat_choice(helix::calibration::intro_chip_index(e));
          }},
 
         // Profile row callbacks (5 profiles)
@@ -636,6 +636,8 @@ void BedMeshPanel::on_activate() {
     OverlayBase::on_activate();
 
     spdlog::debug("[{}] on_activate()", get_name());
+    heat_choice_picked_ = false;
+    set_heat_choice(1);
     show_view(opening_view_);
     opening_view_ = 0;
 
@@ -693,7 +695,18 @@ void BedMeshPanel::set_heat_choice(int choice) {
     lv_subject_set_string(&bed_mesh_intro_heat_, intro_heat_buf_);
 }
 
+void BedMeshPanel::pick_heat_choice(int choice) {
+    if (choice < 0 || choice >= static_cast<int>(heat_choice_bed_c_.size())) {
+        return;
+    }
+    heat_choice_picked_ = true;
+    set_heat_choice(choice);
+}
+
 int BedMeshPanel::chosen_probe_bed_c() const {
+    if (!heat_choice_picked_) {
+        return helix::bed_mesh::kDefaultProbeBedTempC;
+    }
     const int choice = lv_subject_get_int(&bed_mesh_heat_choice_);
     if (choice < 0 || choice >= static_cast<int>(heat_choice_bed_c_.size())) {
         return helix::bed_mesh::kDefaultProbeBedTempC;
@@ -1290,13 +1303,18 @@ void BedMeshPanel::prepare_and_probe() {
                           nozzle.c_str(), kProbeNozzleTemp);
             wait_cmd += buf;
         }
-        if (heat_.owns(kBedHeater)) {
+        if (heat_.owns(kBedHeater) && chosen_probe_bed_c() > 0) {
             char buf[128];
             std::snprintf(buf, sizeof(buf), "TEMPERATURE_WAIT SENSOR=heater_bed MINIMUM=%d",
                           chosen_probe_bed_c());
             wait_cmd += buf;
         }
 
+        if (wait_cmd.empty()) {
+            // Only a cold bed was taken over: nothing heats, so nothing to wait on.
+            start_home_and_probe();
+            return;
+        }
         spdlog::info("[BedMeshPanel] Waiting for preheat: {}", wait_cmd);
 
         api->execute_gcode(
@@ -1439,9 +1457,10 @@ BedMeshPanel::plan_calibration_into(const std::string& name) const {
     // parameters it takes, and brings its own heating and homing.
     const auto& info = StandardMacros::instance().get(StandardMacroSlot::BedMesh);
     auto& state = get_printer_state();
-    // The intro's choice stands in for a set target; a cold-bed choice leaves
-    // the target, or the default, to a sequence that heats on its own.
-    const int chosen_c = chosen_probe_bed_c();
+    // A temperature picked on the intro stands in for a set target; a cold-bed
+    // pick, or none, leaves the target or the default to a sequence that heats
+    // on its own.
+    const int chosen_c = heat_choice_picked_ ? chosen_probe_bed_c() : 0;
     const int bed_temp_c = helix::bed_mesh::probe_bed_temp_c(
         chosen_c > 0 ? chosen_c * 10
                      : lv_subject_get_int(state.temperature_state().get_bed_target_subject()),
