@@ -106,8 +106,10 @@ adjusts each kept row for this printer:
   strategy is not `FIRMWARE_MANAGED` and the Z probe does not measure with the nozzle itself
   (`z_offset_is_paper_test()`).
 - **Z offset is absent** when the printer's firmware sets the nozzle height from its probe
-  (`probe_sets_nozzle_height()`: Creality's PRTouch on the K1 and K2 series). Nothing is left to
-  calibrate there, so neither the Calibration screen nor the guided run offers it.
+  (`probe_sets_nozzle_height()`: Creality's PRTouch on the K1 and K2 series), or from a probe set
+  up to touch the bed (`ProbeSensorManager::z_probe_sets_z_by_touch()`: a Cartographer with a touch
+  model, a Beacon with `home_method: contact`). Nothing is left to calibrate there, so neither the
+  Calibration screen nor the guided run offers it.
 - **A database tier replaces the default tier** for any step the printer's entry names.
 
 `CatalogInputs` is plain data so the catalog is testable without a printer.

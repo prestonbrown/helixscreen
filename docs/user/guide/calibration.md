@@ -315,7 +315,7 @@ HelixScreen picks the right calibration command for your setup (`PROBE_CALIBRATE
 
 > **In a guided calibration**, Accept keeps the offset for the run's single save instead of saving it straight away. See [The Z offset step](#while-it-runs).
 
-> **Creality K1 and K2:** the printer sets the nozzle height itself with its pressure sensors every time it homes and prints, so there is no Z offset calibration on these printers: the Calibration screen and the guided run leave it out. To adjust the first layer, use the Z offset in [Print Tune](printing.md#print-tune-overlay) while a print runs.
+> **Creality K1 and K2, and touch probes:** the printer sets the nozzle height itself by touching the bed with the nozzle, so there is no Z offset calibration: the Calibration screen and the guided run leave it out. That covers the K1 and K2 pressure sensors, a Cartographer once its touch calibration has run, and a Beacon set to `home_method: contact`. A Cartographer or Beacon used only as a scanner keeps the paper test. To adjust the first layer, use the Z offset in [Print Tune](printing.md#print-tune-overlay) while a print runs.
 
 > **Tool changer?** Some printers can also measure Z automatically for every tool, including the reference one, as part of [automatic Tool Offsets calibration](#tool-offsets) — on those, this paper-test flow is hidden. Most tool changers only measure the *other* tools' offsets relative to the reference tool, so the paper test stays available to set the reference tool's own Z.
 
