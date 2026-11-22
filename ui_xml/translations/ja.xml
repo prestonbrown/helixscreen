@@ -4358,6 +4358,7 @@
   <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." ja="信号マクロは Fluidd と Mainsail のマクロ一覧に表示されません。"/>
   <translation tag="Signal macros keep their old names too, so older calls still work." ja="信号マクロは古い名前も使えるため、以前のコマンドも動作します。"/>
   <translation tag="Similarity" ja="類似度"/>
+  <translation tag="Single" ja="単色"/>
   <translation tag="Single object" ja="オブジェクト1個"/>
   <translation tag="Single toggle macro. State is not tracked." ja="単一のトグルマクロ。状態は追跡されません。"/>
   <translation tag="Size" ja="サイズ"/>

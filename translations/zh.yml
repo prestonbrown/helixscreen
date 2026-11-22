@@ -4498,6 +4498,7 @@ translations:
   Signal macros are hidden from Fluidd and Mainsail macro lists.: '信号宏已从 Fluidd 和 Mainsail 的宏列表中隐藏。'
   Signal macros keep their old names too, so older calls still work.: '信号宏同时保留旧名称，旧的调用仍可正常工作。'
   Similarity: "相似度"
+  Single: '单色'
   Single object: '单个对象'
   Single toggle macro. State is not tracked.: 单个切换宏。不跟踪状态。
   Size: 大小

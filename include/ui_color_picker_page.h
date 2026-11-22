@@ -20,7 +20,7 @@ namespace helix::ui {
  * returns, and the host's own Save commits. on_close fires whenever the page
  * leaves the stack. A host may add its own controls between the header and the
  * picker: @p host_controls names an XML component the page builds there (the
- * slot editor's Multi-Color row); without one the page is the bare picker.
+ * slot editor's color options row); without one the page is the bare picker.
  */
 class ColorPickerPage : public OverlayBase {
   public:

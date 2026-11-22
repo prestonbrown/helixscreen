@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The slot editor's colors as dots: one for a single-color spool, two to four
      for a multi-color one, the selected one ringed, then (where the host shows
-     it: the color page's Multi-Color row) an outlined "+" while there is room
+     it: the color page's color options row) an outlined "+" while there is room
      and the lane can store several colors. Tapping a dot selects it; tapping
      the selected dot opens the color page for it; a long press removes it.
      A translucent draft draws every dot over the checkerboard.

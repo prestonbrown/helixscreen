@@ -5883,7 +5883,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(subject_value("ams_edit_multi_capable") == 1);
-    REQUIRE(subject_value("ams_edit_multi") == 0);
+    REQUIRE(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     access.open_page(AmsEditOverlay::kPageFilament);
 
     auto back_from_page = [&] {
@@ -5915,7 +5915,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
             }
         }
     }
-    CHECK(subject_value("ams_edit_multi") == 1);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeGradient);
     CHECK(subject_value("ams_edit_seg_count") == 4);
     // The Colors bar (and the spool drawing) show every color of the draft.
     auto summary_colors = [&] {
@@ -5936,7 +5936,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(subject_value("ams_edit_seg_selected") == 2);
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors()[2] == 0x00FF00);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     process_lvgl(5);
     CHECK(lv_obj_is_hidden(access.widget("color_preview_bar")));
     CHECK_FALSE(lv_obj_is_hidden(access.widget("color_preview_bands")));
@@ -5962,7 +5962,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         access.call_seg_hold(1);
     }
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
-    CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     CHECK(summary_colors() == 0); // one color: no bar
     // One color: the swatches start on its dot's line.
     lv_obj_update_layout(access.widget("color_row"));
@@ -5993,7 +5993,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     lv_obj_send_event(access.widget("btn_edit_save"), LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -6046,11 +6046,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(subject_value("ams_edit_multi_capable") == 0);
-    CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     CHECK(subject_value("ams_edit_seg_count") == 1);
     CHECK(lv_obj_is_hidden(access.widget("colors_line")));
     access.call_seg_hold(0);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});

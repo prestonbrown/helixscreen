@@ -4498,6 +4498,7 @@ translations:
   Signal macros are hidden from Fluidd and Mainsail macro lists.: '信号マクロは Fluidd と Mainsail のマクロ一覧に表示されません。'
   Signal macros keep their old names too, so older calls still work.: '信号マクロは古い名前も使えるため、以前のコマンドも動作します。'
   Similarity: "類似度"
+  Single: '単色'
   Single object: 'オブジェクト1個'
   Single toggle macro. State is not tracked.: 単一のトグルマクロ。状態は追跡されません。
   Size: サイズ

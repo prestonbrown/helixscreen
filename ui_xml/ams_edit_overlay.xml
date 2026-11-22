@@ -85,16 +85,17 @@
     <px name="edit_spool_size_small" value="120"/>
     <px name="edit_spool_size_medium" value="168"/>
     <px name="edit_spool_size_large" value="210"/>
-    <!-- A multi-color spool's mode dropdown (the color page's Multi-Color
-         row, ams_edit_multi_color.xml: its widest) and the bar of its colors. -->
+    <!-- The color page's Single / Gradient / Coaxial dropdown
+         (ams_edit_multi_color.xml): wide enough for its longest option. -->
     <px name="ams_edit_mode_dd_w_micro" value="104"/>
     <px name="ams_edit_mode_dd_w_tiny" value="110"/>
     <px name="ams_edit_mode_dd_w_small" value="130"/>
     <px name="ams_edit_mode_dd_w_medium" value="150"/>
     <px name="ams_edit_mode_dd_w_large" value="170"/>
-    <!-- The Multi-Color row's dots: the swatch_grid ladder, except that
-         480x320 holds the 44px pitch of its neighbors instead of 46, so four
-         dots, the switch and the dropdown share one line there. -->
+    <!-- The color page's multi-color dots: the swatch_grid ladder, except
+         that 480x320 holds the 44px pitch of its neighbors instead of 46, so
+         the dropdown, four dots and the Translucent checkbox share one line
+         there. -->
     <px name="ams_edit_multi_dot_size_micro" value="26"/>
     <px name="ams_edit_multi_dot_size_tiny" value="28"/>
     <px name="ams_edit_multi_dot_size_small" value="28"/>
@@ -110,16 +111,6 @@
     <px name="ams_edit_multi_dot_gap_small" value="16"/>
     <px name="ams_edit_multi_dot_gap_medium" value="12"/>
     <px name="ams_edit_multi_dot_gap_large" value="12"/>
-    <!-- The dots and mode dropdown's least width beside the switch. With the
-         Translucent checkbox it is more than a narrow page's line holds, so the
-         checkbox wraps to the next line instead of squeezing the dropdown; alone
-         it stays under what the line leaves beside the switch, so the dots and
-         dropdown keep its line. At medium and up all three share one line. -->
-    <px name="ams_edit_multi_row_min_w_micro" value="240"/>
-    <px name="ams_edit_multi_row_min_w_tiny" value="240"/>
-    <px name="ams_edit_multi_row_min_w_small" value="260"/>
-    <px name="ams_edit_multi_row_min_w_medium" value="328"/>
-    <px name="ams_edit_multi_row_min_w_large" value="348"/>
     <!-- The Translucent checkbox's reach above and below its box: a 44px
          target from the checkbox's own height at each size. -->
     <px name="ams_edit_check_hit_micro" value="11"/>
@@ -184,8 +175,8 @@
     <px name="ams_edit_swatch_rows_h_small" value="224"/>
     <px name="ams_edit_swatch_rows_h_medium" value="240"/>
     <px name="ams_edit_swatch_rows_h_large" value="330"/>
-    <!-- The hit reach of a #button_height_sm control (↺, the Multi-Color
-         mode dropdown): its height plus twice this is 44 or more. -->
+    <!-- The hit reach of a #button_height_sm control (↺, the color page's
+         Single / Gradient / Coaxial dropdown): its height plus twice this is 44 or more. -->
     <px name="ams_edit_tag_hit_micro" value="10"/>
     <px name="ams_edit_tag_hit_tiny" value="8"/>
     <px name="ams_edit_tag_hit_small" value="2"/>
@@ -604,16 +595,16 @@
             <lv_obj name="colors_line"
                     width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
                     style_flex_cross_place="center" scrollable="false" hidden="true">
-              <bind_flag_if_eq subject="ams_edit_multi" flag="hidden" ref_value="0"/>
+              <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="0"/>
               <swatch_paint name="color_preview_bar"
                             height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
                             bind_colors="ams_edit_color_current_multi" blend="on">
-                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="1"/>
+                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="2"/>
               </swatch_paint>
               <swatch_paint name="color_preview_bands"
                             height="#ams_edit_preview_h" flex_grow="1" style_radius="9999"
                             bind_colors="ams_edit_color_current_multi">
-                <bind_flag_if_eq subject="ams_edit_color_mode" flag="hidden" ref_value="0"/>
+                <bind_flag_if_not_eq subject="ams_edit_color_mode" flag="hidden" ref_value="2"/>
               </swatch_paint>
             </lv_obj>
             <!-- As many swatches as the page has room for, up to the row's
