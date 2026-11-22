@@ -41,6 +41,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace helix {
 
@@ -814,6 +815,21 @@ std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
             shared = heads.end() - 1;
         }
         shared->tool_indices.push_back(static_cast<int>(i));
+    }
+    // Tools that outnumber heads are lanes, numbered by whatever a lane map
+    // says, so the lowest lane says nothing about where a head stands. The
+    // extruders do: "extruder", "extruder1", ... in that order, with any head
+    // naming none after them.
+    if (tools.size() > heads.size()) {
+        const auto position = [](const PhysicalHead& head) {
+            const auto n =
+                head.extruder_name ? tool_number_for_extruder(*head.extruder_name) : std::nullopt;
+            return n.value_or(std::numeric_limits<int>::max());
+        };
+        std::stable_sort(heads.begin(), heads.end(),
+                         [&](const PhysicalHead& a, const PhysicalHead& b) {
+                             return position(a) < position(b);
+                         });
     }
     for (PhysicalHead& head : heads) {
         int seated_count = 0;
