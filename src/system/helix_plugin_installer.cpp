@@ -27,12 +27,10 @@
 #include <atomic>
 #include <cerrno>
 #include <chrono>
-#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <vector>
 

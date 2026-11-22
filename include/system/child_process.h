@@ -19,10 +19,12 @@ struct ChildOptions {
     /// Look @p file up on PATH (execvp, with the app's own environment)
     /// instead of running it as given with @p envp.
     bool search_path = false;
-    /// Raise the child's nice value by this much (0 leaves it alone).
+    /// Raise the child's nice value this much above the spawning thread's,
+    /// which it inherits (0 leaves it alone).
     int nice = 0;
     /// Kill the child when the thread that spawned it exits (Linux only), so
-    /// a crashed app leaves no child running.
+    /// a crashed app leaves no child running. A child whose app is already
+    /// gone by the time it arms this exits 127 instead.
     bool die_with_parent = false;
 };
 

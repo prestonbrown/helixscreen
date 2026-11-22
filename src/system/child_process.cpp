@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <thread>
 #include <unistd.h>
@@ -17,6 +18,25 @@
 #endif
 
 namespace helix {
+
+#if !defined(ESP_PLATFORM)
+namespace {
+
+/// Close every fd from @p first up: close_range() where the kernel has it
+/// (5.9+), else one close() per number below @p fallback_limit.
+void close_fds_from(int first, int fallback_limit) {
+#ifdef SYS_close_range
+    if (syscall(SYS_close_range, static_cast<unsigned>(first), ~0U, 0U) == 0) {
+        return;
+    }
+#endif
+    for (int fd = first; fd < fallback_limit; ++fd) {
+        close(fd);
+    }
+}
+
+} // namespace
+#endif
 
 pid_t spawn_child(const char* file, const char* const* argv, char* const* envp, ChildIo io,
                   ChildOptions options) {
@@ -31,6 +51,7 @@ pid_t spawn_child(const char* file, const char* const* argv, char* const* envp, 
 #else
     const long open_max = sysconf(_SC_OPEN_MAX);
     const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
+    const pid_t parent = getpid();
 
     sigset_t all_signals;
     sigset_t old_mask;
@@ -56,23 +77,54 @@ pid_t spawn_child(const char* file, const char* const* argv, char* const* envp, 
 #ifdef __linux__
     if (options.die_with_parent) {
         prctl(PR_SET_PDEATHSIG, SIGKILL);
-    }
-#endif
-    sigprocmask(SIG_SETMASK, &old_mask, nullptr);
-
-    const int null_fd = open("/dev/null", O_RDWR);
-    const int targets[3] = {io.stdin_fd, io.stdout_fd, io.stderr_fd};
-    for (int stream = 0; stream < 3; ++stream) {
-        const int from = targets[stream] >= 0 ? targets[stream] : null_fd;
-        if (from >= 0) {
-            dup2(from, stream);
+        // The app died before the signal was armed: it would never come.
+        if (getppid() != parent) {
+            _exit(127);
         }
     }
-    for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
-        close(fd);
+#endif
+    (void)parent;
+    sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+
+    // Every source moves above stderr first: one sitting on 0, 1 or 2 (an app
+    // started with a standard stream closed hands those numbers out again)
+    // would be overwritten by an earlier dup2, or dup2'd onto itself, which
+    // leaves its close-on-exec flag set.
+    int null_fd = open("/dev/null", O_RDWR);
+    if (null_fd >= 0 && null_fd <= STDERR_FILENO) {
+        null_fd = fcntl(null_fd, F_DUPFD, STDERR_FILENO + 1);
     }
+    int sources[3] = {io.stdin_fd, io.stdout_fd, io.stderr_fd};
+    for (int stream = 0; stream < 3; ++stream) {
+        const int original = sources[stream];
+        if (original < 0) {
+            sources[stream] = null_fd;
+        } else if (original <= STDERR_FILENO) {
+            // Share one copy between streams wired to the same fd.
+            int moved = -1;
+            for (int earlier = 0; earlier < stream; ++earlier) {
+                if (sources[earlier] >= 0 && (earlier == 0   ? io.stdin_fd
+                                              : earlier == 1 ? io.stdout_fd
+                                                             : io.stderr_fd) == original) {
+                    moved = sources[earlier];
+                }
+            }
+            sources[stream] = moved >= 0 ? moved : fcntl(original, F_DUPFD, STDERR_FILENO + 1);
+        }
+    }
+    for (int stream = 0; stream < 3; ++stream) {
+        if (sources[stream] >= 0) {
+            dup2(sources[stream], stream);
+        }
+    }
+    close_fds_from(STDERR_FILENO + 1, last_fd);
     if (options.nice != 0) {
-        setpriority(PRIO_PROCESS, 0, options.nice);
+        // Relative to the spawning thread's own value, which the child inherits.
+        errno = 0;
+        const int current = getpriority(PRIO_PROCESS, 0);
+        if (errno == 0) {
+            setpriority(PRIO_PROCESS, 0, current + options.nice);
+        }
     }
     if (options.search_path) {
         execvp(file, const_cast<char* const*>(argv));
