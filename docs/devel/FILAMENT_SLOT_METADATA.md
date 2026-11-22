@@ -532,6 +532,6 @@ the per-backend `test_ams_backend_*.cpp` files.
   - Record: `include/filament_slot_override.h#FilamentSlotOverride`
   - Store: `src/printer/filament_slot_override_store.cpp#to_lane_data_record`, `src/printer/filament_slot_override_store.cpp#from_lane_data_record`, `src/printer/filament_slot_override_store.cpp#extras_only`
   - Read path: `src/printer/ams_subscription_backend.cpp#refresh_lane_records`, `src/printer/ams_subscription_backend.cpp#adopt_lane_records`
-  - Pending: `include/lane_source_store.h#file_pending`, `include/lane_source_store.h#strip_echoed_fields`, `include/lane_source_store.h#expire_pending`
+  - Pending: `include/lane_source_store.h#file_pending`, `include/lane_source_store.h#strip_echoed_fields`, `src/printer/lane_source_store.cpp#expire_pending`
   - Lane sources to `SlotInfo`: `src/printer/lane_resolver.cpp#resolve`, `include/ams_backend.h#AmsBackend/apply_resolved_lane`
   - Tag-declared Spoolman links: `src/printer/tag_spool_link.cpp`, driven by `src/printer/ams_state.cpp#sync_tag_spool_link`
