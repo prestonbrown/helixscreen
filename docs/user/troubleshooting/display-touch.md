@@ -251,14 +251,14 @@ The interface is sized by the screen's resolution and by the **UI Scale** settin
 
 **This is expected, ultrawide and portrait layouts are alpha at best.**
 
-HelixScreen detects both orientations and adjusts the navigation bar and grid sizing. Portrait is the better covered of the two: besides the app shell and navigation bar, the home dashboard, Print Status, Print Tune, Motion, Bed Mesh, the temperature graph and the Advanced panel's E-stop bar all rearrange themselves for a tall screen. Ultrawide has a home dashboard layout and nothing else. Any panel not in that list falls back to the standard landscape layout, which is what you are seeing on it. Neither orientation has been tested much on real hardware.
+HelixScreen detects both orientations and adjusts the navigation bar and grid sizing. Portrait is the better covered of the two: besides the app shell and navigation bar, the home dashboard, Print Status, Print Tune, Motion, Bed Mesh, the temperature graph and the Advanced panel's E-stop bar all rearrange themselves for a tall screen. Ultrawide has its own home dashboard layout, a Print Status panel laid out in one row of columns (with the lane tray and the Tune controls when there is room), Motion beside Controls and the Filament System panel beside Filament. Other panels on an ultrawide screen keep their content to a readable width at the left and leave the rest of the screen empty. Any panel not in these lists falls back to the standard landscape layout, which is what you are seeing on it. Neither orientation has been tested much on real hardware.
 
 **The home dashboard is the exception, in both orientations.** Its grid is sized from the actual screen so the cells come out square, a 480x800 portrait panel gets 4 columns by 6 rows, a 320x1480 one gets 4x17, a 1920x440 ultrawide gets 23x5, and portrait and ultrawide each have their own default layout rather than a stretched landscape one. Buttons, inputs, and headers on a portrait panel are sized from the screen's height, so they come out taller rather than cramped.
 
 **What you can do:**
 
 - **On a portrait panel, rotate it to landscape.** This is the well-tested path and what the Creality K2 does out of the box. Set `"rotate": 90` (or `270`) in the `display` section of your config, see [The picture is upside down or rotated](#the-picture-is-upside-down-or-rotated).
-- **On an ultrawide screen,** there is no better fallback today. The layout will be a landscape layout stretched wide.
+- **On an ultrawide screen,** there is no better fallback today. Panels without an ultrawide layout show the landscape layout at a readable width, with empty space to its right.
 - **Force the standard layout** if the alpha layout is worse than the fallback: `--layout standard`, or `"layout": "standard"` in the `display` section.
 
 Contributions are very welcome here and only need XML, not C++, see the [UI Contributor Guide](../../devel/UI_CONTRIBUTOR_GUIDE.md).
