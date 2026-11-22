@@ -53,9 +53,13 @@ The Filament panel is laid out in cards, like the Controls panel. In landscape t
 
 In portrait (such as a 320x480 screen) the cards stack in one column, with the readings side by side on one line and the material presets in one row, **Cool Down** in the Material card's header.
 
+![The Filament panel on a 480x800 portrait screen, its cards stacked in one column](../../images/user/filament-portrait.png)
+
 ### On an ultrawide screen
 
 On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), a printer with a multi-material system or several toolheads shows its Filament System panel beside the Filament panel instead of over it:
+
+![The Filament panel on a 1920x440 ultrawide screen, with the Filament System panel beside its cards](../../images/user/filament-ultrawide.png)
 
 1. Tap **Filament** in the navigation bar. The Filament cards fill the left part of the screen, and the Filament System panel, with its slots and filament path, fills the space to their right.
 2. Load, unload or edit a slot on the right while the temperatures and the Operations card stay in view on the left.

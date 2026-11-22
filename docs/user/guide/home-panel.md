@@ -41,6 +41,10 @@ The grid is worked out from the screen, so an unusually shaped screen gets an un
 
 Ultrawide and portrait screens start from their own default layouts rather than a stretched landscape one. The portrait layout puts **Tips** as a full-width band above the print status card, except on the shortest portrait panels. The ultrawide layout has two bands: the printer image and the readouts on top, Print Status and the temperature graph below. Anything a default layout leaves out is still in the Widget Catalog.
 
+![The default home layout on a 1920x440 ultrawide screen](../../images/user/home-ultrawide.png)
+
+![The default home layout on a 480x800 portrait screen, with Tips as a band above the print card](../../images/user/home-portrait.png)
+
 On portrait panels, buttons, input fields and headers are sized from the screen's height, so a tall screen gets taller, easier-to-hit controls.
 
 > Portrait is still alpha overall. Print Status, Print Tune, Motion, Bed Mesh and the temperature graph rearrange for a tall screen, and other panels fall back to the landscape layout. See [Ultrawide or portrait screen looks stretched, cramped, or clipped](../TROUBLESHOOTING.md#ultrawide-or-portrait-screen-looks-stretched-cramped-or-clipped).
