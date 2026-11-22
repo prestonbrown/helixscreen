@@ -325,6 +325,8 @@ class PrintTuneOverlay : public OverlayBase {
     ObserverGuard extruder_vel_observer_;
     ObserverGuard units_observer_;
     ObserverGuard pa_observer_;
+    ObserverGuard pending_z_observer_;
+    ObserverGuard per_head_z_observer_;
 };
 
 /// Lazy singleton; shared by the XML event callbacks and the panels that open it.
