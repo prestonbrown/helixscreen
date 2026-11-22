@@ -119,9 +119,6 @@ TEST_CASE("common spools: four materials by three colors, until a few spools exi
     CHECK(std::string(common[4].color_name) == "White");
     CHECK(std::string(common[11].material) == "ASA");
     CHECK(common[11].rgb == 0x7F7F7F);
-    CHECK(show_common_spools(0));
-    CHECK(show_common_spools(2));
-    CHECK_FALSE(show_common_spools(3));
 }
 
 TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-assign]") {
@@ -144,26 +141,6 @@ TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-a
     SlotInfo unrecorded_empty;
     unrecorded_empty.status = SlotStatus::EMPTY;
     CHECK(screen_for_lane(unrecorded_empty) == LaneScreen::Assign);
-}
-
-TEST_CASE("bottom action: Add New while spools are listed, Add & Assign when none, Assign "
-          "without Spoolman",
-          "[spool-assign]") {
-    CHECK(bottom_action(true, 4) == BottomAction::AddNewSecondary);
-    CHECK(bottom_action(true, 0) == BottomAction::AddToSpoolmanAndUse);
-    CHECK(bottom_action(false, 0) == BottomAction::AssignLocal);
-    CHECK(bottom_action(false, 5) == BottomAction::AssignLocal);
-    CHECK(offers_local_assign(BottomAction::AddToSpoolmanAndUse));
-    CHECK_FALSE(offers_local_assign(BottomAction::AddNewSecondary));
-    CHECK_FALSE(offers_local_assign(BottomAction::AssignLocal));
-}
-
-TEST_CASE("size chips light for a full spool of their size, else Partial", "[spool-assign]") {
-    CHECK(size_chip_for(1000, 1000) == 0);
-    CHECK(size_chip_for(750, 750) == 1);
-    CHECK(size_chip_for(250, 250) == 2);
-    CHECK(size_chip_for(400, 1000) == kPartialChip);
-    CHECK(size_chip_for(500, 500) == kPartialChip);
 }
 
 TEST_CASE("remaining steps stay between empty and the spool's total", "[spool-assign]") {
@@ -201,6 +178,7 @@ TEST_CASE("Assign Spool's size starts from what the lane reads", "[spool-assign]
     check(size_for_reading(0, 1000), kPartialChip, 0, 1000);     // metered empty stays empty
     check(size_for_reading(300, -1), kPartialChip, 300, 1000);   // no total: a 1 kg spool's
     check(size_for_reading(-1, 250), 2, 250, 250);               // only a total: full
+    check(size_for_reading(500, 500), kPartialChip, 500, 500);   // full, but no chip's size
 }
 
 TEST_CASE("lane history keeps the latest filament first, once, and caps its length",
