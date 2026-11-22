@@ -3145,7 +3145,6 @@ translations:
   No vendors found: ベンダーが見つかりません
   No verified bypass command for this CFS firmware: 'この CFS ファームウェアには検証済みのバイパスコマンドがありません'
   No video player installed - showing the timelapse library: '動画プレーヤーがありません – タイムラプス一覧を表示します'
-  No video player on this printer: 'このプリンターには動画プレーヤーがありません'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "ウェブカメラが検出されませんでした。\nタイムラプスにはウェブカメラが必要です。"
   No widgets found: ウィジェットが見つかりません
@@ -5234,7 +5233,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'このプリンターには動画プレーヤーがありません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
@@ -5262,6 +5260,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"
   This resume needs a newer version of HelixScreen.: この再開には新しいバージョンのHelixScreenが必要です。
   This screen: 'この画面'
+  This screen can't play videos: 'この画面では動画を再生できません'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'この画面では動画を再生できません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   This slot feeds no tool: 'このスロットはどのツールにも供給しません'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'

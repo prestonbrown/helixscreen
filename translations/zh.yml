@@ -3145,7 +3145,6 @@ translations:
   No vendors found: 未找到供应商
   No verified bypass command for this CFS firmware: '此 CFS 固件没有经验证的旁通命令'
   No video player installed - showing the timelapse library: '未安装视频播放器 – 显示延时摄影库'
-  No video player on this printer: '此打印机没有视频播放器'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "未检测到摄像头。\n延时摄影需要摄像头。"
   No widgets found: 未找到小组件
@@ -5234,7 +5233,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: 此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: '此打印机没有视频播放器。用手机扫描二维码观看延时摄影。'
   'This printer has no {} command, so the Z-offset cannot be saved.': '此打印机没有 {} 命令，因此无法保存 Z 偏移。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : 此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。
@@ -5262,6 +5260,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"
   This resume needs a newer version of HelixScreen.: 此恢复需要更新版本的 HelixScreen。
   This screen: '此屏幕'
+  This screen can't play videos: '此屏幕无法播放视频'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: '此屏幕无法播放视频。用手机扫描二维码观看延时摄影。'
   This slot feeds no tool: '此槽位不向任何工具供料'
   This spool ran out, so the CFS cannot pull the leftover filament back.: '此料盘已用完，CFS 无法将剩余耗材抽回。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: '此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。'

@@ -3084,7 +3084,6 @@
   <translation tag="No vendors found" ru="Производители не найдены"/>
   <translation tag="No verified bypass command for this CFS firmware" ru="Нет проверенной команды обхода для этой прошивки CFS"/>
   <translation tag="No video player installed - showing the timelapse library" ru="Видеоплеер не установлен – показана библиотека таймлапсов"/>
-  <translation tag="No video player on this printer" ru="На этом принтере нет видеоплеера"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ru="Веб-камера не обнаружена.&#10;Для таймлапса необходима веб-камера."/>
   <translation tag="No widgets found" ru="Виджеты не найдены"/>
   <translation tag="No width sensor detected" ru="Датчик диаметра не обнаружен"/>
@@ -5099,7 +5098,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ru="На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." ru="На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
@@ -5123,6 +5121,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ru="Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."/>
   <translation tag="This resume needs a newer version of HelixScreen." ru="Для этого продолжения нужна более новая версия HelixScreen."/>
   <translation tag="This screen" ru="Этот экран"/>
+  <translation tag="This screen can&apos;t play videos" ru="Этот экран не может воспроизводить видео"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." ru="Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="This slot feeds no tool" ru="Этот слот не подаёт филамент ни в один инструмент"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ru="Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>

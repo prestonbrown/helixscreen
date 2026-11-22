@@ -3209,7 +3209,6 @@ translations:
   No vendors found: Производители не найдены
   No verified bypass command for this CFS firmware: 'Нет проверенной команды обхода для этой прошивки CFS'
   No video player installed - showing the timelapse library: 'Видеоплеер не установлен – показана библиотека таймлапсов'
-  No video player on this printer: 'На этом принтере нет видеоплеера'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Веб-камера не обнаружена.\nДля таймлапса необходима веб-камера."
   No widgets found: Виджеты не найдены
@@ -5322,7 +5321,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты.
@@ -5350,6 +5348,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."
   This resume needs a newer version of HelixScreen.: Для этого продолжения нужна более новая версия HelixScreen.
   This screen: 'Этот экран'
+  This screen can't play videos: 'Этот экран не может воспроизводить видео'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   This slot feeds no tool: 'Этот слот не подаёт филамент ни в один инструмент'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз.'

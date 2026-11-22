@@ -3036,7 +3036,6 @@
   <translation tag="No vendors found" zh="未找到供应商"/>
   <translation tag="No verified bypass command for this CFS firmware" zh="此 CFS 固件没有经验证的旁通命令"/>
   <translation tag="No video player installed - showing the timelapse library" zh="未安装视频播放器 – 显示延时摄影库"/>
-  <translation tag="No video player on this printer" zh="此打印机没有视频播放器"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." zh="未检测到摄像头。&#10;延时摄影需要摄像头。"/>
   <translation tag="No widgets found" zh="未找到小组件"/>
   <translation tag="No width sensor detected" zh="未检测到宽度传感器"/>
@@ -5033,7 +5032,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." zh="这台打印机还没有 [save_variables] 存储。请更新帮助宏以添加，然后重启 Klipper。"/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." zh="此打印机没有自动退料功能。请在工具头处剪断耗材，然后用手拉出。"/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." zh="此打印机未设置时区，时钟显示的是 UTC。请选择您的时区。"/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." zh="此打印机没有视频播放器。用手机扫描二维码观看延时摄影。"/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." zh="此打印机没有 {} 命令，因此无法保存 Z 偏移。"/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." zh="此打印机看起来是 {}（置信度 {}%），但当前设置为 {}。错误的类型会应用不正确的打印前选项和预设。"/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" zh="此打印机的 INDX 宏缺少：{}"/>
@@ -5057,6 +5055,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." zh="这将用打印机自身屏幕上的布局替换此屏幕上该打印机的主屏幕布局。"/>
   <translation tag="This resume needs a newer version of HelixScreen." zh="此恢复需要更新版本的 HelixScreen。"/>
   <translation tag="This screen" zh="此屏幕"/>
+  <translation tag="This screen can&apos;t play videos" zh="此屏幕无法播放视频"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." zh="此屏幕无法播放视频。用手机扫描二维码观看延时摄影。"/>
   <translation tag="This slot feeds no tool" zh="此槽位不向任何工具供料"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." zh="此料盘已用完，CFS 无法将剩余耗材抽回。"/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." zh="此料盘的详细信息尚未从 Spoolman 加载。请再次点击保存。"/>

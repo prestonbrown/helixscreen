@@ -3157,7 +3157,6 @@ translations:
   No vendors found: Aucun fournisseur trouvé
   No verified bypass command for this CFS firmware: 'Aucune commande de bypass vérifiée pour ce firmware CFS'
   No video player installed - showing the timelapse library: 'Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse'
-  No video player on this printer: 'Aucun lecteur vidéo sur cette imprimante'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Aucune webcam détectée.\nUne webcam est requise pour le timelapse."
   No widgets found: Aucun widget trouvé
@@ -5246,7 +5245,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Cette imprimante n'a pas encore de stockage [save_variables]. Mettez à jour les macros d'aide pour en ajouter un, puis redémarrez Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Cette imprimante n'a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Cette imprimante n''a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
@@ -5274,6 +5272,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Cela remplace la disposition de l'écran d'accueil de cet écran pour cette imprimante par celle de l'écran de l'imprimante."
   This resume needs a newer version of HelixScreen.: Cette reprise nécessite une version plus récente de HelixScreen.
   This screen: 'Cet écran'
+  This screen can't play videos: 'Cet écran ne peut pas lire de vidéos'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Cet écran ne peut pas lire de vidéos. Scannez le code avec votre téléphone pour regarder le timelapse.'
   This slot feeds no tool: 'Ce slot n''alimente aucun outil'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer.'

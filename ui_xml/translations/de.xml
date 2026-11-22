@@ -3036,7 +3036,6 @@
   <translation tag="No vendors found" de="Keine Hersteller gefunden"/>
   <translation tag="No verified bypass command for this CFS firmware" de="Kein verifizierter Bypass-Befehl für diese CFS-Firmware"/>
   <translation tag="No video player installed - showing the timelapse library" de="Kein Videoplayer installiert – Zeitraffer-Bibliothek wird angezeigt"/>
-  <translation tag="No video player on this printer" de="Kein Videoplayer auf diesem Drucker"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." de="Keine Webcam erkannt.&#10;Eine Webcam wird für Zeitraffer benötigt."/>
   <translation tag="No widgets found" de="Keine Widgets gefunden"/>
   <translation tag="No width sensor detected" de="Kein Breitensensor erkannt"/>
@@ -5033,7 +5032,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." de="Dieser Drucker hat noch keinen [save_variables]-Speicher. Aktualisiere die Hilfsmakros, um einen hinzuzufügen, und starte dann Klipper neu."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." de="Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." de="Dieser Drucker hat keine Zeitzone, daher zeigt seine Uhr UTC. Wähle deine."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." de="Dieser Drucker hat keinen Videoplayer. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." de="Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." de="Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" de="Den INDX-Makros dieses Druckers fehlt: {}"/>
@@ -5057,6 +5055,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." de="Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."/>
   <translation tag="This resume needs a newer version of HelixScreen." de="Dieses Fortsetzen braucht eine neuere Version von HelixScreen."/>
   <translation tag="This screen" de="Dieser Bildschirm"/>
+  <translation tag="This screen can&apos;t play videos" de="Dieser Bildschirm kann keine Videos abspielen"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." de="Dieser Bildschirm kann keine Videos abspielen. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen."/>
   <translation tag="This slot feeds no tool" de="Dieser Slot versorgt kein Werkzeug"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." de="Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." de="Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern."/>

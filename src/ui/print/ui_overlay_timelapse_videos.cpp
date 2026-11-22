@@ -833,18 +833,18 @@ void TimelapseVideosOverlay::open_video(const std::string& filename) {
         play_video(filename);
         return;
     case helix::timelapse::VideoOpenAction::PhoneQr:
-        spdlog::info("[{}] No video player on this host; offering {} to a phone", get_name(),
+        spdlog::info("[{}] No player this screen can show; offering {} to a phone", get_name(),
                      filename);
         show_phone_fallback(filename,
-                            lv_tr("This printer has no video player. Scan the code with your "
+                            lv_tr("This screen can't play videos. Scan the code with your "
                                   "phone to watch the timelapse."),
-                            lv_tr("No video player on this printer"));
+                            lv_tr("This screen can't play videos"));
         return;
     case helix::timelapse::VideoOpenAction::NoPlayerToast:
-        spdlog::warn("[{}] No video player on this host and no LAN address for a phone; "
+        spdlog::warn("[{}] No player this screen can show and no LAN address for a phone; "
                      "cannot open {}",
                      get_name(), filename);
-        ui_notification_warning(lv_tr("No video player on this printer"));
+        ui_notification_warning(lv_tr("This screen can't play videos"));
         return;
     }
 }

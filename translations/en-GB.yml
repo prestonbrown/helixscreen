@@ -3129,7 +3129,6 @@ translations:
   No vendors found: ''
   No verified bypass command for this CFS firmware: ''
   No video player installed - showing the timelapse library: ''
-  No video player on this printer: ''
   ? "No webcam detected.\nA webcam is required for timelapse."
   : ""
   No widgets found: ''
@@ -5207,7 +5206,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: ''
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: ''
   This printer has no timezone, so its clock reads UTC. Pick yours.: ''
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: ''
   'This printer has no {} command, so the Z-offset cannot be saved.': ''
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : ''
@@ -5235,6 +5233,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: ''
   This resume needs a newer version of HelixScreen.: ''
   This screen: ''
+  This screen can't play videos: ''
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: ''
   This slot feeds no tool: ''
   This spool ran out, so the CFS cannot pull the leftover filament back.: ''
   This spool's details haven't loaded from Spoolman yet. Try Save again.: ''

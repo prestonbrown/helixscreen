@@ -3042,7 +3042,6 @@
   <translation tag="No vendors found" fr="Aucun fournisseur trouvé"/>
   <translation tag="No verified bypass command for this CFS firmware" fr="Aucune commande de bypass vérifiée pour ce firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" fr="Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse"/>
-  <translation tag="No video player on this printer" fr="Aucun lecteur vidéo sur cette imprimante"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." fr="Aucune webcam détectée.&#10;Une webcam est requise pour le timelapse."/>
   <translation tag="No widgets found" fr="Aucun widget trouvé"/>
   <translation tag="No width sensor detected" fr="Aucun capteur de diamètre détecté"/>
@@ -5039,7 +5038,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." fr="Cette imprimante n&apos;a pas encore de stockage [save_variables]. Mettez à jour les macros d&apos;aide pour en ajouter un, puis redémarrez Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." fr="Cette imprimante n&apos;a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." fr="Cette imprimante n&apos;a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." fr="Cette imprimante n&apos;a pas de commande {}, le décalage Z ne peut donc pas être enregistré."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
@@ -5063,6 +5061,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." fr="Cela remplace la disposition de l&apos;écran d&apos;accueil de cet écran pour cette imprimante par celle de l&apos;écran de l&apos;imprimante."/>
   <translation tag="This resume needs a newer version of HelixScreen." fr="Cette reprise nécessite une version plus récente de HelixScreen."/>
   <translation tag="This screen" fr="Cet écran"/>
+  <translation tag="This screen can&apos;t play videos" fr="Cet écran ne peut pas lire de vidéos"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." fr="Cet écran ne peut pas lire de vidéos. Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="This slot feeds no tool" fr="Ce slot n&apos;alimente aucun outil"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." fr="Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." fr="Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer."/>
