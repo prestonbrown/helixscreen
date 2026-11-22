@@ -2,7 +2,7 @@
 
 How the modal dialog system works internally and how to create new modals.
 
-**Key files**: `include/ui_modal.h`, `src/ui/ui_modal.cpp`, `src/ui/components/ui_dialog.cpp`, `ui_xml/modal_dialog.xml`
+**Key files**: `include/ui_modal.h`, `src/ui/ui_modal.cpp`, `src/ui/components/ui_dialog.cpp`, `ui_xml/components/dialog_frame.xml`, `ui_xml/modal_dialog.xml`
 
 ---
 
@@ -17,10 +17,12 @@ Modal class (C++ RAII lifecycle, show/hide, button wiring)
   |
   +-> ui_dialog (XML custom widget, theme-aware card background)
   |
+  +-> dialog_frame (the titled card every dialog extends: header, scrolling body, footer)
+  |
   +-> Reusable XML components:
         modal_button_row  (divider + 2-button footer, optional 3rd action)
-        modal_header      (icon + title row, optional close button)
-        modal_dialog      (generic title/message dialog)
+        modal_header      (icon + title row, optional close button; dialog_frame's header)
+        modal_dialog      (generic title/message dialog, a dialog_frame)
 ```
 
 ### How It Works
@@ -351,6 +353,65 @@ Usage in XML:
 </view>
 ```
 
+### `dialog_frame`
+
+The titled card a dialog extends (`ui_xml/components/dialog_frame.xml`). It wraps `ui_dialog`
+and owns everything a dialog repeated by hand: the card (`width`, default `70%`;
+`style_max_height="85%"`; a column with no gap), the header (a `modal_header`: the icon, then
+the title, left-aligned), a body column padded `#space_lg` on the sides and bottom with a
+`#space_md` gap and capped at `#dialog_content_max` (it scrolls past that), and a footer for
+the button rows. A dialog supplies its content and its buttons, nothing else.
+
+**Props:**
+
+| Prop | Default | Meaning |
+|------|---------|---------|
+| `title`, `title_tag` | "" | The title, and its translation key when the key differs from the text |
+| `title_subject` | unset | A string subject that retitles the dialog live; unset binds nothing |
+| `icon`, `icon_variant` | "", `primary` | An icon name shown before the title (empty shows none) and its color variant (`primary`, `warning`, `danger`, `success`, `accent`...) |
+| `width` | `70%` | The card's width |
+| `hide_close`, `close_callback` | `true`, "" | Pass `hide_close="false"` and a registered callback for an X after the title |
+
+**Slots** (declared in its `<api>`, see [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md#slots-filling-a-component-from-outside)):
+
+| Slot | Host | What goes there |
+|------|------|-----------------|
+| `body` (default) | `dialog_body` | Every widget child of the view. Restyle the body on its slot tag: `<dialog_frame-body style_flex_cross_place="center">` |
+| `footer` | `dialog_footer` | The `<modal_button_row>`(s), in `<dialog_frame-footer>`. Hidden while empty |
+| `header_extra` | `header_extra` | Widgets between the title and the X, in `<dialog_frame-header_extra>`. Hidden while empty |
+
+The frame names its own parts `dialog_header`, `dialog_icon`, `dialog_title`, `dialog_body` and
+`dialog_footer`; names inside the body and footer belong to the dialog and keep working.
+`dialog_title` is `kModalTitleWidgetName`, the widget code and tests read as the modal's
+title. C++ that fills the body at runtime asks `lv_xml_component_get_slot(dialog, nullptr)`
+for it rather than finding a container by name.
+
+```xml
+<view name="bed_mesh_rename_modal" extends="dialog_frame" title="Rename Mesh Profile" icon="pencil">
+  <dialog_frame-body>
+    <text_input name="rename_new_name_input" width="100%" height="#input_height"
+                placeholder_text="New profile name"/>
+  </dialog_frame-body>
+  <dialog_frame-footer>
+    <modal_button_row primary_text="Rename" secondary_text="Cancel"
+                      primary_callback="on_bed_mesh_rename_confirm"
+                      secondary_callback="on_bed_mesh_rename_cancel"/>
+  </dialog_frame-footer>
+</view>
+```
+
+**Severity icons are props.** A dialog whose icon depends on a severity takes it as `icon` and
+`icon_variant`, which the caller sets when it creates the dialog, as
+`helix::ui::ModalDialogAttrs` does for `modal_dialog`. There are no hidden per-severity icons
+to toggle. A test that needs the icon checks the shown glyph (`visible_glyphs()` in
+`tests/unit/test_dialog_frame.cpp`), not a named `icon_*` widget.
+
+**When a dialog stays on `ui_dialog`.** Only when it is not a titled card with a body and
+buttons: `color_picker_modal` (the picker is the card), `klipper_recovery_dialog` (its header
+row carries the error code and the X, and its message caps at `#dialog_content_recovery_max`)
+and `macro_param_modal` (a card that widens with its field count). Such a dialog says why in
+its XML.
+
 ### `modal_button_row`
 
 Reusable button footer with divider. Provides the standard "secondary | primary" layout, plus an optional third (tertiary) leading action.
@@ -417,7 +478,10 @@ Buttons are edge-to-edge with zero radius, matching the `modal_dialog.xml` style
 
 ### `modal_header`
 
-Reusable icon + title row for modal headers.
+Reusable icon + title row for modal headers, and the header `dialog_frame` builds. An empty
+`icon_src` hides the icon as `hide_icon="true"` does. Its `extra` slot (`header_extra`, hidden
+while empty) takes widgets between the title and the X: `<modal_header-extra>`, or
+`<dialog_frame-header_extra>` through the frame.
 
 **API props:**
 
@@ -442,7 +506,7 @@ Usage in XML:
 
 ### `modal_dialog`
 
-The generic title + message dialog used by `helix::ui::modal_confirm()` and `helix::ui::modal_alert()`. Severity and captions are per-dialog attrs (`hide_info`/`hide_warning`/`hide_error`, `primary_text`, `secondary_text`, `hide_secondary`), built by `helix::ui::ModalDialogAttrs`, so stacked dialogs never share caption state.
+The generic title + message dialog used by `helix::ui::modal_confirm()` and `helix::ui::modal_alert()`: a `dialog_frame` with one wrapped `dialog_message` in its body and one `modal_button_row` in its footer. Severity and captions are per-dialog attrs (`icon`/`icon_variant`, mapped from the `ModalSeverity`, plus `primary_text`, `secondary_text`, `hide_secondary`, `primary_variant`), built by `helix::ui::ModalDialogAttrs`, so stacked dialogs never share caption state.
 
 You rarely interact with `modal_dialog` directly. Use `helix::ui::modal_confirm()` or `helix::ui::modal_alert()` instead.
 
@@ -458,38 +522,26 @@ When creating a new modal with custom layout, follow this template:
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- NOTE: Backdrop created programmatically by Modal system -->
 <component>
-  <view name="my_feature_modal"
-        extends="ui_dialog" width="70%" height="content" align="center"
-        flex_flow="column" style_flex_main_place="start" style_pad_gap="0">
-
-    <!-- Header (option A: use modal_header component) -->
-    <modal_header icon_src="alert" icon_variant="warning"
-                  title="My Title" title_tag="My Title"/>
-
-    <!-- Content area -->
-    <lv_obj width="100%" height="content"
-            style_pad_left="#space_lg" style_pad_right="#space_lg"
-            style_pad_top="0" style_pad_bottom="#space_lg">
-      <text_body name="dialog_message" width="100%"
-                 text="Some message here" long_mode="wrap"/>
-    </lv_obj>
-
-    <!-- Button row -->
-    <modal_button_row
-        secondary_text="Cancel" secondary_callback="on_my_cancel"
-        primary_text="Confirm" primary_callback="on_my_confirm"/>
+  <view name="my_feature_modal" extends="dialog_frame" title="My Title" icon="alert" icon_variant="warning">
+    <text_body name="my_feature_message" width="100%" text="Some message here" long_mode="wrap"/>
+    <dialog_frame-footer>
+      <modal_button_row secondary_text="Cancel" secondary_callback="on_my_cancel"
+                        primary_text="Confirm" primary_callback="on_my_confirm"/>
+    </dialog_frame-footer>
   </view>
 </component>
 ```
 
 Key rules:
-- Always `extends="ui_dialog"` (never plain `lv_obj` or `ui_card`)
+- Always `extends="dialog_frame"`; `extends="ui_dialog"` only for the shapes listed under
+  [`dialog_frame`](#dialog_frame), with the reason in a comment. Never plain `lv_obj` or `ui_card`
 - Never include a backdrop in XML (comment: "Backdrop created programmatically by Modal system")
+- The title, icon and close button are frame props, never a hand-built header row
+- Content goes in the body; anything that must not scroll still belongs inside it (see the
+  next section); button rows go in `<dialog_frame-footer>`
 - Use `modal_button_row` for standard two-button footers
-- Use `modal_header` for icon + title rows (or build custom headers)
 - Use design tokens for all spacing (`#space_lg`, `#space_md`, etc.)
-- Cap the card at `style_max_height="85%"` and the scroll area at a
-  `#dialog_content_*` token - see the next section
+- `title_tag` only when the translation key differs from `title`
 
 ### Height budget: the `#dialog_content_*` ladder family
 
@@ -508,11 +560,16 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 | `#dialog_content_pinned_max` | …plus ONE pinned block below the scroll area (a diagram, a status row) | `ams_loading_error_modal` |
 | `#dialog_content_recovery_max` | header + divider + scroll area + ONE button row, measured on that card | `klipper_recovery_dialog` |
 
+- `dialog_frame` is the `#dialog_content_max` shape: its body is the scroll area, capped at
+  that token, and its footer holds the one button row. Content in the body is correct by
+  construction.
 - Prefer moving content INSIDE the scroll container over pinning it - then
   `#dialog_content_max` is correct by construction.
 - Never raise a card above 85% to fit extra chrome (#1277). The
   chrome-budget lint gate (`scripts/check_modal_chrome_budget.py`) flags both
-  the raised cap and an unbudgeted block below a scroll area.
+  the raised cap and an unbudgeted block below a scroll area. It counts the container a
+  component's `footer` slot targets (`dialog_footer`) as the button row, so a frame's footer
+  passes, while a block placed between the body and the footer is still flagged.
 - A shape beyond one extra block (action_prompt's diagram + wrapping rows +
   footer) fits no single ladder: measure it at every breakpoint with
   `ctl demo` + `ctl geom` and mark the file `MODAL_CHROME_OK`.
@@ -755,7 +812,7 @@ In XML, use `primary_variant` on `modal_button_row` for destructive actions:
    pending entry that the buttons are supposed to clear), or when the callbacks capture
    something shorter-lived than the dialog. Helper otherwise. This is a lifetime question,
    not a question of how many buttons the dialog has.
-2. **Create XML** in `ui_xml/` using `extends="ui_dialog"` and `modal_button_row`
+2. **Create XML** in `ui_xml/` using `extends="dialog_frame"`, with a `modal_button_row` in `<dialog_frame-footer>`
 3. **Register callbacks** via `lv_xml_register_event_cb()` in your C++ code (the XML itself registers on first use; no list to edit); a callback reaches its instance with `Modal::from_event<T>(e)`, so declare `HELIX_KIND_TAG(T)` in the class
 4. **If subclass**: Create header in `include/`, implement `get_name()` and `component_name()`
 5. **Wire buttons** in `on_show()` using `wire_ok_button()` / `wire_cancel_button()`

@@ -1081,8 +1081,11 @@ own subjects. A blocked lane still has filament; an active lane is still
 `Present`.
 
 The classification is published per lane as `ams_slot_<n>_lane_state`;
-`ams_lane_bar` consumes it. Converting the remaining surfaces
-(`ui_ams_mini_status` bar and spool modes, `ui_panel_ams_overview` mini-bars,
+`ams_lane_bar` consumes it. The mini status strip is built from XML components
+(`ams_mini_status_frame`, `ams_mini_spool_cell`, `ams_lane_badge`, the `ams_mini_bypass_*`
+parts, `ams_mini_unit_row` and `ams_mini_spools_row` in `ui_xml/components/`); C++ keeps its
+measured layout, sets each lane's text with `set_row_label_text()` and marks ghost and active
+lanes as states. Converting the remaining surfaces (`ui_panel_ams_overview` mini-bars,
 `ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
 open question of how much of the per-lane loop can be expressed in XML.
 

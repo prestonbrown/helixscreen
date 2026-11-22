@@ -817,6 +817,41 @@ Available operators: `bind_flag_if_eq`, `bind_flag_if_not_eq`, `bind_flag_if_gt`
 
 Callbacks are registered in C++. For layout-only work, just keep existing `<event_cb>` elements in place -- don't remove them or rename them.
 
+A row in a list built from data carries its position in the callback's user data,
+`<event_cb trigger="clicked" callback="on_row_clicked" user_data="$index"/>`, with `index`
+a prop of the row component. Keep those `user_data` attributes as they are when you move a
+row's widgets around; [LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md#rows-that-report-their-index)
+has the C++ side.
+
+### Dialogs: `dialog_frame`
+
+Every titled dialog extends `dialog_frame` (`ui_xml/components/dialog_frame.xml`). The
+frame draws the card, the header (icon, title, optional close X), a body that scrolls past
+`#dialog_content_max`, and a footer, so the same title, padding and height cap hold on
+every screen size. To change a dialog's layout:
+
+- Edit what is inside the view: its widgets are the body. Body padding and alignment
+  changes go on a `<dialog_frame-body>` tag, never on a wrapper container of your own.
+- The buttons are the `modal_button_row` in `<dialog_frame-footer>`.
+- The title, its icon and the close button are props on the view (`title`, `icon`,
+  `icon_variant`, `hide_close`), not widgets you can move.
+- Never raise the card's height past 85% or pin content below the body: the chrome-budget
+  gate (`scripts/check_modal_chrome_budget.py`) refuses it, because a card taller than its
+  cap clips its buttons off the bottom on a short screen.
+
+[MODAL_SYSTEM.md](MODAL_SYSTEM.md#dialog_frame) has the props, slots and the few dialogs
+that keep their own card.
+
+### Overlay headers: the `actions` slot
+
+An overlay's header buttons are not props of the header. They sit in the header's
+`actions` slot at its right end, `<overlay_panel-actions>` in a view extending
+`overlay_panel` (or `<header_bar-actions>` on a bare `header_bar`), one `header_action` each
+with its own `name`. Reorder or hide them there; the slot spaces them with the bar's own
+gap and hides itself while empty.
+[LVGL9_XML_GUIDE.md](LVGL9_XML_GUIDE.md#slots-filling-a-component-from-outside) and its
+[`header_action`](LVGL9_XML_GUIDE.md#header_action) entry cover the component.
+
 ### Visual Debugging
 
 When you can't tell why something is overflowing or misaligned, add a temporary background color to see the actual widget bounds:
