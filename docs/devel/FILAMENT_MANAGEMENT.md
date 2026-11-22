@@ -1090,6 +1090,30 @@ The classification is published per lane as `ams_slot_<n>_lane_state`;
 `ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
 open question of how much of the per-lane loop can be expressed in XML.
 
+### The bypass on the mini status strip
+
+`ui_ams_mini_status` (the Home panel's Multi-Filament System Status widget and the
+Filament panel's strip) draws the bypass exactly where the AMS panel's path does:
+`bypass_node_visible_for()` (`include/ui_bypass_spool_widget.h`) decides whether it is on
+the strip at all, so the **Always Show Bypass Spool** setting applies here too. It sits after
+every unit's lanes, past a thin vertical divider, and reads the external spool
+(`BypassView` in `src/ui/filament/ui_ams_mini_status.cpp`: shown, the spool, whether it is
+the node feeding the toolhead).
+
+- **Bar mode** (1x tiles): one lane-width `ams_lane_bar` past the divider, in its own
+  column (`ui_xml/components/ams_mini_bypass_column.xml`); on a strip whose lanes stack in rows the
+  divider spans every row. The bypass counts against the tight-width bar cap (5 lanes
+  plus the bypass instead of 6 lanes).
+- **Spool mode** (2x and wider): one more spool cell labelled with the external spool's
+  material, or "External" when none is recorded. It is pinned at the right, outside the
+  lanes' horizontal scroller, so it stays visible however far the lanes scroll; when the
+  lanes overflow, they stand above their scrollbar rather than under it.
+
+An engaged bypass wears the active ring (`ams_draw::set_active_ring()` on its spool, the active flag on its bar) that the loaded lane otherwise wears. None of
+the bypass inputs (`ams_supports_bypass`, `ams_bypass_active`, the external spool, the
+always-show setting) bumps `slots_version`; each has its own observer, and the strip
+redraws only when the `BypassView` it derives changes.
+
 ---
 
 ### Insert prompts

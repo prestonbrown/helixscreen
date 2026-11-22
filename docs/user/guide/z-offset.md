@@ -38,7 +38,7 @@ HelixScreen picks the right save method for your printer automatically: probe, e
 
 | Place | What you get |
 |-------|--------------|
-| **Advanced > Calibration > Z-Offset Calibration** | The guided calibration, for setting the offset from scratch. Also reachable as **Z-Offset Cal** in the Probe Management overlay, and as a **Z Calibration** button on the Controls panel. |
+| **Advanced > Calibration > Z offset** | The guided calibration, for setting the offset from scratch. Also reachable as **Z-Offset Cal** in the Probe Management overlay, and as a **Z Calibration** button on the Controls panel. |
 | **Tune** on the print screen | Baby steps during a print. See [Print Tune Overlay](printing.md#print-tune-overlay). |
 | **Z-Offset** row on the **Controls** panel | The current offset, the same baby-step controls, and the **Save Z-Offset** button once you have an unsaved change. |
 | **Z-Offset** home widget | The offset, the baby-step buttons and **Save** on the home screen. See [Z-Offset widget](home-widgets-print.md#z-offset-widget). |
@@ -49,7 +49,7 @@ Next to the offset, the Print Tune overlay can show a line such as "Saved 0.150 
 
 ## Calibrating the Z offset
 
-Use calibration when you first set up a printer, after changing a nozzle, probe or build plate, or whenever the first layer is far off and baby steps are not enough. The panel opens at **Advanced > Calibration > Z-Offset Calibration**.
+Use calibration when you first set up a printer, after changing a nozzle, probe or build plate, or whenever the first layer is far off and baby steps are not enough. The panel opens at **Advanced > Calibration > Z offset**.
 
 1. Make sure nothing is on the bed and the nozzle is clean. HelixScreen asks **Is the bed clear?** first if your last print may still be on the plate.
 2. Optionally turn on **Warm Bed**. The bed heats to 45 degrees C before calibrating, which accounts for thermal expansion. Leave it off if you only ever print with a cold bed.
@@ -73,7 +73,7 @@ HelixScreen looks at your printer and picks one of these. The screen you see is 
 | A Z endstop switch (Voron 2.4 style or an Ender with a mesh-only probe) | `Z_ENDSTOP_CALIBRATE` | The stepper's endstop position |
 | Firmware-managed (see below) | A manual "lower to Z 0.1 and adjust" routine | The offset, applied to the firmware, which stores it |
 
-A printer is treated as using an endstop when its Z stepper has a numeric position endstop in the config. A printer with no probe and no such value is treated as an endstop machine, except delta printers with no probe, which are treated as firmware-managed.
+A printer is treated as using an endstop when its Z stepper has a numeric position endstop in the config, unless HelixScreen knows the model better. A FlashForge Adventurer 5M or 5M Pro without ZMOD or Forge-X (for example on Klipper Mod) is the main case: it homes Z on a switch, but its nozzle probe sets the zero point, so an offset saved into the switch position would be undone by the next bed mesh. HelixScreen runs `PROBE_CALIBRATE` there instead and saves into the probe's Z offset, which a new bed mesh keeps. A printer with no probe and no such value is treated as an endstop machine, except delta printers with no probe, which are treated as firmware-managed.
 
 ### Scanning probes: Cartographer, Beacon, eddy current
 
@@ -140,7 +140,7 @@ HelixScreen detects this on its own when it connects. The firmware it recognizes
 | Firmware | Typical printers | How HelixScreen finds it |
 |----------|------------------|--------------------------|
 | **ZMOD** | FlashForge Adventurer 5M, 5M Pro and 5X (AD5M, AD5X); the Creator 5 head changer is handled per head | ZMOD's save command |
-| **Forge-X** | FlashForge Adventurer 5M and 5M Pro | The Forge-X parameter macro |
+| **Forge-X** | FlashForge Adventurer 5M and 5M Pro | The Forge-X parameter plugin, which the printer reports among its Klipper modules |
 | **Helper Script** | Creality K1, K1C and K1 Max, and others running Guilouz's Helper Script with its save-zoffset feature | A wrapper around Klipper's `SET_GCODE_OFFSET` command together with a stored `zoffset` value |
 
 When one of these is detected, HelixScreen changes how it behaves:
