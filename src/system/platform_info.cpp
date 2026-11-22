@@ -31,24 +31,14 @@ void set_platform_override(int override_value) {
     s_platform_override = override_value;
 }
 
-// -1 = decide from the environment and the board, 0 = force off, 1 = force on
+// -1 = decide from the environment, 0 = force off, 1 = force on
 static int s_firmware_supervised_override = -1;
 
 bool firmware_supervised() {
     if (s_firmware_supervised_override >= 0) {
         return s_firmware_supervised_override != 0;
     }
-    // Asked afresh each time: the board probe is a few stats, asked only before an
-    // install or a config write, and a test's board override must reach it.
-    return decide_firmware_supervised(std::getenv("HELIX_FIRMWARE_MANAGED"),
-                                      board::firmware_manages_updates(board::current()));
-}
-
-bool decide_firmware_supervised(const char* env_value, bool board_says) {
-    if (env_value != nullptr && *env_value != '\0') {
-        return env_truthy(env_value);
-    }
-    return board_says;
+    return env_flag("HELIX_FIRMWARE_MANAGED");
 }
 
 void set_firmware_supervised_override(int override_value) {
@@ -62,7 +52,9 @@ bool platform_defaults_to_external_updates() {
     if (s_external_updates_default_override >= 0) {
         return s_external_updates_default_override != 0;
     }
-    return firmware_supervised();
+    // The firmware's own package is also recognised by where it runs, so a firmware that
+    // does not export HELIX_FIRMWARE_MANAGED still never has its package overwritten.
+    return firmware_supervised() || board::firmware_manages_updates(board::current());
 }
 
 void set_external_updates_default_override(int override_value) {

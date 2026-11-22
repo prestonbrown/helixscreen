@@ -11,6 +11,7 @@
 #include "../../src/api/moonraker_gcode_guards.h"
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/firmware_supervised_override.h"
+#include "../test_helpers/scoped_env.h"
 #include "helix_plugin_features.h"
 #include "klipper_config_editor.h"
 #include "moonraker_api.h"
@@ -78,15 +79,18 @@ class SupervisedApiFixture : public LVGLTestFixture {
 
 } // namespace
 
-TEST_CASE("firmware supervision: the firmware's variable decides when set, the board otherwise",
+TEST_CASE("firmware supervision: the firmware's variable alone decides it",
           "[firmware_supervised]") {
-    CHECK(decide_firmware_supervised("1", false));
-    CHECK(decide_firmware_supervised("true", false));
-    CHECK_FALSE(decide_firmware_supervised("0", true));
-    CHECK_FALSE(decide_firmware_supervised("no", true));
-    CHECK(decide_firmware_supervised(nullptr, true));
-    CHECK(decide_firmware_supervised("", true));
-    CHECK_FALSE(decide_firmware_supervised(nullptr, false));
+    {
+        helix::ScopedEnv on("HELIX_FIRMWARE_MANAGED", "1");
+        CHECK(firmware_supervised());
+    }
+    {
+        helix::ScopedEnv off("HELIX_FIRMWARE_MANAGED", "0");
+        CHECK_FALSE(firmware_supervised());
+    }
+    helix::ScopedEnv unset("HELIX_FIRMWARE_MANAGED", nullptr);
+    CHECK_FALSE(firmware_supervised());
 }
 
 TEST_CASE_METHOD(SupervisedApiFixture,
