@@ -730,3 +730,112 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a theme switch under an open modal re-takes
     nav.set_app_layout(saved_layout);
     theme_manager_apply_theme(theme, was_dark);
 }
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "a modal backdrop re-take keeps keyboard focus where it was",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    lv_group_t* saved_group = lv_group_get_default();
+    lv_group_t* group = lv_group_create();
+    lv_group_set_default(group);
+    // A focusable widget on the panel behind: where focus lands if hiding the
+    // backdrop for its shot moves it on.
+    lv_obj_t* behind = lv_button_create(controls_);
+    lv_group_add_obj(group, behind);
+
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_group_focus_obj(backdrop);
+    REQUIRE(lv_group_get_focused(group) == backdrop);
+
+    NavigationManagerTestAccess::switch_to_panel(NavigationManager::instance(), PanelId::Controls);
+    settle();
+
+    // Focus on the panel button sends ESC and Enter to the panel behind the dialog.
+    CHECK(lv_group_get_focused(group) == backdrop);
+
+    modal.hide();
+    settle();
+    lv_group_set_default(saved_group);
+    lv_group_delete(group);
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "a blurred re-take that cannot allocate keeps its pixels and blur on",
+                 "[modal][backdrop][memory]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    REQUIRE(lv_obj_check_type(backdrop, &lv_image_class));
+    const void* buf_before = lv_image_get_src(backdrop);
+
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+    {
+        FrameBufferCounter frames(/*refuse=*/true);
+        ModalStack::instance().refresh_backdrops();
+        CHECK(frames.attempts() == 1);
+    }
+    // A full frame that did not fit this once leaves blur on for the next modal.
+    CHECK_FALSE(helix::ui::detail::is_blur_disabled());
+    CHECK(lv_image_get_src(backdrop) == buf_before);
+    const Rgb px = backdrop_corner_pixel(backdrop);
+    CHECK(px.r > px.g); // the old picture, not a half-written one
+
+    modal.hide();
+    helix::ui::detail::reset_circuit_breaker();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture, "clear() cancels a scheduled modal backdrop re-take",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal first;
+    REQUIRE(first.show(test_screen()));
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    ModalStack::instance().clear();
+
+    // A modal shown after the teardown, over a screen that then changes.
+    PlainModal next;
+    REQUIRE(next.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+    process_lvgl(400);
+
+    // Green is the re-take scheduled before the teardown firing anyway.
+    const Rgb px = backdrop_corner_pixel(backdrop);
+    CHECK(px.r > px.g);
+    next.hide();
+}
+
+TEST_CASE_METHOD(ModalUnderNavFixture,
+                 "back-to-back triggers fold into one re-take timed from the latest",
+                 "[modal][backdrop][navigation]") {
+    SnapshotBackdropsMode snapshots(true);
+    PlainModal modal;
+    REQUIRE(modal.show(test_screen()));
+    lv_obj_t* backdrop = backdrop_of_top();
+    REQUIRE(backdrop != nullptr);
+    lv_obj_set_hidden(home_, true);
+    lv_obj_set_hidden(controls_, false);
+
+    FrameBufferCounter frames;
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    process_lvgl(200);
+    ModalStack::instance().schedule_backdrop_refresh(250);
+    process_lvgl(100);
+    // 300ms after the first trigger, 100ms after the second: not yet.
+    const Rgb early = backdrop_corner_pixel(backdrop);
+    CHECK(early.r > early.g);
+    CHECK(frames.attempts() == 0);
+
+    process_lvgl(200);
+    const Rgb late = backdrop_corner_pixel(backdrop);
+    CHECK(late.g > late.r);
+    CHECK(frames.attempts() == 1);
+    modal.hide();
+}

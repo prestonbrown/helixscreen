@@ -20,6 +20,7 @@
 #include "exception_policy.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl.h"
+#include "lvgl/src/core/lv_group_private.h" // frozen: no public getter
 #include "memory_utils.h"
 #include "settings_manager.h"
 #include "system/crash_handler.h"
@@ -538,6 +539,35 @@ std::vector<lv_obj_t*> ModalStack::exiting_backdrops() const {
     return out;
 }
 
+namespace {
+
+/// Holds the default group's focus in place: LVGL moves focus on to the next
+/// group member when a focused object is hidden, and showing it again does not
+/// give it back. A backdrop hidden for one snapshot would hand ESC and Enter to
+/// the panel behind its dialog.
+class ScopedFocusFreeze {
+  public:
+    ScopedFocusFreeze() : group_(lv_group_get_default()) {
+        if (group_) {
+            was_frozen_ = group_->frozen;
+            lv_group_focus_freeze(group_, true);
+        }
+    }
+    ~ScopedFocusFreeze() {
+        if (group_) {
+            lv_group_focus_freeze(group_, was_frozen_);
+        }
+    }
+    ScopedFocusFreeze(const ScopedFocusFreeze&) = delete;
+    ScopedFocusFreeze& operator=(const ScopedFocusFreeze&) = delete;
+
+  private:
+    lv_group_t* group_;
+    bool was_frozen_ = false;
+};
+
+} // namespace
+
 void ModalStack::refresh_backdrops() {
     refresh_timer_.reset();
     lv_obj_t* screen = lv_screen_active();
@@ -545,8 +575,19 @@ void ModalStack::refresh_backdrops() {
         return;
     }
 
+    // A dim layer is translucent over the live screen, so with no snapshot among
+    // the visible backdrops there is nothing to re-take.
+    const bool any_snapshot = std::any_of(stack_.begin(), stack_.end(), [](const ModalEntry& e) {
+        lv_obj_t* b = e.backdrop;
+        return !e.exiting && b && !lv_obj_is_hidden(b) && lv_obj_check_type(b, &lv_image_class);
+    });
+    if (!any_snapshot) {
+        return;
+    }
+
     // Every modal backdrop on screen leaves the shots, then each visible one is
     // re-taken lowest first and shown again, so the next one up captures it.
+    ScopedFocusFreeze focus_held;
     std::vector<lv_obj_t*> hidden;
     std::vector<lv_obj_t*> visible;
     for (const auto& entry : stack_) {

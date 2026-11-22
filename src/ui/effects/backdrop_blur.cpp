@@ -724,13 +724,11 @@ struct BlurredShot {
 };
 
 /// Snapshot @p screen, then downscale, blur and dim it. The full-size snapshot is
-/// freed before returning, so it is the only full frame this ever holds. False,
-/// and blur off for good, when that snapshot cannot be taken.
+/// freed before returning, so it is the only full frame this ever holds. False
+/// when that snapshot cannot be taken.
 bool render_blurred(lv_obj_t* screen, lv_opa_t dim_opacity, BlurredShot& out) {
     lv_draw_buf_t* snapshot = lv_snapshot_take(screen, LV_COLOR_FORMAT_ARGB8888);
     if (!snapshot) {
-        spdlog::warn("[Backdrop Blur] Snapshot failed — disabling blur permanently");
-        s_blur_disabled = true;
         return false;
     }
 
@@ -818,6 +816,8 @@ lv_obj_t* create_blurred_backdrop(lv_obj_t* parent, lv_opa_t dim_opacity) {
 
     BlurredShot shot;
     if (!render_blurred(screen, dim_opacity, shot)) {
+        spdlog::warn("[Backdrop Blur] Snapshot failed — disabling blur permanently");
+        s_blur_disabled = true;
         return nullptr;
     }
 
@@ -956,9 +956,14 @@ static bool retake_blurred_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity) {
     if (!buf || !screen)
         return false;
 
+    // A re-take runs on every navigation under a modal while that modal already
+    // holds its own picture, so one refused frame keeps the old pixels and leaves
+    // blur on; the breaker is for a new backdrop that cannot get a frame at all.
     BlurredShot shot;
-    if (!render_blurred(screen, dim_opacity, shot))
+    if (!render_blurred(screen, dim_opacity, shot)) {
+        spdlog::debug("[Backdrop Blur] Re-take snapshot failed — keeping the old picture");
         return false;
+    }
     if (static_cast<uint32_t>(shot.w) != buf->header.w ||
         static_cast<uint32_t>(shot.h) != buf->header.h)
         return false; // the screen was resized under it

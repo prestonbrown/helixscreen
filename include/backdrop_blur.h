@@ -41,7 +41,8 @@ bool retake_darkened_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity);
 /// buffer it already owns. A blurred one takes a full-size shot to blur down, freed
 /// before returning, so it holds one full frame at most. Returns false, leaving
 /// the old pixels, for a dim layer (it is translucent over the live screen and
-/// never stale), once blur is off, or when the shot fails.
+/// never stale), once blur is off, or when the shot fails. A failed re-take does
+/// not trip the blur circuit breaker; a failed create does.
 bool retake_backdrop(lv_obj_t* backdrop, lv_opa_t dim_opacity);
 
 /// Full-size, clickable, translucent black rectangle. Costs no pixel buffer, but
