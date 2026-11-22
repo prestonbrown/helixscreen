@@ -226,16 +226,12 @@ int ToolHeadsModel::head_count() const {
     return static_cast<int>(ToolState::instance().physical_heads().size());
 }
 
-ToolInfo ToolHeadsModel::head_tool(int i) const {
-    // The mounted tool on the mounted head, else the head's lowest. It keeps
-    // that tool's G-code name, the one a tap sends, and is numbered as the
-    // head, so a hub-fed head reads "Tool 6" over "T8" rather than after its lane.
+HeadIdentity ToolHeadsModel::head_identity(int i) const {
     const auto& ts = ToolState::instance();
     const auto& heads = ts.physical_heads();
-    const int tool = heads[static_cast<size_t>(i)].representative_tool(ts.active_tool_index());
-    ToolInfo info = ts.tools()[static_cast<size_t>(tool)];
-    info.index = i;
-    return info;
+    if (i < 0 || i >= static_cast<int>(heads.size()))
+        return {};
+    return ts.head_identity(heads[static_cast<size_t>(i)]);
 }
 
 int ToolHeadsModel::mounted_head() const {
@@ -276,15 +272,20 @@ bool ToolHeadsModel::changer_fault() {
 }
 
 std::pair<std::string, std::string> ToolHeadsModel::picker_lines(int i, ToolLabelForm form) const {
-    const ToolInfo tool = head_tool(i);
-    const std::string code = active_tool_label(tool.name, tool.index, ToolLabelForm::Code);
+    const HeadIdentity head = head_identity(i);
+    const std::string code = active_head_label(head, ToolLabelForm::Code);
     const std::string temp = head_temp_text(i);
+    if (!head.lane_code.empty()) {
+        std::string sub =
+            temp.empty() ? head.lane_code : fmt::format(lv_tr("{} · {}"), head.lane_code, temp);
+        return {form == ToolLabelForm::Code ? code : active_head_name_label(head), std::move(sub)};
+    }
     if (form == ToolLabelForm::Code)
         return {code, temp};
     std::string sub = code;
     if (!temp.empty())
         sub = fmt::format(lv_tr("{} · {}"), sub, temp);
-    return {active_tool_name_label(tool.name, tool.index), sub};
+    return {active_head_name_label(head), sub};
 }
 
 std::pair<std::string, std::string> ToolHeadsModel::target_lines(int i, bool names) const {
@@ -292,9 +293,8 @@ std::pair<std::string, std::string> ToolHeadsModel::target_lines(int i, bool nam
 }
 
 std::string ToolHeadsModel::row_label(int i, bool names) const {
-    const ToolInfo tool = head_tool(i);
-    return names ? active_tool_name_label(tool.name, tool.index)
-                 : tool_number_or_name(tool.name, tool.index);
+    const HeadIdentity head = head_identity(i);
+    return names ? active_head_name_label(head) : head_number_or_name(head);
 }
 
 void ToolHeadsModel::fit_row_labels(const std::string& key, int cell_w) {
@@ -415,10 +415,14 @@ void ToolHeadsModel::publish() {
         pool->ensure_size(static_cast<size_t>(heads));
     }
     filament_.assign(static_cast<size_t>(heads), HeadFilament{});
+    const auto& ts = ToolState::instance();
+    const auto& all_heads = ts.physical_heads();
     for (int i = 0; i < heads; ++i) {
-        const ToolInfo tool = head_tool(i);
+        // What the head is loaded with is what the tool it stands for draws.
+        const int tool =
+            all_heads[static_cast<size_t>(i)].representative_tool(ts.active_tool_index());
         HeadFilament& f = filament_[static_cast<size_t>(i)];
-        f = read_filament(tool);
+        f = read_filament(ts.tools()[static_cast<size_t>(tool)]);
         copy_string_if_changed(s_seg_temp.at(i), head_temp_text(i).c_str());
         set_int_if_changed(s_seg_has_color.at(i), f.has_color ? 1 : 0);
         if (f.has_color) {

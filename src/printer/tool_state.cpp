@@ -236,6 +236,13 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             // "T{i}" pattern and must not be overwritten.
             tool.name = tool_names[i];
             tool.display_label = noun_tool_label(i);
+            // A klipper-toolchanger tool is a head, and its name stays the
+            // head's own once a filament system's lanes become the tools. Names
+            // counted from the extruders are only what T<n> selects, which a
+            // filament system's lane macros take over.
+            if (toolchanger_reports_mount_) {
+                tool.head_name = tool.name;
+            }
 
             // Map extruder by index if available
             if (i < static_cast<int>(extruder_names.size())) {
@@ -380,6 +387,7 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.heater_name = hardware->heater_name;
                 t.fan_name = hardware->fan_name;
                 t.gcode_offsets = hardware->gcode_offsets;
+                t.head_name = hardware->head_name;
             }
             if (named) {
                 t.extruder_name = extruder;
@@ -846,6 +854,36 @@ bool ToolState::head_reads_heater(int head_index) const {
     }
     return !heads_share_heater() ||
            heads[static_cast<size_t>(head_index)].holds_tool(active_tool_index_);
+}
+
+HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
+                           const std::vector<PhysicalHead>& heads, int head_index,
+                           int active_tool) {
+    HeadIdentity id;
+    if (head_index < 0 || head_index >= static_cast<int>(heads.size())) {
+        return id;
+    }
+    const int rep = heads[static_cast<size_t>(head_index)].representative_tool(active_tool);
+    if (rep < 0 || rep >= static_cast<int>(tools.size())) {
+        return id;
+    }
+    const ToolInfo& tool = tools[static_cast<size_t>(rep)];
+    if (tools.size() <= heads.size()) {
+        id.name = tool.name;
+        id.index = rep;
+        return id;
+    }
+    id.name = tool.head_name;
+    id.index = head_index;
+    id.lane_code = tool.name;
+    return id;
+}
+
+HeadIdentity ToolState::head_identity(const PhysicalHead& head) const {
+    const auto& heads = physical_heads();
+    const int index =
+        head.tool_indices.empty() ? -1 : head_index_for_tool(heads, head.tool_indices.front());
+    return helix::head_identity(tools_, heads, index, active_tool_index_);
 }
 
 std::vector<PhysicalHead> ToolState::heated_heads() const {

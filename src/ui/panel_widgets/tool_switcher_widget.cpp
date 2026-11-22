@@ -226,6 +226,20 @@ std::string detail_line(const std::string& head, const std::string& material,
     return head;
 }
 
+/// @p label before the lane @p head holds where it has several ("Tool 2 · T7").
+std::string join_lane(const std::string& label, const helix::HeadIdentity& head) {
+    return head.lane_code.empty() ? label : fmt::format(lv_tr("{} · {}"), label, head.lane_code);
+}
+
+/// @p text after the lane @p head holds where it has several ("T7 · 215°C").
+std::string with_lane(const helix::HeadIdentity& head, const std::string& text) {
+    if (head.lane_code.empty())
+        return text;
+    if (text.empty())
+        return head.lane_code;
+    return fmt::format(lv_tr("{} · {}"), head.lane_code, text);
+}
+
 } // namespace
 
 namespace helix {
@@ -258,16 +272,23 @@ ToolSwitcherWidget::ToolSwitcherWidget(PrinterState& printer_state)
     tool_switcher_widget_init_subjects();
 }
 
-std::string ToolSwitcherWidget::tool_text(const ToolInfo& tool, ui::ToolLabelForm form) {
-    return ui::active_tool_label(tool.name, tool.index, form);
+std::string ToolSwitcherWidget::tool_text(const HeadIdentity& head, ui::ToolLabelForm form) {
+    return ui::active_head_label(head, form);
 }
 
-std::string ToolSwitcherWidget::name_text(const ToolInfo& tool) {
-    return ui::active_tool_name_label(tool.name, tool.index);
+std::string ToolSwitcherWidget::name_text(const HeadIdentity& head) {
+    return ui::active_head_name_label(head);
 }
 
-std::string ToolSwitcherWidget::short_text(const ToolInfo& tool) {
-    return tool_text(tool, ui::ToolLabelForm::Code);
+std::string ToolSwitcherWidget::short_text(const HeadIdentity& head) {
+    return tool_text(head, ui::ToolLabelForm::Code);
+}
+
+std::string ToolSwitcherWidget::segment_sub_text(const HeadIdentity& head,
+                                                 const std::string& temp) const {
+    if (label_form_ == ui::ToolLabelForm::Full)
+        return head.lane_code.empty() ? short_text(head) : head.lane_code;
+    return with_lane(head, temp);
 }
 
 ToolSwitcherWidget::~ToolSwitcherWidget() {
@@ -436,16 +457,16 @@ void ToolSwitcherWidget::publish_layout() {
     const auto& model = ui::ToolHeadsModel::instance();
     label_form_ = ui::pick_tool_label_form([&](ui::ToolLabelForm form) {
         for (int i = 0; i < count; ++i) {
-            const ToolInfo tool = model.head_tool(i);
-            const std::string code = short_text(tool);
+            const HeadIdentity head = model.head_identity(i);
+            const std::string code = short_text(head);
             int widest = 0;
             if (form == ui::ToolLabelForm::Code) {
                 widest = ui::text_width(code.c_str(), body);
             } else if (rail) {
-                widest = std::max(ui::text_width(name_text(tool).c_str(), body),
+                widest = std::max(ui::text_width(name_text(head).c_str(), body),
                                   ui::text_width(code.c_str(), body));
             } else {
-                widest = ui::text_width(tool_text(tool, form).c_str(), body);
+                widest = ui::text_width(tool_text(head, form).c_str(), body);
             }
             if (widest > label_room)
                 return false;
@@ -493,19 +514,20 @@ bool ToolSwitcherWidget::head_hot(int i) const {
     return ui::ToolHeadsModel::instance().head_hot(i);
 }
 
-std::string ToolSwitcherWidget::detail_head_text(int i, const ToolInfo& tool, bool main) const {
+std::string ToolSwitcherWidget::detail_head_text(int i, const HeadIdentity& head, bool main) const {
     // The mounted head's line is in the body font and reads
     // "Tool 2 (T1) · PLA · 215°C" where the content box is wide enough, else
     // "T1 · ..."; the rest are small and always read "T0 · ...".
     const std::string& material = ui::ToolHeadsModel::instance().filament(i).material;
     const std::string temp = head_temp_text(i);
     if (main) {
-        std::string text = detail_line(tool_text(tool, ui::ToolLabelForm::Full), material, temp);
+        std::string text =
+            detail_line(join_lane(tool_text(head, ui::ToolLabelForm::Full), head), material, temp);
         const int content_w = current_width_px_ - 2 * resolve_px_token("space_md", 10);
         if (ui::text_width(text.c_str(), theme_manager_get_font("font_body")) <= content_w)
             return text;
     }
-    return detail_line(short_text(tool), material, temp);
+    return detail_line(join_lane(short_text(head), head), material, temp);
 }
 
 void ToolSwitcherWidget::publish_heads() {
@@ -524,15 +546,13 @@ void ToolSwitcherWidget::publish_heads() {
     model.sub_pool().ensure_size(static_cast<size_t>(heads));
 
     for (int i = 0; i < heads; ++i) {
-        const ToolInfo tool = model.head_tool(i);
-        // Full: the configured name or "Tool 1", over "T0". Code: "T0" over
-        // the temperature, shown where the segment is tall enough.
-        std::string label = short_text(tool);
-        std::string sub = head_temp_text(i);
-        if (label_form_ == ui::ToolLabelForm::Full) {
-            label = name_text(tool);
-            sub = short_text(tool);
-        }
+        const HeadIdentity head = model.head_identity(i);
+        // Full: the configured name or "Tool 1", over "T0", or over the lane
+        // a head of several holds. Code: "T0" over the temperature, shown
+        // where the segment is tall enough.
+        std::string label =
+            label_form_ == ui::ToolLabelForm::Full ? name_text(head) : short_text(head);
+        std::string sub = segment_sub_text(head, head_temp_text(i));
         ui::copy_string_if_changed(model.label_pool().at(i), label.c_str());
         ui::copy_string_if_changed(model.sub_pool().at(i), sub.c_str());
     }
@@ -555,7 +575,7 @@ void ToolSwitcherWidget::publish_heads() {
             if (ui::text_width(text.c_str(), body) > content_w)
                 text = lv_tr("Carriage empty");
         } else {
-            text = detail_head_text(i, model.head_tool(i), main);
+            text = detail_head_text(i, model.head_identity(i), main);
         }
         const ui::HeadFilament& f = model.filament(i);
         const bool has_color = i >= 0 && f.has_color;
@@ -588,11 +608,11 @@ void ToolSwitcherWidget::publish_heads() {
     if (heads == 0) {
         // Nothing discovered yet: the face names nothing.
     } else if (active >= 0 && active < heads) {
-        const ToolInfo mounted = model.head_tool(active);
+        const HeadIdentity mounted = model.head_identity(active);
         face = tool_text(mounted, ui::ToolLabelForm::Full);
         if (ui::text_width(face.c_str(), body) > room)
             face = short_text(mounted);
-        face_sub = head_temp_text(active);
+        face_sub = with_lane(mounted, head_temp_text(active));
         face_filament = model.filament(active);
     } else if (active == -1) {
         face = lv_tr("Choose head");
@@ -628,8 +648,9 @@ void ToolSwitcherWidget::publish_head_temp(int i) {
     const int active = model.mounted_head();
 
     const std::string temp = head_temp_text(i);
+    const HeadIdentity head = model.head_identity(i);
     if (label_form_ == ui::ToolLabelForm::Code) {
-        ui::copy_string_if_changed(model.sub_pool().at(i), temp.c_str());
+        ui::copy_string_if_changed(model.sub_pool().at(i), segment_sub_text(head, temp).c_str());
     }
 
     const std::vector<int> order = tool_switcher_detail_order(heads, active);
@@ -638,14 +659,13 @@ void ToolSwitcherWidget::publish_head_temp(int i) {
         if (order[r] != i)
             continue;
         const bool main = r == 0 && i == active;
-        ui::copy_string_if_changed(s_detail_text.at(r),
-                                   detail_head_text(i, model.head_tool(i), main).c_str());
+        ui::copy_string_if_changed(s_detail_text.at(r), detail_head_text(i, head, main).c_str());
         set_int_if_changed(s_detail_hot.at(r), head_hot(i) ? 1 : 0);
         break;
     }
 
     if (i == active) {
-        ui::copy_string_if_changed(&s_face_sub_subject, temp.c_str());
+        ui::copy_string_if_changed(&s_face_sub_subject, with_lane(head, temp).c_str());
     }
 
     publish_two_line();

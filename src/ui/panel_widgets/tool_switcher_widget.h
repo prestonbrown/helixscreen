@@ -20,7 +20,7 @@ namespace helix {
 
 class PrinterState;
 class ToolSwitcherTestAccess;
-struct ToolInfo;
+struct HeadIdentity;
 
 /// Draws its own measured layout (decide_tool_switcher_layout()), so it takes no
 /// part in the TileSizing ladder.
@@ -117,19 +117,22 @@ class ToolSwitcherWidget : public PanelWidget {
     std::string head_temp_text(int i) const;
     /// Whether head @p i reads hot.
     bool head_hot(int i) const;
-    /// Head @p i's detail line, named for @p tool: its name, material and
-    /// temperature, in the full form for the @p main line where the content
-    /// box has room for it.
-    std::string detail_head_text(int i, const ToolInfo& tool, bool main) const;
+    /// Head @p i's detail line, named for @p head: its name, the lane it holds
+    /// where it has several, material and temperature, in the full form for
+    /// the @p main line where the content box has room for it.
+    std::string detail_head_text(int i, const HeadIdentity& head, bool main) const;
 
-    /// @p tool's label in @p form, in the connected printer's tool noun.
-    static std::string tool_text(const ToolInfo& tool, ui::ToolLabelForm form);
-    /// What a wide segment calls @p tool: its configured name, else "Tool 1".
-    static std::string name_text(const ToolInfo& tool);
-    /// What a narrow segment calls @p tool: the name it answers to in G-code
-    /// and in the slicer, configured name or not. The sheet's G-code form, so
-    /// the rail and the sheet never name one head two ways.
-    static std::string short_text(const ToolInfo& tool);
+    /// @p head's label in @p form, in the connected printer's tool noun.
+    static std::string tool_text(const HeadIdentity& head, ui::ToolLabelForm form);
+    /// What a wide segment calls @p head: its configured name, else "Tool 1".
+    static std::string name_text(const HeadIdentity& head);
+    /// What a narrow segment calls @p head: the name it answers to in G-code
+    /// and in the slicer, configured name or not, else its number. The sheet's
+    /// G-code form, so the rail and the sheet never name one head two ways.
+    static std::string short_text(const HeadIdentity& head);
+    /// A segment's second line under @p head's own: in Full the lane it holds
+    /// or the G-code name, in Code the lane and @p temp.
+    std::string segment_sub_text(const HeadIdentity& head, const std::string& temp) const;
     void on_active_tool_changed(int tool_index);
 
     /**

@@ -57,6 +57,10 @@ struct ToolInfo {
     int index = 0;
     std::string name = "T0";   ///< G-code identity, 0-based ("T0"). What a user types.
     std::string display_label; ///< Physical label, 1-based ("Tool 1"). What is on the machine.
+    /// The name of the head this tool prints through, where the printer names
+    /// its heads apart from its tools: a changer's own tool object behind
+    /// hub-fed lanes. Empty where nothing names the head.
+    std::string head_name;
     std::optional<std::string> extruder_name = "extruder";
     std::optional<std::string> heater_name;
     std::optional<std::string> fan_name;
@@ -122,6 +126,30 @@ struct PhysicalHead {
 
 /// The index into @p heads of the head @p tool_index prints through, or -1.
 [[nodiscard]] int head_index_for_tool(const std::vector<PhysicalHead>& heads, int tool_index);
+
+/// Who a head is, for every surface that labels one (helix::head_identity()).
+/// The helix::ui head_*_label() functions spell it.
+struct HeadIdentity {
+    /// The head's own name, spelled like ToolInfo::name ("T1", "Left"). Empty
+    /// where nothing names the head apart from its lanes: no G-code name then
+    /// selects the head, so it goes by its number alone.
+    std::string name;
+    /// The 0-based number the head is labeled by; -1 for no head.
+    int index = -1;
+    /// The G-code name of the tool the head stands for ("T7"), where tools are
+    /// lanes that several share a head; empty where the head is its own tool.
+    std::string lane_code;
+};
+
+/// Head @p head_index of @p heads (physical_heads() over @p tools) as a label
+/// names it. Where there are no more tools than heads every tool is a head, and
+/// the head is its representative tool, named and numbered as that tool. Where
+/// tools outnumber heads the tools are lanes, so a tool's name says which lane
+/// loads rather than which head: the head is then named by ToolInfo::head_name,
+/// numbered by its place in @p heads, and the lane it stands for is lane_code.
+[[nodiscard]] HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
+                                         const std::vector<PhysicalHead>& heads, int head_index,
+                                         int active_tool);
 
 /// Tool topology sourced from an AMS backend: multiplexing systems (e.g. AFC)
 /// and tool changers both push it. When set, ToolState rebuilds its tool list
@@ -243,6 +271,10 @@ class ToolState {
     /// count once, through the head that reads it (head_reads_heater()), or
     /// their lowest while none is mounted.
     [[nodiscard]] std::vector<PhysicalHead> heated_heads() const;
+
+    /// helix::head_identity() of @p head, one of physical_heads() or
+    /// heated_heads(), against the current tools and active tool.
+    [[nodiscard]] HeadIdentity head_identity(const PhysicalHead& head) const;
 
     /// Whether head @p head_index (into physical_heads()) shows its extruder's
     /// temperature as its own: it names an extruder, and either its heater is
