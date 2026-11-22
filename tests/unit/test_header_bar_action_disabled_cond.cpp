@@ -97,11 +97,8 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     // In production these are registered by each panel's init_subjects() at
     // startup, long before the overlay XML is created.
     static helix::Subject pid_not_idle;
-    static helix::Subject is_calibrate_all_disabled;
     pid_not_idle.init_int(0);
-    is_calibrate_all_disabled.init_int(0);
     lv_xml_register_subject(nullptr, "pid_cal_not_idle", &pid_not_idle);
-    lv_xml_register_subject(nullptr, "is_calibrate_all_disabled", &is_calibrate_all_disabled);
 
     lv_subject_t* nav = state().network_state().get_nav_buttons_enabled_subject();
     REQUIRE(nav != nullptr);
@@ -113,7 +110,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     const PanelCase panels[] = {
         {"ui_xml/calibration_pid_panel.xml", "PID"},
         {"ui_xml/bed_mesh_panel.xml", "bed mesh"},
-        {"ui_xml/input_shaper_panel.xml", "input shaper"},
     };
 
     for (const auto& p : panels) {
@@ -126,7 +122,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
 
         lv_subject_set_int(nav, 1);
         lv_subject_set_int(&pid_not_idle, 0);
-        lv_subject_set_int(&is_calibrate_all_disabled, 0);
 
         const std::string screen_name = std::string("gated_start_") + std::to_string(&p - panels);
         register_gated_start_screen(screen_name, cond);
@@ -151,7 +146,6 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
 
     lv_subject_set_int(nav, 1);
     pid_not_idle.reset();
-    is_calibrate_all_disabled.reset();
 }
 
 TEST_CASE_METHOD(

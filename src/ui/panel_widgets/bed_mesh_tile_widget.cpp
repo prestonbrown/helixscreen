@@ -570,7 +570,7 @@ void BedMeshTileWidget::open_panel() {
         return;
     }
 #if !defined(HELIX_PLATFORM_ESP32)
-    helix::ui::open_bed_mesh_panel(parent_screen_);
+    helix::ui::open_bed_mesh_panel(parent_screen_, /*profiles=*/true);
 #endif
 }
 

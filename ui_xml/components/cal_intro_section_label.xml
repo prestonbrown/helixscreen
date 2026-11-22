@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The small uppercase label over a column of a calibration intro ("Now",
+     "Calibrate at"). An empty label takes no room. -->
+<component>
+  <api>
+    <prop name="text" type="string" default=""/>
+    <prop name="text_tag" type="string" default=""/>
+  </api>
+  <view extends="text_small"
+        text="$text" translation_tag="$text_tag" hidden_if_empty="$text" text_transform="uppercase"
+        style_text_font="#cal_font_detail" style_text_letter_space="1" style_text_color="#text_muted"/>
+</component>

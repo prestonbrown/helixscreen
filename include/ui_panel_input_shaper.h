@@ -197,6 +197,10 @@ class InputShaperPanel : public OverlayBase {
     void handle_save_clicked();
     void handle_print_test_pattern_clicked();
     void handle_help_clicked();
+    /// The intro's axis choice: 0 both axes, 1 X only, 2 Y only.
+    void handle_axis_choice(int choice);
+    /// The intro's primary: measures the chosen axes.
+    void handle_measure_clicked();
     void handle_chip_x_clicked(int index);
     void handle_chip_y_clicked(int index);
 
@@ -257,6 +261,8 @@ class InputShaperPanel : public OverlayBase {
 
     // UI update helpers
     void populate_current_config(const InputShaperConfig& config);
+    /// Fills the intro caption and accelerometer line from history and discovery.
+    void refresh_intro_facts();
     void clear_results();
 
     // Analysis-phase display: spinner + elapsed-seconds step label. Shared
@@ -370,8 +376,15 @@ class InputShaperPanel : public OverlayBase {
     helix::Subject is_results_has_x_{};
     helix::Subject is_results_has_y_{};
 
-    // Header button disabled state (1 = disabled, 0 = enabled)
-    helix::Subject is_calibrate_all_disabled_{};
+    // Intro: the axis choice, its duration badge, the caption under the
+    // current shapers and the accelerometer line.
+    helix::Subject is_axis_choice_{};
+    char is_intro_duration_buf_[48] = {};
+    helix::Subject is_intro_duration_{};
+    char is_intro_caption_buf_[128] = {};
+    helix::Subject is_intro_caption_{};
+    char is_accel_detail_buf_[96] = {};
+    helix::Subject is_accel_detail_{};
 
     // Recommended row index per axis (for table highlight)
     helix::Subject is_x_recommended_row_{};

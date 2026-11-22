@@ -7,6 +7,11 @@
          InputShaperPanel does not stream the preview at all. -->
     <subject_expr name="is_measuring_chart_fits" expr="ui_breakpoint_v ge 1"/>
   </subjects>
+  <styles>
+    <!-- The intro brings its own margins; the other states pad the content. -->
+    <style name="content_padded" pad_all="#space_lg" pad_row="#space_md"/>
+    <style name="content_flush" pad_all="0" pad_row="0"/>
+  </styles>
   <consts>
     <!-- Legend indicator dot size, held constant across breakpoints like the
          lock-screen PIN dots (components/lock_screen.xml). -->
@@ -14,110 +19,129 @@
   </consts>
   <view name="input_shaper_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_border_width="0"
-        style_pad_all="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false" flex_flow="column">
+        style_pad_all="0" style_pad_gap="0" style_bg_opa="255" style_bg_color="#card_bg" scrollable="false"
+        flex_flow="column">
     <!-- Header Bar -->
-    <header_bar name="overlay_header" title="Input Shaper">
-      <header_bar-actions>
-        <header_action name="btn_calibrate_all"
-                       text="Calibrate All" role="primary" callback="input_shaper_calibrate_all_cb">
-          <bind_state_if cond="is_calibrate_all_disabled or nav_buttons_enabled eq 0" state="disabled"/>
-        </header_action>
-      </header_bar-actions>
-    </header_bar>
+    <header_bar name="overlay_header" title="Input Shaper"/>
     <!-- Content Area -->
-    <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_all="#space_lg" style_pad_gap="#space_md" scrollable="true"
-            flex_flow="column">
+    <lv_obj name="overlay_content" width="100%" flex_grow="1" scrollable="true" flex_flow="column">
+      <bind_style_if_not_eq name="content_padded" subject="input_shaper_state" ref_value="0"/>
+      <bind_style_if_eq name="content_flush" subject="input_shaper_state" ref_value="0"/>
+      <bind_flag_if_not_eq subject="input_shaper_state" flag="scrollable" ref_value="0"/>
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- ============================================================ -->
-      <!-- STATE: IDLE -->
+      <!-- STATE: IDLE - the intro -->
       <!-- ============================================================ -->
       <lv_obj name="state_idle"
-              width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md"
-              scrollable="false">
+              width="100%" height="100%" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
         <bind_flag_if_not_eq subject="input_shaper_state" flag="hidden" ref_value="0"/>
-        <!-- Unified info card: title + config/unconfigured status -->
-        <lv_obj width="100%"
-                height="content" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="#border_radius"
-                style_pad_all="#space_lg" flex_flow="column" style_pad_gap="#space_md" scrollable="false">
-          <!-- Title row: icon + text + help button -->
-          <lv_obj width="100%"
-                  height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                  style_pad_gap="#space_sm" scrollable="false">
-            <icon src="sine_wave" size="lg" variant="primary"/>
-            <text_body text="Reduce vibration artifacts like ringing and ghosting"
-                       flex_grow="1" style_text_color="#text_muted"/>
-            <ui_button name="btn_help"
-                       width="#icon_button_size_lg" height="#icon_button_size_lg" variant="ghost" icon="help_circle">
-              <event_cb trigger="clicked" callback="input_shaper_help_cb"/>
-            </ui_button>
-          </lv_obj>
-          <!-- Current Config (shown when configured) -->
-          <lv_obj name="config_card"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-                  scrollable="false">
+        <calibration_intro name="shaper_intro"
+                           left_label="Now" right_label="Measure" primary_text="Measure resonances"
+                           primary_callback="input_shaper_measure_cb" primary_moves_machine="true"
+                           secondary_name="btn_shaper_advanced" secondary_text="Advanced"
+                           secondary_callback="input_shaper_help_cb"
+                           primary_disabled_cond="printer_has_accelerometer eq 0">
+          <!-- Current shapers, as printer.cfg has them -->
+          <lv_obj name="shaper_now_card"
+                  width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
+                  style_bg_opa="24%" style_border_width="0" style_pad_hor="#space_md" style_pad_ver="#space_xs"
+                  style_pad_gap="0" flex_flow="column" scrollable="false">
             <bind_flag_if_eq subject="is_shaper_configured" flag="hidden" ref_value="0"/>
-            <text_small text="Current Configuration" style_text_color="#text_muted"/>
-            <!-- X axis row -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                    scrollable="false">
-              <text_body width="30%" text="X Axis"/>
-              <text_body bind_text="is_current_x_type" flex_grow="1"/>
-              <text_small bind_text="is_current_x_freq"/>
+            <lv_obj name="shaper_now_x"
+                    width="100%" height="content" style_pad_hor="0" style_pad_ver="#space_sm" style_pad_gap="#space_xs"
+                    style_bg_opa="0" style_border_width="1" style_border_side="bottom" style_border_color="#border"
+                    flex_flow="row" style_flex_cross_place="center" scrollable="false">
+              <text_small text="X axis" flex_grow="1" style_text_font="#cal_font_name" style_text_color="#text"/>
+              <text_small bind_text="is_current_x_type" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small text="·" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small bind_text="is_current_x_freq" style_text_font="#cal_font_mono" style_text_color="#text"/>
             </lv_obj>
-            <!-- Y axis row -->
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+            <lv_obj name="shaper_now_y"
+                    width="100%" height="content" style_pad_hor="0" style_pad_ver="#space_sm" style_pad_gap="#space_xs"
+                    style_bg_opa="0" style_border_width="0" flex_flow="row" style_flex_cross_place="center"
                     scrollable="false">
-              <text_body width="30%" text="Y Axis"/>
-              <text_body bind_text="is_current_y_type" flex_grow="1"/>
-              <text_small bind_text="is_current_y_freq"/>
+              <text_small text="Y axis" flex_grow="1" style_text_font="#cal_font_name" style_text_color="#text"/>
+              <text_small bind_text="is_current_y_type" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small text="·" style_text_font="#cal_font_mono" style_text_color="#text"/>
+              <text_small bind_text="is_current_y_freq" style_text_font="#cal_font_mono" style_text_color="#text"/>
             </lv_obj>
           </lv_obj>
-          <!-- Not Configured (shown when NOT configured) -->
-          <lv_obj name="not_configured_card"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs"
+          <lv_obj name="shaper_now_unset"
+                  width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
+                  style_bg_opa="24%" style_border_width="0" style_pad_hor="#space_md" style_pad_ver="#space_md"
                   scrollable="false">
             <bind_flag_if_not_eq subject="is_shaper_configured" flag="hidden" ref_value="0"/>
-            <text_body width="100%" text="Not yet calibrated"/>
             <text_small width="100%"
-                        text="Input shaping reduces ringing and ghosting artifacts caused by printer vibrations during fast movements."
-                        style_text_color="#text_muted"/>
+                        text="No input shaper in printer.cfg yet" style_text_font="#cal_font_name"
+                        style_text_color="#text"/>
           </lv_obj>
-        </lv_obj>
-        <!-- Accelerometer status (hidden when accelerometer present, shown when missing) -->
-        <lv_obj name="accel_warning"
-                width="100%" height="content" style_bg_color="#warning" style_bg_opa="25" style_radius="#border_radius"
-                style_border_width="1" style_border_color="#warning" style_pad_all="#space_sm" flex_flow="row"
-                style_flex_cross_place="center" style_pad_gap="#space_sm" scrollable="false">
-          <bind_flag_if_not_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
-          <icon src="alert" size="sm" variant="warning"/>
-          <text_small text="Connect an ADXL345 accelerometer to calibrate" style_text_color="#warning" flex_grow="1"/>
-        </lv_obj>
-        <!-- Individual axis buttons (secondary, side by side) -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-          <ui_button name="btn_calibrate_x" flex_grow="1" variant="secondary" icon="axis_x_arrow" text="Calibrate X">
-            <bind_state_if_eq subject="printer_has_accelerometer" state="disabled" ref_value="0"/>
-            <event_cb trigger="clicked" callback="input_shaper_calibrate_x_cb"/>
-          </ui_button>
-          <ui_button name="btn_calibrate_y" flex_grow="1" variant="secondary" icon="axis_y_arrow" text="Calibrate Y">
-            <bind_state_if_eq subject="printer_has_accelerometer" state="disabled" ref_value="0"/>
-            <event_cb trigger="clicked" callback="input_shaper_calibrate_y_cb"/>
-          </ui_button>
-        </lv_obj>
-        <!-- Spacer to push warning to bottom -->
-        <lv_obj width="1" flex_grow="1" style_pad_all="0" scrollable="false"/>
-        <!-- Explanatory text (bottom) -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="start"
-                style_pad_gap="#space_sm" scrollable="false">
-          <icon src="alert" size="sm" variant="warning"/>
-          <text_small text="Moves the print head to measure vibration frequencies on each axis. Takes 2-3 minutes. The printer will make noise — this is normal."
-                      flex_grow="1" style_text_color="#text_muted"/>
-        </lv_obj>
+          <text_small name="shaper_now_caption"
+                      width="100%" bind_text="is_intro_caption" style_text_font="#cal_font_detail"
+                      style_text_color="#text_muted"/>
+          <!-- Accelerometer: ready, or what is missing -->
+          <lv_obj name="shaper_accel_ready"
+                  width="100%" height="content" style_margin_top="#space_md" style_radius="#border_radius"
+                  style_bg_color="#success" style_bg_opa="10%" style_border_width="0" style_pad_hor="#space_md"
+                  style_pad_ver="#space_md" style_pad_gap="#space_md" flex_flow="row" style_flex_cross_place="center"
+                  scrollable="false">
+            <bind_flag_if_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
+            <lv_obj width="#space_md"
+                    height="#space_md" style_radius="9999" style_bg_color="#success" style_bg_opa="255"
+                    style_border_width="0" style_pad_all="0" scrollable="false"/>
+            <lv_obj width="0"
+                    height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
+                    style_border_width="0" flex_flow="column" scrollable="false">
+              <text_small text="Accelerometer ready" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
+              <text_small width="100%"
+                          bind_text="is_accel_detail" long_mode="dots" style_text_font="#cal_font_detail"
+                          style_text_color="#text_muted"/>
+            </lv_obj>
+          </lv_obj>
+          <lv_obj name="shaper_accel_missing"
+                  width="100%" height="content" style_margin_top="#space_md" style_radius="#border_radius"
+                  style_bg_color="#warning" style_bg_opa="10%" style_border_width="0" style_pad_hor="#space_md"
+                  style_pad_ver="#space_md" style_pad_gap="#space_md" flex_flow="row" style_flex_cross_place="center"
+                  scrollable="false">
+            <bind_flag_if_not_eq subject="printer_has_accelerometer" flag="hidden" ref_value="0"/>
+            <lv_obj width="#space_md"
+                    height="#space_md" style_radius="9999" style_bg_color="#warning" style_bg_opa="255"
+                    style_border_width="0" style_pad_all="0" scrollable="false"/>
+            <lv_obj width="0"
+                    height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
+                    style_border_width="0" flex_flow="column" scrollable="false">
+              <text_small text="No accelerometer" style_text_font="#cal_font_subtitle" style_text_color="#text"/>
+              <text_small width="100%"
+                          text="Connect one (ADXL345 or similar) to measure" style_text_font="#cal_font_detail"
+                          style_text_color="#text_muted"/>
+            </lv_obj>
+          </lv_obj>
+          <calibration_intro-settings>
+            <lv_obj name="shaper_axis_row"
+                    width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+                    style_border_width="0" flex_flow="row" scrollable="false">
+              <cal_intro_chip name="shaper_axis_both"
+                              label="Both axes" choice="is_axis_choice" value="0" index="0"
+                              callback="input_shaper_axis_cb" label_align="center" no_detail="true"
+                              label_font="#cal_font_name"/>
+              <cal_intro_chip name="shaper_axis_x"
+                              label="X only" choice="is_axis_choice" value="1" index="1" callback="input_shaper_axis_cb"
+                              label_align="center" no_detail="true" label_font="#cal_font_name"/>
+              <cal_intro_chip name="shaper_axis_y"
+                              label="Y only" choice="is_axis_choice" value="2" index="2" callback="input_shaper_axis_cb"
+                              label_align="center" no_detail="true" label_font="#cal_font_name"/>
+            </lv_obj>
+            <text_small name="shaper_intro_desc"
+                        width="100%" style_margin_top="#space_xs" style_text_font="#cal_font_subtitle"
+                        style_text_color="#text_muted" style_text_line_space="#space_xxs"
+                        text="Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration."/>
+          </calibration_intro-settings>
+          <calibration_intro-badges>
+            <cal_intro_badge name="shaper_badge_time" bind="is_intro_duration"/>
+            <cal_intro_badge name="shaper_badge_loud" text="loud" warm="true"/>
+            <cal_intro_badge name="shaper_badge_moves" text="homes, then moves fast"/>
+          </calibration_intro-badges>
+        </calibration_intro>
       </lv_obj>
       <!-- idle state -->
 

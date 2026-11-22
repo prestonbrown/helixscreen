@@ -56,6 +56,7 @@ translations:
   '%zu events queued': '%zu eventos en cola'
   '%zu plugins failed to load': '%zu plugins no se cargaron'
   "Auto Belt Tension": "Tensado automático de correas"
+  Both axes: Ambos ejes
   "Both belts": "Ambas correas"
   "Cutter Calibration": "Calibración del cortador"
   "Find the filament cutter's position": "Localiza la posición del cortador de filamento"
@@ -218,6 +219,7 @@ translations:
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Un calentador que caldea el aire dentro de la cámara. Ajusta su temperatura en la pantalla de temperatura de la cámara.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Un mapa de alturas de la cama que Klipper usa para compensar una superficie irregular. Consúltalo y calíbralo en la pantalla Malla de Cama.'
   A home-origin calibration point failed or stayed unstable.: 'Un punto de calibración del origen falló o no se estabilizó.'
+  A hot bed changes shape. Probe at the temperature you print at.: Una cama caliente cambia de forma. Mide a la temperatura a la que imprimes.
   A left, B right: "A izquierda, B derecha"
   A load was asked for while the toolhead holds filament the Box has no record of.: Se pidió una carga mientras el cabezal tiene un filamento del que la Caja no tiene registro.
   A lower, B upper: "A abajo, B arriba"
@@ -284,6 +286,7 @@ translations:
   ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   : Un valor de la configuración de la impresora tiene un tipo incorrecto o está fuera del rango que permite el ajuste. El mensaje de Klipper indica el ajuste y su sección.
   ABS: ABS
+  ABS / ASA: ABS / ASA
   ACCELEROMETERS: ACELERÓMETROS
   'ACCEPT failed: {}': 'ACCEPT falló: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Puente ACE Moonraker no encontrado. Instala ace_status.py para compatibilidad completa.
@@ -330,6 +333,7 @@ translations:
   Accelerometer communication failed. Try again.: Error de comunicación con el acelerómetro. Intente de nuevo.
   Accelerometer not connected: Acelerómetro no conectado
   Accelerometer not responding: 'El acelerómetro no responde'
+  Accelerometer ready: Acelerómetro listo
   Accelerometers: Acelerómetros
   Accept: Aceptar
   'Accepted Z Position: 0.000': 'Posición Z aceptada: 0.000'
@@ -739,6 +743,7 @@ translations:
   Calibrate X: Calibrar X
   Calibrate Y: Calibrar Y
   Calibrate All Tools: Calibrar todas las herramientas
+  Calibrate at: Calibrar a
   Calibrate heater: Calibrar calentador
   Calibrate input shaping to reduce ringing artifacts in prints: Calibrar input shaping para reducir artefactos de resonancia en impresiones
   Calibrate now: 'Calibrar ahora'
@@ -1067,6 +1072,7 @@ translations:
   Coaxial: Coaxial
   Code: Código
   Coil Temperature: Temperatura de Bobina
+  Cold: Frío
   Cold Pull: "Extracción en frío"
   Cold pull cancelled: "Extracción en frío cancelada"
   Cold pull finished: "Extracción en frío terminada"
@@ -1086,6 +1092,7 @@ translations:
   Communication Test: 'Prueba de comunicación'
   Compact: Compacto
   Compare belt paths with a resonance sweep: "Compara las rutas de correa con un barrido de resonancia"
+  Compare belts: Comparar correas
   Compare your belt paths: Compara las rutas de tus correas
   ? Compares the two belt paths of a CoreXY printer with the accelerometer, so you can even out their tension. Run it on the Belt Tension screen.
   : 'Compara los dos recorridos de correa de una impresora CoreXY con el acelerómetro, para igualar su tensión. Ejecútalo en la pantalla Tensión de correa.'
@@ -1141,6 +1148,7 @@ translations:
   Connect: Conectar
   Connect a USB label printer first: Conecte primero una impresora de etiquetas USB
   Connect an ADXL345 accelerometer to calibrate: Conecte un acelerómetro ADXL345 para calibrar
+  Connect one (ADXL345 or similar) to measure: Conecta uno (ADXL345 o similar) para medir
   Connect to servers on your network and the internet.: 'Se conecta a servidores de tu red y de Internet.'
   'Connect to your printer via SSH and run:': 'Conéctese a su impresora vía SSH y ejecute:'
   Connected: Conectado
@@ -1977,6 +1985,7 @@ translations:
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'Debe haber filamento cargado en el extrusor y la placa puesta, sin nada que estorbe al cabezal.'
   Filament never reached the CFS hub sensor: El filamento nunca llegó al sensor del concentrador del CFS
   Filament not identified: 'Filamento no identificado'
+  Filament not known: Filamento desconocido
   Filament not set: 'Filamento no asignado'
   Filament operation failed: Falló la operación de filamento
   Filament operation timed out: Operación de filamento — tiempo de espera agotado
@@ -2186,6 +2195,7 @@ translations:
   Heat soak: Estabilización Térmica
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'El heat soak deja que el recinto se caliente antes de imprimir. Aparece porque la impresora tiene una macro de heat soak o se activó en los ajustes; HelixScreen ofrece la macro en las opciones previas a la impresión.'
+  Heat the bed first: Calienta la cama primero
   Heat the bed to {}: Calentar la cama a {}
   Heat the chamber too: Calentar también la cámara
   Heat the extruder to at least {} before loading filament: Caliente el extrusor a al menos {} antes de cargar filamento
@@ -2245,6 +2255,7 @@ translations:
   Heating...: Calentando...
   'Heating: %d / %s': 'Calentando: %d / %s'
   Heats the bed to {}, above this printer's {} limit.: Calienta la cama a {}, por encima del límite de {} de esta impresora.
+  Heats the nozzle and extrudes short test lines in a corner of the plate: Calienta la boquilla y extruye líneas de prueba cortas en una esquina de la placa
   Heats the nozzle to {}, above this printer's {} limit.: Calienta la boquilla a {}, por encima del límite de {} de esta impresora.
   Heightmap and flatness of the active bed mesh: 'Mapa de alturas y planitud de la malla de cama activa'
   HelixPrint Plugin: 'Plugin HelixPrint'
@@ -2628,6 +2639,8 @@ translations:
   Last 24 hours: 'Últimas 24 horas'
   Last 30 days: 'Últimos 30 días'
   Last 7 days: 'Últimos 7 días'
+  Last check {}: Última comprobación {}
+  Last check {} · {}: Última comprobación {} · {}
   Last done at {} h: "Última vez a las {} h"
   'Last held: {}': 'Última cargada: {}'
   Last measured: 'Última medición'
@@ -2719,6 +2732,7 @@ translations:
   Load...: Cargar...
   Loaded: Cargado
   Loaded filament not recognized: Filamento cargado no reconocido
+  Loaded from T{}: Cargado desde T{}
   Loading: Cargando
   Loading Bed Mesh...: Cargando malla de cama...
   Loading Error: Error de Carga
@@ -2893,7 +2907,9 @@ translations:
   Measure (~{} min): "Medir (~{} min)"
   Measure each toolhead's X, Y and Z offset (about 20 minutes): Mide el offset X, Y y Z de cada cabezal (unos 20 minutos)
   Measure every tool's XYZ offset automatically: Mide el offset XYZ de cada herramienta automáticamente
+  Measure pressure advance: Medir pressure advance
   Measure pressure advance automatically: 'Mide el Pressure Advance automáticamente'
+  Measure resonances: Medir resonancias
   Measure the tension with the Belt Tension tool, or as your manual shows.: "Mide la tensión con la herramienta Tensión de correa o según el manual."
   Measure this zone first: "Mide primero esta zona"
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
@@ -2904,7 +2920,9 @@ translations:
   Measured from the printer's file list: 'Medido a partir de la lista de archivos de la impresora'
   Measured offsets, read-only: Desfases medidos, solo lectura
   Measured pressure advance: 'Pressure Advance medido'
+  Measured {} · reduces ringing and ghosting: Medido {} · reduce el ringing y el ghosting
   Measurement incomplete. Try again.: Medición incompleta. Inténtelo de nuevo.
+  Measures each line itself, repeating until the readings agree: Mide cada línea por sí mismo y repite hasta que las lecturas coinciden
   Measures each toolhead's X, Y and Z offset so every head prints in the same place. Takes about 20 minutes.: Mide el offset X, Y y Z de cada cabezal para que todos impriman en el mismo lugar. Tarda unos 20 minutos.
   Measures the bed at each adjustment screw and says how far to turn it. Run it on the Screws Tilt screen.: 'Mide la cama en cada tornillo de ajuste e indica cuánto girarlo. Ejecútalo en la pantalla Inclinación de Tornillos.'
   Measures vibration for input shaping. Run resonance tests on the Input Shaper screen.: 'Mide la vibración para el input shaping. Ejecuta las pruebas de resonancia en la pantalla Moldeador de Entrada.'
@@ -3073,6 +3091,7 @@ translations:
   No Spools: Sin Bobinas
   No USB printer detected: No se detectó impresora USB
   No USB printers found: No se encontraron impresoras USB
+  No accelerometer: Sin acelerómetro
   No actions right now: 'No hay acciones ahora'
   No active Spoolman spool.: No hay bobina activa en Spoolman.
   No answer from the printer; it may still be calibrating: Sin respuesta de la impresora; puede que siga calibrando
@@ -3107,6 +3126,7 @@ translations:
   No hub configured: 'No hay ningún Hub configurado'
   No humidity sensor detected: 'No se detectó sensor de humedad'
   No images found on USB drive: No se encontraron imágenes en la unidad USB
+  No input shaper in printer.cfg yet: Aún no hay input shaper en printer.cfg
   No jobs in queue: Sin trabajos en cola
   No lane holds filament, so none can be pulled back. Clearing cuts the filament in the extruder and withdraws it.: 'Ningún carril tiene filamento, así que no se puede retraer ninguno. Al vaciar se corta el filamento del extrusor y se extrae.'
   No macro devices configured: No hay dispositivos de macro configurados
@@ -3194,6 +3214,7 @@ translations:
   Not available now: No disponible ahora
   Not available on Android: No disponible en Android
   Not calibrated: No calibrado
+  Not compared yet: Aún sin comparar
   Not configured: No configurado
   Not connected: No conectado
   Not connected to printer: No conectado a la impresora
@@ -3245,6 +3266,7 @@ translations:
   Notification History: Historial de notificaciones
   Notifications: Notificaciones
   Notify when print finishes: Notificar cuando termine la impresión
+  Now: Ahora
   Now printing: 'Imprimiendo ahora'
   Noz max: Boq máx
   Noz min: Boq mín
@@ -3460,6 +3482,7 @@ translations:
   Pick Color: Elegir Color
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Elige cómo se comporta HelixScreen. Puedes cambiarlo más tarde en Ajustes.'
   Pick the best band: Elige la mejor franja
+  Pick the material below: Elige el material abajo
   Pick up: 'Montar'
   Pick up and park each tool in turn: Tomar y aparcar cada herramienta por turno
   Pick up the tool, heat it, and pull the filament out: "Toma la herramienta, caliéntala y saca el filamento"
@@ -3621,6 +3644,7 @@ translations:
   Print copies: 'Copias de impresión'
   Print details: 'Detalles de impresión'
   Print did not start: La impresión no se inició
+  Print a test tower instead: Imprimir una torre de prueba
   Print canceled: Impresión cancelada
   Print complete: Impresión completa
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): La impresión no comenzó — la impresora puede estar ocupada o desconectada (sondeos B3={}, status=0x{:02X}, error=0x{:02X})
@@ -3719,6 +3743,7 @@ translations:
   Probe controls, accuracy test, and settings: Controles de sonda, prueba de precisión y configuración
   Probe readings disagree: 'Las lecturas de la sonda no coinciden'
   Probe readings don't agree: Las lecturas de la sonda no coinciden
+  Probe the bed: Medir la cama
   Probe triggered too early: 'La sonda se activó demasiado pronto'
   Probing Bed Mesh: Sondeando Malla de Cama
   Probing Bed Mesh...: Sondeando Malla de Cama...
@@ -3892,6 +3917,7 @@ translations:
   Reduce Sensitivity: Reducir sensibilidad
   Reduce ringing and ghosting artifacts: Reducir artefactos de resonancia y fantasma
   Reduce vibration artifacts like ringing and ghosting: Reducir artefactos de vibración como resonancia y fantasma
+  Reduces ringing and ghosting: Reduce el ringing y el ghosting
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Reducir la velocidad del ventilador puede afectar al filtrado. ¿Quieres continuar?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Reducir la velocidad del ventilador puede afectar a la calidad de impresión. ¿Quieres continuar?'
   Refeeding filament — this may take a minute: Realimentando filamento — esto puede tardar un minuto
@@ -4391,8 +4417,11 @@ translations:
   Several printers match - choose yours: Varias impresoras coinciden - elija la suya
   Shadow Intensity: Intensidad de Sombra
   Shake&Tune: 'Shake&Tune'
+  ? Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.
+  : Agita el cabezal a lo largo de cada diagonal y superpone las dos respuestas. Las correas igualadas tienen el pico en la misma frecuencia; una diferencia indica qué correa tensar.
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Sacude el cabezal a lo largo de cada diagonal y superpone las dos respuestas. Las correas igualadas alcanzan su pico juntas.
   Shaking each axis through a frequency sweep: 'Haciendo vibrar cada eje con un barrido de frecuencias'
+  Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.: Agita el cabezal con un barrido de frecuencias en cada eje y elige el shaper que cancela la vibración más fuerte.
   Shaking the {} axis: 'Agitando el eje {}'
   Share Screen: 'Compartir pantalla'
   Share Usage Data: Compartir datos de uso
@@ -4420,6 +4449,7 @@ translations:
   Show up/down buttons on long lists: Mostrar botones arriba/abajo en listas largas
   Show whatever curves you last had visible on the full graph.: Mostrar las curvas que tenías visibles por última vez en el gráfico completo.
   Showing the 50 newest files. See more in the printer's web UI.: 'Se muestran los 50 archivos más recientes. Consulta el resto en la interfaz web de la impresora.'
+  Shows the new K next to the old one. You choose to save it: Muestra el nuevo K junto al anterior. Tú decides si guardarlo
   Shut down or restart the host: Apagar o reiniciar el host
   Shutdown: Apagar
   Shutdown / Reboot: Apagar / Reiniciar
@@ -5506,6 +5536,7 @@ translations:
   Turn the nozzle heater off first: Apague primero el calentador de la boquilla
   Turn the picture to match how the screen is mounted. Applies after restart.: Gira la imagen para que coincida con el montaje de la pantalla. Se aplica tras reiniciar.
   Turn the printer's lights on or off: Encender o apagar las luces
+  Two belt paths: Dos recorridos de correa
   Two configuration sections define the same command.: 'Dos secciones de la configuración definen el mismo comando.'
   Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: Dos funciones usan el mismo pin, o un pin está escrito de una forma que Klipper no acepta. El mensaje de Klipper indica el pin.
   Type: Tipo
@@ -5749,6 +5780,7 @@ translations:
   What fills the printer's disk, and cleanup: 'Qué ocupa el disco de la impresora, y limpieza'
   What happens next: 'Qué pasa a continuación'
   What happens when a print ends: 'Qué ocurre al terminar una impresión'
+  What it does: Qué hace
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Cuando un laminador sube e inicia un archivo que se mueve más allá del recorrido de esta impresora, calienta por encima de sus límites o usa una herramienta que no existe, conservar el archivo pero no iniciarlo.'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: Cuando está activado, solo se ejecuta el macro. Cuando está desactivado, primero se establecen las temperaturas y luego se ejecuta el macro.
@@ -5817,20 +5849,24 @@ translations:
   X Offset: Desfase X
   X and Y jog feedrate: Velocidad de avance del movimiento X y Y
   X and Y must be homed before precise homing.: 'X e Y deben estar referenciados antes del referenciado preciso.'
+  X axis: Eje X
   X axis applied, but Y axis failed: Eje X aplicado, pero eje Y falló
   X axis done, starting Y...: 'Eje X terminado, empezando con Y...'
   X axis limit reached: Límite del eje X alcanzado
   X is at its limit ({}mm): X está en su límite ({}mm)
   X motor: 'Motor X'
+  X only: Solo X
   'X:': 'X:'
   XY: XY
   XY axis: "Eje XY"
   Y: Y
   Y Axis: Eje Y
   Y Offset: Desfase Y
+  Y axis: Eje Y
   Y axis limit reached: Límite del eje Y alcanzado
   Y is at its limit ({}mm): Y está en su límite ({}mm)
   Y motor: 'Motor Y'
+  Y only: Solo Y
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "¡GANASTE!\nPuntuación: {}\nToca para jugar de nuevo"
@@ -5912,6 +5948,9 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] se encontró {} veces en los archivos de configuración que carga printer.cfg; se esperaba una vez"
   a newer version: 'una versión más reciente'
   a temporary mesh profile '{}': 'un perfil de malla temporal ''{}'''
+  about 2 min: unos 2 min
+  about 4 min: unos 4 min
+  about 6 min with heat-up: unos 6 min con calentamiento
   about {} min: 'unos {} min'
   about {} min left: quedan unos {} min
   about {} min left · you can leave: quedan unos {} min · puedes irte
@@ -5976,6 +6015,8 @@ translations:
   filament sensor disabled: 'sensor de filamento desactivado'
   heated bed: cama caliente
   heats: 'calienta'
+  heats bed to {}°: calienta la cama a {}°
+  heats to {}°: calienta a {}°
   heats bed: calienta la cama
   heats nozzle: calienta la boquilla
   heats nozzle + bed: calienta boquilla + cama
@@ -5983,6 +6024,7 @@ translations:
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignorado: cadena de enlaces simbólicos no confiable'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignorado: escribible por otros usuarios'
   'helixscreen.env ignored: {}': 'helixscreen.env ignorado: {}'
+  homes, then moves fast: hace home y luego se mueve rápido
   idle: inactivo
   in unit {} slot {}: 'en la unidad {} ranura {}'
   in {}: 'en {}'
@@ -5992,6 +6034,8 @@ translations:
   just now: justo ahora
   last 60 s · LOOSE up, TIGHT down: 'últimos 60 s · SUELTO arriba, TENSO abajo'
   last 60 s · pressure, target dashed: últimos 60 s · presión, objetivo discontinuo
+  last K {}: último K {}
+  last measured {}: última medición {}
   'last turn: {:.1f} Hz closer': "último giro: {:.1f} Hz más cerca"
   layers: capas
   left: restante
@@ -6000,6 +6044,7 @@ translations:
   loud: 'ruidoso'
   matched: igualadas
   material differs: 'material distinto'
+  measured {}: medido {}
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: mm antes de obstrucción
@@ -6007,6 +6052,7 @@ translations:
   needs approval: requiere aprobación
   needs you: 'te necesita'
   never sleeps: nunca duerme
+  no heat: sin calor
   no restart: sin reinicio
   none: ninguna
   not detected: no detectado
@@ -6030,11 +6076,13 @@ translations:
   passive: pasivo
   past last time: "más allá de la última vez"
   past last time’s position: "más allá de la posición de la última vez"
+  plate must be clear: la placa debe estar libre
   preparing: preparando
   printer default: valor por defecto de la impresora
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carga más de {} archivos de configuración; [{}] no se buscó en todos"
   prints: impresiones
   pulling...: 'tensando...'
+  range {:.3f} mm: rango {:.3f} mm
   ready to load: 'listo para cargar'
   remaining: restante
   remaining before clog detection triggers: restante antes de que se active la detección de obstrucción
@@ -6072,6 +6120,7 @@ translations:
   up {} from start: "{} por encima del inicio"
   up {} mm from start: "{} mm por encima del inicio"
   used: usado
+  uses about 30 cm of filament: usa unos 30 cm de filamento
   v%s available: v%s disponible
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s no tiene una versión para %s, así que no se puede instalar aquí. Elige un canal de actualización con una versión más reciente.
   v{} installed! Restarting...: ¡v{} instalado! Reiniciando...
@@ -6097,6 +6146,7 @@ translations:
   '{1} temperature reading is out of range': Lectura de temperatura de {1} fuera de rango
   '{:.0f} g left': quedan {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g de {} · {}%'
+  '{:.0f}-{:.0f} Hz sweep': barrido de {:.0f}-{:.0f} Hz
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · unos {} min'
   '{:.2f} mm range': '{:.2f} mm de rango'
   '{} ({})': '{} ({})'
@@ -6109,6 +6159,7 @@ translations:
   '{} PID': '{} PID'
   '{} Settings': 'Ajustes de {}'
   '{} Tools': '{} herramientas'
+  '{} accelerometers': '{} acelerómetros'
   '{} and {}': '{} y {}'
   '{} and {} are both mapped here': '{} y {} están asignados aquí'
   '{} auto-feed setting not applied': '{}: ajuste de alimentación automática no aplicado'
@@ -6275,6 +6326,7 @@ translations:
   'Variant': 'Variante'
   'from tag': 'del tag'
   'Browse catalog...': 'Explorar catálogo...'
+  '{}×{} points · saved as "{}"': '{}×{} puntos · se guarda como «{}»'
   ~{:.1f} Hz / turn: "~{:.1f} Hz / vuelta"
   RUNNING: "EN MARCHA"
   NOT AVAILABLE HERE: "NO DISPONIBLE AQUÍ"

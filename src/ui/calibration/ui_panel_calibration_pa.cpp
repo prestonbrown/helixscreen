@@ -6,6 +6,7 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
+#include "ui_overlay_pa_tuning.h"
 #include "ui_temperature_utils.h"
 #include "ui_toast_manager.h"
 
@@ -13,9 +14,11 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "calibration_intro_text.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/temperature_units.h"
+#include "core/text_io.h"
 #include "core/timer_guard.h"
 #include "filament_database.h"
 #include "filament_op_slot_resolver.h"
@@ -28,6 +31,7 @@
 #include "preset_materials.h"
 #include "printer_state.h"
 #include "temperature_controller.h"
+#include "theme_manager.h"
 #include "thermal_rate_model.h"
 #include "tool_state.h"
 
@@ -90,7 +94,9 @@ void PACalibrationPanel::init_subjects() {
         UI_MANAGED_SUBJECT_INT(progress_, 0, "pa_cal_progress", subjects_);
         UI_MANAGED_SUBJECT_INT(result_plausible_, 1, "pa_cal_result_plausible", subjects_);
         UI_MANAGED_SUBJECT_INT(action_is_stop_, 0, "pa_cal_action_is_stop", subjects_);
-        UI_MANAGED_SUBJECT_INT(has_last_, 0, "pa_cal_has_last", subjects_);
+        UI_MANAGED_SUBJECT_INT(has_filament_, 0, "pa_cal_has_filament", subjects_);
+        UI_MANAGED_SUBJECT_COLOR(filament_color_, theme_manager_get_color("elevated_bg"),
+                                 "pa_cal_filament_color", subjects_);
 
         for (int i = 0; i < kMaxTools; ++i) {
             UI_MANAGED_SUBJECT_INT(tool_selected_[i], i == 0 ? 1 : 0,
@@ -136,9 +142,11 @@ void PACalibrationPanel::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(error_hint_, error_hint_buf_, "", "pa_cal_error_hint", subjects_);
         UI_MANAGED_SUBJECT_STRING(action_text_, action_text_buf_, "Start", "pa_cal_action_text",
                                   subjects_);
-        UI_MANAGED_SUBJECT_STRING(last_value_, last_value_buf_, "", "pa_cal_last_value", subjects_);
-        UI_MANAGED_SUBJECT_STRING(last_context_, last_context_buf_, "", "pa_cal_last_context",
+        UI_MANAGED_SUBJECT_STRING(filament_name_, filament_name_buf_, "", "pa_cal_filament_name",
                                   subjects_);
+        UI_MANAGED_SUBJECT_STRING(filament_sub_, filament_sub_buf_, "", "pa_cal_filament_sub",
+                                  subjects_);
+        UI_MANAGED_SUBJECT_STRING(intro_heat_, intro_heat_buf_, "", "pa_cal_intro_heat", subjects_);
     });
 }
 
@@ -154,6 +162,14 @@ void PACalibrationPanel::register_callbacks() {
              }
          }},
         {"on_pa_cal_start", [](lv_event_t*) { get_global_pa_cal_panel().confirm_and_start(); }},
+        {"on_pa_cal_tower",
+         [](lv_event_t*) {
+             // Pressure advance by eye on a printed tower, for printers or
+             // filaments the measured run does not suit.
+             auto& tuner = get_global_pa_tuning_overlay();
+             tuner.set_api(get_global_pa_cal_panel().api_);
+             tuner.show(lv_screen_active());
+         }},
         {"on_pa_cal_reset",
          [](lv_event_t*) {
              // Back to the setup screen, not straight into another run: after seeing a
@@ -266,9 +282,10 @@ void PACalibrationPanel::on_activate() {
 
     // Seed from the mounted tool exactly once, as the screen opens.
     refresh_tools(/*adopt_active=*/true);
+    adopt_loaded_preset();
     refresh_presets();
     update_temp_display();
-    publish_last_result();
+    refresh_intro();
     set_state(IDLE);
 
     spdlog::debug("[{}] on_activate (tool={}, temp={})", get_name(), selected_tool_, target_temp_);
@@ -391,6 +408,7 @@ void PACalibrationPanel::refresh_tools(bool adopt_active) {
         }
         lv_subject_set_string(&tool_sub_[i], sub.c_str());
     }
+    refresh_intro();
 }
 
 void PACalibrationPanel::refresh_presets() {
@@ -411,6 +429,10 @@ void PACalibrationPanel::update_temp_display() {
     lv_subject_set_string(
         &temp_display_,
         fmt::format("{}°", helix::units::to_display_temp_whole(target_temp_)).c_str());
+    const std::string heat =
+        fmt::format(lv_tr("heats to {}°"), helix::units::to_display_temp_whole(target_temp_));
+    snprintf(intro_heat_buf_, sizeof(intro_heat_buf_), "%s", heat.c_str());
+    lv_subject_set_string(&intro_heat_, intro_heat_buf_);
     char range[32];
     helix::ui::temperature::format_temperature_range(kTempMin, kTempMax, range, sizeof(range));
     lv_subject_set_string(&temp_note_, state_ == IDLE || state_ == COMPLETE || state_ == ERROR
@@ -466,23 +488,62 @@ void PACalibrationPanel::update_phase_rows() {
     lv_subject_set_int(&phase_state_[kPhaseMeasure], measure);
 }
 
-void PACalibrationPanel::publish_last_result() {
-    lv_subject_set_int(&has_last_, have_result_ ? 1 : 0);
-    if (!have_result_) {
+void PACalibrationPanel::adopt_loaded_preset() {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend) {
         return;
     }
-    lv_subject_set_string(&last_value_, format_k(result_k_).c_str());
-    // Material and temperature travel with the number. Without them it is
-    // nearly useless a week later - which is exactly the mistake a sticky note
-    // makes.
-    std::string ctx = result_material_.empty()
-                          ? fmt::format("at {}°", helix::units::to_display_temp_whole(result_temp_))
-                          : fmt::format("{} at {}°", result_material_,
-                                        helix::units::to_display_temp_whole(result_temp_));
-    if (lv_subject_get_int(&multi_tool_) == 1) {
-        ctx = fmt::format("T{}, {}", result_tool_, ctx);
+    const AmsSystemInfo sys = backend->get_system_info();
+    const SlotInfo* slot = sys.get_slot_global(helix::ui::resolve_op_button_slot(
+        sys, selected_tool_, helix::ToolState::instance().tool_count()));
+    if (!slot || slot->material.empty()) {
+        return;
     }
-    lv_subject_set_string(&last_context_, ctx.c_str());
+    for (int i = 0; i < kPresetSlots; ++i) {
+        const std::string name = helix::presets::name(i);
+        if (!name.empty() && helix::text_io::equals_ignore_case(name, slot->material)) {
+            selected_preset_ = i;
+            target_temp_ = std::clamp(material_nozzle_temp(name), kTempMin, kTempMax);
+            return;
+        }
+    }
+}
+
+void PACalibrationPanel::refresh_intro() {
+    // The filament on the tool being measured, when the filament system knows.
+    // The tool->slot step is refresh_tools()'s, so the card and the tool chips
+    // always agree.
+    auto& tools = helix::ToolState::instance();
+    AmsBackend* backend = AmsState::instance().get_backend();
+    const SlotInfo* slot = nullptr;
+    AmsSystemInfo sys;
+    if (backend) {
+        sys = backend->get_system_info();
+        slot = sys.get_slot_global(
+            helix::ui::resolve_op_button_slot(sys, selected_tool_, tools.tool_count()));
+    }
+    const bool known = slot && !slot->material.empty();
+    lv_subject_set_int(&has_filament_, known ? 1 : 0);
+    if (known) {
+        lv_subject_set_color(&filament_color_, lv_color_hex(slot->color_rgb));
+    }
+    const std::string name = !known ? std::string(lv_tr("Filament not known"))
+                             : slot->color_name.empty()
+                                 ? slot->material
+                                 : fmt::format("{} · {}", slot->material, slot->color_name);
+    snprintf(filament_name_buf_, sizeof(filament_name_buf_), "%s", name.c_str());
+    lv_subject_set_string(&filament_name_, filament_name_buf_);
+
+    // Where it is loaded, then the K it last measured.
+    std::string sub = known ? fmt::format(lv_tr("Loaded from T{}"), selected_tool_)
+                            : std::string(lv_tr("Pick the material below"));
+    if (have_result_) {
+        sub += " · " + fmt::format(lv_tr("last K {}"), format_k(result_k_));
+    } else if (const auto when = helix::calibration::last_run_month_day("pressure_advance")) {
+        sub += " · " + fmt::format(lv_tr("last measured {}"), *when);
+    }
+    snprintf(filament_sub_buf_, sizeof(filament_sub_buf_), "%s", sub.c_str());
+    lv_subject_set_string(&filament_sub_, filament_sub_buf_);
 }
 
 // ============================================================================
@@ -703,7 +764,7 @@ void PACalibrationPanel::on_result(float k) {
                   .c_str());
 
     lv_subject_set_int(&progress_, 100);
-    publish_last_result();
+    refresh_intro();
     set_state(COMPLETE);
     spdlog::info("[{}] Result K={:.4f} (plausible={})", get_name(), k, plausible);
 }

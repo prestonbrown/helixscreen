@@ -66,86 +66,135 @@
     <px name="bed_mesh_profile_row_height_small" value="44"/>
     <px name="bed_mesh_profile_row_height_medium" value="44"/>
     <px name="bed_mesh_profile_row_height_large" value="44"/>
+
   </consts>
+  <styles>
+    <!-- bed_mesh_view: 0 the intro (picture, bed temperature, Probe the bed),
+         1 the profiles view (picture, current mesh card, profiles list). -->
+    <style name="content_intro" pad_all="0" pad_row="0" pad_column="0"/>
+    <style name="content_profiles" pad_all="#space_md" pad_row="#space_md" pad_column="#space_md"/>
+    <style name="split_intro" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg" pad_row="#space_sm"/>
+    <style name="split_profiles" pad_left="0" pad_right="0" pad_column="#space_md" pad_row="#space_md"/>
+    <style name="left_intro" width="#cal_intro_left_w" height="100%" flex_grow="0"/>
+    <style name="left_profiles" width="0" height="100%" flex_grow="1"/>
+    <style name="canvas_intro" height="#cal_intro_picture_h" flex_grow="0"/>
+    <style name="canvas_profiles" height="0" flex_grow="1"/>
+    <style name="canvas_portrait_profiles" height="45%" flex_grow="0"/>
+  </styles>
   <view name="bed_mesh_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
-        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
-    <!-- Header Bar with the Probe (calibrate) action -->
-    <header_bar name="overlay_header" title="Bed Mesh">
+        style_bg_color="#card_bg" style_pad_all="0" style_pad_gap="0" style_border_width="0" scrollable="false"
+        flex_flow="column">
+    <!-- Header: the Probe action belongs to the profiles view; the intro has
+         its own Probe the bed. Back from the profiles view returns to the intro. -->
+    <header_bar name="overlay_header" title="Bed Mesh" back_button_callback="on_bed_mesh_back">
       <header_bar-actions>
+        <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="0"/>
         <header_action name="btn_probe" text="Probe" role="primary" callback="on_bed_mesh_calibrate_clicked">
           <bind_state_if cond="nav_buttons_enabled eq 0" state="disabled"/>
         </header_action>
       </header_bar-actions>
     </header_bar>
-    <!-- Content Area: landscape is a row (canvas left, cards in a fixed-width
-         side column); portrait is a column — canvas on top, then mesh info
-         and the profiles list SIDE BY SIDE in one row below it (not
-         stacked). ui_is_portrait is reactive, so a rotation rebuilds this
-         <if> in place — see docs/devel/LVGL9_XML_GUIDE.md "Structural
-         conditionals with <if> / <else>".
+    <!-- Content: landscape is a row (the picture, then the intro settings or
+         the cards in a fixed-width side column); portrait is a column (the
+         picture on top, then the intro settings, or mesh info and the profiles
+         list side by side). One canvas serves both views. The intro adds a label over the picture, a caption
+         under it and the intro footer. ui_is_portrait is reactive, so a
+         rotation rebuilds this <if> in place (docs/devel/LVGL9_XML_GUIDE.md
+         "Structural conditionals with <if> / <else>").
 
-         current_mesh_card and profiles_card are IDENTICAL in both
-         arrangements (docs/devel/LVGL9_XML_GUIDE.md and this task's brief both
-         call this out as the trap: pasting their ~150 lines into both
-         branches would duplicate them in a way no gate can see, since they'd
-         coexist in one file). They are therefore their own components
-         (ui_xml/components/bed_mesh_current_mesh_card.xml,
-         bed_mesh_profiles_card.xml) and each branch below just instantiates
-         them — the markup itself exists exactly once. What genuinely differs
-         between the two arrangements is structural (a fixed-width side
-         column holding both cards stacked, vs. a full-width row below the
-         canvas holding both cards side by side) rather than a simple
-         attribute swap, which is why this needs <if> rather than a cheaper
-         bind_style_if/cond= toggle. -->
+         current_mesh_card, profiles_card, canvas_wrapper and the intro's
+         settings and footer are components, so each branch instantiates them
+         and the markup exists once. -->
     <if cond="ui_is_portrait eq 1">
-      <lv_obj name="overlay_content"
-              width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="column"
-              style_pad_gap="#space_md">
+      <lv_obj name="overlay_content" width="100%" flex_grow="1" scrollable="false" flex_flow="column">
+        <bind_style_if_eq name="content_intro" subject="bed_mesh_view" ref_value="0"/>
+        <bind_style_if_eq name="content_profiles" subject="bed_mesh_view" ref_value="1"/>
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-        <!-- Top: 3D Mesh Canvas. 45% is the pre-measurement default;
-             BedMeshPanel::apply_portrait_canvas_height() (wired on
-             overlay_content's SIZE_CHANGED) refines it once the column has
-             been laid out, reserving room for the info/profiles row below
-             so it is never squeezed to nothing — see that function for the
-             reservation math. If the measurement returns 0 (not laid out
-             yet), this value stands on its own. -->
-        <bed_mesh_canvas_band name="canvas_wrapper" width="100%" height="45%"/>
-        <!-- Bottom: mesh info and the profiles list side by side in one
-             row, sharing this row's height. The split favors profiles_card
-             (flex_grow="1", takes the remainder) over current_mesh_card
-             (fixed #bed_mesh_portrait_info_width — see that const's comment
-             for why this is NOT landscape's info_column width): the
-             profiles list has more per-row chrome fighting for space (a
-             range column, two icon columns) than current_mesh_card's simple
-             label/value rows, and its name field now truncates with
-             long_mode="dots" (bed_mesh_profiles_card.xml) as a second line
-             of defense rather than wrapping character-by-character.
-             profiles_card fills the row's full height via height="100%"
-             rather than shrinking to current_mesh_card's own content size. -->
-        <lv_obj name="portrait_cards_row"
-                width="100%" flex_grow="1" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
-                scrollable="false">
-          <bed_mesh_current_mesh_card name="current_mesh_card" width="#bed_mesh_portrait_info_width"/>
-          <bed_mesh_profiles_card name="profiles_card" height="100%" flex_grow="1"/>
+        <lv_obj name="mesh_split"
+                width="100%" height="0" flex_grow="1" style_pad_top="0" style_pad_bottom="0" style_bg_opa="0"
+                style_border_width="0" flex_flow="column" scrollable="false">
+          <bind_style_if_eq name="split_intro" subject="bed_mesh_view" ref_value="0"/>
+          <bind_style_if_eq name="split_profiles" subject="bed_mesh_view" ref_value="1"/>
+          <cal_intro_section_label name="mesh_now_label" text="Now">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+          </cal_intro_section_label>
+          <!-- Top: the picture. In the profiles view 45% is the pre-measurement
+               default; BedMeshPanel::apply_portrait_canvas_height() (wired on
+               overlay_content's SIZE_CHANGED) refines it once the column has
+               been laid out, reserving room for the info/profiles row below.
+               The intro gives it a fixed height instead. -->
+          <bed_mesh_canvas_band name="canvas_wrapper" width="100%">
+            <bind_style_if_eq name="canvas_intro" subject="bed_mesh_view" ref_value="0"/>
+            <bind_style_if_eq name="canvas_portrait_profiles" subject="bed_mesh_view" ref_value="1"/>
+          </bed_mesh_canvas_band>
+          <text_small name="mesh_now_caption"
+                      width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_font_detail"
+                      style_text_color="#text_muted">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+          </text_small>
+          <bed_mesh_intro_settings name="mesh_intro_settings" width="100%" height="0" flex_grow="1">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+          </bed_mesh_intro_settings>
+          <!-- Profiles view: mesh info and the profiles list side by side in
+               one row, sharing its height; profiles_card takes the remainder
+               (see #bed_mesh_portrait_info_width for the split). -->
+          <lv_obj name="portrait_cards_row"
+                  width="100%" flex_grow="1" flex_flow="row" style_pad_all="0" style_pad_gap="#space_md"
+                  scrollable="false">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="0"/>
+            <bed_mesh_current_mesh_card name="current_mesh_card" width="#bed_mesh_portrait_info_width"/>
+            <bed_mesh_profiles_card name="profiles_card" height="100%" flex_grow="1"/>
+          </lv_obj>
         </lv_obj>
+        <bed_mesh_intro_footer name="mesh_intro_footer"/>
       </lv_obj>
       <else/>
-      <lv_obj name="overlay_content"
-              width="100%" flex_grow="1" style_pad_all="#space_md" scrollable="false" flex_flow="row"
-              style_pad_gap="#space_md">
+      <lv_obj name="overlay_content" width="100%" flex_grow="1" scrollable="false" flex_flow="column">
+        <bind_style_if_eq name="content_intro" subject="bed_mesh_view" ref_value="0"/>
+        <bind_style_if_eq name="content_profiles" subject="bed_mesh_view" ref_value="1"/>
         <!-- Disable content when printer not connected or klippy not ready -->
         <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
-        <!-- Left: 3D Mesh Canvas wrapper (fills remaining space) -->
-        <bed_mesh_canvas_band name="canvas_wrapper" height="100%" flex_grow="1"/>
-        <!-- Right: fixed-width side column holding the two cards -->
-        <lv_obj name="info_column"
-                width="#bed_mesh_info_column_width" height="100%" flex_flow="column" style_pad_all="0"
-                style_pad_gap="#space_md" scrollable="false">
-          <bed_mesh_current_mesh_card name="current_mesh_card"/>
-          <bed_mesh_profiles_card name="profiles_card"/>
+        <lv_obj name="mesh_split"
+                width="100%" height="0" flex_grow="1" style_pad_top="0" style_pad_bottom="0" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" scrollable="false">
+          <bind_style_if_eq name="split_intro" subject="bed_mesh_view" ref_value="0"/>
+          <bind_style_if_eq name="split_profiles" subject="bed_mesh_view" ref_value="1"/>
+          <!-- Left: the picture, under "Now" with its caption in the intro;
+               filling the remaining width in the profiles view -->
+          <lv_obj name="mesh_left"
+                  style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0" style_border_width="0" flex_flow="column"
+                  scrollable="false">
+            <bind_style_if_eq name="left_intro" subject="bed_mesh_view" ref_value="0"/>
+            <bind_style_if_eq name="left_profiles" subject="bed_mesh_view" ref_value="1"/>
+            <cal_intro_section_label name="mesh_now_label" text="Now">
+              <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+            </cal_intro_section_label>
+            <bed_mesh_canvas_band name="canvas_wrapper" width="100%">
+              <bind_style_if_eq name="canvas_intro" subject="bed_mesh_view" ref_value="0"/>
+              <bind_style_if_eq name="canvas_profiles" subject="bed_mesh_view" ref_value="1"/>
+            </bed_mesh_canvas_band>
+            <text_small name="mesh_now_caption"
+                        width="100%" bind_text="bed_mesh_intro_caption" style_text_font="#cal_font_detail"
+                        style_text_color="#text_muted">
+              <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+            </text_small>
+          </lv_obj>
+          <!-- Right, intro: the bed temperature and the badges -->
+          <bed_mesh_intro_settings name="mesh_intro_settings" width="0" height="100%" flex_grow="1">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
+          </bed_mesh_intro_settings>
+          <!-- Right, profiles view: fixed-width side column holding the two cards -->
+          <lv_obj name="info_column"
+                  width="#bed_mesh_info_column_width" height="100%" flex_flow="column" style_pad_all="0"
+                  style_pad_gap="#space_md" scrollable="false">
+            <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="0"/>
+            <bed_mesh_current_mesh_card name="current_mesh_card"/>
+            <bed_mesh_profiles_card name="profiles_card"/>
+          </lv_obj>
         </lv_obj>
+        <bed_mesh_intro_footer name="mesh_intro_footer"/>
       </lv_obj>
     </if>
   </view>

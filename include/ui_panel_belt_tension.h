@@ -329,6 +329,8 @@ class BeltTensionPanel : public OverlayBase {
     /// Ask the printer its [resonance_tester] range for bt_hw_sweep.
     void query_hw_facts();
     /// bt_hw_sweep from sweep_cfg_ and the laps; nothing until the range is known.
+    /// The intro caption from the calibration history.
+    void refresh_intro_caption();
     void refresh_hw_sweep();
     /// Adopt a [resonance_tester] answer; Tune Belts waits for one the printer
     /// reported (bt_tune_range_known).
@@ -400,6 +402,11 @@ class BeltTensionPanel : public OverlayBase {
     char hw_accel_buf_[64] = {};
     helix::Subject hw_sweep_subject_{};
     char hw_sweep_buf_[64] = {};
+    helix::Subject intro_minutes_subject_{};
+    char intro_minutes_buf_[32] = {};
+    /// The intro's caption: when the belts were last compared.
+    helix::Subject intro_caption_subject_{};
+    char intro_caption_buf_[96] = {};
 
     helix::Subject run_title_subject_{};
     char run_title_buf_[96] = {};

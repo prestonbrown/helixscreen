@@ -15,6 +15,7 @@
 #include "app_globals.h"
 #include "core/observer_factory.h"
 #include "core/update_queue.h"
+#include "filament_database.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_api_mock.h"
@@ -412,6 +413,41 @@ TEST_CASE_METHOD(BedMeshPanelFlowFixture,
         CHECK(errors.empty());
         REQUIRE(successes.size() == 1);
         CHECK(mentions(successes[0], "'cold'"));
+    }
+}
+
+TEST_CASE_METHOD(BedMeshPanelFlowFixture, "a bed temperature picked on the intro is the probe's",
+                 "[bed_mesh_flow][calibration_intro]") {
+    SECTION("a shipped sequence is given the picked temperature over the set target") {
+        use_printer("Elegoo Centauri Carbon");
+        set_bed(24.0, 70.0);
+        BedMeshPanel panel;
+        panel.set_api(&api);
+        panel.init_subjects();
+        panel.pick_heat_choice(2);
+        const auto petg = filament::find_material("PETG");
+        REQUIRE(petg);
+        calibrate_as(panel, "default");
+
+        REQUIRE(sent().size() == 1);
+        CHECK(sent()[0] == "BED_MESH_CALIBRATE BED_TEMP=" + std::to_string(petg->bed_temp));
+    }
+
+    SECTION("a cold bed is neither heated nor waited for") {
+        use_printer("");
+        ScopedTemperatureController heaters(get_printer_state(), &api);
+        set_nozzle(0.0);
+        set_bed(24.0, 0.0);
+        BedMeshPanel panel;
+        panel.set_api(&api);
+        panel.init_subjects();
+        panel.pick_heat_choice(0);
+        client.force_next_gcode_dropped_response("TEMPERATURE_WAIT");
+        calibrate_as(panel, "default");
+
+        REQUIRE(any_sent(sent(), "TEMPERATURE_WAIT SENSOR=extruder"));
+        CHECK_FALSE(any_sent(sent(), "TEMPERATURE_WAIT SENSOR=heater_bed"));
+        CHECK_FALSE(any_sent(sent(), "HEATER=heater_bed TARGET=6"));
     }
 }
 

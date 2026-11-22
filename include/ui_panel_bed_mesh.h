@@ -8,6 +8,7 @@
 #include "async_lifetime_guard.h"
 #include "bed_mesh_calibration_plan.h"
 #include "bed_mesh_probe_temp.h"
+#include "bed_mesh_stats.h"
 #include "calibration_owned_heat.h"
 #include "core/observer_guard.h"
 #include "core/operation_timeout_guard.h"
@@ -139,6 +140,21 @@ class BedMeshPanel : public OverlayBase {
     void delete_profile(int index);
     void rename_profile(int index);
     void start_calibration();
+    /// The intro (0) or the profiles view (1).
+    void show_view(int view);
+    /// The view the next activation opens on.
+    void set_opening_view(int view) {
+        opening_view_ = view;
+    }
+    /// Back from the profiles view returns to the intro; from the intro it leaves.
+    void handle_back();
+    /// Shows the intro's bed temperature choice: 0 cold, 1 PLA, 2 PETG, 3 ABS / ASA.
+    void set_heat_choice(int choice);
+    /// The user's tap on a bed temperature: shows it and probes at it.
+    void pick_heat_choice(int choice);
+    /// The bed temperature a probe heats to: the intro's choice once the user
+    /// has picked one since the panel opened (0 for a cold bed), else the default.
+    [[nodiscard]] int chosen_probe_bed_c() const;
     /// start_calibration() once the bed is known clear: the profile name dialog.
     void ask_calibration_name();
 
@@ -255,6 +271,29 @@ class BedMeshPanel : public OverlayBase {
     char probe_text_buf_[64];     ///< Buffer for probe_text_ subject
     char error_message_buf_[256]; ///< Buffer for error_message_ subject
     char calibrate_name_buf_[64]; ///< Buffer for calibrate_name_ subject
+
+    // Intro: which view shows, the bed temperature choice, each material's
+    // bed temperature and the caption and badges.
+    helix::Subject bed_mesh_view_{};
+    int opening_view_ = 0;
+    /// The user picked a bed temperature on the intro since the panel opened.
+    /// Until then a probe keeps the bed target the printer already has.
+    bool heat_choice_picked_ = false;
+    helix::Subject bed_mesh_heat_choice_{};
+    std::array<helix::Subject, 3> bed_mesh_heat_temp_{};
+    std::array<std::array<char, 16>, 3> heat_temp_bufs_{};
+    /// Bed temperature per heat choice; index 0 is the cold bed.
+    std::array<int, 4> heat_choice_bed_c_{0, 60, 80, 100};
+    helix::Subject bed_mesh_intro_duration_{};
+    char intro_duration_buf_[48] = {};
+    helix::Subject bed_mesh_intro_heat_{};
+    char intro_heat_buf_[48] = {};
+    helix::Subject bed_mesh_intro_points_{};
+    char intro_points_buf_[64] = {};
+    helix::Subject bed_mesh_intro_caption_{};
+    char intro_caption_buf_[96] = {};
+    /// Fills the caption and points badge from the shown mesh and history.
+    void refresh_intro_caption(const helix::MeshStats& stats);
 
     // ========== Modal Widget Pointers (ComponentModal dialogs) ==========
     helix::ui::WidgetRef calibrate_modal_widget_;
@@ -428,7 +467,8 @@ class BedMeshPanel : public OverlayBase {
 // Defined out of line: the ESP32 build, which excludes this panel, supplies its own.
 BedMeshPanel& get_global_bed_mesh_panel();
 
-/// Open the Bed Mesh panel over @p parent_screen.
+/// Open the Bed Mesh panel over @p parent_screen: on its calibration intro, or
+/// with @p profiles on the mesh and its profiles (a tap on the home tile).
 namespace helix::ui {
-void open_bed_mesh_panel(lv_obj_t* parent_screen);
+void open_bed_mesh_panel(lv_obj_t* parent_screen, bool profiles = false);
 } // namespace helix::ui

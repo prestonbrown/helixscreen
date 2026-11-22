@@ -13,6 +13,8 @@
 #include "app_globals.h"
 #include "bed_plate_context.h"
 #include "belt_stream_client.h"
+#include "calibration_history_store.h"
+#include "calibration_intro_text.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
@@ -237,18 +239,6 @@ void ui_panel_belt_tension_register_callbacks() {
                        "these before chasing a perfect match."),
                  ModalSeverity::Info, lv_tr("Got it"));
          }},
-        {"belt_tension_help_cb",
-         [](lv_event_t* /*e*/) {
-             helix::ui::modal_alert(
-                 lv_tr("Belt Tension Check"),
-                 lv_tr("This check runs Klipper's resonance test along each belt "
-                       "path and compares the two responses. Balanced belts give "
-                       "curves of the same shape, with peaks at the same "
-                       "frequencies.\n\n"
-                       "Each sweep takes a few minutes and moves the toolhead; keep "
-                       "clear of the printer while it runs."),
-                 ModalSeverity::Info, lv_tr("Got it"));
-         }},
     });
     helix::ui::BeltRetestMenu::register_callbacks();
     helix::ui::BeltNamesModal::register_callbacks();
@@ -283,6 +273,10 @@ void BeltTensionPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(hw_accel_subject_, hw_accel_buf_, lv_tr("Detecting..."),
                               "bt_hw_accel", subjects_);
     UI_MANAGED_SUBJECT_STRING(hw_sweep_subject_, hw_sweep_buf_, "-", "bt_hw_sweep", subjects_);
+    UI_MANAGED_SUBJECT_STRING(intro_minutes_subject_, intro_minutes_buf_, "", "bt_intro_minutes",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(intro_caption_subject_, intro_caption_buf_, "", "bt_intro_caption",
+                              subjects_);
 
     // Running state
     UI_MANAGED_SUBJECT_STRING(run_title_subject_, run_title_buf_, "", "bt_run_title", subjects_);
@@ -489,6 +483,7 @@ void BeltTensionPanel::on_activate() {
     set_view_state(ViewState::START);
     refresh_notes();
     push_chart_data();
+    refresh_intro_caption();
 
     // Re-evaluate the gate on every entry, and probe co-location once here
     // rather than on each gate refresh - the gate recomputes on every subject
@@ -2280,15 +2275,32 @@ void BeltTensionPanel::set_sweep_config(const helix::calibration::ResonanceTeste
     }
 }
 
+void BeltTensionPanel::refresh_intro_caption() {
+    const auto* last = helix::calibration::CalibrationHistory::instance().entry("belt_compare");
+    const auto when = helix::calibration::last_run_month_day("belt_compare");
+    std::string caption;
+    if (!when) {
+        caption = lv_tr("Not compared yet");
+    } else if (last && !last->summary.empty()) {
+        caption = fmt::format(lv_tr("Last check {} · {}"), *when, last->summary);
+    } else {
+        caption = fmt::format(lv_tr("Last check {}"), *when);
+    }
+    snprintf(intro_caption_buf_, sizeof(intro_caption_buf_), "%s", caption.c_str());
+    lv_subject_set_string(&intro_caption_subject_, intro_caption_buf_);
+}
+
 void BeltTensionPanel::refresh_hw_sweep() {
     if (!hw_sweep_known_ || !subjects_initialized_) {
         return;
     }
     snprintf(hw_sweep_buf_, sizeof(hw_sweep_buf_), "%s",
-             fmt::format(lv_tr("{:.0f}-{:.0f} Hz · about {} min"), sweep_cfg_.min_freq,
-                         sweep_cfg_.max_freq, full_check_minutes())
+             fmt::format(lv_tr("{:.0f}-{:.0f} Hz sweep"), sweep_cfg_.min_freq, sweep_cfg_.max_freq)
                  .c_str());
     lv_subject_set_string(&hw_sweep_subject_, hw_sweep_buf_);
+    snprintf(intro_minutes_buf_, sizeof(intro_minutes_buf_), "%s",
+             fmt::format(lv_tr("about {} min"), full_check_minutes()).c_str());
+    lv_subject_set_string(&intro_minutes_subject_, intro_minutes_buf_);
 }
 
 // ============================================================================
