@@ -84,7 +84,7 @@
                                  status_compact_subject="cal_run_pick_summary_short"
                                  status_sub_compact_subject="cal_run_hands_short" primary_text="Start"
                                  primary_icon="chevron_right" primary_callback="on_cal_run_next"
-                                 primary_name="btn_cal_run_next" primary_enable_subject="cal_run_pick_count"/>
+                                 primary_name="btn_cal_run_next" primary_disabled_cond="cal_run_pick_count eq 0"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- BEFORE YOU START (1) -->
@@ -189,7 +189,7 @@
                                  back_callback="on_cal_run_back" back_name="btn_cal_run_back"
                                  status_subject="cal_run_prereq_left" primary_text="Everything's ready"
                                  primary_callback="on_cal_run_start" primary_name="btn_cal_run_start"
-                                 primary_enable_subject="cal_run_prereq_ready" primary_moves_machine="true"/>
+                                 primary_disabled_cond="cal_run_prereq_ready eq 0" primary_moves_machine="true"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- RUNNING (2) -->
@@ -263,7 +263,7 @@
                                  back_name="btn_cal_run_stop" back_style="cal_footer_danger"
                                  back_hide_subject="cal_run_over" status_subject="cal_run_footer"
                                  primary_text="See results" primary_callback="on_cal_run_see_results"
-                                 primary_name="btn_cal_run_results" primary_enable_subject="cal_run_over"
+                                 primary_name="btn_cal_run_results" primary_disabled_cond="cal_run_over eq 0"
                                  primary_hide_subject="cal_run_running_now"/>
     </lv_obj>
     <!-- ================================================================ -->
