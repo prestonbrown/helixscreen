@@ -149,7 +149,9 @@ void drain() {
 
 // A controller wired to a mock API with a live connection, so commands reach
 // the mock wire and the native color cache.
-struct LedApplyColorFixture : public LVGLTestFixture {
+// LVGLUITestFixture registers the XML components the Custom color picker's
+// modal is built from.
+struct LedApplyColorFixture : public LVGLUITestFixture {
     MoonrakerClientMock mock_client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
     std::unique_ptr<MoonrakerAPIMock> mock_api;
