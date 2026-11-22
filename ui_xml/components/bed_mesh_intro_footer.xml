@@ -9,7 +9,7 @@
   <view extends="calibration_wizard_footer"
         back_name="btn_mesh_profiles" back_text="Profiles" back_callback="on_bed_mesh_show_profiles"
         primary_name="cal_intro_primary" primary_text="Probe the bed" primary_callback="on_bed_mesh_probe_intro"
-        primary_moves_machine="true">
+        primary_moves_machine="true" divider="0">
     <bind_flag_if_eq subject="bed_mesh_view" flag="hidden" ref_value="1"/>
   </view>
 </component>

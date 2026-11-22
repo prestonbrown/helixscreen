@@ -9,7 +9,7 @@
      and the detail (static, or `bind_detail`) at the right; with no detail,
      `label_align="center"` with no_detail="true" centers the label; a label too long for the chip
      ends in dots before the detail. The tap calls `callback` with `index`
-     as its user data string. Sizes: calibration_intro_tokens.xml. -->
+     as its user data string. Sizes: calibration_wizard_tokens.xml. -->
 <component>
   <api>
     <prop name="label" type="string" default=""/>
