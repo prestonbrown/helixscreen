@@ -301,3 +301,92 @@ TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
 
     CHECK(sent("Z_OFFSET_APPLY_PROBE") == 1);
 }
+
+TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
+                 "Controls save on a printer that re-applies each head's offset folds only the "
+                 "adjustment",
+                 "[controls][zoffset][save-flow][per_head]") {
+    // The U1: each pickup sets the mounted head's own offset absolutely, and the
+    // probe's z_offset is the one every head shares. Head 3 is mounted, carrying
+    // its own -0.037.
+    state().set_printer_type_sync("Snapmaker U1");
+    REQUIRE(state().profile_state().z_offset_reapplied_per_head());
+    set_global_offset_mm(-0.037);
+
+    // The head's own offset is the firmware's, not an unsaved adjustment.
+    CHECK_FALSE(save_button_visible());
+
+    // A babystep down 0.040 on that head.
+    const auto result = helix::zoffset::adjust(&api, &state(), -0.037, -0.037, -0.040);
+    REQUIRE(result.sent);
+    settle();
+    REQUIRE(save_button_visible());
+
+    click_save();
+    REQUIRE(ModalStack::instance().top_dialog() != nullptr);
+    confirm_save();
+    REQUIRE(wait_for_sent("SAVE_CONFIG"));
+
+    // The apply folds the adjustment alone, so every head moves by it and no head
+    // inherits head 3's calibration. The mock records a script line by line.
+    const auto& history = client.gcode_script_history();
+    const auto apply = std::find(history.begin(), history.end(), "Z_OFFSET_APPLY_PROBE");
+    REQUIRE(apply != history.end());
+    REQUIRE(apply != history.begin());
+    CHECK(*(apply - 1) == "SET_GCODE_OFFSET Z=-0.040");
+    CHECK(sent("Z_OFFSET_APPLY_PROBE") == 1);
+    CHECK(sent("Z_OFFSET_APPLY_ENDSTOP") == 0);
+
+    // The apply has staged the delta in the probe. Klipper is not back yet, so a
+    // SAVE_CONFIG reported failed from here on must not leave a Save that folds
+    // the same delta again.
+    CHECK(state().motion_state().get_pending_z_offset_delta() == 0);
+    CHECK_FALSE(save_button_visible());
+
+    state().set_printer_type_sync("");
+}
+
+TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
+                 "An adjustment left unsaved on a per-head printer is dropped when a print starts",
+                 "[controls][zoffset][save-flow][per_head]") {
+    state().set_printer_type_sync("Snapmaker U1");
+    set_global_offset_mm(-0.037);
+    REQUIRE(helix::zoffset::adjust(&api, &state(), -0.037, -0.037, -0.040).sent);
+    settle();
+    REQUIRE(state().motion_state().get_pending_z_offset_delta() == -40);
+    REQUIRE(save_button_visible());
+
+    state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    settle();
+    REQUIRE(lv_subject_get_int(state().print_state().get_print_active_subject()) == 1);
+    CHECK(state().motion_state().get_pending_z_offset_delta() == 0);
+
+    // An adjustment made during this print is the one a Save after it carries.
+    REQUIRE(helix::zoffset::adjust(&api, &state(), -0.037, -0.037, -0.020).sent);
+    settle();
+    CHECK(state().motion_state().get_pending_z_offset_delta() == -20);
+
+    state().update_from_status(json{{"print_stats", {{"state", "standby"}}}});
+    settle();
+    CHECK(state().motion_state().get_pending_z_offset_delta() == -20);
+    state().set_printer_type_sync("");
+}
+
+TEST_CASE_METHOD(ControlsSaveZOffsetFixture,
+                 "A print start leaves an unsaved machine-wide offset alone",
+                 "[controls][zoffset][save-flow][per_head]") {
+    // A probe printer keeps its babystep across a print start: the live offset
+    // still carries it, and a Save after the print folds it.
+    REQUIRE_FALSE(state().profile_state().z_offset_reapplied_per_head());
+    REQUIRE(helix::zoffset::adjust(&api, &state(), 0.0, 0.0, -0.040).sent);
+    settle();
+    REQUIRE(state().motion_state().get_pending_z_offset_delta() == -40);
+
+    state().update_from_status(json{{"print_stats", {{"state", "printing"}}}});
+    settle();
+    REQUIRE(lv_subject_get_int(state().print_state().get_print_active_subject()) == 1);
+    CHECK(state().motion_state().get_pending_z_offset_delta() == -40);
+
+    state().update_from_status(json{{"print_stats", {{"state", "standby"}}}});
+    settle();
+}

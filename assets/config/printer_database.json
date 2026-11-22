@@ -7643,6 +7643,7 @@
       "preset": "snapmaker_u1",
       "z_offset_calibration_strategy": "firmware_managed",
       "z_offset_persists": false,
+      "z_offset_save": "probe",
       "tool_change_resets_z_offset": true,
       "print_start_profile": "snapmaker_u1",
       "plr": {

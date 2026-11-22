@@ -89,30 +89,34 @@
         <event_cb trigger="clicked" callback="on_filament_target_tool_action"/>
       </ui_button>
     </lv_obj>
-    <!-- Load/Unload/Purge Row (macro-based, no length selector) -->
+    <!-- Load/Unload/Purge Row (macro-based, no length selector). The icon
+         stacks above the label at Tiny; Micro's landscape row is too short
+         for both, so there the label stands alone. -->
     <lv_obj width="100%"
             height="$row_height" style_pad_all="0" scrollable="false" flex_flow="row"
             style_flex_main_place="space_between" style_flex_cross_place="center" style_pad_gap="#space_sm">
       <ui_button name="btn_load"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1" flex_grow="1"
-                 icon="arrow_down" text="Load" style_text_font="#font_small" bind_op_state="filament_op_load_state">
+                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1"
+                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="arrow_down" text="Load"
+                 style_text_font="#font_small" bind_op_state="filament_op_load_state">
         <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_load_disabled" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_load"/>
       </ui_button>
       <ui_button name="btn_unload"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1" flex_grow="1"
-                 icon="arrow_up" text="Unload" style_text_font="#font_small" bind_op_state="filament_op_unload_state">
+                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1"
+                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="arrow_up" text="Unload"
+                 style_text_font="#font_small" bind_op_state="filament_op_unload_state">
         <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_unload"/>
       </ui_button>
       <ui_button name="btn_purge"
-                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1" flex_grow="1"
-                 icon="trash_can_outline" text="Purge" style_text_font="#font_small"
-                 bind_op_state="filament_op_purge_state">
+                 height="100%" style_min_width="content" style_pad_hor="#space_xxs" stacked_if_bp_lte="1"
+                 icon_hidden_subject="ui_breakpoint" icon_hidden_if_eq="0" flex_grow="1" icon="trash_can_outline"
+                 text="Purge" style_text_font="#font_small" bind_op_state="filament_op_purge_state">
         <bind_state_if_eq subject="filament_safety_warning_visible" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_operation_in_progress" state="disabled" ref_value="1"/>
         <bind_state_if_eq subject="filament_unload_disabled" state="disabled" ref_value="1"/>
