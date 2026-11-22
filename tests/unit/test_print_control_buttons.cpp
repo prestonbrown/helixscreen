@@ -209,28 +209,27 @@ TEST_CASE_METHOD(ControlButtonsFixture, "klipper error with nothing pending is i
 //
 // reset_all() (run at every test boundary, while subjects are still
 // alive) detaches the controller's observer. This test asserts that invariant.
-// Deliberately does NOT use ControlButtonsFixture — it drives the lifecycle by
-// hand so the assertion targets reset_all() directly. If has_observer()
-// stays true after reset_all(), the REQUIRE_FALSE fails (and the follow-on
-// deinit_subjects() walks freed memory).
+// Deliberately does NOT use ControlButtonsFixture: it drives the lifecycle by hand so
+// the assertions target reset_all() directly. reset_all() brings the controller back
+// up, as the app keeps it, and its observer carries PrinterState's subjects lifetime,
+// so tearing the subject down afterwards (what a later test or process exit does)
+// leaves a guard that never walks a freed lv_observer_t*.
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "reset_all detaches PrintControlButtons observer before subject teardown",
+                 "reset_all leaves PrintControlButtons safe across a PrinterState teardown",
                  "[print_control][slow]") {
     using helix::ui::PrintControlButtons;
 
-    // Stand up fresh PrinterState subjects and the controller observing them,
-    // mirroring what a ControlButtonsFixture-based test leaves behind.
     helix::PrinterStateTestAccess::reset(get_printer_state());
     get_printer_state().init_subjects(false);
     PrintControlButtons::instance().init_subjects();
-    REQUIRE(ButtonsAccess::has_observer()); // precondition: observer is live
+    REQUIRE(ButtonsAccess::has_observer());
 
-    // reset_all() must detach the controller while print_state_enum is alive.
     HelixTestFixture::reset_all();
-    REQUIRE_FALSE(ButtonsAccess::has_observer());
+    REQUIRE(ButtonsAccess::has_observer());
 
-    // With the observer detached, tearing the subject down (what a later test or
-    // process exit does) never walks a dangling lv_observer_t*. A
-    // leftover observer makes this the SIGSEGV / heap corruption site.
     REQUIRE_NOTHROW(get_printer_state().deinit_subjects());
+    // The guard's own removal, after its subject died, is the step that would walk
+    // freed memory without the lifetime token.
+    REQUIRE_NOTHROW(ButtonsAccess::reset());
+    get_printer_state().init_subjects(true);
 }
