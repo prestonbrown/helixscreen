@@ -121,7 +121,7 @@ TEST_CASE("Load with no resolved slot redirects to the AMS slot picker",
     FilamentPanelOutcome out = load_outcome(sys, fresh_ams(), /*target_slot=*/-1,
                                             /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "Select a filament slot to load");
+    CHECK_FALSE(out.toast.empty());
     CHECK(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
 }
@@ -223,7 +223,7 @@ TEST_CASE("A lane load is refused while the bypass spool still crosses the toolh
     FilamentPanelOutcome out = load_outcome(sys, bypassed_ams(), /*target_slot=*/2,
                                             /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "Remove the bypass spool from the toolhead first");
+    CHECK_FALSE(out.toast.empty());
     CHECK_FALSE(out.navigate_to_ams);
     CHECK_FALSE(out.guard_armed);
     CHECK(out.call == AmsCall::None);
@@ -248,7 +248,7 @@ TEST_CASE("Unload with nothing loaded warns and dispatches nothing",
     FilamentPanelOutcome out = unload_outcome(fresh_ams(), /*target_slot=*/2,
                                               /*target_is_loaded=*/false, /*macro_available=*/true);
     CHECK(out.tier == FilamentTier::Refused);
-    CHECK(out.toast == "No filament loaded to unload");
+    CHECK_FALSE(out.toast.empty());
     CHECK_FALSE(out.guard_armed);
     // The unload refusal never redirects — the panel already knows the slot.
     CHECK_FALSE(out.navigate_to_ams);

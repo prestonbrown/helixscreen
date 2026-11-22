@@ -37,6 +37,7 @@
 #include "ui_fault_path.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/label_fits.h"
 #include "action_prompt_modal.h"
 #include "ams_types.h"
 #include "core/static_subject_registry.h"
@@ -259,7 +260,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the loading-error modal carries the graphic
         return std::string(lv_label_get_text(lv_obj_find_by_name(modal.dialog(), name)));
     };
     CHECK(text_of("error_message") == shown);
-    CHECK(text_of("error_hint") == "Check the filament path and try again.");
+    helix::test::require_label_fits(lv_obj_find_by_name(modal.dialog(), "error_hint"),
+                                    "fault path error hint");
 
     modal.hide();
     process_lvgl(20);

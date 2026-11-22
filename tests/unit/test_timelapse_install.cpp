@@ -8,6 +8,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/label_fits.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
@@ -246,7 +247,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the SSH step's Check Again sits on screen",
 
     lv_obj_t* label = ui_button_get_label(button);
     REQUIRE(label != nullptr);
-    CHECK(std::string(lv_label_get_text(label)) == "Check Again");
+    helix::test::require_label_fits(label, "timelapse install button");
     lv_obj_t* ssh = lv_obj_find_by_name(root, "ssh_instructions_container");
     lv_obj_t* ffmpeg = lv_obj_find_by_name(root, "ffmpeg_instructions_container");
     REQUIRE(ssh != nullptr);

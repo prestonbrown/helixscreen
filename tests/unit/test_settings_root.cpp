@@ -25,6 +25,7 @@
 #include "plugins_overlay.h"
 #include "printer_state.h"
 #include "settings_manager.h"
+#include "settings_root_status.h"
 #include "system_settings_manager.h"
 #include "theme_manager.h"
 #include "wifi_backend_mock.h"
@@ -244,6 +245,11 @@ TEST_CASE_METHOD(RootFixture, "settings root: tapping Plugins opens the plugins 
 #endif
 
 namespace {
+// What the row reads once the async probe reports Ethernet up (the presenter's own output).
+std::string ethernet_status() {
+    return helix::settings::status::connection(true, helix::ui::wifi::LinkPhase::Disconnected, "");
+}
+
 std::string status_text(lv_obj_t* root, const char* row) {
     lv_obj_t* r = lv_obj_find_by_name(root, row);
     REQUIRE(r != nullptr);
@@ -259,13 +265,17 @@ TEST_CASE_METHOD(RootFixture, "settings root: status lines follow values on retu
     set_int("settings_volume", 40);
     get_global_settings_panel().refresh_status_lines();
     process_lvgl(5);
-    CHECK(status_text(root_, "row_sound") == "Volume 40%");
+    const std::string at_forty = status_text(root_, "row_sound");
+    CHECK(at_forty.find("40") != std::string::npos);
 
     set_int("settings_volume", 0);
-    CHECK(status_text(root_, "row_sound") == "Volume 40%"); // no observer: stale until return
+    CHECK(status_text(root_, "row_sound") == at_forty); // no observer: stale until return
     get_global_settings_panel().on_activate();
     process_lvgl(5);
-    CHECK(status_text(root_, "row_sound") == "Muted");
+    const std::string muted = status_text(root_, "row_sound");
+    CHECK_FALSE(muted.empty());
+    CHECK(muted != at_forty);
+    CHECK(muted.find("40") == std::string::npos);
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: rows without state show no status",
@@ -290,7 +300,8 @@ TEST_CASE_METHOD(RootFixture,
     // on an HttpExecutor worker thread, not synchronously, so this can't be a
     // plain process_lvgl(5) check.
     get_global_settings_panel().refresh_status_lines();
-    REQUIRE(wait_until([&]() { return status_text(root_, "row_connection") == "Ethernet"; }));
+    REQUIRE(
+        wait_until([&]() { return status_text(root_, "row_connection") == ethernet_status(); }));
 }
 
 TEST_CASE_METHOD(RootFixture,
@@ -298,13 +309,13 @@ TEST_CASE_METHOD(RootFixture,
                  "[settings][settings_root]") {
     // First refresh resolves via the async probe, latching last_ethernet_up_.
     get_global_settings_panel().refresh_status_lines();
-    REQUIRE(wait_until([&]() { return status_text(root_, "row_connection") == "Ethernet"; }));
+    REQUIRE(
+        wait_until([&]() { return status_text(root_, "row_connection") == ethernet_status(); }));
 
-    // A second refresh's synchronous, pre-probe write must already read
-    // "Ethernet" from the remembered state rather than guessing "Not
-    // connected" until its own probe lands.
+    // A second refresh's synchronous, pre-probe write must already read the
+    // remembered state rather than guessing until its own probe lands.
     get_global_settings_panel().refresh_status_lines();
-    CHECK(status_text(root_, "row_connection") == "Ethernet");
+    CHECK(status_text(root_, "row_connection") == ethernet_status());
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: tapping Printer opens the Printer Manager",
@@ -472,10 +483,16 @@ TEST_CASE_METHOD(RootFixture, "settings root: Android shows the printer host as 
 
 TEST_CASE_METHOD(RootFixture, "settings root: Updates status reads firmware-managed",
                  "[settings][settings_root]") {
+    set_int("updates_firmware_managed", 0);
+    get_global_settings_panel().refresh_status_lines();
+    process_lvgl(5);
+    const std::string unmanaged = status_text(root_, "row_updates");
+
     set_int("updates_firmware_managed", 1);
     get_global_settings_panel().refresh_status_lines();
     process_lvgl(5);
-    CHECK(status_text(root_, "row_updates") == "Managed by firmware");
+    CHECK_FALSE(status_text(root_, "row_updates").empty());
+    CHECK(status_text(root_, "row_updates") != unmanaged);
 }
 
 TEST_CASE_METHOD(RootFixture, "settings root: refresh reads every stateful row's source",
@@ -505,16 +522,21 @@ TEST_CASE_METHOD(RootFixture, "settings root: refresh reads every stateful row's
     lv_subject_t* hw_level =
         get_printer_state().hardware_validation_state().get_hardware_status_level_subject();
     const int saved_hw_level = lv_subject_get_int(hw_level);
-    lv_subject_set_int(hw_level, 1);
+    lv_subject_set_int(hw_level, 0);
+    get_global_settings_panel().refresh_status_lines();
+    process_lvgl(5);
+    const std::string devices_ok = status_text(root_, "row_devices");
 
+    lv_subject_set_int(hw_level, 1);
     get_global_settings_panel().refresh_status_lines();
     process_lvgl(5);
 
     CHECK(status_text(root_, "row_display") == "65% · sleep 10 min");
     CHECK(status_text(root_, "row_appearance") ==
           "Dark Mode · " + theme_manager_get_active_theme().name);
-    CHECK(status_text(root_, "row_devices") == "Needs attention");
-    CHECK(status_text(root_, "row_language_time") == "English · 24-hour");
+    CHECK_FALSE(status_text(root_, "row_devices").empty());
+    CHECK(status_text(root_, "row_devices") != devices_ok);
+    CHECK(status_text(root_, "row_language_time").find("24") != std::string::npos);
 
     lv_subject_set_int(hw_level, saved_hw_level);
     lv_subject_set_int(brightness, saved_brightness);

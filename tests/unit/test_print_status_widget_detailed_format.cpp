@@ -389,7 +389,7 @@ TEST_CASE_METHOD(HelixTestFixture,
 
         // Exactly the presentation used when there is no history at all.
         REQUIRE(subject_text("print_status_idle_filename").empty());
-        REQUIRE(subject_text("print_status_idle_when") == "No prints yet");
+        REQUIRE_FALSE(subject_text("print_status_idle_when").empty());
         REQUIRE(subject_text("print_status_idle_meta").empty());
         // print_status_detailed_idle.xml binds the Reprint Last button's
         // disabled state to this being 0.

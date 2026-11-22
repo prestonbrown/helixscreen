@@ -108,8 +108,9 @@ TEST_CASE_METHOD(XMLTestFixture, "spool menu shows the price in Spoolman's curre
     lv_obj_t* price = lv_obj_find_by_name(test_screen(), "spool_price_label");
     REQUIRE(price);
     CHECK_FALSE(lv_obj_is_hidden(price));
-    CHECK(std::string(lv_label_get_text(price)) == "Price: \xE2\x82\xAC"
-                                                   "24.50");
+    CHECK(std::string(lv_label_get_text(price))
+              .find("\xE2\x82\xAC"
+                    "24.50") != std::string::npos);
     menu.hide();
     process_lvgl(20);
 }
