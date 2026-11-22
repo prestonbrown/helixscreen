@@ -11,6 +11,7 @@
 #include "core/static_panel_registry.h"
 #include "core/static_subject_registry.h"
 #include "i_moonraker_api.h"
+#include "observe_language.h"
 #include "printer_discovery.h"
 #include "temp_graph_controller.h"
 #include "translation_loader.h"
@@ -152,6 +153,8 @@ void CalibrationLiveCard::init_subjects() {
         }
     });
     subjects_initialized_ = true;
+    language_observer_ =
+        observe_language_change(this, [](CalibrationLiveCard* self) { self->publish_strings(); });
 
     // Runs from StaticSubjectRegistry::deinit_all(), which may come after
     // StaticPanelRegistry has destroyed the card.
@@ -163,6 +166,7 @@ void CalibrationLiveCard::init_subjects() {
 }
 
 void CalibrationLiveCard::deinit_subjects() {
+    language_observer_.reset();
     detach();
     subjects_.deinit_all();
     subjects_initialized_ = false;
@@ -191,17 +195,20 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
 
     const int current = run ? run->current() : -1;
     if (current < 0) {
-        const bool over = run && run->phase() != calibration::RunPhase::Ready &&
-                          run->phase() != calibration::RunPhase::Running;
+        shown_done_ = run && run->phase() != calibration::RunPhase::Ready &&
+                      run->phase() != calibration::RunPhase::Running;
+        shown_kind_.reset();
         stop_heat();
         stop_shaper();
-        publish_text(over ? live_card_done_text() : LiveCardText{});
+        publish_strings();
         return;
     }
     const auto& entry = run->entries()[static_cast<size_t>(current)];
     const StepKind kind = entry.step->info().kind;
+    shown_done_ = false;
+    shown_kind_ = kind;
+    shown_progress_ = entry.progress;
     const LiveCardText text = live_card_text(kind, entry.progress.live);
-    publish_text(text);
 
     if (text.kind != LiveKind::Heat) {
         stop_heat();
@@ -222,6 +229,49 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
     case LiveKind::Belt:
         show_belt(entry.progress);
         break;
+    default:
+        break;
+    }
+    publish_strings();
+}
+
+void CalibrationLiveCard::publish_strings() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    if (shown_done_ || !shown_kind_) {
+        publish_text(shown_done_ ? live_card_done_text() : LiveCardText{});
+        return;
+    }
+    const StepLive& live = shown_progress_.live;
+    const LiveCardText text = live_card_text(*shown_kind_, live);
+    publish_text(text);
+    switch (text.kind) {
+    case LiveKind::Mesh: {
+        const std::string count =
+            live.probe_total > 0
+                ? fmt::format(fmt::runtime(lv_tr("{} of {} points")), live.probed, live.probe_total)
+                : std::string();
+        lv_subject_set_string(&mesh_count_, count.c_str());
+        break;
+    }
+    case LiveKind::Shaper:
+        lv_subject_set_string(&shaper_note_,
+                              shaper_cannot_stream_ ? lv_tr("This printer cannot stream the sweep "
+                                                            "to the screen")
+                              : live.axis == 0      ? lv_tr("Checking the accelerometer")
+                                               : lv_tr("The curve draws in as the axis sweeps"));
+        break;
+    case LiveKind::Belt: {
+        const char* const names[kBelts] = {lv_tr("X belt"), lv_tr("Y belt")};
+        for (int i = 0; i < kBelts; ++i) {
+            lv_subject_set_string(&belt_name_[i], names[i]);
+            lv_subject_set_string(&belt_state_[i], belt_pull(shown_progress_, i) >= 1.0f
+                                                       ? lv_tr("at target")
+                                                       : lv_tr("pulling..."));
+        }
+        break;
+    }
     default:
         break;
     }
@@ -275,6 +325,9 @@ void CalibrationLiveCard::show_heat(lv_obj_t* root, const StepLive& live) {
     // The axis reaches past the calibration target in whole steps.
     const float step = bed ? 50.0f : 100.0f;
     cfg.scale_params.step = step;
+    cfg.y_axis_increment = step;
+    cfg.grid_on_y_ticks = true;
+    cfg.time_grid = false;
     cfg.scale_params.floor =
         std::max(step * 2.0f, (std::floor(static_cast<float>(live.target_c) / step) + 1.0f) * step);
     cfg.series.push_back({live.heater, kTempGraphSeriesColors[bed ? 1 : 0], true,
@@ -297,11 +350,6 @@ void CalibrationLiveCard::show_mesh(lv_obj_t* root, const StepLive& live) {
     lv_subject_set_int(&mesh_unprobed_, live.probe_total > 0
                                             ? mesh_unprobed_percent(live.probed, live.probe_total)
                                             : 100);
-    const std::string count =
-        live.probe_total > 0
-            ? fmt::format(fmt::runtime(lv_tr("{} of {} points")), live.probed, live.probe_total)
-            : std::string();
-    lv_subject_set_string(&mesh_count_, count.c_str());
     if (lv_obj_t* map = find(root, "cal_live_mesh_map")) {
         feed_mesh_map(map);
     }
@@ -379,9 +427,6 @@ void CalibrationLiveCard::show_shaper(lv_obj_t* root, const StepLive& live) {
                                       shaper_facts_ = std::move(facts);
                                   }));
     }
-    lv_subject_set_string(&shaper_note_, live.axis == 0
-                                             ? lv_tr("Checking the accelerometer")
-                                             : lv_tr("The curve draws in as the axis sweeps"));
     if (live.axis == 0) {
         return;
     }
@@ -393,16 +438,17 @@ void CalibrationLiveCard::show_shaper(lv_obj_t* root, const StepLive& live) {
         const auto target = calibration::live_sweep_target(
             *shaper_facts_,
             live.axis == 'Y' ? calibration::SweepAxis::Y : calibration::SweepAxis::X);
+        shaper_chart_.set_axis_follows_sweep(true);
         shaper_armed_ = shaper_chart_.begin(find(root, "cal_live_shaper_chart"), live.axis, target);
         if (shaper_armed_) {
             shaper_chart_.set_marks_peak(true);
             if (auto* chart = shaper_chart_.chart()) {
                 ui_frequency_response_chart_set_y_labels_visible(chart, false);
+                ui_frequency_response_chart_set_x_end_labels_only(chart, true);
+                ui_frequency_response_chart_set_peak_labels(chart, true);
             }
-        } else {
-            lv_subject_set_string(&shaper_note_,
-                                  lv_tr("This printer cannot stream the sweep to the screen"));
         }
+        shaper_cannot_stream_ = !shaper_armed_;
     }
     if (!shaper_armed_) {
         return;
@@ -418,25 +464,27 @@ void CalibrationLiveCard::stop_shaper() {
     shaper_armed_ = false;
     shaper_facts_asked_ = false;
     shaper_facts_.reset();
+    shaper_cannot_stream_ = false;
 }
 
 // ============================================================================
 // Belt tension: each belt's pull up to its target mark
 // ============================================================================
 
+float CalibrationLiveCard::belt_pull(const calibration::StepProgress& progress, int belt) {
+    // A step that does not measure each belt shows them pulled together.
+    const float pull = progress.live.belt_pull[belt];
+    if (pull >= 0.0f) {
+        return pull;
+    }
+    return progress.percent < 0 ? 0.0f : static_cast<float>(progress.percent) / 100.0f;
+}
+
 void CalibrationLiveCard::show_belt(const calibration::StepProgress& progress) {
-    const char* const names[kBelts] = {lv_tr("X belt"), lv_tr("Y belt")};
     for (int i = 0; i < kBelts; ++i) {
-        // A step that does not measure each belt shows them pulled together.
-        float pull = progress.live.belt_pull[i];
-        if (pull < 0.0f) {
-            pull = progress.percent < 0 ? 0.0f : static_cast<float>(progress.percent) / 100.0f;
-        }
-        const bool done = pull >= 1.0f;
+        const float pull = belt_pull(progress, i);
         lv_subject_set_int(&belt_fill_[i], belt_fill_percent(pull));
-        lv_subject_set_int(&belt_done_[i], done ? 1 : 0);
-        lv_subject_set_string(&belt_name_[i], names[i]);
-        lv_subject_set_string(&belt_state_[i], done ? lv_tr("at target") : lv_tr("pulling..."));
+        lv_subject_set_int(&belt_done_[i], pull >= 1.0f ? 1 : 0);
     }
 }
 

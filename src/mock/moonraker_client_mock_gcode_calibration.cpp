@@ -16,6 +16,30 @@
 
 using namespace helix;
 
+// A heater calibration holds its heater at the calibration temperature, as
+// Klipper does, and turns it off when it ends. The mock skips the warm-up: the
+// heater starts at the temperature, so its readout and target line show at once.
+void MoonrakerClientMock::hold_heater_for_calibration(const std::string& heater, double target) {
+    if (heater == "extruder") {
+        set_extruder_target(target);
+        if (target > 0.0) {
+            extruder_temp_.store(target);
+        }
+    } else if (heater == "heater_bed") {
+        set_bed_target(target);
+        if (target > 0.0) {
+            bed_temp_.store(target);
+        }
+    } else {
+        return;
+    }
+    json state = {{"target", target}};
+    if (target > 0.0) {
+        state["temperature"] = target;
+    }
+    dispatch_status_update({{heater, state}});
+}
+
 // PID Calibration simulation
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_pid_calibrate(const std::string& gcode) {
@@ -67,8 +91,11 @@ MoonrakerClientMock::gcode_pid_calibrate(const std::string& gcode) {
         kd = 101.178f;
     }
     snprintf(buf, sizeof(buf), "PID parameters: pid_Kp=%.3f pid_Ki=%.3f pid_Kd=%.3f", kp, ki, kd);
-    play_console_lines(std::move(lines), 500,
-                       [this, result = std::string(buf)] { dispatch_gcode_response(result); });
+    hold_heater_for_calibration(heater, target);
+    play_console_lines(std::move(lines), 500, [this, heater, result = std::string(buf)] {
+        hold_heater_for_calibration(heater, 0.0);
+        dispatch_gcode_response(result);
+    });
 
     return 0; // Success - results come asynchronously via gcode_response
     return std::nullopt;
@@ -93,6 +120,11 @@ MoonrakerClientMock::gcode_mpc_calibrate(const std::string& gcode) {
 
     spdlog::info("[MoonrakerClientMock] MPC_CALIBRATE: heater={} fan_breakpoints={}", heater,
                  fan_breakpoints);
+    int target = 200;
+    if (auto pos = gcode.find("TARGET="); pos != std::string::npos) {
+        target = std::atoi(gcode.c_str() + pos + 7);
+    }
+    hold_heater_for_calibration(heater, target);
 
     // Settle, heatup, one line per fan breakpoint, then the result block,
     // 500ms apart.
@@ -106,6 +138,7 @@ MoonrakerClientMock::gcode_mpc_calibrate(const std::string& gcode) {
     }
     // Kalico reports the result as one respond_info, so one multi-line message.
     play_console_lines(std::move(lines), 500, [this, heater, fan_breakpoints] {
+        hold_heater_for_calibration(heater, 0.0);
         std::string result = "// Finished MPC calibration of heater '" + heater +
                              "'\n"
                              "// Measured:\n"

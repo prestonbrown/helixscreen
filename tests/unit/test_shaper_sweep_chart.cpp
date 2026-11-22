@@ -257,3 +257,26 @@ TEST_CASE_METHOD(ShaperSweepChartFixture,
     REQUIRE(chart.chart() != nullptr);
     CHECK(lv_obj_get_parent(ui_frequency_response_chart_get_obj(chart.chart())) == other);
 }
+
+TEST_CASE_METHOD(ShaperSweepChartFixture, "ShaperSweepChart can span its axis over the sweep",
+                 "[input_shaper][preview][calibration_live]") {
+    const SweepPlan plan{5.0f, 60.0f, 1.0f};
+    chart.set_axis_follows_sweep(true);
+    REQUIRE(chart.begin(host, 'X', target(plan)));
+    const auto range = ui_frequency_response_chart_get_freq_range(chart.chart());
+    CHECK(range.first == plan.freq_start_hz);
+    CHECK(range.second == plan.freq_end_hz);
+
+    auto synth = synth_for(plan);
+    play(synth, plan, 1.7 + 55.0 + 2.0);
+    // The curve fills the sweep's span: its first and last slots carry points.
+    const auto drawn = amps();
+    REQUIRE_FALSE(drawn.empty());
+    CHECK_FALSE(std::isnan(drawn.front()));
+    CHECK_FALSE(std::isnan(drawn.back()));
+
+    chart.set_axis_follows_sweep(false);
+    REQUIRE(chart.begin(host, 'X', target(plan)));
+    CHECK(ui_frequency_response_chart_get_freq_range(chart.chart()).second ==
+          helix::ui::kShaperChartMaxHz);
+}

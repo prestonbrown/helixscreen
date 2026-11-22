@@ -32,9 +32,11 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../ui_test_utils.h"
+#include "core/update_queue.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/core/lv_obj_draw_private.h"
 #include "lvgl/src/misc/lv_text_private.h"
+#include "theme_manager.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1542,4 +1544,34 @@ TEST_CASE("the chart fill follows the curve without per-triangle wedges",
             CHECK(std::abs(shade(opa.first, first_top, row) - shade(opa.second, b, row)) <= 1.0);
         }
     }
+}
+
+TEST_CASE_METHOD(FrequencyResponseChartTestFixture,
+                 "the plot takes the palette's card surface and follows a theme change",
+                 "[frequency_response_chart][theme]") {
+    auto& tm = ThemeManager::instance();
+    const ThemePalette saved_light = tm.light_palette();
+    const ThemePalette saved_dark = tm.dark_palette();
+    const bool saved_dark_mode = tm.is_dark_mode();
+
+    ui_frequency_response_chart_t* chart = ui_frequency_response_chart_create(screen);
+    REQUIRE(chart != nullptr);
+    ui_frequency_response_chart_configure_for_platform(chart, PlatformTier::STANDARD);
+    lv_obj_t* plot = lv_obj_get_child(ui_frequency_response_chart_get_obj(chart), 0);
+    REQUIRE(plot != nullptr);
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(plot, LV_PART_MAIN), tm.current_palette().card_bg));
+
+    ThemePalette light = saved_light;
+    light.card_bg = lv_color_hex(0xF4F1EA);
+    tm.set_palettes(light, saved_dark);
+    tm.set_dark_mode(false);
+    lv_subject_t* changed = theme_manager_get_changed_subject();
+    REQUIRE(changed != nullptr);
+    lv_subject_set_int(changed, lv_subject_get_int(changed) + 1);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_color_eq(lv_obj_get_style_bg_color(plot, LV_PART_MAIN), light.card_bg));
+
+    ui_frequency_response_chart_destroy(chart);
+    tm.set_palettes(saved_light, saved_dark);
+    tm.set_dark_mode(saved_dark_mode);
 }

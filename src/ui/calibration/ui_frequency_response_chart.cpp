@@ -11,6 +11,7 @@
 
 #include "ui_frequency_response_chart.h"
 
+#include "core/observer_factory.h"
 #include "display_settings_manager.h"
 #include "lvgl/src/misc/lv_text_private.h" // lv_text_get_width
 #include "theme_manager.h"
@@ -144,6 +145,13 @@ struct ui_frequency_response_chart_t {
 
     FrequencySeriesData series[kMaxSeries];
     int next_series_id = 0;
+
+    bool x_end_labels_only = false; ///< Label only freq_min and freq_max, each with its unit
+    bool peak_labels = false;       ///< Write each marked peak's frequency above its dot
+    char peak_label_text[kMaxSeries][24] = {};
+
+    /// Repaints the plot background when the theme or mode changes.
+    ObserverGuard theme_observer;
 
     // Peak dot pulse animation state (0-255 opacity cycle)
     int32_t pulse_phase = 255; ///< Current glow opacity (animated)
@@ -403,6 +411,21 @@ static void update_chart_series(ui_frequency_response_chart_t* chart, FrequencyS
     lv_chart_refresh(chart->chart);
 }
 
+/**
+ * @brief Paint the plot in the active palette's card surface
+ *
+ * LVGL's default theme styles a chart once, in the mode the app started in, and
+ * does not follow a light/dark switch; the plot takes its color from the palette
+ * instead, now and on every theme change.
+ */
+static void apply_plot_colors(ui_frequency_response_chart_t* chart) {
+    if (!chart || !chart->chart) {
+        return;
+    }
+    lv_obj_set_style_bg_color(chart->chart, ThemeManager::instance().current_palette().card_bg,
+                              LV_PART_MAIN);
+}
+
 // ============================================================================
 // Creation/Destruction
 // ============================================================================
@@ -440,6 +463,12 @@ ui_frequency_response_chart_t* ui_frequency_response_chart_create(lv_obj_t* pare
 
     // Store pointer in user data for retrieval
     lv_obj_set_user_data(chart->root, chart);
+
+    if (lv_subject_t* theme = theme_manager_get_changed_subject()) {
+        chart->theme_observer = helix::ui::observe<int>(
+            theme, chart, [](ui_frequency_response_chart_t* c, int) { apply_plot_colors(c); },
+            subject_never_freed());
+    }
 
     // Default to EMBEDDED tier (configure_for_platform will set up properly)
     chart->tier = helix::PlatformTier::EMBEDDED;
@@ -924,6 +953,29 @@ void ui_frequency_response_chart_mark_peak(ui_frequency_response_chart_t* chart,
                   peak_amplitude);
 }
 
+// NAMESPACE_OK: matches this file's C-style chart API
+void ui_frequency_response_chart_set_x_end_labels_only(ui_frequency_response_chart_t* chart,
+                                                       bool end_only) {
+    if (!chart || chart->x_end_labels_only == end_only) {
+        return;
+    }
+    chart->x_end_labels_only = end_only;
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
+// NAMESPACE_OK: matches this file's C-style chart API
+void ui_frequency_response_chart_set_peak_labels(ui_frequency_response_chart_t* chart, bool on) {
+    if (!chart || chart->peak_labels == on) {
+        return;
+    }
+    chart->peak_labels = on;
+    if (chart->chart) {
+        lv_obj_invalidate(chart->chart);
+    }
+}
+
 void ui_frequency_response_chart_clear_peak(ui_frequency_response_chart_t* chart, int series_id) {
     if (!chart) {
         return;
@@ -1179,6 +1231,27 @@ static void draw_peak_dots_cb(lv_event_t* e) {
         dot_area.x2 = abs_x + kDotRadius;
         dot_area.y2 = abs_y + kDotRadius;
         lv_draw_rect(layer, &dot_dsc, &dot_area);
+
+        if (chart->peak_labels) {
+            const lv_font_t* font = theme_manager_get_font("font_small");
+            const int32_t label_h = theme_manager_get_font_height(font);
+            const int32_t half_w = ui_frequency_response_chart_x_label_half_width(font);
+            char* text = chart->peak_label_text[i];
+            snprintf(text, sizeof(chart->peak_label_text[0]), "%.1f %s", series->peak_freq,
+                     chart->x_unit.c_str());
+            lv_draw_label_dsc_t label_dsc;
+            lv_draw_label_dsc_init(&label_dsc);
+            label_dsc.base.obj = chart->chart;
+            label_dsc.color = theme_manager_get_color("text");
+            label_dsc.font = font;
+            label_dsc.align = LV_TEXT_ALIGN_CENTER;
+            label_dsc.text = text;
+            const int32_t cx =
+                ui_frequency_response_chart_x_label_center(abs_x, half_w, content_x1, content_x2);
+            const int32_t y2 = std::max(chart_coords.y1 + label_h, abs_y - kGlowRadius);
+            lv_area_t label_area{cx - half_w, y2 - label_h, cx + half_w, y2};
+            lv_draw_label(layer, &label_dsc, &label_area);
+        }
 
         spdlog::trace("[FreqChart] Drew peak dot for series {} at ({}, {})", series->id, abs_x,
                       abs_y);
@@ -1672,6 +1745,22 @@ static void draw_x_axis_labels_cb(lv_event_t* e) {
     static char freq_labels[8][16];
     int label_idx = 0;
 
+    if (chart->x_end_labels_only) {
+        for (float freq : {chart->freq_min, chart->freq_max}) {
+            char* buf = freq_labels[label_idx++];
+            snprintf(buf, sizeof(freq_labels[0]), "%s",
+                     ui_frequency_response_chart_format_x_label(freq, true, chart->x_unit.c_str())
+                         .c_str());
+            const int32_t x = freq == chart->freq_min ? content_x1 : content_x2;
+            const int32_t cx =
+                ui_frequency_response_chart_x_label_center(x, half_w, coords.x1, coords.x2);
+            lv_area_t label_area{cx - half_w, label_y, cx + half_w, label_y + label_height};
+            label_dsc.text = buf;
+            lv_draw_label(layer, &label_dsc, &label_area);
+        }
+        return;
+    }
+
     // Ticks sit on round multiples of the interval, so a band starting at
     // 5 Hz reads 25, 50, ... rather than 5, 30, 55. The first carries the unit.
     const float first_tick = std::ceil(chart->freq_min / tick_interval) * tick_interval;
@@ -1850,6 +1939,7 @@ void ui_frequency_response_chart_configure_for_platform(ui_frequency_response_ch
 
             // Style
             lv_obj_set_style_bg_opa(chart->chart, LV_OPA_COVER, LV_PART_MAIN);
+            apply_plot_colors(chart);
             lv_obj_set_style_border_width(chart->chart, 0, LV_PART_MAIN);
             lv_obj_set_style_line_width(chart->chart, 2, LV_PART_ITEMS);
             lv_obj_set_style_width(chart->chart, 0, LV_PART_INDICATOR);

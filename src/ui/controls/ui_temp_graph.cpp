@@ -1494,15 +1494,36 @@ static void draw_grid_lines_cb(lv_event_t* e) {
     line_dsc.width = 1;
     line_dsc.opa = LV_OPA_30;
 
-    // Draw horizontal grid lines (5 lines = 4 divisions)
-    constexpr int kHDivisions = 5;
-    for (int i = 0; i <= kHDivisions; i++) {
-        int32_t y = content_y1 + (content_height * i) / kHDivisions;
-        line_dsc.p1.x = content_x1;
-        line_dsc.p1.y = y;
-        line_dsc.p2.x = content_x2;
-        line_dsc.p2.y = y;
-        lv_draw_line(layer, &line_dsc);
+    const float temp_range = graph->max_temp - graph->min_temp;
+    if (graph->grid_on_y_ticks && graph->y_axis_increment > 0 && temp_range > 0) {
+        // One line under each Y label, from the same ticks the labels use.
+        const auto ticks =
+            helix::units::temp_axis_ticks(graph->min_temp, graph->max_temp, graph->y_axis_increment,
+                                          helix::units::display_temp_unit());
+        for (const helix::units::TempAxisTick& tick : ticks) {
+            const float fraction =
+                (graph->max_temp - static_cast<float>(tick.celsius)) / temp_range;
+            const int32_t y = content_y1 + static_cast<int32_t>(fraction * content_height);
+            line_dsc.p1.x = content_x1;
+            line_dsc.p1.y = y;
+            line_dsc.p2.x = content_x2;
+            line_dsc.p2.y = y;
+            lv_draw_line(layer, &line_dsc);
+        }
+    } else {
+        // Draw horizontal grid lines (5 lines = 4 divisions)
+        constexpr int kHDivisions = 5;
+        for (int i = 0; i <= kHDivisions; i++) {
+            int32_t y = content_y1 + (content_height * i) / kHDivisions;
+            line_dsc.p1.x = content_x1;
+            line_dsc.p1.y = y;
+            line_dsc.p2.x = content_x2;
+            line_dsc.p2.y = y;
+            lv_draw_line(layer, &line_dsc);
+        }
+    }
+    if (!graph->time_grid) {
+        return;
     }
 
     // Vertical grid lines sit at TIME-BASED positions from the same axis the
@@ -2441,6 +2462,17 @@ void ui_temp_graph_set_series_gradient(ui_temp_graph_t* graph, SeriesId series_i
 
     spdlog::trace("[TempGraph] Series {} gradient: bottom={}%, top={}%", series_id,
                   (bottom_opa * 100) / 255, (top_opa * 100) / 255);
+}
+
+void ui_temp_graph_set_grid(ui_temp_graph_t* graph, bool on_y_ticks, bool time_grid) {
+    if (!graph) {
+        return;
+    }
+    graph->grid_on_y_ticks = on_y_ticks;
+    graph->time_grid = time_grid;
+    if (graph->chart) {
+        lv_obj_invalidate(graph->chart);
+    }
 }
 
 void ui_temp_graph_set_y_axis(ui_temp_graph_t* graph, float increment, bool show) {

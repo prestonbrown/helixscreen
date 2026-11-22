@@ -404,6 +404,7 @@ void TempGraphController::create_graph() {
 
     ui_temp_graph_set_axis_size(graph_, config_.axis_size);
     ui_temp_graph_set_features(graph_, config_.initial_features);
+    ui_temp_graph_set_grid(graph_, config_.grid_on_y_ticks, config_.time_grid);
     ui_temp_graph_set_point_count(graph_, config_.point_count);
 }
 
@@ -861,7 +862,9 @@ void TempGraphController::apply_auto_range() {
 
     ui_temp_graph_set_temp_range(graph_, 0.0f, y_axis_max_);
 
-    float y_increment = (y_axis_max_ <= 150.0f) ? 25.0f : 50.0f;
+    float y_increment = config_.y_axis_increment > 0.0f ? config_.y_axis_increment
+                        : (y_axis_max_ <= 150.0f)       ? 25.0f
+                                                        : 50.0f;
     bool show_y = (ui_temp_graph_get_features(graph_) & TEMP_GRAPH_FEATURE_Y_AXIS) != 0;
     ui_temp_graph_set_y_axis(graph_, y_increment, show_y);
 

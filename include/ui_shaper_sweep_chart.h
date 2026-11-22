@@ -74,6 +74,11 @@ class ShaperSweepChart {
     /// frequency, Analyzing finishes the stream. Other phases do nothing.
     void on_progress(ShaperCalibrationPhase phase, float freq_hz);
 
+    /// Span the frequency axis over the sweep's own range (the target's plan,
+    /// from [resonance_tester] min_freq / max_freq) instead of 0 to
+    /// kShaperChartMaxHz. Takes effect at the next begin(). Off by default.
+    void set_axis_follows_sweep(bool follows);
+
     /// Mark the drawn curve's highest point with its frequency, redrawn with
     /// every update. Off by default.
     void set_marks_peak(bool marks);
@@ -105,6 +110,9 @@ class ShaperSweepChart {
     helix::calibration::SweepColumn column_ = helix::calibration::SweepColumn::X;
     bool has_curve_ = false;
     bool marks_peak_ = false;
+    bool axis_follows_sweep_ = false;
+    float axis_lo_hz_ = 0.0f;
+    float axis_hi_hz_ = kShaperChartMaxHz;
     std::function<void(bool)> on_curve_changed_;
 };
 

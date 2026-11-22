@@ -1483,3 +1483,18 @@ TEST_CASE_METHOD(LVGLTestFixture, "a single-tool print keeps the simulated activ
     REQUIRE(multi.gcode_script("SDCARD_PRINT_FILE FILENAME=Benchbin_MK4_MMU3.gcode") == 0);
     CHECK(multi_published == std::vector<int>{1});
 }
+
+TEST_CASE_METHOD(LVGLTestFixture,
+                 "a heater calibration holds its heater at the target until it ends",
+                 "[mock][gcode_dispatch][calibration_live]") {
+    // Klipper heats the heater to the calibration temperature for the whole
+    // calibration and turns it off at the end; the guided run's heater card
+    // shows that target.
+    MoonrakerClientMock mock(PT::VORON_24);
+    REQUIRE(mock.gcode_script("PID_CALIBRATE HEATER=extruder TARGET=210") == 0);
+    CHECK(mock.extruder_target() == 210.0);
+    for (int i = 0; i < 80 && mock.extruder_target() != 0.0; ++i) {
+        process_lvgl(100);
+    }
+    CHECK(mock.extruder_target() == 0.0);
+}

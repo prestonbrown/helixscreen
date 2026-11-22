@@ -12,6 +12,7 @@
 #include "async_lifetime_guard.h"
 #include "calibration_catalog.h"
 #include "calibration_step.h"
+#include "core/observer_guard.h"
 #include "core/subject.h"
 #include "live_sweep_preview.h"
 #include "subject_managed_panel.h"
@@ -79,6 +80,9 @@ class CalibrationLiveCard {
     void init_subjects();
     void deinit_subjects();
     void publish_text(const LiveCardText& text);
+    /// The card's translated strings for what it shows now; also on a language change.
+    void publish_strings();
+    static float belt_pull(const calibration::StepProgress& progress, int belt);
     void show_heat(lv_obj_t* root, const calibration::StepLive& live);
     void show_mesh(lv_obj_t* root, const calibration::StepLive& live);
     void show_shaper(lv_obj_t* root, const calibration::StepLive& live);
@@ -114,6 +118,13 @@ class CalibrationLiveCard {
     char belt_name_bufs_[kBelts][32]{};
     helix::Subject belt_state_[kBelts];
     char belt_state_bufs_[kBelts][32]{};
+
+    /// What the card shows, kept so a language change can re-word it.
+    bool shown_done_ = false;
+    std::optional<calibration::StepKind> shown_kind_;
+    calibration::StepProgress shown_progress_;
+    bool shaper_cannot_stream_ = false;
+    ObserverGuard language_observer_;
 
     /// The card's body the live views were built in; a new one means a new tree.
     WidgetRef body_;

@@ -91,7 +91,10 @@ struct TempGraphControllerConfig {
     uint32_t initial_features = TEMP_GRAPH_FEATURE_LINES | TEMP_GRAPH_FEATURE_TARGET_LINES |
                                 TEMP_GRAPH_FEATURE_Y_AXIS | TEMP_GRAPH_FEATURE_X_AXIS |
                                 TEMP_GRAPH_FEATURE_GRADIENTS;
-    TempGraphScaleParams scale_params{};     ///< Y-axis auto-scaling parameters
+    TempGraphScaleParams scale_params{}; ///< Y-axis auto-scaling parameters
+    float y_axis_increment = 0.0f;       ///< degrees between Y labels; 0 picks 25 or 50 by range
+    bool grid_on_y_ticks = false;        ///< horizontal grid under the Y labels, not 5 divisions
+    bool time_grid = true;               ///< vertical grid under the time ticks
     std::vector<TempGraphSeriesSpec> series; ///< Series to display
 };
 
