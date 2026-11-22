@@ -122,9 +122,9 @@ sound              navigate settings; click row_sound
 sound-2            navigate settings; click row_sound; wait_idle; scroll overlay_content 0 -190
 printing           navigate settings; click row_printing
 printing-2         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -406
-printing-3         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -832
+printing-3         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -1473
 devices            navigate settings; click row_devices
-devices-2          navigate settings; click row_devices; wait_idle; scroll overlay_content 0 -209
+devices-2          navigate settings; click row_devices; wait_idle; scroll overlay_content 0 -316
 sensors            navigate settings; click row_devices; click row_filament_sensors
 hardware-health    navigate settings; click row_devices; click row_hardware_health
 fan-settings       navigate settings; click row_devices; click row_fan_settings

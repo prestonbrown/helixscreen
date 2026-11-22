@@ -771,10 +771,17 @@ images:
       - {n: 5, widget: btn_save_material, at: top_right}
   - path: docs/images/user/printing-filament-rows.png
     kind: app
-    recipe: printing-2
+    env:
+      HELIX_MOCK_AMS: toolchanger
+    steps:
+      - navigate settings
+      - click row_printing
+      - wait_idle
+      - scroll overlay_content 0 -1068
     markers:
-      - {n: 1, widget: row_material_temps, at: top_right}
-      - {n: 2, widget: row_filament_auto_open_editor, at: top_right}
+      - {n: 1, widget: row_filament_auto_open_editor, at: top_right}
+      - {n: 2, widget: row_number_lanes_from_zero, at: top_right}
+      - {n: 3, widget: row_tool_change_confirm, at: top_right}
   - path: docs/images/user/led-settings-startup.png
     kind: app
     steps:

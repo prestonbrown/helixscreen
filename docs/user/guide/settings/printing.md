@@ -276,10 +276,9 @@ This covers every material preset: the PLA, PETG, ABS/ASA and TPU buttons and th
 
 ![The Filament section on a multi-tool printer](../../../images/user/printing-filament-rows.png)
 
-1. Material Temperatures opens the preset editor.
-2. Edit filament on insert opens the editor when a spool is detected.
-
-Below them, Number slots from 0 changes how slots are labelled, and Confirm tool changes asks before a tool change, on multi-tool printers only.
+1. Edit filament on insert opens the editor when a spool is detected.
+2. Number slots from 0 changes how slots are labelled.
+3. Confirm tool changes asks before a tool change, on multi-tool printers only.
 
 Only the display changes. Tool names such as T0 and T1 stay as they are. See [the filament system panel](../filament-ams-panel.md) for where the numbers appear.
 
