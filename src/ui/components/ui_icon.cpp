@@ -5,6 +5,7 @@
 
 #include "ui_fonts.h"
 #include "ui_icon_codepoints.h"
+#include "ui_obj_flags.h"
 #if HELIX_HAS_PLUGINS
 #include "ui_icon_image.h"
 #endif
@@ -283,7 +284,7 @@ static void ui_icon_xml_apply(lv_xml_parser_state_t* state, const char** attrs) 
             custom_color_set = true;
         } else if (strcmp(name, "contrast") == 0 && lv_xml_to_bool(value)) {
             // DECLARATIVE_OK: a draw hook in the widget's own implementation
-            lv_obj_add_flag(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS);
+            helix::ui::obj_set_flags(obj, LV_OBJ_FLAG_SEND_DRAW_TASK_EVENTS, true);
             lv_obj_add_event_cb(obj, contrast_draw_cb, LV_EVENT_DRAW_TASK_ADDED, nullptr);
         }
     }
