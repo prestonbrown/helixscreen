@@ -162,6 +162,7 @@ translations:
   1 more tap to {} beta features: 1 нажатие до {} бета-функций
   1 print: '1 печать'
   1 profile: '1 профиль'
+  1 step due · about {} min: ''
   1 step never run · about {} min: '1 шаг не выполнялся · около {} мин'
   1 step · about {} min: '1 шаг · около {} мин'
   '1 unit': '1 ед.'
@@ -3250,6 +3251,7 @@ translations:
   Not yet calibrated: Ещё не откалибровано
   Notes: Заметки
   Notes (optional): Заметки (необязательно)
+  Nothing due · about {} min: ''
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Повороты {0} ничего не изменили. Верните их и проверьте механику."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "{1} оборота {0} ничего не изменили. Поверните {0} на {1} оборота назад и проверьте механику."
   Nothing loaded: Ничего не загружено
@@ -4170,6 +4172,7 @@ translations:
   Runout: 'Окончание'
   Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
+  Runs everything this printer needs, in order ·: ''
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6222,6 +6225,7 @@ translations:
     other: '{} слота'
   '{} spool cleared': '{}: катушка удалена'
   '{} started': '{} запущено'
+  '{} steps due · about {} min': ''
   '{} steps never run · about {} min': 'Не выполнялось шагов: {} · около {} мин'
   '{} steps · about {} min': 'Шагов: {} · около {} мин'
   '{} target set to {}°C': Целевая температура {} — {}°C

@@ -258,6 +258,11 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(s.tone == helix::ui::TileTone::Done);
     const HistoryEntry bare{"2026-03-09", "", json::object()};
     CHECK(helix::ui::tile_status(step, &bare, nullptr).text == "Done Mar 9");
+    // A tile holds one short reading; a longer or multi-part result shows the date alone.
+    const HistoryEntry joined{"2026-11-20", "X: MZV · Y: EI", json::object()};
+    CHECK(helix::ui::tile_status(step, &joined, nullptr).text == "Done Nov 20");
+    const HistoryEntry wordy{"2026-11-20", "MPC thermal model for extruder", json::object()};
+    CHECK(helix::ui::tile_status(step, &wordy, nullptr).text == "Done Nov 20");
 
     using helix::ui::TileTone;
     const std::pair<Tier, std::pair<const char*, TileTone>> never[] = {
@@ -345,7 +350,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
 namespace {
 
-/// The step count a "N step(s) never run" banner leads with, or -1.
+/// The step count a "N step(s) due" banner leads with, or -1.
 long banner_count(const char* text) {
     char* end = nullptr;
     const long n = std::strtol(text, &end, 10);
@@ -355,7 +360,7 @@ long banner_count(const char* text) {
 } // namespace
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "the Calibration screen offers a guided run and counts the steps never run",
+                 "the Calibration screen offers a guided run and counts the steps due",
                  "[calibration_history][calibration_hub]") {
     MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
     helix::PrinterState state;
@@ -374,7 +379,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     REQUIRE(text != nullptr);
     CHECK(lv_subject_get_int(shown) == 1);
     const std::string before = lv_subject_get_string(text);
-    CHECK(before.find("never run") != std::string::npos);
+    CHECK(before.find("due") != std::string::npos);
     const long never_run = banner_count(before.c_str());
     REQUIRE(never_run >= 1);
 
@@ -384,7 +389,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(lv_subject_get_int(shown) == 1);
     const std::string after = lv_subject_get_string(text);
     if (never_run == 1) {
-        CHECK(after.find("Run everything again") == 0);
+        CHECK(after.find("Nothing due") == 0);
     } else {
         CHECK(banner_count(after.c_str()) == never_run - 1);
     }

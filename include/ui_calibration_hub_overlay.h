@@ -22,8 +22,9 @@ namespace helix::ui {
 /// The color of a tile's status line; the values are calibration_hub_tile.xml's.
 enum class TileTone : int { Idle = 0, Due = 1, Done = 2 };
 
-/// What a tile's status line says about a step: its last result, else the
-/// result the printer's config holds (@p in_config, no date), else its tier.
+/// What a tile's status line says about a step: when it last ran with its
+/// result if that is one short reading, else the result the printer's config
+/// holds (@p in_config, no date), else its tier.
 struct TileStatus {
     std::string text;
     TileTone tone;
@@ -73,8 +74,8 @@ class CalibrationHubOverlay : public OverlayBase {
 };
 
 /// The guided calibration banner's line: how many of the steps a run would
-/// tick never ran, and how long the run takes. @p never_run counts those.
-[[nodiscard]] std::string guided_banner_text(int never_run, int minutes);
+/// tick are due (never ran), and how long the run takes.
+[[nodiscard]] std::string guided_banner_text(int due, int minutes);
 
 CalibrationHubOverlay& get_calibration_hub_overlay();
 

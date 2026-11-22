@@ -114,6 +114,7 @@ translations:
   1 more tap to {} beta features: 1 weiteres Mal tippen, um Beta-Funktionen zu {}
   1 print: '1 Druck'
   1 profile: '1 Profil'
+  1 step due · about {} min: ''
   1 step never run · about {} min: '1 Schritt nie ausgeführt · etwa {} Min.'
   1 step · about {} min: '1 Schritt · etwa {} Min.'
   '1 unit': '1 Einheit'
@@ -3186,6 +3187,7 @@ translations:
   Not yet calibrated: Noch nicht kalibriert
   Notes: Notizen
   Notes (optional): Notizen (optional)
+  Nothing due · about {} min: ''
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "Auf die Umdrehungen an {0} folgte nichts. Nimm sie zurück und prüfe dann die Mechanik."
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "Auf {1} Umdrehungen an {0} folgte nichts. Drehe {0} um {1} Umdrehungen zurück und prüfe dann die Mechanik."
   Nothing loaded: Nichts geladen
@@ -4090,6 +4092,7 @@ translations:
   Runout: 'Auslauf'
   Runout Backup: 'Ersatz bei Auslauf'
   Runout Sensor: Auslaufsensor
+  Runs everything this printer needs, in order ·: ''
   Runs the printer's tool offset calibration for every tool.: Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6106,6 +6109,7 @@ translations:
   '{} slots': '{} Slots'
   '{} spool cleared': '{}: Spule gelöscht'
   '{} started': '{} gestartet'
+  '{} steps due · about {} min': ''
   '{} steps never run · about {} min': '{} Schritte nie ausgeführt · etwa {} Min.'
   '{} steps · about {} min': '{} Schritte · etwa {} Min.'
   '{} target set to {}°C': '{}-Zieltemperatur auf {}°C gesetzt'

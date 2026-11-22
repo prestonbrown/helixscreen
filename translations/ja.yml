@@ -114,6 +114,7 @@ translations:
   1 more tap to {} beta features: あと1回タップでベータ機能を{}
   1 print: '1 件'
   1 profile: '1 個のプロファイル'
+  1 step due · about {} min: ''
   1 step never run · about {} min: '未実行のステップ 1 · 約{}分'
   1 step · about {} min: '1ステップ · 約{}分'
   '1 unit': '1ユニット'
@@ -3186,6 +3187,7 @@ translations:
   Not yet calibrated: 未キャリブレーション
   Notes: メモ
   Notes (optional): メモ（オプション）
+  Nothing due · about {} min: ''
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: "{0}を回しても変化がありませんでした。元に戻してから機構を確認してください。"
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: "{0}を{1}回転しても変化がありませんでした。{0}を{1}回転戻してから機構を確認してください。"
   Nothing loaded: 装填されていません
@@ -4090,6 +4092,7 @@ translations:
   Runout: 'フィラメント切れ'
   Runout Backup: 'フィラメント切れ時の予備'
   Runout Sensor: フィラメント切れセンサー
+  Runs everything this printer needs, in order ·: ''
   Runs the printer's tool offset calibration for every tool.: プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6106,6 +6109,7 @@ translations:
   '{} slots': '{} スロット'
   '{} spool cleared': '{} のスプールをクリアしました'
   '{} started': '{} を開始しました'
+  '{} steps due · about {} min': ''
   '{} steps never run · about {} min': '未実行のステップ {} · 約{}分'
   '{} steps · about {} min': '{}ステップ · 約{}分'
   '{} target set to {}°C': '{} 目標温度を {}°C に設定しました'

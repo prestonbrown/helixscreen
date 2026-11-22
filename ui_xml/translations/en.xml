@@ -102,6 +102,7 @@
   <translation tag="1 more tap to {} beta features" en="1 more tap to {} beta features"/>
   <translation tag="1 print" en="1 print"/>
   <translation tag="1 profile" en="1 profile"/>
+  <translation tag="1 step due · about {} min" en="1 step due · about {} min"/>
   <translation tag="1 step never run · about {} min" en="1 step never run · about {} min"/>
   <translation tag="1 step · about {} min" en="1 step · about {} min"/>
   <translation tag="1 unit" en="1 unit"/>
@@ -3081,6 +3082,7 @@
   <translation tag="Not yet calibrated" en="Not yet calibrated"/>
   <translation tag="Notes" en="Notes"/>
   <translation tag="Notes (optional)" en="Notes (optional)"/>
+  <translation tag="Nothing due · about {} min" en="Nothing due · about {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." en="Nothing followed the turns on {0}. Undo them, then check the mechanics."/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." en="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics."/>
   <translation tag="Nothing loaded" en="Nothing loaded"/>
@@ -3968,6 +3970,7 @@
   <translation tag="Runout" en="Runout"/>
   <translation tag="Runout Backup" en="Runout Backup"/>
   <translation tag="Runout Sensor" en="Runout Sensor"/>
+  <translation tag="Runs everything this printer needs, in order ·" en="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." en="Runs the printer&apos;s tool offset calibration for every tool."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." en="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." en="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart."/>
@@ -5906,6 +5909,7 @@
   <translation tag="{} slots" en="{} slots"/>
   <translation tag="{} spool cleared" en="{} spool cleared"/>
   <translation tag="{} started" en="{} started"/>
+  <translation tag="{} steps due · about {} min" en="{} steps due · about {} min"/>
   <translation tag="{} steps never run · about {} min" en="{} steps never run · about {} min"/>
   <translation tag="{} steps · about {} min" en="{} steps · about {} min"/>
   <translation tag="{} target set to {}°C" en="{} target set to {}°C"/>

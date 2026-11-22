@@ -102,6 +102,7 @@
   <translation tag="1 more tap to {} beta features" ja="あと1回タップでベータ機能を{}"/>
   <translation tag="1 print" ja="1 件"/>
   <translation tag="1 profile" ja="1 個のプロファイル"/>
+  <translation tag="1 step due · about {} min"/>
   <translation tag="1 step never run · about {} min" ja="未実行のステップ 1 · 約{}分"/>
   <translation tag="1 step · about {} min" ja="1ステップ · 約{}分"/>
   <translation tag="1 unit" ja="1ユニット"/>
@@ -3081,6 +3082,7 @@
   <translation tag="Not yet calibrated" ja="未キャリブレーション"/>
   <translation tag="Notes" ja="メモ"/>
   <translation tag="Notes (optional)" ja="メモ（オプション）"/>
+  <translation tag="Nothing due · about {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." ja="{0}を回しても変化がありませんでした。元に戻してから機構を確認してください。"/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." ja="{0}を{1}回転しても変化がありませんでした。{0}を{1}回転戻してから機構を確認してください。"/>
   <translation tag="Nothing loaded" ja="装填されていません"/>
@@ -3968,6 +3970,7 @@
   <translation tag="Runout" ja="フィラメント切れ"/>
   <translation tag="Runout Backup" ja="フィラメント切れ時の予備"/>
   <translation tag="Runout Sensor" ja="フィラメント切れセンサー"/>
+  <translation tag="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ja="プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。"/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。"/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ja="SAVE_CONFIG に失敗しました: {}。Zオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時にオフセットが失われます。"/>
@@ -5906,6 +5909,7 @@
   <translation tag="{} slots" ja="{} スロット"/>
   <translation tag="{} spool cleared" ja="{} のスプールをクリアしました"/>
   <translation tag="{} started" ja="{} を開始しました"/>
+  <translation tag="{} steps due · about {} min"/>
   <translation tag="{} steps never run · about {} min" ja="未実行のステップ {} · 約{}分"/>
   <translation tag="{} steps · about {} min" ja="{}ステップ · 約{}分"/>
   <translation tag="{} target set to {}°C" ja="{} 目標温度を {}°C に設定しました"/>

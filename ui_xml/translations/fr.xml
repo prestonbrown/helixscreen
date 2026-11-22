@@ -108,6 +108,7 @@
   <translation tag="1 more tap to {} beta features" fr="1 appui supplémentaire pour {} les fonctionnalités bêta"/>
   <translation tag="1 print" fr="1 impression"/>
   <translation tag="1 profile" fr="1 profil"/>
+  <translation tag="1 step due · about {} min"/>
   <translation tag="1 step never run · about {} min" fr="1 étape jamais exécutée · environ {} min"/>
   <translation tag="1 step · about {} min" fr="1 étape · environ {} min"/>
   <translation tag="1 unit" fr="1 unité"/>
@@ -3087,6 +3088,7 @@
   <translation tag="Not yet calibrated" fr="Pas encore calibré"/>
   <translation tag="Notes" fr="Notes"/>
   <translation tag="Notes (optional)" fr="Notes (facultatif)"/>
+  <translation tag="Nothing due · about {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." fr="Rien n&apos;a suivi les tours sur {0}. Annulez-les, puis vérifiez la mécanique."/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." fr="Rien n&apos;a suivi {1} tours de {0}. Ramenez {0} de {1} tours, puis vérifiez la mécanique."/>
   <translation tag="Nothing loaded" fr="Rien de chargé"/>
@@ -3974,6 +3976,7 @@
   <translation tag="Runout" fr="Fin de filament"/>
   <translation tag="Runout Backup" fr="Secours en fin de filament"/>
   <translation tag="Runout Sensor" fr="Capteur de fin de filament"/>
+  <translation tag="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." fr="Lance la calibration des offsets d&apos;outil de l&apos;imprimante pour tous les outils."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." fr="SAVE_CONFIG a échoué : {}. Les décalages d&apos;outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." fr="SAVE_CONFIG a échoué : {}. Le décalage Z a été appliqué mais non enregistré. Lancez SAVE_CONFIG manuellement, sinon il sera perdu au redémarrage."/>
@@ -5912,6 +5915,7 @@
   <translation tag="{} slots" fr="{} slots"/>
   <translation tag="{} spool cleared" fr="{} : bobine effacée"/>
   <translation tag="{} started" fr="{} démarré"/>
+  <translation tag="{} steps due · about {} min"/>
   <translation tag="{} steps never run · about {} min" fr="{} étapes jamais exécutées · environ {} min"/>
   <translation tag="{} steps · about {} min" fr="{} étapes · environ {} min"/>
   <translation tag="{} target set to {}°C" fr="Cible {} réglée à {}°C"/>

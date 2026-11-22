@@ -114,6 +114,7 @@ translations:
   1 more tap to {} beta features: 1 more tap to {} beta features
   1 print: 1 print
   1 profile: 1 profile
+  1 step due · about {} min: 1 step due · about {} min
   1 step never run · about {} min: 1 step never run · about {} min
   1 step · about {} min: 1 step · about {} min
   1 unit: 1 unit
@@ -3170,6 +3171,7 @@ translations:
   Not yet calibrated: Not yet calibrated
   Notes: Notes
   Notes (optional): Notes (optional)
+  Nothing due · about {} min: Nothing due · about {} min
   Nothing followed the turns on {0}. Undo them, then check the mechanics.: Nothing followed the turns on {0}. Undo them, then check the mechanics.
   Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.: Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics.
   Nothing loaded: Nothing loaded
@@ -4071,6 +4073,7 @@ translations:
   Runout: Runout
   Runout Backup: Runout Backup
   Runout Sensor: Runout Sensor
+  Runs everything this printer needs, in order ·: Runs everything this printer needs, in order ·
   Runs the printer's tool offset calibration for every tool.: Runs the printer's tool offset calibration for every tool.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -6080,6 +6083,7 @@ translations:
   '{} slots': '{} slots'
   '{} spool cleared': '{} spool cleared'
   '{} started': '{} started'
+  '{} steps due · about {} min': '{} steps due · about {} min'
   '{} steps never run · about {} min': '{} steps never run · about {} min'
   '{} steps · about {} min': '{} steps · about {} min'
   '{} target set to {}°C': '{} target set to {}°C'

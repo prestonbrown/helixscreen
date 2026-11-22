@@ -138,6 +138,7 @@
   <translation tag="1 more tap to {} beta features" ru="1 нажатие до {} бета-функций"/>
   <translation tag="1 print" ru="1 печать"/>
   <translation tag="1 profile" ru="1 профиль"/>
+  <translation tag="1 step due · about {} min"/>
   <translation tag="1 step never run · about {} min" ru="1 шаг не выполнялся · около {} мин"/>
   <translation tag="1 step · about {} min" ru="1 шаг · около {} мин"/>
   <translation tag="1 unit" ru="1 ед."/>
@@ -3129,6 +3130,7 @@
   <translation tag="Not yet calibrated" ru="Ещё не откалибровано"/>
   <translation tag="Notes" ru="Заметки"/>
   <translation tag="Notes (optional)" ru="Заметки (необязательно)"/>
+  <translation tag="Nothing due · about {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." ru="Повороты {0} ничего не изменили. Верните их и проверьте механику."/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." ru="{1} оборота {0} ничего не изменили. Поверните {0} на {1} оборота назад и проверьте механику."/>
   <translation tag="Nothing loaded" ru="Ничего не загружено"/>
@@ -4028,6 +4030,7 @@
   <translation tag="Runout" ru="Окончание"/>
   <translation tag="Runout Backup" ru="Резерв при окончании"/>
   <translation tag="Runout Sensor" ru="Датчик окончания"/>
+  <translation tag="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске."/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." ru="Ошибка SAVE_CONFIG: {}. Z-смещение применено, но не сохранено. Выполните SAVE_CONFIG вручную, иначе смещение будет потеряно при перезапуске."/>
@@ -5993,6 +5996,7 @@
   <translation tag="{} slots_one" ru="{} слот"/>
   <translation tag="{} spool cleared" ru="{}: катушка удалена"/>
   <translation tag="{} started" ru="{} запущено"/>
+  <translation tag="{} steps due · about {} min"/>
   <translation tag="{} steps never run · about {} min" ru="Не выполнялось шагов: {} · около {} мин"/>
   <translation tag="{} steps · about {} min" ru="Шагов: {} · около {} мин"/>
   <translation tag="{} target set to {}°C" ru="Целевая температура {} — {}°C"/>

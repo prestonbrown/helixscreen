@@ -102,6 +102,7 @@
   <translation tag="1 more tap to {} beta features" zh="再点击 1 次以{}测试功能"/>
   <translation tag="1 print" zh="1 次打印"/>
   <translation tag="1 profile" zh="1 个配置"/>
+  <translation tag="1 step due · about {} min"/>
   <translation tag="1 step never run · about {} min" zh="1 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="1 step · about {} min" zh="1 个步骤 · 约 {} 分钟"/>
   <translation tag="1 unit" zh="1 个单元"/>
@@ -3081,6 +3082,7 @@
   <translation tag="Not yet calibrated" zh="尚未校准"/>
   <translation tag="Notes" zh="备注"/>
   <translation tag="Notes (optional)" zh="备注（可选）"/>
+  <translation tag="Nothing due · about {} min"/>
   <translation tag="Nothing followed the turns on {0}. Undo them, then check the mechanics." zh="{0} 的转动没有带来变化。请撤回这些转动,然后检查机械部分。"/>
   <translation tag="Nothing followed {1} turns of {0}. Turn {0} back {1} turns, then check the mechanics." zh="{0} 转了 {1} 圈没有带来变化。请将 {0} 反向转回 {1} 圈,然后检查机械部分。"/>
   <translation tag="Nothing loaded" zh="未装载耗材"/>
@@ -3968,6 +3970,7 @@
   <translation tag="Runout" zh="用尽"/>
   <translation tag="Runout Backup" zh="用尽备用"/>
   <translation tag="Runout Sensor" zh="断料传感器"/>
+  <translation tag="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." zh="为所有工具运行打印机的工具偏移校准。"/>
   <translation tag="SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart." zh="SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。"/>
   <translation tag="SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart." zh="SAVE_CONFIG 失败：{}。Z 偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后偏移将丢失。"/>
@@ -5906,6 +5909,7 @@
   <translation tag="{} slots" zh="{} 个槽位"/>
   <translation tag="{} spool cleared" zh="{} 料盘已清除"/>
   <translation tag="{} started" zh="已开始{}"/>
+  <translation tag="{} steps due · about {} min"/>
   <translation tag="{} steps never run · about {} min" zh="{} 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="{} steps · about {} min" zh="{} 个步骤 · 约 {} 分钟"/>
   <translation tag="{} target set to {}°C" zh="{} 目标已设为 {}°C"/>

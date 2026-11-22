@@ -27,9 +27,14 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
     if (last) {
         const auto date = calibration::parse_iso_date(last->date);
         const std::string when = date ? locale::format_localized_month_day(&*date) : last->date;
-        std::string text = last->summary.empty()
-                               ? fmt::format(lv_tr("Done {}"), when)
-                               : fmt::format(lv_tr("Done {} · {}"), when, last->summary);
+        // A half-width tile at 800x480 holds the date and one short reading; a
+        // longer or multi-part result belongs on the step's own screen.
+        constexpr size_t kTileSummaryMax = 16;
+        const bool show_summary = !last->summary.empty() &&
+                                  last->summary.size() <= kTileSummaryMax &&
+                                  last->summary.find(" · ") == std::string::npos;
+        std::string text = show_summary ? fmt::format(lv_tr("Done {} · {}"), when, last->summary)
+                                        : fmt::format(lv_tr("Done {}"), when);
         return {std::move(text), TileTone::Done};
     }
     if (in_config) {
@@ -53,14 +58,14 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
     return {lv_tr("Run when needed"), TileTone::Idle};
 }
 
-std::string guided_banner_text(int never_run, int minutes) {
-    if (never_run == 1) {
-        return fmt::format(lv_tr("1 step never run · about {} min"), minutes);
+std::string guided_banner_text(int due, int minutes) {
+    if (due == 1) {
+        return fmt::format(lv_tr("1 step due · about {} min"), minutes);
     }
-    if (never_run > 1) {
-        return fmt::format(lv_tr("{} steps never run · about {} min"), never_run, minutes);
+    if (due > 1) {
+        return fmt::format(lv_tr("{} steps due · about {} min"), due, minutes);
     }
-    return fmt::format(lv_tr("Run everything again · about {} min"), minutes);
+    return fmt::format(lv_tr("Nothing due · about {} min"), minutes);
 }
 
 CalibrationHubOverlay& get_calibration_hub_overlay() {
@@ -130,11 +135,11 @@ void CalibrationHubOverlay::refresh() {
         lv_subject_set_string(&status_[i], status.text.c_str());
     }
     std::vector<calibration::StepInfo> picked;
-    int never_run = 0;
+    int due = 0;
     for (const auto& s : calibration::guided_run_steps(steps)) {
         if (calibration::picked_by_default(s)) {
             picked.push_back(s);
-            never_run += history.entry(s.id) ? 0 : 1;
+            due += history.entry(s.id) ? 0 : 1;
         }
     }
 #if defined(HELIX_PLATFORM_ESP32)
@@ -142,8 +147,8 @@ void CalibrationHubOverlay::refresh() {
     picked.clear();
 #endif
     lv_subject_set_int(&banner_shown_, picked.empty() ? 0 : 1);
-    lv_subject_set_string(
-        &banner_text_, guided_banner_text(never_run, calibration::total_minutes(picked)).c_str());
+    lv_subject_set_string(&banner_text_,
+                          guided_banner_text(due, calibration::total_minutes(picked)).c_str());
     spdlog::debug("[{}] {} calibration step(s)", get_name(), steps.size());
 }
 
