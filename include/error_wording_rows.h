@@ -32,6 +32,10 @@ struct Row {
     const char* summary;
     const char* cause;
     const char* fix;
+    /// nullptr, or the title the firmware gives its own action:prompt dialog
+    /// for this same fault, "{1}" on the row's captures. A prompt whose title
+    /// starts with it repeats the fault, and the fault dialog replaces it.
+    const char* firmware_prompt = nullptr;
 };
 
 /// One firmware's rows, or the generic set every printer shares.

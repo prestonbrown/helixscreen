@@ -1816,15 +1816,34 @@ spool going into an empty lane, unsaved, drops it and returns to the empty page.
 from the summary or the empty page with unsaved edits asks Save or Discard; a dismissal
 keeps the editor open.
 
+#### Following the lane
+
+While the editor is open it observes `AmsState`'s `slots_version` and follows the
+backend's reading of its lane (`follow_lane()`): a spool fed into a lane shown on the empty
+page opens its summary with the fresh slot, and a lane that runs out under its summary
+shows the empty page. `spool_assign::page_after_lane_change()` decides; it never moves
+the editor while anything is held (`editing_lane()`: unsaved edits, staged lane settings,
+a save in flight, the color page) nor off the list, Filament, Lane Settings or Details
+pages. A change it could not act on applies when the user is back on the summary or the
+empty page with nothing held. It acts on a change in the backend's reading, not on a
+difference between the backend and the slot the opener passed. The mock scenarios
+`lane2_filled` / `lane2_empty` flip a lane to watch it
+([MOCK_ENVIRONMENT_VARIABLES.md](MOCK_ENVIRONMENT_VARIABLES.md#lane-sensor-scenarios)).
+
 #### Lane Settings
 
-The lane's own settings are not spool data, so they never enter `SlotInfo` and are
-applied the moment they change: each dropdown pick runs `apply_lane_settings()`, which
-writes the difference through `helix::ui::lane_settings` (`commit_assigned_tool()`,
-`commit_backup()`). A refusal toasts, and the dropdowns go back to what the lane holds.
-The New Spool list's actions call `commit_lane_settings_for_assign()` before they commit,
-and Save calls `commit_lane_settings()` before the slot's commit; a Save that changed only
-lane settings closes without a slot edit.
+The lane's own settings are not spool data, so they never enter `SlotInfo`, but they
+save with the spool. A dropdown pick only stages `lane_working_` (`stage_lane_settings()`
+redraws the lane line and enables Save); the one check made at the pick is
+`lane_settings::backup_refused()`, which toasts and puts the dropdown back. Save writes
+the difference through `helix::ui::lane_settings` (`commit_assigned_tool()`,
+`commit_backup()`) via `commit_lane_settings_for_save()`, before the slot's commit; the
+New Spool list's actions do the same through `commit_lane_settings_for_assign()`. A Save
+that changed only lane settings closes without a slot edit. A refused write toasts why,
+rolls that field back to `lane_original_`, and stops the Save, so the spool's edits stay
+staged and the save line says the spool was not saved. Leaving without Save drops staged
+lane settings like any other held edit: `is_dirty()` counts `lane_settings_dirty()`, so
+Back asks Save or Discard.
 
 - **Feeds Tool** ("The toolhead this lane loads into") shows only where
   `helix::printer::can_write_mapping_table()` says a mapping write lands

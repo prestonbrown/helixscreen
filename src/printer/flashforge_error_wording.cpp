@@ -103,6 +103,18 @@ constexpr const char* kToolSensorFix =
     TR_NOOP("Check that every head is seated in its dock and that the dock and grab switches "
             "work.");
 
+// The dialogs ZMOD's macros raise for a fault they also print as `!!`. Its
+// RESUME refusal repeats the reason under a lone Ok; some builds drop the space
+// before "!!!", so the title is matched without it. The Creator 5's runout
+// dialog for a head comes first, and its Manual button only sets a flag
+// (_SENSOR_NOT_PAUSE) that the delayed sensor check reads to skip the pause if
+// the head has filament again. The runout `!!` follows the pause that check
+// gave up on: the spool search cancels the check before pausing, so nothing
+// reads the flag any more, and loading by hand and resuming is what the fault
+// dialog offers.
+constexpr const char* kResumeRefusedPrompt = "Resumption interrupted";
+constexpr const char* kHeadRunoutPrompt = "T{1} runout";
+
 // ZMOD. IFS rows come from zmod_ifs.py, the rest from its English macros.
 constexpr Row kZmodRows[] = {
     {"FF-I15", "Filament jam detected (IFS).", nullptr, nullptr, false, C::Filament, S::FollowPrint,
@@ -148,7 +160,7 @@ constexpr Row kZmodRows[] = {
     {"FF-Z7", "Filament runout detected T", nullptr, "^Filament runout detected T(\\d+)", false,
      C::Filament, S::FollowPrint, TR_NOOP("Filament ran out on head T{1}"),
      TR_NOOP("Head T{1}'s filament sensor went empty."),
-     TR_NOOP("Load filament into head T{1}, then resume.")},
+     TR_NOOP("Load filament into head T{1}, then resume."), kHeadRunoutPrompt},
     {"FF-Z8", "Filament jam detected T", nullptr, "^Filament jam detected T(\\d+)", false,
      C::Filament, S::FollowPrint, TR_NOOP("Clog in head T{1}"),
      TR_NOOP("Head T{1} has filament, but its motion sensor stopped seeing it move."),
@@ -182,9 +194,9 @@ constexpr Row kZmodRows[] = {
     {"FF-Z4", "Load cell reset error.", nullptr, nullptr, false, C::Probe, S::FollowPrint,
      kTareSummary, kTareCause, kTareFix},
     {"FF-Z9", "Resumption interrupted !!! ", "not hot enough", nullptr, false, C::Command,
-     S::FollowPrint, kResumeHotSummary, kResumeHotCause, kResumeHotFix},
+     S::FollowPrint, kResumeHotSummary, kResumeHotCause, kResumeHotFix, kResumeRefusedPrompt},
     {"FF-Z10", "Resumption interrupted !!! ", "filament has run out", nullptr, false, C::Filament,
-     S::FollowPrint, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix},
+     S::FollowPrint, kResumeEmptySummary, kResumeEmptyCause, kResumeEmptyFix, kResumeRefusedPrompt},
     {"FF-Z13", "File ", " MD5 mismatch", nullptr, false, C::Command, S::FollowPrint,
      kDamagedFileSummary, kDamagedFileCause, kDamagedFileFix},
     {"FF-Z13", "MD5 check failed. Print canceled.", nullptr, nullptr, false, C::Command,

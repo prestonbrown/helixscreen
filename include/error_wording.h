@@ -94,6 +94,11 @@ struct Worded {
 /// nullopt when @p c is a row without wording.
 [[nodiscard]] std::optional<Worded> word(const Classification& c);
 
+/// The title prefix of the firmware's own prompt dialog for the fault @p c
+/// classifies, its captures filled in, untranslated: the firmware titles it in
+/// its own language. Empty when the firmware raises no such dialog. Pure.
+[[nodiscard]] std::string firmware_prompt_title(const Classification& c);
+
 /// @p text as a stop reason: the summary of the row that words it, else
 /// @p text unchanged. Main thread only.
 [[nodiscard]] std::string reason_summary(const std::string& text,

@@ -4698,6 +4698,7 @@ translations:
   Stepper driver {} is overheating: 'Le pilote du moteur pas à pas {} surchauffe'
   Stepper driver {} overheated and shut down: 'Le pilote du moteur pas à pas {} a surchauffé et s''est arrêté'
   Still reading the printer's lane record. Try again in a moment.: 'Lecture de l''enregistrement des voies de l''imprimante en cours. Réessayez dans un instant.'
+  Still running; no reply after {} min: 'Toujours en cours ; aucune réponse après {} min'
   Still saving this spool…: 'Enregistrement de cette bobine en cours…'
   Still working... taking longer than usual: Toujours en cours... cela prend plus de temps que d'habitude
   Stop: Arrêter
@@ -5064,6 +5065,8 @@ translations:
   : "L'hôte n'a rien reçu de cette carte pendant plusieurs secondes : un câble USB ou CAN desserré ou défaillant, une perte d'alimentation de la carte, ou un bus CAN sans terminaison."
   "The label didn't print: {}": "L'étiquette ne s'est pas imprimée : {}"
   The lane forgets this spool. The filament itself stays where it is.: 'La voie oublie cette bobine. Le filament lui-même reste en place.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Les paramètres de la voie n''ont pas été modifiés et la bobine n''a pas été enregistrée. Appuyez sur Enregistrer pour enregistrer la bobine.'
+  The lane settings weren't changed.: 'Les paramètres de la voie n''ont pas été modifiés.'
   The lane that takes over when this one runs out: 'La voie qui prend le relais quand celle-ci est vide'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Le verrou s'ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock.

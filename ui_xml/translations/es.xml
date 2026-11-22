@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" es="El controlador del motor paso a paso {} se está sobrecalentando"/>
   <translation tag="Stepper driver {} overheated and shut down" es="El controlador del motor paso a paso {} se sobrecalentó y se apagó"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." es="Todavía se está leyendo el registro de carriles de la impresora. Inténtalo de nuevo en un momento."/>
+  <translation tag="Still running; no reply after {} min" es="Sigue en curso; sin respuesta tras {} min"/>
   <translation tag="Still saving this spool…" es="Todavía se está guardando esta bobina…"/>
   <translation tag="Still working... taking longer than usual" es="Aún trabajando... tardando más de lo habitual"/>
   <translation tag="Stop" es="Detener"/>
@@ -4882,6 +4883,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." es="El host no recibió nada de esta placa durante varios segundos: un cable USB o CAN suelto o averiado, la placa sin alimentación o un bus CAN sin terminación."/>
   <translation tag="The label didn&apos;t print: {}" es="La etiqueta no se imprimió: {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." es="El carril olvida esta bobina. El filamento se queda donde está."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." es="Los ajustes del carril no se cambiaron y la bobina no se guardó. Pulsa Guardar para guardar la bobina."/>
+  <translation tag="The lane settings weren&apos;t changed." es="Los ajustes del carril no se cambiaron."/>
   <translation tag="The lane that takes over when this one runs out" es="El carril que toma el relevo cuando este se agota"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." es="Puede que la última impresión siga en la cama. Retírala antes de que se mueva el cabezal y luego toca Despejado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." es="El cierre se abre y {} puede caer. Sujétela antes de continuar y luego colóquela en su base."/>

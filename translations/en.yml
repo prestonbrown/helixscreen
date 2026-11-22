@@ -4655,6 +4655,7 @@ translations:
   Stepper driver {} is overheating: Stepper driver {} is overheating
   Stepper driver {} overheated and shut down: Stepper driver {} overheated and shut down
   Still reading the printer's lane record. Try again in a moment.: Still reading the printer's lane record. Try again in a moment.
+  Still running; no reply after {} min: Still running; no reply after {} min
   Still saving this spool…: Still saving this spool…
   Still working... taking longer than usual: Still working... taking longer than usual
   Stop: Stop
@@ -5018,6 +5019,8 @@ translations:
   : 'The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination.'
   "The label didn't print: {}": "The label didn't print: {}"
   The lane forgets this spool. The filament itself stays where it is.: The lane forgets this spool. The filament itself stays where it is.
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.
+  The lane settings weren't changed.: The lane settings weren't changed.
   The lane that takes over when this one runs out: The lane that takes over when this one runs out
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.

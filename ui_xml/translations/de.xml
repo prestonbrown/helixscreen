@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" de="Schrittmotortreiber {} überhitzt"/>
   <translation tag="Stepper driver {} overheated and shut down" de="Schrittmotortreiber {} hat sich wegen Überhitzung abgeschaltet"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." de="Die Spuraufzeichnung des Druckers wird noch gelesen. Versuche es gleich noch einmal."/>
+  <translation tag="Still running; no reply after {} min" de="Läuft noch; keine Antwort nach {} Min."/>
   <translation tag="Still saving this spool…" de="Diese Spule wird noch gespeichert…"/>
   <translation tag="Still working... taking longer than usual" de="Arbeitet noch... dauert länger als gewöhnlich"/>
   <translation tag="Stop" de="Stoppen"/>
@@ -4882,6 +4883,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." de="Der Host hat mehrere Sekunden lang nichts von dieser Platine gehört: ein lockeres oder defektes USB- oder CAN-Kabel, eine Platine ohne Strom oder ein CAN-Bus ohne Terminierung."/>
   <translation tag="The label didn&apos;t print: {}" de="Das Etikett wurde nicht gedruckt: {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." de="Die Spur vergisst diese Spule. Das Filament selbst bleibt, wo es ist."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." de="Die Spur-Einstellungen wurden nicht geändert, und die Spule wurde nicht gespeichert. Tippe auf Speichern, um die Spule zu speichern."/>
+  <translation tag="The lane settings weren&apos;t changed." de="Die Spur-Einstellungen wurden nicht geändert."/>
   <translation tag="The lane that takes over when this one runs out" de="Die Spur, die übernimmt, wenn diese ausläuft"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." de="Der letzte Druck liegt möglicherweise noch auf dem Heizbett. Entfernen Sie ihn, bevor sich der Werkzeugkopf bewegt, und tippen Sie dann auf Geräumt."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." de="Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock."/>
