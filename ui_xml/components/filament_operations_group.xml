@@ -11,9 +11,6 @@
        filament_panel.xml so the markup exists exactly once. The action rows
        are compact, one touch target tall. -->
   <styles>
-    <!-- Reactive extrude length button state (L040: no inline bg attrs) -->
-    <style name="extrude_length_btn_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="extrude_length_btn_unselected" bg_color="#primary" bg_opa="40"/>
     <!-- The cold-extrusion warning covers the action row it disables -->
     <style name="safety_warning_cover" bg_color="#card_bg" bg_opa="255" radius="#border_radius"/>
     <!-- ui_card sets its row gap locally, which outranks any plain style, so
@@ -146,24 +143,24 @@
       <ui_button name="extrude_length_0"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="0"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="0"/>
+        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="0"/>
+        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="0"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
       </ui_button>
       <ui_button name="extrude_length_1"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="1"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="1"/>
+        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="1"/>
+        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="1"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
       </ui_button>
       <ui_button name="extrude_length_2"
                  height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
                  style_text_font="#font_small">
-        <bind_style_if_eq name="extrude_length_btn_selected" subject="filament_extrude_length_index" ref_value="2"/>
-        <bind_style_if_not_eq name="extrude_length_btn_unselected" subject="filament_extrude_length_index" ref_value="2"/>
+        <bind_style_if_eq name="styles.choice_selected" subject="filament_extrude_length_index" ref_value="2"/>
+        <bind_style_if_not_eq name="styles.choice_idle" subject="filament_extrude_length_index" ref_value="2"/>
         <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
       </ui_button>

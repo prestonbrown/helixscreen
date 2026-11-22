@@ -11,11 +11,6 @@
     <percentage name="stats_section_width" value="55%"/>
     <percentage name="chart_section_width" value="43%"/>
   </consts>
-  <!-- Styles for reactive filter button state binding (L040: two bind_styles pattern) -->
-  <styles>
-    <style name="filter_btn_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="filter_btn_unselected" bg_color="#primary" bg_opa="40"/>
-  </styles>
   <!-- View Full History rides in the header so it is on screen at every size,
        however tall the stats and charts below grow. -->
   <view name="history_dashboard_panel" extends="overlay_panel" title="Print History">
@@ -31,28 +26,28 @@
               height="content" style_pad_all="0" style_pad_bottom="#space_md" flex_flow="row" style_pad_gap="#space_xs"
               scrollable="false">
         <ui_button name="filter_day" text="Day" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_day_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_day_active" ref_value="0"/>
+          <bind_style name="styles.choice_selected" subject="history_filter_day_active" ref_value="1"/>
+          <bind_style name="styles.choice_idle" subject="history_filter_day_active" ref_value="0"/>
           <event_cb trigger="clicked" callback="history_filter_day_clicked"/>
         </ui_button>
         <ui_button name="filter_week" text="Week" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_week_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_week_active" ref_value="0"/>
+          <bind_style name="styles.choice_selected" subject="history_filter_week_active" ref_value="1"/>
+          <bind_style name="styles.choice_idle" subject="history_filter_week_active" ref_value="0"/>
           <event_cb trigger="clicked" callback="history_filter_week_clicked"/>
         </ui_button>
         <ui_button name="filter_month" text="Month" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_month_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_month_active" ref_value="0"/>
+          <bind_style name="styles.choice_selected" subject="history_filter_month_active" ref_value="1"/>
+          <bind_style name="styles.choice_idle" subject="history_filter_month_active" ref_value="0"/>
           <event_cb trigger="clicked" callback="history_filter_month_clicked"/>
         </ui_button>
         <ui_button name="filter_year" text="Year" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_year_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_year_active" ref_value="0"/>
+          <bind_style name="styles.choice_selected" subject="history_filter_year_active" ref_value="1"/>
+          <bind_style name="styles.choice_idle" subject="history_filter_year_active" ref_value="0"/>
           <event_cb trigger="clicked" callback="history_filter_year_clicked"/>
         </ui_button>
         <ui_button name="filter_all" text="All" flex_grow="1">
-          <bind_style name="filter_btn_selected" subject="history_filter_all_active" ref_value="1"/>
-          <bind_style name="filter_btn_unselected" subject="history_filter_all_active" ref_value="0"/>
+          <bind_style name="styles.choice_selected" subject="history_filter_all_active" ref_value="1"/>
+          <bind_style name="styles.choice_idle" subject="history_filter_all_active" ref_value="0"/>
           <event_cb trigger="clicked" callback="history_filter_all_clicked"/>
         </ui_button>
       </lv_obj>
