@@ -187,7 +187,7 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 - **Companion thumbnails** — the preview moonraker-timelapse renders as `<name>.jpg` beside each video (`<name>.thumb.jpg` is also accepted), fetched from the `timelapse` root
 - **Thumbnail caching** — uses the shared `ThumbnailCache` with `tl_` prefixed cache keys
 - **Render controls** — frame count with capture info (filename + date), progress bar with inline status text, Render Now button
-- **Video playback** — detects available player (mpv preferred, ffplay fallback), launches fullscreen with auto-exit
+- **Video playback** - a tap plays the video in an external player where one can show, else hands it to a phone by QR code (see "What a tap does" below)
 - **Delete with confirmation** — long-press card for delete option, confirmation dialog before removal
 - **Generation-based stale rejection** — `nav_generation_` and `thumb_generation_` counters prevent stale async callbacks from modifying UI after navigation changes
 
@@ -196,6 +196,20 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 |--------|-----------|
 | `mpv` | `--fs --keep-open=no` |
 | `ffplay` | `-autoexit -exitonmousedown -fs` |
+
+**What a tap does.** `choose_video_open_action()` (`src/print/timelapse_thumbnailer.cpp#choose_video_open_action`) is the one rule every entry point follows: the library's card tap and a History job's timelapse (`helix::ui::open_timelapse_video()`) both go through `TimelapseVideosOverlay::open_video()`.
+
+| Condition | `VideoOpenAction` | Result |
+|-----------|-------------------|--------|
+| An external player can show on this screen | `Play` | Launch mpv or ffplay fullscreen |
+| No player that can show, and a phone URL exists | `PhoneQr` | "Watch on Your Phone" QR modal (`InfoQrModal`) of the video's Moonraker URL |
+| Neither | `NoPlayerToast` | Warning toast: no video player on this printer |
+
+An installed player counts only when the display can host another program's window: `external_player_can_show(player_installed, screen_hosts_windows)` (`src/print/timelapse_thumbnailer.cpp#external_player_can_show`), fed by `helix::ui::display_hosts_other_windows()` (`include/display_backend.h#display_hosts_other_windows`), which is true only for the SDL backend. mpv and ffplay open a window of their own; on DRM or the framebuffer HelixScreen holds the display, so a player there would draw nowhere and exit cleanly. Printer screens therefore always take the QR path, and a desktop SDL build with mpv or ffplay on `PATH` plays in place. `detect_playback_capability()` (`src/ui/ui_overlay_timelapse_videos.cpp#detect_playback_capability`) caches the answer once per process, and each card's badge, built with the grid from the same rule, says what a tap will do: a play icon, a QR icon, or none.
+
+The phone URL comes from `phone_video_url()` (`src/print/timelapse_thumbnailer.cpp#phone_video_url`): `<http base>/server/files/timelapse/<file>`, percent-encoded. A loopback base (Moonraker reached as `localhost`) has its host swapped for the screen's LAN IPv4; with no LAN address the URL is empty and the tap falls to the toast.
+
+A player that does launch is watched for `kPlayerWatchMs` (2 s). If it exits with a failure inside that window, `poll_player_watches()` offers the same QR modal with the exit reason in its message, so a broken player install still reaches a phone.
 
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`
@@ -213,6 +227,9 @@ The timelapse settings overlay (Phase 1) was extended with video management capa
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
 | `build_player_args(player, path)` | Builds player-specific argument list |
+| `external_player_can_show(installed, hosts_windows)` | Whether an installed player can put a picture on this screen |
+| `choose_video_open_action(can_play, phone_url)` | Play, phone QR, or toast for a tap |
+| `phone_video_url(base, file, lan_ipv4)` | The URL a phone on the LAN downloads the video from |
 
 Local vs remote playback is decided by the `moonraker_is_remote` subject
 (`PrinterState::is_moonraker_remote()`) — the live websocket endpoint's verdict —
