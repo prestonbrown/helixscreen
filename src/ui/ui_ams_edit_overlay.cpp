@@ -1724,7 +1724,7 @@ void AmsEditOverlay::refresh_spool_tiles() {
     if (catalog_) {
         for (const std::string& id : helix::filament_favorites::load_favorite_ids()) {
             if (const auto* ef = catalog_->resolve_id(id)) {
-                favorites.push_back({ef->name, ef->id});
+                favorites.push_back({ef->brand, ef->name, ef->id});
             }
         }
     }

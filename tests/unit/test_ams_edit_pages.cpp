@@ -965,11 +965,12 @@ TEST_CASE_METHOD(PagesFixture,
     for (int i = 0; i < 3; ++i) {
         INFO(i);
         CHECK(access.subject_text(("ams_edit_tile_label_" + std::to_string(i)).c_str()) ==
-              favs[static_cast<size_t>(i)]->name);
+              helix::spool_assign::spool_tile_label(favs[static_cast<size_t>(i)]->brand,
+                                                    favs[static_cast<size_t>(i)]->name));
         CHECK(lv_subject_get_int(lv_xml_get_subject(
                   nullptr, ("ams_edit_tile_fav_" + std::to_string(i)).c_str())) == 1);
     }
-    CHECK(access.subject_text("ams_edit_tile_label_3") == "PLA");
+    CHECK(access.subject_text("ams_edit_tile_label_3") == "Generic PLA");
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_tile_fav_3")) == 0);
 
     // A favorite fills the form as a catalog pick does.
@@ -1054,7 +1055,8 @@ TEST_CASE_METHOD(PagesFixture, "the Filament row's star adds the lane's product 
         CHECK(access.shown("favorite_star"));
         CHECK_FALSE(access.shown("favorite_star_outline"));
         // It leads the spool tiles now.
-        CHECK(access.subject_text("ams_edit_tile_label_0") == product->name);
+        CHECK(access.subject_text("ams_edit_tile_label_0") ==
+              helix::spool_assign::spool_tile_label(product->brand, product->name));
 
         // A second tap takes it off again.
         access.click("btn_favorite");

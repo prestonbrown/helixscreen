@@ -102,11 +102,16 @@ const std::vector<CommonSpool>& common_spools();
 /// The spool tiles a new spool starts from.
 inline constexpr size_t kSpoolTiles = 12;
 
-/// A starred catalog product, as its tile names it.
+/// A starred catalog product.
 struct FavoriteTile {
-    std::string label;      ///< the product's name
+    std::string brand;      ///< its maker ("Creality")
+    std::string name;       ///< the product's name ("CR-PETG")
     std::string product_id; ///< its catalog id
 };
+
+/// A spool tile's label: the vendor, then the product or material, the
+/// vendor said once ("Creality CR-PETG", "Bambu ASA", "Generic PLA").
+[[nodiscard]] std::string spool_tile_label(const std::string& vendor, const std::string& name);
 
 /// One spool tile: a favorite (product_id set) or a common spool (common, an
 /// index into common_spools()).
@@ -122,7 +127,7 @@ struct SpoolTile {
 
 /// The tiles a new spool starts from: @p favorites in star order, then the
 /// common spools a color at a time (every material in Black, then White, then
-/// Gray), @p count in all.
+/// Gray), @p count in all, each labelled by spool_tile_label().
 [[nodiscard]] std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites,
                                                  size_t count = kSpoolTiles);
 
