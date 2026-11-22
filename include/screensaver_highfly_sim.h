@@ -75,8 +75,16 @@ inline constexpr float kHighflyTowerMaxS = 14.0f;
 struct HighFlyTexture {
     int32_t w = 0;
     int32_t h = 0;
-    std::vector<uint8_t> rgba;  ///< premultiplied, 4 bytes per texel; alpha is the coverage
-    std::vector<uint8_t> shade; ///< per texel, 0 (shadow) to 255 (sunlit)
+    std::vector<uint8_t> rgba; ///< premultiplied, 4 bytes per texel; alpha is the coverage
+    /// 0 (shadow) to 255 (sunlit) at half resolution, sw x sh, one cell per 2 x 2 texels. A
+    /// billboard never draws larger than about a pixel a texel where it shows, so the half
+    /// resolution shade is at or below what reaches the screen.
+    std::vector<uint8_t> shade;
+    int32_t sw = 0;
+    int32_t sh = 0;
+    bool wrap = false; ///< tiles across x, so shade_at() wraps there
+    /// The shade of texel (x, y), upsampled bilinearly from `shade`.
+    uint8_t shade_at(int32_t x, int32_t y) const;
     size_t heap_bytes() const;
     void release();
 };

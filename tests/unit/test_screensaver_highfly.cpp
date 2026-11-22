@@ -827,7 +827,7 @@ TEST_CASE(
     sim.init(frame.target, rng, start, r);
     std::vector<DirtyRect> dirty;
     const size_t heap = sim.heap_bytes();
-    CHECK(heap <= 5120u * 1024u);
+    CHECK(heap <= 4608u * 1024u);
     for (size_t level = start; level < kHighflyLevelCount; level++) {
         sim.request_level(level);
         for (int i = 0; i < 20; i++) {
@@ -1084,9 +1084,11 @@ TEST_CASE("a print's palette recolors the towers and the far band, and the day p
         const auto near = [](uint8_t got, uint8_t want, int32_t a) {
             return std::abs(static_cast<int32_t>(got) - (want * a + 127) / 255) <= 1;
         };
-        for (size_t i = 0; i < t.shade.size(); i++) {
+        for (size_t i = 0; i < static_cast<size_t>(t.w) * t.h; i++) {
+            const auto x = static_cast<int32_t>(i % static_cast<size_t>(t.w));
+            const auto y = static_cast<int32_t>(i / static_cast<size_t>(t.w));
             const int32_t a = t.rgba[i * 4 + 3];
-            if (t.shade[i] == 255 && a >= 128) {
+            if (t.shade_at(x, y) == 255 && a >= 128) {
                 n++;
                 const bool on = near(t.rgba[i * 4], lit.r, a) &&
                                 near(t.rgba[i * 4 + 1], lit.g, a) &&

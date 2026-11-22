@@ -150,13 +150,87 @@ void tint_texture(HighFlyTexture& t, const CloudRamp& ramp) {
     for (size_t i = 0; i < lut.size(); i++) {
         lut[i] = ramp_rgb(static_cast<float>(i) / 255.0f, ramp);
     }
-    for (size_t i = 0; i < t.shade.size(); i++) {
-        uint8_t* px = &t.rgba[i * 4];
-        const uint32_t a = px[3];
-        const Rgb c = lut[t.shade[i]];
-        px[0] = static_cast<uint8_t>((c.r * a + 127u) / 255u);
-        px[1] = static_cast<uint8_t>((c.g * a + 127u) / 255u);
-        px[2] = static_cast<uint8_t>((c.b * a + 127u) / 255u);
+    for (int32_t y = 0; y < t.h; y++) {
+        for (int32_t x = 0; x < t.w; x++) {
+            uint8_t* px = &t.rgba[(static_cast<size_t>(y) * t.w + x) * 4];
+            const uint32_t a = px[3];
+            if (a == 0) {
+                continue;
+            }
+            const Rgb c = lut[t.shade_at(x, y)];
+            px[0] = static_cast<uint8_t>((c.r * a + 127u) / 255u);
+            px[1] = static_cast<uint8_t>((c.g * a + 127u) / 255u);
+            px[2] = static_cast<uint8_t>((c.b * a + 127u) / 255u);
+        }
+    }
+}
+
+/// Stores `full` (one shade per texel of `t`) in `t.shade` at half resolution: each cell the
+/// coverage-weighted mean of its 2 x 2 texels. An empty cell takes its covered neighbours'
+/// mean, twice over, so upsampling at a cloud's edge never pulls toward the shadow end.
+void pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t) {
+    t.wrap = wrap_x;
+    t.sw = (t.w + 1) / 2;
+    t.sh = (t.h + 1) / 2;
+    const size_t cells = static_cast<size_t>(t.sw) * t.sh;
+    t.shade.assign(cells, 0);
+    std::vector<uint8_t> filled(cells, 0);
+    for (int32_t cy = 0; cy < t.sh; cy++) {
+        for (int32_t cx = 0; cx < t.sw; cx++) {
+            uint32_t num = 0;
+            uint32_t den = 0;
+            for (int32_t y = 2 * cy; y < std::min(t.h, 2 * cy + 2); y++) {
+                for (int32_t x = 2 * cx; x < std::min(t.w, 2 * cx + 2); x++) {
+                    const size_t i = static_cast<size_t>(y) * t.w + x;
+                    const uint32_t a = t.rgba[i * 4 + 3];
+                    num += a * full[i];
+                    den += a;
+                }
+            }
+            if (den > 0) {
+                const size_t c = static_cast<size_t>(cy) * t.sw + cx;
+                t.shade[c] = static_cast<uint8_t>((num + den / 2) / den);
+                filled[c] = 1;
+            }
+        }
+    }
+    std::vector<uint8_t> next;
+    for (int pass = 0; pass < 2; pass++) {
+        next = filled;
+        for (int32_t cy = 0; cy < t.sh; cy++) {
+            for (int32_t cx = 0; cx < t.sw; cx++) {
+                const size_t c = static_cast<size_t>(cy) * t.sw + cx;
+                if (filled[c] != 0) {
+                    continue;
+                }
+                uint32_t sum = 0;
+                uint32_t n = 0;
+                for (int32_t dy = -1; dy <= 1; dy++) {
+                    const int32_t ny = cy + dy;
+                    if (ny < 0 || ny >= t.sh) {
+                        continue;
+                    }
+                    for (int32_t dx = -1; dx <= 1; dx++) {
+                        int32_t nx = cx + dx;
+                        if (wrap_x) {
+                            nx = wrap_index(nx, t.sw);
+                        } else if (nx < 0 || nx >= t.sw) {
+                            continue;
+                        }
+                        const size_t o = static_cast<size_t>(ny) * t.sw + nx;
+                        if (filled[o] != 0) {
+                            sum += t.shade[o];
+                            n++;
+                        }
+                    }
+                }
+                if (n > 0) {
+                    t.shade[c] = static_cast<uint8_t>((sum + n / 2) / n);
+                    next[c] = 1;
+                }
+            }
+        }
+        filled.swap(next);
     }
 }
 
@@ -284,7 +358,7 @@ void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wi
     out.w = w;
     out.h = h;
     out.rgba.assign(static_cast<size_t>(w) * h * 4, 0);
-    out.shade.assign(static_cast<size_t>(w) * h, 0);
+    std::vector<uint8_t> full(static_cast<size_t>(w) * h, 0);
     for (int32_t y = 0; y < h; y++) {
         const int32_t yu = std::max(0, y - 1);
         const int32_t yd = std::min(h - 1, y + 1);
@@ -303,10 +377,11 @@ void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wi
                 // Sunlit tops read white, not bluish.
                 s += 0.25f * std::clamp(1.0f - od[i] / 2.0f, 0.0f, 1.0f);
             }
-            out.shade[i] = unit_to_u8(s);
+            full[i] = unit_to_u8(s);
             out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
+    pack_shade(full, wrap_x, out);
 }
 
 void make_band(std::minstd_rand& rng, HighFlyTexture& out) {
@@ -384,7 +459,7 @@ void shade_tower(std::vector<float>& d, int32_t w, int32_t h, HighFlyTexture& ou
     out.w = w;
     out.h = h;
     out.rgba.assign(static_cast<size_t>(w) * h * 4, 0);
-    out.shade.assign(static_cast<size_t>(w) * h, 0);
+    std::vector<uint8_t> full(static_cast<size_t>(w) * h, 0);
     for (int32_t y = 0; y < h; y++) {
         const int32_t yu = std::max(0, y - 1);
         const int32_t yd = std::min(h - 1, y + 1);
@@ -411,10 +486,11 @@ void shade_tower(std::vector<float>& d, int32_t w, int32_t h, HighFlyTexture& ou
             const float base = static_cast<float>(y) / static_cast<float>(h);
             const float s = 0.30f + 0.50f * diffuse + 0.30f * lit - 0.25f * base * base +
                             0.25f * std::clamp(1.0f - od[i] / 2.0f, 0.0f, 1.0f);
-            out.shade[i] = unit_to_u8(s);
+            full[i] = unit_to_u8(s);
             out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
+    pack_shade(full, false, out);
 }
 
 void make_tower(std::minstd_rand& rng, HighFlyTexture& out) {
@@ -470,6 +546,27 @@ void make_tower(std::minstd_rand& rng, HighFlyTexture& out) {
 }
 
 } // namespace
+
+uint8_t HighFlyTexture::shade_at(int32_t x, int32_t y) const {
+    // Bilinear 2x: the cell a texel sits in weighs 3/4 on each axis, its neighbour toward the
+    // texel 1/4.
+    const auto pair = [](int32_t v, int32_t n, bool wraps, int32_t& near, int32_t& far) {
+        near = v / 2;
+        far = (v & 1) != 0 ? near + 1 : near - 1;
+        far = wraps ? wrap_index(far, n) : std::clamp(far, 0, n - 1);
+    };
+    int32_t nx = 0;
+    int32_t fx = 0;
+    int32_t ny = 0;
+    int32_t fy = 0;
+    pair(x, sw, wrap, nx, fx);
+    pair(y, sh, false, ny, fy);
+    const auto at = [this](int32_t cx, int32_t cy) {
+        return static_cast<uint32_t>(shade[static_cast<size_t>(cy) * sw + cx]);
+    };
+    return static_cast<uint8_t>(
+        (9u * at(nx, ny) + 3u * at(fx, ny) + 3u * at(nx, fy) + at(fx, fy) + 8u) / 16u);
+}
 
 size_t HighFlyTexture::heap_bytes() const {
     return buffer_bytes(rgba, shade);
