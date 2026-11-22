@@ -16,6 +16,8 @@
     <style name="pid_left_landscape" width="42%"/>
     <style name="pid_left_micro" width="34%"/>
     <style name="pid_half" width="48%"/>
+    <style name="pid_chip_tall" height="#modal_button_height"/>
+    <style name="pid_chip_short" height="#button_height_sm"/>
     <style name="pid_chip_label_bold" text_font="#font_body_bold"/>
     <style name="pid_chip_label_micro" text_font="#font_small"/>
     <style name="pid_power_wrap" layout="flex" flex_flow="row_wrap" flex_main_place="space_between"/>
@@ -149,10 +151,12 @@
                       scrollable="false">
                 <repeat count="4">
                   <lv_obj name="btn_preset_m${i}"
-                          width="48%" height="#modal_button_height" style_radius="#border_radius" style_border_width="2"
-                          style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="0" style_pad_bottom="0"
-                          flex_flow="row" style_flex_main_place="space_between" style_flex_cross_place="center"
+                          width="48%" style_radius="#border_radius" style_border_width="2" style_pad_left="#space_sm"
+                          style_pad_right="#space_sm" style_pad_top="0" style_pad_bottom="0" flex_flow="row"
+                          style_flex_main_place="space_between" style_flex_cross_place="center"
                           style_flex_track_place="center" style_pad_gap="#space_xs" clickable="true" scrollable="false">
+                    <bind_style_if_eq name="pid_chip_tall" subject="ui_is_portrait" ref_value="0"/>
+                    <bind_style_if_eq name="pid_chip_short" subject="ui_is_portrait" ref_value="1"/>
                     <bind_style name="pid_chip_picked" subject="pid_preset_sel" ref_value="${i}"/>
                     <bind_style_if_not_eq name="pid_chip_idle" subject="pid_preset_sel" ref_value="${i}"/>
                     <style name="styles.press_wash" selector="pressed"/>
@@ -173,7 +177,8 @@
             <lv_obj name="extras_column"
                     style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
               <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full_grow" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
+              <bind_style_if name="pid_full_grow" cond="ui_breakpoint ne 0 and ui_is_portrait eq 0"/>
+              <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
               <bind_style_if_eq name="pid_fill_height" subject="ui_is_portrait" ref_value="0"/>
               <bind_style_if_eq name="pid_content_height" subject="ui_is_portrait" ref_value="1"/>
               <!-- One switch for the part fan: MPC models it, PID tunes without it -->
@@ -194,7 +199,9 @@
                              text="Also measure part-fan cooling" long_mode="wrap" clickable="false" event_bubble="true"/>
                   <text_xs width="100%"
                            text="Holds temperature better when the fan changes · +3 min" long_mode="wrap"
-                           style_text_color="#text_muted" style_text_opa="204" clickable="false" event_bubble="true"/>
+                           style_text_color="#text_muted" style_text_opa="204" clickable="false" event_bubble="true">
+                    <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                  </text_xs>
                 </lv_obj>
                 <ui_switch name="toggle_measure_fan" size="small" clickable="false" event_bubble="true">
                   <bind_state_if_eq subject="cal_add_cooling_fan" state="checked" ref_value="1"/>
