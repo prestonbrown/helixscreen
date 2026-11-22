@@ -20,10 +20,12 @@
 #include "ui_tile_rung.h"
 #include "ui_unit_art.h"
 
+#include "ams_state.h"
 #include "app_globals.h"
 #include "material_settings_manager.h"
 #include "preset_materials.h"
 #include "spdlog/spdlog.h"
+#include "test_helpers/printer_state_test_access.h"
 #include "xml_registration.h"
 
 // Forward declaration — defined in favorite_macro_widget.cpp, not exported in any header.
@@ -117,7 +119,7 @@ static void xml_test_noop_event_callback(lv_event_t* /*e*/) {
     // Intentionally empty - used for optional callbacks that weren't provided
 }
 
-XMLTestFixture::XMLTestFixture() : LVGLTestFixture() {
+XMLTestFixture::XMLTestFixture() : LVGLTestFixture(), m_state(get_printer_state()) {
     // The parent constructor created a test_screen, but theme initialization
     // (inside the one-time setup) wants no screens present to avoid hanging.
     // Delete it; we recreate a fresh screen below.
@@ -128,10 +130,12 @@ XMLTestFixture::XMLTestFixture() : LVGLTestFixture() {
 
     setup_global_xml_registrations_once();
 
-    // Fresh per-instance state. init_subjects(true) registers subjects into the
-    // global LVGL XML scope, overwriting any prior test's entries with valid
-    // pointers for the duration of this test.
+    // The global PrinterState, reset to a fresh session: the XML names and every
+    // get_printer_state() caller under test see the same subjects, as in the app.
+    // AmsState's re-entry rebinds the PrinterState observers the reset dropped.
+    helix::PrinterStateTestAccess::reset(m_state);
     m_state.init_subjects(true);
+    helix::AmsState::instance().init_subjects(true);
 
     // The app's global subjects (home_edit_mode, platform gates, ...) are live before
     // any XML is built. A fixture that tore them down leaves the names registered
@@ -153,7 +157,7 @@ XMLTestFixture::XMLTestFixture() : LVGLTestFixture() {
     m_test_screen = lv_obj_create(nullptr);
     lv_screen_load(m_test_screen);
 
-    spdlog::debug("[XMLTestFixture] Initialized with per-instance state");
+    spdlog::debug("[XMLTestFixture] Initialized on the global PrinterState");
 }
 
 XMLTestFixture::~XMLTestFixture() {
@@ -176,11 +180,9 @@ XMLTestFixture::~XMLTestFixture() {
     }
 
     // Reverse-construction-order teardown. API holds a reference to client and
-    // state; client is standalone. Deinit subjects last — m_state's implicit
-    // member destructor runs after this function body completes.
+    // state; client is standalone. The global state stays up, as it does in the app.
     m_api.reset();
     m_client.reset();
-    m_state.deinit_subjects();
 
     spdlog::debug("[XMLTestFixture] Cleaned up");
 }

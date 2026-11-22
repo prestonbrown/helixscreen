@@ -278,13 +278,12 @@ class XMLTestFixture : public LVGLTestFixture {
 
     /**
      * @brief Get the printer state for this test
-     * @return Reference to per-instance PrinterState
+     * @return Reference to the global PrinterState (get_printer_state())
      *
-     * Each XMLTestFixture owns its own PrinterState. Subjects are registered into
-     * the global LVGL XML scope during construction — this overwrites the prior
-     * test's entries with valid pointers for the duration of this test. The
-     * destructor tears down all UI components BEFORE destroying the state, so no
-     * observers or XML bindings outlive the subjects they reference.
+     * Reset to a fresh session at construction, its subjects registered in the
+     * global LVGL XML scope, so XML bindings and C++ code that reads
+     * get_printer_state() share one set of subjects, as they do in the app. The
+     * destructor tears down all UI components and leaves the state up.
      */
     PrinterState& state() {
         return m_state;
@@ -357,7 +356,7 @@ class XMLTestFixture : public LVGLTestFixture {
   private:
     static bool s_global_registered;
 
-    PrinterState m_state;
+    PrinterState& m_state;
     std::unique_ptr<MoonrakerClient> m_client;
     std::unique_ptr<MoonrakerAPI> m_api;
 };
