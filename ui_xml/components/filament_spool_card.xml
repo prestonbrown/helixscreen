@@ -7,7 +7,7 @@
          the full one; the button's height is its content over a minimum. -->
     <style name="manage_full" min_height="#button_height" pad_left="#space_md" pad_right="#space_md"/>
     <style name="manage_compact"
-           min_height="#button_height_sm" min_width="#touch_target_min" pad_left="#space_sm" pad_right="#space_sm"/>
+           min_height="#touch_target_min" min_width="#touch_target_min" pad_left="#space_sm" pad_right="#space_sm"/>
   </styles>
   <!-- Spool card — relevant with or without AMS. C++ swaps between
        Multi-Filament (AMS/multi-tool rows) and External Spool presentations,
