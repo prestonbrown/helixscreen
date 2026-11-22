@@ -49,7 +49,8 @@ class FanSettingsOverlay : public OverlayBase {
   public:
     void register_callbacks() override;
 
-    /// Section count badges' subjects
+    /// Section count badges' subjects, and fan_settings_fan_count, which shows the
+    /// empty state at 0
     void init_subjects() override;
 
     /// Default create() plus the lookups for the dynamic row containers
@@ -95,12 +96,10 @@ class FanSettingsOverlay : public OverlayBase {
 
     lv_obj_t* controllable_list_ = nullptr;
     lv_obj_t* auto_list_ = nullptr;
-    lv_obj_t* no_fans_placeholder_ = nullptr;
 
     void on_ui_destroyed() override {
         controllable_list_ = nullptr;
         auto_list_ = nullptr;
-        no_fans_placeholder_ = nullptr;
     }
 
     // Rename modal state
@@ -111,6 +110,7 @@ class FanSettingsOverlay : public OverlayBase {
     helix::Subject fan_rename_old_name_{}; ///< Subject for bind_text in modal
     helix::Subject controllable_count_{};  ///< Fans in the controllable section's badge
     helix::Subject auto_count_{};          ///< Fans in the auto section's badge
+    helix::Subject fan_count_{};           ///< Discovered fans, both sections
     bool rename_subject_initialized_ = false;
 };
 

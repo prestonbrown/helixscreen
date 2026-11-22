@@ -165,12 +165,9 @@
       </lv_obj>
     </lv_obj>
     <!-- Empty state message (shared by both views) -->
-    <lv_obj name="empty_state_container" width="100%" height="100%" style_pad_all="0" align="center" flex_grow="1">
-      <bind_flag_if_eq subject="print_select_files_empty" flag="hidden" ref_value="0"/>
-      <centered_column width="content" height="content" style_pad_all="#space_xl" align="center" pad_gap="#space_sm">
-        <text_heading text="No files available for printing" style_text_align="center"/>
-        <text_body text="Upload gcode files to get started" style_text_align="center"/>
-      </centered_column>
-    </lv_obj>
+    <empty_state name="empty_state_container"
+                 flex_grow="1" style_pad_all="#space_xl" style_pad_gap="#space_sm" icon=""
+                 title="No files available for printing" text="Upload gcode files to get started"
+                 shown_subject="print_select_files_empty" shown_value="1"/>
   </view>
 </component>

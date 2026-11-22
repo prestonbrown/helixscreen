@@ -129,12 +129,9 @@
                 width="100%" height="content" style_min_height="50" style_pad_all="0" scrollable="false"/>
       </ui_card>
       <!-- Empty State (shown when no history) - centered in available space -->
-      <centered_column name="empty_state" flex_grow="1" style_pad_all="#space_xl" hidden="true">
-        <bind_flag_if_not_eq subject="history_has_jobs" flag="hidden" ref_value="0"/>
-        <icon src="clock" size="xl" variant="secondary"/>
-        <text_muted width="100%" text="No print history yet" style_text_align="center"/>
-        <text_small width="100%" text="Your completed prints will appear here" style_text_align="center"/>
-      </centered_column>
+      <empty_state name="empty_state"
+                   flex_grow="1" style_pad_all="#space_xl" icon="clock" icon_size="xl" text="No print history yet"
+                   hint="Your completed prints will appear here" shown_subject="history_has_jobs"/>
     </overlay_panel-overlay_content>
     <!-- End overlay_content -->
   </view>
