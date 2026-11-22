@@ -17,6 +17,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/scoped_geometry.h"
+#include "core/data_root_resolver.h"
 #include "helix-xml/src/xml/lv_xml_component.h"
 #include "notice.h"
 #include "printer_state.h"
@@ -251,6 +252,32 @@ TEST_CASE_METHOD(LVGLUITestFixture, "dialog_frame's close X takes a full touch t
     SECTION("480x320") {
         check_at(480, 320);
     }
+}
+
+// The abort dialog's E-STOP is the way out of a cancel that hangs: on a
+// 480x272 screen it sits whole on the card, with nothing to scroll to.
+TEST_CASE_METHOD(LVGLUITestFixture, "the abort dialog shows its whole E-STOP at 480x272",
+                 "[dialog_frame][xml][abort]") {
+    helix::test::ScopedGeometry micro(480, 272);
+    lv_xml_register_component_from_file(
+        helix::asset_component_uri("ui_xml/abort_progress_modal.xml").c_str());
+    auto* dlg =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "abort_progress_modal", nullptr));
+    REQUIRE(dlg != nullptr);
+    lv_obj_update_layout(lv_screen_active());
+
+    lv_obj_t* body = lv_obj_find_by_name(dlg, "dialog_body");
+    lv_obj_t* estop = lv_obj_find_by_name(dlg, "abort_estop_btn");
+    REQUIRE(body != nullptr);
+    REQUIRE(estop != nullptr);
+    CHECK(lv_obj_get_height(estop) >= theme_manager_get_spacing("modal_button_height"));
+    CHECK(lv_obj_get_scroll_bottom(body) <= 0);
+    lv_area_t body_a, estop_a;
+    lv_obj_get_coords(body, &body_a);
+    lv_obj_get_coords(estop, &estop_a);
+    CAPTURE(lv_obj_get_height(body), estop_a.y1, estop_a.y2, body_a.y2);
+    CHECK(estop_a.y2 <= body_a.y2);
+    lv_obj_delete(dlg);
 }
 
 // modal_confirm's card: title, message and the one severity icon.
