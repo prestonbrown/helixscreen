@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "color_utils.h"
 #include "config.h"
 #include "core/notification_api.h"
 #include "core/text_io.h"
@@ -392,6 +393,7 @@ void AmsBackendSnapmaker::on_started() {
         task_official_.fill(std::nullopt);
         task_type_.fill(std::nullopt);
         task_color_.fill(std::nullopt);
+        task_translucent_.fill(false);
         task_subtype_.fill(std::nullopt);
         tag_slot_values_.fill(std::nullopt);
         tag_readings_.fill(std::nullopt);
@@ -2526,9 +2528,11 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
             task_official_[static_cast<size_t>(i)] = *ptc.filament_official[i];
         }
         if (ptc.filament_color_rgba[i]) {
-            if (const auto rgb = snapmaker::rgb_from_rgba_hex(*ptc.filament_color_rgba[i])) {
-                task_color_[static_cast<size_t>(i)] = *rgb;
-                slot->color_rgb = *rgb;
+            if (const auto color = snapmaker::color_from_rgba_hex(*ptc.filament_color_rgba[i])) {
+                task_color_[static_cast<size_t>(i)] = color->rgb;
+                task_translucent_[static_cast<size_t>(i)] = color->translucent;
+                slot->color_rgb = color->rgb;
+                slot->translucent = color->translucent;
             }
             fx.changed = true;
         }
@@ -2762,6 +2766,7 @@ void AmsBackendSnapmaker::file_head_firmware_locked(int head) {
         stated.material = *task_type_[idx];
         if (task_color_[idx]) {
             stated.color_rgb = *task_color_[idx];
+            stated.translucent = task_translucent_[idx];
         }
         says_anything = true;
     }
@@ -3291,9 +3296,11 @@ std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const Slo
                     "FILAMENT_SUBTYPE={}{}{}",
                     head, vendor, IMoonrakerAPI::gcode_param_value(slot.material),
                     IMoonrakerAPI::gcode_param_value(subtype), soft_arg, force_arg);
-    const std::string colour =
-        fmt::format("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} FILAMENT_COLOR_RGBA={:06X}FF{}",
-                    head, slot.color_rgb & 0xFFFFFFu, force_arg);
+    // The alpha byte carries translucency; the firmware keeps it in
+    // filament_color_rgba and filament_color_multi.alpha.
+    const std::string colour = fmt::format(
+        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} FILAMENT_COLOR_RGBA={:06X}{:02X}{}", head,
+        slot.color_rgb & 0xFFFFFFu, helix::filament_alpha(slot.translucent), force_arg);
     switch (lines) {
     case RecordLines::Identity:
         return identity;
@@ -3408,7 +3415,8 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
         // never alone.
         const bool colour_known = task_color_[idx].has_value();
         const bool colour_differs =
-            colour_known && *task_color_[idx] != (info.color_rgb & 0xFFFFFFu);
+            colour_known && (*task_color_[idx] != (info.color_rgb & 0xFFFFFFu) ||
+                             task_translucent_[idx] != info.translucent);
         if (identity_differs && (colour_differs || !colour_known)) {
             lines = RecordLines::Both;
         } else if (identity_differs) {

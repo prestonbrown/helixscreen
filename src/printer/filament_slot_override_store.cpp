@@ -146,6 +146,10 @@ nlohmann::json to_lane_data_record(int slot_index, const FilamentSlotOverride& o
                               ? nlohmann::json(std::string(color_mode::kSolid))
                               : nlohmann::json(nullptr);
     }
+    // `color` stays #RRGGBB, the form every reader of the record takes, so
+    // translucency rides a key of its own.
+    if (o.color_set && o.translucent.has_value())
+        j["helix_translucent"] = *o.translucent;
     // Two strings. OrcaSlicer matches `material` by exact equality against its
     // library and falls back to a PLA preset on a miss, so `material` carries
     // a matchable string and `filament_type` the precise one ("ASA-GF").
@@ -217,8 +221,14 @@ std::optional<std::pair<int, FilamentSlotOverride>> from_lane_data_record(const 
         if (color.kind == ColorReadingKind::Observed) {
             o.color_rgb = color.rgb;
             o.color_set = true;
+            // Another writer's #RRGGBBAA color states its translucency.
+            if (color.translucent)
+                o.translucent = true;
         }
     }
+    if (const auto translucent = helix::json_util::read_field<bool>(j, "helix_translucent");
+        translucent && o.color_set)
+        o.translucent = *translucent;
     if (const auto* mode = helix::json_util::find_member(j, "color_mode");
         mode && mode->is_string()) {
         o.colors_stated = true;
@@ -396,6 +406,7 @@ FilamentSlotOverride user_override_from_slot_info(const SlotInfo& edited,
         ovr.color_set = true;
         // Written beside the color as `color_mode`, so the edit states its count.
         ovr.colors_stated = true;
+        ovr.translucent = edited.translucent;
         if (split_colors(edited.multi_color_hexes).size() >= 2) {
             ovr.multi_color_hexes = edited.multi_color_hexes;
             ovr.color_mode = color_mode::normalize(edited.color_mode);
@@ -852,6 +863,8 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                 ovr.color_mode.clear();
                 ovr.colors_stated = true;
             }
+            // Its translucency, too, was the other filament's.
+            ovr.translucent.reset();
             changed = true;
         }
         if (ovr.material != firmware_material) {
@@ -1096,8 +1109,10 @@ SlotInfo external_spool_from_record(const FilamentSlotOverride& record) {
     info.color_name = record.color_name;
     info.catalog_id = record.catalog_id;
     info.product_name = record.product_name;
-    if (record.color_set)
+    if (record.color_set) {
         info.color_rgb = record.color_rgb;
+        info.translucent = record.translucent.value_or(false);
+    }
     info.nozzle_temp_min = record.nozzle_temp;
     info.nozzle_temp_max = record.nozzle_temp;
     info.bed_temp = record.bed_temp;

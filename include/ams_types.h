@@ -1100,6 +1100,9 @@ struct SlotInfo {
     /// How the multi-color list runs: "gradient" or "coaxial"
     /// (filament_color_mode.h); empty while the slot is one color.
     std::string color_mode;
+    /// A clear or see-through filament: its colour is drawn tinted over a
+    /// checkerboard. One level; any source alpha below FF sets it.
+    bool translucent = false;
     std::string material; ///< Material type (e.g., "PLA", "PETG", "ABS")
     std::string brand;    ///< Brand name (e.g., "Polymaker", "eSUN")
 
@@ -1228,10 +1231,10 @@ struct SlotInfo {
 
     /**
      * @brief A key for how a swatch paints this slot beyond its colour: its
-     *        multi-colour list and finish. Equal keys paint alike.
+     *        multi-colour list, finish and translucency. Equal keys paint alike.
      */
     [[nodiscard]] int paint_key() const {
-        uint32_t h = 2166136261u ^ static_cast<uint32_t>(finish());
+        uint32_t h = 2166136261u ^ static_cast<uint32_t>(finish()) ^ (translucent ? 0x100u : 0u);
         for (char c : multi_color_hexes) {
             h = (h ^ static_cast<unsigned char>(c)) * 16777619u;
         }
@@ -1292,8 +1295,8 @@ struct SlotInfo {
     bool assign_filament_fields(const SlotInfo& other) {
         auto fields = [](auto& s) {
             return std::tuple_cat(identity_fields(s),
-                                  std::tie(s.multi_color_hexes, s.color_mode, s.nozzle_temp_min,
-                                           s.nozzle_temp_max, s.bed_temp));
+                                  std::tie(s.multi_color_hexes, s.color_mode, s.translucent,
+                                           s.nozzle_temp_min, s.nozzle_temp_max, s.bed_temp));
         };
         const bool changed = fields(*this) != fields(other);
         fields(*this) = fields(other);

@@ -4458,6 +4458,42 @@ size_t index_of_containing(const std::vector<std::string>& history, const std::s
 
 } // namespace
 
+TEST_CASE("Snapmaker filament config gcode sends a translucent filament's alpha",
+          "[ams][snapmaker][filament_record][translucent]") {
+    SlotInfo s;
+    s.material = "PETG";
+    s.color_rgb = 0xD32F2F;
+    s.translucent = true;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2F80");
+    s.translucent = false;
+    CHECK(AmsBackendSnapmaker::build_filament_config_gcode(
+              2, s, false, AmsBackendSnapmaker::RecordLines::Colour) ==
+          "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER=2 FILAMENT_COLOR_RGBA=D32F2FFF");
+}
+
+TEST_CASE_METHOD(SnapmakerFixture, "Snapmaker print_task_config's alpha makes a lane translucent",
+                 "[ams][snapmaker][translucent]") {
+    helix::test::RegisteredWired<AmsBackendSnapmaker> backend_reg;
+    auto& backend = *backend_reg;
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_type", json::array({"PETG", "PLA", "PLA", "PLA"})},
+                   {"filament_color_rgba",
+                    json::array({"E8E8FF80", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK(backend.get_slot_info(0).color_rgb == 0xE8E8FFu);
+    CHECK(backend.get_slot_info(0).translucent);
+    CHECK_FALSE(backend.get_slot_info(1).translucent);
+
+    // A record written back opaque is opaque again.
+    backend.fire_status(
+        json{{"print_task_config",
+              json{{"filament_color_rgba",
+                    json::array({"E8E8FFFF", "AA0000FF", "AA0000FF", "AA0000FF"})}}}});
+    CHECK_FALSE(backend.get_slot_info(0).translucent);
+}
+
 TEST_CASE("Snapmaker filament config gcode maps vendor and subtype to firmware values",
           "[ams][snapmaker][filament_record]") {
     SECTION("an unknown vendor and a free-form spool name take Generic / Basic") {

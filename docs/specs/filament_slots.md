@@ -1,6 +1,6 @@
 # Filament Slot Metadata — `lane_data` Convention
 
-**Status**: Informational, v2.0 (2026-11). See [Changelog](#changelog).
+**Status**: Informational, v2.2 (2026-11). See [Changelog](#changelog).
 
 This document describes how HelixScreen reads and writes the `lane_data`
 Moonraker database namespace, the per-lane filament records OrcaSlicer and other
@@ -189,6 +189,7 @@ does not know is `null` (RFC 0001 V-S2), never `""`, `0` or a placeholder.
 | `helix_filament_id_source` | string | `"spoolman"` when `filament_id` came from the linked spool (above). |
 | `helix_fingerprint` | string | The spool identity HelixScreen's swap detection last observed (§6). Not filament metadata; carry it through unchanged on a rewrite. |
 | `helix_external` | bool | `true` on the external spool's lane (§4). |
+| `helix_translucent` | bool | Whether the filament is translucent or clear, beside a `color`. `color` stays `#RRGGBB` for every reader. HelixScreen also reads an 8-digit `#RRGGBBAA` `color` from another writer as translucent when its alpha is below `FF`. A record without either says nothing about it. |
 
 ### Reading records HelixScreen did not write
 
@@ -576,6 +577,10 @@ reader can resolve.
 
 ## Changelog
 
+- **v2.2 (2026-11)**: §3: new key `helix_translucent` (a translucent or clear
+  filament), written beside a `color` whenever the record states one; an
+  8-digit `color` with an alpha below `FF` from another writer reads as
+  translucent. Records without either say nothing about it.
 - **v2.1 (2026-11)**: §3: new fields `colors` (a multi-color filament's list,
   `color` its first entry) and `color_mode` (`"solid"`, `"gradient"`,
   `"coaxial"`), in the lane spec's names. Records without them read as one

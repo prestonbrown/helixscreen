@@ -91,6 +91,25 @@ std::optional<uint32_t> parse_hex_color(const std::string& hex_str);
  */
 std::string color_to_hex_string(uint32_t rgb);
 
+/// The alpha a translucent filament is written with, where a store keeps one:
+/// half way, which every reader of an RRGGBBAA color takes as see-through.
+/// HelixScreen keeps one level (translucent or opaque), so the exact value is
+/// only what other tools show.
+inline constexpr uint8_t kTranslucentFilamentAlpha = 0x80;
+
+/// The alpha byte @p hex states: its last two digits when it is an 8-digit
+/// #RRGGBBAA color, 0xFF for a 3- or 6-digit one, nullopt when it is no color
+/// parse_hex_color() reads.
+std::optional<uint8_t> parse_hex_alpha(const std::string& hex);
+
+/// Whether @p hex is a color below full opacity: any alpha under FF.
+bool hex_color_is_translucent(const std::string& hex);
+
+/// The alpha a filament of that translucency is written with.
+constexpr uint8_t filament_alpha(bool translucent) {
+    return translucent ? kTranslucentFilamentAlpha : uint8_t{0xFF};
+}
+
 /**
  * @brief Key of the palette entry nearest to @p rgb by squared RGB distance.
  *

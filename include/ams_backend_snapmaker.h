@@ -1081,6 +1081,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// print_task_config.filament_color_rgba per head, decoded. Unset until the
     /// first frame carrying a colour that decodes.
     std::array<std::optional<uint32_t>, kNumTools> task_color_{};
+    /// Whether that colour's alpha is below FF: a translucent filament. Set
+    /// with task_color_.
+    std::array<bool, kNumTools> task_translucent_{};
 
     /// print_task_config.filament_sub_type per head, as the firmware spells it.
     /// Unset until the first frame carrying it.

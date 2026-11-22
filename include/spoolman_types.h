@@ -193,6 +193,10 @@ struct SpoolInfo {
         return !multi_color_hexes.empty();
     }
 
+    /// A clear or see-through filament: its color_hex, or any of its
+    /// multi_color_hexes, carries an alpha below FF.
+    [[nodiscard]] bool is_translucent() const;
+
     /// What this spool cost: its own price, else its filament's, else 0.
     [[nodiscard]] double effective_price() const {
         return price > 0 ? price : filament_price;
@@ -363,6 +367,23 @@ std::string format_price_with_currency(double price, const std::string& currency
 // SpoolInfo → SlotInfo Conversion
 // ============================================================================
 
+// Spoolman keeps an 8-digit RRGGBBAA color as written.
+inline bool SpoolInfo::is_translucent() const {
+    if (helix::hex_color_is_translucent(color_hex)) {
+        return true;
+    }
+    size_t start = 0;
+    while (start < multi_color_hexes.size()) {
+        const size_t comma = multi_color_hexes.find(',', start);
+        const size_t end = comma == std::string::npos ? multi_color_hexes.size() : comma;
+        if (helix::hex_color_is_translucent(multi_color_hexes.substr(start, end - start))) {
+            return true;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 namespace helix::ams {
 
 /**
@@ -425,6 +446,7 @@ inline helix::ams::Observation spool_identity_observation(const SpoolInfo& spool
     // color_hex for it), empty for one color, so a list the user removes in
     // Spoolman leaves the lane.
     if (spool.id > 0) {
+        stated.translucent = spool.is_translucent();
         stated.multi_color_hexes = spool.multi_color_hexes;
         stated.color_mode = spool.multi_color_hexes.empty()
                                 ? std::string{}

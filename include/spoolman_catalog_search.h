@@ -64,8 +64,18 @@ class SpoolmanCatalogSearch {
 namespace spoolman {
 
 /// @p hex uppercased without '#' when it is 6 or 8 hex digits (Spoolman's
-/// colour form, alpha last), else empty.
+/// colour form, alpha last), else empty. An FF alpha is dropped: it says
+/// nothing a 6-digit colour does not, and Spoolman's own UI writes neither.
 std::string normalize_color_hex(const std::string& hex);
+
+/// @p csv (each entry RRGGBB or RRGGBBAA, '#' optional) with every entry's
+/// alpha set to helix::filament_alpha(@p translucent), in
+/// normalize_color_hex() form. Unparseable entries are dropped.
+std::string color_list_with_alpha(const std::string& csv, bool translucent);
+
+/// A filament's color in Spoolman's spelling, no '#': "FF0000", or with
+/// helix::kTranslucentFilamentAlpha appended ("FF000080") for a translucent one.
+std::string color_hex_for(uint32_t rgb, bool translucent);
 
 /// @p name trimmed, case-folded and with each whitespace run collapsed to
 /// one space: the form two filament names are compared in.
@@ -86,7 +96,8 @@ const FilamentInfo* find_matching_filament(const std::vector<FilamentInfo>& fila
                                            const std::string& direction = {});
 
 /// @p csv's colors in Spoolman's spelling, "D4AF37,C0C0C0": each entry
-/// normalize_color_hex()'d, unparseable ones dropped. Empty for fewer than two.
+/// normalize_color_hex()'d (a translucent one keeps its alpha), unparseable ones
+/// dropped. Empty for fewer than two.
 std::string normalize_color_list(const std::string& csv);
 
 /// The name a new Spoolman filament is filed under: @p product (a catalog

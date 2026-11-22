@@ -33,6 +33,8 @@ void apply_resolved(SlotInfo& slot, const ResolvedLane& resolved) {
         slot.multi_color_hexes = *resolved.multi_color_hexes;
     if (resolved.color_mode.has_value())
         slot.color_mode = *resolved.color_mode;
+    if (resolved.translucent.has_value())
+        slot.translucent = *resolved.translucent;
     if (resolved.color_name.has_value())
         slot.color_name = *resolved.color_name;
     if (resolved.material.has_value())
