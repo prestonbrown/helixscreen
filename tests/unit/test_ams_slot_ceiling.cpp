@@ -221,7 +221,9 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     const int tool = owned->get_slot_info(2).mapped_tool;
     REQUIRE(tool >= 0);
     ams.set_backend(std::move(owned));
-    REQUIRE(helix::ToolState::instance().tools().empty());
+    for (const auto& wired : helix::ToolState::instance().tools()) {
+        REQUIRE(wired.backend_index < 0);
+    }
 
     const auto lane = ams.lane_feeding_tool(tool);
     REQUIRE(lane.has_value());

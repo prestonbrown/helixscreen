@@ -249,12 +249,17 @@ TEST_CASE("Double init_subjects does not double-register", "[shutdown][self-regi
 
 TEST_CASE("XMLTestFixture leaves no PrinterState entry behind in the registry",
           "[shutdown][self-register]") {
+    // The global PrinterState holds an entry of its own for the whole run.
+    const auto printer_state_entries = [] {
+        auto names = StaticSubjectRegistry::instance().names();
+        return std::count(names.begin(), names.end(), "PrinterState");
+    };
+    const auto before = printer_state_entries();
     {
         XMLTestFixture fixture;
         REQUIRE(fixture.state().are_subjects_initialized());
     }
-    auto names = StaticSubjectRegistry::instance().names();
-    REQUIRE(std::find(names.begin(), names.end(), "PrinterState") == names.end());
+    REQUIRE(printer_state_entries() == before);
 }
 
 // ============================================================================

@@ -393,6 +393,16 @@ void HelixTestFixture::reset_all() {
     // Drain any callbacks queued by a prior test before we touch state they read.
     helix::ui::UpdateQueue::instance().drain();
 
+    // The app initializes these subjects at startup and keeps them live for the whole
+    // session (SubjectInitializer, in this order), so code under test binds them
+    // without asking. A case that runs with one of them down has each such binding
+    // refused by LVGL, and the observer it wanted never fires (#2125).
+    // init_subjects() is a no-op for an owner already up; AmsState's re-entry also
+    // rebinds its PrinterState observers, which a PrinterState re-init drops.
+    get_printer_state().init_subjects(true);
+    helix::ToolState::instance().init_subjects(true);
+    helix::AmsState::instance().init_subjects(true);
+
     reset_printer_state();
 
     // SystemSettingsManager language back to "en" (matches config default).
