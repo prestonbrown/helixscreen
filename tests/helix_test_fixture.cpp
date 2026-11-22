@@ -32,6 +32,7 @@
 #include "filament_slot_override_store.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lane_source_store.h"
+#include "led/led_controller.h"
 #include "logging_init.h"
 #include "lvgl_log_handler.h"
 #include "macro_param_cache.h"
@@ -39,12 +40,14 @@
 #include "pending_startup_warnings.h"
 #include "post_op_cooldown_manager.h"
 #include "printer_discovery.h"
+#include "printer_image_manager.h"
 #include "region_defaults.h"
 #include "rpc_error_correlation.h"
 #include "runtime_config.h"
 #include "safety_settings_manager.h"
 #include "screensaver_canvas.h"
 #include "screensaver_registry.h"
+#include "sensor_manager.h"
 #include "settings_manager.h"
 #include "sound_manager.h"
 #include "standard_macros.h"
@@ -430,6 +433,19 @@ void HelixTestFixture::reset_all() {
     StandardMacros::instance().load_from_config();
     helix::SystemSettingsManager::instance().init_subjects();
     helix::SystemSettingsManager::instance().set_language("en");
+
+    // The rest of the owners the app brings up before any panel exists
+    // (SubjectInitializer, PrinterSession::init_core_subjects()), here because they
+    // read the config reset above. LedController's API arrives with discovery.
+    helix::SettingsManager::instance().init_subjects();
+    helix::PrinterImageManager::instance().init_subjects();
+    StandardMacros::instance().init_subjects();
+    for (auto* manager : helix::sensors::sensor_managers()) {
+        manager->init_subjects();
+    }
+    if (!helix::led::LedController::instance().is_initialized()) {
+        helix::led::LedController::instance().init(nullptr, nullptr);
+    }
     // Every formatter reads the display unit; a test that shows °F must not
     // leave the rest of the binary reading it.
     helix::units::set_display_temp_unit(helix::units::TempUnit::Celsius);
