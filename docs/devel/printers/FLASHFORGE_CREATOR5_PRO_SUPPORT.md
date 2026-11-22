@@ -121,7 +121,7 @@ HelixScreen data root". `HELIX_DATA_DIR` overrides the lookup.
 | `PLATFORM_TARGET` | `mips` (`creator5` is an alias) |
 | Toolchain image | `helixscreen/toolchain-mips`: GCC 13.2 + musl 1.2.4, `mipsel-k1-linux-musl-`, nan2008/fp64 defaults |
 | Architecture | `-march=mips32r2 -mtune=mips32r2 -mnan=2008 -mfp64`, little-endian, hard float |
-| Linking | Fully static (musl), `-Os`, `-flto=auto`, gc-sections |
+| Linking | Fully static (musl), `-O2`, `-flto=auto`, gc-sections |
 | Display backend | fbdev (`/dev/fb0`), 480x800 portrait framebuffer; the preset's `display.rotate = 90` presents it landscape |
 | Input | evdev (auto-detect; `HELIX_TOUCH_DEVICE=/dev/input/event2` to pin) |
 | SSL | Enabled (static OpenSSL in the toolchain image) |
