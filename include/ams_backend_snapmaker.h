@@ -1143,6 +1143,19 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// firmware record last named a type. Under mutex_.
     std::array<bool, kNumTools> record_restore_sent_{};
 
+    /// Per head: when the last write of the declaration went out, and how
+    /// many have gone since the record last named a type. A clear the
+    /// firmware queued before the write can land after it, inside one status
+    /// tick, so the record never reads the write and stays unset: past
+    /// kRecordRestoreSettle the write goes again, kMaxRecordRestores in all.
+    /// Under mutex_.
+    std::array<std::chrono::steady_clock::time_point, kNumTools> record_restore_sent_at_{};
+    std::array<int, kNumTools> record_restores_made_{};
+    static constexpr std::chrono::seconds kRecordRestoreSettle{5};
+    static constexpr int kMaxRecordRestores = 3;
+    /// Marks head @p idx's record as just written. Under mutex_.
+    void note_record_written_locked(size_t idx);
+
     /// Per head, the type and colour this session's last edit wrote into
     /// print_task_config: the record official_flag_repairs_locked() may
     /// rewrite, since another writer's it would discard. Under mutex_.
