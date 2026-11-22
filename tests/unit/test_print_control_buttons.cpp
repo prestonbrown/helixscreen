@@ -10,6 +10,7 @@
 #include "app_globals.h"
 #include "print_control_buttons.h"
 #include "printer_state.h"
+#include "system_settings_manager.h"
 
 #include <lvgl.h>
 #include <string>
@@ -69,6 +70,23 @@ TEST_CASE_METHOD(ControlButtonsFixture, "primary label tracks print state",
     REQUIRE(read_str("print_control_primary_label") == "Pause");
     REQUIRE(read_int("print_control_primary_enabled") == 0);
     REQUIRE(read_int("print_control_stop_enabled") == 0);
+}
+
+TEST_CASE_METHOD(ControlButtonsFixture, "primary label is translated and follows a language switch",
+                 "[print_control][i18n]") {
+    auto& settings = helix::SystemSettingsManager::instance();
+    settings.init_subjects();
+    set_print_state(helix::PrintJobState::PRINTING);
+    REQUIRE(read_str("print_control_primary_label") == "Pause");
+
+    settings.set_language("ru");
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(std::string(lv_tr("Pause")) != "Pause");
+    CHECK(read_str("print_control_primary_label") == lv_tr("Pause"));
+
+    settings.set_language("en");
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    CHECK(read_str("print_control_primary_label") == "Pause");
 }
 
 // Enable state depends on StandardMacros slot availability. In the unit-test
