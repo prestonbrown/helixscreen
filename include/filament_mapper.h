@@ -76,6 +76,10 @@ struct AvailableSlot {
     /// Kept late for the same reason multi_color_hexes is.
     helix::FilamentFinish finish = helix::FilamentFinish::None;
 
+    /// SlotInfo::translucent: a clear or see-through filament. Defaulted for
+    /// the aggregate initializers.
+    bool translucent = false;
+
     /// The word this slot's backend uses for one position. Defaulted so the
     /// ~200 aggregate initializers in the mapper tests stay valid.
     helix::ui::LaneNoun noun = helix::ui::LaneNoun::Slot;

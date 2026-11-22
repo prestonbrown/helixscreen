@@ -58,6 +58,10 @@ struct FilamentSlotOverride {
     // color and clears a list another source holds; a record with a null or
     // missing `color_mode` (a firmware mirror's) says nothing about it.
     bool colors_stated = false;
+    // A clear or see-through filament (SlotInfo::translucent). Unset on a
+    // record that says nothing about it. Persisted as `helix_translucent`,
+    // since the record's `color` stays #RRGGBB for every other reader.
+    std::optional<bool> translucent;
     std::string color_name;
     std::string material;
     // Catalog product identity, mirroring SlotInfo::catalog_id / product_name

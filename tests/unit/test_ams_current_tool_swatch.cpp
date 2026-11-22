@@ -98,3 +98,27 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     ams.clear_backends();
     ams.deinit_subjects();
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_current_tool: a translucency change alone repaints the swatch",
+                 "[ams][swatch][ams_current_tool][translucent]") {
+    auto& ams = AmsState::instance();
+    ams.init_subjects(true);
+    lv_obj_t* tool =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "ams_current_tool", nullptr));
+    REQUIRE(tool != nullptr);
+    ui_ams_current_tool_setup(tool);
+    lv_obj_t* disc = lv_obj_find_by_name(tool, "color_swatch_disc");
+    REQUIRE(disc != nullptr);
+    lv_subject_set_int(ams.get_current_color_subject(), 0xE8E8FF);
+    drain();
+    REQUIRE_FALSE(ui::swatch_paint_translucent(disc));
+
+    // The color stays; only the flag moves.
+    lv_subject_set_int(ams.get_current_translucent_subject(), 1);
+    drain();
+    CHECK(ui::swatch_paint_translucent(disc));
+    lv_subject_set_int(ams.get_current_translucent_subject(), 0);
+    drain();
+    CHECK_FALSE(ui::swatch_paint_translucent(disc));
+}

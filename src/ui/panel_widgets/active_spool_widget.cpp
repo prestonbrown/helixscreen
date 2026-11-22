@@ -226,9 +226,9 @@ void ActiveSpoolWidget::update_spool_display() {
     // Update the active spool canvas
     if (active_spool) {
         if (has_spool && source_slot)
-            helix::ui::spool_canvas_set_filament(active_spool, active->color_rgb,
-                                                 source_slot->multi_color_hexes,
-                                                 helix::ui::swatch_finish_of(*source_slot));
+            helix::ui::spool_canvas_set_filament(
+                active_spool, active->color_rgb, source_slot->multi_color_hexes,
+                helix::ui::swatch_finish_of(*source_slot), source_slot->translucent);
         else
             ui_spool_canvas_set_color(active_spool, spool_color);
         ui_spool_canvas_set_fill_level(active_spool, fill_level);

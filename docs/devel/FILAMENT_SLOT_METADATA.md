@@ -77,6 +77,7 @@ types every supported Orca release carries.
 | `loaded` | bool, or `null` |
 | `color` | `"#RRGGBB"`, or `null` when `color_set` is false (pure black is a colour) |
 | `colors`, `color_mode` | a multi-color filament's list (`FilamentSlotOverride::multi_color_hexes`, two or more `#RRGGBB`) and `"gradient"` or `"coaxial"`; for one color `colors` is `null` and `color_mode` is `"solid"` only when the write knew the count (`colors_stated`: a user's edit, a mirror replacing a stale list), else `null`; both `null` with no color (`include/filament_color_mode.h`, `src/printer/filament_slot_override_store.cpp#to_lane_data_record`) |
+| `helix_translucent` | `FilamentSlotOverride::translucent` beside a `color`, omitted while the record states none; read back with an 8-digit `color` below `FF` alpha as the other spelling (`docs/devel/COLOR_SWATCHES.md` § "Translucent filament") |
 | `material`, `filament_type` | the Orca match string and the precise type |
 | `vendor_name`, `name` | brand and product name |
 | `spool_id`, `spoolman_filament_id`, `filament_id` | numbers or `null`; `filament_id` is the linked spool's Orca id, else one the catalog records for the picked product, else the material family's Generic preset (`FilamentCatalog::generic_orca_id_for`: the bundled `Generic <type>` product, else `Generic <orca_match_type>`), else `null`; `helix_filament_id_source` says `"spoolman"` or `"generic"` for the first and third |

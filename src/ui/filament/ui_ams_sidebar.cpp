@@ -681,6 +681,11 @@ void AmsOperationSidebar::init_observers() {
         AmsState::instance().get_current_finish_subject(), this,
         [](AmsOperationSidebar* self, const char*) { self->paint_loaded_filament(); },
         AmsState::instance().get_subjects_lifetime());
+    // A translucency change alone leaves the color as it was.
+    translucent_observer_ = observe<int>(
+        AmsState::instance().get_current_translucent_subject(), this,
+        [](AmsOperationSidebar* self, int) { self->paint_loaded_filament(); },
+        AmsState::instance().get_subjects_lifetime());
 
     // Fill observer: how much is left on the loaded spool, in the
     // SlotInfo::display_fill_pct() encoding. -1 (no weight data) draws a full
@@ -777,6 +782,7 @@ void AmsOperationSidebar::cleanup() {
     color_observer_.reset();
     colors_observer_.reset();
     finish_observer_.reset();
+    translucent_observer_.reset();
     fill_observer_.reset();
     step_index_observer_.reset(); // [L085] reset(), never release()
     extruder_temp_observer_.reset();
@@ -885,10 +891,12 @@ void AmsOperationSidebar::paint_loaded_filament() {
     const auto paint = AmsState::instance().current_paint();
     const auto finish = helix::ui::swatch_finish(paint.finish);
     if (lv_obj_t* swatch = lv_obj_find_by_name(loaded_card_, "loaded_swatch")) {
-        helix::ui::apply_swatch_color(swatch, paint.rgb, paint.multi_color_hexes, finish);
+        helix::ui::apply_swatch_color(swatch, paint.rgb, paint.multi_color_hexes, finish,
+                                      paint.translucent);
     }
     if (lv_obj_t* spool = lv_obj_find_by_name(loaded_card_, "loaded_spool")) {
-        helix::ui::spool_canvas_set_filament(spool, paint.rgb, paint.multi_color_hexes, finish);
+        helix::ui::spool_canvas_set_filament(spool, paint.rgb, paint.multi_color_hexes, finish,
+                                             paint.translucent);
     }
 }
 

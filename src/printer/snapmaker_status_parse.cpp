@@ -197,14 +197,21 @@ FilamentDetectDelta parse_filament_detect(const nlohmann::json& detect) {
     return d;
 }
 
-std::optional<uint32_t> rgb_from_rgba_hex(const std::string& hex) {
+std::optional<ams::ColorReading> color_from_rgba_hex(const std::string& hex) {
     // Only an Observed reading is a colour; an empty or malformed value leaves
     // the slot's colour as it was.
     const auto reading = ams::read_lane_color(hex);
     if (reading.kind != ams::ColorReadingKind::Observed) {
         return std::nullopt;
     }
-    return reading.rgb;
+    return reading;
+}
+
+std::optional<uint32_t> rgb_from_rgba_hex(const std::string& hex) {
+    if (const auto reading = color_from_rgba_hex(hex)) {
+        return reading->rgb;
+    }
+    return std::nullopt;
 }
 
 std::vector<ToolheadSensorDelta> parse_toolhead_sensors(const nlohmann::json& status) {

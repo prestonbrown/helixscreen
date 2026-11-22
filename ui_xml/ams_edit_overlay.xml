@@ -110,6 +110,23 @@
     <px name="ams_edit_multi_dot_gap_small" value="16"/>
     <px name="ams_edit_multi_dot_gap_medium" value="12"/>
     <px name="ams_edit_multi_dot_gap_large" value="12"/>
+    <!-- The dots and mode dropdown's least width beside the switch. With the
+         Translucent checkbox it is more than a narrow page's line holds, so the
+         checkbox wraps to the next line instead of squeezing the dropdown; alone
+         it stays under what the line leaves beside the switch, so the dots and
+         dropdown keep its line. At medium and up all three share one line. -->
+    <px name="ams_edit_multi_row_min_w_micro" value="240"/>
+    <px name="ams_edit_multi_row_min_w_tiny" value="240"/>
+    <px name="ams_edit_multi_row_min_w_small" value="260"/>
+    <px name="ams_edit_multi_row_min_w_medium" value="328"/>
+    <px name="ams_edit_multi_row_min_w_large" value="348"/>
+    <!-- The Translucent checkbox's reach above and below its box: a 44px
+         target from the checkbox's own height at each size. -->
+    <px name="ams_edit_check_hit_micro" value="11"/>
+    <px name="ams_edit_check_hit_tiny" value="11"/>
+    <px name="ams_edit_check_hit_small" value="9"/>
+    <px name="ams_edit_check_hit_medium" value="7"/>
+    <px name="ams_edit_check_hit_large" value="7"/>
     <px name="ams_edit_preview_h_micro" value="18"/>
     <px name="ams_edit_preview_h_tiny" value="20"/>
     <px name="ams_edit_preview_h_small" value="22"/>

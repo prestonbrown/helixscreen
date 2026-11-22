@@ -242,9 +242,9 @@ lv_obj_t* FilamentMappingModal::create_tool_row(int tool_index) {
 
     if (mapped && !mapped->is_empty) {
         if (auto* chosen_swatch = helix::ui::find_required(row, "chosen_swatch", get_name())) {
-            helix::ui::apply_swatch_color(chosen_swatch, mapped->color_rgb,
-                                          mapped->multi_color_hexes,
-                                          helix::ui::swatch_finish(mapped->finish));
+            helix::ui::apply_swatch_color(
+                chosen_swatch, mapped->color_rgb, mapped->multi_color_hexes,
+                helix::ui::swatch_finish(mapped->finish), mapped->translucent);
         }
     } else if (mapped_to_empty) {
         if (auto* empty_swatch = helix::ui::find_required(row, "chosen_swatch_empty", get_name())) {

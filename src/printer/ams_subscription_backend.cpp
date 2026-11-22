@@ -523,11 +523,28 @@ void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_inde
     const uint32_t color = had_prior ? prior->second.color_rgb : 0;
     const bool color_set = had_prior && prior->second.color_set;
     const std::string material = had_prior ? prior->second.material : std::string{};
+    // Kept until the firmware echoes it only where the firmware states one.
+    const std::optional<bool> translucent = !firmware_states_translucency()
+                                                ? std::optional<bool>(info.translucent)
+                                            : had_prior ? prior->second.translucent
+                                                        : std::optional<bool>{};
+
+    if (!firmware_states_translucency()) {
+        // The firmware's echo of a new colour carries no alpha, and the mirror
+        // clears a translucency the colour change would otherwise orphan.
+        if (helix::ams::is_declarable_color(info.color_rgb) &&
+            (!color_set || (color & 0xFFFFFFu) != (info.color_rgb & 0xFFFFFFu))) {
+            translucency_awaiting_echo_[slot_index] = info.translucent;
+        } else {
+            translucency_awaiting_echo_.erase(slot_index);
+        }
+    }
 
     helix::ams::FilamentSlotOverride& staged =
         helix::ams::stage_user_override(overrides_, slot_index, info);
     staged.color_rgb = color;
     staged.color_set = color_set;
+    staged.translucent = translucent;
     staged.material = material;
     if (override_store_) {
         helix::ams::save_override_async(override_store_.get(), slot_index, staged,
@@ -541,6 +558,8 @@ void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
     if (it == overrides_.end()) {
         return;
     }
+    // A spool that left takes any edit still waiting for its echo with it.
+    translucency_awaiting_echo_.erase(slot_index);
     if (!keep_identity) {
         // RFC 0001: an empty lane keeps its record, with nothing known. The
         // lane's sources and the painted slot let go of the spool at once, as
@@ -561,16 +580,31 @@ void AmsSubscriptionBackend::lane_emptied(int slot_index, bool keep_identity) {
 }
 
 bool AmsSubscriptionBackend::mirror_firmware_identity_locked(int slot_index, uint32_t color,
-                                                             const std::string& material) {
+                                                             const std::string& material,
+                                                             std::optional<bool> translucent) {
     // Another writer's record is not ours to copy into: the save would be
     // refused, and refused again at every frame or poll.
     if (lane_records_unread_ ||
         (override_store_ && override_store_->written_by_another(slot_index))) {
         return false;
     }
+    // The first colour change after an edit that moved the colour is that
+    // edit's echo: it keeps the edit's translucency. Any later one, with no
+    // edit behind it, is another filament and clears it.
+    if (!translucent) {
+        const auto awaiting = translucency_awaiting_echo_.find(slot_index);
+        const auto record = overrides_.find(slot_index);
+        const bool color_moves = record == overrides_.end() || !record->second.color_set ||
+                                 (record->second.color_rgb & 0xFFFFFFu) != (color & 0xFFFFFFu);
+        if (awaiting != translucency_awaiting_echo_.end() && color_moves) {
+            translucent = awaiting->second;
+            translucency_awaiting_echo_.erase(awaiting);
+        }
+    }
     return helix::ams::mirror_firmware_to_lane_data(
         override_store_.get(), overrides_, slot_index, color, material,
-        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag());
+        /*slot_has_filament=*/true, helix::ams::MirrorPolicy::OverwriteAlways, backend_log_tag(),
+        translucent);
 }
 
 void AmsSubscriptionBackend::restate_pending_as_stored(int slot_index,

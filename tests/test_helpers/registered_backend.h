@@ -39,6 +39,18 @@ template <typename BackendT> class RegisteredBackend {
     }
 
     ~RegisteredBackend() {
+        // A started backend may still be polling on its own thread (ACE's REST
+        // fallback), and a poll landing after the drain would queue a callback
+        // the next test inherits. stop() joins those threads and is a no-op on a
+        // backend that never started. A test may already have cleared the
+        // backends, so only a backend AmsState still holds is stopped.
+        auto& ams = helix::AmsState::instance();
+        for (int i = 0; i < ams.backend_count(); ++i) {
+            if (ams.get_backend(i) == backend_) {
+                backend_->stop();
+                break;
+            }
+        }
         // Drain ahead of clear_backends(), not after. Driving the backend leaves
         // AmsState::on_backend_event callbacks queued, and each one resolves its
         // work through get_backend(0); once the backends are gone that answers

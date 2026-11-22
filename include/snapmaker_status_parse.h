@@ -3,6 +3,7 @@
 #pragma once
 
 #include "json_fwd.h"
+#include "lane_translation.h"
 #include "snapmaker_print_preferences.h"
 
 #include <array>
@@ -140,6 +141,11 @@ struct PrintTaskConfigDelta {
 /// `#`-prefixed hex, with or without an alpha byte), or nullopt when it names
 /// none.
 [[nodiscard]] std::optional<uint32_t> rgb_from_rgba_hex(const std::string& hex);
+
+/// The color a `filament_color_rgba` entry names, with its translucency: an
+/// alpha byte below FF (a tag's ALPHA, or one written back) is a translucent
+/// filament. nullopt when it names none.
+[[nodiscard]] std::optional<ams::ColorReading> color_from_rgba_hex(const std::string& hex);
 
 /// One per-tool runout sensor object: `filament_motion_sensor e{N}_filament`
 /// (the Snapmaker default) or the generic `filament_switch_sensor` form.

@@ -416,6 +416,37 @@ AmsError AmsBackendMock::start() {
             }
             emit_event(kEventSlotChanged);
             spdlog::info("[AMS Mock] Applied initial state scenario: finishes");
+        } else if (scenario == "translucent") {
+            // The loaded lane holds a translucent red and the next a clear
+            // filament, so every surface that paints a spool shows the
+            // checkerboard beside opaque lanes. Unlinked, so no Spoolman record
+            // repaints them.
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                const struct {
+                    int slot;
+                    const char* product;
+                    const char* color_name;
+                    uint32_t rgb;
+                } kLanes[] = {{0, "PETG Translucent", "Red", 0xD32F2F},
+                              {1, "PETG Clear", "Clear", 0xE8E8FF}};
+                for (const auto& lane : kLanes) {
+                    auto* entry = slots_.get_mut(lane.slot);
+                    if (!entry) {
+                        continue;
+                    }
+                    entry->info.material = "PETG";
+                    entry->info.product_name = lane.product;
+                    entry->info.color_name = lane.color_name;
+                    entry->info.color_rgb = lane.rgb;
+                    entry->info.multi_color_hexes.clear();
+                    entry->info.translucent = true;
+                    entry->info.spoolman_id = 0;
+                    entry->info.spool_name.clear();
+                }
+            }
+            emit_event(kEventSlotChanged);
+            spdlog::info("[AMS Mock] Applied initial state scenario: translucent (slots 0, 1)");
         } else if (scenario == "feeder") {
             // Lane 3's filament waits at its feeder, short of its toolhead.
             set_slot_at_feeder(2);

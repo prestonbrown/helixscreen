@@ -1576,18 +1576,29 @@ class AmsState {
         return &current_finish_;
     }
 
-    /// The loaded filament as a swatch paints it, read from the three subjects
+    /**
+     * @brief Whether the loaded filament is translucent (SlotInfo::translucent), 0 or 1
+     *
+     * Written before current_color, so a current_color observer reads the matching flag.
+     */
+    lv_subject_t* get_current_translucent_subject() {
+        return &current_translucent_;
+    }
+
+    /// The loaded filament as a swatch paints it, read from the subjects
     /// above. Main thread only.
     struct LoadedPaint {
         uint32_t rgb = 0;
         std::string multi_color_hexes;
         FilamentFinish finish = FilamentFinish::None;
+        bool translucent = false;
     };
     [[nodiscard]] LoadedPaint current_paint() {
         const char* colors = lv_subject_get_string(&current_colors_);
         const char* finish = lv_subject_get_string(&current_finish_);
         return {static_cast<uint32_t>(lv_subject_get_int(&current_color_)) & 0xFFFFFF,
-                colors ? colors : "", filament_finish_of(finish ? finish : "")};
+                colors ? colors : "", filament_finish_of(finish ? finish : ""),
+                lv_subject_get_int(&current_translucent_) != 0};
     }
 
     /**
@@ -2319,7 +2330,7 @@ class AmsState {
     /// Publish the loaded filament's swatch: its colours and finish name
     /// first, then its colour, whose observers repaint from all three.
     void set_current_paint(uint32_t rgb, const std::string& multi_color_hexes = "",
-                           const std::string& finish_name = "");
+                           const std::string& finish_name = "", bool translucent = false);
 
     /** @brief Sync clog detection meter subjects from system info */
     void sync_clog_meter_from_info(const AmsSystemInfo& info);
@@ -2891,6 +2902,7 @@ class AmsState {
     char current_colors_buf_[128];
     helix::Subject current_finish_{};
     char current_finish_buf_[16];
+    helix::Subject current_translucent_{};
     helix::Subject current_fill_pct_{};
 
     // Per-slot subjects (color, status, remaining filament)

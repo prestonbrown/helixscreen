@@ -601,8 +601,18 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// lane's colour and material. Those two reach the firmware through the
     /// edit's own command, so the record keeps the ones it already carries
     /// (what mirror_firmware_identity_locked() last copied from the firmware)
-    /// and never states a value the firmware has not taken. Caller holds mutex_.
+    /// and never states a value the firmware has not taken. Translucency is
+    /// kept the same way only where firmware_states_translucency(); elsewhere
+    /// the firmware never echoes it, so the record takes the edit's, and an
+    /// edit that also moves the colour keeps it through that colour's echo.
+    /// Caller holds mutex_.
     void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
+
+    /// Whether this backend's firmware keeps a filament's alpha beside its
+    /// colour and states it back (passing it to mirror_firmware_identity_locked()).
+    [[nodiscard]] virtual bool firmware_states_translucency() const {
+        return false;
+    }
 
     /// loaded = false on @p slot_index's record, its identity cleared unless
     /// @p keep_identity, saved. Nothing without a record. Takes mutex_.
@@ -613,9 +623,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// HelixScreen) on a backend where HelixScreen writes lane_data. Nothing
     /// is copied before the first record read lands (a save then would replace
     /// the stored record with a bare one), nor into a record another writer
-    /// owns. True when the record changed. Caller holds mutex_.
+    /// owns. @p translucent is the firmware's alpha, for a firmware that
+    /// states one beside the color. True when the record changed. Caller holds mutex_.
     bool mirror_firmware_identity_locked(int slot_index, uint32_t color,
-                                         const std::string& material);
+                                         const std::string& material,
+                                         std::optional<bool> translucent = std::nullopt);
 
     /// An edit's pending colour and material, restated as the firmware will
     /// store them (@p material normalized, @p color snapped), so the edit
@@ -742,6 +754,11 @@ class AmsSubscriptionBackend : public AmsBackend {
     bool lane_records_unread_ = false;
     /// Reads filed since the store opened (lane_record_reads()).
     uint64_t lane_record_reads_ = 0;
+    /// Per slot, the translucency of an edit that moved the colour, on a
+    /// backend whose firmware states no alpha: the next colour the firmware
+    /// reports is that edit's echo, which keeps it rather than clearing it as
+    /// another filament's. Guarded by mutex_.
+    std::unordered_map<int, bool> translucency_awaiting_echo_;
     /// One firmware write from record_once_written(): whether a Clear waits on it.
     struct FirmwareEditFate {
         bool clear_after = false;

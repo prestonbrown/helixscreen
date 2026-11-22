@@ -304,6 +304,40 @@ std::optional<uint32_t> parse_hex_color(const std::string& hex_str) {
     return std::nullopt;
 }
 
+std::optional<uint8_t> parse_hex_alpha(const std::string& hex) {
+    uint32_t rgb = 0;
+    if (!parse_hex_color(hex.c_str(), rgb)) {
+        return std::nullopt;
+    }
+    // parse_hex_color() accepted it, so the digits are the last run before any
+    // trailing whitespace, and eight of them carry an alpha byte.
+    size_t end = hex.size();
+    while (end > 0 && std::isspace(static_cast<unsigned char>(hex[end - 1]))) {
+        --end;
+    }
+    size_t begin = end;
+    while (begin > 0 && std::isxdigit(static_cast<unsigned char>(hex[begin - 1]))) {
+        --begin;
+    }
+    // A "#" or "0x" prefix ends the run: neither '#' nor 'x' is a hex digit.
+    if (end - begin != 8) {
+        return uint8_t{0xFF};
+    }
+    const auto nibble = [](char c) -> uint8_t {
+        if (c >= '0' && c <= '9')
+            return static_cast<uint8_t>(c - '0');
+        if (c >= 'a' && c <= 'f')
+            return static_cast<uint8_t>(10 + c - 'a');
+        return static_cast<uint8_t>(10 + c - 'A');
+    };
+    return static_cast<uint8_t>((nibble(hex[end - 2]) << 4) | nibble(hex[end - 1]));
+}
+
+bool hex_color_is_translucent(const std::string& hex) {
+    const auto alpha = parse_hex_alpha(hex);
+    return alpha.has_value() && *alpha < 0xFF;
+}
+
 std::string color_to_hex_string(uint32_t rgb) {
     char buf[8];
     std::snprintf(buf, sizeof(buf), "#%06X", rgb & 0xFFFFFF);

@@ -238,6 +238,7 @@ class AmsOperationSidebar {
     ObserverGuard color_observer_;
     ObserverGuard colors_observer_;
     ObserverGuard finish_observer_;
+    ObserverGuard translucent_observer_;
     ObserverGuard fill_observer_;
     // Watches AmsState's ams_operation_indeterminate subject (#1065 row 14). When
     // 1 the live "Heat 225/230" readout is frozen by a starved status feed, so

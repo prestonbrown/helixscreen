@@ -43,6 +43,7 @@ struct PickerSubjects {
     helix::Subject keypad_len;
     helix::Subject keypad_text;
     helix::Subject keypad_preview;
+    helix::Subject translucent; ///< the readout draws the color translucent: 0 or 1
 
     char name_buf[64] = {};
     char hex_buf[16] = {};
@@ -238,6 +239,7 @@ void ensure_color_picker_view_subjects() {
     s.keypad_len.init_int(0);
     s.keypad_text.init_string(s.keypad_buf, "");
     s.keypad_preview.init_color(to_color(0x808080));
+    s.translucent.init_int(0);
 
     register_subject(s.tab, "color_picker_tab");
     register_subject(s.current, "color_picker_current");
@@ -261,6 +263,7 @@ void ensure_color_picker_view_subjects() {
     register_subject(s.keypad_len, "color_picker_keypad_len");
     register_subject(s.keypad_text, "color_picker_keypad_text");
     register_subject(s.keypad_preview, "color_picker_keypad_preview");
+    register_subject(s.translucent, "color_picker_translucent");
     s_cells.ensure_size(kMaxCells);
     s_chips.ensure_size(kMaxChips);
     register_callbacks();
@@ -281,7 +284,8 @@ void ensure_color_picker_view_subjects() {
                                   "color_picker_chip_selected", "color_picker_chip_count",
                                   "color_picker_strip_caption", "color_picker_strip_editing",
                                   "color_picker_keypad_open",   "color_picker_keypad_len",
-                                  "color_picker_keypad_text",   "color_picker_keypad_preview"}) {
+                                  "color_picker_keypad_text",   "color_picker_keypad_preview",
+                                  "color_picker_translucent"}) {
                 lv_xml_unregister_subject(nullptr, n);
             }
             s_cells.reclaim();
@@ -312,6 +316,7 @@ void ColorPickerView::attach(lv_obj_t* container, uint32_t initial_rgb,
     keypad_open_ = false;
     strip_editing_ = false;
     keypad_.clear();
+    translucent_ = false;
     model_ = ColorPickerModel(initial_rgb);
     publish_all();
 
@@ -365,9 +370,17 @@ void ColorPickerView::publish_all() {
     lv_subject_set_string(&s_subjects->strip_caption, caption.c_str());
     lv_subject_set_int(&s_subjects->tab, static_cast<int>(tab_));
     lv_subject_set_int(&s_subjects->strip_editing, strip_editing_ ? 1 : 0);
+    lv_subject_set_int(&s_subjects->translucent, translucent_ ? 1 : 0);
     publish_keypad();
     load_strip();
     publish();
+}
+
+void ColorPickerView::set_translucent(bool translucent) {
+    translucent_ = translucent;
+    if (current_publisher() == this) {
+        lv_subject_set_int(&s_subjects->translucent, translucent ? 1 : 0);
+    }
 }
 
 void ColorPickerView::on_change(std::function<void(uint32_t)> callback) {

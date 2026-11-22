@@ -43,6 +43,9 @@ struct Observation {
     std::optional<std::string> multi_color_hexes;
     /// "gradient" or "coaxial" (filament_color_mode.h); empty states solid.
     std::optional<std::string> color_mode;
+    /// A clear or see-through filament (SlotInfo::translucent). A source that
+    /// reads its color from RRGGBBAA states it beside the color.
+    std::optional<bool> translucent;
     std::optional<std::string> color_name;
     std::optional<std::string> material;
     std::optional<std::string> brand;
@@ -64,17 +67,17 @@ struct Observation {
     /// instead of keeping its own field list, so a field added here reaches
     /// that code with no matching line to remember.
     auto fields() {
-        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, color_name,
-                        material, brand, spool_name, catalog_id, product_name, spoolman_id,
-                        spoolman_filament_id, spoolman_vendor_id, spoolman_orca_filament_id,
-                        remaining_weight_g, total_weight_g);
+        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, translucent,
+                        color_name, material, brand, spool_name, catalog_id, product_name,
+                        spoolman_id, spoolman_filament_id, spoolman_vendor_id,
+                        spoolman_orca_filament_id, remaining_weight_g, total_weight_g);
     }
 
     auto fields() const {
-        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, color_name,
-                        material, brand, spool_name, catalog_id, product_name, spoolman_id,
-                        spoolman_filament_id, spoolman_vendor_id, spoolman_orca_filament_id,
-                        remaining_weight_g, total_weight_g);
+        return std::tie(present, tool_docked, color_rgb, multi_color_hexes, color_mode, translucent,
+                        color_name, material, brand, spool_name, catalog_id, product_name,
+                        spoolman_id, spoolman_filament_id, spoolman_vendor_id,
+                        spoolman_orca_filament_id, remaining_weight_g, total_weight_g);
     }
 };
 
