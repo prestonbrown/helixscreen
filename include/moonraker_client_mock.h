@@ -223,6 +223,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         klippy_state_.store(state);
     }
 
+    /// The state a FIRMWARE_RESTART or RESTART ends in: READY, or ERROR for a
+    /// restart whose config Klipper refuses (with set_klippy_error_message()).
+    void set_restart_outcome(KlippyState state) {
+        restart_outcome_.store(state);
+    }
+
     /// The state_message printer.info reports while Klippy is in ERROR. Empty
     /// keeps the generic text. Set before connecting: not synchronised.
     void set_klippy_error_message(std::string message) {
@@ -1157,6 +1163,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     void toggle_filament_runout_simulation() override {
         toggle_filament_runout();
     }
+
+    /// Holds @p content for the next restart, which reads the [extruder]
+    /// control and cooling_fan it names (apply_written_config()).
+    void simulate_config_file_written(const std::string& path, const std::string& content) override;
 
     /**
      * @brief Park or resume the simulation loop
@@ -2521,6 +2531,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Klippy service state (for RESTART/FIRMWARE_RESTART simulation)
     std::atomic<KlippyState> klippy_state_{KlippyState::READY};
+    std::atomic<KlippyState> restart_outcome_{KlippyState::READY};
     std::string klippy_error_message_;
 
     // Fan speed tracking (multiple fans by name)
@@ -2685,6 +2696,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     bool shaper_csv_writable_{true};   ///< When false, SHAPER_CALIBRATE skips writing the CSV
     std::string extruder_cooling_fan_; ///< Kalico-mode [extruder] cooling_fan; "" for none
     std::string extruder_control_;     ///< Kalico-mode [extruder] control; "" for the default
+    /// Config files the mock file API wrote since the last restart, by path.
+    std::map<std::string, std::string> written_config_;
+    std::mutex written_config_mutex_;
+    /// What a restart reads from written_config_: the [extruder] control and
+    /// cooling_fan, which configfile.settings then reports.
+    void apply_written_config();
     /// position_endstop reported as JSON null; unset follows the probe.
     std::optional<bool> stepper_z_endstop_null_;
     std::set<std::string> unregistered_gcode_commands_; ///< Left out of printer.gcode.help
@@ -3214,6 +3231,10 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
     json material_zoffset_status_json() const;
     /// The config files the start_print_vars mode serves; empty otherwise.
     static std::map<std::string, std::string> material_zoffset_config_files();
+    /// A Kalico printer still on PID (HELIX_MOCK_KALICO with
+    /// HELIX_MOCK_KALICO_CONTROL=pid): a printer.cfg whose [extruder] the
+    /// PID/MPC migration edits. Empty otherwise.
+    static std::map<std::string, std::string> kalico_heater_config_files();
 
   private:
     void append_material_zoffset_objects(json& objects) const;

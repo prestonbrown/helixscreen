@@ -84,6 +84,9 @@ MoonrakerAPIMock::MoonrakerAPIMock(MoonrakerClient& client, PrinterState& state)
     if (auto files = MoonrakerClientMock::material_zoffset_config_files(); !files.empty()) {
         files_mock().set_config_files(files);
         transfers_mock().set_config_files(files);
+    } else if (auto heater = MoonrakerClientMock::kalico_heater_config_files(); !heater.empty()) {
+        files_mock().set_config_files(heater);
+        transfers_mock().set_config_files(heater);
     }
 }
 
@@ -971,6 +974,9 @@ void MoonrakerFileTransferAPIMock::upload_file(const std::string& root, const st
     // config edit actually wrote, and so a later download reads it back.
     if (root == "config" && !config_files_.empty()) {
         config_files_[path] = content;
+    }
+    if (root == "config") {
+        client_.simulate_config_file_written(path, content);
     }
     // A gcode upload is kept on disk, so starting a print of it reads the
     // file's own metadata (layer count, estimate) as Moonraker would.

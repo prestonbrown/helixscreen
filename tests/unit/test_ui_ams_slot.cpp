@@ -1001,11 +1001,11 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_slot: tool badges show only for a remap
     process_lvgl(50);
     lv_obj_t* badge_bg = UITest::find_by_name(slot, "tool_badge");
     REQUIRE(badge_bg != nullptr);
-    // Identity is decided on indices: T0 feeds slot 0 even though the lane
-    // badge beside it reads "1".
+    // Identity is decided on indices: T0 feeds slot 0, whatever number the
+    // lane badge beside it reads.
     lv_obj_t* lane_badge = UITest::find_by_name(slot, "slot_badge_label");
     REQUIRE(lane_badge != nullptr);
-    REQUIRE(std::string(UITest::get_text(lane_badge)) == "1");
+    REQUIRE(std::string(UITest::get_text(lane_badge)) == helix::ui::lane_number_text(0));
     CHECK(lv_obj_is_hidden(badge_bg));
 
     SlotInfo remapped = mock->get_slot_info(0);

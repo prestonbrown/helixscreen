@@ -400,50 +400,120 @@ class TeardownOrderBackend : public helix::AmsBackendMock {
 };
 } // namespace
 
+namespace {
+// A TeardownOrderBackend with slots 0 and 1 trackable, the tracker printing,
+// and slot 0 (the current slot) metered 1000 mm short of its last persist.
+struct MeteredTeardownFixture : LVGLTestFixture {
+    std::vector<std::string> log;
+    TeardownOrderBackend* mock = nullptr;
+
+    MeteredTeardownFixture() {
+        auto& ams = helix::AmsState::instance();
+        auto& printer = get_printer_state();
+        ams.clear_backends();
+        ams.deinit_subjects();
+        printer.init_subjects(false);
+        ams.init_subjects(false);
+        ams.clear_backends();
+
+        auto m = std::make_unique<TeardownOrderBackend>(4, log);
+        mock = m.get();
+        REQUIRE(ams.add_backend(std::move(m)) == 0);
+        for (int slot : {0, 1}) {
+            helix::SlotInfo seed = mock->get_slot_info(slot);
+            seed.material = "PLA";
+            seed.remaining_weight_g = 500.0f;
+            seed.total_weight_g = 1000.0f;
+            seed.spoolman_id = 0;
+            helix::test::apply_edit(*mock, slot, seed);
+        }
+        mock->start();
+        REQUIRE(mock->select_slot(0).success());
+
+        FilamentConsumptionTracker::instance().start();
+        lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
+        lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
+                           static_cast<int>(helix::PrintJobState::PRINTING));
+        helix::ui::UpdateQueue::instance().drain();
+        // Inside the persist interval: the meter moves the slot without persisting it.
+        lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 1000);
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(mock->get_slot_info(0).remaining_weight_g < 500.0f);
+        REQUIRE(log.empty());
+    }
+
+    ~MeteredTeardownFixture() override {
+        auto& ams = helix::AmsState::instance();
+        ams.clear_backends();
+        lv_subject_set_int(get_printer_state().print_state().get_print_state_enum_subject(),
+                           static_cast<int>(helix::PrintJobState::STANDBY));
+        helix::ui::UpdateQueue::instance().drain();
+        FilamentConsumptionTracker::instance().stop();
+        ams.deinit_subjects();
+    }
+};
+} // namespace
+
 TEST_CASE_METHOD(
-    LVGLTestFixture,
+    MeteredTeardownFixture,
     "clear_backends flushes slot sinks while the backend is registered and stops it after",
     "[consumption_sink][ams][tracker_registry]") {
+    helix::AmsState::instance().clear_backends();
+
+    CHECK(log == std::vector<std::string>{"flush slot 0 registered", "stop unregistered"});
+    CHECK(helix::AmsState::instance().get_backend(0) == nullptr);
+}
+
+// Teardown runs before_disconnect() while the client still reaches the printer
+// and clear_backends() after the disconnect, when a write is refused or, with
+// the next printer's client up, lands on the wrong printer.
+TEST_CASE_METHOD(MeteredTeardownFixture,
+                 "teardown persists metered weight before the disconnect and nothing after",
+                 "[consumption_sink][ams][tracker_registry][teardown]") {
     auto& ams = helix::AmsState::instance();
-    auto& printer = get_printer_state();
-    auto& tracker = FilamentConsumptionTracker::instance();
 
-    ams.clear_backends();
-    ams.deinit_subjects();
-    printer.init_subjects(false);
-    ams.init_subjects(false);
-    ams.clear_backends();
+    ams.before_disconnect();
+    // Slot 1 was trackable but never moved, so it owes the printer nothing.
+    CHECK(log == std::vector<std::string>{"flush slot 0 registered"});
+    CHECK(FilamentConsumptionTrackerTestAccess::ams_sink_count() == 0);
 
+    log.clear();
+    ams.clear_backends();
+    CHECK(log == std::vector<std::string>{"stop unregistered"});
+}
+
+TEST_CASE_METHOD(AmsSlotSinkFixture, "AmsSlotSink: a flush with nothing metered writes nothing",
+                 "[consumption_sink][ams]") {
     std::vector<std::string> log;
+    auto& ams = helix::AmsState::instance();
+    ams.clear_backends();
     auto m = std::make_unique<TeardownOrderBackend>(4, log);
-    TeardownOrderBackend* mock = m.get();
+    TeardownOrderBackend* backend = m.get();
     REQUIRE(ams.add_backend(std::move(m)) == 0);
-    helix::SlotInfo seed = mock->get_slot_info(0);
+    helix::SlotInfo seed = backend->get_slot_info(0);
     seed.material = "PLA";
     seed.remaining_weight_g = 500.0f;
     seed.total_weight_g = 1000.0f;
     seed.spoolman_id = 0;
-    helix::test::apply_edit(*mock, 0, seed);
+    helix::test::apply_edit(*backend, 0, seed);
 
-    // PRINTING snapshots every sink; only slot 0 is trackable, so only its
-    // flush persists.
-    tracker.start();
-    lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
-    lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::PRINTING));
-    helix::ui::UpdateQueue::instance().drain();
-    REQUIRE(log.empty());
+    AmsSlotSink sink(0, 0);
+    sink.snapshot(0.0f);
+    REQUIRE(sink.is_trackable());
+    sink.flush();
+    CHECK(log.empty());
 
+    sink.apply_delta(1000.0f);
+    sink.flush();
+    CHECK(log == std::vector<std::string>{"flush slot 0 registered"});
+
+    // The flush persisted it; a second one has nothing left to say.
+    log.clear();
+    sink.flush();
+    CHECK(log.empty());
+
+    // The backend logs its stop into `log`, which dies before the fixture's teardown.
     ams.clear_backends();
-
-    CHECK(log == std::vector<std::string>{"flush slot 0 registered", "stop unregistered"});
-    CHECK(ams.get_backend(0) == nullptr);
-
-    lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
-                       static_cast<int>(helix::PrintJobState::STANDBY));
-    helix::ui::UpdateQueue::instance().drain();
-    tracker.stop();
-    ams.deinit_subjects();
 }
 
 // ---------------------------------------------------------------------------

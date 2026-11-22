@@ -8,12 +8,16 @@
 
 #include "ui_chamber_air_notices.h"
 
+#include "../test_helpers/scoped_env.h"
+#include "../test_helpers/scoped_runtime_config.h"
 #include "chamber_air_modes.h"
 #include "printer_discovery.h"
+#include "runtime_config.h"
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
+using helix::ScopedEnv;
 using helix::ui::ChamberAirNotice;
 using helix::ui::decide_chamber_air_notice;
 
@@ -45,4 +49,25 @@ TEST_CASE("chamber air notices: only a detachable accessory has copy", "[chamber
     helix::PrinterDiscovery c5;
     c5.parse_objects(nlohmann::json::array({"gcode_macro AIR_CIRCULATION_STOP", "extruder"}));
     CHECK_FALSE(helix::chamber_air::accessory_copy(c5).has_value());
+}
+
+TEST_CASE("chamber air notices: a mock run shows the first-fit notice only on request",
+          "[chamber_air][notices]") {
+    ScopedRuntimeConfig scoped;
+    RuntimeConfig* rc = get_runtime_config();
+
+    rc->test_mode = false;
+    {
+        ScopedEnv unset("HELIX_MOCK_CHAMBER_AIR_NOTICE", nullptr);
+        CHECK(rc->should_show_chamber_air_first_fit());
+    }
+    rc->test_mode = true;
+    {
+        ScopedEnv unset("HELIX_MOCK_CHAMBER_AIR_NOTICE", nullptr);
+        CHECK_FALSE(rc->should_show_chamber_air_first_fit());
+    }
+    {
+        ScopedEnv on("HELIX_MOCK_CHAMBER_AIR_NOTICE", "1");
+        CHECK(rc->should_show_chamber_air_first_fit());
+    }
 }

@@ -526,6 +526,19 @@ std::string resolve_cooldown_gcode(const helix::PrinterTemperatureState& temps);
  */
 std::string heater_keypad_title(HeaterType type);
 
+/**
+ * @brief What a nozzle readout calls extruder @p extruder_name.
+ *
+ * Where tool numbers name lanes a T code names a lane, so the nozzle is called
+ * by its head (ToolState::nozzle_label(): "Nozzle E0", "Nozzle 1"); elsewhere
+ * it is the name @p temps gave it at discovery ("Nozzle 2", "Nozzle T1").
+ * Empty for an extruder neither knows.
+ */
+std::string nozzle_display_name(const helix::PrinterTemperatureState& temps,
+                                const std::string& extruder_name);
+/// nozzle_display_name() with the discovered name already in hand.
+std::string nozzle_display_name(const std::string& extruder_name, const std::string& discovered);
+
 } // namespace temperature
 } // namespace ui
 } // namespace helix

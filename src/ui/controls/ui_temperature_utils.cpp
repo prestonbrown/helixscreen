@@ -6,6 +6,7 @@
 #include "app_globals.h"
 #include "config.h"
 #include "core/temperature_units.h"
+#include "klipper_extruder_naming.h"
 #include "lvgl.h"
 #include "moonraker_types.h"
 #include "printer_state.h"
@@ -332,6 +333,31 @@ std::string heater_keypad_title(HeaterType type) {
         return lv_tr("Chamber");
     }
     return {};
+}
+
+std::string nozzle_display_name(const std::string& extruder_name, const std::string& discovered) {
+    const auto& tools = ToolState::instance();
+    if (tools.tools_are_lanes() && tools.names_mounted_nozzle()) {
+        for (const PhysicalHead& head : tools.physical_heads()) {
+            if (head.extruder_name == extruder_name) {
+                return tools.nozzle_label(head.tool_indices.front());
+            }
+        }
+        // An extruder no lane feeds is still a head, named by its extruder.
+        if (const auto number = tool_number_for_extruder(extruder_name)) {
+            return std::string(lv_tr("Nozzle")) + " " +
+                   active_head_badge_label(HeadIdentity{{}, *number, {}});
+        }
+    }
+    return discovered;
+}
+
+std::string nozzle_display_name(const helix::PrinterTemperatureState& temps,
+                                const std::string& extruder_name) {
+    const auto& extruders = temps.extruders();
+    const auto it = extruders.find(extruder_name);
+    return nozzle_display_name(extruder_name,
+                               it != extruders.end() ? it->second.display_name : std::string());
 }
 
 std::string build_cooldown_gcode(const std::string& macro_gcode,

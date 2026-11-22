@@ -3816,7 +3816,7 @@ void set_material(AmsBackendMock& backend, int slot, const char* material) {
 } // namespace
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "a Feeds Tool pick is staged, and Save writes it through the backend",
+                 "an Assigned Tool pick is staged, and Save writes it through the backend",
                  "[ams_edit_overlay][lane_settings]") {
     REQUIRE(helix::ui::lane_settings::show_tool_row(backend));
     std::vector<std::pair<ToastSeverity, std::string>> toasts;
@@ -3832,7 +3832,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     // The summary's lane line opens the Lane Settings page.
     REQUIRE(access.shown("lane_line"));
     CHECK(access.subject_text("ams_edit_lane_title") == "Gate Settings");
-    CHECK(access.subject_text("ams_edit_lane_line") == "Feeds T2 · Pauses on runout");
+    CHECK(access.subject_text("ams_edit_lane_line") == "Assigned T2 · Pauses on runout");
     access.click("lane_line");
     REQUIRE(access.page() == AmsEditOverlay::kPageLane);
 
@@ -3849,7 +3849,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(backend->get_tool_mapping()[0] == t0_before);
     CHECK(access.is_dirty());
     CHECK(access.save_disabled() == 0);
-    CHECK(access.subject_text("ams_edit_lane_line").rfind("Feeds T0", 0) == 0);
+    CHECK(access.subject_text("ams_edit_lane_line").rfind("Assigned T0", 0) == 0);
     CHECK(toasts.empty());
 
     // Save writes it: the same backend call the slot menu makes, and the
@@ -3899,7 +3899,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture, "leaving without Save writes no s
 }
 
 TEST_CASE_METHOD(BoxWinsFixture,
-                 "a refused Feeds Tool write at Save rolls the lane back and says what saved",
+                 "a refused Assigned Tool write at Save rolls the lane back and says what saved",
                  "[ams_edit_overlay][lane_settings]") {
     auto owned = std::make_unique<RefusingBoxBackend>(4);
     RefusingBoxBackend* refusing = owned.get();
@@ -4090,8 +4090,9 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 
     lv_obj_t* list = access.widget("picker_spool_list");
     REQUIRE(list != nullptr);
-    CHECK(held_in(list, 9001) == (slot != 0 ? "Gate 1" : ""));
-    CHECK(held_in(list, 9003) == (slot != 2 ? "Gate 3" : ""));
+    // Happy Hare counts its gates from 0.
+    CHECK(held_in(list, 9001) == (slot != 0 ? "Gate 0" : ""));
+    CHECK(held_in(list, 9003) == (slot != 2 ? "Gate 2" : ""));
 
     close_editor_overlay();
     ts.deinit_subjects();
@@ -6048,8 +6049,12 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(subject_value("ams_edit_seg_count") == 1);
     CHECK(lv_obj_is_hidden(access.widget("colors_line")));
     access.call_seg_hold(0);
+    // The lane cannot store a mode either: Coaxial stages nothing.
     access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
+    CHECK_FALSE(access.multi_set());
+    CHECK(access.draft_mode() == "gradient");
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});
     close_editor_overlay();

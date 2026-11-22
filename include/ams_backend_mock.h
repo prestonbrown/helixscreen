@@ -321,6 +321,8 @@ class AmsBackendMock : public AmsBackend,
     [[nodiscard]] RemapStrategy get_remap_strategy() const override;
     [[nodiscard]] bool remap_ready() const override;
     [[nodiscard]] bool owns_tool_mapping_table() const override;
+    /// False in tool changer mode, whose tools are its heads.
+    [[nodiscard]] bool tool_numbers_name_lanes() const override;
 
     /// One head per slot where the persona's backend has one per tool (tool
     /// changer, Snapmaker), one shared head otherwise; the Snapmaker batches

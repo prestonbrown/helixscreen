@@ -858,8 +858,8 @@ Select the mock AMS topology/type.
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
 | `torture` | **5** | **Its unit-card row overflows.** See below |
-| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two four-lane Bambu AMS share T6), 7 toolheads close together. Exercises the overview's mini-hub row |
-| `afc_direct` | 6 | AFC toolchanger with five hub units on 3 extruders plus a one-lane "Tools" unit wired straight to a fourth. Each unit's topology comes from the AFC backend's own rule (`helix::printer::afc_unit_topology`), so the overview shows whether a direct unit gets a hub box |
+| `stealth` | 5 | StealthChanger-style AFC toolchanger: ACE straight to T0-T3, four hub units on T4-T6 (two four-lane Bambu AMS share T6), 7 toolheads close together, the mock printer listing all 7 extruders. Exercises the overview's mini-hub row and the head chooser on a hub-fed rig |
+| `afc_direct` | 6 | AFC toolchanger with five hub units on 3 extruders plus a one-lane "Tools" unit wired straight to a fourth, the mock printer listing all 4 extruders. Each unit's topology comes from the AFC backend's own rule (`helix::printer::afc_unit_topology`), so the overview shows whether a direct unit gets a hub box |
 | `vivid` | 3 | 2x Box Turtle + ViViD, 12 slots |
 | `ifs` | 1 | **Native Z-Mod AD5X IFS - mock HARDWARE, real backend.** `zmod_ifs` / `zmod_color` for the stock four ports (black PLA, white PETG, purple PLA, brown ABS; port 1 in the head) with the commands `ifs-jacker` answers, so the production `AmsBackendAd5xIfs` runs. Aliases: `ad5x`, `ad5x_ifs`; the `ad5x` persona's default |
 | `htlf_toolchanger` | 2 | AFC HTLF + Toolchanger: 4 HTLF lanes (2 direct, 2 hub→shared extruder) + 3 standalone toolheads. Tests MIXED topology. Aliases: `htlf_tc`, `htlf` |
@@ -1901,6 +1901,14 @@ Force the K2 spaghetti-detection source's capability probe, so the Settings > Sa
 ```bash
 # Show the Spaghetti Detection / Pause on Detection rows in a mock
 HELIX_MOCK_DETECTION_CAPABLE=1 ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_CHAMBER_AIR_NOTICE`
+
+Show a chamber air accessory's first-fit notice in a `--test` run. A mock run starts from an empty config and a mock such as the Snapmaker U1 reports its top module fitted, so every run would open the "detected" and "Recalibrate input shaping?" dialogs over whatever a screenshot or ctl script drives; test mode therefore counts the notice as already shown unless this is set to a truthy value. Real printers are unaffected (`RuntimeConfig::should_show_chamber_air_first_fit()`, `src/ui/notify/ui_chamber_air_notices.cpp`).
+
+```bash
+HELIX_MOCK_PRINTER=snapmaker_u1 HELIX_MOCK_CHAMBER_AIR_NOTICE=1 ./build/bin/helix-screen --test -vv
 ```
 
 ### `HELIX_MOCK_CHAMBER_TARGET`

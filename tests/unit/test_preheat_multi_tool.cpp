@@ -417,8 +417,8 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "PreheatWidget: a target on a hub-fed head names the lane seated in it",
-                 "[preheat][panel_widget][physical-heads][seated-lane]") {
+                 "PreheatWidget: a target on a hub-fed head names the head, not its lane",
+                 "[preheat][panel_widget][physical-heads][seated-lane][head-identity]") {
     auto& ts = ToolState::instance();
     ts.deinit_subjects();
     ts.init_subjects(false);
@@ -432,24 +432,18 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     PreheatWidget widget(get_printer_state());
 
-    // The target counts heads, and head 5 is extruder5: tool 5 is a lane of
-    // extruder4, and lane 8 is the head's lowest, not the one it holds.
+    // The target counts heads, and head 5 is the changer's T5, whichever lane
+    // it holds: lane 10's "Tool 11" would name a lane as a head.
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    const std::string head5 = PreheatWidgetTestAccess::tool_target_caption(widget);
-    CHECK(head5 == ts.tools()[10].display_label);
-    CHECK(head5 != ts.tools()[8].display_label);
-    CHECK(head5 != ts.tools()[5].display_label);
-
-    // With no lane seated, a head falls back to its lowest lane.
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == "Tool 6");
     PreheatWidgetTestAccess::set_tool_target(widget, 6);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[12].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == "Tool 7");
 
-    // The mounted head names the lane it prints through, over a seat the
-    // backend reports for another of its lanes.
+    // Mounting another of its lanes leaves the head's name where it was.
     ts.set_ams_topology(helix::test::make_hub_topology(9, {10}));
     helix::ui::UpdateQueue::instance().drain_until_empty();
     PreheatWidgetTestAccess::set_tool_target(widget, 5);
-    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == ts.tools()[9].display_label);
+    CHECK(PreheatWidgetTestAccess::tool_target_caption(widget) == "Tool 6");
 
     ts.clear_ams_topology();
     helix::ui::UpdateQueue::instance().drain_until_empty();

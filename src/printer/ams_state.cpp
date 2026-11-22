@@ -376,6 +376,8 @@ bool AmsState::any_filament_batch_in_flight() const {
 
 void AmsState::before_disconnect() {
     assert_main_thread();
+    registry_.release_sinks();
+    FilamentConsumptionTracker::instance().flush_external_sink();
     for (const auto& backend : registry_.backends()) {
         if (backend) {
             backend->before_disconnect();
@@ -701,6 +703,9 @@ void AmsState::sync_system_subjects(const AmsSystemInfo& info) {
     // Published from the predicate, not the enum value, so a new tool-changer
     // type is picked up by XML without touching a binding.
     int new_tool_changer = is_tool_changer(presented) ? 1 : 0;
+    // Lanes count in the system's own numbering until the user picks one.
+    SettingsManager::instance().set_lane_numbering_default(
+        ams_type_traits(presented).lanes_count_from_zero);
     lv_subject_set_int(&ams_is_tool_changer_, new_tool_changer);
     int new_filament_system = is_filament_system(presented) ? 1 : 0;
     lv_subject_set_int(&ams_is_filament_system_, new_filament_system);

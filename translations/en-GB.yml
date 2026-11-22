@@ -69,6 +69,7 @@ translations:
   : ''
   ? The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer.
   : ''
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.
   X belt: ''
   Y belt: ''
   "'{}' already exists. Replace the stored mesh?": ""
@@ -499,6 +500,7 @@ translations:
   Assign a role to enable sensor monitoring: ''
   Assign a slot first: ''
   Assigned Tool: ''
+  Assigned {}: ''
   Assisted Retract: ''
   Assisting: ''
   At least {} lines in helixscreen.env were ignored: ''
@@ -1920,9 +1922,6 @@ translations:
   Feeders: ''
   Feeding filament to nozzle: ''
   Feeding the head by hand did not finish.: ''
-  Feeds Tool: ''
-  Feeds no tool: ''
-  Feeds {}: ''
   Filament: ''
   Filament Buffer: ''
   Filament Control: ''
@@ -3190,6 +3189,7 @@ translations:
   No target printer configured: ''
   No temperature sensors detected: ''
   No timelapse videos found: ''
+  No tool assigned: ''
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: ''
   No tool is mounted: ''
   No tool mounted: ''
@@ -4585,6 +4585,7 @@ translations:
   Spoolman is not configured — nothing to remove.: ''
   Spoolman is offline, so brand and material can't be saved.: ''
   Spoolman is offline. Brand and material can change once it's back.: ''
+  Spoolman is set up through your printer's firmware, not on this screen.: ''
   Spoolman needs a brand for this filament.: ''
   Spoolman needs a color for this filament.: Spoolman needs a colour for this filament.
   Spoolman needs a material for this filament.: ''
@@ -5936,6 +5937,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: ''
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : ''
+  Your printer's firmware manages its configuration, so set these values there.: ''
   Your printer's manual has the parts and lubricant for your model.: ''
   Your usual build plate is on: ''
   Your {0} is set up for {1}, but it looks stock.: ''
@@ -6104,6 +6106,7 @@ translations:
   mm: ''
   mm Z-offset: ''
   mm before clog: ''
+  'mm:': ''
   needs: ''
   needs approval: ''
   needs you: ''

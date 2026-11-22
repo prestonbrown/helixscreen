@@ -833,6 +833,12 @@ class SettingsManager {
     /** @brief Set whether filament positions count from 0 */
     void set_number_lanes_from_zero(bool enabled);
 
+    /// The numbering the printer's filament system counts lanes in
+    /// (AmsTypeTraits::lanes_count_from_zero), which number_lanes_from_zero
+    /// shows and applies while the user has not set it for this printer.
+    /// AmsState calls it as a backend appears or goes.
+    void set_lane_numbering_default(bool from_zero);
+
     /** @brief Number-lanes-from-zero subject (integer: 0=off, 1=on) */
     lv_subject_t* subject_number_lanes_from_zero() {
         return settings_.subject(Key::NumberLanesFromZero);
@@ -1228,6 +1234,12 @@ class SettingsManager {
     std::string scanner_keymap_{"qwerty"}; // "qwerty" | "qwertz" | "azerty"
 
     // State
+    /// set_lane_numbering_default()'s value; number_lanes_from_zero shows it
+    /// until set.
+    bool lane_numbering_default_ = false;
+    /// Show the default where number_lanes_from_zero is unset, then hand the
+    /// effective value to the labels.
+    void resolve_lane_numbering();
     bool subjects_initialized_ = false;
 };
 

@@ -35,10 +35,13 @@
 
 #include "../catch_amalgamated.hpp"
 
-TEST_CASE("Table-owning backends produce a ToolTopology", "[ams][topology]") {
+TEST_CASE("Table-owning backends produce a ToolTopology", "[ams][topology][head-identity]") {
+    // A lane backend's tool numbers name lanes; a tool changer's name heads.
     SECTION("AFC") {
         AfcProbe afc;
-        CHECK(helix::build_ams_topology(&afc, 0).has_value());
+        const auto topo = helix::build_ams_topology(&afc, 0);
+        REQUIRE(topo.has_value());
+        CHECK(topo->tools_are_lanes);
     }
     SECTION("Happy Hare") {
         HappyHareProbe hh;
@@ -54,7 +57,9 @@ TEST_CASE("Table-owning backends produce a ToolTopology", "[ams][topology]") {
     }
     SECTION("ToolChanger") {
         ToolChangerProbe tc;
-        CHECK(helix::build_ams_topology(&tc, 0).has_value());
+        const auto topo = helix::build_ams_topology(&tc, 0);
+        REQUIRE(topo.has_value());
+        CHECK_FALSE(topo->tools_are_lanes);
     }
 }
 

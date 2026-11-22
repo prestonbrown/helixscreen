@@ -9,9 +9,11 @@
  * Run with: ./build/bin/helix-tests "[timelapse][local_install]"
  */
 
+#include "../test_helpers/firmware_supervised_override.h"
 #include "../test_helpers/scoped_env.h"
 #include "../test_helpers/unique_temp_dir.h"
 #include "helix_plugin_installer.h"
+#include "platform_info.h"
 #include "timelapse_host_mock.h"
 #include "timelapse_local_installer.h"
 
@@ -508,4 +510,16 @@ TEST_CASE("a cancelled runner ends its command at once",
 
     cancel.store(false);
     CHECK(run({"true"}, 10).succeeded());
+}
+
+TEST_CASE("firmware that supervises HelixScreen gets no clone, link or checkout repair",
+          "[timelapse][local_install][firmware_supervised]") {
+    helix::test::FirmwareSupervisedFor on(true);
+    TempHome home;
+    FakeRunner fake;
+    const auto plan = home.plan();
+    const auto result = install_plugin_locally(timelapse_plugin_recipe(), plan, fake.runner(), {});
+    CHECK(result.outcome == LocalPluginOutcome::Failed);
+    CHECK_FALSE(attach_checkout_to_branch(timelapse_plugin_recipe(), plan.repo_dir, fake.runner()));
+    CHECK(fake.calls.empty());
 }

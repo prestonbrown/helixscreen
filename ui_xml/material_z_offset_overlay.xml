@@ -17,9 +17,11 @@
       <setting_group name="group_setup">
         <bind_flag_if_not_eq subject="material_zoffset_status" flag="hidden" ref_value="0"/>
         <setting_group_header title="ONE-TIME SETUP"/>
+        <!-- Firmware that supervises HelixScreen provides the macros itself (#2154). -->
         <lv_obj name="step_install"
                 width="100%" height="content" style_bg_opa="0" style_border_width="0" style_pad_ver="#space_md"
                 style_pad_hor="#space_lg" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
+          <bind_flag_if_eq subject="firmware_supervised" flag="hidden" ref_value="1"/>
           <text_body width="100%"
                      text="1. Install the helper macros. They add HELIX_MATERIAL_OFFSET and a [save_variables] store for the offsets."
                      long_mode="wrap" wrap_at_spaces="true"/>

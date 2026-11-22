@@ -93,6 +93,9 @@ struct HardwareIssue {
     HardwareIssueSeverity severity; ///< Issue severity level
     std::string message;            ///< Human-readable description
     bool is_optional;               ///< User marked as intentionally disconnected
+    /// Newly discovered hardware the previous session's snapshot already listed:
+    /// still worth listing in Hardware Health, but not news worth a toast.
+    bool seen_last_session = false;
 
     /**
      * @brief Create an issue for missing critical hardware

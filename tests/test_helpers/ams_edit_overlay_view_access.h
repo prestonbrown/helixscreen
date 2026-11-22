@@ -333,6 +333,12 @@ class AmsEditOverlayViewTestAccess {
     std::vector<uint32_t> draft_colors() {
         return overlay_.draft_colors();
     }
+    std::string draft_mode() {
+        return overlay_.draft_mode();
+    }
+    bool multi_set() {
+        return overlay_.multi_set_;
+    }
     void call_apply_color(uint32_t rgb) {
         overlay_.apply_color(rgb);
     }

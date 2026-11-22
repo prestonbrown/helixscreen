@@ -78,6 +78,7 @@ translations:
   : "L'imprimante prend l'origine de X et Y si nécessaire, puis pousse la tête contre le coupeur pour trouver sa position. Déchargez d'abord le filament."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "L'imprimante prend l'origine de X et Y, place la tête au centre du plateau et règle chaque courroie avec son tendeur. Les moteurs sont relâchés à la fin : prenez l'origine avant de déplacer l'imprimante."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: L'imprimante n'a pas encore indiqué comment prendre cette tête. Réessayez lorsque son système de filament aura fini de se connecter.
   "X belt": "Courroie X"
   "Y belt": "Courroie Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' existe déjà. Remplacer le maillage enregistré ?"
@@ -505,6 +506,7 @@ translations:
   Assign a role to enable sensor monitoring: Attribuez un rôle pour activer la surveillance du capteur
   Assign a slot first: 'Attribuez d''abord un slot'
   Assigned Tool: Outil attribué
+  Assigned {}: 'Attribué {}'
   Assisted Retract: 'Rétraction assistée'
   Assisting: Assistance
   At least {} lines in helixscreen.env were ignored: 'Au moins {} lignes de helixscreen.env ont été ignorées'
@@ -1938,9 +1940,6 @@ translations:
   Feeders: Alimentateurs
   Feeding filament to nozzle: "Avancement du filament vers la buse"
   Feeding the head by hand did not finish.: 'L''alimentation manuelle de la tête ne s''est pas terminée.'
-  Feeds Tool: 'Alimente l''outil'
-  Feeds no tool: 'N''alimente aucun outil'
-  Feeds {}: 'Alimente {}'
   Filament: Filament
   Filament Buffer: 'Tampon de filament'
   Filament Control: Contrôle du filament
@@ -3223,6 +3222,7 @@ translations:
   No target printer configured: Aucune imprimante cible configurée
   No temperature sensors detected: 'Aucun capteur de température détecté'
   No timelapse videos found: Aucune vidéo timelapse trouvée
+  No tool assigned: 'Aucun outil attribué'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Aucun outil n''est connu comme monté. Avec une sonde partagée, calibrez avec {}. Continuer quand même ?'
   No tool is mounted: 'Aucun outil n''est monté'
   No tool mounted: 'Aucun outil monté'
@@ -4621,6 +4621,7 @@ translations:
   Spoolman is not configured — nothing to remove.: 'Spoolman n''est pas configuré — rien à supprimer.'
   Spoolman is offline, so brand and material can't be saved.: Spoolman est hors ligne, la marque et le matériau ne peuvent donc pas être enregistrés.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman est hors ligne. La marque et le matériau pourront être modifiés à son retour.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman se configure via le firmware de votre imprimante, pas sur cet écran.'
   Spoolman needs a brand for this filament.: Spoolman a besoin d'une marque pour ce filament.
   Spoolman needs a color for this filament.: Spoolman a besoin d'une couleur pour ce filament.
   Spoolman needs a material for this filament.: Spoolman a besoin d'un matériau pour ce filament.
@@ -5979,6 +5980,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Votre imprimante était hors ligne lors de la configuration, les options matérielles ont donc été ignorées. Les configurer maintenant ?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Le firmware de votre imprimante gère le logiciel de HelixScreen, le plugin HelixPrint doit donc être fourni par le firmware. Il ne peut pas être installé depuis cet écran.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Le firmware de votre imprimante gère sa configuration, réglez donc ces valeurs là-bas.'
   Your printer's manual has the parts and lubricant for your model.: "Le manuel de votre imprimante indique pièces et lubrifiant pour votre modèle."
   Your usual build plate is on: 'Votre plaque d''impression habituelle est en place'
   Your {0} is set up for {1}, but it looks stock.: 'Votre {0} est configurée pour {1}, mais elle semble d''origine.'
@@ -6146,6 +6148,7 @@ translations:
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: mm avant bouchon
+  'mm:': 'mm :'
   needs: nécessite
   needs approval: approbation requise
   needs you: 'a besoin de vous'

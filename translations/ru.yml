@@ -110,6 +110,7 @@ translations:
   : "Принтер при необходимости паркует X и Y, затем подводит головку к резаку, чтобы определить его положение. Сначала выгрузите филамент."
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "Принтер паркует X и Y, переводит головку в центр стола и настраивает каждый ремень его натяжителем. По окончании моторы отключаются, поэтому выполните парковку перед перемещением принтера."
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение.
   "X belt": "Ремень X"
   "Y belt": "Ремень Y"
   "'{}' already exists. Replace the stored mesh?": "'{}' уже существует. Заменить сохранённую сетку?"
@@ -541,6 +542,7 @@ translations:
   Assign a role to enable sensor monitoring: Назначьте роль для мониторинга датчика
   Assign a slot first: 'Сначала назначьте слот'
   Assigned Tool: Назначенный инструмент
+  Assigned {}: 'Назначен {}'
   Assisted Retract: 'Ретракция с поддержкой'
   Assisting: Помощь
   At least {} lines in helixscreen.env were ignored: 'В helixscreen.env проигнорировано не менее {} строк'
@@ -1986,9 +1988,6 @@ translations:
   Feeders: Фидеры
   Feeding filament to nozzle: "Подача филамента к соплу"
   Feeding the head by hand did not finish.: 'Ручная подача в головку не завершилась.'
-  Feeds Tool: 'Подаёт в инструмент'
-  Feeds no tool: 'Не подаёт ни в один инструмент'
-  Feeds {}: 'Подаёт в {}'
   Filament: Филамент
   Filament Buffer: 'Буфер филамента'
   Filament Control: Управление филаментом
@@ -3275,6 +3274,7 @@ translations:
   No target printer configured: Целевой принтер не настроен
   No temperature sensors detected: 'Датчики температуры не обнаружены'
   No timelapse videos found: Таймлапс-видео не найдены
+  No tool assigned: 'Инструмент не назначен'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?'
   No tool is mounted: 'Инструмент не установлен'
   No tool mounted: 'Инструмент не установлен'
@@ -4689,6 +4689,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman не настроен — удалять нечего.
   Spoolman is offline, so brand and material can't be saved.: Spoolman не в сети, поэтому бренд и материал не могут быть сохранены.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman не в сети. Бренд и материал можно будет изменить после его восстановления.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman настраивается через прошивку принтера, а не на этом экране.'
   Spoolman needs a brand for this filament.: Spoolman требует бренд для этого филамента.
   Spoolman needs a color for this filament.: Spoolman требует цвет для этого филамента.
   Spoolman needs a material for this filament.: Spoolman требует материал для этого филамента.
@@ -6055,6 +6056,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'
@@ -6226,6 +6228,7 @@ translations:
   mm: мм
   mm Z-offset: мм Z-смещение
   mm before clog: мм до засора
+  'mm:': 'мм:'
   needs: требуется
   needs approval: требует подтверждения
   needs you: 'нужны вы'

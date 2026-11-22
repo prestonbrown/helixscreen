@@ -467,6 +467,7 @@
   <translation tag="Assign a role to enable sensor monitoring" en="Assign a role to enable sensor monitoring"/>
   <translation tag="Assign a slot first" en="Assign a slot first"/>
   <translation tag="Assigned Tool" en="Assigned Tool"/>
+  <translation tag="Assigned {}" en="Assigned {}"/>
   <translation tag="Assisted Retract" en="Assisted Retract"/>
   <translation tag="Assisting" en="Assisting"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" en="At least {} lines in helixscreen.env were ignored"/>
@@ -1835,9 +1836,6 @@
   <translation tag="Feeders" en="Feeders"/>
   <translation tag="Feeding filament to nozzle" en="Feeding filament to nozzle"/>
   <translation tag="Feeding the head by hand did not finish." en="Feeding the head by hand did not finish."/>
-  <translation tag="Feeds Tool" en="Feeds Tool"/>
-  <translation tag="Feeds no tool" en="Feeds no tool"/>
-  <translation tag="Feeds {}" en="Feeds {}"/>
   <translation tag="Filament" en="Filament"/>
   <translation tag="Filament Buffer" en="Filament Buffer"/>
   <translation tag="Filament Control" en="Filament Control"/>
@@ -3096,6 +3094,7 @@
   <translation tag="No target printer configured" en="No target printer configured"/>
   <translation tag="No temperature sensors detected" en="No temperature sensors detected"/>
   <translation tag="No timelapse videos found" en="No timelapse videos found"/>
+  <translation tag="No tool assigned" en="No tool assigned"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" en="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?"/>
   <translation tag="No tool is mounted" en="No tool is mounted"/>
   <translation tag="No tool mounted" en="No tool mounted"/>
@@ -4468,6 +4467,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." en="Spoolman is not configured — nothing to remove."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." en="Spoolman is offline, so brand and material can&apos;t be saved."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." en="Spoolman is offline. Brand and material can change once it&apos;s back."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." en="Spoolman is set up through your printer&apos;s firmware, not on this screen."/>
   <translation tag="Spoolman needs a brand for this filament." en="Spoolman needs a brand for this filament."/>
   <translation tag="Spoolman needs a color for this filament." en="Spoolman needs a color for this filament."/>
   <translation tag="Spoolman needs a material for this filament." en="Spoolman needs a material for this filament."/>
@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." en="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again."/>
   <translation tag="The printer did not report its toolhead limits." en="The printer did not report its toolhead limits."/>
   <translation tag="The printer did not reset the filter" en="The printer did not reset the filter"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." en="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting."/>
   <translation tag="The printer did not say whether it is printing. Try again." en="The printer did not say whether it is printing. Try again."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." en="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye."/>
   <translation tag="The printer finishes this measurement on its own." en="The printer finishes this measurement on its own."/>
@@ -5755,6 +5756,7 @@
   <translation tag="Your printer has an automatic filament changer" en="Your printer has an automatic filament changer"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" en="Your printer was offline during setup, so hardware options were skipped. Set them up now?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." en="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." en="Your printer&apos;s firmware manages its configuration, so set these values there."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." en="Your printer&apos;s manual has the parts and lubricant for your model."/>
   <translation tag="Your usual build plate is on" en="Your usual build plate is on"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." en="Your {0} is set up for {1}, but it looks stock."/>
@@ -5921,6 +5923,7 @@
   <translation tag="mm" en="mm"/>
   <translation tag="mm Z-offset" en="mm Z-offset"/>
   <translation tag="mm before clog" en="mm before clog"/>
+  <translation tag="mm:" en="mm:"/>
   <translation tag="needs" en="needs"/>
   <translation tag="needs approval" en="needs approval"/>
   <translation tag="needs you" en="needs you"/>

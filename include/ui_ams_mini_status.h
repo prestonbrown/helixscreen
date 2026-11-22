@@ -25,10 +25,13 @@ extern "C" {
  * - "+N" overflow indicator when more than max_visible slots exist
  * - Auto-hides when slot_count == 0
  *
- * XML attribute `fill="true"` sizes the spool view from the widget's height
- * as well as its width: lanes wrap into the rows that give the largest spool,
- * which grows past the home tray's cap. A host that hands the tray a whole
- * column sets it; the home grid's tray leaves it off.
+ * The spool view never draws a lane below kAmsMiniUsableSpoolPx: lanes that
+ * all fit at that size wrap into the rows that give the largest spool, and
+ * lanes that do not scroll sideways in as many rows as the height holds. A
+ * widget too short for one usable row shows the bar view. XML attribute
+ * `fill`: "true" lets the spools grow past the home tray's 56px cap (a host
+ * that hands the tray a whole column), "auto" (the home grid's tile) does too
+ * and titles each unit's group on a rig with several units.
  *
  * Bar mode renders through ams_lane_bar widgets driven by AmsState's per-slot
  * subjects; the programmatic setters below feed the spool-mode cells and the
@@ -130,19 +133,94 @@ void ui_ams_mini_status_init(void);
 #endif
 
 #ifdef __cplusplus
+#include <vector>
+
 namespace helix::ui {
 
+/// How the spool view uses the widget's height: the XML attribute `fill`.
+enum class AmsMiniFill {
+    Off,  ///< "false": spools up to the home tray's 56px
+    On,   ///< "true": spools up to 120px, the lanes as one block
+    Auto, ///< "auto": spools up to 120px, each unit's group titled on a multi-unit rig
+};
+
 /**
- * @brief Size the spool view from the widget's height as well as its width
- *
- * The XML attribute `fill`. Lanes wrap into the rows that give the largest
- * spool, which grows past the home tray's cap. Off (the default), one row of
- * spools at the home tray's size.
- *
- * @param obj The ams_mini_status widget
- * @param fill true to fill the widget's height
+ * @brief Set how large the spool view's spools grow and whether it titles unit
+ * groups (XML `fill`). Every mode keeps lanes usable and scrolls the rest.
  */
-void ams_mini_status_set_fill(lv_obj_t* obj, bool fill);
+void ams_mini_status_set_fill(lv_obj_t* obj, AmsMiniFill fill);
+
+/**
+ * @brief The fixed sizes the grid view is laid out with (px).
+ *
+ * The grid view puts each unit's lanes in a group, the groups wrapped into
+ * lines across the widget. A titled group (several units) has a box and a
+ * title line; an untitled one (a single unit) has neither.
+ */
+struct AmsMiniGridMetrics {
+    int gap = 0;          ///< between lanes inside a group
+    int group_gap = 0;    ///< between groups, across and down
+    int group_pad = 0;    ///< inside a titled group's box
+    int title_h = 0;      ///< a titled group's title line and its gap; 0 untitled
+    int badge_margin = 0; ///< what a lane spool adds around its graphic
+    int text_h = 0;       ///< the text block over each spool, gap included
+    int max_spool = 0;
+    bool bypass = false; ///< one more cell past the lanes, behind a 1px divider
+};
+
+/// One unit's block in a grid plan: its lanes as @p cols x @p rows, starting a
+/// new line of groups when @p new_line.
+struct AmsMiniGridGroup {
+    int lanes = 0;
+    int cols = 0;
+    int rows = 0;
+    bool new_line = false;
+};
+
+/// A grid layout: every lane cell_w x row_h. spool <= 0 when nothing fits.
+/// A plan that @p scrolls lays its groups in one line wider than the box.
+struct AmsMiniGridPlan {
+    int spool = 0;
+    int cell_w = 0;
+    int row_h = 0;
+    bool scrolls = false;
+    std::vector<AmsMiniGridGroup> groups;
+};
+
+/**
+ * @brief Lay @p unit_lanes (each unit's lane count, in order) out in an
+ * @p avail_w x @p avail_h box: each unit's lanes kept together, the units
+ * packed into lines, and the line width chosen for the largest spool.
+ *
+ * Pure: the strip measures the box and the metrics, then builds what this
+ * returns.
+ */
+AmsMiniGridPlan plan_ams_mini_grid(const std::vector<int>& unit_lanes, int avail_w, int avail_h,
+                                   const AmsMiniGridMetrics& m);
+
+/**
+ * @brief Lay @p unit_lanes out at no less than @p min_spool, scrolling sideways:
+ * as many rows as fit the box's height at that size (one line of groups, each
+ * unit as rows x columns), every cell at least @p min_cell_w wide so its text
+ * fits whole. @p scrollbar_h comes off the height for the scrollbar under it.
+ *
+ * spool <= 0 when even one row does not fit at @p min_spool.
+ */
+AmsMiniGridPlan plan_ams_mini_scroll(const std::vector<int>& unit_lanes, int avail_h,
+                                     int min_cell_w, int scrollbar_h, int min_spool,
+                                     const AmsMiniGridMetrics& m);
+
+/**
+ * @brief Whether a multi-unit layout lays its lanes out as one block instead of
+ * titled unit groups: the groups' boxes and titles leave no usable spool
+ * (@p min_spool) or cost it more than a third of the block's.
+ */
+bool ams_mini_grid_prefers_flat(int grouped_spool, int flat_spool, int min_spool);
+
+/// The smallest spool any spool layout draws (px). Below it a lane is not usable:
+/// the spool, its number and its material stop reading, so the lanes scroll
+/// instead.
+inline constexpr int kAmsMiniUsableSpoolPx = 36;
 
 /**
  * @brief Whether the tray draws anything: some lanes, and at least one of

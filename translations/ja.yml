@@ -66,6 +66,7 @@ translations:
   : "プリンターは必要に応じてXとYを原点復帰し、ツールヘッドをカッターに当てて位置を検出します。先にフィラメントをアンロードしてください。"
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "プリンターはXとYを原点復帰し、ツールヘッドをベッド中央に移動して各ベルトをテンショナーで調整します。終了時にモーターが解放されるため、プリンターを動かす前に原点復帰してください。"
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。
   "X belt": "Xベルト"
   "Y belt": "Yベルト"
   "'{}' already exists. Replace the stored mesh?": "'{}' は既に存在します。保存されたメッシュを置き換えますか？"
@@ -493,6 +494,7 @@ translations:
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Assign a slot first: '先にスロットを割り当ててください'
   Assigned Tool: 割り当てツール
+  Assigned {}: '割り当て {}'
   Assisted Retract: 'アシスト付き引き戻し'
   Assisting: アシスト中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
@@ -1926,9 +1928,6 @@ translations:
   Feeders: フィーダー
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Feeding the head by hand did not finish.: 'ヘッドへの手動供給が完了しませんでした。'
-  Feeds Tool: '供給先ツール'
-  Feeds no tool: '供給先ツールなし'
-  Feeds {}: '{}に供給'
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -3211,6 +3210,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool assigned: 'ツール未割り当て'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
   No tool mounted: 'ツール未装着'
@@ -4609,6 +4609,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman が設定されていません — 削除する項目はありません。
   Spoolman is offline, so brand and material can't be saved.: Spoolman がオフラインのため、ブランドと素材を保存できません。
   Spoolman is offline. Brand and material can change once it's back.: Spoolman がオフラインです。復帰後にブランドと素材を変更できます。
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman はこの画面ではなく、プリンターのファームウェアで設定します。'
   Spoolman needs a brand for this filament.: Spoolman にはこのフィラメントのブランドが必要です。
   Spoolman needs a color for this filament.: Spoolman にはこのフィラメントの色が必要です。
   Spoolman needs a material for this filament.: Spoolman にはこのフィラメントの素材が必要です。
@@ -5967,6 +5968,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。'
+  Your printer's firmware manages its configuration, so set these values there.: 'プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。'
   Your printer's manual has the parts and lubricant for your model.: "部品と潤滑剤はプリンターのマニュアルで確認できます。"
   Your usual build plate is on: 'いつものビルドプレートが載っている'
   Your {0} is set up for {1}, but it looks stock.: 'お使いの{0}は{1}用に設定されていますが、標準状態のようです。'
@@ -6134,6 +6136,7 @@ translations:
   mm: mm
   mm Z-offset: mm Z-Offset
   mm before clog: 詰まりまでの距離 (mm)
+  'mm:': 'mm:'
   needs: 必要
   needs approval: 承認が必要
   needs you: '操作が必要'

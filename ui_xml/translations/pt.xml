@@ -467,6 +467,7 @@
   <translation tag="Assign a role to enable sensor monitoring" pt="Atribua uma função para habilitar o monitoramento do sensor"/>
   <translation tag="Assign a slot first" pt="Atribua um slot primeiro"/>
   <translation tag="Assigned Tool" pt="Ferramenta atribuída"/>
+  <translation tag="Assigned {}" pt="Atribuída {}"/>
   <translation tag="Assisted Retract" pt="Retração assistida"/>
   <translation tag="Assisting" pt="Assistindo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" pt="Pelo menos {} linhas do helixscreen.env foram ignoradas"/>
@@ -1835,9 +1836,6 @@
   <translation tag="Feeders" pt="Alimentadores"/>
   <translation tag="Feeding filament to nozzle" pt="Avançando filamento até o bico"/>
   <translation tag="Feeding the head by hand did not finish." pt="A alimentação manual do cabeçote não terminou."/>
-  <translation tag="Feeds Tool" pt="Alimenta ferramenta"/>
-  <translation tag="Feeds no tool" pt="Não alimenta nenhuma ferramenta"/>
-  <translation tag="Feeds {}" pt="Alimenta {}"/>
   <translation tag="Filament" pt="Filamento"/>
   <translation tag="Filament Buffer" pt="Buffer de filamento"/>
   <translation tag="Filament Control" pt="Controle de Filamento"/>
@@ -3096,6 +3094,7 @@
   <translation tag="No target printer configured" pt="Nenhuma impressora de destino configurada"/>
   <translation tag="No temperature sensors detected" pt="Nenhum sensor de temperatura detectado"/>
   <translation tag="No timelapse videos found" pt="Nenhum vídeo timelapse encontrado"/>
+  <translation tag="No tool assigned" pt="Nenhuma ferramenta atribuída"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" pt="Não se sabe qual ferramenta está montada. Com uma sonda compartilhada, calibre com {}. Continuar mesmo assim?"/>
   <translation tag="No tool is mounted" pt="Nenhuma ferramenta montada"/>
   <translation tag="No tool mounted" pt="Nenhuma ferramenta montada"/>
@@ -4468,6 +4467,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." pt="Spoolman não está configurado — nada a remover."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." pt="O Spoolman está offline, então marca e material não podem ser salvos."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." pt="O Spoolman está offline. Marca e material poderão ser alterados quando ele voltar."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." pt="O Spoolman é configurado pelo firmware da impressora, não nesta tela."/>
   <translation tag="Spoolman needs a brand for this filament." pt="O Spoolman precisa de uma marca para este filamento."/>
   <translation tag="Spoolman needs a color for this filament." pt="O Spoolman precisa de uma cor para este filamento."/>
   <translation tag="Spoolman needs a material for this filament." pt="O Spoolman precisa de um material para este filamento."/>
@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." pt="A impressora não confirmou o início da impressão ({}). Ela ainda pode começar: verifique a impressora antes de iniciar de novo."/>
   <translation tag="The printer did not report its toolhead limits." pt="A impressora não informou os limites do cabeçote."/>
   <translation tag="The printer did not reset the filter" pt="A impressora não repôs o filtro"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." pt="A impressora ainda não informou como pegar este cabeçote. Tente novamente quando o sistema de filamento terminar de se conectar."/>
   <translation tag="The printer did not say whether it is printing. Try again." pt="A impressora não informou se está imprimindo. Tente novamente."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." pt="A impressora extruda num canto e repete até as leituras coincidirem. Você não julga nada a olho."/>
   <translation tag="The printer finishes this measurement on its own." pt="A impressora conclui esta medição por conta própria."/>
@@ -5755,6 +5756,7 @@
   <translation tag="Your printer has an automatic filament changer" pt="Sua impressora possui um trocador automático de filamento"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" pt="Sua impressora estava offline durante a configuração, então as opções de hardware foram puladas. Configurar agora?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." pt="O firmware da sua impressora gerencia o software do HelixScreen, então o plugin HelixPrint precisa ser fornecido pelo firmware. Ele não pode ser instalado por esta tela."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." pt="O firmware da impressora gerencia a configuração dela, então defina esses valores lá."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." pt="O manual da impressora indica peças e lubrificante para o seu modelo."/>
   <translation tag="Your usual build plate is on" pt="Sua placa de impressão de sempre está colocada"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." pt="Sua {0} está configurada para {1}, mas parece original."/>
@@ -5921,6 +5923,7 @@
   <translation tag="mm" pt="mm"/>
   <translation tag="mm Z-offset" pt="mm Z-Offset"/>
   <translation tag="mm before clog" pt="mm antes da obstrução"/>
+  <translation tag="mm:" pt="mm:"/>
   <translation tag="needs" pt="precisa"/>
   <translation tag="needs approval" pt="requer aprovação"/>
   <translation tag="needs you" pt="precisa de você"/>
