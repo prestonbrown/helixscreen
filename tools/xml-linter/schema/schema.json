@@ -5064,16 +5064,6 @@
     "zo_step_gap",
     "zo_step_h",
     "zo_step_radius",
-    "zo_tape_font_note",
-    "zo_tape_font_note_large",
-    "zo_tape_font_note_medium",
-    "zo_tape_font_note_micro",
-    "zo_tape_font_note_small",
-    "zo_tape_font_tick",
-    "zo_tape_font_tick_large",
-    "zo_tape_font_tick_medium",
-    "zo_tape_font_tick_micro",
-    "zo_tape_font_tick_small",
     "zo_unit_drop",
     "zo_unit_gap"
   ]

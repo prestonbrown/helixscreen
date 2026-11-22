@@ -280,6 +280,12 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     helix::Subject run_subtitle_short_subject_{};
     char run_subtitle_buf_[64] = {0};
     char run_subtitle_short_buf_[32] = {0};
+    int run_step_index_ = 0;
+    int run_step_count_ = 1;
+    /// Texts this panel formats from translated strings, written again on a
+    /// live language switch.
+    void render_translated_texts();
+    ObserverGuard language_observer_;
 
     // The paper test's tape: the selected step (an index into ztape::kStepMicrons),
     // the estimated drag point in microns (ztape::kNoEstimate for none), and the

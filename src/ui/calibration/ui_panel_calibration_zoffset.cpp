@@ -21,6 +21,7 @@
 #include "lvgl.h"
 #include "moonraker_api.h"
 #include "motion_presets.h"
+#include "observe_language.h"
 #include "printer_state.h"
 #include "probe_preparation.h"
 #include "probe_sensor_manager.h"
@@ -242,6 +243,14 @@ void ZOffsetCalibrationPanel::setup_widgets() {
         },
         ps.get_subjects_lifetime());
 
+    // Texts formatted here from translated strings follow a live language switch;
+    // the XML around them re-translates itself.
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](ZOffsetCalibrationPanel* self) { self->render_translated_texts(); });
+    // A rebuilt tree (hot reload, layout change) shows them again too: the run
+    // header applies its literal subtitle after its binding.
+    render_translated_texts();
+
     spdlog::debug("[ZOffsetCal] Widget setup complete");
 }
 
@@ -382,6 +391,7 @@ void ZOffsetCalibrationPanel::on_ui_destroyed() {
     // run itself lives in state_ and the state subject.
     manual_probe_active_observer_.reset();
     manual_probe_z_observer_.reset();
+    language_observer_.reset();
 }
 
 // ============================================================================
@@ -549,19 +559,13 @@ void ZOffsetCalibrationPanel::open_for_run(
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
+    run_step_index_ = step_index;
+    run_step_count_ = step_count;
     lv_subject_set_int(&run_step_count_subject_, step_count);
     lv_subject_set_int(&run_step_current_subject_, step_index);
     set_run_mode(true);
     spdlog::info("[ZOffsetCal] Opened for a guided run");
     show(lv_screen_active());
-    // After the tree exists: the header's literal subtitle, applied after its
-    // binding, would otherwise blank a value set before it was built.
-    set_readout(run_subtitle_subject_, fmt::format(fmt::runtime(lv_tr("Step {} of {} · needs you")),
-                                                   step_index + 1, step_count)
-                                           .c_str());
-    set_readout(
-        run_subtitle_short_subject_,
-        fmt::format(fmt::runtime(lv_tr("{}/{} · needs you")), step_index + 1, step_count).c_str());
 }
 
 void ZOffsetCalibrationPanel::finish_run(bool accepted) {
@@ -598,7 +602,28 @@ void ZOffsetCalibrationPanel::set_run_mode(bool on) {
     }
     lv_subject_set_int(&run_mode_subject_, on ? 1 : 0);
     lv_subject_set_int(&not_run_subject_, on ? 0 : 1);
-    set_readout(back_text_subject_, on ? lv_tr("Back") : lv_tr("Abort"));
+    render_translated_texts();
+}
+
+void ZOffsetCalibrationPanel::render_translated_texts() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const bool run = run_done_ != nullptr;
+    set_readout(back_text_subject_, run ? lv_tr("Back") : lv_tr("Abort"));
+    if (run) {
+        set_readout(run_subtitle_subject_,
+                    fmt::format(fmt::runtime(lv_tr("Step {} of {} · needs you")),
+                                run_step_index_ + 1, run_step_count_)
+                        .c_str());
+        set_readout(run_subtitle_short_subject_,
+                    fmt::format(fmt::runtime(lv_tr("{}/{} · needs you")), run_step_index_ + 1,
+                                run_step_count_)
+                        .c_str());
+    }
+    if (state_ == State::ADJUSTING && session_start_microns_) {
+        refresh_guide();
+    }
 }
 
 void ZOffsetCalibrationPanel::handle_continue_clicked() {

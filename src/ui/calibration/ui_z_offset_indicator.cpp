@@ -280,8 +280,8 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
     const int tip = ry(L.tip_y), tick_top = ry(L.tick_top), tick_bottom = ry(L.tick_bottom);
     const bool long_notes = !L.compact;
 
-    const lv_font_t* tick_font = tape_font("zo_tape_font_tick");
-    const lv_font_t* note_font = tape_font("zo_tape_font_note");
+    const lv_font_t* tick_font = tape_font("cal_font_badge");
+    const lv_font_t* note_font = tick_font;
 
     // The ruler and its ticks.
     fill_rect(layer, d.color_elevated, LV_OPA_COVER, 0, x0 + L.ruler_x, y0 + ry(L.line_top),
@@ -311,7 +311,8 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
         fill_rect(layer, d.color_text, kPaperOpa, 0, x0 + paper_x, y0 + bed.paper_top,
                   x0 + paper_x + paper_w, y0 + bed.paper_top + L.paper_h);
         const int32_t by1 = y0 + bed.paper_top + L.paper_h, by2 = by1 + L.bed_h;
-        fill_rect(layer, d.color_border, LV_OPA_60, L.bed_radius, x0 + bed_x, by1, x0 + bed_r, by2);
+        fill_rect(layer, d.color_elevated, LV_OPA_60, L.bed_radius, x0 + bed_x, by1, x0 + bed_r,
+                  by2);
         const int32_t bw = L.compact ? 1 : 2;
         dashed_segment(layer, edge, LV_OPA_COVER, bw, {(float)(x0 + bed_x), (float)by1},
                        {(float)(x0 + bed_r), (float)by1}, 4, 3);
@@ -341,7 +342,7 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
         }
         const int32_t paper_top = ry(L.static_paper_top);
         const int32_t by1 = paper_top + L.paper_h;
-        fill_rect(layer, d.color_border, LV_OPA_COVER, L.bed_radius, x0 + bed_x, y0 + by1,
+        fill_rect(layer, d.color_elevated, LV_OPA_COVER, L.bed_radius, x0 + bed_x, y0 + by1,
                   x0 + bed_r, y0 + by1 + L.bed_h);
         fill_rect(layer, d.color_text, LV_OPA_90, 0, x0 + paper_x, y0 + paper_top,
                   x0 + paper_x + paper_w, y0 + paper_top + L.paper_h);
