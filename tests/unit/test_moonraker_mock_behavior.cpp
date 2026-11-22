@@ -3197,6 +3197,9 @@ TEST_CASE("MoonrakerClientMock handles emergency_stop", "[mock][emergency][slow]
         MoonrakerClientMock& m;
         ~Cleanup() {
             m.disconnect();
+            // The stop reports Klipper's shutdown to the global PrinterState from the UI
+            // thread.
+            helix::ui::UpdateQueue::instance().drain_until_empty();
         }
     } cleanup{mock};
 
