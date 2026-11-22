@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- The first-run setup wizard: the guided-flow frame the calibration wizard uses
-     (calibration_wizard_header over the step's screen over calibration_wizard_footer).
+     (wizard_frame_header over the step's screen over wizard_frame_footer).
 
      Header: the step's title over its subtitle, "Step X of Y" at the right; "of Y"
      stays off while the total is still an estimate (ui_wizard.cpp composes
@@ -21,26 +21,23 @@
   <view name="wizard_container"
         extends="lv_obj" width="100%" height="100%" style_bg_color="#screen_bg" style_bg_opa="255" flex_flow="column"
         style_pad_all="0" style_pad_gap="0" style_border_width="0">
-    <calibration_wizard_header name="wizard_header"
-                               title_subject="wizard_title" subtitle_subject="wizard_subtitle"
-                               eta_subject="wizard_step_text">
+    <wizard_frame_header name="wizard_header"
+                         title_subject="wizard_title" subtitle_subject="wizard_subtitle" eta_subject="wizard_step_text">
       <style name="styles.cap_chrome"/>
-    </calibration_wizard_header>
+    </wizard_frame_header>
 
     <lv_obj name="wizard_content"
             width="100%" flex_grow="1" scrollable="true" style_pad_all="0" style_pad_hor="#cal_page_pad_x"
             style_pad_top="#space_sm"/>
 
-    <calibration_wizard_footer name="wizard_footer"
-                               back_name="btn_back" back_subject="wizard_back_text" back_tag=""
-                               back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked"
-                               skip_name="btn_skip" skip_subject="wizard_skip_text" skip_tag=""
-                               skip_hide_cond="wizard_show_skip eq 0" skip_callback="on_next_clicked"
-                               primary_name="btn_next" primary_subject="wizard_next_text"
-                               primary_hide_subject="wizard_show_skip"
-                               primary_disabled_cond="connection_test_passed ne 1" primary_needs_printer="0"
-                               primary_callback="on_next_clicked">
+    <wizard_frame_footer name="wizard_footer"
+                         back_name="btn_back" back_subject="wizard_back_text" back_tag=""
+                         back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked" skip_name="btn_skip"
+                         skip_subject="wizard_skip_text" skip_tag="" skip_hide_cond="wizard_show_skip eq 0"
+                         skip_callback="on_next_clicked" primary_name="btn_next" primary_subject="wizard_next_text"
+                         primary_hide_subject="wizard_show_skip" primary_disabled_cond="connection_test_passed ne 1"
+                         primary_needs_printer="0" primary_callback="on_next_clicked">
       <style name="styles.cap_chrome"/>
-    </calibration_wizard_footer>
+    </wizard_frame_footer>
   </view>
 </component>

@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- The calibration wizard's footer bar, under a divider: the leading button on
-     the left (Back, Skip for now, Discard all, Stop calibration), a centered
-     status line (one or two lines), and Skip plus the primary action together on
-     the right, the primary always bottom right.
+<!-- The wizard frame's footer bar (calibration runs, the setup wizard), under a
+     divider: the leading button on the left (Back, Skip for now, Discard all, Stop
+     calibration), a centered status line (one or two lines), and Skip plus the
+     primary action together on the right, the primary always bottom right.
 
      Each button shows only when its callback is given. Per button:
        <b>_text / <b>_tag      its caption (literal) and translation key

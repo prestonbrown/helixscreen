@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Guided calibration, full screen: one page per cal_run_page, 0 Pick, 1 Before you
      start, 2 Running, 3 Results. Each page is the wizard frame: its header
-     (calibration_wizard_header), a body, its footer (calibration_wizard_footer).
+     (wizard_frame_header), a body, its footer (wizard_frame_footer).
      The steps are the guided run's (calibration_run.h#guided_run_steps), in run
      order. CalibrationRunOverlay owns the run and publishes every subject here. -->
 <component>
@@ -53,11 +53,10 @@
     <lv_obj name="cal_run_pick" flex_flow="column" scrollable="false">
       <style name="page"/>
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="0"/>
-      <calibration_wizard_header name="cal_run_pick_header"
-                                 title="Calibrate your printer" subtitle_subject="cal_run_pick_subtitle"
-                                 subtitle_compact="2" subtitle_compact_subject="cal_run_pick_subtitle_short"
-                                 progress="1" step_count_subject="cal_run_page_count"
-                                 step_current_subject="cal_run_page"/>
+      <wizard_frame_header name="cal_run_pick_header"
+                           title="Calibrate your printer" subtitle_subject="cal_run_pick_subtitle" subtitle_compact="2"
+                           subtitle_compact_subject="cal_run_pick_subtitle_short" progress="1"
+                           step_count_subject="cal_run_page_count" step_current_subject="cal_run_page"/>
       <lv_obj name="cal_run_pick_list"
               width="100%" height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_bg_opa="0" style_border_width="0" scroll_dir="ver">
@@ -106,15 +105,15 @@
           <bind_style_if name="tile_full" cond="ui_breakpoint eq 0 or ui_is_portrait eq 1"/>
         </calibration_run_pick_row>
       </lv_obj>
-      <calibration_wizard_footer name="cal_run_pick_footer"
-                                 back_text="Skip for now" back_compact_text="Skip" compact_texts="1"
-                                 back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
-                                 status_subject="cal_run_pick_summary" status_sub_subject="cal_run_hands_line"
-                                 status_color="#text" status_font="#cal_font_name" status_compact="1"
-                                 status_compact_subject="cal_run_pick_summary_short"
-                                 status_sub_compact_subject="cal_run_hands_short" primary_text="Start"
-                                 primary_icon="chevron_right" primary_callback="on_cal_run_next"
-                                 primary_name="btn_cal_run_next" primary_disabled_cond="cal_run_pick_count eq 0"/>
+      <wizard_frame_footer name="cal_run_pick_footer"
+                           back_text="Skip for now" back_compact_text="Skip" compact_texts="1"
+                           back_callback="on_cal_run_close" back_name="btn_cal_run_skip"
+                           status_subject="cal_run_pick_summary" status_sub_subject="cal_run_hands_line"
+                           status_color="#text" status_font="#cal_font_name" status_compact="1"
+                           status_compact_subject="cal_run_pick_summary_short"
+                           status_sub_compact_subject="cal_run_hands_short" primary_text="Start"
+                           primary_icon="chevron_right" primary_callback="on_cal_run_next"
+                           primary_name="btn_cal_run_next" primary_disabled_cond="cal_run_pick_count eq 0"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- BEFORE YOU START (1) -->
@@ -122,9 +121,9 @@
     <lv_obj name="cal_run_prereqs" flex_flow="column" scrollable="false">
       <style name="page"/>
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="1"/>
-      <calibration_wizard_header name="cal_run_prereq_header"
-                                 title="Before you start" subtitle="Only what the steps you picked need, asked once"
-                                 back_callback="on_cal_run_back"/>
+      <wizard_frame_header name="cal_run_prereq_header"
+                           title="Before you start" subtitle="Only what the steps you picked need, asked once"
+                           back_callback="on_cal_run_back"/>
       <lv_obj width="100%"
               height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_pad_top="#space_lg" style_pad_bottom="#space_sm" style_pad_gap="#space_lg" style_bg_opa="0"
@@ -215,11 +214,11 @@
           </lv_obj>
         </lv_obj>
       </lv_obj>
-      <calibration_wizard_footer name="cal_run_prereq_footer"
-                                 back_callback="on_cal_run_back" back_name="btn_cal_run_back"
-                                 status_subject="cal_run_prereq_left" primary_text="Everything's ready"
-                                 primary_callback="on_cal_run_start" primary_name="btn_cal_run_start"
-                                 primary_disabled_cond="cal_run_prereq_ready eq 0" primary_moves_machine="true"/>
+      <wizard_frame_footer name="cal_run_prereq_footer"
+                           back_callback="on_cal_run_back" back_name="btn_cal_run_back"
+                           status_subject="cal_run_prereq_left" primary_text="Everything's ready"
+                           primary_callback="on_cal_run_start" primary_name="btn_cal_run_start"
+                           primary_disabled_cond="cal_run_prereq_ready eq 0" primary_moves_machine="true"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- RUNNING (2) -->
@@ -227,9 +226,8 @@
     <lv_obj name="cal_run_running" flex_flow="column" scrollable="false">
       <style name="page"/>
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="2"/>
-      <calibration_wizard_header name="cal_run_running_header"
-                                 title_subject="cal_run_header_title" eta_subject="cal_run_eta"
-                                 bar_subject="cal_run_overall"/>
+      <wizard_frame_header name="cal_run_running_header"
+                           title_subject="cal_run_header_title" eta_subject="cal_run_eta" bar_subject="cal_run_overall"/>
       <lv_obj width="100%"
               height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_pad_top="#space_md" style_pad_bottom="#space_sm" style_pad_gap="#space_lg" style_bg_opa="0"
@@ -254,13 +252,13 @@
           <calibration_live_card name="cal_run_live"/>
         </lv_obj>
       </lv_obj>
-      <calibration_wizard_footer name="cal_run_running_footer"
-                                 back_text="Stop calibration" back_callback="on_cal_run_stop"
-                                 back_name="btn_cal_run_stop" back_style="cal_footer_danger"
-                                 back_hide_subject="cal_run_over" status_subject="cal_run_footer"
-                                 primary_text="See results" primary_callback="on_cal_run_see_results"
-                                 primary_name="btn_cal_run_results" primary_disabled_cond="cal_run_over eq 0"
-                                 primary_needs_printer="0" primary_hide_subject="cal_run_running_now"/>
+      <wizard_frame_footer name="cal_run_running_footer"
+                           back_text="Stop calibration" back_callback="on_cal_run_stop" back_name="btn_cal_run_stop"
+                           back_style="cal_footer_danger" back_hide_subject="cal_run_over"
+                           status_subject="cal_run_footer" primary_text="See results"
+                           primary_callback="on_cal_run_see_results" primary_name="btn_cal_run_results"
+                           primary_disabled_cond="cal_run_over eq 0" primary_needs_printer="0"
+                           primary_hide_subject="cal_run_running_now"/>
     </lv_obj>
     <!-- ================================================================ -->
     <!-- RESULTS (3) -->
@@ -268,9 +266,9 @@
     <lv_obj name="cal_run_results" flex_flow="column" scrollable="false">
       <style name="page"/>
       <bind_flag_if_not_eq subject="cal_run_page" flag="hidden" ref_value="3"/>
-      <calibration_wizard_header name="cal_run_results_header"
-                                 title_subject="cal_run_results_title" subtitle_subject="cal_run_results_sub"
-                                 lead_icon="check_bold" lead_warn_subject="cal_run_results_warn"/>
+      <wizard_frame_header name="cal_run_results_header"
+                           title_subject="cal_run_results_title" subtitle_subject="cal_run_results_sub"
+                           lead_icon="check_bold" lead_warn_subject="cal_run_results_warn"/>
       <lv_obj width="100%"
               height="0" flex_grow="1" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x"
               style_pad_top="#space_md" style_pad_bottom="#space_xs" style_pad_gap="#space_xs" style_bg_opa="0"
@@ -301,13 +299,12 @@
           <bind_flag_if_eq subject="cal_run_has_error" flag="hidden" ref_value="0"/>
         </text_small>
       </lv_obj>
-      <calibration_wizard_footer name="cal_run_results_footer"
-                                 back_text="Discard all" back_callback="on_cal_run_discard"
-                                 back_name="btn_cal_run_discard" back_hide_subject="cal_run_hide_discard"
-                                 status_subject="cal_run_save_line" primary_subject="cal_run_results_primary"
-                                 primary_callback="on_cal_run_results_primary" primary_name="btn_cal_run_save"
-                                 primary_hide_subject="cal_run_results_busy"
-                                 primary_needs_printer="cal_run_offers_save eq 1"/>
+      <wizard_frame_footer name="cal_run_results_footer"
+                           back_text="Discard all" back_callback="on_cal_run_discard" back_name="btn_cal_run_discard"
+                           back_hide_subject="cal_run_hide_discard" status_subject="cal_run_save_line"
+                           primary_subject="cal_run_results_primary" primary_callback="on_cal_run_results_primary"
+                           primary_name="btn_cal_run_save" primary_hide_subject="cal_run_results_busy"
+                           primary_needs_printer="cal_run_offers_save eq 1"/>
     </lv_obj>
   </view>
 </component>

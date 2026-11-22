@@ -548,8 +548,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
 
     const char* attrs[] = {"title", "Calibrate your printer", "subtitle_subject",
                            "test_cal_header_subtitle", nullptr};
-    auto* header = static_cast<lv_obj_t*>(
-        lv_xml_create(lv_screen_active(), "calibration_wizard_header", attrs));
+    auto* header =
+        static_cast<lv_obj_t*>(lv_xml_create(lv_screen_active(), "wizard_frame_header", attrs));
     REQUIRE(header != nullptr);
     lv_obj_t* bound = lv_obj_find_by_name(header, "cal_header_subtitle_bound");
     lv_obj_t* literal = lv_obj_find_by_name(header, "cal_header_subtitle");

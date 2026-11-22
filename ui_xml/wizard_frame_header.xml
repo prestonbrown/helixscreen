@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- The calibration wizard's header bar: a title over a subtitle on the left, a
-     progress mark on the right, a divider under it. Every guided-run page and
-     every per-step screen the run opens uses it, in place of the app's
-     header_bar, so the wizard reads as one full-screen flow.
+<!-- The wizard frame's header bar: a title over a subtitle on the left, a
+     progress mark on the right, a divider under it. Every calibration guided-run
+     page, every per-step screen the run opens and the first-run setup wizard use
+     it, in place of the app's header_bar, so a wizard reads as one full-screen flow.
 
      Optional parts, each off unless asked for:
        back_callback        a back chevron before the title

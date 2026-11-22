@@ -337,10 +337,6 @@ const TokenEntry k_token_table[] = {
     {"px", "timeline_w", "2"},
     {"px", "timeline_h", "14"},
     {"px", "timeline_x", "16"},
-    {"px", "btn_radius", "8"},
-    {"px", "bar_h", "6"},
-    {"px", "back_size", "44"},
-    {"px", "back_pull", "-10"},
     {"px", "cal_header_h_micro", "34"},
     {"px", "cal_header_h_tiny", "44"},
     {"px", "cal_header_h_small", "56"},
@@ -1685,6 +1681,10 @@ const TokenEntry k_token_table[] = {
     {"px", "play_icon_size", "40"},
     {"px", "timelapse_card_min_w", "140"},
     {"px", "timelapse_card_max_w", "230"},
+    {"px", "btn_radius", "8"},
+    {"px", "bar_h", "6"},
+    {"px", "back_size", "44"},
+    {"px", "back_pull", "-10"},
 };
 
 const size_t k_token_table_count = sizeof(k_token_table) / sizeof(k_token_table[0]);
