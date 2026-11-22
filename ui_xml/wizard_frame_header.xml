@@ -26,7 +26,9 @@
      Texts are literal or bound: title / title_subject, subtitle / subtitle_subject.
        subtitle_compact="1"  at 480x272 the subtitle sits right of the title and
                              shows subtitle_compact_subject instead
-       subtitle_compact="2"  the same, and in portrait too (under the title) -->
+       subtitle_compact="2"  the same, and in portrait too (under the title)
+       stacked="1"           the subtitle stays on its own line under the title at
+                             480x272 too, the bar growing to fit both lines -->
 <component>
   <consts>
     <px name="bar_h" value="6"/>
@@ -40,11 +42,15 @@
     <style name="cal_hdr_inline" layout="flex" flex_flow="row" flex_cross_place="center" pad_column="#space_md"/>
     <style name="cal_hdr_full_w" width="100%"/>
     <style name="cal_hdr_content_w" width="content"/>
-    <!-- A subtitle fills its row, or at 480x272 hugs its text so its icon stays beside it. -->
+    <!-- A subtitle fills its row. At 480x272 a compact one hugs its text so its icon
+         stays beside it; a full one fills the space right of the title, right-aligned,
+         so a long one still reads from its start and ends in dots. -->
     <style name="cal_hdr_fill" width="0" flex_grow="1"/>
     <style name="cal_hdr_hug" width="content" flex_grow="0"/>
     <style name="cal_hdr_grow" flex_grow="1"/>
     <style name="cal_hdr_align_end" text_align="right"/>
+    <style name="cal_hdr_h" height="#cal_header_h" pad_top="0" pad_bottom="0"/>
+    <style name="cal_hdr_tall" height="content" pad_top="#space_md" pad_bottom="#space_md"/>
   </styles>
   <api>
     <prop name="title" type="string" default=""/>
@@ -70,12 +76,15 @@
     <prop name="hint_subject" type="string" default=""/>
     <prop name="hint_color" type="string" default="#text_muted"/>
     <prop name="bar_subject" type="string" default=""/>
+    <prop name="stacked" type="int" default="0"/>
   </api>
   <view extends="lv_obj"
-        width="100%" height="#cal_header_h" style_pad_left="#cal_header_pad_x" style_pad_right="#cal_header_pad_x"
-        style_pad_top="0" style_pad_bottom="0" style_pad_gap="#space_md" style_bg_opa="0" style_radius="0"
-        style_border_width="1" style_border_side="bottom" style_border_color="#border" style_border_opa="255"
-        flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start" scrollable="false">
+        width="100%" style_pad_left="#cal_header_pad_x" style_pad_right="#cal_header_pad_x" style_pad_gap="#space_md"
+        style_bg_opa="0" style_radius="0" style_border_width="1" style_border_side="bottom" style_border_color="#border"
+        style_border_opa="255" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
+        scrollable="false">
+    <style name="cal_hdr_h"/>
+    <bind_style_if name="cal_hdr_tall" cond="ui_breakpoint eq 0 and ${stacked}"/>
     <lv_obj name="cal_header_row"
             width="100%" height="content" style_pad_all="0" style_pad_gap="#space_lg" style_bg_opa="0"
             style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false">
@@ -100,20 +109,20 @@
         </icon>
       </lv_obj>
       <!-- Title over subtitle; at 480x272 the two share one line, the subtitle
-           pushed right. -->
+           pushed right, unless stacked. -->
       <lv_obj name="cal_header_text"
               width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
               scrollable="false">
-        <bind_style_if_ge name="cal_hdr_stack" subject="ui_breakpoint" ref_value="1"/>
-        <bind_style_if_eq name="cal_hdr_inline" subject="ui_breakpoint" ref_value="0"/>
+        <bind_style_if name="cal_hdr_stack" cond="ui_breakpoint ge 1 or ${stacked}"/>
+        <bind_style_if name="cal_hdr_inline" cond="ui_breakpoint eq 0 and not ${stacked}"/>
         <!-- A literal title or subtitle and a bound one are separate labels, each
              hidden by its prop alone: one label carrying both would let the literal,
              applied after the binding, blank a value published before the header
              was built. -->
         <lv_obj name="cal_header_title_box"
                 height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
-          <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
-          <bind_style_if_eq name="cal_hdr_content_w" subject="ui_breakpoint" ref_value="0"/>
+          <bind_style_if name="cal_hdr_full_w" cond="ui_breakpoint ge 1 or ${stacked}"/>
+          <bind_style_if name="cal_hdr_content_w" cond="ui_breakpoint eq 0 and not ${stacked}"/>
           <text_body name="cal_header_title"
                      text="$title" translation_tag="$title_tag" long_mode="dots" style_text_font="#cal_font_title"
                      style_text_color="#text" hidden_if_prop_not_eq="$title_subject|"/>
@@ -125,25 +134,26 @@
                 height="content" style_pad_all="0" style_pad_gap="#space_xs" style_bg_opa="0" style_border_width="0"
                 flex_flow="row" style_flex_cross_place="center" style_flex_main_place="end" scrollable="false"
                 hidden_if_prop_not_eq="$bar_subject|">
-          <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
-          <bind_style_if_eq name="cal_hdr_grow" subject="ui_breakpoint" ref_value="0"/>
+          <bind_style_if name="cal_hdr_full_w" cond="ui_breakpoint ge 1 or ${stacked}"/>
+          <bind_style_if name="cal_hdr_grow" cond="ui_breakpoint eq 0 and not ${stacked}"/>
           <!-- The row packs to its end at 480x272, so the icon travels with the text. -->
           <icon src="$subtitle_icon" size="xs" color="$subtitle_color" hidden_if_empty="$subtitle_icon"/>
           <if cond="$subtitle_compact eq 0">
             <lv_obj name="cal_header_subtitle_box"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
-              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
-              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
+              <style name="cal_hdr_fill"/>
               <text_body name="cal_header_subtitle"
                          text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
                          style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
                          hidden_if_prop_not_eq="$subtitle_subject|">
-                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+                <style name="cal_hdr_full_w"/>
+                <bind_style_if name="cal_hdr_align_end" cond="ui_breakpoint eq 0 and not ${stacked}"/>
               </text_body>
               <text_body name="cal_header_subtitle_bound"
                          bind_text="$subtitle_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
                          style_text_color="$subtitle_color" hidden_if_empty="$subtitle_subject">
-                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+                <style name="cal_hdr_full_w"/>
+                <bind_style_if name="cal_hdr_align_end" cond="ui_breakpoint eq 0 and not ${stacked}"/>
               </text_body>
             </lv_obj>
           </if>

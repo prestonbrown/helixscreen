@@ -259,10 +259,10 @@ void WizardTouchCalibrationStep::cleanup() {
     // Reset button text to "Next" (in case user skipped without completing)
     lv_subject_set_int(&wizard_show_skip, 0);
 
-    // Reset wizard subtitle alignment back to left (was centered for this step)
+    // Hand the subtitle's alignment back to the header (it was centered for this step)
     lv_obj_t* subtitle = wizard_subtitle_label();
     if (subtitle) {
-        lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_LEFT, 0);
+        lv_obj_remove_local_style_prop(subtitle, LV_STYLE_TEXT_ALIGN, 0);
     }
 
     // Restore Next/Skip group to its original parent before deleting reparented widgets

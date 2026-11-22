@@ -22,7 +22,8 @@
         extends="lv_obj" width="100%" height="100%" style_bg_color="#screen_bg" style_bg_opa="255" flex_flow="column"
         style_pad_all="0" style_pad_gap="0" style_border_width="0">
     <wizard_frame_header name="wizard_header"
-                         title_subject="wizard_title" subtitle_subject="wizard_subtitle" eta_subject="wizard_step_text">
+                         title_subject="wizard_title" subtitle_subject="wizard_subtitle" eta_subject="wizard_step_text"
+                         stacked="1">
       <style name="styles.cap_chrome"/>
     </wizard_frame_header>
 
@@ -32,11 +33,13 @@
 
     <wizard_frame_footer name="wizard_footer"
                          back_name="btn_back" back_subject="wizard_back_text" back_tag=""
-                         back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked" skip_name="btn_skip"
-                         skip_subject="wizard_skip_text" skip_tag="" skip_hide_cond="wizard_show_skip eq 0"
-                         skip_callback="on_next_clicked" primary_name="btn_next" primary_subject="wizard_next_text"
-                         primary_hide_subject="wizard_show_skip" primary_disabled_cond="connection_test_passed ne 1"
-                         primary_needs_printer="0" primary_callback="on_next_clicked">
+                         back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked"
+                         back_style="cal_footer_btn_wide" skip_name="btn_skip" skip_style="cal_footer_skip_wide"
+                         skip_fill="1" skip_subject="wizard_skip_text" skip_tag=""
+                         skip_hide_cond="wizard_show_skip eq 0" skip_callback="on_next_clicked" primary_name="btn_next"
+                         primary_subject="wizard_next_text" primary_hide_subject="wizard_show_skip"
+                         primary_disabled_cond="connection_test_passed ne 1" primary_needs_printer="0"
+                         primary_callback="on_next_clicked">
       <style name="styles.cap_chrome"/>
     </wizard_frame_footer>
   </view>
