@@ -17,8 +17,8 @@
                   long_mode="wrap" style_text_align="center"/>
       <!-- E-Stop escape hatch -->
       <ui_button name="abort_estop_btn"
-                 width="100%" height="#button_height_lg" variant="danger" icon="alert_octagon" text="EMERGENCY STOP"
-                 style_margin_top="#space_sm">
+                 width="100%" height="#button_height_lg" style_min_height="#modal_button_height" variant="danger"
+                 icon="alert_octagon" text="EMERGENCY STOP" style_margin_top="#space_sm">
         <event_cb trigger="clicked" callback="on_abort_emergency_stop"/>
       </ui_button>
     </dialog_frame-body>
