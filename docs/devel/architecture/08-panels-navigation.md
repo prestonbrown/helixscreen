@@ -76,6 +76,7 @@ flowchart TB
 | [`src/application/xml_hot_reloader.cpp`](../../../src/application/xml_hot_reloader.cpp) | Poll + re-register side of hot reload (chapter 01 covers it); rebuild side is `rebuild_active_views()` |
 | [`include/overlay_class.h`](../../../include/overlay_class.h) | `OverlayClass` + `resolve_overlay_is_destination()` - push-time width resolution (#1178) |
 | [`src/ui/settings/ui_settings_safety.cpp`](../../../src/ui/settings/ui_settings_safety.cpp) | Overlay exemplar: singleton accessor, `create()`, `show()` with the register/push pairing |
+| [`include/ui_calibration_hub_overlay.h`](../../../include/ui_calibration_hub_overlay.h), [`include/ui_calibration_run_overlay.h`](../../../include/ui_calibration_run_overlay.h) | The Calibration screen and the guided run: an overlay that owns work longer than its view ([CALIBRATION.md](../CALIBRATION.md)) |
 | [`docs/devel/MODAL_SYSTEM.md`](../MODAL_SYSTEM.md) | The modal deep dive this chapter summarizes |
 
 ## How it works
@@ -234,6 +235,12 @@ Two surfaces move the head by touching a top-down plate: the Motion overlay's Be
 
 **Nothing in the Motion panel homes on its own.** The coordinates disable per axis on `motion_<axis>_homed`, and the presets, Park and the Bed tab's plate on all three, in their XML (`ui_xml/motion_panel.xml`, `ui_xml/components/move_preset_grid.xml`, `ui_xml/components/motion_bed_map.xml`); the handlers re-check (`MotionPanel::open_axis_keypad`, `MotionPanel::request_axis_target`, `MotionPanel::handle_park`) rather than calling `ensure_homed_then()`. Only the explicit Home buttons send G28. Calibration and filament flows that home as part of their job are outside this rule.
 
+### Calibration: a catalog, one screen, and a run that outlives its view
+
+Advanced > Calibration opens `CalibrationHubOverlay` ([`src/ui/calibration/ui_calibration_hub_overlay.cpp#refresh`](../../../src/ui/calibration/ui_calibration_hub_overlay.cpp)), a destroy-on-close overlay whose XML declares one tile per calibration step. Which tiles show is not a UI decision: the pure catalog ([`src/printer/calibration_catalog.cpp#applicable_steps`](../../../src/printer/calibration_catalog.cpp)) takes the capability answers, the Z offset strategy and the printer database's tiers and returns the steps this printer has, in run order. The overlay maps each to `cal_shown_<id>`, `cal_tone_<id>` and `cal_status_<id>`, and each tile's callback opens the step's own screen, the same overlays the Advanced panel's rows opened. A tile's status line is the step's last result from `CalibrationHistory` (Moonraker database), else the value the Klipper config holds (`calibration::results_in_config()`, read at discovery), else its tier.
+
+The guided run is the chapter's one overlay that owns long-running work. `CalibrationRunOverlay` holds the LVGL-free `CalibrationRun` engine ([`src/calibration/calibration_run.cpp#start`](../../../src/calibration/calibration_run.cpp)) as a member, not the view, so closing the overlay mid-run leaves the run going and `open()` reopens at the page the run is on. Its Z offset step pushes another overlay on top: the Z offset panel in run mode (`ZOffsetCalibrationPanel::open_for_run()`), whose `on_dismissed()` reports an unaccepted close back to the run. Results are staged in Klipper by each step and saved once at the end through `SaveConfigWatch`. The whole subsystem, including the save rules and the step contract, is in [CALIBRATION.md](../CALIBRATION.md).
+
 ## Patterns & gotchas
 
 - **Register before push, every push.** `helix::nav::register_overlay(root, this)` then `helix::nav::push_overlay(root)`. Cached overlays must re-register on re-open (navbar switches clear the map); `OverlayBase::show()` does this for you - hand-rolled opens forget.
@@ -267,6 +274,7 @@ Two surfaces move the head by touching a top-down plate: the Motion overlay's Be
 - [`03-threading-lifetime.md`](03-threading-lifetime.md) - why every navigation body is queued, why deletion is deferred, and the `AsyncLifetimeGuard` both base classes carry.
 - [`../YOUR_FIRST_CONTRIBUTION.md`](../YOUR_FIRST_CONTRIBUTION.md) - annotated walkthrough of building a real settings overlay end to end, including the XML side this chapter skips.
 - [`../DEVELOPER_QUICK_REFERENCE.md`](../DEVELOPER_QUICK_REFERENCE.md) - copy-paste snippets for the modal tiers and overlay show/hide.
+- [`../CALIBRATION.md`](../CALIBRATION.md) - the calibration subsystem: step catalog, Calibration screen, guided run, one save at the end.
 - [`../HELIXCTL.md`](../HELIXCTL.md) - driving the live stack from outside: `ctl navigate`, `ctl click`, and why a pinned socket is mandatory.
 - [`../CONTRIBUTOR_GOTCHAS.md`](../CONTRIBUTOR_GOTCHAS.md) - symptom-indexed traps; several entries ("No subject was found", empty panel) are this chapter's rules failing in specific ways.
 

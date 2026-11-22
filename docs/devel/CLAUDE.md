@@ -80,6 +80,7 @@ All developer documentation lives here. When working on features, look up the re
 | `FILAMENT_SLOT_METADATA.md` | The lane record store (RFC 0001 shape, writer rule, editing gate). Pair with `../specs/filament_slots.md` for the wire format |
 | `MULTI_EXTRUDER_TEMPERATURE.md` | Multi-extruder temperature tracking, ExtruderInfo, dynamic subjects |
 | `TOOL_ABSTRACTION.md` | ToolState singleton, ToolInfo, tool-to-backend mapping, DetectState |
+| `CALIBRATION.md` | The calibration subsystem: step catalog and database tiers, the Calibration screen and its In-config readers, the history store, the guided run (steps, stop, Save all / Discard all), `SaveConfigWatch` and Kalico `RESTART=0`, Kalico PID tolerance, adding a step |
 | `INPUT_SHAPER.md` | Calibration panels, frequency response charts, CSV parser, PID |
 | `PRESSURE_ADVANCE_TUNING.md` | Pressure advance tuning by eye: tower, ramp, band picker, the Moonraker key slicers read |
 | `BELT_TUNER.md` | Pluck-based belt tuner. **Read its Validation status first: green in CI, never measured a real belt, thresholds circular** |
