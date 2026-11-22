@@ -33,14 +33,9 @@
         </lv_obj>
       </setting_group>
       <!-- Empty state (shown when no devices configured) -->
-      <lv_obj name="empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
-        <bind_flag_if_not_eq subject="power_has_devices" flag="hidden" ref_value="0"/>
-        <icon src="power_plug" size="xl" variant="secondary"/>
-        <text_heading text="No Power Devices" style_text_align="center"/>
-        <text_muted text="Configure devices in Moonraker" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="empty_state"
+                   flex_grow="1" icon="power_plug" icon_size="xl" title="No Power Devices"
+                   text="Configure devices in Moonraker" shown_subject="power_has_devices"/>
       <!-- Status message at bottom -->
       <text_small name="status_message" width="100%" bind_text="power_status" text="" style_text_align="center"/>
     </overlay_panel-overlay_content>

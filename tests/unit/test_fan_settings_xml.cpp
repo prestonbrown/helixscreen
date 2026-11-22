@@ -136,3 +136,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "fan settings: a tapped row renames its own 
     helix::ui::UpdateQueue::instance().drain();
     process_lvgl(20);
 }
+
+// The empty state follows the discovered fans each time the overlay opens.
+TEST_CASE_METHOD(LVGLUITestFixture, "fan settings: the empty state shows only with no fans",
+                 "[fans][settings]") {
+    std::array<lv_obj_t*, kUiPanelCount> panels{};
+    for (auto& p : panels) {
+        p = lv_obj_create(lv_screen_active());
+    }
+    NavigationManager::instance().set_panels(panels.data());
+
+    auto& fans = get_printer_state().fan_state();
+    auto& overlay = helix::settings::get_fan_settings_overlay();
+
+    fans.init_fans({});
+    REQUIRE(overlay.show(lv_screen_active()));
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+    lv_obj_t* empty = lv_obj_find_by_name(lv_screen_active(), "no_fans_placeholder");
+    REQUIRE(empty != nullptr);
+    CHECK_FALSE(lv_obj_is_hidden(empty));
+
+    fans.init_fans({"fan"});
+    overlay.on_activate();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+    CHECK(lv_obj_is_hidden(empty));
+
+    StaticPanelRegistry::instance().destroy_all();
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(20);
+}

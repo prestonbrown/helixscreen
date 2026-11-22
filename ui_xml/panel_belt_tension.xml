@@ -240,7 +240,7 @@
             </calibration_intro-settings>
             <calibration_intro-badges>
               <cal_intro_badge name="bt_badge_time" bind="bt_intro_minutes"/>
-              <cal_intro_badge name="bt_badge_loud" text="loud" warm="true"/>
+              <cal_intro_badge name="bt_badge_loud" text="loud" variant="warm"/>
               <cal_intro_badge name="bt_badge_sweep" bind="bt_hw_sweep"/>
             </calibration_intro-badges>
           </calibration_intro>

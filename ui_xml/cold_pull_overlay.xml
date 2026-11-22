@@ -21,21 +21,15 @@
           <text_small width="100%" text="Material" style_text_color="#text_muted"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
-            <ui_button name="btn_cold_pull_pla" flex_grow="1" text="PLA">
-              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="0"/>
-              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 0"/>
-              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="0"/>
-            </ui_button>
-            <ui_button name="btn_cold_pull_nylon" flex_grow="1" text="Nylon">
-              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="1"/>
-              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 1"/>
-              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="1"/>
-            </ui_button>
-            <ui_button name="btn_cold_pull_cleaning" flex_grow="1" text="Cleaning">
-              <bind_style name="styles.choice_selected" subject="cold_pull_material" ref_value="2"/>
-              <bind_style_if name="styles.choice_idle" cond="cold_pull_material ne 2"/>
-              <event_cb trigger="clicked" callback="on_cold_pull_material" user_data="2"/>
-            </ui_button>
+            <choice_button name="btn_cold_pull_pla"
+                           flex_grow="1" text="PLA" subject="cold_pull_material" value="0"
+                           callback="on_cold_pull_material" user_data="0"/>
+            <choice_button name="btn_cold_pull_nylon"
+                           flex_grow="1" text="Nylon" subject="cold_pull_material" value="1"
+                           callback="on_cold_pull_material" user_data="1"/>
+            <choice_button name="btn_cold_pull_cleaning"
+                           flex_grow="1" text="Cleaning" subject="cold_pull_material" value="2"
+                           callback="on_cold_pull_material" user_data="2"/>
           </lv_obj>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"

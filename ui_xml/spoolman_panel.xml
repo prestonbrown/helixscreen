@@ -45,14 +45,9 @@
         <bind_flag_if_not_eq subject="spoolman_panel_state" flag="hidden" ref_value="2"/>
       </lv_obj>
       <!-- Empty State - visible when state = EMPTY (1) -->
-      <centered_column name="empty_state" flex_grow="1" hidden="true">
-        <bind_flag_if_not_eq subject="spoolman_panel_state" flag="hidden" ref_value="1"/>
-        <!-- Empty inbox icon -->
-        <icon name="empty_icon" src="inbox_outline" size="xl" variant="secondary"/>
-        <!-- Empty message -->
-        <text_heading name="empty_title" text="No Spools" style_text_align="center"/>
-        <text_small name="empty_subtitle" text="Spoolman has no spools configured" style_text_align="center"/>
-      </centered_column>
+      <empty_state name="empty_state"
+                   flex_grow="1" icon_size="xl" title="No Spools" text="" hint="Spoolman has no spools configured"
+                   shown_subject="spoolman_panel_state" shown_value="1"/>
       <!-- Loading indicator - visible when state = LOADING (0) -->
       <centered_column name="loading_state" flex_grow="1" hidden="true">
         <bind_flag_if_not_eq subject="spoolman_panel_state" flag="hidden" ref_value="0"/>

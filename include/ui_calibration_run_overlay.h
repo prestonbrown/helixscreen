@@ -9,6 +9,7 @@
 #include "calibration_run_steps.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
+#include "display_awake_hold.h"
 #include "overlay_base.h"
 #include "save_config_restart.h"
 #include "subject_managed_panel.h"
@@ -42,6 +43,33 @@ enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 /// result in the history, else what the config holds, else "not set".
 [[nodiscard]] std::string run_before_text(const calibration::StepInfo& s,
                                           int configured_z_offset_microns);
+
+/// The title a run that has ended goes by: "Calibration finished" when every
+/// step finished, else how many did not ("2 of 3 steps didn't finish", "No step
+/// finished").
+[[nodiscard]] std::string run_end_title(const calibration::RunTally& tally);
+
+/// Why the run ended early, for the Results page; empty for none.
+[[nodiscard]] std::string end_note_text(calibration::CalibrationRun::EndNote note);
+
+/// Holds the screen up while a run's steps run when sleep-while-printing is
+/// off, the rule a print follows. Main thread.
+class RunScreenHold {
+  public:
+    void update(calibration::RunPhase phase, bool sleep_while_printing) {
+        if (phase == calibration::RunPhase::Running && !sleep_while_printing) {
+            token_.acquire();
+        } else {
+            token_.reset();
+        }
+    }
+    void release() {
+        token_.reset();
+    }
+
+  private:
+    helix::DisplayAwakeToken token_;
+};
 
 /// The Stop confirmation's message for what stopping would do now.
 [[nodiscard]] std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect);
@@ -100,6 +128,9 @@ class CalibrationRunOverlay : public OverlayBase {
     void set_page(RunPage page);
     /// Ask once whether the save restarts Klipper, so the Save button can say so.
     void query_save_restarts();
+    /// Wake the screen for what the owner must see, and hold it up while the
+    /// steps run when sleep-while-printing is off.
+    void keep_owner_informed();
     /// The picked steps as the run's options run them.
     [[nodiscard]] std::vector<calibration::StepInfo> picked_steps() const;
     /// The Pick page's options; warming only where there is a heated bed.
@@ -135,6 +166,11 @@ class CalibrationRunOverlay : public OverlayBase {
     std::chrono::steady_clock::time_point run_started_{};
     /// Whole minutes the steps took, fixed when the last one ends.
     int run_minutes_ = -1;
+    /// The run as last published, to tell what changed since.
+    calibration::RunSighting last_sighting_;
+    /// Holds the screen up while the steps run, as sleep-while-printing off
+    /// holds it for a print.
+    RunScreenHold awake_;
 
     SubjectManager subjects_;
     /// Stable storage for the subject names the XML registry keeps pointers to.

@@ -374,7 +374,7 @@ constexpr GuardedFile kGuardedFiles[] = {
     {"ui_xml/guided_load_modal.xml", 2},
     {"ui_xml/header_bar.xml", 1},
     {"ui_xml/pa_tuning_overlay.xml", 1},
-    {"ui_xml/plr_wizard_overlay.xml", 4},
+    {"ui_xml/plr_wizard_overlay.xml", 3},
     {"ui_xml/motion_panel.xml", 8},
     {"ui_xml/motor_ripple_panel.xml", 1},
     {"ui_xml/components/move_preset_grid.xml", 11},
@@ -385,6 +385,10 @@ constexpr GuardedFile kGuardedFiles[] = {
     // Jog keys stay live through a print, as the pad layout's Z column does;
     // the layouts' home keys carry the guards.
     {"ui_xml/components/motion_jog_button.xml", 0},
+    // The Z adjuster's Raise / Lower carry the caller's moves_machine: the resume
+    // wizard's jog passes true; Print Tune's babystep and the Z offset
+    // calibration's manual probe stay live.
+    {"ui_xml/components/z_adjust_buttons.xml", 0},
     // Recovery actions answer a fault in a paused job, so they stay live.
     {"ui_xml/recovery_fault_modal.xml", 0},
     {"ui_xml/probe_generic_panel.xml", 2},
@@ -437,8 +441,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/calibration_hub_tile.xml",
     "ui_xml/calibration_pid_panel.xml",
     "ui_xml/calibration_zoffset_panel.xml",
-    "ui_xml/calibration_wizard_footer.xml",
-    "ui_xml/calibration_wizard_header.xml",
+    "ui_xml/wizard_frame_footer.xml",
+    "ui_xml/wizard_frame_header.xml",
     "ui_xml/chamber_air_target_row.xml",
     "ui_xml/change_host_modal.xml",
     "ui_xml/color_picker_modal.xml",
@@ -467,6 +471,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/chamber_fault_banner.xml",
     "ui_xml/components/chamber_stall_modal.xml",
     "ui_xml/components/check_option_row.xml",
+    "ui_xml/components/choice_chip.xml",
     "ui_xml/components/clog_detection_config_modal.xml",
     "ui_xml/components/color_picker_cell.xml",
     "ui_xml/components/color_picker_chip.xml",
@@ -497,6 +502,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/filament_source_row.xml",
     "ui_xml/components/filament_spool_card.xml",
     "ui_xml/components/filament_spool_preset_button.xml",
+    "ui_xml/components/choice_button.xml",
     "ui_xml/components/filament_swatch.xml",
     "ui_xml/components/grid_edit_shield.xml",
     "ui_xml/components/heater_row.xml",
@@ -559,7 +565,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/panel_widget_thermistor.xml",
     "ui_xml/components/panel_widget_tips.xml",
     "ui_xml/components/panel_widget_tool_switcher.xml",
-    "ui_xml/components/picker_chip.xml",
     "ui_xml/components/picker_option_row.xml",
     "ui_xml/components/pin_entry_modal.xml",
     "ui_xml/components/plugin_menu_column_row.xml",
@@ -592,7 +597,6 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/thermistor_carousel_page.xml",
     "ui_xml/components/thermistor_picker_row.xml",
     "ui_xml/components/tile_color_grid.xml",
-    "ui_xml/components/toggle_chip.xml",
     "ui_xml/components/tool_switcher_face.xml",
     "ui_xml/components/tool_switcher_segment.xml",
     "ui_xml/components/tool_target_row.xml",
@@ -600,8 +604,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/unclaimed_toolhead_modal.xml",
     "ui_xml/components/tune_speed_flow.xml",
     "ui_xml/components/tune_z_offset.xml",
-    "ui_xml/components/tune_z_steps.xml",
     "ui_xml/components/tune_z_target_row.xml",
+    "ui_xml/components/z_adjust_steps.xml",
     "ui_xml/components/upgrade_banner.xml",
     "ui_xml/components/vendor_tile.xml",
     "ui_xml/components/widget_catalog_row.xml",
@@ -998,6 +1002,30 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
         REQUIRE(scan.attributes == 0);
         REQUIRE(scan.recognized == 0);
     }
+}
+
+TEST_CASE("every forwarded toolhead guard names a prop its component declares",
+          "[ui][xml][job_holds_machine]") {
+    // A `moves_machine="$prop"` socket installs the caller's guard only while
+    // the name matches a declared prop: a misspelt one expands to nothing and
+    // every caller's guard drops without a count changing anywhere.
+    size_t sockets = 0;
+    for (const std::string& path : walk_ui_xml()) {
+        const std::string xml = read_xml(path);
+        const std::string socket = kSocketGuard;
+        for (size_t pos = 0; (pos = xml.find(socket, pos)) != std::string::npos;
+             pos += socket.size()) {
+            const size_t start = pos + socket.size();
+            const size_t end = xml.find('"', start);
+            REQUIRE(end != std::string::npos);
+            const std::string prop = xml.substr(start, end - start);
+            ++sockets;
+            INFO(path << " forwards moves_machine=\"$" << prop << "\" but declares no <prop name=\""
+                      << prop << "\">");
+            CHECK(xml.find("<prop name=\"" + prop + "\"") != std::string::npos);
+        }
+    }
+    CHECK(sockets > 0);
 }
 
 TEST_CASE("every derived toolhead guard names the test that proves its subject",

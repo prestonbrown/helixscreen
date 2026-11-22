@@ -6,9 +6,6 @@
      Macro is picked. ToolheadPresetConfigModal fills the list; a pick saves at once. -->
 <!-- NOTE: Backdrop created programmatically by Modal system. -->
 <component>
-  <styles>
-    <style name="tab_active" bg_opa="30" bg_color="#primary" text_color="#primary"/>
-  </styles>
   <view name="toolhead_preset_config_modal"
         extends="dialog_frame" width="90%" height="85%" style_max_width="600" style_max_height="520" title="Presets"
         icon="move" hide_close="false" close_callback="toolhead_preset_cfg_close_cb">
@@ -19,27 +16,18 @@
       <lv_obj width="100%"
               height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
               style_pad_bottom="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-        <ui_button name="toolhead_preset_cfg_slot_0"
-                   width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_0_text"
-                   variant="ghost" focusable="false" click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="toolhead_preset_cfg_slot" state="checked" ref_value="0"/>
-          <event_cb trigger="clicked" callback="toolhead_preset_cfg_slot_0_cb"/>
-        </ui_button>
-        <ui_button name="toolhead_preset_cfg_slot_1"
-                   width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_1_text"
-                   variant="ghost" focusable="false" click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="toolhead_preset_cfg_slot" state="checked" ref_value="1"/>
-          <event_cb trigger="clicked" callback="toolhead_preset_cfg_slot_1_cb"/>
-        </ui_button>
-        <ui_button name="toolhead_preset_cfg_slot_2"
-                   width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_2_text"
-                   variant="ghost" focusable="false" click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="toolhead_preset_cfg_slot" state="checked" ref_value="2"/>
-          <event_cb trigger="clicked" callback="toolhead_preset_cfg_slot_2_cb"/>
-        </ui_button>
+        <choice_button name="toolhead_preset_cfg_slot_0"
+                       width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_0_text"
+                       variant="ghost" focusable="false" click_focusable="false" subject="toolhead_preset_cfg_slot"
+                       value="0" callback="toolhead_preset_cfg_slot_0_cb" look="tab"/>
+        <choice_button name="toolhead_preset_cfg_slot_1"
+                       width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_1_text"
+                       variant="ghost" focusable="false" click_focusable="false" subject="toolhead_preset_cfg_slot"
+                       value="1" callback="toolhead_preset_cfg_slot_1_cb" look="tab"/>
+        <choice_button name="toolhead_preset_cfg_slot_2"
+                       width="0" height="#button_height_sm" flex_grow="1" bind_text="toolhead_preset_cfg_slot_2_text"
+                       variant="ghost" focusable="false" click_focusable="false" subject="toolhead_preset_cfg_slot"
+                       value="2" callback="toolhead_preset_cfg_slot_2_cb" look="tab"/>
       </lv_obj>
       <lv_obj name="toolhead_preset_cfg_list"
               width="100%" flex_grow="1" flex_flow="column" style_pad_all="#space_md" style_pad_gap="0"

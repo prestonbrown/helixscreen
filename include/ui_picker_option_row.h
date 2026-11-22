@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "ui_choice_subject.h"
 #include "ui_event_safety.h"
 #include "ui_row_text.h"
 
@@ -10,19 +11,23 @@
 
 #include <functional>
 #include <initializer_list>
+#include <string>
 #include <utility>
 #include <vector>
 
 namespace helix::ui {
 
-/// Creates a picker_option_row in @p list labelled @p label, highlighted when @p selected,
-/// that runs @p on_pick when clicked. The callback is owned by the row and freed with it,
-/// and the row's own user data is left for the caller. @p extra_attrs are further XML
-/// attribute name/value pairs. Returns nullptr when the component cannot be created.
-inline lv_obj_t* create_picker_option_row(lv_obj_t* list, const char* label, bool selected,
-                                          std::function<void()> on_pick,
+/// Creates a picker_option_row in @p list labelled @p label, lit while the choice_subject
+/// @p choice holds @p index, that runs @p on_pick when clicked. The callback is owned by
+/// the row and freed with it, and the row's own user data is left for the caller.
+/// @p extra_attrs are further XML attribute name/value pairs. Returns nullptr when the
+/// component cannot be created.
+inline lv_obj_t* create_picker_option_row(lv_obj_t* list, const char* label, const char* choice,
+                                          int index, std::function<void()> on_pick,
                                           std::initializer_list<const char*> extra_attrs = {}) {
-    std::vector<const char*> attrs = {"selected", selected ? "true" : "false"};
+    choice_subject(choice);
+    const std::string value = std::to_string(index);
+    std::vector<const char*> attrs = {"selected_subject", choice, "selected_value", value.c_str()};
     attrs.insert(attrs.end(), extra_attrs.begin(), extra_attrs.end());
     attrs.push_back(nullptr);
     auto* row = static_cast<lv_obj_t*>(lv_xml_create(list, "picker_option_row", attrs.data()));

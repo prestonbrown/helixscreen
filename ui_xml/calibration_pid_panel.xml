@@ -6,8 +6,6 @@
      part-fan switch, badges), 1 the "switch to MPC" confirm page, 2 Advanced. -->
 <component>
   <styles>
-    <style name="pid_heater_selected" bg_color="#primary" bg_opa="255"/>
-    <style name="pid_heater_unselected" bg_color="#elevated_bg" bg_opa="255"/>
 
     <!-- A heater card, idle and picked -->
     <style name="pid_card_idle" bg_color="#elevated_bg" bg_opa="24%" border_color="#primary" border_opa="0"/>
@@ -96,12 +94,10 @@
                   style_flex_cross_place="center" scrollable="false">
             <bind_flag_if cond="pid_cal_multi_tool eq 0 or pid_heater_is_extruder eq 0" flag="hidden"/>
             <repeat count="pid_cal_tool_count">
-              <ui_button name="pid_tool_${i}"
-                         width="1" height="#button_height_sm" flex_grow="1" bind_text="pid_cal_tool_label_${i}">
-                <bind_style name="pid_heater_selected" subject="pid_cal_tool_selected_${i}" ref_value="1"/>
-                <bind_style name="pid_heater_unselected" subject="pid_cal_tool_selected_${i}" ref_value="0"/>
-                <event_cb trigger="clicked" callback="on_pid_cal_tool" user_data="$i"/>
-              </ui_button>
+              <choice_button name="pid_tool_${i}"
+                             width="1" height="#button_height_sm" flex_grow="1" bind_text="pid_cal_tool_label_${i}"
+                             subject="pid_cal_tool_selected_${i}" value="1" callback="on_pid_cal_tool" user_data="$i"
+                             look="raised"/>
             </repeat>
           </lv_obj>
           <calibration_intro-settings>
@@ -164,7 +160,7 @@
           </calibration_intro-settings>
           <calibration_intro-badges>
             <cal_intro_badge bind="pid_duration_text"/>
-            <cal_intro_badge bind="pid_heats_to_text" warm="true"/>
+            <cal_intro_badge bind="pid_heats_to_text" variant="warm"/>
             <cal_intro_badge bind="pid_method_text">
               <!-- 480x272 keeps two badges on one line; Advanced shows the method -->
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
@@ -325,16 +321,12 @@
                   style_flex_cross_place="center" scrollable="false">
             <bind_flag_if_eq subject="cal_supports_mpc" flag="hidden" ref_value="0"/>
             <text_body width="30%" text="Method"/>
-            <ui_button name="btn_method_mpc" height="#modal_button_height" flex_grow="1" text="MPC">
-              <bind_style name="pid_heater_selected" subject="cal_method_is_mpc" ref_value="1"/>
-              <bind_style name="pid_heater_unselected" subject="cal_method_is_mpc" ref_value="0"/>
-              <event_cb trigger="clicked" callback="on_cal_method_mpc"/>
-            </ui_button>
-            <ui_button name="btn_method_pid" height="#modal_button_height" flex_grow="1" text="PID">
-              <bind_style name="pid_heater_selected" subject="cal_method_is_mpc" ref_value="0"/>
-              <bind_style name="pid_heater_unselected" subject="cal_method_is_mpc" ref_value="1"/>
-              <event_cb trigger="clicked" callback="on_cal_method_pid"/>
-            </ui_button>
+            <choice_button name="btn_method_mpc"
+                           height="#modal_button_height" flex_grow="1" text="MPC" subject="cal_method_is_mpc" value="1"
+                           callback="on_cal_method_mpc" look="raised"/>
+            <choice_button name="btn_method_pid"
+                           height="#modal_button_height" flex_grow="1" text="PID" subject="cal_method_is_mpc" value="0"
+                           callback="on_cal_method_pid" look="raised"/>
           </lv_obj>
           <!-- Exact temperature -->
           <lv_obj width="100%"
@@ -367,21 +359,15 @@
                   style_pad_gap="#space_sm" scrollable="false">
             <bind_flag_if cond="cal_show_fan_config eq 0 or cal_add_cooling_fan eq 0" flag="hidden"/>
             <text_body width="30%" text="Fan points"/>
-            <ui_button name="btn_fan_quick" height="#modal_button_height" flex_grow="1" text="Quick">
-              <bind_style name="pid_heater_selected" subject="cal_fan_is_quick" ref_value="1"/>
-              <bind_style name="pid_heater_unselected" subject="cal_fan_is_quick" ref_value="0"/>
-              <event_cb trigger="clicked" callback="on_cal_fan_quick"/>
-            </ui_button>
-            <ui_button name="btn_fan_detailed" height="#modal_button_height" flex_grow="1" text="Detailed">
-              <bind_style name="pid_heater_selected" subject="cal_fan_is_detailed" ref_value="1"/>
-              <bind_style name="pid_heater_unselected" subject="cal_fan_is_detailed" ref_value="0"/>
-              <event_cb trigger="clicked" callback="on_cal_fan_detailed"/>
-            </ui_button>
-            <ui_button name="btn_fan_thorough" height="#modal_button_height" flex_grow="1" text="Thorough">
-              <bind_style name="pid_heater_selected" subject="cal_fan_is_thorough" ref_value="1"/>
-              <bind_style name="pid_heater_unselected" subject="cal_fan_is_thorough" ref_value="0"/>
-              <event_cb trigger="clicked" callback="on_cal_fan_thorough"/>
-            </ui_button>
+            <choice_button name="btn_fan_quick"
+                           height="#modal_button_height" flex_grow="1" text="Quick" subject="cal_fan_is_quick" value="1"
+                           callback="on_cal_fan_quick" look="raised"/>
+            <choice_button name="btn_fan_detailed"
+                           height="#modal_button_height" flex_grow="1" text="Detailed" subject="cal_fan_is_detailed"
+                           value="1" callback="on_cal_fan_detailed" look="raised"/>
+            <choice_button name="btn_fan_thorough"
+                           height="#modal_button_height" flex_grow="1" text="Thorough" subject="cal_fan_is_thorough"
+                           value="1" callback="on_cal_fan_thorough" look="raised"/>
           </lv_obj>
           <!-- A bed moving to MPC: its heater power (the nozzle asks on the switch page) -->
           <lv_obj name="wattage_section"

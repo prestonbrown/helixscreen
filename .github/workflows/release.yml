@@ -83,9 +83,9 @@ jobs:
 
     # test_release_health.bats runs `npx vite-node` in server/telemetry-worker;
     # without its node_modules, npx downloads vite-node from npm mid-test.
-    - uses: actions/setup-node@v4
+    - uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '24'
         cache: npm
         cache-dependency-path: server/telemetry-worker/package-lock.json
 

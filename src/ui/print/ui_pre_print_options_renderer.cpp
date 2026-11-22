@@ -80,9 +80,8 @@ PrePrintOptionsRenderer::PrePrintOptionsRenderer() {
 }
 
 PrePrintOptionsRenderer::~PrePrintOptionsRenderer() {
-    // clear() walks each row and resets its subject, removing any observer
-    // still attached. With the container already deleted (its observers
-    // gone), the reset finds an empty list and does nothing more.
+    // state_pool_ is reclaimed after this body, resetting every subject and so
+    // uninstalling the binding of any tile still standing.
     clear();
     auto& live = live_renderers();
     live.erase(std::remove(live.begin(), live.end(), this), live.end());
@@ -146,18 +145,6 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
         return;
     }
 
-    // Order matters: deinit subjects (observers attached to live widgets) BEFORE
-    // we ask LVGL to delete those widgets. If we deleted widgets first,
-    // `safe_clean_children`'s widget cleanup would later fire each observer's
-    // LV_EVENT_DELETE handler, and that handler calls `lv_observer_delete` on
-    // the still-live subject — except in our case the subject is about to
-    // disappear and our deinit walk would race the widget-side cleanup. By
-    // deiniting subjects first, we walk each subject's observer list and
-    // uninstall the per-observer state from the (still-alive) widget, so the
-    // subsequent widget delete has nothing to do for those observers. The
-    // alternative ordering would risk `lv_observer_delete` touching a freed
-    // subject's `subs_ll` (UAF).
-    //
     // clear() also drops on_toggle_, so the caller's callback is assigned
     // after it; assigning before clear() would leave a populate() with no
     // toggle callback.
@@ -175,6 +162,7 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
     // Flat list of rows in (category, order) sort order. Categories serve as
     // a sort key only — no subheaders rendered. The single PRINT OPTIONS card
     // header in print_file_detail.xml acts as the section title.
+    state_pool_.ensure_size(option_set.options.size());
     for (const auto& opt : option_set.options) {
         make_row(container, opt, visibility_lookup);
     }
@@ -183,16 +171,8 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
 }
 
 void PrePrintOptionsRenderer::clear() {
-    // Each OptionRow owns its helix::Subject via unique_ptr. Resetting it
-    // removes any observer still attached before the row drops it. Observers
-    // are normally owned by the row widgets that were already deleted (or are
-    // being deleted by safe_clean_children); LVGL auto-removes observers on
-    // widget delete, so the list is usually already empty here.
-    for (auto& row : rows_) {
-        if (row.state_subject) {
-            row.state_subject->reset();
-        }
-    }
+    // The pool keeps its subjects for the next populate(); a tile still
+    // standing keeps its binding until LVGL deletes it.
     rows_.clear();
     on_toggle_ = nullptr;
 }
@@ -203,7 +183,7 @@ int PrePrintOptionsRenderer::get_state(const std::string& id, int default_if_mis
     if (it == rows_.end() || !it->state_subject) {
         return default_if_missing;
     }
-    return lv_subject_get_int(&*it->state_subject);
+    return lv_subject_get_int(it->state_subject);
 }
 
 void PrePrintOptionsRenderer::set_state(const std::string& id, int new_state) {
@@ -212,7 +192,7 @@ void PrePrintOptionsRenderer::set_state(const std::string& id, int new_state) {
     if (it == rows_.end() || !it->state_subject) {
         return;
     }
-    lv_subject_set_int(&*it->state_subject, new_state);
+    lv_subject_set_int(it->state_subject, new_state);
 }
 
 std::vector<std::string> PrePrintOptionsRenderer::rendered_ids() const {
@@ -241,15 +221,16 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
     OptionRow row;
     row.id = opt.id;
 
-    // Heap-allocate the state subject so it survives container rebuilds where
-    // OptionRow values may be moved around.
-    row.state_subject = std::make_unique<helix::Subject>();
-    row.state_subject->init_int(opt.default_enabled ? 1 : 0);
+    // populate() sized the pool for every option, so this row's slot exists.
+    const size_t slot = rows_.size();
+    row.state_subject = state_pool_.at(slot);
+    state_pool_.set_int(slot, opt.default_enabled ? 1 : 0);
+    const std::string checked_subject = "pre_print_option_on_" + std::to_string(slot);
 
     // The tile itself, built from the option_tile XML component
     // (ui_xml/components/option_tile.xml) rather than hand-assembled here, so
     // the appearance can't drift from the XML-authored widgets. The tile is
-    // the row: the checkable object and the container are one widget, so
+    // the row: the toggled object and the container are one widget, so
     // there is no child lookup.
     //
     // label_tag carries the untranslated i18n key (matching label_for()'s
@@ -260,41 +241,27 @@ void PrePrintOptionsRenderer::make_row(lv_obj_t* container, const PrePrintOption
     std::string label_key = label_key_for(opt);
     std::string text = std::string(lv_tr(label_key.c_str()));
     std::string icon = default_icon_for(opt.id);
-    const char* attrs[] = {"label", text.c_str(), "label_tag", label_key.c_str(),
-                           "icon",  icon.c_str(), "callback",  "on_pre_print_option_toggled",
+    const char* attrs[] = {"label",
+                           text.c_str(),
+                           "label_tag",
+                           label_key.c_str(),
+                           "icon",
+                           icon.c_str(),
+                           "checked_subject",
+                           checked_subject.c_str(),
+                           "callback",
+                           "on_pre_print_option_toggled",
                            nullptr};
     lv_obj_t* row_obj = static_cast<lv_obj_t*>(lv_xml_create(container, "option_tile", attrs));
     if (!row_obj) {
         spdlog::error("[PrePrintOptionsRenderer] lv_xml_create('option_tile') returned "
                       "NULL for '{}'",
                       opt.id);
-        // Subject was init'd above but never handed to a tile; reset it
-        // before the row (and its Subject) goes out of scope.
-        row.state_subject->reset();
         return;
     }
     lv_obj_set_name(row_obj, ("option_tile_" + opt.id).c_str());
     row.row = row_obj;
-
-    if (opt.default_enabled) {
-        lv_obj_add_state(row_obj, LV_STATE_CHECKED);
-    }
     row.toggle_widget = row_obj;
-
-    // Bind tile checked-state to the per-option state subject. We do this
-    // imperatively rather than via the XML <bind_state_if_eq> path because
-    // the tile is created dynamically.
-    lv_subject_add_observer_obj(
-        row.state_subject->get(),
-        [](lv_observer_t* observer, lv_subject_t* subject) {
-            auto* widget = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
-            if (lv_subject_get_int(subject) == 1) {
-                lv_obj_add_state(widget, LV_STATE_CHECKED);
-            } else {
-                lv_obj_remove_state(widget, LV_STATE_CHECKED);
-            }
-        },
-        row_obj, nullptr);
 
     // Visibility binding — `bind_flag_if_eq subject="..." flag="hidden" ref_value="0"`.
     if (visibility_lookup) {
@@ -326,7 +293,7 @@ void PrePrintOptionsRenderer::on_toggle_value_changed(lv_event_t* e) {
         }
         // Copied: on_toggle_ may repopulate, which drops the row.
         const std::string id = it->id;
-        const int new_state = lv_obj_has_state(tile, LV_STATE_CHECKED) ? 1 : 0;
+        const int new_state = lv_subject_get_int(it->state_subject) == 1 ? 0 : 1;
         renderer->set_state(id, new_state);
         if (renderer->on_toggle_) {
             renderer->on_toggle_(id, new_state);

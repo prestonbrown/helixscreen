@@ -106,8 +106,13 @@ class LedSettingsOverlay : public OverlayBase {
     void populate_led_chips();
     void populate_led_chips_impl();
     void handle_led_chip_clicked(const std::string& led_name);
+    /// Publishes each Applies-to chip's led_applies_to_sel_<i> from the current targets.
+    void sync_led_chip_selection();
     /// The strip each Applies-to chip stands for, by the chip's index.
     std::vector<std::string> chip_strip_ids_;
+    /// led_applies_to_sel_<i>: 1 while chip_strip_ids_[i] is an Automatic LED Control target.
+    helix::xml::IndexedSubjectPool chip_selected_pool_{"led_applies_to_sel",
+                                                       helix::xml::IndexedSubjectPool::Type::Int};
 
     // Auto-state mapping editor
     void populate_auto_state_rows();

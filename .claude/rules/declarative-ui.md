@@ -53,6 +53,22 @@ children; `ui_carousel_add_item` is for a page per data item.
 
 Genuinely un-declarative site? Annotate it: `// DECLARATIVE_OK: <reason>`.
 
+## Reuse before you build
+
+**A new component is the last resort, not the first move.** Before writing one, search
+`ui_xml/components/`, `ui_xml/styles.xml` and `src/ui/components/` for a widget that already
+shows the same concept: compare structure and purpose, since a near-twin usually has another
+name (a pill, a chip, a badge; a status dot in two step lists). Then:
+
+| Found | Do |
+|-------|----|
+| One that fits | Use it |
+| One that is too limited | Propose extending it (a prop, a variant, a binding) and discuss it; never copy its markup or styles under a new name |
+| Nothing, or a concept that is novel or fundamentally different | Build it, bound to subjects, and say in the commit which existing widgets you checked |
+
+Copied style pairs and hand-redrawn twins of a component are debt the same way imperative
+sites are: they drift apart silently.
+
 ## Design Tokens (MANDATORY)
 
 | Category | ❌ WRONG | ✅ CORRECT |

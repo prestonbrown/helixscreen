@@ -476,23 +476,81 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 }
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: the Z adjuster's chips pick the babystep and zoom its tape",
+                 "[ui_integration][zoffset][z_adjuster]") {
+    set_live_offset(0.0);
+    set_printing(true);
+    set_homed(true);
+    lv_obj_t* root = show_overlay().get_root();
+    lv_subject_t* step_microns = lv_xml_get_subject(nullptr, "tune_z_step_microns");
+    REQUIRE(step_microns != nullptr);
+
+    lv_obj_t* coarse = lv_obj_find_by_name(root, "zo_step_0");
+    REQUIRE(coarse != nullptr);
+    helix::ui::send_tap(coarse);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(step_microns) == 50);
+    CHECK(lv_obj_has_state(coarse, LV_STATE_CHECKED));
+
+    lv_obj_t* fine = lv_obj_find_by_name(root, "zo_step_3");
+    REQUIRE(fine != nullptr);
+    helix::ui::send_tap(fine);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(lv_subject_get_int(step_microns) == 5);
+    CHECK_FALSE(lv_obj_has_state(coarse, LV_STATE_CHECKED));
+
+    // Raise nozzle is farther: a positive babystep at the selected size.
+    lv_obj_t* raise = lv_obj_find_by_name(root, "btn_z_raise_nozzle");
+    REQUIRE(raise != nullptr);
+    helix::ui::send_tap(raise);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=0.005 MOVE=1");
+}
+
+TEST_CASE_METHOD(
+    PrintTuneZOffsetFixture,
+    "PrintTune: the Z adjuster's babystep keys stay live while a print holds the machine",
+    "[ui_integration][zoffset][z_adjuster][job_holds_machine]") {
+    set_live_offset(0.0);
+    set_printing(true);
+    set_homed(true);
+    lv_subject_t* blocked = state().print_state().get_machine_motion_blocked_subject();
+    const int blocked_before = lv_subject_get_int(blocked);
+    lv_subject_set_int(blocked, 1);
+    lv_obj_t* root = show_overlay().get_root();
+
+    for (const char* name :
+         {"btn_z_raise_nozzle", "btn_z_raise_bed", "btn_z_lower_nozzle", "btn_z_lower_bed"}) {
+        INFO(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+    }
+    get_print_tune_overlay().handle_z_step_select(2); // 0.010mm
+    helix::ui::send_tap(lv_obj_find_by_name(root, "btn_z_lower_nozzle"));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    lv_subject_set_int(blocked, blocked_before);
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: one file lays out the z-offset controls for each orientation",
                  "[ui_integration][zoffset][layout]") {
     lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
     REQUIRE(portrait != nullptr);
     const int portrait_before = lv_subject_get_int(portrait);
 
-    // Portrait: the direction buttons sit beside the indicator and the step
-    // amounts get a row of their own. Landscape: steps and directions share a
-    // row beside the indicator.
+    // Portrait: Raise / Lower sit beside the tape and the step chips get a row
+    // of their own. Landscape: steps and Raise / Lower share a row beside the
+    // tape.
     const bool is_portrait = GENERATE(false, true);
     INFO("portrait=" << is_portrait);
     lv_subject_set_int(portrait, is_portrait ? 1 : 0);
 
     lv_obj_t* root = show_overlay().get_root();
     lv_obj_t* indicator = lv_obj_find_by_name(root, "z_offset_indicator");
-    lv_obj_t* farther = lv_obj_find_by_name(root, "btn_z_farther");
-    lv_obj_t* step = lv_obj_find_by_name(root, "btn_z_step_0");
+    lv_obj_t* farther = lv_obj_find_by_name(root, "btn_z_raise_nozzle");
+    lv_obj_t* step = lv_obj_find_by_name(root, "zo_step_0");
     lv_obj_t* reset = lv_obj_find_by_name(root, "btn_reset");
     REQUIRE(indicator != nullptr);
     REQUIRE(farther != nullptr);
@@ -584,7 +642,7 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(tap_in(section, "btn_pa_plus_1", mock_client) ==
           "SET_PRESSURE_ADVANCE EXTRUDER=extruder ADVANCE=0.0410");
     tune.handle_z_step_select(2); // 0.010mm
-    CHECK(tap_in(section, "btn_z_closer", mock_client) ==
+    CHECK(tap_in(section, "btn_z_lower_nozzle", mock_client) ==
           "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     mock_client.clear_gcode_script_history();
     tap_in(section, "ps_tune_reset", mock_client);
@@ -685,23 +743,27 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     REQUIRE(z != nullptr);
     CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
 
-    // The arrows follow the kinematics while the section shows.
-    lv_subject_t* closer_icon = lv_xml_get_subject(nullptr, "tune_z_closer_icon");
-    REQUIRE(closer_icon != nullptr);
-    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_expand_up");
+    // The pair is named for what moves on Z, and follows the kinematics while
+    // the section shows.
+    const auto hidden = [&](const char* name) {
+        lv_obj_t* btn = lv_obj_find_by_name(section, name);
+        REQUIRE(btn != nullptr);
+        return lv_obj_is_hidden(btn);
+    };
+    CHECK_FALSE(hidden("btn_z_raise_bed"));
+    CHECK_FALSE(hidden("btn_z_lower_bed"));
+    CHECK(hidden("btn_z_raise_nozzle"));
+    CHECK(hidden("btn_z_lower_nozzle"));
     lv_subject_set_int(bed_moves, 0);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_down");
+    CHECK(hidden("btn_z_raise_bed"));
+    CHECK_FALSE(hidden("btn_z_lower_nozzle"));
     lv_subject_set_int(bed_moves, 1);
     helix::ui::UpdateQueue::instance().drain();
 
-    // Bed up sits above bed down; the head-moves pair's lower button gives way.
-    CHECK_FALSE(
-        lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer"), LV_OBJ_FLAG_HIDDEN));
-
+    // Raise bed brings the bed to the nozzle: closer.
     get_print_tune_overlay().handle_z_step_select(2); // 0.010mm
-    CHECK(tap_in(section, "btn_z_closer_above", mock_client) ==
+    CHECK(tap_in(section, "btn_z_raise_bed", mock_client) ==
           "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
     set_live_offset(-0.047); // Klipper's echo of the step
     CHECK(std::string(lv_label_get_text(z)) == "-0.010 mm");
@@ -725,13 +787,15 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
 }
 
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
-                 "PrintTune: where the head moves on Z, farther stays above closer",
+                 "PrintTune: where the head moves on Z, the pair raises and lowers the nozzle",
                  "[ui_integration][print_tune][tune_inline]") {
     lv_subject_set_int(state().capabilities_state().subject(Capability::BedMoves), 0);
     set_live_offset(-0.1);
     lv_obj_t* section = build_inline_tune(capture_api.get(), state());
-    CHECK(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
-    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(section, "btn_z_raise_bed")));
+    CHECK(lv_obj_is_hidden(lv_obj_find_by_name(section, "btn_z_lower_bed")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(section, "btn_z_raise_nozzle")));
+    CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(section, "btn_z_lower_nozzle")));
     lv_obj_t* z = lv_obj_find_by_name(section, "z_offset_display");
     REQUIRE(z != nullptr);
     CHECK(std::string(lv_label_get_text(z)).find("-0.100") != std::string::npos);

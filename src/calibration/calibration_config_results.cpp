@@ -276,6 +276,41 @@ std::optional<double> mesh_points_range(const json& points) {
     return *hi - *lo;
 }
 
+std::optional<PidGains> staged_pid(const json& pending_items, const std::string& heater) {
+    if (!pending_items.is_object()) {
+        return std::nullopt;
+    }
+    const auto section = pending_items.find(heater);
+    if (section == pending_items.end()) {
+        return std::nullopt;
+    }
+    // The config writer lowercases option names; the command names them pid_Kp.
+    const auto gain = [&](const char* lower, const char* named) {
+        const auto v = pending_number(*section, lower);
+        return v ? v : pending_number(*section, named);
+    };
+    const auto kp = gain("pid_kp", "pid_Kp");
+    const auto ki = gain("pid_ki", "pid_Ki");
+    const auto kd = gain("pid_kd", "pid_Kd");
+    if (!kp || !ki || !kd) {
+        return std::nullopt;
+    }
+    return PidGains{*kp, *ki, *kd};
+}
+
+std::optional<PidGains> newly_staged_pid(const json& before, const json& now,
+                                         const std::string& heater) {
+    const auto gains = staged_pid(now, heater);
+    if (!gains) {
+        return std::nullopt;
+    }
+    const auto old = staged_pid(before, heater);
+    if (old && old->kp == gains->kp && old->ki == gains->ki && old->kd == gains->kd) {
+        return std::nullopt;
+    }
+    return gains;
+}
+
 std::optional<double> staged_z_offset(const json& pending_items) {
     if (!pending_items.is_object()) {
         return std::nullopt;

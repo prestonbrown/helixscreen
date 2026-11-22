@@ -709,7 +709,8 @@ void MoonrakerClientMock::temperature_simulation_loop() {
             // idle_timeout tracks activity state: "Printing", "Ready", or "Idle" (after timeout)
             {"idle_timeout", {{"state", [&]() -> std::string {
                                    if (phase == MockPrintPhase::PRINTING ||
-                                       phase == MockPrintPhase::PREHEAT) {
+                                       phase == MockPrintPhase::PREHEAT ||
+                                       calibration_busy_.load()) {
                                        return "Printing";
                                    } else if (idle_timeout_triggered_.load()) {
                                        return "Idle";

@@ -13,18 +13,18 @@
 
 namespace helix {
 class IMoonrakerAPI;
-}
+class PrinterState;
+} // namespace helix
 
 namespace helix::calibration {
-
-/// Material temperatures the heater step tunes at (PLA).
-inline constexpr int kRunNozzleTempC = 210;
-inline constexpr int kRunBedTempC = 60;
 
 /// The step that runs @p info with @p options, or nullptr for a step a guided
 /// run does not run.
 [[nodiscard]] std::unique_ptr<CalibrationStep> make_run_step(const StepInfo& info,
                                                              const RunOptions& options = {});
+
+/// The run's busy watch over @p state's idle_timeout. Main thread.
+[[nodiscard]] std::unique_ptr<PrinterBusyWatch> make_printer_busy_watch(PrinterState& state);
 
 /// Saves through SaveConfigWatch, discards with a host restart through the
 /// expected-restart contract, records into CalibrationHistory. Main thread.

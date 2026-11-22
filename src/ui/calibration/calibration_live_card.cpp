@@ -89,12 +89,38 @@ LiveCardText live_card_text(StepKind kind, const StepLive& live) {
     return t;
 }
 
-LiveCardText live_card_done_text() {
+LiveCardText live_card_done_text(const calibration::RunTally& tally) {
     LiveCardText t;
     t.kind = LiveKind::Done;
-    t.what = lv_tr("Review the results, then save once.");
-    t.badge = lv_tr("DONE");
-    t.badge_tone = 4;
+    switch (tally.outcome()) {
+    case calibration::RunTally::Outcome::AllFinished:
+        t.what = lv_tr("Review the results, then save once.");
+        t.badge = lv_tr("DONE");
+        t.badge_tone = 4;
+        break;
+    case calibration::RunTally::Outcome::SomeUnfinished:
+        t.what = lv_tr("Review what finished. The results say why the rest did not.");
+        t.badge = lv_tr("INCOMPLETE");
+        t.badge_tone = 5;
+        break;
+    case calibration::RunTally::Outcome::NoneFinished:
+        t.what = lv_tr("The results say why.");
+        t.badge = lv_tr("NOT DONE");
+        t.badge_tone = 5;
+        break;
+    }
+    return t;
+}
+
+LiveCardText live_card_wait_text(const char* step_name) {
+    LiveCardText t;
+    t.kind = LiveKind::Done;
+    t.what = fmt::format(fmt::runtime(lv_tr("{} did not finish, and the printer is still running "
+                                            "its command. The next step starts once the "
+                                            "printer is idle.")),
+                         lv_tr(step_name));
+    t.badge = lv_tr("WAITING");
+    t.badge_tone = 1;
     return t;
 }
 
@@ -195,8 +221,15 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
 
     const int current = run ? run->current() : -1;
     if (current < 0) {
-        shown_done_ = run && run->phase() != calibration::RunPhase::Ready &&
-                      run->phase() != calibration::RunPhase::Running;
+        shown_end_.reset();
+        shown_wait_step_ = nullptr;
+        if (run && run->waiting_on() >= 0) {
+            shown_wait_step_ =
+                run->entries()[static_cast<size_t>(run->waiting_on())].step->info().name;
+        } else if (run && run->phase() != calibration::RunPhase::Ready &&
+                   run->phase() != calibration::RunPhase::Running) {
+            shown_end_ = calibration::run_tally(run->entries());
+        }
         shown_kind_.reset();
         stop_heat();
         stop_shaper();
@@ -205,7 +238,8 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
     }
     const auto& entry = run->entries()[static_cast<size_t>(current)];
     const StepKind kind = entry.step->info().kind;
-    shown_done_ = false;
+    shown_end_.reset();
+    shown_wait_step_ = nullptr;
     shown_kind_ = kind;
     shown_progress_ = entry.progress;
     const LiveCardText text = live_card_text(kind, entry.progress.live);
@@ -239,8 +273,16 @@ void CalibrationLiveCard::publish_strings() {
     if (!subjects_initialized_) {
         return;
     }
-    if (shown_done_ || !shown_kind_) {
-        publish_text(shown_done_ ? live_card_done_text() : LiveCardText{});
+    if (shown_end_) {
+        publish_text(live_card_done_text(*shown_end_));
+        return;
+    }
+    if (shown_wait_step_) {
+        publish_text(live_card_wait_text(shown_wait_step_));
+        return;
+    }
+    if (!shown_kind_) {
+        publish_text(LiveCardText{});
         return;
     }
     const StepLive& live = shown_progress_.live;

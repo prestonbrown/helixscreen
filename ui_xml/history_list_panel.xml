@@ -87,17 +87,10 @@
       <!-- ================================================================== -->
       <!-- STATE: EMPTY (state=1) -->
       <!-- ================================================================== -->
-      <lv_obj name="empty_state"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_pad_row="#space_md" style_pad_all="#space_xl">
-        <bind_flag_if_not_eq subject="history_list_panel_state" flag="hidden" ref_value="1"/>
-        <!-- Empty state icon (clock/history icon F0150) -->
-        <lv_label name="empty_icon" text="󰅐" style_text_font="mdi_icons_48" style_text_color="#text_muted"/>
-        <!-- Empty state message -->
-        <text_muted name="empty_message" bind_text="history_empty_message" style_text_align="center"/>
-        <text_small name="empty_hint"
-                    bind_text="history_empty_hint" style_text_color="#text_muted" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="empty_state"
+                   flex_grow="1" style_pad_all="#space_xl" icon="clock" icon_variant="muted" text=""
+                   text_subject="history_empty_message" hint_subject="history_empty_hint"
+                   shown_subject="history_list_panel_state" shown_value="1"/>
       <!-- ================================================================== -->
       <!-- STATE: HAS_JOBS (state=2) - List rows container -->
       <!-- ================================================================== -->

@@ -167,7 +167,7 @@ TEST_CASE_METHOD(
     XMLTestFixture,
     "a wizard footer's primary stays disabled while offline even when its step is ready",
     "[calibration_gate][calibration_run]") {
-    REQUIRE(register_component("calibration_wizard_footer"));
+    REQUIRE(register_component("wizard_frame_footer"));
     static helix::Subject ready;
     ready.init_int(1);
     lv_xml_register_subject(nullptr, "test_footer_step_ready", &ready);
@@ -184,7 +184,7 @@ TEST_CASE_METHOD(
                            "primary_disabled_cond",
                            "test_footer_step_ready eq 0",
                            nullptr};
-    lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+    lv_obj_t* footer = create_component("wizard_frame_footer", attrs);
     REQUIRE(footer != nullptr);
     lv_obj_t* start = lv_obj_find_by_name(footer, "test_footer_start");
     REQUIRE(start != nullptr);
@@ -215,7 +215,7 @@ TEST_CASE_METHOD(
 
 namespace {
 
-/// The quoted value of @p attr on the `<calibration_wizard_footer name="footer">`
+/// The quoted value of @p attr on the `<wizard_frame_footer name="footer">`
 /// element of @p xml_path, or empty.
 std::string footer_attr(const std::string& xml_path, const std::string& footer,
                         const std::string& attr) {
@@ -223,7 +223,7 @@ std::string footer_attr(const std::string& xml_path, const std::string& footer,
     std::stringstream ss;
     ss << f.rdbuf();
     const std::string src = ss.str();
-    const size_t at = src.find("<calibration_wizard_footer name=\"" + footer + "\"");
+    const size_t at = src.find("<wizard_frame_footer name=\"" + footer + "\"");
     if (at == std::string::npos) {
         return {};
     }
@@ -242,7 +242,7 @@ std::string footer_attr(const std::string& xml_path, const std::string& footer,
 TEST_CASE_METHOD(XMLTestFixture,
                  "the run's See results and Done stay live while offline, and its Save does not",
                  "[calibration_gate][calibration_run]") {
-    REQUIRE(register_component("calibration_wizard_footer"));
+    REQUIRE(register_component("wizard_frame_footer"));
     static helix::Subject offers_save;
     offers_save.init_int(1);
     lv_xml_register_subject(nullptr, "cal_run_offers_save", &offers_save);
@@ -253,7 +253,7 @@ TEST_CASE_METHOD(XMLTestFixture,
         const char* attrs[] = {"primary_text",          "Go",           "primary_callback",
                                "on_test_footer_go",     "primary_name", "test_footer_go",
                                "primary_needs_printer", needs.c_str(),  nullptr};
-        lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+        lv_obj_t* footer = create_component("wizard_frame_footer", attrs);
         REQUIRE(footer != nullptr);
         return footer;
     };
@@ -311,7 +311,7 @@ std::string first_label_text(lv_obj_t* obj) {
 
 TEST_CASE_METHOD(XMLTestFixture, "a compact footer's Back follows its live title at 480x272",
                  "[calibration_gate][zoffset]") {
-    REQUIRE(register_component("calibration_wizard_footer"));
+    REQUIRE(register_component("wizard_frame_footer"));
     // The Z offset screen asks for the short captions, and its Back reads "Abort" outside a run.
     REQUIRE(footer_attr("ui_xml/calibration_zoffset_panel.xml", "zo_footer", "compact_texts") ==
             "1");
@@ -326,7 +326,7 @@ TEST_CASE_METHOD(XMLTestFixture, "a compact footer's Back follows its live title
     const char* attrs[] = {"back_callback",        "on_test_footer_back",   "back_name",
                            "test_footer_back",     "compact_texts",         "1",
                            "back_compact_subject", "test_footer_back_text", nullptr};
-    lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+    lv_obj_t* footer = create_component("wizard_frame_footer", attrs);
     REQUIRE(footer != nullptr);
     UpdateQueue::instance().drain();
     lv_obj_t* compact = lv_obj_find_by_name(footer, "test_footer_back_compact");

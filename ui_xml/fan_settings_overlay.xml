@@ -39,7 +39,7 @@
       <!-- ================================================================== -->
       <setting_group name="controllable_section">
         <setting_group_header title="CONTROLLABLE FANS"
-                              icon="fan" badge_name="controllable_fan_count" badge_text="0" hide_badge="false"/>
+                              icon="fan" badge_subject="fan_settings_controllable_count" hide_badge="false"/>
         <lv_obj name="controllable_fans_list"
                 width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
                 style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"
@@ -50,7 +50,7 @@
       <!-- AUTO FANS SECTION (heater_fan, controller_fan, temperature_fan) -->
       <!-- ================================================================== -->
       <setting_group name="auto_section">
-        <setting_group_header title="AUTO FANS" icon="fan" badge_name="auto_fan_count" badge_text="0" hide_badge="false"/>
+        <setting_group_header title="AUTO FANS" icon="fan" badge_subject="fan_settings_auto_count" hide_badge="false"/>
         <lv_obj name="auto_fans_list"
                 width="100%" height="content" style_pad_left="#space_lg" style_pad_right="#space_lg"
                 style_pad_top="#space_sm" style_pad_bottom="#space_md" scrollable="false" flex_flow="column"
@@ -58,12 +58,9 @@
       </setting_group>
 
       <!-- Empty state (no fans detected) -->
-      <lv_obj name="no_fans_placeholder"
-              width="100%" flex_grow="1" flex_flow="column" style_flex_main_place="center"
-              style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false" hidden="true">
-        <icon name="no_fans_icon" src="fan" size="xl" variant="secondary" style_opa="80"/>
-        <text_body text="No fans detected" style_text_color="#text_muted"/>
-      </lv_obj>
+      <empty_state name="no_fans_placeholder"
+                   flex_grow="1" icon="fan" icon_size="xl" text="No fans detected"
+                   shown_subject="fan_settings_fan_count"/>
     </overlay_panel-overlay_content>
   </view>
 </component>

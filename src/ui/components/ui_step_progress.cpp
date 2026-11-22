@@ -4,30 +4,67 @@
 #include "ui_step_progress.h"
 
 #include "ui_row_text.h"
-#include "ui_widget_memory.h"
 
+#include "helix/xml/indexed_subject_pool.h"
 #include "theme_manager.h"
 
 #include <spdlog/spdlog.h>
 
-#include <stdlib.h>
-#include <string.h>
+#include <memory>
 #include <string>
+#include <vector>
 
 using namespace helix;
 
-// Internal widget data stored in user_data
-typedef struct {
-    char** label_buffers;  // String storage for labels
-    StepState* states;     // Current state for each step
-    lv_obj_t** connectors; // Connector line objects (step_count - 1)
-    lv_obj_t** step_items; // Step item objects (step_count)
-    int step_count;
-    bool horizontal;
-    int32_t circle_size;     // Responsive circle diameter
-    int32_t connector_width; // Responsive connector line thickness
-    lv_obj_t* caption;       // Current-label-only mode: the one label, else nullptr
-} step_progress_data_t;
+namespace {
+
+// Internal widget data stored in user_data. Each bar names its own subjects
+// "<prefix>_<i>_state" (0 pending, 1 active, 2 done) and "<prefix>_<i>_label",
+// which its step components and connectors bind; a bar's prefix is unique for
+// the life of the process, so two bars on screen never share a subject.
+struct StepProgressData {
+    std::string prefix; // outlives the pools, which hold a pointer to it
+    std::unique_ptr<helix::xml::IndexedSubjectPool> states;
+    std::unique_ptr<helix::xml::IndexedSubjectPool> labels;
+    std::vector<lv_obj_t*> connectors; // step_count - 1, created on the first relayout
+    std::vector<lv_obj_t*> step_items;
+    int step_count = 0;
+    bool horizontal = false;
+    int32_t circle_size = 0;     // Responsive circle diameter
+    int32_t connector_width = 0; // Responsive connector line thickness
+    lv_obj_t* caption = nullptr; // Current-label-only mode: the one label, else nullptr
+};
+
+constexpr size_t kLabelCap = 128;
+
+StepProgressData* data_of(lv_obj_t* widget) {
+    return widget ? static_cast<StepProgressData*>(lv_obj_get_user_data(widget)) : nullptr;
+}
+
+StepState state_at(StepProgressData* data, int i) {
+    return static_cast<StepState>(lv_subject_get_int(data->states->at(static_cast<size_t>(i))));
+}
+
+void set_state_at(StepProgressData* data, int i, StepState state) {
+    if (state_at(data, i) == state)
+        return;
+    data->states->set_int(static_cast<size_t>(i), static_cast<int>(state));
+    // LVGL skips the style refresh of a state change on a widget not yet drawn,
+    // and the active label's larger font needs a taller row.
+    if (lv_obj_t* item = data->step_items[static_cast<size_t>(i)]) {
+        lv_obj_refresh_style(item, LV_PART_ANY, LV_STYLE_PROP_ANY);
+    }
+}
+
+const char* label_at(StepProgressData* data, int i) {
+    return lv_subject_get_string(data->labels->at(static_cast<size_t>(i)));
+}
+
+std::string subject_name(const StepProgressData* data, int i, const char* suffix) {
+    return data->prefix + "_" + std::to_string(i) + suffix;
+}
+
+} // namespace
 
 // The glyphs on the dots start from the palette text color and shift toward
 // their pole as 4:1 against each fill needs. A derived color, so it is computed
@@ -39,54 +76,13 @@ static std::string contrast_text_on(const char* fill_token) {
 }
 
 /**
- * Put a step item in the state its styles key on. The state trickles to the
- * dot and the label: LV_STATE_USER_1 while active, LV_STATE_CHECKED once done.
- */
-static void apply_step_state(lv_obj_t* step_item, StepState state) {
-    if (!step_item)
-        return;
-    lv_obj_set_state(step_item, LV_STATE_USER_1, state == StepState::Active);
-    lv_obj_set_state(step_item, LV_STATE_CHECKED, state == StepState::Completed);
-    // A widget not yet drawn takes a new state without re-measuring, and the
-    // active label's larger font needs a taller row.
-    lv_obj_refresh_style(step_item, LV_PART_ANY, LV_STYLE_PROP_ANY);
-}
-
-static void apply_connector_state(lv_obj_t* connector, StepState from_state) {
-    if (connector)
-        lv_obj_set_state(connector, LV_STATE_CHECKED, from_state == StepState::Completed);
-}
-
-/**
- * Cleanup callback for widget deletion
+ * Cleanup callback for widget deletion. Resetting the subjects unbinds the step
+ * components and connectors before LVGL deletes them.
  */
 static void step_progress_delete_cb(lv_event_t* e) {
     lv_obj_t* widget = lv_event_get_target_obj(e);
-    // Transfer ownership to RAII wrapper - automatic cleanup
-    lvgl_unique_ptr<step_progress_data_t> data((step_progress_data_t*)lv_obj_get_user_data(widget));
+    std::unique_ptr<StepProgressData> data(data_of(widget));
     lv_obj_set_user_data(widget, nullptr);
-
-    if (data) {
-        // Free nested allocations
-        if (data->label_buffers) {
-            for (int i = 0; i < data->step_count; i++) {
-                lvgl_unique_ptr<char> label(data->label_buffers[i]);
-            }
-            lvgl_unique_ptr<char*> buffers(data->label_buffers);
-        }
-
-        if (data->states) {
-            lvgl_unique_ptr<StepState> states(data->states);
-        }
-
-        // connectors and step_items are LVGL children — freed by lv_obj_delete, not us
-        if (data->connectors) {
-            lvgl_unique_ptr<lv_obj_t*> conns(data->connectors);
-        }
-        if (data->step_items) {
-            lvgl_unique_ptr<lv_obj_t*> items(data->step_items);
-        }
-    }
 }
 
 /**
@@ -103,7 +99,7 @@ static void step_progress_delete_cb(lv_event_t* e) {
  * Caller must have run a layout pass on @p container first (create does this;
  * the SIZE_CHANGED handler fires post-layout).
  */
-static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container) {
+static void relayout_connectors(StepProgressData* data, lv_obj_t* container) {
     if (!data || !container)
         return;
 
@@ -113,8 +109,8 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
     const int32_t connector_thickness = data->connector_width;
 
     for (int i = 0; i < data->step_count - 1; i++) {
-        lv_obj_t* current_step = data->step_items[i];
-        lv_obj_t* next_step = data->step_items[i + 1];
+        lv_obj_t* current_step = data->step_items[static_cast<size_t>(i)];
+        lv_obj_t* next_step = data->step_items[static_cast<size_t>(i + 1)];
         if (!current_step || !next_step)
             continue;
 
@@ -159,16 +155,18 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
                 conn_h = 0; // degenerate pass — sized on the next valid reflow
         }
 
-        lv_obj_t* connector = data->connectors[i];
+        lv_obj_t* connector = data->connectors[static_cast<size_t>(i)];
         if (!connector) {
-            connector = static_cast<lv_obj_t*>(
-                lv_xml_create(container, "step_progress_connector", nullptr));
+            // Connector i leaves step i and binds its state.
+            const std::string state = subject_name(data, i, "_state");
+            const char* attrs[] = {"state_subject", state.c_str(), nullptr};
+            connector =
+                static_cast<lv_obj_t*>(lv_xml_create(container, "step_progress_connector", attrs));
             if (!connector)
                 continue;
-            apply_connector_state(connector, data->states[i]);
             // Render behind step items so circles draw on top
             lv_obj_move_to_index(connector, 0);
-            data->connectors[i] = connector;
+            data->connectors[static_cast<size_t>(i)] = connector;
         }
 
         lv_obj_set_size(connector, conn_w, conn_h);
@@ -186,8 +184,7 @@ static void relayout_connectors(step_progress_data_t* data, lv_obj_t* container)
  */
 static void step_progress_size_changed_cb(lv_event_t* e) {
     lv_obj_t* container = lv_event_get_target_obj(e);
-    step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(container);
-    if (data) {
+    if (StepProgressData* data = data_of(container)) {
         relayout_connectors(data, container);
     }
 }
@@ -207,54 +204,29 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
     if (connector_thickness <= 0)
         connector_thickness = 2; // fallback
 
-    // Allocate widget data using RAII
-    auto data_ptr = lvgl_make_unique<step_progress_data_t>();
-    if (!data_ptr) {
-        spdlog::error("[Step Progress] Failed to allocate step progress data");
-        return nullptr;
-    }
-
-    step_progress_data_t* data = data_ptr.get();
+    // Holds std:: members, so it is new'd: lvgl_unique_ptr frees without destroying.
+    auto data_ptr = std::make_unique<StepProgressData>();
+    StepProgressData* data = data_ptr.get();
+    static unsigned next_bar = 0;
+    data->prefix = "step_progress_" + std::to_string(next_bar++);
     data->step_count = step_count;
     data->horizontal = horizontal;
     data->circle_size = circle_size;
     data->connector_width = connector_thickness;
-    data->caption = nullptr;
-
-    // Allocate arrays using RAII
-    auto label_buffers_ptr = lvgl_make_unique_array<char*>(static_cast<size_t>(step_count));
-    auto states_ptr = lvgl_make_unique_array<StepState>(static_cast<size_t>(step_count));
-    auto connectors_ptr =
-        lvgl_make_unique_array<lv_obj_t*>(static_cast<size_t>(step_count > 1 ? step_count - 1 : 0));
-    auto step_items_ptr = lvgl_make_unique_array<lv_obj_t*>(static_cast<size_t>(step_count));
-
-    if (!label_buffers_ptr || !states_ptr || !connectors_ptr || !step_items_ptr) {
-        spdlog::error("[Step Progress] Failed to allocate step data arrays");
-        return nullptr;
-    }
-
-    data->label_buffers = label_buffers_ptr.get();
-    data->states = states_ptr.get();
-    data->connectors = connectors_ptr.get();
-    data->step_items = step_items_ptr.get();
-
-    // Copy initial data
+    data->connectors.assign(static_cast<size_t>(step_count - 1), nullptr);
+    data->step_items.assign(static_cast<size_t>(step_count), nullptr);
+    using helix::xml::IndexedSubjectPool;
+    data->states = std::make_unique<IndexedSubjectPool>(data->prefix.c_str(),
+                                                        IndexedSubjectPool::Type::Int, 0, "_state");
+    data->labels = std::make_unique<IndexedSubjectPool>(
+        data->prefix.c_str(), IndexedSubjectPool::Type::String, kLabelCap, "_label");
+    data->states->ensure_size(static_cast<size_t>(step_count));
+    data->labels->ensure_size(static_cast<size_t>(step_count));
     for (int i = 0; i < step_count; i++) {
-        auto label_buf = lvgl_make_unique_array<char>(128);
-        if (label_buf) {
-            snprintf(label_buf.get(), 128, "%s", steps[i].label);
-            data->label_buffers[i] = label_buf.release();
-        } else {
-            data->label_buffers[i] = nullptr;
-        }
-        data->states[i] = steps[i].state;
+        set_state_at(data, i, steps[i].state);
+        // Step labels can be printer text: they travel in a subject, never as a prop.
+        data->labels->set_string(static_cast<size_t>(i), steps[i].label ? steps[i].label : "");
     }
-
-    // Release ownership of nested arrays (now owned by data struct)
-    label_buffers_ptr.release();
-    states_ptr.release();
-    connectors_ptr.release();
-    step_items_ptr.release();
 
     const char* frame_attrs[] = {"flow", horizontal ? "row" : "column", "scrollable",
                                  horizontal ? "true" : "false", nullptr};
@@ -272,28 +244,25 @@ lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int 
 
     const std::string number_pending_color = contrast_text_on("text_subtle");
     const std::string number_active_color = contrast_text_on("primary");
-    const std::string check_color = contrast_text_on("success");
     const char* step_component = horizontal ? "step_progress_step_h" : "step_progress_step_v";
 
     for (int i = 0; i < step_count; i++) {
         const std::string number = std::to_string(i + 1);
+        const std::string state = subject_name(data, i, "_state");
+        const std::string label = subject_name(data, i, "_label");
         const char* attrs[] = {"number",
                                number.c_str(),
+                               "state_subject",
+                               state.c_str(),
+                               "label_subject",
+                               label.c_str(),
                                "number_pending_color",
                                number_pending_color.c_str(),
                                "number_active_color",
                                number_active_color.c_str(),
-                               "check_color",
-                               check_color.c_str(),
                                nullptr};
-        lv_obj_t* step_item =
+        data->step_items[static_cast<size_t>(i)] =
             static_cast<lv_obj_t*>(lv_xml_create(container, step_component, attrs));
-        data->step_items[i] = step_item;
-        if (!step_item)
-            continue;
-        // Step labels can be printer text: set after creation, never as a prop.
-        helix::ui::set_row_label_text(step_item, "step_label", data->label_buffers[i]);
-        apply_step_state(step_item, steps[i].state);
     }
 
     // Create connector lines AFTER layout is calculated. Connectors use absolute
@@ -328,23 +297,24 @@ int ui_step_progress_caption_step(const StepState* states, int step_count) {
     return last_completed >= 0 ? last_completed : 0;
 }
 
-static void refresh_caption(step_progress_data_t* data) {
+static void refresh_caption(StepProgressData* data) {
     if (!data || !data->caption)
         return;
-    const int idx = ui_step_progress_caption_step(data->states, data->step_count);
+    std::vector<StepState> states;
+    for (int i = 0; i < data->step_count; i++)
+        states.push_back(state_at(data, i));
+    const int idx = ui_step_progress_caption_step(states.data(), data->step_count);
     helix::ui::set_row_label_text(lv_obj_get_parent(data->caption), "step_caption",
-                                  idx >= 0 ? data->label_buffers[idx] : "");
+                                  idx >= 0 ? label_at(data, idx) : "");
 }
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
 void ui_step_progress_set_current_label_only(lv_obj_t* widget, bool on) {
-    if (!widget)
-        return;
-    auto* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
+    StepProgressData* data = data_of(widget);
     if (!data)
         return;
-    for (int i = 0; i < data->step_count; i++) {
-        lv_obj_t* label = lv_obj_find_by_name(data->step_items[i], "step_label");
+    for (lv_obj_t* item : data->step_items) {
+        lv_obj_t* label = item ? lv_obj_find_by_name(item, "step_label") : nullptr;
         if (!label)
             continue;
         // DECLARATIVE_OK: a mode switch on generated rows, with no subject per bar to bind
@@ -383,96 +353,63 @@ void ui_step_progress_set_current_label_only(lv_obj_t* widget, bool on) {
 
 // NAMESPACE_OK: the widget's C API, beside its siblings
 lv_obj_t* ui_step_progress_get_caption(lv_obj_t* widget) {
-    auto* data = widget ? (step_progress_data_t*)lv_obj_get_user_data(widget) : nullptr;
+    StepProgressData* data = data_of(widget);
     return data ? data->caption : nullptr;
 }
 
-void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
-    if (!widget)
-        return;
-
-    step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
+static StepProgressData* data_for_step(lv_obj_t* widget, int step_index) {
+    StepProgressData* data = data_of(widget);
     if (!data || step_index < 0 || step_index >= data->step_count) {
         spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
+        return nullptr;
+    }
+    return data;
+}
+
+void ui_step_progress_set_current(lv_obj_t* widget, int step_index) {
+    StepProgressData* data = data_for_step(widget, step_index);
+    if (!data)
         return;
-    }
 
-    // Mark all previous steps as completed
-    for (int i = 0; i < step_index; i++) {
-        data->states[i] = StepState::Completed;
-    }
-
-    // Mark current step as active
-    data->states[step_index] = StepState::Active;
-
-    // Mark remaining steps as pending
-    for (int i = step_index + 1; i < data->step_count; i++) {
-        data->states[i] = StepState::Pending;
-    }
-
+    // Earlier steps are done, later ones pending again.
     for (int i = 0; i < data->step_count; i++) {
-        apply_step_state(data->step_items[i], data->states[i]);
+        set_state_at(data, i,
+                     i < step_index    ? StepState::Completed
+                     : i == step_index ? StepState::Active
+                                       : StepState::Pending);
     }
     refresh_caption(data);
-
-    // Connector i leaves step i and takes its state.
-    for (int i = 0; i < data->step_count - 1; i++) {
-        apply_connector_state(data->connectors[i], data->states[i]);
-    }
 
     // Scroll the active step into view if the widget lives in a scrollable
     // container (vertical step bars can exceed the AMS sidebar column on small
     // screens). The scroller is an ancestor, not the step's own parent, so the
-    // scroll walks up to it. Use the stored step item directly — connectors are
+    // scroll walks up to it. Use the stored step item directly: connectors are
     // moved to child index 0, so lv_obj_get_child(container, step_index) is
     // unreliable.
-    if (data->step_items[step_index]) {
-        lv_obj_scroll_to_view_recursive(data->step_items[step_index], LV_ANIM_ON);
+    if (lv_obj_t* item = data->step_items[static_cast<size_t>(step_index)]) {
+        lv_obj_scroll_to_view_recursive(item, LV_ANIM_ON);
     }
 }
 
 void ui_step_progress_set_completed(lv_obj_t* widget, int step_index) {
-    if (!widget)
+    StepProgressData* data = data_for_step(widget, step_index);
+    if (!data)
         return;
-
-    step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
-    if (!data || step_index < 0 || step_index >= data->step_count) {
-        spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
-        return;
-    }
-
-    data->states[step_index] = StepState::Completed;
-    apply_step_state(data->step_items[step_index], StepState::Completed);
-
-    if (step_index < data->step_count - 1) {
-        apply_connector_state(data->connectors[step_index], StepState::Completed);
-    }
+    set_state_at(data, step_index, StepState::Completed);
     refresh_caption(data);
 }
 
 void ui_step_progress_set_label(lv_obj_t* widget, int step_index, const char* new_label) {
-    if (!widget || !new_label)
+    StepProgressData* data = new_label ? data_for_step(widget, step_index) : nullptr;
+    if (!data)
         return;
-
-    step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
-    if (!data || step_index < 0 || step_index >= data->step_count) {
-        spdlog::warn("[Step Progress] Invalid step index: {}", step_index);
-        return;
-    }
-
-    // Update buffer
-    snprintf(data->label_buffers[step_index], 128, "%s", new_label);
-
-    helix::ui::set_row_label_text(data->step_items[step_index], "step_label",
-                                  data->label_buffers[step_index]);
+    data->labels->set_string(static_cast<size_t>(step_index), new_label);
     refresh_caption(data);
 }
 
 lv_obj_t* ui_step_progress_test_get_connector(lv_obj_t* widget, int index) {
-    if (!widget)
-        return nullptr;
-    step_progress_data_t* data = (step_progress_data_t*)lv_obj_get_user_data(widget);
+    StepProgressData* data = data_of(widget);
     if (!data || index < 0 || index >= data->step_count - 1)
         return nullptr;
-    return data->connectors[index];
+    return data->connectors[static_cast<size_t>(index)];
 }

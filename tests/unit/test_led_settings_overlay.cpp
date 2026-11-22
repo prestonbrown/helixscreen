@@ -17,6 +17,7 @@
 #include "helix-xml/src/xml/lv_xml.h"
 #include "led/led_auto_state.h"
 #include "led/led_controller.h"
+#include "theme_manager.h"
 
 #include <array>
 #include <string>
@@ -619,15 +620,22 @@ TEST_CASE_METHOD(LedSettingsSwatchFixture, "LED settings: an Applies to chip tog
         REQUIRE(static_cast<int>(lv_obj_get_child_count(box)) == 2);
         return lv_obj_get_child(box, i);
     };
-    CHECK(lv_obj_has_state(chip(0), LV_STATE_CHECKED));
-    CHECK_FALSE(lv_obj_has_state(chip(1), LV_STATE_CHECKED));
+    const lv_color_t primary = theme_manager_get_color("primary");
+    auto lit = [&](lv_obj_t* c) {
+        return lv_color_eq(lv_obj_get_style_bg_color(c, LV_PART_MAIN), primary);
+    };
+    CHECK(lit(chip(0)));
+    CHECK_FALSE(lit(chip(1)));
     const std::string label = lv_label_get_text(lv_obj_find_by_name(chip(1), "chip_label"));
     CHECK(label == helix::led::device_display_name(ctrl.all_selectable_strips()[1]));
 
-    lv_obj_send_event(chip(1), LV_EVENT_CLICKED, nullptr);
+    lv_obj_t* tapped = chip(1);
+    lv_obj_send_event(tapped, LV_EVENT_CLICKED, nullptr);
     settle();
     CHECK(as.strips() == std::vector<std::string>{"neopixel a", "neopixel b"});
-    CHECK(lv_obj_has_state(chip(1), LV_STATE_CHECKED));
+    // The tapped chip itself lights: the row is not rebuilt to show it.
+    REQUIRE(chip(1) == tapped);
+    CHECK(lit(tapped));
 
     as.set_strips({});
     as.save_config();

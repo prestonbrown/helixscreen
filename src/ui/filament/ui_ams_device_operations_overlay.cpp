@@ -13,7 +13,6 @@
 #include "ui_callback_helpers.h"
 #include "ui_error_reporting.h"
 #include "ui_modal.h"
-#include "ui_status_pill.h"
 #include "ui_utils.h"
 
 #include "ams_backend.h"
@@ -537,16 +536,6 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
                        helix::bypass_available_for(info.supports_bypass) ? 1 : 0);
     lv_subject_set_int(&fw_supports_bypass_subject_, info.supports_bypass ? 1 : 0);
     lv_subject_set_int(&hw_bypass_sensor_subject_, info.has_hardware_bypass_sensor ? 1 : 0);
-
-    // Update hardware bypass status pill if applicable
-    if (info.has_hardware_bypass_sensor && overlay_) {
-        auto* pill = helix::ui::find_required(overlay_, "bypass_status_pill", get_name());
-        if (pill) {
-            bool active = backend->is_bypass_active();
-            ui_status_pill_set_text(pill, active ? lv_tr("Active") : lv_tr("Inactive"));
-            ui_status_pill_set_variant(pill, active ? "success" : "muted");
-        }
-    }
 
     lv_subject_set_int(&supports_auto_heat_subject_, backend->supports_auto_heat_on_load() ? 1 : 0);
 

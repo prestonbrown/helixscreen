@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <vector>
 
 using namespace helix;
 
@@ -39,6 +40,7 @@ struct ZOffsetIndicatorData {
 
     // Tape mode: the nozzle stays put and the ruler scrolls past it.
     bool tape = false;
+    bool tape_bed = true; ///< bed="none" draws the ruler and nozzle without bed or paper
     int step_microns = helix::ztape::step_microns(helix::ztape::kDefaultStepIndex);
     int estimate_microns = helix::ztape::kNoEstimate;
 
@@ -282,6 +284,19 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
 
     const lv_font_t* tick_font = tape_font("cal_font_badge");
     const lv_font_t* note_font = tick_font;
+    const std::vector<Tick> marks = ticks(value, zoom, tip, tick_top, tick_bottom);
+    // Labels wider than the layout's column (a signed offset, a Z of 10 mm or
+    // more) move the ruler right by what they need, so none runs off the left.
+    int32_t widest = 0;
+    for (const Tick& t : marks) {
+        lv_point_t sz;
+        lv_text_get_size(&sz, tick_label(t.microns, zoom).c_str(), tick_font, 0, 0, LV_COORD_MAX,
+                         LV_TEXT_FLAG_NONE);
+        widest = std::max<int32_t>(widest, sz.x);
+    }
+    const int32_t shift = std::max<int32_t>(0, widest - L.label_right);
+    const int32_t ruler_x = L.ruler_x + shift;
+    const int32_t label_right = L.label_right + shift;
     // A note at the box's foot needs room under the bed: a box shorter than its
     // reference lifts the static paper, bed and break by what is missing.
     const int32_t lift = L.note_bottom
@@ -292,15 +307,15 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
     const int32_t static_paper_top = ry(L.static_paper_top) - lift;
 
     // The ruler and its ticks.
-    fill_rect(layer, d.color_elevated, LV_OPA_COVER, 0, x0 + L.ruler_x, y0 + ry(L.line_top),
-              x0 + L.ruler_x + 2, y0 + ry(L.line_bottom));
+    fill_rect(layer, d.color_elevated, LV_OPA_COVER, 0, x0 + ruler_x, y0 + ry(L.line_top),
+              x0 + ruler_x + 2, y0 + ry(L.line_bottom));
     const int32_t font_h = lv_font_get_line_height(tick_font);
-    for (const Tick& t : ticks(value, zoom, tip, tick_top, tick_bottom)) {
-        fill_rect(layer, d.color_text_subtle, LV_OPA_COVER, 0, x0 + L.ruler_x + 1 - L.tick_half,
-                  y0 + t.y, x0 + L.ruler_x + 1 + L.tick_half, y0 + t.y + 1);
+    for (const Tick& t : marks) {
+        fill_rect(layer, d.color_text_subtle, LV_OPA_COVER, 0, x0 + ruler_x + 1 - L.tick_half,
+                  y0 + t.y, x0 + ruler_x + 1 + L.tick_half, y0 + t.y + 1);
         const std::string label = tick_label(t.microns, zoom);
         draw_text(layer, label.c_str(), tick_font, d.color_text_subtle, LV_TEXT_ALIGN_RIGHT, x0,
-                  y0 + t.y - font_h / 2, x0 + L.label_right);
+                  y0 + t.y - font_h / 2, x0 + label_right);
     }
 
     // The bed, estimated or unknown.
@@ -315,7 +330,9 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
     const char* note_short = nullptr;
     lv_color_t note_color = d.color_text_subtle;
     int32_t note_y = 0;
-    if (bed.view == BedView::Estimated || bed.view == BedView::PastLastTime) {
+    if (!d.tape_bed) {
+        // No bed: the ruler and the nozzle alone.
+    } else if (bed.view == BedView::Estimated || bed.view == BedView::PastLastTime) {
         const bool past = bed.view == BedView::PastLastTime;
         const lv_color_t edge = past ? d.color_warning : d.color_secondary;
         fill_rect(layer, d.color_text, kPaperOpa, 0, x0 + paper_x, y0 + bed.paper_top,
@@ -386,13 +403,13 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
         static_cast<int>(L.nozzle_scale_pct * std::min<int32_t>(h, L.ref_h) / L.ref_h);
     draw_nozzle(layer, d, x0 + nozzle_cx, y0 + tip, nozzle_pct);
     dashed_segment(layer, d.color_warning, LV_OPA_COVER, 2,
-                   {(float)(x0 + L.ruler_x + 2), (float)(y0 + tip)},
+                   {(float)(x0 + ruler_x + 2), (float)(y0 + tip)},
                    {(float)(x0 + nozzle_cx), (float)(y0 + tip)}, 3, 2);
     lv_draw_triangle_dsc_t m;
     lv_draw_triangle_dsc_init(&m);
     m.color = d.color_warning;
     m.opa = LV_OPA_COVER;
-    const int32_t mx = x0 + L.ruler_x - (L.marker_w - 1);
+    const int32_t mx = x0 + ruler_x - (L.marker_w - 1);
     m.p[0] = {(float)mx, (float)(y0 + tip - L.marker_half)};
     m.p[1] = {(float)mx, (float)(y0 + tip + L.marker_half)};
     m.p[2] = {(float)(mx + L.marker_w), (float)(y0 + tip)};
@@ -817,7 +834,7 @@ static void step_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     auto* data = static_cast<ZOffsetIndicatorData*>(lv_obj_get_user_data(obj));
     if (!data)
         return;
-    data->step_microns = helix::ztape::step_microns(lv_subject_get_int(subject));
+    data->step_microns = std::max<int32_t>(1, lv_subject_get_int(subject));
     lv_obj_invalidate(obj);
 }
 
@@ -843,10 +860,16 @@ static void z_offset_indicator_xml_apply(lv_xml_parser_state_t* state, const cha
             }
             continue;
         }
+        if (strcmp(name, "bed") == 0) {
+            if (data) {
+                data->tape_bed = strcmp(attrs[i + 1], "none") != 0;
+            }
+            continue;
+        }
         lv_observer_cb_t cb = nullptr;
         if (strcmp(name, "bind_microns") == 0) {
             cb = microns_observer_cb;
-        } else if (strcmp(name, "bind_step") == 0) {
+        } else if (strcmp(name, "bind_step_microns") == 0) {
             cb = step_observer_cb;
         } else if (strcmp(name, "bind_estimate") == 0) {
             cb = estimate_observer_cb;

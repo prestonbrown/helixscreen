@@ -130,37 +130,28 @@
                      text="Lower the nozzle until it just touches the top of the print, then resume.">
             <bind_flag_if_not_eq subject="plr_wizard_z_kind" flag="hidden" ref_value="0"/>
           </text_body>
+          <!-- The Z adjuster: the tape left, the height, steps and Raise / Lower
+               right. The tape gives way on the smallest screen. -->
           <lv_obj name="plr_jog_controls"
-                  width="100%" height="content" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
-                  style_pad_gap="#space_sm" scrollable="false">
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm"
+                  scrollable="false">
             <bind_flag_if_not_eq subject="plr_wizard_tier" flag="hidden" ref_value="1"/>
-            <text_heading name="plr_z_display" bind_text="plr_wizard_z"/>
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs" scrollable="false">
-              <ui_button name="btn_plr_step_0" flex_grow="1" text="0.05 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="0"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 0"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="0"/>
-              </ui_button>
-              <ui_button name="btn_plr_step_1" flex_grow="1" text="0.1 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="1"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 1"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="1"/>
-              </ui_button>
-              <ui_button name="btn_plr_step_2" flex_grow="1" text="1 mm">
-                <bind_style name="styles.choice_selected" subject="plr_jog_step" ref_value="2"/>
-                <bind_style_if name="styles.choice_idle" cond="plr_jog_step ne 2"/>
-                <event_cb trigger="clicked" callback="on_plr_wizard_step" user_data="2"/>
-              </ui_button>
-            </lv_obj>
-            <lv_obj width="100%"
-                    height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-              <ui_button name="btn_plr_jog_up" flex_grow="1" icon="arrow_up" text="Raise" moves_machine="true">
-                <event_cb trigger="clicked" callback="on_plr_wizard_jog" user_data="1"/>
-              </ui_button>
-              <ui_button name="btn_plr_jog_down" flex_grow="1" icon="arrow_down" text="Lower" moves_machine="true">
-                <event_cb trigger="clicked" callback="on_plr_wizard_jog" user_data="-1"/>
-              </ui_button>
+            <z_offset_indicator name="z_offset_indicator"
+                                width="#z_tune_indicator_w" height="#z_tune_indicator_h" mode="tape" bed="none"
+                                bind_microns="plr_wizard_z_microns" bind_step_microns="plr_jog_step_microns"
+                                style_bg_color="#card_bg" style_bg_opa="255" style_radius="#zo_step_radius">
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </z_offset_indicator>
+            <lv_obj height="content"
+                    flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_cross_place="center"
+                    style_pad_gap="#space_sm" scrollable="false">
+              <text_heading name="plr_z_display" bind_text="plr_wizard_z"/>
+              <z_adjust_steps width="100%"
+                              subject="plr_jog_step" callback="on_plr_wizard_step" text0="0.05 mm" text1="0.1 mm"
+                              text2="1 mm" chip3_hidden="true" two_rows="false" chip_h="#button_height" gap="#space_xs"/>
+              <z_adjust_buttons width="100%"
+                                callback="on_plr_wizard_jog" flow="row" gap="#space_sm" btn_w="0" btn_grow="1"
+                                btn_h="#button_height" head_hidden="true" moves_machine="true"/>
             </lv_obj>
           </lv_obj>
         </lv_obj>
