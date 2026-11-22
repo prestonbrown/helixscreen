@@ -28,7 +28,9 @@ typedef struct {
  * @param step_count Number of steps
  * @param horizontal true for horizontal layout, false for vertical (default)
  * @return Created widget: a step_progress component holding one step_progress_step_h
- *         or step_progress_step_v per step (ui_xml/components/step_progress*.xml)
+ *         or step_progress_step_v per step (ui_xml/components/step_progress*.xml). Each
+ *         step's state and label live in subjects the bar owns, which its step components
+ *         and connectors bind; the setters below write those subjects.
  */
 lv_obj_t* ui_step_progress_create(lv_obj_t* parent, const ui_step_t* steps, int step_count,
                                   bool horizontal);

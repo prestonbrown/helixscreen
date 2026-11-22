@@ -2,32 +2,52 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- One step's dot: a filled circle holding the step number, or a check once
-       the step is done. Its state trickles down from the step: none for
-       pending, LV_STATE_USER_1 for active, LV_STATE_CHECKED for completed. The glyph colors are each fill's contrast-adjusted text
-       color, computed in C++ and passed as "0xRRGGBB". -->
+  <!-- One step's status dot, in all four states. The step that holds it binds
+       the state from its int subject (0 pending, 1 active, 2 done, 3 failed) and
+       trickles it down: none while pending, LV_STATE_USER_1 active,
+       LV_STATE_CHECKED done, LV_STATE_USER_2 failed. Active fills primary, done
+       success with a check, failed warning with a cross.
+
+       With a number, the dot is filled while pending and shows the number while
+       pending or active; the number colors are each fill's contrast-adjusted
+       text color, computed in C++. Without one, pending is a ring
+       (pending_fill_opa="0") and active holds a small dot. -->
   <api>
-    <prop name="number" type="string" default="1"/>
+    <prop name="number" type="string" default=""/>
+    <prop name="size" type="string" default="#step_indicator"/>
+    <prop name="glyph_font" type="string" default="mdi_icons_16"/>
+    <prop name="done_icon" type="string" default="check"/>
+    <prop name="pending_fill" type="color" default="#text_subtle"/>
+    <prop name="pending_fill_opa" type="string" default="255"/>
+    <prop name="pending_border" type="color" default="#text_subtle"/>
     <prop name="number_pending_color" type="color" default="0xFFFFFF"/>
     <prop name="number_active_color" type="color" default="0xFFFFFF"/>
-    <prop name="check_color" type="color" default="0xFFFFFF"/>
   </api>
   <view name="step_dot_column"
-        extends="lv_obj" width="#step_indicator" height="#step_indicator" state_trickle="true" style_bg_opa="0"
-        style_border_width="0" style_pad_all="0" style_pad_gap="0" scrollable="false" scrollbar_mode="off"
-        flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start">
+        extends="lv_obj" width="$size" height="$size" state_trickle="true" style_bg_opa="0" style_border_width="0"
+        style_pad_all="0" style_pad_gap="0" scrollable="false" scrollbar_mode="off" flex_flow="column"
+        style_flex_main_place="start" style_flex_cross_place="center" style_flex_track_place="start">
     <lv_obj name="step_circle"
-            width="#step_indicator" height="#step_indicator" state_trickle="true" style_radius="9999"
-            style_border_width="2" style_pad_all="0" style_margin_left="0" style_margin_right="0" style_margin_top="0"
-            style_margin_bottom="0" style_bg_opa="255" style_bg_color="#text_subtle" style_border_color="#text_subtle"
-            style_bg_color-user_1="#primary" style_border_color-user_1="#primary" style_bg_color-checked="#success"
-            style_border_color-checked="#success" scrollable="false" scrollbar_mode="off">
+            width="$size" height="$size" state_trickle="true" style_radius="9999" style_border_width="2"
+            style_pad_all="0" style_margin_left="0" style_margin_right="0" style_margin_top="0" style_margin_bottom="0"
+            style_bg_color="$pending_fill" style_bg_opa="$pending_fill_opa" style_border_color="$pending_border"
+            style_bg_color-user_1="#primary" style_bg_opa-user_1="255" style_border_color-user_1="#primary"
+            style_bg_color-checked="#success" style_bg_opa-checked="255" style_border_color-checked="#success"
+            style_bg_color-user_2="#warning" style_bg_opa-user_2="255" style_border_color-user_2="#warning"
+            scrollable="false" scrollbar_mode="off">
       <lv_label name="step_number"
-                text="$number" align="center" style_text_font="#font_body" style_text_color="$number_pending_color"
-                style_text_color-user_1="$number_active_color" style_opa-checked="0"/>
-      <lv_label name="step_check"
-                text="#icon_check" align="center" style_text_font="mdi_icons_16" style_text_color="$check_color"
-                style_opa="0" style_opa-checked="255"/>
+                text="$number" align="center" hidden_if_empty="$number" style_text_font="#font_body"
+                style_text_color="$number_pending_color" style_text_color-user_1="$number_active_color"
+                style_opa-checked="0" style_opa-user_2="0"/>
+      <icon name="step_running"
+            src="circle_medium" align="center" contrast="true" hidden_if_prop_not_eq="$number|"
+            style_text_font="$glyph_font" style_opa="0" style_opa-user_1="255"/>
+      <icon name="step_check"
+            src="$done_icon" align="center" contrast="true" style_text_font="$glyph_font" style_opa="0"
+            style_opa-checked="255"/>
+      <icon name="step_failed"
+            src="close" align="center" contrast="true" style_text_font="$glyph_font" style_opa="0"
+            style_opa-user_2="255"/>
     </lv_obj>
   </view>
 </component>

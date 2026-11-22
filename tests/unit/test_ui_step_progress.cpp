@@ -14,6 +14,7 @@
  *      if it was built while hidden — driven by an LV_EVENT_SIZE_CHANGED reflow.
  */
 
+#include "ui_icon.h"
 #include "ui_step_progress.h"
 
 #include "../lvgl_test_fixture.h"
@@ -292,8 +293,8 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_obj_t* current = nullptr;
     for (uint32_t i = 0; i < lv_obj_get_child_count(widget); ++i) {
         lv_obj_t* item = lv_obj_get_child(widget, static_cast<int32_t>(i));
-        if (lv_obj_get_child_count(item) >= 2 &&
-            std::string(lv_label_get_text(lv_obj_get_child(item, 1))) == "Step 16") {
+        lv_obj_t* label = lv_obj_find_by_name(item, "step_label");
+        if (label && std::string(lv_label_get_text(label)) == "Step 16") {
             current = item;
         }
     }
@@ -348,8 +349,10 @@ TEST_CASE_METHOD(XMLTestFixture, "step progress: each step's dot, glyph and labe
         const bool done = (i == 0 || i == 2);
         CHECK(shown(number) == !done);
         CHECK(shown(check) == done);
+        CHECK_FALSE(shown(part(items[i], "step_running")));
+        CHECK_FALSE(shown(part(items[i], "step_failed")));
         if (done) {
-            CHECK(rgb(lv_obj_get_style_text_color(check, LV_PART_MAIN)) == text_on("success"));
+            CHECK(rgb(helix::ui::icon::contrast_color(check)) == text_on("success"));
         } else {
             CHECK(rgb(lv_obj_get_style_text_color(number, LV_PART_MAIN)) == text_on(fills[i]));
         }
@@ -400,11 +403,69 @@ TEST_CASE_METHOD(XMLTestFixture, "step progress: a vertical row puts its label b
     lv_obj_get_coords(widget, &w);
     CHECK(label.x1 > dot.x2);
     CHECK(label.x2 == w.x2);
-    CHECK(lv_obj_get_style_pad_left(part(items[1], "step_label"), LV_PART_MAIN) ==
-          theme_manager_get_spacing("step_label_gap"));
+    CHECK(label.x1 - dot.x2 - 1 == theme_manager_get_spacing("step_label_gap"));
     // Rows sit one row gap apart.
     lv_area_t r0, r1;
     lv_obj_get_coords(items[0], &r0);
     lv_obj_get_coords(items[1], &r1);
     CHECK(r1.y1 - r0.y2 - 1 == theme_manager_get_spacing("step_row_gap"));
+}
+
+TEST_CASE_METHOD(XMLTestFixture, "calibration run row: an unnumbered dot in all four states",
+                 "[ui][step][step_state][calibration_run]") {
+    // Static: the XML registry keeps the pointers after the test.
+    static helix::Subject in_run;
+    static helix::Subject state;
+    static helix::Subject detail;
+    static char detail_buf[64];
+    in_run.publish_int(1);
+    state.publish_int(0);
+    if (!detail.is_live())
+        detail.init_string(detail_buf, "about 4 min");
+    lv_xml_register_subject(nullptr, "cal_run_in_run_test_step", &in_run);
+    lv_xml_register_subject(nullptr, "cal_run_state_test_step", &state);
+    lv_xml_register_subject(nullptr, "cal_run_detail_test_step", &detail);
+
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    const char* attrs[] = {"step", "test_step", "label", "Bed mesh", nullptr};
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(parent, "calibration_run_step_row", attrs));
+    REQUIRE(row != nullptr);
+    lv_obj_update_layout(parent);
+
+    lv_obj_t* circle = part(row, "step_circle");
+    lv_obj_t* name = part(row, "step_label");
+    CHECK(std::string(lv_label_get_text(name)) == "Bed mesh");
+    CHECK(std::string(lv_label_get_text(part(row, "step_detail"))) == "about 4 min");
+    CHECK_FALSE(shown(part(row, "step_number")));
+    CHECK(lv_obj_get_width(circle) == theme_manager_get_spacing("cal_box"));
+
+    // Waiting: an empty ring.
+    CHECK(lv_obj_get_style_bg_opa(circle, LV_PART_MAIN) == LV_OPA_TRANSP);
+    CHECK(rgb(lv_obj_get_style_border_color(circle, LV_PART_MAIN)) == token("elevated_bg"));
+    CHECK(lv_obj_get_style_text_font(name, LV_PART_MAIN) ==
+          theme_manager_get_font("cal_font_name"));
+
+    struct Look {
+        int state;
+        const char* fill;
+        const char* glyph;
+    };
+    const Look looks[] = {{1, "primary", "step_running"},
+                          {2, "success", "step_check"},
+                          {3, "warning", "step_failed"}};
+    for (const Look& look : looks) {
+        CAPTURE(look.state);
+        lv_subject_set_int(&state, look.state);
+        CHECK(rgb(lv_obj_get_style_bg_color(circle, LV_PART_MAIN)) == token(look.fill));
+        CHECK(lv_obj_get_style_bg_opa(circle, LV_PART_MAIN) == LV_OPA_COVER);
+        for (const char* glyph : {"step_running", "step_check", "step_failed"}) {
+            CAPTURE(glyph);
+            CHECK(shown(part(row, glyph)) == (std::string(glyph) == look.glyph));
+        }
+        CHECK(lv_obj_get_style_text_font(name, LV_PART_MAIN) ==
+              theme_manager_get_font(look.state == 1 ? "cal_font_name_bold" : "cal_font_name"));
+    }
+
+    lv_subject_set_int(&in_run, 0);
+    CHECK(lv_obj_is_hidden(row));
 }
