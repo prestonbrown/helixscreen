@@ -387,8 +387,9 @@ class AmsEditOverlay : public OverlayBase {
     /// One option's label and the value picking it stages.
     struct Option {
         std::string label;
-        std::string payload; ///< family / variant / brand / catalog id
-        bool more = false;   ///< the trailing "Browse catalog..." entry
+        std::string payload;    ///< family / variant / brand / catalog id
+        bool more = false;      ///< opens the catalog picker ("Browse catalog...")
+        bool favorites = false; ///< ... on its Favorites view (Brand's "Favorites")
     };
     std::vector<Option> material_options_;
     std::vector<Option> brand_options_;
@@ -633,6 +634,14 @@ class AmsEditOverlay : public OverlayBase {
     void handle_row_use(size_t row);
     /// A common spool tile: fill the form with its material and color.
     void handle_common_spool(size_t index);
+    /// The spool tile at @p slot (spool_tiles_): a favorite fills the form as
+    /// a catalog pick does, a common spool as handle_common_spool().
+    void handle_spool_tile(size_t slot);
+    /// Rebuild spool_tiles_ from the favorites and publish the tiles.
+    void refresh_spool_tiles();
+    /// A catalog product picked: family, variant, brand and product at once.
+    void apply_catalog_pick(const helix::printer::EffectiveFilament& ef);
+    std::vector<spool_assign::SpoolTile> spool_tiles_;
     void apply_size_chip(int chip, float remaining_g, float total_g);
     void handle_remaining_step(float delta_g);
     /// Assign without Spoolman, or without adding the spool to it.

@@ -206,6 +206,28 @@ const std::vector<CommonSpool>& common_spools() {
     return kCommon;
 }
 
+std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites, size_t count) {
+    std::vector<SpoolTile> tiles;
+    for (const auto& fav : favorites) {
+        if (tiles.size() >= count) {
+            return tiles;
+        }
+        tiles.push_back({fav.label, 0, fav.product_id, 0});
+    }
+    // common_spools() is material-major with three colors each; the grid reads
+    // a color at a time.
+    const auto& common = common_spools();
+    constexpr size_t kColors = 3;
+    const size_t materials = common.size() / kColors;
+    for (size_t c = 0; c < kColors; ++c) {
+        for (size_t m = 0; m < materials && tiles.size() < count; ++m) {
+            const size_t index = m * kColors + c;
+            tiles.push_back({common[index].material, common[index].rgb, {}, index});
+        }
+    }
+    return tiles;
+}
+
 bool show_common_spools(size_t spool_count) {
     return spool_count < kFewSpools;
 }

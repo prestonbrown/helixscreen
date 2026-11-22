@@ -99,6 +99,33 @@ struct CommonSpool {
 /// PLA, PETG, ABS, ASA, each in Black, White and Gray, material-major.
 const std::vector<CommonSpool>& common_spools();
 
+/// The spool tiles a new spool starts from.
+inline constexpr size_t kSpoolTiles = 12;
+
+/// A starred catalog product, as its tile names it.
+struct FavoriteTile {
+    std::string label;      ///< the product's name
+    std::string product_id; ///< its catalog id
+};
+
+/// One spool tile: a favorite (product_id set) or a common spool (common, an
+/// index into common_spools()).
+struct SpoolTile {
+    std::string label;
+    uint32_t rgb = 0;
+    std::string product_id;
+    size_t common = 0;
+    [[nodiscard]] bool favorite() const {
+        return !product_id.empty();
+    }
+};
+
+/// The tiles a new spool starts from: @p favorites in star order, then the
+/// common spools a color at a time (every material in Black, then White, then
+/// Gray), @p count in all.
+[[nodiscard]] std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites,
+                                                 size_t count = kSpoolTiles);
+
 /// The grid of common spools shows until the user has this many spools.
 inline constexpr size_t kFewSpools = 3;
 [[nodiscard]] bool show_common_spools(size_t spool_count);
