@@ -116,7 +116,7 @@ constexpr Row kRows[] = {
     // Creality's strain-gauge probe on Jacobean's K2 firmware: its offsets live
     // here, behind the generic probe object. Another probe outranks it
     // (is_fallback_probe_section).
-    {Match::Exact, "prtouch", ObjectKind::Probe, chip_of(ProbeSensorType::STANDARD),
+    {Match::Exact, "prtouch", ObjectKind::Probe, chip_of(ProbeSensorType::PRTOUCH_V3),
      Scope::SectionOnly},
 
     {Match::Prefix, "gcode_button ", ObjectKind::Input, 0, Scope::Both},

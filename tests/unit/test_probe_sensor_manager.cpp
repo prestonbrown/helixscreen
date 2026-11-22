@@ -685,9 +685,11 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - config-only probe
         discover({"probe", "prtouch"}, config);
         REQUIRE(mgr().sensor_count() == 1);
         REQUIRE(mgr().get_z_offset() == Catch::Approx(-0.125f));
+        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::PRTOUCH_V3);
 
         discover({"probe", "cartographer", "prtouch"}, config);
         CHECK_FALSE(mgr().get_z_offset() == Catch::Approx(-0.125f));
+        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::CARTOGRAPHER);
     }
 
     // Each U1 head has its own coil and offset; the probe status names the active one.

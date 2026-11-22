@@ -165,11 +165,19 @@ FoldedSections fold_config_sections(std::vector<SensorEntry>& entries,
         return folded;
     }
     folded.probe = target->klipper_name;
+    // A fallback section (Jacobean's prtouch) describes the generic probe only when
+    // no other probe object is fitted; beside a Cartographer it describes nothing.
+    const bool other_probe = std::any_of(entries.begin(), entries.end(), [&](const SensorEntry& e) {
+        return is_object(e) && e.klipper_name != "probe";
+    });
     for (const auto& entry : entries) {
         if (is_object(entry)) {
             continue;
         }
         folded.sections.push_back(entry.klipper_name);
+        if (other_probe && hw::is_fallback_probe_section(entry.klipper_name)) {
+            continue;
+        }
         if (type_of(*target) == ProbeSensorType::STANDARD &&
             type_of(entry) != ProbeSensorType::STANDARD) {
             target->type = entry.type;
