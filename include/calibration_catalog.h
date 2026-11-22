@@ -103,7 +103,8 @@ struct CatalogInputs {
     ZOffsetCalibrationStrategy z_strategy{};
     /// The probe measures with the nozzle itself (see probe_contacts_nozzle()).
     bool nozzle_contact_probe = false;
-    /// The firmware sets the nozzle height itself (see probe_sets_nozzle_height()).
+    /// The firmware sets the nozzle height itself: probe_sets_nozzle_height(), or a
+    /// probe set up to touch the bed (ProbeSensorManager::z_probe_sets_z_by_touch()).
     bool probe_sets_nozzle_height = false;
     std::vector<TierOverride> tier_overrides;
 };

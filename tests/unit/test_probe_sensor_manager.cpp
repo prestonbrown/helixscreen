@@ -917,14 +917,47 @@ TEST_CASE_METHOD(ProbeSensorTestFixture, "ProbeSensorManager - extra_subscriptio
     CHECK(subs_of({"bltouch"}) == json{{"bltouch", full}});
     CHECK(subs_of({"beacon"}) == json{{"beacon", no_query}});
     CHECK(subs_of({"probe_eddy_current btt"}) == json{{"probe_eddy_current btt", no_query}});
-    CHECK(subs_of({"probe", "cartographer"}) == json{{"probe", full}});
+    // Cartographer's touch setup is on its own object.
+    const json touch = json::array({"touch"});
+    CHECK(subs_of({"probe", "cartographer"}) == json{{"probe", full}, {"cartographer", touch}});
     CHECK(subs_of({"bltouch", "probe"}) == json{{"bltouch", full}});
-    CHECK(subs_of({"probe_eddy_current carto", "probe", "cartographer"}) == json{{"probe", full}});
+    CHECK(subs_of({"probe_eddy_current carto", "probe", "cartographer"}) ==
+          json{{"probe", full}, {"cartographer", touch}});
     CHECK(subs_of({"extruder", "gcode_macro X"}) == json::object());
 
     // Config-only sections are not Klipper objects: nothing to subscribe.
     CHECK(mgr().extra_subscriptions(discovery_of({}, json{{"dockable_probe", json::object()}})) ==
           json::object());
+}
+
+TEST_CASE_METHOD(ProbeSensorTestFixture,
+                 "ProbeSensorManager - a probe set up to touch the bed sets Z itself",
+                 "[probe][touch]") {
+    SECTION("Beacon homing by contact, from its config") {
+        discover({"beacon"}, json{{"beacon", {{"home_method", "contact"}}}});
+        CHECK(mgr().z_probe_sets_z_by_touch());
+        discover({"beacon"}, json{{"beacon", {{"home_method", "proximity"}}}});
+        CHECK_FALSE(mgr().z_probe_sets_z_by_touch());
+    }
+
+    SECTION("Cartographer with a touch model, from its status") {
+        discover({"probe", "cartographer"});
+        CHECK_FALSE(mgr().z_probe_sets_z_by_touch());
+        mgr().update_from_status(
+            json{{"cartographer", {{"touch", {{"current_model", "default"}}}}}});
+        CHECK(mgr().z_probe_sets_z_by_touch());
+        // An update without the touch field changes nothing.
+        mgr().update_from_status(json{{"probe", {{"last_z_result", 0.1}}}});
+        CHECK(mgr().z_probe_sets_z_by_touch());
+        mgr().update_from_status(json{{"cartographer", {{"touch", {{"current_model", "none"}}}}}});
+        CHECK_FALSE(mgr().z_probe_sets_z_by_touch());
+    }
+
+    SECTION("a probe with no touch mode never does") {
+        discover({"bltouch"}, json{{"bltouch", {{"home_method", "contact"}}}});
+        mgr().update_from_status(json{{"bltouch", {{"touch", {{"current_model", "default"}}}}}});
+        CHECK_FALSE(mgr().z_probe_sets_z_by_touch());
+    }
 }
 
 // ============================================================================

@@ -348,6 +348,7 @@ src/sensors/humidity_sensor_manager.cpp
 src/sensors/input_sensor_manager.cpp
 src/sensors/load_cell_manager.cpp
 src/sensors/probe_sensor_manager.cpp
+src/sensors/probe_touch_z.cpp
 src/sensors/sensor_manager.cpp
 src/sensors/temperature_sensor_manager.cpp
 src/sensors/width_sensor_manager.cpp

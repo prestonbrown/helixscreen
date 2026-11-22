@@ -5,6 +5,7 @@
 
 #include "core/text_io.h"
 #include "printer_discovery.h"
+#include "probe_touch_z.h"
 #include "spdlog/spdlog.h"
 
 #include <algorithm>
@@ -259,6 +260,8 @@ void ProbeSensorManager::on_discovered(const PrinterDiscovery& hw) {
     // Seed z_offset from the configfile for probes whose runtime status reports
     // null (flashforge_loadcell); the configfile always has the persisted value.
     for (const auto& entry : entries) {
+        readings_[entry.klipper_name].sets_z_by_touch =
+            touch_z::from_config(type_of(entry), entry.klipper_name, hw);
         if (const auto z_offset = seeded_z_offset(entry.klipper_name, folded, hw)) {
             ProbeSensorState& state = readings_[entry.klipper_name];
             state.z_offset = *z_offset;
@@ -301,6 +304,13 @@ nlohmann::json ProbeSensorManager::extra_subscriptions(const PrinterDiscovery& h
             fields.push_back(nlohmann::json(kProbeStatusFields[f]));
         }
         objects[status_object(types[i], names[i])] = std::move(fields);
+        if (const auto touch = touch_z::status_field(types[i], names[i])) {
+            auto& touch_fields = objects[touch->object];
+            if (!touch_fields.is_array()) {
+                touch_fields = nlohmann::json::array();
+            }
+            touch_fields.push_back(touch->field);
+        }
     }
     return objects;
 }
@@ -312,6 +322,15 @@ nlohmann::json ProbeSensorManager::extra_subscriptions(const PrinterDiscovery& h
 bool ProbeSensorManager::parse_status(const nlohmann::json& status) {
     bool changed = false;
     for (const auto& entry : entries_locked()) {
+        if (const auto touch = touch_z::from_status(type_of(entry), entry.klipper_name, status)) {
+            bool& sets = readings_[entry.klipper_name].sets_z_by_touch;
+            if (sets != *touch) {
+                sets = *touch;
+                changed = true;
+                spdlog::debug("[ProbeSensorManager] Sensor {} sets Z by touch: {}",
+                              entry.display_name, sets);
+            }
+        }
         const std::string key = status_object(type_of(entry), entry.klipper_name);
         const auto sensor = status.find(key);
         if (sensor == status.end() || !sensor->is_object()) {
@@ -410,6 +429,12 @@ float ProbeSensorManager::get_z_offset() const {
     std::lock_guard<std::recursive_mutex> lock(mutex());
     const auto* reading = z_probe_reading_locked();
     return reading ? reading->z_offset : 0.0f;
+}
+
+bool ProbeSensorManager::z_probe_sets_z_by_touch() const {
+    std::lock_guard<std::recursive_mutex> lock(mutex());
+    const auto* reading = z_probe_reading_locked();
+    return reading != nullptr && reading->sets_z_by_touch;
 }
 
 bool ProbeSensorManager::has_z_offset() const {

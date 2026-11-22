@@ -51,7 +51,8 @@ CatalogInputs catalog_inputs_from(const PrinterState& state) {
     in.z_strategy = profile.z_offset_calibration_strategy();
     const auto probe = z_probe_type();
     in.nozzle_contact_probe = sensors::probe_contacts_nozzle(probe);
-    in.probe_sets_nozzle_height = sensors::probe_sets_nozzle_height(probe);
+    in.probe_sets_nozzle_height = sensors::probe_sets_nozzle_height(probe) ||
+                                  sensors::ProbeSensorManager::instance().z_probe_sets_z_by_touch();
     if (!profile.printer_type().empty()) {
         in.tier_overrides = tier_overrides_from(
             PrinterDetector::get_calibration_step_tiers(profile.printer_type()));
