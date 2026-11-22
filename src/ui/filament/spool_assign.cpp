@@ -299,6 +299,19 @@ LaneScreen screen_for_lane(const SlotInfo& lane) {
     return (lane.spoolman_id > 0 || !lane.material.empty()) ? LaneScreen::Edit : LaneScreen::Assign;
 }
 
+LaneFollow page_after_lane_change(EditorPage shown, bool editing, LaneScreen lane) {
+    if (editing) {
+        return LaneFollow::Stay;
+    }
+    if (shown == EditorPage::Empty && lane == LaneScreen::Edit) {
+        return LaneFollow::ToSummary;
+    }
+    if (shown == EditorPage::Summary && lane == LaneScreen::Assign) {
+        return LaneFollow::ToEmpty;
+    }
+    return LaneFollow::Stay;
+}
+
 namespace {
 /// The chip a spool with @p remaining_g of @p total_g left lights: a full
 /// spool of a chip's size lights that chip, anything else lights Partial.

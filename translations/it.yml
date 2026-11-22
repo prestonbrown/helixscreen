@@ -4686,6 +4686,7 @@ translations:
   Stepper driver {} is overheating: 'Il driver del motore passo-passo {} si sta surriscaldando'
   Stepper driver {} overheated and shut down: 'Il driver del motore passo-passo {} si è surriscaldato e si è spento'
   Still reading the printer's lane record. Try again in a moment.: 'Lettura del registro delle corsie della stampante in corso. Riprova tra un momento.'
+  Still running; no reply after {} min: 'Ancora in corso; nessuna risposta dopo {} min'
   Still saving this spool…: 'Salvataggio di questa bobina in corso…'
   Still working... taking longer than usual: Ancora in corso... ci vuole più tempo del solito
   Stop: Ferma
@@ -5052,6 +5053,8 @@ translations:
   : "L'host non ha ricevuto nulla da questa scheda per diversi secondi: un cavo USB o CAN allentato o guasto, la scheda che ha perso l'alimentazione oppure un bus CAN senza terminazione."
   "The label didn't print: {}": "L'etichetta non è stata stampata: {}"
   The lane forgets this spool. The filament itself stays where it is.: 'La corsia dimentica questa bobina. Il filamento resta dov''è.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Le impostazioni della corsia non sono state modificate e la bobina non è stata salvata. Premi Salva per salvare la bobina.'
+  The lane settings weren't changed.: 'Le impostazioni della corsia non sono state modificate.'
   The lane that takes over when this one runs out: 'La corsia che subentra quando questa si esaurisce'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "L'ultima stampa potrebbe essere ancora sul piano. Toglila prima che la testina si muova, poi tocca Liberato."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Il fermo si apre e {} può cadere. Tienilo prima di continuare, poi riponilo nel suo dock.

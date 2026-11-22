@@ -141,6 +141,19 @@ enum class LaneScreen { Assign, Edit };
 /// still records: that is what it last held.
 [[nodiscard]] LaneScreen screen_for_lane(const SlotInfo& lane);
 
+/// The editor page a lane change can act on: the lane's summary, its empty
+/// page, or any other page (a list, a form), which belongs to the user.
+enum class EditorPage { Summary, Empty, Other };
+
+/// Where an open editor goes when its lane's state changes.
+enum class LaneFollow { Stay, ToSummary, ToEmpty };
+
+/// The editor follows its lane between the summary and the empty page: a
+/// spool fed into a lane shown empty opens its summary, a lane that runs out
+/// under its summary shows empty. It never moves while @p editing (unsaved
+/// edits, a save in flight) nor off any other page.
+[[nodiscard]] LaneFollow page_after_lane_change(EditorPage shown, bool editing, LaneScreen lane);
+
 /// What a lane's summary row says a runout will do, where its backup is
 /// not the user's to set.
 enum class RunoutLine {

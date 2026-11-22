@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" zh="步进电机驱动器 {} 过热"/>
   <translation tag="Stepper driver {} overheated and shut down" zh="步进电机驱动器 {} 过热并已关闭"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." zh="仍在读取打印机的耗材通道记录，请稍后再试。"/>
+  <translation tag="Still running; no reply after {} min" zh="仍在运行；{} 分钟无响应"/>
   <translation tag="Still saving this spool…" zh="此料盘仍在保存中…"/>
   <translation tag="Still working... taking longer than usual" zh="仍在处理……耗时比平常更长"/>
   <translation tag="Stop" zh="停止"/>
@@ -4882,6 +4883,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." zh="主机已有数秒未收到此主板的任何消息：USB 或 CAN 线缆松动或损坏、主板断电，或 CAN 总线缺少终端电阻。"/>
   <translation tag="The label didn&apos;t print: {}" zh="标签未打印：{}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." zh="耗材通道将忘记此料盘。耗材本身保持原位。"/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." zh="耗材通道设置未更改，料盘也未保存。请点击保存以保存料盘。"/>
+  <translation tag="The lane settings weren&apos;t changed." zh="耗材通道设置未更改。"/>
   <translation tag="The lane that takes over when this one runs out" zh="此耗材通道用尽时接替的耗材通道"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." zh="最后一次打印件可能仍在热床上。请在工具头移动前将其取下，然后点按“已清空”。"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." zh="锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。"/>

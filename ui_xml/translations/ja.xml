@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" ja="ステッピングモータードライバー {} が過熱しています"/>
   <translation tag="Stepper driver {} overheated and shut down" ja="ステッピングモータードライバー {} が過熱して停止しました"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." ja="プリンターのレーン記録をまだ読み込んでいます。少し待ってからもう一度お試しください。"/>
+  <translation tag="Still running; no reply after {} min" ja="まだ実行中です。{}分経っても応答がありません"/>
   <translation tag="Still saving this spool…" ja="このスプールはまだ保存中です…"/>
   <translation tag="Still working... taking longer than usual" ja="まだ処理中です... 通常より時間がかかっています"/>
   <translation tag="Stop" ja="停止"/>
@@ -4882,6 +4883,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ja="ホストがこのボードから数秒間応答を受け取りませんでした: USB または CAN ケーブルの緩みや故障、ボードの電源喪失、または終端のない CAN バスです。"/>
   <translation tag="The label didn&apos;t print: {}" ja="ラベルを印刷できませんでした: {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." ja="レーンはこのスプールの情報を消去します。フィラメント自体はそのままです。"/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." ja="レーン設定は変更されず、スプールも保存されていません。保存をタップしてスプールを保存してください。"/>
+  <translation tag="The lane settings weren&apos;t changed." ja="レーン設定は変更されていません。"/>
   <translation tag="The lane that takes over when this one runs out" ja="このレーンが切れたときに引き継ぐレーン"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ja="最後のプリントがまだベッドに残っている可能性があります。ツールヘッドが動く前に取り除き、「クリア済み」をタップしてください。"/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ja="ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。"/>

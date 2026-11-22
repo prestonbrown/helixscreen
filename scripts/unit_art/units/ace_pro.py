@@ -5,7 +5,8 @@ from pathlib import Path
 from .. import kit, spool
 from ..kit import TrayShellDef, UnitDef
 
-W, D, H = 1.0, 0.72, 0.707
+# The lid clears the 0.586-high spool tops by 0.034, as close as the real cover sits.
+W, D, H = 1.0, 0.72, 0.62
 RAIL0, ZR = 0.293, 0.357
 BODY, PANEL, RAIL = "#3a3b3f", "#47494e", "#a9acb1"
 SMOKE = "#565d68"

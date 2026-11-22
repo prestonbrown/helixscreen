@@ -4774,6 +4774,7 @@ translations:
   Stepper driver {} is overheating: 'Драйвер шагового двигателя {} перегревается'
   Stepper driver {} overheated and shut down: 'Драйвер шагового двигателя {} перегрелся и отключился'
   Still reading the printer's lane record. Try again in a moment.: 'Запись каналов принтера ещё читается. Повторите попытку через мгновение.'
+  Still running; no reply after {} min: 'Ещё выполняется; нет ответа уже {} мин'
   Still saving this spool…: 'Эта катушка ещё сохраняется…'
   Still working... taking longer than usual: Всё ещё выполняется... дольше обычного
   Stop: Стоп
@@ -5140,6 +5141,8 @@ translations:
   : 'Хост несколько секунд не получал ответа от этой платы: ослаблен или неисправен кабель USB или CAN, плата потеряла питание или у шины CAN нет терминатора.'
   "The label didn't print: {}": "Этикетка не напечатана: {}"
   The lane forgets this spool. The filament itself stays where it is.: 'Канал забудет эту катушку. Сам филамент останется на месте.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Настройки канала не изменены, и катушка не сохранена. Нажмите «Сохранить», чтобы сохранить катушку.'
+  The lane settings weren't changed.: 'Настройки канала не изменены.'
   The lane that takes over when this one runs out: 'Канал, который продолжит, когда этот закончится'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док.

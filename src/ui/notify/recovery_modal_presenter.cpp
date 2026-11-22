@@ -56,6 +56,11 @@ bool prompt_buttons_all_own(const helix::IFirmwarePromptDedup& dedup) {
                        });
 }
 
+/// Whether @p e is the fault the firmware prompt titled @p title repeats.
+bool repeats_fault(const helix::ErrorEvent& e, const std::string& title) {
+    return !e.firmware_prompt.empty() && title.rfind(e.firmware_prompt, 0) == 0;
+}
+
 /// Poll cadence while waiting for the nozzle. Fast enough that the recovery
 /// fires within a frame of reaching temperature, slow enough to cost nothing.
 constexpr uint32_t kPreheatPollMs = 250;
@@ -95,6 +100,11 @@ bool RecoveryModalPresenter::is_visible() const {
 
 const helix::ErrorEvent* RecoveryModalPresenter::shown_fault() const {
     return is_visible() && !shown_detail_.empty() ? &shown_fault_ : nullptr;
+}
+
+bool RecoveryModalPresenter::stands_in_for_prompt(const std::string& title) const {
+    const helix::ErrorEvent* fault = shown_fault();
+    return fault && repeats_fault(*fault, title);
 }
 
 namespace {
@@ -218,10 +228,16 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
         return;
     }
 
-    // A filament system's own error dialog for this fault would sit behind ours
-    // with a subset of its buttons.
+    // The firmware's own dialog for this fault would sit behind ours: one the
+    // fault names itself, or a filament system's with a subset of its buttons.
     if (helix::ActionPromptManager::is_showing()) {
         const std::string title = helix::ActionPromptManager::current_prompt_name();
+        if (repeats_fault(e, title)) {
+            spdlog::debug("[RecoveryModal] closing the firmware prompt this fault repeats: {}",
+                          title);
+            helix::ActionPromptManager::dismiss_active();
+            return;
+        }
         AmsState& ams = AmsState::instance();
         for (int i = 0; i < ams.backend_count(); ++i) {
             const AmsBackend* backend = ams.get_backend(i);
