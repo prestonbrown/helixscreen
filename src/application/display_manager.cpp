@@ -364,7 +364,8 @@ bool DisplayManager::init(const Config& config) {
     m_pointer = m_backend->create_input_pointer();
     if (!m_pointer) {
 #if defined(HELIX_DISPLAY_DRM) || defined(HELIX_DISPLAY_FBDEV)
-        if (config.require_pointer) {
+        // A backend that can reopen its pointer waits for one in finish_input_setup().
+        if (config.require_pointer && !m_backend->can_reopen_input_pointer()) {
             // On embedded platforms, no input device is fatal
             spdlog::error("[DisplayManager] No input device found - cannot operate touchscreen UI");
 
@@ -691,8 +692,15 @@ void DisplayManager::on_pointer_deleted(void* ctx, const lv_indev_t* /*indev*/) 
     // few seconds later; lv_evdev has already deleted the device it read.
     spdlog::warn("[DisplayManager] Pointer device removed; retrying every {} ms until it returns",
                  kPointerReopenPeriodMs);
-    dm->m_pointer_reopen_timer.reset(
-        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, dm));
+    dm->arm_pointer_reopen();
+}
+
+void DisplayManager::arm_pointer_reopen() {
+    if (m_pointer_reopen_timer.get() || !m_backend || !m_backend->can_reopen_input_pointer()) {
+        return;
+    }
+    m_pointer_reopen_timer.reset(
+        lv_timer_create(&DisplayManager::pointer_reopen_tick, kPointerReopenPeriodMs, this));
 }
 
 void DisplayManager::pointer_reopen_tick(lv_timer_t* t) {
@@ -777,6 +785,13 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
     m_scroll_limit = scroll_limit;
     if (m_pointer) {
         configure_pointer(scroll_throw, scroll_limit);
+    } else if (m_backend && m_backend->can_reopen_input_pointer()) {
+        // A USB touch panel can enumerate after the app starts: a slow boot, or a
+        // cable plugged in later. The same retry that brings back a dropped panel
+        // adopts it when it arrives.
+        spdlog::warn("[DisplayManager] No touch device yet; checking every {} ms until one appears",
+                     kPointerReopenPeriodMs);
+        arm_pointer_reopen();
     }
 
     // Create keyboard input device (optional)

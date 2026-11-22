@@ -741,6 +741,10 @@ class DisplayManager : public helix::ICalibrationSink {
     /// m_indev_delete_watch's callback for m_pointer: starts the reopen retry,
     /// except while shutting down, when lv_deinit() is deleting every indev.
     static void on_pointer_deleted(void* ctx, const lv_indev_t* indev);
+    /// Starts the reopen retry unless it is already running or the backend
+    /// cannot reopen its pointer. Used for a dropped device and for one that
+    /// was not there at startup.
+    void arm_pointer_reopen();
     /// One reopen attempt; on success adopts the device with init()'s pointer
     /// setup and stops the retry. Named so a test can run it directly.
     static void pointer_reopen_tick(lv_timer_t* t);
