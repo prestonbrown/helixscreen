@@ -1914,8 +1914,10 @@ std::vector<PrintStatusWidget::NozzleToolOption> PrintStatusWidget::build_nozzle
         // Use the display name PrinterTemperatureState already assigned —
         // "Nozzle 1", "Nozzle 2", ... — for parity with the temp_graph config
         // modal and the multi-tool nozzle_temps widget.
-        if (!info.display_name.empty()) {
-            opt.label = info.display_name;
+        if (std::string label =
+                helix::ui::temperature::nozzle_display_name(name, info.display_name);
+            !label.empty()) {
+            opt.label = std::move(label);
         } else {
             // A bare "extruder" name by itself carries no signal about whether the
             // printer has one nozzle or several, so index 0 answers with the common
@@ -2275,26 +2277,20 @@ void PrintStatusWidget::DetailedFormatter::update_tool_label() {
         // The number tracks what the user is VIEWING — the pinned tool when one
         // is set, otherwise the currently active tool. Anything else looks
         // broken right after a pin ("I picked Nozzle 2 but it still says Tool 1").
-        int idx = -1;
+        HeadIdentity head;
         // Defend against hand-edited config — the name has to parse as a
         // Klipper extruder AND name an extruder this printer has.
         if (const auto parsed = helix::tool_number_for_extruder(current_nozzle_override_)) {
             if (*parsed < tools.extruder_count()) {
-                idx = *parsed;
+                head = tools.head_identity_for_extruder(current_nozzle_override_);
             }
         }
-        if (idx < 0) {
+        if (head.index < 0) {
             // "auto", unrecognized, or out-of-range → follow active tool.
-            idx = tools.active_tool_index();
+            head = tools.head_identity_for_tool(tools.active_tool_index());
         }
-        const auto& tool_list = tools.tools();
-        if (idx >= 0 && idx < static_cast<int>(tool_list.size())) {
-            snprintf(nozzle_badge_text_buf_, sizeof(nozzle_badge_text_buf_), "%s",
-                     helix::ui::active_tool_badge_label(tool_list[idx].name, tool_list[idx].index)
-                         .c_str());
-        } else {
-            nozzle_badge_text_buf_[0] = '\0';
-        }
+        snprintf(nozzle_badge_text_buf_, sizeof(nozzle_badge_text_buf_), "%s",
+                 helix::ui::active_head_badge_label(head).c_str());
     }
     lv_subject_set_string(&nozzle_badge_text_subject_, nozzle_badge_text_buf_);
 }

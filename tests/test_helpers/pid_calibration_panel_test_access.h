@@ -44,6 +44,18 @@ struct PIDCalibrationPanelTestAccess {
     static void turn_off_fan(PIDCalibrationPanel& p) {
         p.turn_off_fan();
     }
+    static void start_mpc_migration(PIDCalibrationPanel& p) {
+        p.start_migration(PIDCalibrationPanel::CalibMethod::MPC, /*adding_fan=*/false);
+    }
+    static helix::system::KlipperConfigEditor& config_editor(PIDCalibrationPanel& p) {
+        return p.config_editor_;
+    }
+    static void set_migration_restart_timeout_ms(PIDCalibrationPanel& p, int ms) {
+        p.migration_restart_timeout_ms_ = ms;
+    }
+    static std::string error_message(PIDCalibrationPanel& p) {
+        return lv_subject_get_string(p.subj_error_message_.get());
+    }
     static std::vector<helix::system::ConfigEdit> mpc_migration_edits(PIDCalibrationPanel& p) {
         return p.control_migration_edits(PIDCalibrationPanel::CalibMethod::MPC);
     }

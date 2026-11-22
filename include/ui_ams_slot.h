@@ -98,6 +98,11 @@ struct AmsSlotHitBand;
 
 /// Narrow the slot's tap area to the band it owns in an overlapping row (ui_ams_slot_layout.h).
 void ams_slot_set_hit_band(lv_obj_t* obj, const AmsSlotHitBand& band);
+
+/// Whether a lane's tool badge tells the user anything on this rig: false when
+/// the backend draws the tool elsewhere (a tool changer's toolhead labels) or
+/// every tool feeds the lane of its own number (tool_badges_add_information()).
+bool slot_tool_badges_informative();
 } // namespace helix::ui
 
 /**

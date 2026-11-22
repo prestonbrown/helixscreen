@@ -46,6 +46,10 @@ struct FitMachine {
     /// inferred, and a file past it only warns.
     bool tool_count_confirmed = false;
     std::vector<double> nozzle_diameters; ///< by extruder number
+    /// The extruder number each tool prints on, by tool number, where tool
+    /// numbers name lanes (a lane map); -1 for a lane with no known extruder.
+    /// Empty where tool i prints on extruder i.
+    std::vector<int> tool_extruder;
     /// By extruder number, normalised (fit_nozzle_volume_type()); "" when unknown.
     std::vector<std::string> nozzle_volume_types;
     std::string model; ///< empty when the printer's model is not known
@@ -85,7 +89,7 @@ struct FitFinding {
     double value = 0.0; ///< the file's position, temperature or nozzle
     double limit = 0.0; ///< the printer's limit, tool count or nozzle
     int tool =
-        -1; ///< TooManyTools: the highest tool; NozzleMismatch, NozzleFlowMismatch: the extruder
+        -1; ///< TooManyTools: the highest tool; NozzleMismatch, NozzleFlowMismatch: the file's tool
     std::string file_model;
     std::string printer_model;
     std::string file_volume_type;    ///< NozzleFlowMismatch: "standard" or "high_flow"

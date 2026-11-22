@@ -233,6 +233,18 @@ struct RuntimeConfig {
     }
 
     /**
+     * @brief Whether a chamber air accessory's first-fit notice may show.
+     *
+     * A mock run starts from an empty config and reports the accessory fitted,
+     * so every run would be its first fit and open two modals over whatever a
+     * screenshot or ctl script is driving. Test mode counts the notice as shown
+     * unless HELIX_MOCK_CHAMBER_AIR_NOTICE asks for it.
+     */
+    bool should_show_chamber_air_first_fit() const {
+        return !test_mode || helix::env_flag("HELIX_MOCK_CHAMBER_AIR_NOTICE");
+    }
+
+    /**
      * @brief Check if USB should use mock implementation
      * @return true if test mode is enabled
      */
@@ -282,6 +294,9 @@ struct RuntimeConfig {
     }
     constexpr bool should_mock_sensors() const {
         return false;
+    }
+    constexpr bool should_show_chamber_air_first_fit() const {
+        return true;
     }
 #endif
 

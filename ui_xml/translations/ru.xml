@@ -503,6 +503,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ru="Назначьте роль для мониторинга датчика"/>
   <translation tag="Assign a slot first" ru="Сначала назначьте слот"/>
   <translation tag="Assigned Tool" ru="Назначенный инструмент"/>
+  <translation tag="Assigned {}" ru="Назначен {}"/>
   <translation tag="Assisted Retract" ru="Ретракция с поддержкой"/>
   <translation tag="Assisting" ru="Помощь"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ru="В helixscreen.env проигнорировано не менее {} строк"/>
@@ -1880,9 +1881,6 @@
   <translation tag="Feeders" ru="Фидеры"/>
   <translation tag="Feeding filament to nozzle" ru="Подача филамента к соплу"/>
   <translation tag="Feeding the head by hand did not finish." ru="Ручная подача в головку не завершилась."/>
-  <translation tag="Feeds Tool" ru="Подаёт в инструмент"/>
-  <translation tag="Feeds no tool" ru="Не подаёт ни в один инструмент"/>
-  <translation tag="Feeds {}" ru="Подаёт в {}"/>
   <translation tag="Filament" ru="Филамент"/>
   <translation tag="Filament Buffer" ru="Буфер филамента"/>
   <translation tag="Filament Control" ru="Управление филаментом"/>
@@ -3144,6 +3142,7 @@
   <translation tag="No target printer configured" ru="Целевой принтер не настроен"/>
   <translation tag="No temperature sensors detected" ru="Датчики температуры не обнаружены"/>
   <translation tag="No timelapse videos found" ru="Таймлапс-видео не найдены"/>
+  <translation tag="No tool assigned" ru="Инструмент не назначен"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ru="Неизвестно, какой инструмент установлен. С общим датчиком калибруйте с {}. Всё равно продолжить?"/>
   <translation tag="No tool is mounted" ru="Инструмент не установлен"/>
   <translation tag="No tool mounted" ru="Инструмент не установлен"/>
@@ -4528,6 +4527,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." ru="Spoolman не настроен — удалять нечего."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." ru="Spoolman не в сети, поэтому бренд и материал не могут быть сохранены."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." ru="Spoolman не в сети. Бренд и материал можно будет изменить после его восстановления."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." ru="Spoolman настраивается через прошивку принтера, а не на этом экране."/>
   <translation tag="Spoolman needs a brand for this filament." ru="Spoolman требует бренд для этого филамента."/>
   <translation tag="Spoolman needs a color for this filament." ru="Spoolman требует цвет для этого филамента."/>
   <translation tag="Spoolman needs a material for this filament." ru="Spoolman требует материал для этого филамента."/>
@@ -5040,6 +5040,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ru="Принтер не подтвердил начало печати ({}). Печать ещё может начаться: проверьте принтер, прежде чем запускать её снова."/>
   <translation tag="The printer did not report its toolhead limits." ru="Принтер не сообщил пределы печатающей головки."/>
   <translation tag="The printer did not reset the filter" ru="Принтер не сбросил счётчик фильтра"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." ru="Принтер ещё не сообщил, как взять эту печатающую головку. Повторите попытку, когда его система подачи филамента завершит подключение."/>
   <translation tag="The printer did not say whether it is printing. Try again." ru="Принтер не сообщил, идёт ли печать. Повторите попытку."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ru="Принтер выдавливает пластик в углу и повторяет, пока показания не сойдутся. Ничего не нужно оценивать на глаз."/>
   <translation tag="The printer finishes this measurement on its own." ru="Принтер завершит это измерение сам."/>
@@ -5821,6 +5822,7 @@
   <translation tag="Your printer has an automatic filament changer" ru="Ваш принтер оснащён автоматическим сменщиком филамента"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ru="Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ru="Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ru="Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." ru="В руководстве указаны детали и смазка для вашей модели."/>
   <translation tag="Your usual build plate is on" ru="Установлена ваша обычная печатная пластина"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ru="Ваш {0} настроен для {1}, но выглядит стоковым."/>
@@ -5990,6 +5992,7 @@
   <translation tag="mm" ru="мм"/>
   <translation tag="mm Z-offset" ru="мм Z-смещение"/>
   <translation tag="mm before clog" ru="мм до засора"/>
+  <translation tag="mm:" ru="мм:"/>
   <translation tag="needs" ru="требуется"/>
   <translation tag="needs approval" ru="требует подтверждения"/>
   <translation tag="needs you" ru="нужны вы"/>

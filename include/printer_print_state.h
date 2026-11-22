@@ -76,6 +76,44 @@ class PrinterPrintState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        estimated_print_time_ = 0;
+        // A new session has applied no print_stats frame yet.
+        print_stats_frames_ = 0;
+        print_exception_frame_ = 0;
+        // File-scoped slice geometry and the per-print Z cache behind the
+        // Z-height layer derivation; reset_for_new_print() keeps them.
+        layer_height_ = 0.0;
+        first_layer_height_ = 0.0;
+        last_gcode_z_mm_ = 0.0;
+        have_gcode_z_ = false;
+        print_clock_s_ = 0.0;
+        height_layer_pending_ = {};
+        layer_z_derived_ = false;
+        has_real_layer_data_ = false;
+        // A sticky printer capability, kept across prints but not across printers.
+        printer_reports_layers_ = false;
+        slicer_progress_ = 0.0;
+        slicer_progress_active_ = false;
+        file_progress_fraction_ = -1.0;
+        eta_estimator_.reset();
+        sdcard_active_ = false;
+        // print_stats.exception parses under Moonraker delta semantics: an absent
+        // key leaves these unchanged, so a latched exception outlives every frame
+        // that never mentions it.
+        print_exception_id_ = -1;
+        print_exception_code_ = -1;
+        print_exception_message_.clear();
+        print_exception_runout_lane_ = -1;
+        // The job being prepared outlives reset_for_new_print() by design: it
+        // covers the window before the printer reports the job.
+        preparing_job_ = {};
+        printer_side_pre_start_ = false;
+        cancel_preparing_watchdog();
+    }
+
     /**
      * @brief Update print state from Moonraker status JSON
      * @param status JSON object containing print_stats, virtual_sdcard data

@@ -14,6 +14,7 @@
 namespace helix {
 class AmsBackend;
 struct AmsUnit;
+struct HeadIdentity;
 } // namespace helix
 
 namespace helix::ui {
@@ -113,6 +114,31 @@ inline constexpr ToolLabelForm kToolLabelForms[] = {ToolLabelForm::Full, ToolLab
  */
 std::string tool_label_in_form(LaneNoun noun, ToolNumberStyle style, std::string_view name,
                                int index, ToolLabelForm form);
+
+/**
+ * @brief A head by its extruder: "E5", in the display numbering
+ *        (lane_number()), as the filament path names it.
+ * @return empty when @p index is negative
+ */
+std::string extruder_label(int index);
+
+/**
+ * @brief The tool_*_label() family for a head (helix::head_identity()): the
+ *        one place a head's label is spelled.
+ *
+ * A head with a name is labeled as the tool of that name would be. A head
+ * without one (tool numbers name lanes) has no G-code name, so it goes by its
+ * extruder and never a T number: in Gcode style every form is extruder_label()
+ * ("E5"); in Physical style the badge, number and Code are its number ("6"),
+ * the name label "Tool 6", and Full "Tool 6 (E6)" as "Tool 1 (T0)" reads.
+ *
+ * @return empty when the head's index is negative
+ */
+std::string head_number_text(ToolNumberStyle style, const HeadIdentity& head);
+std::string head_badge_label(ToolNumberStyle style, const HeadIdentity& head);
+std::string head_name_label(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head);
+std::string head_label_in_form(LaneNoun noun, ToolNumberStyle style, const HeadIdentity& head,
+                               ToolLabelForm form);
 
 /**
  * @brief A tool that draws from a lane into the one head every tool shares.
@@ -354,5 +380,12 @@ std::string active_tool_badge_label(std::string_view name, int index);
  *        ("Toolhead 3 (T2)" on a U1).
  */
 std::string active_tool_label(std::string_view name, int index, ToolLabelForm form);
+
+/// head_name_label(), head_label_in_form() and head_badge_label() under
+/// active_tool_noun() and active_tool_number_style(): what every surface
+/// naming a head of the connected printer shows.
+std::string active_head_name_label(const HeadIdentity& head);
+std::string active_head_label(const HeadIdentity& head, ToolLabelForm form);
+std::string active_head_badge_label(const HeadIdentity& head);
 
 } // namespace helix::ui

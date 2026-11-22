@@ -538,13 +538,13 @@ void PrintTuneOverlay::update_tool_z_displays() {
     const int tool_index = lv_subject_get_int(ts.get_active_tool_subject());
     const bool per_tool =
         lv_subject_get_int(ts.get_per_tool_axis_supported_subject(helix::Axis::Z)) == 1;
-    const bool tool_known = ts.tool_offset_known(tool_index, helix::Axis::Z);
+    const int offset_tool = ts.offset_tool_for(tool_index);
+    const bool tool_known = ts.tool_offset_known(offset_tool, helix::Axis::Z);
 
-    // A per-tool Z offset belongs to a physical toolhead, so the label is the
-    // tool's physical position, not its gcode identity.
-    const auto* active_tool_info = ts.active_tool();
+    // A per-tool Z offset belongs to a physical toolhead, so the label names
+    // the head.
     const std::string tool_display_label =
-        active_tool_info ? active_tool_info->display_label
+        ts.active_tool() ? helix::ui::active_head_name_label(ts.head_identity_for_tool(tool_index))
                          : helix::ui::lane_label(helix::ui::active_tool_noun(), tool_index);
     std::snprintf(tune_z_tool_label_buf_, sizeof(tune_z_tool_label_buf_), "%s",
                   tool_display_label.c_str());
@@ -566,8 +566,8 @@ void PrintTuneOverlay::update_tool_z_displays() {
 
     char tool_mm[16] = {};
     if (tool_known) {
-        helix::format::format_distance_mm(ts.tool_offset_mm(tool_index, helix::Axis::Z), 3, tool_mm,
-                                          sizeof(tool_mm));
+        helix::format::format_distance_mm(ts.tool_offset_mm(offset_tool, helix::Axis::Z), 3,
+                                          tool_mm, sizeof(tool_mm));
     }
 
     // The HEADING carries whichever target the buttons drive. Showing the

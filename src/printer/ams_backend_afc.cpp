@@ -4242,16 +4242,28 @@ void AmsBackendAfc::apply_mount_state(bool extruder_set_active_slot, bool afc_st
 
             // The mounted extruder names its own seated lane. Precise even where
             // several lanes feed one extruder, which a lane→tool map cannot be.
-            if (!mounted->lane_loaded.empty()) {
-                const int slot = slots_.index_of(mounted->lane_loaded);
-                if (slot >= 0) {
-                    system_info_.current_slot = slot;
-                    const helix::printer::SlotEntry* entry = slots_.get(slot);
-                    if (entry != nullptr && entry->info.status != SlotStatus::UNKNOWN) {
-                        system_info_.filament_loaded = (entry->info.status == SlotStatus::LOADED);
-                    }
-                    return;
+            const int slot =
+                mounted->lane_loaded.empty() ? -1 : slots_.index_of(mounted->lane_loaded);
+
+            // The active tool is the seated lane's AFC tool, read from this
+            // frame's slot order, and with no seated tool the head's lowest one.
+            // Nothing earlier in the frame may stand in for it:
+            // toolchanger.tool_number counts heads, not lanes, and a tool derived
+            // from current_load names a slot index the unit objects may since
+            // have regrouped (#2158). A head no lane feeds stands for no tool.
+            int tool = slot >= 0 ? slots_.tool_for_slot(slot) : -1;
+            if (tool < 0) {
+                tool = lowest_tool_on_extruder_unlocked(mounted_name);
+            }
+            system_info_.current_tool = tool;
+
+            if (slot >= 0) {
+                system_info_.current_slot = slot;
+                const helix::printer::SlotEntry* entry = slots_.get(slot);
+                if (entry != nullptr && entry->info.status != SlotStatus::UNKNOWN) {
+                    system_info_.filament_loaded = (entry->info.status == SlotStatus::LOADED);
                 }
+                return;
             }
 
             // Mounted but holding nothing: a real state, not a reason to keep a
@@ -4737,6 +4749,32 @@ AmsError AmsBackendAfc::do_select_slot(int slot_index) {
     return AmsErrorHelper::not_supported("AFC does not support select without load");
 }
 
+namespace {
+/// The command that changes to @p tool_number. On a toolchanger it mounts the
+/// head the tool's lane feeds and moves no filament; elsewhere AFC's own T<n>,
+/// which resolves the lane from the current map and swaps filament into the
+/// shared path. Empty on a toolchanger whose lane names no extruder yet.
+std::string tool_change_gcode(bool toolchanger, const std::string& lane_extruder, int tool_number) {
+    if (toolchanger) {
+        return lane_extruder.empty() ? std::string() : "AFC_SELECT_TOOL TOOL=" + lane_extruder;
+    }
+    return "T" + std::to_string(tool_number);
+}
+} // namespace
+
+std::string AmsBackendAfc::head_select_gcode(int tool) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (!tool_registered_locked(tool)) {
+        return {};
+    }
+    std::string lane_extruder;
+    const int lane = lane_carrying_tool_locked(tool);
+    if (const auto* entry = lane >= 0 ? slots_.get(lane) : nullptr) {
+        lane_extruder = entry->info.extruder_name;
+    }
+    return tool_change_gcode(has_toolchanger_unit_locked(), lane_extruder, tool);
+}
+
 AmsError AmsBackendAfc::do_change_tool(int tool_number) {
     bool toolchanger = false;
     bool warn_unmountable = false;
@@ -4762,7 +4800,6 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
     // T{n} runs AFC's CHANGE_TOOL, which unloads the current lane and loads
     // the new one, so selecting a parked head would swap filament. Filament
     // moves only through load_filament() / unload_filament().
-    std::string cmd;
     if (toolchanger) {
         if (lane_extruder.empty()) {
             return AmsErrorHelper::invalid_parameter(
@@ -4777,12 +4814,8 @@ AmsError AmsBackendAfc::do_change_tool(int tool_number) {
                          "AFC will not mount it and HelixScreen will wait for the tool change",
                          tool_number, lane_extruder);
         }
-        cmd = "AFC_SELECT_TOOL TOOL=" + lane_extruder;
-    } else {
-        // AFC registers a T-command per lane; CHANGE_TOOL resolves the lane
-        // from the current map and swaps filament into the shared path.
-        cmd = "T" + std::to_string(tool_number);
     }
+    std::string cmd = tool_change_gcode(toolchanger, lane_extruder, tool_number);
 
     spdlog::info("[AMS AFC] Tool change: {}", cmd);
     // SELECTING, not LOADING: every AFC toolchanger state (ToolSwap, ToolDock,
@@ -5904,6 +5937,23 @@ helix::printer::EndlessSpoolCapabilities AmsBackendAfc::get_endless_spool_capabi
 
 std::vector<int> AmsBackendAfc::get_tool_mapping() const {
     std::lock_guard<std::mutex> lock(mutex_);
+    return tool_mapping_unlocked();
+}
+
+int AmsBackendAfc::lowest_tool_on_extruder_unlocked(const std::string& ext_name) const {
+    const std::string klipper_name = klipper_extruder_name_unlocked(ext_name);
+    const std::vector<int> mapping = tool_mapping_unlocked();
+    for (size_t tool = 0; tool < mapping.size(); ++tool) {
+        const helix::printer::SlotEntry* entry = slots_.get(mapping[tool]);
+        if (entry != nullptr && !entry->info.extruder_name.empty() &&
+            entry->info.extruder_name == klipper_name) {
+            return static_cast<int>(tool);
+        }
+    }
+    return -1;
+}
+
+std::vector<int> AmsBackendAfc::tool_mapping_unlocked() const {
     std::vector<int> mapping = slots_.build_system_info().tool_to_slot_map;
     // The extras of a multi-tool lane run that lane too.
     for (const auto& [lane_name, tools] : lane_map_tools_) {
@@ -6286,6 +6336,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                      100.0f, std::max(2000.0f, bowden_length_ * 1.5f), "mm",
                                      "ruler", "Bowden tube length to this tool");
             a.tool_index = i;
+            a.extruder = klipper_extruder_name_unlocked(extruders_[static_cast<size_t>(i)].name);
             actions.push_back(std::move(a));
         }
     }
@@ -6309,6 +6360,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                        100.0f, "mm", "ruler",
                                        "Extra distance to move once sensors clear")}) {
                 a.tool_index = i;
+                a.extruder = klipper_extruder_name_unlocked(ext.name);
                 actions.push_back(std::move(a));
             }
         }
@@ -6326,6 +6378,7 @@ std::vector<helix::printer::DeviceAction> AmsBackendAfc::get_device_actions() co
                                                   "setup", led_on ? "light_off" : "lightbulb_on",
                                                   "Toggle this tool's toolhead LED");
             a.tool_index = i;
+            a.extruder = klipper_extruder_name_unlocked(extruders_[static_cast<size_t>(i)].name);
             actions.push_back(std::move(a));
         }
     }

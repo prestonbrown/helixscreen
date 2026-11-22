@@ -31,7 +31,8 @@ static void update_tool_badge(helix::ToolState* ts) {
     if (tool) {
         // The printer's own spelling of the tool: "1" or "T0" by its tool number
         // style, or the name its owner gave it ("Left").
-        const std::string label = helix::ui::active_tool_badge_label(tool->name, tool->index);
+        const std::string label =
+            helix::ui::active_head_badge_label(ts->head_identity_for_tool(tool->index));
         lv_subject_set_string(ts->get_tool_badge_text_subject(), label.c_str());
         lv_subject_set_int(ts->get_show_tool_badge_subject(), 1);
     } else {

@@ -1086,12 +1086,40 @@ own subjects. A blocked lane still has filament; an active lane is still
 
 The classification is published per lane as `ams_slot_<n>_lane_state`;
 `ams_lane_bar` consumes it. The mini status strip is built from XML components
-(`ams_mini_status_frame`, `ams_mini_spool_cell`, `ams_lane_badge`, the `ams_mini_bypass_*`
-parts, `ams_mini_unit_row` and `ams_mini_spools_row` in `ui_xml/components/`); C++ keeps its
+(`ams_mini_status_frame`, `ams_mini_spool_cell`, `ams_lane_badge`, `ams_tool_badge`, the
+`ams_mini_bypass_*` parts, `ams_mini_unit_row`, `ams_mini_unit_group` and `ams_mini_spools_row`
+in `ui_xml/components/`); C++ keeps its
 measured layout, sets each lane's text with `set_row_label_text()` and marks ghost and active
 lanes as states. Converting the remaining surfaces (`ui_panel_ams_overview` mini-bars,
 `ams_slot`) is tracked in prestonbrown/helixscreen#1368, which also carries the
 open question of how much of the per-lane loop can be expressed in XML.
+
+### The mini status strip's spool layouts
+
+Spool mode never draws a lane below a usable size: a spool of `kAmsMiniUsableSpoolPx` (36 px),
+its number whole in its badge, its material and remaining line whole in their font
+(`include/ui_ams_mini_status.h`). Lanes that do not fit at that size scroll sideways instead of
+shrinking:
+
+- **Every lane fits**: the lanes wrap into the rows that give the largest spool.
+  `helix::ui::plan_ams_mini_grid()` is the packing rule: each unit's lanes stay together, a
+  unit wider than a line wraps into even rows, and the line width that gives the largest spool
+  wins. The type follows the cell: the largest name font that keeps every name whole and
+  every percent beside its tool chip.
+- **They do not**: `helix::ui::plan_ams_mini_scroll()` keeps the widget's full height, lays
+  the lanes in as many rows as fit at the usable size (spools capped at 56 px so more lanes
+  stay in view), and scrolls sideways, the box at the edge cut off and the scrollbar under it.
+  Unit boxes sit in one line and snap as they scroll.
+- **Not even one usable row**: the bar view.
+
+The remaining line reads grams when the lane knows them, else the percent, and is the first
+thing dropped for a usable spool. Each lane shows its tool (`ams_tool_badge`, when
+`slot_tool_badges_informative()`), and the active lane's cell is tinted. The XML attribute
+`fill` (`helix::ui::AmsMiniFill`) sets how far the spools grow: `"true"` (Print Status's
+lane tray) and `"auto"` (the Home tile) to 120 px. Only `"auto"` puts each unit of a
+multi-unit rig in a box titled with `unit_display_name()`, unless the boxes cost the spool more
+than a third when every lane fits (`ams_mini_grid_prefers_flat()`) or half the rows when they
+scroll.
 
 ### The bypass on the mini status strip
 

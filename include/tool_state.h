@@ -54,8 +54,10 @@ struct ToolAxisOffset {
 
 struct ToolInfo {
     int index = 0;
-    std::string name = "T0";   ///< G-code identity, 0-based ("T0"). What a user types.
-    std::string display_label; ///< Physical label, 1-based ("Tool 1"). What is on the machine.
+    std::string name = "T0"; ///< G-code identity, 0-based ("T0"). What a user types.
+    /// Physical label, 1-based ("Tool 1"). What is on the machine. Empty for a
+    /// lane where tools are lanes: label its head through head_identity().
+    std::string display_label;
     std::optional<std::string> extruder_name = "extruder";
     std::optional<std::string> heater_name;
     std::optional<std::string> fan_name;
@@ -111,16 +113,47 @@ struct PhysicalHead {
     [[nodiscard]] int representative_tool(int active_tool) const;
 };
 
-/// The physical heads behind @p tools, ordered by each head's lowest tool.
+/// The physical heads behind @p tools, in the order they stand on the machine:
+/// by each head's lowest tool where every tool is a head, and by extruder
+/// ("extruder", "extruder1", ...) with @p tools_are_lanes, since lane numbers
+/// follow a lane map rather than the heads.
 /// Tools naming the same extruder share one head; a tool naming none is a head
 /// of its own, since nothing says it shares one. With @p heads_share_heater
 /// every tool is a head of its own even where several name one extruder: they
 /// are separate nozzles driven and heated through it in turn.
 [[nodiscard]] std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
-                                                       bool heads_share_heater = false);
+                                                       bool heads_share_heater = false,
+                                                       bool tools_are_lanes = false);
 
 /// The index into @p heads of the head @p tool_index prints through, or -1.
 [[nodiscard]] int head_index_for_tool(const std::vector<PhysicalHead>& heads, int tool_index);
+
+/// Who a head is, for every surface that labels one: helix::head_identity()
+/// decides it and the helix::ui head_*_label() functions spell it, so no
+/// surface turns a tool or an extruder into a head's label on its own.
+struct HeadIdentity {
+    /// The head's G-code name, spelled like ToolInfo::name ("T1", "Left").
+    /// Empty where tool numbers name lanes: no G-code name selects the head
+    /// there, so it goes by its extruder ("E0", or its number).
+    std::string name;
+    /// The 0-based number the head is labeled by (its extruder's number where
+    /// the name is empty); -1 for no head.
+    int index = -1;
+    /// The G-code name of the tool the head stands for ("T7"), where tools are
+    /// lanes that several share a head; empty where the head is its own tool.
+    std::string lane_code;
+};
+
+/// Head @p head_index of @p heads (physical_heads() over @p tools) as a label
+/// names it. Where every tool is a head, the head is its representative tool,
+/// named and numbered as that tool. With @p tools_are_lanes T<n> loads the
+/// lane mapped T<n>, wherever it feeds, so no T number names a head, not even
+/// a klipper-toolchanger tool's: the head has no name, is numbered by its
+/// extruder ("extruder3" is 3; its place in @p heads where its extruder is
+/// not numbered), and the lane it stands for is lane_code.
+[[nodiscard]] HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
+                                         const std::vector<PhysicalHead>& heads, int head_index,
+                                         int active_tool, bool tools_are_lanes);
 
 /// Tool topology sourced from an AMS backend: multiplexing systems (e.g. AFC)
 /// and tool changers both push it. When set, ToolState rebuilds its tool list
@@ -145,6 +178,8 @@ struct ToolTopology {
     /// Every tool is its own nozzle, all driven and heated through one extruder
     /// (AmsBackend::heads_share_heater()).
     bool heads_share_heater = false;
+    /// Tool numbers name lanes, not heads (AmsBackend::tool_numbers_name_lanes()).
+    bool tools_are_lanes = false;
 };
 
 /// Manages tool information for multi-tool printers (toolchangers, multi-extruder).
@@ -246,6 +281,16 @@ class ToolState {
     /// their lowest while none is mounted.
     [[nodiscard]] std::vector<PhysicalHead> heated_heads() const;
 
+    /// helix::head_identity() of @p head, one of physical_heads() or
+    /// heated_heads(), against the current tools and active tool.
+    [[nodiscard]] HeadIdentity head_identity(const PhysicalHead& head) const;
+    /// head_identity() of the head @p tool_index prints through, or of the
+    /// head heating @p extruder_name (the first, where heads share a heater).
+    /// Where every tool is a head that is the tool itself, by name and index.
+    /// Index -1 for no such head.
+    [[nodiscard]] HeadIdentity head_identity_for_tool(int tool_index) const;
+    [[nodiscard]] HeadIdentity head_identity_for_extruder(const std::string& extruder_name) const;
+
     /// Whether head @p head_index (into physical_heads()) shows its extruder's
     /// temperature as its own: it names an extruder, and either its heater is
     /// its own or it is the mounted head of a shared one. A docked nozzle on a
@@ -272,6 +317,11 @@ class ToolState {
     /// The tools are separate nozzles sharing one extruder and heater.
     [[nodiscard]] bool heads_share_heater() const {
         return ams_topology_active_ && heads_share_heater_;
+    }
+
+    /// The tools are lanes a filament system maps, not heads.
+    [[nodiscard]] bool tools_are_lanes() const {
+        return ams_topology_active_ && tools_are_lanes_;
     }
 
     /// Request a tool change, delegating to AMS backend or falling back to Tn gcode.
@@ -361,6 +411,16 @@ class ToolState {
     /// CHANGED. Without this the selector would sit at "no value reported"
     /// until someone happened to move an offset.
     void query_tool_offsets(IMoonrakerClient* client, const helix::PrinterDiscovery& hardware);
+
+    /// The tool whose offsets @p tool_index prints with: itself where every
+    /// tool is a head, else the printer's own tool on the head its lane feeds
+    /// (lane T0 in extruder2 takes tool T2's). -1 for none. The offset
+    /// accessors below take this index; the save and set G-code number it.
+    [[nodiscard]] int offset_tool_for(int tool_index) const;
+
+    /// head_identity() of the head printer tool @p offset_tool (an
+    /// offset_tool_for() index) sits on. Index -1 for none.
+    [[nodiscard]] HeadIdentity head_identity_for_offset_tool(int offset_tool) const;
 
     /// Tools with at least one axis whose offset differs from what is
     /// persisted, lowest index first. Empty when nothing needs saving. Ask
@@ -460,6 +520,14 @@ class ToolState {
     helix::Subject any_tool_offset_dirty_{};
 
     std::vector<ToolInfo> tools_;
+    /// The tools init_tools() enumerated: the printer's own, one per head. The
+    /// same as tools_ until a filament system's lanes replace that list; then
+    /// `tool T<n>` status objects and per-tool offsets keep describing these.
+    std::vector<ToolInfo> head_tools_;
+    /// head_tools_ where tools are lanes, else tools_: what the printer's
+    /// `tool T<n>` objects and per-tool offsets describe.
+    std::vector<ToolInfo>& object_tools();
+    const std::vector<ToolInfo>& object_tools() const;
     /// physical_heads() of tools_, built on first ask after the list changes.
     mutable std::optional<std::vector<PhysicalHead>> heads_cache_;
     /// The extruder heaters init_tools() found, sorted: the names a backend's
@@ -475,6 +543,7 @@ class ToolState {
     std::vector<int> ams_topology_tool_to_slot_;
     std::vector<std::string> ams_topology_tool_extruder_;
     bool heads_share_heater_ = false;
+    bool tools_are_lanes_ = false;
 
     // Set by set_backend_active_tool(): the backend, not the status frame,
     // says which head is mounted.

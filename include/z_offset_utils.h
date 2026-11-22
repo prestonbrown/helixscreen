@@ -159,11 +159,12 @@ struct AdjustResult {
 AdjustResult adjust(IMoonrakerAPI* api, PrinterState* ps, double session_base_mm,
                     double current_offset_mm, double delta_mm);
 
-/// Baby-step tool @p tool_index's own Z offset by @p delta_mm: the absolute
-/// per-tool command the firmware takes, applied locally so Save sees it at once.
+/// Baby-step the Z offset of the head @p tool prints through by @p delta_mm
+/// (ToolState::offset_tool_for()): the absolute per-tool command the firmware
+/// takes, applied locally so Save sees it at once.
 /// Returns false, sending nothing, when there is no api, no reported offset to
 /// adjust from, or no command for this firmware.
-bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool_index, double delta_mm);
+bool adjust_tool_offset(IMoonrakerAPI* api, PrinterState* ps, int tool, double delta_mm);
 
 /// Execute strategy-aware save sequence:
 ///   PROBE_CALIBRATE -> Z_OFFSET_APPLY_PROBE -> SAVE_CONFIG

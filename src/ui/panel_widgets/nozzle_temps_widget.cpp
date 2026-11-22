@@ -97,9 +97,10 @@ void register_nozzle_temps_widget() {
 
 } // namespace helix
 
-std::vector<std::string> helix::distinct_extruder_names(const std::vector<ToolInfo>& tools) {
+std::vector<std::string> helix::distinct_extruder_names(const std::vector<ToolInfo>& tools,
+                                                        bool tools_are_lanes) {
     std::vector<std::string> result;
-    for (const auto& head : physical_heads(tools)) {
+    for (const auto& head : physical_heads(tools, false, tools_are_lanes)) {
         if (head.extruder_name)
             result.push_back(*head.extruder_name);
     }
@@ -145,6 +146,17 @@ void NozzleTempsWidget::attach(lv_obj_t* widget_obj, lv_obj_t* parent_screen) {
         printer_state_.get_subjects_lifetime());
 
     auto& tool_state = ToolState::instance();
+    // A lane rig orders and names its rows by head, which a tool list rebuild moves.
+    if (tool_state.subjects_initialized()) {
+        const int initial_tools = lv_subject_get_int(tool_state.get_tools_version_subject());
+        tools_version_observer_ = helix::ui::observe<int>(
+            tool_state.get_tools_version_subject(), this,
+            [initial_tools](NozzleTempsWidget* self, int version) {
+                if (version != initial_tools)
+                    self->rebuild_rows();
+            },
+            tool_state.get_subjects_lifetime());
+    }
     named_mounted_tool_ = lv_subject_get_int(tool_state.get_active_tool_subject());
     mounted_tool_observer_ = helix::ui::observe<int>(
         tool_state.get_active_tool_subject(), this,
@@ -193,6 +205,7 @@ void NozzleTempsWidget::detach() {
     temp_unit_observer_.reset();
     tool_number_style_observer_.reset();
     mounted_tool_observer_.reset();
+    tools_version_observer_.reset();
     clear_rows();
     uninstall_delete_hook();
     widget_obj_ = nullptr;
@@ -291,7 +304,8 @@ void NozzleTempsWidget::rebuild_rows() {
     // single extruder; without the collapse a 4-lane unit shows its one nozzle
     // temp four times. A true toolchanger maps each tool to a distinct extruder,
     // so every nozzle still gets its own row.
-    for (const auto& extruder_name : distinct_extruder_names(ToolState::instance().tools())) {
+    for (const auto& extruder_name : distinct_extruder_names(
+             ToolState::instance().tools(), ToolState::instance().tools_are_lanes())) {
         ExtruderRow row;
         row.name = extruder_name;
         create_extruder_row(container, row);
@@ -582,11 +596,12 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
         // One heater, several nozzles: the row is the mounted nozzle, named
         // exactly as every other nozzle readout names it.
         long_name = tool_state.nozzle_label();
-    } else if (helix::ui::is_generated_tool_name(gcode_name)) {
-        const auto& exts = printer_state_.temperature_state().extruders();
-        auto it = exts.find(row.name);
-        if (it != exts.end() && !it->second.display_name.empty())
-            long_name = it->second.display_name;
+    } else if (helix::ui::is_generated_tool_name(gcode_name) ||
+               (gcode_name.empty() && tool_state.tools_are_lanes())) {
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                printer_state_.temperature_state(), row.name);
+            !name.empty())
+            long_name = std::move(name);
     }
 
     row.short_name = std::move(short_name);
@@ -594,8 +609,13 @@ void NozzleTempsWidget::create_extruder_row(lv_obj_t* container, ExtruderRow& ro
     // The number rung: the tool's number in the printer's style ("1" or "T0"),
     // the one label that fits where no spelling does and still tells four icon
     // rows apart.
-    row.number_name = helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
-                                                  static_cast<int>(extruder_rows_.size()));
+    // Lane tools name no head, so a lane printer's row is its head's number.
+    row.number_name =
+        tool_state.tools_are_lanes()
+            ? helix::ui::head_number_text(helix::ui::active_tool_number_style(),
+                                          tool_state.head_identity_for_extruder(row.name))
+            : helix::ui::tool_number_text(helix::ui::active_tool_number_style(), gcode_name,
+                                          static_cast<int>(extruder_rows_.size()));
 
     // Create row from XML template. All three spellings are written once as
     // data; which one shows, the row width and the font are bound off the

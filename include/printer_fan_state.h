@@ -142,7 +142,8 @@ class PrinterFanState {
     void init_subjects(bool register_xml = true);
 
     /**
-     * @brief Deinitialize subjects (called by SubjectManager automatically)
+     * @brief Deinitialize subjects and forget the printer they served: its
+     *        fans, roles and tool fans. init_fans() supplies the next printer's.
      */
     void deinit_subjects();
 

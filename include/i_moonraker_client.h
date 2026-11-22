@@ -310,6 +310,12 @@ class IMoonrakerClient {
     /// @brief Toggle filament runout simulation (no-op in production)
     virtual void toggle_filament_runout_simulation() = 0;
 
+    /// @brief A config file the mock file API just wrote (no-op in production).
+    /// The mock client reads it at its next simulated restart, as Klipper
+    /// reads its config files when it starts.
+    virtual void simulate_config_file_written(const std::string& /*path*/,
+                                              const std::string& /*content*/) {}
+
     // ========================================================================
     // Lifetime Guard (for SubscriptionGuard)
     // ========================================================================

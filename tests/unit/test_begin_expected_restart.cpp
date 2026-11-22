@@ -239,12 +239,13 @@ TEST_CASE_METHOD(ExpectedRestartFixture, "input-shaper SAVE_CONFIG initiates the
     panel.set_api(&client, &api);
     // The merged panel refuses to SAVE_CONFIG with nothing selected (the
     // chip-selection feature on devel), so seed one calibrated axis or the
-    // save returns early and no restart is initiated. Connected mock plus a
-    // short monitor timeout: the health monitor treats "still connected" as
-    // a fast restart and finishes instead of waiting out the 30s default
-    // while holding references into this stack frame.
+    // save returns early and no restart is initiated. A fast mock restart plus
+    // a short monitor timeout: the health monitor sees Klippy READY and
+    // finishes instead of waiting out the 30s default while holding
+    // references into this stack frame.
     helix::MoonrakerClientTestAccess::force_connection_state(client,
                                                              helix::ConnectionState::CONNECTED);
+    client.set_simulation_speedup(1000.0);
     ::InputShaperPanelTestAccess::set_save_restart_timeout_ms(panel, 1200);
     InputShaperResult seeded;
     seeded.axis = 'X';

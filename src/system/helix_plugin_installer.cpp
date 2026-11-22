@@ -12,6 +12,7 @@
 #include "i_moonraker_api.h"
 #include "local_plugin_installer.h"
 #include "lvgl.h"
+#include "platform_info.h"
 #include "system/child_process.h"
 #include "system/moonraker_local_probe.h"
 #include "system/process_runner.h"
@@ -231,6 +232,16 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
 static WaitResult run_install_script(const std::string& script_path, const char* mode_flag,
                                      int timeout_seconds, const char* operation_name,
                                      bool no_restart = true) {
+    // Firmware that supervises HelixScreen owns the plugin and Moonraker (#2154).
+    if (firmware_supervised()) {
+        spdlog::info("[PluginInstaller] {} refused: the printer's firmware manages "
+                     "HelixScreen's software",
+                     operation_name);
+        WaitResult refused;
+        refused.spawn_failed = true;
+        refused.error_message = "the printer's firmware manages HelixScreen's software";
+        return refused;
+    }
     std::vector<std::string> args = {script_path};
     if (no_restart) {
         args.emplace_back("--no-restart");
@@ -856,6 +867,9 @@ std::string HelixPluginInstaller::running_exe() const {
 }
 
 bool HelixPluginInstaller::firmware_owns_plugin() const {
+    if (firmware_supervised()) {
+        return true;
+    }
     const std::string exe = running_exe();
     return board::firmware_manages_updates(board::current(), exe.empty() ? "/proc/self/exe" : exe,
                                            probe_root_);

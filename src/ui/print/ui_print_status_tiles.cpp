@@ -410,10 +410,8 @@ std::vector<OtherToolReading> PrintStatusTiles::other_tool_readings() {
     for (const OtherHead& head :
          other_heads(tools.physical_heads(), tools.active_tool_index(), tools.heads_share_heater(),
                      temps.active_extruder_name())) {
-        const auto& all = tools.tools();
-        const auto t = static_cast<size_t>(head.tool);
         OtherToolReading r = other_tool_label(
-            style, t < all.size() ? all[t].name : tool_label(head.tool), head.tool);
+            style, tools.head_identity(tools.physical_heads()[static_cast<size_t>(head.head)]));
         r.current_deci = subject_int_or_zero(temps.get_extruder_temp_subject(head.extruder));
         r.target_deci = subject_int_or_zero(temps.get_extruder_target_subject(head.extruder));
         r.start_deci =

@@ -376,9 +376,10 @@ std::string TempGraphOverlay::heater_series_name(const std::string& heater_name)
         return lv_tr("Chamber");
     }
     if (printer_state_) {
-        const auto& extruders = printer_state_->temperature_state().extruders();
-        if (auto it = extruders.find(heater_name); it != extruders.end()) {
-            return it->second.display_name;
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                printer_state_->temperature_state(), heater_name);
+            !name.empty()) {
+            return name;
         }
     }
     return lv_tr("Nozzle");
@@ -881,10 +882,11 @@ void TempGraphOverlay::on_temp_graph_custom_clicked(lv_event_t* e) {
     // its extruder.
     std::string title = helix::ui::temperature::heater_keypad_title(type);
     if (type == helix::HeaterType::Nozzle && overlay.printer_state_) {
-        const auto& extruders = overlay.printer_state_->temperature_state().extruders();
-        const auto it = extruders.find(helix::ui::TargetTool::instance().extruder_name());
-        if (it != extruders.end() && !it->second.display_name.empty()) {
-            title = it->second.display_name;
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                overlay.printer_state_->temperature_state(),
+                helix::ui::TargetTool::instance().extruder_name());
+            !name.empty()) {
+            title = std::move(name);
         }
     }
     ui_keypad_config_t keypad_config = {

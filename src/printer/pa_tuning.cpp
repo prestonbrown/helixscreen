@@ -297,8 +297,8 @@ std::string generate_test_gcode(const TestPrintParams& p) {
     line(heat_nozzle);
     // Hot before any tool change: a toolchange purges or wipes.
     line(fmt::format("TEMPERATURE_WAIT SENSOR={} MINIMUM={}", p.heater, p.nozzle_temp - 2));
-    if (p.tool >= 0) {
-        line(fmt::format("T{}", p.tool)); // DISPLAY_NUMBERING_OK: gcode tool change, not a label
+    if (!p.select_head_gcode.empty()) {
+        line(p.select_head_gcode);
         line(fmt::format("TEMPERATURE_WAIT SENSOR={} MINIMUM={}", p.heater, p.nozzle_temp - 2));
     }
     line("M107");

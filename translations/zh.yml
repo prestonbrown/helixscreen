@@ -66,6 +66,7 @@ translations:
   : "打印机会按需对 X 和 Y 归位，然后将工具头推向切刀以确定其位置。请先退出耗材。"
   ? "The printer homes X and Y, moves the toolhead to the middle of the bed and sets each belt with its tensioner. The motors are released when it finishes, so home before moving the printer."
   : "打印机会对 X 和 Y 归位，将工具头移到热床中央，并用各自的张紧器调整每条皮带。完成后电机会释放，移动打印机前请先归位。"
+  The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting.: 打印机尚未告知如何切换到此打印头。请在其耗材系统完成连接后重试。
   "X belt": "X 皮带"
   "Y belt": "Y 皮带"
   "'{}' already exists. Replace the stored mesh?": "'{}' 已存在。替换已保存的网格？"
@@ -493,6 +494,7 @@ translations:
   Assign a role to enable sensor monitoring: 分配角色以启用传感器监控
   Assign a slot first: '请先分配槽位'
   Assigned Tool: 已分配工具
+  Assigned {}: '已分配 {}'
   Assisted Retract: '辅助回抽'
   Assisting: 辅助中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env 中至少有 {} 行被忽略'
@@ -1926,9 +1928,6 @@ translations:
   Feeders: 送料器
   Feeding filament to nozzle: "正在向喷嘴送料"
   Feeding the head by hand did not finish.: '手动送料至工具头未完成。'
-  Feeds Tool: '供料工具'
-  Feeds no tool: '不供料任何工具'
-  Feeds {}: '供料至{}'
   Filament: 耗材
   Filament Buffer: '耗材缓冲器'
   Filament Control: 耗材控制
@@ -3211,6 +3210,7 @@ translations:
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
   No timelapse videos found: 未找到延时视频
+  No tool assigned: '未分配工具'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '不知道当前安装的是哪个工具。共用一个探针时，请用 {} 校准。仍然继续？'
   No tool is mounted: '未安装工具'
   No tool mounted: '未装上工具'
@@ -4609,6 +4609,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman 未配置 — 无需移除。
   Spoolman is offline, so brand and material can't be saved.: Spoolman 离线，无法保存品牌和材料。
   Spoolman is offline. Brand and material can change once it's back.: Spoolman 离线。恢复后可更改品牌和材料。
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman 通过打印机固件设置，而不是在此屏幕上设置。'
   Spoolman needs a brand for this filament.: Spoolman 需要该耗材的品牌。
   Spoolman needs a color for this filament.: Spoolman 需要该耗材的颜色。
   Spoolman needs a material for this filament.: Spoolman 需要该耗材的材料。
@@ -5967,6 +5968,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: 设置期间打印机离线，硬件选项已跳过。现在设置吗？
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : '打印机固件管理 HelixScreen 的软件，因此 HelixPrint 插件必须由固件提供，无法在此屏幕上安装。'
+  Your printer's firmware manages its configuration, so set these values there.: '打印机的配置由其固件管理，请在固件中设置这些值。'
   Your printer's manual has the parts and lubricant for your model.: "打印机手册列有适合您机型的部件和润滑剂。"
   Your usual build plate is on: '已放上常用的打印板'
   Your {0} is set up for {1}, but it looks stock.: '您的 {0} 设置为 {1}，但看起来是原厂状态。'
@@ -6134,6 +6136,7 @@ translations:
   mm: mm
   mm Z-offset: mm Z 偏移
   mm before clog: 毫米后堵料
+  'mm:': 'mm:'
   needs: 需要
   needs approval: 需要批准
   needs you: '需要您参与'

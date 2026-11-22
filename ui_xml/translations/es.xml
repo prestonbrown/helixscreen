@@ -467,6 +467,7 @@
   <translation tag="Assign a role to enable sensor monitoring" es="Asigne un rol para habilitar el monitoreo del sensor"/>
   <translation tag="Assign a slot first" es="Asigna primero una ranura"/>
   <translation tag="Assigned Tool" es="Herramienta asignada"/>
+  <translation tag="Assigned {}" es="Asignada {}"/>
   <translation tag="Assisted Retract" es="Retracción asistida"/>
   <translation tag="Assisting" es="Asistiendo"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" es="Al menos {} líneas de helixscreen.env fueron ignoradas"/>
@@ -1835,9 +1836,6 @@
   <translation tag="Feeders" es="Alimentadores"/>
   <translation tag="Feeding filament to nozzle" es="Avanzando filamento a la boquilla"/>
   <translation tag="Feeding the head by hand did not finish." es="La alimentación manual del cabezal no terminó."/>
-  <translation tag="Feeds Tool" es="Alimenta herramienta"/>
-  <translation tag="Feeds no tool" es="No alimenta ninguna herramienta"/>
-  <translation tag="Feeds {}" es="Alimenta {}"/>
   <translation tag="Filament" es="Filamento"/>
   <translation tag="Filament Buffer" es="Búfer de filamento"/>
   <translation tag="Filament Control" es="Control de filamento"/>
@@ -3096,6 +3094,7 @@
   <translation tag="No target printer configured" es="Ninguna impresora de destino configurada"/>
   <translation tag="No temperature sensors detected" es="No se detectaron sensores de temperatura"/>
   <translation tag="No timelapse videos found" es="No se encontraron videos timelapse"/>
+  <translation tag="No tool assigned" es="Ninguna herramienta asignada"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" es="No se sabe qué herramienta está montada. Con una sonda compartida, calibra con {}. ¿Continuar de todos modos?"/>
   <translation tag="No tool is mounted" es="No hay ninguna herramienta montada"/>
   <translation tag="No tool mounted" es="Ninguna herramienta montada"/>
@@ -4468,6 +4467,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." es="Spoolman no está configurado — no hay nada que eliminar."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." es="Spoolman está desconectado, por lo que no se pueden guardar la marca y el material."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." es="Spoolman está desconectado. La marca y el material se podrán cambiar cuando vuelva."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." es="Spoolman se configura desde el firmware de tu impresora, no en esta pantalla."/>
   <translation tag="Spoolman needs a brand for this filament." es="Spoolman necesita una marca para este filamento."/>
   <translation tag="Spoolman needs a color for this filament." es="Spoolman necesita un color para este filamento."/>
   <translation tag="Spoolman needs a material for this filament." es="Spoolman necesita un material para este filamento."/>
@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." es="La impresora no confirmó el inicio de la impresión ({}). Puede que aún empiece: revisa la impresora antes de iniciarla de nuevo."/>
   <translation tag="The printer did not report its toolhead limits." es="La impresora no informó de los límites de su cabezal."/>
   <translation tag="The printer did not reset the filter" es="La impresora no restableció el filtro"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." es="La impresora aún no ha indicado cómo recoger este cabezal. Inténtalo de nuevo cuando su sistema de filamento termine de conectarse."/>
   <translation tag="The printer did not say whether it is printing. Try again." es="La impresora no indicó si está imprimiendo. Inténtalo de nuevo."/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." es="La impresora extruye en una esquina y repite hasta que las lecturas coinciden. Tú no juzgas nada a ojo."/>
   <translation tag="The printer finishes this measurement on its own." es="La impresora termina esta medición por su cuenta."/>
@@ -5755,6 +5756,7 @@
   <translation tag="Your printer has an automatic filament changer" es="Tu impresora tiene un cambiador de filamento automático"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" es="Su impresora estaba desconectada durante la configuración, por lo que se omitieron las opciones de hardware. ¿Configurarlas ahora?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." es="El firmware de tu impresora gestiona el software de HelixScreen, así que el plugin HelixPrint debe proporcionarlo el firmware. No se puede instalar desde esta pantalla."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." es="El firmware de tu impresora gestiona su configuración, así que ajusta estos valores allí."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." es="El manual de tu impresora indica piezas y lubricante para tu modelo."/>
   <translation tag="Your usual build plate is on" es="Tu placa de impresión habitual está puesta"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." es="Tu {0} está configurada para {1}, pero parece de serie."/>
@@ -5921,6 +5923,7 @@
   <translation tag="mm" es="mm"/>
   <translation tag="mm Z-offset" es="mm Z-Offset"/>
   <translation tag="mm before clog" es="mm antes de obstrucción"/>
+  <translation tag="mm:" es="mm:"/>
   <translation tag="needs" es="necesita"/>
   <translation tag="needs approval" es="requiere aprobación"/>
   <translation tag="needs you" es="te necesita"/>

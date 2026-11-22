@@ -1023,7 +1023,7 @@ void format_tool_badge_label(const FilamentPathData* data, int lane, int fallbac
                              size_t out_size) {
     if (data && data->use_extruder_identity && lane >= 0 && lane < FilamentPathData::kMaxSlots &&
         data->extruder_tool[lane] >= 0) {
-        snprintf(out, out_size, "E%d", helix::ui::lane_number(data->extruder_tool[lane]));
+        snprintf(out, out_size, "%s", helix::ui::extruder_label(data->extruder_tool[lane]).c_str());
         return;
     }
     snprintf(out, out_size, "%s", helix::ui::tool_label(fallback_tool).c_str());

@@ -226,6 +226,12 @@ HardwareValidationResult HardwareValidator::validate(Config* config,
     if (previous_snapshot) {
         auto current_snapshot = create_snapshot(hardware);
         validate_session_changes(*previous_snapshot, current_snapshot, config, result);
+        for (auto& issue : result.newly_discovered) {
+            const std::string& name = issue.hardware_name;
+            issue.seen_last_session = contains_name(previous_snapshot->fans, name) ||
+                                      contains_name(previous_snapshot->leds, name) ||
+                                      contains_name(previous_snapshot->filament_sensors, name);
+        }
     }
 
     if (result.has_issues()) {
@@ -247,6 +253,20 @@ static void on_hardware_toast_view_clicked(void* /*user_data*/) {
 
 void HardwareValidator::notify_user(const HardwareValidationResult& result) {
     if (!result.has_issues()) {
+        return;
+    }
+
+    // Hardware the last session already reported is not new to the user, and
+    // every connect re-reports what has no role.
+    std::vector<const HardwareIssue*> fresh;
+    for (const auto& issue : result.newly_discovered) {
+        if (!issue.seen_last_session) {
+            fresh.push_back(&issue);
+        }
+    }
+    if (!result.has_critical() && result.expected_missing.empty() &&
+        result.changed_from_last_session.empty() && fresh.empty()) {
+        spdlog::debug("[HardwareValidator] No hardware new since the last session; no toast");
         return;
     }
 
@@ -273,10 +293,10 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
         severity = NoticeSeverity::WARNING;
     } else {
         size_t led_count = 0, sensor_count = 0, other_count = 0;
-        for (const auto& issue : result.newly_discovered) {
-            if (issue.hardware_type == HardwareType::LED) {
+        for (const HardwareIssue* issue : fresh) {
+            if (issue->hardware_type == HardwareType::LED) {
                 led_count++;
-            } else if (issue.hardware_type == HardwareType::FILAMENT_SENSOR) {
+            } else if (issue->hardware_type == HardwareType::FILAMENT_SENSOR) {
                 sensor_count++;
             } else {
                 other_count++;
@@ -294,7 +314,7 @@ void HardwareValidator::notify_user(const HardwareValidationResult& result) {
                                                   "{} filament sensors available", sensor_count)),
                 sensor_count);
         } else {
-            const size_t discovered = result.newly_discovered.size();
+            const size_t discovered = fresh.size();
             message = fmt::format(fmt::runtime(helix::ui::tr_plural(
                                       nullptr, "{} new hardware available", discovered)),
                                   discovered);

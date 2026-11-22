@@ -467,6 +467,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
   <translation tag="Assign a slot first" ja="先にスロットを割り当ててください"/>
   <translation tag="Assigned Tool" ja="割り当てツール"/>
+  <translation tag="Assigned {}" ja="割り当て {}"/>
   <translation tag="Assisted Retract" ja="アシスト付き引き戻し"/>
   <translation tag="Assisting" ja="アシスト中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ja="helixscreen.env の少なくとも{}行が無視されました"/>
@@ -1835,9 +1836,6 @@
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
   <translation tag="Feeding the head by hand did not finish." ja="ヘッドへの手動供給が完了しませんでした。"/>
-  <translation tag="Feeds Tool" ja="供給先ツール"/>
-  <translation tag="Feeds no tool" ja="供給先ツールなし"/>
-  <translation tag="Feeds {}" ja="{}に供給"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -3096,6 +3094,7 @@
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
+  <translation tag="No tool assigned" ja="ツール未割り当て"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ja="装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？"/>
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
   <translation tag="No tool mounted" ja="ツール未装着"/>
@@ -4468,6 +4467,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." ja="Spoolman が設定されていません — 削除する項目はありません。"/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." ja="Spoolman がオフラインのため、ブランドと素材を保存できません。"/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." ja="Spoolman がオフラインです。復帰後にブランドと素材を変更できます。"/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." ja="Spoolman はこの画面ではなく、プリンターのファームウェアで設定します。"/>
   <translation tag="Spoolman needs a brand for this filament." ja="Spoolman にはこのフィラメントのブランドが必要です。"/>
   <translation tag="Spoolman needs a color for this filament." ja="Spoolman にはこのフィラメントの色が必要です。"/>
   <translation tag="Spoolman needs a material for this filament." ja="Spoolman にはこのフィラメントの素材が必要です。"/>
@@ -4974,6 +4974,7 @@
   <translation tag="The printer did not confirm the print started ({}). It may still start: check the printer before starting it again." ja="プリンターが印刷開始を確認しませんでした ({})。まだ開始する可能性があります。もう一度開始する前にプリンターを確認してください。"/>
   <translation tag="The printer did not report its toolhead limits." ja="プリンターがツールヘッドの限界値を報告しませんでした。"/>
   <translation tag="The printer did not reset the filter" ja="プリンターがフィルターをリセットしませんでした"/>
+  <translation tag="The printer did not say how to pick up this toolhead yet. Try again once its filament system has finished connecting." ja="このツールヘッドを取り付ける方法がまだプリンターから送られていません。フィラメントシステムの接続が完了してから、もう一度お試しください。"/>
   <translation tag="The printer did not say whether it is printing. Try again." ja="プリンターが印刷中かどうかを返しませんでした。もう一度お試しください。"/>
   <translation tag="The printer extrudes in a corner and repeats until the readings agree. You do not judge anything by eye." ja="プリンターは隅で押出しを行い、測定値が一致するまで繰り返します。目視での判断は不要です。"/>
   <translation tag="The printer finishes this measurement on its own." ja="この測定はプリンターが最後まで行います。"/>
@@ -5755,6 +5756,7 @@
   <translation tag="Your printer has an automatic filament changer" ja="プリンターに自動フィラメントチェンジャーが搭載されています"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" ja="セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." ja="プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。"/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." ja="プリンターの設定はファームウェアが管理しているため、これらの値はファームウェア側で設定してください。"/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." ja="部品と潤滑剤はプリンターのマニュアルで確認できます。"/>
   <translation tag="Your usual build plate is on" ja="いつものビルドプレートが載っている"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." ja="お使いの{0}は{1}用に設定されていますが、標準状態のようです。"/>
@@ -5921,6 +5923,7 @@
   <translation tag="mm" ja="mm"/>
   <translation tag="mm Z-offset" ja="mm Z-Offset"/>
   <translation tag="mm before clog" ja="詰まりまでの距離 (mm)"/>
+  <translation tag="mm:" ja="mm:"/>
   <translation tag="needs" ja="必要"/>
   <translation tag="needs approval" ja="承認が必要"/>
   <translation tag="needs you" ja="操作が必要"/>

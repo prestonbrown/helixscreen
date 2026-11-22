@@ -16,6 +16,7 @@
 #include "target_tool.h"
 
 #include <set>
+#include <string>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -159,6 +160,7 @@ namespace {
 
 /// The laid-out lane spools of a 4-lane tray in a `w` x `h` box.
 std::vector<lv_obj_t*> tray_spools(lv_obj_t* screen, int32_t w, int32_t h, bool fill) {
+    using helix::ui::AmsMiniFill;
     lv_obj_t* host = lv_obj_create(screen);
     lv_obj_set_size(host, w, h);
     lv_obj_set_style_pad_all(host, 0, LV_PART_MAIN);
@@ -168,7 +170,7 @@ std::vector<lv_obj_t*> tray_spools(lv_obj_t* screen, int32_t w, int32_t h, bool 
     lv_obj_set_size(tray, lv_pct(100), lv_pct(100));
     ui::UpdateQueue::instance().drain();
     lv_obj_update_layout(host);
-    helix::ui::ams_mini_status_set_fill(tray, fill);
+    helix::ui::ams_mini_status_set_fill(tray, fill ? AmsMiniFill::On : AmsMiniFill::Off);
     ui_ams_mini_status_set_slot_count(tray, 4);
     for (int i = 0; i < 4; ++i) {
         ui_ams_mini_status_set_slot_label(tray, i, "PLA", 50);
@@ -179,10 +181,9 @@ std::vector<lv_obj_t*> tray_spools(lv_obj_t* screen, int32_t w, int32_t h, bool 
     ui_ams_mini_status_refresh(tray);
     lv_obj_update_layout(host);
     std::vector<lv_obj_t*> spools;
-    lv_obj_t* sc = lv_obj_find_by_name(tray, "ams_spools_container");
-    REQUIRE(sc != nullptr);
-    for (uint32_t i = 0; i < lv_obj_get_child_count(sc); ++i) {
-        if (lv_obj_t* spool = lv_obj_find_by_name(lv_obj_get_child(sc, i), "lane_spool")) {
+    for (int i = 0; i < 4; ++i) {
+        lv_obj_t* cell = lv_obj_find_by_name(tray, ("spool_cell_" + std::to_string(i)).c_str());
+        if (lv_obj_t* spool = cell ? lv_obj_find_by_name(cell, "lane_spool") : nullptr) {
             spools.push_back(spool);
         }
     }

@@ -22,15 +22,30 @@ bool platform_host_power_supported();
 /// this rule; the platform_host_terminal_supported subject is seeded from it.
 bool platform_host_terminal_supported();
 
+/// True when the printer's firmware supervises HelixScreen (prestonbrown/helixscreen#2154):
+/// it owns the installed package and the host's Moonraker and Klipper configuration,
+/// and installs whatever components HelixScreen's features need. HelixScreen then only
+/// detects what is there and uses it: it never runs an installer, never writes a file
+/// under Moonraker's config root, and never updates itself.
+///
+/// HELIX_FIRMWARE_MANAGED, exported by the firmware's launch hook, is the whole
+/// contract: truthy turns it on, anything else or unset leaves it off. Where the package
+/// lives is deliberately not part of it, since a firmware may move it at any time.
+bool firmware_supervised();
+
+/// Why a config write was refused under firmware_supervised(), for logs and errors.
+inline constexpr const char* kFirmwareSupervisedConfigRefusal =
+    "The printer's firmware manages its configuration";
+
 /// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
-/// The board module decides it (board::firmware_manages_updates): today only a
-/// Snapmaker U1 running PAXX Extended Firmware's own HelixScreen package, which
-/// extended-pkg downloads as a pinned, sha256-verified tarball into
-/// /oem/apps/helixscreen. Self-updating there rewrites a package the firmware believes
-/// it owns, and the firmware hook does not export HELIX_DISABLE_AUTO_UPDATES. A U1 on
-/// stock firmware, where our installer owns /userdata/helixscreen, self-updates.
+/// True under firmware_supervised(), and also when the board module recognises a
+/// firmware's own package running (board::firmware_manages_updates), such as PAXX
+/// Extended Firmware's pinned, sha256-verified tarball in /oem/apps/helixscreen on a
+/// Snapmaker U1, so a firmware that does not export HELIX_FIRMWARE_MANAGED still never
+/// has its package rewritten. A U1 on stock firmware, where our installer owns
+/// /userdata/helixscreen, self-updates.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,
@@ -118,6 +133,10 @@ void set_printer_embedded_override(int override_value);
 /// Test helper: override the external-updates default. Pass -1 to reset to the
 /// compile-time platform answer.
 void set_external_updates_default_override(int override_value);
+
+/// Test helper: override firmware_supervised(). Pass -1 to decide it again from the
+/// environment and the board.
+void set_firmware_supervised_override(int override_value);
 
 /// Short human-readable host arch line for the About screen and debug bundles.
 /// Format: "<kernel-arch> · <N>-bit userspace" — surfaces the common

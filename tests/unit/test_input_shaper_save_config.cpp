@@ -13,13 +13,12 @@
  *
  * Two things make that possible without a printer:
  *
- *  - MoonrakerClientTestAccess::force_connection_state(CONNECTED). The health
- *    monitor safe_multi_edit() runs after FIRMWARE_RESTART polls is_connected()
- *    every 500ms; a mock that never reports a disconnect makes Phase 1 run to
- *    the restart timeout and then take the "fast restart" success path.
- *  - A 1ms restart timeout, injected through InputShaperPanelTestAccess, so
- *    each phase ends after its first poll. The panel's own 30s default would
- *    make every case a 30s wait.
+ *  - A mock at 1000x simulation speed. The health monitor safe_multi_edit()
+ *    runs after FIRMWARE_RESTART polls printer.info until Klippy is READY on
+ *    the restarted config, and the mock's 3s restart then takes 3ms.
+ *  - A 1ms poll interval and a 2s restart timeout, injected through
+ *    InputShaperPanelTestAccess: room for the restart on a loaded box, where
+ *    the panel's own 30s default would only lengthen a failing case.
  *
  * The health monitor runs on HttpExecutor::fast() and captures the panel's
  * config_editor_ and this fixture's MoonrakerAPIMock by reference, so no case
@@ -151,11 +150,8 @@ class ToastRecorder {
 class SaveConfigFixture : public LVGLTestFixture {
   public:
     SaveConfigFixture() : api_(client_, state_), panel_(get_global_input_shaper_panel()) {
-        // The health monitor treats "still connected" as a fast restart, which
-        // is the success path. Without this the mock reads DISCONNECTED, Phase 2
-        // waits for a reconnect that never comes, and every case would exercise
-        // the revert branch instead.
         MoonrakerClientTestAccess::force_connection_state(client_, ConnectionState::CONNECTED);
+        client_.set_simulation_speedup(1000.0);
 
         seed_config({{kRootPath, kRootCfg}, {kOptionsPath, kOptionsCfg}});
 
@@ -208,11 +204,8 @@ class SaveConfigFixture : public LVGLTestFixture {
     InputShaperPanel& panel_;
 
   private:
-    /// Phase 1 of the health monitor checks the connection, sleeps one poll
-    /// interval, and only then sees the timeout, so 1ms is one poll there. The
-    /// revert case also polls once in Phase 2, whose timeout counts from the
-    /// same start. The join budget clears that with room for a loaded CI box.
-    static constexpr uint32_t kRestartTimeoutMs = 1;
+    /// The join budget clears the restart timeout with room for a loaded CI box.
+    static constexpr uint32_t kRestartTimeoutMs = 2000;
     static constexpr std::chrono::milliseconds kRestartPollInterval{1};
     static constexpr uint32_t kJoinTimeoutMs = 20000;
 
@@ -384,9 +377,9 @@ TEST_CASE_METHOD(SaveConfigFixture, "save_configuration never issues SAVE_CONFIG
 
 TEST_CASE_METHOD(SaveConfigFixture, "the auto-revert warning survives the panel closing",
                  "[input_shaper][save_config]") {
-    // Never reconnecting after FIRMWARE_RESTART is what drives safe_multi_edit()
+    // Klippy refusing the restarted config is what drives safe_multi_edit()
     // into its revert branch, which is the only path that produces this warning.
-    MoonrakerClientTestAccess::force_connection_state(client_, ConnectionState::DISCONNECTED);
+    client_.set_restart_outcome(MoonrakerClientMock::KlippyState::ERROR);
 
     ::InputShaperPanelTestAccess::seed_axis(panel_, 'X', make_x_result(), make_curves(), kMzvChip);
     ::InputShaperPanelTestAccess::seed_axis(panel_, 'Y', make_y_result(), make_curves(), kMzvChip);
