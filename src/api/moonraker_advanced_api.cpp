@@ -34,6 +34,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <set>
@@ -417,26 +418,32 @@ class CalibrationCollectorCore {
                         },
                         subject_lifetime);
                 }
-                fallback_.backstop.begin(backstop_ms, [this, idle_subject]() {
-                    if (!fallback_.armed) {
-                        return;
-                    }
-                    const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
-                    if (still_busy) {
-                        conclude_unrecovered("printer still busy after extended wait");
-                    } else if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
-                        // The re-read has to give the same answer the idle
-                        // reports give: a printer never seen busy proves nothing
-                        // ran, and completion for these collectors means
-                        // claiming data the printer may never have produced.
-                        conclude_unrecovered(kMacroMayNotHaveRun);
-                    } else {
-                        // Idle after a run we saw start: the edge itself was
-                        // missed, not the completion.
-                        conclude_idle();
-                    }
-                });
-                s_armed_backstop.store(&fallback_.backstop, std::memory_order_release);
+                fallback_.idle_subject = idle_subject;
+                fallback_.backstop_ms = backstop_ms;
+                begin_backstop(backstop_ms);
+            });
+    }
+
+    /// The macro reported progress, so it is still running: an armed backstop
+    /// starts its wait over, for at least @p stall_window_ms. A calibration
+    /// that keeps reporting is never cut off by a fixed ceiling; one that stops
+    /// reporting fails a full window after its last report. Any thread.
+    void note_progress(uint32_t stall_window_ms) {
+        auto owner = owner_.lock();
+        if (!owner) {
+            return; // the collector is already being destroyed
+        }
+        helix::ui::queue_update(
+            // QUEUE_RAW_THIS_OK: owner reference above.
+            "CalibrationCollectorCore::note_progress", [this, owner, stall_window_ms]() {
+                if (completed() || !fallback_.armed) {
+                    return;
+                }
+                const uint32_t window = std::max(fallback_.backstop_ms, stall_window_ms);
+                spdlog::debug("[{}] Progress while waiting out a lost RPC; backstop restarts "
+                              "at {} s",
+                              handler_name_, window / 1000);
+                begin_backstop(window);
             });
     }
 
@@ -472,6 +479,32 @@ class CalibrationCollectorCore {
     }
 
   private:
+    /// (Re)start the backstop: when it fires, a printer still busy is wedged,
+    /// and an idle one finished without the edge reaching us. Main thread.
+    void begin_backstop(uint32_t ms) {
+        lv_subject_t* idle_subject = fallback_.idle_subject;
+        fallback_.backstop.begin(ms, [this, idle_subject]() {
+            if (!fallback_.armed) {
+                return;
+            }
+            const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
+            if (still_busy) {
+                conclude_unrecovered("printer still busy after extended wait");
+            } else if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
+                // The re-read has to give the same answer the idle
+                // reports give: a printer never seen busy proves nothing
+                // ran, and completion for these collectors means
+                // claiming data the printer may never have produced.
+                conclude_unrecovered(kMacroMayNotHaveRun);
+            } else {
+                // Idle after a run we saw start: the edge itself was
+                // missed, not the completion.
+                conclude_idle();
+            }
+        });
+        s_armed_backstop.store(&fallback_.backstop, std::memory_order_release);
+    }
+
     /// The armed fallback's view of the printer's busy flag, deferred out of
     /// the subject notification by observe<int>().
     void on_idle_report(lv_subject_t* subject, bool busy_now) {
@@ -603,6 +636,9 @@ class CalibrationCollectorCore {
         /// all (the socket was already down at send): completing as success
         /// would claim a mesh the printer never probed.
         bool was_busy_at_arm = false;
+        /// The idle subject the backstop re-reads, and the wait it was armed with.
+        lv_subject_t* idle_subject = nullptr;
+        uint32_t backstop_ms = 0;
         ObserverGuard observer;
         OperationTimeoutGuard backstop;
         OperationTimeoutGuard grace;
@@ -729,6 +765,7 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
             }
             spdlog::debug("[PIDCalibrateCollector] Progress: sample={} tolerance={}", sample_num,
                           tolerance_val);
+            note_cycle();
             if (on_progress_)
                 on_progress_(sample_num, tolerance_val);
             return;
@@ -764,6 +801,22 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     }
 
   private:
+    /// A cycle ended: the calibration is alive. How long a stall may last
+    /// before the backstop gives up grows with the longest cycle seen, since
+    /// a large bed under a tight tolerance runs minutes per cycle and many
+    /// cycles. WebSocket thread only, like every gcode response.
+    void note_cycle() {
+        const auto now = std::chrono::steady_clock::now();
+        if (last_cycle_) {
+            longest_cycle_ = std::max(longest_cycle_, now - *last_cycle_);
+        }
+        last_cycle_ = now;
+        const auto window =
+            std::chrono::duration_cast<std::chrono::milliseconds>(longest_cycle_ * kStallCycles);
+        core_.note_progress(static_cast<uint32_t>(
+            std::min<int64_t>(window.count(), std::numeric_limits<uint32_t>::max())));
+    }
+
     void complete_success(float kp, float ki, float kd) {
         // unregister() below drops the client handler map's reference, which is
         // the collector's only strong owner, and the fallback handlers hold a
@@ -801,6 +854,10 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     PIDCallback on_success_;
     MoonrakerAdvancedAPI::ErrorCallback on_error_;
     PIDProgressCallback on_progress_;
+    /// A stall is this many of the longest cycle without a new one.
+    static constexpr int kStallCycles = 3;
+    std::optional<std::chrono::steady_clock::time_point> last_cycle_;
+    std::chrono::steady_clock::duration longest_cycle_{};
 };
 } // namespace helix
 
@@ -1105,6 +1162,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         // Klipper's respond_info marks every line "// "; the user reads the sentence.
         const std::string description = line.rfind("// ", 0) == 0 ? line.substr(3) : line;
         spdlog::debug("[MPCCalibrateCollector] Progress: phase={} desc={}", phase, description);
+        core_.note_progress(0);
         if (on_progress_)
             on_progress_(phase, kTotalPhases, description);
     }

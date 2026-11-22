@@ -440,6 +440,43 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(captured_error_.find("still busy") != std::string::npos);
 }
 
+TEST_CASE_METHOD(TransportLossFixture,
+                 "A PID calibration that keeps reporting cycles outlives the backstop",
+                 "[calibration][transport][pid]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1); // a large bed cycling under Kalico's TOLERANCE
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out",
+                                        "PID_CALIBRATE");
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+    REQUIRE(helix::calibration::armed_idle_backstop() != nullptr);
+
+    // A cycle lands a second before the backstop would have given up.
+    lv_tick_inc(IAdvancedAPI::kPidTimeoutMs - 1000);
+    mock_client_.dispatch_gcode_response(
+        "// sample:7 pwm:0.2298 asymmetry:0.2052 tolerance:0.0823");
+    settle();
+    lv_tick_inc(2000);
+    lv_timer_handler();
+    settle();
+    REQUIRE_FALSE(error_.load());
+
+    // Then the cycles stop: a whole window with no report is a stall.
+    lv_tick_inc(IAdvancedAPI::kPidTimeoutMs);
+    lv_timer_handler();
+    settle();
+    REQUIRE(error_.load());
+    CHECK(captured_error_.find("still busy") != std::string::npos);
+    CHECK_FALSE(success_.load());
+}
+
 TEST_CASE_METHOD(TransportLossFixture, "The backstop completes a run whose idle edge was missed",
                  "[calibration][transport][1543]") {
     lv_subject_t* idle = global_idle_subject();
