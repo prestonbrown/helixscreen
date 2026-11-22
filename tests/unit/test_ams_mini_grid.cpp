@@ -424,7 +424,8 @@ std::vector<std::string> group_titles(lv_obj_t* tray) {
     lv_obj_t* sc = UITest::find_by_name(tray, "ams_spools_container");
     REQUIRE(sc != nullptr);
     for (uint32_t i = 0; i < lv_obj_get_child_count(sc); ++i) {
-        if (lv_obj_t* t = lv_obj_find_by_name(lv_obj_get_child(sc, i), "unit_group_title"))
+        lv_obj_t* t = lv_obj_find_by_name(lv_obj_get_child(sc, i), "unit_group_title");
+        if (t && !lv_obj_has_flag(t, LV_OBJ_FLAG_HIDDEN))
             titles.emplace_back(lv_label_get_text(t));
     }
     return titles;
