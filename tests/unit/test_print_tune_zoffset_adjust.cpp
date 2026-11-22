@@ -695,6 +695,11 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     lv_subject_set_int(bed_moves, 1);
     helix::ui::UpdateQueue::instance().drain();
 
+    // Saving folds the babystep into every head, and the help line says so.
+    lv_obj_t* all_heads = lv_obj_find_by_name(section, "z_offset_help_text_all_heads");
+    REQUIRE(all_heads != nullptr);
+    CHECK_FALSE(lv_obj_has_flag(all_heads, LV_OBJ_FLAG_HIDDEN));
+
     // Bed up sits above bed down; the head-moves pair's lower button gives way.
     CHECK_FALSE(
         lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
@@ -703,12 +708,14 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     get_print_tune_overlay().handle_z_step_select(2); // 0.010mm
     CHECK(tap_in(section, "btn_z_closer_above", mock_client) ==
           "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
-    set_live_offset(-0.047); // Klipper's echo of the step
+    CHECK(lv_subject_get_int(indicator_microns) == -10); // before Klipper answers
+    set_live_offset(-0.047);                             // Klipper's echo of the step
     CHECK(std::string(lv_label_get_text(z)) == "-0.010 mm");
     CHECK(lv_subject_get_int(indicator_microns) == -10);
 
     get_print_tune_overlay().handle_z_adjust(1);
     get_print_tune_overlay().handle_z_adjust(1);
+    CHECK(lv_subject_get_int(indicator_microns) == 10); // the step itself, before any drain
     helix::ui::UpdateQueue::instance().drain();
     set_live_offset(-0.027);
     CHECK(std::string(lv_label_get_text(z)) == "+0.010 mm");
@@ -718,6 +725,27 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     state().motion_state().clear_pending_z_offset_delta();
     helix::ui::UpdateQueue::instance().drain();
     CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
+
+    // Portrait lays the pair out again, with bed up still on top.
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int portrait_before = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 1 - portrait_before);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK_FALSE(
+        lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer"), LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(portrait, portrait_before);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Nothing shows the readout: it stops following the babystep.
+    lv_subject_t* heading = lv_xml_get_subject(nullptr, "tune_z_offset_display");
+    REQUIRE(heading != nullptr);
+    get_print_tune_overlay().deactivate_inline();
+    state().motion_state().add_pending_z_offset_delta(-5);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(heading)) == "0.000 mm");
+    state().motion_state().clear_pending_z_offset_delta();
 
     lv_obj_delete(section);
     lv_subject_set_int(bed_moves, 0);
