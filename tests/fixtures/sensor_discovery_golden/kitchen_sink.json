@@ -264,6 +264,9 @@
       "temperature",
       "humidity"
     ],
+    "cartographer": [
+      "touch"
+    ],
     "controller_fan board": [
       "speed",
       "rpm"

@@ -436,6 +436,9 @@
       "temperature",
       "humidity"
     ],
+    "cartographer": [
+      "touch"
+    ],
     "display_status": [
       "message",
       "progress"
