@@ -58,6 +58,7 @@
 #include <cstdlib>
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
@@ -5709,7 +5710,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             }
             // The rainbow tile ends the last line.
             CHECK(targets.back() == access.widget("btn_all_colors"));
-            // The swatches fill the page: another line would not fit under them.
+            // The swatches fill the page, or the row's most lines: another
+            // line would not fit under them.
             lv_obj_t* page = access.widget("filament_page");
             lv_area_t page_box;
             lv_obj_get_content_coords(page, &page_box);
@@ -5740,11 +5742,65 @@ TEST_CASE_METHOD(LVGLUITestFixture, "the color row's targets sit inside it, apar
             }
             const int all = static_cast<int>(offered.size()) - 1;
             const int shown = static_cast<int>(access.color_row().size());
-            CHECK((page_box.y2 - last_box.y2 < line || shown == cap || shown >= all));
+            const bool row_full =
+                lv_obj_get_height(row) + line > lv_obj_get_style_max_height(row, LV_PART_MAIN);
+            CHECK((page_box.y2 - last_box.y2 < line || row_full || shown == cap || shown >= all));
             close_editor_overlay();
         }
         theme_manager_refresh_layout_constants(disp);
     }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a portrait page shows the color row's lines of its landscape twin, no more",
+                 "[ams_edit_overlay][touch][color][color_picker]") {
+    lv_display_t* disp = lv_display_get_default();
+    // The swatch lines the Filament page shows at a size, and how many more
+    // the page has room for under them.
+    auto lines_at = [&](int w, int h, int* spare_lines) {
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+        auto& overlay = get_ams_edit_overlay();
+        AmsEditOverlayViewTestAccess access(overlay);
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, untracked_slot(), nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        access.click("summary_card");
+        process_lvgl(10);
+        lv_obj_t* row = access.widget("color_row");
+        REQUIRE(row != nullptr);
+        lv_obj_update_layout(row);
+        std::set<int32_t> tops;
+        for (lv_obj_t* swatch : access.row_swatches()) {
+            if (!lv_obj_is_hidden(swatch)) {
+                lv_area_t a;
+                lv_obj_get_coords(swatch, &a);
+                tops.insert(a.y1);
+            }
+        }
+        lv_area_t page_box;
+        lv_obj_get_content_coords(access.widget("filament_page"), &page_box);
+        lv_area_t row_box;
+        lv_obj_get_coords(row, &row_box);
+        const int line = lv_obj_get_height(access.widget("btn_all_colors")) +
+                         lv_obj_get_style_pad_row(row, LV_PART_MAIN);
+        *spare_lines = (page_box.y2 - row_box.y2) / line;
+        close_editor_overlay();
+        return static_cast<int>(tops.size());
+    };
+    for (const auto& [landscape, portrait] :
+         {std::pair{std::pair{800, 480}, std::pair{480, 800}},
+          std::pair{std::pair{1024, 600}, std::pair{600, 1024}}}) {
+        CAPTURE(landscape.first, landscape.second);
+        int spare_lines = 0;
+        const int wide = lines_at(landscape.first, landscape.second, &spare_lines);
+        const int tall = lines_at(portrait.first, portrait.second, &spare_lines);
+        REQUIRE(wide >= 2);
+        CHECK(tall == wide);
+        // The tall page has room for more lines; the cap is what holds it.
+        CHECK(spare_lines >= 2);
+    }
+    theme_manager_refresh_layout_constants(disp);
 }
 
 TEST_CASE("color_row_recents leaves the current color out and fits the room",
@@ -5827,7 +5883,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(subject_value("ams_edit_multi_capable") == 1);
-    REQUIRE(subject_value("ams_edit_multi") == 0);
+    REQUIRE(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     access.open_page(AmsEditOverlay::kPageFilament);
 
     auto back_from_page = [&] {
@@ -5859,7 +5915,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
             }
         }
     }
-    CHECK(subject_value("ams_edit_multi") == 1);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeGradient);
     CHECK(subject_value("ams_edit_seg_count") == 4);
     // The Colors bar (and the spool drawing) show every color of the draft.
     auto summary_colors = [&] {
@@ -5880,7 +5936,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(subject_value("ams_edit_seg_selected") == 2);
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors()[2] == 0x00FF00);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     process_lvgl(5);
     CHECK(lv_obj_is_hidden(access.widget("color_preview_bar")));
     CHECK_FALSE(lv_obj_is_hidden(access.widget("color_preview_bands")));
@@ -5906,7 +5962,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         access.call_seg_hold(1);
     }
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37});
-    CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     CHECK(summary_colors() == 0); // one color: no bar
     // One color: the swatches start on its dot's line.
     lv_obj_update_layout(access.widget("color_row"));
@@ -5937,7 +5993,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         [&](const AmsEditOverlay::EditResult& r) { commit_like_consumer(r); }));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     lv_obj_send_event(access.widget("btn_edit_save"), LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
     process_lvgl(10);
@@ -5990,11 +6046,11 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     UpdateQueue::instance().drain();
     process_lvgl(10);
     REQUIRE(subject_value("ams_edit_multi_capable") == 0);
-    CHECK(subject_value("ams_edit_multi") == 0);
+    CHECK(subject_value("ams_edit_color_mode") == AmsEditOverlay::kColorModeSingle);
     CHECK(subject_value("ams_edit_seg_count") == 1);
     CHECK(lv_obj_is_hidden(access.widget("colors_line")));
     access.call_seg_hold(0);
-    access.call_color_mode(1);
+    access.call_color_mode(AmsEditOverlay::kColorModeCoaxial);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0xD4AF37, 0xC0C0C0});
     access.call_apply_color(0x00FF00);
     CHECK(access.draft_colors() == std::vector<uint32_t>{0x00FF00});

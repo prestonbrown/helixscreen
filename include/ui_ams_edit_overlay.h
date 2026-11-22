@@ -102,6 +102,11 @@ class AmsEditOverlay : public OverlayBase {
     static constexpr int kPageFilament = 3;
     static constexpr int kPageLane = 4;
     static constexpr int kPageDetails = 5;
+    // The color page's dropdown, the ams_edit_color_mode subject: one color,
+    // or several that blend along the filament or run side by side.
+    static constexpr int kColorModeSingle = 0;
+    static constexpr int kColorModeGradient = 1;
+    static constexpr int kColorModeCoaxial = 2;
     // The editor's job, the ams_edit_mode subject.
     static constexpr int kModeAssign = 0;
     static constexpr int kModeEdit = 1;
@@ -377,11 +382,12 @@ class AmsEditOverlay : public OverlayBase {
     void handle_seg_tap(int index);
     void handle_seg_hold(int index);
     void add_color();
-    /// The Multi-Color switch on the color page.
-    void handle_multi_switch(bool on);
     /// Point the open color page at the selected color.
     void edit_selected_on_color_page();
     bool color_page_open_ = false;
+    /// The color page's Single / Gradient / Coaxial dropdown: Single keeps the
+    /// color being edited, Gradient or Coaxial adds a second color to a single
+    /// one and sets how they run.
     void handle_color_mode(int mode_index);
     /// Back to the slot's own colors: no pick, no multi-color edit, its own
     /// translucency.
@@ -468,14 +474,13 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject color_current_multi_subject_{}; ///< its multi-color CSV, empty for one
     helix::Subject color_name_subject_{};          ///< the color line's name
     helix::Subject recent_count_subject_{};        ///< recent chips shown in the row
-    helix::Subject multi_subject_{};               ///< 1 while the draft's colors show as dots
     helix::Subject multi_capable_subject_{};       ///< 1 where the lane can store several
     helix::Subject seg_count_subject_{};           ///< color dots shown
     helix::Subject seg_selected_subject_{};        ///< the ringed dot
     helix::Subject translucent_subject_{};         ///< the Translucent checkbox: 0 or 1
     /// 1 while the spool's tag owns the head's record, which no edit reaches.
     helix::Subject translucent_locked_subject_{};
-    helix::Subject color_mode_subject_{}; ///< dropdown: 0 gradient, 1 coaxial
+    helix::Subject color_mode_subject_{}; ///< dropdown: kColorMode*; Single unless dots show
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
     helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's

@@ -80,6 +80,18 @@ struct PagesFixture : OverlayConsumerCommitFixture {
         access.call_handle_back();
         settle();
     }
+
+    /// Pick @p index on the color page's Single / Gradient / Coaxial dropdown,
+    /// as a finger does.
+    void pick_color_mode(lv_obj_t* dropdown, int index) {
+        lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(index));
+        lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+        settle();
+    }
+
+    static int color_mode() {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_color_mode"));
+    }
 };
 
 } // namespace
@@ -744,9 +756,10 @@ TEST_CASE_METHOD(PagesFixture,
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(PagesFixture,
-                 "Multi-Color lives on the color page the editor opens, and only there",
-                 "[ams_edit_overlay][pages][multi_color]") {
+TEST_CASE_METHOD(
+    PagesFixture,
+    "Single / Gradient / Coaxial lives on the color page the editor opens, and only there",
+    "[ams_edit_overlay][pages][multi_color]") {
     open(0, describe_lane(*backend, 0, "PLA"));
     REQUIRE(access.subject_text("ams_edit_material_line").rfind("PLA", 0) == 0);
     access.open_page(AmsEditOverlay::kPageFilament);
@@ -761,28 +774,40 @@ TEST_CASE_METHOD(PagesFixture,
     lv_subject_t* host = lv_xml_get_subject(nullptr, "color_picker_host_controls");
     REQUIRE(host != nullptr);
     CHECK(lv_subject_get_int(host) == 1);
-    lv_obj_t* sw = lv_obj_find_by_name(page.get_root(), "multi_color_switch");
-    REQUIRE(sw != nullptr);
-    CHECK_FALSE(lv_obj_has_state(sw, LV_STATE_CHECKED));
+    lv_obj_t* mode = lv_obj_find_by_name(page.get_root(), "multi_color_mode");
+    REQUIRE(mode != nullptr);
+    lv_obj_t* dots = lv_obj_find_by_name(page.get_root(), "dots");
+    REQUIRE(dots != nullptr);
+    // Single: one color, no dots.
+    CHECK(lv_dropdown_get_selected(mode) == AmsEditOverlay::kColorModeSingle);
+    CHECK(lv_obj_is_visible(mode));
+    CHECK_FALSE(lv_obj_is_visible(dots));
 
-    // On: a second color, and the picker edits it.
-    lv_obj_add_state(sw, LV_STATE_CHECKED);
-    lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
-    settle();
+    // Gradient: a second color, and the picker edits it.
+    pick_color_mode(mode, AmsEditOverlay::kColorModeGradient);
     std::vector<uint32_t> colors = access.draft_colors();
     REQUIRE(colors.size() == 2);
     CHECK(page.view().color() == colors[1]);
+    CHECK(color_mode() == AmsEditOverlay::kColorModeGradient);
+    CHECK(lv_obj_is_visible(dots));
     // Tapping the first dot points the picker at it.
-    lv_obj_t* dots = lv_obj_find_by_name(page.get_root(), "dots");
-    REQUIRE(dots != nullptr);
     lv_obj_send_event(lv_obj_get_child(dots, 0), LV_EVENT_CLICKED, nullptr);
     settle();
     CHECK(page.view().color() == colors[0]);
-    // Off: back to one color, the one being edited.
-    lv_obj_remove_state(sw, LV_STATE_CHECKED);
-    lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
-    settle();
+    // Coaxial keeps the colors and changes how they run.
+    pick_color_mode(mode, AmsEditOverlay::kColorModeCoaxial);
+    CHECK(access.draft_colors() == colors);
+    CHECK(color_mode() == AmsEditOverlay::kColorModeCoaxial);
+    // Single: back to one color, the one being edited.
+    pick_color_mode(mode, AmsEditOverlay::kColorModeSingle);
     CHECK(access.draft_colors() == std::vector<uint32_t>{colors[0]});
+    CHECK(color_mode() == AmsEditOverlay::kColorModeSingle);
+    CHECK_FALSE(lv_obj_is_visible(dots));
+    // Coaxial from Single: a second color, running side by side.
+    pick_color_mode(mode, AmsEditOverlay::kColorModeCoaxial);
+    CHECK(access.draft_colors().size() == 2);
+    CHECK(color_mode() == AmsEditOverlay::kColorModeCoaxial);
+    CHECK(lv_dropdown_get_selected(mode) == AmsEditOverlay::kColorModeCoaxial);
 
     NavigationManager::instance().go_back();
     settle();
@@ -796,7 +821,7 @@ TEST_CASE_METHOD(PagesFixture,
     page.open(test_screen(), 0xFF0000, cfg, nullptr, nullptr);
     settle();
     CHECK(lv_subject_get_int(host) == 0);
-    CHECK(lv_obj_find_by_name(page.get_root(), "multi_color_switch") == nullptr);
+    CHECK(lv_obj_find_by_name(page.get_root(), "multi_color_mode") == nullptr);
     NavigationManager::instance().go_back();
     settle();
     process_lvgl(400);
@@ -819,9 +844,10 @@ lv_area_t reachable_area(lv_obj_t* w) {
 }
 } // namespace
 
-TEST_CASE_METHOD(PagesFixture,
-                 "the Multi-Color row's + and mode reach 44px on one line, none of it spilling",
-                 "[ams_edit_overlay][pages][multi_color][touch]") {
+TEST_CASE_METHOD(
+    PagesFixture,
+    "the color mode, its dots and Translucent reach 44px on one line, none of it spilling",
+    "[ams_edit_overlay][pages][multi_color][touch]") {
     lv_display_t* disp = lv_display_get_default();
     for (const auto& [w, h] : {std::pair{480, 272}, std::pair{480, 320}, std::pair{800, 480}}) {
         CAPTURE(w, h);
@@ -832,11 +858,9 @@ TEST_CASE_METHOD(PagesFixture,
         access.call_open_color_page();
         settle();
         auto& page = helix::ui::get_color_picker_page();
-        lv_obj_t* sw = lv_obj_find_by_name(page.get_root(), "multi_color_switch");
-        REQUIRE(sw != nullptr);
-        lv_obj_add_state(sw, LV_STATE_CHECKED);
-        lv_obj_send_event(sw, LV_EVENT_VALUE_CHANGED, nullptr);
-        settle();
+        lv_obj_t* mode = lv_obj_find_by_name(page.get_root(), "multi_color_mode");
+        REQUIRE(mode != nullptr);
+        pick_color_mode(mode, AmsEditOverlay::kColorModeGradient);
         // Three colors: the widest the row gets, four circles with the "+".
         access.call_add_color();
         settle();
@@ -859,13 +883,15 @@ TEST_CASE_METHOD(PagesFixture,
             CHECK(lv_obj_get_scroll_right(target) <= 0);
             CHECK(lv_obj_get_scroll_bottom(target) <= 0);
         }
-        // One line: the dropdown sits level with the switch.
-        lv_obj_t* mode = lv_obj_find_by_name(page.get_root(), "multi_color_mode");
-        lv_area_t a;
-        lv_area_t b;
-        lv_obj_get_coords(sw, &a);
-        lv_obj_get_coords(mode, &b);
-        CHECK(std::abs((a.y1 + a.y2) - (b.y1 + b.y2)) <= 2);
+        // One line: the "+" and the Translucent checkbox sit level with the dropdown.
+        lv_area_t m;
+        lv_obj_get_coords(mode, &m);
+        for (const char* name : {"btn_add_color", "translucent_check"}) {
+            INFO(name);
+            lv_area_t b;
+            lv_obj_get_coords(lv_obj_find_by_name(page.get_root(), name), &b);
+            CHECK(std::abs((m.y1 + m.y2) - (b.y1 + b.y2)) <= 2);
+        }
 
         NavigationManager::instance().go_back();
         settle();
@@ -1274,6 +1300,12 @@ TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken 
         CHECK_FALSE(access.shown("favorite_spools"));
         CHECK_FALSE(access.shown("common_spools"));
         const size_t swatches_without = access.color_row().size();
+        // A page with room to spare stops the swatches at the row's most lines.
+        lv_obj_t* row = access.widget("color_row");
+        lv_obj_update_layout(row);
+        const bool capped_without =
+            lv_obj_get_height(row) + lv_obj_get_height(access.widget("btn_all_colors")) >
+            lv_obj_get_style_max_height(row, LV_PART_MAIN);
         close_editor_overlay();
 
         {
@@ -1285,8 +1317,9 @@ TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken 
             CHECK(access.shown("favorite_tile_0"));
             CHECK(access.shown("favorite_tile_2"));
             CHECK_FALSE(access.shown("favorite_tile_3"));
-            // The swatches gave up room for the row.
-            CHECK(access.color_row().size() < swatches_without);
+            // The swatches gave up room for the row, or had room to spare.
+            CHECK((access.color_row().size() < swatches_without ||
+                   (capped_without && access.color_row().size() == swatches_without)));
             close_editor_overlay();
         }
     }

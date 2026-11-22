@@ -4358,6 +4358,7 @@
   <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." zh="信号宏已从 Fluidd 和 Mainsail 的宏列表中隐藏。"/>
   <translation tag="Signal macros keep their old names too, so older calls still work." zh="信号宏同时保留旧名称，旧的调用仍可正常工作。"/>
   <translation tag="Similarity" zh="相似度"/>
+  <translation tag="Single" zh="单色"/>
   <translation tag="Single object" zh="单个对象"/>
   <translation tag="Single toggle macro. State is not tracked." zh="单个切换宏。不跟踪状态。"/>
   <translation tag="Size" zh="大小"/>

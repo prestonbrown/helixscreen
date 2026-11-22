@@ -773,7 +773,6 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(recent_count_subject_, 0, "ams_edit_recent_count", subjects_);
         // The color dots (ams_edit_color_dots.xml).
         s_seg_colors.ensure_size(kMaxColors);
-        UI_MANAGED_SUBJECT_INT(multi_subject_, 0, "ams_edit_multi", subjects_);
         UI_MANAGED_SUBJECT_INT(multi_capable_subject_, 0, "ams_edit_multi_capable", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
@@ -2368,7 +2367,10 @@ int AmsEditOverlay::color_row_rows(lv_obj_t* row) const {
                      lv_obj_get_style_pad_bottom(row, LV_PART_MAIN);
     lv_area_t row_box;
     lv_obj_get_coords(row, &row_box);
-    const int room = page_box.y2 - row_box.y1 - below - pads;
+    // The row's max height caps the lines however tall the page is.
+    const int room =
+        std::min(page_box.y2 - row_box.y1 - below, lv_obj_get_style_max_height(row, LV_PART_MAIN)) -
+        pads;
     return std::max(1, (room + row_gap_) / (row_chip_ + row_gap_));
 }
 
@@ -2980,28 +2982,34 @@ void AmsEditOverlay::edit_selected_on_color_page() {
     }
 }
 
-void AmsEditOverlay::handle_multi_switch(bool on) {
-    // On: a second color to edit. Off: the spool keeps the color being edited.
-    std::vector<uint32_t> colors = draft_colors();
-    if (on && colors.size() < 2) {
-        add_color();
-        return;
-    }
-    if (!on && colors.size() >= 2) {
-        const auto keep = static_cast<size_t>(std::clamp(selected_seg_, 0, shown_colors() - 1));
-        selected_seg_ = 0;
-        set_draft_colors({colors[keep]});
-        edit_selected_on_color_page();
-    }
-}
-
 void AmsEditOverlay::handle_color_mode(int mode_index) {
-    const std::vector<uint32_t> colors = draft_colors();
-    if (!multi_color_editable()) {
+    std::vector<uint32_t> colors = draft_colors();
+    if (mode_index == kColorModeSingle) {
+        // The spool keeps the color being edited.
+        if (colors.size() >= 2) {
+            const auto keep = static_cast<size_t>(std::clamp(selected_seg_, 0, shown_colors() - 1));
+            selected_seg_ = 0;
+            set_draft_colors({colors[keep]});
+            edit_selected_on_color_page();
+        }
+        update_color_row();
         return;
     }
-    draft_mode_ =
-        std::string(mode_index == 1 ? helix::color_mode::kCoaxial : helix::color_mode::kGradient);
+    if (!multi_color_capable()) {
+        update_color_row();
+        return;
+    }
+    // From Single: a second color to edit, then the mode picked.
+    if (colors.size() < 2) {
+        add_color();
+        colors = draft_colors();
+        if (colors.size() < 2) {
+            update_color_row();
+            return;
+        }
+    }
+    draft_mode_ = std::string(mode_index == kColorModeCoaxial ? helix::color_mode::kCoaxial
+                                                              : helix::color_mode::kGradient);
     multi_set_ = true;
     set_draft_colors(colors);
 }
@@ -3025,7 +3033,7 @@ void AmsEditOverlay::open_color_page() {
         std::clamp(selected_seg_, 0, (multi_color_editable() ? shown_colors() : 1) - 1))];
     // One draft: the page edits the editor's pending color (the selected one
     // of several) live, Back keeps it, and only Save commits it. A lane that
-    // can store several colors gets the Multi-Color row on the page.
+    // can store several colors gets the color options row on the page.
     color_page_open_ = true;
     helix::ui::get_color_picker_page().open(
         lv_obj_get_parent(overlay_root_), editing, cfg,
@@ -3073,9 +3081,11 @@ void AmsEditOverlay::update_color_row() {
     };
     set_int(seg_count_subject_, dots);
     set_int(seg_selected_subject_, selected_seg_);
-    set_int(multi_subject_, editable ? 1 : 0);
     set_int(multi_capable_subject_, capable ? 1 : 0);
-    set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
+    set_int(color_mode_subject_, !editable ? kColorModeSingle
+                                 : draft_mode() == helix::color_mode::kCoaxial
+                                     ? kColorModeCoaxial
+                                     : kColorModeGradient);
     set_int(translucent_subject_, draft_translucent() ? 1 : 0);
     const AmsBackend* backend = AmsState::instance().get_backend();
     set_int(translucent_locked_subject_,
@@ -4644,11 +4654,6 @@ void AmsEditOverlay::register_callbacks() {
              }
          }},
         {"ams_edit_add_color_cb", [](lv_event_t*) { get_ams_edit_overlay().add_color(); }},
-        {"ams_edit_multi_switch_cb",
-         [](lv_event_t* e) {
-             get_ams_edit_overlay().handle_multi_switch(
-                 lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
-         }},
         {"ams_edit_translucent_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_translucent(

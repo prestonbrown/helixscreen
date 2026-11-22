@@ -4364,6 +4364,7 @@
   <translation tag="Signal macros are hidden from Fluidd and Mainsail macro lists." fr="Les macros de signal sont masquées dans les listes de macros de Fluidd et Mainsail."/>
   <translation tag="Signal macros keep their old names too, so older calls still work." fr="Les macros de signal gardent aussi leurs anciens noms, pour que les anciens appels fonctionnent encore."/>
   <translation tag="Similarity" fr="Similitude"/>
+  <translation tag="Single" fr="Unicolore"/>
   <translation tag="Single object" fr="Objet unique"/>
   <translation tag="Single toggle macro. State is not tracked." fr="Macro à bascule unique. L&apos;état n&apos;est pas suivi."/>
   <translation tag="Size" fr="Taille"/>

@@ -4510,6 +4510,7 @@ translations:
   Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Les macros de signal sont masquées dans les listes de macros de Fluidd et Mainsail.'
   Signal macros keep their old names too, so older calls still work.: 'Les macros de signal gardent aussi leurs anciens noms, pour que les anciens appels fonctionnent encore.'
   Similarity: "Similitude"
+  Single: 'Unicolore'
   Single object: 'Objet unique'
   Single toggle macro. State is not tracked.: Macro à bascule unique. L'état n'est pas suivi.
   Size: Taille

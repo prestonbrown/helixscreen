@@ -4498,6 +4498,7 @@ translations:
   Signal macros are hidden from Fluidd and Mainsail macro lists.: 'Signalmakros sind in den Makrolisten von Fluidd und Mainsail ausgeblendet.'
   Signal macros keep their old names too, so older calls still work.: 'Signalmakros behalten auch ihre alten Namen, damit ältere Aufrufe weiter funktionieren.'
   Similarity: "Übereinstimmung"
+  Single: 'Einfarbig'
   Single object: 'Einzelnes Objekt'
   Single toggle macro. State is not tracked.: Einzelnes Umschalt-Makro. Status wird nicht verfolgt.
   Size: Größe

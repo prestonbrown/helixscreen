@@ -4471,6 +4471,7 @@ translations:
   Signal macros are hidden from Fluidd and Mainsail macro lists.: Signal macros are hidden from Fluidd and Mainsail macro lists.
   Signal macros keep their old names too, so older calls still work.: Signal macros keep their old names too, so older calls still work.
   Similarity: Similarity
+  Single: Single
   Single object: Single object
   Single toggle macro. State is not tracked.: Single toggle macro. State is not tracked.
   Size: Size

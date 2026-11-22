@@ -1747,11 +1747,12 @@ only Save commits it, adding every color to the filament recents in one write
 `AmsSubscriptionBackend` with a store that is not extras-only, and the mock; false for AFC's and
 Happy Hare's narrowed records and for the lane-status backend, whose producer's commands take no
 color list yet), or the lane is linked to a Spoolman spool, whose filament holds them. Only then
-does the color page carry the **Multi-Color** row (`ui_xml/components/ams_edit_multi_color.xml`,
+does the color page carry the color options row (`ui_xml/components/ams_edit_multi_color.xml`,
 passed as the page's `host_controls`); other hosts of the color page open the bare picker. The
-row is a switch, the colors as dots, an outlined "+" while there are fewer than four
-(`kMaxColors`), and a Gradient / Coaxial dropdown. Turning the switch on adds a second color to
-edit; turning it off keeps the color being edited. Tapping a dot on the page points the picker
+row is a Single / Gradient / Coaxial dropdown (`ams_edit_color_mode`, `kColorMode*`), the colors
+as dots while there are several, an outlined "+" while there are fewer than four
+(`kMaxColors`), and the Translucent checkbox. Gradient or Coaxial from Single adds a second color
+to edit; between the two it changes only how they run; Single keeps the color being edited. Tapping a dot on the page points the picker
 below at that color (`edit_selected_on_color_page()`), a long press removes it, and one left
 makes the spool single-color. On the Filament page a multi-color spool shows its dots in the
 color row (no "+" there) and a Colors bar of its colors: blended for Gradient
