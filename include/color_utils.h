@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 
 /**
  * @file color_utils.h
@@ -38,6 +39,16 @@ namespace helix {
  * describe_color(0x1A237E); // Returns "Dark Blue" or "Deep Indigo"
  */
 std::string describe_color(uint32_t rgb);
+
+/**
+ * @brief True when @p name is one describe_color() could give: its own words
+ * in its own order ("Dark Gray", "Light Soft Blue", "Black").
+ *
+ * Such a name says nothing the hex does not, so a stored one is a cache of an
+ * older describe_color() and goes stale when the naming changes. A product's
+ * name ("Galaxy Black", "Navy") is not, and is the spool's own.
+ */
+bool is_derived_color_name(std::string_view name);
 
 /**
  * @brief Convert RGB to HSL color space
