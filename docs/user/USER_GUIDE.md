@@ -27,6 +27,7 @@ This guide covers everything you can do from HelixScreen's touchscreen. New to i
 | PID-tune a heater | **Advanced > Calibration > Heater Calibration** | [Calibration](guide/calibration.md#heater-calibration-pid--mpc) |
 | Run a macro | **Advanced > Macro Browser**, or a **Macros** widget | [Advanced Features](guide/advanced.md#macro-execution) |
 | See past prints | **Advanced > Print History** | [Print History](guide/print-history.md) |
+| Record a timelapse | **Settings > Printing > Timelapse** | [Timelapse](guide/timelapse.md) |
 | Rearrange the home screen | Long-press the widget grid | [Edit Mode](guide/home-edit-mode.md) |
 | Change the theme | **Settings > Appearance > Theme Colors** | [Appearance](guide/settings/appearance.md) |
 | Join a Wi-Fi network | **Settings > Connection** | [Connection](guide/settings/connection.md) |
@@ -91,6 +92,7 @@ The home screen is yours to build: pick the widgets, size them, and spread them 
 - **[Motion & Positioning](guide/motion.md)**: jogging, homing, tap-to-move, the bed map, parking, and emergency stop.
 - **[Fans](guide/fans.md)**: speed control, RPM readouts, and renaming fans.
 - **[Advanced Features](guide/advanced.md)**: the G-code console, macros, interactive prompts, power devices, notification history, and timelapse.
+- **[Timelapse](guide/timelapse.md)**: Layer and Hyperlapse modes, the slicer line Layer mode needs, parking, and the No Timelapse Frames warning.
 
 ![Motion Controls](../images/screenshot-motion-panel.png)
 

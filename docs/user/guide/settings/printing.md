@@ -316,7 +316,7 @@ Sets up how HelixScreen records timelapse videos of your prints.
 | Setting | Options | What it does |
 |---------|---------|--------------|
 | **Enable Timelapse** | On or off | Turns recording on or off |
-| **Recording Mode** | Layer or Hyperlapse | **Layer** takes one frame per layer, best for most prints. **Hyperlapse** takes frames at a fixed time interval, better for very long prints |
+| **Recording Mode** | Layer or Hyperlapse | **Layer** takes one frame at each layer change, but only when your slicer adds `TIMELAPSE_TAKE_FRAME` to its layer change G-code. **Hyperlapse** takes a frame on a timer and needs no slicer setup, but catches the head wherever it is. The (i) next to the row explains both. See [Timelapse](../timelapse.md) |
 | **Framerate** | 15, 24, 30 or 60 fps | How fast the finished video plays. 30 fps is the default |
 | **Auto-render video** | On or off | Makes the video file automatically when the print finishes |
 
