@@ -179,6 +179,7 @@ static constexpr const char* VERTICAL_AXIS_TOKENS[] = {
     "header_button_height",
     "header_action_hit",
     "header_action_gap",
+    "dialog_close_hit",
     "belt_tune_hero_h",
 };
 

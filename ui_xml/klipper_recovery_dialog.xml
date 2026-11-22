@@ -29,12 +29,11 @@
       <text_small name="recovery_code" bind_text="recovery_code" style_text_color="#text_muted">
         <bind_flag_if_eq subject="recovery_has_code" flag="hidden" ref_value="0"/>
       </text_small>
-      <!-- Close X, sized like modal_header's, with its touch area widened into the
-           row padding for the 24px micro size. Always shown: when disconnected it is
-           the only way out of the dialog. -->
+      <!-- Close X, sized and reaching like modal_header's. Always shown: when
+           disconnected it is the only way out of the dialog. -->
       <ui_button name="recovery_dismiss_btn"
                  width="#button_height_sm" height="#button_height_sm" icon="close" variant="ghost" focusable="false"
-                 ext_click_area="#space_sm">
+                 ext_click_area="#dialog_close_hit">
         <event_cb trigger="clicked" callback="recovery_dismiss_clicked"/>
       </ui_button>
     </lv_obj>

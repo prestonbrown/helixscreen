@@ -563,6 +563,19 @@
     <px name="button_height_sm_large" value="40"/>
     <px name="button_height_sm_xlarge" value="48"/>
     <px name="button_height_sm_xxlarge" value="56"/>
+
+    <!-- dialog_close_hit: touch reach past a dialog close X's edge (modal_header,
+         klipper_recovery_dialog), taking its #button_height_sm glyph button to a
+         44px target across. Up and down the header row bounds it: a tap past
+         the row belongs to the backdrop or the body. The title beside the X
+         takes no taps. -->
+    <px name="dialog_close_hit_micro" value="10"/>
+    <px name="dialog_close_hit_tiny" value="8"/>
+    <px name="dialog_close_hit_small" value="2"/>
+    <px name="dialog_close_hit_medium" value="2"/>
+    <px name="dialog_close_hit_large" value="2"/>
+    <px name="dialog_close_hit_xlarge" value="0"/>
+    <px name="dialog_close_hit_xxlarge" value="0"/>
     <!-- Filament panel motion glyph (toolhead + filament column) between
          Extrude and Retract: narrow enough to leave both buttons their labels -->
     <px name="filament_motion_glyph_w_micro" value="24"/>

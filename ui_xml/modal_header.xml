@@ -49,7 +49,7 @@
             style_pad_gap="#space_sm"/>
     <ui_button name="$close_name"
                width="#button_height_sm" height="#button_height_sm" hidden="$hide_close" icon="close" variant="ghost"
-               focusable="false">
+               focusable="false" ext_click_area="#dialog_close_hit">
       <event_cb trigger="clicked" callback="$close_callback" user_data="$close_user_data"/>
     </ui_button>
   </view>
