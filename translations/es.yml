@@ -111,9 +111,9 @@ translations:
   1 min: '1 min'
   1 min ago: hace 1 min
   1 minute: 1 minuto
-  1 mm steps can press the nozzle into the bed.: ''
-  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: ''
-  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: ''
+  1 mm steps can press the nozzle into the bed.: "Los pasos de 1 mm pueden clavar la boquilla en la cama."
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: "Los pasos de 1 mm pueden clavar la boquilla en la cama. Cambia a 0.1 antes de acercarte."
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: "Los pasos de 1 mm pueden clavar la boquilla en la cama. Vigila el hueco y cambia a 0.1 antes de acercarte."
   1 more tap to {} beta features: 1 toque más para {} funciones beta
   1 print: '1 impresión'
   1 profile: '1 perfil'
@@ -619,9 +619,9 @@ translations:
   Beta: Beta
   'Beta features: OFF': 'Funciones Beta: OFF'
   'Beta features: ON': 'Funciones Beta: ON'
-  Big steps first, then 0.01.: ''
-  Big steps first, then 0.01. Never force the nozzle into the bed.: ''
-  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: ''
+  Big steps first, then 0.01.: "Primero pasos grandes, luego 0.01."
+  Big steps first, then 0.01. Never force the nozzle into the bed.: "Primero pasos grandes, luego 0.01. Nunca fuerces la boquilla contra la cama."
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: "Pasos grandes hasta que el papel roce por primera vez, luego 0.01. Nunca fuerces la boquilla contra la cama."
   Black: Negro
   Blade change and parking: 'Cambio de cuchilla y aparcamiento'
   Blocked: Bloqueado
@@ -2762,10 +2762,10 @@ translations:
   Loud at times.: ''
   Low Memory: Memoria baja
   Lower: Bajar
-  Lower bed: ''
+  Lower bed: "Bajar cama"
   Lower belt: "Correa inferior"
   Lower fan speed?: '¿Reducir la velocidad del ventilador?'
-  Lower nozzle: ''
+  Lower nozzle: "Bajar boquilla"
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: Baja los micropasos o la velocidad máxima en la configuración de la impresora, y reinicia el firmware.
   Lower the nozzle until it just touches the top of the print, then resume.: Baje la boquilla hasta que toque justo la parte superior de la impresión y luego reanude.
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: Baja la temperatura en el perfil de filamento del laminador, o sube max_temp solo si el hotend lo admite.
@@ -3394,7 +3394,7 @@ translations:
   Pairing...: Emparejando...
   Panel Usage: Uso del panel
   Paper Test Calibration: Calibración con Prueba de Papel
-  'Paper drags: done': ''
+  'Paper drags: done': "El papel roza: listo"
   Parameters: Parámetros
   Park: 'Aparcar'
   Park the AFC system: 'Aparcar el sistema AFC'
@@ -3812,8 +3812,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : Sube Z y ejecuta QUERY_PROBE con la sonda separada de la cama. Si sigue leyendo TRIGGERED, repara la sonda o la inversión de su pin.
   Raise and lower the bed or gantry through its travel.: "Sube y baja la cama o el pórtico en todo su recorrido."
-  Raise bed: ''
-  Raise nozzle: ''
+  Raise bed: "Subir cama"
+  Raise nozzle: "Subir boquilla"
   Ramming Volume: 'Volumen de compactación'
   'Ramp: band {} of {}': 'Rampa: franja {} de {}'
   'Ramp: base layers': 'Rampa: capas base'
@@ -4138,7 +4138,7 @@ translations:
   SSH did not start although Root access is on: 'SSH no se inició aunque el acceso root está activado'
   STANDARD MACROS: MACROS ESTÁNDAR
   STARTUP: INICIO
-  STEP: ''
+  STEP: "PASO"
   STOP: DETENER
   STYLE PROPERTIES: PROPIEDADES DE ESTILO
   SWITCH SENSORS: SENSORES DE INTERRUPTOR
@@ -4185,7 +4185,7 @@ translations:
   "Saved {} mm": "Guardado {} mm"
   Saved {} mm for {}: "Guardado {} mm para {}"
   "Saved {} mm, {} mm after Save": "Guardado {} mm, {} mm tras guardar"
-  Saved offset: ''
+  Saved offset: "Offset guardado"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron.'
   Saved to crash_report.txt (QR not available): Guardado en crash_report.txt (QR no disponible)
   Saved to printer configuration.: Guardado en la configuración de la impresora.
@@ -4428,7 +4428,7 @@ translations:
   Skip Objects...: 'Omitir objetos...'
   Skip for now: 'Omitir por ahora'
   Skip the rest of this layer and resume at the next one: Omitir el resto de esta capa y reanudar en la siguiente
-  Skip this step: ''
+  Skip this step: "Omitir este paso"
   Skipped: 'Omitido'
   Sleep While Printing: Apagar pantalla al imprimir
   Sleep adjusted to match dim timeout: Tiempo de suspensión ajustado
@@ -4448,8 +4448,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm.'
   Sliced for {}, not {}.: 'Laminado para {}, no para {}.'
   Slicer: Laminador
-  Slide the paper back and forth.: ''
-  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
+  Slide the paper back and forth.: "Desliza el papel hacia adelante y atrás."
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Desliza el papel hacia adelante y atrás. Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."
   Sliders: Controles
   Slot: Ranura
   Slot 1: Ranura 1
@@ -4599,7 +4599,7 @@ translations:
   Step 1 of 3: Paso 1 de 3
   Step {} of {}: Paso {} de {}
   Step {} of {} · about {} min left: 'Paso {} de {} · quedan unos {} min'
-  Step {} of {} · needs you: ''
+  Step {} of {} · needs you: "Paso {} de {} · te necesita"
   Stepper driver {1} detected a short: El driver de motor {1} detectó un cortocircuito
   Stepper driver {1} lost motor power: El driver de motor {1} perdió la alimentación del motor
   Stepper driver {1} overheated: El driver de motor {1} se sobrecalentó
@@ -4624,7 +4624,7 @@ translations:
   Stop the running cycle before starting another: 'Detenga el ciclo en curso antes de iniciar otro'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Detén las webcams, los timelapses y los servicios extra del host, revisa su fuente de alimentación y su tarjeta SD, y reinicia el firmware. Si vuelve a ocurrir en el mismo punto, baja la velocidad o los micropasos.
-  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."
   Stop with an emergency stop?: '¿Detener con una parada de emergencia?'
   Stopped: Detenido
   Stopped between Hub and Toolhead: Detenido entre el Hub y el cabezal
@@ -5842,7 +5842,7 @@ translations:
   Z Offset by Material: "Z-Offset por material"
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : "Z-Offset por material está desactivado aquí pero seguía activo en la impresora, así que este offset incluye el de un material. Ya está desactivado en la impresora; pulsa Guardar de nuevo para guardar el offset en la sonda."
-  Z POSITION: ''
+  Z POSITION: "POSICIÓN Z"
   Z Probe: Sonda Z
   Z Range: Rango Z
   Z Tilt Adjust...: Ajuste de inclinación Z...
@@ -5888,22 +5888,22 @@ translations:
   a newer version: 'una versión más reciente'
   a temporary mesh profile '{}': 'un perfil de malla temporal ''{}'''
   about {} min: 'unos {} min'
-  about {} mm above where the paper dragged last time: ''
-  about {} mm below where the paper dragged last time: ''
+  about {} mm above where the paper dragged last time: "unos {} mm por encima de donde rozó el papel la última vez"
+  about {} mm below where the paper dragged last time: "unos {} mm por debajo de donde rozó el papel la última vez"
   about {} min left: ''
   about {} min left · you can leave: ''
   accelerometer: ''
   all done: ''
   already loaded: 'ya cargado'
   assign without adding to Spoolman: asignar sin añadir a Spoolman
-  at last time’s drag point: ''
+  at last time’s drag point: "en el punto de roce de la última vez"
   attempt {}: 'intento {}'
   auto: auto
   automatic: 'automático'
   bed: cama
-  bed further below: ''
-  'bed: distance unknown': ''
-  'bed: distance unknown until the paper drags': ''
+  bed further below: "cama más abajo"
+  'bed: distance unknown': "cama: distancia desconocida"
+  'bed: distance unknown until the paper drags': "cama: distancia desconocida hasta que el papel roce"
   buffer|Neutral: Centrado
   busy: 'ocupado'
   by: 'de'
@@ -5921,8 +5921,8 @@ translations:
   disabled: desactivado
   done: 'hecho'
   done at {} · {}%: "termina a las {} · {}%"
-  down {} from start: ''
-  down {} mm from start: ''
+  down {} from start: "{} por debajo del inicio"
+  down {} mm from start: "{} mm por debajo del inicio"
   drying: secando
   e.g. Jet Black: p. ej. Negro Azabache
   e.g. NAME=my_var VALUE=123: p. ej. NAME=mi_var VALUE=123
@@ -5934,9 +5934,9 @@ translations:
   enable: habilitar
   enabled: activado
   error: error
-  estimated bed: ''
-  estimated bed is further below: ''
-  estimated bed, from your last calibration: ''
+  estimated bed: "cama estimada"
+  estimated bed is further below: "la cama estimada está más abajo"
+  estimated bed, from your last calibration: "cama estimada, según tu última calibración"
   every {} days: "cada {} días"
   exact match: 'coincidencia exacta'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: mismo material y color. material: mismo material. next: cualquier ranura lista, aunque sea otro material'
@@ -6000,8 +6000,8 @@ translations:
   over memory budget: por encima del presupuesto de memoria
   paper test: 'prueba del papel'
   passive: pasivo
-  past last time: ''
-  past last time’s position: ''
+  past last time: "más allá de la última vez"
+  past last time’s position: "más allá de la posición de la última vez"
   preparing: preparando
   printer default: valor por defecto de la impresora
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg carga más de {} archivos de configuración; [{}] no se buscó en todos"
@@ -6012,13 +6012,13 @@ translations:
   rendering: renderizando
   required: ''
   reset at {} h: 'restablecido a las {} h'
-  right where the paper dragged last time: ''
+  right where the paper dragged last time: "justo donde rozó el papel la última vez"
   runs on its own: ''
   set manually: 'manual'
   similar color: color similar
   sleep {} min: reposo en {} min
   slots): ranuras)
-  start position: ''
+  start position: "posición inicial"
   started: iniciado
   steppers: motores paso a paso
   sweeping: midiendo
@@ -6040,8 +6040,8 @@ translations:
   this week: esta semana
   too slow: demasiado lento
   tool(s): herramienta(s)
-  up {} from start: ''
-  up {} mm from start: ''
+  up {} from start: "{} por encima del inicio"
+  up {} mm from start: "{} mm por encima del inicio"
   used: usado
   v%s available: v%s disponible
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s no tiene una versión para %s, así que no se puede instalar aquí. Elige un canal de actualización con una versión más reciente.
@@ -6165,8 +6165,8 @@ translations:
   '{} min': '{} min'
   '{} min ago': hace {} min
   '{} missing': '{} faltante(s)'
-  '{} mm above last time': ''
-  '{} mm below last time': ''
+  '{} mm above last time': "{} mm sobre la última vez"
+  '{} mm below last time': "{} mm bajo la última vez"
   '{} more taps to {} beta features': '{} toques más para {} funciones beta'
   '{} needs the HelixPrint plugin. Printing original file.': '{} necesita el plugin HelixPrint. Se imprimirá el archivo original.'
   '{} new': '{} nuevo(s)'
@@ -6212,7 +6212,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: no hay filamento cargado.'
   "{}'s nozzle is still heating": 'La boquilla de {} sigue calentándose'
   '{}, {}': '{}, {}'
-  '{}/{} · needs you': ''
+  '{}/{} · needs you': "{}/{} · te necesita"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: la etiqueta indica la bobina #{} de Spoolman, que no existe'
   '{}: {} at {}°C': '{}: {} a {}°C'
   '{}:{:02} elapsed': '{}:{:02} transcurrido'

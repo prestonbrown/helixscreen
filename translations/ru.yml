@@ -159,9 +159,9 @@ translations:
   1 min: '1 мин'
   1 min ago: 1 мин. назад
   1 minute: 1 минута
-  1 mm steps can press the nozzle into the bed.: ''
-  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: ''
-  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: ''
+  1 mm steps can press the nozzle into the bed.: "Шаг 1 мм может вдавить сопло в стол."
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: "Шаг 1 мм может вдавить сопло в стол. Переключитесь на 0.1, пока зазор не стал малым."
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: "Шаг 1 мм может вдавить сопло в стол. Следите за зазором и переключитесь на 0.1, пока он не стал малым."
   1 more tap to {} beta features: 1 нажатие до {} бета-функций
   1 print: '1 печать'
   1 profile: '1 профиль'
@@ -675,9 +675,9 @@ translations:
   Beta: Бета
   'Beta features: OFF': 'Beta-функции: ВЫКЛ'
   'Beta features: ON': 'Beta-функции: ВКЛ'
-  Big steps first, then 0.01.: ''
-  Big steps first, then 0.01. Never force the nozzle into the bed.: ''
-  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: ''
+  Big steps first, then 0.01.: "Сначала крупный шаг, затем 0.01."
+  Big steps first, then 0.01. Never force the nozzle into the bed.: "Сначала крупный шаг, затем 0.01. Никогда не вдавливайте сопло в стол."
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: "Крупный шаг, пока бумага впервые не начнёт цепляться, затем 0.01. Никогда не вдавливайте сопло в стол."
   Black: Чёрный
   Blade change and parking: 'Замена лезвия и парковка'
   Blocked: Заблокирован
@@ -2826,10 +2826,10 @@ translations:
   Loud at times.: ''
   Low Memory: Мало памяти
   Lower: Опустить
-  Lower bed: ''
+  Lower bed: "Опустить стол"
   Lower belt: "Нижний ремень"
   Lower fan speed?: 'Снизить скорость вентилятора?'
-  Lower nozzle: ''
+  Lower nozzle: "Опустить сопло"
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: Уменьшите микрошаг или максимальную скорость в конфигурации принтера, затем перезапустите прошивку.
   Lower the nozzle until it just touches the top of the print, then resume.: Опустите сопло, пока оно едва не коснётся верха печати, затем продолжите.
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: Снизьте температуру в профиле филамента в слайсере или увеличьте max_temp, только если хотэнд на неё рассчитан.
@@ -3458,7 +3458,7 @@ translations:
   Pairing...: Сопряжение...
   Panel Usage: Использование панели
   Paper Test Calibration: Калибровка бумажным тестом
-  'Paper drags: done': ''
+  'Paper drags: done': "Бумага цепляется: готово"
   Parameters: Параметры
   Park: 'Парковка'
   Park the AFC system: 'Припарковать систему AFC'
@@ -3892,8 +3892,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : Поднимите Z, затем выполните QUERY_PROBE, когда зонд не касается стола. Если он всё ещё показывает TRIGGERED, исправьте зонд или инверсию его пина.
   Raise and lower the bed or gantry through its travel.: "Поднимите и опустите стол или портал на весь ход."
-  Raise bed: ''
-  Raise nozzle: ''
+  Raise bed: "Поднять стол"
+  Raise nozzle: "Поднять сопло"
   Ramming Volume: 'Объём рэмминга'
   'Ramp: band {} of {}': 'Рампа: полоса {} из {}'
   'Ramp: base layers': 'Рампа: базовые слои'
@@ -4218,7 +4218,7 @@ translations:
   SSH did not start although Root access is on: 'SSH не запустился, хотя root-доступ включён'
   STANDARD MACROS: СТАНДАРТНЫЕ МАКРОСЫ
   STARTUP: ЗАПУСК
-  STEP: ''
+  STEP: "ШАГ"
   STOP: СТОП
   STYLE PROPERTIES: СВОЙСТВА СТИЛЯ
   SWITCH SENSORS: КОНЦЕВЫЕ ДАТЧИКИ
@@ -4265,7 +4265,7 @@ translations:
   "Saved {} mm": "Сохранено {} мм"
   Saved {} mm for {}: "Сохранено {} мм для {}"
   "Saved {} mm, {} mm after Save": "Сохранено {} мм, {} мм после сохранения"
-  Saved offset: ''
+  Saved offset: "Сохранённое смещение"
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: 'Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились.'
   Saved to crash_report.txt (QR not available): Сохранено в crash_report.txt (QR недоступен)
   Saved to printer configuration.: Сохранено в конфигурацию принтера.
@@ -4508,7 +4508,7 @@ translations:
   Skip Objects...: 'Пропустить объекты...'
   Skip for now: 'Пропустить пока'
   Skip the rest of this layer and resume at the next one: Пропустить остаток этого слоя и продолжить со следующего
-  Skip this step: ''
+  Skip this step: "Пропустить шаг"
   Skipped: 'Пропущено'
   Sleep While Printing: Спящий режим при печати
   Sleep adjusted to match dim timeout: Таймаут сна изменён
@@ -4528,8 +4528,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: 'Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм.'
   Sliced for {}, not {}.: 'Нарезано для {}, а не для {}.'
   Slicer: Слайсер
-  Slide the paper back and forth.: ''
-  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
+  Slide the paper back and forth.: "Двигайте бумагу вперёд и назад."
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."
   Sliders: Ползунки
   Slot: Слот
   Slot 1: Слот 1
@@ -4687,7 +4687,7 @@ translations:
   Step 1 of 3: Шаг 1 из 3
   Step {} of {}: Шаг {} из {}
   Step {} of {} · about {} min left: 'Шаг {} из {} · осталось около {} мин'
-  Step {} of {} · needs you: ''
+  Step {} of {} · needs you: "Шаг {} из {} · нужны вы"
   Stepper driver {1} detected a short: Драйвер шагового мотора {1} обнаружил замыкание
   Stepper driver {1} lost motor power: Драйвер шагового мотора {1} потерял питание мотора
   Stepper driver {1} overheated: Драйвер шагового мотора {1} перегрелся
@@ -4712,7 +4712,7 @@ translations:
   Stop the running cycle before starting another: 'Остановите текущий цикл, прежде чем запускать новый'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг.
-  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."
   Stop with an emergency stop?: 'Остановить аварийной остановкой?'
   Stopped: Остановлено
   Stopped between Hub and Toolhead: Остановка между хабом и печатающей головкой
@@ -5930,7 +5930,7 @@ translations:
   Z Offset by Material: "Z-Offset по материалу"
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : "Z-Offset по материалу здесь выключен, но на принтере был ещё включён, поэтому это смещение включает смещение материала. Теперь он выключен на принтере; нажмите «Сохранить» ещё раз, чтобы записать смещение в зонд."
-  Z POSITION: ''
+  Z POSITION: "ПОЛОЖЕНИЕ Z"
   Z Probe: Z-зонд
   Z Range: Диапазон Z
   Z Tilt Adjust...: Регулировка наклона Z...
@@ -5976,22 +5976,22 @@ translations:
   a newer version: 'более новая версия'
   a temporary mesh profile '{}': 'временный профиль сетки ''{}'''
   about {} min: 'около {} мин'
-  about {} mm above where the paper dragged last time: ''
-  about {} mm below where the paper dragged last time: ''
+  about {} mm above where the paper dragged last time: "примерно на {} мм выше места, где бумага цеплялась в прошлый раз"
+  about {} mm below where the paper dragged last time: "примерно на {} мм ниже места, где бумага цеплялась в прошлый раз"
   about {} min left: ''
   about {} min left · you can leave: ''
   accelerometer: ''
   all done: ''
   already loaded: 'уже загружен'
   assign without adding to Spoolman: назначить без добавления в Spoolman
-  at last time’s drag point: ''
+  at last time’s drag point: "в точке касания прошлого раза"
   attempt {}: 'попытка {}'
   auto: авто
   automatic: 'автоматически'
   bed: стол
-  bed further below: ''
-  'bed: distance unknown': ''
-  'bed: distance unknown until the paper drags': ''
+  bed further below: "стол ниже"
+  'bed: distance unknown': "стол: расстояние неизвестно"
+  'bed: distance unknown until the paper drags': "стол: расстояние неизвестно, пока бумага не зацепится"
   buffer|Neutral: Нейтрален
   busy: 'занят'
   by: 'автор:'
@@ -6009,8 +6009,8 @@ translations:
   disabled: отключено
   done: 'готово'
   done at {} · {}%: "готово в {} · {}%"
-  down {} from start: ''
-  down {} mm from start: ''
+  down {} from start: "на {} ниже старта"
+  down {} mm from start: "на {} мм ниже старта"
   drying: сушатся
   e.g. Jet Black: напр. Чёрный
   e.g. NAME=my_var VALUE=123: напр. NAME=my_var VALUE=123
@@ -6022,9 +6022,9 @@ translations:
   enable: включить
   enabled: включено
   error: ошибка
-  estimated bed: ''
-  estimated bed is further below: ''
-  estimated bed, from your last calibration: ''
+  estimated bed: "расчётный стол"
+  estimated bed is further below: "расчётный стол ниже"
+  estimated bed, from your last calibration: "расчётный стол по прошлой калибровке"
   every {} days: "каждые {} дн."
   exact match: 'точное совпадение'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: тот же материал и цвет. material: тот же материал. next: любой готовый слот, даже с другим материалом'
@@ -6092,8 +6092,8 @@ translations:
   over memory budget: превышен бюджет памяти
   paper test: 'проверка бумагой'
   passive: пассивно
-  past last time: ''
-  past last time’s position: ''
+  past last time: "дальше прошлого раза"
+  past last time’s position: "дальше положения прошлого раза"
   preparing: подготовка
   printer default: по умолчанию для принтера
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
@@ -6104,13 +6104,13 @@ translations:
   rendering: рендеринг
   required: ''
   reset at {} h: 'сброс на {} ч'
-  right where the paper dragged last time: ''
+  right where the paper dragged last time: "ровно там, где бумага цеплялась в прошлый раз"
   runs on its own: ''
   set manually: 'вручную'
   similar color: похожий цвет
   sleep {} min: сон через {} мин
   slots): слотов)
-  start position: ''
+  start position: "стартовое положение"
   started: запущено
   steppers: шаговые двигатели
   sweeping: идёт измерение
@@ -6132,8 +6132,8 @@ translations:
   this week: за неделю
   too slow: слишком медленно
   tool(s): инструмент(ы)
-  up {} from start: ''
-  up {} mm from start: ''
+  up {} from start: "на {} выше старта"
+  up {} mm from start: "на {} мм выше старта"
   used: использ.
   v%s available: Доступна v%s
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском.
@@ -6265,8 +6265,8 @@ translations:
   '{} min': '{} мин'
   '{} min ago': '{} мин. назад'
   '{} missing': 'отсутствует: {}'
-  '{} mm above last time': ''
-  '{} mm below last time': ''
+  '{} mm above last time': "на {} мм выше прошлого раза"
+  '{} mm below last time': "на {} мм ниже прошлого раза"
   '{} more taps to {} beta features':
     one: '{} нажатие до {} бета-функций'
     few: '{} нажатия до {} бета-функций'
@@ -6328,7 +6328,7 @@ translations:
   '{} → {}: no filament loaded.': '{} → {}: филамент не загружен.'
   "{}'s nozzle is still heating": 'Сопло {} всё ещё нагревается'
   '{}, {}': '{}, {}'
-  '{}/{} · needs you': ''
+  '{}/{} · needs you': "{}/{} · нужны вы"
   "{}: the tag names Spoolman spool #{}, which doesn't exist": '{}: метка указывает катушку Spoolman #{}, которой не существует'
   '{}: {} at {}°C': '{}: {} при {}°C'
   '{}:{:02} elapsed': прошло {}:{:02}

@@ -135,9 +135,9 @@
   <translation tag="1 min" ru="1 мин"/>
   <translation tag="1 min ago" ru="1 мин. назад"/>
   <translation tag="1 minute" ru="1 минута"/>
-  <translation tag="1 mm steps can press the nozzle into the bed."/>
-  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."/>
-  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."/>
+  <translation tag="1 mm steps can press the nozzle into the bed." ru="Шаг 1 мм может вдавить сопло в стол."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close." ru="Шаг 1 мм может вдавить сопло в стол. Переключитесь на 0.1, пока зазор не стал малым."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close." ru="Шаг 1 мм может вдавить сопло в стол. Следите за зазором и переключитесь на 0.1, пока он не стал малым."/>
   <translation tag="1 more tap to {} beta features" ru="1 нажатие до {} бета-функций"/>
   <translation tag="1 print" ru="1 печать"/>
   <translation tag="1 profile" ru="1 профиль"/>
@@ -637,9 +637,9 @@
   <translation tag="Beta" ru="Бета"/>
   <translation tag="Beta features: OFF" ru="Beta-функции: ВЫКЛ"/>
   <translation tag="Beta features: ON" ru="Beta-функции: ВКЛ"/>
-  <translation tag="Big steps first, then 0.01."/>
-  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed."/>
-  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."/>
+  <translation tag="Big steps first, then 0.01." ru="Сначала крупный шаг, затем 0.01."/>
+  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed." ru="Сначала крупный шаг, затем 0.01. Никогда не вдавливайте сопло в стол."/>
+  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed." ru="Крупный шаг, пока бумага впервые не начнёт цепляться, затем 0.01. Никогда не вдавливайте сопло в стол."/>
   <translation tag="Black" ru="Чёрный"/>
   <translation tag="Blade change and parking" ru="Замена лезвия и парковка"/>
   <translation tag="Blocked" ru="Заблокирован"/>
@@ -2709,10 +2709,10 @@
   <translation tag="Loud at times."/>
   <translation tag="Low Memory" ru="Мало памяти"/>
   <translation tag="Lower" ru="Опустить"/>
-  <translation tag="Lower bed"/>
+  <translation tag="Lower bed" ru="Опустить стол"/>
   <translation tag="Lower belt" ru="Нижний ремень"/>
   <translation tag="Lower fan speed?" ru="Снизить скорость вентилятора?"/>
-  <translation tag="Lower nozzle"/>
+  <translation tag="Lower nozzle" ru="Опустить сопло"/>
   <translation tag="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware." ru="Уменьшите микрошаг или максимальную скорость в конфигурации принтера, затем перезапустите прошивку."/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." ru="Опустите сопло, пока оно едва не коснётся верха печати, затем продолжите."/>
   <translation tag="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it." ru="Снизьте температуру в профиле филамента в слайсере или увеличьте max_temp, только если хотэнд на неё рассчитан."/>
@@ -3326,7 +3326,7 @@
   <translation tag="Pairing..." ru="Сопряжение..."/>
   <translation tag="Panel Usage" ru="Использование панели"/>
   <translation tag="Paper Test Calibration" ru="Калибровка бумажным тестом"/>
-  <translation tag="Paper drags: done"/>
+  <translation tag="Paper drags: done" ru="Бумага цепляется: готово"/>
   <translation tag="Parameters" ru="Параметры"/>
   <translation tag="Park" ru="Парковка"/>
   <translation tag="Park Toolhead" ru="Припарковать печатающую головку"/>
@@ -3753,8 +3753,8 @@
   <translation tag="Raise" ru="Поднять"/>
   <translation tag="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion." ru="Поднимите Z, затем выполните QUERY_PROBE, когда зонд не касается стола. Если он всё ещё показывает TRIGGERED, исправьте зонд или инверсию его пина."/>
   <translation tag="Raise and lower the bed or gantry through its travel." ru="Поднимите и опустите стол или портал на весь ход."/>
-  <translation tag="Raise bed"/>
-  <translation tag="Raise nozzle"/>
+  <translation tag="Raise bed" ru="Поднять стол"/>
+  <translation tag="Raise nozzle" ru="Поднять сопло"/>
   <translation tag="Ramming Volume" ru="Объём рэмминга"/>
   <translation tag="Ramp: band {} of {}" ru="Рампа: полоса {} из {}"/>
   <translation tag="Ramp: base layers" ru="Рампа: базовые слои"/>
@@ -4075,7 +4075,7 @@
   <translation tag="SSH did not start although Root access is on" ru="SSH не запустился, хотя root-доступ включён"/>
   <translation tag="STANDARD MACROS" ru="СТАНДАРТНЫЕ МАКРОСЫ"/>
   <translation tag="STARTUP" ru="ЗАПУСК"/>
-  <translation tag="STEP"/>
+  <translation tag="STEP" ru="ШАГ"/>
   <translation tag="STOP" ru="СТОП"/>
   <translation tag="STYLE PROPERTIES" ru="СВОЙСТВА СТИЛЯ"/>
   <translation tag="SWITCH SENSORS" ru="КОНЦЕВЫЕ ДАТЧИКИ"/>
@@ -4119,7 +4119,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." ru="Сохранить {} мм для {}? Другие материалы сохранят свои смещения."/>
   <translation tag="Saved Z-Offset" ru="Сохранённый Z-Offset"/>
   <translation tag="Saved for the mounted head; other heads keep their own" ru="Сохранено для установленной печатающей головки; остальные головки сохраняют своё"/>
-  <translation tag="Saved offset"/>
+  <translation tag="Saved offset" ru="Сохранённое смещение"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." ru="Сохранено в Spoolman, но цена, расположение, партия и заметки катушки не сохранились."/>
   <translation tag="Saved to crash_report.txt (QR not available)" ru="Сохранено в crash_report.txt (QR недоступен)"/>
   <translation tag="Saved to printer configuration." ru="Сохранено в конфигурацию принтера."/>
@@ -4361,7 +4361,7 @@
   <translation tag="Skip Objects..." ru="Пропустить объекты..."/>
   <translation tag="Skip for now" ru="Пропустить пока"/>
   <translation tag="Skip the rest of this layer and resume at the next one" ru="Пропустить остаток этого слоя и продолжить со следующего"/>
-  <translation tag="Skip this step"/>
+  <translation tag="Skip this step" ru="Пропустить шаг"/>
   <translation tag="Skipped" ru="Пропущено"/>
   <translation tag="Sleep While Printing" ru="Спящий режим при печати"/>
   <translation tag="Sleep adjusted to match dim timeout" ru="Таймаут сна изменён"/>
@@ -4381,8 +4381,8 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." ru="Нарезано для сопла {:g} мм на T{}; у принтера {:g} мм."/>
   <translation tag="Sliced for {}, not {}." ru="Нарезано для {}, а не для {}."/>
   <translation tag="Slicer" ru="Слайсер"/>
-  <translation tag="Slide the paper back and forth."/>
-  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
+  <translation tag="Slide the paper back and forth." ru="Двигайте бумагу вперёд и назад."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." ru="Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."/>
   <translation tag="Sliders" ru="Ползунки"/>
   <translation tag="Slot" ru="Слот"/>
   <translation tag="Slot 1" ru="Слот 1"/>
@@ -4533,7 +4533,7 @@
   <translation tag="Step 1 of 3" ru="Шаг 1 из 3"/>
   <translation tag="Step {} of {}" ru="Шаг {} из {}"/>
   <translation tag="Step {} of {} · about {} min left" ru="Шаг {} из {} · осталось около {} мин"/>
-  <translation tag="Step {} of {} · needs you"/>
+  <translation tag="Step {} of {} · needs you" ru="Шаг {} из {} · нужны вы"/>
   <translation tag="Stepper driver {1} detected a short" ru="Драйвер шагового мотора {1} обнаружил замыкание"/>
   <translation tag="Stepper driver {1} lost motor power" ru="Драйвер шагового мотора {1} потерял питание мотора"/>
   <translation tag="Stepper driver {1} overheated" ru="Драйвер шагового мотора {1} перегрелся"/>
@@ -4555,7 +4555,7 @@
   <translation tag="Stop the check?" ru="Остановить проверку?"/>
   <translation tag="Stop the running cycle before starting another" ru="Остановите текущий цикл, прежде чем запускать новый"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." ru="Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг."/>
-  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
+  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." ru="Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."/>
   <translation tag="Stop with an emergency stop?" ru="Остановить аварийной остановкой?"/>
   <translation tag="Stopped" ru="Остановлено"/>
   <translation tag="Stopped between Hub and Toolhead" ru="Остановка между хабом и печатающей головкой"/>
@@ -5714,7 +5714,7 @@
   <translation tag="Z Offset" ru="Z Offset"/>
   <translation tag="Z Offset by Material" ru="Z-Offset по материалу"/>
   <translation tag="Z Offset by Material is off here but was still on on the printer, so this offset includes a material&apos;s. It is now switched off on the printer; tap Save again to store the offset in the probe." ru="Z-Offset по материалу здесь выключен, но на принтере был ещё включён, поэтому это смещение включает смещение материала. Теперь он выключен на принтере; нажмите «Сохранить» ещё раз, чтобы записать смещение в зонд."/>
-  <translation tag="Z POSITION"/>
+  <translation tag="Z POSITION" ru="ПОЛОЖЕНИЕ Z"/>
   <translation tag="Z Probe" ru="Z-зонд"/>
   <translation tag="Z Range" ru="Диапазон Z"/>
   <translation tag="Z Tilt Adjust..." ru="Регулировка наклона Z..."/>
@@ -5762,20 +5762,20 @@
   <translation tag="about {} min" ru="около {} мин"/>
   <translation tag="about {} min left"/>
   <translation tag="about {} min left · you can leave"/>
-  <translation tag="about {} mm above where the paper dragged last time"/>
-  <translation tag="about {} mm below where the paper dragged last time"/>
+  <translation tag="about {} mm above where the paper dragged last time" ru="примерно на {} мм выше места, где бумага цеплялась в прошлый раз"/>
+  <translation tag="about {} mm below where the paper dragged last time" ru="примерно на {} мм ниже места, где бумага цеплялась в прошлый раз"/>
   <translation tag="accelerometer"/>
   <translation tag="all done"/>
   <translation tag="already loaded" ru="уже загружен"/>
   <translation tag="assign without adding to Spoolman" ru="назначить без добавления в Spoolman"/>
-  <translation tag="at last time’s drag point"/>
+  <translation tag="at last time’s drag point" ru="в точке касания прошлого раза"/>
   <translation tag="attempt {}" ru="попытка {}"/>
   <translation tag="auto" ru="авто"/>
   <translation tag="automatic" ru="автоматически"/>
   <translation tag="bed" ru="стол"/>
-  <translation tag="bed further below"/>
-  <translation tag="bed: distance unknown"/>
-  <translation tag="bed: distance unknown until the paper drags"/>
+  <translation tag="bed further below" ru="стол ниже"/>
+  <translation tag="bed: distance unknown" ru="стол: расстояние неизвестно"/>
+  <translation tag="bed: distance unknown until the paper drags" ru="стол: расстояние неизвестно, пока бумага не зацепится"/>
   <translation tag="buffer|Neutral" ru="Нейтрален"/>
   <translation tag="busy" ru="занят"/>
   <translation tag="by" ru="автор:"/>
@@ -5793,8 +5793,8 @@
   <translation tag="disabled" ru="отключено"/>
   <translation tag="done" ru="готово"/>
   <translation tag="done at {} · {}%" ru="готово в {} · {}%"/>
-  <translation tag="down {} from start"/>
-  <translation tag="down {} mm from start"/>
+  <translation tag="down {} from start" ru="на {} ниже старта"/>
+  <translation tag="down {} mm from start" ru="на {} мм ниже старта"/>
   <translation tag="drying" ru="сушатся"/>
   <translation tag="e.g. Jet Black" ru="напр. Чёрный"/>
   <translation tag="e.g. NAME=my_var VALUE=123" ru="напр. NAME=my_var VALUE=123"/>
@@ -5806,9 +5806,9 @@
   <translation tag="enable" ru="включить"/>
   <translation tag="enabled" ru="включено"/>
   <translation tag="error" ru="ошибка"/>
-  <translation tag="estimated bed"/>
-  <translation tag="estimated bed is further below"/>
-  <translation tag="estimated bed, from your last calibration"/>
+  <translation tag="estimated bed" ru="расчётный стол"/>
+  <translation tag="estimated bed is further below" ru="расчётный стол ниже"/>
+  <translation tag="estimated bed, from your last calibration" ru="расчётный стол по прошлой калибровке"/>
   <translation tag="every {} days" ru="каждые {} дн."/>
   <translation tag="exact match" ru="точное совпадение"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" ru="exact: тот же материал и цвет. material: тот же материал. next: любой готовый слот, даже с другим материалом"/>
@@ -5870,8 +5870,8 @@
   <translation tag="over memory budget" ru="превышен бюджет памяти"/>
   <translation tag="paper test" ru="проверка бумагой"/>
   <translation tag="passive" ru="пассивно"/>
-  <translation tag="past last time"/>
-  <translation tag="past last time’s position"/>
+  <translation tag="past last time" ru="дальше прошлого раза"/>
+  <translation tag="past last time’s position" ru="дальше положения прошлого раза"/>
   <translation tag="preparing" ru="подготовка"/>
   <translation tag="printer default" ru="по умолчанию для принтера"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" ru="printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"/>
@@ -5882,13 +5882,13 @@
   <translation tag="rendering" ru="рендеринг"/>
   <translation tag="required"/>
   <translation tag="reset at {} h" ru="сброс на {} ч"/>
-  <translation tag="right where the paper dragged last time"/>
+  <translation tag="right where the paper dragged last time" ru="ровно там, где бумага цеплялась в прошлый раз"/>
   <translation tag="runs on its own"/>
   <translation tag="set manually" ru="вручную"/>
   <translation tag="similar color" ru="похожий цвет"/>
   <translation tag="sleep {} min" ru="сон через {} мин"/>
   <translation tag="slots)" ru="слотов)"/>
-  <translation tag="start position"/>
+  <translation tag="start position" ru="стартовое положение"/>
   <translation tag="started" ru="запущено"/>
   <translation tag="steppers" ru="шаговые двигатели"/>
   <translation tag="sweeping" ru="идёт измерение"/>
@@ -5910,8 +5910,8 @@
   <translation tag="this week" ru="за неделю"/>
   <translation tag="too slow" ru="слишком медленно"/>
   <translation tag="tool(s)" ru="инструмент(ы)"/>
-  <translation tag="up {} from start"/>
-  <translation tag="up {} mm from start"/>
+  <translation tag="up {} from start" ru="на {} выше старта"/>
+  <translation tag="up {} mm from start" ru="на {} мм выше старта"/>
   <translation tag="used" ru="использ."/>
   <translation tag="v%s available" ru="Доступна v%s"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." ru="Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском."/>
@@ -6040,8 +6040,8 @@
   <translation tag="{} min" ru="{} мин"/>
   <translation tag="{} min ago" ru="{} мин. назад"/>
   <translation tag="{} missing" ru="отсутствует: {}"/>
-  <translation tag="{} mm above last time"/>
-  <translation tag="{} mm below last time"/>
+  <translation tag="{} mm above last time" ru="на {} мм выше прошлого раза"/>
+  <translation tag="{} mm below last time" ru="на {} мм ниже прошлого раза"/>
   <translation tag="{} more taps to {} beta features" ru="{} нажатия до {} бета-функций"/>
   <translation tag="{} more taps to {} beta features_few" ru="{} нажатия до {} бета-функций"/>
   <translation tag="{} more taps to {} beta features_many" ru="{} нажатий до {} бета-функций"/>
@@ -6099,7 +6099,7 @@
   <translation tag="{}% left" ru="Осталось {}%"/>
   <translation tag="{}&apos;s nozzle is still heating" ru="Сопло {} всё ещё нагревается"/>
   <translation tag="{}, {}" ru="{}, {}"/>
-  <translation tag="{}/{} · needs you"/>
+  <translation tag="{}/{} · needs you" ru="{}/{} · нужны вы"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" ru="{}: метка указывает катушку Spoolman #{}, которой не существует"/>
   <translation tag="{}: {} at {}°C" ru="{}: {} при {}°C"/>
   <translation tag="{}:{:02} elapsed" ru="прошло {}:{:02}"/>

@@ -105,9 +105,9 @@
   <translation tag="1 min" fr="1 min"/>
   <translation tag="1 min ago" fr="il y a 1 min"/>
   <translation tag="1 minute" fr="1 minute"/>
-  <translation tag="1 mm steps can press the nozzle into the bed."/>
-  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."/>
-  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."/>
+  <translation tag="1 mm steps can press the nozzle into the bed." fr="Des pas de 1 mm peuvent enfoncer la buse dans le plateau."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close." fr="Des pas de 1 mm peuvent enfoncer la buse dans le plateau. Passe à 0.1 avant d&apos;être proche."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close." fr="Des pas de 1 mm peuvent enfoncer la buse dans le plateau. Surveille l&apos;écart et passe à 0.1 avant d&apos;être proche."/>
   <translation tag="1 more tap to {} beta features" fr="1 appui supplémentaire pour {} les fonctionnalités bêta"/>
   <translation tag="1 print" fr="1 impression"/>
   <translation tag="1 profile" fr="1 profil"/>
@@ -601,9 +601,9 @@
   <translation tag="Beta" fr="Bêta"/>
   <translation tag="Beta features: OFF" fr="Fonctionnalités Beta : OFF"/>
   <translation tag="Beta features: ON" fr="Fonctionnalités Beta : ON"/>
-  <translation tag="Big steps first, then 0.01."/>
-  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed."/>
-  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."/>
+  <translation tag="Big steps first, then 0.01." fr="D&apos;abord de grands pas, puis 0.01."/>
+  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed." fr="D&apos;abord de grands pas, puis 0.01. Ne force jamais la buse contre le plateau."/>
+  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed." fr="De grands pas jusqu&apos;à ce que le papier frotte une première fois, puis 0.01. Ne force jamais la buse contre le plateau."/>
   <translation tag="Black" fr="Noir"/>
   <translation tag="Blade change and parking" fr="Changement de lame et parking"/>
   <translation tag="Blocked" fr="Bloqué"/>
@@ -2667,10 +2667,10 @@
   <translation tag="Loud at times."/>
   <translation tag="Low Memory" fr="Mémoire faible"/>
   <translation tag="Lower" fr="Descendre"/>
-  <translation tag="Lower bed"/>
+  <translation tag="Lower bed" fr="Abaisser le plateau"/>
   <translation tag="Lower belt" fr="Courroie du bas"/>
   <translation tag="Lower fan speed?" fr="Réduire la vitesse du ventilateur ?"/>
-  <translation tag="Lower nozzle"/>
+  <translation tag="Lower nozzle" fr="Abaisser la buse"/>
   <translation tag="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware." fr="Réduisez les micropas ou la vitesse maximale dans la configuration de l&apos;imprimante, puis redémarrez le firmware."/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." fr="Descendez la buse jusqu&apos;à ce qu&apos;elle touche juste le haut de l&apos;impression, puis reprenez."/>
   <translation tag="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it." fr="Baissez la température dans le profil de filament du trancheur, ou augmentez max_temp seulement si la hotend le supporte."/>
@@ -3284,7 +3284,7 @@
   <translation tag="Pairing..." fr="Appairage..."/>
   <translation tag="Panel Usage" fr="Utilisation des panneaux"/>
   <translation tag="Paper Test Calibration" fr="Calibration par test papier"/>
-  <translation tag="Paper drags: done"/>
+  <translation tag="Paper drags: done" fr="Le papier frotte : terminé"/>
   <translation tag="Parameters" fr="Paramètres"/>
   <translation tag="Park" fr="Parquer"/>
   <translation tag="Park Toolhead" fr="Parquer la tête d&apos;outil"/>
@@ -3699,8 +3699,8 @@
   <translation tag="Raise" fr="Monter"/>
   <translation tag="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion." fr="Levez Z, puis lancez QUERY_PROBE avec la sonde loin du plateau. Si elle indique toujours TRIGGERED, réparez la sonde ou corrigez l&apos;inversion de sa broche."/>
   <translation tag="Raise and lower the bed or gantry through its travel." fr="Montez et descendez le plateau ou le portique sur toute sa course."/>
-  <translation tag="Raise bed"/>
-  <translation tag="Raise nozzle"/>
+  <translation tag="Raise bed" fr="Monter le plateau"/>
+  <translation tag="Raise nozzle" fr="Monter la buse"/>
   <translation tag="Ramming Volume" fr="Volume de bourrage"/>
   <translation tag="Ramp: band {} of {}" fr="Rampe : bande {} sur {}"/>
   <translation tag="Ramp: base layers" fr="Rampe : couches de base"/>
@@ -4021,7 +4021,7 @@
   <translation tag="SSH did not start although Root access is on" fr="SSH n&apos;a pas démarré alors que l&apos;accès root est activé"/>
   <translation tag="STANDARD MACROS" fr="MACROS STANDARD"/>
   <translation tag="STARTUP" fr="DÉMARRAGE"/>
-  <translation tag="STEP"/>
+  <translation tag="STEP" fr="PAS"/>
   <translation tag="STOP" fr="ARRÊT"/>
   <translation tag="STYLE PROPERTIES" fr="PROPRIÉTÉS DE STYLE"/>
   <translation tag="SWITCH SENSORS" fr="CAPTEURS DE COMMUTATION"/>
@@ -4065,7 +4065,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." fr="Enregistrer {} mm pour {} ? Les autres matériaux gardent leurs propres décalages."/>
   <translation tag="Saved Z-Offset" fr="Z-Offset enregistré"/>
   <translation tag="Saved for the mounted head; other heads keep their own" fr="Enregistré pour la tête d&apos;outil montée ; les autres têtes d&apos;outil gardent le leur"/>
-  <translation tag="Saved offset"/>
+  <translation tag="Saved offset" fr="Décalage enregistré"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." fr="Enregistré dans Spoolman, mais le prix, l&apos;emplacement, le lot et les notes de la bobine n&apos;ont pas été enregistrés."/>
   <translation tag="Saved to crash_report.txt (QR not available)" fr="Enregistré dans crash_report.txt (QR non disponible)"/>
   <translation tag="Saved to printer configuration." fr="Enregistré dans la configuration de l&apos;imprimante."/>
@@ -4307,7 +4307,7 @@
   <translation tag="Skip Objects..." fr="Passer des objets..."/>
   <translation tag="Skip for now" fr="Ignorer pour l&apos;instant"/>
   <translation tag="Skip the rest of this layer and resume at the next one" fr="Ignorer le reste de cette couche et reprendre à la suivante"/>
-  <translation tag="Skip this step"/>
+  <translation tag="Skip this step" fr="Passer cette étape"/>
   <translation tag="Skipped" fr="Ignoré"/>
   <translation tag="Sleep While Printing" fr="Veille pendant impression"/>
   <translation tag="Sleep adjusted to match dim timeout" fr="Délai de veille ajusté"/>
@@ -4327,8 +4327,8 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." fr="Tranché pour une buse de {:g} mm sur T{} ; l&apos;imprimante a {:g} mm."/>
   <translation tag="Sliced for {}, not {}." fr="Tranché pour {}, pas pour {}."/>
   <translation tag="Slicer" fr="Trancheur"/>
-  <translation tag="Slide the paper back and forth."/>
-  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
+  <translation tag="Slide the paper back and forth." fr="Fais glisser le papier d&apos;avant en arrière."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." fr="Fais glisser le papier d&apos;avant en arrière. Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."/>
   <translation tag="Sliders" fr="Curseurs"/>
   <translation tag="Slot" fr="Slot"/>
   <translation tag="Slot 1" fr="Slot 1"/>
@@ -4473,7 +4473,7 @@
   <translation tag="Step 1 of 3" fr="Étape 1 sur 3"/>
   <translation tag="Step {} of {}" fr="Étape {} sur {}"/>
   <translation tag="Step {} of {} · about {} min left" fr="Étape {} sur {} · environ {} min restantes"/>
-  <translation tag="Step {} of {} · needs you"/>
+  <translation tag="Step {} of {} · needs you" fr="Étape {} sur {} · a besoin de toi"/>
   <translation tag="Stepper driver {1} detected a short" fr="Le pilote moteur {1} a détecté un court-circuit"/>
   <translation tag="Stepper driver {1} lost motor power" fr="Le pilote moteur {1} a perdu l&apos;alimentation des moteurs"/>
   <translation tag="Stepper driver {1} overheated" fr="Le pilote moteur {1} a surchauffé"/>
@@ -4495,7 +4495,7 @@
   <translation tag="Stop the check?" fr="Arrêter la vérification ?"/>
   <translation tag="Stop the running cycle before starting another" fr="Arrêtez le cycle en cours avant d&apos;en lancer un autre"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." fr="Arrêtez les webcams, les timelapses et les services supplémentaires sur l&apos;hôte, vérifiez son alimentation et sa carte SD, puis redémarrez le firmware. Si cela se reproduit au même endroit, réduisez la vitesse ou les micropas."/>
-  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
+  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." fr="Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."/>
   <translation tag="Stop with an emergency stop?" fr="Arrêter par un arrêt d&apos;urgence ?"/>
   <translation tag="Stopped" fr="Arrêté"/>
   <translation tag="Stopped between Hub and Toolhead" fr="Arrêté entre le Hub et la tête d&apos;outil"/>
@@ -5654,7 +5654,7 @@
   <translation tag="Z Offset" fr="Z Offset"/>
   <translation tag="Z Offset by Material" fr="Z-Offset par matériau"/>
   <translation tag="Z Offset by Material is off here but was still on on the printer, so this offset includes a material&apos;s. It is now switched off on the printer; tap Save again to store the offset in the probe." fr="Z-Offset par matériau est désactivé ici mais était encore actif sur l&apos;imprimante, ce décalage inclut donc celui d&apos;un matériau. Il est maintenant désactivé sur l&apos;imprimante ; touchez à nouveau Enregistrer pour l&apos;enregistrer dans la sonde."/>
-  <translation tag="Z POSITION"/>
+  <translation tag="Z POSITION" fr="POSITION Z"/>
   <translation tag="Z Probe" fr="Sonde Z"/>
   <translation tag="Z Range" fr="Plage Z"/>
   <translation tag="Z Tilt Adjust..." fr="Ajustement inclinaison Z..."/>
@@ -5702,20 +5702,20 @@
   <translation tag="about {} min" fr="environ {} min"/>
   <translation tag="about {} min left"/>
   <translation tag="about {} min left · you can leave"/>
-  <translation tag="about {} mm above where the paper dragged last time"/>
-  <translation tag="about {} mm below where the paper dragged last time"/>
+  <translation tag="about {} mm above where the paper dragged last time" fr="environ {} mm au-dessus de l&apos;endroit où le papier a frotté la dernière fois"/>
+  <translation tag="about {} mm below where the paper dragged last time" fr="environ {} mm en dessous de l&apos;endroit où le papier a frotté la dernière fois"/>
   <translation tag="accelerometer"/>
   <translation tag="all done"/>
   <translation tag="already loaded" fr="déjà chargé"/>
   <translation tag="assign without adding to Spoolman" fr="attribuer sans ajouter à Spoolman"/>
-  <translation tag="at last time’s drag point"/>
+  <translation tag="at last time’s drag point" fr="au point de frottement de la dernière fois"/>
   <translation tag="attempt {}" fr="essai {}"/>
   <translation tag="auto" fr="auto"/>
   <translation tag="automatic" fr="automatique"/>
   <translation tag="bed" fr="plateau"/>
-  <translation tag="bed further below"/>
-  <translation tag="bed: distance unknown"/>
-  <translation tag="bed: distance unknown until the paper drags"/>
+  <translation tag="bed further below" fr="plateau plus bas"/>
+  <translation tag="bed: distance unknown" fr="plateau : distance inconnue"/>
+  <translation tag="bed: distance unknown until the paper drags" fr="plateau : distance inconnue jusqu&apos;à ce que le papier frotte"/>
   <translation tag="buffer|Neutral" fr="Centré"/>
   <translation tag="busy" fr="occupé"/>
   <translation tag="by" fr="par"/>
@@ -5733,8 +5733,8 @@
   <translation tag="disabled" fr="désactivé"/>
   <translation tag="done" fr="terminé"/>
   <translation tag="done at {} · {}%" fr="fin à {} · {}%"/>
-  <translation tag="down {} from start"/>
-  <translation tag="down {} mm from start"/>
+  <translation tag="down {} from start" fr="{} sous le départ"/>
+  <translation tag="down {} mm from start" fr="{} mm sous le départ"/>
   <translation tag="drying" fr="en séchage"/>
   <translation tag="e.g. Jet Black" fr="p. ex. Noir profond"/>
   <translation tag="e.g. NAME=my_var VALUE=123" fr="ex. NAME=ma_var VALUE=123"/>
@@ -5746,9 +5746,9 @@
   <translation tag="enable" fr="activer"/>
   <translation tag="enabled" fr="activé"/>
   <translation tag="error" fr="erreur"/>
-  <translation tag="estimated bed"/>
-  <translation tag="estimated bed is further below"/>
-  <translation tag="estimated bed, from your last calibration"/>
+  <translation tag="estimated bed" fr="plateau estimé"/>
+  <translation tag="estimated bed is further below" fr="le plateau estimé est plus bas"/>
+  <translation tag="estimated bed, from your last calibration" fr="plateau estimé, d&apos;après ta dernière calibration"/>
   <translation tag="every {} days" fr="tous les {} jours"/>
   <translation tag="exact match" fr="correspondance exacte"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" fr="exact : même matière et même couleur. material : même matière. next : n&apos;importe quel slot prêt, même d&apos;une autre matière"/>
@@ -5807,8 +5807,8 @@
   <translation tag="over memory budget" fr="au-delà du budget mémoire"/>
   <translation tag="paper test" fr="test du papier"/>
   <translation tag="passive" fr="passif"/>
-  <translation tag="past last time"/>
-  <translation tag="past last time’s position"/>
+  <translation tag="past last time" fr="au-delà de la dernière fois"/>
+  <translation tag="past last time’s position" fr="au-delà de la position de la dernière fois"/>
   <translation tag="preparing" fr="préparation"/>
   <translation tag="printer default" fr="par défaut de l’imprimante"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" fr="printer.cfg charge plus de {} fichiers de configuration ; [{}] n&apos;a pas été cherché dans tous"/>
@@ -5819,13 +5819,13 @@
   <translation tag="rendering" fr="rendu en cours"/>
   <translation tag="required"/>
   <translation tag="reset at {} h" fr="réinitialisé à {} h"/>
-  <translation tag="right where the paper dragged last time"/>
+  <translation tag="right where the paper dragged last time" fr="pile là où le papier a frotté la dernière fois"/>
   <translation tag="runs on its own"/>
   <translation tag="set manually" fr="manuel"/>
   <translation tag="similar color" fr="couleur proche"/>
   <translation tag="sleep {} min" fr="veille dans {} min"/>
   <translation tag="slots)" fr="emplacements)"/>
-  <translation tag="start position"/>
+  <translation tag="start position" fr="position de départ"/>
   <translation tag="started" fr="lancé"/>
   <translation tag="steppers" fr="moteurs pas à pas"/>
   <translation tag="sweeping" fr="en cours de mesure"/>
@@ -5847,8 +5847,8 @@
   <translation tag="this week" fr="cette semaine"/>
   <translation tag="too slow" fr="trop lent"/>
   <translation tag="tool(s)" fr="outil(s)"/>
-  <translation tag="up {} from start"/>
-  <translation tag="up {} mm from start"/>
+  <translation tag="up {} from start" fr="{} au-dessus du départ"/>
+  <translation tag="up {} mm from start" fr="{} mm au-dessus du départ"/>
   <translation tag="used" fr="utilisé"/>
   <translation tag="v%s available" fr="v%s disponible"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." fr="v%s n&apos;a pas de version pour %s et ne peut donc pas être installée ici. Choisissez un canal de mise à jour avec une version plus récente."/>
@@ -5971,8 +5971,8 @@
   <translation tag="{} min" fr="{} min"/>
   <translation tag="{} min ago" fr="il y a {} min"/>
   <translation tag="{} missing" fr="{} manquant(s)"/>
-  <translation tag="{} mm above last time"/>
-  <translation tag="{} mm below last time"/>
+  <translation tag="{} mm above last time" fr="{} mm au-dessus de la dernière fois"/>
+  <translation tag="{} mm below last time" fr="{} mm sous la dernière fois"/>
   <translation tag="{} more taps to {} beta features" fr="{} appuis supplémentaires pour {} les fonctionnalités bêta"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." fr="{} nécessite le plugin HelixPrint. Impression du fichier original."/>
   <translation tag="{} new" fr="{} nouveau(x)"/>
@@ -6018,7 +6018,7 @@
   <translation tag="{}% left" fr="{} % restant"/>
   <translation tag="{}&apos;s nozzle is still heating" fr="La buse de {} chauffe encore"/>
   <translation tag="{}, {}" fr="{}, {}"/>
-  <translation tag="{}/{} · needs you"/>
+  <translation tag="{}/{} · needs you" fr="{}/{} · a besoin de toi"/>
   <translation tag="{}: the tag names Spoolman spool #{}, which doesn&apos;t exist" fr="{} : l&apos;étiquette indique la bobine Spoolman #{}, qui n&apos;existe pas"/>
   <translation tag="{}: {} at {}°C" fr="{} : {} à {}°C"/>
   <translation tag="{}:{:02} elapsed" fr="{}:{:02} écoulé"/>
