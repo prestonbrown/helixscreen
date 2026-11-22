@@ -424,4 +424,26 @@ void CalibrationRun::changed() {
     }
 }
 
+int minutes_left(const CalibrationRun::Entry& entry) {
+    const int minutes = entry.step->info().minutes;
+    switch (entry.status) {
+    case StepStatus::Pending:
+        return minutes;
+    case StepStatus::Running:
+        return entry.progress.percent < 0
+                   ? minutes
+                   : std::max(1, (minutes * (100 - entry.progress.percent) + 99) / 100);
+    default:
+        return 0;
+    }
+}
+
+int minutes_left(const std::vector<CalibrationRun::Entry>& entries) {
+    int left = 0;
+    for (const auto& e : entries) {
+        left += minutes_left(e);
+    }
+    return left;
+}
+
 } // namespace helix::calibration
