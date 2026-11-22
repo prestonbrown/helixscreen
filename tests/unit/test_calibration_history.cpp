@@ -520,3 +520,28 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
     }
     CHECK(results_in_config(json::array()).empty());
 }
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "a wizard header shows a subtitle published before it was built",
+                 "[calibration_run]") {
+    // Static: the XML registry keeps the pointer after the test.
+    static char buf[64];
+    static helix::Subject subtitle;
+    subtitle.init_string(buf, "Creality K2 Plus · Klipper firmware");
+    lv_xml_register_subject(nullptr, "test_cal_header_subtitle", &subtitle);
+
+    const char* attrs[] = {"title", "Calibrate your printer", "subtitle_subject",
+                           "test_cal_header_subtitle", nullptr};
+    auto* header = static_cast<lv_obj_t*>(
+        lv_xml_create(lv_screen_active(), "calibration_wizard_header", attrs));
+    REQUIRE(header != nullptr);
+    lv_obj_t* bound = lv_obj_find_by_name(header, "cal_header_subtitle_bound");
+    lv_obj_t* literal = lv_obj_find_by_name(header, "cal_header_subtitle");
+    REQUIRE(bound != nullptr);
+    REQUIRE(literal != nullptr);
+    CHECK(std::string(lv_label_get_text(bound)) == "Creality K2 Plus · Klipper firmware");
+    CHECK_FALSE(lv_obj_is_hidden(bound));
+    CHECK(lv_obj_is_hidden(literal));
+    lv_obj_delete(header);
+    drain();
+}

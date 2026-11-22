@@ -82,7 +82,7 @@ class FakeStep : public CalibrationStep {
             ctx_->done(StepOutcome::aborted());
         }
     }
-    bool abort_restarted_firmware() const override {
+    bool abort_restarts_firmware() const override {
         return restarts_on_abort;
     }
     bool restores_on_discard() const override {
@@ -516,4 +516,21 @@ TEST_CASE_METHOD(RunFixture, "the restart Save all causes is the save's own", "[
     finisher.saved();
     CHECK(run->phase() == RunPhase::Saved);
     CHECK(finisher.recorded == std::vector<std::string>{"a=-1.300 mm"});
+}
+
+TEST_CASE_METHOD(RunFixture, "stop says it restarts exactly when the running step's abort does",
+                 "[calibration_run]") {
+    using Effect = CalibrationRun::StopEffect;
+    make_run(3);
+    run->start();
+    CHECK(run->stop_effect() == Effect::EndsStep);
+    fakes[0]->restarts_on_abort = true;
+    CHECK(run->stop_effect() == Effect::Restarts);
+    fakes[0]->finish("0.120 mm");
+    CHECK(run->stop_effect() == Effect::EndsStep);
+    fakes[1]->restarts_on_abort = true;
+    CHECK(run->stop_effect() == Effect::RestartDropsResults);
+    run->stop();
+    CHECK(run->results_lost());
+    CHECK(run->stop_effect() == Effect::EndsStep);
 }

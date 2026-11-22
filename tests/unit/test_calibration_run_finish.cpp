@@ -5,6 +5,7 @@
 // Klipper is back from the restart that save causes; Discard all is one host
 // RESTART, which drops what the steps staged, and writes nothing.
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_panel_bed_mesh.h"
 
 #include "../lvgl_test_fixture.h"
@@ -161,6 +162,10 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps measure witho
         INFO(e.step->info().id << ": " << e.message);
         CHECK(e.status == StepStatus::Finished);
     }
+    // The run's step list and results table read the method per heater; the
+    // tuned numbers stay in the summary the history keeps.
+    CHECK(run->entries()[0].result.brief == "nozzle PID");
+    CHECK(run->entries()[0].result.summary.find("Nozzle ") == 0);
     const auto& sent_scripts = client.gcode_script_history();
     CHECK(std::any_of(sent_scripts.begin(), sent_scripts.end(), [](const std::string& g) {
         return g.find("PID_CALIBRATE") != std::string::npos ||
@@ -231,4 +236,28 @@ TEST_CASE_METHOD(FinishFixture,
     CHECK(run->entries()[0].status == StepStatus::Aborted);
     // The panel is process-wide; it must not keep this fixture's API.
     panel.set_api(nullptr);
+}
+
+TEST_CASE("the results button promises a restart unless Klipper said the save skips it",
+          "[calibration_run]") {
+    using helix::ui::results_primary_label;
+    CHECK(results_primary_label(true, false, true) == "Save and restart Klipper");
+    CHECK(results_primary_label(true, true, true) == "Save and restart Klipper");
+    CHECK(results_primary_label(true, true, false) == "Save");
+    CHECK(results_primary_label(false, true, false) == "Done");
+    CHECK(results_primary_label(false, false, true) == "Done");
+}
+
+TEST_CASE("the stop confirmation warns of a restart only when the stop restarts",
+          "[calibration_run]") {
+    using Effect = CalibrationRun::StopEffect;
+    using helix::ui::stop_confirm_message;
+    const std::string quiet = stop_confirm_message(Effect::EndsStep);
+    const std::string restarts = stop_confirm_message(Effect::Restarts);
+    const std::string drops = stop_confirm_message(Effect::RestartDropsResults);
+    CHECK(quiet.find("restarts") == std::string::npos);
+    CHECK(restarts.find("restarts") != std::string::npos);
+    CHECK(restarts.find("drops") == std::string::npos);
+    CHECK(drops.find("restarts") != std::string::npos);
+    CHECK(drops.find("drops the results") != std::string::npos);
 }

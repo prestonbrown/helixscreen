@@ -97,6 +97,10 @@ class CalibrationRun {
     void start();
     /// Abort the running step and go to the results with what finished.
     void stop();
+    /// What stop() would do now: end the step quietly, or restart the
+    /// firmware, which drops any finished result still pending in Klipper.
+    enum class StopEffect : uint8_t { EndsStep, Restarts, RestartDropsResults };
+    [[nodiscard]] StopEffect stop_effect() const;
     /// Save everything that finished with one SAVE_CONFIG; record the history
     /// only once the save is known to have happened.
     void save_all(RunFinisher& finisher);

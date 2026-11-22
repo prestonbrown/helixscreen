@@ -220,6 +220,36 @@ static void* ui_icon_xml_create(lv_xml_parser_state_t* state, const char** attrs
     return obj;
 }
 
+/// The fill an icon sits on: its nearest ancestor that paints one.
+static lv_color_t fill_behind(lv_obj_t* obj) {
+    for (lv_obj_t* p = lv_obj_get_parent(obj); p; p = lv_obj_get_parent(p)) {
+        if (lv_obj_get_style_bg_opa(p, LV_PART_MAIN) > LV_OPA_50) {
+            return lv_obj_get_style_bg_color(p, LV_PART_MAIN);
+        }
+    }
+    return theme_manager_get_color("screen_bg");
+}
+
+lv_color_t contrast_color(lv_obj_t* icon) {
+    return theme_manager_get_contrast_adjusted_text(theme_manager_get_color("text"),
+                                                    fill_behind(icon));
+}
+
+/// contrast="true": the glyph takes the text colour that reads on the fill behind
+/// it, as ui_button's label does. Decided per draw, since the fill can change
+/// under the icon (a bound style on its parent) with no event reaching the icon.
+static void contrast_draw_cb(lv_event_t* e) {
+    lv_draw_task_t* task = lv_event_get_draw_task(e);
+    if (!task || lv_draw_task_get_type(task) != LV_DRAW_TASK_TYPE_LABEL) {
+        return;
+    }
+    auto* dsc = static_cast<lv_draw_label_dsc_t*>(lv_draw_task_get_draw_dsc(task));
+    if (!dsc) {
+        return;
+    }
+    dsc->color = contrast_color(lv_event_get_target_obj(e));
+}
+
 /**
  * XML apply function for icon widget
  * Called by LVGL XML parser to process attributes
@@ -254,6 +284,10 @@ static void ui_icon_xml_apply(lv_xml_parser_state_t* state, const char** attrs) 
         } else if (strcmp(name, "color") == 0) {
             custom_color = lv_xml_to_color(value);
             custom_color_set = true;
+        } else if (strcmp(name, "contrast") == 0 && lv_xml_to_bool(value)) {
+            // DECLARATIVE_OK: a draw hook in the widget's own implementation
+            lv_obj_set_send_draw_task_events(obj, true);
+            lv_obj_add_event_cb(obj, contrast_draw_cb, LV_EVENT_DRAW_TASK_ADDED, nullptr);
         }
     }
 
