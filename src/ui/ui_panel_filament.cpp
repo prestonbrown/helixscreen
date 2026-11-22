@@ -46,6 +46,7 @@
 #include "printer_state.h"
 #include "safety_settings_manager.h"
 #include "settings_manager.h"
+#include "spool_remaining_format.h"
 #include "standard_macros.h"
 #include "static_panel_registry.h"
 #include "temperature_controller.h"
@@ -1906,18 +1907,17 @@ void FilamentPanel::update_external_spool_from_state() {
             lv_label_set_text(external_spool_material_label_, mat_text.c_str());
         }
         if (external_spool_color_label_) {
-            // Build second line: color name + remaining weight in grams
+            // Second line: color name + what is left on the spool
             std::string detail;
             if (!ext->color_name.empty()) {
                 detail = ext->color_name;
             }
             if (ext->remaining_weight_g > 0) {
-                char weight_str[16];
-                snprintf(weight_str, sizeof(weight_str), "%.0fg", ext->remaining_weight_g);
                 if (!detail.empty()) {
                     detail += " · ";
                 }
-                detail += weight_str;
+                detail +=
+                    helix::format_spool_remaining(ext->remaining_weight_g, ext->total_weight_g);
             }
             lv_label_set_text(external_spool_color_label_, detail.c_str());
         }
