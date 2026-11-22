@@ -2504,6 +2504,7 @@
   <translation tag="Klipper shut down" it="Klipper arrestato"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." it="Klipper non segnala più i progressi. La sua analisi può esaurire la memoria sulle stampanti piccole e bloccare Klipper, che un riavvio firmware non riesce più a raggiungere. Spegni e riaccendi la stampante (o riavvia Klipper via SSH), quindi riprova."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." it="Klipper non segnala più i progressi. La sua analisi può esaurire la memoria sulle stampanti piccole; riavvia Klipper e riprova."/>
+  <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
   <translation tag="Klipper will restart to apply changes." it="Klipper si riavvierà per applicare le modifiche."/>
   <translation tag="Klipper will restart to apply new settings." it="Klipper si riavvierà per applicare le nuove impostazioni."/>
   <translation tag="Klipper: " it="Klipper: "/>
@@ -4989,6 +4990,7 @@
   <translation tag="The printer homes, then probes each screw position." it="La stampante esegue l&apos;homing, poi tasta ogni posizione delle viti."/>
   <translation tag="The printer is already resuming the print" it="La stampante sta già riprendendo la stampa"/>
   <translation tag="The printer is busy. Run the check when no print or other motion is in progress." it="La stampante è occupata. Esegui la verifica quando non sono in corso stampe o altri movimenti."/>
+  <translation tag="The printer is finishing a step&apos;s command. Save once it is done."/>
   <translation tag="The printer is not connected." it="La stampante non è connessa."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." it="La stampante non ha eseguito l&apos;homing. Continuando verrà eseguito l&apos;homing di tutti gli assi, muovendo la testina. Assicurarsi che il piano sia libero."/>
   <translation tag="The printer is not ready." it="La stampante non è pronta."/>
@@ -5024,12 +5026,14 @@
   <translation tag="The printer shut down" it="La stampante si è spenta"/>
   <translation tag="The printer shut down while homing or probing." it="La stampante si è spenta durante l&apos;homing o il sondaggio."/>
   <translation tag="The printer shut down while it was homing or probing." it="La stampante si è spenta durante l&apos;homing o la tastatura."/>
+  <translation tag="The printer stayed busy long after the step failed, so the remaining steps did not run."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." it="La stampante si è fermata per sicurezza; il firmware non ha indicato un motivo specifico."/>
   <translation tag="The printer stops and cannot print until the update is done." it="La stampante si ferma e non può stampare finché l&apos;aggiornamento non è terminato."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." it="La stampante cambia tra più testine. Gestisci gli strumenti nella schermata del sistema filamento."/>
   <translation tag="The printer was stopped" it="La stampante è stata fermata"/>
   <translation tag="The printer&apos;s computer fell behind" it="Il computer della stampante è rimasto indietro"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" it="Il firmware della stampante sceglie dove passare a filamento esaurito"/>
+  <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." it="Lo stato della stampante non è ancora noto, quindi potrebbe essere in corso una stampa."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." it="La tastatura prima della stampa non concorda con la mesh del piano salvata: un piano diverso, una temperatura diversa o detriti sul piano."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." it="La sonda non ha mai toccato il piano: il piano PEI non è posizionato correttamente."/>
@@ -5037,6 +5041,7 @@
   <translation tag="The probe was already triggered before the move started." it="La sonda era già attivata prima dell&apos;inizio del movimento."/>
   <translation tag="The probe was used before the printer was homed." it="La sonda è stata usata prima dell&apos;homing della stampante."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." it="La coda stampa il piatto predefinito di questo .3mf. Stampa questo piatto da qui."/>
+  <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" it="La posizione richiesta è fuori dai limiti della stampante"/>
   <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" it="Il lettore RFID destro di questa unità CFS potrebbe richiedere assistenza"/>
@@ -5604,6 +5609,7 @@
   <translation tag="Waiting for the filament system to report its state" it="In attesa dello stato del sistema filamento"/>
   <translation tag="Waiting for the printer" it="In attesa della stampante"/>
   <translation tag="Waiting for the printer to finish"/>
+  <translation tag="Waiting for the printer to finish its command"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" it="In attesa dello stato della stampante; riprova quando è connessa"/>
   <translation tag="Waiting for you at the Z offset screen" it="In attesa di te nella schermata dell&apos;offset Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." it="In attesa di leggere la configurazione della stampante da Klipper."/>

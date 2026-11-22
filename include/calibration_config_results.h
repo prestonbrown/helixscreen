@@ -57,5 +57,15 @@ struct HeaterControl {
 /// configfile.save_config_pending_items: a probe's z_offset (or its model's
 /// offset), else stepper_z's position_endstop.
 [[nodiscard]] std::optional<double> staged_z_offset(const nlohmann::json& pending_items);
+/// PID gains as Klipper's PID_CALIBRATE staged them for @p heater.
+struct PidGains {
+    double kp = 0.0;
+    double ki = 0.0;
+    double kd = 0.0;
+};
+/// The gains PID_CALIBRATE staged for @p heater in
+/// configfile.save_config_pending_items, or nothing when it staged none.
+[[nodiscard]] std::optional<PidGains> staged_pid(const nlohmann::json& pending_items,
+                                                 const std::string& heater);
 
 } // namespace helix::calibration

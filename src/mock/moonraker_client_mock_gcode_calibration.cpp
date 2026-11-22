@@ -73,6 +73,12 @@ MoonrakerClientMock::gcode_pid_calibrate(const std::string& gcode) {
         dispatch_status_update({{"idle_timeout", {{"state", "Printing"}}}});
         dispatch_gcode_response("!! PID_CALIBRATE printer still busy after extended wait");
         play_console_lines({}, busy_ms, [this] {
+            // The calibration finishes and stages its gains, as Klipper does.
+            stage_config_change("heater_bed", "control", "pid");
+            stage_config_change("heater_bed", "pid_kp", "14.888");
+            stage_config_change("heater_bed", "pid_ki", "0.462");
+            stage_config_change("heater_bed", "pid_kd", "119.915");
+            dispatch_gcode_response("PID parameters: pid_Kp=14.888 pid_Ki=0.462 pid_Kd=119.915");
             calibration_busy_.store(false);
             dispatch_status_update({{"idle_timeout", {{"state", "Ready"}}}});
         });

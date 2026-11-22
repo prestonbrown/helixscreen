@@ -88,6 +88,10 @@ class FakeStep : public CalibrationStep {
     bool restores_on_discard() const override {
         return restorable;
     }
+    void recheck_after_wait(helix::IMoonrakerAPI&,
+                            std::function<void(std::optional<StepOutcome>)> done) override {
+        done(late);
+    }
     void restore(helix::IMoonrakerAPI&, std::function<void(std::string)> done) override {
         ++restores;
         restored = std::move(done);
@@ -108,6 +112,8 @@ class FakeStep : public CalibrationStep {
     int restores = 0;
     std::function<void(std::string)> restored;
     std::optional<StepOutcome> immediate;
+    /// What the step's left-running command staged, found once the printer is idle.
+    std::optional<StepOutcome> late;
 };
 
 class FakeFinisher : public RunFinisher {
@@ -148,11 +154,22 @@ class FakeBusyWatch : public PrinterBusyWatch {
     bool busy() const override {
         return printer_busy;
     }
-    void when_idle(std::function<void()> idle) override {
+    void when_idle(std::function<void()> idle, uint32_t ceiling,
+                   std::function<void(bool)> gave_up) override {
         waiting = std::move(idle);
+        giving_up = std::move(gave_up);
+        ceiling_ms = ceiling;
     }
     void cancel() override {
         waiting = nullptr;
+        giving_up = nullptr;
+    }
+    /// The wait passes its ceiling with the printer still busy.
+    void time_out() {
+        if (auto g = std::move(giving_up)) {
+            waiting = nullptr;
+            g(true);
+        }
     }
     /// Klipper reports idle.
     void go_idle() {
@@ -164,6 +181,8 @@ class FakeBusyWatch : public PrinterBusyWatch {
     }
     bool printer_busy = false;
     std::function<void()> waiting;
+    std::function<void(bool)> giving_up;
+    uint32_t ceiling_ms = 0;
 };
 
 class RunFixture : public LVGLTestFixture {
@@ -719,16 +738,111 @@ TEST_CASE_METHOD(RunFixture, "stopping while the printer finishes a failed step 
     busy->printer_busy = true;
     run->set_busy_watch(std::move(watch));
     run->start();
-    fakes[0]->fail("printer still busy");
+    // The nozzle was tuned before the bed's calibration outlived the wait.
+    fakes[0]->ctx_->done(
+        StepOutcome::failed_after("printer still busy", {"Nozzle 22 / 1 / 100", {}}));
     REQUIRE(run->waiting_on() == 0);
-    CHECK(run->stop_effect() == CalibrationRun::StopEffect::EndsStep);
+    CHECK(run->stop_effect() == CalibrationRun::StopEffect::PrinterFinishes);
 
     run->stop();
     CHECK(run->phase() == RunPhase::Results);
     CHECK(status_of(0) == StepStatus::Failed);
     CHECK(status_of(1) == StepStatus::NotRun);
     CHECK(fakes[0]->aborts == 0);
-    CHECK_FALSE(busy->waiting);
+    // A SAVE_CONFIG would queue behind the command still running.
+    CHECK(run->printer_finishing());
+    CHECK_FALSE(run->can_save());
+    CHECK_FALSE(run->can_discard());
+
+    busy->go_idle();
+    CHECK_FALSE(run->printer_finishing());
+    CHECK(run->can_save());
+    CHECK(fakes[1]->starts == 0);
+}
+
+TEST_CASE_METHOD(RunFixture, "a Klipper restart during the wait ends the run instead of going on",
+                 "[calibration_run]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->fail("Heater heater_bed not heating at expected rate");
+    REQUIRE(run->waiting_on() == 0);
+
+    run->klippy_restarted();
+    CHECK(run->phase() == RunPhase::Results);
+    CHECK(run->end_note() == CalibrationRun::EndNote::KlipperStopped);
+    CHECK(status_of(1) == StepStatus::NotRun);
+    CHECK_FALSE(run->printer_finishing());
+
+    // The restarted Klipper reports idle: nothing may start after a heater fault.
+    busy->go_idle();
+    CHECK(fakes[1]->starts == 0);
+}
+
+TEST_CASE_METHOD(RunFixture, "a wait past its ceiling ends the run and keeps Save shut",
+                 "[calibration_run]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->ctx_->done(
+        StepOutcome::failed_after("printer still busy", {"Nozzle 22 / 1 / 100", {}}));
+    REQUIRE(run->waiting_on() == 0);
+    CHECK(busy->ceiling_ms == wait_ceiling_ms(fakes[0]->info()));
+
+    busy->time_out();
+    CHECK(run->phase() == RunPhase::Results);
+    CHECK(run->end_note() == CalibrationRun::EndNote::PrinterStayedBusy);
+    CHECK(fakes[1]->starts == 0);
+    CHECK_FALSE(run->can_save());
+}
+
+TEST_CASE("the wait's ceiling follows the step's priced time", "[calibration_run]") {
+    StepInfo heaters = step(StepKind::Heaters, "heaters");
+    heaters.minutes = 67;
+    CHECK(wait_ceiling_ms(heaters) == (2u * 67u + 30u) * 60000u);
+    heaters.minutes = 0;
+    CHECK(wait_ceiling_ms(heaters) == 30u * 60000u);
+}
+
+TEST_CASE_METHOD(RunFixture,
+                 "a result the left-running command staged turns the failure into a finish",
+                 "[calibration_run]") {
+    make_run(2);
+    auto watch = std::make_unique<FakeBusyWatch>();
+    FakeBusyWatch* busy = watch.get();
+    busy->printer_busy = true;
+    run->set_busy_watch(std::move(watch));
+    run->start();
+    fakes[0]->late = StepOutcome::finished({"Nozzle 22 / 1 / 100 · Bed 14.9 / 0.4 / 140", {}});
+    fakes[0]->fail("printer still busy");
+    REQUIRE(status_of(0) == StepStatus::Failed);
+
+    busy->go_idle();
+    CHECK(status_of(0) == StepStatus::Finished);
+    CHECK(run->entries()[0].result.summary == "Nozzle 22 / 1 / 100 · Bed 14.9 / 0.4 / 140");
+    CHECK(fakes[1]->starts == 1);
+}
+
+TEST_CASE("the PID gains Klipper staged are read from the pending config", "[calibration_run]") {
+    const nlohmann::json pending = {
+        {"heater_bed",
+         {{"control", "pid"}, {"pid_kp", "14.888"}, {"pid_ki", "0.462"}, {"pid_kd", "119.9"}}},
+        {"extruder", {{"pid_Kp", 22.1}, {"pid_Ki", 1.08}, {"pid_Kd", 113.0}}}};
+    const auto bed = staged_pid(pending, "heater_bed");
+    REQUIRE(bed);
+    CHECK(bed->kp == Catch::Approx(14.888));
+    CHECK(bed->kd == Catch::Approx(119.9));
+    const auto nozzle = staged_pid(pending, "extruder");
+    REQUIRE(nozzle);
+    CHECK(nozzle->ki == Catch::Approx(1.08));
+    CHECK_FALSE(staged_pid(pending, "heater_chamber"));
+    CHECK_FALSE(staged_pid({{"heater_bed", {{"control", "pid"}}}}, "heater_bed"));
 }
 
 TEST_CASE_METHOD(RunFixture, "the screen wakes when the run ends, a step fails or needs the owner",

@@ -691,8 +691,9 @@ wizard's note that the print resumes at the start of the next layer, and adds
 
 `PID_CALIBRATE HEATER=heater_bed` fails at once with Klipper's "printer still busy after
 extended wait" line while the mock keeps `idle_timeout` at `Printing` for that many seconds,
-as a bed calibration that outlives the app's wait does. A guided run then shows its Heaters
-step as failed and waits on the Running page for the printer to finish before the next step.
+as a bed calibration that outlives the app's wait does, then stages the bed's PID gains and
+goes idle. A guided run shows its Heaters step as failed, waits on the Running page for the
+printer to finish, finds the staged gains and marks Heaters finished before the next step.
 
 ```bash
 HELIX_MOCK_PID_BUSY_FAIL=30 ./build/bin/helix-screen --test

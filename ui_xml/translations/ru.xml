@@ -2552,6 +2552,7 @@
   <translation tag="Klipper shut down" ru="Klipper остановлен"/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти, и Klipper зависнет так, что перезапуск прошивки до него не дойдёт. Выключите и снова включите принтер (или перезапустите Klipper по SSH), затем повторите попытку."/>
   <translation tag="Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again." ru="Klipper перестал сообщать о ходе. На небольших принтерах его анализу может не хватить памяти; перезапустите Klipper и повторите попытку."/>
+  <translation tag="Klipper stopped while the printer was finishing a step, so the remaining steps did not run."/>
   <translation tag="Klipper will restart to apply changes." ru="Klipper перезапустится для применения изменений."/>
   <translation tag="Klipper will restart to apply new settings." ru="Klipper перезапустится для применения новых настроек."/>
   <translation tag="Klipper: " ru="Klipper: "/>
@@ -5055,6 +5056,7 @@
   <translation tag="The printer homes, then probes each screw position." ru="Принтер выполняет парковку, затем измеряет каждую позицию винта."/>
   <translation tag="The printer is already resuming the print" ru="Принтер уже продолжает печать"/>
   <translation tag="The printer is busy. Run the check when no print or other motion is in progress." ru="Принтер занят. Запустите проверку, когда не идёт печать или другое движение."/>
+  <translation tag="The printer is finishing a step&apos;s command. Save once it is done."/>
   <translation tag="The printer is not connected." ru="Принтер не подключён."/>
   <translation tag="The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear." ru="Принтер не запаркован. Продолжение выполнит парковку всех осей, печатающая головка переместится. Убедитесь, что стол свободен."/>
   <translation tag="The printer is not ready." ru="Принтер не готов."/>
@@ -5090,12 +5092,14 @@
   <translation tag="The printer shut down" ru="Принтер отключился"/>
   <translation tag="The printer shut down while homing or probing." ru="Принтер отключился во время парковки или измерения."/>
   <translation tag="The printer shut down while it was homing or probing." ru="Принтер выключился во время парковки или зондирования."/>
+  <translation tag="The printer stayed busy long after the step failed, so the remaining steps did not run."/>
   <translation tag="The printer stopped itself for safety; the firmware gave no specific reason." ru="Принтер остановился ради безопасности; прошивка не указала конкретной причины."/>
   <translation tag="The printer stops and cannot print until the update is done." ru="Принтер остановится и не сможет печатать до завершения обновления."/>
   <translation tag="The printer swaps between several toolheads. Manage the tools on the filament system screen." ru="Принтер переключается между несколькими печатающими головками. Инструментами можно управлять на экране системы филамента."/>
   <translation tag="The printer was stopped" ru="Принтер был остановлен"/>
   <translation tag="The printer&apos;s computer fell behind" ru="Компьютер принтера не успевает"/>
   <translation tag="The printer&apos;s firmware chooses where to switch on runout" ru="Прошивка принтера сама выбирает, на что переключиться при обрыве"/>
+  <translation tag="The printer&apos;s state could no longer be read, so the remaining steps did not run."/>
   <translation tag="The printer&apos;s status isn&apos;t known yet, so a print may be running." ru="Состояние принтера ещё неизвестно, возможно, идёт печать."/>
   <translation tag="The probe before the print disagrees with the saved bed mesh: a different plate, a different temperature, or debris on the bed." ru="Зондирование перед печатью не совпадает с сохранённой сеткой стола: другая пластина, другая температура или мусор на столе."/>
   <translation tag="The probe never touched the plate: the PEI plate is not placed correctly." ru="Зонд так и не коснулся пластины: пластина PEI установлена неправильно."/>
@@ -5103,6 +5107,7 @@
   <translation tag="The probe was already triggered before the move started." ru="Зонд уже сработал до начала перемещения."/>
   <translation tag="The probe was used before the printer was homed." ru="Зонд использован до парковки принтера."/>
   <translation tag="The queue prints this .3mf&apos;s default plate. Print this plate from here instead." ru="Очередь печатает стандартную пластину этого .3mf. Напечатайте эту пластину отсюда."/>
+  <translation tag="The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then."/>
   <translation tag="The requested position is outside the printer&apos;s bounds" ru="Запрошенная позиция находится за пределами рабочей области принтера"/>
   <translation tag="The results say why."/>
   <translation tag="The right RFID reader in this CFS unit may need service" ru="Правому RFID-считывателю этого блока CFS может требоваться обслуживание"/>
@@ -5670,6 +5675,7 @@
   <translation tag="Waiting for the filament system to report its state" ru="Ожидание состояния системы филамента"/>
   <translation tag="Waiting for the printer" ru="Ожидание принтера"/>
   <translation tag="Waiting for the printer to finish"/>
+  <translation tag="Waiting for the printer to finish its command"/>
   <translation tag="Waiting for the printer&apos;s status; try again once it is connected" ru="Ожидание состояния принтера; повторите попытку после подключения"/>
   <translation tag="Waiting for you at the Z offset screen" ru="Ожидание вас на экране смещения Z"/>
   <translation tag="Waiting to read the printer&apos;s configuration from Klipper." ru="Ожидание чтения конфигурации принтера из Klipper."/>

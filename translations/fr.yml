@@ -2625,6 +2625,7 @@ translations:
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes et bloquer Klipper, qu'un redémarrage firmware ne peut alors plus atteindre. Éteignez puis rallumez l'imprimante (ou redémarrez Klipper via SSH), puis réessayez."
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: "Klipper ne signale plus la progression. Son analyse peut manquer de mémoire sur les petites imprimantes ; redémarrez Klipper puis réessayez."
+  Klipper stopped while the printer was finishing a step, so the remaining steps did not run.: ''
   Klipper will restart to apply changes.: Klipper redémarrera pour appliquer les modifications.
   Klipper will restart to apply new settings.: Klipper va redémarrer pour appliquer les nouveaux paramètres.
   'Klipper: ': 'Klipper : '
@@ -5181,6 +5182,7 @@ translations:
   The printer homes, then probes each screw position.: "L'imprimante se met à l'origine, puis palpe chaque position de vis."
   The printer is already resuming the print: 'L''imprimante reprend déjà l''impression'
   The printer is busy. Run the check when no print or other motion is in progress.: 'L''imprimante est occupée. Lancez la vérification lorsqu''aucune impression ni aucun autre mouvement n''est en cours.'
+  The printer is finishing a step's command. Save once it is done.: ''
   The printer is not connected.: 'L''imprimante n''est pas connectée.'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: L'imprimante n'est pas référencée. Continuer référencera tous les axes et déplacera la tête d'outil. Assurez-vous que le plateau est dégagé.
   The printer is not ready.: "L'imprimante n'est pas prête."
@@ -5217,6 +5219,7 @@ translations:
   The printer shut down: 'L''imprimante s''est arrêtée'
   The printer shut down while homing or probing.: 'L''imprimante s''est arrêtée pendant la prise d''origine ou le palpage.'
   The printer shut down while it was homing or probing.: L'imprimante s'est arrêtée pendant la prise d'origine ou le palpage.
+  The printer stayed busy long after the step failed, so the remaining steps did not run.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'L''imprimante s''est arrêtée par sécurité ; le firmware n''a donné aucune raison précise.'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'L''imprimante redémarre avec l''écran Snapmaker et HelixScreen ne démarre plus. Vos réglages HelixScreen restent sur l''imprimante ; relancez l''installateur pour revenir.'
@@ -5226,6 +5229,8 @@ translations:
   The printer was stopped: 'L''imprimante a été arrêtée'
   The printer's computer fell behind: L'ordinateur de l'imprimante a pris du retard
   The printer's firmware chooses where to switch on runout: Le firmware de l'imprimante choisit lui-même vers où basculer en fin de filament
+  ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
+  : ''
   The requested position is outside the printer's bounds: 'La position demandée est en dehors des limites de l''imprimante'
   The results say why.: ''
   The right RFID reader in this CFS unit may need service: Le lecteur RFID droit de cette unité CFS nécessite peut-être une intervention
@@ -5318,6 +5323,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : "La sonde était déclenchée avant de commencer à bouger : elle ne s'est pas rétractée, la buse touche le plateau, ou son signal est inversé."
   The probe was already triggered before the move started.: 'La sonde était déjà déclenchée avant le début du déplacement.'
+  The printer's state could no longer be read, so the remaining steps did not run.: ''
   The printer's status isn't known yet, so a print may be running.: 'L''état de l''imprimante n''est pas encore connu, une impression est peut-être en cours.'
   The probe was used before the printer was homed.: La sonde a été utilisée avant la prise d'origine de l'imprimante.
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'La file d''attente imprime la plaque par défaut de ce .3mf. Imprimez cette plaque d''ici.'
@@ -5829,6 +5835,7 @@ translations:
   Waiting for the filament system to report its state: En attente de l'état du système de filament
   Waiting for the printer: Attente de l'imprimante
   Waiting for the printer to finish: ''
+  Waiting for the printer to finish its command: ''
   Waiting for the printer's status; try again once it is connected: 'En attente de l''état de l''imprimante ; réessayez une fois qu''elle est connectée'
   Waiting for you at the Z offset screen: 'En attente de vous sur l''écran de l''offset Z'
   Waiting to read the printer's configuration from Klipper.: "En attente de la lecture de la configuration de l'imprimante depuis Klipper."

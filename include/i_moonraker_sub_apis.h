@@ -423,9 +423,13 @@ class IAdvancedAPI {
                                          HeaterControlTypeCallback on_complete,
                                          ErrorCallback on_error) = 0;
 
+    /// @param expected_ms How long the calibration is expected to take; the
+    ///        waits for its result stretch to 1.5 times it when that exceeds
+    ///        kPidTimeoutMs. 0 keeps kPidTimeoutMs.
     virtual void start_pid_calibrate(const std::string& heater, int target_temp,
                                      PIDCalibrateCallback on_complete, ErrorCallback on_error,
-                                     PIDProgressCallback on_progress = nullptr) = 0;
+                                     PIDProgressCallback on_progress = nullptr,
+                                     uint32_t expected_ms = 0) = 0;
 
     virtual void start_mpc_calibrate(const std::string& heater, int target_temp,
                                      int fan_breakpoints, MPCCalibrateCallback on_complete,

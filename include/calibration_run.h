@@ -9,6 +9,7 @@
 #include "calibration_step.h"
 #include "helix_shared_callback.h"
 
+#include <cstdint>
 #include <functional>
 #include <memory>
 #include <string>
@@ -86,9 +87,12 @@ class PrinterBusyWatch {
   public:
     virtual ~PrinterBusyWatch() = default;
     [[nodiscard]] virtual bool busy() const = 0;
-    /// Call @p idle once, when the printer next reports idle. Replaces an
-    /// earlier wait.
-    virtual void when_idle(std::function<void()> idle) = 0;
+    /// Call @p idle once, when the printer next reports idle. If it is still
+    /// busy after @p ceiling_ms, or its state can no longer be read (the
+    /// printer was switched), call @p gave_up once instead, with whether the
+    /// printer was last seen busy. Replaces an earlier wait.
+    virtual void when_idle(std::function<void()> idle, uint32_t ceiling_ms,
+                           std::function<void(bool still_busy)> gave_up) = 0;
     /// Drop the wait without calling it.
     virtual void cancel() = 0;
 };
@@ -129,9 +133,10 @@ class CalibrationRun {
     void start();
     /// Abort the running step and go to the results with what finished.
     void stop();
-    /// What stop() would do now: end the step quietly, or restart the
-    /// firmware, which drops any finished result still pending in Klipper.
-    enum class StopEffect : uint8_t { EndsStep, Restarts, RestartDropsResults };
+    /// What stop() would do now: end the step quietly, restart the firmware
+    /// (which drops any finished result still pending in Klipper), or end the
+    /// run while the printer finishes a failed step's command on its own.
+    enum class StopEffect : uint8_t { EndsStep, Restarts, RestartDropsResults, PrinterFinishes };
     [[nodiscard]] StopEffect stop_effect() const;
     /// Save everything that finished with one SAVE_CONFIG; record the history
     /// only once the save is known to have happened.
@@ -160,16 +165,31 @@ class CalibrationRun {
     [[nodiscard]] int waiting_on() const {
         return phase_ == RunPhase::Running && waiting_ ? current_ : -1;
     }
+    /// The printer is still running a failed step's command, so nothing can be
+    /// saved or discarded yet: a SAVE_CONFIG would queue behind it.
+    [[nodiscard]] bool printer_finishing() const {
+        return printer_finishing_;
+    }
+    /// Why the run ended before its last step, other than Stop.
+    enum class EndNote : uint8_t {
+        None,
+        KlipperStopped,    ///< Klipper shut down or restarted during the wait
+        PrinterStayedBusy, ///< the wait passed its ceiling
+        PrinterLost,       ///< the printer's state could no longer be read
+    };
+    [[nodiscard]] EndNote end_note() const {
+        return end_note_;
+    }
     [[nodiscard]] int finished_count() const;
     /// Stopping restarted the firmware, so the finished results are no longer
     /// pending in Klipper and cannot be saved.
     [[nodiscard]] bool results_lost() const {
         return results_lost_;
     }
-    /// There is something a save would write.
+    /// There is something a save would write, and the printer is free to.
     [[nodiscard]] bool can_save() const {
         return (phase_ == RunPhase::Results || phase_ == RunPhase::SaveFailed) &&
-               has_pending_result() && !results_lost_;
+               has_pending_result() && !results_lost_ && !printer_finishing_;
     }
     /// There is something Discard all would undo: a result a save would write,
     /// or a finished one the firmware already persisted.
@@ -195,6 +215,10 @@ class CalibrationRun {
     void finish_steps();
     /// Go on after entry @p index ended, once the printer is idle if it failed.
     void go_on_after(size_t index);
+    /// The printer finished the command failed entry @p index left running.
+    void printer_went_idle(size_t index);
+    /// End a run that waited after entry @p index without going on.
+    void end_waiting_run(EndNote note);
     void changed();
     /// Discard all: restore entries from @p from on, then restart if needed.
     void restore_from(size_t from, RunFinisher& finisher);
@@ -214,6 +238,8 @@ class CalibrationRun {
     bool advance_again_ = false;
     /// The current entry failed and the run waits for the printer to be idle.
     bool waiting_ = false;
+    bool printer_finishing_ = false;
+    EndNote end_note_ = EndNote::None;
     std::unique_ptr<PrinterBusyWatch> busy_watch_;
     std::string error_;
     /// The finisher's callbacks check it, so a run closed mid-save ignores them.
@@ -257,6 +283,10 @@ struct RunSighting {
 /// sleeping screen wakes for it: the steps ended, a step did not finish, or a
 /// step that needs the owner started.
 [[nodiscard]] bool calls_for_owner(const RunSighting& before, const RunSighting& now);
+
+/// How long the run waits for the printer to finish @p step's command before it
+/// gives up: twice the step's priced time and half an hour more.
+[[nodiscard]] uint32_t wait_ceiling_ms(const StepInfo& step);
 
 /// Whole minutes left of @p entry's estimate: all of it while it waits; while it
 /// runs, the share its progress has not reached (all of it before it reports a

@@ -49,6 +49,28 @@ enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 /// finished").
 [[nodiscard]] std::string run_end_title(const calibration::RunTally& tally);
 
+/// Why the run ended early, for the Results page; empty for none.
+[[nodiscard]] std::string end_note_text(calibration::CalibrationRun::EndNote note);
+
+/// Holds the screen up while a run's steps run when sleep-while-printing is
+/// off, the rule a print follows. Main thread.
+class RunScreenHold {
+  public:
+    void update(calibration::RunPhase phase, bool sleep_while_printing) {
+        if (phase == calibration::RunPhase::Running && !sleep_while_printing) {
+            token_.acquire();
+        } else {
+            token_.reset();
+        }
+    }
+    void release() {
+        token_.reset();
+    }
+
+  private:
+    helix::DisplayAwakeToken token_;
+};
+
 /// The Stop confirmation's message for what stopping would do now.
 [[nodiscard]] std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect);
 
@@ -148,7 +170,7 @@ class CalibrationRunOverlay : public OverlayBase {
     calibration::RunSighting last_sighting_;
     /// Holds the screen up while the steps run, as sleep-while-printing off
     /// holds it for a print.
-    helix::DisplayAwakeToken awake_;
+    RunScreenHold awake_;
 
     SubjectManager subjects_;
     /// Stable storage for the subject names the XML registry keeps pointers to.

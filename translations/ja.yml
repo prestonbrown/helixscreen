@@ -2613,6 +2613,7 @@ translations:
   ? Klipper stopped reporting progress. Its analysis can run out of memory on small printers and leave Klipper stuck, where a firmware restart cannot reach it. Power-cycle the printer (or restart Klipper over SSH), then try again.
   : "Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足し、Klipperが停止したままになることがあり、その場合はファームウェア再起動では復旧できません。プリンターの電源を入れ直して（またはSSHでKlipperを再起動して）から再試行してください。"
   Klipper stopped reporting progress. Its analysis can run out of memory on small printers; restart Klipper, then try again.: "Klipperが進捗の報告を停止しました。小型のプリンターでは解析でメモリが不足することがあります。Klipperを再起動してから再試行してください。"
+  Klipper stopped while the printer was finishing a step, so the remaining steps did not run.: ''
   Klipper will restart to apply changes.: 変更を適用するために Klipper が再起動します。
   Klipper will restart to apply new settings.: 新しい設定を適用するためKlipperが再起動します。
   'Klipper: ': 'Klipper: '
@@ -5169,6 +5170,7 @@ translations:
   The printer homes, then probes each screw position.: "プリンターは原点復帰してから各ネジ位置を測定します。"
   The printer is already resuming the print: 'プリンターはすでに印刷を再開しています'
   The printer is busy. Run the check when no print or other motion is in progress.: 'プリンターはビジー状態です。印刷やその他の動作が行われていないときにチェックを実行してください。'
+  The printer is finishing a step's command. Save once it is done.: ''
   The printer is not connected.: 'プリンターが接続されていません。'
   The printer is not homed. Continuing will home all axes, moving the toolhead. Make sure the bed is clear.: プリンターがホーミングされていません。続行すると全軸がホーミングされ、ツールヘッドが移動します。ベッドに物がないことを確認してください。
   The printer is not ready.: "プリンターの準備ができていません。"
@@ -5205,6 +5207,7 @@ translations:
   The printer shut down: 'プリンターが停止しました'
   The printer shut down while homing or probing.: 'ホーミングまたはプローブ中にプリンターが停止しました。'
   The printer shut down while it was homing or probing.: ホーミングまたはプローブ中にプリンターが停止しました。
+  The printer stayed busy long after the step failed, so the remaining steps did not run.: ''
   The printer stopped itself for safety; the firmware gave no specific reason.: 'プリンターが安全のため停止しました。ファームウェアから具体的な理由は報告されていません。'
   ? The printer restarts with the Snapmaker screen, and HelixScreen no longer starts. Your HelixScreen settings stay on the printer; run the installer again to come back.
   : 'プリンターはSnapmakerの画面で再起動し、HelixScreenは起動しなくなります。HelixScreenの設定はプリンターに残ります。戻すにはインストーラーを再度実行してください。'
@@ -5214,6 +5217,8 @@ translations:
   The printer was stopped: 'プリンターが停止されました'
   The printer's computer fell behind: プリンターのコンピューターの処理が遅れました
   The printer's firmware chooses where to switch on runout: フィラメント切れ時の切り替え先はプリンターのファームウェアが選びます
+  ? The remaining steps will not run. The printer finishes the command it is running first, and its heaters stay on until then.
+  : ''
   The requested position is outside the printer's bounds: '指定された位置はプリンターの可動範囲外です'
   The results say why.: ''
   The right RFID reader in this CFS unit may need service: この CFS ユニットの右側 RFID リーダーは修理が必要な可能性があります
@@ -5306,6 +5311,7 @@ translations:
   ? 'The probe read as triggered before it started moving: it did not retract, the nozzle is touching the bed, or its signal is inverted.'
   : 'プローブが移動を始める前から反応していました: 格納されていない、ノズルがベッドに接触している、または信号が反転しています。'
   The probe was already triggered before the move started.: '移動開始前からプローブが反応していました。'
+  The printer's state could no longer be read, so the remaining steps did not run.: ''
   The printer's status isn't known yet, so a print may be running.: 'プリンターの状態がまだわかりません。印刷中の可能性があります。'
   The probe was used before the printer was homed.: プリンターのホーミング前にプローブが使用されました。
   The queue prints this .3mf's default plate. Print this plate from here instead.: 'キューはこの .3mf のデフォルトのプレートを印刷します。このプレートはここから印刷してください。'
@@ -5817,6 +5823,7 @@ translations:
   Waiting for the filament system to report its state: フィラメントシステムの状態報告を待機中
   Waiting for the printer: プリンターを待っています
   Waiting for the printer to finish: ''
+  Waiting for the printer to finish its command: ''
   Waiting for the printer's status; try again once it is connected: 'プリンターの状態を待っています。接続後にもう一度お試しください'
   Waiting for you at the Z offset screen: 'Zオフセット画面で操作をお待ちしています'
   Waiting to read the printer's configuration from Klipper.: "Klipperからプリンターの設定を読み込むのを待っています。"

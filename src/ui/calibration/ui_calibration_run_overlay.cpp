@@ -278,9 +278,30 @@ std::string run_end_title(const calibration::RunTally& tally) {
     return lv_tr("Calibration finished");
 }
 
+std::string end_note_text(calibration::CalibrationRun::EndNote note) {
+    using Note = calibration::CalibrationRun::EndNote;
+    switch (note) {
+    case Note::None:
+        break;
+    case Note::KlipperStopped:
+        return lv_tr("Klipper stopped while the printer was finishing a step, so the remaining "
+                     "steps did not run.");
+    case Note::PrinterStayedBusy:
+        return lv_tr("The printer stayed busy long after the step failed, so the remaining steps "
+                     "did not run.");
+    case Note::PrinterLost:
+        return lv_tr("The printer's state could no longer be read, so the remaining steps did "
+                     "not run.");
+    }
+    return {};
+}
+
 std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect) {
     using Effect = calibration::CalibrationRun::StopEffect;
     switch (effect) {
+    case Effect::PrinterFinishes:
+        return lv_tr("The remaining steps will not run. The printer finishes the command it is "
+                     "running first, and its heaters stay on until then.");
     case Effect::RestartDropsResults:
         return lv_tr("The running step stops at once and the printer restarts, which also drops "
                      "the results of the steps that finished.");
@@ -392,7 +413,7 @@ void CalibrationRunOverlay::init_subjects() {
             self->klippy_obs_.reset();
             self->language_obs_.reset();
             self->run_.reset();
-            self->awake_.reset();
+            self->awake_.release();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;
         }
@@ -757,6 +778,9 @@ void CalibrationRunOverlay::publish_run() {
     const int finished = run_->finished_count();
     if (run_->results_lost()) {
         set_text(results_sub_, lv_tr("Stopping restarted the printer, so nothing can be saved"));
+    } else if (run_->printer_finishing()) {
+        set_text(results_sub_, lv_tr("The printer is finishing a step's command. Save once it is "
+                                     "done."));
     } else if (!can_save) {
         set_text(results_sub_, finished == 0 ? lv_tr("Nothing to save. Each step says why.")
                                              : lv_tr("Nothing to save"));
@@ -787,7 +811,9 @@ void CalibrationRunOverlay::publish_run() {
         set_text(save_line_, lv_tr("Nothing was saved."));
         break;
     default:
-        if (!can_save) {
+        if (run_->printer_finishing()) {
+            set_text(save_line_, lv_tr("Waiting for the printer to finish its command"));
+        } else if (!can_save) {
             set_text(save_line_, lv_tr("Nothing to save."));
         } else {
             const std::string count =
@@ -800,7 +826,7 @@ void CalibrationRunOverlay::publish_run() {
         }
         break;
     }
-    const std::string& err = run_->error();
+    const std::string err = run_->error().empty() ? end_note_text(run_->end_note()) : run_->error();
     lv_subject_set_int(&has_error_, err.empty() ? 0 : 1);
     set_text(error_, err);
 }
@@ -813,12 +839,7 @@ void CalibrationRunOverlay::keep_owner_informed() {
         helix::request_display_wake();
     }
     last_sighting_ = now;
-    if (now.phase == RunPhase::Running &&
-        !DisplaySettingsManager::instance().get_sleep_while_printing()) {
-        awake_.acquire();
-    } else {
-        awake_.reset();
-    }
+    awake_.update(now.phase, DisplaySettingsManager::instance().get_sleep_while_printing());
 }
 
 void CalibrationRunOverlay::query_save_restarts() {
@@ -981,7 +1002,7 @@ void CalibrationRunOverlay::done() {
     klippy_obs_.reset();
     run_.reset();
     finisher_.reset();
-    awake_.reset();
+    awake_.release();
     helix::nav::go_back();
 }
 

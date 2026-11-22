@@ -11,7 +11,7 @@
 #include "calibration_catalog_inputs.h"
 #include "calibration_config_results.h"
 #include "calibration_history_store.h"
-#include "core/observer_factory.h"
+#include "core/timer_guard.h"
 #include "i_moonraker_api.h"
 #include "input_shaper_calibrator.h"
 #include "moonraker_error.h"
@@ -73,10 +73,13 @@ class HeatersStep : public CalibrationStep {
         // Each heater's share of the bar is its share of the step's time: a
         // bed's cycles can take an hour where the nozzle's take minutes.
         shares_.clear();
+        priced_s_.clear();
+        failed_index_.reset();
         float total = 0.0f;
         for (const auto& h : heaters_) {
-            shares_.push_back(heater_calibration_seconds(
+            priced_s_.push_back(heater_calibration_seconds(
                 price_heater(ctx.api.printer_state(), h.name, h.temp_c)));
+            shares_.push_back(priced_s_.back());
             total += shares_.back();
         }
         for (auto& share : shares_) {
@@ -104,6 +107,38 @@ class HeatersStep : public CalibrationStep {
 
     bool abort_restarts_firmware() const override {
         return ctx_ && command_sent_;
+    }
+
+    /// The PID calibration that failed here finished in Klipper after all:
+    /// read the gains it staged and report the heater tuned.
+    void recheck_after_wait(IMoonrakerAPI& api,
+                            std::function<void(std::optional<StepOutcome>)> done) override {
+        if (!failed_index_ || failed_mpc_) {
+            done(std::nullopt);
+            return;
+        }
+        const size_t at = *failed_index_;
+        const Heater h = heaters_[at];
+        api.advanced().get_save_config_pending_items(
+            lifetime_.bg_cb(
+                "CalibrationRun.Heaters.recheck",
+                [this, h, at, done](const nlohmann::json& items) {
+                    const auto gains = staged_pid(items, h.name);
+                    if (!gains) {
+                        done(std::nullopt);
+                        return;
+                    }
+                    record_pid(h, gains->kp, gains->ki, gains->kd);
+                    failed_index_.reset();
+                    if (at + 1 >= heaters_.size()) {
+                        done(StepOutcome::finished({joined_summary(), values_, joined_brief()}));
+                        return;
+                    }
+                    done(StepOutcome::failed_after(failure_,
+                                                   {joined_summary(), values_, joined_brief()}));
+                }),
+            lifetime_.bg_cb("CalibrationRun.Heaters.recheck_error",
+                            [done](const MoonrakerError&) { done(std::nullopt); }));
     }
 
   private:
@@ -196,22 +231,28 @@ class HeatersStep : public CalibrationStep {
         command_sent_ = true;
         ctx_->api.advanced().start_pid_calibrate(
             h.name, h.temp_c,
-            lifetime_.bg_cb(
-                "CalibrationRun.Heaters.pid_done",
-                [this, h](float kp, float ki, float kd) {
-                    values_[h.name] = {
-                        {"control", "pid"}, {"temp", h.temp_c}, {"kp", kp}, {"ki", ki}, {"kd", kd}};
-                    summaries_.push_back(fmt::format("{} {}", label(), format_pid(kp, ki, kd)));
-                    controls_.push_back({is_bed(), "pid"});
-                    next();
-                }),
+            lifetime_.bg_cb("CalibrationRun.Heaters.pid_done",
+                            [this, h](float kp, float ki, float kd) {
+                                record_pid(h, kp, ki, kd);
+                                next();
+                            }),
             lifetime_.bg_cb("CalibrationRun.Heaters.pid_error",
                             [this](const MoonrakerError& err) { fail(err.message); }),
             lifetime_.bg_cb(
                 "CalibrationRun.Heaters.pid_progress",
                 [this, target = helix::pid::calibrate_tolerance(
                            ctx_->api.hardware().pid_calibrate_takes_tolerance(), h.name)](
-                    int sample, float tolerance) { report_pid_cycle(sample, tolerance, target); }));
+                    int sample, float tolerance) { report_pid_cycle(sample, tolerance, target); }),
+            static_cast<uint32_t>(priced_s_[index_] * 1000.0f));
+    }
+
+    void record_pid(const Heater& h, double kp, double ki, double kd) {
+        const bool bed = h.name == kBedHeater;
+        values_[h.name] = {
+            {"control", "pid"}, {"temp", h.temp_c}, {"kp", kp}, {"ki", ki}, {"kd", kd}};
+        summaries_.push_back(
+            fmt::format("{} {}", bed ? lv_tr("Bed") : lv_tr("Nozzle"), format_pid(kp, ki, kd)));
+        controls_.push_back({bed, "pid"});
     }
 
     void run_mpc() {
@@ -259,6 +300,9 @@ class HeatersStep : public CalibrationStep {
         auto* ctx = ctx_;
         ctx_ = nullptr;
         const std::string message = MoonrakerError::friendly_error_line(why);
+        failed_index_ = index_;
+        failed_mpc_ = mpc_;
+        failure_ = message;
         if (summaries_.empty()) {
             ctx->done(StepOutcome::failed(message));
             return;
@@ -286,6 +330,12 @@ class HeatersStep : public CalibrationStep {
     std::vector<Heater> heaters_;
     /// Each heater's fraction of the step's time, summing to 1.
     std::vector<float> shares_;
+    /// Each heater's priced seconds (heater_calibration_seconds()).
+    std::vector<float> priced_s_;
+    /// The heater the step failed on, and how, for recheck_after_wait().
+    std::optional<size_t> failed_index_;
+    bool failed_mpc_ = false;
+    std::string failure_;
     size_t index_ = 0;
     std::vector<std::string> summaries_;
     std::vector<HeaterControl> controls_;
@@ -657,45 +707,96 @@ class ZOffsetStep : public CalibrationStep {
 };
 
 /// Klipper's idle_timeout reads "Printing" while any command runs, a
-/// calibration that outlived the app's wait included.
+/// calibration that outlived the app's wait included. The watch reads it once a
+/// second rather than observing it: one timer covers the idle report, the
+/// ceiling, and a printer switch that frees the subject under the wait.
+/// TIMER_DTOR_OK: the destructor cancels through cancel().
 class IdleTimeoutBusyWatch : public PrinterBusyWatch {
   public:
     explicit IdleTimeoutBusyWatch(PrinterState& state) : state_(state) {}
+    ~IdleTimeoutBusyWatch() override {
+        cancel();
+    }
 
     bool busy() const override {
         return lv_subject_get_int(state_.calibration_state().get_idle_timeout_printing_subject()) ==
                1;
     }
 
-    void when_idle(std::function<void()> idle) override {
+    void when_idle(std::function<void()> idle, uint32_t ceiling_ms,
+                   std::function<void(bool)> gave_up) override {
+        cancel();
         idle_ = std::move(idle);
-        std::shared_ptr<bool> lifetime;
-        lv_subject_t* subject =
-            state_.calibration_state().get_idle_timeout_printing_subject(lifetime);
-        observer_ = helix::ui::observe<int>(
-            subject, this,
-            [](IdleTimeoutBusyWatch* self, int /*printing*/) {
-                // Deferred: read the printer as it is now, not as it was notified.
-                if (!self->idle_ || self->busy()) {
-                    return;
-                }
-                auto idle = std::move(self->idle_);
-                self->idle_ = nullptr;
-                self->observer_.reset();
-                idle();
-            },
-            lifetime);
+        gave_up_ = std::move(gave_up);
+        ceiling_ms_ = ceiling_ms;
+        started_ = lv_tick_get();
+        (void)state_.calibration_state().get_idle_timeout_printing_subject(lifetime_);
+        arm();
     }
 
     void cancel() override {
+        if (timer_) {
+            helix::ui::lv_timer_cancel_safe(timer_);
+            timer_ = nullptr;
+        }
         idle_ = nullptr;
-        observer_.reset();
+        gave_up_ = nullptr;
+        lifetime_.reset();
     }
 
   private:
+    static constexpr uint32_t kPollMs = 1000;
+
+    /// One read a second, each a one-shot timer that arms the next.
+    void arm() {
+        timer_ = lv_timer_create(
+            [](lv_timer_t* t) {
+                auto* self = static_cast<IdleTimeoutBusyWatch*>(lv_timer_get_user_data(t));
+                // One-shot: LVGL deletes it once this returns.
+                self->timer_ = nullptr;
+                self->check();
+            },
+            kPollMs, this);
+        lv_timer_set_repeat_count(timer_, 1);
+    }
+
+    void check() {
+        // Each answer ends the wait before it is handed over, since the
+        // handler may start another wait on this watch.
+        if (!lifetime_ || !*lifetime_) {
+            auto gave_up = std::move(gave_up_);
+            cancel();
+            if (gave_up) {
+                gave_up(false);
+            }
+            return;
+        }
+        if (!busy()) {
+            auto idle = std::move(idle_);
+            cancel();
+            if (idle) {
+                idle();
+            }
+            return;
+        }
+        if (lv_tick_elaps(started_) >= ceiling_ms_) {
+            auto gave_up = std::move(gave_up_);
+            cancel();
+            if (gave_up) {
+                gave_up(true);
+            }
+            return;
+        }
+        arm();
+    }
+
     PrinterState& state_;
     std::function<void()> idle_;
-    ObserverGuard observer_;
+    std::function<void(bool)> gave_up_;
+    uint32_t ceiling_ms_ = 0;
+    uint32_t started_ = 0;
+    std::shared_ptr<bool> lifetime_;
+    lv_timer_t* timer_ = nullptr;
 };
 
 } // namespace

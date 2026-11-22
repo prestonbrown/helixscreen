@@ -425,21 +425,32 @@ class CalibrationCollectorCore {
     }
 
     /// The macro reported progress, so it is still running: an armed backstop
-    /// starts its wait over, for at least @p stall_window_ms. A calibration
-    /// that keeps reporting is never cut off by a fixed ceiling; one that stops
-    /// reporting fails a full window after its last report. Any thread.
-    void note_progress(uint32_t stall_window_ms) {
+    /// starts its wait over, for at least kStallReports of the longest gap
+    /// between reports so far, since a large bed under a tight tolerance runs
+    /// minutes per cycle. A calibration that keeps reporting is never cut off
+    /// by a fixed ceiling; one that stops reporting fails a full window after
+    /// its last report. Any thread; the timing is taken on the main thread.
+    void note_progress() {
         auto owner = owner_.lock();
         if (!owner) {
             return; // the collector is already being destroyed
         }
         helix::ui::queue_update(
             // QUEUE_RAW_THIS_OK: owner reference above.
-            "CalibrationCollectorCore::note_progress", [this, owner, stall_window_ms]() {
+            "CalibrationCollectorCore::note_progress", [this, owner]() {
+                const uint32_t now = lv_tick_get();
+                if (progress_seen_) {
+                    longest_gap_ms_ = std::max(longest_gap_ms_, now - last_progress_tick_);
+                }
+                progress_seen_ = true;
+                last_progress_tick_ = now;
                 if (completed() || !fallback_.armed) {
                     return;
                 }
-                const uint32_t window = std::max(fallback_.backstop_ms, stall_window_ms);
+                const uint64_t stall = uint64_t{longest_gap_ms_} * kStallReports;
+                const auto window = static_cast<uint32_t>(
+                    std::min<uint64_t>(std::max<uint64_t>(fallback_.backstop_ms, stall),
+                                       std::numeric_limits<uint32_t>::max()));
                 spdlog::debug("[{}] Progress while waiting out a lost RPC; backstop restarts "
                               "at {} s",
                               handler_name_, window / 1000);
@@ -607,6 +618,13 @@ class CalibrationCollectorCore {
     std::atomic<bool> registered_{false};
     std::atomic<bool> completed_{false};
 
+    /// A stall is this many of the longest gap between progress reports.
+    static constexpr uint32_t kStallReports = 3;
+    /// Progress timing, main thread only (note_progress()).
+    bool progress_seen_ = false;
+    uint32_t last_progress_tick_ = 0;
+    uint32_t longest_gap_ms_ = 0;
+
     /// How long the line-driven collectors let result lines trail the
     /// busy->idle edge before concluding they were lost to the outage.
     static constexpr uint32_t kEdgeGraceMs = 3000;
@@ -765,7 +783,7 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
             }
             spdlog::debug("[PIDCalibrateCollector] Progress: sample={} tolerance={}", sample_num,
                           tolerance_val);
-            note_cycle();
+            core_.note_progress();
             if (on_progress_)
                 on_progress_(sample_num, tolerance_val);
             return;
@@ -801,22 +819,6 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     }
 
   private:
-    /// A cycle ended: the calibration is alive. How long a stall may last
-    /// before the backstop gives up grows with the longest cycle seen, since
-    /// a large bed under a tight tolerance runs minutes per cycle and many
-    /// cycles. WebSocket thread only, like every gcode response.
-    void note_cycle() {
-        const auto now = std::chrono::steady_clock::now();
-        if (last_cycle_) {
-            longest_cycle_ = std::max(longest_cycle_, now - *last_cycle_);
-        }
-        last_cycle_ = now;
-        const auto window =
-            std::chrono::duration_cast<std::chrono::milliseconds>(longest_cycle_ * kStallCycles);
-        core_.note_progress(static_cast<uint32_t>(
-            std::min<int64_t>(window.count(), std::numeric_limits<uint32_t>::max())));
-    }
-
     void complete_success(float kp, float ki, float kd) {
         // unregister() below drops the client handler map's reference, which is
         // the collector's only strong owner, and the fallback handlers hold a
@@ -854,10 +856,6 @@ class PIDCalibrateCollector : public std::enable_shared_from_this<PIDCalibrateCo
     PIDCallback on_success_;
     MoonrakerAdvancedAPI::ErrorCallback on_error_;
     PIDProgressCallback on_progress_;
-    /// A stall is this many of the longest cycle without a new one.
-    static constexpr int kStallCycles = 3;
-    std::optional<std::chrono::steady_clock::time_point> last_cycle_;
-    std::chrono::steady_clock::duration longest_cycle_{};
 };
 } // namespace helix
 
@@ -1162,7 +1160,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
         // Klipper's respond_info marks every line "// "; the user reads the sentence.
         const std::string description = line.rfind("// ", 0) == 0 ? line.substr(3) : line;
         spdlog::debug("[MPCCalibrateCollector] Progress: phase={} desc={}", phase, description);
-        core_.note_progress(0);
+        core_.note_progress();
         if (on_progress_)
             on_progress_(phase, kTotalPhases, description);
     }
@@ -3196,8 +3194,13 @@ void MoonrakerAdvancedAPI::get_heater_control_type(
 void MoonrakerAdvancedAPI::start_pid_calibrate(
     const std::string& heater, int target_temp,
     MoonrakerAdvancedAPI::PIDCalibrateCallback on_complete, ErrorCallback on_error,
-    PIDProgressCallback on_progress) {
+    PIDProgressCallback on_progress, uint32_t expected_ms) {
     spdlog::info("[MoonrakerAPI] Starting PID calibration for {} at {}°C", heater, target_temp);
+    // A big bed on mainline's fixed cycles can outlast kPidTimeoutMs twice over
+    // without printing one progress line, so the waits follow its estimate.
+    const auto wait_ms = static_cast<uint32_t>(
+        std::min<uint64_t>(std::max<uint64_t>(kPidTimeoutMs, uint64_t{expected_ms} * 3 / 2),
+                           std::numeric_limits<uint32_t>::max()));
 
     auto collector = std::make_shared<PIDCalibrateCollector>(client_, std::move(on_complete),
                                                              on_error, std::move(on_progress));
@@ -3209,7 +3212,7 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
     // silent=true: PID errors are handled by the collector and UI panel, not global toast
     api_.execute_gcode(
         cmd, nullptr,
-        [collector, on_error](const MoonrakerError& err) {
+        [collector, on_error, wait_ms](const MoonrakerError& err) {
             // The notify_gcode_response collector — not this RPC — is the authority for
             // PID_CALIBRATE completion. Slow-cooling beds can run longer than the RPC
             // timeout (#988), and a dropped socket is the transport vanishing, not the
@@ -3220,9 +3223,9 @@ void MoonrakerAdvancedAPI::start_pid_calibrate(
             // A genuine RPC
             // error (heater misconfigured) is still terminal.
             report_collector_rpc_error("PID_CALIBRATE", get_printer_state(), collector, on_error,
-                                       err, kPidTimeoutMs);
+                                       err, wait_ms);
         },
-        kPidTimeoutMs, true);
+        wait_ms, true);
 }
 
 helix::SharedCallback<void()>

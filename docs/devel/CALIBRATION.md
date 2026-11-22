@@ -388,8 +388,18 @@ whatever the next step sends would only queue behind it and time out there. So a
 step the run asks its `PrinterBusyWatch` (`make_printer_busy_watch()`, over `idle_timeout`, which
 reads "Printing" while any command runs) and, while the printer is busy, waits: `current()` is -1,
 `waiting_on()` names the failed entry, and the Running page reads "Waiting for the printer to
-finish" with a WAITING badge. The next step starts on the printer's first idle report. Stop while
-waiting ends the run without aborting anything; it never sends `M112`. The run's phases are
+finish" with a WAITING badge. The watch reads the flag once a second, so one timer also covers
+the wait's ceiling (`wait_ceiling_ms()`: twice the step's priced minutes and half an hour more) and
+a printer switch that frees the subject; either ends the run with an `EndNote` the Results page
+words. On the printer's first idle report the step gets `recheck_after_wait()`: the Heaters step
+reads the gains a late `PID_CALIBRATE` staged (`staged_pid()`) and turns its failure into a finish,
+so the results and the history match what Klipper will save. The next step then starts.
+
+Klipper leaving READY during the wait ends the run (`EndNote::KlipperStopped`) and never goes on,
+since the restart may follow a heater fault. Stop while waiting (`StopEffect::PrinterFinishes`)
+ends the run without aborting anything and never sends `M112`; its confirmation says the printer
+finishes its command first. Until the printer is idle, `printer_finishing()` keeps Save and
+Discard shut, since a `SAVE_CONFIG` would queue behind the command. The run's phases are
 `Ready`, `Running`, `Results`, `Saving`, `Saved`, `SaveFailed`, `Discarding` and `Discarded`, and
 every status or progress change calls the overlay's `on_change`, which republishes.
 
@@ -490,9 +500,12 @@ the step's bar is its share of the step's priced time (below), so the bed's hour
 
 A bed under Kalico's tolerance runs for longer than any fixed wait: the RPC's 20-minute ceiling
 expires and the collector's idle backstop arms. Each `sample:N` line, like each MPC phase, restarts
-that backstop (`CalibrationCollectorCore::note_progress()`) for at least three of the longest cycles
-seen, so a calibration that keeps reporting is never cut off, and one that stops reporting still
-fails a window after its last cycle.
+that backstop (`CalibrationCollectorCore::note_progress()`) for at least three of the longest gaps
+between reports, timed on the main thread's tick, so a calibration that keeps reporting is never
+cut off, and one that stops reporting still fails a window after its last cycle. Mainline's fixed
+cycles print no progress lines, so the run passes the heater's priced time to
+`start_pid_calibrate()` (`expected_ms`), and both waits stretch to 1.5 times it when that is longer
+than `kPidTimeoutMs`.
 
 **What the step costs.** `heaters_step_minutes()` (`include/calibration_catalog.h`) prices the
 Heaters step from each heater's `HeaterPricing`: the thermal model's heating seconds to the

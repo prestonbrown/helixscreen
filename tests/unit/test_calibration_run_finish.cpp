@@ -17,12 +17,14 @@
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "moonraker_error.h"
+#include "printer_calibration_state.h"
 #include "printer_state.h"
 
 #include <algorithm>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -302,6 +304,10 @@ TEST_CASE("the stop confirmation warns of a restart only when the stop restarts"
     CHECK(restarts.find("drops") == std::string::npos);
     CHECK(drops.find("restarts") != std::string::npos);
     CHECK(drops.find("drops the results") != std::string::npos);
+    // Stopping while the printer finishes a failed step's command stops nothing in it.
+    const std::string finishes = stop_confirm_message(Effect::PrinterFinishes);
+    CHECK(finishes.find("stops") == std::string::npos);
+    CHECK(finishes.find("finishes the command") != std::string::npos);
 }
 
 TEST_CASE_METHOD(FinishFixture,
@@ -358,4 +364,79 @@ TEST_CASE("the finish says how many steps did not finish", "[calibration_run]") 
     CHECK(helix::ui::run_end_title(RunTally{1, 3}) == "2 of 3 steps didn't finish");
     CHECK(helix::ui::run_end_title(RunTally{0, 3}) == "No step finished");
     CHECK(helix::ui::run_end_title(RunTally{0, 1}) == "The step didn't finish");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the busy watch answers on Klipper's idle report and not before",
+                 "[calibration_run]") {
+    PrinterState state;
+    state.init_subjects(false);
+    lv_subject_t* printing = state.calibration_state().get_idle_timeout_printing_subject();
+    lv_subject_set_int(printing, 1);
+    auto watch = make_printer_busy_watch(state);
+    CHECK(watch->busy());
+    int idle = 0;
+    int gave_up = 0;
+    watch->when_idle([&]() { ++idle; }, 60000, [&](bool) { ++gave_up; });
+    process_lvgl(1500);
+    CHECK(idle == 0);
+
+    // A report that goes idle and busy again between two reads is no answer.
+    lv_subject_set_int(printing, 0);
+    lv_subject_set_int(printing, 1);
+    process_lvgl(1500);
+    CHECK(idle == 0);
+
+    lv_subject_set_int(printing, 0);
+    process_lvgl(1500);
+    CHECK(idle == 1);
+    process_lvgl(1500);
+    CHECK(idle == 1);
+    CHECK(gave_up == 0);
+
+    // A cancelled wait never answers.
+    lv_subject_set_int(printing, 1);
+    watch->when_idle([&]() { ++idle; }, 60000, [&](bool) { ++gave_up; });
+    watch->cancel();
+    lv_subject_set_int(printing, 0);
+    process_lvgl(1500);
+    CHECK(idle == 1);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "the busy watch gives up at its ceiling", "[calibration_run]") {
+    PrinterState state;
+    state.init_subjects(false);
+    lv_subject_t* printing = state.calibration_state().get_idle_timeout_printing_subject();
+    lv_subject_set_int(printing, 1);
+    auto watch = make_printer_busy_watch(state);
+    std::optional<bool> still_busy;
+    bool idle = false;
+    watch->when_idle([&]() { idle = true; }, 5000, [&](bool busy) { still_busy = busy; });
+    process_lvgl(3000);
+    CHECK_FALSE(still_busy);
+    process_lvgl(3000);
+    REQUIRE(still_busy);
+    CHECK(*still_busy);
+    CHECK_FALSE(idle);
+}
+
+TEST_CASE("a run holds the screen up only while its steps run with sleep-while-printing off",
+          "[calibration_run]") {
+    using helix::display_awake_hold;
+    REQUIRE_FALSE(display_awake_hold().is_held());
+    {
+        helix::ui::RunScreenHold hold;
+        hold.update(RunPhase::Running, /*sleep_while_printing=*/true);
+        CHECK_FALSE(display_awake_hold().is_held());
+        hold.update(RunPhase::Running, /*sleep_while_printing=*/false);
+        CHECK(display_awake_hold().is_held());
+        hold.update(RunPhase::Running, false);
+        hold.update(RunPhase::Results, false);
+        CHECK_FALSE(display_awake_hold().is_held());
+        hold.update(RunPhase::Running, false);
+        hold.release();
+        CHECK_FALSE(display_awake_hold().is_held());
+        hold.update(RunPhase::Running, false);
+    }
+    // Closing the run lets the screen sleep again.
+    CHECK_FALSE(display_awake_hold().is_held());
 }
