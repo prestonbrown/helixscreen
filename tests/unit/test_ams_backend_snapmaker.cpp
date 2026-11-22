@@ -5446,6 +5446,54 @@ size_t writes_for_head(const FilamentRecordHarness& h, int head) {
     return n;
 }
 
+SlotInfo petg_blue() {
+    SlotInfo edit = polymaker_asa();
+    edit.material = "PETG";
+    edit.color_rgb = 0x0000FF;
+    return edit;
+}
+
+/// Every record write to @p head names @p type and @p rgba, and at least one
+/// names a type.
+void check_head_writes(const FilamentRecordHarness& h, int head, const std::string& type,
+                       const std::string& rgba) {
+    const std::string key = "CONFIG_EXTRUDER=" + std::to_string(head);
+    size_t typed = 0;
+    for (const auto& w : h.config_writes()) {
+        if (w.find(key) == std::string::npos) {
+            continue;
+        }
+        INFO(w);
+        if (w.find("FILAMENT_TYPE=") != std::string::npos) {
+            ++typed;
+            CHECK(w.find("FILAMENT_TYPE=" + type + " ") != std::string::npos);
+        }
+        if (w.find("FILAMENT_COLOR_RGBA=") != std::string::npos) {
+            CHECK(w.find("FILAMENT_COLOR_RGBA=" + rgba) != std::string::npos);
+        }
+    }
+    CHECK(typed > 0);
+}
+
+/// Head 0 holds a declared Polymaker PLA in red, echoed, with its spool in
+/// the feeder port. The user then edits it to PETG in blue, and the firmware
+/// has not stated the edit yet.
+void edit_head0_unechoed(FilamentRecordHarness& h) {
+    h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+    SlotInfo pla = polymaker_asa();
+    pla.material = "PLA";
+    pla.color_rgb = 0xFF0000;
+    helix::test::edit_slot_as_user(h.backend, 0, pla);
+    FilamentRecordHarness::drain();
+    h.frame(make_head_record(0, "PLA", "FF0000FF"));
+    h.printer.client.clear_gcode_script_history();
+
+    helix::test::edit_slot_as_user(h.backend, 0, petg_blue());
+    FilamentRecordHarness::drain();
+    REQUIRE(h.config_writes().size() == 2);
+    h.printer.client.clear_gcode_script_history();
+}
+
 /// Heads 0 and 2 each hold a declared spool resting in the feeder port.
 void declare_heads_0_and_2(FilamentRecordHarness& h) {
     declare_head0_asa(h);
@@ -5525,33 +5573,78 @@ TEST_CASE_METHOD(SnapmakerFixture,
         CHECK(writes_for_head(h, 0) == 2 * 2);
         CHECK(writes_for_head(h, 2) == 2 * 2);
     }
-    SECTION("an edit the record never echoed is not rewritten with the pre-edit filament") {
+    SECTION("an edit the record never echoed is written again as the edit, three times in all") {
         // The edit's write fails or a queued clear overtakes it: the record
         // still names no type, and the lane's override still holds the type
         // and color the firmware last stated.
-        SlotInfo edit = polymaker_asa();
-        edit.material = "PETG";
-        edit.color_rgb = 0x0000FF;
-        helix::test::edit_slot_as_user(h.backend, 0, edit);
+        helix::test::edit_slot_as_user(h.backend, 0, petg_blue());
         FilamentRecordHarness::drain();
         REQUIRE(writes_for_head(h, 0) == 2);
         h.printer.client.clear_gcode_script_history();
 
-        SnapmakerTestAccess::age_record_restores(h.backend);
-        h.frame(heads_0_and_2_cleared());
-        REQUIRE(writes_for_head(h, 2) == 2);
-        for (const auto& w : h.config_writes()) {
-            if (w.find("CONFIG_EXTRUDER=0") == std::string::npos) {
-                continue;
-            }
-            INFO(w);
-            if (w.find("FILAMENT_TYPE=") != std::string::npos) {
-                CHECK(w.find("FILAMENT_TYPE=PETG") != std::string::npos);
-            }
-            if (w.find("FILAMENT_COLOR_RGBA=") != std::string::npos) {
-                CHECK(w.find("FILAMENT_COLOR_RGBA=0000FFFF") != std::string::npos);
-            }
+        for (int i = 0; i < 4; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
         }
+        CHECK(writes_for_head(h, 0) == 2 * 2);
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes an edit the firmware has not echoed back, never the filament "
+                 "it replaced",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("drift_restore_unechoed_edit");
+    edit_head0_unechoed(h);
+
+    SECTION("a frame from before the edit, then the firmware's clear") {
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("a reconnect, a frame from before the edit, then the firmware's clear") {
+        h.backend.before_disconnect();
+        SnapmakerTestAccess::call_on_started(h.backend);
+        h.print("standby");
+        h.frame(make_feed_status(0, "unload_finish", /*filament_detected=*/true));
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("the clear lands in a print paused on the head: RESUME's repair writes the edit") {
+        h.print("printing");
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        h.print("paused");
+        h.printer.client.clear_gcode_script_history();
+        SnapmakerTestAccess::set_current_slot(h.backend, 0);
+        SnapmakerTestAccess::set_sensor_present(h.backend, 0, true);
+        h.backend.prepare_for_resume(0, [](const AmsError&) {});
+        FilamentRecordHarness::drain();
+        check_head_writes(h, 0, "PETG", "0000FFFF");
+    }
+    SECTION("the firmware echoes the edit, another writer restates PLA red, then a clear") {
+        h.frame(make_head_record(0, "PETG", "0000FFFF"));
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "PLA", "FF0000FF");
+    }
+    SECTION("another writer names a third type before the echo, then a clear") {
+        h.frame(make_head_record(0, "ABS", "00FF00FF"));
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        check_head_writes(h, 0, "ABS", "00FF00FF");
+    }
+    SECTION("the user clears the lane, then the firmware's clear: nothing is written") {
+        h.backend.clear_slot_override(0);
+        FilamentRecordHarness::drain();
+        h.printer.client.clear_gcode_script_history();
+        h.frame(make_head_record(0, "PLA", "FF0000FF"));
+        h.frame(make_head_record(0, "NONE", "FFFFFFFF"));
+        CHECK(writes_for_head(h, 0) == 0);
     }
 }
 
