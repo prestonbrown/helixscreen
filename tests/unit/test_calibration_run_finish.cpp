@@ -316,3 +316,38 @@ TEST_CASE_METHOD(FinishFixture,
     // An untuned probe reads zero: the history says what it last was.
     CHECK(helix::ui::run_before_text(z, 0) == "-1.200 mm");
 }
+
+TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER, per heater",
+                 "[calibration_run]") {
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
+    hw.parse_calibration_in_config(
+        {{"extruder", {{"control", "pid_v"}}}, {"heater_bed", {{"control", "mpc"}}}});
+    get_printer_state().set_hardware(hw);
+
+    SECTION("from the config when the history has nothing") {
+        CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle PID · bed MPC");
+    }
+    SECTION("from the last run, heater by heater") {
+        CalibrationHistory::instance().record(
+            *api, "heaters", "Nozzle 22.1 / 1.08 / 113 · Bed 70.0 / 1.20 / 900",
+            {{"extruder", {{"control", "pid"}}}, {"heater_bed", {{"control", "pid"}}}});
+        CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle PID · bed PID");
+    }
+    SECTION("a printer without a heated bed has only the nozzle") {
+        helix::PrinterDiscovery no_bed;
+        no_bed.parse_objects(nlohmann::json::array({"extruder"}));
+        no_bed.parse_calibration_in_config({{"extruder", {{"control", "mpc"}}}});
+        get_printer_state().set_hardware(no_bed);
+        CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle MPC");
+    }
+    SECTION("an untuned printer is not set") {
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        CHECK(helix::ui::run_before_text(heaters, 0) == "not set");
+    }
+    get_printer_state().set_hardware(helix::PrinterDiscovery{});
+}

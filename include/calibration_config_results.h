@@ -12,16 +12,22 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace helix::calibration {
 
 /// Step id to a short summary of the value found ("-1.250 mm", "PID").
 using ConfigResults = std::map<std::string, std::string>;
+/// Heater name ("extruder", "heater_bed") to its tuned control: "pid" or "mpc".
+using HeaterControls = std::map<std::string, std::string>;
 
 /// The results in a configfile.settings object. Section names arrive
 /// lowercased. A step whose value is unset, or at the value a stock config
 /// starts from, is absent; heater tuning a vendor shipped is present.
 [[nodiscard]] ConfigResults results_in_config(const nlohmann::json& settings);
+/// Every heater in a configfile.settings object that runs a tuned control;
+/// watermark has nothing to tune and is absent.
+[[nodiscard]] HeaterControls heater_controls_in_config(const nlohmann::json& settings);
 
 // One spelling per measured value, shared by the config results above and the
 // guided run's results, so a tile reads the same before and after a run.
@@ -36,6 +42,13 @@ using ConfigResults = std::map<std::string, std::string>;
 [[nodiscard]] std::string format_pid(double kp, double ki, double kd);
 /// An MPC model by its block heat capacity: "MPC 18.4 J/K".
 [[nodiscard]] std::string format_mpc(double block_heat_capacity);
+/// One heater's tuning method, for the bed or the nozzle.
+struct HeaterControl {
+    bool bed = false;
+    std::string control; ///< "pid" or "mpc"
+};
+/// Heaters' tuning in a few words, in @p heaters' order: "nozzle MPC · bed PID".
+[[nodiscard]] std::string format_heater_controls(const std::vector<HeaterControl>& heaters);
 /// A bed mesh by its flatness: "0.18 mm range".
 [[nodiscard]] std::string format_mesh_range(double range_mm);
 /// The range of a stored profile's points (rows of numbers), nullopt for none.
