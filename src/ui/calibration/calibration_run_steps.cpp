@@ -77,7 +77,7 @@ class HeatersStep : public CalibrationStep {
             return;
         }
         lifetime_.invalidate();
-        if (command_sent_) {
+        if (abort_restarts_firmware()) {
             aborted_ = true;
             stop_with_firmware_restart(ctx_->api, "CalibrationRun.Heaters");
         }
@@ -86,8 +86,8 @@ class HeatersStep : public CalibrationStep {
         ctx->done(StepOutcome::aborted());
     }
 
-    bool abort_restarted_firmware() const override {
-        return aborted_;
+    bool abort_restarts_firmware() const override {
+        return ctx_ && command_sent_;
     }
 
   private:
@@ -102,6 +102,11 @@ class HeatersStep : public CalibrationStep {
 
     const char* label() const {
         return is_bed() ? lv_tr("Bed") : lv_tr("Nozzle");
+    }
+
+    /// The heater's name inside a sentence: "nozzle", "bed".
+    const char* short_label() const {
+        return is_bed() ? lv_tr("bed") : lv_tr("nozzle");
     }
 
     void report(const std::string& method, int done_fraction_pct, const std::string& detail = {}) {
@@ -141,7 +146,7 @@ class HeatersStep : public CalibrationStep {
         if (index_ >= heaters_.size()) {
             auto* ctx = ctx_;
             ctx_ = nullptr;
-            ctx->done(StepOutcome::finished({joined_summary(), values_}));
+            ctx->done(StepOutcome::finished({joined_summary(), values_, joined_brief()}));
             return;
         }
         report(lv_tr("checking"), 0);
@@ -177,6 +182,7 @@ class HeatersStep : public CalibrationStep {
                     values_[h.name] = {
                         {"control", "pid"}, {"temp", h.temp_c}, {"kp", kp}, {"ki", ki}, {"kd", kd}};
                     summaries_.push_back(fmt::format("{} {}", label(), format_pid(kp, ki, kd)));
+                    briefs_.push_back(fmt::format(fmt::runtime(lv_tr("{} PID")), short_label()));
                     next();
                 }),
             lifetime_.bg_cb("CalibrationRun.Heaters.pid_error",
@@ -198,18 +204,19 @@ class HeatersStep : public CalibrationStep {
         command_sent_ = true;
         ctx_->api.advanced().start_mpc_calibrate(
             h.name, h.temp_c, 0,
-            lifetime_.bg_cb("CalibrationRun.Heaters.mpc_done",
-                            [this, h](const IAdvancedAPI::MPCResult& r) {
-                                values_[h.name] = {
-                                    {"control", "mpc"},
-                                    {"temp", h.temp_c},
-                                    {"block_heat_capacity", r.block_heat_capacity},
-                                    {"sensor_responsiveness", r.sensor_responsiveness},
-                                    {"ambient_transfer", r.ambient_transfer}};
-                                summaries_.push_back(fmt::format(
-                                    "{} {}", label(), format_mpc(r.block_heat_capacity)));
-                                next();
-                            }),
+            lifetime_.bg_cb(
+                "CalibrationRun.Heaters.mpc_done",
+                [this, h](const IAdvancedAPI::MPCResult& r) {
+                    values_[h.name] = {{"control", "mpc"},
+                                       {"temp", h.temp_c},
+                                       {"block_heat_capacity", r.block_heat_capacity},
+                                       {"sensor_responsiveness", r.sensor_responsiveness},
+                                       {"ambient_transfer", r.ambient_transfer}};
+                    summaries_.push_back(
+                        fmt::format("{} {}", label(), format_mpc(r.block_heat_capacity)));
+                    briefs_.push_back(fmt::format(fmt::runtime(lv_tr("{} MPC")), short_label()));
+                    next();
+                }),
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_error",
                             [this](const MoonrakerError& err) { fail(err.message); }),
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_progress",
@@ -236,15 +243,21 @@ class HeatersStep : public CalibrationStep {
             return;
         }
         // The heaters tuned before this one are staged in Klipper.
-        ctx->done(StepOutcome::failed_after(message, {joined_summary(), values_}));
+        ctx->done(StepOutcome::failed_after(message, {joined_summary(), values_, joined_brief()}));
     }
 
-    std::string joined_summary() const {
-        std::string summary;
-        for (const auto& s : summaries_) {
-            summary += summary.empty() ? s : " · " + s;
+    static std::string joined(const std::vector<std::string>& parts) {
+        std::string out;
+        for (const auto& s : parts) {
+            out += out.empty() ? s : " · " + s;
         }
-        return summary;
+        return out;
+    }
+    std::string joined_summary() const {
+        return joined(summaries_);
+    }
+    std::string joined_brief() const {
+        return joined(briefs_);
     }
 
     StepInfo info_;
@@ -252,6 +265,7 @@ class HeatersStep : public CalibrationStep {
     std::vector<Heater> heaters_;
     size_t index_ = 0;
     std::vector<std::string> summaries_;
+    std::vector<std::string> briefs_;
     nlohmann::json values_ = nlohmann::json::object();
     /// A calibration command is running in Klipper for the current heater.
     bool command_sent_ = false;
@@ -316,8 +330,7 @@ class BedMeshStep : public CalibrationStep {
         if (!ctx_) {
             return;
         }
-        auto& panel = get_global_bed_mesh_panel();
-        aborted_ = panel.calibration_command_sent();
+        aborted_ = abort_restarts_firmware();
         auto* c = take(aborted_ ? BedMeshPanel::RunEnd::Stopped : BedMeshPanel::RunEnd::Cancelled);
         if (aborted_) {
             stop_with_firmware_restart(c->api, "CalibrationRun.BedMesh");
@@ -325,8 +338,8 @@ class BedMeshStep : public CalibrationStep {
         c->done(StepOutcome::aborted());
     }
 
-    bool abort_restarted_firmware() const override {
-        return aborted_;
+    bool abort_restarts_firmware() const override {
+        return ctx_ && get_global_bed_mesh_panel().calibration_command_sent();
     }
 
   private:
@@ -397,15 +410,12 @@ class InputShaperStep : public CalibrationStep {
     }
 
     void abort() override {
+        aborted_ = abort_restarts_firmware();
         auto* c = take();
         if (!c) {
             return;
         }
         lifetime_.invalidate();
-        const auto state =
-            calibrator_ ? calibrator_->get_state() : InputShaperCalibrator::State::IDLE;
-        aborted_ = state == InputShaperCalibrator::State::TESTING_X ||
-                   state == InputShaperCalibrator::State::TESTING_Y;
         if (aborted_) {
             // Only a running SHAPER_CALIBRATE needs M112.
             helix::ui::begin_expected_klippy_restart("Firmware restarting...", &c->api);
@@ -417,8 +427,13 @@ class InputShaperStep : public CalibrationStep {
         c->done(StepOutcome::aborted());
     }
 
-    bool abort_restarted_firmware() const override {
-        return aborted_;
+    bool abort_restarts_firmware() const override {
+        if (!ctx_ || !calibrator_) {
+            return false;
+        }
+        const auto state = calibrator_->get_state();
+        return state == InputShaperCalibrator::State::TESTING_X ||
+               state == InputShaperCalibrator::State::TESTING_Y;
     }
 
   private:

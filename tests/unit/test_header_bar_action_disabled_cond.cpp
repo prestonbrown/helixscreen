@@ -159,3 +159,53 @@ TEST_CASE_METHOD(XMLTestFixture, "calibration panels gate their header action bu
     lv_subject_set_int(nav, 1);
     pid_not_idle.reset();
 }
+
+TEST_CASE_METHOD(
+    XMLTestFixture,
+    "a wizard footer's primary stays disabled while offline even when its step is ready",
+    "[calibration_gate][calibration_run]") {
+    REQUIRE(register_component("calibration_wizard_footer"));
+    static helix::Subject ready;
+    ready.init_int(1);
+    lv_xml_register_subject(nullptr, "test_footer_step_ready", &ready);
+    lv_subject_t* nav = state().network_state().get_nav_buttons_enabled_subject();
+    REQUIRE(nav != nullptr);
+    lv_subject_set_int(nav, 1);
+
+    const char* attrs[] = {"primary_text",
+                           "Start",
+                           "primary_callback",
+                           "on_test_footer_start",
+                           "primary_name",
+                           "test_footer_start",
+                           "primary_disabled_cond",
+                           "test_footer_step_ready eq 0",
+                           nullptr};
+    lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+    REQUIRE(footer != nullptr);
+    lv_obj_t* start = lv_obj_find_by_name(footer, "test_footer_start");
+    REQUIRE(start != nullptr);
+
+    // Reachable and ready: live.
+    UpdateQueue::instance().drain();
+    CHECK_FALSE(lv_obj_has_state(start, LV_STATE_DISABLED));
+
+    // The step's own condition still disables it.
+    lv_subject_set_int(&ready, 0);
+    UpdateQueue::instance().drain();
+    CHECK(lv_obj_has_state(start, LV_STATE_DISABLED));
+
+    // Offline: disabled although the step says ready.
+    lv_subject_set_int(&ready, 1);
+    lv_subject_set_int(nav, 0);
+    UpdateQueue::instance().drain();
+    CHECK(lv_obj_has_state(start, LV_STATE_DISABLED));
+
+    lv_subject_set_int(nav, 1);
+    UpdateQueue::instance().drain();
+    CHECK_FALSE(lv_obj_has_state(start, LV_STATE_DISABLED));
+
+    lv_obj_delete(footer);
+    UpdateQueue::instance().drain();
+    ready.reset();
+}

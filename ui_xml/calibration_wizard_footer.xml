@@ -12,15 +12,20 @@
        <b>_hide_subject       an int subject; 1 hides it
        <b>_callback           what a tap runs
        <b>_name               its widget name, for C++ lookups and tests
+     compact_texts="1"        at 480x272 Back and Skip show back_compact_text and
+                              skip_compact_text ("Skip"); their widgets are named
+                              <name>_compact
      back_style="cal_footer_danger" outlines the leading button in red (Stop calibration).
-     primary_disable_subject  an int subject; 1 disables the primary
      primary_icon             a trailing icon on the primary (Start's chevron)
      primary_moves_machine    "true" installs the toolhead guard on the primary
-     primary_enable_subject   an int subject; 0 disables the primary
+     primary_disabled_cond    an expression ("cal_run_prereq_ready eq 0") that disables
+                              the primary; the primary is always disabled while the
+                              printer is unreachable (nav_buttons_enabled 0)
      status / status_subject  the status line; status_sub_subject a second line;
                               status_color and status_font its look
      status_compact="1"       at 480x272 the status shows status_compact_subject and
                               status_sub_compact_subject instead
+     divider="0"              no line above the footer (the step intros)
      In portrait the status sits above the buttons and the primary takes the
      width the others leave. -->
 <component>
@@ -56,16 +61,21 @@
     <prop name="skip_hide_subject" type="string" default=""/>
     <prop name="skip_callback" type="string" default=""/>
     <prop name="skip_name" type="string" default="cal_footer_skip"/>
+    <prop name="compact_texts" type="int" default="0"/>
+    <prop name="back_compact_text" type="string" default="Back"/>
+    <prop name="back_compact_tag" type="string" default="Back"/>
+    <prop name="skip_compact_text" type="string" default="Skip"/>
+    <prop name="skip_compact_tag" type="string" default="Skip"/>
     <prop name="primary_text" type="string" default=""/>
     <prop name="primary_tag" type="string" default=""/>
     <prop name="primary_subject" type="string" default=""/>
     <prop name="primary_hide_subject" type="string" default=""/>
-    <prop name="primary_disable_subject" type="string" default=""/>
-    <prop name="primary_enable_subject" type="string" default=""/>
+    <prop name="primary_disabled_cond" type="string" default="0"/>
     <prop name="primary_callback" type="string" default=""/>
     <prop name="primary_name" type="string" default="cal_footer_primary"/>
     <prop name="primary_icon" type="string" default=""/>
     <prop name="primary_moves_machine" type="string" default="false"/>
+    <prop name="divider" type="string" default="1"/>
     <prop name="status" type="string" default=""/>
     <prop name="status_tag" type="string" default=""/>
     <prop name="status_subject" type="string" default=""/>
@@ -78,7 +88,7 @@
   </api>
   <view extends="lv_obj"
         width="100%" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x" style_bg_opa="0"
-        style_radius="0" style_border_width="1" style_border_side="top" style_border_color="#border"
+        style_radius="0" style_border_width="$divider" style_border_side="top" style_border_color="#border"
         style_border_opa="255" flex_flow="column" style_flex_main_place="center" scrollable="false">
     <bind_style_if_eq name="cal_footer_landscape" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="cal_footer_portrait" subject="ui_is_portrait" ref_value="1"/>
@@ -100,14 +110,43 @@
       <bind_style_if_eq name="cal_footer_row_gap" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="cal_footer_row_gap_tight" subject="ui_is_portrait" ref_value="1"/>
       <!-- height inline: ui_button sets its own at create, which a style cannot override. -->
-      <ui_button name="$back_name"
-                 height="#cal_button_h" variant="outline" bind_text="$back_subject" text="$back_text"
-                 translation_tag="$back_tag" hidden_if_empty="$back_callback">
-        <style name="cal_footer_btn"/>
-        <style name="$back_style"/>
-        <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
-        <event_cb trigger="clicked" callback="$back_callback"/>
-      </ui_button>
+      <if cond="$compact_texts eq 0">
+        <ui_button name="$back_name"
+                   height="#cal_button_h" variant="outline" bind_text="$back_subject" text="$back_text"
+                   translation_tag="$back_tag" hidden_if_empty="$back_callback">
+          <style name="cal_footer_btn"/>
+          <style name="$back_style"/>
+          <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+          <event_cb trigger="clicked" callback="$back_callback"/>
+        </ui_button>
+      </if>
+      <if cond="$compact_texts eq 1">
+        <!-- One box per button, so a button with no callback stays hidden at every size:
+             a breakpoint binding on the button itself would show it again. -->
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                hidden_if_empty="$back_callback">
+          <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
+          <ui_button name="$back_name"
+                     height="#cal_button_h" variant="outline" bind_text="$back_subject" text="$back_text"
+                     translation_tag="$back_tag" hidden_if_empty="$back_callback">
+            <style name="cal_footer_btn"/>
+            <style name="$back_style"/>
+            <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="$back_callback"/>
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </ui_button>
+          <ui_button name="${back_name}_compact"
+                     height="#cal_button_h" variant="outline" text="$back_compact_text"
+                     translation_tag="$back_compact_tag" hidden_if_empty="$back_callback">
+            <style name="cal_footer_btn"/>
+            <style name="$back_style"/>
+            <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="$back_callback"/>
+            <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+          </ui_button>
+        </lv_obj>
+      </if>
       <lv_obj name="cal_footer_status_inline"
               width="0" height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0"
               style_border_width="0" flex_flow="column" style_flex_cross_place="center" scrollable="false">
@@ -148,14 +187,43 @@
           </text_body>
         </if>
       </lv_obj>
-      <ui_button name="$skip_name"
-                 height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
-                 hidden_if_empty="$skip_callback">
-        <style name="cal_footer_btn"/>
-        <style name="cal_footer_skip"/>
-        <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
-        <event_cb trigger="clicked" callback="$skip_callback"/>
-      </ui_button>
+      <if cond="$compact_texts eq 0">
+        <ui_button name="$skip_name"
+                   height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
+                   hidden_if_empty="$skip_callback">
+          <style name="cal_footer_btn"/>
+          <style name="cal_footer_skip"/>
+          <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+          <event_cb trigger="clicked" callback="$skip_callback"/>
+        </ui_button>
+      </if>
+      <if cond="$compact_texts eq 1">
+        <!-- One box per button, so a button with no callback stays hidden at every size:
+             a breakpoint binding on the button itself would show it again. -->
+        <lv_obj width="content"
+                height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+                hidden_if_empty="$skip_callback">
+          <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
+          <ui_button name="$skip_name"
+                     height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
+                     hidden_if_empty="$skip_callback">
+            <style name="cal_footer_btn"/>
+            <style name="cal_footer_skip"/>
+            <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="$skip_callback"/>
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+          </ui_button>
+          <ui_button name="${skip_name}_compact"
+                     height="#cal_button_h" variant="outline" text="$skip_compact_text"
+                     translation_tag="$skip_compact_tag" hidden_if_empty="$skip_callback">
+            <style name="cal_footer_btn"/>
+            <style name="cal_footer_skip"/>
+            <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+            <event_cb trigger="clicked" callback="$skip_callback"/>
+            <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+          </ui_button>
+        </lv_obj>
+      </if>
       <ui_button name="$primary_name"
                  height="#cal_button_h" variant="primary" bind_text="$primary_subject" text="$primary_text"
                  translation_tag="$primary_tag" icon="$primary_icon" icon_position="right"
@@ -163,8 +231,10 @@
         <style name="cal_footer_primary"/>
         <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
         <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
-        <bind_state_if_eq subject="$primary_enable_subject" state="disabled" ref_value="0"/>
-        <bind_state_if_eq subject="$primary_disable_subject" state="disabled" ref_value="1"/>
+        <!-- One condition for every reason: never live while the printer is
+             unreachable, whatever the caller's own condition says. The toolhead
+             guard (primary_moves_machine) composes with it as a separate binding. -->
+        <bind_state_if cond="nav_buttons_enabled eq 0 or (${primary_disabled_cond})" state="disabled"/>
         <event_cb trigger="clicked" callback="$primary_callback"/>
       </ui_button>
     </lv_obj>

@@ -183,7 +183,7 @@
                            secondary_name="btn_keep_pid" secondary_text="Keep PID" secondary_tag="Keep PID"
                            secondary_callback="on_pid_keep_pid" primary_name="btn_switch_mpc"
                            primary_text="Switch and calibrate" primary_tag="Switch and calibrate"
-                           primary_callback="on_pid_switch_mpc" primary_enable_subject="cal_switch_ready">
+                           primary_callback="on_pid_switch_mpc" primary_disabled_cond="cal_switch_ready eq 0">
           <!-- What MPC is, and the same fan change under both methods -->
           <text_small width="100%"
                       text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."

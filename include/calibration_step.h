@@ -24,6 +24,9 @@ struct StepResult {
     std::string summary;
     /// The numbers the history keeps for later steps.
     nlohmann::json values = nlohmann::json::object();
+    /// The same in a few words, for the run's step list and results table
+    /// ("nozzle MPC · bed PID"); empty when summary is short already.
+    std::string brief;
 };
 
 /// How a step ended.
@@ -83,9 +86,12 @@ class CalibrationStep {
     virtual void start(StepContext& ctx) = 0;
     /// Stop a running step; done() then reports Aborted. Safe at any point.
     virtual void abort() = 0;
-    /// The last abort() restarted the firmware, which drops every result the
-    /// run had staged in Klipper.
-    [[nodiscard]] virtual bool abort_restarted_firmware() const {
+    /// Whether abort() called now restarts the firmware: a measurement the
+    /// firmware is running only an emergency stop ends, and the restart drops
+    /// every result the run had staged in Klipper. abort() decides by this, and
+    /// the run asks it before aborting, so its Stop confirmation and the stop
+    /// itself agree.
+    [[nodiscard]] virtual bool abort_restarts_firmware() const {
         return false;
     }
     /// This finished step's result took effect outside Klipper's pending config
