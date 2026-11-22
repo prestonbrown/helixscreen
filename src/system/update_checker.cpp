@@ -3296,7 +3296,11 @@ void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) 
         return;
     }
 
-    const bool want_listed = get_channel() == UpdateChannel::Stable;
+    // Moonraker offers whatever differs from the running version, so on a prerelease
+    // the newest stable release would show as an update that is really a downgrade.
+    const auto running = helix::version::parse_version(running_version_);
+    const bool want_listed =
+        get_channel() == UpdateChannel::Stable && running && running->prerelease.empty();
     const bool mod_host = helix::firmware_mod_owns_moonraker_conf();
     // The newest sync wins, and detach() (every printer teardown) also bumps the
     // generation: a new API can reuse the old one's address, so the generation, not
