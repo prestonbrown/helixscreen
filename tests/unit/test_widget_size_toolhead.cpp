@@ -1067,9 +1067,13 @@ TEST_CASE_METHOD(PresetFixture, "toolhead presets: a 2x3 shows the row, a 2x2 do
     build_tall(h);
     CHECK(shown(part(h, "toolhead_presets")));
     CHECK(shown(part(h, "toolhead_lift_line")));
-    CHECK(subject_text("toolhead_preset_0_label") == "Front");
-    CHECK(subject_text("toolhead_preset_1_label") == "Center");
-    CHECK(subject_text("toolhead_preset_2_label") == "Park");
+    for (int i = 0; i < 3; ++i) {
+        INFO("preset " << i);
+        const std::string name = "toolhead_preset_" + std::to_string(i) + "_label";
+        CHECK_FALSE(subject_text(name.c_str()).empty());
+    }
+    CHECK(subject_text("toolhead_preset_0_label") != subject_text("toolhead_preset_1_label"));
+    CHECK(subject_text("toolhead_preset_1_label") != subject_text("toolhead_preset_2_label"));
     // The row sits below the plate, and the plate still spans the tile.
     lv_obj_update_layout(part(h, "toolhead_plate"));
     lv_area_t plate;

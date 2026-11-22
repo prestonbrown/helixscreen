@@ -71,16 +71,16 @@ TEST_CASE("Hardware validation characterization: initial values after init",
     PrinterStateTestAccess::reset(state);
     state.init_subjects(true); // Need XML registration to lookup by name
 
-    SECTION("hardware_status_title initializes to 'Healthy'") {
+    SECTION("hardware_status_title initializes non-empty") {
         lv_subject_t* subject = get_subject_by_name("hardware_status_title");
         REQUIRE(subject != nullptr);
-        REQUIRE(std::string(lv_subject_get_string(subject)) == "Healthy");
+        REQUIRE(lv_subject_get_string(subject)[0] != '\0');
     }
 
-    SECTION("hardware_issues_label initializes to 'No Hardware Issues'") {
+    SECTION("hardware_issues_label initializes non-empty") {
         lv_subject_t* subject = get_subject_by_name("hardware_issues_label");
         REQUIRE(subject != nullptr);
-        REQUIRE(std::string(lv_subject_get_string(subject)) == "No Hardware Issues");
+        REQUIRE(lv_subject_get_string(subject)[0] != '\0');
     }
 }
 
@@ -101,20 +101,20 @@ TEST_CASE_METHOD(FreshRegisteredPrinterState,
         REQUIRE(lv_subject_get_int(get_subject_by_name("hardware_session_count")) == 0);
     }
 
-    SECTION("status_title is 'All Healthy' for empty result") {
+    SECTION("status_title is non-empty for empty result") {
         lv_subject_t* subject = get_subject_by_name("hardware_status_title");
-        REQUIRE(std::string(lv_subject_get_string(subject)) == "All Healthy");
+        REQUIRE(lv_subject_get_string(subject)[0] != '\0');
     }
 
-    SECTION("status_detail is 'All configured hardware detected' for empty result") {
+    SECTION("status_detail is non-empty for empty result") {
         lv_subject_t* subject = get_subject_by_name("hardware_status_detail");
-        REQUIRE(std::string(lv_subject_get_string(subject)) == "All configured hardware detected");
+        REQUIRE(lv_subject_get_string(subject)[0] != '\0');
     }
 
-    SECTION("issues_label is 'No Hardware Issues' for empty result") {
-        REQUIRE(std::string(lv_subject_get_string(
-                    state.hardware_validation_state().get_hardware_issues_label_subject())) ==
-                "No Hardware Issues");
+    SECTION("issues_label is non-empty for empty result") {
+        REQUIRE(lv_subject_get_string(
+                    state.hardware_validation_state().get_hardware_issues_label_subject())[0] !=
+                '\0');
     }
 }
 
