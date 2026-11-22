@@ -48,6 +48,11 @@ class CalibrationHubOverlay : public OverlayBase {
     bool destroy_on_close() const override {
         return true;
     }
+    /// The calibration screens run for minutes and are drawn full width beside
+    /// the nav bar, with no gap showing the panel beneath. #1178
+    [[nodiscard]] bool is_destination() const override {
+        return true;
+    }
 
     /// Per step id: cal_shown_<id>, cal_tone_<id>, cal_status_<id>; and the
     /// guided calibration banner's cal_run_banner_shown, cal_run_banner_text.

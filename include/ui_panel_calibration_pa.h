@@ -130,6 +130,11 @@ class PACalibrationPanel : public OverlayBase {
     bool destroy_on_close() const override {
         return true;
     }
+    /// The calibration screens run for minutes and are drawn full width beside
+    /// the nav bar, with no gap showing the panel beneath. #1178
+    [[nodiscard]] bool is_destination() const override {
+        return true;
+    }
 
     void on_activate() override;
     void on_deactivating(DeactivateReason reason) override;

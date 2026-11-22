@@ -282,6 +282,14 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
 
     const lv_font_t* tick_font = tape_font("cal_font_badge");
     const lv_font_t* note_font = tick_font;
+    // A note at the box's foot needs room under the bed: a box shorter than its
+    // reference lifts the static paper, bed and break by what is missing.
+    const int32_t lift = L.note_bottom
+                             ? std::max<int32_t>(0, ry(L.static_paper_top) + L.paper_h + L.bed_h +
+                                                        2 + lv_font_get_line_height(note_font) +
+                                                        L.note_bottom_margin - h)
+                             : 0;
+    const int32_t static_paper_top = ry(L.static_paper_top) - lift;
 
     // The ruler and its ticks.
     fill_rect(layer, d.color_elevated, LV_OPA_COVER, 0, x0 + L.ruler_x, y0 + ry(L.line_top),
@@ -296,13 +304,15 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
     }
 
     // The bed, estimated or unknown.
-    const BedPlacement bed = place_bed(value, d.estimate_microns, zoom, tip, tick_top, tick_bottom,
-                                       ry(L.static_paper_top));
+    const BedPlacement bed =
+        place_bed(value, d.estimate_microns, zoom, tip, tick_top, tick_bottom, static_paper_top);
     const int32_t nozzle_cx = rx(L.nozzle_cx);
     const int32_t paper_w = rx(L.paper_w);
     const int32_t paper_x = nozzle_cx - paper_w / 2 + 2;
     const int32_t bed_x = L.bed_x, bed_r = w - L.bed_right;
     const char* note = nullptr;
+    // The note's short form, for a box too narrow for the long one.
+    const char* note_short = nullptr;
     lv_color_t note_color = d.color_text_subtle;
     int32_t note_y = 0;
     if (bed.view == BedView::Estimated || bed.view == BedView::PastLastTime) {
@@ -322,15 +332,15 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
                        {(float)(x0 + bed_x), (float)by2}, 4, 3);
         dashed_segment(layer, edge, LV_OPA_COVER, bw, {(float)(x0 + bed_r), (float)by1},
                        {(float)(x0 + bed_r), (float)by2}, 4, 3);
-        note = past ? (long_notes ? lv_tr("past last time\xE2\x80\x99s position")
-                                  : lv_tr("past last time"))
-                    : (long_notes ? lv_tr("estimated bed, from your last calibration")
-                                  : lv_tr("estimated bed"));
+        note_short = past ? lv_tr("past last time") : lv_tr("estimated bed");
+        note = long_notes ? (past ? lv_tr("past last time\xE2\x80\x99s position")
+                                  : lv_tr("estimated bed, from your last calibration"))
+                          : note_short;
         note_color = edge;
         note_y = bed.paper_top + L.note_gap;
     } else {
         // A break, then the bed at the bottom with the paper on it.
-        const int32_t zy = ry(L.zig_y);
+        const int32_t zy = ry(L.zig_y) - lift;
         const int32_t zx1 = from_right(L.zig_x1);
         for (int32_t x = L.zig_x0, i = 0; x < zx1; x += L.zig_period / 2, ++i) {
             const int32_t xn = std::min<int32_t>(zx1, x + L.zig_period / 2);
@@ -340,17 +350,17 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
                            {(float)(x0 + x), (float)(y0 + (i == 0 ? zy : ya))},
                            {(float)(x0 + xn), (float)(y0 + yb)}, 3, 3);
         }
-        const int32_t paper_top = ry(L.static_paper_top);
+        const int32_t paper_top = static_paper_top;
         const int32_t by1 = paper_top + L.paper_h;
         fill_rect(layer, d.color_elevated, LV_OPA_COVER, L.bed_radius, x0 + bed_x, y0 + by1,
                   x0 + bed_r, y0 + by1 + L.bed_h);
         fill_rect(layer, d.color_text, LV_OPA_90, 0, x0 + paper_x, y0 + paper_top,
                   x0 + paper_x + paper_w, y0 + paper_top + L.paper_h);
         const bool has_estimate = bed.view == BedView::FarBelow;
-        note = has_estimate ? (long_notes ? lv_tr("estimated bed is further below")
-                                          : lv_tr("bed further below"))
-                            : (long_notes ? lv_tr("bed: distance unknown until the paper drags")
-                                          : lv_tr("bed: distance unknown"));
+        note_short = has_estimate ? lv_tr("bed further below") : lv_tr("bed: distance unknown");
+        note = long_notes ? (has_estimate ? lv_tr("estimated bed is further below")
+                                          : lv_tr("bed: distance unknown until the paper drags"))
+                          : note_short;
         note_y = by1 + L.bed_h + 2;
     }
     if (note) {
@@ -361,6 +371,11 @@ void tape_draw(lv_layer_t* layer, const ZOffsetIndicatorData& d, const lv_area_t
         const int32_t half = L.compact ? w / 2 - 4 : std::min(center, w - center);
         const int32_t nx1 = L.compact ? 4 : center - half;
         const int32_t nx2 = L.compact ? w - 4 : center + half;
+        lv_point_t note_size;
+        lv_text_get_size(&note_size, note, note_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+        if (note_short && note_size.x > nx2 - nx1) {
+            note = note_short;
+        }
         draw_text(layer, note, note_font, note_color, LV_TEXT_ALIGN_CENTER, x0 + nx1, y0 + ny,
                   x0 + nx2);
     }
