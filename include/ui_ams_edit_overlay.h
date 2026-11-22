@@ -431,9 +431,11 @@ class AmsEditOverlay : public OverlayBase {
     /// mapping is cleared by mapping that tool elsewhere.
     [[nodiscard]] bool lane_settings_dirty() const;
     /// Write the staged changes through the backend, taking each one that was
-    /// written as the lane's setting. False when a write was refused: that
-    /// field stays staged, so the next Save retries it.
+    /// written as the lane's setting. False when a write was refused.
     [[nodiscard]] bool commit_lane_settings();
+    /// commit_lane_settings() for a Save: a refused field goes back to what the
+    /// lane holds, and the save line says so and that the spool was not saved.
+    [[nodiscard]] bool commit_lane_settings_for_save();
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
@@ -560,8 +562,8 @@ class AmsEditOverlay : public OverlayBase {
     /// File the staged spool going in: in Spoolman and the lane, or the lane alone.
     void save_new_spool(bool add_to_spoolman);
     void archive_spool(int spool_id);
-    /// Write a lane-setting change now; a refusal restores the dropdowns.
-    void apply_lane_settings();
+    /// Show a lane-setting pick as staged; Save writes it.
+    void stage_lane_settings();
     void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
@@ -687,7 +689,8 @@ class AmsEditOverlay : public OverlayBase {
     void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created,
                              bool undoable);
     /// Write the lane's staged settings before an Assign Spool action; false
-    /// (editor kept open, refusal toasted) when the backend refused one.
+    /// (editor kept open, the refused field rolled back) when the backend
+    /// refused one.
     bool commit_lane_settings_for_assign();
     void enter_editor();
     /// Apply the editor view's non-XML content (dropdown options, colour ring,

@@ -1283,6 +1283,20 @@ TEST_CASE_METHOD(PagesFixture, "a lane change never moves an edit in progress or
         CHECK(access.is_dirty());
         CHECK(access.subject_text("ams_edit_material_line").rfind("PETG", 0) == 0);
     }
+    SECTION("a staged lane setting holds the summary through a runout") {
+        const SlotInfo lane = describe_lane(*backend, 1, "PLA");
+        open(1, lane);
+        access.open_page(AmsEditOverlay::kPageLane);
+        REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
+        back();
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        REQUIRE(access.is_dirty());
+
+        lane_reads(*backend, 1, SlotStatus::EMPTY);
+        settle();
+        CHECK(access.page() == AmsEditOverlay::kPageSummary);
+        CHECK(access.is_dirty());
+    }
     SECTION("the list stays open, and Back from it lands on the lane's new page") {
         backend->force_slot_cleared(1);
         open(1, backend->get_slot_info(1));

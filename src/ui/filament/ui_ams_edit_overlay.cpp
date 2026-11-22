@@ -1803,12 +1803,7 @@ bool AmsEditOverlay::commit_lane_settings_for_assign() {
     // Assign Spool has no Save of its own: each of its actions writes the
     // lane's settings first, as Edit Spool's Save does, or they would be lost
     // when it closes.
-    if (commit_lane_settings()) {
-        return true;
-    }
-    // The refusal has toasted; the field stays staged and the editor open.
-    stay_open_after_failed_save();
-    return false;
+    return commit_lane_settings_for_save();
 }
 
 void AmsEditOverlay::handle_row_use(size_t row) {
@@ -2701,7 +2696,7 @@ void AmsEditOverlay::populate_lane_dropdowns() {
 
 void AmsEditOverlay::handle_tool_selected(int index) {
     lane_working_.tool = index - (tool_none_offered_ ? 1 : 0);
-    apply_lane_settings();
+    stage_lane_settings();
 }
 
 void AmsEditOverlay::handle_backup_selected(int index) {
@@ -2716,18 +2711,29 @@ void AmsEditOverlay::handle_backup_selected(int index) {
         return;
     }
     lane_working_.backup = backup;
-    apply_lane_settings();
+    stage_lane_settings();
 }
 
-void AmsEditOverlay::apply_lane_settings() {
-    // Lane settings are not spool data: each change is written as it is made.
-    // A refusal has toasted; the dropdowns go back to what the lane holds.
-    if (!commit_lane_settings()) {
-        lane_working_ = lane_original_;
-        populate_lane_dropdowns();
-    }
+void AmsEditOverlay::stage_lane_settings() {
+    // Lane settings save with the spool: a pick is staged here, Save writes
+    // it, and leaving without Save drops it.
     update_lane_line();
     update_sync_button_state();
+}
+
+bool AmsEditOverlay::commit_lane_settings_for_save() {
+    if (commit_lane_settings()) {
+        return true;
+    }
+    // The refusal has toasted why. The refused field goes back to what the
+    // lane holds; the spool's own edits stay staged for the next Save.
+    lane_working_ = lane_original_;
+    populate_lane_dropdowns();
+    update_lane_line();
+    report_save_problem(true, is_dirty() ? lv_tr("The lane settings weren't changed, and the spool "
+                                                 "wasn't saved. Press Save to save the spool.")
+                                         : lv_tr("The lane settings weren't changed."));
+    return false;
 }
 
 bool AmsEditOverlay::lane_settings_dirty() const {
@@ -3827,10 +3833,7 @@ void AmsEditOverlay::handle_save() {
     // The lane's settings go to the backend, not to Spoolman, so they land
     // whatever the spool's own save does next.
     const bool lane_changed = lane_settings_dirty();
-    if (!commit_lane_settings()) {
-        // The refusal has toasted. The editor stays open with that field
-        // still staged, and the slot's own edits wait for the same Save.
-        stay_open_after_failed_save();
+    if (!commit_lane_settings_for_save()) {
         return;
     }
     if (lane_changed && !is_dirty()) {

@@ -5052,6 +5052,8 @@ translations:
   : 主机已有数秒未收到此主板的任何消息：USB 或 CAN 线缆松动或损坏、主板断电，或 CAN 总线缺少终端电阻。
   "The label didn't print: {}": "标签未打印：{}"
   The lane forgets this spool. The filament itself stays where it is.: '耗材通道将忘记此料盘。耗材本身保持原位。'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: '耗材通道设置未更改，料盘也未保存。请点击保存以保存料盘。'
+  The lane settings weren't changed.: '耗材通道设置未更改。'
   The lane that takes over when this one runs out: '此耗材通道用尽时接替的耗材通道'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最后一次打印件可能仍在热床上。请在工具头移动前将其取下，然后点按“已清空”。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
