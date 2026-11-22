@@ -24,7 +24,8 @@ _BINARY = Path(os.environ.get(
 
 _SIZES = ["480x320", "800x480", "1024x600", "1280x720"]
 
-_VIEW_ALL = "View Full History"
+_VIEW_ALL_NAME = "btn_view_full_history"
+_VIEW_ALL = "View Full History control"
 
 
 def _run_app(size: str, tmp_path: Path):
@@ -65,20 +66,10 @@ def _open_dashboard(app: HelixApp) -> None:
 
 
 def _view_all_button(app: HelixApp) -> dict:
-    """The dashboard button labelled View Full History, wherever the layout puts it."""
-    widgets = app.ls("history_dashboard_panel").get("widgets", [])
-    for w in widgets:
-        if w.get("type") != "button":
-            continue
-        # `text` reads a button's first label, which can be its icon glyph;
-        # the caption is one of its first few children.
-        for target in [w["path"]] + [f"{w['path']}/{i}" for i in range(3)]:
-            try:
-                if app.text(target) == _VIEW_ALL:
-                    return _geom(app, w["path"])[0]
-            except Exception:
-                continue
-    pytest.fail(f"no on-screen button reads {_VIEW_ALL!r} on the history dashboard")
+    """The dashboard's View Full History button, located by widget name."""
+    widgets = app.geom(_VIEW_ALL_NAME).get("widgets")
+    assert widgets, f"no {_VIEW_ALL_NAME} widget on the history dashboard"
+    return widgets[0]
 
 
 def _open_full_list(app: HelixApp, width: int, height: int) -> None:
