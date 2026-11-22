@@ -3,20 +3,15 @@
 
 /**
  * @file test_header_button_cap.cpp
- * @brief The header action button must fit inside header_height at every tier
+ * @brief Header buttons must fit inside header_height at every tier
  *
- * header_bar.xml's action_button_height default is `content`, so most headers
- * self-size correctly. But three panels pass #button_height explicitly, and
  * button_height's ladder exceeds header_height's from the LARGE tier up
- * (72>60, 80>68, 96>80). The button then renders taller than the bar that
- * contains it, centers via style_flex_cross_place, and clips off the top of
- * the screen — measured at 480x800 as header h=68, button h=80, y=-6.
- *
- * header_button_height is the cap applied via style_max_height. This file pins
- * the invariant that makes the cap correct: it must be strictly smaller than
- * header_height at EVERY tier, or the cap is a no-op at that tier. It also
- * pins that the cap is actually WIRED to the XML elements — token values
- * alone don't catch a revert of the style_max_height attributes themselves.
+ * (72>60, 80>68, 96>80), so a header button sized by it renders taller than
+ * its bar and clips off the top of the screen. header_button_height is the
+ * height every header_action takes and the z-offset save's cap. This file pins
+ * that it is strictly smaller than header_height at EVERY tier, and that the
+ * XML actually uses it: token values alone do not catch a revert of the
+ * attributes.
  */
 
 #include "theme_manager.h"
@@ -97,7 +92,8 @@ TEST_CASE("the header button cap is applied where header buttons are styled",
     CHECK(tag_with(header, "name=\"header_save_z_offset\"")
               .find("style_max_height=\"#header_button_height\"") != std::string::npos);
 
-    const std::string styles = read("ui_xml/styles.xml");
-    CHECK(tag_with(styles, "<style name=\"header_action\"")
-              .find("max_height=\"#header_button_height\"") != std::string::npos);
+    const std::string action = read("ui_xml/header_action.xml");
+    CHECK(
+        tag_with(action, "<view extends=\"ui_button\"").find(" height=\"#header_button_height\"") !=
+        std::string::npos);
 }

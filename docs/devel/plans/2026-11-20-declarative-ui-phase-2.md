@@ -34,7 +34,7 @@ then `docs/devel/LVGL9_XML_GUIDE.md` and `.claude/rules/declarative-ui.md` updat
 | S1 (done) | `ui_xml/overlay_panel.xml` | default `overlay_content` | 77 `extends="overlay_panel"` views and 16 hand-rolled overlays each write their own `<lv_obj name="overlay_content" ...>` (93 copies); `src/ui/overlay_base.cpp` and 14 more sites find it by name | overlay_panel owns the column; every view drops its wrapper; `OverlayBase` asks `lv_xml_component_get_slot()`. One commit: adding the slot re-parents every existing wrapper |
 | S2 (frame done; 62 dialogs to convert) | `ui_xml/components/dialog_frame.xml` around `ui_dialog`; `modal_dialog.xml` extends it | default `body` (`dialog_body`), `footer` (`dialog_footer`), `header_extra` | 47 dialogs rebuild header + scrolling body + button row; 8 copy `modal_dialog`'s `content_container`; C++ finds `content_container` in `action_prompt_modal.cpp`, `ui_print_select_detail_view.cpp` | one frame component; dialogs supply body and buttons. Exemplars: `modal_dialog`, `bed_mesh_rename_modal`, `debug_bundle_modal`. Guide and batches below |
 | S3 (toggle, dropdown, text done) | one `setting_row` base for `setting_toggle_row`, `setting_dropdown_row`, `setting_slider_row`, `setting_action_row`, `setting_text_row` | `control`, optional `extra` | 5 near-duplicates (74-107 lines each) repeat icon, label, description and info button | each row becomes a thin `extends="setting_row"`; its control lands at the row's end, so no slot is needed. `setting_action_row` extends `lv_button` and `setting_slider_row` is a column: both stay separate |
-| S4 (slot done; 14 screens to convert) | `ui_xml/header_bar.xml` | `header_content` (declared), `actions` (host `header_actions`, exposed by `overlay_panel`) | 2 slot users; ~30 `action_button_*` props re-forwarded through `overlay_panel` | screens put their own header buttons in `actions`, styled `styles.header_action`; the prop sprawl goes once every screen is converted. Exemplars: `macro_panel`, `printer_manager_overlay`. Guide and batches below |
+| S4 (slot done; 14 screens to convert) | `ui_xml/header_bar.xml` | `header_content` (declared), `actions` (host `header_actions`, exposed by `overlay_panel`) | 2 slot users; ~30 `action_button_*` props re-forwarded through `overlay_panel` | screens put their own header buttons in `actions`, each a `header_action`; the prop sprawl goes once every screen is converted. Exemplars: `macro_panel`, `printer_manager_overlay`. Guide and batches below |
 | S5 | `components/full_page_frame.xml`, `wizard_container.xml` | `body`, `content` | C++ `FullPageHost::body()` (`src/ui/panel_widgets/full_page_host.cpp`) and the wizard step mount (`src/ui/wizard/ui_wizard.cpp`) find the container by name | first C++ users of `lv_xml_component_get_slot()` |
 | S6 | `setting_group` + `setting_group_header` | `header` (title/icon props), default body | 58 group+header pairs in 19 files | the header becomes props on the group |
 | S7 | `components/context_menu_card.xml` | `subheader` | 3 menus hide the divider and redraw it to fit content above it | content goes in `subheader` |
@@ -180,27 +180,25 @@ After:
 ```xml
 <view name="macro_panel" extends="overlay_panel" title="Macros" back_button_callback="on_macros_back_clicked">
   <overlay_panel-actions>
-    <ui_button name="btn_save" height="content" text="Save" translation_tag="Save">
-      <style name="styles.header_action"/>
+    <header_action name="btn_save" text="Save" role="primary" callback="on_macros_edit_save">
       <bind_flag_if_eq subject="macros_edit_save_hidden" flag="hidden" ref_value="1"/>
-      <event_cb trigger="clicked" callback="on_macros_edit_save"/>
-    </ui_button>
+    </header_action>
   </overlay_panel-actions>
 ```
 
 Prop to markup:
 
-| Prop | Markup on the button in `actions` |
+| Prop | Markup on the `header_action` in `actions` |
 |---|---|
-| `hide_action_button="false"` + `action_button_text`/`_text_tag` | `<ui_button height="content" text=".." translation_tag="..">` + `<style name="styles.header_action"/>` |
-| `action_button_icon`, `_icon_size` | `icon="..." icon_size="..."` |
-| `action_button_bg_color`, `_radius`, `_width`, `_height` | `style_bg_color`, `style_radius`, `width`, `height` on the button (keep `height="content"` unless a size was passed) |
-| `action_button_callback` | `<event_cb trigger="clicked" callback="..."/>` |
-| `action_button_hidden_subject` | `<bind_flag_if_eq subject="..." flag="hidden" ref_value="1"/>` |
-| `action_button_disabled_subject` / `_disabled_cond` | `<bind_state_if_eq subject=".." state="disabled" ref_value="1"/>` / `<bind_state_if cond=".." state="disabled"/>` |
-| `action_button_2_*` | a button BEFORE the primary one, `style_bg_color="#secondary"`, `style_min_width="#header_slot2_min_width"`, `label_hidden_cond` as is |
-| `action_icon*` | a round button first: `width="#button_height_sm" height="#button_height_sm" style_max_height="#header_button_height"`, `<style name="styles.header_icon_button"/>` |
-| `*_hidden_cond` | `<bind_flag_if cond=".." flag="hidden"/>` |
+| `hide_action_button="false"` + `action_button_text`/`_text_tag` | `text=".."` (`text_tag` only when the key differs), `role="primary"` |
+| `action_button_icon` | `icon="..."` |
+| `action_button_bg_color`, `_radius`, `_width`, `_height`, `_icon_size` | nothing: `header_action` owns its look (`scripts/check_header_actions.py`) |
+| `action_button_callback` | `callback="..."` |
+| `action_button_hidden_subject` | `<bind_flag_if_eq subject="..." flag="hidden" ref_value="1"/>` child |
+| `action_button_disabled_subject` / `_disabled_cond` | `<bind_state_if_eq subject=".." state="disabled" ref_value="1"/>` / `<bind_state_if cond=".." state="disabled"/>` child |
+| `action_button_2_*` | a neutral `header_action` BEFORE the primary one |
+| `action_icon*` | an icon-only `header_action` first |
+| `*_hidden_cond` | `<bind_flag_if cond=".." flag="hidden"/>` child |
 
 Order inside `actions` is left to right: icon button, secondary, primary. A screen using
 `<header_bar>` directly (not `extends="overlay_panel"`) writes `<header_bar-actions>`.
