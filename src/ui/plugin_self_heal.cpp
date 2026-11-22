@@ -64,6 +64,10 @@ void PluginSelfHeal::on_plugin_reported() {
         log_keeping_newer(reported, bundled);
         return;
     }
+    if (installer_.firmware_owns_plugin()) {
+        spdlog::debug("[PluginSelfHeal] The firmware owns the plugin; its link is not checked");
+        return;
+    }
     if (!installer_.is_local_moonraker()) {
         act(false, PluginLinkCheck::NotOurs);
         return;

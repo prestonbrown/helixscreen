@@ -3975,6 +3975,8 @@ translations:
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
   : HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'HelixPrint 插件必须由打印机固件提供，HelixScreen 的软件由固件管理。'
+  The HelixPrint plugin is managed by your printer's firmware.: 'HelixPrint 插件由打印机固件管理。'
   The IFS state file can't be read.: "无法读取 IFS 状态文件。"
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: '已安装 Moonraker 延时摄影插件。在延时摄影设置中设定录制方式。'
   The PEI sheet is still on the bed. Take it off, then tap Next.: PEI 板仍在热床上。请取下后点击下一步。
@@ -4685,6 +4687,8 @@ translations:
   Your printer at a glance: 一览您的打印机
   Your printer has an automatic filament changer: 您的打印机配有自动换色系统
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: 设置期间打印机离线，硬件选项已跳过。现在设置吗？
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : '打印机固件管理 HelixScreen 的软件，因此 HelixPrint 插件必须由固件提供，无法在此屏幕上安装。'
   Your {0} is set up for {1}, but it looks stock.: '您的 {0} 设置为 {1}，但看起来是原厂状态。'
   Your {0} looks like it has {1}, but it is set up for {2}.: '您的 {0} 似乎装有 {1}，但设置为 {2}。'
   Your {0} looks like it has {1}, but it is set up as stock.: '您的 {0} 似乎装有 {1}，但当前设置为原厂状态。'

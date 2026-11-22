@@ -410,11 +410,18 @@ TEST_CASE("HelixPluginInstaller finds install.sh in the install tree it runs fro
         // from, and the path through latest survives a package upgrade.
         CHECK(installer.get_install_script_path() ==
               tree.root + "/oem/apps/helixscreen/latest/moonraker-plugin/install.sh");
+        // The firmware owns this install: Moonraker cannot read the package and its
+        // components directory is reset at boot, so install.sh is never run (#2136).
+        CHECK(installer.firmware_owns_plugin());
+        const auto result = installer.install_local_sync();
+        CHECK_FALSE(result.success);
+        CHECK(result.message.find("firmware") != std::string::npos);
     }
 
     SECTION("our own install, launched by its path") {
         const auto ours = tree.make_tree("userdata/helixscreen");
         HelixPluginInstallerTestAccess::set_running_exe(installer, ours.string(), tree.root);
+        CHECK_FALSE(installer.firmware_owns_plugin());
         CHECK(installer.get_install_script_path() ==
               std::filesystem::canonical(tree.root +
                                          "/userdata/helixscreen/moonraker-plugin/install.sh")

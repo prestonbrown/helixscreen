@@ -4106,6 +4106,8 @@ translations:
     skipping bed mesh for quick reprints.
   : The HelixPrint plugin enables fast G-code modifications directly on your printer—like
     skipping bed mesh for quick reprints.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.
+  The HelixPrint plugin is managed by your printer's firmware.: The HelixPrint plugin is managed by your printer's firmware.
   The IFS state file can't be read.: The IFS state file can't be read.
   The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.: The Moonraker timelapse plugin is installed. Set how it records in the timelapse settings.
   The PEI sheet is still on the bed. Take it off, then tap Next.: The PEI sheet is still on the bed. Take it off, then tap Next.
@@ -4851,6 +4853,8 @@ translations:
   Your printer has an automatic filament changer: Your printer has an automatic filament
     changer
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Your printer was offline during setup, so hardware options were skipped. Set them up now?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   Your {0} is set up for {1}, but it looks stock.: Your {0} is set up for {1}, but it looks stock.
   Your {0} looks like it has {1}, but it is set up for {2}.: Your {0} looks like it has {1}, but it is set up for {2}.
   Your {0} looks like it has {1}, but it is set up as stock.: 'Your {0} looks like it has {1}, but it is set up as stock.'
