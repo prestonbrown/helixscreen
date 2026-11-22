@@ -19,7 +19,10 @@
 #include "printer_state.h"
 
 #include <algorithm>
+#include <functional>
+#include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -64,8 +67,9 @@ class FinishFixture : public LVGLTestFixture {
         finisher = std::make_unique<MoonrakerRunFinisher>(*api);
     }
 
-    void start(std::vector<std::unique_ptr<CalibrationStep>> steps) {
-        run = std::make_unique<CalibrationRun>(*api, std::move(steps), nullptr);
+    void start(std::vector<std::unique_ptr<CalibrationStep>> steps,
+               std::function<void()> on_change = nullptr) {
+        run = std::make_unique<CalibrationRun>(*api, std::move(steps), std::move(on_change));
         run->start();
     }
 
@@ -169,6 +173,44 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps measure witho
     CHECK(std::none_of(sent_scripts.begin(), sent_scripts.end(), [](const std::string& g) {
         return g.find("SAVE_CONFIG") != std::string::npos;
     }));
+}
+
+TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps tell the live card what runs",
+                 "[calibration_run][calibration_live]") {
+    StepInfo heaters;
+    heaters.kind = StepKind::Heaters;
+    heaters.id = "heaters";
+    heaters.name = "Heaters";
+    StepInfo shaper;
+    shaper.kind = StepKind::InputShaper;
+    shaper.id = "input_shaper";
+    shaper.name = "Input shaper";
+    std::vector<std::unique_ptr<CalibrationStep>> steps;
+    steps.push_back(make_run_step(heaters));
+    steps.push_back(make_run_step(shaper));
+    std::map<std::string, int> heater_targets;
+    std::set<char> swept_axes;
+    start(std::move(steps), [&] {
+        const int c = run ? run->current() : -1;
+        if (c < 0) {
+            return;
+        }
+        const auto& live = run->entries()[static_cast<size_t>(c)].progress.live;
+        if (!live.heater.empty()) {
+            heater_targets[live.heater] = live.target_c;
+        }
+        if (live.sweep_hz > 0.0f) {
+            swept_axes.insert(live.axis);
+        }
+    });
+
+    REQUIRE(wait_until([&] { return run->phase() == RunPhase::Results; }, 30000));
+    REQUIRE(heater_targets.count("extruder") == 1);
+    CHECK(heater_targets["extruder"] == kRunNozzleTempC);
+    if (heater_targets.count("heater_bed")) {
+        CHECK(heater_targets["heater_bed"] == kRunBedTempC);
+    }
+    CHECK(swept_axes == std::set<char>{'X', 'Y'});
 }
 
 namespace {

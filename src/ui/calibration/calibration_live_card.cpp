@@ -120,8 +120,7 @@ CalibrationLiveCard& get_calibration_live_card() {
 }
 
 CalibrationLiveCard::~CalibrationLiveCard() {
-    stop_heat();
-    shaper_chart_.destroy();
+    detach();
 }
 
 void CalibrationLiveCard::init_subjects() {
@@ -183,7 +182,7 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
         init_subjects();
     }
     lv_obj_t* body = find(root, "cal_live_body");
-    if (body != body_) {
+    if (body != body_.get()) {
         // A new widget tree: whatever the old one held went with it.
         detach();
         body_ = body;
@@ -228,21 +227,17 @@ void CalibrationLiveCard::update(const calibration::CalibrationRun* run, lv_obj_
     }
 }
 
+void CalibrationLiveCard::on_body_deleted(lv_event_t* e) {
+    // The charts live inside this tree and go before it does.
+    static_cast<CalibrationLiveCard*>(lv_event_get_user_data(e))->detach();
+}
+
 void CalibrationLiveCard::watch_deletion(lv_obj_t* body) {
     if (!body) {
         return;
     }
-    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup; the charts live inside this tree.
-    lv_obj_add_event_cb(
-        body,
-        [](lv_event_t* e) {
-            auto* self = static_cast<CalibrationLiveCard*>(lv_event_get_user_data(e));
-            if (self->body_ == lv_event_get_target_obj(e)) {
-                self->detach();
-                self->body_ = nullptr;
-            }
-        },
-        LV_EVENT_DELETE, this);
+    // DECLARATIVE_OK: LV_EVENT_DELETE cleanup of the charts built in this tree.
+    lv_obj_add_event_cb(body, on_body_deleted, LV_EVENT_DELETE, this);
 }
 
 void CalibrationLiveCard::detach() {
@@ -250,7 +245,10 @@ void CalibrationLiveCard::detach() {
     stop_shaper();
     shaper_chart_.destroy();
     mesh_fed_version_.reset();
-    body_ = nullptr;
+    if (lv_obj_t* body = body_.get()) {
+        lv_obj_remove_event_cb_with_user_data(body, on_body_deleted, this);
+    }
+    body_.reset();
 }
 
 // ============================================================================

@@ -7,6 +7,7 @@
 // each belt's pull while it is tensioned. Main thread only.
 
 #include "ui_shaper_sweep_chart.h"
+#include "ui_widget_ref.h"
 
 #include "async_lifetime_guard.h"
 #include "calibration_catalog.h"
@@ -83,7 +84,8 @@ class CalibrationLiveCard {
     void show_shaper(lv_obj_t* root, const calibration::StepLive& live);
     void show_belt(const calibration::StepProgress& progress);
     void feed_mesh_map(lv_obj_t* map);
-    void watch_deletion(lv_obj_t* root);
+    void watch_deletion(lv_obj_t* body);
+    static void on_body_deleted(lv_event_t* e);
     void stop_heat();
     void stop_shaper();
 
@@ -114,7 +116,7 @@ class CalibrationLiveCard {
     char belt_state_bufs_[kBelts][32]{};
 
     /// The card's body the live views were built in; a new one means a new tree.
-    lv_obj_t* body_ = nullptr;
+    WidgetRef body_;
 
     std::unique_ptr<helix::TempGraphController> heat_graph_;
     std::string heat_heater_;
