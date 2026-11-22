@@ -216,6 +216,8 @@ RGBW and RGB lights show three fixed white swatches, **Cool**, **Neutral**, **Wa
 
 Color-capable lights also show a row of preset color swatches, plus a rainbow **Custom** swatch at the end that opens the full color picker. A ring shows which preset matches the light's current color.
 
+The color picker has a **Grid** of light colors (white temperatures, full hues and pastels) and **Sliders** for Hue, Saturation and Brightness, with a **Hex** button to type a code. Your recent light colors sit underneath. To remove some, press and hold one, tap each color to remove, then tap the **Done** beside them. The light shows each color as you pick it. **Done** keeps it and adds it to the recent colors; **Cancel** (or tapping outside) puts the light back as it was, including an effect that was running.
+
 ### Effects & Presets
 
 - **Klipper LED effects** ([klipper-led_effect](https://github.com/julianschill/klipper-led_effect)): the effects defined for that light appear as chips, plus a **None** chip that stops whichever one is running. Tap a chip to activate its effect.

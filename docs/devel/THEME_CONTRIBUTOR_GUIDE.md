@@ -223,9 +223,9 @@ Use any contrast checker. If your contrast is marginal, bump `text` darker (ligh
 
 ## Using the in-app theme editor
 
-HelixScreen has a built-in live theme editor (Settings → Appearance → Theme Colors → Edit). It lets you tweak colors with live preview and export the result as JSON.
+HelixScreen has a built-in live theme editor (Settings → Appearance → Theme Colors → Edit). It lets you tweak colors with live preview: tap a color role, then pick its color in the grid or the sliders. **Save** in the header, or **Save As New** in the header's more menu, writes the result as JSON to the user themes directory.
 
-Workflow: create a minimal JSON stub, load it as your active theme, tune it in the editor, export the result, copy back into your `.json` file. Faster than editing hex codes in a text editor when you're still searching for the palette.
+Workflow: create a minimal JSON stub, load it as your active theme, tune it in the editor, save, and copy the saved file from the user themes directory into your contribution. Faster than editing hex codes in a text editor when you're still searching for the palette.
 
 ---
 

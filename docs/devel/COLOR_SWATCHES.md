@@ -13,7 +13,7 @@ draws its own.
 | Shape | A pure color is a **circle**. A labelled chip (color with text on it, the mapping row's `T0`) is a **rounded rect**. The AMS sidebar's tall loaded bar stays a rounded rect and the color picker's grid cells are touching rectangles: they are areas, not swatches. The theme editor's role bars are labelled chips. Bands that are part of a larger chip (`filament_swatch`, `tool_switcher_band`) keep their own geometry. The FILAMENTS card chip (`filament_swatch`) paints its header band with `<swatch_paint bind_color>` and its spool with `<color_dot color_subject>`, both bound to the card's `filament_chip_<i>_*` subjects, as the slot picker's rows bind `filament_picker_row_<i>_*`. |
 | Edge | One rule: a swatch gets a `#border` edge when any of its colours has a WCAG contrast ratio under `kSwatchEdgeContrastRatio` (1.75) against what it sits on: its nearest ancestor with an opaque background, judged at draw time, else the theme's `screen_bg` and `elevated_bg` (`swatch_edge_surfaces()`). Nothing republishes on a theme switch; the theme colours are cached per theme generation. No swatch carries a border of its own and no rule keys on dark mode. |
 | Selection | One mark: `color_swatch`'s inside ring (`selected_subject` + `index`). |
-| Multi-colour | A filament with two or more colours (`SlotInfo::multi_color_hexes`, Spoolman's `multi_color_hexes`) shows them everywhere its colour shows, as equal-area bands across the top-left to bottom-right diagonal, clipped to the shape. A lane spool repaints on `AmsState::get_slot_paint_subject()` (`SlotInfo::paint_key()`) as well as its colour, so a new split or finish under the same colour shows. |
+| Multi-colour | A filament with two or more colours (`SlotInfo::multi_color_hexes`, Spoolman's `multi_color_hexes`) shows them everywhere its colour shows, as equal-area bands across the top-left to bottom-right diagonal, clipped to the shape. `swatch_paint blend="on"` instead blends them evenly left to right: the slot editor's Gradient bar, beside the banded Coaxial one. A lane spool repaints on `AmsState::get_slot_paint_subject()` (`SlotInfo::paint_key()`) as well as its colour, so a new split or finish under the same colour shows. |
 | Glass | A swatch never takes the glass appearance: the swatch painter marks every object it paints `glass_mark(obj, GlassFamily::None)`, because shading would shift the color that identifies a spool (`docs/devel/THEME_SYSTEM.md` § "Glass appearance"). |
 | Finish | Silk, matte, marble and sparkle come from the filament's names, never from a widget. A swatch with less area than a `kSwatchFinishMinPx` (16 px) square cannot show a finish and paints plain; a long thin band or a spool body of the same short side keeps it. |
 
@@ -44,28 +44,65 @@ back by `filament_finish_of()`.
 | `<color_swatch>` | A swatch the user picks: a touch target with a selection ring. Props `color_subject` or `color`, `colors_subject` (CSV), `finish_subject` (a filament name), `fill` (a style; the LED Custom swatch's hue wheel), `selected_subject` + `index`, `callback`, `clickable`, `bubble`, `size`, `hit`, `reach`, `ring`. The color picker's strip and the slot editor's color row are rows of it. |
 | `<custom_color_swatch>` | The rainbow custom-color swatch (hue wheel, centre glyph, `index` -2) that opens a color editor: closing the LED color row. Props `icon` (`pencil` default, `plus`), `selected_subject`, `callback`, `size`, `hit`, `reach`, `ring`; sizing defaults to the `swatch_grid_*` tokens. |
 | `<color_dot>` | A colour that is only shown (a spool in a list, a slot in a row, a tool's dot): no ring, no reach, clicks go to the row. Same colour props plus `size`. |
-| `<swatch_paint>` | The bare painter, for a rounded rect (set `style_radius`) or a fill inside another control (the LED power button). Attributes `color`, `bind_color`, `colors`, `bind_colors`, `finish`, `bind_finish`, `edge="off"`. With no colour it paints nothing. |
+| `<swatch_paint>` | The bare painter, for a rounded rect (set `style_radius`) or a fill inside another control (the LED power button). Attributes `color`, `bind_color`, `colors`, `bind_colors`, `finish`, `bind_finish`, `edge="off"`, `blend="on"` (colors blend left to right instead of banding). With no colour it paints nothing. |
 
 A click handler reads the tapped colour with `helix::ui::swatch_color_of(target)`.
 
 ### The color picker
 
 One picker serves every host: `helix::ui::ColorPickerView` (`include/ui_color_picker_view.h`,
-`ui_xml/components/color_picker_view.xml`). A host puts it inline (the theme editor), in an
-overlay page (`ColorPickerPage`, the slot editor's color page) or in a modal
-(`ColorPickerModal`: the LED control, the Spoolman edit modal, the spool wizard), and puts the
-readout (`<color_picker_readout/>`) and the Grid | Sliders switch (`<color_picker_tabs/>`) in
-its header when it has one.
+`ui_xml/components/color_picker_view.xml`). The view is never a modal itself. A host attaches it
+to a container with a `ColorPickerConfig` (palette, strip, strip caption, `tabs_in_body`,
+`compact_strip`) and gets every change through `on_change()`; `set_color()` shows a color without
+firing it. A host with a header puts the readout (`<color_picker_readout/>`) and the
+Grid | Sliders switch (`<color_picker_tabs/>`) there; `tabs_in_body` puts them above the body
+instead.
+
+| Host | Shape | Palette, strip | Commits |
+|------|-------|----------------|---------|
+| Slot editor (`AmsEditOverlay`) | `ColorPickerPage`, an overlay page: back arrow, readout and switch in the header, the picker filling the body | Filament, filament recents | The editor's own Save; the page edits its draft live and Back keeps it |
+| LED control (`ui_led_control_overlay.cpp`) | `ColorPickerModal`: Cancel, readout, switch and Done over the body | Led, LED recents | Done (`set_remember_on_done(true)`) |
+| Spoolman edit modal, spool wizard | `ColorPickerModal` | Filament, filament recents | The host's save, or the wizard's new filament |
+| Theme editor (`ThemeEditorOverlay`) | Inline beside (or, at micro, below) the role bars, `compact_strip` | Theme, `Custom` strip of the theme's own colors | The header's Save |
 
 | Part | What it is |
 |------|------------|
-| Grid | The caller's palette (`color_palette()`, `include/color_picker_model.h`) as touching cells: filament 10 x 6, LED 10 x 3, theme 6 x 5. A cell is a `swatch_paint` rectangle with no contrast edge (it sits on its neighbors, not on a surface); the selected one has a double ring, white inside black, which reads on any cell. Cells touch, so a missed tap lands on a near-identical shade. |
-| Sliders | Hue, Saturation and Brightness rows (`[-]` track `[+]` value) and a Hex button that opens a 16-key keypad over the body. `ColorPickerModel` keeps the hue while saturation or brightness is 0. |
-| Strip | One row of `color_swatch` chips that scrolls sideways: the filament or LED recents (`ColorRecents`, `include/color_recents.h`), or a fixed list the caller passes (the theme's own colors). A long press on a recents chip puts the strip in removal mode. |
+| Grid | The caller's palette (`color_palette()`, `include/color_picker_model.h`) as touching cells: Filament 10 x 6 (a gray ramp, then ten hues at five tones), Led 10 x 3 (white temperatures, full hues, pastels), Theme 6 x 5 (a surface ramp, then six hue families at three tones). A cell is a `swatch_paint` rectangle with no contrast edge (it sits on its neighbors, not on a surface); the selected one has a double ring, white inside black, which reads on any cell. Cells touch, so a missed tap lands on a near-identical shade. |
+| Sliders | Hue, Saturation and Brightness rows (`[-]` track `[+]` value) and a Hex button that opens a 16-key keypad over the body (`HexKeypad`). `ColorPickerModel` keeps the hue while saturation or brightness is 0. |
+| Strip | One row of `color_swatch` chips: the filament or LED recents (`ColorStrip::FilamentRecents` / `LedRecents`), or the caller's fixed list (`ColorStrip::Custom`, `custom_strip`). A recents strip shows only the chips that fit whole (`fit_strip_to_row()`, measured after the strip builds, after each reload and when Done takes room); a custom strip keeps every color and scrolls, since each must stay reachable. A long press on a recents chip puts the strip in removal mode: each tap removes a chip, and Done (or an empty strip) ends it. |
+| Readout | The color's nearest name and hex, or the host's label (`set_label()`, the theme role being edited). On `ColorPickerPage` the readout is part of the back target, so the header's whole left side goes back. |
 
-A color joins its recents list when the host commits it (the slot editor's Save, the
-Spoolman edit's save, the wizard's new filament, the LED picker's Done), never while
-browsing.
+**One live view.** The XML binds process-wide `color_picker_*` subjects, so one view is live at a
+time: the last one attached. A picker attached over another (a modal over a page) hands the
+subjects back when it detaches, and the view under it shows its own state again and works
+(`publish_all()`).
+
+**Host controls on the page.** `ColorPickerPage::open(parent, rgb, config, on_change, on_close,
+host_controls)` (`include/ui_color_picker_page.h`) takes an optional XML component name. The page
+builds it in `cpp_host_controls`, between the header and the picker, and sets
+`color_picker_host_controls` to 1 while one is shown; without one the page is the bare picker. The
+slot editor passes `ams_edit_multi_color` for a lane that can store several colors
+(FILAMENT_MANAGEMENT.md § "Multi-color"); LEDs, themes and Spoolman open the bare picker.
+
+**Recents.** `helix::ColorRecents` (`include/color_recents.h`) keeps two lists, `Kind::Filament`
+and `Kind::Led`, newest first, de-duplicated and capped at `kCap` (12), in global settings (not
+per printer). A list never written reads as its seed, so a fresh install's strip is not empty. A
+color joins its list when the host commits it, never while browsing: the slot editor's Save once
+the lane holds the save (every color of a multi-color spool, in one settings write through
+`remember_all()`), the Spoolman edit's save, the wizard's new filament, the LED picker's Done.
+
+**The theme editor.** Edit Theme Colors (`ThemeEditorOverlay`,
+`ui_xml/theme_editor_overlay.xml`) has no section header, footer or picker readout: the theme's 16
+roles are `theme_role_bar` chips in a column beside the inline picker (a row above it at micro),
+and the selected bar is the readout, its name, hex and color. The header holds the Grid | Sliders
+switch (`header_content`), a more icon and **Save** (the `overlay_panel` action button and action
+icon; Save is disabled until something changed, `action_button_disabled_cond`). The more icon opens `ThemeEditorMenu` (`include/ui_theme_editor_menu.h`, a
+`ContextMenu`) with Reset and Save As New. The picker runs with `compact_strip`, a thin strip of
+small chips holding the theme's own colors, so the grid gets the height.
+
+**LED preview.** The LED picker previews every pick on the light. Cancel, a backdrop tap or ESC
+puts the original color back, and only then does the modal's restore callback restart the effects
+the preview stopped.
 
 ### Touch targets
 
