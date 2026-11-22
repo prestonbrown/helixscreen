@@ -550,7 +550,7 @@ The list is repopulated on every `on_activate()` to reflect config changes.
 
 ### PrinterManagerOverlay (Manage Printers Button)
 
-The Printer Manager overlay's header bar carries a "Manage Printers" action button (`btn_manage_printers` in landscape, the icon-only `btn_manage_printers_icon` in portrait; both call `pm_manage_printers_clicked`). Clicking it opens the `PrinterListOverlay`.
+The Printer Manager overlay's header bar carries a "Manage Printers" action button (`btn_manage_printers`, a `header_action` calling `pm_manage_printers_clicked` that folds to its icon on small and narrow portrait screens). Clicking it opens the `PrinterListOverlay`.
 
 ---
 

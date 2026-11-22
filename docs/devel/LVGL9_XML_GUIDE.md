@@ -1244,10 +1244,11 @@ and a callback, never a width, height, radius or color (the gate refuses them).
 | Prop | Values |
 |------|--------|
 | `name` | the button's name, for C++ lookups and tests |
+| `text_tag` | the translation key when it differs from the English `text` (otherwise implied from `text`) |
 | `icon`, `text` | at least one. Icon only: a circle, as wide as `#header_button_height` is tall. Text, with or without an icon: a pill |
 | `role` | `primary` (the screen's one main action: Save, Start, Probe, Apply), `neutral` (default: Refresh, settings, folder, Clear All), `danger` (a destructive action that does not confirm) |
 | `collapse` | `auto` (default): icon and text where the header has room, the icon alone on micro and tiny and in portrait below the large breakpoint. A text-only action keeps its text. `never` keeps the text everywhere |
-| `callback` | the clicked callback |
+| `callback` | the clicked callback; an `event_cb` child instead also works, exactly one of the two: the gate fails an action with neither and warns on both |
 | `hidden` | the initial hidden flag, for a button its own binding reveals |
 
 Bindings written as its children act on the button: `bind_flag_if*` hides it,
@@ -1261,9 +1262,11 @@ Bindings written as its children act on the button: `bind_flag_if*` hides it,
 
 The circle comes from `ui_button`'s icon-only state (`LV_STATE_USER_4`, set while a
 button shows its icon and no label), which the component's `selector="user_4"`
-style shapes. On micro and tiny the touch target reaches past the button to the
-header's height (`#header_action_hit`). A header holds three actions at most and
-one primary; the gate warns past either.
+style shapes. On micro, tiny and small screens the touch target reaches past the
+button to the header's height (`#header_action_hit`); the actions slot pads its
+ends by that reach and spaces actions `#header_action_gap` apart, at least twice
+the reach, so every reach registers and neighbors never share a tap. A header
+holds three actions at most and one primary; the gate warns past either.
 
 #### responsive_grid
 
