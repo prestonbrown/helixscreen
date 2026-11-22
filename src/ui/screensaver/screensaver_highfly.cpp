@@ -21,12 +21,18 @@ constexpr lv_opa_t kTextHaloOpa = LV_OPA_60;
 } // namespace
 
 ClockLines highfly_clock_lines(const ClockReading& reading) {
+    const int32_t minute_of_day = reading.time.hour_of_day * 60 + reading.time.minute;
+    ClockLines lines;
+    if (*highfly_word(reading) != '\0') {
+        lines.first = clock_minute_text(minute_of_day);
+        lines.second = std::move(clock_date_text(reading.date).weekday);
+        return lines;
+    }
     if (!highfly_counts_down(reading)) {
         return clock_lines(reading);
     }
-    ClockLines lines;
     lines.first = std::move(clock_print_text(reading).eta);
-    lines.second = clock_minute_text(reading.time.hour_of_day * 60 + reading.time.minute);
+    lines.second = clock_minute_text(minute_of_day);
     return lines;
 }
 

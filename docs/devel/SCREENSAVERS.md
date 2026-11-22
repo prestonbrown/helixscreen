@@ -484,8 +484,9 @@ turn and the wrinkle scroll to one table turn. Tests start both sims thirty days
 the time of day, PROGRESS for a running print before it has an estimate, or a countdown
 anchored to the print's remaining time (jitter under `kClockCountdownResyncS` ignored), frozen
 while paused, and DONE, FAILED or CANCELLED for as long as the input reports the end. The flip clock replaces the time with the countdown; Aqua
-Surface and High Fly keep the time as the main readout and show the print as secondary text
-from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". With no print they show
+Surface keeps the time as the main readout and High Fly the countdown, both showing the print
+as secondary text from `clock_print_text`: "ETA 9:41 PM" and "1h 12m left". High Fly spells a
+finished print as DONE in its numerals (§ "High Fly"). With no print they show
 `clock_date_text`, the long date and weekday from `locale_formats`
 (`format_localized_long_date`, `format_localized_weekday`). All three drift by
 `clock_drift_at` every `kClockDriftStepMs` against burn-in.
@@ -730,15 +731,40 @@ white haze over the bottom rows.
 - A frame repaints the band of rows from the far billows or the deck down, plus boxes above it
   for the clock, towers and the approaching cloud; a fly-through repaints the whole screen. The
   last rung keeps the scene still and redraws only the clock.
-- During a print (`highfly_numerals`, `highfly_palette`): the big numerals count the time left
-  (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the
-  finish time and the time of day, AM/PM blank, in the state colour. The sky, the deck's light
-  and the haze blend from the day palette toward golden hour with progress in
-  `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer (the cloud textures
-  are not recoloured). The step into DONE flies through a cloud and comes out into the sunset
-  palette; a failed or cancelled print turns overcast. A pause slows flight time to 25% and
-  sways the view sideways in a slow holding pattern. With no print every one of these is the
-  idle scene exactly.
+- During a print (`highfly_numerals`): the big numerals count the time left (H:MM big, seconds
+  small, hours to 99 with no leading zero) while the left lines show the finish time and the
+  time of day, AM/PM blank, in the state colour. A pause slows flight time to 25% and sways the
+  view sideways in a slow holding pattern.
+- The palette (`highfly_palette`): the sky, the deck's light and the haze blend from the day
+  palette toward golden hour with progress in `kHighflyPaletteSteps` steps; DONE's is the sunset
+  and FAILED's and CANCELLED's overcast. With no print every one of these is the idle scene. A
+  palette change rebakes the existing sky buffer and the deck's per-slice table, then recolors
+  the band, layer and tower textures (`tint_billboards`), so every cloud follows the sky, the
+  near towers included. Each texture keeps a shade byte per 2 x 2 texels beside its RGBA
+  (`HighFlyTexture::shade`, `highfly_pack_shade`): the coverage-weighted mean of its texels,
+  with empty cells filled from their covered neighbours so a cloud's edge never pulls toward
+  the shadow end. A recolor upsamples it bilinearly (`HighFlyTexture::shade_at`) through the
+  palette's ramp and keeps each texel's coverage, at full resolution. Half resolution costs
+  nothing visible: where a billboard shows it never draws larger than about a pixel a texel
+  (towers at most about 0.7, the layers 0.8, the band 0.3), and a 100% print frame stays within
+  2/255 of full-resolution shade. The shade bytes total 129,792 (the band 23,040, each layer
+  16,384, each tower 19,200), counted in `heap_bytes()` and freed with the scene; 800 x 480's
+  init heap is 4,684,390 B against its test cap of 4608 KB. The band and layers use the deck's
+  ramp; a tower's shadow and midtone stops are its day stops regraded per channel through the
+  palette's shadow, midtone and lit (`highfly_tower_rgb`), so the day palette gives today's
+  tower exactly. Nothing per pixel changes: `draw_billboard` still samples the premultiplied
+  RGBA.
+- The end of a print: the step into DONE flies through a cloud and comes out into the sunset
+  palette. A finished print spells DONE (`highfly_word`) in place of the hours and minutes, in
+  the numerals' stroke glyphs (`StrokeGlyphSet`), size, colour and halo, centred where the
+  numerals stand (`highfly_word_boxes`), with no seconds; where the reading spells no states
+  (`spell_states` off) it shows one check mark instead, as the flip clock and the fireflies do.
+  The left lines then show the time of day (with its AM/PM) and the weekday, and the AM/PM slot
+  under the seconds stays blank. The word bakes into the hours-and-minutes layer once, like a
+  digit change, from glyphs built for that bake and freed after it, so a frame pays only the
+  layer composite it always pays. FAILED and CANCELLED keep the time of day in the numerals and
+  say so on the small first line ("FAILED", "CANCELED") in the state colour, under the overcast
+  palette.
 - Its per-pixel work is fixed point: the deck is stored as 16-bit heights and byte shades (half
   the floats' cache footprint), billboards sample with two channels per multiply and depth-test
   through a per-slice visibility table, and the renderer's span gradient and feather step in
