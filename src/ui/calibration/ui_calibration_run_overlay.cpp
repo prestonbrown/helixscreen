@@ -20,10 +20,12 @@
 #include "display_format.h"
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
+#include "json_utils.h"
 #include "klippy_state.h"
 #include "observe_language.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
+#include "printer_temperature_state.h"
 #include "sound_manager.h"
 #include "temperature_rules.h"
 #include "thermal_rate_model.h"
@@ -136,11 +138,51 @@ const char* walk_away_note(const std::vector<const StepInfo*>& away) {
 
 } // namespace
 
+namespace {
+
+/// The heaters a run's heater step tunes, as their tuning stands: each from the
+/// last run's values, else from the config. Empty when none is tuned.
+std::string heaters_before_text() {
+    auto& ps = get_printer_state();
+    const auto& hardware = ps.get_discovery();
+    std::vector<std::string> names{ps.temperature_state().active_extruder_name()};
+    if (hardware.has_heater_bed()) {
+        names.emplace_back("heater_bed");
+    }
+    const auto* last = calibration::CalibrationHistory::instance().entry("heaters");
+    const auto& in_config = hardware.heater_controls_in_config();
+    std::vector<calibration::HeaterControl> controls;
+    for (const auto& name : names) {
+        std::string control;
+        if (last) {
+            if (const auto* values = json_util::find_member(last->values, name.c_str())) {
+                control = json_util::safe_string(*values, "control");
+            }
+        }
+        if (control.empty()) {
+            const auto found = in_config.find(name);
+            if (found != in_config.end()) {
+                control = found->second;
+            }
+        }
+        if (!control.empty()) {
+            controls.push_back({name == "heater_bed", control});
+        }
+    }
+    return calibration::format_heater_controls(controls);
+}
+
+} // namespace
+
 std::string run_before_text(const StepInfo& s, int configured_z_offset_microns) {
     // The offset the Z offset screen shows as saved is the one its step starts
     // from; zero is an untuned probe, read from the history and config below.
     if (s.kind == calibration::StepKind::ZOffset && configured_z_offset_microns != 0) {
         return calibration::format_z_offset(configured_z_offset_microns / 1000.0);
+    }
+    if (s.kind == calibration::StepKind::Heaters) {
+        const std::string tuned = heaters_before_text();
+        return tuned.empty() ? lv_tr("not set") : tuned;
     }
     if (const auto* last = calibration::CalibrationHistory::instance().entry(s.id)) {
         if (!last->summary.empty()) {

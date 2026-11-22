@@ -5968,6 +5968,7 @@ translations:
   about 4 min: about 4 min
   about 6 min with heat-up: about 6 min with heat-up
   about {} min: about {} min
+  about {} min with heat-up: 'about {} min with heat-up'
   about {} mm above where the paper dragged last time: about {} mm above where the paper dragged last time
   about {} mm below where the paper dragged last time: about {} mm below where the paper dragged last time
   about {} min left: about {} min left

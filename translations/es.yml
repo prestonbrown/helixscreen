@@ -6006,6 +6006,7 @@ translations:
   about {} min left · you can leave: quedan unos {} min · puedes irte
   accelerometer: acelerómetro
   all done: todo hecho
+  about {} min with heat-up: 'unos {} min con calentamiento'
   about {} mm above where the paper dragged last time: "unos {} mm por encima de donde rozó el papel la última vez"
   about {} mm below where the paper dragged last time: "unos {} mm por debajo de donde rozó el papel la última vez"
   already loaded: 'ya cargado'

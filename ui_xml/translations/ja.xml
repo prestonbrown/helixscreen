@@ -5791,6 +5791,7 @@
   <translation tag="about {} min" ja="約{}分"/>
   <translation tag="about {} min left" ja="残り約{}分"/>
   <translation tag="about {} min left · you can leave" ja="残り約{}分 · 離れてかまいません"/>
+  <translation tag="about {} min with heat-up" ja="加熱込みで約{}分"/>
   <translation tag="about {} mm above where the paper dragged last time" ja="前回紙が引っかかった位置より約 {} mm 上"/>
   <translation tag="about {} mm below where the paper dragged last time" ja="前回紙が引っかかった位置より約 {} mm 下"/>
   <translation tag="accelerometer" ja="加速度センサー"/>

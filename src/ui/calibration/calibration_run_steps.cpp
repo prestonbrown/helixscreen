@@ -59,6 +59,7 @@ class HeatersStep : public CalibrationStep {
         aborted_ = false;
         heaters_.clear();
         summaries_.clear();
+        controls_.clear();
         command_sent_ = false;
         values_ = nlohmann::json::object();
         heaters_.push_back(
@@ -102,11 +103,6 @@ class HeatersStep : public CalibrationStep {
 
     const char* label() const {
         return is_bed() ? lv_tr("Bed") : lv_tr("Nozzle");
-    }
-
-    /// The heater's name inside a sentence: "nozzle", "bed".
-    const char* short_label() const {
-        return is_bed() ? lv_tr("bed") : lv_tr("nozzle");
     }
 
     void report(const std::string& method, int done_fraction_pct, const std::string& detail = {}) {
@@ -187,7 +183,7 @@ class HeatersStep : public CalibrationStep {
                     values_[h.name] = {
                         {"control", "pid"}, {"temp", h.temp_c}, {"kp", kp}, {"ki", ki}, {"kd", kd}};
                     summaries_.push_back(fmt::format("{} {}", label(), format_pid(kp, ki, kd)));
-                    briefs_.push_back(fmt::format(fmt::runtime(lv_tr("{} PID")), short_label()));
+                    controls_.push_back({is_bed(), "pid"});
                     next();
                 }),
             lifetime_.bg_cb("CalibrationRun.Heaters.pid_error",
@@ -210,19 +206,19 @@ class HeatersStep : public CalibrationStep {
         command_sent_ = true;
         ctx_->api.advanced().start_mpc_calibrate(
             h.name, h.temp_c, 0,
-            lifetime_.bg_cb(
-                "CalibrationRun.Heaters.mpc_done",
-                [this, h](const IAdvancedAPI::MPCResult& r) {
-                    values_[h.name] = {{"control", "mpc"},
-                                       {"temp", h.temp_c},
-                                       {"block_heat_capacity", r.block_heat_capacity},
-                                       {"sensor_responsiveness", r.sensor_responsiveness},
-                                       {"ambient_transfer", r.ambient_transfer}};
-                    summaries_.push_back(
-                        fmt::format("{} {}", label(), format_mpc(r.block_heat_capacity)));
-                    briefs_.push_back(fmt::format(fmt::runtime(lv_tr("{} MPC")), short_label()));
-                    next();
-                }),
+            lifetime_.bg_cb("CalibrationRun.Heaters.mpc_done",
+                            [this, h](const IAdvancedAPI::MPCResult& r) {
+                                values_[h.name] = {
+                                    {"control", "mpc"},
+                                    {"temp", h.temp_c},
+                                    {"block_heat_capacity", r.block_heat_capacity},
+                                    {"sensor_responsiveness", r.sensor_responsiveness},
+                                    {"ambient_transfer", r.ambient_transfer}};
+                                summaries_.push_back(fmt::format(
+                                    "{} {}", label(), format_mpc(r.block_heat_capacity)));
+                                controls_.push_back({is_bed(), "mpc"});
+                                next();
+                            }),
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_error",
                             [this](const MoonrakerError& err) { fail(err.message); }),
             lifetime_.bg_cb("CalibrationRun.Heaters.mpc_progress",
@@ -263,7 +259,7 @@ class HeatersStep : public CalibrationStep {
         return joined(summaries_);
     }
     std::string joined_brief() const {
-        return joined(briefs_);
+        return format_heater_controls(controls_);
     }
 
     StepInfo info_;
@@ -271,7 +267,7 @@ class HeatersStep : public CalibrationStep {
     std::vector<Heater> heaters_;
     size_t index_ = 0;
     std::vector<std::string> summaries_;
-    std::vector<std::string> briefs_;
+    std::vector<HeaterControl> controls_;
     nlohmann::json values_ = nlohmann::json::object();
     /// The current heater runs MPC_CALIBRATE.
     bool mpc_ = false;

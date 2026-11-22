@@ -6006,6 +6006,7 @@ translations:
   about {} min left · you can leave: 残り約{}分 · 離れてかまいません
   accelerometer: 加速度センサー
   all done: すべて完了
+  about {} min with heat-up: '加熱込みで約{}分'
   about {} mm above where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 上"
   about {} mm below where the paper dragged last time: "前回紙が引っかかった位置より約 {} mm 下"
   already loaded: '装填済み'

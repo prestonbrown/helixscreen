@@ -5791,6 +5791,7 @@
   <translation tag="about {} min" zh="约 {} 分钟"/>
   <translation tag="about {} min left" zh="约剩 {} 分钟"/>
   <translation tag="about {} min left · you can leave" zh="约剩 {} 分钟 · 您可以离开"/>
+  <translation tag="about {} min with heat-up" zh="含加热约 {} 分钟"/>
   <translation tag="about {} mm above where the paper dragged last time" zh="比上次纸张有阻力的位置高约 {} mm"/>
   <translation tag="about {} mm below where the paper dragged last time" zh="比上次纸张有阻力的位置低约 {} mm"/>
   <translation tag="accelerometer" zh="加速度传感器"/>

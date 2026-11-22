@@ -837,11 +837,17 @@ class PrinterDiscovery {
     /// (calibration::results_in_config).
     void parse_calibration_in_config(const nlohmann::json& settings) {
         calibration_in_config_ = calibration::results_in_config(settings);
+        heater_controls_in_config_ = calibration::heater_controls_in_config(settings);
     }
 
     /// Step id to the result its config holds; empty before discovery.
     [[nodiscard]] const calibration::ConfigResults& calibration_in_config() const {
         return calibration_in_config_;
+    }
+
+    /// Heater name to the tuned control its config runs; empty before discovery.
+    [[nodiscard]] const calibration::HeaterControls& heater_controls_in_config() const {
+        return heater_controls_in_config_;
     }
 
     /// Read whether the firmware runs its print-start macro before streaming
@@ -1310,6 +1316,7 @@ class PrinterDiscovery {
     std::vector<LevelingProbePoint> leveling_probe_points_; ///< [quad_gantry_level]/[z_tilt] points
     std::optional<ProbeXYOffset> probe_xy_offset_;          ///< Z probe x_offset/y_offset
     calibration::ConfigResults calibration_in_config_;      ///< From configfile.settings
+    calibration::HeaterControls heater_controls_in_config_; ///< From configfile.settings
     std::optional<double> z_position_endstop_;              ///< stepper_z position_endstop (mm)
     bool firmware_runs_start_macro_before_file_ = false;    ///< start_macro_injection.h
     int chamber_fan_resting_deci_ = 0; ///< Cooling fan's configured resting/off target
