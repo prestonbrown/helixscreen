@@ -18,6 +18,7 @@
     <px name="active_dot" value="8"/>
   </consts>
   <styles>
+    <style name="row_idle" bg_opa="0"/>
     <style name="row_active" bg_color="#primary" bg_opa="38"/>
     <style name="circle_waiting" bg_opa="0" border_width="2" border_color="#elevated_bg"/>
     <style name="circle_running" bg_color="#primary" bg_opa="255" border_width="0"/>
@@ -26,11 +27,12 @@
     <style name="name_waiting" opa="204"/>
   </styles>
   <view extends="lv_obj"
-        width="100%" height="content" style_min_height="#cal_button_h" style_bg_opa="0" style_border_width="0"
-        style_radius="#row_radius" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
-        style_pad_bottom="#space_sm" style_pad_gap="#space_lg" scrollable="false" flex_flow="row"
-        style_flex_main_place="start" style_flex_cross_place="center">
+        width="100%" height="content" style_min_height="#cal_button_h" style_border_width="0" style_radius="#row_radius"
+        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
+        style_pad_gap="#space_lg" scrollable="false" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center" style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
+    <style name="row_idle"/>
     <bind_style name="row_active" subject="cal_run_state_${step}" ref_value="1"/>
     <lv_obj name="step_circle"
             width="#cal_box" height="#cal_box" style_radius="9999" style_pad_all="0" scrollable="false">

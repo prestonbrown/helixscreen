@@ -26,19 +26,18 @@
     <style name="tile_off" bg_color="#card_bg" bg_opa="255" border_color="#border"/>
     <style name="tile_on" bg_color="#primary" bg_opa="38" border_color="#primary"/>
     <style name="tile_roomy"
-           min_height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg"
-           radius="#tile_radius"/>
+           height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg" radius="#tile_radius"/>
     <style name="tile_micro"
-           min_height="#cal_tile_h" pad_left="#space_md" pad_right="#space_md" pad_column="#space_md"
+           height="#cal_tile_h" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_md"
            radius="#tile_radius_tight"/>
     <style name="box_locked" bg_color="#elevated_bg" bg_opa="255" border_width="0"/>
     <style name="box_on" bg_color="#primary" bg_opa="255" border_width="0"/>
     <style name="box_off" bg_opa="0" border_width="2" border_color="#text_subtle"/>
   </styles>
   <view extends="lv_button"
-        height="content" style_pad_top="0" style_pad_bottom="0" style_border_width="2" style_border_opa="255"
-        style_shadow_width="0" scrollable="false" flex_flow="row" style_flex_main_place="start"
-        style_flex_cross_place="center">
+        style_pad_top="0" style_pad_bottom="0" style_border_width="2" style_border_opa="255" style_shadow_width="0"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+        style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_run_shown_${step}" flag="hidden" ref_value="0"/>
     <bind_style name="tile_off" subject="cal_run_picked_${step}" ref_value="0"/>
     <bind_style name="tile_on" subject="cal_run_picked_${step}" ref_value="1"/>

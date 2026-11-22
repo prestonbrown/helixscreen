@@ -200,6 +200,13 @@ const char* warning_for(calibration::StepKind kind) {
 
 } // namespace
 
+std::string results_primary_label(bool offers_save, bool restart_known, bool save_restarts) {
+    if (!offers_save) {
+        return lv_tr("Done");
+    }
+    return restart_known && !save_restarts ? lv_tr("Save") : lv_tr("Save and restart Klipper");
+}
+
 CalibrationRunOverlay& get_calibration_run_overlay() {
     return helix::lazy_global<CalibrationRunOverlay>("CalibrationRunOverlay");
 }
@@ -624,10 +631,7 @@ void CalibrationRunOverlay::publish_run() {
                                    finished, minutes));
     }
     const bool offers_save = can_save && !busy;
-    set_text(results_primary_, !offers_save ? lv_tr("Done")
-                               : restart_known_ && !save_restarts_
-                                   ? lv_tr("Save")
-                                   : lv_tr("Save and restart Klipper"));
+    set_text(results_primary_, results_primary_label(offers_save, restart_known_, save_restarts_));
     switch (phase) {
     case RunPhase::Saving:
         set_text(save_line_, lv_tr("Saving..."));

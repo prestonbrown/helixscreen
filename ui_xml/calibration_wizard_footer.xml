@@ -35,8 +35,8 @@
     <style name="cal_footer_skip" border_width="2" border_color="#elevated_bg" text_color="#text"/>
     <style name="cal_footer_danger" border_width="2" border_color="#danger" text_color="#danger"/>
     <style name="cal_footer_primary"
-           height="#cal_button_h" min_width="#cal_primary_w" pad_left="#space_lg" pad_right="#space_lg" pad_top="0"
-           pad_bottom="0" radius="#btn_radius" shadow_width="0" text_font="#cal_font_primary"/>
+           min_width="#cal_primary_w" pad_left="#space_lg" pad_right="#space_lg" pad_top="0" pad_bottom="0"
+           radius="#btn_radius" shadow_width="0" text_font="#cal_font_primary"/>
     <style name="cal_footer_landscape" height="#cal_footer_h" pad_top="0" pad_bottom="0" pad_row="0"/>
     <style name="cal_footer_portrait" height="content" pad_top="#space_md" pad_bottom="#space_lg" pad_row="#space_md"/>
     <style name="cal_footer_row_gap" pad_column="#space_lg"/>
@@ -99,9 +99,10 @@
             style_flex_cross_place="center" scrollable="false">
       <bind_style_if_eq name="cal_footer_row_gap" subject="ui_is_portrait" ref_value="0"/>
       <bind_style_if_eq name="cal_footer_row_gap_tight" subject="ui_is_portrait" ref_value="1"/>
+      <!-- height inline: ui_button sets its own at create, which a style cannot override. -->
       <ui_button name="$back_name"
-                 variant="outline" bind_text="$back_subject" text="$back_text" translation_tag="$back_tag"
-                 hidden_if_empty="$back_callback">
+                 height="#cal_button_h" variant="outline" bind_text="$back_subject" text="$back_text"
+                 translation_tag="$back_tag" hidden_if_empty="$back_callback">
         <style name="cal_footer_btn"/>
         <style name="$back_style"/>
         <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
@@ -148,16 +149,17 @@
         </if>
       </lv_obj>
       <ui_button name="$skip_name"
-                 variant="outline" text="$skip_text" translation_tag="$skip_tag" hidden_if_empty="$skip_callback">
+                 height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
+                 hidden_if_empty="$skip_callback">
         <style name="cal_footer_btn"/>
         <style name="cal_footer_skip"/>
         <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
         <event_cb trigger="clicked" callback="$skip_callback"/>
       </ui_button>
       <ui_button name="$primary_name"
-                 variant="primary" bind_text="$primary_subject" text="$primary_text" translation_tag="$primary_tag"
-                 icon="$primary_icon" icon_position="right" moves_machine="$primary_moves_machine"
-                 hidden_if_empty="$primary_callback">
+                 height="#cal_button_h" variant="primary" bind_text="$primary_subject" text="$primary_text"
+                 translation_tag="$primary_tag" icon="$primary_icon" icon_position="right"
+                 moves_machine="$primary_moves_machine" hidden_if_empty="$primary_callback">
         <style name="cal_footer_primary"/>
         <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
         <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
