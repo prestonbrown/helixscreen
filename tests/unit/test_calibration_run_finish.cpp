@@ -303,3 +303,16 @@ TEST_CASE("the stop confirmation warns of a restart only when the stop restarts"
     CHECK(drops.find("restarts") != std::string::npos);
     CHECK(drops.find("drops the results") != std::string::npos);
 }
+
+TEST_CASE_METHOD(FinishFixture,
+                 "the results' Z offset BEFORE is the saved offset its step started from",
+                 "[calibration_run]") {
+    StepInfo z;
+    z.kind = StepKind::ZOffset;
+    z.id = "z_offset";
+    z.name = "Z offset";
+    CalibrationHistory::instance().record(*api, "z_offset", "-1.200 mm", {{"z_offset", -1.2}});
+    CHECK(helix::ui::run_before_text(z, -1850) == "-1.850 mm");
+    // An untuned probe reads zero: the history says what it last was.
+    CHECK(helix::ui::run_before_text(z, 0) == "-1.200 mm");
+}

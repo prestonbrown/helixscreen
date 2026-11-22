@@ -1172,10 +1172,18 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     lv_event_cb_t on_continue = lv_xml_get_event_cb(nullptr, "on_zoffset_continue_clicked");
     REQUIRE(on_continue != nullptr);
     on_continue(nullptr);
+    // The run's chrome stays while the panel slides out, and goes once it is gone.
+    lv_subject_t* run_mode = lv_xml_get_subject(nullptr, "zoffset_cal_run_mode");
+    REQUIRE(run_mode != nullptr);
+    CHECK(lv_subject_get_int(run_mode) == 1);
     settle();
     REQUIRE(done.size() == 1);
     CHECK(done[0].first);
     CHECK(done[0].second == ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    for (int i = 0; i < 8; ++i) {
+        settle();
+    }
+    CHECK(lv_subject_get_int(run_mode) == 0);
 }
 
 TEST_CASE_METHOD(ZOffsetRunFixture,

@@ -37,6 +37,12 @@ enum class RunPage : int { Pick = 0, Prereqs = 1, Running = 2, Results = 3 };
 [[nodiscard]] std::string results_primary_label(bool offers_save, bool restart_known,
                                                 bool save_restarts);
 
+/// A step's BEFORE on the Results page: for Z offset the saved offset the step
+/// starts from (@p configured_z_offset_microns, 0 when untuned), else the last
+/// result in the history, else what the config holds, else "not set".
+[[nodiscard]] std::string run_before_text(const calibration::StepInfo& s,
+                                          int configured_z_offset_microns);
+
 /// The Stop confirmation's message for what stopping would do now.
 [[nodiscard]] std::string stop_confirm_message(calibration::CalibrationRun::StopEffect effect);
 

@@ -13,6 +13,7 @@
 
 #include "app_globals.h"
 #include "bed_plate_context.h"
+#include "calibration_config_results.h"
 #include "config.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
@@ -272,9 +273,8 @@ void ZOffsetCalibrationPanel::reset_result_texts() {
 void ZOffsetCalibrationPanel::show_saved_z_offset() {
     // The snapshot from before this calibration.
     const int saved_microns = get_printer_state().get_configured_z_offset_microns();
-    char buf[32];
-    snprintf(buf, sizeof(buf), "%.3f mm", saved_microns / 1000.0);
-    set_readout(saved_text_subject_, buf);
+    set_readout(saved_text_subject_,
+                helix::calibration::format_z_offset(saved_microns / 1000.0).c_str());
     spdlog::debug("[ZOffsetCal] Saved z-offset: {} microns ({} mm)", saved_microns,
                   saved_microns / 1000.0);
 }
@@ -568,9 +568,10 @@ void ZOffsetCalibrationPanel::open_for_run(IMoonrakerAPI* api, int step_index, i
 }
 
 void ZOffsetCalibrationPanel::finish_run(RunEnd end) {
+    // The run chrome stays until the panel is dismissed, so its slide-out
+    // never shows the standalone header.
     auto done = std::move(run_done_);
     run_done_ = nullptr;
-    set_run_mode(false);
     if (done) {
         spdlog::info("[ZOffsetCal] Guided run step {}", end == RunEnd::Accepted ? "accepted"
                                                         : end == RunEnd::Skipped
@@ -588,13 +589,14 @@ void ZOffsetCalibrationPanel::finish_run(RunEnd end) {
 
 void ZOffsetCalibrationPanel::abort_run() {
     run_done_ = nullptr;
-    set_run_mode(false);
     if (state_ == State::PROBING || state_ == State::ADJUSTING || state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Guided run stopped: aborting the calibration");
         send_abort();
     }
     if (is_visible()) {
         helix::nav::go_back();
+    } else {
+        set_run_mode(false);
     }
 }
 
@@ -636,6 +638,7 @@ void ZOffsetCalibrationPanel::handle_continue_clicked() {
 void ZOffsetCalibrationPanel::on_dismissed() {
     // Leaving a run's Z offset without accepting or skipping: the run asks.
     finish_run(RunEnd::Left);
+    set_run_mode(false);
 }
 
 void ZOffsetCalibrationPanel::start_once_bed_clear() {

@@ -9,6 +9,7 @@
 
 #include "app_globals.h"
 #include "calibration_catalog_inputs.h"
+#include "calibration_config_results.h"
 #include "calibration_history_store.h"
 #include "calibration_live_card.h"
 #include "config.h"
@@ -130,9 +131,14 @@ const char* walk_away_note(const std::vector<const StepInfo*>& away) {
     return "";
 }
 
-/// What the printer had before the run: the step's last result, else what its
-/// config holds.
-std::string before_text(const StepInfo& s) {
+} // namespace
+
+std::string run_before_text(const StepInfo& s, int configured_z_offset_microns) {
+    // The offset the Z offset screen shows as saved is the one its step starts
+    // from; zero is an untuned probe, read from the history and config below.
+    if (s.kind == calibration::StepKind::ZOffset && configured_z_offset_microns != 0) {
+        return calibration::format_z_offset(configured_z_offset_microns / 1000.0);
+    }
     if (const auto* last = calibration::CalibrationHistory::instance().entry(s.id)) {
         if (!last->summary.empty()) {
             return last->summary;
@@ -145,6 +151,8 @@ std::string before_text(const StepInfo& s) {
     }
     return s.kind == calibration::StepKind::BedMesh ? lv_tr("none") : lv_tr("not set");
 }
+
+namespace {
 
 /// The row dot: 0 waiting, 1 running, 2 finished, 3 did not finish.
 int dot_state(StepStatus status) {
@@ -750,7 +758,8 @@ void CalibrationRunOverlay::start() {
     std::vector<std::unique_ptr<calibration::CalibrationStep>> steps;
     for (const auto& info : picked_steps()) {
         if (const int i = step_index(info.id); i >= 0) {
-            before_text_[static_cast<size_t>(i)] = before_text(info);
+            before_text_[static_cast<size_t>(i)] =
+                run_before_text(info, get_printer_state().get_configured_z_offset_microns());
         }
         if (auto step = calibration::make_run_step(info)) {
             steps.push_back(std::move(step));
