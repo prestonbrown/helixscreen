@@ -1589,6 +1589,25 @@ printer set up, **Print Label** (the toast's optional second action,
 `ToastAction`). A spool the save created has its label printed at once, so the
 toast's button is the reprint.
 
+**One closing toast for a new spool's label.** A save that creates a Spoolman
+spool with a label printer configured starts that print (`print_new_spool_label()`)
+and parks its outcome in a `helix::LabelOutcomeHold` (`include/label_outcome_hold.h#LabelOutcomeHold`).
+The print and the closing toast finish in either order: `settle()` records the
+print's answer, `when_settled()` hands the toast the outcome at once or when it
+comes, and only the first presentation runs. The closing toast then carries
+"Label printed" or "The label didn't print: <reason>" in its detail line, and
+the print's own "Printing label..." / "Label printed" toasts never stack on it.
+The toast waits at most `kNewSpoolLabelGraceMs` (1.5 s,
+`include/ui_ams_edit_overlay.h#kNewSpoolLabelGraceMs`): a slow printer (a
+sleeping Bluetooth one takes about 25 s) must not hold back the save's toast and
+its Undo, so past the grace `stop_waiting()` swaps in the standalone toasts
+(`label_outcome_toasts()`) and the closing toast shows alone. A held outcome with
+no closing toast to carry it (a save that did not stick, the editor dismissed or
+reopened before the save echoes, a late save landing after the editor closed)
+goes the same way through `release_new_spool_label()`, so a label's outcome never
+surfaces in the next editor session. A manual **Print Label** tap and the IPP
+sheet dialog always report through the standalone toasts.
+
 **Materials the firmware accepts.** A backend whose firmware validates the material against
 its own list publishes it through `AmsBackend::get_supported_materials()` (the AD5X IFS
 whitelist plus its user-defined types, the tool changer's `zmod_color.valid_types`). The
