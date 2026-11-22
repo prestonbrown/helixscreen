@@ -23,6 +23,8 @@
 
 namespace helix {
 
+class PrinterDiscovery;
+
 /// Entry kinds, spelled as the plugin's helix_journal.py spells them.
 namespace journal_kind {
 inline constexpr const char* kShutdown = "klippy_shutdown";
@@ -85,8 +87,9 @@ std::optional<std::size_t> journal_repeat_of(const std::vector<JournalEntry>& en
 std::string journal_error_text(const std::string& line);
 
 /// The class of a `!!` line or shutdown reason: firmware, mcu, heater, homing,
-/// move, filament, command or other.
-std::string classify_journal_error(const std::string& line);
+/// move, filament, command or other. A firmware's own errors (error_wording's
+/// firmware rows) class only when @p hw detects that firmware.
+std::string classify_journal_error(const std::string& line, const PrinterDiscovery* hw = nullptr);
 
 /// Whether an error line or shutdown reason reports a lost MCU.
 bool is_mcu_disconnect(const std::string& line);
@@ -150,13 +153,15 @@ nlohmann::json build_event_journal_section(JournalSource source,
 
 /// `!!` responses of server.gcode_store.
 std::vector<JournalEntry> backfill_from_gcode_store(const std::vector<GcodeStoreEntry>& store,
-                                                    double since);
+                                                    double since,
+                                                    const PrinterDiscovery* hw = nullptr);
 /// Jobs of a server.history.list result that ended after @p since.
 std::vector<JournalEntry> backfill_from_history(const nlohmann::json& result, double since);
 /// Shutdowns in a klippy.log tail. Klipper stamps them with its monotonic
 /// clock, so each is placed through the newest "Start printer at" line before
 /// it; one with no such line in the window has no wall time and is skipped.
-std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, double since);
+std::vector<JournalEntry> backfill_from_klippy_log(const std::string& log, double since,
+                                                   const PrinterDiscovery* hw = nullptr);
 /// Whether a reconnect's backfill must read klippy.log: Klipper is shut down
 /// now, or a job in the gap ended by a shutdown.
 bool backfill_needs_klippy_log(bool klippy_shutdown_now,

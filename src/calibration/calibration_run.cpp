@@ -104,6 +104,11 @@ CalibrationRun::CalibrationRun(IMoonrakerAPI& api,
             api_,
             [this, i](const StepProgress& p) { on_step_progress(i, p); },
             [this, i](StepOutcome o) { on_step_done(i, std::move(o)); },
+            [this, i]() {
+                if (phase_ == RunPhase::Running && static_cast<int>(i) == current_) {
+                    stop();
+                }
+            },
         }));
     }
 }

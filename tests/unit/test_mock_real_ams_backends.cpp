@@ -3,6 +3,7 @@
 // HELIX_MOCK_AMS modes that are mock HARDWARE: MoonrakerClientMock publishes what
 // the firmware does and answers its G-code, so --test runs the production backend.
 
+#include "../../src/mock/moonraker_client_mock_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "happy_hare_status_parse.h"
 #include "mock_persona.h"
@@ -413,6 +414,29 @@ TEST_CASE("SnapSwap mock: a stock U1's four heads, swap, unload and re-tag",
     CHECK(ptc["filament_type"][1] == "PETG");
     CHECK(ptc["filament_vendor"][1] == "Generic");
     CHECK(ptc["filament_color_rgba"][1] == "112233FF");
+}
+
+TEST_CASE("SnapSwap mock: an empty port reads as the real U1 reports it",
+          "[ams][mock][snapmaker][empty_port]") {
+    helix::ScopedEnv ams{"HELIX_MOCK_AMS", nullptr};
+    helix::ScopedEnv u1{"HELIX_MOCK_PRINTER", "snapmaker_u1"};
+    helix::ScopedEnv empty{"HELIX_MOCK_U1_EMPTY_PORTS", "2"};
+    MoonrakerClientMock u1_mock(MoonrakerClientMock::PrinterType::SNAPMAKER_U1, 100.0);
+    const json status = u1_mock.u1_snapswap_status_json();
+    // The feeder: no filament at the port, waiting for an insert.
+    CHECK(status["filament_feed right"]["extruder2"]["filament_detected"] == false);
+    CHECK(status["filament_feed right"]["extruder2"]["channel_state"] == "wait_insert");
+    // The head's record forgets its filament, and the reader has no tag.
+    const json& ptc = status["print_task_config"];
+    CHECK(ptc["filament_exist"][2] == false);
+    CHECK(ptc["filament_type"][2] == "NONE");
+    CHECK(ptc["filament_vendor"][2] == "NONE");
+    CHECK(status["filament_detect"]["info"][2]["MAIN_TYPE"] == "NONE");
+    // The toolhead switch reads empty too; the other heads keep theirs.
+    CHECK_FALSE(helix::sim::mock_filament_sensor_env_state("e2_filament").filament_detected);
+    CHECK(helix::sim::mock_filament_sensor_env_state("e1_filament").filament_detected);
+    CHECK(ptc["filament_exist"][1] == true);
+    CHECK(ptc["filament_type"][1] != "NONE");
 }
 
 TEST_CASE("SnapSwap mock: a runout continues on the head the empty one is labelled after",

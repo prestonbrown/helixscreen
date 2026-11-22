@@ -13,6 +13,7 @@
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "error_wording.h"
 #include "gcode_response_lines.h"
 #include "hardware_object_table.h"
 #include "helix-xml/src/xml/lv_xml.h"
@@ -2563,6 +2564,16 @@ std::optional<helix::ErrorEvent> AmsBackendAd5xIfs::current_error() const {
                 ? std::string(lv_tr("Filament ran out at the toolhead"))
                 : std::string(lv_tr(system_info_.operation_detail.c_str())),
             build_recovery_actions());
+    }
+    // A failed load or unload leaves the firmware's own `!!` text as the
+    // detail; the wording table says what it means and what to do, in the same
+    // words the console copy of that line gets.
+    if (const auto known = helix::error_wording::classify(system_info_.operation_detail,
+                                                          &get_printer_state().get_discovery())) {
+        if (const auto worded = helix::error_wording::word(*known)) {
+            return helix::make_ams_fault_event(helix::ErrorSource::IFS, worded->summary,
+                                               worded->detail(), build_recovery_actions());
+        }
     }
     return helix::make_ams_fault_event(
         helix::ErrorSource::IFS, lv_tr("Filament System Error"),

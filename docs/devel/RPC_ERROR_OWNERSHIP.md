@@ -191,9 +191,9 @@ Details that matter when reading that code:
 - **Exact-string match, 1.5 s window** (`src/api/rpc_error_correlation.cpp#kCausalWindow`). The two
   channels are causally tied - the window absorbs network jitter, nothing more. Substring
   matching would mask unrelated errors sharing a phrase.
-- **The recorded identity is Klipper's raw wording**, before `clean_error_text()` rewrites it.
+- **The recorded identity is Klipper's raw wording**, before the wording table rewords it.
   The router therefore looks up `raw_detail` first and falls back to `detail`, so a message
-  the cleaner touched ("Must home axis first" → "Must home axes first") still matches.
+  `error_wording` words ("Must home axis first" reads as a cause and a fix) still matches.
 - **Only the router's plain-TOAST arm defers and re-checks.** `present_deferred()`
   (`src/application/gcode_error_router.cpp#present_deferred`) re-runs the lookup when its timer fires,
   which is what catches an RPC reply that lands *after* the `!!` line. A CRITICAL modal fires

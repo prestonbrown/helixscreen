@@ -16,7 +16,9 @@
 #include "core/timer_guard.h"
 #include "core/update_queue.h"
 #include "display_wake_request.h"
+#include "error_wording.h"
 #include "fault_modal_registry.h"
+#include "firmware_fault_codes.h"
 #include "gcode_error_router.h"
 #include "helix_psram_attr.h"
 #include "lvgl.h"
@@ -875,6 +877,7 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
     // Use actual Klipper state_message if available (e.g. "Max force exceeded...")
     std::string message;
     std::string code;
+    FirmwareCodeScheme scheme = FirmwareCodeScheme::Opaque;
     if (printer_state_ && (recovery_reason_ == RecoveryReason::SHUTDOWN ||
                            recovery_reason_ == RecoveryReason::ERROR)) {
         const std::string state_msg = printer_state_->network_state().get_klippy_fault_message();
@@ -885,24 +888,40 @@ void EmergencyStopOverlay::update_recovery_dialog_content() {
             // in. Reuse the gcode router's decoder rather than showing the user raw
             // JSON: it lifts msg into the text and hands the code back separately for
             // the header slot. Prose and malformed envelopes come back untouched.
-            GcodeErrorRouter::clean_error_text(message, code);
+            GcodeErrorRouter::clean_error_text(message, code, &scheme);
         }
     }
     // Klippy's own reason restates any "Printer Error" alert raised for this
     // fault, and this dialog adds the restart, so it becomes the one dialog for
     // it. Generic text restates nothing, and the alerts stay.
     helix::ui::set_fault_carrier(message.empty() ? nullptr : recovery_dialog_.get());
+    // As the console classifier does: an error-table code is the identity, and
+    // an opaque code's envelope carries prose the table may know.
+    const bool prose = code.empty() || scheme == FirmwareCodeScheme::Opaque;
+    const auto known =
+        message.empty() || !prose
+            ? std::optional<helix::error_wording::Classification>{}
+            : helix::error_wording::classify(message, &printer_state_->get_discovery());
+    const auto worded = known ? helix::error_wording::word(*known) : std::nullopt;
+    // A firmware that shuts down with a structured code in the reason.
+    const auto coded =
+        message.empty() || !code.empty() || worded
+            ? std::nullopt
+            : helix::faultcodes::classify(printer_state_->get_discovery(), "!! " + message);
     if (message.empty()) {
         message = lv_tr(content.message);
-    } else if (is_klippy_config_error(message)) {
-        // Restarting reloads the same broken file, so say what has to change
-        // first. Klipper's text names the option and section; the guidance goes
-        // ahead of it so a long reason cannot push it out of the subject buffer.
-        lv_subject_set_string(&recovery_title_subject_, lv_tr("Klipper Config Error"));
-        message = std::string(lv_tr("Klipper could not load its configuration. Fix the "
-                                    "setting below in the printer's config files, then "
-                                    "restart Klipper.")) +
-                  "\n\n" + message;
+    } else if (coded && !coded->title.empty()) {
+        // Only a code the firmware's table words: an unworded one's detail is
+        // the firmware's own sentence, already in the reason below.
+        lv_subject_set_string(&recovery_title_subject_, coded->title.c_str());
+        message = coded->detail + "\n\n" + message;
+    } else if (worded) {
+        // What went wrong and what to do, above Klipper's own text: a support
+        // thread still needs the firmware's exact words, and a config error's
+        // names the option and section to fix. The guidance goes first so a
+        // long reason cannot push it out of the subject buffer.
+        lv_subject_set_string(&recovery_title_subject_, worded->summary.c_str());
+        message = worded->detail() + "\n\n" + message;
     }
 
     // Update subjects — XML bindings in klipper_recovery_dialog.xml react automatically

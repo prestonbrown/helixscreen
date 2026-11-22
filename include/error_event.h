@@ -7,6 +7,8 @@
 
 namespace helix {
 
+class PrinterDiscovery;
+
 enum class ErrorSeverity { INFO, WARNING, CRITICAL };
 
 enum class ErrorSource {
@@ -54,6 +56,12 @@ struct RecoveryAction {
     /// on a homed toolhead, and refused on the tap unless homed_axes still reads
     /// "xyz": an M84 or a Klipper error can clear it while the dialog is up.
     bool requires_homed = false;
+    /// The gcode resumes or re-runs a step of a paused print, and anywhere else
+    /// it moves filament and heats on state the print no longer holds.
+    /// Offered only into a paused print, and refused on the tap unless the
+    /// print still reads paused: it can be resumed or cancelled from another
+    /// client while the dialog is up.
+    bool requires_paused = false;
     /// Id of a guided device flow (ui_guided_device_flow.h) the tap opens in place
     /// of sending @ref gcode, which stays empty. The flow owns its own safety
     /// checks, so a flow that heats refuses its start while a print holds the
@@ -61,7 +69,27 @@ struct RecoveryAction {
     std::string guided_flow;
     /// The lane a lane flow (kLoadLaneFlowId, kUnloadLaneFlowId) acts on; -1 otherwise.
     int lane = -1;
+    /// The lane @ref gcode moves filament on when the firmware, not the
+    /// command, decides which (a retry of a step it recorded); -1 otherwise.
+    /// Fault text about any other lane must not stand above this action, so
+    /// AmsState::standing_fault() drops it when it swaps in a cause that does
+    /// not name this lane.
+    int acts_on_lane = -1;
 };
+
+/// The one rule for an action bound to a lane (RecoveryAction::acts_on_lane):
+/// it stands only under text that names that lane. Drops every such action
+/// whose lane is not @p named_lane, the lane the shown text names (-1 when it
+/// names none).
+inline void keep_lane_actions_named(std::vector<RecoveryAction>& actions, int named_lane) {
+    std::vector<RecoveryAction> kept;
+    for (auto& a : actions) {
+        if (a.acts_on_lane < 0 || a.acts_on_lane == named_lane) {
+            kept.push_back(std::move(a));
+        }
+    }
+    actions = std::move(kept);
+}
 
 /// Guided flows any producer may name in RecoveryAction::guided_flow: the way on
 /// from a fault that is not one gcode. ui_guided_device_flow.cpp registers them.
@@ -85,8 +113,8 @@ struct ErrorEvent {
     /// FULL, untruncated, UN-translated text exactly as Klipper sent it (the
     /// `!!`/`Error:` prefix stripped, nothing else). This is the cross-channel
     /// dedup identity: the RPC channel records Klipper's raw wording, while
-    /// `detail` may have been rewritten by clean_error_text() ("Must home axis
-    /// first" -> "Must home axes first"). Comparing raw-to-raw keeps both sides
+    /// `detail` may be the wording table's cause and fix for it
+    /// (error_wording). Comparing raw-to-raw keeps both sides
     /// in the same normalization. Empty when a classifier doesn't populate it,
     /// in which case `detail` is already the raw text.
     std::string raw_detail;
@@ -105,6 +133,10 @@ struct ErrorEvent {
     /// one index. A runout dialog already on
     /// screen for that lane explains it, so its toast stands down.
     int runout_lane = -1;
+    /// The fault outlived the job it stopped and means nothing now. The
+    /// classifier that owns the fault claims the line, so no later classifier
+    /// reports it in the firmware's raw words, and nothing presents it.
+    bool leftover = false;
 };
 
 /// Inputs the classifier needs beyond the raw line. Kept as a plain struct
@@ -112,6 +144,13 @@ struct ErrorEvent {
 struct ClassifyContext {
     bool is_paused = false;   ///< print currently paused (pause_resume.is_paused)
     bool is_printing = false; ///< print active (print_stats.state == "printing")
+    /// The printer's discovery, for wording rows a firmware adds; nullptr
+    /// asks only the rows every printer shares.
+    const PrinterDiscovery* hw = nullptr;
+    /// print_stats.state == "paused". Klipper reports it before pause_resume's
+    /// is_paused while a PAUSE is still running, so a fault raised in that gap
+    /// still belongs to a job.
+    bool is_job_paused = false;
 };
 
 /// Which error shape a gcode-response line carries. The two mark different

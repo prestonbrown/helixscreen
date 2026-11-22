@@ -32,7 +32,7 @@ The `HELIX_SCROLL_GUARD` and `HELIX_SCROLL_GUARD_COOLDOWN_MS` variables override
 | `touch_device` | `""` (auto-detect) | The input device to use for touch or pointer input, for example `"/dev/input/event1"`. Empty lets HelixScreen find a touch or pointer device. The `HELIX_TOUCH_DEVICE` variable does the same. |
 | `device_blacklist` | `[]` | USB input devices HelixScreen ignores for keyboard and barcode-scanner input, each as a lowercase `"vid:pid"` pair such as `["002c:261a"]`. Use it when a USB barcode scanner shows up as a plain keyboard and HelixScreen keeps claiming it, for example when another tool needs the scanner to itself. A blacklisted device is skipped but still listed in the Barcode Scanner settings so you can identify it. |
 
-To find a device's ID, open **Settings > Devices > Spoolman > Barcode Scanner**, where each device is listed with its ID, or run `lsusb` over SSH and read the pair after `ID`, for example `ID 002c:261a`. The full walkthrough is in [Sharing a scanner with another tool](../guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist).
+To find a device's ID, open **Settings > Printing > Spoolman > Barcode Scanner**, where each device is listed with its ID, or run `lsusb` over SSH and read the pair after `ID`, for example `ID 002c:261a`. The full walkthrough is in [Sharing a scanner with another tool](../guide/barcode-scanner.md#sharing-a-scanner-with-another-tool-device-blacklist).
 
 ---
 
@@ -65,7 +65,7 @@ These sit in the `display` section.
 
 ## Barcode scanner
 
-These sit in the top-level `scanner` section and apply to the machine HelixScreen runs on, not to one printer. Set them from **Settings > Devices > Spoolman > Barcode Scanner**.
+These sit in the top-level `scanner` section and apply to the machine HelixScreen runs on, not to one printer. Set them from **Settings > Printing > Spoolman > Barcode Scanner**.
 
 | Key | Default | What it does |
 |-----|---------|--------------|

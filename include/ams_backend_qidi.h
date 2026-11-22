@@ -187,6 +187,14 @@ class AmsBackendQidi : public AmsSubscriptionBackend, public helix::IDryer {
 
     [[nodiscard]] std::optional<helix::ErrorEvent> current_error() const override;
 
+    /// QIDI's slot label (`2C`) in a fault message.
+    [[nodiscard]] int lane_named_in(const std::string& text) const override;
+
+    /// A Box fault QIDI's TRY_MOVE_AGAIN can retry, while save_variables
+    /// retry_step still names it: worded by its code, with Retry offered.
+    [[nodiscard]] std::optional<helix::ErrorEvent>
+    classify_error(const std::string& raw_line, const helix::ClassifyContext& ctx) const override;
+
     // Per-lane eject for non-loaded lanes. Q2/Plus 4: FORCE_MOVE on the box_stepper
     // (#1041), gated on [force_move] enable_force_move. Max 4: MULTI_COLOR_BOX_UNLOAD
     // via the multi_color_controller dialect, no [force_move] needed (#1083).
@@ -351,6 +359,11 @@ class AmsBackendQidi : public AmsSubscriptionBackend, public helix::IDryer {
     /// Replayed through parse_save_variables() when controller info changes
     /// on its own, so a string id resolves without waiting for the next save.
     nlohmann::json identity_vars_ = nlohmann::json::object();
+
+    /// save_variables retry_step: the step QIDI's TRY_MOVE_AGAIN re-runs
+    /// (`QDE_004_006_3`), "" when none. Persisted by the firmware and cleared
+    /// only by TRY_MOVE_AGAIN, so it can stand stale across restarts.
+    std::string retry_step_;
 
     /// Fold a multi_color_controller status (deltas included) into
     /// controller_slots_. True when a slot's info changed. Caller holds mutex_.

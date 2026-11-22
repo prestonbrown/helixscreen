@@ -279,9 +279,9 @@ std::string GcodeErrorRouter::truncate_for_toast(std::string text) {
 //
 // MoonrakerRequestTracker::route_response() records the RAW Klipper-supplied
 // `error.message`, so the identity we look up is `raw_detail` — Klipper's
-// wording before clean_error_text() rewrote it. Matching on `detail` alone
-// misses every message the cleaner touches ("Must home axis first" ->
-// "Must home axes first"), which double-toasts a single rejection.
+// own wording. Matching on `detail` alone misses every message the wording
+// table rewords ("Must home axis first" reads as a cause and a fix), which
+// double-toasts a single rejection.
 //
 // `detail` stays as a fallback for classifiers that leave `raw_detail` empty
 // (the AMS backends, whose detail already IS the raw text). The match remains
@@ -306,8 +306,10 @@ ClassifyContext GcodeErrorRouter::current_classify_context() {
     // A failure inside a host-side pre-start block is PrintPreparationManager's
     // to report, and claiming a print is running would offer a Resume that has
     // nothing to resume.
-    ctx.is_printing =
-        get_printer_state().print_state().get_print_job_state() == PrintJobState::PRINTING;
+    const PrintJobState job = get_printer_state().print_state().get_print_job_state();
+    ctx.is_printing = job == PrintJobState::PRINTING;
+    ctx.is_job_paused = job == PrintJobState::PAUSED;
+    ctx.hw = &get_printer_state().get_discovery();
     return ctx;
 }
 
@@ -598,7 +600,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // Firmware that reports structured fault codes gets asked before the
     // phrase-based classifier: a code is a stable identity, the sentence is not.
     if (!ev)
-        ev = faultcodes::classify(get_printer_state().get_discovery(), line);
+        ev = faultcodes::classify(get_printer_state().get_discovery(), line, ctx);
     if (!ev) {
         ev = error_classify::classify(line, ctx);
         // Nobody claimed the line but the phrase classifier: this is the
@@ -608,6 +610,10 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     }
     if (!ev)
         return;
+    if (ev->leftover) {
+        spdlog::info("[GcodeError] Not surfacing a fault left over from an ended job: {}", line);
+        return;
+    }
 
     // Every classifier's detail reaches the user, and a backend or an unknown
     // fault code passes the firmware's text through verbatim, so an envelope in
@@ -629,6 +635,10 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
 
     spdlog::error("[GcodeError] sev={} src={} code={}: {}", static_cast<int>(ev->severity),
                   static_cast<int>(ev->source), ev->code.empty() ? "-" : ev->code, ev->detail);
+    // Support threads need the firmware's exact line, which worded text replaces.
+    if (!ev->raw_detail.empty() && ev->raw_detail != ev->detail) {
+        spdlog::error("[GcodeError] firmware said: {}", ev->raw_detail);
+    }
 
     // Release an optimistic Pause/Resume spinner. A RESUME macro can refuse by
     // printing `!!` and returning normally, so the gcode.script RPC still
@@ -690,7 +700,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // arms too, not just toasts.
     const bool coded_twin_may_follow =
         prose_line && ev->code.empty() &&
-        faultcodes::firmware_reports_fault_codes(get_printer_state().get_discovery());
+        faultcodes::firmware_sends_prose_twins(get_printer_state().get_discovery());
     if (how == PresentAs::TOAST || coded_twin_may_follow) {
         // Claimed here, not when the 150ms timer fires: AmsErrorBridge's
         // deferred re-check runs one UpdateQueue tick after the ERROR edge and
@@ -723,7 +733,7 @@ void GcodeErrorRouter::process_line(const std::string& line, bool firmware_repor
     // this record is the only signal that stops it adding a second
     // notification for the fault just shown. Both spellings are recorded: the
     // bridge holds the backend's operation_detail, which matches Klipper's raw
-    // wording, while clean_error_text() may have rewritten `detail`.
+    // wording, while the wording table may have reworded `detail`.
     fault_surface_correlation::record_surfaced(ev->detail);
     if (ev->raw_detail != ev->detail) {
         fault_surface_correlation::record_surfaced(ev->raw_detail);
@@ -840,23 +850,26 @@ void GcodeErrorRouter::on_connected() {
                         last_replayed_time_ = it->time;
                     }
 
-                    std::string clean =
-                        (raw.size() > 3 && raw[2] == ' ') ? raw.substr(3) : raw.substr(2);
-                    std::string code;
-                    clean_error_text(clean, code);
+                    // The same classification a live line gets, so a replayed
+                    // fault reads with the same title and wording.
+                    ClassifyContext replay_ctx;
+                    replay_ctx.hw = &get_printer_state().get_discovery();
+                    const auto ev = error_classify::classify(raw, replay_ctx);
+                    if (!ev) {
+                        return;
+                    }
 
                     spdlog::info(
                         "[GcodeError replay] Surfacing prior `!!` (age {:.0f}s, code={}): {}", age,
-                        code.empty() ? "-" : code, clean);
+                        ev->code.empty() ? "-" : ev->code, ev->detail);
 
                     // Replay is always modal -- the user was disconnected; a
                     // transient toast they can miss isn't enough on first
                     // reconnect. Modal dedup-by-title prevents the live
                     // notify_gcode_response (if Klippy re-emits) from
                     // duplicating.
-                    const char* table_title = printer::klipper_error_modal_title(code);
-                    const char* title = table_title ? table_title : lv_tr("Printer Error");
-                    ui_notification_printer_fault(title, clean.c_str());
+                    ui_notification_printer_fault(helix::ui::modal_title_for(*ev),
+                                                  ev->detail.c_str());
                     return;
                 }
             }),

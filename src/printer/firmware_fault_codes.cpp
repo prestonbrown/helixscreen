@@ -4,6 +4,7 @@
 
 #include "lvgl.h"
 #include "printer_discovery.h"
+#include "qidi_fault_codes.h"
 #include "snapmaker_exceptions.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -20,15 +21,16 @@ namespace {
 /// text. Everything vendor-specific lives in `classify_event`; this table
 /// only carries the capability question and what to subscribe.
 struct Provider {
-    /// Status object whose presence marks the capability.
-    const char* detect_object;
+    /// True when this firmware runs on the printer.
+    bool (*detect)(const PrinterDiscovery& hw);
     /// Status objects carrying standing faults, for the subscription builder.
     std::vector<std::string> status_objects;
     /// Source tag for events this provider classifies.
     ErrorSource source;
     /// Read one error line (prefix already stripped) into an event, or
     /// nullopt when the line carries no code this firmware owns.
-    std::optional<ErrorEvent> (*classify_event)(const Provider& p, const std::string& text);
+    std::optional<ErrorEvent> (*classify_event)(const Provider& p, const std::string& text,
+                                                const ClassifyContext& ctx);
     /// The console-equivalent coded lines for the faults currently standing,
     /// or nullopt when the frame says nothing about faults.
     std::optional<std::vector<std::string>> (*read_standing)(const nlohmann::json& status);
@@ -37,6 +39,13 @@ struct Provider {
     const char* notification_method;
     /// One raise notification's params[0] into a coded line, or nullopt.
     std::optional<FaultNotification> (*read_notification)(const nlohmann::json& params0);
+    /// The firmware raises some faults on `//` info lines or with no prefix
+    /// at all. Such a line reaches classify_event only through this flag, and
+    /// classify_event must then claim nothing but lines carrying its code.
+    bool reads_unprefixed_lines;
+    /// The firmware's console also carries a code-stripped prose copy of each
+    /// fault it pushes coded, so an uncoded line waits for its coded twin.
+    bool sends_prose_twins;
 };
 
 ErrorSeverity severity_of_event(const snapmaker::ExceptionSeverity& s) {
@@ -52,7 +61,8 @@ ErrorSeverity severity_of_event(const snapmaker::ExceptionSeverity& s) {
 }
 
 /// The vendor's translation of `level-id-index-code` text into an event.
-std::optional<ErrorEvent> classify_snapmaker(const Provider& p, const std::string& text) {
+std::optional<ErrorEvent> classify_snapmaker(const Provider& p, const std::string& text,
+                                             const ClassifyContext& /*ctx*/) {
     const auto code = snapmaker::decode_exception_code(text);
     if (!code) {
         return std::nullopt;
@@ -99,10 +109,34 @@ std::optional<FaultNotification> read_notification_snapmaker(const nlohmann::jso
     return FaultNotification{snapmaker::coded_line(*fault), fault->message};
 }
 
+bool detect_snapmaker(const PrinterDiscovery& hw) {
+    const auto& objects = hw.printer_objects();
+    return std::find(objects.begin(), objects.end(), "exception_manager") != objects.end();
+}
+
+/// QIDI's extras raise QD codes with or without a Box; the Box (its own
+/// detection, or QIDI's box_extras object) is what marks the firmware.
+bool detect_qidi(const PrinterDiscovery& hw) {
+    if (hw.qidi_box_slot_count() > 0) {
+        return true;
+    }
+    const auto& objects = hw.printer_objects();
+    return std::find(objects.begin(), objects.end(), "box_extras") != objects.end();
+}
+
+std::optional<ErrorEvent> classify_qidi(const Provider& /*p*/, const std::string& text,
+                                        const ClassifyContext& ctx) {
+    return qidi::classify_fault_line(text, ctx);
+}
+
+std::optional<std::vector<std::string>> read_no_standing(const nlohmann::json& /*status*/) {
+    return std::nullopt;
+}
+
 /// The provider table. Adding a firmware with the same capability is one row
 /// here and no call-site change.
-const std::array<Provider, 1> kProviders{{
-    {"exception_manager",
+const std::array<Provider, 2> kProviders{{
+    {detect_snapmaker,
      {"exception_manager"},
      ErrorSource::SNAPMAKER,
      classify_snapmaker,
@@ -110,13 +144,25 @@ const std::array<Provider, 1> kProviders{{
      // Moonraker sends event "snapmaker:exception_notification" to websocket
      // clients as "notify_" + the part after the colon.
      "notify_exception_notification",
-     read_notification_snapmaker},
+     read_notification_snapmaker,
+     /*reads_unprefixed_lines=*/false,
+     /*sends_prose_twins=*/true},
+    // QIDI's standing fault (save_variables retry_step) belongs to the Box
+    // backend, which can tell whether live state still agrees with it.
+    {detect_qidi,
+     {},
+     ErrorSource::QIDI,
+     classify_qidi,
+     read_no_standing,
+     nullptr,
+     nullptr,
+     /*reads_unprefixed_lines=*/true,
+     /*sends_prose_twins=*/false},
 }};
 
 const Provider* provider_for(const PrinterDiscovery& hw) {
-    const auto& objects = hw.printer_objects();
     for (const auto& p : kProviders) {
-        if (std::find(objects.begin(), objects.end(), p.detect_object) != objects.end()) {
+        if (p.detect(hw)) {
             return &p;
         }
     }
@@ -143,16 +189,29 @@ std::vector<std::string> required_status_objects(const PrinterDiscovery& hw) {
     return p ? p->status_objects : std::vector<std::string>{};
 }
 
-std::optional<ErrorEvent> classify(const PrinterDiscovery& hw, const std::string& line) {
+bool firmware_sends_prose_twins(const PrinterDiscovery& hw) {
+    const Provider* p = provider_for(hw);
+    return p != nullptr && p->sends_prose_twins;
+}
+
+std::optional<ErrorEvent> classify(const PrinterDiscovery& hw, const std::string& line,
+                                   const ClassifyContext& ctx) {
     const Provider* p = provider_for(hw);
     if (!p) {
         return std::nullopt;
     }
     const GcodeErrorLine parsed = parse_gcode_error_line(line);
-    if (parsed.prefix == GcodeErrorPrefix::None) {
+    if (parsed.prefix != GcodeErrorPrefix::None) {
+        return p->classify_event(*p, parsed.text, ctx);
+    }
+    if (!p->reads_unprefixed_lines) {
         return std::nullopt;
     }
-    return p->classify_event(*p, parsed.text);
+    std::string text = line;
+    if (text.rfind("//", 0) == 0) {
+        text = text.substr(text.size() > 2 && text[2] == ' ' ? 3 : 2);
+    }
+    return p->classify_event(*p, text, ctx);
 }
 
 std::optional<std::vector<std::string>> read_standing_faults(const PrinterDiscovery& hw,

@@ -2,7 +2,7 @@
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- Devices Settings Overlay -->
-<!-- Hardware issues, camera, fans, sensors, LEDs, power devices, spoolman -->
+<!-- Hardware issues, camera, fans, sensors, LEDs, power devices -->
 <component>
   <view name="settings_hardware_overlay" extends="overlay_panel" title="Devices" bg_color="#screen_bg">
     <!-- Content Area - no padding, rows handle their own -->
@@ -84,12 +84,6 @@
                               label="Power Devices" icon="power_plug"
                               description="Control power relays and smart outlets" callback="on_power_devices_clicked"/>
         </lv_obj>
-        <!-- ================================================================== -->
-        <!-- SPOOLMAN -->
-        <!-- ================================================================== -->
-        <setting_action_row name="row_spoolman_settings"
-                            label="Spoolman" icon="spoolman" description="Filament tracking &amp; label printing"
-                            callback="on_spoolman_settings_clicked"/>
       </setting_group>
     </overlay_panel-overlay_content>
   </view>

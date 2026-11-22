@@ -189,14 +189,9 @@ void PluginOverviewOverlay::on_feature_clicked(lv_event_t* e) {
             case PluginFeatureHome::Storage:
                 helix::settings::get_storage_settings_overlay().show(overlay.parent_screen_);
                 break;
-            case PluginFeatureHome::Spoolman: {
-                auto& spoolman = helix::ui::get_spoolman_overlay();
-                if (IMoonrakerAPI* api = get_moonraker_api()) {
-                    spoolman.set_api(api);
-                }
-                spoolman.show(overlay.parent_screen_);
+            case PluginFeatureHome::Spoolman:
+                helix::ui::open_spoolman_settings(overlay.parent_screen_);
                 break;
-            }
             case PluginFeatureHome::Devices:
                 helix::settings::get_hardware_settings_overlay().show(overlay.parent_screen_);
                 break;

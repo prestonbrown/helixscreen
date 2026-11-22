@@ -93,6 +93,10 @@ bool RecoveryModalPresenter::is_visible() const {
     return modal_ && modal_->is_visible();
 }
 
+const helix::ErrorEvent* RecoveryModalPresenter::shown_fault() const {
+    return is_visible() && !shown_detail_.empty() ? &shown_fault_ : nullptr;
+}
+
 namespace {
 /// Whether two recovery sets offer the user the same choices. Compares what the
 /// modal actually renders and dispatches — label and gcode — so a set that
@@ -196,6 +200,7 @@ void RecoveryModalPresenter::present(const helix::ErrorEvent& e) {
 
     active_actions_ = e.recovery_actions;
     shown_detail_ = e.detail;
+    shown_fault_ = e;
 
     // The fault waits on the user; a sleeping screen or a screensaver would hide it.
     helix::request_display_wake();
@@ -257,6 +262,13 @@ void RecoveryModalPresenter::on_recovery_tapped(const std::string& gcode) {
         ToastManager::instance().show(
             ToastSeverity::WARNING,
             lv_tr("The toolhead is not homed, so this would home into the print"), 6000);
+        return;
+    }
+
+    if (action && action->requires_paused && !get_printer_state().is_paused()) {
+        spdlog::warn("[RecoveryModal] Refusing {}: the print is no longer paused", tag);
+        ToastManager::instance().show(ToastSeverity::WARNING,
+                                      lv_tr("The print is no longer paused"), 6000);
         return;
     }
 

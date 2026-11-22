@@ -305,9 +305,9 @@ class EmergencyStopOverlay {
 
     // Recovery dialog subjects (drive XML bindings in klipper_recovery_dialog.xml)
     helix::Subject recovery_title_subject_{};
-    char recovery_title_buf_[64]{};
+    char recovery_title_buf_[128]{};
     helix::Subject recovery_message_subject_{};
-    char recovery_message_buf_[512]{};
+    char recovery_message_buf_[1024]{};
     // Klipper error code split out of a JSON state_message (e.g. "key1"). Rendered
     // dim in the dialog header; recovery_has_code_ drives its visibility, since
     // bind_flag_if_eq compares ints and cannot test a string for emptiness.

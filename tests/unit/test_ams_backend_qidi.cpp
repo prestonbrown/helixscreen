@@ -12,6 +12,7 @@
 #include "ams_device_action_value.h"
 #include "ams_error.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
@@ -1888,6 +1889,185 @@ TEST_CASE("QIDI Box current_error clears when slot unblocks", "[ams][qidi_box][e
                            {"slot3", 1},
                        });
     REQUIRE_FALSE(backend.current_error().has_value());
+}
+
+namespace {
+
+/// The print paused (pause_resume.is_paused), as Klipper reports it, for the
+/// life of the scope.
+struct PausedPrint {
+    PausedPrint() {
+        get_printer_state().update_from_status(json{{"pause_resume", {{"is_paused", true}}}});
+    }
+    ~PausedPrint() {
+        get_printer_state().update_from_status(json{{"pause_resume", {{"is_paused", false}}}});
+    }
+};
+
+bool offers_try_again(const std::optional<helix::ErrorEvent>& ev) {
+    return ev &&
+           std::any_of(ev->recovery_actions.begin(), ev->recovery_actions.end(),
+                       [](const helix::RecoveryAction& a) { return a.gcode == "TRY_MOVE_AGAIN"; });
+}
+
+} // namespace
+
+TEST_CASE("QIDI Box current_error words the fault retry_step names and offers Retry",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    PausedPrint paused;
+    // QDE_004_001 on the Box's second slot: the firmware sets slot1 to -1 and
+    // records the step for TRY_MOVE_AGAIN.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot0", 1},
+                           {"slot1", -1},
+                           {"retry_step", "QDE_004_001_2"},
+                       });
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->code == "QDE_004_001");
+    CHECK(ev->severity == helix::ErrorSeverity::CRITICAL);
+    CHECK(ev->title.find("Slot 2") != std::string::npos);
+    REQUIRE(ev->recovery_actions.size() == 2);
+    CHECK(ev->recovery_actions[0].gcode == "TRY_MOVE_AGAIN");
+    // The action carries the slot it moves filament on.
+    CHECK(ev->recovery_actions[0].acts_on_lane == 1);
+    CHECK(ev->recovery_actions[1].gcode.empty());
+}
+
+TEST_CASE("QIDI Box offers no Retry outside a paused print",
+          "[ams][qidi_box][error-center][qidi]") {
+    // Both slotN and retry_step persist across restarts: at boot or idle the
+    // fault shows, but a one-tap heat and filament move on days-old state does
+    // not.
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot1", -1},
+                           {"retry_step", "QDE_004_001_2"},
+                       });
+    const auto standing = backend.current_error();
+    REQUIRE(standing.has_value());
+    CHECK(standing->title.find("Slot 2") != std::string::npos);
+    CHECK_FALSE(offers_try_again(standing));
+
+    helix::ClassifyContext printing;
+    printing.is_printing = true;
+    const auto line = backend.classify_error(
+        "!!Code:QDE_004_001; Message:Slot loading failure, please check the trigger, please "
+        "reload 1B.",
+        printing);
+    REQUIRE(line.has_value());
+    CHECK_FALSE(offers_try_again(line));
+}
+
+TEST_CASE("QIDI Box offers no Retry when retry_step names another slot than the dialog",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    PausedPrint paused;
+    // Slot 2 is blocked, but the step TRY_MOVE_AGAIN would re-run is slot 3's
+    // (a stale step, or a later fault that recorded none): retrying would move
+    // filament on a slot the dialog does not name.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot1", -1},
+                           {"slot2", 1},
+                           {"retry_step", "QDE_004_001_3"},
+                       });
+    auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->detail.find("Slot 2") != std::string::npos);
+    CHECK_FALSE(offers_try_again(ev));
+
+    // `_00` is the firmware's "no slot": nothing for TRY_MOVE_AGAIN to name.
+    fire_vars(backend, json{{"retry_step", "QDE_004_001_00"}});
+    CHECK_FALSE(offers_try_again(backend.current_error()));
+}
+
+TEST_CASE("QIDI Box with two slots blocked retries only the one the dialog names",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    PausedPrint paused;
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot0", -1},
+                           {"slot1", -1},
+                           {"retry_step", "QDE_004_001_2"},
+                       });
+    // The dialog names the first blocked slot; the step is the second's.
+    auto first = backend.current_error();
+    REQUIRE(first.has_value());
+    CHECK(first->detail.find("Slot 1") != std::string::npos);
+    CHECK_FALSE(offers_try_again(first));
+
+    fire_vars(backend, json{{"retry_step", "QDE_004_001_1"}});
+    auto named = backend.current_error();
+    REQUIRE(named.has_value());
+    CHECK(named->title.find("Slot 1") != std::string::npos);
+    CHECK(offers_try_again(named));
+}
+
+TEST_CASE("QIDI Box retry_step alone does not raise a fault",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    // Persisted across a restart with every slot healthy: stale, not a fault.
+    fire_vars(backend, json{
+                           {"enable_box", 1},
+                           {"box_count", 1},
+                           {"slot0", 1},
+                           {"slot1", 1},
+                           {"retry_step", "QDE_004_006_2"},
+                       });
+    CHECK_FALSE(backend.current_error().has_value());
+}
+
+TEST_CASE("QIDI Box console fault gets Retry only once retry_step names it",
+          "[ams][qidi_box][error-center][qidi]") {
+    helix::test::StartedBackend<RecordingQidiBackend> backend;
+    const std::string line = "// Code:QDE_004_006; Message:Extruder loading failure.";
+    helix::ClassifyContext paused;
+    paused.is_paused = true;
+
+    fire_vars(backend, json{{"enable_box", 1}, {"box_count", 1}, {"retry_step", "None"}});
+    // The line usually lands before retry_step does: the Box still owns it,
+    // and offers no Retry yet.
+    const auto early = backend.classify_error(line, paused);
+    REQUIRE(early.has_value());
+    CHECK(early->code == "QDE_004_006");
+    CHECK_FALSE(offers_try_again(early));
+
+    // retry_step now names this fault on slot 1, but the line names no slot:
+    // the text would not say which slot Retry moves filament on.
+    fire_vars(backend, json{{"retry_step", "QDE_004_006_1"}});
+    const auto ev = backend.classify_error(line, paused);
+    REQUIRE(ev.has_value());
+    CHECK(ev->code == "QDE_004_006");
+    CHECK_FALSE(offers_try_again(ev));
+
+    // A different code is not the step TRY_MOVE_AGAIN would re-run.
+    CHECK_FALSE(offers_try_again(backend.classify_error(
+        "// Code:QDE_004_009; Message:Extruder unloading failure.", paused)));
+
+    // A line naming another slot than retry_step's is not that step either.
+    fire_vars(backend, json{{"retry_step", "QDE_004_001_2"}});
+    const auto other_slot = backend.classify_error(
+        "!!Code:QDE_004_001; Message:Slot loading failure, please check the trigger, please "
+        "reload 1C.",
+        paused);
+    REQUIRE(other_slot.has_value());
+    CHECK_FALSE(offers_try_again(other_slot));
+    const auto named = backend.classify_error(
+        "!!Code:QDE_004_001; Message:Slot loading failure, please check the trigger, please "
+        "reload 1B.",
+        paused);
+    REQUIRE(offers_try_again(named));
+    // The tap re-checks the pause: the print can end while the dialog is up.
+    CHECK(named->recovery_actions[0].requires_paused);
 }
 
 // =====================================================================

@@ -69,6 +69,9 @@ struct StepContext {
     IMoonrakerAPI& api;
     std::function<void(const StepProgress&)> progress;
     std::function<void(StepOutcome)> done;
+    /// Stop the whole run, as its Stop button does: this step's abort() is
+    /// called and later steps do not run.
+    std::function<void()> stop_run;
 };
 
 class CalibrationStep {

@@ -2,6 +2,7 @@
 #include "calibration_run_steps.h"
 
 #include "ui_emergency_stop.h"
+#include "ui_modal.h"
 #include "ui_panel_bed_mesh.h"
 #include "ui_panel_calibration_zoffset.h"
 
@@ -477,12 +478,12 @@ class ZOffsetStep : public CalibrationStep {
                     !ctx_) { // L081_OK: main thread, from the panel's own handlers
                     return;
                 }
-                auto* c = ctx_;
-                ctx_ = nullptr;
                 if (!accepted) {
-                    c->done(StepOutcome::skipped());
+                    ask_continue();
                     return;
                 }
+                auto* c = ctx_;
+                ctx_ = nullptr;
                 accepted_ = true;
                 strategy_ = strategy;
                 if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
@@ -530,6 +531,33 @@ class ZOffsetStep : public CalibrationStep {
     }
 
   private:
+    /// The screen closed without Accept. The steps after this one heat and
+    /// move the printer, so going on to them is the owner's choice; anything
+    /// but Continue stops the run.
+    void ask_continue() {
+        helix::ui::ConfirmOptions options;
+        options.cancel_text = lv_tr("Stop calibration");
+        options.on_cancel = [this, alive = std::weak_ptr<int>(alive_)]() {
+            if (!alive.expired() && ctx_) { // L081_OK: main thread, a modal's own handler
+                ctx_->stop_run();
+            }
+        };
+        options.on_dismiss = options.on_cancel;
+        helix::ui::modal_confirm(
+            lv_tr("Z offset not set"),
+            lv_tr("Continue with the remaining steps, or stop the calibration?"),
+            ModalSeverity::Warning, lv_tr("Continue"),
+            [this, alive = std::weak_ptr<int>(alive_)]() {
+                if (alive.expired() || !ctx_) { // L081_OK: main thread, a modal's own handler
+                    return;
+                }
+                auto* c = ctx_;
+                ctx_ = nullptr;
+                c->done(StepOutcome::skipped());
+            },
+            options);
+    }
+
     /// The value ACCEPT staged, as SAVE_CONFIG will write it. @p z, the Z
     /// position accepted at, stands in when the firmware reports none.
     void read_staged(StepContext& c, float z) {

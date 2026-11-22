@@ -635,6 +635,15 @@ class AmsBackend : public AmsCapabilityHost {
         return std::nullopt;
     }
 
+    /// The lane (0-based) a fault text names, in the way this filament
+    /// system's own messages label lanes; -1 when it names none this backend
+    /// can read. AmsState::standing_fault() asks it before letting a cause
+    /// text stand above an action bound to one lane
+    /// (RecoveryAction::acts_on_lane).
+    [[nodiscard]] virtual int lane_named_in(const std::string& /*text*/) const {
+        return -1;
+    }
+
   protected:
     /**
      * @brief The recovery buttons this backend offers for its current fault.

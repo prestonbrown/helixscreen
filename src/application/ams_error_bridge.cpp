@@ -14,6 +14,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
+
 namespace helix {
 
 AmsErrorBridge::AmsErrorBridge(helix::ui::RecoveryModalPresenter& presenter)
@@ -35,6 +37,11 @@ void AmsErrorBridge::start() {
     detail_observer_ = helix::ui::observe<const char*>(
         AmsState::instance().get_ams_action_detail_subject(), this,
         [](AmsErrorBridge* self, const char* detail) { self->on_detail_changed(detail); },
+        AmsState::instance().get_subjects_lifetime());
+
+    data_revision_observer_ = helix::ui::observe<int>(
+        AmsState::instance().get_ams_data_revision_subject(), this,
+        [](AmsErrorBridge* self, int) { self->refresh_shown_lane_actions(); },
         AmsState::instance().get_subjects_lifetime());
 
     auto& printer = get_printer_state();
@@ -59,9 +66,48 @@ bool print_paused() {
 
 } // namespace
 
+void AmsErrorBridge::refresh_shown_lane_actions() {
+    const helix::ErrorEvent* shown = presenter_.shown_fault();
+    if (shown == nullptr) {
+        return;
+    }
+    helix::ErrorEvent next = *shown;
+    auto& actions = next.recovery_actions;
+    const auto size_before = actions.size();
+    if (!get_printer_state().is_paused()) {
+        actions.erase(
+            std::remove_if(actions.begin(), actions.end(),
+                           [](const helix::RecoveryAction& a) { return a.requires_paused; }),
+            actions.end());
+    } else if (const auto* backend = AmsState::instance().get_backend();
+               backend != nullptr && !shown->code.empty()) {
+        // The same fault by its code, whatever text either copy carries: the
+        // standing copy's detail can be the raw console line held as its cause.
+        const auto standing = AmsState::instance().standing_fault();
+        if (standing && standing->code == shown->code) {
+            const int named = backend->lane_named_in(shown->raw_detail.empty() ? shown->detail
+                                                                               : shown->raw_detail);
+            std::vector<helix::RecoveryAction> added;
+            for (const auto& a : standing->recovery_actions) {
+                const bool present_already = std::any_of(
+                    actions.begin(), actions.end(),
+                    [&a](const helix::RecoveryAction& b) { return b.gcode == a.gcode; });
+                if (a.acts_on_lane >= 0 && a.acts_on_lane == named && !present_already) {
+                    added.push_back(a);
+                }
+            }
+            actions.insert(actions.begin(), added.begin(), added.end());
+        }
+    }
+    if (actions.size() != size_before) {
+        presenter_.present(next);
+    }
+}
+
 void AmsErrorBridge::evaluate_current_error_with_cause() {
     auto& ams = AmsState::instance();
     ams.refresh_fault_cause();
+    refresh_shown_lane_actions();
     const auto ev = ams.standing_fault();
     // Outside a pause the ERROR edge in on_action_changed() raises the fault, so
     // only the pause counts here.

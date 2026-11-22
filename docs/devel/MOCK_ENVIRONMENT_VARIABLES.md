@@ -314,7 +314,7 @@ HELIX_MOCK_DISPLAY_MESSAGE="Nozzle wiped, ready" ./build/bin/helix-screen --test
 
 ### `HELIX_MOCK_KLIPPY_ERROR`
 
-Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a config-style message gets the "Klipper Config Error" wording). Restart Klipper or Firmware Restart brings the mock up as usual.
+Start with Klipper already refusing to run, as on a `printer.cfg` it cannot load: Klippy reports `error` with this text as its `state_message` from the first connect. Discovery stops at its Klippy gate, the client polls `printer.info` for the state and reason, and Home opens on the recovery dialog (a message the error wording table knows gets its summary as the title and its cause and fix above Klipper's text). Restart Klipper or Firmware Restart brings the mock up as usual.
 
 | Property | Value |
 |----------|-------|
@@ -575,7 +575,7 @@ Printer Events button shows the plugin's journal. `HELIX_MOCK_PLR` adds the `plr
 |---------|-----------|
 | `print_hooks` | `helix-screen`/`plugin_features.print_hooks`, off until Settings > Printing writes it. `HELIX_MOCK_PRINT_HOOKS=unavailable` reports it `available: false`, `reason: "load_failed"` |
 | `fit_check_blocks_autostart` | `plugin_features.fit_check_blocks_autostart`, off until Settings > Safety & Alerts writes it |
-| `filament_accounting` | `plugin_features.filament_accounting`, off until Settings > Devices > Spoolman writes it |
+| `filament_accounting` | `plugin_features.filament_accounting`, off until Settings > Printing > Spoolman writes it |
 | `storage_auto_cleanup` | `plugin_features.storage_auto_cleanup`, off until Settings > System > Storage writes it |
 | `photos` | on unless `plugin_features.photos` is `false`. `HELIX_MOCK_PHOTOS=unavailable` reports it `available: false`, `reason: "snapshot_unreachable: ..."`, so the screen takes the photos |
 | `file_analysis`, `server_edits`, `config_edit`, `storage` | always on, `Ready` |
@@ -794,6 +794,9 @@ HELIX_MOCK_KALICO=1 HELIX_MOCK_KLIPPER_VERSION=v2026.07.00-0-g30c65e09-dirty ./b
 
 Snapmaker U1 mock only. The digits name heads whose spool has run out at the feeder port: their
 `filament_detected` reads false and their channel rests at `wait_insert`, as after a real runout.
+The head's `print_task_config` record forgets the filament (`filament_exist` false, type and
+vendor `NONE`), its tag reader reports `NONE`, and its toolhead switch (`e<N>_filament`) reads
+empty, as the real U1 reports an empty feeder. The lane then reads EMPTY.
 With a paused print on such a head, the firmware's Auto-Replenish looks for another head instead
 of refeeding in place, which is what the runout dialog's "Use Another Toolhead" needs.
 

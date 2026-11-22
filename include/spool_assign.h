@@ -105,9 +105,16 @@ inline constexpr size_t kFewSpools = 3;
 
 enum class LaneScreen { Assign, Edit };
 
-/// A lane holding a spool (linked, or described by a material) opens on Edit
-/// Spool; an empty lane opens on Assign Spool.
+/// A lane holding a spool (linked, or described by a material) opens on its
+/// summary (Edit); an empty lane opens on the empty page (Assign). A lane its
+/// sensor reports empty is empty, whatever filament it still records: that is
+/// what it last held.
 [[nodiscard]] LaneScreen screen_for_lane(const SlotInfo& lane);
+
+/// @p product's name already says @p material as a whole word, case
+/// ignored ("Polymaker PolyLite ASA" says "ASA"; "Polymaker Basic" does not
+/// say "PLA"), so a line under it need not repeat the material.
+[[nodiscard]] bool product_names_material(const std::string& product, const std::string& material);
 
 /// The action at the bottom of the spools list.
 enum class BottomAction {
@@ -151,6 +158,10 @@ struct SpoolSize {
 
 /// The Edit screen's - / + step.
 inline constexpr float kRemainingStepGrams = 10.0f;
+
+/// A linked spool with less than this left is offered for archiving when its
+/// lane is cleared.
+inline constexpr float kArchiveBelowGrams = 20.0f;
 
 /// @p remaining_g moved by @p delta_g, kept at 0 or more and, when the spool's
 /// total is known, at most that total.

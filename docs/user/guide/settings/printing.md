@@ -3,7 +3,7 @@
 **Settings > Printing** holds the settings that change how your printer moves, heats and handles filament, and the buttons and macros HelixScreen runs for you. The page has three sections:
 
 - **MACHINE**: Machine Limits, Motion, Retraction Settings and Enclosure
-- **FILAMENT**: Multi-Filament System Management, Material Temperatures, Z Offset by Material, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Material presets heat the bed and chamber, Number slots from 0 and Confirm tool changes
+- **FILAMENT**: Multi-Filament System Management, Spoolman, Material Temperatures, Z Offset by Material, Allow cold load/unload, Cool nozzle after filament ops, Edit filament on insert, Material presets heat the bed and chamber, Number slots from 0 and Confirm tool changes
 - **EXTRAS**: Timelapse, Power-loss recovery, Resume reloads the saved bed mesh, Apply start options to prints from other apps, and Macro Buttons
 
 Rows for things your printer doesn't have are hidden, so your list may be shorter than the one pictured.
@@ -97,6 +97,44 @@ What **Enable Bypass Controls** gets you depends on the system:
 See [Filament: When Bypass Doesn't Appear](../filament.md#when-bypass-doesnt-appear).
 
 **Unload at end** lives in the **Print Behavior** section on AFC and Snapmaker U1 systems. On AFC it records whether your end-of-print macros unload the toolhead, so an empty toolhead at the next print start is not flagged. The U1 has one switch per toolhead.
+
+---
+
+## Spoolman
+
+Connects HelixScreen to your [Spoolman](https://github.com/Donkie/Spoolman) server for spool tracking, weight updates, label printing and barcode scanning. For the bigger picture, see [Filament Tracking & Spoolman](../filament-tracking.md).
+
+### Server Setup
+
+If Spoolman isn't set up yet, this is what you see. Enter your Spoolman server's IP address (or host name) in **IP Address / Hostname** and its **Port** (7912 by default), then tap **Connect**, or **Cancel** to leave. HelixScreen checks the connection and sets up Moonraker for you. You don't need to edit `moonraker.conf`.
+
+### Server Status
+
+Once connected, the page shows your Spoolman server and two buttons: **Change** to point at a different server, and **Remove** to disconnect it.
+
+### Sync with Spoolman
+
+Turn this on to keep spool weights up to date ("Auto-poll for weight updates"). HelixScreen asks Spoolman for new weights regularly and shows the filament left on the Home and Filament screens. Weights are also updated when a print starts, pauses or finishes.
+
+### Refresh Interval
+
+How often HelixScreen asks Spoolman for new weights: **30s**, **1 min**, **2 min** or **5 min**. Shorter is more up to date but uses more network traffic.
+
+### Switch spools at each tool change
+
+> Only shown once Spoolman is connected.
+
+Spoolman takes filament off one spool at a time: whichever spool is active. On a printer with several tools or lanes, every tool change has to switch the active spool, or one spool gets charged for filament that came from another. Some printers do this themselves (AFC, Happy Hare with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and printers whose tool-change macros set the spool); for those this row does nothing.
+
+Turn it on to have the active spool follow the tool or lane that is printing, using the spools you linked to each tool or lane. With the [HelixPrint plugin](../helixprint-plugin.md#switch-spools-at-each-tool-change) installed, the plugin does it for every print, whichever app started it, and records which spools each print used; the print's details in [Print History](../print-history.md#print-details--reprinting) list them. Without the plugin, HelixScreen switches the spool itself, but only while it is connected and only for tools that print from their own extruder; on a remote screen, the row says so. Off by default. Not yet supported for Creality CFS and Anycubic ACE lane changes: there the active spool follows the loaded lane only while HelixScreen is connected, as before.
+
+### Label Printer
+
+Sets up a printer for spool labels with QR codes. See [Label Printing](../label-printing.md) for setup and supported printers. Not available on the ESP32 screen.
+
+### Barcode Scanner
+
+Chooses the USB or Bluetooth scanner used to scan the QR codes on your spool labels. HelixScreen finds scanners with "barcode" or "scanner" in their name on its own. If yours has a generic name (such as "TMS HIDKeyBoard"), pick it from the list here. Your choice is kept after a restart. See [Barcode Scanner](../barcode-scanner.md). Not available on the ESP32 screen.
 
 ---
 

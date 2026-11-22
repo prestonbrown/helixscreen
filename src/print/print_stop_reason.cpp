@@ -3,6 +3,7 @@
 
 #include "core/observer_factory.h"
 #include "error_event.h"
+#include "error_wording.h"
 #include "firmware_error_envelope.h"
 #include "gcode_response_lines.h"
 #include "i_moonraker_client.h"
@@ -345,6 +346,9 @@ void PrintStopReasonTracker::publish() {
     if (reason.empty()) {
         reason = carried_reason_;
     }
+    // Klipper's own words ("Move out of range: 251.000 ...") read as the
+    // summary of what went wrong.
+    reason = error_wording::reason_summary(reason, &state_.get_discovery());
     if (!reason.empty()) {
         spdlog::info("[PrintStopReason] {}", reason);
     }

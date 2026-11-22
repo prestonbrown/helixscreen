@@ -33,6 +33,11 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
         return {std::move(text), TileTone::Done};
     }
     if (in_config) {
+        // Both axes' shapers fill a half-width tile at 800x480 on their own;
+        // they only ever come from the config, so they need no label.
+        if (step.kind == calibration::StepKind::InputShaper) {
+            return {*in_config, TileTone::Idle};
+        }
         return {fmt::format(lv_tr("In config · {}"), *in_config), TileTone::Idle};
     }
     switch (step.tier) {

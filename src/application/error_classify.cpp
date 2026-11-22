@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "error_classify.h"
 
+#include "error_wording.h"
 #include "gcode_error_router.h" // clean_error_text
 #include "klipper_error_table.h"
 #include "lvgl.h"
@@ -27,6 +28,26 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
     e.detail = text;
     e.code = code;
 
+    // Klipper's own prose: a row that knows the message leads with its
+    // summary and says what went wrong and what to do. An error-table code is
+    // the identity when there is one; an opaque code's envelope carries prose
+    // (FlashForge's `coded` errors quote Klipper's own sentence), so that
+    // prose asks too.
+    const bool prose = code.empty() || scheme == FirmwareCodeScheme::Opaque;
+    const auto known = prose ? error_wording::classify(code.empty() ? e.raw_detail : text, ctx.hw)
+                             : std::optional<error_wording::Classification>{};
+    if (known) {
+        if (const auto w = error_wording::word(*known)) {
+            e.title = w->summary;
+            e.detail = w->detail();
+            // A config error's wording points at the option, line or file
+            // Klipper's own text names.
+            if (known->category == error_wording::Category::Config) {
+                e.detail += "\n\n" + e.raw_detail;
+            }
+        }
+    }
+
     // Only error-table codes carry severity rules, and the table owns them
     // (klipper_error_classify). Any other firmware code is shown to the user
     // but classifies like an uncoded `!!`, so a fault raised mid-print still
@@ -40,16 +61,21 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
         e.severity = table.severity;
         e.title = std::move(table.title);
         e.recovery_actions = std::move(table.recovery_actions);
+    } else if (known && known->severity == error_wording::Severity::Warning) {
+        // A `!!` the firmware sends for a warning: it stops nothing.
+        e.source = ErrorSource::KLIPPER;
+        e.severity = ErrorSeverity::WARNING;
     } else { // uncoded `!!` — no Klipper error code to key off
-        e.source = ErrorSource::GENERIC;
+        e.source = (known && known->worded) ? ErrorSource::KLIPPER : ErrorSource::GENERIC;
         e.severity =
             (ctx.is_paused || ctx.is_printing) ? ErrorSeverity::CRITICAL : ErrorSeverity::WARNING;
 
         // A CRITICAL event with no recovery action renders as a text-only modal
         // over a stopped job -- the user reads the error and has nothing to tap
         // (#1152). Offer the one action that is always meaningful on a paused
-        // printer. It attributes NOTHING: source stays GENERIC and the title
-        // stays empty, so the modal reads "Printer Error". A filament backend
+        // printer. It attributes nothing beyond what the wording table named:
+        // an unknown line keeps source GENERIC and an empty title, so the
+        // modal reads "Printer Error". A filament backend
         // that recognizes the fault has already returned its own richer event
         // before the router falls through to this classifier, so this only ever
         // fills the hole nobody claimed.

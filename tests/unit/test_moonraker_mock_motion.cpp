@@ -1143,15 +1143,15 @@ TEST_CASE("MoonrakerClientMock records RPC error correlation like the request tr
     CHECK(helix::rpc_error_correlation::was_recently_handled(captured.message));
 
     // End-to-end proof of the dedup contract: the text the `!!` broadcast
-    // channel hands GcodeErrorRouter (after error_classify strips the prefix)
-    // must EXACTLY equal the recorded RPC message — was_recently_handled() is
-    // an exact-string match, so any divergence silently re-enables the second
-    // toast. This is the assertion that fails if the latch keeps its `!!`.
+    // channel hands GcodeErrorRouter as its dedup identity (raw_detail, after
+    // error_classify strips the prefix) must EXACTLY equal the recorded RPC message —
+    // was_recently_handled() is an exact-string match, so any divergence silently re-enables the
+    // second toast. This is the assertion that fails if the latch keeps its `!!`.
     helix::ClassifyContext ctx;
     auto ev = helix::error_classify::classify("!! Move out of range: X=400.000000", ctx);
     REQUIRE(ev.has_value());
-    CHECK(ev->detail == captured.message);
-    CHECK(helix::rpc_error_correlation::was_recently_handled(ev->detail));
+    CHECK(ev->raw_detail == captured.message);
+    CHECK(helix::rpc_error_correlation::was_recently_handled(ev->raw_detail));
 
     mock.stop_temperature_simulation();
     mock.disconnect();

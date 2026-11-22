@@ -1808,6 +1808,9 @@ std::optional<ErrorEvent> AmsState::standing_fault() const {
     auto fault = backend->current_error();
     if (fault && !fault_cause_.empty()) {
         fault->detail = fault_cause_;
+        // An action the firmware aims at one lane must not stand under text
+        // about another, or about none.
+        keep_lane_actions_named(fault->recovery_actions, backend->lane_named_in(fault_cause_));
     }
     return fault;
 }
@@ -2254,8 +2257,10 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             }
 
             if (ext.total_weight_g > 0.0f && ext.remaining_weight_g >= 0.0f) {
-                char wt[32];
-                snprintf(wt, sizeof(wt), "%.0fg", ext.remaining_weight_g);
+                // The loaded card's line is narrow: the percent alone.
+                const std::string remaining =
+                    helix::format_spool_remaining_short(ext.remaining_weight_g, ext.total_weight_g);
+                const char* wt = remaining.c_str();
                 if (strcmp(lv_subject_get_string(&current_weight_text_), wt) != 0) {
                     lv_subject_set_string(&current_weight_text_, wt);
                 }

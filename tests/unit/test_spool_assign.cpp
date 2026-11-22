@@ -134,6 +134,10 @@ TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-a
     SlotInfo linked;
     linked.spoolman_id = 12;
     CHECK(screen_for_lane(linked) == LaneScreen::Edit);
+    SlotInfo ran_out = described;
+    ran_out.spoolman_id = 12;
+    ran_out.status = SlotStatus::EMPTY;
+    CHECK(screen_for_lane(ran_out) == LaneScreen::Assign);
 }
 
 TEST_CASE("bottom action: Add New while spools are listed, Add & Assign when none, Assign "
@@ -335,4 +339,15 @@ TEST_CASE("a save that changed nothing on the lane leaves nothing to undo", "[sp
     SlotInfo product = lane;
     product.product_name = "PLA+ 2.0";
     CHECK(save_changed_lane(lane, product));
+}
+
+TEST_CASE("a product that names its material spares the line under it the repeat",
+          "[spool-assign]") {
+    CHECK(product_names_material("Polymaker PolyLite ASA", "ASA"));
+    CHECK(product_names_material("eSUN petg-cf", "PETG-CF"));
+    CHECK(product_names_material("ASA", "ASA"));
+    // Not a whole word, or not there at all.
+    CHECK_FALSE(product_names_material("Polymaker Basic", "PLA"));
+    CHECK_FALSE(product_names_material("Polymaker PLAtinum", "PLA"));
+    CHECK_FALSE(product_names_material("Polymaker", ""));
 }

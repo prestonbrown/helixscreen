@@ -6,6 +6,7 @@
 #include "ams_device_action_value.h"
 #include "ams_device_sections.h"
 #include "ams_error.h"
+#include "app_globals.h"
 #include "color_utils.h"
 #include "core/temperature_units.h"
 #include "core/text_io.h"
@@ -19,6 +20,8 @@
 #include "macro_param_cache.h"
 #include "notice.h"
 #include "printer_discovery.h"
+#include "printer_state.h"
+#include "qidi_fault_codes.h"
 #include "settings_manager.h"
 #include "slot_registry.h"
 
@@ -661,6 +664,10 @@ void AmsBackendQidi::parse_save_variables(const nlohmann::json& variables) {
         }
     }
 
+    if (const auto step = variables.find("retry_step"); step != variables.end()) {
+        retry_step_ = step->is_string() ? step->get<std::string>() : std::string();
+    }
+
     const qidi::SaveVariables parsed =
         qidi::parse_save_variables(variables, system_info_.total_slots);
     for (const auto& key : parsed.ignored_id_keys) {
@@ -1265,6 +1272,89 @@ AmsError AmsBackendQidi::cancel() {
     return AmsErrorHelper::not_supported("QIDI Box cancel");
 }
 
+namespace {
+
+/// QIDI's own retry: TRY_MOVE_AGAIN re-runs the step retry_step names, heating
+/// first where it needs to, and resumes the print when nothing new fails. The
+/// event blocks so the buttons show (a warning toast carries none).
+void offer_try_again(helix::ErrorEvent& e, int slot) {
+    e.severity = helix::ErrorSeverity::CRITICAL;
+    e.sticky = true;
+    helix::RecoveryAction retry{lv_tr("Retry"), "TRY_MOVE_AGAIN", "qidi::try_move_again",
+                                "primary"};
+    retry.acts_on_lane = slot;
+    retry.requires_paused = true;
+    e.recovery_actions = {retry, {lv_tr("OK"), "", "qidi::dismiss", ""}};
+}
+
+/// The step retry_step records for TRY_MOVE_AGAIN, when it is one TRY_MOVE_AGAIN
+/// retries: its code and the global slot (0-based) it re-runs.
+struct RetryableStep {
+    qidi::FaultCode code;
+    int slot = -1;
+};
+
+/// retry_step's slot number is 1-based: `_00` is the firmware's "no slot".
+std::optional<RetryableStep> retryable_step(const std::string& retry_step) {
+    int slot_number = 0;
+    const auto code = qidi::decode_retry_step(retry_step, &slot_number);
+    if (!code || !qidi::try_again_retries(*code) || slot_number < 1) {
+        return std::nullopt;
+    }
+    return RetryableStep{*code, slot_number - 1};
+}
+
+/// The dialog has nowhere to go but OK until retry_step catches up.
+void offer_dismiss(helix::ErrorEvent& e) {
+    e.severity = helix::ErrorSeverity::CRITICAL;
+    e.sticky = true;
+    e.recovery_actions = {{lv_tr("OK"), "", "qidi::dismiss", ""}};
+}
+
+} // namespace
+
+std::optional<helix::ErrorEvent>
+AmsBackendQidi::classify_error(const std::string& raw_line,
+                               const helix::ClassifyContext& ctx) const {
+    const auto code = qidi::decode_fault_code(raw_line);
+    if (!code || !qidi::try_again_retries(*code)) {
+        return std::nullopt;
+    }
+    std::optional<RetryableStep> pending;
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        // TRY_MOVE_AGAIN is in the Plus 4 and Q2 Box modules; the Max 4's
+        // dialect has not been seen to carry it.
+        if (box_uses_multi_color_) {
+            return std::nullopt;
+        }
+        pending = retryable_step(retry_step_);
+    }
+    auto e = qidi::classify_fault_line(raw_line, ctx);
+    if (!e) {
+        return e;
+    }
+    // The console line goes out at once; retry_step reaches us with the next
+    // status push. The Box owns the fault either way, and its blocked-slot
+    // fault (current_error) then carries the same words with Retry, which the
+    // recovery dialog takes in place.
+    // Only into a paused print: retry_step and the slot state persist, so
+    // anywhere else Retry would heat and move filament on stale state.
+    if (ctx.is_paused && pending && pending->code == *code) {
+        offer_try_again(*e, pending->slot);
+        // The rule the standing copy follows too: Retry only under text that
+        // names the slot it moves filament on.
+        helix::keep_lane_actions_named(e->recovery_actions, qidi::named_slot(raw_line));
+    } else {
+        offer_dismiss(*e);
+    }
+    return e;
+}
+
+int AmsBackendQidi::lane_named_in(const std::string& text) const {
+    return qidi::named_slot(text);
+}
+
 std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
     std::lock_guard<std::mutex> lock(mutex_);
     if (system_info_.units.empty())
@@ -1283,6 +1373,27 @@ std::optional<helix::ErrorEvent> AmsBackendQidi::current_error() const {
     }
     if (blocked < 0)
         return std::nullopt;
+    // retry_step words the fault only while the slot it names reads blocked;
+    // then the console raise and this standing fault carry the same wording,
+    // and one presentation covers both. Retry re-runs retry_step's slot, so it
+    // is offered only on the slot the dialog names.
+    if (const auto pending = box_uses_multi_color_ ? std::nullopt : retryable_step(retry_step_);
+        pending && pending->slot == blocked) {
+        const std::string label =
+            fmt::format("{}{}", blocked / 4 + 1, static_cast<char>('A' + blocked % 4));
+        auto worded = qidi::classify_fault_line(
+            fmt::format("Code:{}; Message:{}", qidi::format_fault_code(pending->code), label), {});
+        if (worded) {
+            // Retry only into a paused print; at boot or idle the persisted
+            // fault shows with OK and the Filament panel's own operations.
+            if (get_printer_state().is_paused()) {
+                offer_try_again(*worded, blocked);
+            } else {
+                offer_dismiss(*worded);
+            }
+            return worded;
+        }
+    }
     helix::ErrorEvent e;
     e.source = helix::ErrorSource::QIDI;
     e.severity = helix::ErrorSeverity::CRITICAL;

@@ -6534,6 +6534,35 @@ TEST_CASE_METHOD(RunningAd5xIfs,
     CHECK_FALSE(Ad5xIfsTestAccess::phase_active(backend));
 }
 
+TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS fault reads with the wording for ZMOD's message",
+                 "[ams][ad5x_ifs][macro_failure][flashforge]") {
+    // Discovery says ZMOD, as its zmod_* objects do on a real AD5X.
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(nlohmann::json::array({"zmod_ifs", "zmod_color", "extruder"}));
+    get_printer_state().set_hardware(hw);
+    struct Restore {
+        ~Restore() {
+            get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        }
+    } restore;
+
+    Ad5xIfsTestAccess::set_zcolor_supported(backend, false);
+    Ad5xIfsTestAccess::set_current_slot(backend, 0, /*filament_loaded=*/true);
+    Ad5xIfsTestAccess::set_head_filament(backend, true);
+    REQUIRE(backend.unload_filament(0).success());
+    REQUIRE(backend.captured_error != nullptr);
+    backend.captured_error(macro_error(MoonrakerErrorType::JSON_RPC_ERROR,
+                                       "Failed to extract filament from extruder"));
+    drain_queue();
+    REQUIRE(backend.get_system_info().action == AmsAction::ERROR);
+
+    const auto ev = backend.current_error();
+    REQUIRE(ev.has_value());
+    CHECK(ev->title != std::string("Filament System Error"));
+    CHECK(ev->detail != "Failed to extract filament from extruder");
+    CHECK_FALSE(ev->recovery_actions.empty());
+}
+
 TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS macro failure leaves an op it does not own alone",
                  "[ams][ad5x_ifs][macro_failure]") {
     Ad5xIfsTestAccess::set_zcolor_supported(backend, false);

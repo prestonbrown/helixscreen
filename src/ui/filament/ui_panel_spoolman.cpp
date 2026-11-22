@@ -7,6 +7,7 @@
 #include "ui_modal.h"
 #include "ui_panel_common.h"
 #include "ui_spool_canvas.h"
+#include "ui_spoolman_overlay.h"
 #include "ui_toast_manager.h"
 
 #include "ams_state.h"
@@ -95,6 +96,8 @@ void SpoolmanPanel::register_callbacks() {
                  get_global_spoolman_panel().handle_spool_clicked(row);
              }
          }},
+        {"on_spoolman_settings_header_clicked",
+         [](lv_event_t*) { helix::ui::open_spoolman_settings(lv_screen_active()); }},
         {"on_spoolman_refresh_clicked",
          [](lv_event_t*) {
              spdlog::debug("[Spoolman] Refresh clicked");

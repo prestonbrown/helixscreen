@@ -20,6 +20,7 @@
 #include "ui_settings_material_z_offset.h"
 #include "ui_settings_motion.h"
 #include "ui_settings_print_cost.h"
+#include "ui_spoolman_overlay.h"
 #include "ui_toast_manager.h"
 
 #include "app_globals.h"
@@ -125,6 +126,10 @@ void PrintingSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              helix::ui::get_ams_device_operations_overlay().show(
                  get_printing_settings_overlay().parent_screen_);
+         }},
+        {"on_spoolman_settings_clicked",
+         [](lv_event_t*) {
+             helix::ui::open_spoolman_settings(get_printing_settings_overlay().parent_screen_);
          }},
         {"on_material_temps_clicked",
          [](lv_event_t*) {

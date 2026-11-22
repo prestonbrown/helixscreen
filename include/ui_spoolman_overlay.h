@@ -487,4 +487,8 @@ class SpoolmanOverlay : public OverlayBase {
 // Defined out of line: the ESP32 build, which excludes this panel, supplies its own.
 SpoolmanOverlay& get_spoolman_overlay();
 
+/// Open Spoolman settings over @p parent: every entry point (Settings > Printing,
+/// the Spoolman panel's header, a plugin feature's home) goes through here.
+void open_spoolman_settings(lv_obj_t* parent);
+
 } // namespace helix::ui

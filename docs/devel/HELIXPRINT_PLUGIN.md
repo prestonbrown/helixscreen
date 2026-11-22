@@ -328,7 +328,7 @@ push) get no switch anywhere. Homes, each a `PluginFeatureHome`:
 | `print_hooks` | Settings > Printing | `Printing` | yes |
 | `plr` | Settings > Printing | `Printing` | no |
 | `fit_check_blocks_autostart` | Settings > Safety & Alerts | `Safety` | no |
-| `filament_accounting` | Settings > Devices > Spoolman, Weight Sync group | `Spoolman` | yes |
+| `filament_accounting` | Settings > Printing > Spoolman, Weight Sync group | `Spoolman` | yes |
 | `photos` | Settings > Devices, under Camera | `Devices` | yes |
 | `storage_auto_cleanup` | Settings > System > Storage | `Storage` | no |
 
@@ -755,7 +755,7 @@ right exactly when the active spool is switched at every tool or lane change. Th
 switches it for printers whose filament system does not, and records per job what each spool
 was charged. **It never deducts**, so double counting is impossible by construction. Acts on a
 spool: opt-in through `plugin_features.filament_accounting`, default off. Switch: Settings >
-Devices > Spoolman > Switch spools at each tool change (Weight Sync group).
+Printing > Spoolman > Switch spools at each tool change (Weight Sync group).
 
 Who already switches the active spool (source survey, 2026-10-20):
 

@@ -10,6 +10,7 @@
 #include "printer_network_state.h"
 
 #include "connection_state.h" // For ConnectionState enum
+#include "error_wording.h"
 #include "json_utils.h"
 #include "printer_state.h" // For KlippyState enum
 #include "state/subject_macros.h"
@@ -46,32 +47,9 @@ const char* klippy_state_name(KlippyState state) {
     return "error";
 }
 
-bool is_klippy_config_error(std::string_view state_message) {
-    // Klipper's configfile/pins errors, verbatim. Each one names the option,
-    // section, pin or file at fault, so the message itself says where to look.
-    static constexpr std::string_view kConfigErrorPhrases[] = {
-        "in section '", // Option 'x' in section 'y' must .../is not valid ...
-        "is not a valid config section",
-        "Unable to open config file",
-        "Unable to parse option",
-        "Error loading template", // gcode_macro templates are config too
-        "Unknown pin chip name",
-        "used multiple times in config",
-    };
-    for (std::string_view phrase : kConfigErrorPhrases) {
-        if (state_message.find(phrase) != std::string_view::npos) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool is_klippy_mcu_connect_error(std::string_view state_message) {
-    if (state_message.find("mcu '") == std::string_view::npos) {
-        return false;
-    }
-    return state_message.find("Unable to connect") != std::string_view::npos ||
-           state_message.find("Timeout on connect") != std::string_view::npos;
+    const auto c = error_wording::classify(state_message);
+    return c && c->category == error_wording::Category::McuConnect;
 }
 
 PrinterNetworkState::PrinterNetworkState() {

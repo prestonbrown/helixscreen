@@ -249,10 +249,10 @@ TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: the tapped error explains
 TEST_CASE_METHOD(TrackerFixture, "stop reason tracker: Klipper's message outlives its reset",
                  "[print_completion][stop_reason]") {
     end("error", "Heater bed not heating at expected rate");
-    CHECK(reason() == "Heater bed not heating at expected rate");
+    CHECK(reason() == "Heater bed is not heating as expected");
     get_printer_state().update_from_status(json{{"print_stats", {{"message", ""}}}});
     settle();
-    CHECK(reason() == "Heater bed not heating at expected rate");
+    CHECK(reason() == "Heater bed is not heating as expected");
 }
 
 TEST_CASE_METHOD(TrackerFixture,

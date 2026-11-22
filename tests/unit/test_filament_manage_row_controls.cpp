@@ -177,7 +177,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     lv_obj_t* material = lv_obj_find_by_name(h.root, "external_spool_material_label");
     lv_obj_t* detail = lv_obj_find_by_name(h.root, "external_spool_color_label");
     CHECK(std::string(lv_label_get_text(material)) == "Prusament PETG #129");
-    CHECK(std::string(lv_label_get_text(detail)) == "Galaxy Black · 640g");
+    CHECK(std::string(lv_label_get_text(detail)) == "Galaxy Black · 640 g · 64%");
     AmsState::instance().clear_external_spool_info();
     helix::ui::UpdateQueue::instance().drain();
     AmsState::instance().set_moonraker_api(nullptr);

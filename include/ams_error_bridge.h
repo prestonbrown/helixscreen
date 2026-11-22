@@ -34,6 +34,14 @@ class AmsErrorBridge {
     /// action, pause and stop-reason change.
     void evaluate_current_error_with_cause();
 
+    /// Keeps the lane-bound actions (RecoveryAction::acts_on_lane) of the
+    /// dialog on screen current, and touches nothing else: it adds one the
+    /// standing copy of the same fault (same code) now offers on the lane the
+    /// shown text names, and withdraws a requires_paused one once the print
+    /// is no longer paused. A dialog the user closed stays closed. Runs on
+    /// every backend data sync and print-state change.
+    void refresh_shown_lane_actions();
+
     /// Runs one queue tick after the ERROR edge. Toasts only if the fault is
     /// still current and no dialog anywhere ended up describing it.
     void surface_unhandled_error();
@@ -49,6 +57,8 @@ class AmsErrorBridge {
     ObserverGuard print_state_observer_;
     /// The stop reason can land after the pause, read from gcode_store.
     ObserverGuard stop_reason_observer_;
+    /// Ticks on every backend data sync: refresh_shown_lane_actions().
+    ObserverGuard data_revision_observer_;
     StandingFaultTrigger fault_trigger_;
     /// Expires the deferred fallback if Application drops the bridge between
     /// the ERROR edge and the tick the check runs on.

@@ -203,14 +203,14 @@ Once Bluetooth is enabled (either built-in or via dongle), test it from whicheve
 **For a label printer:**
 
 1. Open HelixScreen
-2. Go to **Settings → Devices → Spoolman → Label Printer**
+2. Go to **Settings → Printing → Spoolman → Label Printer**
 3. Set **Connection** to **Bluetooth**
 4. Tap **Scan** — your label printer should appear in the list
 
 **For a Bluetooth barcode scanner:**
 
 1. Put the scanner in pairing mode (check its manual — usually a long-press or a setup barcode)
-2. Go to **Settings → Devices → Spoolman → Barcode Scanner**
+2. Go to **Settings → Printing → Spoolman → Barcode Scanner**
 3. Tap **Scan for devices** — your scanner should appear in the list
 4. Tap to pair. See the [Barcode Scanner guide](barcode-scanner.md) for the full walkthrough.
 

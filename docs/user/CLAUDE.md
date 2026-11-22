@@ -58,8 +58,8 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/settings/appearance.md` | Dark mode, themes and the theme editor, Glass Effects, animations, widget labels, printer visuals (toolhead style, G-code preview, bed mesh render) |
 | `guide/settings/touch-input.md` | Touch calibration, debug viz, scroll engage distance, long press, home screen editing, scroll guard, scroll buttons, Android keyboard and navigation bar |
 | `guide/settings/sound.md` | Sounds, volume, UI sounds, sound themes, output device, custom themes, supported hardware, troubleshooting |
-| `guide/settings/printing.md` | Machine limits, motion, retraction, enclosure, multi-filament systems, material temperatures, Z offset by material, cold load/unload, post-filament cooldown, tool-change confirmation, timelapse, macro buttons |
-| `guide/settings/devices.md` | Hardware health, camera, print photos, fans, sensors, LEDs, power devices, Spoolman (with switching spools at each tool change) |
+| `guide/settings/printing.md` | Machine limits, motion, retraction, enclosure, multi-filament systems, Spoolman (with switching spools at each tool change), material temperatures, Z offset by material, cold load/unload, post-filament cooldown, tool-change confirmation, timelapse, macro buttons |
+| `guide/settings/devices.md` | Hardware health, camera, print photos, fans, sensors, LEDs, power devices |
 | `guide/settings/led-settings.md` | LED strip selection, auto-state, macro devices, setup guides |
 | `guide/settings/safety.md` | Safety & Alerts: E-Stop confirmation, cancel escalation, macro confirmation, spaghetti detection, holding slicer prints that do not fit, print completion alert, on-screen alerts |
 | `guide/settings/connection.md` | Network settings, printers, Moonraker host, screen sharing rows (details in guide/screen-sharing.md) |
