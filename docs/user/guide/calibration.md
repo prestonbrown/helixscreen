@@ -12,13 +12,15 @@ Every calibration here that moves the toolhead (Bed Mesh, Screws Tilt, Z Offset,
 
 Open **Advanced > Calibration**. The screen has one tile for each calibration your printer can run, in the order they are best run in. A calibration your printer cannot run has no tile: no **Input shaper** without an accelerometer, no **Bed mesh** without a probe or bed mesh setup, no **Tool offsets** on a single-tool printer.
 
+![The Calibration screen: the Guided calibration banner with its Start button, then one tile per calibration with where it stands](../../images/user/calibration-hub.png)
+
 Tap a tile to open that calibration's own screen, described in the sections below.
 
 Each tile also says where that calibration stands:
 
 | The tile says | What it means |
 |---------------|---------------|
-| **Done** and a date, with a value | A guided calibration measured and saved this, on that date |
+| **Done** and a date, with a short value | A guided calibration measured and saved this, on that date. The value is a short summary, such as the Z offset or the bed mesh range. The Input shaper tile shows only the date, because its result has one value per axis |
 | **In config** with a value | Your printer's Klipper configuration already holds a tuned value, from before HelixScreen or from another tool. The Input shaper tile shows its two axes without the **In config** label |
 | **Never run · required** | Nothing found, and this printer's profile marks the calibration as required |
 | **Never run** | Nothing found, and the calibration is recommended for this printer |
@@ -49,35 +51,55 @@ The Z offset runs first because it is the one that may need you at the printer. 
 Start a guided calibration from either place:
 
 - The **Guided calibration** button at the top of the Calibration screen. It says how many of its calibrations have never run and how long the whole thing takes.
-- **Calibrate now** on the last page of the setup wizard. Setup finishes first, then the guided calibration opens.
+- **Calibrate now** on the setup wizard's last page, **Calibrate your printer**. Setup finishes first, then the guided calibration opens. **Skip for now** finishes setup without calibrating.
+
+![The setup wizard's Calibrate your printer page: the calibrations this printer needs, how long they take, and Calibrate now](../../images/user/wizard-calibration.png)
 
 ### Picking the Calibrations
 
 The first page lists the calibrations the guided run offers on your printer, each with its time and what it involves: whether it needs you, uses the paper test, heats or is loud.
 
+![Picking the calibrations: Z offset with Warm the bed first, Heaters, Bed mesh and Input shaper, all ticked, with the total time at the bottom](../../images/user/calibration-guided-pick.png)
+
 - Recommended calibrations start ticked. Optional ones start unticked.
 - A calibration your printer's profile marks as required stays ticked and cannot be unticked.
 - The total time, and how much of it needs you, update as you tick and untick.
+- The **Z offset** card has **Warm the bed first**. Tap it to heat the bed before the printer probes, so the offset is measured with the bed expanded the way it is when you print. Tap it again to turn it off.
 
-Tap **Next** when the list is right.
+Tap **Start** when the list is right, or **Skip for now** to close the guided calibration without running anything.
 
 ### Before You Start
 
-The next page lists what the picked calibrations need, such as a clear bed, the build plate in place, or a sheet of paper for the paper test. Each line says which calibrations need it. Tick each line once it is done. A line HelixScreen can check by itself, like the accelerometer, is already ticked.
+The next page lists what the picked calibrations need, such as a clear bed, the build plate in place, or a sheet of paper for the paper test. Each line says which calibrations need it. Tick each line once it is done. A line HelixScreen can check by itself, like the accelerometer, is already ticked. The right side says which part of the run needs you and when you can walk away.
+
+![Before you start: three lines still to tick and the accelerometer already detected, with what happens next on the right](../../images/user/calibration-guided-prereqs.png)
 
 The button that starts the run (**Everything's ready**) becomes available when every line is ticked. Going back to the first page and returning clears the ticks, so check them again.
 
 ### While It Runs
 
-The running page shows the current calibration, what it is doing, a progress bar, and roughly how long the whole run has left. It also says what to watch out for: do not touch the nozzle or the bed while the heaters calibrate, keep hands clear while the bed mesh probes, and expect noise during input shaping.
+The running page shows the current calibration, what it is doing, a progress bar, and roughly how long the whole run has left. The list on the left shows each calibration's result as it finishes. It also says what to watch out for: do not touch the nozzle or the bed while the heaters calibrate, keep hands clear while the bed mesh probes, and expect noise during input shaping.
+
+![A guided run in progress: the list of calibrations on the left with their results so far, and the current one's live view on the right](../../images/user/calibration-guided-running.png)
 
 You can leave this screen while the run continues. Open **Guided calibration** again to come back to where it is.
 
 A calibration that fails does not stop the run: the next one starts, and the results say what went wrong.
 
-**The Z offset step.** The run opens the Z offset screen, the same one as the **Z offset** tile, without asking whether the bed is clear (you already ticked that). Run the calibration as usual. **Accept** keeps the result for the end of the run instead of saving it, and the screen says so. Tap **Continue** to go back to the run.
+**The Z offset step.** The run opens the Z offset screen and the printer starts homing and probing straight away: there is no intro page, and no question about whether the bed is clear (you already ticked that). With **Warm the bed first** on, the bed heats first. When the nozzle is in place, do the paper test:
 
-If you leave the Z offset screen without accepting a result, HelixScreen asks **Z offset not set**:
+1. Slide the paper back and forth under the nozzle.
+2. Tap **Lower nozzle** until the paper just drags lightly. Big steps first, then 0.01 mm. Never force the nozzle into the bed.
+3. Tap **Paper drags: done**. The result is kept for the end of the run instead of being saved now, and the screen says so.
+4. Tap **Continue** to go back to the run.
+
+![The Z offset step in a guided run: step 1 of 4, the nozzle position, Raise and Lower nozzle, the step sizes, and Paper drags: done](../../images/user/calibration-guided-zoffset.png)
+
+**Skip this step** moves on to the next calibration without a Z offset.
+
+If you tap **Back**, including in the middle of the paper test, the paper test is cancelled and HelixScreen asks **Z offset not set**:
+
+![Z offset not set: Stop calibration or Continue](../../images/user/calibration-guided-z-not-set.png)
 
 - **Continue** skips the Z offset and goes on with the other calibrations.
 - **Stop calibration** ends the run. Closing the question any other way also stops the run, because the next calibrations heat and move the printer and should only start when you chose them.
@@ -90,7 +112,7 @@ On printers whose firmware keeps the Z offset itself (FlashForge with ZMOD, for 
 
 ### Stopping
 
-Tap **Stop** to end the run. HelixScreen asks first.
+Tap **Stop calibration** to end the run. HelixScreen asks first.
 
 How much stopping undoes depends on what the printer is doing at that moment:
 
@@ -99,18 +121,25 @@ How much stopping undoes depends on what the printer is doing at that moment:
 
 If the printer shuts down or restarts during a run for any other reason, the finished results are lost the same way, and each one is marked **Dropped when the printer restarted**.
 
-### Results: Save All or Discard All
+### Results: Save or Discard All
 
 When every calibration has ended, or after a stop, tap **See results**. Each calibration shows the value from before the run beside what the run measured, or why it failed, was skipped or was not run.
 
-- **Save all** writes every result to your printer's configuration with one save. A calibration that failed partway, for example after tuning the nozzle but not the bed, still saves the part it finished, and its line says what will be saved. The Calibration screen's tiles then show **Done** with today's date.
-- **Discard all** throws every result away and leaves your printer's configuration as it was. If a firmware-stored Z offset changed, it is set back first, and its line says what it was restored to.
+![Results: each calibration's value before the run and after it, with Discard all and Save and restart Klipper at the bottom](../../images/user/calibration-guided-results.png)
 
-If the save fails, the reason is shown and you can try **Save all** again or choose **Discard all**.
+A run saves all of its results or none of them, so there is nothing to tick or untick line by line. The line at the bottom says how many results will be saved and whether Klipper restarts.
+
+- **Save and restart Klipper** writes every result to your printer's configuration with one save. On Kalico the button reads **Save** when the save needs no restart (see below). A calibration that failed partway, for example after tuning the nozzle but not the bed, still saves the part it finished, and its line says what will be saved. The Calibration screen's tiles then show **Done** with today's date.
+- **Discard all** throws every result away and leaves your printer's configuration as it was. If a firmware-stored Z offset changed, it is set back first, and its line says what it was restored to. **Discard all** also appears when that Z offset is the only thing to undo, even though nothing else needs saving.
+- When there is nothing to save, the button reads **Done** and just closes the run.
+
+If the save fails, the reason is shown and you can try saving again or choose **Discard all**.
+
+**If the printer is unreachable** (disconnected, or Klipper not ready), **See results** and **Done** still work, so you can read the results and close the run. Saving waits until the printer is back.
 
 ### What Restarts Klipper
 
-**On Klipper**, saving the configuration always restarts Klipper, so **Save all** restarts it once at the end. This is normal and takes a few seconds to a minute. Your new values take effect when it is back.
+**On Klipper**, saving the configuration always restarts Klipper, so saving the results restarts it once at the end. This is normal and takes a few seconds to a minute. Your new values take effect when it is back.
 
 **On Kalico**, a save can skip the restart when everything it writes is already in effect. The guided run's heater PID values, bed mesh and input shaper settings all take effect the moment they are measured, so a run of just those saves without a restart. A run that includes a probe Z offset, or MPC heater values, still restarts Klipper, because those only take effect after a restart. The same rule applies to the Save button on the Z offset screen: its confirmation tells you whether Klipper will restart.
 
@@ -312,11 +341,7 @@ A tool that has never been calibrated shows `--` on each axis instead of a numbe
 
 ### Running a Calibration
 
-1. Navigate to **Advanced > Calibration > Tool offsets**.
-
-   ![Tool Offsets row in the Advanced panel](../../images/user/advanced-tool-offsets-row.png)
-
-   — or tap **Tool Offsets** on the Controls panel:
+1. Navigate to **Advanced > Calibration** and tap the **Tool offsets** tile (it appears only on a printer with more than one tool), or tap **Tool Offsets** on the Controls panel:
 
    ![Tool Offsets button on the Controls panel](../../images/user/controls-tool-offsets.png)
 
@@ -427,7 +452,7 @@ For CoreXY printers: compares the tension of the two belt paths by driving each 
 
 ### Requirements
 
-The **Belt compare** tile appears under **Advanced > Calibration** on a CoreXY printer whose Klipper config has an accelerometer. **Start Check** stays disabled until all of these hold:
+The **Belt compare** tile appears under **Advanced > Calibration** on a CoreXY printer whose Klipper config has an accelerometer. **Compare belts** stays disabled until all of these hold:
 
 - A **CoreXY** printer. The check compares the two diagonals only a CoreXY has, so it is unavailable on other kinematics
 - An **accelerometer** configured in Klipper, and exactly one. When more than one accelerometer reports during the sweep, the check stops with a message rather than guess which one to compare
@@ -438,8 +463,11 @@ The **Belt compare** tile appears under **Advanced > Calibration** on a CoreXY p
 ### Running a Check
 
 1. Navigate to **Advanced > Calibration > Belt compare**
-2. The panel shows what it found: your kinematics, your accelerometer, and the frequency range the sweep will cover. If a requirement is not met, the reason appears above the Start button
-3. Tap **Start Check**. The printer homes first if it needs to, runs three quick laps to settle the belts, then sweeps each belt path in turn: the toolhead moves back and forth along one diagonal while the accelerometer listens, then the other. Two full sweeps take about 5 minutes at Klipper's default settings - keep clear of the printer while it moves. Each path's curve draws live on the chart while it sweeps, as on the [Input Shaper live chart](#the-live-chart), and Klipper's analysis replaces it when the sweep ends
+2. The panel shows what it found: your kinematics, your accelerometer, and the frequency range the sweep will cover. If a requirement is not met, the reason appears above the **Compare belts** button
+
+   ![Belt Tension before a check: the two belt paths, what the check does, the kinematics and accelerometer, and Compare belts](../../images/user/calibration-belt-compare.png)
+
+3. Tap **Compare belts**. The printer homes first if it needs to, runs three quick laps to settle the belts, then sweeps each belt path in turn: the toolhead moves back and forth along one diagonal while the accelerometer listens, then the other. Two full sweeps take about 5 minutes at Klipper's default settings - keep clear of the printer while it moves. Each path's curve draws live on the chart while it sweeps, as on the [Input Shaper live chart](#the-live-chart), and Klipper's analysis replaces it when the sweep ends
 4. Both curves appear on one chart, each path in its own color
 
 The sweeps stay inside the frequency range set in your printer's `[resonance_tester]` section; nothing goes past its `max_freq`. On a printer with less than 512 MB of memory or a single-core processor, the panel shows the results without a chart.
@@ -563,6 +591,8 @@ Leaving the screen while it is still heating stops the run. Once measuring has s
 Works on any Klipper printer. HelixScreen prints a small test tower, raises pressure advance as the tower grows, and lets you take over while you watch the corners. You pick the height that looked best, and that value is applied.
 
 1. Open **Advanced > Calibration > Pressure advance tuning**.
+
+   ![Pressure Advance Tuning: material presets, Direct drive or Bowden, the Start K and End K range, and Print Test Tower](../../images/user/calibration-pa-tuning.png)
 2. On a printer with more than one extruder (a tool changer or IDEX), pick which one to tune; filament lanes feeding one nozzle count as one. Tap the material preset that matches what's loaded; it sets the nozzle and bed temperature.
 3. Choose **Direct drive** or **Bowden**. That sets a sensible range (0 to 0.1 for direct drive, 0 to 1.0 for Bowden); adjust **Start K** and **End K** with **-** and **+** if you want a different range.
 4. Clear the plate, tap **Print Test Tower** and confirm. HelixScreen uploads a hollow tower 40 mm wide and about 31 mm tall (roughly 11 minutes plus heating) and starts it. It begins with your printer's own start macro (PRINT_START or similar, with the bed and nozzle temperatures), so homing, leveling and purging happen the way they do for a sliced file, and ends with your end macro. A printer without a start macro just homes and heats.

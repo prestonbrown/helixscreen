@@ -161,10 +161,10 @@ images:
       - click row_calibration
       - click cal_tile_input_shaper
       - wait_idle
-      - click btn_calibrate_x
+      - click cal_intro_primary
       - wait_idle
       - click btn_primary
-      - wait_for is_results_has_x 1 --timeout 300
+      - wait_for is_results_has_y 1 --timeout 400
       - wait_idle
       - scroll chip_row_x
   - path: docs/images/user/advanced-spoolman.png
@@ -179,10 +179,6 @@ images:
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
   - path: docs/images/user/advanced-tool-offsets-many-tools.png
-    kind: manual
-    source: captured by hand before the manifest existed
-    recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
-  - path: docs/images/user/advanced-tool-offsets-row.png
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
@@ -215,6 +211,85 @@ images:
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/calibration-belt-compare.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_tile_belt_compare
+  - path: docs/images/user/calibration-guided-pick.png
+    kind: app
+    recipe: guided-run
+  - path: docs/images/user/calibration-guided-prereqs.png
+    kind: app
+    recipe: guided-run-prereqs
+  - path: docs/images/user/calibration-guided-results.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_guided_banner
+      - click btn_cal_run_next
+      - click cal_prereq_bed_clear
+      - click cal_prereq_build_plate
+      - click cal_prereq_paper
+      - click btn_cal_run_start
+      - wait_for zoffset_cal_state 2 --timeout 60
+      - click btn_accept
+      - wait_for zoffset_cal_state 4 --timeout 60
+      - click btn_continue
+      - wait_for cal_run_over 1 --timeout 400
+      - click btn_cal_run_results
+  - path: docs/images/user/calibration-guided-running.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_guided_banner
+      - click btn_cal_run_next
+      - click cal_prereq_bed_clear
+      - click cal_prereq_build_plate
+      - click cal_prereq_paper
+      - click btn_cal_run_start
+      - wait_for zoffset_cal_state 2 --timeout 60
+      - click btn_accept
+      - wait_for zoffset_cal_state 4 --timeout 60
+      - click btn_continue
+      - wait_for cal_run_step_current 1 --timeout 300
+  - path: docs/images/user/calibration-guided-z-not-set.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_guided_banner
+      - click btn_cal_run_next
+      - click cal_prereq_bed_clear
+      - click cal_prereq_build_plate
+      - click cal_prereq_paper
+      - click btn_cal_run_start
+      - wait_for zoffset_cal_state 2 --timeout 60
+      - click btn_abort
+  - path: docs/images/user/calibration-guided-zoffset.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_guided_banner
+      - click btn_cal_run_next
+      - click cal_prereq_bed_clear
+      - click cal_prereq_build_plate
+      - click cal_prereq_paper
+      - click btn_cal_run_start
+      - wait_for zoffset_cal_state 2 --timeout 60
+  - path: docs/images/user/calibration-hub.png
+    kind: app
+    recipe: calibration
+  - path: docs/images/user/calibration-pa-tuning.png
+    kind: app
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_tile_pa_tuning
   - path: docs/images/user/color-mismatch.png
     kind: app
     recipe: color-mismatch
@@ -561,6 +636,9 @@ images:
     kind: manual
     source: captured by hand before the manifest existed
     recapture: turn into an app entry in its docs-sweep wave, or describe the capture here
+  - path: docs/images/user/wizard-calibration.png
+    kind: app
+    wizard: calibration
   - path: docs/images/user/wizard-connection.png
     kind: app
     wizard: connection

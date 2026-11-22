@@ -184,7 +184,10 @@ TileStatus tile_status(const calibration::StepInfo& step, const calibration::His
 ```
 
 The precedence is the history's last result, then the value the Klipper config holds, then the
-tier. `TileTone` values (`Idle`, `Due`, `Done`) are the ones `calibration_hub_tile.xml` maps to
+tier. A Done line carries the history's summary only where `tile_shows_reading()` says the step's
+result is one short reading (Z offset, heaters, bed mesh, pressure advance, the cutter position);
+a result per axis, belt, screw, tool or band, input shaping among them, reads "Done Nov 21" alone
+and leaves the detail to the step's own screen. `TileTone` values (`Idle`, `Due`, `Done`) are the ones `calibration_hub_tile.xml` maps to
 colors.
 
 **The Guided calibration banner** sits above the tiles. It shows when the run would have at least
@@ -317,8 +320,14 @@ run is on. Every page binds to subjects the overlay publishes; the subject names
    one while the step reports `percent = -1`), a safety line per step ("Do not touch the nozzle or
    the bed."), live temperatures during the heater step, and "Step 2 of 4 · about 15 min left".
 4. **Results.** Per step, the value before the run (its history summary, else its In-config
-   value, captured when the run started) beside what the run measured; then Save all and Discard
-   all.
+   value, captured when the run started) beside what the run measured. There is no per-step keep
+   column: a run saves everything `saves()` accepts or nothing. The primary button is
+   `results_primary_label()`: **Save and restart Klipper**, **Save** when the save is known not to
+   restart (Kalico), or **Done** when nothing is saved. Only a save needs the printer
+   (`primary_needs_printer="cal_run_offers_save eq 1"`), so **See results** on the Running page and
+   **Done** stay live while the printer is unreachable. **Discard all** shows while
+   `CalibrationRun::can_discard()` holds: something to save, or a finished step with
+   `restores_on_discard()` (a firmware-stored Z offset) even when nothing else is staged.
 
 **Setup's last page.** The setup wizard ends on a Calibration page (`WizardCalibrationStep`)
 that lists the steps a run would tick and how long they take. **Calibrate now** finishes setup
