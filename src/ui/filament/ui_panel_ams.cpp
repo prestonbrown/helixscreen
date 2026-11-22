@@ -199,7 +199,7 @@ void AmsPanel::init_subjects() {
                 self->hand_off_if_multi_unit(*info);
             self->refresh_slots();
             if (info && !self->slot_creation_pending_ && self->current_slot_count_ > 0 &&
-                helix::ui::unit_art_choices(*info) != self->laid_out_drawings_) {
+                self->drawings_changed(*info)) {
                 self->slot_creation_pending_ = true;
                 self->object_lifetime_.defer("AmsPanel::drawing_relayout", [self]() {
                     self->slot_creation_pending_ = false;
@@ -537,7 +537,9 @@ void AmsPanel::on_activate() {
     AmsState::instance().sync_from_backend();
 
     int slot_count = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
-    if (slot_count != current_slot_count_) {
+    const auto activated_info = AmsState::instance().system_info();
+    if (slot_count != current_slot_count_ ||
+        (activated_info && current_slot_count_ > 0 && drawings_changed(*activated_info))) {
         create_slots(slot_count);
     }
 
@@ -741,6 +743,10 @@ void AmsPanel::setup_slots() {
 
     spdlog::debug("[{}] setup_slots: widgets resolved, slot creation deferred to on_activate()",
                   get_name());
+}
+
+bool AmsPanel::drawings_changed(const AmsSystemInfo& info) const {
+    return helix::ui::unit_art_choices(info) != laid_out_drawings_;
 }
 
 void AmsPanel::create_slots(int count) {

@@ -395,8 +395,13 @@ void AmsDeviceOperationsOverlay::update_unit_type(const AmsSystemInfo* info) {
         return;
     }
     if (unit_type_unit_ < 0 || unit_type_unit_ >= units) {
+        // viewed_unit() is the unit's own number, which need not be its position.
         const int viewed = AmsState::instance().viewed_unit();
-        unit_type_unit_ = viewed >= 0 && viewed < units ? viewed : 0;
+        unit_type_unit_ = 0;
+        for (int i = 0; i < units; ++i) {
+            if (viewed >= 0 && info->units[static_cast<size_t>(i)].unit_index == viewed)
+                unit_type_unit_ = i;
+        }
     }
     snprintf(unit_type_units_buf_, sizeof(unit_type_units_buf_), "%s", names.c_str());
     lv_subject_set_string(&unit_type_units_subject_, unit_type_units_buf_);

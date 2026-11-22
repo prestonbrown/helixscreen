@@ -232,6 +232,8 @@ class AmsPanel : public PanelBase {
     bool overview_handoff_queued_ = false;
     /// Hands the panel to the overview once the units it was opened for have become several.
     void hand_off_if_multi_unit(const helix::AmsSystemInfo& info);
+    /// Whether the user's unit drawings differ from those the slots were laid out for.
+    [[nodiscard]] bool drawings_changed(const helix::AmsSystemInfo& info) const;
     bool path_update_pending_ = false; ///< Coalesces rapid path state changes
 
     // === Dynamic Slot State ===

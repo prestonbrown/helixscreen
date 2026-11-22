@@ -22,6 +22,7 @@
 #include "ui_side_band.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -492,7 +493,9 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
     ams.set_unit_page_header(helix::ui::unit_display_name(unit, page.unit_index), logo.path,
                              logo.color);
 
-    if (relayout || new_unit || detail_slot_count_ != std::min(unit.slot_count, kMaxDetailSlots)) {
+    // A new drawing pick moves the spools, so it lays the page out again too.
+    if (relayout || new_unit || detail_slot_count_ != std::min(unit.slot_count, kMaxDetailSlots) ||
+        helix::ui::unit_art_choices(info) != laid_out_drawings_) {
         create_detail_slots(info, page.unit_index);
     }
     helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
@@ -742,6 +745,7 @@ void AmsOverviewPanel::create_detail_slots(const AmsSystemInfo& info, int unit_p
 
     // The environment readout is keyed on the unit's own number.
     ams_detail_pre_show_env_indicator(detail_widgets_, info.units[unit_pos].unit_index);
+    laid_out_drawings_ = helix::ui::unit_art_choices(info);
 
     auto result = ams_detail_create_slots(detail_widgets_, detail_slot_widgets_, kMaxDetailSlots,
                                           unit_pos, on_detail_slot_clicked, this);

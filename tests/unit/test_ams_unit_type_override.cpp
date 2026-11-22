@@ -5,6 +5,7 @@
  * @brief A unit's picked drawing (Unit Type): the resolver input, its menu, and its setting.
  */
 
+#include "ui_ams_device_operations_overlay.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_ams_overview.h"
 #include "ui_unit_art.h"
@@ -336,14 +337,19 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: the overview and its unit page draw 
     const std::string first = tile_drawing(0);
     REQUIRE_FALSE(first.empty());
 
-    pick(1, "emu");
-    CHECK(tile_drawing(1) == "emu");
-    CHECK(tile_drawing(0) == first);
-
+    // A pick made while the unit's page is on screen redraws that page.
     overview().show_unit_view(1);
     settle();
     process_lvgl(80);
+    REQUIRE(unit_page_drawing() == "night_owl");
+    pick(1, "emu");
     CHECK(unit_page_drawing() == "emu");
+
+    overview().show_overview();
+    settle();
+    process_lvgl(80);
+    CHECK(tile_drawing(1) == "emu");
+    CHECK(tile_drawing(0) == first);
 }
 
 TEST_CASE_METHOD(UnitTypePanel, "unit type: the detail page draws the pick",
@@ -357,4 +363,81 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: the detail page draws the pick",
 
     pick(0, "");
     CHECK(unit_page_drawing().empty());
+}
+
+TEST_CASE_METHOD(UnitTypePanel, "unit type: a pick made while the panel is closed shows on reopen",
+                 "[ams][unit-type][ui_integration]") {
+    install(false);
+    open();
+    REQUIRE(unit_page_drawing().empty());
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(50);
+
+    // Picked from Settings while the AMS panel is not on screen.
+    pick(0, "qidi_box");
+    open();
+    CHECK(unit_page_drawing() == "qidi_box");
+}
+
+namespace {
+
+/// The multi-unit mock with each unit numbered apart from its position, as a CFS numbers
+/// its boxes 1 and 3 when box 2 is absent.
+class NumberedUnits : public AmsBackendMock {
+  public:
+    NumberedUnits() : AmsBackendMock(4) {
+        set_multi_unit_mode(true);
+    }
+    AmsSystemInfo get_system_info() const override {
+        AmsSystemInfo info = AmsBackendMock::get_system_info();
+        for (size_t i = 0; i < info.units.size(); ++i)
+            info.units[i].unit_index = static_cast<int>(2 * i + 1);
+        return info;
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows open on the viewed unit and save its pick",
+                 "[ams][unit-type][ui_integration]") {
+    auto mock = std::make_unique<NumberedUnits>();
+    REQUIRE(mock->start().success());
+    auto& ams = AmsState::instance();
+    ams.set_backend(std::move(mock));
+    ams.init_subjects(true);
+    ams.sync_from_backend();
+    const AmsSystemInfo info = ams.get_backend()->get_system_info();
+    REQUIRE(info.units.size() == 2);
+    REQUIRE(info.units[1].unit_index == 3);
+
+    ams.set_viewed_unit(3); // the second unit's own number
+    auto& overlay = ui::get_ams_device_operations_overlay();
+    overlay.init_subjects();
+    overlay.show(test_screen());
+    settle();
+
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_unit_type_unit")) == 1);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_unit_type_many_units")) == 1);
+    // The second unit has two bays: its menu is the two-bay one.
+    const UnitTypeMenu two_bay = unit_type_menu(info.units[1], "", lv_tr("Automatic"));
+    CHECK(std::string(lv_subject_get_string(
+              lv_xml_get_subject(nullptr, "ams_unit_type_options"))) == two_bay.options);
+
+    lv_obj_t* dropdown = lv_obj_find_by_name(overlay.get_root(), "unit_type_dropdown");
+    REQUIRE(dropdown != nullptr);
+    int emu = 0;
+    for (size_t i = 0; i < two_bay.choices.size(); ++i)
+        emu = std::string(two_bay.choices[i].shell_id) == "emu" ? static_cast<int>(i) + 1 : emu;
+    REQUIRE(emu > 0);
+    lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(emu));
+    lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    CHECK(SettingsManager::instance().get_ams_unit_drawing(ams_unit_identity(info.units[1])) ==
+          "emu");
+    CHECK(
+        SettingsManager::instance().get_ams_unit_drawing(ams_unit_identity(info.units[0])).empty());
+
+    NavigationManager::instance().go_back();
+    settle();
 }
