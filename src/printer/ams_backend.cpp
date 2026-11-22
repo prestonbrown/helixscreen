@@ -115,6 +115,15 @@ int AmsBackend::endless_spool_slot_count() const {
     return get_system_info().total_slots;
 }
 
+std::optional<int> AmsBackend::runout_backup_for(int slot) const {
+    const auto caps = get_endless_spool_capabilities();
+    const auto config = get_endless_spool_config();
+    if (!caps.editable() && config.empty()) {
+        return std::nullopt;
+    }
+    return helix::printer::endless_spool_backup_for(config, slot);
+}
+
 AmsError AmsBackend::set_endless_spool_backup(int slot_index, int backup_slot) {
     const auto caps = get_endless_spool_capabilities();
     if (!caps.available()) {

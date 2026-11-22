@@ -2858,6 +2858,21 @@ class AmsBackend {
     }
 
     /**
+     * @brief The slot a runout of @p slot continues from, as far as the backend
+     *        can tell.
+     *
+     * A slot index, -1 when a runout of this slot has nothing to switch to, or
+     * nullopt when the backend cannot answer per slot (the firmware picks the
+     * spool at runout time and says nothing in advance).
+     *
+     * @note Holds no lock; overrides take `mutex_` themselves.
+     * @return Default: the projection of get_endless_spool_config() wherever
+     *         the relation is the UI's to edit or the backend publishes one;
+     *         nullopt otherwise.
+     */
+    [[nodiscard]] virtual std::optional<int> runout_backup_for(int slot) const;
+
+    /**
      * @brief Set (or clear, with -1) one slot's endless-spool backup.
      *
      * **Deliberately NOT virtual.** Every rejection lives here so the wording
