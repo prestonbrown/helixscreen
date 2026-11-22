@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: TIPO DE CONEXIÓN
   CONTROLLABLE FANS: VENTILADORES CONTROLABLES
   Calibrate with this tool?: '¿Calibrar con esta herramienta?'
+  Could not switch timelapse to Hyperlapse: 'No se pudo cambiar el timelapse a Hyperlapse'
   Could not turn the heaters off: No se pudieron apagar los calentadores
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2342,7 +2343,7 @@ translations:
   Humidity inside the enclosure: Humedad dentro de la cámara
   Humidity Sensors: Sensores de humedad
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse captura fotogramas a intervalos de tiempo fijos. Bueno para impresiones muy largas.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse toma un fotograma cada cierto tiempo. No requiere configurar el laminador, pero el cabezal aparece donde esté.'
   Hyperspace: Hiperespacio
   I understand: Lo entiendo
 
@@ -2610,9 +2611,13 @@ translations:
   Layer: Capa
   Layer 2: 'Capa 2'
   Layer Height: Altura de Capa
-  Layer Macro captures one frame per layer change. Best for most prints.: Layer Macro captura un fotograma por cada cambio de capa. Lo mejor para la mayoría de impresiones.
   Layer Pause: 'Pausa por capa'
-  Layer mode captures one frame per layer change. Best for most prints.: El modo de capa captura un cuadro por cambio de capa. Mejor para la mayoría de las impresiones.
+  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Capa toma un fotograma en cada cambio de capa. Tu laminador debe añadir TIMELAPSE_TAKE_FRAME a su G-code de cambio de capa.'
+  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Capa toma un fotograma en cada cambio de capa, así la pieza crece de forma fluida. Solo se toman fotogramas cuando la impresión ejecuta TIMELAPSE_TAKE_FRAME: añade esa línea al G-code de cambio de capa de tu laminador, o el vídeo quedará casi vacío.
+
+
+    Hyperlapse toma un fotograma cada cierto tiempo y no requiere configurar el laminador, pero cada fotograma capta el cabezal donde esté.'
   Layer {} of {} · {:.2f} mm: Capa {} de {} · {:.2f} mm
   Layer {} of {}.: 'Capa {} de {}.'
   Layer {}, Z {:.2f} mm: Capa {}, Z {:.2f} mm
@@ -3036,6 +3041,7 @@ translations:
   No Power Devices: Sin Dispositivos de Energía
   No Spool: Sin bobina
   No Spools: Sin Bobinas
+  No Timelapse Frames: 'Sin fotogramas de timelapse'
   No USB printer detected: No se detectó impresora USB
   No USB printers found: No se encontraron impresoras USB
   No actions right now: 'No hay acciones ahora'
@@ -5088,6 +5094,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La carpeta de timelapse o de registros se solapa con una carpeta protegida, por eso la limpieza está desactivada."
   Timelapse did not start: 'El timelapse no se inició'
   Timelapse frames start after Klipper restarts.: 'Los fotogramas del timelapse empiezan después de reiniciar Klipper.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'El timelapse sigue en modo Hyperlapse. Vuelve a cambiarlo en Ajustes > Impresión > Timelapse.'
   Timelapse or logs folder overlaps a protected one.: "La carpeta de timelapse o de registros se solapa con una protegida."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'El plugin de timelapse está instalado. Para crear vídeos también se necesita ffmpeg, que no está instalado en esta impresora.'
   The tool change under way finished, and the tool was not parked: 'El cambio de herramienta en curso terminó y la herramienta no se aparcó'
@@ -5190,6 +5197,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Este archivo imprime {0} y {1} juntos. El calor de cámara y cama que necesita {1} puede ablandar {0} y atascar su boquilla.'
   This file was sliced for {} but {} is loaded.: Este archivo fue laminado para {} pero se ha cargado {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada.
+  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  : 'Este archivo no capturará fotogramas de timelapse. El modo de capa solo toma un fotograma cuando el archivo ejecuta TIMELAPSE_TAKE_FRAME en cada cambio de capa, y tu laminador no lo añadió. Hyperlapse toma fotogramas cada cierto tiempo.'
   This firmware can only switch slots by loading them: 'Este firmware solo puede cambiar de ranura cargándola'
   The filament took too long to reach the feeder's sensor.: 'El filamento tardó demasiado en llegar al sensor del alimentador.'
   The filament went into the toolhead past its feeder. Load it by hand.: "El filamento entró en el cabezal sin pasar por su alimentador. Cárgalo a mano."
@@ -5300,6 +5309,7 @@ translations:
   'Time: ': 'Hora: '
   Timelapse: Timelapse
   Timelapse Available: Timelapse Disponible
+  Timelapse Off: 'Timelapse desactivado'
   Timelapse Settings: Configuración de Timelapse
   Timelapse Videos: Videos timelapse
   Timelapse plugin installed successfully!: ¡Plugin de timelapse instalado correctamente!
@@ -5567,6 +5577,7 @@ translations:
   Use Another Toolhead: 'Usar otro cabezal'
   Use DHCP: 'Usar DHCP'
   Use G10/G11 firmware retraction: Usar retracción de firmware G10/G11
+  Use Hyperlapse: 'Usar Hyperlapse'
   Use New Address: 'Usar nueva dirección'
   Use Unload before Eject: 'Use Descargar antes de Expulsar'
   Use as bypass: "Usar como bypass"

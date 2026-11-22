@@ -373,6 +373,9 @@ class PrintStartController {
 
     void on_gate_proceed();
     void on_gate_cancel();
+    /// The open gate dialog was answered with one of its alternatives:
+    /// remember it for the start, then carry on with the next gate.
+    void on_gate_choice(helix::GateChoice choice);
 
     /// The detail view's prep manager when a view is set, else set_prep_manager()'s.
     [[nodiscard]] PrintPreparationManager* active_prep_manager() const;
@@ -409,6 +412,8 @@ class PrintStartController {
     std::vector<helix::PrintStartGate> gate_list_; ///< ctor-seeded; overridable in tests
     size_t gate_resume_index_ = 0;                 ///< gate the open modal belongs to
     helix::ui::WidgetRef print_gate_modal_;        ///< the ONE gate dialog handle
+    /// How this start records its timelapse, when a gate dialog changed it.
+    std::optional<helix::GateChoice> timelapse_choice_;
 
     /// A reprint running the gates. Its facts answer the gates in place of the
     /// detail view's file and file_facts_: the controller a reprint goes

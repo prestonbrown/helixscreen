@@ -1211,6 +1211,7 @@
   <translation tag="Could not set the material: {}" es="No se pudo asignar el material: {}"/>
   <translation tag="Could not skip {}" es="No se pudo omitir {}"/>
   <translation tag="Could not start Bluetooth discovery" es="No se pudo iniciar el descubrimiento Bluetooth"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" es="No se pudo cambiar el timelapse a Hyperlapse"/>
   <translation tag="Could not turn the heaters off" es="No se pudieron apagar los calentadores"/>
   <translation tag="Could not update filaments" es="No se pudieron actualizar los filamentos"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." es="No se pudo verificar el estado de Spoolman. Moonraker puede estar reiniciándose."/>
@@ -2242,7 +2243,7 @@
   <translation tag="Humidity Sensors" es="Sensores de humedad"/>
   <translation tag="Humidity inside the enclosure" es="Humedad dentro de la cámara"/>
   <translation tag="Hyperlapse" es="Hyperlapse"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." es="Hyperlapse captura fotogramas a intervalos de tiempo fijos. Bueno para impresiones muy largas."/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." es="Hyperlapse toma un fotograma cada cierto tiempo. No requiere configurar el laminador, pero el cabezal aparece donde esté."/>
   <translation tag="Hyperspace" es="Hiperespacio"/>
   <translation tag="I understand" es="Lo entiendo"/>
   <translation tag="ID (optional)" es="ID (opcional)"/>
@@ -2499,9 +2500,9 @@
   <translation tag="Layer" es="Capa"/>
   <translation tag="Layer 2" es="Capa 2"/>
   <translation tag="Layer Height" es="Altura de Capa"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." es="Layer Macro captura un fotograma por cada cambio de capa. Lo mejor para la mayoría de impresiones."/>
   <translation tag="Layer Pause" es="Pausa por capa"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." es="El modo de capa captura un cuadro por cambio de capa. Mejor para la mayoría de las impresiones."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code." es="Capa toma un fotograma en cada cambio de capa. Tu laminador debe añadir TIMELAPSE_TAKE_FRAME a su G-code de cambio de capa."/>
+  <translation tag="Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer&apos;s layer change G-code, or the video stays nearly empty.&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." es="Capa toma un fotograma en cada cambio de capa, así la pieza crece de forma fluida. Solo se toman fotogramas cuando la impresión ejecuta TIMELAPSE_TAKE_FRAME: añade esa línea al G-code de cambio de capa de tu laminador, o el vídeo quedará casi vacío.&#10;&#10;Hyperlapse toma un fotograma cada cierto tiempo y no requiere configurar el laminador, pero cada fotograma capta el cabezal donde esté."/>
   <translation tag="Layer {} of {} · {:.2f} mm" es="Capa {} de {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." es="Capa {} de {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" es="Capa {}, Z {:.2f} mm"/>
@@ -2931,6 +2932,7 @@
   <translation tag="No Power Devices" es="Sin Dispositivos de Energía"/>
   <translation tag="No Spool" es="Sin bobina"/>
   <translation tag="No Spools" es="Sin Bobinas"/>
+  <translation tag="No Timelapse Frames" es="Sin fotogramas de timelapse"/>
   <translation tag="No USB printer detected" es="No se detectó impresora USB"/>
   <translation tag="No USB printers found" es="No se encontraron impresoras USB"/>
   <translation tag="No actions right now" es="No hay acciones ahora"/>
@@ -5002,6 +5004,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." es="Este archivo imprime {0} y {1} juntos. El calor de cámara y cama que necesita {1} puede ablandar {0} y atascar su boquilla."/>
   <translation tag="This file was sliced for {} but {} is loaded." es="Este archivo fue laminado para {} pero se ha cargado {}."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." es="Este archivo se laminó para {}, pero hay {} cargado. Se imprimirá más lento y a una temperatura más alta de lo que necesita la bobina cargada."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead." es="Este archivo no capturará fotogramas de timelapse. El modo de capa solo toma un fotograma cuando el archivo ejecuta TIMELAPSE_TAKE_FRAME en cada cambio de capa, y tu laminador no lo añadió. Hyperlapse toma fotogramas cada cierto tiempo."/>
   <translation tag="This firmware can only switch slots by loading them" es="Este firmware solo puede cambiar de ranura cargándola"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." es="Esto instala las macros de ayuda de HelixScreen en la impresora y las añade a printer.cfg. Hay una impresión en curso, así que Klipper se reiniciará al terminar."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." es="Esto instala las macros de ayuda de HelixScreen en la impresora, las añade a printer.cfg y reinicia Klipper."/>
@@ -5095,10 +5098,12 @@
   <translation tag="Time: " es="Hora: "/>
   <translation tag="Timelapse" es="Timelapse"/>
   <translation tag="Timelapse Available" es="Timelapse Disponible"/>
+  <translation tag="Timelapse Off" es="Timelapse desactivado"/>
   <translation tag="Timelapse Settings" es="Configuración de Timelapse"/>
   <translation tag="Timelapse Videos" es="Videos timelapse"/>
   <translation tag="Timelapse did not start" es="El timelapse no se inició"/>
   <translation tag="Timelapse frames start after Klipper restarts." es="Los fotogramas del timelapse empiezan después de reiniciar Klipper."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." es="El timelapse sigue en modo Hyperlapse. Vuelve a cambiarlo en Ajustes &gt; Impresión &gt; Timelapse."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." es="La carpeta de timelapse o de registros se solapa con una protegida."/>
   <translation tag="Timelapse plugin installed successfully!" es="¡Plugin de timelapse instalado correctamente!"/>
   <translation tag="Timelapse plugin installed!" es="¡Plugin de timelapse instalado!"/>
@@ -5369,6 +5374,7 @@
   <translation tag="Use Another Toolhead" es="Usar otro cabezal"/>
   <translation tag="Use DHCP" es="Usar DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" es="Usar retracción de firmware G10/G11"/>
+  <translation tag="Use Hyperlapse" es="Usar Hyperlapse"/>
   <translation tag="Use New Address" es="Usar nueva dirección"/>
   <translation tag="Use Scan" es="Usar escaneo"/>
   <translation tag="Use Unload before Eject" es="Use Descargar antes de Expulsar"/>

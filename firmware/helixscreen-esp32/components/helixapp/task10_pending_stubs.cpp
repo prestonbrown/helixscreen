@@ -124,6 +124,10 @@ void MoonrakerTimelapseAPI::set_timelapse_enabled(bool, SuccessCallback, ErrorCa
     task10_unimplemented("MoonrakerTimelapseAPI::set_timelapse_enabled");
 }
 
+void MoonrakerTimelapseAPI::set_timelapse_mode(const std::string&, SuccessCallback, ErrorCallback) {
+    task10_unimplemented("MoonrakerTimelapseAPI::set_timelapse_mode");
+}
+
 void MoonrakerTimelapseAPI::render_timelapse(SuccessCallback, ErrorCallback) {
     task10_unimplemented("MoonrakerTimelapseAPI::render_timelapse");
 }

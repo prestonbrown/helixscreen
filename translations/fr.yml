@@ -715,6 +715,7 @@ translations:
   CONNECTION TYPE: TYPE DE CONNEXION
   CONTROLLABLE FANS: VENTILATEURS CONTRÔLABLES
   Calibrate with this tool?: 'Calibrer avec cet outil ?'
+  Could not switch timelapse to Hyperlapse: 'Impossible de passer le timelapse en Hyperlapse'
   Could not turn the heaters off: Impossible de couper les chauffes
   CPU: CPU
   'CPU: ': 'CPU : '
@@ -2354,7 +2355,7 @@ translations:
   Humidity inside the enclosure: Humidité dans l'enceinte
   Humidity Sensors: Capteurs d'humidité
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: L'hyperlapse capture des images à intervalles de temps fixes. Idéal pour les impressions très longues.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse prend une image à intervalle régulier. Aucun réglage du trancheur, mais la tête apparaît où qu''elle soit.'
   Hyperspace: Hyperespace
   I understand: J'ai compris
 
@@ -2622,9 +2623,13 @@ translations:
   Layer: Couche
   Layer 2: 'Couche 2'
   Layer Height: Hauteur de couche
-  Layer Macro captures one frame per layer change. Best for most prints.: La macro de couche capture une image à chaque changement de couche. Idéal pour la plupart des impressions.
   Layer Pause: 'Pause à la couche'
-  Layer mode captures one frame per layer change. Best for most prints.: Le mode couche capture une image par changement de couche. Idéal pour la plupart des impressions.
+  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Couche prend une image à chaque changement de couche. Votre trancheur doit ajouter TIMELAPSE_TAKE_FRAME à son G-code de changement de couche.'
+  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Couche prend une image à chaque changement de couche, la pièce grandit donc de façon fluide. Les images ne sont prises que lorsque l''impression exécute TIMELAPSE_TAKE_FRAME : ajoutez cette ligne au G-code de changement de couche de votre trancheur, sinon la vidéo reste presque vide.
+
+
+    Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu''elle soit.'
   Layer {} of {} · {:.2f} mm: Couche {} sur {} · {:.2f} mm
   Layer {} of {}.: 'Couche {} sur {}.'
   Layer {}, Z {:.2f} mm: Couche {}, Z {:.2f} mm
@@ -3048,6 +3053,7 @@ translations:
   No Power Devices: Aucun appareil électrique
   No Spool: Aucune bobine
   No Spools: Aucune bobine
+  No Timelapse Frames: 'Aucune image de timelapse'
   No USB printer detected: Aucune imprimante USB détectée
   No USB printers found: Aucune imprimante USB trouvée
   No actions right now: 'Aucune action pour le moment'
@@ -5100,6 +5106,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
   Timelapse did not start: 'Le timelapse n''a pas démarré'
   Timelapse frames start after Klipper restarts.: 'Les images du timelapse commencent après le redémarrage de Klipper.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Le timelapse est toujours en mode Hyperlapse. Rétablissez-le dans Paramètres > Impression > Timelapse.'
   Timelapse or logs folder overlaps a protected one.: "Le dossier timelapse ou journaux chevauche un dossier protégé."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Le plugin timelapse est installé. Pour créer des vidéos, ffmpeg est aussi nécessaire, et il n''est pas installé sur cette imprimante.'
   The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
@@ -5202,6 +5209,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Ce fichier imprime {0} et {1} ensemble. La chaleur de l''enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse.'
   This file was sliced for {} but {} is loaded.: Ce fichier a été tranché pour {} mais {} est chargé.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Ce fichier a été tranché pour {}, mais {} est chargé. L'impression sera plus lente et plus chaude que ce qu'exige la bobine chargée.
+  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  : 'Ce fichier ne capturera aucune image de timelapse. Le mode couche ne prend une image que lorsque le fichier exécute TIMELAPSE_TAKE_FRAME à chaque changement de couche, et votre trancheur ne l''a pas ajouté. Hyperlapse prend plutôt des images à intervalle régulier.'
   This firmware can only switch slots by loading them: 'Ce firmware ne peut changer de slot qu''en le chargeant'
   The filament took too long to reach the feeder's sensor.: 'Le filament a mis trop de temps à atteindre le capteur de l''alimentateur.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Le filament est entré dans la tête d'outil sans passer par son alimentateur. Chargez-le à la main."
@@ -5312,6 +5321,7 @@ translations:
   'Time: ': 'Heure : '
   Timelapse: Timelapse
   Timelapse Available: Timelapse disponible
+  Timelapse Off: 'Timelapse désactivé'
   Timelapse Settings: Paramètres du timelapse
   Timelapse Videos: Vidéos timelapse
   Timelapse plugin installed successfully!: Plugin timelapse installé avec succès !
@@ -5579,6 +5589,7 @@ translations:
   Use Another Toolhead: 'Utiliser une autre tête d''outil'
   Use DHCP: 'Utiliser DHCP'
   Use G10/G11 firmware retraction: Utiliser la rétraction firmware G10/G11
+  Use Hyperlapse: 'Utiliser Hyperlapse'
   Use New Address: 'Utiliser la nouvelle adresse'
   Use Unload before Eject: 'Utilisez Décharger avant Éjecter'
   Use as bypass: "Utiliser comme bypass"

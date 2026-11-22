@@ -1211,6 +1211,7 @@
   <translation tag="Could not set the material: {}" zh="无法设置材料：{}"/>
   <translation tag="Could not skip {}" zh="无法跳过 {}"/>
   <translation tag="Could not start Bluetooth discovery" zh="无法启动蓝牙发现"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" zh="无法将延时摄影切换为超延时"/>
   <translation tag="Could not turn the heaters off" zh="无法关闭加热"/>
   <translation tag="Could not update filaments" zh="无法更新耗材"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." zh="无法验证 Spoolman 状态。Moonraker 可能仍在重启中。"/>
@@ -2241,8 +2242,8 @@
   <translation tag="Humidity" zh="湿度"/>
   <translation tag="Humidity Sensors" zh="湿度传感器"/>
   <translation tag="Humidity inside the enclosure" zh="腔体内的湿度"/>
-  <translation tag="Hyperlapse" zh="延时摄影"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." zh="延时拍摄以固定时间间隔捕获帧。适合超长时间打印。"/>
+  <translation tag="Hyperlapse" zh="超延时"/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." zh="超延时按固定时间间隔拍摄。无需设置切片软件，但喷头会出现在当时所在的位置。"/>
   <translation tag="Hyperspace" zh="超空间"/>
   <translation tag="I understand" zh="我已了解"/>
   <translation tag="ID (optional)" zh="ID（可选）"/>
@@ -2499,9 +2500,9 @@
   <translation tag="Layer" zh="层"/>
   <translation tag="Layer 2" zh="第 2 层"/>
   <translation tag="Layer Height" zh="层高"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." zh="层变化宏在每次层变化时捕获一帧。适合大多数打印。"/>
   <translation tag="Layer Pause" zh="层暂停"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." zh="层模式在每次换层时捕获一帧。适用于大多数打印。"/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code." zh="层模式在每次换层时拍摄一帧。切片软件必须在换层 G-code 中添加 TIMELAPSE_TAKE_FRAME。"/>
+  <translation tag="Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer&apos;s layer change G-code, or the video stays nearly empty.&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，模型会平滑地生长。只有打印执行 TIMELAPSE_TAKE_FRAME 时才会拍摄：请将这一行添加到切片软件的换层 G-code 中，否则视频几乎是空的。&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。"/>
   <translation tag="Layer {} of {} · {:.2f} mm" zh="第 {} / {} 层 · {:.2f} mm"/>
   <translation tag="Layer {} of {}." zh="第 {} 层，共 {} 层。"/>
   <translation tag="Layer {}, Z {:.2f} mm" zh="第 {} 层，Z {:.2f} mm"/>
@@ -2931,6 +2932,7 @@
   <translation tag="No Power Devices" zh="无电源设备"/>
   <translation tag="No Spool" zh="无料盘"/>
   <translation tag="No Spools" zh="无料盘"/>
+  <translation tag="No Timelapse Frames" zh="没有延时摄影画面"/>
   <translation tag="No USB printer detected" zh="未检测到 USB 打印机"/>
   <translation tag="No USB printers found" zh="未找到 USB 打印机"/>
   <translation tag="No actions right now" zh="当前没有可用操作"/>
@@ -5002,6 +5004,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." zh="此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。"/>
   <translation tag="This file was sliced for {} but {} is loaded." zh="此文件为 {} 切片，但当前加载的是 {}。"/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." zh="此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。"/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead." zh="此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行 TIMELAPSE_TAKE_FRAME 时拍摄，而你的切片软件没有添加它。超延时则按固定时间间隔拍摄。"/>
   <translation tag="This firmware can only switch slots by loading them" zh="此固件只能通过装载来切换槽位"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." zh="这会在打印机上安装 HelixScreen 帮助宏并添加到 printer.cfg。当前正在打印，Klipper 将在打印结束后重启。"/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." zh="这会在打印机上安装 HelixScreen 帮助宏，添加到 printer.cfg，并重启 Klipper。"/>
@@ -5095,10 +5098,12 @@
   <translation tag="Time: " zh="时间: "/>
   <translation tag="Timelapse" zh="延时摄影"/>
   <translation tag="Timelapse Available" zh="延时摄影可用"/>
+  <translation tag="Timelapse Off" zh="关闭延时摄影"/>
   <translation tag="Timelapse Settings" zh="延时摄影设置"/>
   <translation tag="Timelapse Videos" zh="延时摄影视频"/>
   <translation tag="Timelapse did not start" zh="延时摄影未启动"/>
   <translation tag="Timelapse frames start after Klipper restarts." zh="Klipper 重启后开始拍摄延时摄影帧。"/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." zh="延时摄影仍处于超延时模式。请在 设置 &gt; 打印 &gt; 延时摄影 中改回来。"/>
   <translation tag="Timelapse or logs folder overlaps a protected one." zh="延时摄影或日志文件夹与受保护的文件夹重叠。"/>
   <translation tag="Timelapse plugin installed successfully!" zh="延时摄影插件安装成功！"/>
   <translation tag="Timelapse plugin installed!" zh="延时摄影插件已安装！"/>
@@ -5369,6 +5374,7 @@
   <translation tag="Use Another Toolhead" zh="使用另一个工具头"/>
   <translation tag="Use DHCP" zh="使用 DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" zh="使用 G10/G11 固件回抽"/>
+  <translation tag="Use Hyperlapse" zh="使用超延时"/>
   <translation tag="Use New Address" zh="使用新地址"/>
   <translation tag="Use Scan" zh="使用扫描"/>
   <translation tag="Use Unload before Eject" zh="请先使用“卸载”，再使用“弹出”"/>

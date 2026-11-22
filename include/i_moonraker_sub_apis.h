@@ -724,6 +724,10 @@ class ITimelapseAPI {
     virtual void set_timelapse_enabled(bool enabled, SuccessCallback on_success,
                                        ErrorCallback on_error) = 0;
 
+    /// Set only the recording mode: "layermacro" or "hyperlapse".
+    virtual void set_timelapse_mode(const std::string& mode, SuccessCallback on_success,
+                                    ErrorCallback on_error) = 0;
+
     virtual void render_timelapse(SuccessCallback on_success, ErrorCallback on_error) = 0;
 
     virtual void save_timelapse_frames(SuccessCallback on_success, ErrorCallback on_error) = 0;

@@ -16,6 +16,7 @@
 #include "fit_check.h"
 #include "moonraker_types.h"
 #include "motor_ripple_types.h"
+#include "state/timelapse_frame_calls.h"
 
 #include <cstdint>
 #include <map>
@@ -156,6 +157,26 @@ struct PrintStartContext {
     /// The last sweep's bands of speed to avoid, every motor; empty without one.
     std::vector<calibration::ripple::RippleBand> ripple_bands;
     std::optional<float> outer_wall_speed_mm_s; ///< from the footer; unset when unknown
+    // ---- timelapse (pre-print option, moonraker-timelapse mode, the file scan) ----
+    /// The plugin records this print: its pre-print option is on.
+    bool timelapse_on = false;
+    /// The plugin's mode is Layer ("layermacro"), which takes frames only when
+    /// the file calls for them.
+    bool timelapse_layer_mode = false;
+    /// What the file scan found about frame calls.
+    timelapse::FrameCalls timelapse_frames = timelapse::FrameCalls::Unknown;
+};
+
+/// A way around a gate's warning other than starting as is or not starting.
+/// The controller carries it out, then starts.
+enum class GateChoice {
+    TimelapseHyperlapse, ///< Record this print in Hyperlapse mode, then restore the user's mode
+    TimelapseOff,        ///< Record no timelapse of this print
+};
+
+struct GateAlternative {
+    std::string label; // already-lv_tr'd by the gate
+    GateChoice choice;
 };
 
 struct CheckResult {
@@ -165,6 +186,8 @@ struct CheckResult {
     std::string body;          // already-lv_tr'd by the gate
     std::string proceed_label; // "Start Anyway" / "Start Print"; empty for Block
     GateSeverity severity = GateSeverity::Warning;
+    /// Further answers a Warn offers beside proceed_label and Cancel.
+    std::vector<GateAlternative> alternatives;
 };
 
 struct PrintStartGate {
@@ -176,6 +199,12 @@ struct PrintStartGate {
 /// emergency stop. Pass for every other state, so a caller can hand it any
 /// check and read the verdict.
 [[nodiscard]] CheckResult gate_printer_stopping_command(const PrintStartContext& ctx);
+
+/// A warning when timelapse records this print in Layer mode and the file
+/// calls no frame-taking command: the video would be nearly empty. Offers
+/// Hyperlapse for this print and Timelapse off beside starting anyway. Pass
+/// whenever the scan could not tell.
+[[nodiscard]] CheckResult gate_timelapse_frames(const PrintStartContext& ctx);
 
 /// A warning when the file's outer wall speed falls in a band of speed the
 /// printer's last motor ripple sweep found shaky. Never blocks: the slicer can

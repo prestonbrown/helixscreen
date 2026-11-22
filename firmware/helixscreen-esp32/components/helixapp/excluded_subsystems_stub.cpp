@@ -171,6 +171,8 @@ TimelapseState& TimelapseState::instance() {
 }
 void TimelapseState::init_subjects(bool) {}
 void TimelapseState::reset() {}
+// Never set: discovery omits the plugin, so the timelapse frames gate never fires.
+void TimelapseState::record_print_as_hyperlapse() {}
 } // namespace helix
 
 // ===========================================================================

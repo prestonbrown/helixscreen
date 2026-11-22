@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
   Calibrate with this tool?: 'Mit diesem Werkzeug kalibrieren?'
+  Could not switch timelapse to Hyperlapse: 'Zeitraffer konnte nicht auf Hyperlapse umgestellt werden'
   Could not turn the heaters off: Die Heizungen konnten nicht ausgeschaltet werden
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2342,7 +2343,7 @@ translations:
   Humidity inside the enclosure: Feuchtigkeit in der Kammer
   Humidity Sensors: Feuchtigkeitssensoren
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse erfasst Bilder in festen Zeitintervallen. Gut für sehr lange Drucke.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse nimmt Bilder in festen Zeitabständen auf. Keine Slicer-Einrichtung nötig, aber der Kopf ist dort zu sehen, wo er gerade ist.'
   Hyperspace: Hyperraum
   I understand: Ich habe verstanden
 
@@ -2610,9 +2611,13 @@ translations:
   Layer: Schicht
   Layer 2: 'Schicht 2'
   Layer Height: Schichthöhe
-  Layer Macro captures one frame per layer change. Best for most prints.: Layer-Makro erfasst ein Bild pro Schichtwechsel. Am besten für die meisten Drucke.
   Layer Pause: 'Schichtpause'
-  Layer mode captures one frame per layer change. Best for most prints.: Schichtmodus nimmt ein Bild pro Schichtwechsel auf. Am besten für die meisten Drucke.
+  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Dein Slicer muss TIMELAPSE_TAKE_FRAME in seinen Schichtwechsel-G-Code einfügen.'
+  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, sodass das Teil gleichmäßig wächst. Bilder entstehen nur, wenn der Druck TIMELAPSE_TAKE_FRAME ausführt: Füge diese Zeile in den Schichtwechsel-G-Code deines Slicers ein, sonst bleibt das Video fast leer.
+
+
+    Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist.'
   Layer {} of {} · {:.2f} mm: Schicht {} von {} · {:.2f} mm
   Layer {} of {}.: 'Schicht {} von {}.'
   Layer {}, Z {:.2f} mm: Schicht {}, Z {:.2f} mm
@@ -3036,6 +3041,7 @@ translations:
   No Power Devices: Keine Stromgeräte
   No Spool: Keine Spule
   No Spools: Keine Spulen
+  No Timelapse Frames: 'Keine Zeitrafferbilder'
   No USB printer detected: Kein USB-Drucker erkannt
   No USB printers found: Keine USB-Drucker gefunden
   No actions right now: 'Gerade keine Aktionen'
@@ -5088,6 +5094,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
   Timelapse did not start: 'Zeitraffer nicht gestartet'
   Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stelle ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
@@ -5190,6 +5197,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Diese Datei druckt {0} und {1} zusammen. Die Kammer- und Betttemperatur für {1} kann {0} erweichen und seine Düse verstopfen.'
   This file was sliced for {} but {} is loaded.: Diese Datei wurde für {} gesliced, aber {} ist geladen.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt.
+  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel TIMELAPSE_TAKE_FRAME ausführt, und dein Slicer hat das nicht eingefügt. Hyperlapse nimmt stattdessen Bilder in festen Zeitabständen auf.'
   This firmware can only switch slots by loading them: 'Diese Firmware kann Slots nur durch Laden wechseln'
   The filament took too long to reach the feeder's sensor.: 'Das Filament brauchte zu lange bis zum Sensor der Zuführung.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Das Filament wurde an der Zuführung vorbei in den Werkzeugkopf geschoben. Lade es von Hand."
@@ -5300,6 +5309,7 @@ translations:
   'Time: ': 'Zeit: '
   Timelapse: Zeitraffer
   Timelapse Available: Zeitraffer verfügbar
+  Timelapse Off: 'Zeitraffer aus'
   Timelapse Settings: Zeitraffer-Einstellungen
   Timelapse Videos: Zeitraffer-Videos
   Timelapse plugin installed successfully!: Zeitraffer-Plugin erfolgreich installiert!
@@ -5567,6 +5577,7 @@ translations:
   Use Another Toolhead: 'Anderen Werkzeugkopf verwenden'
   Use DHCP: 'DHCP verwenden'
   Use G10/G11 firmware retraction: G10/G11-Firmware-Retraktion verwenden
+  Use Hyperlapse: 'Hyperlapse nutzen'
   Use New Address: 'Neue Adresse verwenden'
   Use Unload before Eject: 'Verwenden Sie Entladen vor Auswerfen'
   Use as bypass: "Als Bypass nutzen"

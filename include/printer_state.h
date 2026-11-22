@@ -659,6 +659,10 @@ class PrinterState {
      */
     void set_timelapse_default_enabled(bool enabled);
 
+    /// Record moonraker-timelapse's recording mode ("layermacro" or
+    /// "hyperlapse") as discovery read it. Any thread.
+    void set_timelapse_mode(const std::string& mode);
+
     /**
      * @brief Set HelixPrint plugin installation status
      *

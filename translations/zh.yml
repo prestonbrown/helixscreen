@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: 连接类型
   CONTROLLABLE FANS: 可控风扇
   Calibrate with this tool?: '用这个工具校准？'
+  Could not switch timelapse to Hyperlapse: '无法将延时摄影切换为超延时'
   Could not turn the heaters off: '无法关闭加热'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2341,8 +2342,8 @@ translations:
   Humidity: 湿度
   Humidity inside the enclosure: 腔体内的湿度
   Humidity Sensors: 湿度传感器
-  Hyperlapse: 延时摄影
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: 延时拍摄以固定时间间隔捕获帧。适合超长时间打印。
+  Hyperlapse: 超延时
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: '超延时按固定时间间隔拍摄。无需设置切片软件，但喷头会出现在当时所在的位置。'
   Hyperspace: 超空间
   I understand: 我已了解
 
@@ -2610,9 +2611,13 @@ translations:
   Layer: 层
   Layer 2: '第 2 层'
   Layer Height: 层高
-  Layer Macro captures one frame per layer change. Best for most prints.: 层变化宏在每次层变化时捕获一帧。适合大多数打印。
   Layer Pause: '层暂停'
-  Layer mode captures one frame per layer change. Best for most prints.: 层模式在每次换层时捕获一帧。适用于大多数打印。
+  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: '层模式在每次换层时拍摄一帧。切片软件必须在换层 G-code 中添加 TIMELAPSE_TAKE_FRAME。'
+  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : '层模式在每次换层时拍摄一帧，模型会平滑地生长。只有打印执行 TIMELAPSE_TAKE_FRAME 时才会拍摄：请将这一行添加到切片软件的换层 G-code 中，否则视频几乎是空的。
+
+
+    超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。'
   Layer {} of {} · {:.2f} mm: 第 {} / {} 层 · {:.2f} mm
   Layer {} of {}.: '第 {} 层，共 {} 层。'
   Layer {}, Z {:.2f} mm: 第 {} 层，Z {:.2f} mm
@@ -3036,6 +3041,7 @@ translations:
   No Power Devices: 无电源设备
   No Spool: 无料盘
   No Spools: 无料盘
+  No Timelapse Frames: '没有延时摄影画面'
   No USB printer detected: 未检测到 USB 打印机
   No USB printers found: 未找到 USB 打印机
   No actions right now: '当前没有可用操作'
@@ -5088,6 +5094,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
   Timelapse did not start: '延时摄影未启动'
   Timelapse frames start after Klipper restarts.: 'Klipper 重启后开始拍摄延时摄影帧。'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: '延时摄影仍处于超延时模式。请在 设置 > 打印 > 延时摄影 中改回来。'
   Timelapse or logs folder overlaps a protected one.: "延时摄影或日志文件夹与受保护的文件夹重叠。"
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: '延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。'
   The tool change under way finished, and the tool was not parked: '正在进行的换工具已完成，工具未停放'
@@ -5190,6 +5197,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: '此文件同时打印 {0} 和 {1}。{1} 所需的腔体和热床温度可能使 {0} 软化并堵塞其喷嘴。'
   This file was sliced for {} but {} is loaded.: 此文件为 {} 切片，但当前加载的是 {}。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: 此文件为 {} 切片，但当前加载的是 {}。打印会比当前装载的料盘所需更慢、更热。
+  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  : '此文件不会拍摄延时摄影画面。层模式只在文件每次换层执行 TIMELAPSE_TAKE_FRAME 时拍摄，而你的切片软件没有添加它。超延时则按固定时间间隔拍摄。'
   This firmware can only switch slots by loading them: '此固件只能通过装载来切换槽位'
   The filament took too long to reach the feeder's sensor.: '耗材到达送料器传感器用时过长。'
   The filament went into the toolhead past its feeder. Load it by hand.: "耗材绕过送料器直接进入了工具头。请手动装入。"
@@ -5300,6 +5309,7 @@ translations:
   'Time: ': '时间: '
   Timelapse: 延时摄影
   Timelapse Available: 延时摄影可用
+  Timelapse Off: '关闭延时摄影'
   Timelapse Settings: 延时摄影设置
   Timelapse Videos: 延时摄影视频
   Timelapse plugin installed successfully!: 延时摄影插件安装成功！
@@ -5567,6 +5577,7 @@ translations:
   Use Another Toolhead: '使用另一个工具头'
   Use DHCP: '使用 DHCP'
   Use G10/G11 firmware retraction: 使用 G10/G11 固件回抽
+  Use Hyperlapse: '使用超延时'
   Use New Address: '使用新地址'
   Use Unload before Eject: '请先使用“卸载”，再使用“弹出”'
   Use as bypass: "用作旁路"

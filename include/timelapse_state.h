@@ -7,6 +7,7 @@
 #include "core/observer_guard.h"
 #include "core/subject.h"
 #include "json_fwd.h"
+#include "print_lifecycle_state.h"
 #include "subject_managed_panel.h"
 
 #include <atomic>
@@ -19,6 +20,41 @@ namespace helix {
 
 class IMoonrakerClient;
 enum class PrintJobState;
+
+namespace timelapse {
+
+/**
+ * @brief Says when the print a setting was changed for has ended.
+ *
+ * Fed every print lifecycle state from the moment the change is made. The
+ * lifecycle can still hold the previous job's end when it starts, so an end
+ * counts only after this print has been seen running. Answers true once.
+ */
+class PrintEndLatch {
+  public:
+    /// True when @p state ends the print this latch was armed for.
+    bool ended_by(PrintState state) {
+        if (fired_) {
+            return false;
+        }
+        if (job_holds_machine(state)) {
+            seen_running_ = true;
+            return false;
+        }
+        if (seen_running_ && (state == PrintState::Complete || state == PrintState::Cancelled ||
+                              state == PrintState::Error)) {
+            fired_ = true;
+            return true;
+        }
+        return false;
+    }
+
+  private:
+    bool seen_running_ = false;
+    bool fired_ = false;
+};
+
+} // namespace timelapse
 
 /**
  * @brief Manages timelapse recording state and render progress
@@ -115,8 +151,28 @@ class TimelapseState {
         on_render_complete_ = std::move(callback);
     }
 
+    /// Whether moonraker-timelapse records in Layer mode ("layermacro"), as last
+    /// read at discovery or written from here. False until known. Any thread.
+    bool layer_mode() const {
+        return layer_mode_.load();
+    }
+    void set_mode(const std::string& mode) {
+        layer_mode_.store(mode == "layermacro");
+    }
+
+    /**
+     * @brief Record the print that has just started in Hyperlapse mode, then
+     *        switch the plugin back to Layer mode when that print ends.
+     *
+     * The plugin has no per-print mode: this writes its global setting twice.
+     * Main thread.
+     */
+    void record_print_as_hyperlapse();
+
   private:
     TimelapseState() = default;
+
+    void restore_layer_mode();
 
     // Allow tests to call handle_timelapse_event directly
     friend class TimelapseStateTestAccess;
@@ -143,6 +199,10 @@ class TimelapseState {
     // String buffers for string subjects
     char timelapse_render_status_buf_[32]{};
     char timelapse_capture_info_buf_[256]{};
+
+    std::atomic<bool> layer_mode_{false};
+    timelapse::PrintEndLatch hyperlapse_print_end_;
+    ObserverGuard hyperlapse_print_observer_;
 
     // Notification throttling: last progress value that triggered a notification
     std::atomic<int> last_notified_progress_{-1};

@@ -189,47 +189,59 @@ void MoonrakerTimelapseAPI::set_timelapse_settings(const TimelapseSettings& sett
 
 void MoonrakerTimelapseAPI::set_timelapse_enabled(bool enabled, SuccessCallback on_success,
                                                   ErrorCallback on_error) {
+    spdlog::info("[Timelapse API] Setting timelapse enabled={}", enabled);
+    post_one_setting(std::string("enabled=") + (enabled ? "True" : "False"),
+                     "set_timelapse_enabled", std::move(on_success), std::move(on_error));
+}
+
+void MoonrakerTimelapseAPI::set_timelapse_mode(const std::string& mode, SuccessCallback on_success,
+                                               ErrorCallback on_error) {
+    if (mode != "layermacro" && mode != "hyperlapse") {
+        helix::report_validation_error(
+            on_error, "set_timelapse_mode",
+            "Invalid timelapse mode (must be 'layermacro' or 'hyperlapse')",
+            fmt::format("Invalid timelapse mode '{}'.", mode));
+        return;
+    }
+    spdlog::info("[Timelapse API] Setting timelapse mode={}", mode);
+    post_one_setting("mode=" + mode, "set_timelapse_mode", std::move(on_success),
+                     std::move(on_error));
+}
+
+void MoonrakerTimelapseAPI::post_one_setting(const std::string& query, const char* op,
+                                             SuccessCallback on_success, ErrorCallback on_error) {
     if (http_base_url_.empty()) {
         spdlog::error("[Timelapse API] HTTP base URL not configured for timelapse");
         if (on_error) {
-            MoonrakerError err = MoonrakerError::connection_lost("set_timelapse_enabled",
-                                                                 "Not connected to Moonraker");
-            on_error(err);
+            on_error(MoonrakerError::connection_lost(op, "Not connected to Moonraker"));
         }
         return;
     }
 
-    // Simple update with just the enabled flag
-    std::string url =
-        http_base_url_ + "/machine/timelapse/settings?enabled=" + (enabled ? "True" : "False");
+    std::string url = http_base_url_ + "/machine/timelapse/settings?" + query;
 
-    spdlog::info("[Timelapse API] Setting timelapse enabled={}", enabled);
-
-    helix::http::HttpExecutor::fast().submit([url, enabled, on_success, on_error]() {
+    helix::http::HttpExecutor::fast().submit([url, query, op, on_success, on_error]() {
         auto resp = requests::post(url.c_str(), "");
 
         if (!resp) {
-            spdlog::error("[Timelapse API] HTTP request failed for timelapse enable");
+            spdlog::error("[Timelapse API] HTTP request failed for timelapse {}", query);
             if (on_error) {
-                MoonrakerError err =
-                    MoonrakerError::connection_lost("set_timelapse_enabled", "HTTP request failed");
-                on_error(err);
+                on_error(MoonrakerError::connection_lost(op, "HTTP request failed"));
             }
             return;
         }
 
         if (resp->status_code != 200) {
-            spdlog::error("[Timelapse API] Timelapse enable failed: HTTP {}",
+            spdlog::error("[Timelapse API] Timelapse {} failed: HTTP {}", query,
                           static_cast<int>(resp->status_code));
             if (on_error) {
-                MoonrakerError err = MoonrakerError::http_status_error(
-                    "set_timelapse_enabled", static_cast<int>(resp->status_code));
-                on_error(err);
+                on_error(
+                    MoonrakerError::http_status_error(op, static_cast<int>(resp->status_code)));
             }
             return;
         }
 
-        spdlog::info("[Timelapse API] Timelapse {} successfully", enabled ? "enabled" : "disabled");
+        spdlog::info("[Timelapse API] Timelapse {} set", query);
         if (on_success) {
             on_success();
         }

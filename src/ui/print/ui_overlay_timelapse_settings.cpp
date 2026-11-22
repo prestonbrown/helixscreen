@@ -4,6 +4,7 @@
 #include "ui_overlay_timelapse_settings.h"
 
 #include "ui_callback_helpers.h"
+#include "ui_modal.h"
 #include "ui_timelapse_macro_card.h"
 
 #include "app_globals.h"
@@ -101,6 +102,17 @@ void TimelapseSettingsOverlay::register_callbacks() {
              self.update_mode_info(index);
              self.save_settings();
          }},
+        {"on_timelapse_mode_info",
+         [](lv_event_t*) {
+             helix::ui::modal_alert(
+                 lv_tr("Recording Mode"),
+                 lv_tr("Layer takes one frame at each layer change, so the part grows smoothly. "
+                       "Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that "
+                       "line to your slicer's layer change G-code, or the video stays nearly "
+                       "empty.\n\nHyperlapse takes a frame on a timer and needs no slicer "
+                       "setup, but each frame catches the head wherever it is."),
+                 ModalSeverity::Info);
+         }},
         {"on_timelapse_framerate_changed",
          [](lv_event_t* e) {
              int index = helix::ui::event_selected(e);
@@ -171,6 +183,7 @@ void TimelapseSettingsOverlay::fetch_settings() {
 
                 current_settings_ = settings;
                 settings_loaded_ = true;
+                helix::TimelapseState::instance().set_mode(settings.mode);
 
                 if (enable_switch_) {
                     if (settings.enabled) {
@@ -221,12 +234,14 @@ void TimelapseSettingsOverlay::save_settings() {
 
     api_->timelapse().set_timelapse_settings(
         current_settings_,
-        lifetime_.bg_cb("TimelapseSettingsOverlay::save_settings",
-                        [this, enabled = current_settings_.enabled]() {
-                            spdlog::info("[{}] Timelapse settings saved successfully", get_name());
-                            // The pre-print toggle writes this setting back at print start.
-                            get_printer_state().set_timelapse_default_enabled(enabled);
-                        }),
+        lifetime_.bg_cb(
+            "TimelapseSettingsOverlay::save_settings",
+            [this, enabled = current_settings_.enabled, mode = current_settings_.mode]() {
+                spdlog::info("[{}] Timelapse settings saved successfully", get_name());
+                helix::TimelapseState::instance().set_mode(mode);
+                // The pre-print toggle writes this setting back at print start.
+                get_printer_state().set_timelapse_default_enabled(enabled);
+            }),
         lifetime_.bg_cb("TimelapseSettingsOverlay::save_settings_error",
                         [this](const MoonrakerError& error) {
                             spdlog::error("[{}] Failed to save timelapse settings: {}", get_name(),
@@ -240,10 +255,11 @@ void TimelapseSettingsOverlay::update_mode_info(int mode_index) {
     }
 
     const char* info_text = (mode_index == 1)
-                                ? lv_tr("Hyperlapse captures frames at fixed time intervals. "
-                                        "Good for very long prints.")
-                                : lv_tr("Layer Macro captures one frame per layer change. "
-                                        "Best for most prints.");
+                                ? lv_tr("Hyperlapse takes a frame on a timer. No slicer setup, "
+                                        "but the head shows up wherever it is.")
+                                : lv_tr("Layer takes a frame at each layer change. Your slicer "
+                                        "must add TIMELAPSE_TAKE_FRAME to its layer change "
+                                        "G-code.");
 
     lv_label_set_text(mode_info_text_, info_text);
 }

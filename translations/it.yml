@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: TIPO DI CONNESSIONE
   CONTROLLABLE FANS: VENTOLE CONTROLLABILI
   Calibrate with this tool?: 'Calibrare con questo utensile?'
+  Could not switch timelapse to Hyperlapse: 'Impossibile passare il timelapse a Hyperlapse'
   Could not turn the heaters off: Impossibile spegnere i riscaldatori
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2342,7 +2343,7 @@ translations:
   Humidity inside the enclosure: Umidità nella camera
   Humidity Sensors: Sensori di umidità
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse cattura i fotogrammi a intervalli di tempo fissi. Ideale per stampe molto lunghe.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse scatta un fotogramma a intervalli regolari. Nessuna configurazione dello slicer, ma la testina appare ovunque si trovi.'
   Hyperspace: Iperspazio
   I understand: Ho capito
 
@@ -2610,9 +2611,13 @@ translations:
   Layer: Strato
   Layer 2: 'Strato 2'
   Layer Height: Altezza layer
-  Layer Macro captures one frame per layer change. Best for most prints.: Layer Macro cattura un fotogramma per ogni cambio di strato. Ideale per la maggior parte delle stampe.
   Layer Pause: 'Pausa al layer'
-  Layer mode captures one frame per layer change. Best for most prints.: La modalità layer cattura un fotogramma per cambio layer. Ideale per la maggior parte delle stampe.
+  Layer takes a frame at each layer change. Your slicer must add TIMELAPSE_TAKE_FRAME to its layer change G-code.: 'Strato scatta un fotogramma a ogni cambio di strato. Lo slicer deve aggiungere TIMELAPSE_TAKE_FRAME al G-code di cambio strato.'
+  ? "Layer takes one frame at each layer change, so the part grows smoothly. Frames are taken only when the print runs TIMELAPSE_TAKE_FRAME: add that line to your slicer's layer change G-code, or the video stays nearly empty.\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Strato scatta un fotogramma a ogni cambio di strato, così il pezzo cresce in modo fluido. I fotogrammi vengono scattati solo quando la stampa esegue TIMELAPSE_TAKE_FRAME: aggiungi quella riga al G-code di cambio strato dello slicer, altrimenti il video resta quasi vuoto.
+
+
+    Hyperlapse scatta un fotogramma a intervalli regolari e non richiede configurazione dello slicer, ma ogni fotogramma riprende la testina ovunque si trovi.'
   Layer {} of {} · {:.2f} mm: Strato {} di {} · {:.2f} mm
   Layer {} of {}.: 'Strato {} di {}.'
   Layer {}, Z {:.2f} mm: Strato {}, Z {:.2f} mm
@@ -3036,6 +3041,7 @@ translations:
   No Power Devices: Nessun dispositivo alimentazione
   No Spool: Nessuna bobina
   No Spools: Nessuna bobina
+  No Timelapse Frames: 'Nessun fotogramma del timelapse'
   No USB printer detected: Nessuna stampante USB rilevata
   No USB printers found: Nessuna stampante USB trovata
   No actions right now: 'Nessuna azione al momento'
@@ -5088,6 +5094,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."
   Timelapse did not start: 'Il timelapse non è partito'
   Timelapse frames start after Klipper restarts.: 'I fotogrammi del timelapse iniziano dopo il riavvio di Klipper.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Il timelapse è ancora in modalità Hyperlapse. Ripristinalo in Impostazioni > Stampa > Timelapse.'
   Timelapse or logs folder overlaps a protected one.: "La cartella timelapse o dei log si sovrappone a una protetta."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che non è installato su questa stampante.'
   The tool change under way finished, and the tool was not parked: 'Il cambio utensile in corso è terminato e l''utensile non è stato parcheggiato'
@@ -5190,6 +5197,8 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Questo file stampa {0} e {1} insieme. Il calore di camera e piano richiesto da {1} può ammorbidire {0} e intasarne l''ugello.'
   This file was sliced for {} but {} is loaded.: Questo file è stato sezionato per {} ma è caricato {}.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Questo file è stato sezionato per {}, ma è caricato {}. La stampa sarà più lenta e più calda di quanto richiesto dalla bobina caricata.
+  ? This file won't capture timelapse frames. Layer mode takes a frame only when the file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add it. Hyperlapse takes frames on a timer instead.
+  : 'Questo file non catturerà fotogrammi del timelapse. La modalità strato scatta un fotogramma solo quando il file esegue TIMELAPSE_TAKE_FRAME a ogni cambio di strato, e lo slicer non l''ha aggiunto. Hyperlapse invece scatta fotogrammi a intervalli regolari.'
   This firmware can only switch slots by loading them: 'Questo firmware può cambiare slot solo caricandoli'
   The filament took too long to reach the feeder's sensor.: 'Il filamento ha impiegato troppo a raggiungere il sensore dell''alimentatore.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Il filamento è entrato nella testina senza passare dal suo alimentatore. Caricalo a mano."
@@ -5300,6 +5309,7 @@ translations:
   'Time: ': 'Ora: '
   Timelapse: Timelapse
   Timelapse Available: Timelapse disponibile
+  Timelapse Off: 'Timelapse disattivato'
   Timelapse Settings: Impostazioni timelapse
   Timelapse Videos: Video timelapse
   Timelapse plugin installed successfully!: Plugin timelapse installato con successo!
@@ -5567,6 +5577,7 @@ translations:
   Use Another Toolhead: 'Usa un''altra testina'
   Use DHCP: 'Usa DHCP'
   Use G10/G11 firmware retraction: Usa retrazione firmware G10/G11
+  Use Hyperlapse: 'Usa Hyperlapse'
   Use New Address: 'Usa nuovo indirizzo'
   Use Unload before Eject: 'Usa Scarica prima di Espelli'
   Use as bypass: "Usa come bypass"

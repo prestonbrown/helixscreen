@@ -560,6 +560,24 @@ CheckResult gate_door_open(const PrintStartContext& ctx) {
                        lv_tr("Start Anyway"));
 }
 
+CheckResult gate_timelapse_frames(const PrintStartContext& ctx) {
+    if (!ctx.timelapse_on || !ctx.timelapse_layer_mode ||
+        ctx.timelapse_frames != timelapse::FrameCalls::Missing) {
+        return pass_result();
+    }
+    spdlog::info("[PrintStartController] Layer mode timelapse on a file with no frame calls - "
+                 "showing pre-print warning");
+    CheckResult r = warn_result(
+        lv_tr("No Timelapse Frames"),
+        lv_tr("This file won't capture timelapse frames. Layer mode takes a frame only when the "
+              "file runs TIMELAPSE_TAKE_FRAME at each layer change, and your slicer did not add "
+              "it. Hyperlapse takes frames on a timer instead."),
+        lv_tr("Print Anyway"));
+    r.alternatives = {{lv_tr("Use Hyperlapse"), GateChoice::TimelapseHyperlapse},
+                      {lv_tr("Timelapse Off"), GateChoice::TimelapseOff}};
+    return r;
+}
+
 CheckResult gate_outer_wall_speed(const PrintStartContext& ctx) {
     namespace ripple = calibration::ripple;
     if (!ctx.outer_wall_speed_mm_s || ctx.ripple_bands.empty()) {
@@ -1106,6 +1124,8 @@ const std::vector<PrintStartGate>& default_print_start_gates() {
         {"door_open", gate_door_open},
         // After the door: a wall speed only costs print quality.
         {"outer_wall_speed", gate_outer_wall_speed},
+        // Last: a timelapse only costs the video.
+        {"timelapse_frames", gate_timelapse_frames},
     };
     return gates;
 }

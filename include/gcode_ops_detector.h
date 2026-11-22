@@ -6,6 +6,7 @@
 #include "fit_check.h"
 #include "gcode_parser.h"
 #include "operation_patterns.h"
+#include "state/timelapse_frame_calls.h"
 
 #include <chrono>
 #include <functional>
@@ -117,6 +118,8 @@ struct ScanResult {
     std::set<std::pair<OperationType, std::string>> operation_commands;
     /// What the scanned head declares for the file-fits-printer check.
     helix::FitHeadFacts fit_head;
+    /// Whether the scanned head takes timelapse frames on this printer.
+    helix::timelapse::FrameCalls timelapse_frames = helix::timelapse::FrameCalls::Unknown;
 
     /**
      * @brief Check if a specific operation type was detected
