@@ -4215,19 +4215,22 @@ TEST_CASE("Z-offset calibration strategy lookup", "[printer_detector]") {
 }
 
 TEST_CASE("Z-offset persistence flags lookup", "[printer_detector][zoffset]") {
-    SECTION("Snapmaker U1 keeps a babystep only until a tool change or the print ends") {
+    SECTION("Snapmaker U1 keeps a babystep only until a tool change, and saves to its probe") {
         CHECK_FALSE(PrinterDetector::z_offset_persists("Snapmaker U1"));
         CHECK(PrinterDetector::tool_change_resets_z_offset("Snapmaker U1"));
+        CHECK(PrinterDetector::z_offset_save("Snapmaker U1") == "probe");
     }
 
     SECTION("an entry that says nothing persists and keeps its offset across tool changes") {
         CHECK(PrinterDetector::z_offset_persists("FlashForge Adventurer 5X"));
         CHECK_FALSE(PrinterDetector::tool_change_resets_z_offset("FlashForge Adventurer 5X"));
+        CHECK(PrinterDetector::z_offset_save("FlashForge Adventurer 5X").empty());
     }
 
     SECTION("an unknown printer takes the same defaults") {
         CHECK(PrinterDetector::z_offset_persists("Some Random Printer"));
         CHECK_FALSE(PrinterDetector::tool_change_resets_z_offset("Some Random Printer"));
+        CHECK(PrinterDetector::z_offset_save("Some Random Printer").empty());
     }
 }
 
