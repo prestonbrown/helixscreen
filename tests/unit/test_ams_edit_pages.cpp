@@ -694,6 +694,47 @@ TEST_CASE_METHOD(PagesFixture,
 }
 
 TEST_CASE_METHOD(PagesFixture,
+                 "the summary's Save sits at the right whether Clear Lane shows or not",
+                 "[ams_edit_overlay][pages][clear_spool]") {
+    lv_display_t* disp = lv_display_get_default();
+    const SlotInfo lane = describe_lane(*backend, 1, "PLA");
+    for (const auto& [w, h] : {std::pair{480, 272}, std::pair{800, 480}}) {
+        CAPTURE(w, h);
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+        open(1, lane);
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        lv_obj_t* page = access.widget("summary_page");
+        lv_obj_t* save = access.widget("btn_edit_save");
+        REQUIRE(page != nullptr);
+        REQUIRE(save != nullptr);
+        const auto save_right_gap = [&] {
+            lv_obj_update_layout(page);
+            lv_area_t page_box;
+            lv_area_t save_box;
+            lv_obj_get_content_coords(page, &page_box);
+            lv_obj_get_coords(save, &save_box);
+            return page_box.x2 - save_box.x2;
+        };
+
+        // Clear Lane shown, at the left.
+        REQUIRE(access.shown("btn_clear_spool"));
+        CHECK(save_right_gap() == 0);
+
+        // Clear Lane hidden: Save alone in the row.
+        lv_subject_t* visible = lv_xml_get_subject(nullptr, "ams_edit_clear_visible");
+        REQUIRE(visible != nullptr);
+        lv_subject_set_int(visible, 0);
+        settle();
+        REQUIRE_FALSE(access.shown("btn_clear_spool"));
+        REQUIRE_FALSE(access.shown("clear_hint"));
+        CHECK(save_right_gap() == 0);
+        close_editor_overlay();
+    }
+    theme_manager_refresh_layout_constants(disp);
+}
+
+TEST_CASE_METHOD(PagesFixture,
                  "a Clear confirmation left open over another lane's editor does nothing",
                  "[ams_edit_overlay][pages][clear_spool][review]") {
     const SlotInfo lane1 = describe_lane(*backend, 1, "PLA");

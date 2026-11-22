@@ -376,9 +376,12 @@
                 flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
                 clickable="false"/>
 
+        <!-- Clear Lane at left, Save always at right: the spacer takes the
+             slack whenever the hint is hidden, so Save stays right with
+             Clear Lane hidden too. -->
         <lv_obj name="summary_actions"
-                width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
-                style_flex_cross_place="center" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
+                width="100%" height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
+                style_pad_gap="#space_md" scrollable="false">
           <ui_button name="btn_clear_spool"
                      width="content" height="#button_height" text="Clear Lane" variant="outline"
                      style_border_color="#danger" style_text_color="#danger" hidden="true">
@@ -392,6 +395,11 @@
                       style_text_color="#text_muted">
             <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="0"/>
           </text_small>
+          <lv_obj width="1"
+                  height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+                  scrollable="false" clickable="false">
+            <bind_flag_if_eq subject="ams_edit_clear_blocked" flag="hidden" ref_value="1"/>
+          </lv_obj>
           <ui_button name="btn_edit_save"
                      width="content" height="#button_height" text="Save" variant="primary"
                      style_min_width="#ams_edit_weight_w">
