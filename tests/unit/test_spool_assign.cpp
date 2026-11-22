@@ -369,22 +369,32 @@ TEST_CASE("the spool tiles lead with favorites and top up with the common spools
         CHECK(tiles[4].rgb != tiles[0].rgb);
     }
     SECTION("two favorites, then the common spools fill the rest") {
-        const auto tiles = spool_tiles({{"PolyLite ASA", "poly-asa"}, {"Basic PLA", "bambu-pla"}});
+        const auto tiles = spool_tiles(
+            {{"Polymaker", "PolyLite ASA", "poly-asa"}, {"Bambu Lab", "Bambu PLA", "bambu-pla"}});
         REQUIRE(tiles.size() == kSpoolTiles);
         CHECK(tiles[0].product_id == "poly-asa");
-        CHECK(tiles[0].label == "PolyLite ASA");
+        CHECK(tiles[0].label == "Polymaker PolyLite ASA");
+        CHECK(tiles[1].label == "Bambu PLA");
         CHECK(tiles[1].product_id == "bambu-pla");
         CHECK_FALSE(tiles[2].favorite());
-        CHECK(tiles[2].label == "PLA");
+        CHECK(tiles[2].label == "Generic PLA");
     }
     SECTION("more favorites than tiles: the first in star order") {
         std::vector<FavoriteTile> favs;
         for (int i = 0; i < 15; ++i) {
-            favs.push_back({"F" + std::to_string(i), "id" + std::to_string(i)});
+            favs.push_back({"Brand", "F" + std::to_string(i), "id" + std::to_string(i)});
         }
         const auto tiles = spool_tiles(favs);
         REQUIRE(tiles.size() == kSpoolTiles);
         CHECK(tiles.front().product_id == "id0");
         CHECK(tiles.back().product_id == "id11");
     }
+}
+
+TEST_CASE("a spool tile names its vendor once", "[spool-assign][favorites]") {
+    CHECK(spool_tile_label("Generic", "PLA") == "Generic PLA");
+    CHECK(spool_tile_label("Creality", "CR-PETG") == "Creality CR-PETG");
+    CHECK(spool_tile_label("Bambu Lab", "Bambu ASA") == "Bambu ASA");
+    CHECK(spool_tile_label("Polymaker", "Polymaker PolyLite") == "Polymaker PolyLite");
+    CHECK(spool_tile_label("", "PLA") == "PLA");
 }
