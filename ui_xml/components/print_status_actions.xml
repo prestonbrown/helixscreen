@@ -37,16 +37,45 @@
       <event_cb trigger="clicked" callback="on_print_status_tune"/>
       <bind_state_if_eq subject="print_controls_enabled" state="disabled" ref_value="0"/>
     </ui_button>
-    <!-- Filled gray: the actions behind it are secondary. Hidden when every
-         entry of the menu is. -->
+    <!-- Filled gray: the actions behind it are secondary. Shown only when the
+         menu would list two entries or more; a lone entry gets its own button
+         below. -->
     <ui_button name="btn_more"
                width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
                variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" icon="dots_vertical" text="More"
                icon_position="top">
       <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
-      <bind_flag_if cond="print_status_camera_available or timelapse_owner eq 1 or led_controllable"
-                    flag="hidden" invert="true"/>
+      <bind_flag_if cond="(print_status_camera_available ne 0) + (timelapse_owner eq 1) + (led_controllable ne 0) lt 2"
+                    flag="hidden"/>
       <event_cb trigger="clicked" callback="on_print_status_more"/>
+    </ui_button>
+    <ui_button name="btn_camera"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" icon="webcam" text="Camera"
+               icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if cond="print_status_camera_available ne 0 and timelapse_owner ne 1 and led_controllable eq 0"
+                    flag="hidden" invert="true"/>
+      <event_cb trigger="clicked" callback="on_print_status_open_camera"/>
+    </ui_button>
+    <ui_button name="btn_timelapse"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" bind_icon="timelapse_button_icon"
+               text="Timelapse" icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if cond="timelapse_owner eq 1 and print_status_camera_available eq 0 and led_controllable eq 0"
+                    flag="hidden" invert="true"/>
+      <event_cb trigger="clicked" callback="on_print_status_timelapse"/>
+    </ui_button>
+    <ui_button name="btn_light"
+               width="$btn_w" height="$btn_h" flex_grow="1" style_pad_hor="#space_xxs" style_pad_ver="#space_xxs"
+               variant="ghost" style_bg_color="#elevated_bg" style_bg_opa="255" bind_icon="light_button_icon"
+               text="Light" icon_position="top">
+      <bind_style_if name="button_square" cond="ps_strip_stacked eq 0 and ui_is_ultrawide eq 0"/>
+      <bind_flag_if cond="led_controllable ne 0 and print_status_camera_available eq 0 and timelapse_owner ne 1"
+                    flag="hidden" invert="true"/>
+      <bind_state_if_eq subject="led_command_in_flight" state="disabled" ref_value="1"/>
+      <event_cb trigger="clicked" callback="on_print_status_light"/>
     </ui_button>
     <!-- Cancel while a print runs (outcome NONE), Reprint once it has an outcome. -->
     <ui_button name="btn_cancel"
