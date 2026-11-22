@@ -12,6 +12,7 @@
 #include "ui_panel_motion.h"
 
 #include "ams_state.h"
+#include "content_width_cap.h"
 #include "observer_factory.h"
 #include "static_panel_registry.h"
 #include "target_tool.h"
@@ -297,7 +298,8 @@ bool SideBand::uses_full_width() const {
 
 void SideBand::refresh() {
     const bool lane_tray = content_ == SideBandContent::Ams && has_lane_tray();
-    shows_ = side_band_shows(content_, ultrawide_now(), lane_tray);
+    room_ = has_room();
+    shows_ = room_ && side_band_shows(content_, ultrawide_now(), lane_tray);
     fit_main_column();
 
     // The guest's tree went away without the band (a theme change, memory
@@ -340,6 +342,21 @@ void SideBand::publish() {
     if (subjects_initialized_ && lv_subject_get_int(&shows_subject_) != value) {
         lv_subject_set_int(&shows_subject_, value);
     }
+}
+
+bool SideBand::has_room() const {
+    lv_obj_t* root = host_root_.get();
+    if (!root) {
+        return false;
+    }
+    if (lv_obj_get_width(root) == 0) {
+        // Bound before its first layout pass: measure it now.
+        lv_obj_update_layout(root);
+    }
+    lv_obj_t* screen = lv_obj_get_screen(root);
+    const int32_t ver_res = screen ? lv_obj_get_height(screen) : 0;
+    return side_band_has_room(lv_obj_get_content_width(root), live_content_max_width(root),
+                              ver_res);
 }
 
 void SideBand::fit_main_column() {
@@ -482,7 +499,19 @@ void SideBand::on_band_deleted(lv_event_t* e) {
 }
 
 void SideBand::on_host_size_changed(lv_event_t* e) {
-    static_cast<SideBand*>(lv_event_get_user_data(e))->fit_main_column();
+    auto* self = static_cast<SideBand*>(lv_event_get_user_data(e));
+    self->fit_main_column();
+    // A resize between two ultrawide sizes can open or close the room the band
+    // needs without moving ui_is_ultrawide. Attaching builds a tree, which
+    // waits until the layout pass that sent this event is over, and runs only
+    // if a refresh in between has not already caught up.
+    if (self->has_room() != self->room_) {
+        self->lifetime_.defer("SideBand::on_host_size_changed", [self]() {
+            if (self->subjects_initialized_ && self->has_room() != self->room_) {
+                self->refresh();
+            }
+        });
+    }
 }
 
 } // namespace helix::ui
