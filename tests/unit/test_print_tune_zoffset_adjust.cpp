@@ -41,6 +41,7 @@
 #include "../catch_amalgamated.hpp"
 #include "hv/json.hpp"
 
+using helix::Capability;
 using helix::PrinterState;
 using nlohmann::json;
 
@@ -458,13 +459,15 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     helix::ui::UpdateQueue::instance().drain();
     CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 234.990 mm after Save");
 
-    // A firmware that keeps each head's own offset: the machine-wide value is
-    // not the mounted head's, so the line goes.
+    // A firmware that re-applies each head's own offset: a save folds the
+    // babystep (two steps down so far) into the shared value, so the line
+    // compares against the babystep and not the mounted head's live offset.
     state().profile_state().set_z_offset_per_head(true);
-    overlay.handle_z_adjust(-1);
     helix::ui::UpdateQueue::instance().drain();
-    CHECK(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(line, LV_OBJ_FLAG_HIDDEN));
+    CHECK(std::string(lv_label_get_text(line)) == "Saved 235.000 mm, 235.010 mm after Save");
     state().profile_state().set_z_offset_per_head(false);
+    state().motion_state().clear_pending_z_offset_delta();
 
     state().capabilities_state().set_stepper_z_endstop_microns(0);
     SettingsManager::instance().set_z_offset_save_mode(save_mode);
@@ -638,4 +641,72 @@ TEST_CASE_METHOD(
         CHECK(lv_obj_get_index(child_holding(section, farther)) <
               lv_obj_get_index(child_holding(section, help)));
     }
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: a printer that re-applies each head's offset leads with the babystep",
+                 "[ui_integration][print_tune][tune_inline][per_head]") {
+    // The U1: head 3 is mounted, and the live offset carries its own -0.037.
+    state().set_printer_type_sync("Snapmaker U1");
+    REQUIRE(state().profile_state().z_offset_reapplied_per_head());
+    lv_subject_t* bed_moves = state().capabilities_state().subject(Capability::BedMoves);
+    lv_subject_set_int(bed_moves, 1);
+    set_live_offset(-0.037);
+    set_printing(true);
+    set_homed(true);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    lv_obj_t* z = lv_obj_find_by_name(section, "z_offset_display");
+    REQUIRE(z != nullptr);
+    CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
+
+    // The arrows follow the kinematics while the section shows.
+    lv_subject_t* closer_icon = lv_xml_get_subject(nullptr, "tune_z_closer_icon");
+    REQUIRE(closer_icon != nullptr);
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_expand_up");
+    lv_subject_set_int(bed_moves, 0);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_subject_get_string(closer_icon)) == "arrow_down");
+    lv_subject_set_int(bed_moves, 1);
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Bed up sits above bed down; the head-moves pair's lower button gives way.
+    CHECK_FALSE(
+        lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer"), LV_OBJ_FLAG_HIDDEN));
+
+    get_print_tune_overlay().handle_z_step_select(2); // 0.010mm
+    CHECK(tap_in(section, "btn_z_closer_above", mock_client) ==
+          "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    set_live_offset(-0.047); // Klipper's echo of the step
+    CHECK(std::string(lv_label_get_text(z)) == "-0.010 mm");
+
+    get_print_tune_overlay().handle_z_adjust(1);
+    get_print_tune_overlay().handle_z_adjust(1);
+    helix::ui::UpdateQueue::instance().drain();
+    set_live_offset(-0.027);
+    CHECK(std::string(lv_label_get_text(z)) == "+0.010 mm");
+
+    // The babystep total clearing (a print start, a save) clears the readout
+    // without the live offset moving.
+    state().motion_state().clear_pending_z_offset_delta();
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(std::string(lv_label_get_text(z)) == "0.000 mm");
+
+    lv_obj_delete(section);
+    lv_subject_set_int(bed_moves, 0);
+    state().set_printer_type_sync("");
+}
+
+TEST_CASE_METHOD(PrintTuneZOffsetFixture,
+                 "PrintTune: where the head moves on Z, farther stays above closer",
+                 "[ui_integration][print_tune][tune_inline]") {
+    lv_subject_set_int(state().capabilities_state().subject(Capability::BedMoves), 0);
+    set_live_offset(-0.1);
+    lv_obj_t* section = build_inline_tune(capture_api.get(), state());
+    CHECK(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer_above"), LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_has_flag(lv_obj_find_by_name(section, "btn_z_closer"), LV_OBJ_FLAG_HIDDEN));
+    lv_obj_t* z = lv_obj_find_by_name(section, "z_offset_display");
+    REQUIRE(z != nullptr);
+    CHECK(std::string(lv_label_get_text(z)).find("-0.100") != std::string::npos);
+    lv_obj_delete(section);
 }
