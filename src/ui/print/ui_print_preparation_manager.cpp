@@ -35,6 +35,7 @@
 #include "storage_report_service.h"
 #include "system/telemetry_manager.h"
 #include "three_mf_reader.h"
+#include "timelapse_frame_check.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -172,6 +173,10 @@ PrePrintOptionState PrintPreparationManager::get_option_state(const std::string&
     }
     if (id == helix::kHeatSoakOptionId && start_macro_soaks()) {
         return PrePrintOptionState::NOT_APPLICABLE;
+    }
+
+    if (!forced_off_option_.empty() && id == forced_off_option_) {
+        return PrePrintOptionState::DISABLED;
     }
 
     // 1. Providers take priority: a start's override, then the attached one.
@@ -755,6 +760,9 @@ void PrintPreparationManager::request_scan(const std::string& filename,
         // a large thumbnail block can push the definitions past that.
         scan_result.objects = gcode::collect_exclude_object_defines(content);
         scan_result.fit_head = helix::fit_head_facts(content);
+        scan_result.timelapse_frames = helix::timelapse::frame_calls_in(
+            content, content.size() >= helix::kPrinterStopScanBytes,
+            helix::timelapse::frame_taking_commands());
 
         if (scan_result.operations.empty()) {
             spdlog::debug("[PrintPreparationManager] No embedded operations found in {}", filename);
@@ -912,6 +920,17 @@ PrintPreparationManager::printer_stop_check_for(const std::string& key) const {
     }
     return helix::printer_stop_not_run(
         "the file scan has not answered for the printer's current macros");
+}
+
+helix::timelapse::FrameCalls
+PrintPreparationManager::timelapse_frames_for(const std::string& key) const {
+    // The stop check and the frame check read one macro set, so a current stop
+    // answer vouches for the frame answer beside it.
+    if (!has_printer_stop_answer_for(key)) {
+        return helix::timelapse::FrameCalls::Unknown;
+    }
+    const KeptScan* kept = kept_scan(key);
+    return kept->result ? kept->result->timelapse_frames : helix::timelapse::FrameCalls::Unknown;
 }
 
 void PrintPreparationManager::set_on_scan_answered(helix::Callback<void()> cb) {
@@ -1081,7 +1100,10 @@ void PrintPreparationManager::start_print(const std::string& filename,
     start_params_ = start_params;
     // A start's override answers this one start: every option read happens
     // before this returns, and a later Print tap must read its own rows.
-    const helix::ScopeExit drop_start_override([this]() { start_option_override_ = nullptr; });
+    const helix::ScopeExit drop_start_override([this]() {
+        start_option_override_ = nullptr;
+        forced_off_option_.clear();
+    });
 
     // Snapshot whether this start is under a preparing job. Only then does the
     // job disappearing later mean the user cancelled; a caller that never armed

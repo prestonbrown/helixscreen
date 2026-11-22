@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: VERBINDUNGSTYP
   CONTROLLABLE FANS: STEUERBARE LÜFTER
   Calibrate with this tool?: 'Mit diesem Werkzeug kalibrieren?'
+  Could not switch timelapse to Hyperlapse: 'Zeitraffer konnte nicht auf Hyperlapse umgestellt werden'
   Could not turn the heaters off: Die Heizungen konnten nicht ausgeschaltet werden
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2342,7 +2343,7 @@ translations:
   Humidity inside the enclosure: Feuchtigkeit in der Kammer
   Humidity Sensors: Feuchtigkeitssensoren
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: Hyperlapse erfasst Bilder in festen Zeitintervallen. Gut für sehr lange Drucke.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse nimmt Bilder in festen Zeitabständen auf. Keine Slicer-Einrichtung nötig, aber der Kopf ist dort zu sehen, wo er gerade ist.'
   Hyperspace: Hyperraum
   I understand: Ich habe verstanden
 
@@ -2610,9 +2611,20 @@ translations:
   Layer: Schicht
   Layer 2: 'Schicht 2'
   Layer Height: Schichthöhe
-  Layer Macro captures one frame per layer change. Best for most prints.: Layer-Makro erfasst ein Bild pro Schichtwechsel. Am besten für die meisten Drucke.
   Layer Pause: 'Schichtpause'
-  Layer mode captures one frame per layer change. Best for most prints.: Schichtmodus nimmt ein Bild pro Schichtwechsel auf. Am besten für die meisten Drucke.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.
+
+    Füge es in den Schichtwechsel-G-Code deines Slicers ein:
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist.'
   Layer {} of {} · {:.2f} mm: Schicht {} von {} · {:.2f} mm
   Layer {} of {}.: 'Schicht {} von {}.'
   Layer {}, Z {:.2f} mm: Schicht {}, Z {:.2f} mm
@@ -3036,6 +3048,7 @@ translations:
   No Power Devices: Keine Stromgeräte
   No Spool: Keine Spule
   No Spools: Keine Spulen
+  No Timelapse Frames: 'Keine Zeitrafferbilder'
   No USB printer detected: Kein USB-Drucker erkannt
   No USB printers found: Keine USB-Drucker gefunden
   No actions right now: 'Gerade keine Aktionen'
@@ -3139,7 +3152,6 @@ translations:
   No vendors found: Keine Hersteller gefunden
   No verified bypass command for this CFS firmware: 'Kein verifizierter Bypass-Befehl für diese CFS-Firmware'
   No video player installed - showing the timelapse library: 'Kein Videoplayer installiert – Zeitraffer-Bibliothek wird angezeigt'
-  No video player on this printer: 'Kein Videoplayer auf diesem Drucker'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Keine Webcam erkannt.\nEine Webcam wird für Zeitraffer benötigt."
   No widgets found: Keine Widgets gefunden
@@ -3259,6 +3271,7 @@ translations:
   Objects: Objekte
   Objects in the print, with a tap to open the skip map: 'Objekte des Drucks, per Tipp zur Überspringen-Karte'
   'Off': Aus
+  Off for This Print: 'Für diesen Druck aus'
   'Off:': 'Aus:'
   'Off: runs with these values without asking': 'Aus: führt diese Werte aus, ohne zu fragen'
   Offer to save Z-offset changes to the printer config: 'Anbieten, Z-Offset-Änderungen in der Druckerkonfiguration zu speichern'
@@ -5088,6 +5101,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
   Timelapse did not start: 'Zeitraffer nicht gestartet'
   Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Der Zeitraffer steht noch auf Hyperlapse. Stelle ihn unter Einstellungen > Drucken > Zeitraffer zurück.'
   Timelapse or logs folder overlaps a protected one.: "Timelapse- oder Log-Ordner überschneidet sich mit einem geschützten Ordner."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Das Zeitraffer-Plugin ist installiert. Für Videos wird außerdem ffmpeg benötigt, das auf diesem Drucker nicht installiert ist.'
   The tool change under way finished, and the tool was not parked: 'Der laufende Werkzeugwechsel wurde abgeschlossen, und das Werkzeug wurde nicht geparkt'
@@ -5190,6 +5204,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Diese Datei druckt {0} und {1} zusammen. Die Kammer- und Betttemperatur für {1} kann {0} erweichen und seine Düse verstopfen.'
   This file was sliced for {} but {} is loaded.: Diese Datei wurde für {} gesliced, aber {} ist geladen.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Diese Datei wurde für {} gesliced, aber {} ist geladen. Der Druck erfolgt langsamer und heißer, als die geladene Spule benötigt.
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Diese Datei nimmt keine Zeitrafferbilder auf. Der Schichtmodus nimmt nur ein Bild auf, wenn die Datei bei jedem Schichtwechsel diese Zeile ausführt, und dein Slicer hat sie nicht eingefügt:
+
+    TIMELAPSE_TAKE_FRAME
+
+    Hyperlapse nimmt stattdessen Bilder in festen Zeitabständen auf.'
   This firmware can only switch slots by loading them: 'Diese Firmware kann Slots nur durch Laden wechseln'
   The filament took too long to reach the feeder's sensor.: 'Das Filament brauchte zu lange bis zum Sensor der Zuführung.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Das Filament wurde an der Zuführung vorbei in den Werkzeugkopf geschoben. Lade es von Hand."
@@ -5225,7 +5245,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Dieser Drucker hat noch keinen [save_variables]-Speicher. Aktualisiere die Hilfsmakros, um einen hinzuzufügen, und starte dann Klipper neu."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Dieser Drucker hat kein automatisches Entladen. Schneiden Sie das Filament am Werkzeugkopf ab und ziehen Sie es von Hand heraus.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Dieser Drucker hat keine Zeitzone, daher zeigt seine Uhr UTC. Wähle deine."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Dieser Drucker hat keinen Videoplayer. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Dieser Drucker hat keinen Befehl {}, daher kann der Z-Offset nicht gespeichert werden.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Dieser Drucker sieht aus wie ein {} ({}% Konfidenz), ist aber als {} eingerichtet. Ein falscher Typ wendet falsche Optionen und Voreinstellungen für die Druckvorbereitung an.
@@ -5253,6 +5272,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Dadurch wird das Startbildschirm-Layout dieses Bildschirms für diesen Drucker durch das Layout vom Bildschirm des Druckers ersetzt."
   This resume needs a newer version of HelixScreen.: Dieses Fortsetzen braucht eine neuere Version von HelixScreen.
   This screen: 'Dieser Bildschirm'
+  This screen can't play videos: 'Dieser Bildschirm kann keine Videos abspielen'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Dieser Bildschirm kann keine Videos abspielen. Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen.'
   This slot feeds no tool: 'Dieser Slot versorgt kein Werkzeug'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Diese Spule ist leer, daher kann das CFS das restliche Filament nicht zurückziehen.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Die Spulendetails wurden noch nicht aus Spoolman geladen. Tippe erneut auf Speichern.'
@@ -5567,6 +5588,7 @@ translations:
   Use Another Toolhead: 'Anderen Werkzeugkopf verwenden'
   Use DHCP: 'DHCP verwenden'
   Use G10/G11 firmware retraction: G10/G11-Firmware-Retraktion verwenden
+  Use Hyperlapse: 'Hyperlapse nutzen'
   Use New Address: 'Neue Adresse verwenden'
   Use Unload before Eject: 'Verwenden Sie Entladen vor Auswerfen'
   Use as bypass: "Als Bypass nutzen"

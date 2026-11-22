@@ -63,9 +63,9 @@ std::vector<std::string> build_player_args(const std::string& player, const std:
 
 /// What a tap on a timelapse video does on this host.
 enum class VideoOpenAction {
-    Play,          ///< An external player exists: launch it
-    PhoneQr,       ///< No player: show a QR code of the video's URL for a phone
-    NoPlayerToast, ///< No player and no URL a phone could reach: say so
+    Play,    ///< A player this screen can show: launch it
+    PhoneQr, ///< No player this screen can show: show a QR code of the video's URL for a phone
+    NoPlayerToast, ///< No player it can show and no URL a phone could reach: say so
 };
 
 /// The one rule both entry points (the library's card tap and History) follow.

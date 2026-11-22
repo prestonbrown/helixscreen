@@ -423,6 +423,7 @@ struct TimelapseSettings {
     std::string mode = "layermacro";  ///< "layermacro" (per-layer) or "hyperlapse" (time-based)
     int output_framerate = 30;        ///< Output video framerate (15/24/30/60)
     bool autorender = true;           ///< Auto-render video when print completes
+    bool parkhead = false;            ///< Park the head for each frame
     int park_retract_distance = 1;    ///< Retract distance before parking (mm)
     double park_extrude_speed = 15.0; ///< Extrude speed after unpark (mm/s)
 

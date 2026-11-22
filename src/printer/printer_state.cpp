@@ -37,6 +37,7 @@
 #include "runtime_config.h"
 #include "settings_manager.h"
 #include "system/crash_handler.h"
+#include "timelapse_state.h"
 #include "unit_conversions.h"
 #include "z_offset_persistence.h"
 
@@ -651,6 +652,10 @@ void PrinterState::set_timelapse_available(bool available) {
         apply_dynamic_options();
         update_gcode_modification_visibility();
     });
+}
+
+void PrinterState::set_timelapse_mode(const std::string& mode) {
+    TimelapseState::instance().set_mode(mode);
 }
 
 void PrinterState::set_timelapse_default_enabled(bool enabled) {

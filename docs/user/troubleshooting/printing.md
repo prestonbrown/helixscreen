@@ -192,6 +192,17 @@ Re-slice your file after adding these, the commands are baked into the G-code at
 
 > **Z-hops do not move the estimate.** When the layer is worked out from the nozzle height, a new layer shows only once the nozzle has stayed at that height for about a second and a half of printing, so the quick lift of a Z-hop on every travel move does not bump the count up and back. The counter steps to each new layer that much after the layer change.
 
+### The timelapse video is only a few frames long
+
+**Symptoms:**
+- A timelapse of a long print plays for a second or less
+- The render section shows only a handful of captured frames
+
+**Cause:**
+The timelapse is in Layer mode, which takes a picture only when the print file runs `TIMELAPSE_TAKE_FRAME`. Your slicer did not add that line, so almost nothing was captured.
+
+**Fix:** add `TIMELAPSE_TAKE_FRAME` to your slicer's layer change G-code and re-slice, or switch **Settings > Printing > Timelapse > Recording Mode** to **Hyperlapse**. The menu path for each slicer is in [Timelapse](../guide/timelapse.md#set-up-your-slicer-for-layer-mode).
+
 ### Time remaining is inaccurate or slow to settle
 
 **Symptoms:**

@@ -26,6 +26,7 @@ Older links and bookmarks land on this page. Each entry below points to where th
 
 <a id="layer-count-is-wrong-stuck-at-0-or-total-layers-missing"></a>
 - Layer count is wrong, stuck at 0, or total layers missing: [printing](troubleshooting/printing.md#the-layer-count-is-wrong-stuck-at-0-or-the-total-is-missing)
+- Timelapse video is only a few frames long: [printing](troubleshooting/printing.md#the-timelapse-video-is-only-a-few-frames-long)
 
 <a id="reset-helixscreen-or-re-run-the-setup-wizard"></a>
 - Reset HelixScreen or re-run the setup wizard: [settings-config](troubleshooting/settings-config.md#reset-helixscreen-or-re-run-the-setup-wizard)

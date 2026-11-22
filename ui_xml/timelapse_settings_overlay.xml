@@ -33,15 +33,13 @@
                               label="Recording Mode" icon="layers"
                               description="Choose how frames are captured during printing"
                               options="Layer&#10;Hyperlapse" options_tag="Layer&#10;Hyperlapse"
-                              callback="on_timelapse_mode_changed"/>
+                              callback="on_timelapse_mode_changed" info_callback="on_timelapse_mode_info"/>
         <!-- Mode info box -->
         <lv_obj name="mode_info_container"
                 width="100%" height="content" style_bg_color="#overlay_bg" style_radius="#border_radius"
                 style_pad_all="#space_md" scrollable="false" flex_flow="column" style_pad_gap="#space_xs"
                 style_margin_left="#space_lg" style_margin_right="#space_lg" style_margin_bottom="#space_md">
-          <text_small name="mode_info_text"
-                      width="100%" text="Layer mode captures one frame per layer change. Best for most prints."
-                      style_text_color="#text_muted" long_mode="wrap"/>
+          <text_small name="mode_info_text" width="100%" text="" style_text_color="#text_muted" long_mode="wrap"/>
         </lv_obj>
         <!-- ================================================================== -->
         <!-- FRAMERATE -->

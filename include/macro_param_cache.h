@@ -9,6 +9,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -92,6 +93,10 @@ class MacroParamCache {
     /// line of its template or of a macro it calls. False when configfile
     /// carried no body for it.
     [[nodiscard]] bool macro_runs(const std::string& macro_name, const std::string& command) const;
+
+    /// Upper-case names of the macros that run @p command (case-insensitive), as
+    /// macro_runs() answers it for each.
+    [[nodiscard]] std::set<std::string> macros_running(const std::string& command) const;
 
     /// Upper-case names of the macros whose template stops the printer, each with
     /// its stop message (empty when not a literal).

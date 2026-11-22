@@ -16,6 +16,7 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_panel_print_status.h"
+#include "ui_print_gate_choice_modal.h"
 #include "ui_print_preparation_manager.h"
 #include "ui_print_select_detail_view.h"
 
@@ -42,6 +43,7 @@
 #include "print_job_ref.h"
 #include "printer_state.h"
 #include "system/helix_paths.h"
+#include "timelapse_state.h"
 #include "tool_state.h"
 
 #include <spdlog/spdlog.h>
@@ -191,6 +193,7 @@ void PrintStartController::initiate() {
     // controller.
     abandon_pending_reprint();
     end_live_reprint_gates();
+    timelapse_choice_.reset();
 
     // Ordered pre-print gate pipeline: insufficient spool weight, bypass
     // engaged on a lane print, unaccounted toolhead filament, required
@@ -271,9 +274,13 @@ void PrintStartController::execute_print_start() {
     // the background-thread completion chain cannot dangle.
     PrinterState* ps = &printer_state_;
 
+    const std::optional<helix::GateChoice> timelapse_choice = timelapse_choice_;
+    timelapse_choice_.reset();
+
     auto start_now = [this, ps, prep_manager, filename_to_print, path = path_, thumbnail_path,
                       on_started, on_cancelled, update_button, show_detail, exclude_picks,
-                      scan_key = file_scan_key(), start_params, primary_material]() {
+                      scan_key = file_scan_key(), start_params, primary_material,
+                      timelapse_choice]() {
         // Navigate to print status panel IMMEDIATELY (optimistic navigation)
         // The busy overlay will show on top during download/upload operations.
         // On failure, we'll navigate back to the detail overlay.
@@ -294,6 +301,16 @@ void PrintStartController::execute_print_start() {
 
         helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
             api_, primary_material, gcode::join_gcode_path(path, filename_to_print));
+
+        if (timelapse_choice == helix::GateChoice::TimelapseOff && api_) {
+            // Owed before the start sends enabled=False, so the flag comes back
+            // at this print's end even across a restart.
+            helix::TimelapseState::instance().begin_print_without_timelapse(
+                api_->timelapse(), printer_state_.print_state().get_print_lifecycle_subject(),
+                printer_state_.get_subjects_lifetime());
+            prep_manager->force_start_option_off("timelapse");
+        }
+        const bool hyperlapse = timelapse_choice == helix::GateChoice::TimelapseHyperlapse;
 
         prep_manager->start_print(
             filename_to_print, path,
@@ -339,11 +356,12 @@ void PrintStartController::execute_print_start() {
                 exclude_picks),
             // Completion callback
             // NOTE: Called from background HTTP thread - must defer LVGL calls to main thread
-            [update_button, show_detail, on_cancelled, ps, api = api_](bool success,
-                                                                       const std::string& error) {
+            [update_button, show_detail, on_cancelled, ps, api = api_,
+             hyperlapse](bool success, const std::string& error) {
                 helix::ui::queue_update(
                     "PrintStartController::execute_print_start",
-                    [success, error, update_button, show_detail, on_cancelled, ps, api]() {
+                    [success, error, update_button, show_detail, on_cancelled, ps, api,
+                     hyperlapse]() {
                         // Not end_without_print(): that runs before any navigation, and
                         // refreshes the button and reports the cancel together. Here every
                         // failure reports the cancel, an abandoned start (no error) included,
@@ -355,6 +373,14 @@ void PrintStartController::execute_print_start() {
                         if (!success) {
                             helix::material_zoffset::MaterialZOffsetState::instance()
                                 .note_screen_start_failed(api);
+                            helix::TimelapseState::instance().start_ended_without_print();
+                        }
+                        if (success && hyperlapse && api) {
+                            // The plugin starts its Hyperlapse timer when the mode
+                            // changes mid-print, so the switch waits for the start.
+                            helix::TimelapseState::instance().record_print_as_hyperlapse(
+                                api->timelapse(), ps->print_state().get_print_lifecycle_subject(),
+                                ps->get_subjects_lifetime());
                         }
                         if (success) {
                             // Deliberately does NOT end preparation: the RPC
@@ -1087,6 +1113,16 @@ helix::PrintStartContext PrintStartController::gather_print_start_context() cons
     } else {
         ctx.printer_stop.not_run_reason = "no file scanner";
     }
+    if (auto* prep = active_prep_manager()) {
+        // The option exists only while moonraker-timelapse records this printer.
+        ctx.timelapse_on = prep->get_option_state("timelapse") == PrePrintOptionState::ENABLED &&
+                           timelapse_choice_ != helix::GateChoice::TimelapseOff;
+        if (!reprint_gates_ && ctx.has_file_facts) {
+            ctx.timelapse_frames = prep->timelapse_frames_for(file_scan_key());
+        }
+    }
+    ctx.timelapse_layer_mode = helix::TimelapseState::instance().layer_mode() &&
+                               timelapse_choice_ != helix::GateChoice::TimelapseHyperlapse;
     if (ctx.ams_manages_filament && ctx.has_active_backend) {
         ctx.empty_required_lanes =
             helix::FilamentSensorManager::instance().find_empty_required_lanes(ctx.tools_used,
@@ -1142,6 +1178,42 @@ void PrintStartController::run_gates_from(size_t index) {
         // print button comes back and nothing starts, including a backdrop tap
         // or ESC.
         auto cancel = [this] { on_gate_cancel(); };
+
+        if (result.verdict == helix::CheckResult::Verdict::Warn &&
+            result.alternatives.size() == 2) {
+            // Each callback runs from the dialog's own handler while the
+            // controller is alive; the token keeps a late one from reaching it.
+            auto tok = lifetime_.token();
+            auto guarded = [tok](auto fn) {
+                return [tok, fn]() {
+                    if (!tok.expired()) {
+                        fn();
+                    }
+                };
+            };
+            const auto first = result.alternatives[0].choice;
+            const auto second = result.alternatives[1].choice;
+            helix::ui::PrintGateChoiceModal::Config config;
+            config.title = result.title;
+            config.message = result.body;
+            config.first_choice = result.alternatives[0].label;
+            config.second_choice = result.alternatives[1].label;
+            config.proceed = result.proceed_label;
+            config.on_first = guarded([this, first] { on_gate_choice(first); });
+            config.on_second = guarded([this, second] { on_gate_choice(second); });
+            config.on_proceed = guarded([this] { on_gate_proceed(); });
+            config.on_cancel = guarded(cancel);
+            print_gate_modal_ = helix::ui::PrintGateChoiceModal::show_owned(std::move(config));
+            if (!print_gate_modal_) {
+                spdlog::error("[PrintStartController] Failed to create gate dialog for '{}'",
+                              gate_list_[i].name);
+                end_gate_run_without_print();
+                return;
+            }
+            spdlog::debug("[PrintStartController] Gate '{}' offered choices - showing dialog",
+                          gate_list_[i].name);
+            return; // the dialog drives continuation
+        }
 
         if (result.verdict == helix::CheckResult::Verdict::Block) {
             // A hard stop explains itself and offers only OK.
@@ -1210,6 +1282,15 @@ void PrintStartController::on_gate_proceed() {
     // dialog out of that capture.
     lifetime_.defer("PrintStartController::next_gate",
                     [this]() { run_gates_from(gate_resume_index_ + 1); });
+}
+
+void PrintStartController::on_gate_choice(helix::GateChoice choice) {
+    spdlog::info("[PrintStartController] Gate '{}' answered: {}",
+                 gate_list_[gate_resume_index_].name,
+                 choice == helix::GateChoice::TimelapseHyperlapse ? "Hyperlapse for this print"
+                                                                  : "timelapse off");
+    timelapse_choice_ = choice;
+    on_gate_proceed();
 }
 
 void PrintStartController::on_gate_cancel() {

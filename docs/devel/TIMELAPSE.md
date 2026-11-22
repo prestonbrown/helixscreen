@@ -76,6 +76,35 @@ Key patterns:
 
 Settings are read via `GET /machine/timelapse/settings` and saved via `POST /machine/timelapse/settings?param=value` (query string format, not JSON body).
 
+The Recording Mode row's (i) (`info_callback="on_timelapse_mode_info"`) opens an alert explaining that Layer mode needs `TIMELAPSE_TAKE_FRAME` in the slicer's layer change G-code. Every fetch and save, and discovery's `machine.timelapse.get_settings`, records the mode in `TimelapseState::set_mode()`, which the print-start check reads.
+
+---
+
+## Print-Start Frame Check
+
+Layer mode ("layermacro") captures a frame only when the print runs `TIMELAPSE_TAKE_FRAME`. The `timelapse_frames` gate (`gate_timelapse_frames` in `src/printer/print_start_checks.cpp`, last in `default_print_start_gates()`) warns before a print whose file never calls it.
+
+**Detection** (`include/timelapse_frame_check.h`) runs inside the existing bounded head scan (`PrintPreparationManager::request_scan`, `kPrinterStopScanBytes`, off the UI thread) and lands in `ScanResult::timelapse_frames`:
+
+| Verdict | Rule |
+|---------|------|
+| Present | A line's command word is `TIMELAPSE_TAKE_FRAME` or a macro that runs it, directly or through macros it calls (`MacroParamCache::macros_running()`, via `frame_taking_commands()`) |
+| Missing | No such line, and the head reaches an extruding move after the second layer-change comment (`;LAYER_CHANGE`, `; CHANGE_LAYER`, `;LAYER:<n>`, `; layer <n>`), so one complete layer change, wherever the slicer puts its per-layer code, lies inside the head |
+| Unknown | Macros unread, or the head ends sooner. The gate stays silent |
+
+`PrintPreparationManager::timelapse_frames_for()` answers Unknown unless the scan's printer-stop answer is current for the macro set, since both read the same macros.
+
+**The gate** warns only when the `timelapse` pre-print option is on, `TimelapseState::layer_mode()` is true and the verdict is Missing. Its `CheckResult::alternatives` (Use Hyperlapse, Off for This Print) make the controller show `PrintGateChoiceModal` (`ui_xml/components/print_gate_choice_modal.xml`) instead of the two-button confirm.
+
+**The choices** are carried by `PrintStartController::timelapse_choice_` into the start:
+
+- **Off for This Print**: before `start_print()`, `TimelapseState::begin_print_without_timelapse()` owes `enabled` back, then `PrintPreparationManager::force_start_option_off("timelapse")` makes that one start send the usual `timelapse:off` write.
+- **Use Hyperlapse**: once Moonraker accepts the start, `TimelapseState::record_print_as_hyperlapse()` reads the plugin's settings and switches `mode` to hyperlapse and, when it is on, `parkhead` off (parking would stop the print at every timed frame). The plugin has no per-print settings, but a mode POST during a print starts or stops its HYPERLAPSE loop at once (`webrequest_settings` in the plugin's component, [timelapse.py](https://github.com/mainsail-crew/moonraker-timelapse/blob/main/component/timelapse.py)), so switching after the start is safe.
+
+**What is owed back** is one record per printer (`helix::pending_restore`, key `timelapse/pending_mode_restore`, the store the U1 runout switch uses), written before the switch is sent: each changed setting with the user's value and the value the switch set (`timelapse::OwedSetting`). The print's end is watched with a `PrintEndLatch` (only Printing/Paused count as running, since Preparing can show over the previous job's end). At that end, or at a `start_ended_without_print()` for a start that never ran, or at the `timelapse_mode_restore` discovery step after a restart, `settle_mode_restore()` follows `timelapse::mode_restore_step()`: kept while a print runs or nothing is reported (a watch counts only once it has seen its print run); once idle, it reads the plugin and writes back every owed setting that still holds the switched value (`settings_to_restore()`); a setting the user changed since is left alone. A mode picked in the settings overlay calls `forget_mode_restore()`.
+
+Every plugin read and write from `TimelapseState` goes through one queue (`queue_plugin_op()`), so a switch can neither land before an earlier switch-back nor read settings a write in flight is about to change, and a generation counter keeps a late switch-back answer from clearing a newer record.
+
 ---
 
 ## Print Status Toggle
@@ -99,6 +128,7 @@ The timelapse methods are on the `ITimelapseAPI` sub-API (`api->timelapse()`, de
 | `get_timelapse_settings()` | GET | `/machine/timelapse/settings` |
 | `set_timelapse_settings()` | POST | `/machine/timelapse/settings?params...` |
 | `set_timelapse_enabled()` | POST | `/machine/timelapse/settings?enabled=True/False` |
+| `set_timelapse_values()` | POST | `/machine/timelapse/settings?mode=...&parkhead=...` |
 | `get_webcam_list()` | GET | `/server/webcams/list` |
 | `restart_moonraker()` | POST | `/server/restart` |
 | `render_timelapse()` | POST | `/machine/timelapse/render` |
@@ -217,6 +247,13 @@ not by a hostname check in the thumbnailer.
 | `src/api/moonraker_timelapse_api.cpp` | HTTP API methods for timelapse |
 | `src/api/moonraker_api_controls.cpp` | Contains `restart_moonraker()` |
 | `tests/unit/test_timelapse_install.cpp` | Config parsing tests |
+| `include/timelapse_frame_check.h` | File-head frame-call check for the print-start gate |
+| `src/rendering/timelapse_frame_check.cpp` | Its implementation |
+| `include/ui_print_gate_choice_modal.h` | Four-button print-start gate dialog |
+| `tests/unit/test_timelapse_frame_check.cpp` | Frame check, gate decision and Hyperlapse restore latch tests |
+| `include/printer_pending_restore.h` | Per-printer store for a setting the app owes back (Hyperlapse switch-back, U1 runout switch) |
+| `tests/unit/test_timelapse_mode_restore.cpp` | Owed settings: restart mid-print, user's own changes, in-session switch and switch-back, failed start, ordering |
+| `tests/unit/test_timelapse_gate_choice.cpp` | The choice dialog's close semantics and the controller's handling of its buttons |
 | `ui_xml/advanced_panel.xml` | Timelapse/Setup rows (capability-gated on `printer_has_timelapse`) |
 | `include/timelapse_state.h` | TimelapseState singleton class |
 | `src/printer/timelapse_state.cpp` | Event dispatch, subject management, render notifications |
