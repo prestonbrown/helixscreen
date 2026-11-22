@@ -60,6 +60,7 @@
 #include "display_format.h"
 #include "i_moonraker_api.h"
 #include "printer_state.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_slot_saver.h"
 #include "spoolman_types.h"
 #include "theme_manager.h"
@@ -700,6 +701,7 @@ void AmsEditOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(seg_count_subject_, 1, "ams_edit_seg_count", subjects_);
         UI_MANAGED_SUBJECT_INT(seg_selected_subject_, 0, "ams_edit_seg_selected", subjects_);
         UI_MANAGED_SUBJECT_INT(color_mode_subject_, 0, "ams_edit_color_mode", subjects_);
+        UI_MANAGED_SUBJECT_INT(translucent_subject_, 0, "ams_edit_translucent", subjects_);
         // The spool tiles, the common spools until favorites are known.
         refresh_spool_tiles();
 
@@ -1701,7 +1703,8 @@ void AmsEditOverlay::render_spool_list(const std::string& filter) {
         if (lv_obj_t* canvas = lv_obj_find_by_name(item, "row_spool")) {
             const uint32_t rgb = helix::parse_hex_color(spool.color_hex).value_or(0x808080);
             spool_canvas_set_filament(canvas, rgb, spool.multi_color_hexes,
-                                      helix::ui::swatch_finish(spool.finish()));
+                                      helix::ui::swatch_finish(spool.finish()),
+                                      spool.is_translucent());
             const double total = spool.initial_weight_g;
             ui_spool_canvas_set_fill_level(
                 canvas, total > 0 ? static_cast<float>(spool.remaining_weight_g / total) : 1.0f);
@@ -2377,6 +2380,7 @@ void AmsEditOverlay::update_summary() {
         drawn.color_rgb = colors.front();
         drawn.multi_color_hexes = colors.size() >= 2 ? join_color_list(colors) : std::string();
         drawn.color_mode = colors.size() >= 2 ? draft_mode() : std::string();
+        drawn.translucent = draft_translucent();
         spool_canvas_set_filament(spool, drawn);
         ui_spool_canvas_set_fill_level(spool, static_cast<float>(pct) / 100.0f);
     }
@@ -2501,13 +2505,15 @@ void AmsEditOverlay::update_ui() {
 }
 
 bool AmsEditOverlay::selection_dirty() const {
-    return selection_moved_ || details_color_set_ || multi_set_;
+    return selection_moved_ || details_color_set_ || multi_set_ ||
+           (translucent_set_ && draft_translucent_ != working_info_.translucent);
 }
 
 bool AmsEditOverlay::is_dirty() const {
     const bool identity_dirty = working_info_.color_rgb != original_info_.color_rgb ||
                                 working_info_.material != original_info_.material ||
                                 working_info_.brand != original_info_.brand ||
+                                working_info_.translucent != original_info_.translucent ||
                                 working_info_.spoolman_id != original_info_.spoolman_id;
     const bool weight_dirty =
         std::abs(working_info_.remaining_weight_g - original_info_.remaining_weight_g) > 0.1f ||
@@ -2749,7 +2755,16 @@ void AmsEditOverlay::reset_color_draft() {
     multi_set_ = false;
     draft_multi_.clear();
     draft_mode_.clear();
+    translucent_set_ = false;
+    draft_translucent_ = false;
     selected_seg_ = 0;
+}
+
+void AmsEditOverlay::handle_translucent(bool on) {
+    translucent_set_ = true;
+    draft_translucent_ = on;
+    update_summary();
+    update_sync_button_state();
 }
 
 void AmsEditOverlay::set_draft_colors(const std::vector<uint32_t>& picked) {
@@ -2953,6 +2968,7 @@ void AmsEditOverlay::update_color_row() {
     set_int(multi_subject_, editable ? 1 : 0);
     set_int(multi_capable_subject_, capable ? 1 : 0);
     set_int(color_mode_subject_, draft_mode() == helix::color_mode::kCoaxial ? 1 : 0);
+    set_int(translucent_subject_, draft_translucent() ? 1 : 0);
 
     // As many recents as size_color_row() measured room for.
     // The newest recents first, then the color page's filament palette to fill
@@ -3617,6 +3633,9 @@ bool AmsEditOverlay::needs_identity_confirmation(const SlotInfo& original, const
 }
 
 void AmsEditOverlay::stage_pending_color_into_working() {
+    if (translucent_set_) {
+        working_info_.translucent = draft_translucent_;
+    }
     if (multi_set_) {
         std::vector<uint32_t> list = split_color_list(draft_multi_);
         if (list.size() >= 2) {
@@ -4298,7 +4317,8 @@ void AmsEditOverlay::run_spoolman_save(const SaveCapture& cap,
                     repointed.vendor = spool_now.brand;
                     repointed.material = spool_now.material;
                     repointed.filament_name = spool_now.spool_name;
-                    repointed.color_hex = helix::color_to_hex_string(spool_now.color_rgb);
+                    repointed.color_hex = "#" + helix::spoolman::color_hex_for(
+                                                    spool_now.color_rgb, spool_now.translucent);
                     if (auto* owner = AmsState::instance().get_backend()) {
 #if !defined(HELIX_PLATFORM_ESP32)
                         // spoolman_manager.cpp is scoped out of the ESP32
@@ -4519,6 +4539,11 @@ void AmsEditOverlay::register_callbacks() {
         {"ams_edit_multi_switch_cb",
          [](lv_event_t* e) {
              get_ams_edit_overlay().handle_multi_switch(
+                 lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
+         }},
+        {"ams_edit_translucent_cb",
+         [](lv_event_t* e) {
+             get_ams_edit_overlay().handle_translucent(
                  lv_obj_has_state(lv_event_get_target_obj(e), LV_STATE_CHECKED));
          }},
         {"ams_edit_color_mode_cb",

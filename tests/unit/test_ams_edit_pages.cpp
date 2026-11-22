@@ -759,6 +759,36 @@ TEST_CASE_METHOD(PagesFixture,
 }
 
 TEST_CASE_METHOD(PagesFixture,
+                 "the color page's Translucent checkbox is staged, and Save commits it",
+                 "[ams_edit_overlay][pages][translucent]") {
+    open(0, describe_lane(*backend, 0, "PETG"));
+    REQUIRE_FALSE(backend->get_slot_info(0).translucent);
+    access.call_open_color_page();
+    settle();
+    auto& page = helix::ui::get_color_picker_page();
+    REQUIRE(page.view().attached());
+    lv_obj_t* box = lv_obj_find_by_name(page.get_root(), "translucent_check");
+    REQUIRE(box != nullptr);
+    CHECK_FALSE(lv_obj_has_state(box, LV_STATE_CHECKED));
+
+    lv_obj_add_state(box, LV_STATE_CHECKED);
+    lv_obj_send_event(box, LV_EVENT_VALUE_CHANGED, nullptr);
+    settle();
+    // Staged: Save lights, the lane waits.
+    CHECK(access.is_dirty());
+    CHECK_FALSE(backend->get_slot_info(0).translucent);
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_translucent")) == 1);
+
+    NavigationManager::instance().go_back();
+    settle();
+    process_lvgl(400);
+    access.call_handle_save();
+    settle();
+    CHECK(backend->get_slot_info(0).translucent);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture,
                  "the card says the material once: not again under a product that names it",
                  "[ams_edit_overlay][pages][card]") {
     SlotInfo lane = describe_lane(*backend, 1, "ASA");

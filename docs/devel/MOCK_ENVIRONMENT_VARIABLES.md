@@ -1165,7 +1165,7 @@ Select the mock AMS visual scenario.
 
 | Property | Value |
 |----------|-------|
-| **Values** | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade`, `blocked`, `disconnected`, `feeder`, `finishes` |
+| **Values** | `idle`, `loading`, `error`, `bypass`, `unaccounted`, `grade`, `blocked`, `disconnected`, `feeder`, `finishes`, `translucent` |
 | **Default** | `idle` (slot 0 loaded, slot 3 empty, others available) |
 | **File** | `src/printer/ams_backend.cpp` |
 
@@ -1180,6 +1180,7 @@ Select the mock AMS visual scenario.
 | `feeder` | Lane 3's filament waits at its feeder: its entry sensor reads it, its toolhead has not taken it (`PREP`). Shows the PARALLEL entry band with `HELIX_MOCK_AMS=snapmaker` |
 | `disconnected` | The last unit reports itself offline: its overview card ghosts with a "Disconnected" chip, and the detail header carries the chip. With one unit, the AMS panel header does |
 | `finishes` | One lane per swatch finish (silk, marble, sparkle, matte) plus a three-colour silk and a two-colour lane, repeating across the lanes, named for their colours and unlinked from Spoolman: every surface that paints a spool shows each (`docs/devel/COLOR_SWATCHES.md`) |
+| `translucent` | Lane 1 (loaded) holds a translucent red PETG and lane 2 a clear PETG, both `SlotInfo::translucent` and unlinked from Spoolman: the checkerboard on every surface that paints a spool, beside opaque lanes (`docs/devel/COLOR_SWATCHES.md` § "Translucent filament") |
 | `absent` | The last unit's bays are reserved but its box is not on the bus: its slots take the disabled state, and a unit drawn from its baked art dims each spool |
 | `grade` | Every lane holds `PLA-CF` instead of its usual filament — same compat group, so the mapper routes a PLA tool exactly as before and the print-start **grade** dialog is what fires. All four lanes, not one, because a tool lands on a lane by colour and then by positional fallback over the file's whole palette |
 

@@ -19,6 +19,7 @@
 #include "core/subject.h"
 #include "i_moonraker_api.h"
 #include "lvgl.h"
+#include "spoolman_catalog_search.h"
 #include "spoolman_slot_saver.h"
 #include "theme_manager.h"
 
@@ -304,7 +305,8 @@ void SpoolEditModal::update_spool_preview() {
     uint32_t rgb = helix::parse_hex_color(working_spool_.color_hex)
                        .value_or(lv_color_to_u32(theme_manager_get_color("text_muted")) & 0xFFFFFF);
     helix::ui::spool_canvas_set_filament(canvas, rgb, working_spool_.multi_color_hexes,
-                                         helix::ui::swatch_finish(working_spool_.finish()));
+                                         helix::ui::swatch_finish(working_spool_.finish()),
+                                         working_spool_.is_translucent());
 
     // Set fill level from remaining weight; an unweighed spool draws full, the
     // same answer SlotInfo::display_fill_level() gives for a lane with no weights.
@@ -509,9 +511,10 @@ void SpoolEditModal::handle_color_clicked() {
 
     color_picker_.set_color_callback([this](uint32_t color_rgb, const std::string& color_name) {
         // Update working spool with new color
-        char hex_buf[8];
-        snprintf(hex_buf, sizeof(hex_buf), "%06X", color_rgb);
-        working_spool_.color_hex = std::string("#") + hex_buf;
+        // A translucent filament stays translucent under a new color.
+        const bool translucent = working_spool_.is_translucent();
+        working_spool_.color_hex =
+            std::string("#") + helix::spoolman::color_hex_for(color_rgb, translucent);
         // One picked color replaces a multi-color filament's list, so the
         // save sends color_hex and clears the list.
         working_spool_.multi_color_hexes.clear();
