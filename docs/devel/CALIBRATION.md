@@ -105,12 +105,16 @@ adjusts each kept row for this printer:
 - **The Z offset step becomes hands-on** with a paper prerequisite when it is a paper test: the
   strategy is not `FIRMWARE_MANAGED` and the Z probe does not measure with the nozzle itself
   (`z_offset_is_paper_test()`).
+- **Z offset is absent** when the printer's firmware sets the nozzle height from its probe
+  (`probe_sets_nozzle_height()`: Creality's PRTouch on the K1 and K2 series). Nothing is left to
+  calibrate there, so neither the Calibration screen nor the guided run offers it.
 - **A database tier replaces the default tier** for any step the printer's entry names.
 
 `CatalogInputs` is plain data so the catalog is testable without a printer.
 `catalog_inputs_from()` (`src/printer/calibration_catalog_inputs.cpp#catalog_inputs_from`) fills
 it from the capability subjects, the profile state (Z offset strategy, per-head offsets), the
-enabled Z probe's type (`probe_contacts_nozzle()`), and the database tiers.
+enabled Z probe's type (`probe_contacts_nozzle()`, `probe_sets_nozzle_height()`), and the
+database tiers.
 `current_printer_steps(state)` is `applicable_steps(catalog_inputs_from(state))`, which is what
 the Calibration screen, the guided run and the setup page all call.
 

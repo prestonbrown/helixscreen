@@ -415,6 +415,7 @@ void ProbeOverlay::update_display_subjects() {
         type_label = "Piezo Contact Probe";
         break;
     case ProbeSensorType::PRTOUCH_V2:
+    case ProbeSensorType::PRTOUCH_V3:
         type_label = "Creality Pressure Probe";
         break;
     case ProbeSensorType::LOADCELL:

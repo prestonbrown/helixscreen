@@ -817,7 +817,7 @@ TEST_CASE_METHOD(ProbeSensorTestFixture,
         discover({"probe", "prtouch_v3"});
         apply_database_override();
         REQUIRE(mgr().get_sensors().size() == 1);
-        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::STANDARD);
+        CHECK(mgr().get_sensors()[0].type == ProbeSensorType::PRTOUCH_V3);
 
         ProbeSensorManagerTestAccess::reset(mgr());
         discover({"cartographer"});

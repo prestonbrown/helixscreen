@@ -11,7 +11,8 @@ namespace helix::calibration {
 
 namespace {
 
-bool z_probe_contacts_nozzle() {
+/// The Z probe's type, or STANDARD when the printer reports no probe sensor.
+sensors::ProbeSensorType z_probe_type() {
     const auto sensors = sensors::ProbeSensorManager::instance().get_sensors();
     const sensors::ProbeSensorConfig* pick = nullptr;
     for (const auto& s : sensors) {
@@ -23,7 +24,7 @@ bool z_probe_contacts_nozzle() {
     if (!pick && !sensors.empty()) {
         pick = &sensors.front();
     }
-    return pick && sensors::probe_contacts_nozzle(pick->type);
+    return pick ? pick->type : sensors::ProbeSensorType::STANDARD;
 }
 
 } // namespace
@@ -48,7 +49,9 @@ CatalogInputs catalog_inputs_from(const PrinterState& state) {
     in.hide_manual_z_calibration = has(Capability::HideManualZCalibration);
     in.z_offset_reapplied_per_head = profile.z_offset_reapplied_per_head();
     in.z_strategy = profile.z_offset_calibration_strategy();
-    in.nozzle_contact_probe = z_probe_contacts_nozzle();
+    const auto probe = z_probe_type();
+    in.nozzle_contact_probe = sensors::probe_contacts_nozzle(probe);
+    in.probe_sets_nozzle_height = sensors::probe_sets_nozzle_height(probe);
     if (!profile.printer_type().empty()) {
         in.tier_overrides = tier_overrides_from(
             PrinterDetector::get_calibration_step_tiers(profile.printer_type()));

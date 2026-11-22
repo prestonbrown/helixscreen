@@ -107,6 +107,10 @@ TEST_CASE("Z offset steps aside where another routine owns the Z offset", "[cali
     CHECK(step_named(applicable_steps(in), "z_offset") == nullptr);
     in.z_offset_reapplied_per_head = false;
 
+    in.probe_sets_nozzle_height = true;
+    CHECK(step_named(applicable_steps(in), "z_offset") == nullptr);
+    in.probe_sets_nozzle_height = false;
+
     // Both halves are needed: tool offset calibration alone keeps the paper test.
     in.has_tool_offset_cal = true;
     CHECK(step_named(applicable_steps(in), "z_offset") != nullptr);
@@ -157,6 +161,21 @@ TEST_CASE("only probes that touch with the nozzle skip the paper test", "[calibr
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::EDDY_CURRENT));
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::CARTOGRAPHER));
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::BEACON));
+    CHECK(probe_contacts_nozzle(ProbeSensorType::PRTOUCH_V3));
+}
+
+TEST_CASE("only Creality's probes set the nozzle height themselves", "[calibration_catalog]") {
+    using helix::sensors::probe_sets_nozzle_height;
+    using helix::sensors::probe_type_from_string;
+    using helix::sensors::ProbeSensorType;
+    // The database names the K2's probe by this id.
+    CHECK(probe_type_from_string("prtouch_v3") == ProbeSensorType::PRTOUCH_V3);
+    CHECK(probe_sets_nozzle_height(ProbeSensorType::PRTOUCH_V2));
+    CHECK(probe_sets_nozzle_height(ProbeSensorType::PRTOUCH_V3));
+    // Tap and a load cell still need PROBE_CALIBRATE to find the trigger offset.
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::TAP));
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::LOADCELL));
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::STANDARD));
 }
 
 TEST_CASE("every step runs in the fixed order", "[calibration_catalog]") {

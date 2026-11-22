@@ -66,7 +66,7 @@ bool applies(StepKind kind, const CatalogInputs& in) {
     case StepKind::CutterPosition:
         return in.can_calibrate_cutter;
     case StepKind::ZOffset:
-        return in.has_probe && !in.z_offset_reapplied_per_head &&
+        return in.has_probe && !in.z_offset_reapplied_per_head && !in.probe_sets_nozzle_height &&
                !(in.has_tool_offset_cal && in.hide_manual_z_calibration);
     case StepKind::Heaters:
     case StepKind::PressureAdvanceTuning:

@@ -266,6 +266,19 @@ TEST_CASE("a probe that touches with the nozzle asks for no paper", "[calibratio
     }
 }
 
+TEST_CASE("a probe that sets the nozzle height starts the run unattended", "[calibration_run]") {
+    CatalogInputs in = everything();
+    in.nozzle_contact_probe = true;
+    in.probe_sets_nozzle_height = true;
+    const auto steps = guided_run_steps(applicable_steps(in));
+    REQUIRE_FALSE(steps.empty());
+    CHECK(steps.front().kind == StepKind::Heaters);
+    for (const auto& s : steps) {
+        CHECK(s.kind != StepKind::ZOffset);
+        CHECK_FALSE(s.needs_hands);
+    }
+}
+
 TEST_CASE_METHOD(RunFixture, "the run takes each step in turn, past a failure",
                  "[calibration_run]") {
     make_run(3);
