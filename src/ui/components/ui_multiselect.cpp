@@ -19,7 +19,8 @@ UiMultiselect::~UiMultiselect() {
 
 UiMultiselect::UiMultiselect(UiMultiselect&& other) noexcept
     : container_(other.container_), rows_(std::move(other.rows_)),
-      on_change_(std::move(other.on_change_)), max_selected_(other.max_selected_) {
+      on_change_(std::move(other.on_change_)), max_selected_(other.max_selected_),
+      checked_pool_(std::move(other.checked_pool_)), next_slot_(other.next_slot_) {
     other.container_ = nullptr;
     // Update back-pointers
     for (auto& row : rows_) {
@@ -34,6 +35,8 @@ UiMultiselect& UiMultiselect::operator=(UiMultiselect&& other) noexcept {
         rows_ = std::move(other.rows_);
         on_change_ = std::move(other.on_change_);
         max_selected_ = other.max_selected_;
+        checked_pool_ = std::move(other.checked_pool_);
+        next_slot_ = other.next_slot_;
         other.container_ = nullptr;
         for (auto& row : rows_) {
             row->owner = this;
@@ -63,6 +66,12 @@ void UiMultiselect::set_items(const std::vector<MultiSelectItem>& items) {
     }
 
     clear_rows();
+    if (!checked_pool_) { // moved from
+        checked_pool_ = std::make_unique<helix::xml::IndexedSubjectPool>(
+            "multiselect_checked", helix::xml::IndexedSubjectPool::Type::Int);
+    }
+    checked_pool_->ensure_size(items.size() + (select_all_label_.empty() ? 0 : 1));
+    checked_pool_->republish();
 
     if (!select_all_label_.empty()) {
         all_row_ = build_row({"all", select_all_label_}, true);
@@ -82,15 +91,24 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     data->selected = item.selected && item.enabled;
     data->enabled = item.enabled;
     data->owner = this;
+    data->slot = next_slot_++;
+    publish_selected(data.get());
 
     const std::string name = fmt::format("item_{}", data->key);
+    const std::string checked_subject = fmt::format("multiselect_checked_{}", data->slot);
     const char* attrs[] = {
-        "name",          name.c_str(),
-        "checked",       data->selected ? "true" : "false",
-        "disabled",      item.enabled ? "false" : "true",
-        "clickable",     item.enabled ? "true" : "false",
-        "text_color",    item.enabled ? "#text" : "#text_muted",
-        "divider_width", divider ? "1" : "0",
+        "name",
+        name.c_str(),
+        "checked_subject",
+        checked_subject.c_str(),
+        "disabled",
+        item.enabled ? "false" : "true",
+        "clickable",
+        item.enabled ? "true" : "false",
+        "text_color",
+        item.enabled ? "#text" : "#text_muted",
+        "divider_width",
+        divider ? "1" : "0",
         nullptr,
     };
     auto* row = static_cast<lv_obj_t*>(lv_xml_create(container_, "multiselect_row", attrs));
@@ -100,10 +118,7 @@ std::unique_ptr<UiMultiselect::RowData> UiMultiselect::build_row(const MultiSele
     }
     // A label is user text: as a prop a leading '#' would read as a const.
     set_row_label_text(row, "label", item.label.c_str());
-    lv_obj_t* cb = lv_obj_find_by_name(row, "check");
-
     data->row = row;
-    data->checkbox = cb;
 
     // Store data pointer in row's user_data for the click callback
     RowData* raw_ptr = data.get();
@@ -128,7 +143,7 @@ void UiMultiselect::sync_all_row() {
         }
     }
     all_row_->selected = any_enabled && every;
-    update_checkbox_visual(all_row_.get());
+    publish_selected(all_row_.get());
 }
 
 void UiMultiselect::on_row_clicked(lv_event_t* e) {
@@ -155,7 +170,7 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
         for (auto& other : owner->rows_) {
             if (other.get() != data && other->selected) {
                 other->selected = false;
-                owner->update_checkbox_visual(other.get());
+                owner->publish_selected(other.get());
                 if (owner->on_change_)
                     owner->on_change_(other->key, false);
             }
@@ -163,7 +178,7 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
     }
 
     data->selected = !data->selected;
-    data->owner->update_checkbox_visual(data);
+    data->owner->publish_selected(data);
 
     owner->sync_all_row();
 
@@ -172,20 +187,17 @@ void UiMultiselect::on_row_clicked(lv_event_t* e) {
     }
 }
 
-void UiMultiselect::update_checkbox_visual(RowData* data) {
-    if (!data || !data->checkbox)
+void UiMultiselect::publish_selected(RowData* data) {
+    if (!data || !checked_pool_ || data->slot >= checked_pool_->size())
         return;
-    if (data->selected) {
-        lv_obj_add_state(data->checkbox, LV_STATE_CHECKED);
-    } else {
-        lv_obj_remove_state(data->checkbox, LV_STATE_CHECKED);
-    }
+    checked_pool_->set_int(data->slot, data->selected ? 1 : 0);
 }
 
 void UiMultiselect::clear_rows() {
     // Clear the vector first (frees RowData), then clean LVGL children
     rows_.clear();
     all_row_.reset();
+    next_slot_ = 0;
     if (container_) {
         lv_obj_clean(container_);
     }
@@ -223,7 +235,7 @@ void UiMultiselect::select_all() {
     for (auto& row : rows_) {
         if (!row->selected && row->enabled) {
             row->selected = true;
-            update_checkbox_visual(row.get());
+            publish_selected(row.get());
             if (on_change_)
                 on_change_(row->key, true);
         }
@@ -235,7 +247,7 @@ void UiMultiselect::deselect_all() {
     for (auto& row : rows_) {
         if (row->selected) {
             row->selected = false;
-            update_checkbox_visual(row.get());
+            publish_selected(row.get());
             if (on_change_)
                 on_change_(row->key, false);
         }
@@ -248,7 +260,7 @@ bool UiMultiselect::set_selected(const std::string& key, bool selected) {
         if (row->key == key) {
             if (row->selected != selected) {
                 row->selected = selected;
-                update_checkbox_visual(row.get());
+                publish_selected(row.get());
                 if (on_change_)
                     on_change_(key, selected);
                 sync_all_row();
