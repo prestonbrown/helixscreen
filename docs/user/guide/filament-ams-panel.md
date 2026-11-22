@@ -249,7 +249,7 @@ Each row shows the spool's name, its number, how much is left (**850 g · 85%**,
 
 1. Tap **Not Listed? Add New Spool** at the bottom of the list. The Filament page opens, set to a full 1 kg spool.
 2. Pick what the spool is (see [The Filament page](#the-filament-page)). On all but the smallest screens, the spool tiles at the bottom of the page fill in a common filament in one tap.
-3. With Spoolman set up, leave **Add to Spoolman** ticked to add the spool to Spoolman as well, or untick it to keep the spool on this slot only.
+3. With Spoolman set up, leave **Add to Spoolman** ticked to add the spool to Spoolman as well, or untick it to keep the spool on this slot only. With a label printer set up, a spool added to Spoolman prints its label when you save: see [Labels for New Spools](label-printing.md#labels-for-new-spools).
 4. Tap **Back**. The summary shows the new spool. Set its weight if it isn't full.
 5. Tap **Save**.
 
@@ -303,6 +303,8 @@ A slot whose spool isn't in Spoolman shows **Add to Spoolman** on its summary (*
 1. Tap **Add to Spoolman**.
 2. HelixScreen adds the spool to Spoolman as the slot describes it, including any changes you made on the Filament page, and links the slot to it. If Spoolman already has that brand's filament in a close color, it asks **Use existing filament?**: tap **Use existing** to use it, or **Add new** to add a new filament.
 3. The summary now shows the Spoolman icon in the title. From here on, Spoolman tracks the spool's weight.
+
+With a label printer set up, the new Spoolman spool's label prints right away: see [Labels for New Spools](label-printing.md#labels-for-new-spools).
 
 Spoolman needs a brand, a material and a color. If one is missing, a message says which, for example **Spoolman needs a brand for this filament.** Pick it on the Filament page and try again.
 
