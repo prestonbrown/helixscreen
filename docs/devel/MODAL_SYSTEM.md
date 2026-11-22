@@ -39,6 +39,16 @@ on a navbar button. The one exception is the E-stop's own confirmation, which ca
 
 Backdrops are always created in C++, never in XML, so a dialog never ends up with two.
 
+**A backdrop is a picture of the screen, taken without closing modals.** Where blur is on,
+`helix::ui::create_fullscreen_backdrop()` snapshots the screen (`lv_snapshot_take()` in
+`src/ui/effects/backdrop_blur.cpp#create_blurred_backdrop`) and shows it blurred and dimmed; the
+image is frozen from then on. A modal still in its exit animation when the next one opens would
+stay in that image long after it is gone, so `Modal::show()` and `Modal::create_and_show()` take
+the backdrop through `create_modal_backdrop()` (`src/ui/ui_modal.cpp#create_modal_backdrop`): it
+hides every backdrop `ModalStack::exiting_backdrops()` lists for the one snapshot, then restores
+them so their exit animation finishes. A caller replacing one dialog with another (the runout
+dialog closing as a recovery dialog opens) needs no delay between `hide()` and the next show.
+
 ---
 
 ## When to Use What
@@ -589,7 +599,7 @@ class ControlsPanel {
 
 - **Z-ordering**: Multiple stacked modals maintain correct visual order
 - **Top-modal queries**: `Modal::get_top()` returns the topmost dialog
-- **Animation state**: `mark_exiting()` prevents double-hide during exit animation
+- **Animation state**: `mark_exiting()` prevents double-hide during exit animation; `exiting_backdrops()` lists the backdrops still fading out, which a new modal's snapshot leaves out
 - **Backdrop-to-dialog mapping**: Links each backdrop to its dialog
 - **Owner tracking**: Records the `Modal*` that shows each dialog, so a dialog can be traced back to the C++ instance behind it
 

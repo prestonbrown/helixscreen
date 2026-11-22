@@ -2005,6 +2005,16 @@ takes the faulted lane from it for Eject (`ILaneFaults::current_error_with_cause
 panel is open or not. The panel's own dialog still stands aside for a backend with
 `current_error()` on both targets.
 
+**An operation run during the pause owns its fault.** The stop reason explains the fault that
+paused the print, not one a user's own Load in that pause raises on another lane.
+`AmsState::track_pause_operation()` notes the stop reason standing when a filament operation
+starts during the current pause (`stop_reason_before_op_`; an operation already running when the
+pause began does not count). While that stop reason still stands, `standing_fault_cause()`
+(`include/ams_standing_fault.h#standing_fault_cause`) answers empty when the backend has text of
+its own for the fault (`last_operation_detail_`, the U1's "Toolhead 4: Load failed"), else the
+recent `!!` line. A new stop reason in the same pause, and the fault that caused the pause, still
+take the stop reason.
+
 **Per-backend gates and recovery sets:**
 
 | Backend | Channel A gate | Channel B gate | Recovery actions (`build_recovery_actions()`) |
@@ -2014,7 +2024,7 @@ panel is open or not. The panel's own dialog still stands aside for a backend wi
 | **AD5X IFS** | - | `AmsAction::ERROR`, raised by `evaluate_runout_locked()` or by an operation timeout | Runout: Resume (primary, hot) · Purge (hot): `_GOTO_TRASH`+`PURGE_FILAMENT` on zMod, else `M83`+`G1 E` · `IFS_UNLOCK` (danger, cold). Timeout: `IFS_UNLOCK` alone. **No "Load slot N"**: every IFS load path self-homes and trash-moves into the part |
 | **CFS** | **inverted**, `is_bang_line()` returns `nullopt`, so `!!` `key8xx` codes stay with the generic classifier. Claims only paused `respond_info` lines matching the auto-refill give-up wording |, (never assigns `AmsAction::ERROR`) | Resume (primary, hot) · Reset CFS = `BOX_ERROR_CLEAR` (danger, cold) |
 | **QIDI Box** | - | `AmsAction::ERROR`, raised by a negative `slot<N>` state word (blocked lane) | Lone dismiss: recovery gcode unknown, clearance is manual (#1041) |
-| **Snapmaker** | `is_bang_line()`, while paused or printing, then the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | - | Lone OK dismiss: no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below |
+| **Snapmaker** | `is_bang_line()`, then a coded `exception_manager` fault (`classify_coded_fault()`: every code worded; a runout with no job waiting is a `leftover` the router drops; a 525 feeder fault while a job waits blocks with its way on), else, while paused or printing, the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | - | Feeder fault: Load or Unload of the fault's head (`load_lane` / `unload_lane` guided flows) or Open Filament, Cancel Print, Close. Filament not set: lone OK dismiss, no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below, plus Use Another Toolhead (§ "Continuing a runout on another head") |
 | **ACE**, **Tool changer** | - | - | - (generic runout modal owns these; see below) |
 
 **There is a third channel, and it decides whether Channel A speaks at all.** When the fault
@@ -2796,7 +2806,8 @@ whenever auto-refill was off.
 | Happy Hare | `Available` | `mmu.endless_spool_enabled`; forced to `Unknown` before `slots_` is initialised | `Group` on a single unit, `ReadOnly` otherwise | `None`; `MultiUnit` on a multi-unit rig; `NotReady` before the registry initialises | Yes - `endless_spool_config_from_groups()` over each gate's `endless_spool_group` |
 | CFS | `Available` | `box.auto_refill` / `box.runout_swap_enabled` | `ReadOnly` | `FirmwareManaged` | **No, deliberately** - see below |
 | AD5X IFS | `Available` in all three modes (stock zMod, bambufy, lessWaste) | stock zMod: always `On` (ANALOG_PRUTOK has no toggle); plugin path: `variable_backup`, with a genuine `Unknown` when it was never read | `ReadOnly` | `FirmwareManaged` on stock zMod; `PluginReadOnly` on the plugin path | No |
-| ACE, QIDI Box, Snapmaker U1, Tool Changer | `Unsupported` (base default; no override at all) | -- | `ReadOnly` | `None` | No |
+| Snapmaker U1 | `Available` once `print_task_config`'s Auto-Replenish preference is reported (nothing before) | the Auto-Replenish preference | `ReadOnly`, `switchable` (the one Endless Spool switch writes it through `SET_PRINT_PREFERENCES`) | `FirmwareManaged`: the firmware picks the backup head | No. Continuing a runout on a head the user picks is the chooser below |
+| ACE, QIDI Box, Tool Changer | `Unsupported` (base default; no override at all) | -- | `ReadOnly` | `None` | No |
 | Mock | `set_endless_spool_supported()` | `system_info_.endless_spool_enabled` | `PerSlot` when `set_endless_spool_editable(true)`, else `ReadOnly` | `FirmwareManaged` when read-only | Yes - edges from its `SlotRegistry` |
 
 CFS, and AD5X IFS in every mode (stock zMod, bambufy, lessWaste), report `Available` while
@@ -2806,6 +2817,40 @@ the base's empty relation is correct, and it is what keeps the spool editor from
 dropdown that could only ever read "None" (see [Lane Settings in the Spool Editor](#lane-settings-in-the-spool-editor)).
 
 ---
+
+### Continuing a runout on another head
+
+A print paused by a runout can finish on another, already loaded head when the firmware can
+re-route the rest of the job's tool changes; a plain resume on another head would send the next
+tool change straight back to the empty one. `helix::runout_other_head`
+(`include/runout_other_head.h`, `src/printer/runout_other_head.cpp`) holds the two questions and
+never names a firmware:
+
+- **Which heads may take over:** `assess()`, the same rules on every printer: same nozzle size
+  and flow type, fed by its feeder, a fully identified filament whose material the database knows
+  and the sliced temperatures suit (a different type or subtype in the same group is eligible with
+  a warning, a different color with a warning), the runout head still the active one, the printer
+  not busy inside the pause, the routing not already moved. Each refusal has a user-facing
+  `refusal_text()`.
+- **What the printer must be told:** `build_plan()`, one row per filament system in the provider
+  table (`kProviders`: `plan`, `record_usable`, `resume_on`). The U1 is the only row; AFC and Happy
+  Hare take a tool remap while paused and are the next candidates. A plan is refused whole, never
+  partial.
+
+A backend joins by adding its provider row and overriding `AmsBackend::runout_other_head_facts()`
+(`include/ams_backend.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
+active head, each head's nozzle, feeder, record and `load_failed`, the logical-tool routing, and
+`printer_busy`. `runout_other_head::supported(type)` gates the whole feature.
+
+The runout dialog (`FilamentRunoutHandler`, `RunoutGuidanceModal`) shows **Use Another Toolhead**
+while `RunoutOtherHeadModal::available()` (`worth_offering()`: the runout head's feeder cannot
+supply it, the printer is idle inside the pause, the routing has not moved) and re-checks every
+second while the dialog is up. The button stacks the chooser (`RunoutOtherHeadModal`,
+`ui_xml/runout_other_head_modal.xml`) on the runout dialog: one row per head with its verdict,
+then a confirmation naming what differs. After the send, `SwitchWatch` judges the outcome by its
+target with `judge_switch()` (`Wait` / `Done` / `Diverted` / `Stranded` / `Fail`) while the runout
+dialog shows a switching state with every action disabled. The U1's rules, timings and
+recovery dialogs are in `FILAMENT_BACKEND_SNAPMAKER_U1.md` § "Continuing a runout on another head".
 
 ## Dryer / Box-Heater Control
 
@@ -3451,6 +3496,24 @@ and are registered by `register_cfs_device_flows()`, one row of the registrar ta
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
 `app_boot.cpp` boot path), and never names a vendor. A new vendor's flows are one new file, one
 row in that table, and one `guided_flow` string on its backend's action.
+
+**Recovery flows.** A fault dialog's `RecoveryAction` can name a flow too (`guided_flow`, empty
+`gcode`); `RecoveryModalPresenter::on_guided_flow_tapped()` starts it after the dialog closes.
+`register_recovery_flows()` (`src/ui/filament/ui_guided_device_flow.cpp#register_recovery_flows`)
+registers the vendor-neutral ones, ids in `include/error_event.h`:
+
+| Id | Runs |
+|----|------|
+| `kOpenFilamentFlowId` (`open_filament`) | Opens the Filament panel, where each head's own Load and Unload live |
+| `kCancelPrintFlowId` (`cancel_print`) | The Stop button's cancel confirmation |
+| `kLoadLaneFlowId` (`load_lane`) | `execute_filament_load()` on `RecoveryAction::lane` |
+| `kUnloadLaneFlowId` (`unload_lane`) | `execute_filament_unload()` on `RecoveryAction::lane`, the lane taken as loaded |
+
+A lane flow supplies `start_on_lane(lane)` in place of `start(label)`, and the presenter calls it
+when the action's `lane` is set. Because it runs the same executors as the Filament panel's
+buttons, the backend's refusals, the op gate and feed tracking all apply, and a long load
+reports through its completion instead of a raw gcode timeout. The U1's feeder faults use them
+(`FILAMENT_BACKEND_SNAPMAKER_U1.md` § "A failed load explains itself").
 
 #### Tracked device actions
 
