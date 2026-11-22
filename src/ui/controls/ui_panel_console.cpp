@@ -674,6 +674,13 @@ void ConsolePanel::add_entry(const GcodeEntry& entry) {
     }
 }
 
+void ConsolePanel::add_status_line(const std::string& text) {
+    GcodeEntry entry;
+    entry.message = text;
+    entry.type = GcodeEntry::Type::RESPONSE;
+    add_entry(entry);
+}
+
 void ConsolePanel::send_gcode_command() {
     if (!gcode_input_) {
         spdlog::warn("[{}] Cannot send - no input field", get_name());
@@ -708,15 +715,28 @@ void ConsolePanel::send_gcode_command() {
     cmd_entry.is_error = false;
     add_entry(cmd_entry);
 
-    // Send via IMoonrakerAPI with error feedback
+    // A typed command can be anything a macro can, so it gets the macro timeout.
+    // Its output streams in over the WebSocket subscription; the reply itself
+    // carries nothing to show.
     helix::IMoonrakerAPI* api = get_moonraker_api();
     if (api) {
-        api->execute_gcode(command, nullptr, // success: no-op, response comes via WS subscription
-                           [token = lifetime_.token()](const MoonrakerError& err) {
-                               token.defer("ConsolePanel::send_error", [msg = err.message]() {
-                                   NOTIFY_ERROR(lv_tr("Failed to send command: {}"), msg);
-                               });
-                           });
+        api->execute_gcode(
+            command, nullptr,
+            [this, token = lifetime_.token()](const MoonrakerError& err) {
+                // A timeout means the command was sent and Klipper has not
+                // finished it; calibrations run longer than any ceiling we pick.
+                // That is a status line, not a failure.
+                token.defer("ConsolePanel::send_error", [this, err]() {
+                    if (err.type == MoonrakerErrorType::TIMEOUT) {
+                        add_status_line(
+                            fmt::format(fmt::runtime(lv_tr("Still running; no reply after {} min")),
+                                        helix::IMoonrakerAPI::kMacroTimeoutMs / 60000));
+                    } else {
+                        NOTIFY_ERROR(lv_tr("Failed to send command: {}"), err.localized_message());
+                    }
+                });
+            },
+            helix::IMoonrakerAPI::kMacroTimeoutMs);
     } else {
         spdlog::warn("[{}] No IMoonrakerAPI available", get_name());
     }
