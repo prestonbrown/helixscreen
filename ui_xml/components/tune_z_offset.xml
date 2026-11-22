@@ -70,7 +70,7 @@
         </lv_obj>
         <z_adjust_steps width="100%"
                         subject="z_step_selected_idx" callback="on_tune_z_step" text0="0.05" text1="0.025" text2="0.01"
-                        text3="0.005" chip_w="0" chip_h="$btn_h" gap="#space_xxs"/>
+                        text3="0.005" two_rows="false" chip_h="$btn_h" gap="#space_xxs"/>
         <!-- Hidden on a tool changer, where the target selector below takes this
            slot, and on the smallest portrait panel, where the controls above
            already fill the height. -->
@@ -99,7 +99,7 @@
                     style_flex_cross_place="center" scrollable="false">
               <z_adjust_steps flex_grow="1"
                               subject="z_step_selected_idx" callback="on_tune_z_step" text0="0.05" text1="0.025"
-                              text2="0.01" text3="0.005" chip_w="0" chip_h="$btn_h" gap="#space_xxs"/>
+                              text2="0.01" text3="0.005" two_rows="false" chip_h="$btn_h" gap="#space_xxs"/>
               <!-- Raise / Lower, stacked unless dir_flow puts them in a row -->
               <z_adjust_buttons width="$dir_w"
                                 callback="on_tune_z_adjust" flow="$dir_flow" gap="#space_xxs" btn_w="$dir_btn_w"
