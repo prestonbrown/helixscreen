@@ -1217,3 +1217,38 @@ TEST_CASE_METHOD(PagesFixture, "a firmware-kept runout reads on the summary, rea
     }
     close_editor_overlay();
 }
+
+TEST_CASE_METHOD(PagesFixture, "the weight bar's knob stays whole at both ends",
+                 "[ams_edit_overlay][pages][weight]") {
+    lv_display_t* disp = lv_display_get_default();
+    for (const auto& [w, h] : {std::pair{480, 272}, std::pair{480, 320}, std::pair{800, 480}}) {
+        CAPTURE(w, h);
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+        open(1, describe_lane(*backend, 1, "PLA"));
+        lv_obj_t* slider = access.widget("weight_slider");
+        lv_obj_t* row = access.widget("weight_slider_row");
+        REQUIRE(slider != nullptr);
+        REQUIRE(row != nullptr);
+        for (int pct : {0, 100}) {
+            CAPTURE(pct);
+            lv_slider_set_value(slider, pct, LV_ANIM_OFF);
+            lv_obj_update_layout(row);
+            // The knob is centered on the track's end, as tall as the track
+            // plus its padding: half of that reaches past either end, and the
+            // row's own area must hold it so no edge clips it.
+            const int32_t reach = lv_obj_get_height(slider) / 2 +
+                                  LV_MAX(lv_obj_get_style_pad_left(slider, LV_PART_KNOB),
+                                         lv_obj_get_style_pad_right(slider, LV_PART_KNOB));
+            lv_area_t track;
+            lv_area_t room;
+            lv_obj_get_coords(slider, &track);
+            lv_obj_get_coords(row, &room);
+            CHECK(reach > 0);
+            CHECK(track.x1 - reach >= room.x1);
+            CHECK(track.x2 + reach <= room.x2);
+        }
+        close_editor_overlay();
+    }
+    theme_manager_refresh_layout_constants(disp);
+}

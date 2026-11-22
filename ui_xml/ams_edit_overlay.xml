@@ -286,10 +286,11 @@
             <event_cb trigger="clicked" callback="ams_edit_remaining_plus_cb"/>
           </ui_button>
         </lv_obj>
-        <!-- Padded by the knob's reach, which draws outside the bar. -->
+        <!-- A slider's knob reaches past its track ends: the row's padding is
+             the knob's room, so it stays whole at 0% and 100%. -->
         <lv_obj name="weight_slider_row"
-                width="100%" height="content" style_pad_hor="#space_lg" style_pad_ver="#space_xs" style_bg_opa="0"
-                style_border_width="0" scrollable="false">
+                width="100%" height="content" style_pad_hor="#slider_knob_room" style_pad_ver="#space_xs"
+                style_bg_opa="0" style_border_width="0" scrollable="false">
           <lv_slider name="weight_slider" width="100%" min_value="0" max_value="100" bind_value="ams_edit_weight_pct">
             <event_cb trigger="value_changed" callback="ams_edit_weight_slider_cb"/>
           </lv_slider>
