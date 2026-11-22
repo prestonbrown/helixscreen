@@ -3345,10 +3345,16 @@ struct ChannelSyncFixture : public GlobalPrintStateFixture {
         auto& checker = UpdateChecker::instance();
         checks_were_blocked = UpdateCheckerTestAccess::checks_blocked(checker);
         UpdateCheckerTestAccess::set_checks_blocked(checker, true);
+        // The build under test is a prerelease; these cases run as a stable one.
+        saved_running_version = UpdateCheckerTestAccess::running_version(checker);
+        UpdateCheckerTestAccess::set_running_version(checker, "1.1.0");
     }
 
     std::string install_root = kInstallRoot;
+    std::string saved_running_version;
     ~ChannelSyncFixture() override {
+        UpdateCheckerTestAccess::set_running_version(UpdateChecker::instance(),
+                                                     saved_running_version);
         UpdateCheckerTestAccess::set_checks_blocked(UpdateChecker::instance(), checks_were_blocked);
         set_moonraker_api(nullptr);
     }
@@ -3571,6 +3577,23 @@ TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync switches a listed stanza off 
     CHECK(sync() == off("stable"));
     CHECK(api.xfers_.uploads == 1);
     CHECK(api.restarts == 1);
+}
+
+TEST_CASE_METHOD(ChannelSyncFixture,
+                 "Channel sync keeps the stanza off while a prerelease runs on stable",
+                 "[update_checker][moonraker_channel][2147]") {
+    // Moonraker would offer the newest stable release, older than this build.
+    UpdateCheckerTestAccess::set_running_version(UpdateChecker::instance(), "1.1.0-rc.5");
+    set_app_channel(0, false); // Stable
+    SECTION("a listed stanza is switched off") {
+        seed(conf("stable"));
+        CHECK(sync() == off("stable"));
+    }
+    SECTION("a switched-off stanza stays off") {
+        seed(off("stable"));
+        CHECK(sync() == off("stable"));
+        CHECK(api.restarts == 0);
+    }
 }
 
 TEST_CASE_METHOD(ChannelSyncFixture, "Channel sync holds a listed stanza to the stable channel",
