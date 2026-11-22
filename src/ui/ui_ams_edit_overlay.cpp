@@ -506,6 +506,12 @@ void AmsEditOverlay::apply_scanned_spool(const SpoolInfo& spool) {
     // A scanned spool is known whole: it opens on Edit Spool for review.
     set_mode(kModeEdit);
     load_swapped_spool();
+    // Scanned from the empty page or the New Spool list, the spool is
+    // reviewed where Save is: the summary.
+    const int page = lv_subject_get_int(&page_subject_);
+    if (page == kPageEmpty || page == kPageList) {
+        set_page(kPageSummary);
+    }
 }
 
 void AmsEditOverlay::load_swapped_spool() {
