@@ -154,9 +154,15 @@ constexpr ShellRow kShellRows[] = {
     {"quattro_box", "Quattro Box"},
     {"tradrack_rail", "Tradrack"},
     {"yammu", "YAMMU"},
-    {"yammu_upper", "YAMMU (upper drawer)"},
-    {"yammu_lower", "YAMMU (lower drawer)"},
 };
+
+/// Whether @p choice is a drawing @p unit may be shown as: art for its bays, and a sliding
+/// selector only over lanes that share one path.
+[[maybe_unused]] bool offered(const ShellChoice& choice, const AmsUnit& unit) {
+    const UnitShell* shell = unit_shell_by_id(choice.shell_id);
+    return shell && unit_shell_has_art_for(*shell, unit.slot_count) &&
+           (shell->carriage_n == 0 || unit.topology == PathTopology::LINEAR);
+}
 
 /// Climate readings or a dryer mean the unit is closed up.
 [[maybe_unused]] bool has_climate(const AmsUnit& unit, bool has_dryer) {
@@ -206,24 +212,26 @@ const UnitShell* chosen_shell(const AmsSystemInfo& info, int unit_index,
         unit_index >= static_cast<int>(info.units.size()))
         return nullptr;
     const std::string& id = choices[static_cast<size_t>(unit_index)];
-    const UnitShell* shell = id.empty() ? nullptr : unit_shell_by_id(id.c_str());
-    return shell && unit_shell_has_art_for(*shell,
-                                           info.units[static_cast<size_t>(unit_index)].slot_count)
-               ? shell
-               : nullptr;
+    if (id.empty())
+        return nullptr;
+    const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
+    for (const ShellChoice& choice : kShellChoices) {
+        if (id == choice.shell_id)
+            return offered(choice, unit) ? unit_shell_by_id(choice.shell_id) : nullptr;
+    }
+    return nullptr;
 }
 
 } // namespace
 #endif
 
-std::vector<ShellChoice> unit_shell_choices(int lanes) {
+std::vector<ShellChoice> unit_shell_choices(const AmsUnit& unit) {
     std::vector<ShellChoice> out;
 #ifdef ESP_PLATFORM
-    (void)lanes;
+    (void)unit;
 #else
     for (const ShellChoice& choice : kShellChoices) {
-        const UnitShell* shell = unit_shell_by_id(choice.shell_id);
-        if (shell && unit_shell_has_art_for(*shell, lanes))
+        if (offered(choice, unit))
             out.push_back(choice);
     }
 #endif

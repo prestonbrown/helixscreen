@@ -18,7 +18,8 @@
 
 namespace helix {
 struct AmsSystemInfo;
-}
+struct AmsUnit;
+} // namespace helix
 
 namespace helix::ui::tray {
 
@@ -209,13 +210,14 @@ struct ShellChoice {
     const char* name;
 };
 
-/// The drawings a unit with @p lanes bays can be shown as, in the order the picker lists them:
-/// each one that has art for exactly that many bays.
-std::vector<ShellChoice> unit_shell_choices(int lanes);
+/// The drawings @p unit can be shown as, in the order the picker lists them: each one with art
+/// for exactly its bays, and a sliding selector rail only for a unit whose lanes share one
+/// path (PathTopology::LINEAR). The halves of a device drawn whole are never offered.
+std::vector<ShellChoice> unit_shell_choices(const AmsUnit& unit);
 
 /// The shell for one unit, or nullptr to keep the generic tray. @p has_dryer joins the unit's
 /// own climate readings as evidence that an optionally enclosed unit has its enclosure. A
-/// choice in @p choices that has art for the unit's bays wins over detection.
+/// choice in @p choices that unit_shell_choices() offers the unit wins over detection.
 const UnitShell* unit_shell_for(const AmsSystemInfo& info, int unit_index, bool has_dryer = false,
                                 const ShellChoices& choices = {});
 

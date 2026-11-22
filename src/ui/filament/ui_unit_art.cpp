@@ -676,11 +676,33 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
 
 tray::ShellChoices unit_art_choices(const AmsSystemInfo& info) {
     tray::ShellChoices choices;
+#ifdef ESP_PLATFORM
+    (void)info; // the firmware carries no unit art to pick
+#else
+    const auto drawings = SettingsManager::instance().get_ams_unit_drawings();
+    if (drawings.empty())
+        return choices;
     choices.reserve(info.units.size());
-    const SettingsManager& settings = SettingsManager::instance();
-    for (const AmsUnit& unit : info.units)
-        choices.push_back(settings.get_ams_unit_drawing(ams_unit_identity(unit)));
+    for (const AmsUnit& unit : info.units) {
+        const auto it = drawings.find(ams_unit_identity(unit));
+        choices.push_back(it == drawings.end() ? std::string{} : it->second);
+    }
+#endif
     return choices;
+}
+
+std::map<std::string, std::string> unit_art_effective_picks(const AmsSystemInfo& info) {
+    std::map<std::string, std::string> picks;
+    const tray::ShellChoices choices = unit_art_choices(info);
+    for (size_t u = 0; u < choices.size(); ++u) {
+        if (choices[u].empty())
+            continue;
+        const tray::UnitShell* shell =
+            tray::unit_shell_for(info, static_cast<int>(u), false, choices);
+        if (shell && choices[u] == shell->id)
+            picks[ams_unit_identity(info.units[u])] = choices[u];
+    }
+    return picks;
 }
 
 const tray::UnitShell* unit_art_shell_for(const AmsSystemInfo& info, int unit_index,

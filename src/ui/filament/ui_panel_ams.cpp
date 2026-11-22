@@ -746,7 +746,7 @@ void AmsPanel::setup_slots() {
 }
 
 bool AmsPanel::drawings_changed(const AmsSystemInfo& info) const {
-    return helix::ui::unit_art_choices(info) != laid_out_drawings_;
+    return helix::ui::unit_art_effective_picks(info) != laid_out_drawings_;
 }
 
 void AmsPanel::create_slots(int count) {
@@ -760,7 +760,7 @@ void AmsPanel::create_slots(int count) {
 
     // Create new slots
     if (const auto info = AmsState::instance().system_info())
-        laid_out_drawings_ = helix::ui::unit_art_choices(*info);
+        laid_out_drawings_ = helix::ui::unit_art_effective_picks(*info);
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, kMaxVisibleSlots,
                                           kAllUnits, on_slot_clicked, this);
 

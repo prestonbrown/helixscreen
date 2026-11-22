@@ -28,6 +28,7 @@
 #include "settings_manager.h"
 #include "src/ui/filament/unit_art_internal.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <set>
 #include <string>
@@ -133,41 +134,62 @@ TEST_CASE("unit type: a picked unit is drawn alone, never as a slice of a device
 
 TEST_CASE("unit type: the choices are every drawing with art for the unit's bays",
           "[ams][unit-type]") {
-    std::set<std::string> offered;
-    for (int lanes = 1; lanes <= 16; ++lanes) {
-        for (const tray::ShellChoice& choice : tray::unit_shell_choices(lanes)) {
-            const tray::UnitShell* shell = tray::unit_shell_by_id(choice.shell_id);
-            REQUIRE(shell != nullptr);
-            CHECK(tray::unit_shell_has_art_for(*shell, lanes));
-            CHECK(std::string(choice.name).size() > 0);
-            offered.insert(choice.shell_id);
-        }
-    }
-    // Every baked drawing can be picked: a new one with no choice row fails here.
-    for (const auto& dir : std::filesystem::directory_iterator("assets/images/units")) {
-        if (dir.is_directory()) {
-            INFO(dir.path().filename().string());
-            CHECK(offered.count(dir.path().filename().string()) == 1);
-        }
-    }
-
-    auto ids = [](int lanes) {
+    auto unit = [](int lanes, PathTopology topology) {
+        AmsUnit u;
+        u.slot_count = lanes;
+        u.topology = topology;
+        return u;
+    };
+    auto ids = [](const AmsUnit& u) {
         std::set<std::string> out;
-        for (const tray::ShellChoice& choice : tray::unit_shell_choices(lanes))
+        for (const tray::ShellChoice& choice : tray::unit_shell_choices(u))
             out.insert(choice.shell_id);
         return out;
     };
-    CHECK(ids(4).count("qidi_box") == 1);
-    CHECK(ids(6).count("qidi_box") == 0);
+    std::set<std::string> offered;
+    for (int lanes = 1; lanes <= 16; ++lanes) {
+        for (PathTopology topology : {PathTopology::HUB, PathTopology::LINEAR}) {
+            for (const tray::ShellChoice& choice :
+                 tray::unit_shell_choices(unit(lanes, topology))) {
+                const tray::UnitShell* shell = tray::unit_shell_by_id(choice.shell_id);
+                REQUIRE(shell != nullptr);
+                CHECK(tray::unit_shell_has_art_for(*shell, lanes));
+                CHECK(std::string(choice.name).size() > 0);
+                offered.insert(choice.shell_id);
+            }
+        }
+    }
+    // Every baked drawing can be picked, but for the halves of a device drawn whole: a new one
+    // with no choice row fails here.
+    const std::set<std::string> halves{"yammu_upper", "yammu_lower"};
+    for (const auto& dir : std::filesystem::directory_iterator("assets/images/units")) {
+        if (dir.is_directory()) {
+            const std::string id = dir.path().filename().string();
+            INFO(id);
+            CHECK(offered.count(id) == (halves.count(id) ? 0u : 1u));
+        }
+    }
+
+    CHECK(ids(unit(4, PathTopology::HUB)).count("qidi_box") == 1);
+    CHECK(ids(unit(6, PathTopology::HUB)).count("qidi_box") == 0);
     for (int lanes = 2; lanes <= 8; ++lanes)
-        CHECK(ids(lanes).count("box_turtle") == 1);
+        CHECK(ids(unit(lanes, PathTopology::HUB)).count("box_turtle") == 1);
+    // A sliding selector draws lanes that share one path, so only such a unit is offered one.
+    CHECK(ids(unit(6, PathTopology::LINEAR)).count("ercf_rail") == 1);
+    CHECK(ids(unit(6, PathTopology::HUB)).count("ercf_rail") == 0);
+    CHECK(ids(unit(6, PathTopology::HUB)).count("tradrack_rail") == 0);
+    // A pick the unit is not offered keeps detection, however it was saved.
+    const AmsSystemInfo hub = happy_hare_unit("MMU", "Other", 6);
+    CHECK(id_of(tray::unit_shell_for(hub, 0, false, {"ercf_rail"})).empty());
+    CHECK(id_of(tray::unit_shell_for(happy_hare_unit("MMU", "Other", 4), 0, false, {"yammu_upper"}))
+              .empty());
 }
 
 TEST_CASE("unit type: the menu opens on the saved pick and saves the option tapped",
           "[ams][unit-type]") {
     const AmsSystemInfo info = happy_hare_unit("MMU", "Other", 4);
     const UnitTypeMenu automatic = unit_type_menu(info.units[0], "", "Automatic");
-    REQUIRE(automatic.choices.size() == tray::unit_shell_choices(4).size());
+    REQUIRE(automatic.choices.size() == tray::unit_shell_choices(info.units[0]).size());
     CHECK(automatic.selected == 0);
     CHECK(automatic.options.rfind("Automatic\n", 0) == 0);
     CHECK(unit_type_menu_choice(automatic, 0).empty());
@@ -202,6 +224,25 @@ TEST_CASE("unit type: the pick is saved per printer and per unit", "[ams][unit-t
     CHECK(settings.get_ams_unit_drawing("MMU").empty());
     config.use("printer-b");
     CHECK(settings.get_ams_unit_drawing("MMU") == "emu");
+}
+
+TEST_CASE("unit type: only picks that take effect ask a screen to lay out again",
+          "[ams][unit-type]") {
+    TwoPrinterConfig config;
+    AmsSystemInfo one = happy_hare_unit("MMU", "Other", 4);
+    AmsSystemInfo two = one;
+    two.units.push_back(one.units[0]);
+    two.units[1].name = "MMU 2";
+    // Units coming or going with no pick in play change nothing.
+    CHECK(unit_art_effective_picks(one).empty());
+    CHECK(unit_art_effective_picks(one) == unit_art_effective_picks(two));
+
+    auto& settings = SettingsManager::instance();
+    settings.set_ams_unit_drawing("MMU", "qidi_box");
+    CHECK(unit_art_effective_picks(two) == std::map<std::string, std::string>{{"MMU", "qidi_box"}});
+    // A pick the unit is not offered draws nothing, so it lays nothing out.
+    settings.set_ams_unit_drawing("MMU 2", "ercf_rail");
+    CHECK(unit_art_effective_picks(two) == std::map<std::string, std::string>{{"MMU", "qidi_box"}});
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "unit type: the pick changes the drawing, not the backend",
@@ -393,8 +434,12 @@ class NumberedUnits : public AmsBackendMock {
         AmsSystemInfo info = AmsBackendMock::get_system_info();
         for (size_t i = 0; i < info.units.size(); ++i)
             info.units[i].unit_index = static_cast<int>(2 * i + 1);
+        if (reversed)
+            std::reverse(info.units.begin(), info.units.end());
         return info;
     }
+    /// The backend now lists its units the other way round, as after a resplit.
+    bool reversed = false;
 };
 
 } // namespace
@@ -402,6 +447,7 @@ class NumberedUnits : public AmsBackendMock {
 TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows open on the viewed unit and save its pick",
                  "[ams][unit-type][ui_integration]") {
     auto mock = std::make_unique<NumberedUnits>();
+    NumberedUnits* backend = mock.get();
     REQUIRE(mock->start().success());
     auto& ams = AmsState::instance();
     ams.set_backend(std::move(mock));
@@ -430,6 +476,8 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows open on the viewed unit and
     for (size_t i = 0; i < two_bay.choices.size(); ++i)
         emu = std::string(two_bay.choices[i].shell_id) == "emu" ? static_cast<int>(i) + 1 : emu;
     REQUIRE(emu > 0);
+    // The units reorder while the dropdown is open: the tap still means what it showed.
+    backend->reversed = true;
     lv_dropdown_set_selected(dropdown, static_cast<uint32_t>(emu));
     lv_obj_send_event(dropdown, LV_EVENT_VALUE_CHANGED, nullptr);
     settle();

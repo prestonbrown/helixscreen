@@ -18,6 +18,7 @@
 #include "ui_bypass_toggle_controller.h"
 
 #include "ams_types.h"
+#include "ams_unit_type_menu.h"
 #include "core/observer_guard.h"
 #include "core/static_panel_registry.h"
 #include "core/subject.h"
@@ -116,7 +117,7 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
   protected:
     /// Re-queries the backend on every open.
     void before_show() override {
-        unit_type_unit_ = -1; // the Unit Type rows open on the unit being viewed
+        unit_type_identity_.clear(); // the Unit Type rows open on the unit being viewed
         refresh();
     }
 
@@ -138,7 +139,7 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
 
     /// Fill the Unit Type rows for @p info's units (nullptr: no backend).
     void update_unit_type(const helix::AmsSystemInfo* info);
-    void on_unit_type_unit_picked(int unit_index);
+    void on_unit_type_unit_picked(int option);
     void on_unit_type_picked(int option);
 
     /// Populate section list rows from backend sections
@@ -240,8 +241,13 @@ class AmsDeviceOperationsOverlay : public OverlayBase {
     char unit_type_options_buf_[1024] = {};
     helix::Subject unit_type_selected_subject_{};
     helix::Subject unit_type_available_subject_{};
-    /// The unit the Unit Type rows set, by position in the system's units; -1 until picked.
-    int unit_type_unit_ = -1;
+    /// What the Unit Type rows show: each unit's identity in the Unit dropdown's order, the
+    /// unit the rows set (empty until shown), and the menu its dropdown was built from. A tap
+    /// resolves against these, so a unit arriving or moving while a dropdown is open cannot
+    /// redirect it.
+    std::vector<std::string> unit_type_units_;
+    std::string unit_type_identity_;
+    helix::ui::UnitTypeMenu unit_type_menu_;
 
     /// AMS action and can-cancel observers that keep can_abort_subject_
     /// current while the overlay exists.

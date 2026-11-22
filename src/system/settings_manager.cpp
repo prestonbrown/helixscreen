@@ -735,14 +735,28 @@ namespace {
 constexpr const char* kAmsUnitDrawingsKey = "ams/unit_drawings";
 } // namespace
 
-std::string SettingsManager::get_ams_unit_drawing(const std::string& unit_identity) const {
+std::map<std::string, std::string> SettingsManager::get_ams_unit_drawings() const {
+    std::map<std::string, std::string> out;
     Config* config = Config::get_instance();
-    if (!config || unit_identity.empty()) {
-        return {};
+    if (!config) {
+        return out;
     }
     const json drawings = config->get<json>(config->df() + kAmsUnitDrawingsKey, json::object());
-    return drawings.is_object() ? json_util::safe_string(drawings, unit_identity.c_str())
-                                : std::string{};
+    if (!drawings.is_object()) {
+        return out;
+    }
+    for (auto it = drawings.begin(); it != drawings.end(); ++it) {
+        if (it.value().is_string()) {
+            out[it.key()] = json_util::as_string(it.value());
+        }
+    }
+    return out;
+}
+
+std::string SettingsManager::get_ams_unit_drawing(const std::string& unit_identity) const {
+    const auto drawings = get_ams_unit_drawings();
+    const auto it = drawings.find(unit_identity);
+    return it == drawings.end() ? std::string{} : it->second;
 }
 
 void SettingsManager::set_ams_unit_drawing(const std::string& unit_identity,

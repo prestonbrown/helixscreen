@@ -9,7 +9,7 @@ namespace helix::ui {
 UnitTypeMenu unit_type_menu(const AmsUnit& unit, const std::string& chosen_id,
                             const std::string& automatic_label) {
     UnitTypeMenu menu;
-    menu.choices = tray::unit_shell_choices(unit.slot_count);
+    menu.choices = tray::unit_shell_choices(unit);
     menu.options = automatic_label;
     for (size_t i = 0; i < menu.choices.size(); ++i) {
         menu.options += "\n";
