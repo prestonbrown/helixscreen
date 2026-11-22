@@ -20,6 +20,7 @@
 #include "klipper_config_editor.h"
 #include "lvgl/src/others/translation/lv_translation.h"
 #include "observer_factory.h"
+#include "platform_info.h"
 #include "preset_materials.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -1494,7 +1495,14 @@ void PIDCalibrationPanel::detect_heater_control_type(bool preselect_mpc) {
 
                 current_control_ = (type == "mpc") ? ControlType::MPC : ControlType::PID;
 
-                if (preselect_mpc) {
+                if (helix::firmware_supervised()) {
+                    // The firmware owns the heater's section (#2154), so the run
+                    // tunes the control it already uses and never migrates.
+                    selected_method_ =
+                        current_control_ == ControlType::MPC ? CalibMethod::MPC : CalibMethod::PID;
+                    lv_subject_set_int(&subj_method_is_mpc_,
+                                       selected_method_ == CalibMethod::MPC ? 1 : 0);
+                } else if (preselect_mpc) {
                     // MPC is the recommended method on firmware that offers it
                     selected_method_ = CalibMethod::MPC;
                     lv_subject_set_int(&subj_method_is_mpc_, 1);
