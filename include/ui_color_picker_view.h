@@ -132,6 +132,9 @@ class ColorPickerView {
     /// Every shared subject from this view's state: on attach, and when a
     /// view attached after it detaches.
     void publish_all();
+    /// The colors the grid shows: the configured palette, compacted on a small
+    /// screen (grid_palette_for()).
+    const std::vector<uint32_t>& grid_colors() const;
     void publish_keypad();
     void load_strip();
     /// Shows only the recents that fit the strip whole. A custom strip keeps

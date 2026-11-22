@@ -73,12 +73,6 @@
     <px name="cal_steps_w_large" value="310"/>
     <px name="cal_steps_w_xlarge" value="370"/>
     <!-- Results table: the Keep column and the arrow column. -->
-    <px name="cal_keep_w_micro" value="28"/>
-    <px name="cal_keep_w_tiny" value="30"/>
-    <px name="cal_keep_w_small" value="36"/>
-    <px name="cal_keep_w_medium" value="40"/>
-    <px name="cal_keep_w_large" value="50"/>
-    <px name="cal_keep_w_xlarge" value="60"/>
     <px name="cal_arrow_w_micro" value="16"/>
     <px name="cal_arrow_w_tiny" value="18"/>
     <px name="cal_arrow_w_small" value="20"/>

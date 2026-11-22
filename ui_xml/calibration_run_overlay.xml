@@ -250,9 +250,6 @@
                 height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="0"
                 style_pad_bottom="#space_xs" style_pad_gap="#space_md" style_bg_opa="0" style_border_width="0"
                 flex_flow="row" scrollable="false">
-          <text_small width="#cal_keep_w"
-                      text="Keep" text_transform="uppercase" style_text_font="#cal_font_badge"
-                      style_text_color="#text_muted" style_text_opa="204"/>
           <text_small width="0"
                       flex_grow="11" text="Step" text_transform="uppercase" style_text_font="#cal_font_badge"
                       style_text_color="#text_muted" style_text_opa="204"/>
