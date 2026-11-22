@@ -1108,3 +1108,18 @@ TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken 
     }
     theme_manager_refresh_layout_constants(disp);
 }
+
+TEST_CASE_METHOD(PagesFixture, "a lane holding an unrecorded spool opens on its summary",
+                 "[ams_edit_overlay][pages]") {
+    SlotInfo lane = backend->get_slot_info(1);
+    lane.material.clear();
+    lane.brand.clear();
+    lane.spoolman_id = 0;
+    lane.status = SlotStatus::AVAILABLE;
+    open(1, lane);
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    // Its unknown state: no material, a full spool of the lane's size.
+    CHECK(access.working_info().material.empty());
+    CHECK(access.shown("btn_hdr_new_spool"));
+    close_editor_overlay();
+}

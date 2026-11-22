@@ -271,6 +271,11 @@ LaneScreen screen_for_lane(const SlotInfo& lane) {
     if (lane.status == SlotStatus::EMPTY) {
         return LaneScreen::Assign;
     }
+    // Filament the lane reports is a spool, recorded or not: a tagless spool
+    // opens on its summary to be described, never on the empty page.
+    if (slot_status_reports_filament(lane.status).value_or(false)) {
+        return LaneScreen::Edit;
+    }
     return (lane.spoolman_id > 0 || !lane.material.empty()) ? LaneScreen::Edit : LaneScreen::Assign;
 }
 
