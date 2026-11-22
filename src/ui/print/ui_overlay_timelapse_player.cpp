@@ -52,6 +52,10 @@ TimelapsePlayerOverlay::TimelapsePlayerOverlay() = default;
 TimelapsePlayerOverlay::~TimelapsePlayerOverlay() {
     cancel_present_timer();
     stop_decoder();
+    // The image must not be left pointing at the buffer freed next.
+    if (video_frame_ && lv_is_initialized()) {
+        lv_image_set_src(video_frame_, nullptr);
+    }
     free_draw_buf();
     subjects_.deinit_all();
 }
@@ -157,6 +161,9 @@ void TimelapsePlayerOverlay::start_decoder() {
     lv_subject_set_int(&position_subject_, 0);
     shown_second_ = -1;
     scrubbing_ = false;
+    // Until this video's probe answers, nothing of the last one carries over.
+    fps_ = 30.0;
+    duration_s_ = 0.0;
     set_state(kLoading);
     set_controls(true);
 
@@ -172,8 +179,13 @@ void TimelapsePlayerOverlay::start_decoder() {
                                  helix::timelapse::FrameSize) {
         tok.defer("TimelapsePlayer::info", [this, info]() { on_info(info); });
     };
-    events.on_end = [this, tok](bool failed) {
-        tok.defer("TimelapsePlayer::end", [this, failed]() { on_end(failed); });
+    events.on_end = [this, tok](bool failed, uint64_t generation) {
+        tok.defer("TimelapsePlayer::end", [this, failed, generation]() {
+            // From the run a seek replaced: the new run is playing.
+            if (decoder_ && generation == decoder_->generation()) {
+                on_end(failed);
+            }
+        });
     };
 
     decoder_ = std::make_unique<helix::timelapse::PlayerDecoder>();

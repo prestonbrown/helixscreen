@@ -54,11 +54,21 @@ TEST_CASE("Video open: the card badge follows the action", "[timelapse][player][
 }
 
 TEST_CASE("Video open: embedded-class boards do not decode video", "[timelapse][player][routing]") {
-    CHECK(inapp_player_supported(1024, 4));
-    CHECK(inapp_player_supported(512, 2));
-    CHECK_FALSE(inapp_player_supported(511, 4));
-    CHECK_FALSE(inapp_player_supported(256, 2));
-    CHECK_FALSE(inapp_player_supported(2048, 1));
+    CHECK(inapp_player_supported(helix::PlatformTier::STANDARD));
+    CHECK(inapp_player_supported(helix::PlatformTier::BASIC));
+    CHECK_FALSE(inapp_player_supported(helix::PlatformTier::EMBEDDED));
+}
+
+TEST_CASE("Video open: during a print a tap goes to the phone, as thumbnails wait",
+          "[timelapse][player][routing]") {
+    auto printing = [](bool local, std::string url) {
+        VideoOpenInputs in = inputs(true, true, local, std::move(url));
+        in.print_active = true;
+        return choose_video_open_action(in);
+    };
+    CHECK(printing(true, "http://x/v.mp4") == VideoOpenAction::PhoneQr);
+    CHECK(printing(false, "http://x/v.mp4") == VideoOpenAction::PhoneQr);
+    CHECK(printing(true, "") == VideoOpenAction::NoPlayerToast);
 }
 
 // --- Probe parsing ---
@@ -325,20 +335,24 @@ TEST_CASE("Pacing: a frame far behind restarts the clock", "[timelapse][player][
 
 // --- Presentation ---
 
+static int pick(const std::vector<double>& due, double now) {
+    return pick_due_frame(due.data(), due.size(), now);
+}
+
 TEST_CASE("Present: nothing pending or nothing due shows nothing", "[timelapse][player][present]") {
-    CHECK(pick_due_frame({}, 5.0) == -1);
-    CHECK(pick_due_frame({5.1, 5.2}, 5.0) == -1);
+    CHECK(pick({}, 5.0) == -1);
+    CHECK(pick({5.1, 5.2}, 5.0) == -1);
 }
 
 TEST_CASE("Present: the frame whose time has come is shown", "[timelapse][player][present]") {
-    CHECK(pick_due_frame({5.0, 5.033}, 5.0) == 0);
-    CHECK(pick_due_frame({4.99, 5.033}, 5.01) == 0);
+    CHECK(pick({5.0, 5.033}, 5.0) == 0);
+    CHECK(pick({4.99, 5.033}, 5.01) == 0);
 }
 
 TEST_CASE("Present: a UI that looked late shows the newest due frame",
           "[timelapse][player][present]") {
-    CHECK(pick_due_frame({4.9, 4.95, 5.2}, 5.0) == 1);
-    CHECK(pick_due_frame({4.9, 4.95}, 5.0) == 1);
+    CHECK(pick({4.9, 4.95, 5.2}, 5.0) == 1);
+    CHECK(pick({4.9, 4.95}, 5.0) == 1);
 }
 
 TEST_CASE("Present: the timer looks several times per frame", "[timelapse][player][present]") {
@@ -367,9 +381,10 @@ Shown show(FrameExchange& x, double now) {
     return out;
 }
 
-void put(FrameExchange& x, uint8_t value, int64_t index, double due, double now = -1.0) {
+void put(FrameExchange& x, uint8_t value, int64_t index, double due, double now = -1.0,
+         uint64_t generation = 0) {
     std::vector<uint8_t> f{value};
-    x.publish(f, {1, 1}, index, due, now);
+    x.publish(f, {1, 1}, index, due, now, generation);
 }
 
 /// Every published frame is in exactly one bucket.
@@ -488,6 +503,25 @@ TEST_CASE("Exchange: clear forgets the queued frames", "[timelapse][player][exch
     x.clear();
     CHECK(x.pending() == 0);
     CHECK(show(x, 9.0).index == -1);
+}
+
+TEST_CASE("Exchange: after a seek, nothing from the old run shows",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 1, 0, 1.0, 0.9, 0);
+    put(x, 2, 1, 1.033, 0.9, 0);
+    x.begin_generation(1);
+    CHECK(x.pending() == 0);
+    // A frame the old run had in flight when the seek landed.
+    put(x, 3, 2, 1.066, 0.95, 0);
+    CHECK(x.pending() == 0);
+    put(x, 4, 300, 1.1, 1.0, 1);
+    const Shown s = show(x, 1.1);
+    CHECK(s.index == 300);
+    const auto st = x.stats();
+    CHECK(st.discarded == 3);
+    CHECK(st.dropped() == 0);
+    check_accounted(x);
 }
 
 TEST_CASE("Exchange: a published frame hands back a used buffer to fill",

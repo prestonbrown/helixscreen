@@ -5099,7 +5099,6 @@ translations:
   'The {0} motor was not measured: {1}.': ''
   'The update stopped reporting. Its result is unknown: check the printer before using it.': ''
   The update's result is unknown: ''
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: ''
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : ''
   The {1} motor lost steps: ''
@@ -5591,8 +5590,6 @@ translations:
   Vibration: ''
   Vibration compensation active: ''
   Video playback speed: ''
-  Video player failed to start: ''
-  Video player failed to start ({}): ''
   View: ''
   View Changelog: ''
   View Full History: ''

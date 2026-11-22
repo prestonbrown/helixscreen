@@ -709,10 +709,8 @@ void TimelapseVideosOverlay::detect_playback_capability() {
         int exit_code = -1;
         return !helix::run_capture("which ffmpeg 2>/dev/null", exit_code).empty();
     }();
-    static const bool cached_board_can_decode = [] {
-        const auto caps = helix::PlatformCapabilities::detect();
-        return helix::timelapse::inapp_player_supported(caps.total_ram_mb, caps.cpu_cores);
-    }();
+    static const bool cached_board_can_decode =
+        helix::timelapse::inapp_player_supported(helix::PlatformCapabilities::detect().tier);
 
     has_ffmpeg_ = cached_has_ffmpeg;
     board_can_decode_ = cached_board_can_decode;
@@ -738,6 +736,8 @@ TimelapseVideosOverlay::open_inputs(const std::string& filename) const {
     in.ffmpeg_available = has_ffmpeg_;
     in.board_can_decode = board_can_decode_;
     in.moonraker_local = is_local_moonraker_;
+    in.print_active =
+        lv_subject_get_int(get_printer_state().print_state().get_print_active_subject()) != 0;
     in.phone_url = phone_url_for(filename);
     return in;
 }

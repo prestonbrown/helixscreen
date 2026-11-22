@@ -173,14 +173,15 @@ The timelapse settings overlay manages videos:
 **What a tap does** is one pure rule, `helix::timelapse::choose_video_open_action()`
 (`include/timelapse_playback.h`), which the card tap and History's open both follow:
 
-| ffmpeg on PATH and the board decodes | Moonraker | Action |
+| ffmpeg on PATH, the board decodes, no print running | Moonraker | Action |
 |---|---|---|
 | yes | same host | play the file in place |
 | yes | remote | download to the runtime dir, then play the copy |
 | no | any | QR code of the video's URL for a phone, else a toast |
 
-"The board decodes" is `inapp_player_supported()`: not the boards PlatformTier calls
-EMBEDDED (under 512 MB or one core). Each card's badge says which (`tap_badge_for()`).
+"The board decodes" is `inapp_player_supported()`: every PlatformTier but EMBEDDED. While a
+print holds the machine a tap goes to the phone, the same rule that holds back thumbnail
+extraction: a full-length decode is CPU Klipper needs. Each card's badge says which (`tap_badge_for()`).
 
 ### In-app player
 
@@ -198,7 +199,10 @@ runs `ffmpeg` as a child with its stdout on a pipe.
   core, every thread holding its own frames, which more than doubled ffmpeg's memory. A
   small `-probesize`/`-analyzeduration` (a local file's header says enough); never
   `-fflags nobuffer`, which ends an MP4 early. The child runs at nice 10 and dies with the
-  app (`PR_SET_PDEATHSIG`).
+  app (`PR_SET_PDEATHSIG`). It starts through `helix::spawn_child()`
+  (`include/system/child_process.h`), the one fork-and-exec the plugin installer's shell
+  runs use too: signals blocked across the fork and reset in the child, every inherited fd
+  above stderr closed.
 - **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and queues
   each in `FrameExchange` one frame period before it is due, stamped with its due time on
   the monotonic clock (`pace_frame()`). A main-thread timer looking every quarter period
@@ -209,6 +213,10 @@ runs `ffmpeg` as a child with its stdout on a pipe.
   stops reading, so ffmpeg blocks on the pipe); a scrub bar that seeks on release by
   replacing the child with one started at `-ss`; at the end the last frame stays with a
   replay button.
+- **Seeks** - every seek starts a new decode run with a higher generation. The exchange
+  discards frames from older runs (`begin_generation()`), and the overlay ignores an end
+  report from one, so a run that ended just as a seek landed cannot leave the player on
+  its Replay screen.
 - **Lifetime** - leaving the overlay, destroying it and seeking each kill and reap the child
   (`terminate_and_reap()`); the worker is joined before the decoder goes away.
 

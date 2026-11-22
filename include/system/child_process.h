@@ -8,6 +8,41 @@
 
 namespace helix {
 
+/// Where a spawned child's standard streams go; -1 is /dev/null.
+struct ChildIo {
+    int stdin_fd = -1;
+    int stdout_fd = -1;
+    int stderr_fd = -1;
+};
+
+struct ChildOptions {
+    /// Look @p file up on PATH (execvp, with the app's own environment)
+    /// instead of running it as given with @p envp.
+    bool search_path = false;
+    /// Raise the child's nice value by this much (0 leaves it alone).
+    int nice = 0;
+    /// Kill the child when the thread that spawned it exits (Linux only), so
+    /// a crashed app leaves no child running.
+    bool die_with_parent = false;
+};
+
+/**
+ * @brief fork() and exec @p file with @p argv, as a clean process
+ *
+ * Until exec the child is a copy of the app, signal handlers included, so a
+ * signal that ends it early must not run the app's own handler in it: every
+ * signal stays blocked across the fork, and the child resets each handled one
+ * to its default before unblocking. It closes every inherited fd above stderr
+ * and wires its streams per @p io. @p argv and @p envp (nullptr: the app's own
+ * environment) must be built before the call: the child of a threaded process
+ * may not allocate.
+ *
+ * @return the child's pid, or -1 with errno set when the fork failed (and
+ *         always on a build that cannot spawn processes)
+ */
+pid_t spawn_child(const char* file, const char* const* argv, char* const* envp, ChildIo io,
+                  ChildOptions options = {});
+
 enum class ChildWaitOutcome {
     Exited,     ///< The child exited on its own before the deadline
     TimedOut,   ///< The deadline passed and the child was terminated

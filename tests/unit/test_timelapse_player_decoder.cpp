@@ -3,6 +3,7 @@
 
 #include "timelapse_player_decoder.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <chrono>
@@ -43,6 +44,7 @@ struct Harness {
     PlayerDecoder decoder;
     std::atomic<int> ends{0};
     std::atomic<bool> failed{false};
+    std::atomic<uint64_t> last_end_generation{999};
     std::mutex mutex;
     std::vector<double> starts;
 
@@ -68,8 +70,9 @@ struct Harness {
 
     PlayerDecoder::Events events() {
         PlayerDecoder::Events e;
-        e.on_end = [this](bool f) {
+        e.on_end = [this](bool f, uint64_t generation) {
             failed.store(f);
+            last_end_generation.store(generation);
             ends.fetch_add(1);
         };
         return e;
@@ -184,4 +187,50 @@ TEST_CASE("Decoder: a seek restarts the child at the new time and numbers frames
             monotonic_seconds() + 100.0, [&](const uint8_t*, FrameSize, int64_t i) { index = i; });
     }));
     CHECK(index >= 200);
+}
+
+TEST_CASE("Decoder: each end report names its run, and a seek starts a newer one",
+          "[timelapse][player][decoder]") {
+    Harness h;
+    const std::string three_frames =
+        "exec head -c " + std::to_string(kFrameBytes * 3) + " /dev/zero";
+    REQUIRE(h.decoder.start(h.config(three_frames), h.events()));
+    REQUIRE(wait_for([&] { return h.ends.load() == 1; }));
+    const uint64_t first = h.last_end_generation.load();
+    CHECK(first == h.decoder.generation());
+
+    h.decoder.seek(0.0);
+    // From here the first run's end is stale: the overlay drops it.
+    CHECK(h.decoder.generation() > first);
+    REQUIRE(wait_for([&] { return h.ends.load() == 2; }));
+    CHECK(h.last_end_generation.load() == h.decoder.generation());
+}
+
+TEST_CASE("Decoder: a pause longer than the lateness limit resumes on the same clock",
+          "[timelapse][player][decoder]") {
+    // 20 fps: a 50 ms period, so the clock math shows above scheduling noise.
+    Harness h;
+    constexpr double kPeriod = 1.0 / 20.0;
+    REQUIRE(h.decoder.start(h.config("exec cat /dev/zero", 20.0), h.events()));
+    REQUIRE(wait_for([&] { return h.published() > 3; }));
+
+    h.decoder.pause();
+    std::this_thread::sleep_for(450ms); // past max_late_s
+    const uint64_t before = h.published();
+    const double resumed_at = monotonic_seconds();
+    h.decoder.resume();
+
+    // Every frame queued before the pause moved with it. Nothing consumes
+    // here, so the queue holds up to its three slots around the pause moment;
+    // unshifted they would sit the whole pause (450 ms) in the past.
+    for (double due : h.decoder.exchange().due_times()) {
+        CHECK(due > resumed_at - 3 * kPeriod);
+    }
+    // The first frame decoded after the resume keeps its place on the clock
+    // (one period or more ahead), instead of restarting the clock at "now".
+    REQUIRE(wait_for([&] { return h.published() > before; }));
+    const auto due = h.decoder.exchange().due_times();
+    const auto fresh = std::min<size_t>(h.published() - before, due.size());
+    REQUIRE(fresh > 0);
+    CHECK(due[due.size() - fresh] >= resumed_at + 0.5 * kPeriod);
 }

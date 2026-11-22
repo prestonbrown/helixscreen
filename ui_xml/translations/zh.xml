@@ -4954,7 +4954,6 @@
   <translation tag="The update failed" zh="更新失败"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." zh="更新已停止报告进度。结果未知：使用前请检查打印机。"/>
   <translation tag="The update&apos;s result is unknown" zh="更新结果未知"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." zh="视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。"/>
   <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." zh="{1} 加速度计未返回预期的 ID。很可能是未插好、线缆损坏，或 SPI 引脚错误。"/>
   <translation tag="The {1} motor lost steps" zh="{1} 电机丢步"/>
@@ -5414,8 +5413,6 @@
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
   <translation tag="Video playback speed" zh="视频播放速度"/>
-  <translation tag="Video player failed to start" zh="视频播放器启动失败"/>
-  <translation tag="Video player failed to start ({})" zh="视频播放器启动失败（{}）"/>
   <translation tag="View" zh="查看"/>
   <translation tag="View Changelog" zh="查看更新日志"/>
   <translation tag="View Full History" zh="查看完整历史"/>

@@ -8,6 +8,8 @@
 // tap on a video opens it. Nothing here touches LVGL or spawns a process, so
 // every rule is testable without a display or an ffmpeg binary.
 
+#include "platform_capabilities.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -32,6 +34,7 @@ struct VideoOpenInputs {
     bool ffmpeg_available = false; ///< ffmpeg is on this host's PATH
     bool board_can_decode = false; ///< inapp_player_supported() for this board
     bool moonraker_local = false;  ///< the video is on this host's disk
+    bool print_active = false;     ///< a print holds the machine; its CPU is not ours to spend
     std::string phone_url;         ///< phone_video_url()'s answer; empty when none
 };
 
@@ -41,10 +44,9 @@ struct VideoOpenInputs {
 /// What each video card's badge shows for @p action: 0 none, 1 play here, 2 phone.
 [[nodiscard]] int tap_badge_for(VideoOpenAction action);
 
-/// Whether a board with @p ram_mb of memory and @p cpu_cores cores decodes
-/// video beside Klipper: the boards PlatformTier calls EMBEDDED (under 512 MB,
-/// or one core) hand the video to a phone instead.
-[[nodiscard]] bool inapp_player_supported(size_t ram_mb, int cpu_cores);
+/// Whether a board of @p tier decodes video beside Klipper: every tier but
+/// EMBEDDED, whose boards hand the video to a phone instead.
+[[nodiscard]] bool inapp_player_supported(PlatformTier tier);
 
 // --- What the video is ---
 
@@ -139,10 +141,10 @@ struct PaceDecision {
 [[nodiscard]] PaceDecision pace_frame(int64_t index, double fps, double elapsed_s,
                                       double lead_s = 0.0, double max_late_s = 0.25);
 
-/// Which of the pending frames to show at @p now_s, given each one's due time
-/// in @p due_s (oldest first): the newest already due, or -1 when none is due
-/// yet. Every older due frame is skipped: the UI fell behind it.
-[[nodiscard]] int pick_due_frame(const std::vector<double>& due_s, double now_s);
+/// Which of the @p count pending frames to show at @p now_s, given each one's
+/// due time in @p due_s (oldest first): the newest already due, or -1 when
+/// none is due yet. Every older due frame is skipped: the UI fell behind it.
+[[nodiscard]] int pick_due_frame(const double* due_s, size_t count, double now_s);
 
 /// How often the UI looks for a due frame at @p fps: a quarter of the frame
 /// period, kept between 4 and 10 ms, so a frame is never more than a fraction
@@ -233,21 +235,25 @@ class FrameExchange {
     /// loses a frame, the same bar pick_due_frame() skips at.
     static constexpr size_t kSlots = 3;
 
-    /// Queue @p frame, due at @p due_s, at @p now_s (both monotonic_seconds());
-    /// @p frame comes back holding a buffer to reuse.
+    /// Queue @p frame, due at @p due_s, at @p now_s (both monotonic_seconds()),
+    /// decoded by run @p generation; @p frame comes back holding a buffer to
+    /// reuse. A frame from a run older than begin_generation()'s is discarded.
     void publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index, double due_s,
-                 double now_s);
+                 double now_s, uint64_t generation = 0);
+
+    /// A seek started run @p generation: discard the queued frames, and every
+    /// later frame from an older run, so nothing from before the seek shows.
+    void begin_generation(uint64_t generation);
 
     /// Call @p fn(pixels, size, index) on the frame pick_due_frame() chooses at
     /// @p now_s, under the lock. False when no frame is due.
     template <typename F> bool consume_due(double now_s, F&& fn) {
         std::lock_guard<std::mutex> lock(mutex_);
-        std::vector<double> due;
-        due.reserve(queue_.size());
-        for (const auto& slot : queue_) {
-            due.push_back(slot.due_s);
+        double due[kSlots];
+        for (size_t i = 0; i < queue_.size(); ++i) {
+            due[i] = queue_[i].due_s;
         }
-        const int pick = pick_due_frame(due, now_s);
+        const int pick = pick_due_frame(due, queue_.size(), now_s);
         if (pick < 0) {
             return false;
         }
@@ -264,6 +270,8 @@ class FrameExchange {
 
     /// Frames queued and not yet shown.
     [[nodiscard]] size_t pending() const;
+    /// The queued frames' due times, oldest first, for diagnostics and tests.
+    [[nodiscard]] std::vector<double> due_times() const;
     /// Push every queued frame's due time back by @p seconds (a pause ended).
     void shift_due(double seconds);
     [[nodiscard]] Stats stats() const;
@@ -283,6 +291,7 @@ class FrameExchange {
     mutable std::mutex mutex_;
     std::vector<Slot> queue_;                ///< oldest first, at most kSlots
     std::vector<std::vector<uint8_t>> free_; ///< buffers handed back to the decoder
+    uint64_t generation_ = 0;                ///< frames from older runs are discarded
     Stats stats_;
 };
 

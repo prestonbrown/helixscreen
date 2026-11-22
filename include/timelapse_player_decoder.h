@@ -46,8 +46,10 @@ class PlayerDecoder {
     struct Events {
         /// The probe answered; frames will be @p out in size.
         std::function<void(const VideoInfo& info, FrameSize out)> on_info;
-        /// The stream ended. @p failed: no video could be decoded at all.
-        std::function<void(bool failed)> on_end;
+        /// Run @p generation's stream ended. @p failed: no video could be
+        /// decoded at all. A report whose generation is older than
+        /// generation() is from before a seek and is stale.
+        std::function<void(bool failed, uint64_t generation)> on_end;
     };
 
     struct Config {
@@ -77,6 +79,10 @@ class PlayerDecoder {
     [[nodiscard]] FrameExchange& exchange() {
         return exchange_;
     }
+    /// The current decode run: 0 from start(), one more for every seek.
+    [[nodiscard]] uint64_t generation() const {
+        return generation_.load();
+    }
     /// The running ffmpeg child, or -1 between children.
     [[nodiscard]] pid_t child_pid() const {
         return child_pid_.load();
@@ -85,7 +91,8 @@ class PlayerDecoder {
   private:
     void run();
     /// Decode one child's stream from @p start_s; false when it ended on its own.
-    bool decode_from(double start_s, double fps, FrameSize out, bool& got_frame);
+    bool decode_from(double start_s, double fps, FrameSize out, uint64_t generation,
+                     bool& got_frame);
     /// Wait while paused; true when the run should stop reading (stop or seek).
     bool wait_while_paused(std::unique_lock<std::mutex>& lock);
 
@@ -101,6 +108,7 @@ class PlayerDecoder {
     double pending_shift_s_ = 0.0; ///< paused time the reading loop has not taken up
     std::optional<double> seek_to_;
 
+    std::atomic<uint64_t> generation_{0};
     std::atomic<pid_t> child_pid_{-1};
     std::thread worker_;
 };

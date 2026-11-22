@@ -4954,7 +4954,6 @@
   <translation tag="The update failed" es="La actualización falló"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." es="La actualización dejó de informar. Su resultado es desconocido: revisa la impresora antes de usarla."/>
   <translation tag="The update&apos;s result is unknown" es="El resultado de la actualización es desconocido"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." es="El reproductor de vídeo no pudo iniciarse en esta impresora ({}). Escanea el código con tu teléfono para ver el timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." es="El motor {0} no se midió: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." es="El acelerómetro {1} no respondió con su ID esperado. Lo más probable es que esté desconectado, que su cable esté dañado o que sus pines SPI sean incorrectos."/>
   <translation tag="The {1} motor lost steps" es="El motor {1} perdió pasos"/>
@@ -5414,8 +5413,6 @@
   <translation tag="Vibration" es="Vibración"/>
   <translation tag="Vibration compensation active" es="Compensación de vibración activa"/>
   <translation tag="Video playback speed" es="Velocidad de reproducción de video"/>
-  <translation tag="Video player failed to start" es="No se pudo iniciar el reproductor de vídeo"/>
-  <translation tag="Video player failed to start ({})" es="No se pudo iniciar el reproductor de vídeo ({})"/>
   <translation tag="View" es="Ver"/>
   <translation tag="View Changelog" es="Ver registro de cambios"/>
   <translation tag="View Full History" es="Ver Historial Completo"/>

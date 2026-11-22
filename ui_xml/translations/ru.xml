@@ -5020,7 +5020,6 @@
   <translation tag="The update failed" ru="Обновление не удалось"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." ru="Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием."/>
   <translation tag="The update&apos;s result is unknown" ru="Результат обновления неизвестен"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ru="Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="The {0} motor was not measured: {1}." ru="Мотор {0} не измерен: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." ru="Акселерометр {1} не ответил ожидаемым ID. Скорее всего, он отключён, его кабель повреждён или неверно заданы пины SPI."/>
   <translation tag="The {1} motor lost steps" ru="Мотор {1} потерял шаги"/>
@@ -5480,8 +5479,6 @@
   <translation tag="Vibration" ru="Вибрация"/>
   <translation tag="Vibration compensation active" ru="Компенсация вибраций активна"/>
   <translation tag="Video playback speed" ru="Скорость воспроизведения видео"/>
-  <translation tag="Video player failed to start" ru="Не удалось запустить видеоплеер"/>
-  <translation tag="Video player failed to start ({})" ru="Не удалось запустить видеоплеер ({})"/>
   <translation tag="View" ru="Просмотр"/>
   <translation tag="View Changelog" ru="Просмотр изменений"/>
   <translation tag="View Full History" ru="Просмотреть полную историю"/>

@@ -5212,7 +5212,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием.'
   The update's result is unknown: 'Результат обновления неизвестен'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Акселерометр {1} не ответил ожидаемым ID. Скорее всего, он отключён, его кабель повреждён или неверно заданы пины SPI.
   The {1} motor lost steps: Мотор {1} потерял шаги
@@ -5697,8 +5696,6 @@ translations:
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
-  Video player failed to start: 'Не удалось запустить видеоплеер'
-  Video player failed to start ({}): 'Не удалось запустить видеоплеер ({})'
   View: Просмотр
   View Changelog: Просмотр изменений
   View Full History: Просмотреть полную историю

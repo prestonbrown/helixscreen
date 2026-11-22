@@ -5,10 +5,85 @@
 
 #include <cerrno>
 #include <csignal>
+#include <fcntl.h>
+#include <pthread.h>
+#include <sys/resource.h>
 #include <sys/wait.h>
 #include <thread>
+#include <unistd.h>
+
+#ifdef __linux__
+#include <sys/prctl.h>
+#endif
 
 namespace helix {
+
+pid_t spawn_child(const char* file, const char* const* argv, char* const* envp, ChildIo io,
+                  ChildOptions options) {
+#if defined(ESP_PLATFORM)
+    (void)file;
+    (void)argv;
+    (void)envp;
+    (void)io;
+    (void)options;
+    errno = ENOSYS;
+    return -1;
+#else
+    const long open_max = sysconf(_SC_OPEN_MAX);
+    const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
+
+    sigset_t all_signals;
+    sigset_t old_mask;
+    sigfillset(&all_signals);
+    pthread_sigmask(SIG_SETMASK, &all_signals, &old_mask);
+    const pid_t pid = fork();
+    if (pid != 0) {
+        const int fork_errno = errno;
+        pthread_sigmask(SIG_SETMASK, &old_mask, nullptr);
+        errno = fork_errno;
+        return pid;
+    }
+
+    // The child: async-signal-safe calls only from here to exec.
+    for (int sig = 1; sig < NSIG; ++sig) {
+        struct sigaction current {};
+        if (sigaction(sig, nullptr, &current) == 0 && current.sa_handler != SIG_IGN) {
+            struct sigaction reset {};
+            reset.sa_handler = SIG_DFL;
+            sigaction(sig, &reset, nullptr);
+        }
+    }
+#ifdef __linux__
+    if (options.die_with_parent) {
+        prctl(PR_SET_PDEATHSIG, SIGKILL);
+    }
+#endif
+    sigprocmask(SIG_SETMASK, &old_mask, nullptr);
+
+    const int null_fd = open("/dev/null", O_RDWR);
+    const int targets[3] = {io.stdin_fd, io.stdout_fd, io.stderr_fd};
+    for (int stream = 0; stream < 3; ++stream) {
+        const int from = targets[stream] >= 0 ? targets[stream] : null_fd;
+        if (from >= 0) {
+            dup2(from, stream);
+        }
+    }
+    for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
+        close(fd);
+    }
+    if (options.nice != 0) {
+        setpriority(PRIO_PROCESS, 0, options.nice);
+    }
+    if (options.search_path) {
+        execvp(file, const_cast<char* const*>(argv));
+    } else if (envp) {
+        execve(file, const_cast<char* const*>(argv), envp);
+    } else {
+        execv(file, const_cast<char* const*>(argv));
+    }
+    _exit(127);
+#endif
+}
 
 int ChildWaitResult::exit_code() const {
     return reaped && WIFEXITED(status) ? WEXITSTATUS(status) : -1;

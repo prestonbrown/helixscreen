@@ -4954,7 +4954,6 @@
   <translation tag="The update failed" en="The update failed"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." en="The update stopped reporting. Its result is unknown: check the printer before using it."/>
   <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." en="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse."/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." en="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
   <translation tag="The {1} motor lost steps" en="The {1} motor lost steps"/>
@@ -5414,8 +5413,6 @@
   <translation tag="Vibration" en="Vibration"/>
   <translation tag="Vibration compensation active" en="Vibration compensation active"/>
   <translation tag="Video playback speed" en="Video playback speed"/>
-  <translation tag="Video player failed to start" en="Video player failed to start"/>
-  <translation tag="Video player failed to start ({})" en="Video player failed to start ({})"/>
   <translation tag="View" en="View"/>
   <translation tag="View Changelog" en="View Changelog"/>
   <translation tag="View Full History" en="View Full History"/>

@@ -14,7 +14,7 @@ namespace helix::timelapse {
 // --- Routing ---
 
 VideoOpenAction choose_video_open_action(const VideoOpenInputs& in) {
-    if (in.ffmpeg_available && in.board_can_decode) {
+    if (in.ffmpeg_available && in.board_can_decode && !in.print_active) {
         return in.moonraker_local ? VideoOpenAction::PlayInApp : VideoOpenAction::DownloadThenPlay;
     }
     return in.phone_url.empty() ? VideoOpenAction::NoPlayerToast : VideoOpenAction::PhoneQr;
@@ -33,8 +33,8 @@ int tap_badge_for(VideoOpenAction action) {
     return 0;
 }
 
-bool inapp_player_supported(size_t ram_mb, int cpu_cores) {
-    return ram_mb >= 512 && cpu_cores >= 2;
+bool inapp_player_supported(PlatformTier tier) {
+    return tier != PlatformTier::EMBEDDED;
 }
 
 // --- Probe parsing ---
@@ -307,9 +307,9 @@ PaceDecision pace_frame(int64_t index, double fps, double elapsed_s, double lead
     return {0.0, elapsed_s - due > max_late_s};
 }
 
-int pick_due_frame(const std::vector<double>& due_s, double now_s) {
+int pick_due_frame(const double* due_s, size_t count, double now_s) {
     int pick = -1;
-    for (size_t i = 0; i < due_s.size() && due_s[i] <= now_s; ++i) {
+    for (size_t i = 0; i < count && due_s[i] <= now_s; ++i) {
         pick = static_cast<int>(i);
     }
     return pick;
@@ -356,9 +356,14 @@ bool FrameAssembler::commit(size_t n) {
 // --- Exchange ---
 
 void FrameExchange::publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index,
-                            double due_s, double now_s) {
+                            double due_s, double now_s, uint64_t generation) {
     std::lock_guard<std::mutex> lock(mutex_);
     ++stats_.published;
+    if (generation < generation_) {
+        // Decoded before a seek the exchange has already moved past.
+        ++stats_.discarded;
+        return;
+    }
     if (queue_.size() >= kSlots) {
         if (queue_.front().due_s <= now_s) {
             ++stats_.replaced_late;
@@ -382,6 +387,24 @@ void FrameExchange::publish(std::vector<uint8_t>& frame, FrameSize size, int64_t
 void FrameExchange::recycle_front() {
     free_.push_back(std::move(queue_.front().pixels));
     queue_.erase(queue_.begin());
+}
+
+void FrameExchange::begin_generation(uint64_t generation) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    generation_ = generation;
+    stats_.discarded += queue_.size();
+    while (!queue_.empty()) {
+        recycle_front();
+    }
+}
+
+std::vector<double> FrameExchange::due_times() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<double> out;
+    for (const auto& slot : queue_) {
+        out.push_back(slot.due_s);
+    }
+    return out;
 }
 
 size_t FrameExchange::pending() const {

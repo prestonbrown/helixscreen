@@ -202,20 +202,10 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
         argv.push_back(arg.c_str());
     }
     argv.push_back(nullptr);
-    const long open_max = sysconf(_SC_OPEN_MAX);
-    const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
-
-    // Until exec the child is a copy of the app, handlers included: a SIGTERM
-    // that ends it early must not run the app's own handler in it. Signals stay
-    // blocked across the fork, and the child resets every handled one first.
-    sigset_t all_signals;
-    sigset_t old_mask;
-    sigfillset(&all_signals);
-    pthread_sigmask(SIG_SETMASK, &all_signals, &old_mask);
-    pid_t pid = fork();
-    if (pid != 0) {
-        pthread_sigmask(SIG_SETMASK, &old_mask, nullptr);
-    }
+    ChildIo io;
+    io.stdout_fd = fds[1];
+    io.stderr_fd = fds[1];
+    const pid_t pid = spawn_child("/bin/sh", argv.data(), envp.data(), io);
     if (pid < 0) {
         result.error = result.spawn_failed = true;
         result.error_message = strerror(errno);
@@ -223,29 +213,6 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
         close(fds[0]);
         close(fds[1]);
         return result;
-    }
-
-    if (pid == 0) {
-        for (int sig = 1; sig < NSIG; ++sig) {
-            struct sigaction current {};
-            if (sigaction(sig, nullptr, &current) == 0 && current.sa_handler != SIG_IGN) {
-                struct sigaction reset {};
-                reset.sa_handler = SIG_DFL;
-                sigaction(sig, &reset, nullptr);
-            }
-        }
-        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
-        const int null_fd = open("/dev/null", O_RDONLY);
-        if (null_fd >= 0) {
-            dup2(null_fd, STDIN_FILENO);
-        }
-        dup2(fds[1], STDOUT_FILENO);
-        dup2(fds[1], STDERR_FILENO);
-        for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
-            close(fd);
-        }
-        execve("/bin/sh", const_cast<char* const*>(argv.data()), envp.data());
-        _exit(127);
     }
 
     close(fds[1]);

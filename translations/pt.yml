@@ -5124,7 +5124,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'O motor {0} não foi medido: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'A atualização parou de informar. O resultado é desconhecido: verifique a impressora antes de usá-la.'
   The update's result is unknown: 'O resultado da atualização é desconhecido'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'O reprodutor de vídeo não pôde iniciar nesta impressora ({}). Escaneie o código com seu celular para assistir ao timelapse.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : O acelerômetro {1} não respondeu com o ID esperado. Provavelmente está desconectado, o cabo está danificado ou os pinos SPI estão errados.
   The {1} motor lost steps: O motor {1} perdeu passos
@@ -5609,8 +5608,6 @@ translations:
   Vibration: Vibração
   Vibration compensation active: Compensação de vibração ativa
   Video playback speed: Velocidade de reprodução do vídeo
-  Video player failed to start: 'Falha ao iniciar o reprodutor de vídeo'
-  Video player failed to start ({}): 'Falha ao iniciar o reprodutor de vídeo ({})'
   View: Visualizar
   View Changelog: Ver Registro de Alterações
   View Full History: Ver Histórico Completo

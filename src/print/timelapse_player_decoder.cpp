@@ -17,15 +17,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstring>
-#include <fcntl.h>
 #include <poll.h>
-#include <signal.h>
-#include <sys/resource.h>
 #include <unistd.h>
-
-#ifdef __linux__
-#include <sys/prctl.h>
-#endif
 
 namespace helix::timelapse {
 
@@ -65,26 +58,20 @@ Child spawn_reader(const std::vector<std::string>& args) {
     if (!helix::open_cloexec_pipe(fds)) {
         return {};
     }
-    const pid_t pid = fork();
+    ChildIo io;
+    io.stdout_fd = fds[1];
+    ChildOptions options;
+    options.search_path = true;
+    options.nice = kDecoderNice;
+    // A crashed UI must not leave ffmpeg decoding into a dead pipe.
+    options.die_with_parent = true;
+    const pid_t pid = spawn_child(argv[0], argv.data(), nullptr, io, options);
     if (pid < 0) {
+        const int spawn_errno = errno;
         close(fds[0]);
         close(fds[1]);
+        errno = spawn_errno;
         return {};
-    }
-    if (pid == 0) {
-#ifdef __linux__
-        // A crashed UI must not leave ffmpeg decoding into a dead pipe.
-        prctl(PR_SET_PDEATHSIG, SIGKILL);
-#endif
-        dup2(fds[1], STDOUT_FILENO);
-        const int devnull = open("/dev/null", O_RDWR);
-        if (devnull >= 0) {
-            dup2(devnull, STDIN_FILENO);
-            dup2(devnull, STDERR_FILENO);
-        }
-        setpriority(PRIO_PROCESS, 0, kDecoderNice);
-        execvp(argv[0], const_cast<char* const*>(argv.data()));
-        _exit(127);
     }
     close(fds[1]);
     return {pid, fds[0]};
@@ -124,6 +111,8 @@ bool PlayerDecoder::start(Config config, Events events) {
     paused_at_s_ = 0.0;
     pending_shift_s_ = 0.0;
     seek_to_.reset();
+    generation_.store(0);
+    exchange_.begin_generation(0);
     exchange_.clear();
     worker_ = helix::make_thread([this] { run(); });
     return true;
@@ -155,6 +144,8 @@ void PlayerDecoder::seek(double seconds) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
         seek_to_ = std::max(0.0, seconds);
+        // Frames and the end report of the run being replaced are stale from here.
+        exchange_.begin_generation(generation_.fetch_add(1) + 1);
     }
     cv_.notify_all();
 }
@@ -185,7 +176,7 @@ void PlayerDecoder::run() {
     if (!info || out.empty()) {
         spdlog::warn("[TimelapsePlayer] Could not read the video size of {}", config_.path);
         if (events_.on_end) {
-            events_.on_end(true);
+            events_.on_end(true, generation_.load());
         }
         return;
     }
@@ -199,18 +190,20 @@ void PlayerDecoder::run() {
 
     double start_s = 0.0;
     bool ever_decoded = false;
+    uint64_t run_generation = generation_.load();
     while (!stop_.load()) {
         bool got_frame = false;
-        const bool interrupted = decode_from(start_s, fps, out, got_frame);
+        const bool interrupted = decode_from(start_s, fps, out, run_generation, got_frame);
         ever_decoded = ever_decoded || got_frame;
         if (stop_.load()) {
             break;
         }
         std::unique_lock<std::mutex> lock(mutex_);
-        if (!interrupted) {
+        // A seek that landed after the last read makes this run's end stale.
+        if (!interrupted && !seek_to_) {
             lock.unlock();
             if (events_.on_end) {
-                events_.on_end(!ever_decoded);
+                events_.on_end(!ever_decoded, run_generation);
             }
             lock.lock();
             // Ended: hold the last frame until a replay (a seek) or stop.
@@ -220,12 +213,14 @@ void PlayerDecoder::run() {
             start_s = *seek_to_;
             seek_to_.reset();
             paused_ = false;
-            exchange_.clear();
+            pending_shift_s_ = 0.0;
+            run_generation = generation_.load();
         }
     }
 }
 
-bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, bool& got_frame) {
+bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, uint64_t generation,
+                                bool& got_frame) {
     const auto args = config_.decode_argv
                           ? config_.decode_argv(start_s, out)
                           : ffmpeg_decode_args(config_.path, start_s, out, config_.format);
@@ -307,7 +302,7 @@ bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, bool&
             break;
         }
         exchange_.publish(assembler.frame(), out, base_index + n,
-                          anchor_s + static_cast<double>(n) / fps, monotonic_seconds());
+                          anchor_s + static_cast<double>(n) / fps, monotonic_seconds(), generation);
         got_frame = true;
         ++n;
     }

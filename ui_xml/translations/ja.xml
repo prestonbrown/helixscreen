@@ -4954,7 +4954,6 @@
   <translation tag="The update failed" ja="更新に失敗しました"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." ja="更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。"/>
   <translation tag="The update&apos;s result is unknown" ja="更新の結果は不明です"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." ja="このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。"/>
   <translation tag="The {0} motor was not measured: {1}." ja="{0} モーターは測定されませんでした: {1}。"/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." ja="{1} の加速度センサーが想定した ID で応答しませんでした。未接続、ケーブルの損傷、または SPI ピンの誤りの可能性が高いです。"/>
   <translation tag="The {1} motor lost steps" ja="{1} のモーターが脱調しました"/>
@@ -5414,8 +5413,6 @@
   <translation tag="Vibration" ja="振動"/>
   <translation tag="Vibration compensation active" ja="振動補正が有効です"/>
   <translation tag="Video playback speed" ja="動画再生速度"/>
-  <translation tag="Video player failed to start" ja="動画プレーヤーを起動できませんでした"/>
-  <translation tag="Video player failed to start ({})" ja="動画プレーヤーを起動できませんでした（{}）"/>
   <translation tag="View" ja="表示"/>
   <translation tag="View Changelog" ja="変更履歴を表示"/>
   <translation tag="View Full History" ja="全履歴を表示"/>
