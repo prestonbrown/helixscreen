@@ -11,7 +11,7 @@ namespace helix::ui::tray {
 namespace {
 constexpr FrontPart k_ace_pro_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 15.00f, 41.00f, 0x4a4c52, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 13.00f, 0xb4b7bc, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xee6a1f, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 4.55f, 11.05f, 0xf7f7f2, 0}, {FrontAnchor::Center, -15.00f, 15.00f, 10.00f, 18.00f, 0xd8dade, 4}};
 constexpr ProfilePoint k_ace_pro_cheek[] = {{0.0000f, 0.00f}, {0.5982f, 0.00f}, {1.0000f, 31.42f}};
-constexpr ProfilePoint k_ace_pro_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 36.96f}, {0.0062f, 45.43f}, {0.0248f, 52.36f}, {0.0558f, 57.75f}, {0.0992f, 61.60f}, {0.1550f, 63.91f}, {0.2232f, 64.68f}, {0.8661f, 64.68f}, {0.9070f, 64.22f}, {0.9405f, 62.83f}, {0.9665f, 60.52f}, {0.9851f, 57.29f}, {0.9963f, 53.13f}, {1.0000f, 48.05f}, {1.0000f, 31.42f}};
+constexpr ProfilePoint k_ace_pro_dome[] = {{0.0000f, 0.00f}, {0.0000f, 0.00f}, {0.0000f, 20.88f}, {0.0062f, 29.35f}, {0.0248f, 36.28f}, {0.0558f, 41.67f}, {0.0992f, 45.52f}, {0.1550f, 47.83f}, {0.2232f, 48.60f}, {0.8661f, 48.60f}, {0.9070f, 48.14f}, {0.9405f, 46.75f}, {0.9665f, 44.44f}, {0.9851f, 41.21f}, {0.9963f, 37.05f}, {1.0000f, 31.97f}, {1.0000f, 31.42f}};
 constexpr FrontPart k_box_turtle_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 10.00f, 32.11f, 0x1f5a3e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 8.00f, 0xb99a4a, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xb7a06e, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.80f, 6.80f, 0xf7f7f2, 0}, {FrontAnchor::Left, 0.00f, 8.00f, -1.00f, 35.11f, 0x1f6a4a, 0}, {FrontAnchor::Right, 0.00f, 8.00f, -1.00f, 35.11f, 0x1f6a4a, 0}};
 constexpr ProfilePoint k_box_turtle_cheek[] = {{0.0000f, 0.00f}, {1.0000f, 0.00f}};
 constexpr FrontPart k_box_turtle_enclosed_front[] = {{FrontAnchor::Span, 3.00f, 3.00f, 10.00f, 32.11f, 0x1f5a3e, 3}, {FrontAnchor::Span, 4.00f, 4.00f, 0.00f, 8.00f, 0xb99a4a, 2}, {FrontAnchor::Lane, -7.00f, 7.00f, -3.00f, 0.00f, 0xb7a06e, 0}, {FrontAnchor::Lane, -1.00f, 1.00f, 2.80f, 6.80f, 0xf7f7f2, 0}, {FrontAnchor::Left, 0.00f, 8.00f, -1.00f, 35.11f, 0x1f6a4a, 0}, {FrontAnchor::Right, 0.00f, 8.00f, -1.00f, 35.11f, 0x1f6a4a, 0}};
@@ -148,7 +148,7 @@ const UnitShell kShells[] = {
 };
 
 const UnitArtGeom kArtGeoms[] = {
-    {"ace_pro", 4, 1.18182f, {0.06747f, 0.10824f, 0.90225f, 0.80857f}, {0.08804f, 0.70904f, 0.64881f, 0.80676f}, k_ace_pro_4_lanes, true},
+    {"ace_pro", 4, 1.18182f, {0.06747f, 0.16541f, 0.90225f, 0.80857f}, {0.08804f, 0.70904f, 0.64881f, 0.80676f}, k_ace_pro_4_lanes, true},
     {"box_turtle", 2, 1.18182f, {0.22423f, 0.27864f, 0.74756f, 0.81119f}, {0.22423f, 0.75429f, 0.50711f, 0.80359f}, k_box_turtle_2_lanes, true},
     {"box_turtle", 3, 1.18182f, {0.15008f, 0.25280f, 0.82170f, 0.81119f}, {0.15008f, 0.72845f, 0.62487f, 0.81119f}, k_box_turtle_3_lanes, true},
     {"box_turtle", 4, 1.18182f, {0.07593f, 0.22696f, 0.89585f, 0.81119f}, {0.07593f, 0.70261f, 0.65540f, 0.80359f}, k_box_turtle_4_lanes, true},
