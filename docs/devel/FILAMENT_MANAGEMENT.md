@@ -871,7 +871,7 @@ the vendor list (a control byte in its internal name keeps it from colliding
 with a real vendor), and starred rows float to the top of their vendor's
 list. The picker can open on a given vendor, the Favorites view included
 (`FilamentCatalogPickerModal::set_seed_vendor()`,
-`FilamentCatalogSelector::favorites_vendor()`): the spool editor's **★ Favorites**
+`FilamentCatalogSelector::favorites_vendor()`): the spool editor's **Favorites ★**
 brand entry opens it there. The spool editor reads the same ids for its spool tiles
 and stars a product from its Filament page (§ "The lane spool editor").
 
@@ -1581,9 +1581,13 @@ overlay (`COLOR_SWATCHES.md` § "The color picker").
 
 **Which page opens.** `show_for_slot()` resets every per-session field, then asks
 `helix::spool_assign::screen_for_lane()` (`include/spool_assign.h#screen_for_lane`): a
-lane that holds a spool (a Spoolman link or a material) opens on the summary in
-`kModeEdit`, and a lane its sensor reports empty opens on the empty page whatever record
-it still carries, since that record is what it last held. `open_on_picker` (the lane
+lane its status reports holding filament (available, loaded, from the buffer, blocked;
+`slot_status_reports_filament()`) opens on the summary in `kModeEdit`, recorded or not,
+so a tagless spool is described there rather than on the empty page. A lane whose status
+is unknown opens on the summary when it records a spool (a Spoolman link or a material)
+and on the empty page when it records nothing. A lane its sensor reports empty opens on
+the empty page whatever record it still carries, since that record is what it last
+held. `open_on_picker` (the lane
 menu's **Select Spool**, and the sidebar for an unlinked lane when Spoolman is set up)
 opens the New Spool list, and Back from it returns to the page the lane would have
 opened on. The title follows the page (`update_page_title()`): the lane in the backend's
@@ -1690,9 +1694,9 @@ Rows read as sentences, a label column on the left and the controls on the right
 **Filament** is Brand, then what the spool is, so a material is picked in exactly one
 place (`rebuild_option_lists()`):
 
-- **Brand**: **★ Favorites** while the user has starred any product, then Generic, then
+- **Brand**: **Favorites ★** while the user has starred any product, then Generic, then
   the recent brands (from Spoolman's spools), then every other catalog maker, then
-  "Browse catalog...". **★ Favorites** opens the catalog picker on its Favorites view
+  "Browse catalog...". **Favorites ★** opens the catalog picker on its Favorites view
   (`FilamentCatalogPickerModal::set_seed_vendor()` with
   `FilamentCatalogSelector::favorites_vendor()`), and a pick there applies as any catalog
   pick does (`apply_catalog_pick()`). A value the catalog lacks stays in the list,
@@ -1864,8 +1868,9 @@ or **Unlink, keep on this slot** (the logistics fields are dropped with the link
 Details fields (price, location, lot, notes) PATCH the spool the slot names, and only once
 that spool's record has landed: a QR scan blanks them until the new record arrives, and a
 late record for a spool the slot no longer names is dropped. A QR scan (**Scan Label**) stages the
-scanned spool in `kModeEdit` for review (`apply_scanned_spool()`); it never commits on
-its own, and the summary's Save commits it.
+scanned spool in `kModeEdit` for review (`apply_scanned_spool()`), and a scan from the
+empty page or the New Spool list moves to the summary, where Save is. A scan never
+commits on its own; the summary's Save commits it.
 
 On a backend whose firmware owns lane identity
 (`BackendTraits::firmware_owns_lane_identity`, CFS only) the box wins: when the linked

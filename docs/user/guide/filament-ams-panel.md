@@ -209,7 +209,9 @@ The editor shows one page at a time. **Back** returns to the page before, and fr
 
 ### A slot with a spool in it
 
-The editor opens on the slot's summary:
+The editor opens on the slot's summary. That includes a spool the slot has filament from but HelixScreen knows nothing about yet, such as an untagged spool: tap its card to say what it is.
+
+The summary shows:
 
 - **The spool card** shows the spool drawn in its color and filled to how much is left, with its brand and product (for example **Polymaker PolyTerra**), its material and color (**PLA · Charcoal Black**) and its nozzle and bed temperatures. Tap the card to change what the spool is: see [The Filament page](#the-filament-page).
 - **The weight** reads, for example, **850 g of 1 kg · 85%**: the grams left, the spool's size and the percent left.
@@ -226,7 +228,7 @@ If HelixScreen doesn't know the weight, it shows a full spool: a full spool of t
 
 ### An empty slot
 
-A slot with no spool opens on its empty page. It shows the spool the slot last held, faded, for example **Lane 3 is empty** and **Last held: Polymaker PolyTerra**.
+A slot whose sensor reports it empty, or one that neither reports filament nor remembers a spool, opens on its empty page. It shows the spool the slot last held, faded, for example **Lane 3 is empty** and **Last held: Polymaker PolyTerra**.
 
 - **Same Filament, New Spool** puts in a full 1 kg spool of the filament the slot last held, in one tap. With Spoolman set up, the new spool is added to Spoolman too. This is the quickest way to reload after a spool runs out.
 - **Choose a Different Spool** opens your spool list: see [Putting in a different spool](#putting-in-a-different-spool).
@@ -264,7 +266,7 @@ The Filament page says what the spool is. Its changes are held until you tap **S
   - Under **Generic**, pick the **material** from one list of exact types, such as **PLA**, **PLA-CF**, **ASA** or **ASA-CF**.
   - **Browse catalog...** at the end of either list opens the full filament catalog, where you can search, or type a filament it doesn't list.
   - With Spoolman, the brands and materials of your recent spools come first.
-  - **★ Favorites** leads the brand list once you have starred a filament. It opens the filament catalog on your starred filaments, so you can pick one in a tap.
+  - **Favorites ★** leads the brand list once you have starred a filament. It opens the filament catalog on your starred filaments, so you can pick one in a tap.
   - The **star** beside the product adds that product to your favorites. Tap it again to take it out. It appears once you pick a product from the catalog (not under **Generic** or **Other…**).
 - **Color** shows the spool's color, then your recent colors and more swatches, then the rainbow swatch. Tap a swatch to use it. Tap the rainbow swatch, or the spool's own color, to open the full color view. On slots that can hold a multi-color spool, the color view has a **Multi-Color** switch: turn it on for two to four colors, tap a color to change it, hold one to remove it, tap **+** to add one, and choose **Gradient** or **Coaxial**.
 - **Temps** shows the nozzle range and bed temperature for what you picked: the product's own range, otherwise the material's usual range.
@@ -286,7 +288,7 @@ You can also tap the star on any row in the filament catalog (**Browse catalog..
 Your favorites then:
 
 - lead the spool tiles when you add a new spool, before the common ones;
-- lead the brand list as **★ Favorites**, which opens the catalog on just your starred filaments;
+- lead the brand list as **Favorites ★**, which opens the catalog on just your starred filaments;
 - lead the catalog's own vendor list in a **Favorites** section, and float to the top of their own vendor's list.
 
 Favorites belong to the screen, not the printer, so they are the same on every printer you switch to. Tap a star again to take a filament out of your favorites.
@@ -331,7 +333,7 @@ Spoolman needs a brand, a material and a color. If one is missing, a message say
 2. If the slot is linked to a Spoolman spool and you changed its material, brand or color, HelixScreen asks **Different filament?**: **Update in Spoolman** points the spool at the matching filament in Spoolman (creating it if needed; a filament record other spools share is never edited), and **Unlink, keep on this slot** keeps your changes on the slot only and removes the Spoolman link.
 3. The editor closes once the printer has the new details, and a message names the slot and the spool, with **Undo**. While the printer is busy loading or unloading, a line above the spool says the save waits for it, for example **Saves when the load on Lane 2 finishes.** A save that is still talking to Spoolman finishes even if you leave the screen. Opening the same slot again before it finishes shows **Still saving this spool…**; try again in a moment.
 
-**Scan Label** at the top of the summary (when Spoolman is set up) scans a spool's QR label and fills in that spool for you to check. Nothing changes until you tap **Save**.
+**Scan Label** at the top of the summary, the empty page or the spool list (when Spoolman is set up) scans a spool's QR label. The editor shows that spool on the summary for you to check; nothing changes until you tap **Save**.
 
 Tapping Back with unsaved changes asks whether to **Save** or **Discard** them.
 
