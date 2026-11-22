@@ -5052,6 +5052,8 @@ translations:
   : 'ホストがこのボードから数秒間応答を受け取りませんでした: USB または CAN ケーブルの緩みや故障、ボードの電源喪失、または終端のない CAN バスです。'
   "The label didn't print: {}": "ラベルを印刷できませんでした: {}"
   The lane forgets this spool. The filament itself stays where it is.: 'レーンはこのスプールの情報を消去します。フィラメント自体はそのままです。'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'レーン設定は変更されず、スプールも保存されていません。保存をタップしてスプールを保存してください。'
+  The lane settings weren't changed.: 'レーン設定は変更されていません。'
   The lane that takes over when this one runs out: 'このレーンが切れたときに引き継ぐレーン'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "最後のプリントがまだベッドに残っている可能性があります。ツールヘッドが動く前に取り除き、「クリア済み」をタップしてください。"
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。

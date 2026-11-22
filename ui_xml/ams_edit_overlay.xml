@@ -674,7 +674,7 @@
       </lv_obj>
 
       <!-- ============================================================ -->
-      <!-- LANE SETTINGS (page 4): applied as soon as they change.       -->
+      <!-- LANE SETTINGS (page 4): staged here, written by Save.         -->
       <!-- ============================================================ -->
       <lv_obj name="lane_section"
               width="100%" height="100%" flex_flow="column" style_pad_all="0" style_pad_gap="#ams_edit_vgap"

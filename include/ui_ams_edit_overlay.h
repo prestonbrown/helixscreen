@@ -436,9 +436,11 @@ class AmsEditOverlay : public OverlayBase {
     /// mapping is cleared by mapping that tool elsewhere.
     [[nodiscard]] bool lane_settings_dirty() const;
     /// Write the staged changes through the backend, taking each one that was
-    /// written as the lane's setting. False when a write was refused: that
-    /// field stays staged, so the next Save retries it.
+    /// written as the lane's setting. False when a write was refused.
     [[nodiscard]] bool commit_lane_settings();
+    /// commit_lane_settings() for a Save: a refused field goes back to what the
+    /// lane holds, and the save line says so and that the spool was not saved.
+    [[nodiscard]] bool commit_lane_settings_for_save();
 
     // === Subjects for XML binding ===
     SubjectManager subjects_;
@@ -543,12 +545,30 @@ class AmsEditOverlay : public OverlayBase {
     void handle_new_spool();
     /// What the lane held before it emptied or was cleared here.
     SlotInfo last_held_;
+    /// Reset a session's lane state (the spool, the form, the save) to @p info.
+    void start_lane_session(const SlotInfo& info);
+    /// Show the page @p info opens on: its summary, its empty page, or with
+    /// @p open_on_picker the spools list.
+    void open_lane_page(const SlotInfo& info, bool open_on_picker);
+    /// The page the backend's reading of this lane opens on; nullopt with no
+    /// backend or no such lane.
+    [[nodiscard]] std::optional<spool_assign::LaneScreen> lane_screen_now() const;
+    /// Follow the lane's slot changes while the editor is open.
+    void observe_lane();
+    /// Move between the summary and the empty page when the lane fills or
+    /// runs out under them (spool_assign::page_after_lane_change()).
+    void follow_lane();
+    /// Unsaved edits, a save in flight, or the color page open over the form.
+    [[nodiscard]] bool editing_lane() const;
+    /// The lane screen the editor last followed the lane to.
+    std::optional<spool_assign::LaneScreen> lane_screen_seen_;
+    ObserverGuard lane_observer_;
     [[nodiscard]] bool spoolman_set_up() const;
     /// File the staged spool going in: in Spoolman and the lane, or the lane alone.
     void save_new_spool(bool add_to_spoolman);
     void archive_spool(int spool_id);
-    /// Write a lane-setting change now; a refusal restores the dropdowns.
-    void apply_lane_settings();
+    /// Show a lane-setting pick as staged; Save writes it.
+    void stage_lane_settings();
     void handle_add_new_spool();
     /// The save's progress, bound in XML ("ams_edit_save_state"): kSaveIdle,
     /// kSaveWaiting while the commit waits for Moonraker to hold it,
@@ -674,7 +694,8 @@ class AmsEditOverlay : public OverlayBase {
     void show_assigned_toast(const SlotInfo& before, const SlotInfo& after, bool created,
                              bool undoable);
     /// Write the lane's staged settings before an Assign Spool action; false
-    /// (editor kept open, refusal toasted) when the backend refused one.
+    /// (editor kept open, the refused field rolled back) when the backend
+    /// refused one.
     bool commit_lane_settings_for_assign();
     void enter_editor();
     /// Apply the editor view's non-XML content (dropdown options, colour ring,

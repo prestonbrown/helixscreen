@@ -4888,6 +4888,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." fr="L&apos;hôte n&apos;a rien reçu de cette carte pendant plusieurs secondes : un câble USB ou CAN desserré ou défaillant, une perte d&apos;alimentation de la carte, ou un bus CAN sans terminaison."/>
   <translation tag="The label didn&apos;t print: {}" fr="L&apos;étiquette ne s&apos;est pas imprimée : {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." fr="La voie oublie cette bobine. Le filament lui-même reste en place."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." fr="Les paramètres de la voie n&apos;ont pas été modifiés et la bobine n&apos;a pas été enregistrée. Appuyez sur Enregistrer pour enregistrer la bobine."/>
+  <translation tag="The lane settings weren&apos;t changed." fr="Les paramètres de la voie n&apos;ont pas été modifiés."/>
   <translation tag="The lane that takes over when this one runs out" fr="La voie qui prend le relais quand celle-ci est vide"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." fr="La dernière impression est peut-être encore sur le plateau. Retirez-la avant que la tête ne bouge, puis touchez Dégagé."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." fr="Le verrou s&apos;ouvre et {} peut tomber. Tenez-le avant de continuer, puis remettez-le dans son dock."/>

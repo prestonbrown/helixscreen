@@ -3791,7 +3791,7 @@ void set_material(AmsBackendMock& backend, int slot, const char* material) {
 } // namespace
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "a Feeds Tool pick writes through the backend at once",
+                 "a Feeds Tool pick is staged, and Save writes it through the backend",
                  "[ams_edit_overlay][lane_settings]") {
     REQUIRE(helix::ui::lane_settings::show_tool_row(backend));
     std::vector<std::pair<ToastSeverity, std::string>> toasts;
@@ -3812,34 +3812,69 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     REQUIRE(access.page() == AmsEditOverlay::kPageLane);
 
     REQUIRE(access.shown("tool_dropdown_row"));
-    const int before = helix::ui::lane_settings::assigned_tool(*backend, 2);
-    REQUIRE(before == 2);
+    REQUIRE(helix::ui::lane_settings::assigned_tool(*backend, 2) == 2);
+    const int t0_before = backend->get_tool_mapping()[0];
+    REQUIRE(t0_before != 2);
     CHECK(access.dropdown_selected("tool_dropdown") == "T2");
 
-    // Written at the pick: lane settings are not spool data and wait for no Save.
+    // The pick is staged: nothing reaches the backend until Save.
     REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
     UpdateQueue::instance().drain();
     process_lvgl(10);
-
-    // The same backend call the slot menu made, and the shared-lane warning
-    // naming both tools by their labels.
-    CHECK(backend->get_tool_mapping()[0] == 2);
-    CHECK_FALSE(access.is_dirty());
-    CHECK(access.save_disabled() == 1);
+    CHECK(backend->get_tool_mapping()[0] == t0_before);
+    CHECK(access.is_dirty());
+    CHECK(access.save_disabled() == 0);
     CHECK(access.subject_text("ams_edit_lane_line").rfind("Feeds T0", 0) == 0);
-    close_editor_overlay();
+    CHECK(toasts.empty());
+
+    // Save writes it: the same backend call the slot menu makes, and the
+    // shared-lane warning naming both tools by their labels.
+    access.call_handle_back();
+    REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(backend->get_tool_mapping()[0] == 2);
     helix::ui::set_test_toast_hook(nullptr);
     REQUIRE(toasts.size() == 1);
     CHECK(toasts[0].first == ToastSeverity::WARNING);
     CHECK(toasts[0].second.find("T0") != std::string::npos);
     CHECK(toasts[0].second.find("T2") != std::string::npos);
-    // Nothing of the slot's own changed, so no slot edit is committed.
+    // Nothing of the slot's own changed, so the Save closes with no slot edit.
     CHECK(completions == 1);
     CHECK_FALSE(saved);
 }
 
+TEST_CASE_METHOD(OverlayConsumerCommitFixture, "leaving without Save writes no staged lane setting",
+                 "[ams_edit_overlay][lane_settings]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    int completions = 0;
+    bool saved = true;
+    show_editor_on_lane(*this, *backend, 2, &completions, &saved);
+    const int t0_before = backend->get_tool_mapping()[0];
+    access.open_page(AmsEditOverlay::kPageLane);
+    REQUIRE(access.pick_dropdown("tool_dropdown", "T0"));
+    access.call_handle_back();
+    REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+
+    // Back from the summary asks about the staged change; Discard closes.
+    access.call_handle_back();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    helix::test::answer_top_modal("btn_secondary");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    CHECK(completions == 1);
+    CHECK_FALSE(saved);
+    CHECK(backend->get_tool_mapping()[0] == t0_before);
+    CHECK(helix::ui::lane_settings::assigned_tool(*backend, 2) == 2);
+    ModalStack::instance().clear();
+}
+
 TEST_CASE_METHOD(BoxWinsFixture,
-                 "a refused Feeds Tool pick puts the dropdown back and stages nothing",
+                 "a refused Feeds Tool write at Save rolls the lane back and says what saved",
                  "[ams_edit_overlay][lane_settings]") {
     auto owned = std::make_unique<RefusingBoxBackend>(4);
     RefusingBoxBackend* refusing = owned.get();
@@ -3851,8 +3886,36 @@ TEST_CASE_METHOD(BoxWinsFixture,
     const std::string before = access.dropdown_selected("tool_dropdown");
     REQUIRE(access.pick_dropdown("tool_dropdown", "T1"));
     settle();
-    CHECK(access.dropdown_selected("tool_dropdown") == before);
-    CHECK_FALSE(access.dirty());
+    // Staged, not yet refused: the backend has not been asked.
+    CHECK(access.dropdown_selected("tool_dropdown") == "T1");
+    CHECK(access.dirty());
+
+    SECTION("only the lane changed") {
+        access.call_handle_back();
+        access.call_handle_save();
+        settle();
+        CHECK(access.dropdown_selected("tool_dropdown") == before);
+        CHECK_FALSE(access.dirty());
+        CHECK(access.save_state() == AmsEditOverlayViewTestAccess::kSaveFailed);
+        CHECK(access.save_error() == "The lane settings weren't changed.");
+        CHECK_FALSE(fired);
+    }
+    SECTION("the spool changed too: it is kept, unsaved") {
+        access.call_handle_back();
+        access.click("summary_card");
+        REQUIRE(access.pick_dropdown("dropdown_material", "PETG"));
+        access.call_handle_back();
+        REQUIRE(access.page() == AmsEditOverlay::kPageSummary);
+        const std::string material_before = backend->get_slot_info(0).material;
+        access.call_handle_save();
+        settle();
+        CHECK(access.dropdown_selected("tool_dropdown") == before);
+        CHECK(access.dirty());
+        CHECK(access.save_state() == AmsEditOverlayViewTestAccess::kSaveFailed);
+        CHECK(access.save_error().find("the spool wasn't saved") != std::string::npos);
+        CHECK(backend->get_slot_info(0).material == material_before);
+        CHECK_FALSE(fired);
+    }
     close_editor_overlay();
 }
 
@@ -4010,7 +4073,7 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
 }
 
 TEST_CASE_METHOD(OverlayConsumerCommitFixture,
-                 "a Runout Backup pick writes at once and the page says what a runout does",
+                 "a Runout Backup pick is staged until Save and the page says what a runout does",
                  "[ams_edit_overlay][lane_settings][endless_spool]") {
     set_material(*backend, 1, "PLA");
     set_material(*backend, 2, "PLA");
@@ -4027,15 +4090,15 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
     CHECK(access.subject_text("ams_edit_runout_text") ==
           "When this spool runs out, the print pauses.");
 
-    SECTION("a compatible lane is written at the pick") {
+    SECTION("a compatible lane is staged at the pick and written by Save") {
         AmsState::instance().init_subjects(true);
         lv_subject_t* endless = lv_xml_get_subject(nullptr, "ams_endless_state");
         REQUIRE(endless != nullptr);
         lv_subject_set_int(endless, static_cast<int>(printer::EndlessSpoolStatusKind::On));
         REQUIRE(access.pick_dropdown("backup_dropdown", "Gate 3"));
         UpdateQueue::instance().drain();
-        CHECK(helix::ui::lane_settings::backup_of(*backend, 1) == 2);
-        CHECK(access.save_disabled() == 1);
+        CHECK(helix::ui::lane_settings::backup_of(*backend, 1) == -1);
+        CHECK(access.save_disabled() == 0);
         CHECK(access.subject_text("ams_edit_runout_text") ==
               "When this spool runs out, printing continues from Gate 3.");
         // Switching off at the printer leaves a backup that does nothing.
@@ -4043,7 +4106,10 @@ TEST_CASE_METHOD(OverlayConsumerCommitFixture,
         REQUIRE(access.pick_dropdown("backup_dropdown", "Gate 3"));
         CHECK(access.subject_text("ams_edit_runout_text") ==
               "When this spool runs out, the print pauses.");
-        close_editor_overlay();
+        access.call_handle_back();
+        access.call_handle_save();
+        UpdateQueue::instance().drain();
+        CHECK(helix::ui::lane_settings::backup_of(*backend, 1) == 2);
     }
 
     SECTION("an incompatible lane is refused at the pick and nothing is staged") {
