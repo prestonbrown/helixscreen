@@ -48,13 +48,113 @@
 
   <view name="calibration_pa_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
-        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+        style_bg_color="#card_bg" style_pad_all="0" style_pad_gap="0" style_border_width="0" scrollable="false"
+        flex_flow="column">
 
     <header_bar name="overlay_header" title="Pressure Advance"/>
+
+    <!-- ================================================================ -->
+    <!-- INTRO - idle. The filament, the temperature to measure at, what    -->
+    <!-- the run does, and the start at the bottom right. The two-column    -->
+    <!-- frame below takes over once a run starts.                          -->
+    <!-- ================================================================ -->
+    <lv_obj name="pa_intro"
+            width="100%" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="0"/>
+      <calibration_intro name="pa_intro_frame"
+                         left_label="Filament" right_label="What it does" primary_text="Measure pressure advance"
+                         primary_callback="on_pa_cal_action">
+        <!-- The filament on the tool being measured -->
+        <lv_obj name="pa_filament_card"
+                width="100%" height="content" style_radius="#border_radius" style_bg_color="#primary" style_bg_opa="10%"
+                style_border_width="2" style_border_color="#primary" style_pad_hor="#space_md" style_pad_ver="#space_md"
+                style_pad_gap="#space_md" flex_flow="row" style_flex_cross_place="center" scrollable="false">
+          <color_dot name="pa_filament_swatch" color_subject="pa_cal_filament_color" size="#cal_intro_swatch">
+            <bind_flag_if_eq subject="pa_cal_has_filament" flag="hidden" ref_value="0"/>
+          </color_dot>
+          <lv_obj width="0"
+                  height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" style_bg_opa="0"
+                  style_border_width="0" flex_flow="column" scrollable="false">
+            <text_small name="pa_filament_name"
+                        width="100%" bind_text="pa_cal_filament_name" long_mode="dots"
+                        style_text_font="#cal_intro_font_row_bold" style_text_color="#text"/>
+            <text_small name="pa_filament_sub"
+                        width="100%" bind_text="pa_cal_filament_sub" long_mode="dots"
+                        style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"/>
+          </lv_obj>
+        </lv_obj>
+        <cal_intro_section_label name="pa_calibrate_at_label" text="Calibrate at" style_margin_top="#space_xs"/>
+        <lv_obj name="pa_intro_presets_a"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" scrollable="false">
+          <cal_intro_chip name="pa_intro_preset_0"
+                          bind_label="preset_material_0_name" bind_detail="pa_cal_preset_temp_0"
+                          choice="pa_cal_preset_selected_0" value="1" index="0" callback="on_pa_cal_preset"/>
+          <cal_intro_chip name="pa_intro_preset_1"
+                          bind_label="preset_material_1_name" bind_detail="pa_cal_preset_temp_1"
+                          choice="pa_cal_preset_selected_1" value="1" index="1" callback="on_pa_cal_preset"/>
+        </lv_obj>
+        <lv_obj name="pa_intro_presets_b"
+                width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
+                style_border_width="0" flex_flow="row" scrollable="false">
+          <cal_intro_chip name="pa_intro_preset_2"
+                          bind_label="preset_material_2_name" bind_detail="pa_cal_preset_temp_2"
+                          choice="pa_cal_preset_selected_2" value="1" index="2" callback="on_pa_cal_preset"/>
+          <cal_intro_chip name="pa_intro_preset_3"
+                          bind_label="preset_material_3_name" bind_detail="pa_cal_preset_temp_3"
+                          choice="pa_cal_preset_selected_3" value="1" index="3" callback="on_pa_cal_preset"/>
+        </lv_obj>
+        <calibration_intro-settings>
+          <lv_obj name="pa_intro_step_0"
+                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+                  style_border_width="0" flex_flow="row" scrollable="false">
+            <!-- 480x272 keeps its height for the badges -->
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <text_small width="#space_lg" text="1" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="0"
+                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        style_text_line_space="#space_xxs"
+                        text="Heats the nozzle and extrudes short test lines in a corner of the plate"/>
+          </lv_obj>
+          <lv_obj name="pa_intro_step_1"
+                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+                  style_border_width="0" flex_flow="row" scrollable="false">
+            <!-- 480x272 keeps its height for the badges -->
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <text_small width="#space_lg" text="2" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="0"
+                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        style_text_line_space="#space_xxs"
+                        text="Measures each line itself, repeating until the readings agree"/>
+          </lv_obj>
+          <lv_obj name="pa_intro_step_2"
+                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" style_bg_opa="0"
+                  style_border_width="0" flex_flow="row" scrollable="false">
+            <!-- 480x272 keeps its height for the badges -->
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            <text_small width="#space_lg" text="3" style_text_font="#cal_intro_font_desc" style_text_color="#secondary"/>
+            <text_small width="0"
+                        flex_grow="1" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"
+                        style_text_line_space="#space_xxs"
+                        text="Shows the new K next to the old one. You choose to save it"/>
+          </lv_obj>
+        </calibration_intro-settings>
+        <calibration_intro-badges>
+          <cal_intro_badge name="pa_badge_time" text="about 4 min"/>
+          <cal_intro_badge name="pa_badge_heat" bind="pa_cal_intro_heat" warm="true"/>
+          <cal_intro_badge name="pa_badge_filament" text="uses about 30 cm of filament"/>
+          <cal_intro_badge name="pa_badge_plate" text="plate must be clear"/>
+        </calibration_intro-badges>
+        <calibration_intro-footer_left>
+          <cal_intro_footer_button name="btn_pa_tower" text="Print a test tower instead" callback="on_pa_cal_tower"/>
+        </calibration_intro-footer_left>
+      </calibration_intro>
+    </lv_obj>
 
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="#space_md" flex_flow="row" style_pad_gap="#space_md"
             scrollable="false">
+      <bind_flag_if_eq subject="pa_cal_state" flag="hidden" ref_value="0"/>
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
 
       <!-- ================================================================ -->
@@ -176,34 +276,6 @@
       <lv_obj name="pa_stage_col"
               width="1" height="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
               style_bg_opa="0" style_border_width="0" scrollable="false">
-
-        <!-- A - idle. What the number is and what the machine is about to do,
-             in the fewest words that still leave a newcomer oriented. -->
-        <lv_obj name="pa_stage_explain"
-                width="100%" flex_grow="1" style_bg_color="#section_bg_color" style_bg_opa="255"
-                style_radius="#border_radius" style_pad_all="#space_md" style_pad_gap="#space_sm" flex_flow="column"
-                scrollable="true">
-          <bind_flag_if_not_eq subject="pa_cal_state" flag="hidden" ref_value="0"/>
-          <text_heading text="Automatic calibration"/>
-          <text_body width="100%"
-                     text="The printer heats the nozzle, extrudes a few short test moves in a corner of the plate, and measures them itself. It repeats until the readings agree, then reports one number."
-                     style_text_color="#text_muted" long_mode="wrap"/>
-          <text_body width="100%"
-                     text="A few minutes, nearly all of it heating. You judge nothing by eye."
-                     style_text_color="#text_muted" long_mode="wrap"/>
-          <!-- The last run, when there is one. The most useful thing on a
-               return visit, and the reason idle is not one empty card. -->
-          <lv_obj name="pa_last_result_row"
-                  width="100%" height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row"
-                  style_flex_cross_place="end" style_bg_opa="0" style_border_width="0" scrollable="false">
-            <bind_flag_if_eq subject="pa_cal_has_last" flag="hidden" ref_value="0"/>
-            <text_small text="Last measured" style_text_color="#text_muted"/>
-            <text_body name="pa_last_value" bind_text="pa_cal_last_value"/>
-            <text_small name="pa_last_context" bind_text="pa_cal_last_context" style_text_color="#text_muted"/>
-          </lv_obj>
-          <lv_obj width="100%"
-                  flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"/>
-        </lv_obj>
 
         <!-- D/E - the wait. Heating and measuring are one bar but two plainly
              separate phases, because they feel nothing alike: two minutes of a

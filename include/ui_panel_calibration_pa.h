@@ -68,7 +68,8 @@
  * - pa_cal_result / _result_sanity (string), pa_cal_result_plausible (int)
  * - pa_cal_error_title / _detail / _hint (string)
  * - pa_cal_action_text (string), pa_cal_action_is_stop (int)
- * - pa_cal_has_last (int), pa_cal_last_value / _last_context (string)
+ * - intro: pa_cal_has_filament / pa_cal_filament_color (int), pa_cal_filament_name /
+ *   _filament_sub / _intro_heat (string)
  */
 namespace helix::ui {
 
@@ -244,7 +245,12 @@ class PACalibrationPanel : public OverlayBase {
     void update_action_button();
     void update_phase_rows();
     void update_progress_display();
-    void publish_last_result();
+    /// The intro's filament card (the selected tool's filament and the last K)
+    /// and its heat badge.
+    void refresh_intro();
+    /// Selects the preset named like the selected tool's filament, and its
+    /// temperature, when there is one. Called as the screen opens.
+    void adopt_loaded_preset();
 
     /// Split a firmware refusal into a short title and the verbatim detail.
     /// The machine's own sentence is the most valuable text on the screen when
@@ -315,7 +321,8 @@ class PACalibrationPanel : public OverlayBase {
     helix::Subject progress_{};
     helix::Subject result_plausible_{};
     helix::Subject action_is_stop_{};
-    helix::Subject has_last_{};
+    helix::Subject has_filament_{};
+    helix::Subject filament_color_{};
 
     helix::Subject tool_selected_[kMaxTools]{};
     helix::Subject tool_sub_[kMaxTools]{};
@@ -364,10 +371,12 @@ class PACalibrationPanel : public OverlayBase {
     helix::Subject action_text_{};
     char action_text_buf_[24] = {};
 
-    helix::Subject last_value_{};
-    char last_value_buf_[16] = {};
-    helix::Subject last_context_{};
-    char last_context_buf_[64] = {};
+    helix::Subject filament_name_{};
+    char filament_name_buf_[64] = {};
+    helix::Subject filament_sub_{};
+    char filament_sub_buf_[96] = {};
+    helix::Subject intro_heat_{};
+    char intro_heat_buf_[32] = {};
 
     /// Follows the printer's own active tool, so the chips show what is
     /// actually mounted rather than what was last tapped.
