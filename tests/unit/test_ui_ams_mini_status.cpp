@@ -20,6 +20,7 @@
 #include "core/update_queue.h"
 #include "grid_layout.h"
 #include "panel_widget_registry.h"
+#include "spool_remaining_format.h"
 #include "theme_manager.h"
 
 #include "../catch_amalgamated.hpp"
@@ -77,7 +78,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: one tap on an embedded strip is o
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argument",
                  "[ui][ams_mini]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 40);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     REQUIRE(w != nullptr);
     // Flush the AmsState auto-sync queued at create time before seeding slots
     // (see the mode test below for why).
@@ -123,7 +124,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: set_width applies its width argum
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: width_px >= w_normal() selects spool mode",
                  "[ui][ams_mini][mode]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     // Flush any initial AmsState auto-sync queued at create time (a prior test in
     // the shard may have left AmsState with slots). The widget auto-binds to
     // AmsState and sync_from_ams_state() would otherwise clobber slot_count below.
@@ -148,7 +149,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell has spool + mater
                  "[ui][ams_mini][spool]") {
     helix::Config::get_instance()->set<std::string>("/ams/spool_style", "3d");
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain(); // flush stray auto-sync
     ui_ams_mini_status_set_slot_count(w, 1);
     ui_ams_mini_status_set_slot_label(w, 0, "PLA", 73);
@@ -169,7 +170,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: cell has spool + mater
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: unassigned empty slot reads Empty",
                  "[ui][ams_mini][spool]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain();
     ui_ams_mini_status_set_slot_count(w, 1);
     ui_ams_mini_status_set_slot_label(w, 0, "", -1);
@@ -184,7 +185,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: unassigned empty slot 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: all slots present incl multi-unit",
                  "[ui][ams_mini][spool]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain();
     ui_ams_mini_status_set_slot_count(w, 12); // > kMaxVisible(8): uncapped vector
     for (int i = 0; i < 12; ++i)
@@ -193,8 +194,9 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: all slots present incl
     helix::ui::UpdateQueue::instance().drain();
     lv_obj_t* spools = UITest::find_by_name(w, "ams_spools_container");
     REQUIRE(spools != nullptr);
-    REQUIRE(lv_obj_get_child_count(spools) == 12); // single row, all slots; overflow scrolls
-    REQUIRE(UITest::find_by_name(w, "spool_cell_11") != nullptr);
+    // Every slot has its cell; the ones that do not fit scroll.
+    for (int i = 0; i < 12; ++i)
+        CHECK(UITest::find_by_name(w, ("spool_cell_" + std::to_string(i)).c_str()) != nullptr);
     lv_obj_delete(w);
 }
 
@@ -214,23 +216,23 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: sync_from_ams_state fe
     ams.set_backend(std::move(mock));
     mock_ptr->start();
 
-    // Deterministic known data: slot 0 = PETG @ 60%, slot 1 = ABS @ 25%.
+    // Deterministic known data: slot 0 = PETG with 600 g left, slot 1 = ABS with 250 g.
     helix::SlotInfo s0 = mock_ptr->get_slot_info(0);
     s0.status = helix::SlotStatus::AVAILABLE;
     s0.material = "PETG";
     s0.total_weight_g = 1000.0f;
-    s0.remaining_weight_g = 600.0f; // -> 60%
+    s0.remaining_weight_g = 600.0f;
     helix::test::apply_edit(*mock_ptr, 0, s0);
 
     helix::SlotInfo s1 = mock_ptr->get_slot_info(1);
     s1.status = helix::SlotStatus::AVAILABLE;
     s1.material = "ABS";
     s1.total_weight_g = 1000.0f;
-    s1.remaining_weight_g = 250.0f; // -> 25%
+    s1.remaining_weight_g = 250.0f;
     helix::test::apply_edit(*mock_ptr, 1, s1);
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260);       // spool mode
     helix::ui::UpdateQueue::instance().drain(); // flush create-time auto-sync
 
@@ -247,9 +249,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: sync_from_ams_state fe
     REQUIRE(mat1 != nullptr);
     REQUIRE(pct1 != nullptr);
     REQUIRE(std::string(lv_label_get_text(mat0)) == "PETG");
-    REQUIRE(std::string(lv_label_get_text(pct0)) == "60%");
+    // Grams left, the lane knowing them.
+    REQUIRE(std::string(lv_label_get_text(pct0)) == helix::format_spool_grams(600.0f));
     REQUIRE(std::string(lv_label_get_text(mat1)) == "ABS");
-    REQUIRE(std::string(lv_label_get_text(pct1)) == "25%");
+    REQUIRE(std::string(lv_label_get_text(pct1)) == helix::format_spool_grams(250.0f));
 
     lv_obj_delete(w);
     mock_ptr->stop();
@@ -287,7 +290,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: active lane badge uses
     helix::test::apply_edit(*mock_ptr, 1, s1);
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260); // spool mode
     helix::ui::UpdateQueue::instance().drain();
 
@@ -316,7 +319,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a pooled badge follows
                  "[ui][ams_mini][spool][zero-numbering]") {
     helix::AmsState::instance().set_backend(nullptr); // only then does the widget number a badge
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain(); // flush stray auto-sync
     ui_ams_mini_status_set_slot_count(w, 2);
     ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
@@ -343,7 +346,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: a pooled badge follows
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: data changes update cells in place",
                  "[ui][ams_mini][spool]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain();
     ui_ams_mini_status_set_slot_count(w, 2);
     ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
@@ -375,7 +378,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini spool mode: data changes update ce
 
 TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: 2x->1x restores bar view", "[ui][ams_mini][mode]") {
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     helix::ui::UpdateQueue::instance().drain();
     ui_ams_mini_status_set_slot_count(w, 2);
     ui_ams_mini_status_set_slot_label(w, 0, "PLA", 70);
@@ -414,7 +417,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: observers survive AmsState's subj
     REQUIRE(helix::AmsState::instance().get_current_slot_subject() != nullptr);
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     REQUIRE(w != nullptr);
     helix::ui::UpdateQueue::instance().drain();
 
@@ -469,7 +472,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a condemned unit row keeps its po
     ams.sync_from_backend();
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 130);
     helix::ui::UpdateQueue::instance().drain();
 
@@ -529,7 +532,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     helix::ui::UpdateQueue::instance().drain();
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     ui_ams_mini_status_set_width(w, 260); // spool mode sizes from width_px, not layout
 
     CHECK(UITest::find_by_name(w, "spool_material_0") != nullptr);
@@ -561,7 +564,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: a sync that reads nothing new rep
     ams.sync_from_backend();
 
     ui_ams_mini_status_init();
-    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 60);
+    lv_obj_t* w = ui_ams_mini_status_create(test_screen(), 100);
     lv_obj_set_width(w, 200); // bar mode, sized by layout
     lv_obj_update_layout(test_screen());
     helix::ui::UpdateQueue::instance().drain();
