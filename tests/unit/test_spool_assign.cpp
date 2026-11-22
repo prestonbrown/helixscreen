@@ -138,6 +138,13 @@ TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-a
     ran_out.spoolman_id = 12;
     ran_out.status = SlotStatus::EMPTY;
     CHECK(screen_for_lane(ran_out) == LaneScreen::Assign);
+    // A tagless spool: filament reported, nothing recorded.
+    SlotInfo tagless;
+    tagless.status = SlotStatus::AVAILABLE;
+    CHECK(screen_for_lane(tagless) == LaneScreen::Edit);
+    SlotInfo unrecorded_empty;
+    unrecorded_empty.status = SlotStatus::EMPTY;
+    CHECK(screen_for_lane(unrecorded_empty) == LaneScreen::Assign);
 }
 
 TEST_CASE("bottom action: Add New while spools are listed, Add & Assign when none, Assign "
