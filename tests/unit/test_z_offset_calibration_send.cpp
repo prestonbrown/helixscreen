@@ -1416,16 +1416,16 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     lv_subject_t* warm = lv_xml_get_subject(nullptr, "cal_run_zoffset_warm");
     REQUIRE(warm != nullptr);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "cal_run_picked_z_offset")) == 1);
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
 
     overlay.toggle_zoffset_warm_bed();
     REQUIRE(lv_subject_get_int(warm) == 1);
     overlay.toggle_pick("z_offset");
     settle();
-    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_obj_is_hidden(chip));
     overlay.toggle_pick("z_offset");
     settle();
-    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK_FALSE(lv_obj_is_hidden(chip));
     CHECK(lv_subject_get_int(warm) == 1);
 
     overlay.close();
