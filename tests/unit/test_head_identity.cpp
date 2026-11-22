@@ -6,6 +6,7 @@
 #include "display_numbering.h"
 #include "lvgl_test_fixture.h"
 #include "printer_discovery.h"
+#include "settings_manager.h"
 #include "src/ui/panel_widgets/nozzle_temps_widget.h"
 #include "test_helpers/tool_topologies.h"
 #include "tool_heads_model.h"
@@ -329,6 +330,20 @@ TEST_CASE_METHOD(ToolStateFixture,
     CHECK(ts.tool_name_for_extruder("extruder2").empty());
     // The temperature graph's legend: the head, not discovery's T code.
     CHECK(helix::ui::temperature::nozzle_display_name("extruder2", "Nozzle T2") == "Nozzle 3");
+    {
+        // Under the G-code style the legend says which head, never which lane.
+        auto& settings = helix::SettingsManager::instance();
+        settings.init_subjects();
+        settings.set_tool_number_style_setting(helix::ui::ToolNumberStyleSetting::Gcode);
+        struct StyleReset {
+            ~StyleReset() {
+                helix::SettingsManager::instance().set_tool_number_style_setting(
+                    helix::ui::ToolNumberStyleSetting::Auto);
+            }
+        } reset;
+        CHECK(helix::ui::temperature::nozzle_display_name("extruder", "Nozzle T0") == "Nozzle E1");
+        CHECK(helix::ui::temperature::nozzle_display_name("extruder5", "Nozzle T5") == "Nozzle E6");
+    }
 
     // The nozzle temperature rows stand in the same order as the heads.
     const std::vector<std::string> by_extruder(std::begin(extruders), std::end(extruders));
