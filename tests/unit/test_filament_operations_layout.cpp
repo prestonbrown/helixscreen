@@ -54,7 +54,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Operations buttons keep their icons at 480x
         INFO(name);
         lv_obj_t* icon = ui_button_get_icon(lv_obj_find_by_name(card, name));
         REQUIRE(icon != nullptr);
-        CHECK_FALSE(lv_obj_is_hidden(icon));
+        CHECK_FALSE(lv_obj_has_flag(icon, LV_OBJ_FLAG_HIDDEN));
     }
     lv_obj_delete(card);
 }
