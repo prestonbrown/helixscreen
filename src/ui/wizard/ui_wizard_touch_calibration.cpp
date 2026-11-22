@@ -41,10 +41,24 @@ extern helix::Subject wizard_subtitle;
 // Global Instance
 // ============================================================================
 
-// The wizard header's bound subtitle label (wizard_subtitle), or null.
-static lv_obj_t* wizard_subtitle_label() {
+// Center the wizard header's bound subtitle labels (wizard_subtitle: the one-line
+// label and the two-line one portrait shows), or hand their alignment back to the header.
+static void center_wizard_subtitle(bool centered) {
     lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "wizard_header");
-    return header ? lv_obj_find_by_name(header, "cal_header_subtitle_bound") : nullptr;
+    if (!header) {
+        return;
+    }
+    for (const char* name : {"cal_header_subtitle_bound", "cal_header_subtitle_bound_tall"}) {
+        lv_obj_t* label = lv_obj_find_by_name(header, name);
+        if (!label) {
+            continue;
+        }
+        if (centered) {
+            lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        } else {
+            lv_obj_remove_local_style_prop(label, LV_STYLE_TEXT_ALIGN, 0);
+        }
+    }
 }
 
 // Flag to force touch calibration step to show (for visual testing on SDL)
@@ -204,10 +218,7 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
     test_touch_area_ = helix::ui::find_required(screen_root_, "test_touch_area", get_name());
 
     // Center the wizard subtitle for this step (keeps it clear of crosshair targets)
-    lv_obj_t* subtitle = wizard_subtitle_label();
-    if (subtitle) {
-        lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_CENTER, 0);
-    }
+    center_wizard_subtitle(true);
 
     // Re-set callbacks (cleanup() clears completion callback to prevent
     // updates to destroyed UI, so we must restore it for each create cycle)
@@ -260,10 +271,7 @@ void WizardTouchCalibrationStep::cleanup() {
     lv_subject_set_int(&wizard_show_skip, 0);
 
     // Hand the subtitle's alignment back to the header (it was centered for this step)
-    lv_obj_t* subtitle = wizard_subtitle_label();
-    if (subtitle) {
-        lv_obj_remove_local_style_prop(subtitle, LV_STYLE_TEXT_ALIGN, 0);
-    }
+    center_wizard_subtitle(false);
 
     // Restore Next/Skip group to its original parent before deleting reparented widgets
     helix::ui::restore_raised_control(raised_skip_);

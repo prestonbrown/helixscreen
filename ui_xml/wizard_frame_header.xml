@@ -28,7 +28,8 @@
                              shows subtitle_compact_subject instead
        subtitle_compact="2"  the same, and in portrait too (under the title)
        stacked="1"           the subtitle stays on its own line under the title at
-                             480x272 too, the bar growing to fit both lines -->
+                             480x272 too, and in portrait may wrap to a second line
+                             before its dots; the bar grows to fit -->
 <component>
   <consts>
     <px name="bar_h" value="6"/>
@@ -84,7 +85,7 @@
         style_border_opa="255" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="start"
         scrollable="false">
     <style name="cal_hdr_h"/>
-    <bind_style_if name="cal_hdr_tall" cond="ui_breakpoint eq 0 and ${stacked}"/>
+    <bind_style_if name="cal_hdr_tall" cond="(ui_breakpoint eq 0 or ui_is_portrait eq 1) and ${stacked}"/>
     <lv_obj name="cal_header_row"
             width="100%" height="content" style_pad_all="0" style_pad_gap="#space_lg" style_bg_opa="0"
             style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false">
@@ -142,6 +143,7 @@
             <lv_obj name="cal_header_subtitle_box"
                     height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
               <style name="cal_hdr_fill"/>
+              <bind_flag_if cond="ui_is_portrait eq 1 and ${stacked}" flag="hidden"/>
               <text_body name="cal_header_subtitle"
                          text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
                          style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
@@ -154,6 +156,26 @@
                          style_text_color="$subtitle_color" hidden_if_empty="$subtitle_subject">
                 <style name="cal_hdr_full_w"/>
                 <bind_style_if name="cal_hdr_align_end" cond="ui_breakpoint eq 0 and not ${stacked}"/>
+              </text_body>
+            </lv_obj>
+          </if>
+          <!-- A stacked header in portrait: the same subtitle, allowed two lines. -->
+          <if cond="${subtitle_compact} eq 0 and ${stacked} eq 1">
+            <lv_obj name="cal_header_subtitle_box_tall"
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <style name="cal_hdr_fill"/>
+              <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>
+              <text_body name="cal_header_subtitle_tall"
+                         text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots" max_lines="2"
+                         style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
+                         hidden_if_prop_not_eq="$subtitle_subject|">
+                <style name="cal_hdr_full_w"/>
+              </text_body>
+              <text_body name="cal_header_subtitle_bound_tall"
+                         bind_text="$subtitle_subject" long_mode="dots" max_lines="2"
+                         style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
+                         hidden_if_empty="$subtitle_subject">
+                <style name="cal_hdr_full_w"/>
               </text_body>
             </lv_obj>
           </if>
