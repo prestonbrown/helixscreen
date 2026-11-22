@@ -1,20 +1,50 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- Reusable empty state placeholder component (icon + text) -->
-<!-- Usage: <empty_state icon="wifi_off" text="No networks found" translation_tag="No networks found"/> -->
+<!-- Reusable empty state placeholder: an icon above an optional heading, a muted line
+     and an optional small hint, centered in the space it is given.
+
+     Every line is optional: an empty icon, title, text or hint (with no subject) takes no room.
+     A literal text/title/hint is its own translation key; *_tag sets a different key.
+
+     shown_subject + shown_value: the state is visible only while the subject equals the
+     value (default 0, the "count is zero" case). A condition over several subjects goes in a
+     child <bind_flag_if cond="..." flag="hidden"/> on the instance instead.
+
+     Usage:
+       <empty_state icon="wifi_off" text="No networks found"/>
+       <empty_state name="empty_state" icon="code_tags" icon_size="xl" flex_grow="1"
+                    title="No Macros Found" text="Define macros in your printer.cfg"
+                    shown_subject="macro_row_count"/> -->
 <component>
   <api>
     <prop name="icon" type="string" default="inbox_outline"/>
-    <prop name="text" type="string" default="No items"/>
-    <prop name="text_tag" type="string" default=""/>
     <prop name="icon_size" type="string" default="lg"/>
     <prop name="icon_variant" type="string" default="secondary"/>
+    <prop name="title" type="string" default=""/>
+    <prop name="title_tag" type="string" default=""/>
+    <prop name="text" type="string" default="No items"/>
+    <prop name="text_tag" type="string" default=""/>
+    <prop name="text_subject" type="subject" default=""/>
+    <prop name="hint" type="string" default=""/>
+    <prop name="hint_tag" type="string" default=""/>
+    <prop name="hint_subject" type="subject" default=""/>
+    <prop name="shown_subject" type="subject" default=""/>
+    <prop name="shown_value" type="int" default="0"/>
   </api>
   <view extends="lv_obj"
         width="100%" height="100%" flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
         style_flex_track_place="center" style_pad_gap="#space_md" scrollable="false">
-    <icon src="$icon" size="$icon_size" variant="$icon_variant"/>
-    <text_muted text="$text" translation_tag="$text_tag" style_text_align="center"/>
+    <bind_flag_if_not_eq subject="$shown_subject" flag="hidden" ref_value="$shown_value"/>
+    <icon src="$icon" size="$icon_size" variant="$icon_variant" hidden_if_empty="$icon"/>
+    <text_heading name="empty_state_title"
+                  text="$title" translation_tag="$title_tag" style_max_width="100%" style_text_align="center"
+                  hidden_if_empty="$title"/>
+    <text_muted name="empty_state_text"
+                text="$text" translation_tag="$text_tag" bind_text="$text_subject" style_max_width="100%"
+                style_text_align="center" hidden_if_empty="${text}${text_subject}"/>
+    <text_small name="empty_state_hint"
+                text="$hint" translation_tag="$hint_tag" bind_text="$hint_subject" style_max_width="100%"
+                style_text_align="center" hidden_if_empty="${hint}${hint_subject}"/>
   </view>
 </component>

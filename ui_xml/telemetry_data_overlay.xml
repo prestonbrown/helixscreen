@@ -34,15 +34,10 @@
       <!-- ================================================================== -->
       <!-- EMPTY STATE (shown when no events queued) -->
       <!-- ================================================================== -->
-      <lv_obj name="empty_state"
-              width="100%" height="content" style_pad_all="#space_xl" scrollable="false" flex_flow="column"
-              style_flex_main_place="center" style_flex_cross_place="center" style_flex_track_place="center"
-              style_pad_gap="#space_sm">
-        <bind_flag_if_not_eq subject="telemetry_data_count" flag="hidden" ref_value="0"/>
-        <icon src="check_circle" size="lg" variant="secondary"/>
-        <text_body text="No events queued" style_text_color="#text_muted" style_text_align="center"/>
-        <text_small text="Events appear here after sessions and prints" style_text_align="center"/>
-      </lv_obj>
+      <empty_state name="empty_state"
+                   height="content" style_pad_all="#space_xl" style_pad_gap="#space_sm" icon="check_circle"
+                   text="No events queued" hint="Events appear here after sessions and prints"
+                   shown_subject="telemetry_data_count"/>
       <!-- ================================================================== -->
       <!-- EVENT LIST (populated dynamically by C++) -->
       <!-- ================================================================== -->
