@@ -821,10 +821,70 @@ TEST_CASE("with no live link or no usable Orca id, the catalog's filament_id sta
         CHECK(ovr.spoolman_orca_filament_id.empty());
         CHECK(helix::ams::to_lane_data_record(0, ovr)["filament_id"] == "OFhuaUQB");
     }
-    SECTION("no catalog pick and no link: no filament_id") {
+}
+
+TEST_CASE("a lane with no product id names its family's Generic preset",
+          "[filament_slot_override][orca]") {
+    // Orca reads filament_id and never vendor_name: a null one makes it pick
+    // the first visible preset of the type, of any brand.
+    const auto wire_for = [](const std::string& material, const std::string& catalog_id = {}) {
         FilamentSlotOverride ovr;
-        ovr.material = "ABS";
-        CHECK(helix::ams::to_lane_data_record(0, ovr)["filament_id"].is_null());
+        ovr.material = material;
+        ovr.brand = "Eryone";
+        ovr.catalog_id = catalog_id;
+        return helix::ams::to_lane_data_record(0, ovr);
+    };
+    SECTION("an uncatalogued spool") {
+        const json wire = wire_for("ASA");
+        CHECK(wire["filament_id"] == "OFLPAxz3");
+        CHECK(wire.value("helix_filament_id_source", "") == "generic");
+    }
+    SECTION("the precise type's own Generic preset first") {
+        CHECK(wire_for("PLA Silk")["filament_id"] == "OFesA6rF");
+        CHECK(wire_for("PETG HF")["filament_id"] == "OF7lOgYF");
+        CHECK(wire_for("PA-CF")["filament_id"] == "OFQLcbps");
+    }
+    SECTION("else the matchable type's") {
+        CHECK(wire_for("ABS+")["filament_id"] == "OFY9muEs");
+        CHECK(wire_for("ASA-GF")["filament_id"] == "OFLPAxz3");
+    }
+    SECTION("a catalog product with no Orca id of its own") {
+        const json wire = wire_for("ASA-GF", "generic-asa-gf");
+        CHECK(wire["filament_id"] == "OFLPAxz3");
+        CHECK(wire.value("helix_filament_id_source", "") == "generic");
+    }
+    SECTION("a family with no Generic preset stays null") {
+        const std::string material = GENERATE("ABS-GF", "PPS-CF", "");
+        const json wire = wire_for(material);
+        CHECK(wire["filament_id"].is_null());
+        CHECK_FALSE(wire.contains("helix_filament_id_source"));
+    }
+    SECTION("the family id is recomputed on emit, never read back as the spool's") {
+        const auto parsed = helix::ams::from_lane_data_record(wire_for("ASA"));
+        REQUIRE(parsed.has_value());
+        CHECK(parsed->second.spoolman_orca_filament_id.empty());
+        CHECK(parsed->second.catalog_id.empty());
+    }
+}
+
+TEST_CASE("a stored color name made of the derived vocabulary is recomputed from the hex",
+          "[filament_slot_override][color]") {
+    const auto read = [](const std::string& name) {
+        const auto parsed = helix::ams::from_lane_data_record(
+            json{{"lane", "2"}, {"color", "#1A1A1A"}, {"helix_color_name", name}});
+        REQUIRE(parsed.has_value());
+        return parsed->second;
+    };
+    SECTION("a derived name is dropped, and the next write omits it") {
+        const FilamentSlotOverride o = read("Dark Gray");
+        CHECK(o.color_name.empty());
+        CHECK(o.color_rgb == 0x1A1A1Au);
+        CHECK_FALSE(helix::ams::to_lane_data_record(2, o).contains("helix_color_name"));
+    }
+    SECTION("a product's color name is kept") {
+        const FilamentSlotOverride o = read("Galaxy Black");
+        CHECK(o.color_name == "Galaxy Black");
+        CHECK(helix::ams::to_lane_data_record(2, o)["helix_color_name"] == "Galaxy Black");
     }
 }
 
