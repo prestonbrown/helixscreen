@@ -7,6 +7,7 @@
 
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/scoped_breakpoint.h"
 #include "color_recents.h"
 #include "config.h"
 
@@ -61,29 +62,61 @@ struct PickerFixture : LVGLUITestFixture {
 
 } // namespace
 
+static int grid_cells(lv_obj_t* root) {
+    int cells = 0;
+    std::vector<lv_obj_t*> stack{named(root, "cp_grid_tab")};
+    REQUIRE(stack.back() != nullptr);
+    // Only the cells a finger can reach: a hidden row's cells are skipped.
+    while (!stack.empty()) {
+        lv_obj_t* o = stack.back();
+        stack.pop_back();
+        if (lv_obj_is_hidden(o)) {
+            continue;
+        }
+        if (helix::ui::has_swatch_paint(o) && lv_obj_is_clickable(o)) {
+            ++cells;
+        }
+        for (uint32_t c = 0; c < lv_obj_get_child_count(o); ++c) {
+            stack.push_back(lv_obj_get_child(o, static_cast<int32_t>(c)));
+        }
+    }
+    return cells;
+}
+
 TEST_CASE_METHOD(PickerFixture, "ColorPickerView: each palette builds its grid", "[color_picker]") {
+    helix::test::ScopedBreakpoint bp(UiBreakpoint::Medium);
     for (auto palette : {ColorPalette::Filament, ColorPalette::Led, ColorPalette::Theme}) {
         ColorPickerConfig cfg;
         cfg.palette = palette;
         attach(0x123456, cfg);
-        const size_t n = helix::color_palette(palette).size();
         INFO("palette " << static_cast<int>(palette));
         // One clickable cell per palette entry, last index n - 1 and none beyond.
-        int cells = 0;
-        REQUIRE(named(view.root(), "cp_grid_tab") != nullptr);
-        std::vector<lv_obj_t*> stack{named(view.root(), "cp_grid_tab")};
-        while (!stack.empty()) {
-            lv_obj_t* o = stack.back();
-            stack.pop_back();
-            if (helix::ui::has_swatch_paint(o) && lv_obj_is_clickable(o)) {
-                ++cells;
-            }
-            for (uint32_t c = 0; c < lv_obj_get_child_count(o); ++c) {
-                stack.push_back(lv_obj_get_child(o, static_cast<int32_t>(c)));
-            }
-        }
-        CHECK(cells == static_cast<int>(n));
+        CHECK(grid_cells(view.root()) == static_cast<int>(helix::color_palette(palette).size()));
     }
+}
+
+TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a small screen shows four filament rows",
+                 "[color_picker]") {
+    const auto& full = helix::color_palette(ColorPalette::Filament);
+    for (auto size : {UiBreakpoint::Micro, UiBreakpoint::Tiny}) {
+        helix::test::ScopedBreakpoint bp(size);
+        INFO("breakpoint " << to_int(size));
+        attach(0x123456);
+        CHECK(grid_cells(view.root()) == 40);
+        // Row 1 keeps the grays and row 3 the vivid tone: full rows 1 and 4.
+        view.pick_cell(9);
+        CHECK(view.color() == full[9]);
+        view.pick_cell(25);
+        CHECK(view.color() == full[35]);
+        CHECK(subject_int("color_picker_cell_selected") == 25);
+        view.detach();
+    }
+    helix::test::ScopedBreakpoint bp(UiBreakpoint::Tiny);
+    ColorPickerConfig led;
+    led.palette = ColorPalette::Led;
+    attach(0x123456, led);
+    CHECK(grid_cells(view.root()) ==
+          static_cast<int>(helix::color_palette(ColorPalette::Led).size()));
 }
 
 TEST_CASE_METHOD(PickerFixture, "ColorPickerView: a grid tap picks the cell and rings it",

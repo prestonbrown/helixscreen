@@ -742,9 +742,12 @@ class AmsBackendAfc : public AmsSubscriptionBackend,
     void apply_afc_state(const afc::StateDelta& afc, std::string& deferred_error_event,
                          bool& current_slot_set_by_afc_state, bool& afc_stated_unloaded);
 
-    /// Engaged bypass: current_slot = -2 and filament_loaded. Called after every
-    /// writer that derives those two fields from lanes. Caller holds mutex_.
+    /// Engaged bypass: current_slot = -2, and filament_loaded from the toolhead
+    /// sensor where one is fitted. Called after every writer that derives those
+    /// two fields from lanes. Caller holds mutex_.
     void apply_bypass_to_system_info();
+    /// True once configfile shows an AFC_extruder with a toolhead sensor wired.
+    [[nodiscard]] bool toolhead_sensor_known_fitted() const;
 
     /**
      * @brief Apply an AFC state string to action + operation_detail

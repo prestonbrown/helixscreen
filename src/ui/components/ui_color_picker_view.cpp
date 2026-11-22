@@ -10,6 +10,7 @@
 #include "core/static_subject_registry.h"
 #include "core/subject.h"
 #include "helix/xml/indexed_subject_pool.h"
+#include "panel_widget_size.h"
 
 #include <spdlog/spdlog.h>
 
@@ -347,11 +348,15 @@ void ColorPickerView::detach() {
     }
 }
 
+const std::vector<uint32_t>& ColorPickerView::grid_colors() const {
+    return color_palette(grid_palette_for(config_.palette, widget_size::current_breakpoint()));
+}
+
 void ColorPickerView::publish_all() {
     if (current_publisher() != this) {
         return;
     }
-    const auto& palette = color_palette(config_.palette);
+    const auto& palette = grid_colors();
     for (size_t i = 0; i < palette.size() && i < kMaxCells; ++i) {
         s_cells.set_color(i, palette[i]);
     }
@@ -427,7 +432,7 @@ void ColorPickerView::publish() {
     lv_subject_set_color(&s.sat_hi, to_color(hsv_to_rgb({hsv.h, 100, hsv.v})));
     lv_subject_set_color(&s.val_hi, to_color(hsv_to_rgb({hsv.h, hsv.s, 100})));
 
-    const auto& palette = color_palette(config_.palette);
+    const auto& palette = grid_colors();
     const auto it = std::find(palette.begin(), palette.end(), rgb);
     lv_subject_set_int(&s.cell_selected,
                        it == palette.end() ? -1 : static_cast<int>(it - palette.begin()));
@@ -504,7 +509,7 @@ void ColorPickerView::refresh_strip() {
 }
 
 void ColorPickerView::pick_cell(int index) {
-    const auto& palette = color_palette(config_.palette);
+    const auto& palette = grid_colors();
     if (index < 0 || static_cast<size_t>(index) >= palette.size()) {
         return;
     }

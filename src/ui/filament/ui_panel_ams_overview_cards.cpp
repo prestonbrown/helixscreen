@@ -868,7 +868,7 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
     ui_system_path_canvas_set_filament_loaded(system_path_, info.filament_loaded);
 
     // Set bypass path state (canvas draws the connecting lines only)
-    bool bypass_active = info.supports_bypass && (current_slot == -2);
+    const bool bypass_active = helix::ui::bypass_filament_at_toolhead(info);
     uint32_t bypass_color = 0x888888; // Default gray when no external spool assigned
     auto ext_spool = AmsState::instance().get_external_spool_info();
     if (ext_spool) {

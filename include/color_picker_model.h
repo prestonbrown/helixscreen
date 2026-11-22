@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "ui_breakpoint.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -21,10 +23,19 @@ namespace helix {
 
 /// The grid a picker shows. Each caller brings the one that fits what it edits.
 enum class ColorPalette : uint8_t {
-    Filament, ///< 10 x 6: a gray ramp, then ten hues at five tones
-    Led,      ///< 10 x 3: white temperatures, full hues, pastel hues
-    Theme,    ///< 6 x 5: a surface ramp, then six hue families at three tones
+    Filament,        ///< 10 x 6: a gray ramp, then ten hues at five tones
+    Led,             ///< 10 x 3: white temperatures, full hues, pastel hues
+    Theme,           ///< 6 x 5: a surface ramp, then six hue families at three tones
+    FilamentCompact, ///< 10 x 4: Filament's grays and vivid row, plus its pastel and
+                     ///< muted rows averaged into one light row and its deep and dark
+                     ///< rows into one dark row
 };
+
+/// The palette a grid shows for the one a caller asked for on a @p bp screen.
+/// Filament shrinks to FilamentCompact at Micro and Tiny, so its rows stay
+/// finger-tall (43 x 33 at 480x272, 43 x 45 at 480x320); every other palette
+/// is shown as asked.
+ColorPalette grid_palette_for(ColorPalette asked, UiBreakpoint bp);
 
 /// The palette's colors, row-major.
 const std::vector<uint32_t>& color_palette(ColorPalette palette);

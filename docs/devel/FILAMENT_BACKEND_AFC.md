@@ -915,9 +915,15 @@ turns its unload into the printer's stock `UNLOAD_FILAMENT`. With bypass off, fi
 toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
 UI with a toolhead that reads full and a unit that reads empty.
 
-**An engaged bypass is what the toolhead holds.** While `bypass_state` is true,
-`AmsBackendAfc::apply_bypass_to_system_info()` (`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`)
-sets `current_slot` to -2 and `filament_loaded` to true. It runs after every writer that
+**An engaged bypass is the selected path; the toolhead sensor says whether it is fed.** While
+`bypass_state` is true, `AmsBackendAfc::apply_bypass_to_system_info()`
+(`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`) sets `current_slot` to -2, and
+`filament_loaded` from the toolhead sensor (`tool_start_status` or `tool_end_status`) when
+configfile shows an `AFC_extruder` with one wired, or true when none is. `bypass_state` is a
+mode switch, not a sensor: it stays on after the spool is pulled out, so an empty toolhead
+sensor always wins. The AMS panels draw bypass filament to the nozzle only when
+`helix::ui::bypass_filament_at_toolhead()` (`include/ui_bypass_spool_widget.h`) agrees, and
+redraw on `ams_filament_loaded` while the slot stays -2. It runs after every writer that
 derives those two from the lanes (`apply_afc_state()`, `apply_lane_data()`, and before
 `apply_mount_state()` in `handle_status()`), because AFC keeps sending lane-only frames
 while bypass is on and each of them would otherwise put the system back on "no lane, nothing

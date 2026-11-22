@@ -292,9 +292,10 @@ class AmsOverviewPanel : public PanelBase {
 
     // === Observers ===
     ObserverGuard slots_version_observer_;
-    ObserverGuard current_slot_observer_;   ///< Reactive highlight update when active slot changes
-    ObserverGuard external_spool_observer_; ///< Reactive updates when external spool color changes
-    ObserverGuard bypass_active_observer_;  ///< Active ring follows bypass engage/disengage
+    ObserverGuard current_slot_observer_;    ///< Reactive highlight update when active slot changes
+    ObserverGuard external_spool_observer_;  ///< Reactive updates when external spool color changes
+    ObserverGuard bypass_active_observer_;   ///< Active ring follows bypass engage/disengage
+    ObserverGuard filament_loaded_observer_; ///< Bypass path follows the toolhead sensor
     ObserverGuard always_show_bypass_observer_; ///< Node follows the always-show setting
     ObserverGuard dryer_version_observer_; ///< The stubs' drying glyph follows other units' dryers
     ObserverGuard page_count_observer_;    ///< The dots refit when pages come or go
