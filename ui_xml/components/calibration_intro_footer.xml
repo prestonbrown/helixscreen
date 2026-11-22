@@ -15,6 +15,8 @@
     <slot name="footer_note" target="cal_intro_footer_note"/>
     <prop name="primary_name" type="string" default="cal_intro_primary"/>
     <prop name="primary_text" type="string" default=""/>
+    <!-- A string subject for a primary label that changes; empty for none. -->
+    <prop name="primary_bind_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
     <prop name="disabled_cond" type="string" default="machine_motion_blocked eq 1 or nav_buttons_enabled eq 0"/>
   </api>
@@ -38,7 +40,7 @@
               flex_flow="row" style_flex_main_place="center" scrollable="false" clickable="false"/>
       <ui_button name="$primary_name"
                  width="content" height="#cal_intro_btn_h" variant="primary" text="$primary_text"
-                 style_min_width="#cal_intro_primary_w" style_pad_hor="#space_lg"
+                 bind_text="$primary_bind_text" style_min_width="#cal_intro_primary_w" style_pad_hor="#space_lg"
                  style_text_font="#cal_intro_font_primary">
         <bind_state_if cond="$disabled_cond" state="disabled"/>
         <event_cb trigger="clicked" callback="$primary_callback"/>

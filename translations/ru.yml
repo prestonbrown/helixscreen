@@ -100,6 +100,7 @@ translations:
     other: '%zu события в очереди'
   '%zu plugins failed to load': Не удалось загрузить %zu плагинов
   "Auto Belt Tension": "Автонатяжение ремней"
+  Both axes: ''
   "Both belts": "Оба ремня"
   "Cutter Calibration": "Калибровка резака"
   "Find the filament cutter's position": "Определить положение резака филамента"
@@ -259,6 +260,7 @@ translations:
   A heater that warms the air inside the enclosure. Set its temperature on the chamber temperature screen.: 'Нагреватель, который греет воздух внутри камеры. Температура задается на экране температуры камеры.'
   A height map of the bed that Klipper uses to make up for an uneven surface. View and calibrate it on the Bed Mesh screen.: 'Карта высот стола, по которой Klipper компенсирует неровности поверхности. Просмотр и калибровка на экране «Сетка стола».'
   A home-origin calibration point failed or stayed unstable.: 'Точка калибровки начала координат не удалась или оставалась нестабильной.'
+  A hot bed changes shape. Probe at the temperature you print at.: ''
   A left, B right: "A слева, B справа"
   A load was asked for while the toolhead holds filament the Box has no record of.: Запрошена загрузка, хотя в печатающей головке есть филамент, о котором Бокс ничего не знает.
   A lower, B upper: "A снизу, B сверху"
@@ -325,6 +327,7 @@ translations:
   ? A value in the printer's configuration has the wrong type or is outside the range the setting allows. Klipper's message names the setting and its section.
   : Значение в конфигурации принтера имеет неверный тип или выходит за допустимый диапазон параметра. В сообщении Klipper указаны параметр и его секция.
   ABS: ABS
+  ABS / ASA: ''
   ACCELEROMETERS: АКСЕЛЕРОМЕТРЫ
   'ACCEPT failed: {}': 'Ошибка ACCEPT: {}'
   ACE Moonraker bridge not found. Install ace_status.py for full support.: Мост ACE Moonraker не найден. Установите ace_status.py для полной поддержки.
@@ -370,6 +373,7 @@ translations:
   Accelerometer communication failed. Try again.: Связь с акселерометром потеряна. Попробуйте снова.
   Accelerometer not connected: Акселерометр не подключён
   Accelerometer not responding: 'Акселерометр не отвечает'
+  Accelerometer ready: ''
   Accelerometers: Акселерометры
   Accept: Принять
   'Accepted Z Position: 0.000': 'Принятая позиция Z: 0.000'
@@ -1111,6 +1115,7 @@ translations:
   Coaxial: Коаксиальный
   Code: Код
   Coil Temperature: Температура катушки
+  Cold: ''
   Cold Pull: "Холодная протяжка"
   Cold pull cancelled: "Холодная протяжка отменена"
   Cold pull finished: "Холодная протяжка завершена"
@@ -1130,6 +1135,7 @@ translations:
   Communication Test: 'Проверка связи'
   Compact: Компактный
   Compare belt paths with a resonance sweep: "Сравнение путей ремней резонансным свипом"
+  Compare belts: ''
   Compare your belt paths: Сравните пути ремней
   ? Compares the two belt paths of a CoreXY printer with the accelerometer, so you can even out their tension. Run it on the Belt Tension screen.
   : 'Сравнивает два контура ремней принтера CoreXY с помощью акселерометра, чтобы выровнять их натяжение. Запускается на экране «Натяжение ремня».'
@@ -1189,6 +1195,7 @@ translations:
   Connect: Подключить
   Connect a USB label printer first: Сначала подключите USB-принтер этикеток
   Connect an ADXL345 accelerometer to calibrate: Подключите акселерометр ADXL345 для калибровки
+  Connect one (ADXL345 or similar) to measure: ''
   Connect to servers on your network and the internet.: 'Подключается к серверам в вашей сети и в интернете.'
   'Connect to your printer via SSH and run:': 'Подключитесь к принтеру по SSH и выполните:'
   Connected: Подключен
@@ -2024,6 +2031,7 @@ translations:
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'В экструдере должен быть филамент, стол установлен, и ничто не мешает печатающей головке.'
   Filament never reached the CFS hub sensor: Филамент не дошёл до датчика хаба CFS
   Filament not identified: 'Филамент не определён'
+  Filament not known: ''
   Filament not set: 'Филамент не задан'
   Filament operation failed: Операция с филаментом не удалась
   Filament operation timed out: Операция с филаментом — время ожидания истекло
@@ -2235,6 +2243,7 @@ translations:
   Heat soak: Прогрев
   ? Heat soak lets the enclosure warm up before a print. It is listed because the printer has a heat soak macro or it was turned on in settings; HelixScreen offers the macro in the pre-print options.
   : 'Прогрев камеры даёт корпусу нагреться перед печатью. Он показан, потому что у принтера есть макрос прогрева или он включён в настройках; HelixScreen предлагает этот макрос в параметрах перед печатью.'
+  Heat the bed first: ''
   Heat the bed to {}: Нагреть стол до {}
   Heat the chamber too: Нагреть и камеру
   Heat the extruder to at least {} before loading filament: Перед загрузкой филамента нагрейте экструдер минимум до {}
@@ -2296,6 +2305,7 @@ translations:
   Heating...: Нагрев...
   'Heating: %d / %s': 'Нагрев: %d / %s'
   Heats the bed to {}, above this printer's {} limit.: Нагревает стол до {}, выше предела этого принтера {}.
+  Heats the nozzle and extrudes short test lines in a corner of the plate: ''
   Heats the nozzle to {}, above this printer's {} limit.: Нагревает сопло до {}, выше предела этого принтера {}.
   Heightmap and flatness of the active bed mesh: 'Карта высот и ровность активной сетки стола'
   HelixPrint Plugin: 'Плагин HelixPrint'
@@ -2677,6 +2687,8 @@ translations:
   Last 24 hours: 'Последние 24 часа'
   Last 30 days: 'Последние 30 дней'
   Last 7 days: 'Последние 7 дней'
+  Last check {}: ''
+  Last check {} · {}: ''
   Last done at {} h: "Прошлый раз: {} ч"
   'Last held: {}': 'Последняя: {}'
   Last measured: 'Последний замер'
@@ -2769,6 +2781,7 @@ translations:
   Load...: Загрузить...
   Loaded: Загружен
   Loaded filament not recognized: Загруженный филамент не распознан
+  Loaded from T{}: ''
   Loading: Загрузка
   Loading Bed Mesh...: Загрузка сетки стола...
   Loading Error: Ошибка загрузки
@@ -2936,7 +2949,9 @@ translations:
   Measure (~{} min): "Измерить (~{} мин)"
   Measure each toolhead's X, Y and Z offset (about 20 minutes): Измерить смещение X, Y и Z каждой головки (около 20 минут)
   Measure every tool's XYZ offset automatically: Автоматически измеряет смещение XYZ каждого инструмента
+  Measure pressure advance: ''
   Measure pressure advance automatically: 'Автоматически измеряет Pressure Advance'
+  Measure resonances: ''
   Measure the tension with the Belt Tension tool, or as your manual shows.: "Измерьте натяжение инструментом «Натяжение ремня» или по руководству."
   Measure this zone first: "Сначала измерьте эту зону"
   ? Measure up from the plate. Sharp corners with no bulge and no gap mark the right K. Each row is a height range and the K the printer reported while it printed.
@@ -2947,7 +2962,9 @@ translations:
   Measured from the printer's file list: 'Измерено по списку файлов принтера'
   Measured offsets, read-only: Измеренные смещения, только чтение
   Measured pressure advance: 'Измеренный Pressure Advance'
+  Measured {} · reduces ringing and ghosting: ''
   Measurement incomplete. Try again.: Измерение не завершено. Повторите попытку.
+  Measures each line itself, repeating until the readings agree: ''
   Measures each toolhead's X, Y and Z offset so every head prints in the same place. Takes about 20 minutes.: Измеряет смещение X, Y и Z каждой головки, чтобы все печатали в одной точке. Занимает около 20 минут.
   Measures the bed at each adjustment screw and says how far to turn it. Run it on the Screws Tilt screen.: 'Измеряет стол у каждого регулировочного винта и показывает, насколько его повернуть. Запускается на экране «Наклон винтов».'
   Measures vibration for input shaping. Run resonance tests on the Input Shaper screen.: 'Измеряет вибрацию для input shaping. Тесты резонанса запускаются на экране Input Shaper.'
@@ -3115,6 +3132,7 @@ translations:
   No Spools: Нет катушек
   No USB printer detected: USB-принтер не обнаружен
   No USB printers found: USB-принтеры не найдены
+  No accelerometer: ''
   No actions right now: 'Сейчас нет действий'
   No active Spoolman spool.: Нет активной катушки Spoolman.
   No answer from the printer; it may still be calibrating: Принтер не отвечает; возможно, калибровка ещё идёт
@@ -3149,6 +3167,7 @@ translations:
   No hub configured: 'Hub не настроен'
   No humidity sensor detected: 'Датчик влажности не обнаружен'
   No images found on USB drive: Изображения на USB-накопителе не найдены
+  No input shaper in printer.cfg yet: ''
   No jobs in queue: Очередь пуста
   No lane holds filament, so none can be pulled back. Clearing cuts the filament in the extruder and withdraws it.: 'Ни в одном канале нет филамента, поэтому втянуть нечего. Очистка обрезает филамент в экструдере и извлекает его.'
   No macro devices configured: Макро-устройства не настроены
@@ -3236,6 +3255,7 @@ translations:
   Not available now: Сейчас недоступно
   Not available on Android: Недоступно на Android
   Not calibrated: Не откалиброван
+  Not compared yet: ''
   Not configured: Не настроено
   Not connected: Не подключен
   Not connected to printer: Нет подключения к принтеру
@@ -3285,6 +3305,7 @@ translations:
   Notification History: История уведомлений
   Notifications: Уведомления
   Notify when print finishes: Уведомить о завершении печати
+  Now: ''
   Now printing: 'Сейчас печатается'
   Noz max: Соп макс
   Noz min: Соп мин
@@ -3498,6 +3519,7 @@ translations:
   Pick Color: Выбрать цвет
   Pick how HelixScreen behaves. You can change any of these later in Settings.: 'Выберите, как будет вести себя HelixScreen. Всё это можно изменить позже в Настройках.'
   Pick the best band: Выберите лучшую полосу
+  Pick the material below: ''
   Pick up: 'Установить'
   Pick up and park each tool in turn: Взять и поставить на место каждый инструмент по очереди
   Pick up the tool, heat it, and pull the filament out: "Возьмите инструмент, нагрейте его и вытяните филамент"
@@ -3667,6 +3689,7 @@ translations:
   Print copies: 'Копии для печати'
   Print details: 'Сведения о печати'
   Print did not start: Печать не началась
+  Print a test tower instead: ''
   Print canceled: Печать отменена
   Print complete: Печать завершена
   Print didn't start — printer may be busy or offline (B3 polls={}, status=0x{:02X}, error=0x{:02X}): Печать не началась — принтер может быть занят или не в сети (опросы B3={}, статус=0x{:02X}, ошибка=0x{:02X})
@@ -3769,6 +3792,7 @@ translations:
   Probe controls, accuracy test, and settings: Управление датчиком, тест точности и настройки
   Probe readings disagree: 'Показания зонда расходятся'
   Probe readings don't agree: Показания зонда не совпадают
+  Probe the bed: ''
   Probe triggered too early: 'Зонд сработал слишком рано'
   Probing Bed Mesh: Зондирование сетки стола
   Probing Bed Mesh...: Зондирование сетки стола...
@@ -3943,6 +3967,7 @@ translations:
   Reduce Sensitivity: Снизить чувствительность
   Reduce ringing and ghosting artifacts: Уменьшить артефакты звона и двоения
   Reduce vibration artifacts like ringing and ghosting: Уменьшить артефакты вибрации, такие как звон и двоение
+  Reduces ringing and ghosting: ''
   Reducing the fan speed may affect filtration performance. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить фильтрацию. Продолжить?'
   Reducing the fan speed may affect print quality. Do you want to continue?: 'Снижение скорости вентилятора может ухудшить качество печати. Продолжить?'
   Refeeding filament — this may take a minute: Повторная подача филамента — это может занять минуту
@@ -4433,7 +4458,10 @@ translations:
   Several printers match - choose yours: Подходят несколько принтеров - выберите свой
   Shadow Intensity: Интенсивность тени
   Shake&Tune: 'Shake&Tune'
+  ? Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak at the same frequency; a gap tells you which belt to tighten.
+  : ''
   Shakes the toolhead along each diagonal and overlays the two responses. Matched belts peak together.: Раскачивает печатающую головку вдоль каждой диагонали и накладывает два отклика. У одинаково натянутых ремней пики совпадают.
+  Shakes the toolhead through a frequency sweep on each axis and picks the shaper that cancels the strongest vibration.: ''
   Shaking the {} axis: 'Раскачивание оси {}'
   Share Screen: 'Поделиться экраном'
   Share Usage Data: Делиться данными использования
@@ -4461,6 +4489,7 @@ translations:
   Show up/down buttons on long lists: Показывать кнопки вверх/вниз в длинных списках
   Show whatever curves you last had visible on the full graph.: Показывать те кривые, что были видны на полном графике в последний раз.
   Showing the 50 newest files. See more in the printer's web UI.: 'Показаны 50 последних файлов. Остальные - в веб-интерфейсе принтера.'
+  Shows the new K next to the old one. You choose to save it: ''
   Shut down or restart the host: Выключение или перезагрузка хоста
   Shutdown: Выключение
   Shutdown / Reboot: Выключение / Перезагрузка
@@ -5544,6 +5573,7 @@ translations:
   Turn the nozzle heater off first: Сначала выключите нагреватель сопла
   Turn the picture to match how the screen is mounted. Applies after restart.: Поворачивает изображение в соответствии с положением экрана. Применяется после перезапуска.
   Turn the printer's lights on or off: Включить или выключить подсветку
+  Two belt paths: ''
   Two configuration sections define the same command.: 'Две секции конфигурации определяют одну и ту же команду.'
   Two features use the same pin, or a pin is written in a form Klipper does not accept. Klipper's message names the pin.: Две функции используют один пин, или пин записан в форме, которую Klipper не принимает. Пин указан в сообщении Klipper.
   Type: Тип
@@ -5787,6 +5817,7 @@ translations:
   What fills the printer's disk, and cleanup: 'Что занимает диск принтера, и очистка'
   What happens next: 'Что будет дальше'
   What happens when a print ends: 'Что происходит по окончании печати'
+  What it does: ''
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'Если слайсер загружает и запускает файл, который выходит за ход этого принтера, нагревает выше его пределов или использует отсутствующий инструмент, сохранить файл, но не запускать печать.'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: Когда включено, запускается только макрос. Когда выключено, сначала задаются температуры, затем запускается макрос.
@@ -5857,20 +5888,24 @@ translations:
   X Offset: Смещение X
   X and Y jog feedrate: Скорость перемещения по осям X и Y
   X and Y must be homed before precise homing.: 'Перед точной парковкой X и Y должны быть запаркованы.'
+  X axis: ''
   X axis applied, but Y axis failed: Ось X применена, но ось Y не удалась
   X axis done, starting Y...: 'Ось X готова, запуск Y...'
   X axis limit reached: Достигнут предел оси X
   X is at its limit ({}mm): X на пределе ({}mm)
   X motor: 'Мотор X'
+  X only: ''
   'X:': 'X:'
   XY: XY
   XY axis: "Ось XY"
   Y: Y
   Y Axis: Ось Y
   Y Offset: Смещение Y
+  Y axis: ''
   Y axis limit reached: Достигнут предел оси Y
   Y is at its limit ({}mm): Y на пределе ({}mm)
   Y motor: 'Мотор Y'
+  Y only: ''
   'Y:': 'Y:'
   ? "YOU WIN!\nScore: {}\nTap to play again"
   : "ПОБЕДА!\nСчёт: {}\nНажмите, чтобы сыграть снова"
@@ -5949,6 +5984,9 @@ translations:
   '[{}] was found {} times in the config files printer.cfg loads, expected once': "[{}] найден {} раз в файлах конфигурации, которые загружает printer.cfg; ожидался один"
   a newer version: 'более новая версия'
   a temporary mesh profile '{}': 'временный профиль сетки ''{}'''
+  about 2 min: ''
+  about 4 min: ''
+  about 6 min with heat-up: ''
   about {} min: 'около {} мин'
   already loaded: 'уже загружен'
   and the heater power: ''
@@ -6004,11 +6042,14 @@ translations:
   gets: ''
   heated bed: подогреваемый стол
   heats: 'нагрев'
+  heats bed to {}°: ''
   heats to {}: ''
+  heats to {}°: ''
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env проигнорирован: принадлежит uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env проигнорирован: недоверенная цепочка символических ссылок'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env проигнорирован: доступен на запись другим пользователям'
   'helixscreen.env ignored: {}': 'helixscreen.env проигнорирован: {}'
+  homes, then moves fast: ''
   idle: простой
   in unit {} slot {}: 'в блоке {} слот {}'
   in {}: 'в {}'
@@ -6018,6 +6059,8 @@ translations:
   just now: только что
   last 60 s · LOOSE up, TIGHT down: 'последние 60 с · вверху ОСЛАБЛЕН, внизу НАТЯНУТ'
   last 60 s · pressure, target dashed: последние 60 с · давление, цель пунктиром
+  last K {}: ''
+  last measured {}: ''
   'last turn: {:.1f} Hz closer': "последний поворот: ближе на {:.1f} Гц"
   layers: слои
   left: осталось
@@ -6026,6 +6069,7 @@ translations:
   loud: 'громко'
   matched: совпадают
   material differs: 'другой материал'
+  measured {}: ''
   'method: {}': ''
   mm: мм
   mm Z-offset: мм Z-смещение
@@ -6051,11 +6095,13 @@ translations:
   over memory budget: превышен бюджет памяти
   paper test: 'проверка бумагой'
   passive: пассивно
+  plate must be clear: ''
   preparing: подготовка
   printer default: по умолчанию для принтера
   printer.cfg: ''
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg загружает более {} файлов конфигурации; [{}] искали не во всех"
   prints: печатей
+  range {:.3f} mm: ''
   ready to load: 'готов к загрузке'
   remaining: осталось
   remaining before clog detection triggers: осталось до срабатывания обнаружения засора
@@ -6087,6 +6133,7 @@ translations:
   too slow: слишком медленно
   tool(s): инструмент(ы)
   used: использ.
+  uses about 30 cm of filament: ''
   v%s available: Доступна v%s
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: Для v%s нет сборки для %s, поэтому её нельзя установить здесь. Выберите канал обновлений с более новым выпуском.
   v{} installed! Restarting...: v{} установлена! Перезапуск...
@@ -6111,6 +6158,7 @@ translations:
   '{1} temperature reading is out of range': Показания температуры {1} вне диапазона
   '{:.0f} g left': осталось {:.0f} г
   '{:.0f} g of {} · {}%': '{:.0f} г из {} · {}%'
+  '{:.0f}-{:.0f} Hz sweep': ''
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Гц · примерно {} мин'
   '{:.2f} mm range': 'разброс {:.2f} мм'
   '{} ({})': '{} ({})'
@@ -6121,6 +6169,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} Settings': 'Настройки: {}'
   '{} Tools': 'Инструментов: {}'
+  '{} accelerometers': ''
   '{} and {}': '{} и {}'
   '{} and {} are both mapped here': '{} и {} оба назначены сюда'
   '{} auto-feed setting not applied': '{}: настройка автоподачи не применена'
@@ -6301,6 +6350,7 @@ translations:
   'Variant': 'Вариант'
   'from tag': 'с метки'
   'Browse catalog...': 'Обзор каталога...'
+  '{}×{} points · saved as "{}"': ''
   ~{:.1f} Hz / turn: "~{:.1f} Гц / оборот"
   RUNNING: "РАБОТАЕТ"
   NOT AVAILABLE HERE: "ЗДЕСЬ НЕДОСТУПНО"

@@ -8,6 +8,6 @@
     <prop name="text" type="string" default=""/>
   </api>
   <view extends="text_small"
-        text="$text" text_transform="uppercase" style_text_font="#cal_intro_font_label" style_text_letter_space="1"
-        style_text_color="#text_muted"/>
+        text="$text" hidden_if_empty="$text" text_transform="uppercase" style_text_font="#cal_intro_font_label"
+        style_text_letter_space="1" style_text_color="#text_muted"/>
 </component>

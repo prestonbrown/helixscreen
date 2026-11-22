@@ -25,6 +25,8 @@
     <prop name="right_label" type="string" default=""/>
     <prop name="primary_name" type="string" default="cal_intro_primary"/>
     <prop name="primary_text" type="string" default=""/>
+    <!-- A string subject for a primary label that changes; empty for none. -->
+    <prop name="primary_bind_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
     <prop name="disabled_cond" type="string" default="machine_motion_blocked eq 1 or nav_buttons_enabled eq 0"/>
   </api>
@@ -76,6 +78,7 @@
     </lv_obj>
     <calibration_intro_footer name="cal_intro_footer"
                               primary_name="$primary_name" primary_text="$primary_text"
-                              primary_callback="$primary_callback" disabled_cond="$disabled_cond"/>
+                              primary_bind_text="$primary_bind_text" primary_callback="$primary_callback"
+                              disabled_cond="$disabled_cond"/>
   </view>
 </component>

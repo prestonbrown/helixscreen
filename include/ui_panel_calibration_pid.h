@@ -482,6 +482,7 @@ class PIDCalibrationPanel : public OverlayBase {
     helix::Subject subj_switch_run_text_{};
     char buf_switch_run_text_[96];
     ObserverGuard history_observer_;
+    ObserverGuard language_observer_;
 
     // Progress tracking for calibration
     helix::Subject subj_pid_progress_{}; // int 0-100
@@ -579,6 +580,9 @@ class PIDCalibrationPanel : public OverlayBase {
     void update_migration_notice();
     void set_page(Page page);
     void show_switch_page();
+    /// Re-renders every string this panel formats with lv_tr(): first show and a language switch.
+    void refresh_translated_text();
+    void refresh_switch_text();
     void refresh_heater_controls();
     void update_heater_cards();
     void update_badges();

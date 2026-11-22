@@ -9,43 +9,16 @@
     <style name="pid_heater_selected" bg_color="#primary" bg_opa="255"/>
     <style name="pid_heater_unselected" bg_color="#elevated_bg" bg_opa="255"/>
 
-    <!-- Intro and switch page: two columns, stacked in portrait. -->
-    <!-- layout="flex" must accompany flex_flow in a style: flex_flow alone is inert. -->
-    <style name="pid_cols_row" layout="flex" flex_flow="row"/>
-    <style name="pid_cols_column" layout="flex" flex_flow="column"/>
-    <style name="pid_left_landscape" width="42%"/>
-    <style name="pid_left_micro" width="34%"/>
-    <style name="pid_half" width="48%"/>
-    <style name="pid_chip_tall" height="#modal_button_height"/>
-    <style name="pid_chip_short" height="#button_height_sm"/>
-    <style name="pid_chip_label_bold" text_font="#font_body_bold"/>
-    <style name="pid_chip_label_micro" text_font="#font_small"/>
-    <style name="pid_power_wrap" layout="flex" flex_flow="row_wrap" flex_main_place="space_between"/>
-    <style name="pid_power_row" layout="flex" flex_flow="row"/>
-    <style name="pid_full" width="100%"/>
-    <style name="pid_fill" width="1" flex_grow="1"/>
-    <style name="pid_full_grow" width="100%" flex_grow="1"/>
-    <style name="pid_fill_height" height="100%"/>
-    <style name="pid_content_height" height="content"/>
-    <style name="pid_cta_landscape" width="30%"/>
-    <style name="pid_cta_portrait" width="50%"/>
-    <!-- The intro's right column splits in two at 480x272, making three columns. -->
-    <style name="pid_right_split" layout="flex" flex_flow="row"/>
-    <style name="pid_right_stack" layout="flex" flex_flow="column"/>
-
-    <!-- A heater card, a temperature chip and a power chip: idle and picked. -->
-    <style name="pid_card_idle" bg_color="#elevated_bg" bg_opa="64" border_color="#primary" border_opa="0"/>
-    <style name="pid_card_picked" bg_color="#primary" bg_opa="30" border_color="#primary" border_opa="255"/>
-    <style name="pid_chip_idle" bg_opa="0" border_color="#elevated_bg" text_color="#text"/>
-    <style name="pid_chip_picked" bg_color="#primary" bg_opa="255" border_color="#primary" text_color="#text"/>
-    <style name="pid_note_warn" text_color="#warning" text_opa="255"/>
-    <style name="pid_note_quiet" text_color="#text_muted" text_opa="204"/>
-    <style name="pid_power_ask" border_color="#warning" border_opa="96"/>
-    <style name="pid_code" text_font="#font_mono" text_color="#text"/>
+    <!-- A heater card, idle and picked -->
+    <style name="pid_card_idle" bg_color="#elevated_bg" bg_opa="24%" border_color="#primary" border_opa="0"/>
+    <style name="pid_card_picked" bg_color="#primary" bg_opa="12%" border_color="#primary" border_opa="255"/>
+    <style name="pid_note_warn" text_color="#warning"/>
+    <style name="pid_note_quiet" text_color="#text_muted"/>
   </styles>
   <view name="calibration_pid_panel"
         extends="lv_obj" width="#overlay_width_transient" height="100%" align="right_mid" style_bg_opa="255"
-        style_bg_color="#card_bg" style_pad_all="0" style_border_width="0" scrollable="false" flex_flow="column">
+        style_bg_color="#card_bg" style_pad_all="0" style_pad_gap="0" style_border_width="0" scrollable="false"
+        flex_flow="column">
     <!-- Intro and Advanced header. Back from Advanced returns to the intro. -->
     <header_bar name="overlay_header" title="Heater Calibration" back_button_callback="on_pid_back">
       <bind_flag_if cond="pid_cal_state eq 0 and pid_page eq 1" flag="hidden"/>
@@ -57,390 +30,296 @@
       <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 1" flag="hidden"/>
     </header_bar>
     <lv_obj name="overlay_content"
-            width="100%" flex_grow="1" style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="0"
-            style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_lg" scrollable="false">
+            width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
       <!-- Disable content when printer not connected or klippy not ready -->
       <bind_state_if_not_eq subject="nav_buttons_enabled" state="disabled" ref_value="1"/>
       <!-- ================================================================== -->
       <!-- STATE: IDLE, page 0: the intro -->
       <!-- ================================================================== -->
       <lv_obj name="state_idle"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-              scrollable="false">
+              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 0" flag="hidden"/>
-        <lv_obj name="intro_columns"
-                width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
-          <bind_style_if_eq name="pid_cols_row" subject="ui_is_portrait" ref_value="0"/>
-          <bind_style_if_eq name="pid_cols_column" subject="ui_is_portrait" ref_value="1"/>
-          <!-- Left: what is calibrated, and what it runs today -->
-          <lv_obj name="heater_column"
-                  height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-            <bind_style_if name="pid_left_landscape" cond="ui_is_portrait eq 0 and ui_breakpoint ne 0"/>
-            <bind_style_if name="pid_left_micro" cond="ui_is_portrait eq 0 and ui_breakpoint eq 0"/>
-            <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
-            <text_xs text="Heater" text_transform="uppercase" style_text_color="#text_muted"/>
-            <lv_obj name="btn_heater_extruder"
-                    width="100%" height="content" style_radius="#border_radius" style_border_width="2"
-                    style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
-                    style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xxs" clickable="true"
-                    scrollable="false">
-              <bind_style name="pid_card_picked" subject="pid_heater_is_extruder" ref_value="1"/>
-              <bind_style name="pid_card_idle" subject="pid_heater_is_extruder" ref_value="0"/>
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_pid_heater_extruder"/>
-              <text_body text="Nozzle" style_text_font="#font_body_bold" clickable="false" event_bubble="true"/>
-              <text_xs width="100%"
-                       bind_text="pid_nozzle_today" style_text_color="#text_muted" long_mode="wrap" clickable="false"
-                       event_bubble="true"/>
-              <text_xs width="100%" bind_text="pid_nozzle_note" long_mode="wrap" clickable="false" event_bubble="true">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-                <bind_style name="pid_note_warn" subject="pid_nozzle_note_warn" ref_value="1"/>
-                <bind_style name="pid_note_quiet" subject="pid_nozzle_note_warn" ref_value="0"/>
-              </text_xs>
-            </lv_obj>
-            <lv_obj name="btn_heater_bed"
-                    width="100%" height="content" style_radius="#border_radius" style_border_width="2"
-                    style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
-                    style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xxs" clickable="true"
-                    scrollable="false">
-              <bind_style name="pid_card_picked" subject="pid_heater_is_extruder" ref_value="0"/>
-              <bind_style name="pid_card_idle" subject="pid_heater_is_extruder" ref_value="1"/>
-              <style name="styles.press_wash" selector="pressed"/>
-              <event_cb trigger="clicked" callback="on_pid_heater_bed"/>
-              <text_body text="Bed" style_text_font="#font_body_bold" clickable="false" event_bubble="true"/>
-              <text_xs width="100%"
-                       bind_text="pid_bed_today" style_text_color="#text_muted" long_mode="wrap" clickable="false"
-                       event_bubble="true"/>
-              <text_xs width="100%" bind_text="pid_bed_note" long_mode="wrap" clickable="false" event_bubble="true">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-                <bind_style name="pid_note_warn" subject="pid_bed_note_warn" ref_value="1"/>
-                <bind_style name="pid_note_quiet" subject="pid_bed_note_warn" ref_value="0"/>
-              </text_xs>
-            </lv_obj>
-            <!-- Which extruder the nozzle card means, on a printer with several -->
-            <lv_obj name="pid_tool_row"
-                    width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
-                    style_flex_cross_place="center" scrollable="false">
-              <bind_flag_if cond="pid_cal_multi_tool eq 0 or pid_heater_is_extruder eq 0" flag="hidden"/>
-              <repeat count="pid_cal_tool_count">
-                <ui_button name="pid_tool_${i}"
-                           width="1" height="#button_height_sm" flex_grow="1" bind_text="pid_cal_tool_label_${i}">
-                  <bind_style name="pid_heater_selected" subject="pid_cal_tool_selected_${i}" ref_value="1"/>
-                  <bind_style name="pid_heater_unselected" subject="pid_cal_tool_selected_${i}" ref_value="0"/>
-                  <event_cb trigger="clicked" callback="on_pid_cal_tool" user_data="$i"/>
-                </ui_button>
-              </repeat>
-            </lv_obj>
+        <calibration_intro name="heater_intro"
+                           left_label="Heater" right_label="Calibrate at" primary_name="btn_start"
+                           primary_bind_text="pid_cta_text" primary_callback="on_pid_start"
+                           disabled_cond="pid_cal_not_idle or nav_buttons_enabled eq 0">
+          <!-- What is calibrated, and what it runs today -->
+          <lv_obj name="btn_heater_extruder"
+                  width="100%" height="content" style_radius="#border_radius" style_border_width="2"
+                  style_pad_hor="#space_md" style_pad_ver="#space_md" style_pad_gap="#space_xxs" flex_flow="column"
+                  clickable="true" scrollable="false">
+            <bind_style name="pid_card_picked" subject="pid_heater_is_extruder" ref_value="1"/>
+            <bind_style name="pid_card_idle" subject="pid_heater_is_extruder" ref_value="0"/>
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="on_pid_heater_extruder"/>
+            <text_small text="Nozzle"
+                        style_text_font="#cal_intro_font_row_bold" style_text_color="#text" clickable="false"
+                        event_bubble="true"/>
+            <text_small width="100%"
+                        bind_text="pid_nozzle_today" style_text_font="#cal_intro_font_caption"
+                        style_text_color="#text_muted" long_mode="wrap" clickable="false" event_bubble="true"/>
+            <text_small width="100%"
+                        bind_text="pid_nozzle_note" style_text_font="#cal_intro_font_caption" long_mode="wrap"
+                        clickable="false" event_bubble="true">
+              <bind_style name="pid_note_warn" subject="pid_nozzle_note_warn" ref_value="1"/>
+              <bind_style name="pid_note_quiet" subject="pid_nozzle_note_warn" ref_value="0"/>
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </text_small>
           </lv_obj>
-          <!-- Right: the settings that matter, and what the run will do -->
-          <lv_obj name="settings_column" style_pad_all="0" style_pad_gap="#space_sm" scrollable="false">
-            <bind_style_if_eq name="pid_fill_height" subject="ui_is_portrait" ref_value="0"/>
-            <bind_style_if_eq name="pid_content_height" subject="ui_is_portrait" ref_value="1"/>
-            <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
-            <bind_style_if name="pid_right_split" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-            <bind_style_if name="pid_right_stack" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-            <bind_style_if_eq name="pid_fill" subject="ui_is_portrait" ref_value="0"/>
-            <lv_obj name="temp_column"
-                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-              <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-              <text_xs text="Calibrate at" text_transform="uppercase" style_text_color="#text_muted"/>
+          <lv_obj name="btn_heater_bed"
+                  width="100%" height="content" style_radius="#border_radius" style_border_width="2"
+                  style_pad_hor="#space_md" style_pad_ver="#space_md" style_pad_gap="#space_xxs" flex_flow="column"
+                  clickable="true" scrollable="false">
+            <bind_style name="pid_card_picked" subject="pid_heater_is_extruder" ref_value="0"/>
+            <bind_style name="pid_card_idle" subject="pid_heater_is_extruder" ref_value="1"/>
+            <style name="styles.press_wash" selector="pressed"/>
+            <event_cb trigger="clicked" callback="on_pid_heater_bed"/>
+            <text_small text="Bed"
+                        style_text_font="#cal_intro_font_row_bold" style_text_color="#text" clickable="false"
+                        event_bubble="true"/>
+            <text_small width="100%"
+                        bind_text="pid_bed_today" style_text_font="#cal_intro_font_caption"
+                        style_text_color="#text_muted" long_mode="wrap" clickable="false" event_bubble="true"/>
+            <text_small width="100%"
+                        bind_text="pid_bed_note" style_text_font="#cal_intro_font_caption" long_mode="wrap"
+                        clickable="false" event_bubble="true">
+              <bind_style name="pid_note_warn" subject="pid_bed_note_warn" ref_value="1"/>
+              <bind_style name="pid_note_quiet" subject="pid_bed_note_warn" ref_value="0"/>
+              <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+            </text_small>
+          </lv_obj>
+          <!-- Which extruder the nozzle card means, on a printer with several -->
+          <lv_obj name="pid_tool_row"
+                  width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_xs"
+                  style_flex_cross_place="center" scrollable="false">
+            <bind_flag_if cond="pid_cal_multi_tool eq 0 or pid_heater_is_extruder eq 0" flag="hidden"/>
+            <repeat count="pid_cal_tool_count">
+              <ui_button name="pid_tool_${i}"
+                         width="1" height="#button_height_sm" flex_grow="1" bind_text="pid_cal_tool_label_${i}">
+                <bind_style name="pid_heater_selected" subject="pid_cal_tool_selected_${i}" ref_value="1"/>
+                <bind_style name="pid_heater_unselected" subject="pid_cal_tool_selected_${i}" ref_value="0"/>
+                <event_cb trigger="clicked" callback="on_pid_cal_tool" user_data="$i"/>
+              </ui_button>
+            </repeat>
+          </lv_obj>
+          <calibration_intro-settings>
+            <!-- Temperatures, then the part-fan switch -->
+            <lv_obj name="settings_split"
+                    width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
+                    scrollable="false">
               <lv_obj name="temp_chips"
-                      width="100%" height="content" style_pad_all="0" flex_flow="row_wrap"
-                      style_flex_main_place="space_between" style_pad_row="#space_sm" style_pad_column="0"
+                      width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="column"
                       scrollable="false">
-                <repeat count="4">
-                  <lv_obj name="btn_preset_m${i}"
-                          width="48%" style_radius="#border_radius" style_border_width="2" style_pad_left="#space_sm"
-                          style_pad_right="#space_sm" style_pad_top="0" style_pad_bottom="0" flex_flow="row"
-                          style_flex_main_place="space_between" style_flex_cross_place="center"
-                          style_flex_track_place="center" style_pad_gap="#space_xs" clickable="true" scrollable="false">
-                    <bind_style_if_eq name="pid_chip_tall" subject="ui_is_portrait" ref_value="0"/>
-                    <bind_style_if_eq name="pid_chip_short" subject="ui_is_portrait" ref_value="1"/>
-                    <bind_style name="pid_chip_picked" subject="pid_preset_sel" ref_value="${i}"/>
-                    <bind_style_if_not_eq name="pid_chip_idle" subject="pid_preset_sel" ref_value="${i}"/>
-                    <style name="styles.press_wash" selector="pressed"/>
-                    <event_cb trigger="clicked" callback="on_pid_preset_material"/>
-                    <text_body flex_grow="1"
-                               bind_text="preset_material_${i}_name" long_mode="dots" clickable="false"
-                               event_bubble="true">
-                      <bind_style_if_not_eq name="pid_chip_label_bold" subject="ui_breakpoint" ref_value="0"/>
-                      <bind_style_if_eq name="pid_chip_label_micro" subject="ui_breakpoint" ref_value="0"/>
-                    </text_body>
-                    <text_small bind_text="pid_preset_deg_${i}" clickable="false" event_bubble="true">
-                      <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-                    </text_small>
-                  </lv_obj>
-                </repeat>
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row" scrollable="false">
+                  <cal_intro_chip name="btn_preset_m0"
+                                  bind_label="preset_material_0_name" bind_detail="pid_preset_deg_0"
+                                  choice="pid_preset_sel" value="0" index="0" callback="on_pid_preset_material"/>
+                  <cal_intro_chip name="btn_preset_m1"
+                                  bind_label="preset_material_1_name" bind_detail="pid_preset_deg_1"
+                                  choice="pid_preset_sel" value="1" index="1" callback="on_pid_preset_material"/>
+                </lv_obj>
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" style_pad_gap="#space_sm" flex_flow="row" scrollable="false">
+                  <cal_intro_chip name="btn_preset_m2"
+                                  bind_label="preset_material_2_name" bind_detail="pid_preset_deg_2"
+                                  choice="pid_preset_sel" value="2" index="2" callback="on_pid_preset_material"/>
+                  <cal_intro_chip name="btn_preset_m3"
+                                  bind_label="preset_material_3_name" bind_detail="pid_preset_deg_3"
+                                  choice="pid_preset_sel" value="3" index="3" callback="on_pid_preset_material"/>
+                </lv_obj>
               </lv_obj>
-            </lv_obj>
-            <lv_obj name="extras_column"
-                    style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-              <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full_grow" cond="ui_breakpoint ne 0 and ui_is_portrait eq 0"/>
-              <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
-              <bind_style_if_eq name="pid_fill_height" subject="ui_is_portrait" ref_value="0"/>
-              <bind_style_if_eq name="pid_content_height" subject="ui_is_portrait" ref_value="1"/>
               <!-- One switch for the part fan: MPC models it, PID tunes without it -->
               <lv_obj name="row_measure_fan"
-                      width="100%" height="content" style_min_height="#modal_button_height"
-                      style_radius="#border_radius" style_bg_color="#elevated_bg" style_bg_opa="64"
-                      style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xs"
-                      style_pad_bottom="#space_xs" flex_flow="row" style_flex_cross_place="center"
-                      style_flex_track_place="center" style_pad_gap="#space_md" clickable="true" scrollable="false">
+                      width="100%" height="content" style_min_height="#cal_intro_chip_h" style_radius="#border_radius"
+                      style_bg_color="#elevated_bg" style_bg_opa="24%" style_border_width="0" style_pad_hor="#space_md"
+                      style_pad_ver="#space_xs" style_pad_gap="#space_md" flex_flow="row"
+                      style_flex_cross_place="center" style_flex_track_place="center" clickable="true"
+                      scrollable="false">
                 <bind_flag_if_eq subject="cal_fan_row_shown" flag="hidden" ref_value="0"/>
                 <bind_state_if_eq subject="cal_fan_locked" state="disabled" ref_value="1"/>
                 <style name="styles.press_wash" selector="pressed"/>
                 <event_cb trigger="clicked" callback="on_cal_measure_fan_row"/>
-                <lv_obj height="content"
-                        flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="0" clickable="false"
-                        event_bubble="true" scrollable="false">
-                  <text_body width="100%"
-                             text="Also measure part-fan cooling" long_mode="wrap" clickable="false" event_bubble="true"/>
-                  <text_xs width="100%"
-                           text="Holds temperature better when the fan changes · +3 min" long_mode="wrap"
-                           style_text_color="#text_muted" style_text_opa="204" clickable="false" event_bubble="true">
+                <lv_obj width="0"
+                        height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column"
+                        clickable="false" event_bubble="true" scrollable="false">
+                  <text_small width="100%"
+                              text="Also measure part-fan cooling" style_text_font="#cal_intro_font_row"
+                              style_text_color="#text" long_mode="wrap" clickable="false" event_bubble="true"/>
+                  <text_small width="100%"
+                              text="Holds temperature better when the fan changes · +3 min"
+                              style_text_font="#cal_intro_font_caption" style_text_color="#text_muted" long_mode="wrap"
+                              clickable="false" event_bubble="true">
                     <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-                  </text_xs>
+                  </text_small>
                 </lv_obj>
                 <ui_switch name="toggle_measure_fan" size="small" clickable="false" event_bubble="true">
                   <bind_state_if_eq subject="cal_add_cooling_fan" state="checked" ref_value="1"/>
                   <bind_state_if_eq subject="cal_fan_locked" state="disabled" ref_value="1"/>
                 </ui_switch>
               </lv_obj>
-              <lv_obj width="100%" height="0" flex_grow="1" style_pad_all="0" style_bg_opa="0" scrollable="false"/>
-              <lv_obj name="badges"
-                      width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_gap="#space_sm"
-                      scrollable="false">
-                <lv_obj width="content"
-                        height="content" style_radius="9999" style_bg_color="#elevated_bg" style_bg_opa="64"
-                        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xxs"
-                        style_pad_bottom="#space_xxs" scrollable="false">
-                  <text_xs bind_text="pid_duration_text" style_text_color="#text_muted"/>
-                </lv_obj>
-                <lv_obj width="content"
-                        height="content" style_radius="9999" style_bg_color="#warning" style_bg_opa="33"
-                        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xxs"
-                        style_pad_bottom="#space_xxs" scrollable="false">
-                  <text_xs bind_text="pid_heats_to_text" style_text_color="#warning"/>
-                </lv_obj>
-                <lv_obj width="content"
-                        height="content" style_radius="9999" style_bg_color="#elevated_bg" style_bg_opa="64"
-                        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xxs"
-                        style_pad_bottom="#space_xxs" scrollable="false">
-                  <text_xs bind_text="pid_method_text" style_text_color="#text_muted"/>
-                </lv_obj>
-              </lv_obj>
             </lv_obj>
-          </lv_obj>
-        </lv_obj>
-        <!-- Footer: Advanced left, the restart warning between, the primary action right -->
-        <lv_obj name="intro_footer"
-                width="100%" height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_lg" scrollable="false">
-          <ui_button name="btn_advanced"
-                     height="#modal_button_height" style_border_color="#border" style_text_color="#text_muted"
-                     text="Advanced" variant="outline">
-            <event_cb trigger="clicked" callback="on_pid_advanced"/>
-          </ui_button>
-          <text_xs flex_grow="1"
-                   text="Changes printer.cfg and restarts Klipper first" style_text_color="#warning"
-                   style_text_align="center" long_mode="wrap">
-            <bind_style_if name="styles.invisible"
-                           cond="not (cal_needs_migration or (cal_offer_cooling_fan and cal_add_cooling_fan))"/>
-          </text_xs>
-          <ui_button name="btn_start" height="#modal_button_height" bind_text="pid_cta_text">
-            <bind_style_if_eq name="pid_cta_landscape" subject="ui_is_portrait" ref_value="0"/>
-            <bind_style_if_eq name="pid_cta_portrait" subject="ui_is_portrait" ref_value="1"/>
-            <bind_state_if cond="pid_cal_not_idle or nav_buttons_enabled eq 0" state="disabled"/>
-            <event_cb trigger="clicked" callback="on_pid_start"/>
-          </ui_button>
-        </lv_obj>
+          </calibration_intro-settings>
+          <calibration_intro-badges>
+            <cal_intro_badge bind="pid_duration_text"/>
+            <cal_intro_badge bind="pid_heats_to_text" warm="true"/>
+            <cal_intro_badge bind="pid_method_text"/>
+          </calibration_intro-badges>
+          <calibration_intro-footer_left>
+            <cal_intro_footer_button name="btn_advanced" text="Advanced" callback="on_pid_advanced"/>
+          </calibration_intro-footer_left>
+          <calibration_intro-footer_note>
+            <text_small width="100%"
+                        text="Changes printer.cfg and restarts Klipper first" style_text_font="#cal_intro_font_caption"
+                        style_text_color="#warning" style_text_align="center" long_mode="wrap">
+              <bind_style_if name="styles.invisible"
+                             cond="not (cal_needs_migration or (cal_offer_cooling_fan and cal_add_cooling_fan))"/>
+            </text_small>
+          </calibration_intro-footer_note>
+        </calibration_intro>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: IDLE, page 1: switch the nozzle to MPC -->
       <!-- ================================================================== -->
       <lv_obj name="state_switch_mpc"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-              scrollable="false" hidden="true">
+              width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="0" flex_flow="column" scrollable="false"
+              hidden="true">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 1" flag="hidden"/>
-        <lv_obj width="100%" flex_grow="1" style_pad_all="0" style_pad_gap="#space_lg" scrollable="false">
-          <bind_style_if_eq name="pid_cols_row" subject="ui_is_portrait" ref_value="0"/>
-          <bind_style_if_eq name="pid_cols_column" subject="ui_is_portrait" ref_value="1"/>
-          <!-- Left: what MPC is, and the same fan change under both methods -->
-          <lv_obj height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_md" scrollable="false">
-            <bind_style_if name="pid_left_landscape" cond="ui_is_portrait eq 0 and ui_breakpoint ne 0"/>
-            <bind_style_if name="pid_left_micro" cond="ui_is_portrait eq 0 and ui_breakpoint eq 0"/>
-            <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
-            <text_small width="100%"
-                        text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."
-                        style_text_color="#text_muted" long_mode="wrap">
-              <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
-            </text_small>
+        <calibration_intro name="switch_intro"
+                           primary_name="btn_switch_mpc" primary_text="Switch and calibrate"
+                           primary_callback="on_pid_switch_mpc"
+                           disabled_cond="(cal_power_known eq 0 and cal_power_pick eq 0) or pid_cal_not_idle or nav_buttons_enabled eq 0">
+          <!-- What MPC is, and the same fan change under both methods -->
+          <text_small width="100%"
+                      text="PID corrects the temperature after it drifts. MPC predicts the drift: it learns how the heater, the block and the fan move heat, so the nozzle holds steady when the fan or the flow changes."
+                      style_text_font="#cal_intro_font_desc" style_text_color="#text_muted" long_mode="wrap">
+            <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
+          </text_small>
+          <heater_mpc_switch_steps name="switch_steps_micro">
+            <bind_flag_if cond="ui_breakpoint ne 0 or ui_is_portrait eq 1" flag="hidden"/>
+          </heater_mpc_switch_steps>
+          <lv_obj width="100%"
+                  height="content" style_radius="#border_radius" style_bg_color="#screen_bg" style_bg_opa="255"
+                  style_border_width="0" style_pad_hor="#space_md" style_pad_ver="#space_md" style_pad_gap="#space_xs"
+                  flex_flow="column" scrollable="false">
+            <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
             <lv_obj width="100%"
-                    height="content" style_radius="#border_radius" style_bg_color="#screen_bg" style_bg_opa="255"
-                    style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_md"
-                    style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      style_pad_gap="#space_md" scrollable="false">
-                <text_xs width="content" text="PID" style_text_color="#text_muted" style_text_opa="204"/>
-                <heater_response_sketch height="#button_height_sm" flex_grow="1" method="pid"/>
-              </lv_obj>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                      style_pad_gap="#space_md" scrollable="false">
-                <text_xs width="content" text="MPC" style_text_color="#text_muted" style_text_opa="204"/>
-                <heater_response_sketch height="#button_height_sm" flex_grow="1" method="mpc"/>
-              </lv_obj>
-              <text_xs width="100%"
-                       text="Same part-fan change, both methods" style_text_color="#text_subtle" long_mode="wrap"/>
-            </lv_obj>
-          </lv_obj>
-          <!-- Right: the heater power MPC needs, and what the switch does; side
-               by side at 480x272, making three columns -->
-          <lv_obj name="switch_right" height="content" style_pad_all="0" style_pad_gap="#space_md" scrollable="false">
-            <bind_style_if name="pid_right_split" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-            <bind_style_if name="pid_right_stack" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-            <bind_style_if_eq name="pid_fill" subject="ui_is_portrait" ref_value="0"/>
-            <bind_style_if_eq name="pid_full" subject="ui_is_portrait" ref_value="1"/>
-            <!-- Power known from the printer database -->
-            <lv_obj name="power_known"
-                    height="content" style_radius="#border_radius" style_bg_color="#elevated_bg" style_bg_opa="64"
-                    style_pad_left="#space_lg" style_pad_right="#space_lg" style_pad_top="#space_md"
-                    style_pad_bottom="#space_md" flex_flow="row" style_flex_cross_place="center"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
                     style_pad_gap="#space_md" scrollable="false">
-              <bind_flag_if_eq subject="cal_power_known" flag="hidden" ref_value="0"/>
-              <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-              <lv_obj height="content"
-                      flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xxs" scrollable="false">
-                <text_xs text="Heater power" text_transform="uppercase" style_text_color="#text_muted"/>
-                <text_heading bind_text="cal_wattage_display"/>
-                <text_xs width="100%"
-                         bind_text="cal_power_source" style_text_color="#text_muted" style_text_opa="204"
-                         long_mode="wrap"/>
-              </lv_obj>
-              <ui_button name="btn_power_change" height="#modal_button_height" text="Change" variant="outline">
-                <event_cb trigger="clicked" callback="on_cal_power_change"/>
-              </ui_button>
+              <text_small text="PID" style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"/>
+              <heater_response_sketch height="#button_height_sm" flex_grow="1" method="pid"/>
             </lv_obj>
-            <!-- Power unknown: ask, with where to find it -->
-            <lv_obj name="power_ask"
-                    height="content" style_radius="#border_radius" style_bg_color="#elevated_bg" style_bg_opa="64"
-                    style_border_width="2" style_pad_left="#space_lg" style_pad_right="#space_lg"
-                    style_pad_top="#space_md" style_pad_bottom="#space_md" flex_flow="column" style_pad_gap="#space_sm"
-                    scrollable="false">
-              <style name="pid_power_ask"/>
-              <bind_flag_if_eq subject="cal_power_known" flag="hidden" ref_value="1"/>
-              <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-              <text_xs text="Heater power needed" text_transform="uppercase" style_text_color="#warning"/>
-              <text_xs width="100%"
-                       text="We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W."
-                       style_text_color="#text_muted" long_mode="wrap">
-                <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-              </text_xs>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" style_pad_column="#space_xs" style_pad_row="#space_xs"
-                      scrollable="false">
-                <bind_style_if_eq name="pid_power_wrap" subject="ui_breakpoint" ref_value="0"/>
-                <bind_style_if_not_eq name="pid_power_row" subject="ui_breakpoint" ref_value="0"/>
-                <repeat count="4">
-                  <lv_obj name="btn_power_${i}"
-                          height="#modal_button_height" style_radius="#border_radius" style_border_width="2"
-                          style_pad_all="0" clickable="true" scrollable="false">
-                    <bind_style_if_eq name="pid_half" subject="ui_breakpoint" ref_value="0"/>
-                    <bind_style_if_not_eq name="pid_fill" subject="ui_breakpoint" ref_value="0"/>
-                    <bind_style name="pid_chip_picked" subject="cal_power_pick" ref_value="${i + 1}"/>
-                    <bind_style_if_not_eq name="pid_chip_idle" subject="cal_power_pick" ref_value="${i + 1}"/>
-                    <style name="styles.press_wash" selector="pressed"/>
-                    <event_cb trigger="clicked" callback="on_cal_power_pick" user_data="${i + 1}"/>
-                    <text_body align="center" bind_text="cal_power_chip_${i}" clickable="false" event_bubble="true"/>
-                  </lv_obj>
-                </repeat>
-              </lv_obj>
-              <!-- "Other": any wattage, in the heater's own steps -->
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
-                      style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
-                <bind_flag_if_not_eq subject="cal_power_pick" flag="hidden" ref_value="4"/>
-                <ui_button name="btn_wattage_down"
-                           width="#modal_button_height" height="#modal_button_height" text="-" variant="outline">
-                  <event_cb trigger="clicked" callback="on_cal_wattage_down"/>
-                </ui_button>
-                <text_body name="wattage_display"
-                           flex_grow="1" bind_text="cal_wattage_display" style_text_align="center"/>
-                <ui_button name="btn_wattage_up"
-                           width="#modal_button_height" height="#modal_button_height" text="+" variant="outline">
-                  <event_cb trigger="clicked" callback="on_cal_wattage_up"/>
-                </ui_button>
-              </lv_obj>
+            <lv_obj width="100%"
+                    height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
+                    style_pad_gap="#space_md" scrollable="false">
+              <text_small text="MPC" style_text_font="#cal_intro_font_caption" style_text_color="#text_muted"/>
+              <heater_response_sketch height="#button_height_sm" flex_grow="1" method="mpc"/>
             </lv_obj>
-            <!-- What switching does, in order -->
-            <lv_obj name="switch_steps"
-                    height="content" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="false">
-              <bind_style_if name="pid_fill" cond="ui_breakpoint eq 0 and ui_is_portrait eq 0"/>
-              <bind_style_if name="pid_full" cond="ui_breakpoint ne 0 or ui_is_portrait eq 1"/>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-                <text_small text="1" style_text_color="#secondary"/>
-                <lv_spangroup width="1"
-                              height="content" flex_grow="1" style_text_font="#font_small"
-                              style_text_color="#text_muted">
-                  <lv_spangroup-span text="printer.cfg" style="pid_code"/>
-                  <lv_spangroup-span bind_text="cal_switch_step_gets"/>
-                  <lv_spangroup-span text="control: mpc" style="pid_code"/>
-                  <lv_spangroup-span bind_text="cal_switch_step_power"/>
-                </lv_spangroup>
-              </lv_obj>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-                <text_small text="2" style_text_color="#secondary"/>
-                <text_small flex_grow="1"
-                            text="Klipper restarts, about 20 s" style_text_color="#text_muted" long_mode="wrap"/>
-              </lv_obj>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-                <text_small text="3" style_text_color="#secondary"/>
-                <text_small flex_grow="1"
-                            bind_text="cal_switch_run_text" style_text_color="#text_muted" long_mode="wrap"/>
-              </lv_obj>
-              <lv_obj width="100%"
-                      height="content" style_pad_all="0" flex_flow="row" style_pad_gap="#space_md" scrollable="false">
-                <text_small text="4" style_text_color="#secondary"/>
-                <text_small flex_grow="1"
-                            text="Your PID values are kept. You can switch back here any time."
-                            style_text_color="#text_muted" long_mode="wrap"/>
-              </lv_obj>
-            </lv_obj>
+            <text_small width="100%"
+                        text="Same part-fan change, both methods" style_text_font="#cal_intro_font_caption"
+                        style_text_color="#text_muted" long_mode="wrap"/>
           </lv_obj>
-        </lv_obj>
-        <!-- Footer: Keep PID left, the switch right -->
-        <lv_obj width="100%"
-                height="content" style_pad_all="0" flex_flow="row" style_flex_cross_place="center"
-                style_pad_gap="#space_lg" scrollable="false">
-          <ui_button name="btn_keep_pid"
-                     height="#modal_button_height" style_border_color="#border" style_text_color="#text_muted"
-                     text="Keep PID" variant="outline">
-            <event_cb trigger="clicked" callback="on_pid_keep_pid"/>
-          </ui_button>
-          <lv_obj height="1" flex_grow="1" style_pad_all="0" style_bg_opa="0" scrollable="false"/>
-          <ui_button name="btn_switch_mpc" height="#modal_button_height" text="Switch and calibrate">
-            <bind_style_if_eq name="pid_cta_landscape" subject="ui_is_portrait" ref_value="0"/>
-            <bind_style_if_eq name="pid_cta_portrait" subject="ui_is_portrait" ref_value="1"/>
-            <bind_state_if cond="(cal_power_known eq 0 and cal_power_pick eq 0) or nav_buttons_enabled eq 0"
-                           state="disabled"/>
-            <event_cb trigger="clicked" callback="on_pid_switch_mpc"/>
-          </ui_button>
-        </lv_obj>
+          <calibration_intro-settings>
+            <lv_obj name="switch_right"
+                    width="100%" height="content" style_pad_all="0" style_pad_gap="#space_md" flex_flow="column"
+                    scrollable="false">
+              <!-- Power known from the printer database -->
+              <lv_obj name="power_known"
+                      width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
+                      style_bg_opa="24%" style_border_width="0" style_pad_hor="#space_md" style_pad_ver="#space_md"
+                      style_pad_gap="#space_md" flex_flow="row" style_flex_cross_place="center" scrollable="false">
+                <bind_flag_if_eq subject="cal_power_known" flag="hidden" ref_value="0"/>
+                <lv_obj width="0"
+                        height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
+                        scrollable="false">
+                  <cal_intro_section_label text="Heater power"/>
+                  <text_heading bind_text="cal_wattage_display"/>
+                  <text_small width="100%"
+                              bind_text="cal_power_source" style_text_font="#cal_intro_font_caption"
+                              style_text_color="#text_muted" long_mode="wrap"/>
+                </lv_obj>
+                <cal_intro_footer_button name="btn_power_change" text="Change" callback="on_cal_power_change"/>
+              </lv_obj>
+              <!-- Power unknown: ask, with where to find it -->
+              <lv_obj name="power_ask"
+                      width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
+                      style_bg_opa="24%" style_border_width="2" style_border_color="#warning" style_border_opa="40%"
+                      style_pad_hor="#space_md" style_pad_ver="#space_md" style_pad_gap="#space_sm" flex_flow="column"
+                      scrollable="false">
+                <bind_flag_if_eq subject="cal_power_known" flag="hidden" ref_value="1"/>
+                <text_small text="Heater power needed"
+                            text_transform="uppercase" style_text_font="#cal_intro_font_label"
+                            style_text_color="#warning"/>
+                <text_small width="100%"
+                            text="We don't know this hotend's heater. It is printed on the cartridge or its wires, usually 40 to 70 W."
+                            style_text_font="#cal_intro_font_caption" style_text_color="#text_muted" long_mode="wrap">
+                  <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                </text_small>
+                <!-- One row of four, or two rows of two at 480x272 -->
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row" scrollable="false">
+                  <cal_intro_chip name="btn_power_0"
+                                  bind_label="cal_power_chip_0" choice="cal_power_pick" value="1" index="1"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row"/>
+                  <cal_intro_chip name="btn_power_1"
+                                  bind_label="cal_power_chip_1" choice="cal_power_pick" value="2" index="2"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row"/>
+                  <cal_intro_chip name="btn_power_2"
+                                  bind_label="cal_power_chip_2" choice="cal_power_pick" value="3" index="3"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row">
+                    <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                  </cal_intro_chip>
+                  <cal_intro_chip name="btn_power_3"
+                                  bind_label="cal_power_chip_3" choice="cal_power_pick" value="4" index="4"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row">
+                    <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                  </cal_intro_chip>
+                </lv_obj>
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" style_pad_gap="#space_xs" flex_flow="row" scrollable="false">
+                  <bind_flag_if_not_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+                  <cal_intro_chip name="btn_power_2_micro"
+                                  bind_label="cal_power_chip_2" choice="cal_power_pick" value="3" index="3"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row"/>
+                  <cal_intro_chip name="btn_power_3_micro"
+                                  bind_label="cal_power_chip_3" choice="cal_power_pick" value="4" index="4"
+                                  callback="on_cal_power_pick" label_align="center" label_font="#cal_intro_font_row"/>
+                </lv_obj>
+                <!-- "Other": any wattage, in the heater's own steps -->
+                <lv_obj width="100%"
+                        height="content" style_pad_all="0" flex_flow="row" style_flex_main_place="center"
+                        style_flex_cross_place="center" style_pad_gap="#space_md" scrollable="false">
+                  <bind_flag_if_not_eq subject="cal_power_pick" flag="hidden" ref_value="4"/>
+                  <ui_button name="btn_wattage_down"
+                             width="#cal_intro_chip_h" height="#cal_intro_chip_h" text="-" variant="outline">
+                    <event_cb trigger="clicked" callback="on_cal_wattage_down"/>
+                  </ui_button>
+                  <text_small name="wattage_display"
+                              flex_grow="1" bind_text="cal_wattage_display" style_text_font="#cal_intro_font_row"
+                              style_text_color="#text" style_text_align="center"/>
+                  <ui_button name="btn_wattage_up"
+                             width="#cal_intro_chip_h" height="#cal_intro_chip_h" text="+" variant="outline">
+                    <event_cb trigger="clicked" callback="on_cal_wattage_up"/>
+                  </ui_button>
+                </lv_obj>
+              </lv_obj>
+              <!-- What switching does, in order (in the left column at 480x272) -->
+              <heater_mpc_switch_steps name="switch_steps">
+                <bind_flag_if cond="ui_breakpoint eq 0 and ui_is_portrait eq 0" flag="hidden"/>
+              </heater_mpc_switch_steps>
+            </lv_obj>
+          </calibration_intro-settings>
+          <calibration_intro-footer_left>
+            <cal_intro_footer_button name="btn_keep_pid" text="Keep PID" callback="on_pid_keep_pid"/>
+          </calibration_intro-footer_left>
+        </calibration_intro>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: IDLE, page 2: Advanced -->
       <!-- ================================================================== -->
       <lv_obj name="state_advanced"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm"
-              scrollable="false" hidden="true">
+              width="100%" flex_grow="1" style_pad_hor="#space_lg" style_pad_top="0" style_pad_bottom="#space_md"
+              flex_flow="column" style_pad_gap="#space_sm" scrollable="false" hidden="true">
         <bind_flag_if cond="pid_cal_state ne 0 or pid_page ne 2" flag="hidden"/>
         <lv_obj width="100%"
                 flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm" scrollable="true">
@@ -537,9 +416,9 @@
       <!-- STATE: CALIBRATING - Progress display -->
       <!-- ================================================================== -->
       <lv_obj name="state_calibrating"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="space_around"
-              style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_sm"
-              scrollable="false">
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column"
+              style_flex_main_place="space_around" style_flex_cross_place="center" style_flex_track_place="center"
+              style_pad_gap="#space_sm" scrollable="false">
         <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="1"/>
         <!-- Top row: spinner+status (left) | graph+temp (right) -->
         <lv_obj width="100%"
@@ -591,7 +470,7 @@
       <!-- STATE: SAVING - Saving configuration -->
       <!-- ================================================================== -->
       <lv_obj name="state_saving"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="2"/>
@@ -603,7 +482,7 @@
       <!-- STATE: COMPLETE - Results display -->
       <!-- ================================================================== -->
       <lv_obj name="state_complete"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_md"
               scrollable="false">
         <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="3"/>
@@ -683,7 +562,7 @@
       <!-- STATE: ERROR - Something went wrong -->
       <!-- ================================================================== -->
       <lv_obj name="state_error"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="4"/>
@@ -708,7 +587,7 @@
       <!-- STATE: MIGRATING - Updating config for MPC -->
       <!-- ================================================================== -->
       <lv_obj name="state_migrating"
-              width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_flex_main_place="center"
+              width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_flex_track_place="center" style_pad_gap="#space_lg"
               scrollable="false">
         <bind_flag_if_not_eq subject="pid_cal_state" flag="hidden" ref_value="5"/>

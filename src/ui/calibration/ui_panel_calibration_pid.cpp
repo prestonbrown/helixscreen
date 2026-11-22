@@ -25,6 +25,7 @@
 #include "i_moonraker_api.h"
 #include "klipper_config_editor.h"
 #include "locale_formats.h"
+#include "observe_language.h"
 #include "preset_materials.h"
 #include "print_lifecycle_state.h"
 #include "printer_discovery.h"
@@ -185,10 +186,8 @@ void PIDCalibrationPanel::init_subjects() {
     static constexpr const char* kPowerChipNames[4] = {"cal_power_chip_0", "cal_power_chip_1",
                                                        "cal_power_chip_2", "cal_power_chip_3"};
     for (size_t i = 0; i < subj_power_chip_.size(); ++i) {
-        const std::string label = i < kPowerChoicesW.size() ? fmt::format("{} W", kPowerChoicesW[i])
-                                                            : std::string(lv_tr("Other"));
-        UI_MANAGED_SUBJECT_STRING(subj_power_chip_[i], buf_power_chip_[i], label.c_str(),
-                                  kPowerChipNames[i], subjects_);
+        UI_MANAGED_SUBJECT_STRING(subj_power_chip_[i], buf_power_chip_[i], "", kPowerChipNames[i],
+                                  subjects_);
     }
     // The first item reads "printer.cfg gets control: mpc and the heater power";
     // the config names between these pieces are drawn in the code font.
@@ -408,6 +407,8 @@ void PIDCalibrationPanel::on_activate() {
             version, this, [](PIDCalibrationPanel* self, int) { self->update_heater_cards(); },
             history.version_lifetime());
     }
+    language_observer_ = helix::ui::observe_language_change(
+        this, [](PIDCalibrationPanel* self) { self->refresh_translated_text(); });
     fan_speed_ = 0;
     has_old_values_ = false;
     update_fan_slider(0);
@@ -455,9 +456,7 @@ void PIDCalibrationPanel::on_activate() {
         detect_heater_control_type();
     }
     refresh_heater_controls();
-    update_heater_cards();
-    update_badges();
-    update_cta();
+    refresh_translated_text();
 
     // Demo mode: inject results after on_activate() finishes its reset
     if (demo_inject_pending_) {
@@ -518,6 +517,7 @@ void PIDCalibrationPanel::cleanup() {
     run_lifetime_.invalidate();
     active_tool_observer_.reset();
     history_observer_.reset();
+    language_observer_.reset();
 
     // Stop progress tracking before cleanup
     stop_progress_tracking();
@@ -2033,6 +2033,23 @@ void PIDCalibrationPanel::show_switch_page() {
     // No printer-database heater power exists yet, so the page always asks.
     lv_subject_set_int(&subj_power_known_, 0);
     lv_subject_set_string(&subj_power_source_, "");
+    refresh_switch_text();
+    set_page(Page::SWITCH_MPC);
+}
+
+void PIDCalibrationPanel::refresh_translated_text() {
+    update_heater_cards();
+    update_badges();
+    update_cta();
+    refresh_switch_text();
+}
+
+void PIDCalibrationPanel::refresh_switch_text() {
+    for (size_t i = 0; i < subj_power_chip_.size(); ++i) {
+        const std::string label = i < kPowerChoicesW.size() ? fmt::format("{} W", kPowerChoicesW[i])
+                                                            : std::string(lv_tr("Other"));
+        lv_subject_set_string(&subj_power_chip_[i], label.c_str());
+    }
     lv_subject_set_string(&subj_switch_step_gets_, fmt::format(" {} ", lv_tr("gets")).c_str());
     lv_subject_set_string(&subj_switch_step_power_,
                           fmt::format(" {}", lv_tr("and the heater power")).c_str());
@@ -2044,7 +2061,6 @@ void PIDCalibrationPanel::show_switch_page() {
                     helix::units::format_display_temp(target_temp_),
                     estimate_minutes(selected_heater_, CalibMethod::MPC, measure_fan))
             .c_str());
-    set_page(Page::SWITCH_MPC);
 }
 
 void PIDCalibrationPanel::handle_back_clicked() {
@@ -2135,38 +2151,10 @@ static int get_material_bed_temp(const char* name) {
     return mat ? mat->bed_temp : 60;
 }
 
-// Temperature chips: one handler reads the preset SLOT from the chip's name and
-// resolves the material through helix::presets, so the panel offers the
-// materials the user configured.
-
-/// Parse the preset slot from a chip named "btn_preset_mN".
-/// Returns -1 if the name is missing or malformed.
-static int pid_preset_slot(lv_event_t* e) {
-    auto* btn = static_cast<lv_obj_t*>(lv_event_get_target(e));
-    const char* name = btn ? lv_obj_get_name(btn) : nullptr;
-    if (!name) {
-        spdlog::warn("[PIDCal] Preset button has no name; ignoring click");
-        return -1;
-    }
-    const char* suffix = std::strrchr(name, '_');
-    if (!suffix || suffix[1] != 'm' || !std::isdigit(static_cast<unsigned char>(suffix[2]))) {
-        spdlog::warn("[PIDCal] Preset button '{}' has no slot suffix; ignoring click", name);
-        return -1;
-    }
-    int slot = suffix[2] - '0';
-    if (slot < 0 || slot >= helix::presets::kPresetCount) {
-        spdlog::warn("[PIDCal] Preset button '{}' slot {} out of range", name, slot);
-        return -1;
-    }
-    return slot;
-}
-
 void PIDCalibrationPanel::on_pid_preset_material(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[PIDCal] on_pid_preset_material");
-    int slot = pid_preset_slot(e);
-    if (slot >= 0) {
-        get_global_pid_cal_panel().select_preset(slot);
-    }
+    // The chip's tap index is the preset slot; select_preset() drops one out of range.
+    get_global_pid_cal_panel().select_preset(helix::ui::event_user_int(e).value_or(-1));
     LVGL_SAFE_EVENT_CB_END();
 }
 

@@ -69,7 +69,14 @@ std::string read_disabled_cond(const std::string& xml_path) {
     if (actions != std::string::npos) {
         return value_in("<bind_state_if cond=\"", actions, src.find("-actions>", actions + 1));
     }
-    // A screen whose primary action sits in its footer names it btn_start.
+    // A screen on the calibration intro frame names its footer primary btn_start
+    // and gates it through the frame's disabled_cond.
+    const size_t framed = src.find("primary_name=\"btn_start\"");
+    if (framed != std::string::npos) {
+        const size_t open = src.rfind('<', framed);
+        return value_in("disabled_cond=\"", open, src.find('>', framed));
+    }
+    // A screen whose primary action sits in its own footer names it btn_start.
     const size_t start = src.find("name=\"btn_start\"");
     if (start == std::string::npos) {
         return {};
