@@ -36,6 +36,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -88,13 +89,22 @@ void ZOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_INT(warm_bed_subject_, 0, "zoffset_warm_bed", subjects_);
     UI_MANAGED_SUBJECT_STRING(saved_text_subject_, saved_text_buf_, "", "zoffset_saved_text",
                               subjects_);
-    UI_MANAGED_SUBJECT_STRING(z_text_subject_, z_text_buf_, "Z: 0.000", "zoffset_z_text",
-                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(z_text_subject_, z_text_buf_, "0.000", "zoffset_z_text", subjects_);
     UI_MANAGED_SUBJECT_STRING(final_text_subject_, final_text_buf_, "", "zoffset_final_text",
                               subjects_);
     UI_MANAGED_SUBJECT_STRING(error_text_subject_, error_text_buf_, "", "zoffset_error_text",
                               subjects_);
     UI_MANAGED_SUBJECT_INT(run_mode_subject_, 0, "zoffset_cal_run_mode", subjects_);
+    UI_MANAGED_SUBJECT_INT(not_run_subject_, 1, "zoffset_not_run", subjects_);
+    UI_MANAGED_SUBJECT_STRING(back_text_subject_, back_text_buf_, lv_tr("Abort"),
+                              "zoffset_back_text", subjects_);
+    UI_MANAGED_SUBJECT_INT(step_subject_, ztape::kDefaultStepIndex, "zoffset_step", subjects_);
+    UI_MANAGED_SUBJECT_INT(estimate_subject_, ztape::kNoEstimate, "zoffset_estimate", subjects_);
+    UI_MANAGED_SUBJECT_STRING(guide_text_subject_, guide_text_buf_, "", "zoffset_guide_text",
+                              subjects_);
+    UI_MANAGED_SUBJECT_STRING(guide_short_subject_, guide_short_buf_, "", "zoffset_guide_short",
+                              subjects_);
+    UI_MANAGED_SUBJECT_INT(guide_tone_subject_, 0, "zoffset_guide_tone", subjects_);
 
     subjects_initialized_ = true;
 
@@ -113,16 +123,22 @@ void ZOffsetCalibrationPanel::init_subjects() {
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_retry_clicked(); }},
             {"on_zoffset_continue_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_continue_clicked(); }},
-            {"on_zoffset_z_adjust",
+            {"on_zoffset_step_pick",
              [](lv_event_t* e) {
-                 const char* delta_str = static_cast<const char*>(lv_event_get_user_data(e));
-                 if (delta_str) {
-                     float delta = strtof(delta_str, nullptr);
-                     spdlog::debug("[ZOffsetCal] Z adjust: {} (from user_data \"{}\")", delta,
-                                   delta_str);
-                     get_global_zoffset_cal_panel().handle_z_adjust(delta);
+                 const char* idx = static_cast<const char*>(lv_event_get_user_data(e));
+                 if (idx) {
+                     get_global_zoffset_cal_panel().handle_step_pick(
+                         static_cast<int>(strtol(idx, nullptr, 10)));
                  }
              }},
+            {"on_zoffset_nozzle_up",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_nudge(+1); }},
+            {"on_zoffset_nozzle_down",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_nudge(-1); }},
+            {"on_zoffset_back_clicked",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_back_clicked(); }},
+            {"on_zoffset_skip_clicked",
+             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_skip_clicked(); }},
             {"on_zoffset_warm_bed_toggled",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_warm_bed_toggled(); }},
         });
@@ -283,7 +299,7 @@ void ZOffsetCalibrationPanel::on_activate() {
     current_z_ = 0.0f;
     final_offset_ = 0.0f;
     cumulative_z_delta_ = 0.0f;
-    set_readout(z_text_subject_, "Z: 0.000");
+    set_readout(z_text_subject_, "0.000");
 
     // Reset the visual indicator
     if (overlay_root_) {
@@ -365,7 +381,11 @@ void ZOffsetCalibrationPanel::on_ui_destroyed() {
 void ZOffsetCalibrationPanel::set_state(State new_state) {
     spdlog::debug("[ZOffsetCal] State change: {} -> {}", static_cast<int>(state_),
                   static_cast<int>(new_state));
+    const State old_state = state_;
     state_ = new_state;
+    if (new_state == State::ADJUSTING && old_state != State::ADJUSTING) {
+        begin_adjust_session(old_state == State::PROBING);
+    }
     if (new_state == State::IDLE || new_state == State::COMPLETE || new_state == State::ERROR) {
         latched_strategy_.reset();
         // Every way a run ends lands here, and the panel can stay open afterwards.
@@ -519,7 +539,7 @@ void ZOffsetCalibrationPanel::open_for_run(
     set_api(api);
     init_subjects();
     run_done_ = std::move(on_done);
-    lv_subject_set_int(&run_mode_subject_, 1);
+    set_run_mode(true);
     spdlog::info("[ZOffsetCal] Opened for a guided run");
     show(lv_screen_active());
 }
@@ -527,9 +547,7 @@ void ZOffsetCalibrationPanel::open_for_run(
 void ZOffsetCalibrationPanel::finish_run(bool accepted) {
     auto done = std::move(run_done_);
     run_done_ = nullptr;
-    if (subjects_initialized_) {
-        lv_subject_set_int(&run_mode_subject_, 0);
-    }
+    set_run_mode(false);
     if (done) {
         spdlog::info("[ZOffsetCal] Guided run step {}", accepted ? "accepted" : "left unaccepted");
         // A firmware-managed run applied the offset itself; the others report
@@ -544,9 +562,7 @@ void ZOffsetCalibrationPanel::finish_run(bool accepted) {
 
 void ZOffsetCalibrationPanel::abort_run() {
     run_done_ = nullptr;
-    if (subjects_initialized_) {
-        lv_subject_set_int(&run_mode_subject_, 0);
-    }
+    set_run_mode(false);
     if (state_ == State::PROBING || state_ == State::ADJUSTING || state_ == State::WARMING) {
         spdlog::info("[ZOffsetCal] Guided run stopped: aborting the calibration");
         send_abort();
@@ -554,6 +570,15 @@ void ZOffsetCalibrationPanel::abort_run() {
     if (is_visible()) {
         helix::nav::go_back();
     }
+}
+
+void ZOffsetCalibrationPanel::set_run_mode(bool on) {
+    if (!subjects_initialized_) {
+        return;
+    }
+    lv_subject_set_int(&run_mode_subject_, on ? 1 : 0);
+    lv_subject_set_int(&not_run_subject_, on ? 0 : 1);
+    set_readout(back_text_subject_, on ? lv_tr("Back") : lv_tr("Abort"));
 }
 
 void ZOffsetCalibrationPanel::handle_continue_clicked() {
@@ -745,6 +770,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
     if (strategy == ZOffsetCalibrationStrategy::FIRMWARE_MANAGED) {
         // Manual Z calibrate: home, move over the plate centre, lower to Z0.1
         cumulative_z_delta_ = 0.0f;
+        estimate_source_ = ztape::EstimateSource::None;
 
         const auto approach = zoffset_cal::calibration_approach(
             approach_inputs(*api_, ps, ReadingPoint::Nozzle, all_homed));
@@ -805,6 +831,7 @@ void ZOffsetCalibrationPanel::begin_probe_sequence() {
         const auto command = zoffset_cal::calibration_command(
             strategy, probe_type, sensors.empty() ? "" : sensors[0].sensor_name);
         const std::string& calibrate_cmd = command.gcode;
+        estimate_source_ = ztape::estimate_source_for(calibrate_cmd);
 
         // Every calibrate command reads at the current XY, so the head goes
         // over the plate centre even when nothing needed homing.
@@ -1096,6 +1123,67 @@ void ZOffsetCalibrationPanel::handle_z_adjust(float delta) {
     }
 }
 
+void ZOffsetCalibrationPanel::handle_step_pick(int index) {
+    if (index < 0 || index >= ztape::kStepCount || !subjects_initialized_) {
+        return;
+    }
+    lv_subject_set_int(&step_subject_, index);
+}
+
+void ZOffsetCalibrationPanel::handle_nudge(int direction) {
+    const int index =
+        subjects_initialized_ ? lv_subject_get_int(&step_subject_) : ztape::kDefaultStepIndex;
+    handle_z_adjust(direction * ztape::step_microns(index) / 1000.0f);
+}
+
+void ZOffsetCalibrationPanel::handle_back_clicked() {
+    // In a run, Back leaves the step unaccepted (closing aborts the probe);
+    // on its own the panel stays open, back at its start.
+    if (run_done_) {
+        helix::nav::go_back();
+        return;
+    }
+    handle_abort_clicked();
+}
+
+void ZOffsetCalibrationPanel::handle_skip_clicked() {
+    helix::nav::go_back();
+}
+
+void ZOffsetCalibrationPanel::begin_adjust_session(bool from_probe) {
+    session_start_microns_.reset();
+    session_from_probe_ = from_probe;
+    if (subjects_initialized_) {
+        lv_subject_set_int(&step_subject_, ztape::kDefaultStepIndex);
+        lv_subject_set_int(&estimate_subject_, ztape::kNoEstimate);
+    }
+}
+
+void ZOffsetCalibrationPanel::refresh_guide() {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const int z = static_cast<int>(std::lround(current_z_ * 1000.0f));
+    if (!session_start_microns_) {
+        session_start_microns_ = z;
+        // Only a probe this panel started puts the nozzle where the estimate
+        // assumes; a session taken over mid-way has moved since.
+        const auto source = session_from_probe_ ? estimate_source_ : ztape::EstimateSource::None;
+        const int estimate = ztape::expected_drag_microns(
+            source, session_start_microns_, get_printer_state().get_configured_z_offset_microns());
+        lv_subject_set_int(&estimate_subject_, estimate);
+        spdlog::debug("[ZOffsetCal] Adjusting from Z {} um, estimated drag point {}", z,
+                      estimate == ztape::kNoEstimate ? std::string("none")
+                                                     : std::to_string(estimate) + " um");
+    }
+    const int estimate = lv_subject_get_int(&estimate_subject_);
+    const auto full = ztape::guide(z, estimate, *session_start_microns_, false);
+    const auto brief = ztape::guide(z, estimate, *session_start_microns_, true);
+    set_readout(guide_text_subject_, full.text.c_str());
+    set_readout(guide_short_subject_, brief.text.c_str());
+    lv_subject_set_int(&guide_tone_subject_, static_cast<int>(full.tone));
+}
+
 void ZOffsetCalibrationPanel::handle_accept_clicked() {
     spdlog::debug("[ZOffsetCal] Accept clicked");
     send_accept();
@@ -1161,8 +1249,11 @@ void ZOffsetCalibrationPanel::before_disconnect() {
 void ZOffsetCalibrationPanel::update_z_position(float z_position) {
     current_z_ = z_position;
     char buf[32];
-    snprintf(buf, sizeof(buf), "Z: %.3f", z_position);
+    snprintf(buf, sizeof(buf), "%.3f", z_position);
     set_readout(z_text_subject_, buf);
+    if (state_ == State::ADJUSTING) {
+        refresh_guide();
+    }
 
     // Update the visual indicator (convert mm to microns)
     if (overlay_root_) {

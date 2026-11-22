@@ -111,6 +111,9 @@ translations:
   1 min: 1 min
   1 min ago: 1 min ago
   1 minute: 1 minute
+  1 mm steps can press the nozzle into the bed.: 1 mm steps can press the nozzle into the bed.
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: 1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: 1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.
   1 more tap to {} beta features: 1 more tap to {} beta features
   1 print: 1 print
   1 profile: 1 profile
@@ -611,6 +614,9 @@ translations:
   Beta: Beta
   'Beta features: OFF': 'Beta features: OFF'
   'Beta features: ON': 'Beta features: ON'
+  Big steps first, then 0.01.: Big steps first, then 0.01.
+  Big steps first, then 0.01. Never force the nozzle into the bed.: Big steps first, then 0.01. Never force the nozzle into the bed.
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.
   Black: Black
   Blade change and parking: Blade change and parking
   Blocked: Blocked
@@ -2723,8 +2729,10 @@ translations:
   Lot/Batch Nr: Lot/Batch Nr
   Low Memory: Low Memory
   Lower: Lower
+  Lower bed: Lower bed
   Lower belt: Lower belt
   Lower fan speed?: Lower fan speed?
+  Lower nozzle: Lower nozzle
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.
   Lower the nozzle until it just touches the top of the print, then resume.: Lower the nozzle until it just touches the top of the print, then resume.
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.
@@ -3348,6 +3356,7 @@ translations:
   Pairing...: Pairing...
   Panel Usage: Panel Usage
   Paper Test Calibration: Paper Test Calibration
+  'Paper drags: done': 'Paper drags: done'
   Parameters: Parameters
   Park: Park
   Park the AFC system: Park the AFC system
@@ -3765,6 +3774,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   Raise and lower the bed or gantry through its travel.: Raise and lower the bed or gantry through its travel.
+  Raise bed: Raise bed
+  Raise nozzle: Raise nozzle
   Ramming Volume: Ramming Volume
   'Ramp: band {} of {}': 'Ramp: band {} of {}'
   'Ramp: base layers': 'Ramp: base layers'
@@ -4083,6 +4094,7 @@ translations:
   SSH did not start although Root access is on: SSH did not start although Root access is on
   STANDARD MACROS: STANDARD MACROS
   STARTUP: STARTUP
+  STEP: STEP
   STOP: STOP
   STYLE PROPERTIES: STYLE PROPERTIES
   SWITCH SENSORS: SWITCH SENSORS
@@ -4130,6 +4142,7 @@ translations:
   "Saved {} mm": "Saved {} mm"
   Saved {} mm for {}: Saved {} mm for {}
   "Saved {} mm, {} mm after Save": "Saved {} mm, {} mm after Save"
+  Saved offset: Saved offset
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: Saved to Spoolman, but the spool's price, location, lot and notes didn't save.
   Saved to crash_report.txt (QR not available): Saved to crash_report.txt (QR not available)
   Saved to printer configuration.: Saved to printer configuration.
@@ -4388,6 +4401,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.
   Sliced for {}, not {}.: Sliced for {}, not {}.
   Slicer: Slicer
+  Slide the paper back and forth.: Slide the paper back and forth.
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.
   Sliders: Sliders
   Slot: Slot
   Slot 1: Slot 1
@@ -4555,6 +4570,7 @@ translations:
   Stop the running cycle before starting another: Stop the running cycle before starting another
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: Stop when the paper just lightly drags between the toolhead nozzle and the bed.
   Stop with an emergency stop?: Stop with an emergency stop?
   Stopped: Stopped
   Stopped between Hub and Toolhead: Stopped between Hub and Toolhead
@@ -5770,6 +5786,7 @@ translations:
   Z Offset by Material: Z Offset by Material
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
+  Z POSITION: Z POSITION
   Z Probe: Z Probe
   Z Range: Z Range
   Z Tilt Adjust...: Z Tilt Adjust...
@@ -5815,12 +5832,18 @@ translations:
   a newer version: a newer version
   a temporary mesh profile '{}': a temporary mesh profile '{}'
   about {} min: about {} min
+  about {} mm above where the paper dragged last time: about {} mm above where the paper dragged last time
+  about {} mm below where the paper dragged last time: about {} mm below where the paper dragged last time
   already loaded: already loaded
   assign without adding to Spoolman: assign without adding to Spoolman
+  at last time’s drag point: at last time’s drag point
   attempt {}: attempt {}
   auto: auto
   automatic: automatic
   bed: bed
+  bed further below: bed further below
+  'bed: distance unknown': 'bed: distance unknown'
+  'bed: distance unknown until the paper drags': 'bed: distance unknown until the paper drags'
   buffer|Neutral: buffer|Neutral
   busy: busy
   by: by
@@ -5838,6 +5861,8 @@ translations:
   disabled: disabled
   done: done
   done at {} · {}%: done at {} · {}%
+  down {} from start: down {} from start
+  down {} mm from start: down {} mm from start
   drying: drying
   e.g. Jet Black: e.g. Jet Black
   e.g. NAME=my_var VALUE=123: e.g. NAME=my_var VALUE=123
@@ -5849,6 +5874,9 @@ translations:
   enable: enable
   enabled: enabled
   error: error
+  estimated bed: estimated bed
+  estimated bed is further below: estimated bed is further below
+  estimated bed, from your last calibration: estimated bed, from your last calibration
   every {} days: every {} days
   exact match: exact match
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact: same material and color. material: same material. next: any ready slot, even a different material'
@@ -5901,6 +5929,8 @@ translations:
   over memory budget: over memory budget
   paper test: paper test
   passive: passive
+  past last time: past last time
+  past last time’s position: past last time’s position
   preparing: preparing
   printer default: printer default
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: printer.cfg loads more than {} config files; [{}] was not searched for in all of them
@@ -5910,10 +5940,12 @@ translations:
   remaining before clog detection triggers: remaining before clog detection triggers
   rendering: rendering
   reset at {} h: reset at {} h
+  right where the paper dragged last time: right where the paper dragged last time
   set manually: set manually
   similar color: similar color
   sleep {} min: sleep {} min
   slots): slots)
+  start position: start position
   started: started
   steppers: steppers
   sweeping: sweeping
@@ -5935,6 +5967,8 @@ translations:
   this week: this week
   too slow: too slow
   tool(s): tool(s)
+  up {} from start: up {} from start
+  up {} mm from start: up {} mm from start
   used: used
   v%s available: v%s available
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.
@@ -6057,6 +6091,8 @@ translations:
   '{} min': '{} min'
   '{} min ago': '{} min ago'
   '{} missing': '{} missing'
+  '{} mm above last time': '{} mm above last time'
+  '{} mm below last time': '{} mm below last time'
   '{} more taps to {} beta features': '{} more taps to {} beta features'
   '{} needs the HelixPrint plugin. Printing original file.': '{} needs the HelixPrint plugin. Printing original file.'
   '{} new': '{} new'

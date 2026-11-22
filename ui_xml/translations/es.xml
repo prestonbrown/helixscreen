@@ -99,6 +99,9 @@
   <translation tag="1 min" es="1 min"/>
   <translation tag="1 min ago" es="hace 1 min"/>
   <translation tag="1 minute" es="1 minuto"/>
+  <translation tag="1 mm steps can press the nozzle into the bed."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."/>
   <translation tag="1 more tap to {} beta features" es="1 toque más para {} funciones beta"/>
   <translation tag="1 print" es="1 impresión"/>
   <translation tag="1 profile" es="1 perfil"/>
@@ -585,6 +588,9 @@
   <translation tag="Beta" es="Beta"/>
   <translation tag="Beta features: OFF" es="Funciones Beta: OFF"/>
   <translation tag="Beta features: ON" es="Funciones Beta: ON"/>
+  <translation tag="Big steps first, then 0.01."/>
+  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed."/>
+  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."/>
   <translation tag="Black" es="Negro"/>
   <translation tag="Blade change and parking" es="Cambio de cuchilla y aparcamiento"/>
   <translation tag="Blocked" es="Bloqueado"/>
@@ -2638,8 +2644,10 @@
   <translation tag="Lot/Batch Nr" es="Nº de lote"/>
   <translation tag="Low Memory" es="Memoria baja"/>
   <translation tag="Lower" es="Bajar"/>
+  <translation tag="Lower bed"/>
   <translation tag="Lower belt" es="Correa inferior"/>
   <translation tag="Lower fan speed?" es="¿Reducir la velocidad del ventilador?"/>
+  <translation tag="Lower nozzle"/>
   <translation tag="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware." es="Baja los micropasos o la velocidad máxima en la configuración de la impresora, y reinicia el firmware."/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." es="Baje la boquilla hasta que toque justo la parte superior de la impresión y luego reanude."/>
   <translation tag="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it." es="Baja la temperatura en el perfil de filamento del laminador, o sube max_temp solo si el hotend lo admite."/>
@@ -3249,6 +3257,7 @@
   <translation tag="Pairing..." es="Emparejando..."/>
   <translation tag="Panel Usage" es="Uso del panel"/>
   <translation tag="Paper Test Calibration" es="Calibración con Prueba de Papel"/>
+  <translation tag="Paper drags: done"/>
   <translation tag="Parameters" es="Parámetros"/>
   <translation tag="Park" es="Aparcar"/>
   <translation tag="Park Toolhead" es="Aparcar el cabezal"/>
@@ -3663,6 +3672,8 @@
   <translation tag="Raise" es="Subir"/>
   <translation tag="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion." es="Sube Z y ejecuta QUERY_PROBE con la sonda separada de la cama. Si sigue leyendo TRIGGERED, repara la sonda o la inversión de su pin."/>
   <translation tag="Raise and lower the bed or gantry through its travel." es="Sube y baja la cama o el pórtico en todo su recorrido."/>
+  <translation tag="Raise bed"/>
+  <translation tag="Raise nozzle"/>
   <translation tag="Ramming Volume" es="Volumen de compactación"/>
   <translation tag="Ramp: band {} of {}" es="Rampa: franja {} de {}"/>
   <translation tag="Ramp: base layers" es="Rampa: capas base"/>
@@ -3979,6 +3990,7 @@
   <translation tag="SSH did not start although Root access is on" es="SSH no se inició aunque el acceso root está activado"/>
   <translation tag="STANDARD MACROS" es="MACROS ESTÁNDAR"/>
   <translation tag="STARTUP" es="INICIO"/>
+  <translation tag="STEP"/>
   <translation tag="STOP" es="DETENER"/>
   <translation tag="STYLE PROPERTIES" es="PROPIEDADES DE ESTILO"/>
   <translation tag="SWITCH SENSORS" es="SENSORES DE INTERRUPTOR"/>
@@ -4021,6 +4033,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." es="¿Guardar {} mm para {}? Los demás materiales conservan sus propios offsets."/>
   <translation tag="Saved Z-Offset" es="Z-Offset guardado"/>
   <translation tag="Saved for the mounted head; other heads keep their own" es="Guardado para el cabezal montado; los demás cabezales conservan el suyo"/>
+  <translation tag="Saved offset"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." es="Guardado en Spoolman, pero el precio, la ubicación, el lote y las notas de la bobina no se guardaron."/>
   <translation tag="Saved to crash_report.txt (QR not available)" es="Guardado en crash_report.txt (QR no disponible)"/>
   <translation tag="Saved to printer configuration." es="Guardado en la configuración de la impresora."/>
@@ -4279,6 +4292,8 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." es="Laminado para una boquilla de {:g} mm en T{}; la impresora tiene {:g} mm."/>
   <translation tag="Sliced for {}, not {}." es="Laminado para {}, no para {}."/>
   <translation tag="Slicer" es="Laminador"/>
+  <translation tag="Slide the paper back and forth."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Sliders" es="Controles"/>
   <translation tag="Slot" es="Ranura"/>
   <translation tag="Slot 1" es="Ranura 1"/>
@@ -4443,6 +4458,7 @@
   <translation tag="Stop the check?" es="¿Detener la comprobación?"/>
   <translation tag="Stop the running cycle before starting another" es="Detenga el ciclo en curso antes de iniciar otro"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." es="Detén las webcams, los timelapses y los servicios extra del host, revisa su fuente de alimentación y su tarjeta SD, y reinicia el firmware. Si vuelve a ocurrir en el mismo punto, baja la velocidad o los micropasos."/>
+  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Stop with an emergency stop?" es="¿Detener con una parada de emergencia?"/>
   <translation tag="Stopped" es="Detenido"/>
   <translation tag="Stopped between Hub and Toolhead" es="Detenido entre el Hub y el cabezal"/>
@@ -5597,6 +5613,7 @@
   <translation tag="Z Offset" es="Z Offset"/>
   <translation tag="Z Offset by Material" es="Z-Offset por material"/>
   <translation tag="Z Offset by Material is off here but was still on on the printer, so this offset includes a material&apos;s. It is now switched off on the printer; tap Save again to store the offset in the probe." es="Z-Offset por material está desactivado aquí pero seguía activo en la impresora, así que este offset incluye el de un material. Ya está desactivado en la impresora; pulsa Guardar de nuevo para guardar el offset en la sonda."/>
+  <translation tag="Z POSITION"/>
   <translation tag="Z Probe" es="Sonda Z"/>
   <translation tag="Z Range" es="Rango Z"/>
   <translation tag="Z Tilt Adjust..." es="Ajuste de inclinación Z..."/>
@@ -5642,12 +5659,18 @@
   <translation tag="a newer version" es="una versión más reciente"/>
   <translation tag="a temporary mesh profile &apos;{}&apos;" es="un perfil de malla temporal &apos;{}&apos;"/>
   <translation tag="about {} min" es="unos {} min"/>
+  <translation tag="about {} mm above where the paper dragged last time"/>
+  <translation tag="about {} mm below where the paper dragged last time"/>
   <translation tag="already loaded" es="ya cargado"/>
   <translation tag="assign without adding to Spoolman" es="asignar sin añadir a Spoolman"/>
+  <translation tag="at last time’s drag point"/>
   <translation tag="attempt {}" es="intento {}"/>
   <translation tag="auto" es="auto"/>
   <translation tag="automatic" es="automático"/>
   <translation tag="bed" es="cama"/>
+  <translation tag="bed further below"/>
+  <translation tag="bed: distance unknown"/>
+  <translation tag="bed: distance unknown until the paper drags"/>
   <translation tag="buffer|Neutral" es="Centrado"/>
   <translation tag="busy" es="ocupado"/>
   <translation tag="by" es="de"/>
@@ -5665,6 +5688,8 @@
   <translation tag="disabled" es="desactivado"/>
   <translation tag="done" es="hecho"/>
   <translation tag="done at {} · {}%" es="termina a las {} · {}%"/>
+  <translation tag="down {} from start"/>
+  <translation tag="down {} mm from start"/>
   <translation tag="drying" es="secando"/>
   <translation tag="e.g. Jet Black" es="p. ej. Negro Azabache"/>
   <translation tag="e.g. NAME=my_var VALUE=123" es="p. ej. NAME=mi_var VALUE=123"/>
@@ -5676,6 +5701,9 @@
   <translation tag="enable" es="habilitar"/>
   <translation tag="enabled" es="activado"/>
   <translation tag="error" es="error"/>
+  <translation tag="estimated bed"/>
+  <translation tag="estimated bed is further below"/>
+  <translation tag="estimated bed, from your last calibration"/>
   <translation tag="every {} days" es="cada {} días"/>
   <translation tag="exact match" es="coincidencia exacta"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" es="exact: mismo material y color. material: mismo material. next: cualquier ranura lista, aunque sea otro material"/>
@@ -5728,6 +5756,8 @@
   <translation tag="over memory budget" es="por encima del presupuesto de memoria"/>
   <translation tag="paper test" es="prueba del papel"/>
   <translation tag="passive" es="pasivo"/>
+  <translation tag="past last time"/>
+  <translation tag="past last time’s position"/>
   <translation tag="preparing" es="preparando"/>
   <translation tag="printer default" es="valor por defecto de la impresora"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" es="printer.cfg carga más de {} archivos de configuración; [{}] no se buscó en todos"/>
@@ -5737,10 +5767,12 @@
   <translation tag="remaining before clog detection triggers" es="restante antes de que se active la detección de obstrucción"/>
   <translation tag="rendering" es="renderizando"/>
   <translation tag="reset at {} h" es="restablecido a las {} h"/>
+  <translation tag="right where the paper dragged last time"/>
   <translation tag="set manually" es="manual"/>
   <translation tag="similar color" es="color similar"/>
   <translation tag="sleep {} min" es="reposo en {} min"/>
   <translation tag="slots)" es="ranuras)"/>
+  <translation tag="start position"/>
   <translation tag="started" es="iniciado"/>
   <translation tag="steppers" es="motores paso a paso"/>
   <translation tag="sweeping" es="midiendo"/>
@@ -5762,6 +5794,8 @@
   <translation tag="this week" es="esta semana"/>
   <translation tag="too slow" es="demasiado lento"/>
   <translation tag="tool(s)" es="herramienta(s)"/>
+  <translation tag="up {} from start"/>
+  <translation tag="up {} mm from start"/>
   <translation tag="used" es="usado"/>
   <translation tag="v%s available" es="v%s disponible"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." es="v%s no tiene una versión para %s, así que no se puede instalar aquí. Elige un canal de actualización con una versión más reciente."/>
@@ -5883,6 +5917,8 @@
   <translation tag="{} min" es="{} min"/>
   <translation tag="{} min ago" es="hace {} min"/>
   <translation tag="{} missing" es="{} faltante(s)"/>
+  <translation tag="{} mm above last time"/>
+  <translation tag="{} mm below last time"/>
   <translation tag="{} more taps to {} beta features" es="{} toques más para {} funciones beta"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." es="{} necesita el plugin HelixPrint. Se imprimirá el archivo original."/>
   <translation tag="{} new" es="{} nuevo(s)"/>

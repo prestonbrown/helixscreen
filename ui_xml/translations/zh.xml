@@ -99,6 +99,9 @@
   <translation tag="1 min" zh="1分钟"/>
   <translation tag="1 min ago" zh="1分钟前"/>
   <translation tag="1 minute" zh="1 分钟"/>
+  <translation tag="1 mm steps can press the nozzle into the bed."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close."/>
+  <translation tag="1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close."/>
   <translation tag="1 more tap to {} beta features" zh="再点击 1 次以{}测试功能"/>
   <translation tag="1 print" zh="1 次打印"/>
   <translation tag="1 profile" zh="1 个配置"/>
@@ -585,6 +588,9 @@
   <translation tag="Beta" zh="测试版"/>
   <translation tag="Beta features: OFF" zh="测试版功能: 关"/>
   <translation tag="Beta features: ON" zh="测试版功能: 开"/>
+  <translation tag="Big steps first, then 0.01."/>
+  <translation tag="Big steps first, then 0.01. Never force the nozzle into the bed."/>
+  <translation tag="Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed."/>
   <translation tag="Black" zh="黑色"/>
   <translation tag="Blade change and parking" zh="刀片更换与停放"/>
   <translation tag="Blocked" zh="已阻塞"/>
@@ -2638,8 +2644,10 @@
   <translation tag="Lot/Batch Nr" zh="批次号"/>
   <translation tag="Low Memory" zh="内存不足"/>
   <translation tag="Lower" zh="降低"/>
+  <translation tag="Lower bed"/>
   <translation tag="Lower belt" zh="下皮带"/>
   <translation tag="Lower fan speed?" zh="降低风扇速度？"/>
+  <translation tag="Lower nozzle"/>
   <translation tag="Lower the microsteps or the maximum speed in the printer&apos;s configuration, then restart the firmware." zh="请降低打印机配置中的细分或最大速度，然后重启固件。"/>
   <translation tag="Lower the nozzle until it just touches the top of the print, then resume." zh="降低喷嘴，直到刚好接触打印件顶部，然后恢复。"/>
   <translation tag="Lower the temperature in the slicer&apos;s filament profile, or raise max_temp only if the hotend is rated for it." zh="请降低切片软件耗材配置中的温度，或仅在热端支持时调高 max_temp。"/>
@@ -3249,6 +3257,7 @@
   <translation tag="Pairing..." zh="正在配对..."/>
   <translation tag="Panel Usage" zh="面板使用情况"/>
   <translation tag="Paper Test Calibration" zh="纸张测试校准"/>
+  <translation tag="Paper drags: done"/>
   <translation tag="Parameters" zh="参数"/>
   <translation tag="Park" zh="停放"/>
   <translation tag="Park Toolhead" zh="停放工具头"/>
@@ -3663,6 +3672,8 @@
   <translation tag="Raise" zh="升高"/>
   <translation tag="Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion." zh="请抬升 Z，在探针离开热床的状态下运行 QUERY_PROBE。如果仍显示 TRIGGERED，请修复探针或其引脚反相设置。"/>
   <translation tag="Raise and lower the bed or gantry through its travel." zh="让热床或龙门全行程升降。"/>
+  <translation tag="Raise bed"/>
+  <translation tag="Raise nozzle"/>
   <translation tag="Ramming Volume" zh="填充体积"/>
   <translation tag="Ramp: band {} of {}" zh="自动: 第 {} / {} 段"/>
   <translation tag="Ramp: base layers" zh="自动: 底层"/>
@@ -3979,6 +3990,7 @@
   <translation tag="SSH did not start although Root access is on" zh="Root 访问已开启，但 SSH 未能启动"/>
   <translation tag="STANDARD MACROS" zh="标准宏"/>
   <translation tag="STARTUP" zh="启动"/>
+  <translation tag="STEP"/>
   <translation tag="STOP" zh="停止"/>
   <translation tag="STYLE PROPERTIES" zh="样式属性"/>
   <translation tag="SWITCH SENSORS" zh="开关传感器"/>
@@ -4021,6 +4033,7 @@
   <translation tag="Save {} mm for {}? Other materials keep their own offsets." zh="保存 {} mm 到 {}？其他材料保持各自的偏移。"/>
   <translation tag="Saved Z-Offset" zh="已保存 Z 偏移"/>
   <translation tag="Saved for the mounted head; other heads keep their own" zh="已为当前安装的工具头保存；其他工具头保留各自的值"/>
+  <translation tag="Saved offset"/>
   <translation tag="Saved to Spoolman, but the spool&apos;s price, location, lot and notes didn&apos;t save." zh="已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。"/>
   <translation tag="Saved to crash_report.txt (QR not available)" zh="已保存到 crash_report.txt（二维码不可用）"/>
   <translation tag="Saved to printer configuration." zh="已保存到打印机配置。"/>
@@ -4279,6 +4292,8 @@
   <translation tag="Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm." zh="按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。"/>
   <translation tag="Sliced for {}, not {}." zh="为 {} 切片，而不是 {}。"/>
   <translation tag="Slicer" zh="切片软件"/>
+  <translation tag="Slide the paper back and forth."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Sliders" zh="滑块"/>
   <translation tag="Slot" zh="槽位"/>
   <translation tag="Slot 1" zh="槽位 1"/>
@@ -4443,6 +4458,7 @@
   <translation tag="Stop the check?" zh="停止检查？"/>
   <translation tag="Stop the running cycle before starting another" zh="请先停止当前周期，再启动新的周期"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." zh="请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。"/>
+  <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed."/>
   <translation tag="Stop with an emergency stop?" zh="要用紧急停止来停止吗？"/>
   <translation tag="Stopped" zh="已停止"/>
   <translation tag="Stopped between Hub and Toolhead" zh="停在集线器与工具头之间"/>
@@ -5597,6 +5613,7 @@
   <translation tag="Z Offset" zh="Z 偏移"/>
   <translation tag="Z Offset by Material" zh="按材料 Z 偏移"/>
   <translation tag="Z Offset by Material is off here but was still on on the printer, so this offset includes a material&apos;s. It is now switched off on the printer; tap Save again to store the offset in the probe." zh="此处按材料 Z 偏移已关闭，但打印机上仍为开启，因此这个偏移包含了某种材料的偏移。现已在打印机上关闭；再次点击保存即可将偏移保存到探针。"/>
+  <translation tag="Z POSITION"/>
   <translation tag="Z Probe" zh="Z 探针"/>
   <translation tag="Z Range" zh="Z 范围"/>
   <translation tag="Z Tilt Adjust..." zh="正在调整Z倾斜..."/>
@@ -5642,12 +5659,18 @@
   <translation tag="a newer version" zh="更新的版本"/>
   <translation tag="a temporary mesh profile &apos;{}&apos;" zh="临时网格配置 &apos;{}&apos;"/>
   <translation tag="about {} min" zh="约 {} 分钟"/>
+  <translation tag="about {} mm above where the paper dragged last time"/>
+  <translation tag="about {} mm below where the paper dragged last time"/>
   <translation tag="already loaded" zh="已加载"/>
   <translation tag="assign without adding to Spoolman" zh="分配但不添加到 Spoolman"/>
+  <translation tag="at last time’s drag point"/>
   <translation tag="attempt {}" zh="第 {} 次尝试"/>
   <translation tag="auto" zh="自动"/>
   <translation tag="automatic" zh="自动"/>
   <translation tag="bed" zh="热床"/>
+  <translation tag="bed further below"/>
+  <translation tag="bed: distance unknown"/>
+  <translation tag="bed: distance unknown until the paper drags"/>
   <translation tag="buffer|Neutral" zh="中位"/>
   <translation tag="busy" zh="正忙"/>
   <translation tag="by" zh="作者："/>
@@ -5665,6 +5688,8 @@
   <translation tag="disabled" zh="已禁用"/>
   <translation tag="done" zh="完成"/>
   <translation tag="done at {} · {}%" zh="{} 完成 · {}%"/>
+  <translation tag="down {} from start"/>
+  <translation tag="down {} mm from start"/>
   <translation tag="drying" zh="烘干中"/>
   <translation tag="e.g. Jet Black" zh="例如 炭黑"/>
   <translation tag="e.g. NAME=my_var VALUE=123" zh="例如 NAME=my_var VALUE=123"/>
@@ -5676,6 +5701,9 @@
   <translation tag="enable" zh="启用"/>
   <translation tag="enabled" zh="已启用"/>
   <translation tag="error" zh="错误"/>
+  <translation tag="estimated bed"/>
+  <translation tag="estimated bed is further below"/>
+  <translation tag="estimated bed, from your last calibration"/>
   <translation tag="every {} days" zh="每 {} 天"/>
   <translation tag="exact match" zh="完全匹配"/>
   <translation tag="exact: same material and color. material: same material. next: any ready slot, even a different material" zh="exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同"/>
@@ -5728,6 +5756,8 @@
   <translation tag="over memory budget" zh="超出内存预算"/>
   <translation tag="paper test" zh="纸张测试"/>
   <translation tag="passive" zh="被动"/>
+  <translation tag="past last time"/>
+  <translation tag="past last time’s position"/>
   <translation tag="preparing" zh="准备中"/>
   <translation tag="printer default" zh="打印机默认"/>
   <translation tag="printer.cfg loads more than {} config files; [{}] was not searched for in all of them" zh="printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"/>
@@ -5737,10 +5767,12 @@
   <translation tag="remaining before clog detection triggers" zh="剩余即触发堵料检测"/>
   <translation tag="rendering" zh="渲染中"/>
   <translation tag="reset at {} h" zh="于 {} 小时时重置"/>
+  <translation tag="right where the paper dragged last time"/>
   <translation tag="set manually" zh="手动设置"/>
   <translation tag="similar color" zh="相近颜色"/>
   <translation tag="sleep {} min" zh="{} 分钟后休眠"/>
   <translation tag="slots)" zh="个槽位)"/>
+  <translation tag="start position"/>
   <translation tag="started" zh="已启动"/>
   <translation tag="steppers" zh="步进电机"/>
   <translation tag="sweeping" zh="测量中"/>
@@ -5762,6 +5794,8 @@
   <translation tag="this week" zh="本周"/>
   <translation tag="too slow" zh="太慢"/>
   <translation tag="tool(s)" zh="工具"/>
+  <translation tag="up {} from start"/>
+  <translation tag="up {} mm from start"/>
   <translation tag="used" zh="已使用"/>
   <translation tag="v%s available" zh="v%s 可用"/>
   <translation tag="v%s has no build for the %s, so it can&apos;t be installed here. Pick a channel with a newer release." zh="v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。"/>
@@ -5883,6 +5917,8 @@
   <translation tag="{} min" zh="{} 分钟"/>
   <translation tag="{} min ago" zh="{} 分钟前"/>
   <translation tag="{} missing" zh="{} 个缺失"/>
+  <translation tag="{} mm above last time"/>
+  <translation tag="{} mm below last time"/>
   <translation tag="{} more taps to {} beta features" zh="再点击 {} 次以{}测试功能"/>
   <translation tag="{} needs the HelixPrint plugin. Printing original file." zh="{} 需要 HelixPrint 插件。将打印原始文件。"/>
   <translation tag="{} new" zh="{} 个新增"/>

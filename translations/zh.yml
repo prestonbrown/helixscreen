@@ -111,6 +111,9 @@ translations:
   1 min: '1分钟'
   1 min ago: 1分钟前
   1 minute: 1 分钟
+  1 mm steps can press the nozzle into the bed.: ''
+  1 mm steps can press the nozzle into the bed. Switch to 0.1 before it gets close.: ''
+  1 mm steps can press the nozzle into the bed. Watch the gap, and switch to 0.1 before it gets close.: ''
   1 more tap to {} beta features: 再点击 1 次以{}测试功能
   1 print: '1 次打印'
   1 profile: '1 个配置'
@@ -609,6 +612,9 @@ translations:
   Beta: 测试版
   'Beta features: OFF': '测试版功能: 关'
   'Beta features: ON': '测试版功能: 开'
+  Big steps first, then 0.01.: ''
+  Big steps first, then 0.01. Never force the nozzle into the bed.: ''
+  Big steps until the paper first drags, then 0.01. Never force the nozzle into the bed.: ''
   Black: 黑色
   Blade change and parking: '刀片更换与停放'
   Blocked: 已阻塞
@@ -2739,8 +2745,10 @@ translations:
   Lot/Batch Nr: 批次号
   Low Memory: 内存不足
   Lower: 降低
+  Lower bed: ''
   Lower belt: "下皮带"
   Lower fan speed?: '降低风扇速度？'
+  Lower nozzle: ''
   Lower the microsteps or the maximum speed in the printer's configuration, then restart the firmware.: 请降低打印机配置中的细分或最大速度，然后重启固件。
   Lower the nozzle until it just touches the top of the print, then resume.: 降低喷嘴，直到刚好接触打印件顶部，然后恢复。
   Lower the temperature in the slicer's filament profile, or raise max_temp only if the hotend is rated for it.: 请降低切片软件耗材配置中的温度，或仅在热端支持时调高 max_temp。
@@ -3365,6 +3373,7 @@ translations:
   Pairing...: 正在配对...
   Panel Usage: 面板使用情况
   Paper Test Calibration: 纸张测试校准
+  'Paper drags: done': ''
   Parameters: 参数
   Park: '停放'
   Park the AFC system: '停放 AFC 系统'
@@ -3782,6 +3791,8 @@ translations:
   ? Raise Z, then run QUERY_PROBE with the probe clear of the bed. If it still reads TRIGGERED, fix the probe or its pin inversion.
   : 请抬升 Z，在探针离开热床的状态下运行 QUERY_PROBE。如果仍显示 TRIGGERED，请修复探针或其引脚反相设置。
   Raise and lower the bed or gantry through its travel.: "让热床或龙门全行程升降。"
+  Raise bed: ''
+  Raise nozzle: ''
   Ramming Volume: '填充体积'
   'Ramp: band {} of {}': '自动: 第 {} / {} 段'
   'Ramp: base layers': '自动: 底层'
@@ -4102,6 +4113,7 @@ translations:
   SSH did not start although Root access is on: 'Root 访问已开启，但 SSH 未能启动'
   STANDARD MACROS: 标准宏
   STARTUP: 启动
+  STEP: ''
   STOP: 停止
   STYLE PROPERTIES: 样式属性
   SWITCH SENSORS: 开关传感器
@@ -4147,6 +4159,7 @@ translations:
   "Saved {} mm": "已保存 {} mm"
   Saved {} mm for {}: "已将 {} mm 保存到 {}"
   "Saved {} mm, {} mm after Save": "已保存 {} mm，保存后 {} mm"
+  Saved offset: ''
   Saved to Spoolman, but the spool's price, location, lot and notes didn't save.: '已保存到 Spoolman，但料盘的价格、位置、批次和备注未保存。'
   Saved to crash_report.txt (QR not available): 已保存到 crash_report.txt（二维码不可用）
   Saved to printer configuration.: 已保存到打印机配置。
@@ -4406,6 +4419,8 @@ translations:
   Sliced for a {:g} mm nozzle on T{}; the printer has {:g} mm.: '按 {:g} mm 喷嘴（T{}）切片；打印机为 {:g} mm。'
   Sliced for {}, not {}.: '为 {} 切片，而不是 {}。'
   Slicer: 切片软件
+  Slide the paper back and forth.: ''
+  Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
   Sliders: 滑块
   Slot: 槽位
   Slot 1: 槽位 1
@@ -4578,6 +4593,7 @@ translations:
   Stop the running cycle before starting another: '请先停止当前周期，再启动新的周期'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : 请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。
+  Stop when the paper just lightly drags between the toolhead nozzle and the bed.: ''
   Stop with an emergency stop?: '要用紧急停止来停止吗？'
   Stopped: 已停止
   Stopped between Hub and Toolhead: 停在集线器与工具头之间
@@ -5791,6 +5807,7 @@ translations:
   Z Offset by Material: "按材料 Z 偏移"
   ? Z Offset by Material is off here but was still on on the printer, so this offset includes a material's. It is now switched off on the printer; tap Save again to store the offset in the probe.
   : "此处按材料 Z 偏移已关闭，但打印机上仍为开启，因此这个偏移包含了某种材料的偏移。现已在打印机上关闭；再次点击保存即可将偏移保存到探针。"
+  Z POSITION: ''
   Z Probe: Z 探针
   Z Range: Z 范围
   Z Tilt Adjust...: 正在调整Z倾斜...
@@ -5836,12 +5853,18 @@ translations:
   a newer version: '更新的版本'
   a temporary mesh profile '{}': '临时网格配置 ''{}'''
   about {} min: '约 {} 分钟'
+  about {} mm above where the paper dragged last time: ''
+  about {} mm below where the paper dragged last time: ''
   already loaded: '已加载'
   assign without adding to Spoolman: 分配但不添加到 Spoolman
+  at last time’s drag point: ''
   attempt {}: '第 {} 次尝试'
   auto: 自动
   automatic: '自动'
   bed: 热床
+  bed further below: ''
+  'bed: distance unknown': ''
+  'bed: distance unknown until the paper drags': ''
   buffer|Neutral: 中位
   busy: '正忙'
   by: '作者：'
@@ -5859,6 +5882,8 @@ translations:
   disabled: 已禁用
   done: '完成'
   done at {} · {}%: "{} 完成 · {}%"
+  down {} from start: ''
+  down {} mm from start: ''
   drying: 烘干中
   e.g. Jet Black: 例如 炭黑
   e.g. NAME=my_var VALUE=123: 例如 NAME=my_var VALUE=123
@@ -5870,6 +5895,9 @@ translations:
   enable: 启用
   enabled: 已启用
   error: 错误
+  estimated bed: ''
+  estimated bed is further below: ''
+  estimated bed, from your last calibration: ''
   every {} days: "每 {} 天"
   exact match: '完全匹配'
   'exact: same material and color. material: same material. next: any ready slot, even a different material': 'exact：材料和颜色相同。material：材料相同。next：任意就绪槽位，即使材料不同'
@@ -5927,6 +5955,8 @@ translations:
   over memory budget: 超出内存预算
   paper test: '纸张测试'
   passive: 被动
+  past last time: ''
+  past last time’s position: ''
   preparing: 准备中
   printer default: 打印机默认
   printer.cfg loads more than {} config files; [{}] was not searched for in all of them: "printer.cfg 加载了超过 {} 个配置文件；未在全部文件中查找 [{}]"
@@ -5936,10 +5966,12 @@ translations:
   remaining before clog detection triggers: 剩余即触发堵料检测
   rendering: 渲染中
   reset at {} h: '于 {} 小时时重置'
+  right where the paper dragged last time: ''
   set manually: '手动设置'
   similar color: 相近颜色
   sleep {} min: '{} 分钟后休眠'
   slots): 个槽位)
+  start position: ''
   started: 已启动
   steppers: 步进电机
   sweeping: 测量中
@@ -5961,6 +5993,8 @@ translations:
   this week: 本周
   too slow: 太慢
   tool(s): 工具
+  up {} from start: ''
+  up {} mm from start: ''
   used: 已使用
   v%s available: v%s 可用
   v%s has no build for the %s, so it can't be installed here. Pick a channel with a newer release.: v%s 没有适用于 %s 的版本，因此无法在此安装。请选择有更新版本的更新通道。
@@ -6083,6 +6117,8 @@ translations:
   '{} min': '{} 分钟'
   '{} min ago': '{} 分钟前'
   '{} missing': '{} 个缺失'
+  '{} mm above last time': ''
+  '{} mm below last time': ''
   '{} more taps to {} beta features': 再点击 {} 次以{}测试功能
   '{} needs the HelixPrint plugin. Printing original file.': '{} 需要 HelixPrint 插件。将打印原始文件。'
   '{} new': '{} 个新增'

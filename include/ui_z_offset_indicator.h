@@ -25,5 +25,12 @@ int z_offset_indicator_value(lv_obj_t* obj);
 void ui_z_offset_indicator_flash_direction(lv_obj_t* obj, int direction);
 
 /// @brief Register the <z_offset_indicator> widget with the LVGL XML system
-/// Must be called before any XML files using <z_offset_indicator> are parsed
+/// Must be called before any XML files using <z_offset_indicator> are parsed.
+///
+/// Attributes: bind_microns (int subject, microns) places the value.
+/// mode="tape" draws the Z offset step's tape instead of the auto-ranging
+/// meter: a fixed nozzle over a scrolling ruler (src/ui/calibration/z_offset_tape.h),
+/// zoomed by bind_step (int subject, a step index into ztape::kStepMicrons), with
+/// the bed estimated from bind_estimate (int subject, microns; ztape::kNoEstimate
+/// for none).
 void ui_z_offset_indicator_register(void);
