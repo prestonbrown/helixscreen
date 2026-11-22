@@ -24,7 +24,6 @@
         style_radius="#border_radius" state_trickle="true" scrollable="false">
     <style name="styles.chip_idle"/>
     <style name="styles.chip_active" selector="checked"/>
-    <bind_state_if_eq subject="$checked_subject" state="checked" ref_value="1"/>
     <event_cb trigger="clicked" callback="$callback"/>
     <!-- The option's icon and the check share one slot: the check is laid
          over the icon and each shows in one state only, so the label never
@@ -40,5 +39,8 @@
     <text_small name="label"
                 text="$label" translation_tag="$label_tag" flex_grow="1" long_mode="dots" max_lines="2"
                 style_text_color="#text_muted" style_text_color-checked="#text" clickable="false"/>
+    <!-- Last: the binding applies the subject's value as it is parsed, and
+         state_trickle reaches only the children that already exist. -->
+    <bind_state_if_eq subject="$checked_subject" state="checked" ref_value="1"/>
   </view>
 </component>

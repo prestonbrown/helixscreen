@@ -39,10 +39,12 @@
         width="content" height="$height" style_radius="$radius" style_min_width="$min_width" style_pad_hor="$pad_hor"
         style_pad_ver="$pad_ver" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
         style_flex_track_place="center" ext_click_area="$ext_click" scrollable="false" clickable="true">
-    <!-- Idle first, chosen after: the later style wins while it is enabled. -->
+    <!-- Chosen is the checked state, so the chip reads as checked to anything
+         that inspects it; pressed outranks checked, so a chosen chip still washes. -->
     <style name="$idle_style"/>
-    <bind_style_if_eq name="$selected_style" subject="$selected_subject" ref_value="$selected_value"/>
+    <style name="$selected_style" selector="checked"/>
     <style name="styles.press_wash" selector="pressed"/>
+    <bind_state_if_eq subject="$selected_subject" state="checked" ref_value="$selected_value"/>
     <text_body name="chip_label" text="" style_text_font="$font" clickable="false" event_bubble="true"/>
     <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
   </view>
