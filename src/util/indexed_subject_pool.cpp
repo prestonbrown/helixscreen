@@ -54,6 +54,12 @@ void IndexedSubjectPool::ensure_size(size_t n) {
     }
 }
 
+void IndexedSubjectPool::republish() {
+    for (size_t i = 0; i < subjects_.size(); ++i) {
+        lv_xml_register_subject(nullptr, slot_name(i).c_str(), subjects_[i]->get());
+    }
+}
+
 void IndexedSubjectPool::set_int(size_t i, int v) {
     assert(type_ == Type::Int);
     lv_subject_set_int(subjects_.at(i)->get(), v);

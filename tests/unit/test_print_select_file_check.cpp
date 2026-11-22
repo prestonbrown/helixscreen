@@ -113,8 +113,8 @@ TEST_CASE_METHOD(FileCheckFixture, "Print waits on the file check only when an o
         lv_obj_t* row = lv_obj_find_by_name(lv_screen_active(), "option_tile_bed_mesh");
         REQUIRE(row != nullptr);
         REQUIRE(lv_obj_has_state(row, LV_STATE_CHECKED));
-        lv_obj_remove_state(row, LV_STATE_CHECKED);
-        lv_obj_send_event(row, LV_EVENT_VALUE_CHANGED, nullptr);
+        lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+        REQUIRE_FALSE(lv_obj_has_state(row, LV_STATE_CHECKED));
         drain();
         CHECK(can_print() == 0);
         CHECK(blocked_reason() == "Checking file…");

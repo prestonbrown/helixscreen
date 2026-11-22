@@ -50,6 +50,11 @@ class IndexedSubjectPool {
     // any newly-created slots. No-op if n <= size().
     void ensure_size(size_t n);
 
+    // Register every slot's name to this pool again. Names resolve when a row is
+    // created, so an owner that can share its prefix with another live pool (a
+    // test's own instance beside the app's) calls this before building rows.
+    void republish();
+
     // Type::Int only.
     void set_int(size_t i, int v);
 

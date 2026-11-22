@@ -4,7 +4,7 @@
 #pragma once
 
 #include "core/observer_guard.h"
-#include "core/subject.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "pre_print_option.h"
 
 #include <functional>
@@ -20,10 +20,11 @@ namespace helix::ui {
  * @file ui_pre_print_options_renderer.h
  * @brief Renders the per-print toggle list on the print-detail panel.
  *
- * Owns the per-option `helix::Subject` state (one int subject per option in the
- * active printer's `PrePrintOptionSet`). Builds a 2-column grid of checkable
- * `option_tile` pills: one per option, icon + 2-line label, filled with the
- * primary tint and showing a check in place of the icon when checked. Categories are used
+ * Owns the per-option state: one int subject per option in the active
+ * printer's `PrePrintOptionSet`, `pre_print_option_on_<i>` for row i. Builds a
+ * 2-column grid of `option_tile` pills, each checked while its subject reads 1:
+ * icon + 2-line label, filled with the primary tint and showing a check in
+ * place of the icon when checked. A tap flips the subject. Categories are used
  * as a sort key only; no sub-headers are emitted (the surrounding "PRINT
  * OPTIONS" card header in `print_file_detail.xml` provides the section title).
  *
@@ -37,35 +38,12 @@ namespace helix::ui {
  *
  * ## Subject lifecycle
  *
- * Per-option state subjects are heap-allocated `helix::Subject` instances owned
- * by `OptionRow::state_subject`. They are paired one-to-one with their row
- * widget. The pairing means subject and observers always die together inside
- * `clear()` / the destructor, so no `SubjectLifetime` token is needed: when a
- * row's owning subject is reset, all of that subject's observers are
- * uninstalled atomically. There is no scenario where the subject can outlive
- * its observers (or vice-versa) since both are stored in the same `OptionRow`
- * struct.
- *
- * ## clear() lifetime contract
- *
- * `clear()` deinits every state subject (which uninstalls observers from the
- * row widgets) and then drops the row vector. It runs in three contexts, each
- * with different widget liveness:
- *
- *   1. From `populate()` rebuild path — `clear()` runs BEFORE
- *      `safe_clean_children`. Widgets are still alive at deinit time, so
- *      `reset()` walks each observer's widget and removes the
- *      `LV_EVENT_DELETE` cleanup callback cleanly.
- *
- *   2. From `OverlayBase::on_ui_destroyed()` (panel close) — widgets are
- *      still alive per OverlayBase's contract (deferred delete on next tick).
- *      Same path as above.
- *
- *   3. From the renderer destructor at static teardown — widgets may already
- *      be gone (LVGL deleted them earlier). In that case, observers were
- *      auto-removed when the widgets were deleted, so the subject's observer
- *      list is already empty and `reset()` is a no-op cleanup that
- *      still frees the subject's internal lists.
+ * The state subjects live in a grow-only `IndexedSubjectPool` the renderer
+ * owns, so a tile never outlives the subject it binds: the pool is reclaimed
+ * only with the renderer, which resets every subject and so uninstalls any
+ * binding a still-standing tile holds. `populate()` reuses the slots and
+ * re-registers their names, so a second live renderer (a test's own beside
+ * the app's) never leaves this one's tiles bound to the other's subjects.
  */
 class PrePrintOptionsRenderer {
   public:
@@ -114,7 +92,7 @@ class PrePrintOptionsRenderer {
                   const VisibilitySubjectLookup& visibility_lookup, OnToggleCallback on_toggle);
 
     /**
-     * @brief Drop all rows and subjects (e.g. on panel close / printer change).
+     * @brief Drop all rows (e.g. on panel close / printer change).
      */
     void clear();
 
@@ -129,10 +107,10 @@ class PrePrintOptionsRenderer {
     /**
      * @brief Set toggle state for `id`. No-op if id is not present.
      *
-     * @note This updates the underlying subject (and propagates to the
-     *       tile's checked state via the observer wiring), but does NOT
-     *       invoke the `OnToggleCallback`. Only user-driven changes that fire
-     *       `LV_EVENT_VALUE_CHANGED` on the tile reach the toggle callback.
+     * @note This updates the underlying subject (and so the tile's checked
+     *       state, which binds it), but does NOT invoke the
+     *       `OnToggleCallback`. Only a tap on the tile reaches the toggle
+     *       callback.
      *       Callers that need both the model update and the side-effect must
      *       invoke the side-effect themselves.
      */
@@ -183,7 +161,8 @@ class PrePrintOptionsRenderer {
         std::string id;
         lv_obj_t* row = nullptr;
         lv_obj_t* toggle_widget = nullptr;
-        std::unique_ptr<helix::Subject> state_subject;
+        /// This row's slot in state_pool_.
+        lv_subject_t* state_subject = nullptr;
     };
 
     /// Resolve the untranslated i18n key for an option's label — either the
@@ -197,10 +176,13 @@ class PrePrintOptionsRenderer {
     void make_row(lv_obj_t* container, const PrePrintOption& opt,
                   const VisibilitySubjectLookup& visibility_lookup);
 
-    /// The tiles' XML value_changed callback: finds the live renderer that owns
-    /// the tile and records its new state.
+    /// The tiles' XML clicked callback: finds the live renderer that owns the
+    /// tile and flips its state.
     static void on_toggle_value_changed(lv_event_t* e);
 
+    /// pre_print_option_on_<i>: 1 while row i's option is on.
+    helix::xml::IndexedSubjectPool state_pool_{"pre_print_option_on",
+                                               helix::xml::IndexedSubjectPool::Type::Int};
     std::vector<OptionRow> rows_;
     OnToggleCallback on_toggle_;
 };
