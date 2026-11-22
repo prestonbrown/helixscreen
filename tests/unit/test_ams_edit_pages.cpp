@@ -860,6 +860,24 @@ TEST_CASE_METHOD(PagesFixture, "Add to Spoolman files the lane's spool as it sta
     close_editor_overlay();
 }
 
+TEST_CASE_METHOD(PagesFixture, "Add to Spoolman on a lane with no brand says so in a toast",
+                 "[ams_edit_overlay][pages][link_spoolman]") {
+    set_spoolman_available(true);
+    SlotInfo lane = untracked_lane(*backend, 1, "PLA");
+    lane.brand.clear();
+    REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+    open(1, backend->get_slot_info(1));
+    helix::test::ToastLog toasts;
+
+    access.click("add_spoolman_row");
+    settle();
+
+    CHECK(toasts.shown.size() == 1U);
+    CHECK(access.subject_text("ams_edit_save_error").empty());
+    CHECK(backend->get_slot_info(1).spoolman_id == 0);
+    close_editor_overlay();
+}
+
 TEST_CASE_METHOD(PagesFixture, "a failed Add to Spoolman leaves the lane as it was",
                  "[ams_edit_overlay][pages][link_spoolman]") {
     set_spoolman_available(true);

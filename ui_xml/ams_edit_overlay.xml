@@ -453,7 +453,15 @@
           <lv_obj width="#ams_edit_label_w"
                   height="content" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
             <text_body width="100%" text="Filament" long_mode="dots"/>
-            <tag_badge subject="ams_edit_tag_brand"/>
+            <!-- tag_badge's pill, shown while any of the row's fields is the tag's. -->
+            <lv_obj name="filament_tag_badge"
+                    width="content" height="content" style_pad_hor="#space_xs" style_pad_ver="0" style_radius="9999"
+                    style_bg_color="#info" style_bg_opa="60" style_border_width="0" scrollable="false" clickable="false"
+                    hidden="true">
+              <bind_flag_if cond="ams_edit_tag_brand eq 0 and ams_edit_tag_product eq 0 and ams_edit_tag_material eq 0"
+                            flag="hidden"/>
+              <text_xs text="from tag" clickable="false"/>
+            </lv_obj>
           </lv_obj>
           <lv_dropdown name="dropdown_brand"
                        width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">

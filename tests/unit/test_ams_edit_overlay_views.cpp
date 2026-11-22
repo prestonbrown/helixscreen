@@ -3153,6 +3153,14 @@ TEST_CASE_METHOD(EditorFixture, "the material and brand rows show their from-tag
     CHECK(subject_int("ams_edit_tag_material") == 0);
     CHECK(subject_int("ams_edit_tag_brand") == 1);
     CHECK_FALSE(lv_obj_is_hidden(pill));
+
+    // Generic and the tag's material: the material alone keeps the pill.
+    REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
+    REQUIRE(access.pick_dropdown("dropdown_material", "PETG"));
+    process_lvgl(5);
+    REQUIRE(subject_int("ams_edit_tag_brand") == 0);
+    REQUIRE(subject_int("ams_edit_tag_material") == 1);
+    CHECK_FALSE(lv_obj_is_hidden(pill));
     close_editor_overlay();
 }
 
