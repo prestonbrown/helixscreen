@@ -163,6 +163,12 @@ void FilamentConsumptionTracker::unregister_sink(SinkHandle handle) {
     sinks_.erase(it);
 }
 
+void FilamentConsumptionTracker::flush_external_sink() {
+    if (external_sink_raw_) {
+        external_sink_raw_->flush();
+    }
+}
+
 void FilamentConsumptionTracker::on_print_state_changed(PrintJobState state) {
     auto* printer_mm = get_printer_state().print_state().get_print_filament_used_subject();
     const float mm = static_cast<float>(lv_subject_get_int(printer_mm));

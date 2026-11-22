@@ -43,7 +43,11 @@ class AmsBackendRegistry {
     /// add() (an ACE frame announcing its bays), and those consume like the rest.
     void ensure_sinks(int index, int slot_count);
 
-    /// Unregister every sink, then stop and destroy every backend.
+    /// Unregister every sink, which flushes each one's unpersisted weight
+    /// through its backend. The backends stay registered and running.
+    void release_sinks();
+
+    /// release_sinks(), then stop and destroy every backend.
     void clear();
 
     /// Abandon subscriptions and drop the backends without stopping them; for

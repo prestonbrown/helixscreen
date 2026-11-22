@@ -186,6 +186,34 @@ void PrinterState::deinit_subjects() {
     subjects_.deinit_all();
 
     subjects_initialized_ = false;
+    clear_printer_data();
+}
+
+void PrinterState::clear_printer_data() {
+    fan_state_.set_tachometers({});
+    temperature_state_.set_chamber_sensor_name("");
+    temperature_state_.set_chamber_heater_name("");
+    temperature_state_.set_chamber_cooling_fan_name("");
+
+    excluded_objects_state_.clear_data();
+    motion_state_.clear_data();
+    capabilities_state_.clear_data();
+    calibration_state_.clear_data();
+    hardware_validation_state_.clear_data();
+    composite_visibility_state_.clear_data();
+    network_state_.clear_data();
+    print_domain_.clear_data();
+    versions_state_.clear_data();
+    plugin_status_state_.clear_data();
+    profile_state_.clear_data();
+
+    auto_detected_bed_moves_ = false;
+    macro_option_count_ = 0;
+    skip_gates_ = {};
+    is_paused_ = false;
+    last_kinematics_.clear();
+    discovery_ = helix::PrinterDiscovery();
+    network_state_.reset_klippy_state_freshness();
 }
 
 void PrinterState::init_subjects(bool register_xml) {

@@ -151,6 +151,22 @@ void PrinterFanState::deinit_subjects() {
     }
     fan_speed_subjects_.clear();
 
+    // Everything below describes the printer these subjects served. A switch
+    // rebuilds the UI before the next printer's discovery reaches init_fans(),
+    // and classify_primary_fans() must not hand it this printer's fans then.
+    fans_.clear();
+    discovered_objects_.clear();
+    primary_fans_cache_ = PrimaryFans{};
+    fan_max_power_.clear();
+    tachometers_ = fan_tach::TachMap{};
+    heater_fans_ = fan_heaters::HeaterFanMap{};
+    active_heater_.clear();
+    active_tool_part_fan_.clear();
+    tool_part_fans_.clear();
+    tool_heaters_.clear();
+    roles_ = FanRoleConfig{};
+    role_display_names_.clear();
+
     subjects_.deinit_all();
     subjects_initialized_ = false;
 }

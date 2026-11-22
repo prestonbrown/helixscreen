@@ -56,6 +56,10 @@ namespace {
 class PlrOfferPreparingFixture : public LVGLTestFixture {
   public:
     PlrOfferPreparingFixture() {
+        // The controller observes wizard_active, an app-globals subject. A UI
+        // fixture's teardown deinitializes those, and this fixture is not one,
+        // so it initializes them itself (idempotent when they are up).
+        app_globals_init_subjects();
         auto& ps = get_printer_state();
         // The global PrinterState is shared across the shard: reset and
         // re-init, or a prior case's subjects decide this one's answers.

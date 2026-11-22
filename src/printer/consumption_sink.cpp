@@ -261,6 +261,7 @@ void AmsSlotSink::snapshot(float filament_used_mm) {
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info.remaining_weight_g;
     last_written_weight_g_ = info.remaining_weight_g;
+    last_persisted_weight_g_ = info.remaining_weight_g;
     last_persist_tick_ms_ = lv_tick_get();
     active_ = true;
     spdlog::info("[ConsumptionSink:{}] Snapshot: material={}, density={} "
@@ -332,6 +333,7 @@ void AmsSlotSink::apply_delta(float filament_used_mm) {
                                 /*persist=*/persist_now);
     if (persist_now) {
         last_persist_tick_ms_ = lv_tick_get();
+        last_persisted_weight_g_ = new_remaining_g;
     }
     last_written_weight_g_ = new_remaining_g;
 }
@@ -356,10 +358,16 @@ void AmsSlotSink::flush() {
     if (!info_opt.has_value()) {
         return;
     }
+    // A lane the meter has not moved since its last persist already holds this
+    // weight on the printer, so rewriting it is a printer write with nothing in it.
+    if (std::abs(info_opt->remaining_weight_g - last_persisted_weight_g_) < kDeltaWriteThresholdG) {
+        return;
+    }
     // Weight-only flush (see apply_delta) — identity must not be re-asserted.
     backend->update_slot_weight(slot_index_, info_opt->remaining_weight_g, info_opt->total_weight_g,
                                 /*persist=*/true);
     last_written_weight_g_ = info_opt->remaining_weight_g;
+    last_persisted_weight_g_ = info_opt->remaining_weight_g;
     last_persist_tick_ms_ = lv_tick_get();
 }
 
@@ -372,6 +380,7 @@ void AmsSlotSink::rebaseline(float filament_used_mm) {
     snapshot_mm_ = filament_used_mm;
     snapshot_weight_g_ = info_opt->remaining_weight_g;
     last_written_weight_g_ = info_opt->remaining_weight_g;
+    last_persisted_weight_g_ = info_opt->remaining_weight_g;
 }
 
 } // namespace helix

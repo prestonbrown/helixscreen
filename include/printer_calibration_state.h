@@ -56,6 +56,15 @@ class PrinterCalibrationState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        busy_queue_toast_shown_.store(false, std::memory_order_relaxed);
+        // The debounced view of idle_timeout.printing is not a subject; latched,
+        // it makes is_blocking_operation_active() read true for the next printer.
+        idle_timeout_busy_.set_printing(false);
+    }
+
     /**
      * @brief Update calibration state from Moonraker status JSON
      *
@@ -207,8 +216,6 @@ class PrinterCalibrationState {
     }
 
   private:
-    friend class PrinterCalibrationStateTestAccess;
-
     SubjectManager subjects_;
     helix::subjects::VolatileSubjects volatile_;
     bool subjects_initialized_ = false;

@@ -65,9 +65,9 @@ void AmsBackendRegistry::ensure_sinks(int index, int slot_count) {
                   slot_count - have, index, have, slot_count - 1);
 }
 
-void AmsBackendRegistry::clear() {
-    // Sinks go first: unregistering flushes each one, and the flush reads its
-    // backend through get(), so the backend must still be registered then.
+void AmsBackendRegistry::release_sinks() {
+    // Unregistering flushes each sink, and the flush reads its backend through
+    // get(), so the backends must still be registered here.
     std::map<int, std::vector<FilamentConsumptionTracker::SinkHandle>> sinks;
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -79,6 +79,10 @@ void AmsBackendRegistry::clear() {
             tracker.unregister_sink(h);
         }
     }
+}
+
+void AmsBackendRegistry::clear() {
+    release_sinks();
 
     // Unlinked before they stop, so no reader reaches a backend mid-teardown,
     // and stopped outside the lock, so a backend's stop() may ask the registry

@@ -8,8 +8,11 @@
 #include "../test_helpers/mock_printer.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "app_globals.h"
 #include "consumption_sink.h"
+#include "filament_consumption_tracker.h"
 #include "lane_source_store.h"
+#include "printer_state.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -209,4 +212,37 @@ TEST_CASE_METHOD(ExternalSpoolSinkFixture, "ExternalSpoolSink: linking mid-print
     auto shown = helix::AmsState::instance().get_external_spool_info();
     REQUIRE(shown.has_value());
     CHECK(shown->remaining_weight_g == 1000.0f);
+}
+
+// A printer switch disconnects the client, and the external spool's sink lives
+// on past it: grams metered since its last throttled persist go to this
+// printer's bypass record before the disconnect, or nowhere.
+TEST_CASE_METHOD(ExternalSpoolSinkFixture,
+                 "teardown persists the external spool's metered weight before the disconnect",
+                 "[consumption_sink][external][teardown]") {
+    auto& printer = get_printer_state();
+    auto& tracker = helix::FilamentConsumptionTracker::instance();
+    printer.init_subjects(false);
+    tracker.start();
+    lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 0);
+    lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
+                       static_cast<int>(helix::PrintJobState::PRINTING));
+    helix::ui::UpdateQueue::instance().drain();
+    // Inside the persist interval: the meter counts without persisting.
+    lv_subject_set_int(printer.print_state().get_print_filament_used_subject(), 1000);
+    helix::ui::UpdateQueue::instance().drain();
+    const float counted = helix::AmsState::instance().get_external_spool_info()->remaining_weight_g;
+    REQUIRE(counted < 1000.0f);
+    REQUIRE(helix::AmsState::instance().raw_external_spool_info()->remaining_weight_g == 1000.0f);
+
+    helix::AmsState::instance().before_disconnect();
+
+    const auto written = db.client.mock_db_get("lane_data", "lane1");
+    REQUIRE(written.is_object());
+    CHECK(written["remaining_weight_g"].get<float>() == Catch::Approx(counted));
+
+    lv_subject_set_int(printer.print_state().get_print_state_enum_subject(),
+                       static_cast<int>(helix::PrintJobState::STANDBY));
+    helix::ui::UpdateQueue::instance().drain();
+    tracker.stop();
 }

@@ -285,6 +285,30 @@ TEST_CASE("a printer with no database timelapse option still gets the synthesize
     CHECK(lv_subject_get_int(enabled) == 0);
 }
 
+// A printer switch deinits PrinterState and rebuilds the UI on the same
+// object, which reads the printer type before the next printer's is set.
+TEST_CASE("after a printer switch the type and pre-print options are the next printer's",
+          "[printer_state][preprint][printer_switch]") {
+    lv_init_safe();
+    PrinterState& state = fresh_state();
+
+    state.set_printer_type_sync("Snapmaker U1");
+    UpdateQueue::instance().drain();
+    REQUIRE(state.profile_state().printer_type() == "Snapmaker U1");
+    REQUIRE(state.profile_state().pre_print_option_set().find("u1_timelapse") != nullptr);
+
+    state.deinit_subjects();
+    state.init_subjects(false);
+
+    CHECK(state.profile_state().printer_type().empty());
+    CHECK(state.profile_state().pre_print_option_set().options.empty());
+
+    state.set_printer_type_sync("Voron 2.4");
+    UpdateQueue::instance().drain();
+    CHECK(state.profile_state().printer_type() == "Voron 2.4");
+    CHECK(state.profile_state().pre_print_option_set().find("u1_timelapse") == nullptr);
+}
+
 TEST_CASE("firmware-owned timelapse needs no plugin component",
           "[printer_state][preprint][timelapse][capability]") {
     // The install row reads the same owner, so it must not offer the plugin here.

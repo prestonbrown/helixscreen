@@ -46,6 +46,12 @@ class PrinterHardwareValidationState {
      */
     void deinit_subjects();
 
+    /// Forget the printer this state described: the plain members that
+    /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
+    void clear_data() {
+        hardware_validation_result_ = HardwareValidationResult{};
+    }
+
     // ========================================================================
     // Setters
     // ========================================================================
@@ -169,8 +175,6 @@ class PrinterHardwareValidationState {
     }
 
   private:
-    friend class PrinterHardwareValidationStateTestAccess;
-
     SubjectManager subjects_;
     bool subjects_initialized_ = false;
 
