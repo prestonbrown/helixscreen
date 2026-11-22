@@ -299,17 +299,15 @@ void seed_printer_topology(PrinterState& state) {
 
 /// The filament buffer tile binds to AmsState subjects, so it only has content
 /// to lay out while a pressure reading with a set point is published. Scoped to
-/// that tile so the AmsState subjects exist only while a widget that binds them
-/// is measured.
+/// that tile so the reading exists only while it is measured; the AmsState
+/// subjects stay up for the widgets after it, as they do in the app.
 struct BufferReadingSeed {
     BufferReadingSeed() {
-        AmsState::instance().init_subjects(true);
         AmsStateTestAccess::sync_buffer(AmsState::instance(), test::fps_units({0.71f}), 0);
     }
     ~BufferReadingSeed() {
         AmsStateTestAccess::sync_buffer(AmsState::instance(), AmsSystemInfo{}, 0);
         AmsStateTestAccess::clear_buffer_traces(AmsState::instance());
-        AmsState::instance().deinit_subjects();
     }
 };
 
@@ -319,7 +317,6 @@ struct BufferReadingSeed {
 struct ClogReadingSeed {
     ClogReadingSeed() {
         auto& ams = AmsState::instance();
-        ams.init_subjects(true);
         auto mock = std::make_unique<AmsBackendMock>();
         backend_ = mock.get();
         backend_->set_operation_delay(0);
@@ -328,7 +325,6 @@ struct ClogReadingSeed {
     }
     ~ClogReadingSeed() {
         AmsState::instance().set_backend(nullptr);
-        AmsState::instance().deinit_subjects();
     }
     // The widget re-syncs from the backend when it attaches, so the reading has
     // to live there rather than on the subjects.

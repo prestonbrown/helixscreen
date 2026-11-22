@@ -337,6 +337,21 @@ void HelixTestFixture::reset_printer_state() {
     }
 }
 
+void HelixTestFixture::restart_printer_state_observers() {
+    // AmsState's hundreds of lane subjects would otherwise carry one case's values
+    // into the next, and its init rebinds the PrinterState observers it holds.
+    helix::AmsState::instance().deinit_subjects();
+    helix::AmsState::instance().init_subjects(true);
+
+    // PrintControlButtons is a process singleton observing the global PrinterState,
+    // and its init_subjects() is a no-op once up, so the observers a PrinterState
+    // re-init dropped would never come back. Torn down and brought up fresh: the app
+    // initializes it before Print Status exists, and the panel binds its subjects
+    // unconditionally.
+    helix::ui::PrintControlButtonsTestAccess::reset();
+    helix::ui::PrintControlButtons::instance().init_subjects();
+}
+
 void HelixTestFixture::keep_logger_for_exit() {
     static const auto* kept = new std::shared_ptr<spdlog::logger>(spdlog::default_logger());
     (void)kept;
@@ -400,11 +415,10 @@ void HelixTestFixture::reset_all() {
     // session (SubjectInitializer, in this order), so code under test binds them
     // without asking. A case that runs with one of them down has each such binding
     // refused by LVGL, and the observer it wanted never fires (#2125).
-    // init_subjects() is a no-op for an owner already up; AmsState's re-entry also
-    // rebinds its PrinterState observers, which a PrinterState re-init drops.
+    // init_subjects() is a no-op for an owner already up.
     get_printer_state().init_subjects(true);
     helix::ToolState::instance().init_subjects(true);
-    helix::AmsState::instance().init_subjects(true);
+    restart_printer_state_observers();
 
     reset_printer_state();
 
@@ -513,21 +527,6 @@ void HelixTestFixture::reset_all() {
     // reason described below, and no longer needs to be: its PrinterState
     // observers now carry that state's SubjectLifetime, so their guards learn the
     // subjects were deinited rather than walking freed observer nodes.
-
-    // Tear down the PrintControlButtons singleton, which still does need it.
-    // The controller persists across tests (it's a process
-    // singleton) and observes the GLOBAL print_state_enum subject. A later test
-    // calling PrinterStateTestAccess::reset(ps) — or process exit — deinits that
-    // subject; lv_subject_deinit frees the observer node, leaving the
-    // controller's ObserverGuard with a dangling lv_observer_t*. The next
-    // destructor that walks it (the singleton's own static teardown at exit, or
-    // the next fixture's reset()) calls lv_observer_delete() on freed memory →
-    // SIGSEGV / heap corruption. This surfaced as nightly [slow] crashes:
-    // a segfault in ~PrintControlButtons at process exit, plus mid-run
-    // "malloc(): unaligned tcache chunk detected" aborts. Removing the observer
-    // here — while print_state_enum is still alive — closes the window. No-op
-    // when the controller was never initialized.
-    helix::ui::PrintControlButtonsTestAccess::reset();
 
     // AmsState is a process singleton whose `ams_slot_count` gate subject is
     // registered in the global XML scope and driven >0 when an AMS test runs

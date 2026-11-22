@@ -20,7 +20,6 @@
 #include "ui_tile_rung.h"
 #include "ui_unit_art.h"
 
-#include "ams_state.h"
 #include "app_globals.h"
 #include "material_settings_manager.h"
 #include "preset_materials.h"
@@ -132,10 +131,9 @@ XMLTestFixture::XMLTestFixture() : LVGLTestFixture(), m_state(get_printer_state(
 
     // The global PrinterState, reset to a fresh session: the XML names and every
     // get_printer_state() caller under test see the same subjects, as in the app.
-    // AmsState's re-entry rebinds the PrinterState observers the reset dropped.
     helix::PrinterStateTestAccess::reset(m_state);
     m_state.init_subjects(true);
-    helix::AmsState::instance().init_subjects(true);
+    HelixTestFixture::restart_printer_state_observers();
 
     // The app's global subjects (home_edit_mode, platform gates, ...) are live before
     // any XML is built. A fixture that tore them down leaves the names registered

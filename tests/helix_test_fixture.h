@@ -69,6 +69,11 @@ class HelixTestFixture {
     // calls this first.
     static void reset_printer_state();
 
+    /// Re-initializes the singletons that observe the global PrinterState (AmsState,
+    /// PrintControlButtons), fresh. A fixture that re-initializes the global
+    /// PrinterState calls this after, or their observers stay on the dead subjects.
+    static void restart_printer_state_observers();
+
   private:
     /// A test that calls ObserverGuard::invalidate_all() to simulate teardown would
     /// otherwise leave every guard created before it, and destroyed after it, skipping

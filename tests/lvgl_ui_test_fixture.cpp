@@ -185,6 +185,7 @@ void LVGLUITestFixture::init_subjects() {
     // PrinterState subjects (panels depend on these)
     // Pass true to enable XML subject registration
     get_printer_state().init_subjects(true);
+    HelixTestFixture::restart_printer_state_observers();
 
     // Wizard subjects (needed for wizard components)
     ui_wizard_init_subjects();
