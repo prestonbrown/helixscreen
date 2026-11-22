@@ -275,7 +275,7 @@
                 width="100%" height="content" style_margin_top="#ams_edit_lane_gap" flex_flow="row"
                 style_flex_cross_place="start" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                 style_border_width="0" scrollable="false" clickable="false">
-          <bind_flag_if cond="(ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))) and (printer_has_spoolman eq 0 or ams_edit_is_managed eq 1 or ams_edit_adding eq 1)"
+          <bind_flag_if cond="(ams_edit_lane_visible eq 0 or (ams_edit_lane_tap ne 1 and ams_edit_runout_stated eq 0)) and (printer_has_spoolman eq 0 or ams_edit_is_managed eq 1 or ams_edit_adding eq 1)"
                         flag="hidden"/>
           <!-- "Lane Settings" over what they do now, "Feeds T0 · Pauses on runout". -->
           <lv_obj name="lane_line"
@@ -284,7 +284,7 @@
                   hidden="true">
             <style name="nav_row"/>
             <style name="styles.press_wash" selector="pressed"/>
-            <bind_flag_if cond="ams_edit_lane_visible eq 0 or ((ams_edit_tool_row_visible eq 0 or ams_edit_tool_editable eq 0) and (ams_edit_backup_row_visible eq 0 or ams_edit_backup_editable eq 0))"
+            <bind_flag_if cond="ams_edit_lane_visible eq 0 or (ams_edit_lane_tap ne 1 and ams_edit_runout_stated eq 0)"
                           flag="hidden"/>
             <event_cb trigger="clicked" callback="ams_edit_open_lane_cb"/>
             <lv_obj height="content"
@@ -297,7 +297,12 @@
                           width="100%" bind_text="ams_edit_lane_line" long_mode="dots" style_text_color="#text_muted"
                           clickable="false" event_bubble="true"/>
             </lv_obj>
-            <icon src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true"/>
+            <!-- Only where a tap opens something: the lane's settings, or the
+                 unit's switch for its runout refill. -->
+            <icon name="lane_line_chevron"
+                  src="chevron_right" size="sm" variant="muted" clickable="false" event_bubble="true">
+              <bind_flag_if_eq subject="ams_edit_lane_tap" flag="hidden" ref_value="0"/>
+            </icon>
           </lv_obj>
           <!-- One tap files the spool in Spoolman as the lane holds it and
                links the lane. -->

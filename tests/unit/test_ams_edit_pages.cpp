@@ -1140,3 +1140,65 @@ TEST_CASE_METHOD(PagesFixture, "a label scanned on the empty page or the list op
     CHECK(access.save_disabled() == 0);
     close_editor_overlay();
 }
+
+namespace {
+/// A filament system whose firmware keeps the runout backup.
+struct FirmwareRunoutMock : AmsBackendMock {
+    using AmsBackendMock::AmsBackendMock;
+    helix::printer::EndlessSpoolCapabilities caps;
+    std::optional<int> backup;
+    helix::printer::EndlessSpoolCapabilities get_endless_spool_capabilities() const override {
+        return caps;
+    }
+    std::optional<int> runout_backup_for(int /*slot*/) const override {
+        return backup;
+    }
+};
+} // namespace
+
+TEST_CASE_METHOD(PagesFixture, "a firmware-kept runout reads on the summary, read-only",
+                 "[ams_edit_overlay][pages][lane_runout]") {
+    using helix::printer::EndlessSpoolAvailability;
+    using helix::printer::EndlessSpoolEditability;
+    using helix::printer::EndlessSpoolEnabled;
+    auto owned = std::make_unique<FirmwareRunoutMock>(4);
+    FirmwareRunoutMock* mock = owned.get();
+    mock->set_remap_strategy(AmsBackend::RemapStrategy::PrePrintSend);
+    mock->caps.availability = EndlessSpoolAvailability::Available;
+    mock->caps.editability = EndlessSpoolEditability::ReadOnly;
+    mock->caps.enabled = EndlessSpoolEnabled::On;
+    REQUIRE(mock->start().success());
+    AmsState::instance().set_backend(std::move(owned));
+    const auto lane_line = [this] { return access.subject_text("ams_edit_lane_line"); };
+    const std::string third = helix::ui::lane_label(mock->lane_noun(), 2);
+
+    SECTION("on, with a matching spool: continues from it") {
+        mock->backup = 2;
+        open(1, describe_lane(*mock, 1, "PLA"));
+        REQUIRE(access.shown("lane_line"));
+        CHECK(lane_line() == "Continues from " + third + " on runout");
+        CHECK_FALSE(access.shown("lane_line_chevron"));
+    }
+    SECTION("on, without one: pauses") {
+        mock->backup = -1;
+        open(1, describe_lane(*mock, 1, "PLA"));
+        REQUIRE(access.shown("lane_line"));
+        CHECK(lane_line() == "Pauses on runout (no matching spool)");
+    }
+    SECTION("off, and switchable: pauses, and the row opens the switch") {
+        mock->caps.enabled = EndlessSpoolEnabled::Off;
+        mock->caps.switchable = true;
+        open(1, describe_lane(*mock, 1, "PLA"));
+        REQUIRE(access.shown("lane_line"));
+        CHECK(lane_line() == "Pauses on runout (automatic refill off)");
+        CHECK(access.shown("lane_line_chevron"));
+        CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_lane_tap")) ==
+              static_cast<int>(helix::spool_assign::LaneTap::RefillToggle));
+    }
+    SECTION("unsupported: no row") {
+        mock->caps.availability = EndlessSpoolAvailability::Unsupported;
+        open(1, describe_lane(*mock, 1, "PLA"));
+        CHECK_FALSE(access.shown("lane_line"));
+    }
+    close_editor_overlay();
+}
