@@ -34,6 +34,11 @@ class FilamentCatalogPickerModal : public Modal {
     /// context only).
     void set_reset_callback(std::function<void()> cb);
 
+    /// Set before calling show() to open on this vendor (case-insensitive), or
+    /// on the Favorites view with FilamentCatalogSelector::favorites_vendor();
+    /// nullopt opens on Generic.
+    void set_seed_vendor(std::optional<std::string> vendor);
+
     [[nodiscard]] const char* get_name() const override {
         return "Filament Catalog Picker";
     }
@@ -59,6 +64,7 @@ class FilamentCatalogPickerModal : public Modal {
     std::optional<std::vector<std::string>> allowed_types_;
     SelectCallback on_select_;
     std::function<void()> reset_callback_; // set -> show "Reset to defaults" row
+    std::optional<std::string> seed_vendor_;
 };
 
 } // namespace helix::ui
