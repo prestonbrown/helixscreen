@@ -111,6 +111,15 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
     void set_timelapse_enabled(bool enabled, SuccessCallback on_success,
                                ErrorCallback on_error) override;
 
+    /**
+     * @brief Set the named settings without changing the others
+     *
+     * A mode changed while a print runs starts or stops the plugin's
+     * Hyperlapse timer at once.
+     */
+    void set_timelapse_values(const std::vector<std::pair<std::string, std::string>>& values,
+                              SuccessCallback on_success, ErrorCallback on_error) override;
+
     // ========================================================================
     // Timelapse Render / Frame Operations (JSON-RPC)
     // ========================================================================
@@ -158,4 +167,9 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
   protected:
     helix::IMoonrakerClient& client_;
     const std::string& http_base_url_;
+
+  private:
+    /// POST one `param=value` to /machine/timelapse/settings; @p op names it in errors.
+    void post_one_setting(const std::string& query, const char* op, SuccessCallback on_success,
+                          ErrorCallback on_error);
 };

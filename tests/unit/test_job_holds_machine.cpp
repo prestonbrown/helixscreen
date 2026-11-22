@@ -559,6 +559,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/components/preflight_check_modal.xml",
     "ui_xml/components/preview_icon_button.xml",
     "ui_xml/components/preview_stack.xml",
+    "ui_xml/components/print_gate_choice_modal.xml",
     "ui_xml/components/print_status_actions.xml",
     "ui_xml/components/print_status_detailed_active.xml",
     "ui_xml/components/print_status_detailed_idle.xml",

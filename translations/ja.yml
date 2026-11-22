@@ -703,6 +703,7 @@ translations:
   CONNECTION TYPE: 接続タイプ
   CONTROLLABLE FANS: 制御可能なファン
   Calibrate with this tool?: 'このツールで校正しますか？'
+  Could not switch timelapse to Hyperlapse: 'タイムラプスをハイパーラプスに切り替えられませんでした'
   Could not turn the heaters off: 'ヒーターを切れませんでした'
   CPU: CPU
   'CPU: ': 'CPU: '
@@ -2343,7 +2344,7 @@ translations:
   Humidity inside the enclosure: チャンバー内の湿度
   Humidity Sensors: 湿度センサー
   Hyperlapse: ハイパーラプス
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: ハイパーラプスは一定の時間間隔でフレームを撮影します。非常に長い印刷に適しています。
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'ハイパーラプスは一定間隔でフレームを撮影します。スライサーの設定は不要ですが、ヘッドはその時の位置に写ります。'
   Hyperspace: ハイパースペース
   I understand: 理解しました
 
@@ -2611,9 +2612,20 @@ translations:
   Layer: レイヤー
   Layer 2: 'レイヤー2'
   Layer Height: レイヤー高さ
-  Layer Macro captures one frame per layer change. Best for most prints.: レイヤーマクロはレイヤーが変わるごとに 1 フレームを撮影します。ほとんどの印刷に最適です。
   Layer Pause: 'レイヤー一時停止'
-  Layer mode captures one frame per layer change. Best for most prints.: レイヤーモードはレイヤー変更ごとに1フレームをキャプチャします。ほとんどの印刷に最適です。
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code で次を実行する必要があります:
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷が下のマクロを実行したときだけです。ないと動画はほとんど空になります。
+
+    スライサーのレイヤー変更 G-code に追加してください:
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。'
   Layer {} of {} · {:.2f} mm: レイヤー {} / {} · {:.2f} mm
   Layer {} of {}.: 'レイヤー {} / {}。'
   Layer {}, Z {:.2f} mm: レイヤー {}、Z {:.2f} mm
@@ -3037,6 +3049,7 @@ translations:
   No Power Devices: 電源デバイスなし
   No Spool: スプールなし
   No Spools: スプールなし
+  No Timelapse Frames: 'タイムラプスのフレームがありません'
   No USB printer detected: USB プリンターが検出されません
   No USB printers found: USBプリンターが見つかりません
   No actions right now: '現在利用できる操作はありません'
@@ -3140,7 +3153,6 @@ translations:
   No vendors found: ベンダーが見つかりません
   No verified bypass command for this CFS firmware: 'この CFS ファームウェアには検証済みのバイパスコマンドがありません'
   No video player installed - showing the timelapse library: '動画プレーヤーがありません – タイムラプス一覧を表示します'
-  No video player on this printer: 'このプリンターには動画プレーヤーがありません'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "ウェブカメラが検出されませんでした。\nタイムラプスにはウェブカメラが必要です。"
   No widgets found: ウィジェットが見つかりません
@@ -3260,6 +3272,7 @@ translations:
   Objects: オブジェクト
   Objects in the print, with a tap to open the skip map: '印刷中のオブジェクト。タップでスキップマップを開きます'
   'Off': オフ
+  Off for This Print: 'この印刷ではオフ'
   'Off:': 'オフ:'
   'Off: runs with these values without asking': 'オフ: これらの値で確認なしに実行'
   Offer to save Z-offset changes to the printer config: 'Z-Offset の変更をプリンター設定に保存する操作を表示します'
@@ -5094,6 +5107,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   Timelapse did not start: 'タイムラプスが開始されませんでした'
   Timelapse frames start after Klipper restarts.: 'タイムラプスのフレームは Klipper の再起動後に撮影されます。'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'タイムラプスはまだハイパーラプスモードです。設定 > 印刷 > タイムラプス で元に戻してください。'
   Timelapse or logs folder overlaps a protected one.: "タイムラプスまたはログのフォルダーが保護フォルダーと重なっています。"
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'タイムラプスプラグインはインストールされました。動画の作成にはffmpegも必要ですが、このプリンターにはインストールされていません。'
   The tool change under way finished, and the tool was not parked: '実行中のツール変更は完了し、ツールは格納されていません'
@@ -5195,6 +5209,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'このファイルは {0} と {1} を同時に印刷します。{1} に必要なチャンバーとベッドの熱で {0} が柔らかくなり、ノズルが詰まる可能性があります。'
   This file was sliced for {} but {} is loaded.: このファイルは {} 用にスライスされていますが、{} がロードされています。
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: このファイルは {} 用にスライスされていますが、{} がロードされています。装填中のスプールが必要とするより遅く高温で印刷されます。
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'このファイルではタイムラプスのフレームが撮影されません。レイヤーモードは、ファイルがレイヤー変更ごとにこの行を実行したときだけ撮影しますが、スライサーが追加していません:
+
+    TIMELAPSE_TAKE_FRAME
+
+    ハイパーラプスなら一定間隔で撮影します。'
   This firmware can only switch slots by loading them: 'このファームウェアはスロットを装填して切り替えることしかできません'
   The filament took too long to reach the feeder's sensor.: 'フィラメントがフィーダーのセンサーに届くまで時間がかかりすぎました。'
   The filament went into the toolhead past its feeder. Load it by hand.: "フィラメントがフィーダーを通らずにツールヘッドに入りました。手動で装填してください。"
@@ -5230,7 +5250,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "このプリンターにはまだ [save_variables] ストアがありません。ヘルパーマクロを更新して追加し、Klipper を再起動してください。"
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: このプリンターには自動アンロード機能がありません。ヘッド部分でフィラメントを切り、手で引き抜いてください。
   This printer has no timezone, so its clock reads UTC. Pick yours.: "このプリンターにはタイムゾーンがないため、時計は UTC を表示しています。お住まいの地域を選んでください。"
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'このプリンターには動画プレーヤーがありません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'このプリンターには {} コマンドがないため、Zオフセットを保存できません。'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : このプリンターは {} のようです（信頼度 {}%）が、{} として設定されています。誤ったタイプでは不正確な印刷前オプションとプリセットが適用されます。
@@ -5258,6 +5277,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "この画面のこのプリンター用ホームレイアウトを、プリンター本体の画面のレイアウトに置き換えます。"
   This resume needs a newer version of HelixScreen.: この再開には新しいバージョンのHelixScreenが必要です。
   This screen: 'この画面'
+  This screen can't play videos: 'この画面では動画を再生できません'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'この画面では動画を再生できません。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   This slot feeds no tool: 'このスロットはどのツールにも供給しません'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'このスプールは使い切られたため、CFS は残ったフィラメントを引き戻せません。'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'このスプールの詳細はまだSpoolmanから読み込まれていません。もう一度保存してください。'
@@ -5573,6 +5594,7 @@ translations:
   Use Another Toolhead: '別のツールヘッドを使用'
   Use DHCP: 'DHCPを使用'
   Use G10/G11 firmware retraction: G10/G11 ファームウェアリトラクションを使用
+  Use Hyperlapse: 'ハイパーラプスを使う'
   Use New Address: '新しいアドレスを使用'
   Use Unload before Eject: '先に「アンロード」してから「排出」してください'
   Use as bypass: "バイパスとして使用"

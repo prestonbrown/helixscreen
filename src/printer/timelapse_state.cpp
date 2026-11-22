@@ -9,14 +9,17 @@
 #include "core/static_subject_registry.h"
 #include "core/update_queue.h"
 #include "display_format.h"
+#include "i_moonraker_api.h"
 #include "json_utils.h"
 #include "notice.h"
+#include "printer_pending_restore.h"
 #include "printer_state.h"
 #include "replace_method_callback.h"
 #include "state/subject_macros.h"
 
 #include <spdlog/spdlog.h>
 
+#include <algorithm>
 #include <cstring>
 
 #include "hv/json.hpp"
@@ -251,6 +254,325 @@ void TimelapseState::reset() {
         last_rendered_filename_.clear();
     }
     spdlog::debug("[TimelapseState] State reset");
+}
+
+namespace timelapse {
+
+namespace {
+std::string bool_word(bool v) {
+    return v ? "True" : "False";
+}
+
+/// The plugin's value of @p key in @p s, in the form a write sends it.
+std::string setting_value(const TimelapseSettings& s, const std::string& key) {
+    if (key == "mode") {
+        return s.mode;
+    }
+    if (key == "parkhead") {
+        return bool_word(s.parkhead);
+    }
+    if (key == "enabled") {
+        return bool_word(s.enabled);
+    }
+    return {};
+}
+} // namespace
+
+std::string encode_owed(const std::vector<OwedSetting>& owed) {
+    nlohmann::json j = nlohmann::json::object();
+    for (const auto& o : owed) {
+        j[o.key] = nlohmann::json::array({o.owed, o.switched});
+    }
+    return owed.empty() ? std::string{} : j.dump();
+}
+
+std::vector<OwedSetting> decode_owed(const std::string& record) {
+    std::vector<OwedSetting> owed;
+    const nlohmann::json j = nlohmann::json::parse(record, nullptr, false);
+    if (!j.is_object()) {
+        return owed;
+    }
+    for (auto it = j.begin(); it != j.end(); ++it) {
+        const auto& pair = it.value();
+        if (pair.is_array() && pair.size() == 2 && pair[0].is_string() && pair[1].is_string()) {
+            owed.push_back({it.key(), pair[0].get<std::string>(), pair[1].get<std::string>()});
+        }
+    }
+    return owed;
+}
+
+std::vector<OwedSetting> merge_owed(std::vector<OwedSetting> existing,
+                                    const std::vector<OwedSetting>& added) {
+    for (const auto& a : added) {
+        auto it = std::find_if(existing.begin(), existing.end(),
+                               [&a](const OwedSetting& e) { return e.key == a.key; });
+        if (it == existing.end()) {
+            existing.push_back(a);
+        } else {
+            it->switched = a.switched;
+        }
+    }
+    return existing;
+}
+
+std::vector<OwedSetting> hyperlapse_switch(const TimelapseSettings& current) {
+    std::vector<OwedSetting> change;
+    if (current.mode != "hyperlapse") {
+        change.push_back({"mode", current.mode, "hyperlapse"});
+    }
+    if (current.parkhead) {
+        change.push_back({"parkhead", bool_word(true), bool_word(false)});
+    }
+    return change;
+}
+
+std::vector<OwedSetting> timelapse_off_switch() {
+    return {{"enabled", bool_word(true), bool_word(false)}};
+}
+
+std::vector<std::pair<std::string, std::string>>
+settings_to_restore(const std::vector<OwedSetting>& owed, const TimelapseSettings& current) {
+    std::vector<std::pair<std::string, std::string>> values;
+    for (const auto& o : owed) {
+        if (setting_value(current, o.key) == o.switched) {
+            values.emplace_back(o.key, o.owed);
+        }
+    }
+    return values;
+}
+
+} // namespace timelapse
+
+void TimelapseState::queue_plugin_op(std::function<void(std::function<void()>)> op) {
+    plugin_ops_.push_back(std::move(op));
+    run_next_plugin_op();
+}
+
+void TimelapseState::run_next_plugin_op() {
+    if (plugin_op_in_flight_ || plugin_ops_.empty()) {
+        return;
+    }
+    auto op = std::move(plugin_ops_.front());
+    plugin_ops_.pop_front();
+    plugin_op_in_flight_ = true;
+    op([this]() {
+        plugin_op_in_flight_ = false;
+        run_next_plugin_op();
+    });
+}
+
+void TimelapseState::post_settings(ITimelapseAPI& api,
+                                   std::vector<std::pair<std::string, std::string>> values,
+                                   std::function<void()> on_done) {
+    queue_plugin_op([this, &api, values = std::move(values),
+                     on_done = std::move(on_done)](std::function<void()> next) {
+        auto tok = async_lifetime_.token();
+        api.set_timelapse_values(
+            values,
+            [tok, on_done, next]() {
+                tok.defer("TimelapseState::settings_written", [on_done, next]() {
+                    if (on_done) {
+                        on_done();
+                    }
+                    next();
+                });
+            },
+            [tok, values, next](const MoonrakerError& err) {
+                spdlog::error("[TimelapseState] Timelapse settings write failed: {}", err.message);
+                tok.defer("TimelapseState::settings_write_failed", [values, next]() {
+                    const bool switching =
+                        std::any_of(values.begin(), values.end(), [](const auto& v) {
+                            return v.first == "mode" && v.second == "hyperlapse";
+                        });
+                    if (switching) {
+                        NOTIFY_WARNING(lv_tr("Could not switch timelapse to Hyperlapse"));
+                    } else {
+                        NOTIFY_WARNING(lv_tr("Timelapse is still in Hyperlapse mode. Switch it "
+                                             "back in Settings > Printing > Timelapse."));
+                    }
+                    next();
+                });
+            });
+    });
+}
+
+void TimelapseState::owe(const std::vector<timelapse::OwedSetting>& added) {
+    const auto owed = timelapse::merge_owed(
+        timelapse::decode_owed(pending_restore::read(timelapse::kModeRestoreKey)), added);
+    pending_restore::write(timelapse::kModeRestoreKey, timelapse::encode_owed(owed));
+}
+
+void TimelapseState::record_print_as_hyperlapse(ITimelapseAPI& api, lv_subject_t* lifecycle,
+                                                const SubjectLifetime& lifetime) {
+    restore_api_ = &api;
+    const uint64_t generation = ++restore_generation_;
+    // Watched from now, so even a short print's end is seen.
+    watch_print_end(lifecycle, lifetime, false);
+    queue_plugin_op([this, &api, generation](std::function<void()> next) {
+        auto tok = async_lifetime_.token();
+        api.get_timelapse_settings(
+            [this, tok, &api, generation, next](const TimelapseSettings& settings) {
+                tok.defer("TimelapseState::hyperlapse_read",
+                          [this, &api, generation, next, settings]() {
+                              // Superseded, or the print is already over: switch nothing.
+                              if (generation != restore_generation_ || !watching_print_end_) {
+                                  next();
+                                  return;
+                              }
+                              const auto change = timelapse::hyperlapse_switch(settings);
+                              if (!change.empty()) {
+                                  // Owed before it is sent: a restart from here on still puts it
+                                  // back.
+                                  owe(change);
+                                  std::vector<std::pair<std::string, std::string>> values;
+                                  for (const auto& c : change) {
+                                      values.emplace_back(c.key, c.switched);
+                                  }
+                                  post_settings(api, std::move(values), [this]() {
+                                      spdlog::info("[TimelapseState] Hyperlapse for this print");
+                                      layer_mode_.store(false);
+                                  });
+                              }
+                              next();
+                          });
+            },
+            [tok, next](const MoonrakerError& err) {
+                spdlog::error("[TimelapseState] Could not read timelapse settings: {}",
+                              err.message);
+                tok.defer("TimelapseState::hyperlapse_read_failed", [next]() {
+                    NOTIFY_WARNING(lv_tr("Could not switch timelapse to Hyperlapse"));
+                    next();
+                });
+            });
+    });
+}
+
+void TimelapseState::begin_print_without_timelapse(ITimelapseAPI& api, lv_subject_t* lifecycle,
+                                                   const SubjectLifetime& lifetime) {
+    restore_api_ = &api;
+    ++restore_generation_;
+    owe(timelapse::timelapse_off_switch());
+    watch_print_end(lifecycle, lifetime, false);
+}
+
+void TimelapseState::start_ended_without_print() {
+    if (!watching_print_end_ || print_end_latch_.seen_running()) {
+        return;
+    }
+    stop_watching_print_end();
+    settle_mode_restore(restore_api_, ReportedPrintActivity::Idle);
+}
+
+void TimelapseState::watch_print_end(lv_subject_t* lifecycle, const SubjectLifetime& lifetime,
+                                     bool already_running) {
+    if (!lifecycle) {
+        return;
+    }
+    print_end_latch_ = timelapse::PrintEndLatch{};
+    if (already_running) {
+        (void)print_end_latch_.ended_by(PrintState::Printing);
+    }
+    watching_print_end_ = true;
+    print_end_observer_ = helix::ui::observe_print_lifecycle<TimelapseState>(
+        lifecycle, this,
+        [](TimelapseState* self, PrintState state) {
+            if (!self->print_end_latch_.ended_by(state)) {
+                return;
+            }
+            self->watching_print_end_ = false;
+            // Deferred: this runs inside the observer it releases.
+            self->async_lifetime_.defer("TimelapseState::print_ended", [self]() {
+                self->print_end_observer_.reset();
+                self->settle_mode_restore(self->restore_api_, ReportedPrintActivity::Idle);
+            });
+        },
+        lifetime);
+}
+
+void TimelapseState::stop_watching_print_end() {
+    watching_print_end_ = false;
+    print_end_observer_.reset();
+}
+
+void TimelapseState::settle_mode_restore(ReportedPrintActivity activity) {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (api) {
+        restore_api_ = &api->timelapse();
+    }
+    if (!watching_print_end_ && activity != ReportedPrintActivity::Idle &&
+        !pending_restore::read(timelapse::kModeRestoreKey).empty()) {
+        watch_print_end(get_printer_state().print_state().get_print_lifecycle_subject(),
+                        get_printer_state().get_subjects_lifetime(),
+                        activity == ReportedPrintActivity::Active);
+    }
+    settle_mode_restore(restore_api_, activity);
+}
+
+void TimelapseState::settle_mode_restore(ITimelapseAPI* api, ReportedPrintActivity activity) {
+    const bool pending = !pending_restore::read(timelapse::kModeRestoreKey).empty();
+    // A watch that has not seen its print run vouches for nothing: the
+    // printer's own report decides.
+    const bool watching = watching_print_end_ && print_end_latch_.seen_running();
+    if (!api || timelapse::mode_restore_step(pending, watching, activity) !=
+                    timelapse::ModeRestoreStep::FetchSettings) {
+        return;
+    }
+    if (watching_print_end_) {
+        stop_watching_print_end();
+    }
+    const uint64_t generation = restore_generation_;
+    queue_plugin_op([this, api, generation](std::function<void()> next) {
+        auto tok = async_lifetime_.token();
+        api->get_timelapse_settings(
+            [this, tok, api, generation, next](const TimelapseSettings& settings) {
+                tok.defer("TimelapseState::restore_read", [this, api, generation, next,
+                                                           settings]() {
+                    if (generation != restore_generation_) {
+                        next();
+                        return;
+                    }
+                    const auto values = timelapse::settings_to_restore(
+                        timelapse::decode_owed(pending_restore::read(timelapse::kModeRestoreKey)),
+                        settings);
+                    if (values.empty()) {
+                        spdlog::info("[TimelapseState] Timelapse settings changed since the "
+                                     "switch: nothing to put back");
+                        pending_restore::write(timelapse::kModeRestoreKey, {});
+                        set_mode(settings.mode);
+                        next();
+                        return;
+                    }
+                    spdlog::info("[TimelapseState] Print over: putting {} timelapse setting(s) "
+                                 "back",
+                                 values.size());
+                    post_settings(*api, values, [this, generation, values]() {
+                        for (const auto& [key, value] : values) {
+                            if (key == "mode") {
+                                set_mode(value);
+                            }
+                        }
+                        // A switch since this read owns the record now.
+                        if (generation == restore_generation_) {
+                            pending_restore::write(timelapse::kModeRestoreKey, {});
+                        }
+                    });
+                    next();
+                });
+            },
+            [tok, next](const MoonrakerError& err) {
+                spdlog::warn("[TimelapseState] Could not read timelapse settings to restore "
+                             "them: {}",
+                             err.message);
+                tok.defer("TimelapseState::restore_read_failed", [next]() { next(); });
+            });
+    });
+}
+
+void TimelapseState::forget_mode_restore() {
+    ++restore_generation_;
+    restore_api_ = nullptr;
+    pending_restore::write(timelapse::kModeRestoreKey, {});
+    stop_watching_print_end();
 }
 
 } // namespace helix

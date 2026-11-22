@@ -715,6 +715,7 @@ translations:
   CONNECTION TYPE: TYPE DE CONNEXION
   CONTROLLABLE FANS: VENTILATEURS CONTRÔLABLES
   Calibrate with this tool?: 'Calibrer avec cet outil ?'
+  Could not switch timelapse to Hyperlapse: 'Impossible de passer le timelapse en Hyperlapse'
   Could not turn the heaters off: Impossible de couper les chauffes
   CPU: CPU
   'CPU: ': 'CPU : '
@@ -2355,7 +2356,7 @@ translations:
   Humidity inside the enclosure: Humidité dans l'enceinte
   Humidity Sensors: Capteurs d'humidité
   Hyperlapse: Hyperlapse
-  Hyperlapse captures frames at fixed time intervals. Good for very long prints.: L'hyperlapse capture des images à intervalles de temps fixes. Idéal pour les impressions très longues.
+  Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is.: 'Hyperlapse prend une image à intervalle régulier. Aucun réglage du trancheur, mais la tête apparaît où qu''elle soit.'
   Hyperspace: Hyperespace
   I understand: J'ai compris
 
@@ -2623,9 +2624,20 @@ translations:
   Layer: Couche
   Layer 2: 'Couche 2'
   Layer Height: Hauteur de couche
-  Layer Macro captures one frame per layer change. Best for most prints.: La macro de couche capture une image à chaque changement de couche. Idéal pour la plupart des impressions.
   Layer Pause: 'Pause à la couche'
-  Layer mode captures one frame per layer change. Best for most prints.: Le mode couche capture une image par changement de couche. Idéal pour la plupart des impressions.
+  ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
+  : 'Couche prend une image à chaque changement de couche. Le G-code de changement de couche de votre trancheur doit exécuter :
+
+    TIMELAPSE_TAKE_FRAME'
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Couche prend une image à chaque changement de couche, mais seulement lorsque l''impression exécute la macro ci-dessous ; sans elle, la vidéo reste presque vide.
+
+    Ajoutez-la au G-code de changement de couche de votre trancheur :
+
+    TIMELAPSE_TAKE_FRAME
+
+
+    Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu''elle soit.'
   Layer {} of {} · {:.2f} mm: Couche {} sur {} · {:.2f} mm
   Layer {} of {}.: 'Couche {} sur {}.'
   Layer {}, Z {:.2f} mm: Couche {}, Z {:.2f} mm
@@ -3049,6 +3061,7 @@ translations:
   No Power Devices: Aucun appareil électrique
   No Spool: Aucune bobine
   No Spools: Aucune bobine
+  No Timelapse Frames: 'Aucune image de timelapse'
   No USB printer detected: Aucune imprimante USB détectée
   No USB printers found: Aucune imprimante USB trouvée
   No actions right now: 'Aucune action pour le moment'
@@ -3152,7 +3165,6 @@ translations:
   No vendors found: Aucun fournisseur trouvé
   No verified bypass command for this CFS firmware: 'Aucune commande de bypass vérifiée pour ce firmware CFS'
   No video player installed - showing the timelapse library: 'Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse'
-  No video player on this printer: 'Aucun lecteur vidéo sur cette imprimante'
   ? "No webcam detected.\nA webcam is required for timelapse."
   : "Aucune webcam détectée.\nUne webcam est requise pour le timelapse."
   No widgets found: Aucun widget trouvé
@@ -3272,6 +3284,7 @@ translations:
   Objects: Objets
   Objects in the print, with a tap to open the skip map: 'Objets de l''impression, un toucher ouvre la carte d''exclusion'
   'Off': Éteint
+  Off for This Print: 'Sans timelapse'
   'Off:': 'Arrêt :'
   'Off: runs with these values without asking': 'Désactivé : exécute avec ces valeurs sans demander'
   Offer to save Z-offset changes to the printer config: 'Proposer d''enregistrer les modifications du Z-Offset dans la configuration de l''imprimante'
@@ -5106,6 +5119,7 @@ translations:
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
   Timelapse did not start: 'Le timelapse n''a pas démarré'
   Timelapse frames start after Klipper restarts.: 'Les images du timelapse commencent après le redémarrage de Klipper.'
+  Timelapse is still in Hyperlapse mode. Switch it back in Settings > Printing > Timelapse.: 'Le timelapse est toujours en mode Hyperlapse. Rétablissez-le dans Paramètres > Impression > Timelapse.'
   Timelapse or logs folder overlaps a protected one.: "Le dossier timelapse ou journaux chevauche un dossier protégé."
   The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer.: 'Le plugin timelapse est installé. Pour créer des vidéos, ffmpeg est aussi nécessaire, et il n''est pas installé sur cette imprimante.'
   The tool change under way finished, and the tool was not parked: 'Le changement d''outil en cours s''est terminé et l''outil n''a pas été rangé'
@@ -5207,6 +5221,12 @@ translations:
   This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle.: 'Ce fichier imprime {0} et {1} ensemble. La chaleur de l''enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse.'
   This file was sliced for {} but {} is loaded.: Ce fichier a été tranché pour {} mais {} est chargé.
   This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs.: Ce fichier a été tranché pour {}, mais {} est chargé. L'impression sera plus lente et plus chaude que ce qu'exige la bobine chargée.
+  ? "This file won't capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:\nTIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."
+  : 'Ce fichier ne capturera aucune image de timelapse. Le mode couche ne prend une image que lorsque le fichier exécute cette ligne à chaque changement de couche, et votre trancheur ne l''a pas ajoutée :
+
+    TIMELAPSE_TAKE_FRAME
+
+    Hyperlapse prend plutôt des images à intervalle régulier.'
   This firmware can only switch slots by loading them: 'Ce firmware ne peut changer de slot qu''en le chargeant'
   The filament took too long to reach the feeder's sensor.: 'Le filament a mis trop de temps à atteindre le capteur de l''alimentateur.'
   The filament went into the toolhead past its feeder. Load it by hand.: "Le filament est entré dans la tête d'outil sans passer par son alimentateur. Chargez-le à la main."
@@ -5242,7 +5262,6 @@ translations:
   This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper.: "Cette imprimante n'a pas encore de stockage [save_variables]. Mettez à jour les macros d'aide pour en ajouter un, puis redémarrez Klipper."
   This printer has no automatic unload. Cut the filament at the head and pull it out by hand.: Cette imprimante n'a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main.
   This printer has no timezone, so its clock reads UTC. Pick yours.: "Cette imprimante n'a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."
-  This printer has no video player. Scan the code with your phone to watch the timelapse.: 'Cette imprimante n''a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse.'
   'This printer has no {} command, so the Z-offset cannot be saved.': 'Cette imprimante n''a pas de commande {}, le décalage Z ne peut donc pas être enregistré.'
   ? This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets.
   : Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects.
@@ -5270,6 +5289,8 @@ translations:
   This replaces this screen's home layout for this printer with the one on the printer's own screen.: "Cela remplace la disposition de l'écran d'accueil de cet écran pour cette imprimante par celle de l'écran de l'imprimante."
   This resume needs a newer version of HelixScreen.: Cette reprise nécessite une version plus récente de HelixScreen.
   This screen: 'Cet écran'
+  This screen can't play videos: 'Cet écran ne peut pas lire de vidéos'
+  This screen can't play videos. Scan the code with your phone to watch the timelapse.: 'Cet écran ne peut pas lire de vidéos. Scannez le code avec votre téléphone pour regarder le timelapse.'
   This slot feeds no tool: 'Ce slot n''alimente aucun outil'
   This spool ran out, so the CFS cannot pull the leftover filament back.: 'Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant.'
   This spool's details haven't loaded from Spoolman yet. Try Save again.: 'Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer.'
@@ -5585,6 +5606,7 @@ translations:
   Use Another Toolhead: 'Utiliser une autre tête d''outil'
   Use DHCP: 'Utiliser DHCP'
   Use G10/G11 firmware retraction: Utiliser la rétraction firmware G10/G11
+  Use Hyperlapse: 'Utiliser Hyperlapse'
   Use New Address: 'Utiliser la nouvelle adresse'
   Use Unload before Eject: 'Utilisez Décharger avant Éjecter'
   Use as bypass: "Utiliser comme bypass"

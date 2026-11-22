@@ -28,6 +28,7 @@
 #include "system/telemetry_manager.h"
 #include "temp_graph_controller.h"
 #include "thermal_rate_model.h"
+#include "timelapse_state.h"
 #include "z_offset_persistence.h"
 
 #include <spdlog/spdlog.h>
@@ -243,6 +244,13 @@ void pending_remap_recovery_step(DiscoveryContext& ctx) {
         .recover_pending_remap(discovery_print_activity(ctx.print_active, ctx.status));
 }
 
+// Put back a timelapse mode a Hyperlapse-for-this-print switch changed and an earlier
+// session did not restore, decided on this discovery's own status like the remap above.
+void timelapse_mode_restore_step(DiscoveryContext& ctx) {
+    TimelapseState::instance().settle_mode_restore(
+        discovery_print_activity(ctx.print_active, ctx.status));
+}
+
 void settle_light_buttons_step(DiscoveryContext&) {
     settle_light_buttons();
 }
@@ -261,6 +269,7 @@ constexpr DiscoveryStep kCoreSteps[] = {
     {"helix_plugin_check", false, helix_plugin_check_step, nullptr},
     {"job_queue_fetch", false, job_queue_fetch_step, nullptr},
     {"pending_remap_recovery", false, pending_remap_recovery_step, nullptr},
+    {"timelapse_mode_restore", false, timelapse_mode_restore_step, nullptr},
     {"settle_light_buttons", false, settle_light_buttons_step, nullptr},
 };
 

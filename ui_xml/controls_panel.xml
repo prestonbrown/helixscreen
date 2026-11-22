@@ -283,7 +283,10 @@
                     height="content" flex_flow="row" style_flex_cross_place="center" style_pad_all="0"
                     style_pad_gap="#space_sm" scrollable="false" clickable="false">
               <bind_flag_if cond="controls_micro eq 1" flag="hidden"/>
-              <icon src="thermometer" size="sm" variant="primary"/>
+              <!-- Beside the tool chip the title needs the icon's width to stay on one line -->
+              <icon src="thermometer" size="sm" variant="primary">
+                <bind_flag_if cond="ui_is_portrait eq 0 and target_tool_multi_head eq 1" flag="hidden"/>
+              </icon>
               <text_small text="Temperature"
                           flex_grow="1" text_transform="uppercase" style_translate_y="2" style_text_color="#text">
                 <bind_flag_if cond="ui_is_portrait eq 1 and target_tool_multi_head eq 1" flag="hidden"/>

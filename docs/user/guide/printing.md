@@ -109,7 +109,7 @@ Which tiles you see depends on your printer. HelixScreen shows a tile only when 
 | **Cleaning nozzle** | Runs your nozzle cleaning macro |
 | **Purge** | Draws the purge line that primes the nozzle |
 | **Heat soak** | Runs your printer's heat soak macro (`HEAT_SOAK`, `CHAMBER_SOAK` or `SOAK`) before the print starts, so the enclosure can warm up. It is off by default, because a soak adds minutes to a print. The tile is hidden when your start macro already soaks by itself, when the sliced file soaks, and when Heat Soak is turned off in the macro settings (see [Settings > Printing](settings/printing.md)). It runs the macro with its own default values |
-| **Timelapse** or **Record Timelapse** | Records a timelapse of this print. Shown when timelapse recording is available |
+| **Timelapse** or **Record Timelapse** | Records a timelapse of this print. Shown when timelapse recording is available. In Layer mode, a file with no frame calls gets a warning when you press Print ([Timelapse](timelapse.md#the-no-timelapse-frames-warning)) |
 | **AI detection** | Switches the printer's camera-based failure detection on or off for this print. Shown on printers that have it |
 | **Pressure Advance Calibration** | Snapmaker U1 only: measures each toolhead's pressure advance before the print (see [Snapmaker U1: flow calibration](#snapmaker-u1-flow-calibration)) |
 
@@ -337,6 +337,8 @@ If the print contains multiple objects, an **objects button** (a skip-objects ic
 If the Moonraker-Timelapse plugin is installed, a **Timelapse** item appears in the **More** menu of the print controls. Tap it to enable or disable recording for the current print. Its video camera icon is crossed out while recording is off.
 
 During printing, frame captures happen automatically based on your timelapse settings (per-layer or time-based). When the print finishes, the video renders automatically if auto-render is enabled.
+
+Layer mode takes a frame only when the file calls `TIMELAPSE_TAKE_FRAME`. When a file you start has no such call, HelixScreen shows **No Timelapse Frames** and offers Hyperlapse for that print, timelapse off for that print, or printing anyway. See [Timelapse](timelapse.md#the-no-timelapse-frames-warning).
 
 ---
 

@@ -353,6 +353,19 @@ bool MacroParamCache::macro_runs(const std::string& macro_name, const std::strin
     return runs_command(cache_, macro, helix::text_io::to_upper(command), 0, visited);
 }
 
+std::set<std::string> MacroParamCache::macros_running(const std::string& command) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const std::string wanted = helix::text_io::to_upper(command);
+    std::set<std::string> names;
+    for (const auto& [name, info] : cache_) {
+        std::unordered_set<std::string> visited{name};
+        if (runs_command(cache_, name, wanted, 0, visited)) {
+            names.insert(helix::text_io::to_upper(name));
+        }
+    }
+    return names;
+}
+
 std::optional<bool> MacroParamCache::macro_sets_target(const std::string& macro_name,
                                                        const std::string& target_full_name) const {
     std::lock_guard<std::mutex> lock(mutex_);

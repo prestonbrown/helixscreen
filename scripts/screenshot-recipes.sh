@@ -112,7 +112,7 @@ ams-cycle          reset; demo ams; wait_idle; click s/ams_panel/right_column/am
 settings-printer   navigate settings; scroll group_printer
 settings-helixscreen navigate settings; scroll group_helixscreen
 display            navigate settings; click row_display
-display-2          navigate settings; click row_display; wait_idle; scroll overlay_content 0 -274
+display-2          navigate settings; click row_display; wait_idle; scroll overlay_content 0 -370
 appearance         navigate settings; click row_appearance
 appearance-2       navigate settings; click row_appearance; wait_idle; scroll group_printer_visuals
 theme              navigate settings; click row_appearance; click row_theme_settings
@@ -122,9 +122,9 @@ sound              navigate settings; click row_sound
 sound-2            navigate settings; click row_sound; wait_idle; scroll overlay_content 0 -190
 printing           navigate settings; click row_printing
 printing-2         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -406
-printing-3         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -832
+printing-3         navigate settings; click row_printing; wait_idle; scroll overlay_content 0 -1473
 devices            navigate settings; click row_devices
-devices-2          navigate settings; click row_devices; wait_idle; scroll overlay_content 0 -209
+devices-2          navigate settings; click row_devices; wait_idle; scroll overlay_content 0 -316
 sensors            navigate settings; click row_devices; click row_filament_sensors
 hardware-health    navigate settings; click row_devices; click row_hardware_health
 fan-settings       navigate settings; click row_devices; click row_fan_settings
@@ -145,7 +145,7 @@ printers           navigate settings; click row_connection; click row_printers
 printer-switch     navigate settings; click row_connection; click row_printers; click second; sleep 5; wait_idle; navigate settings; click row_connection; click row_printers; click default; sleep 5; wait_idle
 language-time      navigate settings; click row_language_time
 system             navigate settings; click row_system
-system-2           navigate settings; click row_system; wait_idle; scroll overlay_content 0 -124
+system-2           navigate settings; click row_system; wait_idle; scroll overlay_content 0 -294
 security           navigate settings; click row_system; click row_security
 updates            navigate settings; click row_updates
 help-about         navigate settings; click row_help
@@ -154,7 +154,7 @@ help-qr            navigate settings; click row_help; click row_discord; click b
 
 # Advanced overlays
 input-shaper       navigate advanced; click row_calibration; click cal_tile_input_shaper
-screws             navigate advanced; click row_bed_mesh
+screws             navigate advanced; click row_calibration; click cal_tile_bed_screws
 zoffset            navigate advanced; click row_calibration; click cal_tile_z_offset
 spoolman           navigate advanced; click row_spoolman
 history-dashboard  navigate advanced; click row_print_history

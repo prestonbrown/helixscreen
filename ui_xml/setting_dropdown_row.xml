@@ -17,10 +17,13 @@
     <prop name="disabled" type="string" default=""/>
     <prop name="dropdown_width" type="string" default="33%"/>
     <prop name="hide_description" type="string" default="false"/>
+    <!-- See setting_row: an event callback that explains the setting. -->
+    <prop name="info_callback" type="string" default=""/>
   </api>
   <view name="dropdown_row"
         extends="setting_row" label="$label" label_tag="$label_tag" icon="$icon" description="$description"
-        description_tag="$description_tag" hide_description="$hide_description" disabled="$disabled">
+        description_tag="$description_tag" hide_description="$hide_description" disabled="$disabled"
+        info_callback="$info_callback">
     <lv_dropdown name="dropdown"
                  width="$dropdown_width" height="content" options="$options" options_tag="$options_tag"
                  bind_selected="$bind_selected" style_radius="#border_radius">

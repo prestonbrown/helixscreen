@@ -199,7 +199,7 @@ The reference screw is labeled **base** (it is the one everything else is measur
 
 ## Input Shaper
 
-![Input Shaper results: the X axis chart with shaper chips, the legend and the top of the comparison table](../../images/user/advanced-shaper.png)
+![Input Shaper results: the X axis chart with its legend and the shaper chips](../../images/user/advanced-shaper.png)
 
 Tune vibration compensation for smoother, faster prints:
 

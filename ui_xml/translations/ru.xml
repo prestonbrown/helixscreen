@@ -1256,6 +1256,7 @@
   <translation tag="Could not set the material: {}" ru="Не удалось задать материал: {}"/>
   <translation tag="Could not skip {}" ru="Не удалось пропустить {}"/>
   <translation tag="Could not start Bluetooth discovery" ru="Не удалось запустить поиск Bluetooth"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" ru="Не удалось переключить таймлапс на гиперлапс"/>
   <translation tag="Could not turn the heaters off" ru="Не удалось выключить нагреватели"/>
   <translation tag="Could not update filaments" ru="Не удалось обновить филаменты"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." ru="Не удалось проверить статус Spoolman. Moonraker может ещё перезапускаться."/>
@@ -2291,7 +2292,7 @@
   <translation tag="Humidity Sensors" ru="Датчики влажности"/>
   <translation tag="Humidity inside the enclosure" ru="Влажность внутри камеры"/>
   <translation tag="Hyperlapse" ru="Гиперлапс"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." ru="Гиперлапс захватывает кадры через фиксированные интервалы времени. Подходит для очень долгих печатей."/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." ru="Гиперлапс снимает кадр по таймеру. Настраивать слайсер не нужно, но голова видна там, где окажется."/>
   <translation tag="Hyperspace" ru="Гиперпространство"/>
   <translation tag="I understand" ru="Я понимаю"/>
   <translation tag="ID (optional)" ru="ID (необязательно)"/>
@@ -2548,9 +2549,9 @@
   <translation tag="Layer" ru="Слой"/>
   <translation tag="Layer 2" ru="Слой 2"/>
   <translation tag="Layer Height" ru="Высота слоя"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." ru="Слоевой макрос захватывает один кадр при смене слоя. Подходит для большинства печатей."/>
   <translation tag="Layer Pause" ru="Пауза на слое"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." ru="Послойный режим захватывает один кадр на каждую смену слоя. Лучший выбор для большинства печатей."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" ru="Послойный режим снимает кадр при каждой смене слоя. G-код смены слоя в слайсере должен выполнять:&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." ru="Послойный режим снимает один кадр при каждой смене слоя, но только когда печать выполняет макрос ниже; без него видео останется почти пустым.&#10;Добавьте его в G-код смены слоя слайсера:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Гиперлапс снимает кадр по таймеру и не требует настройки слайсера, но в каждом кадре голова там, где окажется."/>
   <translation tag="Layer {} of {} · {:.2f} mm" ru="Слой {} из {} · {:.2f} мм"/>
   <translation tag="Layer {} of {}." ru="Слой {} из {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" ru="Слой {}, Z {:.2f} мм"/>
@@ -2980,6 +2981,7 @@
   <translation tag="No Power Devices" ru="Нет устройств питания"/>
   <translation tag="No Spool" ru="Нет катушки"/>
   <translation tag="No Spools" ru="Нет катушек"/>
+  <translation tag="No Timelapse Frames" ru="Нет кадров таймлапса"/>
   <translation tag="No USB printer detected" ru="USB-принтер не обнаружен"/>
   <translation tag="No USB printers found" ru="USB-принтеры не найдены"/>
   <translation tag="No actions right now" ru="Сейчас нет действий"/>
@@ -3083,7 +3085,6 @@
   <translation tag="No vendors found" ru="Производители не найдены"/>
   <translation tag="No verified bypass command for this CFS firmware" ru="Нет проверенной команды обхода для этой прошивки CFS"/>
   <translation tag="No video player installed - showing the timelapse library" ru="Видеоплеер не установлен – показана библиотека таймлапсов"/>
-  <translation tag="No video player on this printer" ru="На этом принтере нет видеоплеера"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." ru="Веб-камера не обнаружена.&#10;Для таймлапса необходима веб-камера."/>
   <translation tag="No widgets found" ru="Виджеты не найдены"/>
   <translation tag="No width sensor detected" ru="Датчик диаметра не обнаружен"/>
@@ -3197,6 +3198,7 @@
   <translation tag="Objects" ru="Объекты"/>
   <translation tag="Objects in the print, with a tap to open the skip map" ru="Объекты печати, касание открывает карту пропуска"/>
   <translation tag="Off" ru="Выкл"/>
+  <translation tag="Off for This Print" ru="Без таймлапса"/>
   <translation tag="Off:" ru="Выкл:"/>
   <translation tag="Off: runs with these values without asking" ru="Выкл.: запуск с этими значениями без запроса"/>
   <translation tag="Offer to save Z-offset changes to the printer config" ru="Предлагать сохранить изменения Z-Offset в конфигурации принтера"/>
@@ -5073,6 +5075,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." ru="Этот файл печатает {0} и {1} вместе. Нагрев камеры и стола, нужный для {1}, может размягчить {0} и забить его сопло."/>
   <translation tag="This file was sliced for {} but {} is loaded." ru="Файл нарезан для {}, но загружен {}."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." ru="Файл нарезан для {}, но загружен {}. Печать будет медленнее и горячее, чем требуется загруженной катушке."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." ru="Этот файл не снимет кадры таймлапса. Послойный режим снимает кадр, только когда файл выполняет эту строку при каждой смене слоя, а слайсер её не добавил:&#10;TIMELAPSE_TAKE_FRAME&#10;Гиперлапс снимает кадры по таймеру."/>
   <translation tag="This firmware can only switch slots by loading them" ru="Эта прошивка может переключать слоты только загрузкой"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." ru="Это установит вспомогательные макросы HelixScreen на принтер и добавит их в printer.cfg. Идёт печать, поэтому Klipper перезапустится после её завершения."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." ru="Это установит вспомогательные макросы HelixScreen на принтер, добавит их в printer.cfg и перезапустит Klipper."/>
@@ -5101,7 +5104,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." ru="На этом принтере ещё нет хранилища [save_variables]. Обновите вспомогательные макросы, чтобы добавить его, затем перезапустите Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." ru="У этого принтера нет автоматической выгрузки. Отрежьте филамент у головки и вытащите его вручную."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." ru="У этого принтера не задан часовой пояс, поэтому часы показывают UTC. Выберите свой."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." ru="На этом принтере нет видеоплеера. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." ru="У этого принтера нет команды {}, поэтому Z-смещение нельзя сохранить."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." ru="Этот принтер похож на {} (уверенность {}%), но настроен как {}. Неверный тип применяет неправильные параметры перед печатью и пресеты."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" ru="В макросах INDX этого принтера отсутствует: {}"/>
@@ -5125,6 +5127,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." ru="Раскладка главного экрана этого экрана для данного принтера будет заменена раскладкой с экрана самого принтера."/>
   <translation tag="This resume needs a newer version of HelixScreen." ru="Для этого продолжения нужна более новая версия HelixScreen."/>
   <translation tag="This screen" ru="Этот экран"/>
+  <translation tag="This screen can&apos;t play videos" ru="Этот экран не может воспроизводить видео"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." ru="Этот экран не может воспроизводить видео. Отсканируйте код телефоном, чтобы посмотреть таймлапс."/>
   <translation tag="This slot feeds no tool" ru="Этот слот не подаёт филамент ни в один инструмент"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." ru="Эта катушка закончилась, поэтому CFS не может втянуть оставшийся филамент."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." ru="Данные этой катушки ещё не загружены из Spoolman. Нажмите «Сохранить» ещё раз."/>
@@ -5171,6 +5175,7 @@
   <translation tag="Timelapse Videos" ru="Видео таймлапс"/>
   <translation tag="Timelapse did not start" ru="Таймлапс не запустился"/>
   <translation tag="Timelapse frames start after Klipper restarts." ru="Кадры таймлапса начнут сниматься после перезапуска Klipper."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." ru="Таймлапс всё ещё в режиме гиперлапса. Верните его в Настройки &gt; Печать &gt; Таймлапс."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." ru="Папка таймлапсов или журналов пересекается с защищённой."/>
   <translation tag="Timelapse plugin installed successfully!" ru="Плагин таймлапса успешно установлен!"/>
   <translation tag="Timelapse plugin installed!" ru="Плагин таймлапса установлен!"/>
@@ -5441,6 +5446,7 @@
   <translation tag="Use Another Toolhead" ru="Другая печатающая головка"/>
   <translation tag="Use DHCP" ru="Использовать DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" ru="Использовать аппаратный ретракт G10/G11"/>
+  <translation tag="Use Hyperlapse" ru="Гиперлапс"/>
   <translation tag="Use New Address" ru="Использовать новый адрес"/>
   <translation tag="Use Scan" ru="Взять скан"/>
   <translation tag="Use Unload before Eject" ru="Используйте «Выгрузить» перед «Извлечь»"/>

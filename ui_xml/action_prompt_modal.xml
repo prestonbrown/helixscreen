@@ -54,7 +54,7 @@
       </divider_horizontal>
       <!-- Footer button container (modal-style: full width, no gaps, dividers between) -->
       <lv_obj name="footer_container"
-              width="100%" height="#button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row"
+              width="100%" height="#modal_button_height" style_pad_all="0" style_pad_gap="0" flex_flow="row"
               scrollable="false">
         <bind_flag_if_eq subject="action_prompt_has_footer" flag="hidden" ref_value="0"/>
         <!-- Footer buttons will be added dynamically -->

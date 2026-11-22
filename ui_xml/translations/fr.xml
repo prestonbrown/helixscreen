@@ -1217,6 +1217,7 @@
   <translation tag="Could not set the material: {}" fr="Impossible de définir le matériau : {}"/>
   <translation tag="Could not skip {}" fr="Impossible d&apos;ignorer {}"/>
   <translation tag="Could not start Bluetooth discovery" fr="Impossible de démarrer la découverte Bluetooth"/>
+  <translation tag="Could not switch timelapse to Hyperlapse" fr="Impossible de passer le timelapse en Hyperlapse"/>
   <translation tag="Could not turn the heaters off" fr="Impossible de couper les chauffes"/>
   <translation tag="Could not update filaments" fr="Impossible de mettre à jour les filaments"/>
   <translation tag="Could not verify Spoolman status. Moonraker may still be restarting." fr="Impossible de vérifier l&apos;état de Spoolman. Moonraker est peut-être encore en cours de redémarrage."/>
@@ -2249,7 +2250,7 @@
   <translation tag="Humidity Sensors" fr="Capteurs d&apos;humidité"/>
   <translation tag="Humidity inside the enclosure" fr="Humidité dans l&apos;enceinte"/>
   <translation tag="Hyperlapse" fr="Hyperlapse"/>
-  <translation tag="Hyperlapse captures frames at fixed time intervals. Good for very long prints." fr="L&apos;hyperlapse capture des images à intervalles de temps fixes. Idéal pour les impressions très longues."/>
+  <translation tag="Hyperlapse takes a frame on a timer. No slicer setup, but the head shows up wherever it is." fr="Hyperlapse prend une image à intervalle régulier. Aucun réglage du trancheur, mais la tête apparaît où qu&apos;elle soit."/>
   <translation tag="Hyperspace" fr="Hyperespace"/>
   <translation tag="I understand" fr="J&apos;ai compris"/>
   <translation tag="ID (optional)" fr="ID (facultatif)"/>
@@ -2506,9 +2507,9 @@
   <translation tag="Layer" fr="Couche"/>
   <translation tag="Layer 2" fr="Couche 2"/>
   <translation tag="Layer Height" fr="Hauteur de couche"/>
-  <translation tag="Layer Macro captures one frame per layer change. Best for most prints." fr="La macro de couche capture une image à chaque changement de couche. Idéal pour la plupart des impressions."/>
   <translation tag="Layer Pause" fr="Pause à la couche"/>
-  <translation tag="Layer mode captures one frame per layer change. Best for most prints." fr="Le mode couche capture une image par changement de couche. Idéal pour la plupart des impressions."/>
+  <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" fr="Couche prend une image à chaque changement de couche. Le G-code de changement de couche de votre trancheur doit exécuter :&#10;TIMELAPSE_TAKE_FRAME"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." fr="Couche prend une image à chaque changement de couche, mais seulement lorsque l&apos;impression exécute la macro ci-dessous ; sans elle, la vidéo reste presque vide.&#10;Ajoutez-la au G-code de changement de couche de votre trancheur :&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu&apos;elle soit."/>
   <translation tag="Layer {} of {} · {:.2f} mm" fr="Couche {} sur {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." fr="Couche {} sur {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" fr="Couche {}, Z {:.2f} mm"/>
@@ -2938,6 +2939,7 @@
   <translation tag="No Power Devices" fr="Aucun appareil électrique"/>
   <translation tag="No Spool" fr="Aucune bobine"/>
   <translation tag="No Spools" fr="Aucune bobine"/>
+  <translation tag="No Timelapse Frames" fr="Aucune image de timelapse"/>
   <translation tag="No USB printer detected" fr="Aucune imprimante USB détectée"/>
   <translation tag="No USB printers found" fr="Aucune imprimante USB trouvée"/>
   <translation tag="No actions right now" fr="Aucune action pour le moment"/>
@@ -3041,7 +3043,6 @@
   <translation tag="No vendors found" fr="Aucun fournisseur trouvé"/>
   <translation tag="No verified bypass command for this CFS firmware" fr="Aucune commande de bypass vérifiée pour ce firmware CFS"/>
   <translation tag="No video player installed - showing the timelapse library" fr="Aucun lecteur vidéo installé – affichage de la bibliothèque timelapse"/>
-  <translation tag="No video player on this printer" fr="Aucun lecteur vidéo sur cette imprimante"/>
   <translation tag="No webcam detected.&#10;A webcam is required for timelapse." fr="Aucune webcam détectée.&#10;Une webcam est requise pour le timelapse."/>
   <translation tag="No widgets found" fr="Aucun widget trouvé"/>
   <translation tag="No width sensor detected" fr="Aucun capteur de diamètre détecté"/>
@@ -3155,6 +3156,7 @@
   <translation tag="Objects" fr="Objets"/>
   <translation tag="Objects in the print, with a tap to open the skip map" fr="Objets de l&apos;impression, un toucher ouvre la carte d&apos;exclusion"/>
   <translation tag="Off" fr="Éteint"/>
+  <translation tag="Off for This Print" fr="Sans timelapse"/>
   <translation tag="Off:" fr="Arrêt :"/>
   <translation tag="Off: runs with these values without asking" fr="Désactivé : exécute avec ces valeurs sans demander"/>
   <translation tag="Offer to save Z-offset changes to the printer config" fr="Proposer d&apos;enregistrer les modifications du Z-Offset dans la configuration de l&apos;imprimante"/>
@@ -5013,6 +5015,7 @@
   <translation tag="This file prints {0} and {1} together. The chamber and bed heat {1} needs can soften {0} and jam its nozzle." fr="Ce fichier imprime {0} et {1} ensemble. La chaleur de l&apos;enceinte et du plateau requise par {1} peut ramollir {0} et boucher sa buse."/>
   <translation tag="This file was sliced for {} but {} is loaded." fr="Ce fichier a été tranché pour {} mais {} est chargé."/>
   <translation tag="This file was sliced for {}, but {} is loaded. It will print slower and hotter than the loaded spool needs." fr="Ce fichier a été tranché pour {}, mais {} est chargé. L&apos;impression sera plus lente et plus chaude que ce qu&apos;exige la bobine chargée."/>
+  <translation tag="This file won&apos;t capture timelapse frames. Layer mode takes a frame only when the file runs this line at each layer change, and your slicer did not add it:&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse takes frames on a timer instead." fr="Ce fichier ne capturera aucune image de timelapse. Le mode couche ne prend une image que lorsque le fichier exécute cette ligne à chaque changement de couche, et votre trancheur ne l&apos;a pas ajoutée :&#10;TIMELAPSE_TAKE_FRAME&#10;Hyperlapse prend plutôt des images à intervalle régulier."/>
   <translation tag="This firmware can only switch slots by loading them" fr="Ce firmware ne peut changer de slot qu&apos;en le chargeant"/>
   <translation tag="This installs the HelixScreen helper macros on the printer and adds them to printer.cfg. A print is running, so Klipper restarts after it finishes." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante et les ajoute à printer.cfg. Une impression est en cours, Klipper redémarrera une fois terminée."/>
   <translation tag="This installs the HelixScreen helper macros on the printer, adds them to printer.cfg, and restarts Klipper." fr="Cela installe les macros d&apos;aide HelixScreen sur l&apos;imprimante, les ajoute à printer.cfg et redémarre Klipper."/>
@@ -5041,7 +5044,6 @@
   <translation tag="This printer has no [save_variables] store yet. Update the helper macros to add one, then restart Klipper." fr="Cette imprimante n&apos;a pas encore de stockage [save_variables]. Mettez à jour les macros d&apos;aide pour en ajouter un, puis redémarrez Klipper."/>
   <translation tag="This printer has no automatic unload. Cut the filament at the head and pull it out by hand." fr="Cette imprimante n&apos;a pas de déchargement automatique. Coupez le filament au niveau de la tête et retirez-le à la main."/>
   <translation tag="This printer has no timezone, so its clock reads UTC. Pick yours." fr="Cette imprimante n&apos;a pas de fuseau horaire, son horloge est donc en UTC. Choisissez le vôtre."/>
-  <translation tag="This printer has no video player. Scan the code with your phone to watch the timelapse." fr="Cette imprimante n&apos;a pas de lecteur vidéo. Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="This printer has no {} command, so the Z-offset cannot be saved." fr="Cette imprimante n&apos;a pas de commande {}, le décalage Z ne peut donc pas être enregistré."/>
   <translation tag="This printer looks like a {} ({}% confidence), but it is set up as a {}. A wrong type applies incorrect pre-print options and presets." fr="Cette imprimante ressemble à un {} ({} % de confiance), mais elle est configurée en {}. Un type erroné applique des options et des préréglages de pré-impression incorrects."/>
   <translation tag="This printer&apos;s INDX macros are missing: {}" fr="Il manque aux macros INDX de cette imprimante : {}"/>
@@ -5065,6 +5067,8 @@
   <translation tag="This replaces this screen&apos;s home layout for this printer with the one on the printer&apos;s own screen." fr="Cela remplace la disposition de l&apos;écran d&apos;accueil de cet écran pour cette imprimante par celle de l&apos;écran de l&apos;imprimante."/>
   <translation tag="This resume needs a newer version of HelixScreen." fr="Cette reprise nécessite une version plus récente de HelixScreen."/>
   <translation tag="This screen" fr="Cet écran"/>
+  <translation tag="This screen can&apos;t play videos" fr="Cet écran ne peut pas lire de vidéos"/>
+  <translation tag="This screen can&apos;t play videos. Scan the code with your phone to watch the timelapse." fr="Cet écran ne peut pas lire de vidéos. Scannez le code avec votre téléphone pour regarder le timelapse."/>
   <translation tag="This slot feeds no tool" fr="Ce slot n&apos;alimente aucun outil"/>
   <translation tag="This spool ran out, so the CFS cannot pull the leftover filament back." fr="Cette bobine est épuisée, le CFS ne peut donc pas retirer le filament restant."/>
   <translation tag="This spool&apos;s details haven&apos;t loaded from Spoolman yet. Try Save again." fr="Les détails de cette bobine ne sont pas encore chargés depuis Spoolman. Appuyez à nouveau sur Enregistrer."/>
@@ -5111,6 +5115,7 @@
   <translation tag="Timelapse Videos" fr="Vidéos timelapse"/>
   <translation tag="Timelapse did not start" fr="Le timelapse n&apos;a pas démarré"/>
   <translation tag="Timelapse frames start after Klipper restarts." fr="Les images du timelapse commencent après le redémarrage de Klipper."/>
+  <translation tag="Timelapse is still in Hyperlapse mode. Switch it back in Settings &gt; Printing &gt; Timelapse." fr="Le timelapse est toujours en mode Hyperlapse. Rétablissez-le dans Paramètres &gt; Impression &gt; Timelapse."/>
   <translation tag="Timelapse or logs folder overlaps a protected one." fr="Le dossier timelapse ou journaux chevauche un dossier protégé."/>
   <translation tag="Timelapse plugin installed successfully!" fr="Plugin timelapse installé avec succès !"/>
   <translation tag="Timelapse plugin installed!" fr="Plugin timelapse installé !"/>
@@ -5381,6 +5386,7 @@
   <translation tag="Use Another Toolhead" fr="Utiliser une autre tête d&apos;outil"/>
   <translation tag="Use DHCP" fr="Utiliser DHCP"/>
   <translation tag="Use G10/G11 firmware retraction" fr="Utiliser la rétraction firmware G10/G11"/>
+  <translation tag="Use Hyperlapse" fr="Utiliser Hyperlapse"/>
   <translation tag="Use New Address" fr="Utiliser la nouvelle adresse"/>
   <translation tag="Use Scan" fr="Utiliser le scan"/>
   <translation tag="Use Unload before Eject" fr="Utilisez Décharger avant Éjecter"/>

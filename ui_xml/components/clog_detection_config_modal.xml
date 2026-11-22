@@ -15,52 +15,73 @@
         extends="dialog_frame" title="Clog Detection" icon="cog" icon_variant="accent">
     <dialog_frame-body>
 
-      <!-- Source row -->
-      <lv_obj width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
-        <text_small text="Source" style_text_color="#text_muted"/>
-        <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
-          <ui_button name="btn_source_auto" text="Auto" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_src_auto_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_src_auto_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_source_auto"/>
-          </ui_button>
-          <ui_button name="btn_source_encoder" text="Encoder" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_src_encoder_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_src_encoder_active" ref_value="0"/>
-            <bind_flag_if_eq subject="clog_src_encoder_available" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_source_encoder"/>
-          </ui_button>
-          <ui_button name="btn_source_flowguard" text="Flowguard" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_src_flowguard_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_src_flowguard_active" ref_value="0"/>
-            <bind_flag_if_eq subject="clog_src_flowguard_available" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_source_flowguard"/>
-          </ui_button>
-          <ui_button name="btn_source_afc" text="AFC" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_src_afc_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_src_afc_active" ref_value="0"/>
-            <bind_flag_if_eq subject="clog_src_afc_available" flag="hidden" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_source_afc"/>
-          </ui_button>
+      <!-- Source and Detection Mode share a row, as the sliders below do, so the
+           form fits a 480x272 card unscrolled; Source takes the full row when the
+           backend has no detection mode. The choices pad their labels by
+           #space_xs so "Flowguard" fits its third of Source's share. -->
+      <lv_obj width="100%"
+              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
+              style_pad_gap="#space_md" scrollable="false">
+        <!-- Source row: up to three choices beside Mode's two, so it takes twice
+           Mode's share -->
+        <lv_obj width="1" height="content" flex_grow="2" flex_flow="column" style_pad_gap="#space_xs">
+          <text_small text="Source" style_text_color="#text_muted"/>
+          <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
+            <ui_button name="btn_source_auto"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="Auto" flex_grow="1"
+                       clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_src_auto_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_src_auto_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_source_auto"/>
+            </ui_button>
+            <ui_button name="btn_source_encoder"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="Encoder" flex_grow="1"
+                       clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_src_encoder_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_src_encoder_active" ref_value="0"/>
+              <bind_flag_if_eq subject="clog_src_encoder_available" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_source_encoder"/>
+            </ui_button>
+            <ui_button name="btn_source_flowguard"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="Flowguard" flex_grow="1"
+                       clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_src_flowguard_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_src_flowguard_active" ref_value="0"/>
+              <bind_flag_if_eq subject="clog_src_flowguard_available" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_source_flowguard"/>
+            </ui_button>
+            <ui_button name="btn_source_afc"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="AFC" flex_grow="1" clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_src_afc_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_src_afc_active" ref_value="0"/>
+              <bind_flag_if_eq subject="clog_src_afc_available" flag="hidden" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_source_afc"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
-      </lv_obj>
 
-      <!-- Detection mode row — Happy Hare only (written with MMU_TEST_CONFIG,
+        <!-- Detection mode row — Happy Hare only (written with MMU_TEST_CONFIG,
            which AFC/ACE/CFS/QIDI Box do not implement) -->
-      <lv_obj name="mode_section" width="100%" height="content" flex_flow="column" style_pad_gap="#space_xs">
-        <bind_flag_if_eq subject="clog_cfg_mode_supported" flag="hidden" ref_value="0"/>
-        <text_small text="Detection Mode" style_text_color="#text_muted"/>
-        <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
-          <ui_button name="btn_mode_auto" text="Auto" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_mode_auto_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_mode_auto_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_mode_auto"/>
-          </ui_button>
-          <ui_button name="btn_mode_manual" text="Manual" flex_grow="1" clickable="true">
-            <bind_style name="clog_btn_selected" subject="clog_mode_manual_active" ref_value="1"/>
-            <bind_style name="clog_btn_unselected" subject="clog_mode_manual_active" ref_value="0"/>
-            <event_cb trigger="clicked" callback="on_clog_mode_manual"/>
-          </ui_button>
+        <lv_obj name="mode_section"
+                width="1" height="content" flex_grow="1" flex_flow="column" style_pad_gap="#space_xs">
+          <bind_flag_if_eq subject="clog_cfg_mode_supported" flag="hidden" ref_value="0"/>
+          <text_small text="Detection Mode" style_text_color="#text_muted"/>
+          <lv_obj width="100%" height="content" flex_flow="row" style_pad_gap="#space_xs">
+            <ui_button name="btn_mode_auto"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="Auto" flex_grow="1"
+                       clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_mode_auto_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_mode_auto_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_mode_auto"/>
+            </ui_button>
+            <ui_button name="btn_mode_manual"
+                       height="#modal_button_height" style_pad_hor="#space_xs" text="Manual" flex_grow="1"
+                       clickable="true">
+              <bind_style name="clog_btn_selected" subject="clog_mode_manual_active" ref_value="1"/>
+              <bind_style name="clog_btn_unselected" subject="clog_mode_manual_active" ref_value="0"/>
+              <event_cb trigger="clicked" callback="on_clog_mode_manual"/>
+            </ui_button>
+          </lv_obj>
         </lv_obj>
       </lv_obj>
 

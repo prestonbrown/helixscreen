@@ -15,10 +15,11 @@
       <text_muted name="abort_message_label"
                   width="100%" bind_text="abort_progress_message" text="Processing..." translation_tag="Processing..."
                   long_mode="wrap" style_text_align="center"/>
-      <!-- E-Stop escape hatch -->
+      <!-- E-Stop escape hatch. The body gap alone spaces it from the message, so
+           at 480x272 it sits whole on the card with nothing to scroll to. -->
       <ui_button name="abort_estop_btn"
-                 width="100%" height="#button_height_lg" variant="danger" icon="alert_octagon" text="EMERGENCY STOP"
-                 style_margin_top="#space_sm">
+                 width="100%" height="#button_height_lg" style_min_height="#modal_button_height" variant="danger"
+                 icon="alert_octagon" text="EMERGENCY STOP">
         <event_cb trigger="clicked" callback="on_abort_emergency_stop"/>
       </ui_button>
     </dialog_frame-body>

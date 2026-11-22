@@ -130,7 +130,7 @@ struct SwatchGridGeometry {
     int32_t rows = 0;      ///< swatch rows
     int32_t free_h = 0;    ///< card height cap minus everything but the swatch rows
     int32_t touch_min = 0; ///< touch_target_min
-    int32_t button_h = 0;  ///< button_height: the tile height when nothing constrains it
+    int32_t button_h = 0;  ///< swatch_floor_height(): the tile height when nothing constrains it
 };
 
 struct SwatchGridFit {
@@ -139,25 +139,36 @@ struct SwatchGridFit {
     bool scroll = false; ///< the rows need more height than the card has left
 };
 
-/// A prompt's button height. A 480x320 screen takes the compact one, so a color
-/// prompt shows its whole swatch grid beside its text buttons and footer.
+bool tiny_screen() {
+    return widget_size::current_breakpoint() == UiBreakpoint::Tiny;
+}
+
+/// A prompt's button height: a dialog's, so a 480x272 screen keeps its buttons
+/// easy to press. A 480x320 screen takes the compact one, so a color prompt
+/// shows its whole swatch grid beside its text buttons and footer.
 int32_t prompt_button_height() {
-    const bool tiny = widget_size::current_breakpoint() == UiBreakpoint::Tiny;
-    return theme_manager_get_spacing(tiny ? "button_height_sm" : "button_height");
+    return theme_manager_get_spacing(tiny_screen() ? "button_height_sm" : "modal_button_height");
+}
+
+/// The least height a swatch tile shrinks to before the grid scrolls. It sits
+/// below the button height on a 480x272 screen, where three rows of swatches
+/// and a footer share the card.
+int32_t swatch_floor_height() {
+    return theme_manager_get_spacing(tiny_screen() ? "button_height_sm" : "button_height");
 }
 
 /**
  * @brief Size the card and the swatch tiles to the room the screen has.
  *
  * The card widens only as far as it takes for every tile to be a full touch
- * target across, never past card_w_max. Tiles keep button_height, raised to
- * the touch target, while the free height holds that; otherwise they take
- * the largest height that fits. Below button_height they stop shrinking and
+ * target across, never past card_w_max. Tiles keep the swatch floor height,
+ * raised to the touch target, while the free height holds that; otherwise they
+ * take the largest height that fits. Below the floor they stop shrinking and
  * the grid scrolls instead.
  *
  * This is the one place touch_target_min yields on height: a color picker
  * that shows every color at once beats one that scrolls to reach 48px tiles,
- * so height drops toward button_height first while width still holds the
+ * so height drops toward the floor first while width still holds the
  * touch target (prestonbrown/helixscreen#1806).
  */
 SwatchGridFit fit_swatch_grid(const SwatchGridGeometry& g) {
@@ -475,7 +486,7 @@ void ActionPromptModal::fit_rows(const RowFit& rows) {
         g.col_gap = lv_obj_get_style_pad_column(rows.swatch_rows.front(), LV_PART_MAIN);
         g.rows = static_cast<int32_t>(rows.swatch_rows.size());
         g.touch_min = theme_manager_get_spacing("touch_target_min");
-        g.button_h = prompt_button_height();
+        g.button_h = swatch_floor_height();
 
         const SwatchGridFit fit = fit_swatch_grid(g);
         if (fit.card_w != g.card_w) {
