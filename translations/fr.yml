@@ -6017,6 +6017,7 @@ translations:
   about {} min left · you can leave: environ {} min restantes · vous pouvez partir
   accelerometer: accéléromètre
   all done: tout est fait
+  about {} min with heat-up: 'environ {} min avec la chauffe'
   about {} mm above where the paper dragged last time: "environ {} mm au-dessus de l'endroit où le papier a frotté la dernière fois"
   about {} mm below where the paper dragged last time: "environ {} mm en dessous de l'endroit où le papier a frotté la dernière fois"
   already loaded: 'déjà chargé'

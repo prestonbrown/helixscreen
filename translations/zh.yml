@@ -6005,6 +6005,7 @@ translations:
   about {} min left · you can leave: 约剩 {} 分钟 · 您可以离开
   accelerometer: 加速度传感器
   all done: 全部完成
+  about {} min with heat-up: '含加热约 {} 分钟'
   about {} mm above where the paper dragged last time: "比上次纸张有阻力的位置高约 {} mm"
   about {} mm below where the paper dragged last time: "比上次纸张有阻力的位置低约 {} mm"
   already loaded: '已加载'

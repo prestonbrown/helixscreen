@@ -57,6 +57,7 @@
 #include "temperature_controller.h"
 #include "temperature_rules.h"
 #include "theme_manager.h"
+#include "thermal_rate_model.h"
 #include "toolhead_homing.h"
 #include "ui/ui_widget_helpers.h"
 
@@ -66,6 +67,7 @@
 using namespace helix;
 
 #include <atomic>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <limits>
@@ -84,6 +86,21 @@ static void on_profile_delete_cb(lv_event_t* e);
 // ============================================================================
 
 static constexpr const char* kBedHeater = "heater_bed";
+
+namespace {
+
+/// The intro's estimate for probing alone, before any heat-up.
+constexpr int kIntroProbeMinutes = 2;
+
+/// Whole minutes for @p heating_seconds of heating; 0 when nothing is left to heat.
+int whole_heating_minutes(float heating_seconds) {
+    if (!(heating_seconds > 0.0f)) {
+        return 0;
+    }
+    return static_cast<int>(std::ceil(heating_seconds / 60.0f));
+}
+
+} // namespace
 
 BedMeshPanel::BedMeshPanel() {
     // Initialize buffer contents
@@ -642,6 +659,8 @@ void BedMeshPanel::on_activate() {
         set_heat_choice(1);
         show_view(opening_view_);
         opening_view_ = 0;
+    } else {
+        refresh_intro_duration();
     }
 
     // Defer layout computation and data loading to after the current timer cycle.
@@ -689,13 +708,33 @@ void BedMeshPanel::set_heat_choice(int choice) {
     }
     lv_subject_set_int(&bed_mesh_heat_choice_, choice);
     const int bed_c = heat_choice_bed_c_[static_cast<size_t>(choice)];
-    // Heat-up dominates: a bed from cold to 60-100°C takes a few minutes.
-    snprintf(intro_duration_buf_, sizeof(intro_duration_buf_), "%s",
-             bed_c > 0 ? lv_tr("about 6 min with heat-up") : lv_tr("about 2 min"));
-    lv_subject_set_string(&bed_mesh_intro_duration_, intro_duration_buf_);
+    refresh_intro_duration();
     const std::string heat = fmt::format(lv_tr("heats bed to {}°"), bed_c);
     snprintf(intro_heat_buf_, sizeof(intro_heat_buf_), "%s", heat.c_str());
     lv_subject_set_string(&bed_mesh_intro_heat_, intro_heat_buf_);
+}
+
+void BedMeshPanel::refresh_intro_duration() {
+    const int choice = lv_subject_get_int(&bed_mesh_heat_choice_);
+    if (choice < 0 || choice >= static_cast<int>(heat_choice_bed_c_.size())) {
+        return;
+    }
+    const int bed_c = heat_choice_bed_c_[static_cast<size_t>(choice)];
+    std::string text;
+    if (bed_c > 0) {
+        // The shared thermal model prices every other warm-up in the app.
+        const float current_c = temperature_rules::deci_to_degrees_f(
+            lv_subject_get_int(get_printer_state().temperature_state().get_bed_temp_subject()));
+        const int heat_minutes =
+            whole_heating_minutes(ThermalRateManager::instance().estimate_heating_seconds(
+                kBedHeater, current_c, static_cast<float>(bed_c)));
+        text = fmt::format(fmt::runtime(lv_tr("about {} min with heat-up")),
+                           kIntroProbeMinutes + heat_minutes);
+    } else {
+        text = fmt::format(fmt::runtime(lv_tr("about {} min")), kIntroProbeMinutes);
+    }
+    snprintf(intro_duration_buf_, sizeof(intro_duration_buf_), "%s", text.c_str());
+    lv_subject_set_string(&bed_mesh_intro_duration_, intro_duration_buf_);
 }
 
 void BedMeshPanel::pick_heat_choice(int choice) {

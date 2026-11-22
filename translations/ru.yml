@@ -6093,6 +6093,7 @@ translations:
   about {} min left · you can leave: осталось около {} мин · можно отойти
   accelerometer: акселерометр
   all done: всё готово
+  about {} min with heat-up: 'около {} мин с нагревом'
   about {} mm above where the paper dragged last time: "примерно на {} мм выше места, где бумага цеплялась в прошлый раз"
   about {} mm below where the paper dragged last time: "примерно на {} мм ниже места, где бумага цеплялась в прошлый раз"
   already loaded: 'уже загружен'

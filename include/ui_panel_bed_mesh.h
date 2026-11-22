@@ -155,6 +155,9 @@ class BedMeshPanel : public OverlayBase {
     void handle_back();
     /// Shows the intro's bed temperature choice: 0 cold, 1 PLA, 2 PETG, 3 ABS / ASA.
     void set_heat_choice(int choice);
+    /// The intro's duration chip for the picked choice: probing plus the bed's
+    /// heat-up from where it is now, priced by ThermalRateManager.
+    void refresh_intro_duration();
     /// The user's tap on a bed temperature: shows it and probes at it.
     void pick_heat_choice(int choice);
     /// The bed temperature a probe heats to: the intro's choice once the user
