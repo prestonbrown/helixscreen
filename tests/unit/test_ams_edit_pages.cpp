@@ -841,7 +841,7 @@ TEST_CASE_METHOD(PagesFixture,
         settle();
         REQUIRE(access.draft_colors().size() == 3);
 
-        for (const char* name : {"btn_add_color", "multi_color_mode"}) {
+        for (const char* name : {"btn_add_color", "multi_color_mode", "translucent_check"}) {
             INFO(name);
             lv_obj_t* target = lv_obj_find_by_name(page.get_root(), name);
             REQUIRE(target != nullptr);
