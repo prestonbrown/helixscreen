@@ -244,10 +244,6 @@ std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites, s
     return tiles;
 }
 
-bool show_common_spools(size_t spool_count) {
-    return spool_count < kFewSpools;
-}
-
 bool product_names_material(const std::string& product, const std::string& material) {
     if (material.empty() || product.size() < material.size()) {
         return false;
@@ -279,13 +275,9 @@ LaneScreen screen_for_lane(const SlotInfo& lane) {
     return (lane.spoolman_id > 0 || !lane.material.empty()) ? LaneScreen::Edit : LaneScreen::Assign;
 }
 
-BottomAction bottom_action(bool spoolman_connected, size_t listed) {
-    if (!spoolman_connected) {
-        return BottomAction::AssignLocal;
-    }
-    return listed > 0 ? BottomAction::AddNewSecondary : BottomAction::AddToSpoolmanAndUse;
-}
-
+namespace {
+/// The chip a spool with @p remaining_g of @p total_g left lights: a full
+/// spool of a chip's size lights that chip, anything else lights Partial.
 int size_chip_for(float remaining_g, float total_g) {
     if (std::fabs(remaining_g - total_g) < 0.5f) {
         for (int i = 0; i < kPartialChip; ++i) {
@@ -296,6 +288,7 @@ int size_chip_for(float remaining_g, float total_g) {
     }
     return kPartialChip;
 }
+} // namespace
 
 SpoolSize size_for_reading(float remaining_g, float total_g) {
     if (remaining_g < 0 && total_g <= 0) {

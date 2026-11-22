@@ -55,9 +55,11 @@ namespace helix::ui {
  * working spool is the one in the lane (kModeEdit) or one going in
  * (kModeAssign, helix::spool_assign::screen_for_lane).
  *
- * The Filament screen is a cascading dropdown grid: Material family, Type,
- * Brand, Product (each list ends in a browse-the-catalog entry), then the
- * color dots, recents and the color page. Its edits, and the Details
+ * The Filament screen names the spool on one row: Brand, then Product for a
+ * catalog product (with its favorite star), or one Material list of precise
+ * types under Generic or "Other…" (each list ends in a browse-the-catalog
+ * entry; Brand leads with the favorites). Then the color dots, the swatches
+ * and the color page, and for a new spool the spool tiles. Its edits, and the Details
  * screen's, are held until the summary's Save. Lane Settings shows Feeds
  * Tool and Runout Backup, each only where the backend supports it.
  * Selection state lives in SpoolEditSelection; Save stages it into the

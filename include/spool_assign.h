@@ -13,12 +13,13 @@
 
 /**
  * @file spool_assign.h
- * @brief The decisions behind the Assign Spool / Edit Spool screens
+ * @brief The decisions behind the lane spool editor's pages
  *
- * Pure functions over the describe form and the user's spools: which spools
- * match what the form says (exact first, close after with what differs),
- * which screen a lane opens to, which action the screen offers, the spool
- * sizes and the common spools a fresh install starts from. No LVGL.
+ * Pure functions over a lane and the user's spools: whether a lane opens on
+ * its summary or the empty page, which spools the New Spool list matches
+ * against the Filament page (exact first, close after with what differs), the
+ * spool tiles a new spool starts from (favorites, then the common spools), a
+ * spool's size and remaining weight, and the lane history. No LVGL.
  */
 
 namespace helix::spool_assign {
@@ -131,10 +132,6 @@ struct SpoolTile {
 [[nodiscard]] std::vector<SpoolTile> spool_tiles(const std::vector<FavoriteTile>& favorites,
                                                  size_t count = kSpoolTiles);
 
-/// The grid of common spools shows until the user has this many spools.
-inline constexpr size_t kFewSpools = 3;
-[[nodiscard]] bool show_common_spools(size_t spool_count);
-
 enum class LaneScreen { Assign, Edit };
 
 /// A lane holding a spool (filament its status reports, or a spool it records
@@ -149,20 +146,6 @@ enum class LaneScreen { Assign, Edit };
 /// say "PLA"), so a line under it need not repeat the material.
 [[nodiscard]] bool product_names_material(const std::string& product, const std::string& material);
 
-/// The action at the bottom of the spools list.
-enum class BottomAction {
-    AddNewSecondary,     ///< "Not Listed? Add New Spool", dashed: the list has spools to Use
-    AddToSpoolmanAndUse, ///< "Add to Spoolman & Assign", primary: nothing listed to Use
-    AssignLocal,         ///< "Assign", primary: no Spoolman
-};
-
-[[nodiscard]] BottomAction bottom_action(bool spoolman_connected, size_t listed);
-
-/// The quiet "assign without adding to Spoolman" link shows under the primary.
-[[nodiscard]] inline bool offers_local_assign(BottomAction action) {
-    return action == BottomAction::AddToSpoolmanAndUse;
-}
-
 // === Spool size ===
 
 inline constexpr float kDefaultSpoolGrams = 1000.0f;
@@ -171,10 +154,6 @@ inline constexpr float kDefaultSpoolGrams = 1000.0f;
 inline constexpr float kSizeChipGrams[] = {1000.0f, 750.0f, 250.0f};
 inline constexpr int kSizeChipCount = 4;
 inline constexpr int kPartialChip = 3;
-
-/// The chip a spool with @p remaining_g of @p total_g left lights: a full
-/// spool of a chip's size lights that chip, anything else lights Partial.
-[[nodiscard]] int size_chip_for(float remaining_g, float total_g);
 
 /// The size chips' state: the lit chip and the grams it stands for.
 struct SpoolSize {
