@@ -301,6 +301,20 @@ TEST_CASE_METHOD(RunFixture, "a step that ends inside its own start moves the ru
     CHECK(fakes[2]->starts == 1);
 }
 
+TEST_CASE_METHOD(RunFixture, "each step learns its place in the run and the run's step count",
+                 "[calibration_run]") {
+    make_run(3);
+    run->start();
+    fakes[0]->finish("0.120 mm");
+    fakes[1]->finish("ok");
+    for (int i = 0; i < 3; ++i) {
+        INFO("step " << i);
+        REQUIRE(fakes[static_cast<size_t>(i)]->ctx_ != nullptr);
+        CHECK(fakes[static_cast<size_t>(i)]->ctx_->index == i);
+        CHECK(fakes[static_cast<size_t>(i)]->ctx_->count == 3);
+    }
+}
+
 TEST_CASE_METHOD(RunFixture, "stop aborts the running step and keeps what finished",
                  "[calibration_run]") {
     make_run(3);
