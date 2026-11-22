@@ -12,6 +12,7 @@
 #include "ui_nav_manager.h"
 #include "ui_swatch.h"
 
+#include "../../src/ui/filament/ui_spool_canvas_internal.h"
 #include "../test_helpers/ams_edit_overlay_view_access.h"
 #include "../test_helpers/backend_user_edit.h"
 #include "../test_helpers/modal_answer.h"
@@ -898,6 +899,11 @@ TEST_CASE_METHOD(PagesFixture,
     NavigationManager::instance().go_back();
     settle();
     process_lvgl(400);
+    // The editor's spool draws the draft before it is saved.
+    lv_obj_t* summary = access.widget("edit_spool");
+    REQUIRE(summary != nullptr);
+    REQUIRE(helix::ui::spool_canvas_data(summary) != nullptr);
+    CHECK(helix::ui::spool_canvas_data(summary)->translucent);
     access.call_handle_save();
     settle();
     CHECK(backend->get_slot_info(0).translucent);

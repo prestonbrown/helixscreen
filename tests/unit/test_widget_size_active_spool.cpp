@@ -38,6 +38,7 @@
 
 #include "ui_spool_canvas.h"
 
+#include "../../src/ui/filament/ui_spool_canvas_internal.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_state_test_access.h"
 #include "../test_helpers/panel_widget_size_harness.h"
@@ -120,6 +121,23 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_obj_is_hidden(wide_layout));
     CHECK_FALSE(lv_obj_is_hidden(spool_compact));
     CHECK(color_is(ui_spool_canvas_get_color(spool_compact), kTestSpoolColor));
+
+    AmsState::instance().clear_external_spool_info();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture, "active_spool draws a translucent spool translucent",
+                 "[active_spool][panel_widget][translucent]") {
+    SlotInfo ext;
+    ext.color_rgb = 0xE8E8FF;
+    ext.material = "PETG";
+    ext.translucent = true;
+    helix::AmsStateTestAccess::seed_external_spool(ext);
+
+    PanelWidgetHarness<ActiveSpoolWidget> h(test_screen(), api());
+    lv_obj_t* spool_compact = h.child("spool_compact");
+    REQUIRE(spool_compact != nullptr);
+    REQUIRE(helix::ui::spool_canvas_data(spool_compact) != nullptr);
+    CHECK(helix::ui::spool_canvas_data(spool_compact)->translucent);
 
     AmsState::instance().clear_external_spool_info();
 }

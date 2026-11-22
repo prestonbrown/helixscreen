@@ -8,6 +8,7 @@
 #include "ui_color_picker_view.h"
 #include "ui_spoolman_edit_modal.h"
 
+#include "../../src/ui/filament/ui_spool_canvas_internal.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "ams_types.h"
 #include "core/update_queue.h"
@@ -318,6 +319,61 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(patch.value("color_hex", std::string()) == "#FF0000");
     REQUIRE(patch.contains("multi_color_hexes"));
     CHECK(patch.at("multi_color_hexes").is_null());
+    if (modal.is_visible()) {
+        modal.hide();
+    }
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Spool edit: a translucent spool draws translucent and stays so under a new color",
+                 "[spoolman][color_picker][translucent]") {
+    PrinterState state;
+    MoonrakerClientMock client;
+    MoonrakerAPIMock api(client, state);
+    std::optional<SpoolInfo> spool;
+    api.spoolman().get_spoolman_spool(
+        1, [&](const std::optional<SpoolInfo>& s) { spool = s; }, nullptr);
+    REQUIRE(spool.has_value());
+    spool->filament_id = 1;
+    spool->multi_color_hexes.clear();
+    spool->color_hex = "#E8E8FF80";
+    REQUIRE(spool->is_translucent());
+
+    helix::ui::SpoolEditModal modal;
+    REQUIRE(modal.show_for_spool(test_screen(), *spool, &api));
+    auto settle = [&] {
+        for (int i = 0; i < 3; ++i) {
+            helix::ui::UpdateQueue::instance().drain();
+            process_lvgl(20);
+        }
+    };
+    settle();
+    lv_obj_t* preview = lv_obj_find_by_name(modal.dialog(), "spool_preview");
+    REQUIRE(preview != nullptr);
+    REQUIRE(helix::ui::spool_canvas_data(preview) != nullptr);
+    CHECK(helix::ui::spool_canvas_data(preview)->translucent);
+
+    lv_obj_t* color_row = lv_obj_get_parent(lv_obj_find_by_name(modal.dialog(), "color_label"));
+    REQUIRE(color_row != nullptr);
+    lv_obj_send_event(color_row, LV_EVENT_CLICKED, nullptr);
+    settle();
+    helix::ui::ColorPickerView* picker = helix::ui::ColorPickerView::active();
+    REQUIRE(picker != nullptr);
+    picker->set_color(0xFF0000);
+    lv_obj_send_event(lv_obj_find_by_name(lv_screen_active(), "cpm_done"), LV_EVENT_CLICKED,
+                      nullptr);
+    settle();
+    client.spoolman_mock().filament_updates.clear();
+    lv_obj_send_event(lv_obj_find_by_name(modal.dialog(), "btn_primary"), LV_EVENT_CLICKED,
+                      nullptr);
+    settle();
+
+    REQUIRE_FALSE(client.spoolman_mock().filament_updates.empty());
+    const json& patch = client.spoolman_mock().filament_updates.back().data;
+    INFO(patch.dump());
+    REQUIRE(patch.contains("color_hex"));
+    CHECK(patch["color_hex"] ==
+          "#" + helix::spoolman::color_hex_for(0xFF0000, /*translucent=*/true));
     if (modal.is_visible()) {
         modal.hide();
     }

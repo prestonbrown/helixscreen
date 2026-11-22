@@ -6,6 +6,7 @@
 #include "ui_spool_canvas.h"
 #include "ui_spoolman_list_view.h"
 
+#include "../../src/ui/filament/ui_spool_canvas_internal.h"
 #include "../lvgl_test_fixture.h"
 #include "../lvgl_ui_test_fixture.h"
 
@@ -156,6 +157,34 @@ TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - an 8-digit spool color k
     lv_obj_t* canvas = lv_obj_find_by_name(row, "spool_canvas");
     REQUIRE(canvas != nullptr);
     REQUIRE((lv_color_to_u32(ui_spool_canvas_get_color(canvas)) & 0xFFFFFF) == 0xFF0000);
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "SpoolmanListView - a translucent spool's row draws translucent",
+                 "[spoolman_list_view][ui_integration][color][translucent]") {
+    SpoolmanListView view;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    lv_obj_set_size(container, 400, 600);
+    lv_obj_set_scrollable(container, true);
+    lv_obj_set_flex_flow(container, LV_FLEX_FLOW_COLUMN);
+    view.setup(container);
+
+    auto spools = make_test_spools(2);
+    spools[0].color_hex = "#E8E8FF80";
+    spools[1].color_hex = "#2266AA";
+    view.populate(spools, 0);
+    process_lvgl(50);
+
+    const auto translucent = [&](int id) {
+        lv_obj_t* row = find_row_for_spool(container, id);
+        REQUIRE(row != nullptr);
+        lv_obj_t* canvas = lv_obj_find_by_name(row, "spool_canvas");
+        REQUIRE(canvas != nullptr);
+        REQUIRE(helix::ui::spool_canvas_data(canvas) != nullptr);
+        return helix::ui::spool_canvas_data(canvas)->translucent;
+    };
+    CHECK(translucent(spools[0].id));
+    CHECK_FALSE(translucent(spools[1].id));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture, "SpoolmanListView - active indicator moves to the new spool",

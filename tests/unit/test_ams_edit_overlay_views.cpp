@@ -15,6 +15,7 @@
 #include "ui_obj_flags.h"
 #include "ui_swatch.h"
 
+#include "../../src/ui/filament/ui_spool_canvas_internal.h"
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/ams_edit_overlay_view_access.h"
 #include "../test_helpers/ams_state_test_access.h"
@@ -541,6 +542,31 @@ TEST_CASE_METHOD(BoxWinsFixture,
     const auto filed = helix::ams::lane_sources(backend->lane_id(0)).spoolman;
     REQUIRE(filed.has_value());
     CHECK(filed->material == std::optional<std::string>("ASA"));
+    ModalStack::instance().clear();
+}
+
+TEST_CASE_METHOD(BoxWinsFixture,
+                 "a translucent edit that repoints the spool files the repointed spool translucent",
+                 "[ams_edit_overlay][box_wins][translucent]") {
+    client.spoolman_mock().get_mock_spools().back().color_hex = "FF0000";
+    REQUIRE(helix::test::apply_edit(*backend, 0, box_lane()).success());
+    open(true, box_lane());
+
+    SlotInfo edited = access.working_info();
+    edited.color_rgb = 0x0000FF;
+    edited.translucent = true;
+    access.set_working_info(edited);
+    access.call_handle_save();
+    settle();
+    REQUIRE_FALSE(ModalStack::instance().stack_empty());
+    access.call_do_spoolman_save(helix::SpoolmanSlotSaver::LinkIntent::UpdateLinked);
+    settle();
+
+    REQUIRE(fired);
+    const auto filed = helix::ams::lane_sources(backend->lane_id(0)).spoolman;
+    REQUIRE(filed.has_value());
+    CHECK(filed->material == std::optional<std::string>("ASA"));
+    CHECK(filed->translucent == std::optional<bool>(true));
     ModalStack::instance().clear();
 }
 
@@ -6036,5 +6062,44 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a lane that cannot store colors offers no \
     CHECK(subject_value("ams_edit_multi_capable") == 0);
     access.call_add_color();
     CHECK(access.draft_colors().size() == 1);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "a translucent spool draws translucent in the editor",
+                 "[ams_edit_overlay][picker][translucent]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo lane = untracked_slot();
+    lane.translucent = true;
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, lane, nullptr, nullptr,
+                                  /*open_on_picker=*/true));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    access.set_working_info(lane);
+    access.call_update_ui();
+    UpdateQueue::instance().drain();
+    lv_obj_t* summary = access.widget("edit_spool");
+    REQUIRE(summary != nullptr);
+    REQUIRE(helix::ui::spool_canvas_data(summary) != nullptr);
+    CHECK(helix::ui::spool_canvas_data(summary)->translucent);
+
+    auto spools = two_spools();
+    spools[0].color_hex = "E8E8FF80";
+    spools[1].color_hex = "2266AA";
+    access.set_cached_spools(spools);
+    access.call_render_spool_list("");
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    lv_obj_t* list = access.widget("picker_spool_list");
+    REQUIRE(list != nullptr);
+    REQUIRE(lv_obj_get_child_count(list) == 2);
+    const std::vector<int> ids = access.listed_ids();
+    for (uint32_t i = 0; i < 2; ++i) {
+        lv_obj_t* canvas = lv_obj_find_by_name(lv_obj_get_child(list, i), "row_spool");
+        REQUIRE(canvas != nullptr);
+        REQUIRE(helix::ui::spool_canvas_data(canvas) != nullptr);
+        CHECK(helix::ui::spool_canvas_data(canvas)->translucent == (ids[i] == spools[0].id));
+    }
     close_editor_overlay();
 }
