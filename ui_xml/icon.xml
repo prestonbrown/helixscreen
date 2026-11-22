@@ -7,6 +7,9 @@
     <prop name="size" type="string" default="xl"/>
     <prop name="variant" type="string" default=""/>
     <prop name="color" type="string" default=""/>
+    <!-- "true": the glyph takes the text color that reads on the fill behind it
+         (a check on a filled box), recomputed whenever it draws. -->
+    <prop name="contrast" type="bool" default="false"/>
   </api>
   <consts>
     <!-- Size constants (font size in pixels) — responsive via _micro/_tiny/_small/_medium/_large -->

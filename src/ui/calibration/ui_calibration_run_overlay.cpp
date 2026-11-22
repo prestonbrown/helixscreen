@@ -18,6 +18,7 @@
 #include "first_run_tour.h"
 #include "i_moonraker_api.h"
 #include "klippy_state.h"
+#include "observe_language.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "sound_manager.h"
@@ -291,11 +292,15 @@ void CalibrationRunOverlay::init_subjects() {
     add_int(has_error_, 0, "cal_run_has_error");
     add_string(error_, error_buf_, kLongLen, "cal_run_error");
 
+    language_obs_ = helix::ui::observe_language_change(
+        this, [](CalibrationRunOverlay* self) { self->publish(); });
+
     // Runs from StaticSubjectRegistry::deinit_all(), which may come after
     // StaticPanelRegistry has destroyed the overlay.
     StaticSubjectRegistry::instance().register_deinit("CalibrationRunOverlay", []() {
         if (auto* self = helix::lazy_global_if_exists<CalibrationRunOverlay>()) {
             self->klippy_obs_.reset();
+            self->language_obs_.reset();
             self->run_.reset();
             self->subjects_.deinit_all();
             self->subjects_initialized_ = false;

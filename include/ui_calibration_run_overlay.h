@@ -106,6 +106,8 @@ class CalibrationRunOverlay : public OverlayBase {
     std::unique_ptr<calibration::MoonrakerRunFinisher> finisher_;
     /// Tells the run when Klipper goes down under it.
     ObserverGuard klippy_obs_;
+    /// Re-publishes every composed line in the new language.
+    ObserverGuard language_obs_;
     RunPage page_ = RunPage::Pick;
     /// Answers whether the one save restarts Klipper; MoonrakerRunFinisher saves.
     SaveConfigWatch restart_query_;

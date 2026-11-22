@@ -4288,6 +4288,7 @@
   <translation tag="Skip Objects..." ja="オブジェクトをスキップ..."/>
   <translation tag="Skip for now" ja="今はスキップ"/>
   <translation tag="Skip the rest of this layer and resume at the next one" ja="このレイヤーの残りをスキップして次のレイヤーから再開する"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" ja="スキップ"/>
   <translation tag="Sleep While Printing" ja="印刷中のスリープ"/>
   <translation tag="Sleep adjusted to match dim timeout" ja="スリープタイムアウトを調整しました"/>

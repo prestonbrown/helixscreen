@@ -1378,6 +1378,9 @@
         },
         "color": {
           "type": "color"
+        },
+        "contrast": {
+          "type": "string"
         }
       },
       "inherits": "lv_obj"
@@ -3098,7 +3101,6 @@
   "runtime_constants": [
     "accent_bar_gap",
     "accent_bar_width",
-    "active_dot",
     "ams_action_label_font",
     "ams_action_label_font_large",
     "ams_action_label_font_medium",
@@ -4954,7 +4956,7 @@
     "tile_icon_xxl_size_xlarge",
     "tile_icon_xxl_size_xxlarge",
     "tile_radius",
-    "tile_radius_micro",
+    "tile_radius_tight",
     "timelapse_card_max_w",
     "timelapse_card_min_w",
     "timeline_h",

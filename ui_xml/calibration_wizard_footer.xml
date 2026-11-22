@@ -45,14 +45,14 @@
   </styles>
   <api>
     <prop name="back_text" type="string" default="Back"/>
-    <prop name="back_tag" type="string" default=""/>
+    <prop name="back_tag" type="string" default="Back"/>
     <prop name="back_subject" type="string" default=""/>
     <prop name="back_hide_subject" type="string" default=""/>
     <prop name="back_callback" type="string" default=""/>
     <prop name="back_name" type="string" default="cal_footer_back"/>
     <prop name="back_style" type="string" default="cal_footer_btn"/>
     <prop name="skip_text" type="string" default="Skip this step"/>
-    <prop name="skip_tag" type="string" default=""/>
+    <prop name="skip_tag" type="string" default="Skip this step"/>
     <prop name="skip_hide_subject" type="string" default=""/>
     <prop name="skip_callback" type="string" default=""/>
     <prop name="skip_name" type="string" default="cal_footer_skip"/>

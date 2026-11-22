@@ -4348,6 +4348,7 @@
   <translation tag="Skip Objects..." ru="Пропустить объекты..."/>
   <translation tag="Skip for now" ru="Пропустить пока"/>
   <translation tag="Skip the rest of this layer and resume at the next one" ru="Пропустить остаток этого слоя и продолжить со следующего"/>
+  <translation tag="Skip this step"/>
   <translation tag="Skipped" ru="Пропущено"/>
   <translation tag="Sleep While Printing" ru="Спящий режим при печати"/>
   <translation tag="Sleep adjusted to match dim timeout" ru="Таймаут сна изменён"/>

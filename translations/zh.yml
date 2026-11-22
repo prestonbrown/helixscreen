@@ -4415,6 +4415,7 @@ translations:
   Skip Objects...: '跳过对象...'
   Skip for now: '暂时跳过'
   Skip the rest of this layer and resume at the next one: 跳过本层剩余部分并从下一层恢复
+  Skip this step: ''
   Skipped: '已跳过'
   Sleep While Printing: 打印时休眠
   Sleep adjusted to match dim timeout: 休眠超时已调整
