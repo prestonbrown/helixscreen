@@ -30,8 +30,14 @@ struct LaneImages {
     lv_obj_t* glow = nullptr; ///< its spool's soft light, just behind it; hidden unless marked
     lv_obj_t* dim = nullptr;  ///< its spool's silhouette in the card's color; hidden unless marked
     lv_obj_t* rim = nullptr;  ///< a dashed ring round its spool's near flange: a ghost's mark
+    /// A translucent filament's checkerboard over its tint, at the widget's size; hidden
+    /// for an opaque one.
+    lv_obj_t* checks = nullptr;
+    lv_draw_buf_t* checks_buf = nullptr;
+    uint64_t checks_key = 0;
     lv_color_t filament = {}; ///< the live filament color the tint takes
     bool filled = false;      ///< the lane holds filament, so its tint and shading show
+    bool translucent = false; ///< the filament is clear or see-through
     UnitArtLaneMark mark;
 };
 

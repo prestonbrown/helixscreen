@@ -51,7 +51,7 @@ Each unit bakes at two tiers: `full` (320 px wide) and `thumb` (40 px wide, bold
 | `vents`, `vents_lit`, `far_vents` | Full tier, once per drawing: a flange's vents alone, centered on the flange; `vents_lit` is the filament seen through the near ones, drawn white for tinting. The far flange's inner face carries the same vents, open to the dark behind the spool |
 | carriage | For a unit with a sliding selector: the moving part, baked at gate 0 and shifted per gate |
 
-`<unit_art>` stacks them back to front, tints each lane that holds or still names a spool, and hides the tint of an empty one. A unit with no matching art hides the widget. Variants:
+`<unit_art>` stacks them back to front, tints each lane that holds or still names a spool, and hides the tint of an empty one. A translucent filament's lane also gets the swatch checkerboard over its tint and under its shade (`laneN_checks`): an image at the widget's size whose squares follow the tint's own outline, fill mask included, rebuilt only when that outline, the size or the theme moves (`docs/devel/COLOR_SWATCHES.md` § "Translucent filament"). A unit with no matching art hides the widget. Variants:
 
 - A unit built in several lane counts sets `lane_variants` and bakes each count to `assets/images/units/<id>/<n>/`. A lane count without baked art keeps the live tray shell and loses only the picture.
 - `stub_art` bakes a second drawing, the body alone with a tube per lane, under `stubs/`. Units that hold no spools (BMCU, MMX, 3MS, AD5X IFS) can show either look, chosen by `HELIX_UNIT_ART_FEEDER` (`docs/devel/ENVIRONMENT_VARIABLES.md#helix_unit_art_feeder`).

@@ -758,6 +758,17 @@ static void render_front_pixels(SpoolCanvasData* data) {
             }
         }
         helix::ui::swatch_paint_finish_pixels(buf, disc, LV_RADIUS_CIRCLE, data->finish);
+        if (data->translucent) {
+            const helix::ui::SwatchCoverage wound_disc = [=](float x, float y) {
+                return std::clamp(filament_r -
+                                      dist(static_cast<int32_t>(x), static_cast<int32_t>(y)) + 0.5f,
+                                  0.0f, 1.0f);
+            };
+            helix::ui::swatch_paint_check_pixels(
+                buf, disc, wound_disc,
+                helix::ui::swatch_check_cell_px(static_cast<int32_t>(filament_r)),
+                helix::ui::swatch_check_tones());
+        }
     }
 
     // Pass 2: the flange over it. Solid flange is smoked where filament lies
@@ -919,6 +930,12 @@ static void render_spool_pixels(SpoolCanvasData* data) {
             return std::clamp((1.0f - d) * cap_rx + 0.5f, 0.0f, 1.0f);
         };
         helix::ui::swatch_paint_finish_pixels(data->draw_buf, visible, wound, data->finish);
+        if (data->translucent) {
+            helix::ui::swatch_paint_check_pixels(
+                data->draw_buf, visible, wound,
+                helix::ui::swatch_check_cell_px(fil_bottom - fil_top + 1),
+                helix::ui::swatch_check_tones());
+        }
 
         // 2c: Front face ellipse (will be covered by front flange anyway)
         lv_color_t front_light = ams_draw::lighten_color(filament_color, 70);
@@ -987,7 +1004,7 @@ static void render_spool_pixels(SpoolCanvasData* data) {
 
 // Folds the multi-colour list and finish into the render cache key.
 static uint32_t filament_hash(const SpoolCanvasData& d) {
-    uint32_t h = static_cast<uint32_t>(d.finish) * 0x01000193u;
+    uint32_t h = (static_cast<uint32_t>(d.finish) ^ (d.translucent ? 0x80u : 0u)) * 0x01000193u;
     for (lv_color_t c : d.colors)
         h = (h ^ color_to_rgb24(c)) * 0x01000193u;
     return h;
@@ -1193,12 +1210,13 @@ void ui_spool_canvas_set_color(lv_obj_t* canvas, lv_color_t color) {
     // + lookup on the common scroll-recycle-same-color path).
     if (data->has_rendered && data->color.red == color.red && data->color.green == color.green &&
         data->color.blue == color.blue && data->colors.empty() &&
-        data->finish == helix::ui::SwatchFinish::Plain) {
+        data->finish == helix::ui::SwatchFinish::Plain && !data->translucent) {
         return;
     }
     data->color = color;
     data->colors.clear();
     data->finish = helix::ui::SwatchFinish::Plain;
+    data->translucent = false;
     redraw_spool(data);
 }
 
@@ -1237,7 +1255,7 @@ void ui_spool_canvas_redraw(lv_obj_t* canvas) {
 namespace helix::ui {
 
 void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string& multi_color_hexes,
-                               SwatchFinish finish) {
+                               SwatchFinish finish, bool translucent) {
     auto* data = spool_canvas_data(canvas);
     if (!data)
         return;
@@ -1247,6 +1265,7 @@ void spool_canvas_set_filament(lv_obj_t* canvas, uint32_t rgb, const std::string
     data->color = lv_color_hex(rgb);
     data->colors = std::move(colors);
     data->finish = finish;
+    data->translucent = translucent;
     redraw_spool(data);
 }
 
@@ -1265,7 +1284,7 @@ SpoolView spool_canvas_get_view(lv_obj_t* canvas) {
 
 void spool_canvas_set_filament(lv_obj_t* canvas, const SlotInfo& slot) {
     spool_canvas_set_filament(canvas, slot.color_rgb, slot.multi_color_hexes,
-                              swatch_finish_of(slot));
+                              swatch_finish_of(slot), slot.translucent);
 }
 
 } // namespace helix::ui

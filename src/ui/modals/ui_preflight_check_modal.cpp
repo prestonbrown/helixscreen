@@ -260,9 +260,9 @@ lv_obj_t* PreflightCheckModal::create_tool_row(lv_obj_t* list, const helix::Tool
     // Seated swatch, painted from the live slot found by mapped_slot.
     if (has_filament) {
         if (auto* seated_swatch = helix::ui::find_required(row, "seated_swatch", get_name())) {
-            helix::ui::apply_swatch_color(seated_swatch, seated->color_rgb,
-                                          seated->multi_color_hexes,
-                                          helix::ui::swatch_finish(seated->finish));
+            helix::ui::apply_swatch_color(
+                seated_swatch, seated->color_rgb, seated->multi_color_hexes,
+                helix::ui::swatch_finish(seated->finish), seated->translucent);
         }
     }
 

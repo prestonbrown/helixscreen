@@ -70,13 +70,15 @@ IndexedSubjectPool s_chip_slot_finish{"filament_chip", IndexedSubjectPool::Type:
                                       "_slot_finish"};
 IndexedSubjectPool s_chip_slot_state{"filament_chip", IndexedSubjectPool::Type::Int, 0,
                                      "_slot_state"};
+IndexedSubjectPool s_chip_slot_translucent{"filament_chip", IndexedSubjectPool::Type::Int, 0,
+                                           "_slot_translucent"};
 IndexedSubjectPool s_chip_severity{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_severity"};
 IndexedSubjectPool s_chip_slot_ink{"filament_chip", IndexedSubjectPool::Type::Int, 0, "_slot_ink"};
 
 IndexedSubjectPool* const s_chip_pools[] = {
     &s_chip_material,   &s_chip_slot,       &s_chip_file_color,  &s_chip_file_color_known,
     &s_chip_ink,        &s_chip_slot_color, &s_chip_slot_colors, &s_chip_slot_finish,
-    &s_chip_slot_state, &s_chip_severity,   &s_chip_slot_ink};
+    &s_chip_slot_state, &s_chip_severity,   &s_chip_slot_ink,    &s_chip_slot_translucent};
 
 /// filament_chip_<i>_slot_state: what the chip's body draws.
 enum ChipSlotState : int {
@@ -140,6 +142,7 @@ void publish_chip(size_t i, const helix::GcodeToolInfo& tool, const helix::Avail
     s_chip_slot_finish.set_string(i, slot ? std::string(helix::filament_finish_name(slot->finish))
                                           : std::string{});
     s_chip_slot_state.set_int(i, slot ? (slot->is_empty ? kEmptySlot : kLoadedSlot) : kNoSlot);
+    s_chip_slot_translucent.set_int(i, slot && slot->translucent ? 1 : 0);
     s_chip_slot_ink.set_int(i, slot && !slot->is_empty ? ink_on(slot->color_rgb) : kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::chip_severity(tool, slot)));
 }
@@ -153,6 +156,7 @@ void publish_picked_at_print_chip(size_t i, const helix::GcodeToolInfo& tool) {
     s_chip_slot_colors.set_string(i, std::string{});
     s_chip_slot_finish.set_string(i, std::string{});
     s_chip_slot_state.set_int(i, kUnknownSlot);
+    s_chip_slot_translucent.set_int(i, 0);
     s_chip_slot_ink.set_int(i, kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::ChipSeverity::Ok));
 }
@@ -201,6 +205,7 @@ void publish_loaded_chip(size_t i, const helix::GcodeToolInfo& tool,
     s_chip_slot_state.set_int(i, role == helix::LoadedRole::Swap ? kSwapSlot
                                  : loaded.known                  ? kLoadedSlot
                                                                  : kUnknownSlot);
+    s_chip_slot_translucent.set_int(i, shows_spool && spool->translucent ? 1 : 0);
     s_chip_slot_ink.set_int(i, shows_spool ? ink_on(loaded.color_rgb) : kThemeInk);
     s_chip_severity.set_int(i, static_cast<int>(helix::loaded_severity(tool, loaded, role)));
 }

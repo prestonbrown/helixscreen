@@ -2,6 +2,7 @@
 
 #include "ui_unit_art.h"
 
+#include "ui_swatch.h"
 #include "ui_utils.h"
 
 #include "ams_lane_state.h"
@@ -91,8 +92,10 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     free_with(data->flat, data->flat_buf);
     free_with(data->glow, data->glow_buf);
     free_with(data->carriage_flat, data->carriage_buf);
-    for (LaneImages& lane : data->lanes)
+    for (LaneImages& lane : data->lanes) {
         free_with(data->layers, lane.mask);
+        free_with(data->layers, lane.checks_buf);
+    }
     for (LaneSpin& spin : data->spins)
         free_spin(spin);
     data->spins.clear();
@@ -152,6 +155,12 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
         }
         images.color = add_layer(data->layers, stem + ".png");
         lv_obj_set_name(images.color, (name + "_tint").c_str());
+        // Filled at the widget's size once a translucent filament needs it.
+        images.checks = lv_image_create(data->layers);
+        lv_obj_set_size(images.checks, lv_pct(100), lv_pct(100));
+        lv_obj_set_clickable(images.checks, false);
+        lv_obj_set_name(images.checks, (name + "_checks").c_str());
+        set_lane_visible(images.checks, false);
         images.shade = add_layer(data->layers, stem + "_shade.png");
         lv_obj_set_name(images.shade, (name + "_shade").c_str());
         if (marked && data->geom->silhouettes) {
@@ -223,7 +232,7 @@ void apply_lane_colors(LaneImages& lane) {
         lv_obj_set_style_image_recolor(layer, card, LV_PART_MAIN);
         lv_obj_set_style_image_recolor_opa(layer, fade ? kDimOpa : LV_OPA_TRANSP, LV_PART_MAIN);
     }
-    for (lv_obj_t* layer : {lane.body, lane.color, lane.shade}) {
+    for (lv_obj_t* layer : {lane.body, lane.color, lane.checks, lane.shade}) {
         if (layer)
             // DECLARATIVE_OK: per-lane state with no subject behind it.
             lv_obj_set_style_image_opa(layer, lane.mark.ghost ? kGhostAlpha : LV_OPA_COVER,
@@ -233,6 +242,9 @@ void apply_lane_colors(LaneImages& lane) {
     if (lane.body)
         set_lane_visible(lane.body, !lane.mark.absent);
     set_lane_visible(lane.color, lane.filled && !lane.mark.absent);
+    if (lane.checks)
+        set_lane_visible(lane.checks, lane.filled && lane.translucent && lane.checks_buf &&
+                                          !lane.mark.absent && !lane.mark.ghost);
     set_lane_visible(lane.shade, lane.filled && !lane.mark.absent);
 }
 
@@ -552,6 +564,52 @@ std::vector<uint8_t> layer_alpha(lv_obj_t* art, ArtData* data, const std::vector
     return alpha;
 }
 
+/// Lay the swatch checkerboard over lane @p i's tint, where its filament is drawn: an image
+/// at the widget's size, rebuilt only when the tint's outline, the size or the theme moves.
+void refresh_lane_checks(lv_obj_t* art, ArtData* data, int i, int32_t w, int32_t h) {
+    LaneImages& lane = data->lanes[static_cast<size_t>(i)];
+    if (!lane.checks || !lane.filled || !lane.translucent || w <= 0 || h <= 0)
+        return;
+    const helix::ui::SwatchCheckTones tones = helix::ui::swatch_check_tones();
+    uint64_t key = 0x84222325cbf29ce4ull;
+    for (uint64_t v :
+         {static_cast<uint64_t>(lane.mask_pct), static_cast<uint64_t>(w), static_cast<uint64_t>(h),
+          static_cast<uint64_t>(lv_color_to_u32(tones.light)),
+          static_cast<uint64_t>(lv_color_to_u32(tones.dark))})
+        key = (key ^ v) * kFnvPrime;
+    if (lane.checks_buf && key == lane.checks_key)
+        return;
+    const std::vector<uint8_t> tint = layer_alpha(art, data, {lane.color}, w, h);
+    if (tint.empty())
+        return;
+    lv_draw_buf_t* buf = lv_draw_buf_create(w, h, LV_COLOR_FORMAT_ARGB8888, LV_STRIDE_AUTO);
+    if (!buf)
+        return;
+    lv_draw_buf_clear(buf, nullptr);
+    const helix::ui::SwatchCoverage cover = [&tint, w, h](float x, float y) {
+        const auto px = static_cast<int32_t>(x);
+        const auto py = static_cast<int32_t>(y);
+        if (px < 0 || py < 0 || px >= w || py >= h)
+            return 0.0f;
+        return static_cast<float>(tint[static_cast<size_t>(py) * static_cast<size_t>(w) +
+                                       static_cast<size_t>(px)]) /
+               255.0f;
+    };
+    // The squares are sized to the spool, as a swatch's are to its shape.
+    const Content c = content_of(data, w, h);
+    const int32_t spool_px =
+        data->geom ? static_cast<int32_t>(std::lround(
+                         (data->geom->lane[i].box_y1 - data->geom->lane[i].box_y0) * c.w))
+                   : h;
+    helix::ui::swatch_paint_check_pixels(buf, {0, 0, w - 1, h - 1}, cover,
+                                         helix::ui::swatch_check_cell_px(spool_px / 3), tones);
+    lv_image_set_src(lane.checks, buf);
+    if (lane.checks_buf)
+        destroy_buf(lane.checks_buf);
+    lane.checks_buf = buf;
+    lane.checks_key = key;
+}
+
 /// Paint the glow for the current drawing, reusing the last image while neither the drawing
 /// nor the theme colour has changed. False when there is no drawing to take an outline from.
 bool refresh_glow_image(lv_obj_t* art, ArtData* data) {
@@ -615,6 +673,8 @@ void delete_cb(lv_event_t* e) {
         for (const LaneImages& lane : data->lanes) {
             if (lane.mask)
                 lv_draw_buf_destroy(lane.mask);
+            if (lane.checks_buf)
+                lv_draw_buf_destroy(lane.checks_buf);
         }
         for (const LaneSpin& spin : data->spins) {
             for (const FlangeSpin& f : spin.flange) {
@@ -677,7 +737,7 @@ UnitArtLane unit_art_lane(const SlotInfo& slot) {
     // A bay that still names its spool shows it, as the drawn spool does; only an empty
     // one is a bare reel.
     const bool filled = classify_lane(slot) != LaneState::Empty;
-    return {filled, slot.color_rgb, slot.display_fill_level().value_or(1.0f)};
+    return {filled, slot.color_rgb, slot.display_fill_level().value_or(1.0f), slot.translucent};
 }
 
 namespace {
@@ -749,9 +809,12 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
         apply_fill_mask(data, static_cast<int>(i), lane.filled ? pct : 100, w, h);
         key = (key ^ (lane.filled ? static_cast<uint64_t>(lane.color) + 1 : 0)) * kFnvPrime;
         key = (key ^ static_cast<uint64_t>(data->lanes[i].mask_pct)) * kFnvPrime;
+        key = (key ^ (lane.translucent ? 0x5bd1e995ull : 0ull)) * kFnvPrime;
         data->lanes[i].filled = lane.filled;
+        data->lanes[i].translucent = lane.translucent;
         if (lane.filled)
             data->lanes[i].filament = lv_color_hex(lane.color);
+        refresh_lane_checks(art, data, static_cast<int>(i), w, h);
         apply_lane_colors(data->lanes[i]);
     }
     data->mask_w = w;

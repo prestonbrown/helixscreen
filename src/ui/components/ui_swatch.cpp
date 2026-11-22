@@ -422,6 +422,7 @@ struct ObjectPaint {
     SwatchFinish finish = SwatchFinish::Plain;
     bool edge = true;
     bool blend = false;
+    bool translucent = false;
     std::unique_ptr<SwatchCache> cache = std::make_unique<SwatchCache>();
 };
 
@@ -458,6 +459,7 @@ void draw_object_paint(lv_event_t* e) {
     paint.finish = it->second.finish;
     paint.edge = it->second.edge;
     paint.blend = it->second.blend;
+    paint.translucent = it->second.translucent;
     paint.opa = lv_obj_get_style_opa_recursive(obj, LV_PART_MAIN);
     paint.cache = it->second.cache.get();
     paint.backdrop = backdrop_of(obj);
@@ -548,6 +550,12 @@ void finish_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     lv_obj_invalidate(obj);
 }
 
+void translucent_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
+    auto* obj = static_cast<lv_obj_t*>(lv_observer_get_target(observer));
+    ensure_paint(obj).translucent = lv_subject_get_int(subject) != 0;
+    lv_obj_invalidate(obj);
+}
+
 // A <color_swatch> holder paints through its disc; anything else paints itself.
 lv_obj_t* paint_target(lv_obj_t* obj) {
     if (paint_registry().count(obj) > 0) {
@@ -620,6 +628,15 @@ void swatch_paint_xml_apply(lv_xml_parser_state_t* state, const char** attrs) {
             p.edge = std::strcmp(value, "off") != 0 && std::strcmp(value, "false") != 0;
         } else if (std::strcmp(name, "blend") == 0) {
             p.blend = std::strcmp(value, "on") == 0 || std::strcmp(value, "true") == 0;
+        } else if (std::strcmp(name, "translucent") == 0) {
+            p.translucent = std::strcmp(value, "on") == 0 || std::strcmp(value, "true") == 0;
+        } else if (std::strcmp(name, "bind_translucent") == 0) {
+            lv_subject_t* subject = lv_xml_get_subject(&state->scope, value);
+            if (!subject) {
+                spdlog::warn("[Swatch] bind_translucent subject '{}' does not exist", value);
+            } else {
+                lv_subject_add_observer_obj(subject, translucent_observer_cb, obj, nullptr);
+            }
         }
     }
 }
@@ -719,6 +736,19 @@ lv_color_t swatch_matte_color(lv_color_t c) {
         return static_cast<uint8_t>(std::lround(ch + (grey - ch) * 0.2f));
     };
     return lv_color_make(mix(c.red), mix(c.green), mix(c.blue));
+}
+
+int32_t swatch_check_cell_px(int32_t short_side) {
+    return std::clamp<int32_t>(short_side / 4, 3, 8);
+}
+
+bool swatch_check_is_light(int32_t x, int32_t y, int32_t cell) {
+    const int32_t c = std::max<int32_t>(1, cell);
+    return ((x / c) + (y / c)) % 2 == 0;
+}
+
+SwatchCheckTones swatch_check_tones() {
+    return {theme_manager_get_color("swatch_check_hi"), theme_manager_get_color("swatch_check_lo")};
 }
 
 SwatchPolygon swatch_shape_polygon(const lv_area_t& area, int32_t radius) {
@@ -846,6 +876,42 @@ std::vector<SwatchPoint> swatch_texture_points(const lv_area_t& area, int32_t ra
 
 SwatchCache::~SwatchCache() {
     drop_texture();
+    drop_checks();
+}
+
+void SwatchCache::drop_checks() {
+    if (checks_) {
+        if (lv_is_initialized()) {
+            lv_image_cache_drop(checks_);
+        }
+        helix::safe_draw_buf_destroy(checks_, "swatch checks");
+    }
+}
+
+const lv_draw_buf_t* SwatchCache::checks(int32_t w, int32_t h, int32_t radius,
+                                         SwatchCheckTones tones) {
+    const uint32_t key = lv_color_to_u32(tones.light) * 31u ^ lv_color_to_u32(tones.dark);
+    if (checks_ && w == chk_w_ && h == chk_h_ && radius == chk_radius_ && key == chk_tones_) {
+        return checks_;
+    }
+    drop_checks();
+    chk_w_ = w;
+    chk_h_ = h;
+    chk_radius_ = radius;
+    chk_tones_ = key;
+    checks_ = lv_draw_buf_create(static_cast<uint32_t>(w), static_cast<uint32_t>(h),
+                                 LV_COLOR_FORMAT_ARGB8888, 0);
+    if (!checks_) {
+        spdlog::warn("[Swatch] no memory for a {}x{} checkerboard", w, h);
+        return nullptr;
+    }
+    lv_draw_buf_clear(checks_, nullptr);
+    const lv_area_t area{0, 0, w - 1, h - 1};
+    const SwatchCoverage shape = [&area, radius](float x, float y) {
+        return swatch_shape_coverage(area, radius, x, y);
+    };
+    swatch_paint_check_pixels(checks_, area, shape, swatch_check_cell_px(std::min(w, h)), tones);
+    return checks_;
 }
 
 void SwatchCache::drop_texture() {
@@ -931,6 +997,26 @@ void swatch_paint_finish_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
     paint_finish(buf, area, cover, true, finish);
 }
 
+void swatch_paint_check_pixels(lv_draw_buf_t* buf, const lv_area_t& area,
+                               const SwatchCoverage& cover, int32_t cell, SwatchCheckTones tones) {
+    if (!buf || buf->header.cf != LV_COLOR_FORMAT_ARGB8888) {
+        return;
+    }
+    const PixelTarget t{buf, area, cover, false};
+    for (int32_t y = area.y1; y <= area.y2; ++y) {
+        for (int32_t x = area.x1; x <= area.x2; ++x) {
+            lv_color32_t* p = t.at(x, y);
+            const float cov = cover(x + 0.5f, y + 0.5f);
+            if (!p || cov <= 0.0f) {
+                continue;
+            }
+            const bool light = swatch_check_is_light(x - area.x1, y - area.y1, cell);
+            blend_over(*p, light ? tones.light : tones.dark,
+                       static_cast<uint8_t>(kSwatchCheckOpa * cov));
+        }
+    }
+}
+
 void draw_swatch(lv_layer_t* layer, const lv_area_t& area, const SwatchPaint& paint) {
     const int32_t w = lv_area_get_width(&area);
     const int32_t h = lv_area_get_height(&area);
@@ -978,6 +1064,18 @@ void draw_swatch(lv_layer_t* layer, const lv_area_t& area, const SwatchPaint& pa
         }
     }
 
+    // Checks over the colour: the colour reads as seen through, every hue its own.
+    if (paint.translucent && paint.cache) {
+        if (const lv_draw_buf_t* tex =
+                paint.cache->checks(w, h, paint.radius, swatch_check_tones())) {
+            lv_draw_image_dsc_t dsc;
+            lv_draw_image_dsc_init(&dsc);
+            dsc.src = tex;
+            dsc.opa = paint.opa;
+            lv_draw_image(layer, &dsc, &area);
+        }
+    }
+
     if (paint.edge && !paint.gradient &&
         swatch_colors_need_edge(colors, swatch_edge_surfaces(paint.backdrop))) {
         draw_edge(layer, area, paint.radius, paint.opa);
@@ -985,18 +1083,20 @@ void draw_swatch(lv_layer_t* layer, const lv_area_t& area, const SwatchPaint& pa
 }
 
 SwatchPaint swatch_paint_for(uint32_t rgb, const std::string& multi_color_hexes,
-                             SwatchFinish finish) {
+                             SwatchFinish finish, bool translucent) {
     SwatchPaint paint;
     paint.colors = parse_multi_colors(multi_color_hexes);
     if (paint.colors.size() < 2) {
         paint.colors = {lv_color_hex(rgb)};
     }
     paint.finish = finish;
+    paint.translucent = translucent;
     return paint;
 }
 
 SwatchPaint swatch_paint_for(const helix::SlotInfo& slot) {
-    return swatch_paint_for(slot.color_rgb, slot.multi_color_hexes, swatch_finish_of(slot));
+    return swatch_paint_for(slot.color_rgb, slot.multi_color_hexes, swatch_finish_of(slot),
+                            slot.translucent);
 }
 
 // ---------------------------------------------------------------------------
@@ -1004,7 +1104,8 @@ SwatchPaint swatch_paint_for(const helix::SlotInfo& slot) {
 // ---------------------------------------------------------------------------
 
 void apply_swatch_color(lv_obj_t* swatch, uint32_t primary_rgb,
-                        const std::string& multi_color_hexes, SwatchFinish finish) {
+                        const std::string& multi_color_hexes, SwatchFinish finish,
+                        bool translucent) {
     if (!swatch) {
         return;
     }
@@ -1014,13 +1115,33 @@ void apply_swatch_color(lv_obj_t* swatch, uint32_t primary_rgb,
     p.colors =
         colors.size() >= 2 ? std::move(colors) : std::vector<lv_color_t>{lv_color_hex(primary_rgb)};
     p.finish = finish;
+    p.translucent = translucent;
     // Click handlers read a swatch's colour back from its bg_color.
     lv_obj_set_style_bg_color(swatch, lv_color_hex(primary_rgb), LV_PART_MAIN);
     lv_obj_invalidate(swatch);
 }
 
 void apply_swatch_color(lv_obj_t* swatch, const helix::SlotInfo& slot) {
-    apply_swatch_color(swatch, slot.color_rgb, slot.multi_color_hexes, swatch_finish_of(slot));
+    apply_swatch_color(swatch, slot.color_rgb, slot.multi_color_hexes, swatch_finish_of(slot),
+                       slot.translucent);
+}
+
+void set_swatch_translucent(lv_obj_t* swatch, bool translucent) {
+    if (!swatch) {
+        return;
+    }
+    swatch = paint_target(swatch);
+    ObjectPaint& p = ensure_paint(swatch);
+    if (p.translucent != translucent) {
+        p.translucent = translucent;
+        lv_obj_invalidate(swatch);
+    }
+}
+
+bool swatch_paint_translucent(const lv_obj_t* obj) {
+    auto& registry = paint_registry();
+    auto it = registry.find(obj);
+    return it != registry.end() && it->second.translucent;
 }
 
 void attach_swatch_paint(lv_obj_t* obj) {

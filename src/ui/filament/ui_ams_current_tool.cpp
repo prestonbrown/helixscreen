@@ -49,7 +49,7 @@ static void repaint(lv_obj_t* widget) {
         return;
     const auto paint = helix::AmsState::instance().current_paint();
     helix::ui::apply_swatch_color(it->second->color_swatch, paint.rgb, paint.multi_color_hexes,
-                                  helix::ui::swatch_finish(paint.finish));
+                                  helix::ui::swatch_finish(paint.finish), paint.translucent);
 }
 
 // Cleanup callback when widget is deleted

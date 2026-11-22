@@ -254,6 +254,7 @@ void AmsState::init_subjects(bool register_xml) {
     // Read by C++ alongside current_color (ui_ams_current_tool.cpp), never bound in XML.
     INIT_SUBJECT_STRING(current_colors, "", subjects_, false);
     INIT_SUBJECT_STRING(current_finish, "", subjects_, false);
+    INIT_SUBJECT_INT(current_translucent, 0, subjects_, false);
     INIT_SUBJECT_INT(current_fill_pct, 0, subjects_,
                      register_xml); // SUBJECT_OK: AmsOperationSidebar draws it on the loaded spool
 

@@ -21,6 +21,8 @@
                          more draw the spool's multi-colour split
        finish_subject    string subject naming the filament ("PLA Silk"); its
                          finish (silk, matte, marble, sparkle) is drawn
+       translucent_subject  int subject; nonzero draws the colour over the
+                         translucent filament's checkerboard
        fill              a style for the disc (a gradient fill: custom_color_swatch)
        selected_subject  int subject naming the ringed index; empty for no ring
        callback          click handler
@@ -38,6 +40,7 @@
     <prop name="color" type="string" default=""/>
     <prop name="colors_subject" type="string" default=""/>
     <prop name="finish_subject" type="string" default=""/>
+    <prop name="translucent_subject" type="string" default=""/>
     <prop name="fill" type="string" default="disc_plain"/>
     <prop name="selected_subject" type="string" default=""/>
     <prop name="callback" type="string" default=""/>
@@ -72,7 +75,7 @@
     <bind_style_if_eq name="$ring" subject="$selected_subject" ref_value="$index"/>
     <swatch_paint name="color_swatch_disc"
                   width="100%" height="100%" color="$color" bind_color="$color_subject" bind_colors="$colors_subject"
-                  bind_finish="$finish_subject">
+                  bind_finish="$finish_subject" bind_translucent="$translucent_subject">
       <style name="$fill"/>
     </swatch_paint>
     <event_cb trigger="clicked" callback="$callback" user_data="$index"/>

@@ -885,10 +885,12 @@ void AmsOperationSidebar::paint_loaded_filament() {
     const auto paint = AmsState::instance().current_paint();
     const auto finish = helix::ui::swatch_finish(paint.finish);
     if (lv_obj_t* swatch = lv_obj_find_by_name(loaded_card_, "loaded_swatch")) {
-        helix::ui::apply_swatch_color(swatch, paint.rgb, paint.multi_color_hexes, finish);
+        helix::ui::apply_swatch_color(swatch, paint.rgb, paint.multi_color_hexes, finish,
+                                      paint.translucent);
     }
     if (lv_obj_t* spool = lv_obj_find_by_name(loaded_card_, "loaded_spool")) {
-        helix::ui::spool_canvas_set_filament(spool, paint.rgb, paint.multi_color_hexes, finish);
+        helix::ui::spool_canvas_set_filament(spool, paint.rgb, paint.multi_color_hexes, finish,
+                                             paint.translucent);
     }
 }
 

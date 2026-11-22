@@ -59,14 +59,16 @@ IndexedSubjectPool s_row_colors{"filament_picker_row", IndexedSubjectPool::Type:
                                 "_colors"};
 IndexedSubjectPool s_row_finish{"filament_picker_row", IndexedSubjectPool::Type::String, 32,
                                 "_finish"};
+IndexedSubjectPool s_row_translucent{"filament_picker_row", IndexedSubjectPool::Type::Int, 0,
+                                     "_translucent"};
 IndexedSubjectPool s_row_selected{"filament_picker_row", IndexedSubjectPool::Type::Int, 0,
                                   "_selected"};
 IndexedSubjectPool s_row_empty{"filament_picker_row", IndexedSubjectPool::Type::Int, 0, "_empty"};
 IndexedSubjectPool s_row_warn{"filament_picker_row", IndexedSubjectPool::Type::Int, 0, "_warn"};
 
-IndexedSubjectPool* const s_pools[] = {&s_row_label,    &s_row_material, &s_row_reason,
-                                       &s_row_color,    &s_row_colors,   &s_row_finish,
-                                       &s_row_selected, &s_row_empty,    &s_row_warn};
+IndexedSubjectPool* const s_pools[] = {
+    &s_row_label,  &s_row_material, &s_row_reason, &s_row_color, &s_row_colors,
+    &s_row_finish, &s_row_selected, &s_row_empty,  &s_row_warn,  &s_row_translucent};
 
 /// The picker on screen; the XML callbacks are global, so they reach it here.
 FilamentSlotPicker* s_shown = nullptr;
@@ -224,6 +226,7 @@ void FilamentSlotPicker::publish(const Options& options, const std::vector<std::
         s_row_color.set_color(k, slot.color_rgb);
         s_row_colors.set_string(k, slot.multi_color_hexes);
         s_row_finish.set_string(k, helix::filament_finish_name(slot.finish));
+        s_row_translucent.set_int(k, slot.translucent ? 1 : 0);
         s_row_selected.set_int(k, same_slot(slot, current_selection_) ? 1 : 0);
         // 1: an empty bay; 2: a ghost, the spool it remembers drawn dimmed.
         s_row_empty.set_int(k, slot.ghost ? 2 : slot.is_empty ? 1 : 0);

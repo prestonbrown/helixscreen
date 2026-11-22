@@ -29,7 +29,8 @@
     <bind_style_if_eq name="row_ghost" subject="filament_picker_row_${index}_empty" ref_value="2"/>
     <color_dot name="swatch"
                size="#space_2xl" color_subject="filament_picker_row_${index}_color"
-               colors_subject="filament_picker_row_${index}_colors" finish_subject="filament_picker_row_${index}_finish">
+               colors_subject="filament_picker_row_${index}_colors" finish_subject="filament_picker_row_${index}_finish"
+               translucent_subject="filament_picker_row_${index}_translucent">
       <bind_flag_if_eq subject="filament_picker_row_${index}_empty" flag="hidden" ref_value="1"/>
     </color_dot>
     <lv_obj name="empty_ring"
