@@ -14,7 +14,8 @@
        <b>_name               its widget name, for C++ lookups and tests
      compact_texts="1"        at 480x272 Back and Skip show back_compact_text and
                               skip_compact_text ("Skip"); their widgets are named
-                              <name>_compact
+                              <name>_compact. back_compact_subject retitles the compact
+                              Back live, as back_subject does the full one
      back_style="cal_footer_danger" outlines the leading button in red (Stop calibration).
      primary_icon             a trailing icon on the primary (Start's chevron)
      primary_moves_machine    "true" installs the toolhead guard on the primary
@@ -49,6 +50,8 @@
     <style name="cal_footer_row_gap" pad_column="#space_lg"/>
     <style name="cal_footer_row_gap_tight" pad_column="#space_md"/>
     <style name="cal_footer_primary_fill" flex_grow="1"/>
+    <!-- Disabled: a neutral surface, so a primary that cannot run yet reads grey, not dim blue. -->
+    <style name="cal_footer_primary_off" bg_color="#elevated_bg"/>
   </styles>
   <api>
     <prop name="back_text" type="string" default="Back"/>
@@ -66,6 +69,7 @@
     <prop name="compact_texts" type="int" default="0"/>
     <prop name="back_compact_text" type="string" default="Back"/>
     <prop name="back_compact_tag" type="string" default="Back"/>
+    <prop name="back_compact_subject" type="string" default=""/>
     <prop name="skip_compact_text" type="string" default="Skip"/>
     <prop name="skip_compact_tag" type="string" default="Skip"/>
     <prop name="primary_text" type="string" default=""/>
@@ -140,8 +144,8 @@
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
           </ui_button>
           <ui_button name="${back_name}_compact"
-                     height="#cal_button_h" variant="outline" text="$back_compact_text"
-                     translation_tag="$back_compact_tag" hidden_if_empty="$back_callback">
+                     height="#cal_button_h" variant="outline" bind_text="$back_compact_subject"
+                     text="$back_compact_text" translation_tag="$back_compact_tag" hidden_if_empty="$back_callback">
             <style name="cal_footer_btn"/>
             <style name="$back_style"/>
             <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
@@ -232,6 +236,7 @@
                  translation_tag="$primary_tag" icon="$primary_icon" icon_position="right"
                  moves_machine="$primary_moves_machine" hidden_if_empty="$primary_callback">
         <style name="cal_footer_primary"/>
+        <style name="cal_footer_primary_off" selector="disabled"/>
         <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
         <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
         <!-- One condition for every reason: a primary that needs the printer is never

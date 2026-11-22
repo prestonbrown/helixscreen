@@ -15,7 +15,8 @@
     <px name="dot_gap" value="6"/>
   </consts>
   <styles>
-    <style name="dot_off" width="#dot" height="#dot" bg_color="#elevated_bg"/>
+    <!-- text_subtle: an off dot must read on both themes' header backgrounds. -->
+    <style name="dot_off" width="#dot" height="#dot" bg_color="#text_subtle"/>
     <style name="dot_on" width="#dot_wide" bg_color="#primary"/>
   </styles>
   <view extends="lv_obj"

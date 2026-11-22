@@ -290,3 +290,50 @@ TEST_CASE_METHOD(XMLTestFixture,
     UpdateQueue::instance().drain();
     offers_save.reset();
 }
+
+namespace {
+
+/// The text of the first label under @p obj, or empty.
+std::string first_label_text(lv_obj_t* obj) {
+    if (lv_obj_check_type(obj, &lv_label_class)) {
+        return lv_label_get_text(obj);
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
+        const std::string text = first_label_text(lv_obj_get_child(obj, static_cast<int32_t>(i)));
+        if (!text.empty()) {
+            return text;
+        }
+    }
+    return {};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(XMLTestFixture, "a compact footer's Back follows its live title at 480x272",
+                 "[calibration_gate][zoffset]") {
+    REQUIRE(register_component("calibration_wizard_footer"));
+    // The Z offset screen asks for the short captions, and its Back reads "Abort" outside a run.
+    REQUIRE(footer_attr("ui_xml/calibration_zoffset_panel.xml", "zo_footer", "compact_texts") ==
+            "1");
+    const std::string subject =
+        footer_attr("ui_xml/calibration_zoffset_panel.xml", "zo_footer", "back_compact_subject");
+    REQUIRE(subject == "zoffset_back_text");
+
+    static helix::Subject back_text;
+    static char buf[32] = "Abort";
+    back_text.init_string(buf, nullptr, sizeof(buf), "Abort");
+    lv_xml_register_subject(nullptr, "test_footer_back_text", &back_text);
+    const char* attrs[] = {"back_callback",        "on_test_footer_back",   "back_name",
+                           "test_footer_back",     "compact_texts",         "1",
+                           "back_compact_subject", "test_footer_back_text", nullptr};
+    lv_obj_t* footer = create_component("calibration_wizard_footer", attrs);
+    REQUIRE(footer != nullptr);
+    UpdateQueue::instance().drain();
+    lv_obj_t* compact = lv_obj_find_by_name(footer, "test_footer_back_compact");
+    REQUIRE(compact != nullptr);
+    CHECK(first_label_text(compact) == "Abort");
+
+    lv_obj_delete(footer);
+    UpdateQueue::instance().drain();
+    back_text.reset();
+}

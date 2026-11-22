@@ -474,7 +474,8 @@
         </if>
         <calibration_wizard_footer name="zo_footer"
                                    back_text="Back" back_callback="on_zoffset_back_clicked" back_name="btn_abort"
-                                   back_subject="zoffset_back_text" skip_callback="on_zoffset_skip_clicked"
+                                   back_subject="zoffset_back_text" compact_texts="1"
+                                   back_compact_subject="zoffset_back_text" skip_callback="on_zoffset_skip_clicked"
                                    skip_hide_subject="zoffset_not_run" primary_text="Paper drags: done"
                                    primary_callback="on_zoffset_accept_clicked" primary_name="btn_accept"/>
       </lv_obj>
