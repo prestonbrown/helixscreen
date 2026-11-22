@@ -6,19 +6,26 @@
      it: the color page's Multi-Color row) an outlined "+" while there is room
      and the lane can store several colors. Tapping a dot selects it; tapping
      the selected dot opens the color page for it; a long press removes it.
-     Subjects and callbacks: ui_ams_edit_overlay.cpp. -->
+     Subjects and callbacks: ui_ams_edit_overlay.cpp.
+
+     LVGL hit-tests a child only inside its parent's box, so a host that needs
+     the whole reach of each dot passes reach_pad="$hit" and join="0": the dots
+     and the "+" then sit in boxes padded by their reach, which meet with the
+     dots' own gap between them. -->
 <component>
   <api>
     <prop name="size" type="string" default="#swatch_grid_size"/>
     <prop name="hit" type="string" default="#swatch_grid_gap_half"/>
     <prop name="gap" type="string" default="#swatch_grid_gap"/>
+    <prop name="reach_pad" type="string" default="0"/>
+    <prop name="join" type="string" default="#swatch_grid_gap"/>
     <prop name="hide_add" type="string" default="false"/>
   </api>
   <view extends="lv_obj"
-        width="content" height="content" style_pad_all="0" style_pad_gap="$gap" style_bg_opa="0" style_border_width="0"
+        width="content" height="content" style_pad_all="0" style_pad_gap="$join" style_bg_opa="0" style_border_width="0"
         flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
     <lv_obj name="dots"
-            width="content" height="content" style_pad_all="0" style_pad_gap="$gap" style_bg_opa="0"
+            width="content" height="content" style_pad_all="$reach_pad" style_pad_gap="$gap" style_bg_opa="0"
             style_border_width="0" flex_flow="row" style_flex_cross_place="center" scrollable="false" clickable="false">
       <repeat count="ams_edit_seg_count">
         <color_swatch index="${i}"
@@ -29,15 +36,21 @@
         </color_swatch>
       </repeat>
     </lv_obj>
+    <!-- The outer box drops the "+" for a host that never shows it; the inner
+         one hides with it, so its reach padding leaves no gap behind. -->
     <lv_obj width="content"
             height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
             clickable="false" hidden="$hide_add">
-      <ui_button name="btn_add_color"
-                 width="$size" height="$size" style_radius="9999" icon="plus" variant="outline" ext_click_area="$hit"
-                 hidden="true">
+      <lv_obj width="content"
+              height="content" style_pad_all="$reach_pad" style_bg_opa="0" style_border_width="0" scrollable="false"
+              clickable="false" hidden="true">
         <bind_flag_if cond="ams_edit_seg_count ge 4 or ams_edit_multi_capable eq 0" flag="hidden"/>
-        <event_cb trigger="clicked" callback="ams_edit_add_color_cb"/>
-      </ui_button>
+        <ui_button name="btn_add_color"
+                   width="$size" height="$size" style_radius="9999" style_pad_all="0" icon="plus" variant="outline"
+                   ext_click_area="$hit">
+          <event_cb trigger="clicked" callback="ams_edit_add_color_cb"/>
+        </ui_button>
+      </lv_obj>
     </lv_obj>
   </view>
 </component>
