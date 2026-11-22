@@ -114,6 +114,7 @@ Then the Home screen appears. Worth doing first:
 
 - **Check the version** in **Settings > Help & About > About**, and pick your update channel in **Settings > Updates**.
 - **Run a bed mesh** from **Controls > Bed Mesh** (see [Calibration](calibration.md#bed-mesh)).
+- **Know where your Z offset is saved.** On Forge-X and ZMOD the firmware stores the Z offset itself: adjust it with baby steps or calibration and it is kept, with no **Save Z-Offset** button to tap. On Klipper Mod, **Advanced > Z-Offset Calibration** runs the probe calibration and saves the result into the probe's Z offset, and **Save Z-Offset** on **Controls** does the same for baby steps; a later bed mesh keeps it. See [Z-Offset Calibration](calibration.md#z-offset-calibration) and [Z-Offset / Baby Steps](printing.md#z-offset--baby-steps).
 - **Expect a quiet start.** HelixScreen plays no startup music on the AD5M: on its single processor core, music has interrupted prints.
 
 ---

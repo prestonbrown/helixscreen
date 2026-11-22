@@ -66,7 +66,7 @@ records each file left out with its reason. What stays out is the Linux shell ar
 remote screen and the ctl server) and the subsystems the panel cannot afford or has no hardware for. Those
 subsystems compile out through the definitions in `components/helixapp/CMakeLists.txt`: `HELIX_HAS_CAMERA`,
 `GCODE_VIEWER`, `BED_MESH_3D`, `LABEL_PRINTER`, `PLUGINS`, `TIMELAPSE_VIEWER`, `SOUND`, `BELT_TUNER`, `HIDPI_FONTS`,
-`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays) and `CJK` are 0, `HELIX_ENABLE_SCREENSAVER` is 0, and the filament backends (`CFS`, `IFS`, `ACE`, `QIDI`,
+`TOOLHEAD_WIDGET` (the home Toolhead widget; the Motion panel stays), `SIDE_BAND` (the ultrawide side band, whose inline stubs in `include/ui_side_band.h` keep its hosts compiling; the panel is never ultrawide) and `CJK` are 0, `HELIX_ENABLE_SCREENSAVER` is 0, and the filament backends (`CFS`, `IFS`, `ACE`, `QIDI`,
 `SNAPMAKER`) are 1. Every gate is written out even when its value is the obvious one, because an undefined
 `HELIX_HAS_X` reads as 0 in `#if` and would drop a feature with nobody deciding to. Shared code that needs a
 firmware arm tests `HELIX_PLATFORM_ESP32`, or `ESP_PLATFORM` where an IDF header is involved.
