@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <optional>
 
 namespace helix {
@@ -91,7 +92,40 @@ std::string normalize_color_hex(const std::string& hex) {
         }
         c = static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     }
+    if (s.size() == 8 && s.compare(6, 2, "FF") == 0) {
+        s.resize(6);
+    }
     return s;
+}
+
+std::string color_hex_for(uint32_t rgb, bool translucent) {
+    char buf[12];
+    if (translucent) {
+        std::snprintf(buf, sizeof(buf), "%06X%02X", rgb & 0xFFFFFFu, helix::filament_alpha(true));
+    } else {
+        std::snprintf(buf, sizeof(buf), "%06X", rgb & 0xFFFFFFu);
+    }
+    return buf;
+}
+
+std::string color_list_with_alpha(const std::string& csv, bool translucent) {
+    std::string out;
+    size_t start = 0;
+    while (start <= csv.size()) {
+        const size_t comma = csv.find(',', start);
+        const std::string hex = normalize_color_hex(std::string(text_io::trim(
+            csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start))));
+        if (!hex.empty()) {
+            char alpha[3];
+            std::snprintf(alpha, sizeof(alpha), "%02X", helix::filament_alpha(translucent));
+            out += (out.empty() ? "" : ",") + normalize_color_hex(hex.substr(0, 6) + alpha);
+        }
+        if (comma == std::string::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return out;
 }
 
 std::string normalize_color_list(const std::string& csv) {
@@ -103,7 +137,7 @@ std::string normalize_color_list(const std::string& csv) {
         const std::string hex = normalize_color_hex(std::string(text_io::trim(
             csv.substr(start, comma == std::string::npos ? std::string::npos : comma - start))));
         if (!hex.empty()) {
-            out += (out.empty() ? "" : ",") + hex.substr(0, 6);
+            out += (out.empty() ? "" : ",") + hex;
             ++count;
         }
         if (comma == std::string::npos) {

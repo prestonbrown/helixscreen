@@ -310,6 +310,62 @@ TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: silk lays a highlight, matte mut
     CHECK(matte.blue - matte.green < plain.blue - plain.green);
 }
 
+TEST_CASE("swatch_check_cell_px: four squares across the smallest chip, at most 8 px",
+          "[swatch][translucent]") {
+    CHECK(helix::ui::swatch_check_cell_px(12) == 3);
+    CHECK(helix::ui::swatch_check_cell_px(8) == 3);
+    CHECK(helix::ui::swatch_check_cell_px(24) == 6);
+    CHECK(helix::ui::swatch_check_cell_px(200) == 8);
+    CHECK(helix::ui::swatch_check_is_light(0, 0, 4));
+    CHECK_FALSE(helix::ui::swatch_check_is_light(4, 0, 4));
+    CHECK_FALSE(helix::ui::swatch_check_is_light(0, 4, 4));
+    CHECK(helix::ui::swatch_check_is_light(4, 4, 4));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: a translucent filament shows checks, opaque none",
+                 "[swatch][translucent]") {
+    SwatchCanvas c(test_screen());
+    helix::ui::SwatchPaint p;
+    p.colors = {lv_color_hex(0x804020)};
+    p.edge = false;
+    // A 40 px swatch has 8 px squares: (12, 12) is on a light one, (12, 20) on a dark one.
+    c.paint(p);
+    const lv_color32_t plain_a = c.px(12, 12);
+    const lv_color32_t plain_b = c.px(12, 20);
+    CHECK(brightness(plain_a) == brightness(plain_b));
+
+    p.translucent = true;
+    c.paint(p);
+    const lv_color32_t light = c.px(12, 12);
+    const lv_color32_t dark = c.px(12, 20);
+    CHECK(brightness(light) > brightness(dark) + 30);
+    // Tinted, not replaced: the color's hue still leads.
+    CHECK(light.red > light.blue);
+    CHECK(dark.red > dark.blue);
+    // Clipped to the circle: the corner keeps the background.
+    CHECK(c.px(1, 1).blue == 255);
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "swatch_paint_check_pixels: squares of two tones over the cover",
+                 "[swatch][translucent]") {
+    lv_draw_buf_t* buf = lv_draw_buf_create(16, 16, LV_COLOR_FORMAT_ARGB8888, 0);
+    REQUIRE(buf);
+    lv_draw_buf_clear(buf, nullptr);
+    const helix::ui::SwatchCheckTones tones{lv_color_hex(0xFFFFFF), lv_color_hex(0x000000)};
+    // Only the left half is covered.
+    const helix::ui::SwatchCoverage left = [](float x, float) { return x < 8.0f ? 1.0f : 0.0f; };
+    helix::ui::swatch_paint_check_pixels(buf, {0, 0, 15, 15}, left, 4, tones);
+    const auto px = [buf](int32_t x, int32_t y) {
+        return reinterpret_cast<lv_color32_t*>(buf->data + y * buf->header.stride)[x];
+    };
+    CHECK(px(1, 1).red == 255);
+    CHECK(px(1, 1).alpha == helix::ui::kSwatchCheckOpa);
+    CHECK(px(5, 1).red == 0);
+    CHECK(px(5, 1).alpha == helix::ui::kSwatchCheckOpa);
+    CHECK(px(12, 1).alpha == 0);
+    lv_draw_buf_destroy(buf);
+}
+
 TEST_CASE_METHOD(LVGLTestFixture, "draw_swatch: marble and sparkle texture a large swatch only",
                  "[swatch]") {
     SwatchCanvas c(test_screen());
@@ -501,6 +557,20 @@ TEST_CASE_METHOD(LVGLTestFixture, "apply_swatch_color: hooks install once and di
     CHECK_FALSE(helix::ui::has_swatch_paint(sw));
 
     helix::ui::apply_swatch_color(nullptr, 0x123456, "#202020,#F0F0F0");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "apply_swatch_color: a translucent slot paints translucent",
+                 "[swatch][translucent]") {
+    lv_obj_t* sw = lv_obj_create(test_screen());
+    helix::SlotInfo slot;
+    slot.color_rgb = 0xD32F2F;
+    helix::ui::apply_swatch_color(sw, slot);
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(sw));
+    slot.translucent = true;
+    helix::ui::apply_swatch_color(sw, slot);
+    CHECK(helix::ui::swatch_paint_translucent(sw));
+    helix::ui::set_swatch_translucent(sw, false);
+    CHECK_FALSE(helix::ui::swatch_paint_translucent(sw));
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "apply_swatch_color: a slot paints its colours and finish",

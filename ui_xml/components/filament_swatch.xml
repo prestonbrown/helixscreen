@@ -82,7 +82,8 @@
         <swatch_paint name="chip_spool"
                       width="100%" height="100%" style_radius="0" edge="off"
                       bind_color="filament_chip_${index}_slot_color" bind_colors="filament_chip_${index}_slot_colors"
-                      bind_finish="filament_chip_${index}_slot_finish">
+                      bind_finish="filament_chip_${index}_slot_finish"
+                      bind_translucent="filament_chip_${index}_slot_translucent">
           <bind_flag_if_not_eq subject="filament_chip_${index}_slot_state" flag="hidden" ref_value="1"/>
         </swatch_paint>
         <lv_obj name="chip_body_row"

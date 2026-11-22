@@ -53,8 +53,12 @@ NewFilament SpoolmanSlotSaver::new_filament_for(const SlotInfo& original, const 
     NewFilament f;
     f.precise_type = std::string(text_io::trim(slot.material));
     f.material = filament::slicer_material(f.precise_type);
-    f.color_hex = color_to_hex(slot.color_rgb);
-    f.multi_color_hexes = spoolman::normalize_color_list(slot.multi_color_hexes);
+    // A translucent filament carries its alpha in every color, as Spoolman
+    // keeps RRGGBBAA: other Spoolman clients see it, and it is the filament's
+    // record, so it is what a lane linked to the spool reads back.
+    f.color_hex = color_to_hex(slot.color_rgb, slot.translucent);
+    f.multi_color_hexes = spoolman::normalize_color_list(
+        spoolman::color_list_with_alpha(slot.multi_color_hexes, slot.translucent));
     if (!f.multi_color_hexes.empty()) {
         f.multi_color_direction = color_mode::to_spoolman_direction(slot.color_mode);
         if (f.multi_color_direction.empty()) {
@@ -106,7 +110,7 @@ ChangeSet SpoolmanSlotSaver::detect_changes(const SlotInfo& original, const Slot
     // save_impl() writes no filament for it either: a catalog pick with
     // brand, material and colour unmoved leaves the spool on its record.
     if (original.brand != edited.brand || original.material != edited.material ||
-        original.color_rgb != edited.color_rgb ||
+        original.color_rgb != edited.color_rgb || original.translucent != edited.translucent ||
         spoolman::normalize_color_list(original.multi_color_hexes) !=
             spoolman::normalize_color_list(edited.multi_color_hexes) ||
         color_mode::normalize(original.color_mode) != color_mode::normalize(edited.color_mode)) {
@@ -182,10 +186,8 @@ void SpoolmanSlotSaver::build_spool_patches(const SpoolInfo& original, const Spo
     }
 }
 
-std::string SpoolmanSlotSaver::color_to_hex(uint32_t rgb) {
-    char buf[8];
-    std::snprintf(buf, sizeof(buf), "%06X", rgb & 0xFFFFFF);
-    return std::string(buf);
+std::string SpoolmanSlotSaver::color_to_hex(uint32_t rgb, bool translucent) {
+    return spoolman::color_hex_for(rgb, translucent);
 }
 
 void SpoolmanSlotSaver::save(const SlotInfo& original, const SlotInfo& edited,

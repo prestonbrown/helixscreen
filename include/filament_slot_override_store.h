@@ -310,7 +310,8 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                                   std::unordered_map<int, FilamentSlotOverride>& overrides,
                                   int slot_index, uint32_t firmware_color,
                                   const std::string& firmware_material, bool slot_has_filament,
-                                  MirrorPolicy policy, const std::string& log_tag);
+                                  MirrorPolicy policy, const std::string& log_tag,
+                                  std::optional<bool> firmware_translucent = std::nullopt);
 
 /// Discard a slot's stored record, in memory and on the printer. No-op when
 /// the slot has no entry. Caller MUST hold the backend's mutex protecting

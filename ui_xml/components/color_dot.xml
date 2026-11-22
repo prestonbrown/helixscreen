@@ -11,9 +11,10 @@
     <prop name="color" type="string" default=""/>
     <prop name="colors_subject" type="string" default=""/>
     <prop name="finish_subject" type="string" default=""/>
+    <prop name="translucent_subject" type="string" default=""/>
     <prop name="size" type="string" default="#space_xl"/>
   </api>
   <view extends="color_swatch"
         color_subject="$color_subject" color="$color" colors_subject="$colors_subject" finish_subject="$finish_subject"
-        size="$size" reach="0" hit="0" clickable="false" bubble="true"/>
+        translucent_subject="$translucent_subject" size="$size" reach="0" hit="0" clickable="false" bubble="true"/>
 </component>

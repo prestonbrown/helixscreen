@@ -10,6 +10,7 @@
 #include "ams_state.h"
 #include "app_globals.h"
 #include "batch_feed_reconcile.h"
+#include "color_utils.h"
 #include "config.h"
 #include "core/notification_api.h"
 #include "core/text_io.h"
@@ -392,6 +393,7 @@ void AmsBackendSnapmaker::on_started() {
         task_official_.fill(std::nullopt);
         task_type_.fill(std::nullopt);
         task_color_.fill(std::nullopt);
+        task_translucent_.fill(false);
         task_subtype_.fill(std::nullopt);
         tag_slot_values_.fill(std::nullopt);
         tag_readings_.fill(std::nullopt);
@@ -404,6 +406,7 @@ void AmsBackendSnapmaker::on_started() {
         main_state_.reset();
         action_code_.reset();
         record_restore_sent_.fill(false);
+        record_restores_made_.fill(0);
         insert_since_declaration_.fill(false);
     }
     if (!api_)
@@ -1636,11 +1639,18 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         // record; type and colour go to print_task_config below, and the
         // record copies them from the firmware's echo.
         persist_record_beside_firmware_locked(slot_index, info);
+        const auto idx = static_cast<size_t>(slot_index);
         if (record_write) {
-            const auto idx = static_cast<size_t>(slot_index);
-            // This write is the record's restore until the firmware echoes it.
-            record_restore_sent_[idx] = true;
-            sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu};
+            // This write is the record's restore until the firmware echoes it,
+            // and a restore before that echo writes this edit again.
+            record_restores_made_[idx] = 0;
+            note_record_written_locked(idx);
+            sent_record_[idx] =
+                SentRecord{info.material, info.color_rgb & 0xFFFFFFu, info.translucent,
+                           /*unechoed=*/true, task_type_[idx].value_or("")};
+        } else if (task_type_[idx].has_value()) {
+            // The record already states this edit, or a tag owns it.
+            forget_unechoed_edit_locked(idx);
         }
     }
 
@@ -2166,6 +2176,7 @@ void AmsBackendSnapmaker::apply_port_presence_locked(int i, bool detected, Frame
             pending_insert_passes_[i] = 1;
             insert_verdict_[i] = InsertIdentity::NotRead;
             insert_since_declaration_[i] = true;
+            forget_unechoed_edit_locked(i);
         } else if (!detected) {
             pending_insert_passes_[i] = 0;
         }
@@ -2526,11 +2537,16 @@ void AmsBackendSnapmaker::apply_task_slot_identity_locked(
             task_official_[static_cast<size_t>(i)] = *ptc.filament_official[i];
         }
         if (ptc.filament_color_rgba[i]) {
-            if (const auto rgb = snapmaker::rgb_from_rgba_hex(*ptc.filament_color_rgba[i])) {
-                task_color_[static_cast<size_t>(i)] = *rgb;
-                slot->color_rgb = *rgb;
+            if (const auto color = snapmaker::color_from_rgba_hex(*ptc.filament_color_rgba[i])) {
+                task_color_[static_cast<size_t>(i)] = color->rgb;
+                task_translucent_[static_cast<size_t>(i)] = color->translucent;
+                slot->color_rgb = color->rgb;
+                slot->translucent = color->translucent;
             }
             fx.changed = true;
+        }
+        if (ptc.filament_type[i] || ptc.filament_color_rgba[i]) {
+            settle_unechoed_edit_locked(static_cast<size_t>(i));
         }
     }
 }
@@ -2674,7 +2690,8 @@ void AmsBackendSnapmaker::converge_lanes_locked(FrameEffects& fx) {
         const bool record_reset = task_type_[ti] && is_unset_task_field(*task_type_[ti]);
         if (holds_filament && !record_reset) {
             if (task_type_[ti] && task_color_[ti]) {
-                mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti]);
+                mirror_firmware_identity_locked(i, *task_color_[ti], *task_type_[ti],
+                                                task_translucent_[ti]);
             } else if (const auto& tag = tag_firmware_[ti];
                        tag && tag->color_rgb && tag->material) {
                 mirror_firmware_identity_locked(i, *tag->color_rgb, *tag->material);
@@ -2741,6 +2758,15 @@ void AmsBackendSnapmaker::record_tag_reading_locked(int slot_index, const Snapma
     }
 }
 
+bool AmsBackendSnapmaker::tag_owns_filament_record(int slot_index) const {
+    if (slot_index < 0 || slot_index >= kNumTools) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(mutex_);
+    // plan_record_write_locked() sends nothing for such a head.
+    return !record_write_needs_force_locked(slot_index).has_value();
+}
+
 std::optional<helix::ams::TagReading> AmsBackendSnapmaker::tag_reading(int slot_index) const {
     if (slot_index < 0 || slot_index >= kNumTools) {
         return std::nullopt;
@@ -2762,6 +2788,7 @@ void AmsBackendSnapmaker::file_head_firmware_locked(int head) {
         stated.material = *task_type_[idx];
         if (task_color_[idx]) {
             stated.color_rgb = *task_color_[idx];
+            stated.translucent = task_translucent_[idx];
         }
         says_anything = true;
     }
@@ -3065,6 +3092,7 @@ void AmsBackendSnapmaker::check_hardware_event_clear(SlotInfo& slot, int slot_in
     // policy. Caller already holds mutex_.
     (void)ovr_it; // erased inside clear_override_locked
     clear_override_locked(slot_index, &slot);
+    forget_unechoed_edit_locked(static_cast<size_t>(slot_index));
     slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
@@ -3084,6 +3112,7 @@ void AmsBackendSnapmaker::clear_override_fields(SlotInfo& slot) const {
 }
 
 void AmsBackendSnapmaker::after_override_cleared_locked(int slot_index, SlotInfo& slot) {
+    forget_unechoed_edit_locked(static_cast<size_t>(slot_index));
     slot.spool_name = tag_product_line(lane_id(slot_index));
 }
 
@@ -3291,9 +3320,11 @@ std::string AmsBackendSnapmaker::build_filament_config_gcode(int head, const Slo
                     "FILAMENT_SUBTYPE={}{}{}",
                     head, vendor, IMoonrakerAPI::gcode_param_value(slot.material),
                     IMoonrakerAPI::gcode_param_value(subtype), soft_arg, force_arg);
-    const std::string colour =
-        fmt::format("SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} FILAMENT_COLOR_RGBA={:06X}FF{}",
-                    head, slot.color_rgb & 0xFFFFFFu, force_arg);
+    // The alpha byte carries translucency; the firmware keeps it in
+    // filament_color_rgba and filament_color_multi.alpha.
+    const std::string colour = fmt::format(
+        "SET_PRINT_FILAMENT_CONFIG CONFIG_EXTRUDER={} FILAMENT_COLOR_RGBA={:06X}{:02X}{}", head,
+        slot.color_rgb & 0xFFFFFFu, helix::filament_alpha(slot.translucent), force_arg);
     switch (lines) {
     case RecordLines::Identity:
         return identity;
@@ -3408,7 +3439,8 @@ AmsBackendSnapmaker::plan_record_write_locked(int head, const SlotInfo& info,
         // never alone.
         const bool colour_known = task_color_[idx].has_value();
         const bool colour_differs =
-            colour_known && *task_color_[idx] != (info.color_rgb & 0xFFFFFFu);
+            colour_known && (*task_color_[idx] != (info.color_rgb & 0xFFFFFFu) ||
+                             task_translucent_[idx] != info.translucent);
         if (identity_differs && (colour_differs || !colour_known)) {
             lines = RecordLines::Both;
         } else if (identity_differs) {
@@ -3513,12 +3545,20 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         }
         if (!is_unset_task_field(*task_type_[idx])) {
             record_restore_sent_[idx] = false;
+            record_restores_made_[idx] = 0;
+            continue;
+        }
+        // A write the record never echoed was overtaken by a clear the
+        // firmware queued before it: past the settle time it goes again.
+        if (record_restore_sent_[idx] &&
+            (record_restores_made_[idx] >= kMaxRecordRestores ||
+             std::chrono::steady_clock::now() - record_restore_sent_at_[idx] <
+                 kRecordRestoreSettle)) {
             continue;
         }
         // A read still pending may yet name a different spool than the
         // declaration.
-        if (record_restore_sent_[idx] || insert_since_declaration_[idx] ||
-            pending_insert_passes_[idx] > 0) {
+        if (insert_since_declaration_[idx] || pending_insert_passes_[idx] > 0) {
             continue;
         }
         // The firmware's clear does not say the spool left: unload-at-end
@@ -3534,20 +3574,66 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         // The record copies every type the firmware states, so a type alone
         // is no reason to rewrite the head (each write resets its flow
         // calibration): only a record that also names the spool, which only
-        // an edit or a Spoolman link puts there.
-        const auto ovr = overrides_.find(head);
-        if (ovr == overrides_.end() || ovr->second.material.empty() ||
-            !record_names_spool(ovr->second)) {
-            continue;
+        // an edit or a Spoolman link puts there, or an edit the firmware has
+        // not stated yet.
+        if (unechoed_edit_locked(head) == nullptr) {
+            const auto ovr = overrides_.find(head);
+            if (ovr == overrides_.end() || ovr->second.material.empty() ||
+                !record_names_spool(ovr->second)) {
+                continue;
+            }
         }
         std::string gcode = unset_record_restore_locked(head);
         if (gcode.empty()) {
             continue;
         }
-        record_restore_sent_[idx] = true;
+        if (record_restore_sent_[idx]) {
+            spdlog::info("{} head {} record still names no filament {}s after write {} of {}; "
+                         "writing the declaration again",
+                         backend_log_tag(), head, kRecordRestoreSettle.count(),
+                         record_restores_made_[idx], kMaxRecordRestores);
+        }
+        note_record_written_locked(idx);
         out.emplace_back(head, std::move(gcode));
     }
     return out;
+}
+
+void AmsBackendSnapmaker::note_record_written_locked(size_t idx) {
+    record_restore_sent_[idx] = true;
+    record_restore_sent_at_[idx] = std::chrono::steady_clock::now();
+    ++record_restores_made_[idx];
+}
+
+const AmsBackendSnapmaker::SentRecord* AmsBackendSnapmaker::unechoed_edit_locked(int head) const {
+    const auto& sent = sent_record_[static_cast<size_t>(head)];
+    return sent && sent->unechoed ? &*sent : nullptr;
+}
+
+void AmsBackendSnapmaker::settle_unechoed_edit_locked(size_t idx) {
+    auto& sent = sent_record_[idx];
+    if (!sent || !sent->unechoed || !task_type_[idx] || is_unset_task_field(*task_type_[idx])) {
+        return;
+    }
+    const std::string& type = *task_type_[idx];
+    if (helix::text_io::equals_ignore_case(type, sent->material)) {
+        if (!task_color_[idx] ||
+            (*task_color_[idx] == sent->color_rgb && task_translucent_[idx] == sent->translucent)) {
+            sent->unechoed = false;
+        }
+        return;
+    }
+    if (!helix::text_io::equals_ignore_case(type, sent->replaced_material)) {
+        spdlog::debug("{} head {} record names {} over the unechoed edit {}; the edit stands down",
+                      backend_log_tag(), idx, type, sent->material);
+        sent->unechoed = false;
+    }
+}
+
+void AmsBackendSnapmaker::forget_unechoed_edit_locked(size_t idx) {
+    if (auto& sent = sent_record_[idx]) {
+        sent->unechoed = false;
+    }
 }
 
 std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
@@ -3564,15 +3650,22 @@ std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {
     if (!slot) {
         return {};
     }
-    // The type and colour written back are the record's: the last ones the
-    // firmware itself stated, which the record copied before the reset.
+    // The type and color written back are the edit the firmware has not
+    // stated yet, else the record's: the last ones the firmware itself
+    // stated, which the record copied before the reset.
     SlotInfo restore = *slot;
-    if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
+    if (const SentRecord* edit = unechoed_edit_locked(head)) {
+        restore.material = edit->material;
+        restore.color_rgb = edit->color_rgb;
+        restore.translucent = edit->translucent;
+    } else if (const auto ovr = overrides_.find(head); ovr != overrides_.end()) {
         if (!ovr->second.material.empty()) {
             restore.material = ovr->second.material;
         }
         if (ovr->second.color_set) {
             restore.color_rgb = ovr->second.color_rgb;
+            // The reset record reads FF; the record kept the alpha.
+            restore.translucent = ovr->second.translucent.value_or(slot->translucent);
         }
     }
     return build_filament_config_gcode(head, restore, *needs_force);

@@ -383,8 +383,18 @@ class AmsEditOverlay : public OverlayBase {
     void edit_selected_on_color_page();
     bool color_page_open_ = false;
     void handle_color_mode(int mode_index);
-    /// Back to the slot's own colors: no pick, no multi-color edit.
+    /// Back to the slot's own colors: no pick, no multi-color edit, its own
+    /// translucency.
     void reset_color_draft();
+    /// The Translucent checkbox on the color page: staged like a color pick,
+    /// committed by Save.
+    void handle_translucent(bool on);
+    /// The draft's translucency: the checkbox's, else the slot's.
+    bool draft_translucent() const {
+        return translucent_set_ ? draft_translucent_ : working_info_.translucent;
+    }
+    bool translucent_set_ = false;
+    bool draft_translucent_ = false;
     bool multi_set_ = false;
     std::string draft_multi_;
     std::string draft_mode_;
@@ -462,7 +472,10 @@ class AmsEditOverlay : public OverlayBase {
     helix::Subject multi_capable_subject_{};       ///< 1 where the lane can store several
     helix::Subject seg_count_subject_{};           ///< color dots shown
     helix::Subject seg_selected_subject_{};        ///< the ringed dot
-    helix::Subject color_mode_subject_{};          ///< dropdown: 0 gradient, 1 coaxial
+    helix::Subject translucent_subject_{};         ///< the Translucent checkbox: 0 or 1
+    /// 1 while the spool's tag owns the head's record, which no edit reaches.
+    helix::Subject translucent_locked_subject_{};
+    helix::Subject color_mode_subject_{}; ///< dropdown: 0 gradient, 1 coaxial
     char color_name_buf_[64]{};
     char color_current_multi_buf_[128]{};
     helix::Subject tag_badge_visible_subject_{}; ///< any shown field is the tag's
