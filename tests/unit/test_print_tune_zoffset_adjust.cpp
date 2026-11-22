@@ -507,6 +507,32 @@ TEST_CASE_METHOD(PrintTuneZOffsetFixture,
     CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=0.005 MOVE=1");
 }
 
+TEST_CASE_METHOD(
+    PrintTuneZOffsetFixture,
+    "PrintTune: the Z adjuster's babystep keys stay live while a print holds the machine",
+    "[ui_integration][zoffset][z_adjuster][job_holds_machine]") {
+    set_live_offset(0.0);
+    set_printing(true);
+    set_homed(true);
+    lv_subject_t* blocked = state().print_state().get_machine_motion_blocked_subject();
+    const int blocked_before = lv_subject_get_int(blocked);
+    lv_subject_set_int(blocked, 1);
+    lv_obj_t* root = show_overlay().get_root();
+
+    for (const char* name :
+         {"btn_z_raise_nozzle", "btn_z_raise_bed", "btn_z_lower_nozzle", "btn_z_lower_bed"}) {
+        INFO(name);
+        lv_obj_t* btn = lv_obj_find_by_name(root, name);
+        REQUIRE(btn != nullptr);
+        CHECK_FALSE(lv_obj_has_state(btn, LV_STATE_DISABLED));
+    }
+    get_print_tune_overlay().handle_z_step_select(2); // 0.010mm
+    helix::ui::send_tap(lv_obj_find_by_name(root, "btn_z_lower_nozzle"));
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(last_gcode() == "SET_GCODE_OFFSET Z_ADJUST=-0.010 MOVE=1");
+    lv_subject_set_int(blocked, blocked_before);
+}
+
 TEST_CASE_METHOD(PrintTuneZOffsetFixture,
                  "PrintTune: one file lays out the z-offset controls for each orientation",
                  "[ui_integration][zoffset][layout]") {
