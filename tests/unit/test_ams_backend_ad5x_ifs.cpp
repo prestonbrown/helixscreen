@@ -4207,6 +4207,27 @@ TEST_CASE_METHOD(RegisteredAd5xIfs,
 // subsequent parses.
 // ==========================================================================
 
+TEST_CASE("AD5X IFS a translucency edit reaches the record, whose firmware states no alpha",
+          "[ams][ad5x_ifs][filament_slot_override][translucent]") {
+    Ad5xIfsTmpCacheDir tmp("translucent_edit");
+    MockPrinter mock_printer;
+    auto& api = mock_printer.api;
+    helix::test::RegisteredBackend<AmsBackendAd5xIfs> backend_reg(&api, nullptr);
+    AmsBackendAd5xIfs& backend = *backend_reg;
+    Ad5xIfsTestAccess::set_has_ifs_vars(backend, true);
+    Ad5xIfsTestAccess::inject_override_store(
+        backend, std::make_unique<helix::ams::FilamentSlotOverrideStore>(&api, "ifs"));
+
+    SlotInfo edit;
+    edit.material = "PETG";
+    edit.color_rgb = 0xE8E8FF;
+    edit.translucent = true;
+    REQUIRE(helix::test::apply_edit(backend, 0, edit).success());
+    const auto staged = Ad5xIfsTestAccess::get_override(backend, 0);
+    REQUIRE(staged.has_value());
+    CHECK(staged->translucent == std::optional<bool>(true));
+}
+
 TEST_CASE("AD5X IFS apply_user_edit stores override in memory and store",
           "[ams][ad5x_ifs][filament_slot_override]") {
     // Build a real MoonrakerAPIMock so the backend's override store has a

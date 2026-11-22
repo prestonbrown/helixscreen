@@ -600,10 +600,18 @@ class AmsSubscriptionBackend : public AmsBackend {
     /// persist_user_record_locked() for a backend whose firmware holds the
     /// lane's colour and material. Those two reach the firmware through the
     /// edit's own command, so the record keeps the ones it already carries
-    /// (what mirror_firmware_identity_locked() last copied from the firmware),
-    /// translucency included, and never states a value the firmware has not
-    /// taken. Caller holds mutex_.
+    /// (what mirror_firmware_identity_locked() last copied from the firmware)
+    /// and never states a value the firmware has not taken. Translucency is
+    /// kept the same way only where firmware_states_translucency(); elsewhere
+    /// the firmware never echoes it, so the record takes the edit's. Caller
+    /// holds mutex_.
     void persist_record_beside_firmware_locked(int slot_index, const SlotInfo& info);
+
+    /// Whether this backend's firmware keeps a filament's alpha beside its
+    /// colour and states it back (passing it to mirror_firmware_identity_locked()).
+    [[nodiscard]] virtual bool firmware_states_translucency() const {
+        return false;
+    }
 
     /// loaded = false on @p slot_index's record, its identity cleared unless
     /// @p keep_identity, saved. Nothing without a record. Takes mutex_.

@@ -883,7 +883,8 @@ bool mirror_firmware_to_lane_data(FilamentSlotOverrideStore* store,
                 ovr.colors_stated = true;
             }
             // Its translucency is what the firmware states beside the color;
-            // a firmware that states none leaves the other filament's behind.
+            // after a firmware that states none, the record holds no
+            // translucency, since the old one was the other filament's.
             ovr.translucent = firmware_translucent;
             changed = true;
         } else if (has_color && firmware_translucent && ovr.translucent != firmware_translucent) {

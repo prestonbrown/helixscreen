@@ -427,6 +427,14 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
     /// A head holding a real RFID card's official record: the firmware takes
     /// no record write without FORCE, and the backend leaves it to the tag.
     [[nodiscard]] bool tag_owns_filament_record(int slot_index) const override;
+
+  protected:
+    /// filament_color_rgba carries the alpha the backend reads and writes.
+    [[nodiscard]] bool firmware_states_translucency() const override {
+        return true;
+    }
+
+  public:
     [[nodiscard]] AmsError can_set_tool_mapping(int tool_number, int slot_index) const override;
 
     // clear_slot_override()'s Snapmaker half: the spool name goes back to the

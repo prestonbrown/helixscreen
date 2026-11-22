@@ -5025,6 +5025,25 @@ TEST_CASE_METHOD(SnapmakerFixture,
 }
 
 TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker an edit's translucency waits in the record for the firmware's echo",
+                 "[ams][snapmaker][filament_record][translucent]") {
+    lv_init_safe();
+    helix::ui::UpdateQueue::instance().init();
+    FilamentRecordHarness h("translucent_waits");
+    h.frame(make_feed_status(1, "load_finish"));
+    SlotInfo clear;
+    clear.brand = "Inland";
+    clear.material = "PETG";
+    clear.color_rgb = 0xE8E8FF;
+    clear.translucent = true;
+    helix::test::edit_slot_as_user(h.backend, 1, clear);
+    const auto record = SnapmakerTestAccess::get_override(h.backend, 1);
+    REQUIRE(record.has_value());
+    // The firmware has not taken it yet, so the record does not state it.
+    CHECK_FALSE(record->translucent.has_value());
+}
+
+TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker a translucent head the firmware cleared is repaired with its alpha",
                  "[ams][snapmaker][filament_record][resume][translucent]") {
     lv_init_safe();

@@ -523,8 +523,11 @@ void AmsSubscriptionBackend::persist_record_beside_firmware_locked(int slot_inde
     const uint32_t color = had_prior ? prior->second.color_rgb : 0;
     const bool color_set = had_prior && prior->second.color_set;
     const std::string material = had_prior ? prior->second.material : std::string{};
-    const std::optional<bool> translucent =
-        had_prior ? prior->second.translucent : std::optional<bool>{};
+    // Kept until the firmware echoes it only where the firmware states one.
+    const std::optional<bool> translucent = !firmware_states_translucency()
+                                                ? std::optional<bool>(info.translucent)
+                                            : had_prior ? prior->second.translucent
+                                                        : std::optional<bool>{};
 
     helix::ams::FilamentSlotOverride& staged =
         helix::ams::stage_user_override(overrides_, slot_index, info);
