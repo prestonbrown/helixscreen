@@ -242,3 +242,24 @@ TEST_CASE_METHOD(HelixTestFixture, "Recents persist as #RRGGBB strings in settin
         "filament", {"#00FF00", "bogus", "#00ff00", "#0000FF"});
     CHECK(ColorRecents::list(Kind::Filament) == std::vector<uint32_t>{0x00FF00, 0x0000FF});
 }
+
+TEST_CASE("Filament's grid shrinks to four rows on a small screen", "[color_picker]") {
+    using helix::grid_palette_for;
+    CHECK(grid_palette_for(ColorPalette::Filament, UiBreakpoint::Micro) ==
+          ColorPalette::FilamentCompact);
+    CHECK(grid_palette_for(ColorPalette::Filament, UiBreakpoint::Tiny) ==
+          ColorPalette::FilamentCompact);
+    CHECK(grid_palette_for(ColorPalette::Filament, UiBreakpoint::Small) == ColorPalette::Filament);
+    CHECK(grid_palette_for(ColorPalette::Led, UiBreakpoint::Micro) == ColorPalette::Led);
+
+    // Ten columns of four rows: the full grid's grays (row 1) and vivid tone
+    // (row 4) carried over unchanged as rows 1 and 3.
+    const auto& full = helix::color_palette(ColorPalette::Filament);
+    const auto& compact = helix::color_palette(ColorPalette::FilamentCompact);
+    REQUIRE(compact.size() == 40);
+    for (size_t col = 0; col < 10; ++col) {
+        INFO("column " << col);
+        CHECK(compact[col] == full[col]);
+        CHECK(compact[20 + col] == full[30 + col]);
+    }
+}
