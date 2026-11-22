@@ -875,8 +875,12 @@ void PrintStatusPanel::init_subjects() {
             get_subjects_lifetime());
     }
 
-    // Exclude objects availability (0=hidden, 1=visible - shown when >= 2 objects defined)
-    // Note: subject already initialized in constructor (needed before observer fires)
+    // Exclude objects availability (0=hidden, 1=visible - shown when >= 2 objects defined).
+    // The constructor initializes it, for an observer there that writes it on subscribe;
+    // a deinit_subjects() since then has reset it.
+    if (!exclude_objects_available_subject_.is_live()) {
+        exclude_objects_available_subject_.init_int(0);
+    }
     helix::xml::register_subject_in_current_scope("exclude_objects_available",
                                                   &exclude_objects_available_subject_);
     subjects_.register_subject(&exclude_objects_available_subject_, "exclude_objects_available");
