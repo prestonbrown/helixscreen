@@ -51,6 +51,15 @@ constexpr float kCameraLightIntensity = 0.6f;
 constexpr float kFillLightIntensity = 0.2f;
 constexpr float kAmbientIntensity = 0.25f;
 
+// Dark-filament shading. The lift is lower than the 2D renderer's
+// (depth_shading::kLiftStrength): a black part keeps its faces dark here, and
+// the rim light on its outer walls outlines it against the backdrop, which the
+// 2D renderer has no way to draw. The rim's strength is its brightness at a
+// silhouette; its power is how tightly it hugs one (higher = thinner).
+constexpr float kLiftStrength = 0.12f;
+constexpr float kOuterWallRimStrength = 0.45f;
+constexpr float kOuterWallRimPower = 5.0f;
+
 // Still and incremental frames render into an FBO this many times the widget
 // size and come back down through a 2x2 box filter (read_frame); moving
 // frames keep their own plan resolution.
@@ -559,6 +568,8 @@ class GCodeGLESRenderer {
     int u_model_view_ = -1;
     int u_base_alpha_ = -1;
     int u_lift_strength_ = -1;
+    int u_rim_strength_ = -1;
+    int u_rim_power_ = -1;
     // Attribute locations
     int a_position_ = -1;
     int a_normal_ = -1;
