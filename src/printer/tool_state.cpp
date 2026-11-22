@@ -322,8 +322,10 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
     bool needs_rebuild = !ams_topology_active_ || ams_topology_tool_count_ != topo.tool_count ||
                          ams_topology_tool_to_slot_ != topo.tool_to_slot ||
                          ams_topology_tool_extruder_ != topo.tool_extruder;
-    if (heads_share_heater_ != topo.heads_share_heater) {
+    if (heads_share_heater_ != topo.heads_share_heater ||
+        tools_are_lanes_ != topo.tools_are_lanes) {
         heads_share_heater_ = topo.heads_share_heater;
+        tools_are_lanes_ = topo.tools_are_lanes;
         heads_cache_.reset();
     }
 
@@ -442,6 +444,7 @@ void ToolState::clear_ams_topology() {
     ams_topology_tool_to_slot_.clear();
     ams_topology_tool_extruder_.clear();
     heads_share_heater_ = false;
+    tools_are_lanes_ = false;
     tools_.clear();
     heads_cache_.reset();
     active_tool_index_ = 0;
@@ -799,7 +802,7 @@ int PhysicalHead::representative_tool(int active_tool) const {
 }
 
 std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
-                                         bool heads_share_heater) {
+                                         bool heads_share_heater, bool tools_are_lanes) {
     std::vector<PhysicalHead> heads;
     for (size_t i = 0; i < tools.size(); ++i) {
         const auto& extruder = tools[i].extruder_name;
@@ -816,11 +819,10 @@ std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
         }
         shared->tool_indices.push_back(static_cast<int>(i));
     }
-    // Tools that outnumber heads are lanes, numbered by whatever a lane map
-    // says, so the lowest lane says nothing about where a head stands. The
-    // extruders do: "extruder", "extruder1", ... in that order, with any head
-    // naming none after them.
-    if (tools.size() > heads.size()) {
+    // Lane tools are numbered by whatever a lane map says, so the lowest lane
+    // says nothing about where a head stands. The extruders do: "extruder",
+    // "extruder1", ... in that order, with any head naming none after them.
+    if (tools_are_lanes) {
         const auto position = [](const PhysicalHead& head) {
             const auto n =
                 head.extruder_name ? tool_number_for_extruder(*head.extruder_name) : std::nullopt;
@@ -857,7 +859,7 @@ int head_index_for_tool(const std::vector<PhysicalHead>& heads, int tool_index) 
 
 const std::vector<PhysicalHead>& ToolState::physical_heads() const {
     if (!heads_cache_) {
-        heads_cache_ = helix::physical_heads(tools_, heads_share_heater());
+        heads_cache_ = helix::physical_heads(tools_, heads_share_heater(), tools_are_lanes());
     }
     return *heads_cache_;
 }
@@ -873,8 +875,8 @@ bool ToolState::head_reads_heater(int head_index) const {
 }
 
 HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
-                           const std::vector<PhysicalHead>& heads, int head_index,
-                           int active_tool) {
+                           const std::vector<PhysicalHead>& heads, int head_index, int active_tool,
+                           bool tools_are_lanes) {
     HeadIdentity id;
     if (head_index < 0 || head_index >= static_cast<int>(heads.size())) {
         return id;
@@ -884,7 +886,7 @@ HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
         return id;
     }
     const ToolInfo& tool = tools[static_cast<size_t>(rep)];
-    if (tools.size() <= heads.size()) {
+    if (!tools_are_lanes) {
         id.name = tool.name;
         id.index = rep;
         return id;
@@ -899,7 +901,7 @@ HeadIdentity ToolState::head_identity(const PhysicalHead& head) const {
     const auto& heads = physical_heads();
     const int index =
         head.tool_indices.empty() ? -1 : head_index_for_tool(heads, head.tool_indices.front());
-    return helix::head_identity(tools_, heads, index, active_tool_index_);
+    return helix::head_identity(tools_, heads, index, active_tool_index_, tools_are_lanes());
 }
 
 std::vector<PhysicalHead> ToolState::heated_heads() const {

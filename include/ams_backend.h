@@ -3338,6 +3338,19 @@ class AmsBackend {
     }
 
     /**
+     * @brief Whether a tool number names a lane rather than a head.
+     *
+     * Where it does, T<n> loads the lane its map names, on whichever head that
+     * lane feeds, so a head is never called by a tool number
+     * (helix::head_identity()). A backend multiplexing lanes through a table
+     * answers true; a tool changer, whose tools are its heads, answers false.
+     * Asked only of a backend that owns a table.
+     */
+    [[nodiscard]] virtual bool tool_numbers_name_lanes() const {
+        return owns_tool_mapping_table();
+    }
+
+    /**
      * @brief Clear the backend's persistent message/error queue.
      *
      * AFC keeps a persistent message queue that will not clear until

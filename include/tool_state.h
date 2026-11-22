@@ -118,14 +118,15 @@ struct PhysicalHead {
 
 /// The physical heads behind @p tools, in the order they stand on the machine:
 /// by each head's lowest tool where every tool is a head, and by extruder
-/// ("extruder", "extruder1", ...) where tools outnumber heads, since lane
-/// numbers follow a lane map rather than the heads.
+/// ("extruder", "extruder1", ...) with @p tools_are_lanes, since lane numbers
+/// follow a lane map rather than the heads.
 /// Tools naming the same extruder share one head; a tool naming none is a head
 /// of its own, since nothing says it shares one. With @p heads_share_heater
 /// every tool is a head of its own even where several name one extruder: they
 /// are separate nozzles driven and heated through it in turn.
 [[nodiscard]] std::vector<PhysicalHead> physical_heads(const std::vector<ToolInfo>& tools,
-                                                       bool heads_share_heater = false);
+                                                       bool heads_share_heater = false,
+                                                       bool tools_are_lanes = false);
 
 /// The index into @p heads of the head @p tool_index prints through, or -1.
 [[nodiscard]] int head_index_for_tool(const std::vector<PhysicalHead>& heads, int tool_index);
@@ -145,14 +146,14 @@ struct HeadIdentity {
 };
 
 /// Head @p head_index of @p heads (physical_heads() over @p tools) as a label
-/// names it. Where there are no more tools than heads every tool is a head, and
-/// the head is its representative tool, named and numbered as that tool. Where
-/// tools outnumber heads the tools are lanes, so a tool's name says which lane
-/// loads rather than which head: the head is then named by ToolInfo::head_name,
-/// numbered by its place in @p heads, and the lane it stands for is lane_code.
+/// names it. Where every tool is a head, the head is its representative tool,
+/// named and numbered as that tool. With @p tools_are_lanes a tool's name says
+/// which lane loads rather than which head, even with one lane per head: the
+/// head is then named by ToolInfo::head_name, numbered by its place in
+/// @p heads, and the lane it stands for is lane_code.
 [[nodiscard]] HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
                                          const std::vector<PhysicalHead>& heads, int head_index,
-                                         int active_tool);
+                                         int active_tool, bool tools_are_lanes);
 
 /// Tool topology sourced from an AMS backend: multiplexing systems (e.g. AFC)
 /// and tool changers both push it. When set, ToolState rebuilds its tool list
@@ -177,6 +178,8 @@ struct ToolTopology {
     /// Every tool is its own nozzle, all driven and heated through one extruder
     /// (AmsBackend::heads_share_heater()).
     bool heads_share_heater = false;
+    /// Tool numbers name lanes, not heads (AmsBackend::tool_numbers_name_lanes()).
+    bool tools_are_lanes = false;
 };
 
 /// Manages tool information for multi-tool printers (toolchangers, multi-extruder).
@@ -305,6 +308,11 @@ class ToolState {
     /// The tools are separate nozzles sharing one extruder and heater.
     [[nodiscard]] bool heads_share_heater() const {
         return ams_topology_active_ && heads_share_heater_;
+    }
+
+    /// The tools are lanes a filament system maps, not heads.
+    [[nodiscard]] bool tools_are_lanes() const {
+        return ams_topology_active_ && tools_are_lanes_;
     }
 
     /// Request a tool change, delegating to AMS backend or falling back to Tn gcode.
@@ -482,6 +490,7 @@ class ToolState {
     std::vector<int> ams_topology_tool_to_slot_;
     std::vector<std::string> ams_topology_tool_extruder_;
     bool heads_share_heater_ = false;
+    bool tools_are_lanes_ = false;
 
     // Set by set_backend_active_tool(): the backend, not the status frame,
     // says which head is mounted.
