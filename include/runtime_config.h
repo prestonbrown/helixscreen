@@ -295,6 +295,9 @@ struct RuntimeConfig {
     constexpr bool should_mock_sensors() const {
         return false;
     }
+    constexpr bool should_show_chamber_air_first_fit() const {
+        return true;
+    }
 #endif
 
     /**
