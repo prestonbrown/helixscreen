@@ -385,6 +385,10 @@ In run mode the Z offset panel behaves differently in four ways:
 - **No intro and no bed-clear question.** The run's Before you start page already had the bed
   cleared and the paper ready, so the panel homes and probes on the activation its
   `open_for_run()` queued and opens on the tape screen. Retry starts over the same way. The
+  intro never shows in a run: Abort cancels the warm-up or the paper test and closes the panel,
+  so the run asks its "Z offset not set" question as for leaving unaccepted (below), and so do a
+  manual probe ended outside the screen and a declined mounted-tool question. The chip shows
+  only while the Z offset card is ticked, and keeps its value when hidden. The
   panel's Warm Bed switch does not apply: the Pick page's **Warm the bed first** chip on the Z
   offset card does (`RunOptions::zoffset_warm_bed`, offered where there is a heated bed), and
   the panel then warms the bed through the same path its switch uses before probing.

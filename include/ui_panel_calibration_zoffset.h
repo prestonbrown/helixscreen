@@ -247,6 +247,9 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void handle_z_adjust(float delta);
     void handle_accept_clicked();
     void handle_abort_clicked();
+    /// In a run, close the panel so the run asks whether to go on; nothing
+    /// outside a run.
+    void leave_run_unaccepted();
     void handle_done_clicked();
     void handle_retry_clicked();
     void handle_warm_bed_toggled();

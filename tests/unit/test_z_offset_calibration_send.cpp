@@ -17,6 +17,7 @@
  * the tune overlay's baby-step path.
  */
 
+#include "ui_calibration_run_overlay.h"
 #include "ui_modal.h"
 #include "ui_nav_manager.h"
 #include "ui_panel_calibration_zoffset.h"
@@ -1360,4 +1361,73 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     CHECK_FALSE(hidden("state_idle"));
     CHECK_FALSE(hidden("btn_start"));
     CHECK(client.gcode_script_history().empty());
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: Abort leaves the Z offset step and asks, never the intro",
+                 "[ui_integration][zoffset][zoffset_run]") {
+    using namespace helix::calibration;
+    RunOptions options;
+    options.zoffset_warm_bed = true;
+    CalibrationRun run(api, zoffset_then_heaters(options), nullptr);
+    run.start();
+    settle();
+    REQUIRE(panel.get_state() == ZOffsetCalibrationPanel::State::WARMING);
+
+    lv_xml_get_event_cb(nullptr, "on_zoffset_abort_clicked")(nullptr);
+    // The warm-up is cancelled, and the intro stays hidden while the panel leaves.
+    CHECK(panel.get_state() == ZOffsetCalibrationPanel::State::IDLE);
+    REQUIRE(panel.get_root() != nullptr);
+    CHECK(hidden("state_idle"));
+    settle();
+    CHECK(client.last_send_script() == "M140 S0");
+    REQUIRE(Modal::get_top() != nullptr);
+    CHECK(run.entries()[1].status == StepStatus::Pending);
+
+    SECTION("Stop calibration ends the run before the heaters") {
+        helix::test::answer_top_modal("btn_secondary");
+        settle();
+        CHECK(run.phase() == RunPhase::Results);
+        CHECK(run.entries()[1].status == StepStatus::NotRun);
+    }
+    SECTION("Continue skips the Z offset and runs the heaters") {
+        helix::test::answer_top_modal("btn_primary");
+        settle();
+        CHECK(run.entries()[0].status == StepStatus::Skipped);
+        CHECK(run.entries()[1].status == StepStatus::Running);
+        run.stop();
+        settle();
+    }
+}
+
+TEST_CASE_METHOD(ZOffsetRunFixture,
+                 "Calibration run: the warm-up chip shows only while Z offset is ticked, and "
+                 "keeps its value",
+                 "[ui_integration][zoffset][zoffset_run][calibration_run]") {
+    helix::PrinterDiscovery hw;
+    hw.parse_objects(json::array({"probe", "heater_bed", "extruder"}));
+    state().set_hardware(hw);
+    auto& overlay = helix::ui::get_calibration_run_overlay();
+    overlay.open();
+    settle();
+    REQUIRE(overlay.get_root() != nullptr);
+    lv_obj_t* chip = lv_obj_find_by_name(overlay.get_root(), "cal_run_zoffset_warm");
+    REQUIRE(chip != nullptr);
+    lv_subject_t* warm = lv_xml_get_subject(nullptr, "cal_run_zoffset_warm");
+    REQUIRE(warm != nullptr);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "cal_run_picked_z_offset")) == 1);
+    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+
+    overlay.toggle_zoffset_warm_bed();
+    REQUIRE(lv_subject_get_int(warm) == 1);
+    overlay.toggle_pick("z_offset");
+    settle();
+    CHECK(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    overlay.toggle_pick("z_offset");
+    settle();
+    CHECK_FALSE(lv_obj_has_flag(chip, LV_OBJ_FLAG_HIDDEN));
+    CHECK(lv_subject_get_int(warm) == 1);
+
+    overlay.close();
+    settle();
 }

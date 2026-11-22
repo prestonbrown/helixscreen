@@ -91,7 +91,8 @@
       <lv_obj name="state_idle"
               width="100%" flex_grow="1" style_pad_all="#space_lg" flex_flow="column" style_flex_main_place="center"
               style_flex_cross_place="center" style_pad_gap="#space_lg" scrollable="false">
-        <bind_flag_if_not_eq subject="zoffset_cal_state" flag="hidden" ref_value="0"/>
+        <!-- A guided run never shows the intro: it starts at once and leaves on abort. -->
+        <bind_flag_if cond="zoffset_cal_state ne 0 or zoffset_cal_run_mode eq 1" flag="hidden"/>
         <!-- Instructions -->
         <lv_obj width="100%" style_pad_all="0" flex_flow="column" style_pad_gap="#space_sm">
           <text_heading width="100%" text="Paper Test Calibration" style_text_align="center"/>
@@ -115,16 +116,13 @@
             <text_small width="100%" text="4. Paper should move but with resistance"/>
           </lv_obj>
           <!-- Divider -->
-          <divider_vertical height="80%">
-            <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
-          </divider_vertical>
-          <!-- Right: Warm Bed Option (only visible when printer has a heated bed).
-               A guided run picks warming on its Pick page instead. -->
+          <divider_vertical height="80%"/>
+          <!-- Right: Warm Bed Option (only visible when printer has a heated bed) -->
           <lv_obj height="content"
                   flex_grow="1" style_pad_all="#space_lg" style_bg_color="#section_bg_color"
                   style_radius="#border_radius" flex_flow="row" style_flex_cross_place="center"
                   style_pad_gap="#space_md" scrollable="false">
-            <bind_flag_if cond="printer_has_heater_bed ne 1 or zoffset_cal_run_mode eq 1" flag="hidden"/>
+            <bind_flag_if_not_eq subject="printer_has_heater_bed" flag="hidden" ref_value="1"/>
             <!-- Left: icon + text -->
             <lv_obj height="content"
                     flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="#space_xs" scrollable="false">

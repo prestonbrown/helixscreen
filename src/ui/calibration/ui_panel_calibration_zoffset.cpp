@@ -226,6 +226,7 @@ void ZOffsetCalibrationPanel::setup_widgets() {
                 // externally
                 spdlog::info("[ZOffsetCal] Manual probe ended externally, returning to IDLE");
                 self->set_state(State::IDLE);
+                self->leave_run_unaccepted();
             }
         },
         ps.get_subjects_lifetime());
@@ -708,6 +709,7 @@ void ZOffsetCalibrationPanel::confirm_tool_then_start(int reference_tool, int ac
     auto declined = [this]() {
         tool_confirm_pending_ = false;
         tool_confirm_dialog_ = nullptr;
+        leave_run_unaccepted();
     };
     opts.on_cancel = declined;
     opts.on_dismiss = declined;
@@ -1265,6 +1267,15 @@ void ZOffsetCalibrationPanel::handle_accept_clicked() {
 void ZOffsetCalibrationPanel::handle_abort_clicked() {
     spdlog::debug("[ZOffsetCal] Abort clicked");
     send_abort();
+    leave_run_unaccepted();
+}
+
+void ZOffsetCalibrationPanel::leave_run_unaccepted() {
+    // A run has no intro to fall back to: the panel closes and the run asks
+    // whether to go on without a Z offset (on_dismissed()).
+    if (run_done_ && is_visible()) {
+        helix::nav::go_back();
+    }
 }
 
 void ZOffsetCalibrationPanel::handle_done_clicked() {
