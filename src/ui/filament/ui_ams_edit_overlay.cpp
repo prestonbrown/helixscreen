@@ -880,7 +880,8 @@ void AmsEditOverlay::rebuild_option_lists() {
     brands.push_back({lv_tr("Browse catalog..."), {}, true});
     // Starred products lead: the catalog picker's own Favorites view.
     if (!helix::filament_favorites::load_favorite_ids().empty()) {
-        brands.insert(brands.begin(), {lv_tr("Favorites"), {}, true, true});
+        brands.insert(brands.begin(),
+                      {std::string("\xE2\x98\x85 ") + lv_tr("Favorites"), {}, true, true});
     }
     brand_options_ = std::move(brands);
     refresh_spool_tiles();
