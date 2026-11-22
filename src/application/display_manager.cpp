@@ -782,7 +782,9 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
         // A USB touch panel can enumerate after the app starts: a slow boot, or a
         // cable plugged in later. The same retry that brings back a dropped panel
         // adopts it when it arrives.
-        spdlog::warn("[DisplayManager] No touch device yet; checking every {} ms until one appears",
+        spdlog::warn("[DisplayManager] No touch device yet; checking every {} ms until one "
+                     "appears. If one is plugged in: is this user in the 'input' group, and "
+                     "does /input/touch_device (or HELIX_TOUCH_DEVICE) name the right node?",
                      kPointerReopenPeriodMs);
         arm_pointer_reopen();
     }

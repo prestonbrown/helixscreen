@@ -432,6 +432,7 @@ TouchCalibration load_touch_calibration() {
 void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
                                  const TouchCalibration& cal, int screen_w, int screen_h) {
     ctx.calibration = cal;
+    ctx.installed = true;
     ctx.original_read_cb = lv_indev_get_read_cb(indev);
     ctx.screen_width = screen_w;
     ctx.screen_height = screen_h;
@@ -446,9 +447,9 @@ void install_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
     lv_indev_set_read_cb(indev, helix::calibrated_read_cb);
 }
 
-void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx, int screen_w,
-                                   int screen_h) {
-    const TouchCalibration live = ctx.calibration;
+void reinstall_calibration_wrapper(lv_indev_t* indev, CalibrationContext& ctx,
+                                   const TouchCalibration& stored, int screen_w, int screen_h) {
+    const TouchCalibration live = ctx.installed ? ctx.calibration : stored;
     install_calibration_wrapper(indev, ctx, live, screen_w, screen_h);
 }
 
