@@ -6598,9 +6598,12 @@ TEST_CASE_METHOD(RunningAd5xIfs, "AD5X IFS fault reads with the wording for ZMOD
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"zmod_ifs", "zmod_color", "extruder"}));
     get_printer_state().set_hardware(hw);
+    // Each set_hardware() republishes the sensor managers through the update
+    // queue, so the restore drains it while their subjects are still alive.
     struct Restore {
         ~Restore() {
             get_printer_state().set_hardware(helix::PrinterDiscovery{});
+            drain_queue();
         }
     } restore;
 
