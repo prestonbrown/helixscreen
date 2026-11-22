@@ -1029,6 +1029,7 @@ AmsError AmsBackendSnapmaker::do_change_tool(int tool_number) {
         pending_tool_ = tool_number;
         pending_until_ = std::chrono::steady_clock::now() + kToolChangeWindow;
     }
+    // HEAD_LABEL_OK: Snapmaker's tools are its heads; T<n> mounts head n
     auto result = execute_gcode(fmt::format("T{}", tool_number));
     if (!result.success()) {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -1470,9 +1471,10 @@ void AmsBackendSnapmaker::settle_refeed(int slot, ResumeReadyCallback on_ready) 
 
 AmsError AmsBackendSnapmaker::unconfirmed_load_error(int head, std::string technical,
                                                      bool retry_on_resume) const {
-    const std::string tool = helix::ui::tool_label_in_form(tool_noun(), display_tool_number_style(),
-                                                           helix::ui::tool_label(head), head,
-                                                           helix::ui::ToolLabelForm::Full);
+    const std::string tool = helix::ui::tool_label_in_form(
+        tool_noun(), display_tool_number_style(),
+        // HEAD_LABEL_OK: Snapmaker's tools are its heads, so the tool number names the head
+        helix::ui::tool_label(head), head, helix::ui::ToolLabelForm::Full);
     return AmsError(
         AmsResult::COMMAND_FAILED, std::move(technical),
         fmt::format(fmt::runtime(lv_tr("{} didn't load. Check that its hotend is seated and do a "
@@ -1573,6 +1575,7 @@ void AmsBackendSnapmaker::warn_unloaded_used_heads(const std::string& filename, 
         }
         for (int head : unloaded) {
             const std::string tool = helix::ui::tool_label_in_form(
+                // HEAD_LABEL_OK: Snapmaker's tools are its heads, so the tool number names the head
                 tool_noun(), display_tool_number_style(), helix::ui::tool_label(head), head,
                 helix::ui::ToolLabelForm::Full);
             spdlog::warn("{} '{}' uses tool {}, whose feeder reports it not loaded",

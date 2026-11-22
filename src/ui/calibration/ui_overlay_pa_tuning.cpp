@@ -359,6 +359,7 @@ helix::pa::TestPrintParams PaTuningOverlay::build_params() const {
         // Mount the head without a filament change: on a rig whose T<n> loads a
         // lane, the backend knows the head-only command.
         const AmsBackend* backend = AmsState::instance().get_backend();
+        // HEAD_LABEL_OK: with no AMS backend a tool is a head
         p.select_head_gcode = backend
                                   ? backend->head_select_gcode(head.tool)
                                   : "T" + std::to_string(head.tool); // DISPLAY_NUMBERING_OK: gcode
