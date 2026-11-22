@@ -2031,7 +2031,8 @@ void FilamentPanel::update_filament_op_buttons() {
     state.print_blocks_op = print_blocks_op;
     state.print_blocks_load = helix::ui::print_blocks_load_now(backend, printer_state_);
     state.system_busy = sys.is_busy();
-    state.load_feeds_filament = backend->load_feeds_filament();
+    state.load_feeds_filament =
+        helix::ui::load_feeds_filament_for(slot, backend->load_feeds_filament());
     // unload_target_is_loaded() with is_current_slot=false keeps the narrow
     // per-slot rule this gating has always used for lanes (the recovery arm
     // belongs to the runout dialog, not to a resting panel) while routing the

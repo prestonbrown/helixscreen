@@ -315,6 +315,20 @@ struct MachineOpGating {
 }
 
 /**
+ * @brief Whether a Load of @p target_slot feeds filament into a head that
+ * already reads loaded, so "loaded" does not grey the button.
+ *
+ * The bypass always does. A toolhead sensor seeing the external strand says it
+ * reached the sensor, not the nozzle (the sensor sits above the gears, 72 mm up
+ * on a Voron V0), and its Load is what pushes it the rest of the way; on a
+ * strand already at the nozzle it only extrudes more. Lanes keep the
+ * backend's answer.
+ */
+[[nodiscard]] inline bool load_feeds_filament_for(int target_slot, bool backend_load_feeds) {
+    return backend_load_feeds || target_slot == kExternalSpoolSlot;
+}
+
+/**
  * @brief The external (bypass) spool's Load/Unload/Purge buttons as an OpButtonState.
  *
  * Sibling of build_unload_gating_state(), and for the same reason: the field
@@ -344,6 +358,7 @@ struct MachineOpGating {
     s.unload_available = bypass_loaded;
     s.system_busy = system_busy;
     s.print_blocks_op = print_blocks_filament_op(lifecycle, backend_self_homes);
+    s.load_feeds_filament = load_feeds_filament_for(kExternalSpoolSlot, false);
     s.unload_is_cold_lane_op = false;
     return s;
 }

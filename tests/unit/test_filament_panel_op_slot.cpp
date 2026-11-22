@@ -933,6 +933,29 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Filament panel greys Load/Unload while the 
     CHECK(read("filament_unload_disabled") == 0);
 }
 
+// A bypass strand at the toolhead sensor has not reached the nozzle: the sensor
+// sits above the gears, and the panel's Load is what feeds it the rest of the
+// way. Greying Load because the toolhead reads loaded leaves no way to load it.
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "Filament panel keeps Load live for a bypass strand at the toolhead sensor",
+                 "[filament][op_slot][panel][op_gating][bypass]") {
+    auto read = [](const char* name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+        REQUIRE(s != nullptr);
+        return lv_subject_get_int(s);
+    };
+
+    AmsSystemInfo sys = boxturtle_sys();
+    sys.supports_bypass = true;
+    sys.current_slot = helix::ui::kExternalSpoolSlot;
+    sys.filament_loaded = true;
+    OpSlotHarness h(*this, sys, /*loaded_slot=*/-1, identity_topo());
+    process_lvgl(10);
+
+    CHECK(read("filament_load_disabled") == 0);
+    CHECK(read("filament_unload_disabled") == 0);
+}
+
 // The cold-nozzle "heat first" warning is hidden when the op preheats for a
 // known material, and Load/Unload preheat for the chosen slot. So the
 // material that hides the warning has to be the selected slot's, not the loaded

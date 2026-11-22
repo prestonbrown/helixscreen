@@ -617,8 +617,9 @@ TEST_CASE("build_external_spool_gating_state: the bypass spool's fixed answers",
                     .slot_has_filament.has_value());
     CHECK_FALSE(bypass(false, false, false, false, false).load_disabled);
 
-    // Loaded: nothing to load into, something to unload.
-    CHECK(bypass(true, false, false, false, false).load_disabled);
+    // Loaded: Load stays live, since the toolhead sensor seeing the strand does
+    // not put it at the nozzle; and there is something to unload.
+    CHECK_FALSE(bypass(true, false, false, false, false).load_disabled);
     CHECK_FALSE(bypass(true, false, false, false, false).unload_disabled);
     CHECK(bypass(false, false, false, false, false).unload_disabled);
 
