@@ -16,6 +16,8 @@
     <prop name="glyph" type="string" default=""/>
     <prop name="icon" type="string" default="tune"/>
     <prop name="icon_hidden" type="bool" default="true"/>
+    <!-- One size up for a glyph that fills less of its box than its neighbors (the flame). -->
+    <prop name="icon_size" type="string" default="sm"/>
     <prop name="label" type="string" default=""/>
     <!-- The callback the step's own screen registers. -->
     <prop name="callback" type="string" default=""/>
@@ -42,7 +44,7 @@
                  align="center" text="$glyph" style_text_font="#cal_font_name_bold" style_text_color="#secondary"
                  clickable="false" event_bubble="true"/>
       <icon name="tile_icon"
-            align="center" src="$icon" size="sm" variant="secondary" hidden="$icon_hidden" clickable="false"
+            align="center" src="$icon" size="$icon_size" variant="secondary" hidden="$icon_hidden" clickable="false"
             event_bubble="true"/>
     </lv_obj>
     <lv_obj width="0"

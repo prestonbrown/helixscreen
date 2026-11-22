@@ -74,7 +74,7 @@
         <calibration_hub_tile name="cal_tile_z_offset"
                               step="z_offset" glyph="Z" label="Z offset" callback="on_zoffset_row_clicked"/>
         <calibration_hub_tile name="cal_tile_heaters"
-                              step="heaters" icon="fire" icon_hidden="false" label="Heaters"
+                              step="heaters" icon="fire" icon_size="md" icon_hidden="false" label="Heaters"
                               callback="on_pid_tuning_clicked"/>
         <calibration_hub_tile name="cal_tile_bed_mesh"
                               step="bed_mesh" icon="grid_large" icon_hidden="false" label="Bed mesh"
