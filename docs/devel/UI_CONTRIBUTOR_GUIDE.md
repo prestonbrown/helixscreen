@@ -1134,10 +1134,25 @@ These panels work well and can serve as reference for how to do things right:
 
 ### Ultrawide Status
 
+- The ultrawide class is `is_ultrawide_aspect()` in `src/layout_manager.cpp`
+  (`width * 2 > height * 5`, wider than 2.5:1), published to XML as `ui_is_ultrawide`. Test it
+  in C++ through that function or `app_layout_type()`, never by restating the ratio.
 - Print Status has an ultrawide layout (`ui_xml/ultrawide/print_status_panel.xml`):
   one row of columns whose widths `PrintStatusLayoutFitter` publishes from
-  `decide_print_status_columns()`. Every other panel falls through to the
-  standard layout, or adapts in place on `ui_is_ultrawide`.
+  `decide_print_status_columns()`. With a lane tray (`helix::ui::has_lane_tray()`) the
+  readouts' column shows the tray instead, and during a print a Tune column joins the row
+  where the columns can make room for it
+  ([architecture chapter 08](architecture/08-panels-navigation.md#the-print-status-panel)).
+- Controls and Filament fill the width their content cap leaves with the **side band**:
+  Motion beside Controls, the AMS view beside Filament. A host wraps its content in a
+  `side_band_main` column beside a `<side_band>` component and drives one
+  `helix::ui::SideBand`; [LAYOUT_SYSTEM.md](LAYOUT_SYSTEM.md#the-side-band) has the model. A
+  view that can be both an overlay and a band guest calls `SideBand::take_open_request()` in
+  its open function and `SideBand::notify_released()` when its tree is freed
+  (`src/ui/ui_panel_motion.cpp#open_motion_panel` is the pattern), so the two paths never
+  build a second tree.
+- Every other panel falls through to the standard layout, capped at the content width, or
+  adapts in place on `ui_is_ultrawide`.
 - Wide open for contributions. Force it with `--layout ultrawide -s 1920x480`.
 
 ### Portrait / Micro Status
@@ -1145,6 +1160,8 @@ These panels work well and can serve as reference for how to do things right:
 - `ui_xml/portrait/` exists with one override (`print_status_panel.xml`); the app
   shell, the navigation bar and the Print Tuning overlay are single files that
   adapt via `ui_is_portrait` instead.
+- On stacked Print Status tiles the job tile gives up height it can spare to the lane tray,
+  then to an inline Tune section during a print; the printer tile never shrinks for either.
 - `ui_xml/micro/` exists with four overrides (`controls_panel.xml`, `header_bar.xml`,
   `theme_editor_overlay.xml`, `theme_preview_overlay.xml`).
 - `ui_xml/micro_portrait/` exists as a directory but has no overrides yet.

@@ -104,7 +104,9 @@ Developer Reference below.
 Panels and overlays fill the space beside the navigation bar, which on an ultrawide panel is
 three or four screen-heights across. A settings list or the jog pad stretched that far is
 hard to read and costs reach, so their content stops at **2.4 x the screen height**, kept
-against the navigation bar, while an overlay's header still spans the screen. The space to its right stays empty.
+against the navigation bar, while an overlay's header still spans the screen. The space to its
+right stays empty, except beside Controls and Filament, where [the side band](#the-side-band)
+fills it.
 
 | Screen | Cap | Binds? |
 |--------|-----|--------|
@@ -169,24 +171,80 @@ stack clear.
 
 #### The side band
 
-Two panels fill the space the cap leaves: Controls shows the Motion panel there, and Filament
-shows the AMS view when a filament system has slots or the printer has several toolheads
-(`helix::ui::side_band_shows()`). The AMS view is the one the overlay path would open
-(`helix::ui::ams_view_for()`): the overview for several units, the AMS panel for one. `helix::ui::SideBand` (`include/ui_side_band.h`) is the one
-mechanism both use. The host's XML wraps its content in a `side_band_main` column beside a
-`<side_band>` component; on ultrawide the host keeps the full width
-(`uses_full_content_width()` answers `SideBand::uses_full_width()`) and the band sizes
-`side_band_main` to the cap, so the content sits where the cap would have put it.
+Two main panels fill the space the cap leaves with an overlay's content: Controls shows the
+Motion panel there, and Filament shows the AMS view. `helix::ui::SideBand`
+(`include/ui_side_band.h`) is the one mechanism both use; each host owns one instance and
+forwards its `setup()`, activation and deactivation to it.
 
-Motion and AMS are singletons with one widget tree, which the band and the overlay path
-share. The band builds or moves the tree into itself when the host activates and forwards
-the host's activation to it. Opening the overlay while the host is on screen does nothing
-(the content is already there); opening it from anywhere else takes the tree back first, and
-the band builds it again when the host next activates or the overlay's tree is freed. A theme
-or mode change, or a change of AMS view, rebuilds the hosted tree. While
-the band holds the tree, `controls_side_band` / `filament_side_band` hide the host's Motion
-and Manage buttons (Motors Off then spans the Position card's row), and `motion_in_side_band` /
-`ams_in_side_band` hide the guest's back arrow.
+**When it shows.** `helix::ui::side_band_shows()`
+(`src/ui/ui_side_band.cpp#side_band_shows`) is the gate, and it is true only on the ultrawide
+layout (`ui_is_ultrawide`, from `is_ultrawide_aspect()`: `width * 2 > height * 5`, wider than
+2.5:1). Motion needs nothing more. The AMS view needs a lane tray, `helix::ui::has_lane_tray()`
+(`include/ui_ams_mini_status.h`): a filament system or several heads
+(`has_filament_system_or_multi_tool`, published by `TargetTool`) and at least one lane in a
+present unit to draw. Print Status's lane tray asks the same question, so the two never
+disagree. Without it the band stays empty and Filament keeps the capped layout. The band
+re-reads the gate from observers on `ui_is_ultrawide`, the lane-tray inputs and the theme, so
+a resize, a `--layout` override, a unit appearing or a theme change moves it without a
+navigation.
+
+**The host's XML.** The host's root is a row: its own content in a `side_band_main` column,
+then the `<side_band shown_subject="..."/>` component (`ui_xml/components/side_band.xml`),
+which shows while that subject is 1. On ultrawide the host keeps the full width
+(`uses_full_content_width()` answers `SideBand::uses_full_width()`) and the band sizes
+`side_band_main` to the content cap itself, so the host's content sits exactly where the cap
+would have put it and the band takes the rest.
+
+**Guests.** The band holds a `SideBandGuest` (`make_motion_side_band_guest()`,
+`make_ams_side_band_guest()`), the hosted view's tree and lifecycle behind one interface:
+`attach()` builds the tree in the band or moves the existing one there, `detach()` frees it,
+`lifecycle()` is the view's `IPanelLifecycle`, `on_host_left()` drops any place the view was
+holding, and `stale()` reports a tree that no longer matches the printer. The AMS guest hosts
+the view the overlay path would open (`helix::ui::ams_view_for()`): the overview for several
+units, the AMS panel for one, and it reports itself stale when the unit count crosses that
+line.
+
+**One tree, two paths.** Motion and the AMS views are singletons with one widget tree, which
+the band and the overlay path share:
+
+- The band attaches the tree when its host activates and the gate is true, and forwards the
+  host's activation to the guest's lifecycle.
+- An overlay open request goes through `SideBand::take_open_request()` first. With the host on
+  screen and the content already in its band, the request is a no-op. Opened from anywhere
+  else, the band hands the tree back and the overlay builds its own, so there is never a
+  second tree. The band builds it again on the host's next activation, or as soon as the
+  overlay's tree is freed (`SideBand::notify_released()`, drained on the next `UpdateQueue`
+  pass).
+- The gate turning false, a host rebuild (`DeactivateReason::Rebuild`) and the deletion of the
+  host's tree all hand the tree back. A theme or mode change and a guest reporting `stale()`
+  rebuild it, the same way the overlay path rebuilds a cached tree built under an older theme
+  generation. A tree a cache has pulled out of the band no longer counts as hosted, so the band
+  rebuilds that too.
+- While the band owns the AMS tree it unregisters that tree's overlay record, so the overlay
+  bookkeeping never holds a tree that is not on the stack.
+
+**Cover versus switch.** An overlay pushed over the host (and a screensaver) deactivates the
+host without taking the guest's place away: the AMS overview stays on the unit the user was
+looking at. A switch to another main panel calls `on_host_left()`, which returns the overview to
+its unit list. A switch made from under the overlay counts as a switch: the band remembers the
+active panel at cover time and resets when `nav::active_panel_subject()` moves away from it.
+
+**Subjects.** Each host registers two 0/1 subjects through its band. `controls_side_band` and
+`filament_side_band` are 1 while the band holds and shows its content: Controls hides its
+**Motion** button and its Motors Off tile, and shows a wide **Motors Off** button across the
+Position card's action row in their place (`btn_motors_wide` in `ui_xml/controls_panel.xml`);
+the Filament spool card hides **Manage**. `motion_in_side_band` and `ams_in_side_band` are 1
+while the guest's tree sits in the band, and the guest's header binds them to hide its back
+arrow.
+
+**Builds without it.** `HELIX_HAS_SIDE_BAND` (default 1, set in `include/ui_side_band.h` when a
+build does not define it) is 0 in the ESP32 firmware, whose K-Touch panel is never ultrawide.
+`ui_side_band.cpp` is left out and `include/ui_side_band.h` supplies inline stubs instead: the
+band never shows, `take_open_request()` is false so Motion and the AMS views always open as
+overlays, and the stub `SideBand` still registers the hosts' two subjects at 0 for the XML that
+binds them, so the hosts compile unchanged. The band reaches navigation only through
+`include/ui_nav.h` (`nav::active_panel_subject()`, `nav::main_panel_covered()`), never through
+`NavigationManager` directly.
 
 ## Directory Structure
 

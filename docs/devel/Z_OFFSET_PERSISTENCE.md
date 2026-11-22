@@ -309,6 +309,17 @@ decision, a pure function unit-tested in `tests/unit/test_printer_profile_state.
 - **No probe and no reading yet** stays `ENDSTOP`: Klipper requires `position_endstop`
   on a switch-homed `[stepper_z]`, so the reading is only late.
 - **An external persistence provider** still forces `FIRMWARE_MANAGED` on top (above).
+- **The database wins where the config misleads.** A stock FlashForge Adventurer 5M or 5M Pro
+  homes Z on a Z-max switch (`position_endstop` 220), so the table alone would pick
+  `ENDSTOP`. Its bed mesh has no zero reference, though, so the nozzle probe sets Z0: a
+  `position_endstop` written by `Z_OFFSET_APPLY_ENDSTOP` is cancelled by the next
+  `BED_MESH_CALIBRATE`, while the probe's `z_offset` survives it. Both AD5M rows in
+  `assets/config/printer_database.json` therefore name `probe_calibrate`. ZMOD and Forge-X
+  still latch `FIRMWARE_MANAGED` on top, because their `SET_GCODE_OFFSET` stores own the
+  offset; the database value only decides for an AD5M with neither (Klipper Mod, or a bare
+  Klipper install). The Elegoo Centauri Carbon's row pins `endstop` the other way: COSMOS homes
+  Z on its switch with a zero-referenced mesh, and its own `CALIBRATE_Z_OFFSET` saves with
+  `Z_OFFSET_APPLY_ENDSTOP`.
 
 **When the inputs arrive.** Discovery reads `stepper_z.position_endstop` from the same
 `configfile.settings` query as the build volume (`PrinterDiscovery::z_position_endstop()`),

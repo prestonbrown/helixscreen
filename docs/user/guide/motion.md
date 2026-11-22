@@ -17,6 +17,17 @@ Open the Motion screen by tapping **Motion**, or anywhere on the **Position** ca
 
 The Z column stays on the right on the Move and Bed tabs. On the Jog tab it is part of the Jog Pad layout, and the other [Jog layouts](#jog-layouts) bring their own Z keys.
 
+### On an ultrawide screen
+
+On a very wide screen (wider than about 2.5:1, such as 1920x480 or 1920x440), the Motion screen sits beside the Controls panel instead of opening over it:
+
+1. Tap **Controls** in the navigation bar. The Controls cards fill the left part of the screen and the Motion screen, with its tabs, fills the space to their right.
+2. Jog, move or tap the bed map as usual. Both halves work at the same time, so you can watch a temperature or switch a fan on the left while you move the toolhead on the right.
+
+Because Motion is already on screen, the Controls panel's **Position** card has no **Motion** button there, and a wide **Motors Off** button takes the whole row in its place. The Motion screen has no back arrow beside Controls, since there is nothing to go back to.
+
+Opening Motion from anywhere else, such as the Motion or Toolhead widget on the Home screen, still opens it on its own screen with its back arrow. When you return to Controls, Motion is beside it again.
+
 ---
 
 ## Position Display
@@ -265,7 +276,7 @@ QGL and Z-Tilt are disabled during an active print and while another operation i
 
 ## Motors Off
 
-The **Motors Off** button appears both on the Move tab and on the Controls panel's **Position** card: beside **Motion** in landscape, and as a motor icon in the card's header on a portrait screen. It releases all stepper motors, letting you move the gantry and bed by hand. On the Controls panel the button shows a lit motor icon when the steppers are energized and a dimmed one when they are already off. When the motors are already off, the button is grayed out and does nothing.
+The **Motors Off** button appears both on the Move tab and on the Controls panel's **Position** card: beside **Motion** in landscape, as a motor icon in the card's header on a portrait screen, and across the card's whole row on an ultrawide screen, where Motion sits beside Controls (see [On an ultrawide screen](#on-an-ultrawide-screen)). It releases all stepper motors, letting you move the gantry and bed by hand. On the Controls panel the button shows a lit motor icon when the steppers are energized and a dimmed one when they are already off. When the motors are already off, the button is grayed out and does nothing.
 
 Tapping it asks for confirmation ("Release all stepper motors. Position will be lost.") before disabling the steppers. The button is disabled while a print is running or paused. If a print starts while the confirmation is open, confirming only tells you "Motors stay on while a print is active" and leaves the motors alone.
 
