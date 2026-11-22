@@ -3626,6 +3626,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." zh="Spoolman 未配置 — 无需移除。"/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." zh="Spoolman 离线，无法保存品牌和材料。"/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." zh="Spoolman 离线。恢复后可更改品牌和材料。"/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." zh="Spoolman 通过打印机固件设置，而不是在此屏幕上设置。"/>
   <translation tag="Spoolman needs a brand for this filament." zh="Spoolman 需要该耗材的品牌。"/>
   <translation tag="Spoolman needs a color for this filament." zh="Spoolman 需要该耗材的颜色。"/>
   <translation tag="Spoolman needs a material for this filament." zh="Spoolman 需要该耗材的材料。"/>

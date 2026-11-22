@@ -16,6 +16,26 @@ bool is_android_platform();
 /// is seeded from it and the shutdown widget/dialog gate on that.
 bool platform_host_power_supported();
 
+/// True when the printer's firmware supervises HelixScreen (prestonbrown/helixscreen#2154):
+/// it owns the installed package and the host's Moonraker and Klipper configuration,
+/// and installs whatever components HelixScreen's features need. HelixScreen then only
+/// detects what is there and uses it: it never runs an installer, never writes a file
+/// under Moonraker's config root, and never updates itself.
+///
+/// HELIX_FIRMWARE_MANAGED, exported by the firmware's launch hook, decides it when set
+/// (a truthy value turns it on, any other non-empty value off). Unset, the board module
+/// decides (board::firmware_manages_updates): today a Snapmaker U1 running PAXX
+/// Extended Firmware's own HelixScreen package.
+bool firmware_supervised();
+
+/// The rule behind firmware_supervised(): @p env_value (HELIX_FIRMWARE_MANAGED) decides
+/// when set and non-empty, truthy meaning on; otherwise @p board_says does.
+bool decide_firmware_supervised(const char* env_value, bool board_says);
+
+/// Why a config write was refused under firmware_supervised(), for logs and errors.
+inline constexpr const char* kFirmwareSupervisedConfigRefusal =
+    "The printer's firmware manages its configuration";
+
 /// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
@@ -112,6 +132,10 @@ void set_printer_embedded_override(int override_value);
 /// Test helper: override the external-updates default. Pass -1 to reset to the
 /// compile-time platform answer.
 void set_external_updates_default_override(int override_value);
+
+/// Test helper: override firmware_supervised(). Pass -1 to decide it again from the
+/// environment and the board.
+void set_firmware_supervised_override(int override_value);
 
 /// Short human-readable host arch line for the About screen and debug bundles.
 /// Format: "<kernel-arch> · <N>-bit userspace" — surfaces the common

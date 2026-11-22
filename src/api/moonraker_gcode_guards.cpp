@@ -6,6 +6,7 @@
 #include "gcode_homing.h"
 #include "json_utils.h"
 #include "moonraker_validation.h"
+#include "platform_info.h"
 #include "plugin_permissions.h"
 #include "printer_state.h"
 #include "spdlog/spdlog.h"
@@ -139,6 +140,27 @@ bool reject_plugin_rpc(helix::PrinterState& state, const std::string& method,
             on_error(MoonrakerError::not_ready(method, method + " is not available to plugins"));
         }
         return true;
+    }
+    // Firmware that supervises HelixScreen owns the software and the configuration
+    // (#2154): no plugin updates components or rewrites the config root there.
+    if (helix::firmware_supervised()) {
+        const bool updates =
+            method.rfind("machine.update.", 0) == 0 && method != "machine.update.status";
+        const bool file_write = method == "server.files.delete_file" ||
+                                method == "server.files.copy" || method == "server.files.move" ||
+                                method == "server.files.post_directory" ||
+                                method == "server.files.delete_directory";
+        if (updates || (file_write && (moonraker_internal::names_config_root("", str("path")) ||
+                                       moonraker_internal::names_config_root("", str("source")) ||
+                                       moonraker_internal::names_config_root("", str("dest"))))) {
+            spdlog::warn("{} Refusing plugin call to {}: {}", kTag, method,
+                         helix::kFirmwareSupervisedConfigRefusal);
+            if (on_error) {
+                on_error(
+                    MoonrakerError::not_ready(method, helix::kFirmwareSupervisedConfigRefusal));
+            }
+            return true;
+        }
     }
     if (method == "printer.print.resume" || method == "server.job_queue.start") {
         return reject_job_while_spools_on_bed(&state, method.c_str(), on_error);

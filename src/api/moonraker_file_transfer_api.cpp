@@ -417,6 +417,8 @@ void MoonrakerFileTransferAPI::upload_file_with_name(const std::string& root,
     // never a valid file, which is what every other caller is asking about.
     if (!path.empty() && reject_invalid_path(path, "upload_file", on_error))
         return;
+    if (reject_supervised_config_write(on_error, "upload_file", root, path))
+        return;
 
     // The filename is the part that reaches the multipart form verbatim, and it
     // is never legitimately empty. Validating it here is what keeps
@@ -489,6 +491,8 @@ void MoonrakerFileTransferAPI::upload_file_from_path(
     SuccessCallback on_success, ErrorCallback on_error, ProgressCallback on_progress) {
     // Validate inputs
     if (reject_invalid_path(dest_path, "upload_file_from_path", on_error))
+        return;
+    if (reject_supervised_config_write(on_error, "upload_file_from_path", root, dest_path))
         return;
 
     if (http_base_url_.empty()) {

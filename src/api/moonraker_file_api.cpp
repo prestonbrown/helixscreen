@@ -305,6 +305,8 @@ void MoonrakerFileAPI::delete_file(const std::string& filename, SuccessCallback 
     // Validate filename path
     if (reject_invalid_path(filename, "delete_file", on_error))
         return;
+    if (reject_supervised_config_write(on_error, "delete_file", "", filename))
+        return;
 
     json params = {{"path", filename}};
 
@@ -327,6 +329,9 @@ void MoonrakerFileAPI::move_file(const std::string& source, const std::string& d
 
     // Validate destination path
     if (reject_invalid_path(dest, "move_file", on_error))
+        return;
+    if (reject_supervised_config_write(on_error, "move_file", "", source) ||
+        reject_supervised_config_write(on_error, "move_file", "", dest))
         return;
 
     spdlog::info("[FileAPI] Moving file from {} to {}", source, dest);
@@ -351,6 +356,8 @@ void MoonrakerFileAPI::copy_file(const std::string& source, const std::string& d
     // Validate destination path
     if (reject_invalid_path(dest, "copy_file", on_error))
         return;
+    if (reject_supervised_config_write(on_error, "copy_file", "", dest))
+        return;
 
     spdlog::info("[FileAPI] Copying file from {} to {}", source, dest);
 
@@ -370,6 +377,8 @@ void MoonrakerFileAPI::create_directory(const std::string& path, SuccessCallback
     // Validate path
     if (reject_invalid_path(path, "create_directory", on_error))
         return;
+    if (reject_supervised_config_write(on_error, "create_directory", "", path))
+        return;
 
     spdlog::info("[FileAPI] Creating directory: {}", path);
 
@@ -388,6 +397,8 @@ void MoonrakerFileAPI::delete_directory(const std::string& path, bool force,
                                         SuccessCallback on_success, ErrorCallback on_error) {
     // Validate path
     if (reject_invalid_path(path, "delete_directory", on_error))
+        return;
+    if (reject_supervised_config_write(on_error, "delete_directory", "", path))
         return;
 
     spdlog::info("[FileAPI] Deleting directory: {} (force: {})", path, force);

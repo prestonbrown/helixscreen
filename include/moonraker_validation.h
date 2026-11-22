@@ -410,6 +410,15 @@ inline bool is_safe_position(double position, const SafetyLimits& limits) {
 //   if (reject_invalid_path(filename, "method_name", on_error)) return;
 //   if (reject_invalid_path(filename, "method_name", on_error, silent)) return;
 
+/// True when @p root, or a root-relative @p path such as "config/printer.cfg", names
+/// Moonraker's config root, which holds Moonraker's and Klipper's configuration.
+inline bool names_config_root(std::string_view root, std::string_view path) {
+    if (root == "config") {
+        return true;
+    }
+    return path == "config" || path.substr(0, 7) == "config/";
+}
+
 /**
  * @brief Validate path and invoke error callback if invalid
  *

@@ -2657,6 +2657,10 @@ bool UpdateChecker::is_deployed_layout(const std::string& install_root) {
 
 bool UpdateChecker::startup_runs_restore(const char* service_restarts,
                                          const std::string& install_root) {
+    // Firmware that supervises HelixScreen owns its install root and config (#2154).
+    if (helix::firmware_supervised()) {
+        return false;
+    }
     const bool service_runs_it = service_restarts != nullptr && service_restarts[0] != '\0';
     return !service_runs_it && is_deployed_layout(install_root);
 }
@@ -3272,7 +3276,9 @@ void UpdateChecker::defer_moonraker_sync_until_job_ends(const std::string& insta
 
 void UpdateChecker::sync_moonraker_channel_for(const std::string& install_root) {
     IMoonrakerAPI* api = get_moonraker_api();
-    if (!api)
+    // Firmware that supervises HelixScreen owns moonraker.conf and decides whether
+    // Moonraker's update manager tracks HelixScreen at all (#2154).
+    if (!api || helix::firmware_supervised())
         return;
     moonraker_sync_root_ = install_root;
 

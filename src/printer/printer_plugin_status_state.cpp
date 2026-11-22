@@ -15,6 +15,7 @@
 #include "ui_filename_utils.h"
 
 #include "macro_manager.h"
+#include "platform_info.h"
 #include "plr_backend.h"
 #include "state/subject_macros.h"
 
@@ -41,6 +42,10 @@ void PrinterPluginStatusState::init_subjects(bool register_xml) {
     INIT_SUBJECT_INT(plr_saving_enabled, 0, subjects_, register_xml);
     INIT_SUBJECT_INT(plr_mesh_include, -1, subjects_, register_xml);
     INIT_SUBJECT_INT(helix_plugin_probe_seq, 0, subjects_, register_xml);
+    // 1 where the printer's firmware supervises HelixScreen (#2154): the screen then
+    // offers nothing that installs components or edits the printer's configuration.
+    INIT_SUBJECT_INT(firmware_supervised, helix::firmware_supervised() ? 1 : 0, subjects_,
+                     register_xml);
     for (size_t i = 0; i < kPluginSwitchFeatures.size(); ++i) {
         const PluginSwitchFeature& f = kPluginSwitchFeatures[i];
         lv_subject_init_int(&switch_mode_[i], static_cast<int>(PluginSwitchMode::Hidden));
