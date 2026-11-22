@@ -1463,13 +1463,18 @@ One centred icon over one label, filling its cell (`ui_xml/components/home_actio
 
 #### option_tile
 
-One pre-print option as a toggle pill: an icon and a label of up to two lines (`max_lines="2"`, word-wrapped, then ellipsized), with no check box (`ui_xml/components/option_tile.xml`). The whole pill is the tap target. Off, it wears `styles.chip_idle` (an outline, label muted); on, `styles.chip_active` (the primary-tinted fill and outline the LED chips use), and a check replaces the icon in the same slot so the label never moves. Its view sets `state_trickle`, so the pill's checked state reaches the children and each child styles itself with a `-checked` state style. You do not instantiate it from XML: `PrePrintOptionsRenderer` creates one pill per option and binds the option's subject to the pill's checked state (`src/ui/print/ui_pre_print_options_renderer.cpp`). The pill height comes from the `option_tile_height_*` token ladder in `ui_xml/globals.xml`.
+One pre-print option as a toggle pill: an icon and a label of up to two lines (`max_lines="2"`, word-wrapped, then ellipsized), with no check box (`ui_xml/components/option_tile.xml`). The whole pill is the tap target. Off, it wears `styles.chip_idle` (an outline, label muted); on, `styles.chip_active` (the primary-tinted fill and outline the LED chips use), and a check replaces the icon in the same slot so the label never moves. Its view sets `state_trickle`, so the pill's checked state reaches the children and each child styles itself with a `-checked` state style. The pill is checked while the int subject `checked_subject` reads 1, and a tap calls `callback`, which flips it. You do not instantiate it from XML: `PrePrintOptionsRenderer` creates one pill per option, publishes `pre_print_option_on_<i>` for each and passes it as the pill's `checked_subject` (`src/ui/print/ui_pre_print_options_renderer.cpp`). The pill height comes from the `option_tile_height_*` token ladder in `ui_xml/globals.xml`.
 
 | Prop | Default | Purpose |
 |------|---------|---------|
 | `label`, `label_tag` | `Option`, empty | The label and its translation tag |
 | `icon` | `tune` | The glyph |
-| `callback` | empty | `value_changed` callback; the renderer wires the toggle |
+| `checked_subject` | empty | Int subject; the pill is checked while it reads 1 |
+| `callback` | empty | `clicked` callback; the renderer flips the subject |
+
+#### choice_chip and picker_option_row: selection bound to a subject
+
+A chip or list row a C++ owner creates per option (`lv_xml_create` with props) is lit by a subject, never by `lv_obj_set_state`. Both take `selected_subject` and `selected_value` and are lit while the int subject equals the value. A single-choice list passes one subject for the whole list and each row's own index (`helix::ui::choice_subject()` / `set_choice()` in `include/ui_choice_subject.h`, or `create_picker_option_row()` in `include/ui_picker_option_row.h`); a multi-select row passes its own subject from an `IndexedSubjectPool`, which reads 1 while chosen, and leaves `selected_value` at 1. `choice_chip` (`ui_xml/components/choice_chip.xml`) defaults to the LEDs overlay's filled pill (`styles.chip_idle` / `styles.chip_active`, sized by the `led_chip_*` tokens); the power device picker passes `idle_style="outline_idle"`, `selected_style="outline_selected"` and compact geometry. `picker_option_row` paints `styles.picker_row_selected`, the filament slot picker's highlight. `multiselect_row` and `option_tile` bind their checked state the same way, through `checked_subject`.
 
 #### setting_group
 

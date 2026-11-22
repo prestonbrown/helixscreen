@@ -5,7 +5,7 @@
  * @file test_print_select_detail_subjects.cpp
  * @brief Unit tests for print select detail view subject initialization
  *
- * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option heap
+ * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option
  * subjects. What is pinned here is the re-show reset: populate() re-initializes
  * every option from default_enabled, so opening a second file cannot inherit
  * the first file's toggles.

@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- One choice in a chip row, lit while the int subject `selected_subject`
+       equals `selected_value`. A single-choice row passes the list's selection
+       subject and the chip's own index as selected_value; a multi-select row
+       passes the chip's own subject, which reads 1 while chosen. C++ creates
+       one per option and sets chip_label (device and sensor names are user
+       text, and as a prop a leading '#' would read as a const); a tap calls
+       `callback` with `index` as its user data.
+       The default look is the LEDs overlay's chip: a card-filled pill, primary
+       tinted while chosen. A picker's wrap-flow chip row passes the outlined
+       pair (idle_style="outline_idle" selected_style="outline_selected") and
+       its compact geometry. -->
+  <api>
+    <prop name="index" type="string" default="0"/>
+    <prop name="callback" type="string" default=""/>
+    <prop name="selected_subject" type="string" default=""/>
+    <prop name="selected_value" type="string" default="1"/>
+    <!-- Style names resolve in this file's style table, or in styles.xml with
+         the styles. prefix. -->
+    <prop name="idle_style" type="string" default="styles.chip_idle"/>
+    <prop name="selected_style" type="string" default="styles.chip_active"/>
+    <prop name="height" type="string" default="#led_chip_height"/>
+    <prop name="radius" type="string" default="#led_chip_height"/>
+    <prop name="min_width" type="string" default="#led_chip_min_width"/>
+    <prop name="pad_hor" type="string" default="#space_md"/>
+    <prop name="pad_ver" type="string" default="0"/>
+    <prop name="ext_click" type="string" default="#led_chip_gap_half"/>
+    <prop name="font" type="string" default="#font_body"/>
+  </api>
+  <styles>
+    <!-- Outlined at rest, primary outlined and tinted while chosen. -->
+    <style name="outline_idle" bg_opa="0" border_width="1" border_color="#border"/>
+    <style name="outline_selected" border_width="2" border_color="#primary" bg_color="#primary" bg_opa="20"/>
+  </styles>
+  <view extends="lv_obj"
+        width="content" height="$height" style_radius="$radius" style_min_width="$min_width" style_pad_hor="$pad_hor"
+        style_pad_ver="$pad_ver" flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+        style_flex_track_place="center" ext_click_area="$ext_click" scrollable="false" clickable="true">
+    <!-- Idle first, chosen after: the later style wins while it is enabled. -->
+    <style name="$idle_style"/>
+    <bind_style_if_eq name="$selected_style" subject="$selected_subject" ref_value="$selected_value"/>
+    <style name="styles.press_wash" selector="pressed"/>
+    <text_body name="chip_label" text="" style_text_font="$font" clickable="false" event_bubble="true"/>
+    <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
+  </view>
+</component>

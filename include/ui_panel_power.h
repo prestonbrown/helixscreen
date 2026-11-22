@@ -9,6 +9,7 @@
 #include "async_lifetime_guard.h"
 #include "core/observer_guard.h"
 #include "core/subject.h"
+#include "helix/xml/indexed_subject_pool.h"
 #include "i_moonraker_api.h" // Need full definition for PowerDevice
 #include "subject_managed_panel.h"
 
@@ -112,6 +113,11 @@ class PowerPanel : public PanelBase {
     void populate_device_chips();
     void populate_device_chips_impl();
     void handle_chip_clicked(const std::string& device_name);
+    /// Publishes each chip's power_chip_selected_<i> from selected_devices_.
+    void sync_chip_selection();
+    /// power_chip_selected_<i>: 1 while discovered_devices_[i] is selected.
+    helix::xml::IndexedSubjectPool chip_selected_pool_{"power_chip_selected",
+                                                       helix::xml::IndexedSubjectPool::Type::Int};
     bool chips_rebuild_pending_ = false; ///< Coalesces chip rebuild requests
 
     // Setup helpers

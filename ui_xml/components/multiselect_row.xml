@@ -1,12 +1,13 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- One row of a UiMultiselect list: its label, then a checkbox the row's tap
-     toggles. UiMultiselect creates one per item, sets the label (user text),
-     and decides the divider and the disabled look through the props. -->
+<!-- One row of a UiMultiselect list: its label, then a checkbox ticked while
+     the int subject `checked_subject` reads 1. UiMultiselect creates one per
+     item, sets the label (user text), publishes the row's subject and flips it
+     on a tap, and decides the divider and the disabled look through the props. -->
 <component>
   <api>
-    <prop name="checked" type="boolean" default="false"/>
+    <prop name="checked_subject" type="string" default=""/>
     <prop name="disabled" type="boolean" default="false"/>
     <prop name="clickable" type="boolean" default="true"/>
     <prop name="text_color" type="string" default="#text"/>
@@ -19,6 +20,8 @@
         style_border_side="bottom" style_border_width="$divider_width" style_border_color="#border" scrollable="false"
         clickable="$clickable">
     <text_body name="label" text="" flex_grow="1" style_text_color="$text_color"/>
-    <lv_checkbox name="check" text="" clickable="false" checked="$checked" disabled="$disabled"/>
+    <lv_checkbox name="check" text="" clickable="false" disabled="$disabled">
+      <bind_state_if_eq subject="$checked_subject" state="checked" ref_value="1"/>
+    </lv_checkbox>
   </view>
 </component>

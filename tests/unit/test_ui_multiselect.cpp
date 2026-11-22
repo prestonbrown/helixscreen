@@ -114,6 +114,33 @@ TEST_CASE_METHOD(MultiSelectTestFixture, "UiMultiselect: initial selection state
     REQUIRE(keys.size() == 2);
     REQUIRE(keys[0] == "a");
     REQUIRE(keys[1] == "c");
+
+    auto ticked = [&](const char* name) {
+        lv_obj_t* row = lv_obj_find_by_name(container, name);
+        REQUIRE(row != nullptr);
+        return lv_obj_has_state(lv_obj_find_by_name(row, "check"), LV_STATE_CHECKED);
+    };
+    CHECK(ticked("item_a"));
+    CHECK_FALSE(ticked("item_b"));
+    CHECK(ticked("item_c"));
+}
+
+TEST_CASE_METHOD(MultiSelectTestFixture,
+                 "UiMultiselect: a replacement list starts from its own selection",
+                 "[multiselect]") {
+    UiMultiselect ms;
+    lv_obj_t* container = lv_obj_create(test_screen());
+    ms.attach(container);
+
+    ms.set_items({{"a", "Alpha", true}});
+    // The new row takes the first row's subject: it must not inherit the tick.
+    ms.set_items({{"x", "Xray", false}, {"y", "Yankee", true}});
+    lv_obj_t* row_x = lv_obj_find_by_name(container, "item_x");
+    lv_obj_t* row_y = lv_obj_find_by_name(container, "item_y");
+    REQUIRE(row_x != nullptr);
+    REQUIRE(row_y != nullptr);
+    CHECK_FALSE(lv_obj_has_state(lv_obj_find_by_name(row_x, "check"), LV_STATE_CHECKED));
+    CHECK(lv_obj_has_state(lv_obj_find_by_name(row_y, "check"), LV_STATE_CHECKED));
 }
 
 // ============================================================================
