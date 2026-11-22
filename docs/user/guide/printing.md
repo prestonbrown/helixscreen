@@ -149,7 +149,7 @@ The U1 can measure each toolhead's pressure advance at the start of a print, usi
 
   `FORCE=1` is needed because the printer refuses this setting once a print is running without it.
 
-- **One toolhead, outside a print:** `FLOW_CALIBRATE TEMP=220` calibrates the mounted toolhead at 220 °C (use your filament's printing temperature) and saves the result. The **Pressure Advance** row under **Advanced > Calibration** and the **Pressure Adv.** button on the Controls panel run the same measurement from the touchscreen (see [Calibration](calibration.md)).
+- **One toolhead, outside a print:** `FLOW_CALIBRATE TEMP=220` calibrates the mounted toolhead at 220 °C (use your filament's printing temperature) and saves the result. The **Pressure advance** tile under **Advanced > Calibration** and the **Pressure Adv.** button on the Controls panel run the same measurement from the touchscreen (see [Calibration](calibration.md)).
 
 The manual commands above come from the U1 firmware and have not been tested end to end with HelixScreen yet.
 
