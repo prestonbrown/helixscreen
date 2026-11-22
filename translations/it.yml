@@ -115,8 +115,11 @@ translations:
   1 more tap to {} beta features: 1 tocco per {} funzioni beta
   1 print: '1 stampa'
   1 profile: '1 profilo'
+  1 step in {} min · review, then save once: ''
   1 step never run · about {} min: '1 passaggio mai eseguito · circa {} min'
   1 step · about {} min: '1 passaggio · circa {} min'
+  1 step · {} min: ''
+  1 thing left to confirm: ''
   '1 unit': '1 unità'
   1, 2, 3: '1, 2, 3'
   1. Each nozzle is heated, wiped and parked at the front for you to brush clean: 1. Ogni ugello viene riscaldato, pulito e parcheggiato davanti perché tu lo spazzoli
@@ -321,6 +324,7 @@ translations:
   Accel to Decel: Accel. a Decel.
   Acceleration to deceleration limit (mm/s²): Limite accelerazione a decelerazione (mm/s²)
   Accelerometer: Accelerometro
+  Accelerometer attached: ''
   Accelerometer communication failed: Comunicazione con l'accelerometro non riuscita
   Accelerometer communication failed. Try again.: Comunicazione accelerometro fallita. Riprovare.
   Accelerometer not connected: Accelerometro non collegato
@@ -400,6 +404,7 @@ translations:
   All fields are required: Tutti i campi sono obbligatori
   All healthy: Tutto a posto
   All lights: Tutte le luci
+  All set: ''
   All steps done: 'Tutti i passaggi completati'
   All time: 'Da sempre'
   All toolheads must be docked for this step.: 'Per questo passaggio tutte le testine devono essere agganciate.'
@@ -580,6 +585,7 @@ translations:
 
   Bed is Level!: Piano livellato!
   Bed is at {}, the print needs {}.: Il piano è a {}, la stampa richiede {}.
+  Bed is clear: ''
   Bed mesh: Mesh piano
   'Bed mesh calibration failed: {}': 'Calibrazione della mesh del piano non riuscita: {}'
   Bed mesh operation timed out: Mesh piano — tempo scaduto
@@ -598,6 +604,7 @@ translations:
   Bed {} °C: "Piano {} °C"
   Before: 'Prima'
   Before starting: 'Prima di iniziare'
+  Before you start: ''
   Below target: Sotto il target
   Belt Tension: Tensione cinghia
   Belt Tension Check: Controllo tensione cinghia
@@ -739,6 +746,7 @@ translations:
   Calibrate your printer: 'Calibra la tua stampante'
   Calibrate your touchscreen for accurate input: Calibra il touchscreen per un input preciso
   Calibrated: Calibrato
+  Calibrating: ''
   Calibrating Probe...: Calibrazione sonda...
   Calibrating bed mesh...: Calibrazione mesh piano...
   Calibrating {} axis...: 'Calibrazione dell''asse {}...'
@@ -759,6 +767,7 @@ translations:
   Calibration failed: Calibrazione fallita
   Calibration failed - touch targets more precisely.: Calibrazione fallita – tocca i bersagli con più precisione.
   'Calibration failed: {}': 'Calibrazione non riuscita: {}'
+  Calibration finished: ''
   Calibration finished, not saved yet: Calibrazione completata, non ancora salvata
   Calibration in progress: "Calibrazione in corso"
   Calibration kept timing out. Your previous settings were kept.: La calibrazione è scaduta più volte. Sono state mantenute le impostazioni precedenti.
@@ -768,6 +777,7 @@ translations:
   Calibration request not valid: 'Richiesta di calibrazione non valida'
   Calibration saved: Calibrazione salvata
   Calibration saved but cannot apply on SDL display: Calibrazione salvata ma non applicabile su display SDL
+  Calibration stopped: ''
   Calibration succeeded, but the frequency chart data couldn't be read.: Calibrazione riuscita, ma non è stato possibile leggere i dati del grafico delle frequenze.
   Calibration succeeded. The frequency chart is only available when HelixScreen runs on the printer.: Calibrazione riuscita. Il grafico delle frequenze è disponibile solo quando HelixScreen è in esecuzione sulla stampante.
   Calibration timed out. Please try again.: Tempo scaduto. Riprova.
@@ -865,6 +875,7 @@ translations:
   Check AFC configuration: 'Controlla la configurazione di AFC'
   Check Again: Ricontrolla
   Check Klipper console for details: Controlla la console di Klipper per i dettagli
+  Check back around {}. The screen shows if it needs you.: ''
   Check both belts for wear and frayed edges.: "Controlla usura e bordi sfilacciati di entrambe le cinghie."
   Check each fan spins freely.: "Controlla che ogni ventola giri liberamente."
   Check every dock: Controlla ogni dock
@@ -1961,6 +1972,7 @@ translations:
   Filament jammed at the extruder gear: Filamento inceppato nell'ingranaggio dell'estrusore
   ? "Filament left the Box but never reached the toolhead's filament sensor: a gap in the PTFE tube, a clog at the toolhead entry, or a cut tip left behind."
   : "Il filamento è uscito dal Box ma non ha mai raggiunto il sensore filamento della testina: uno spazio nel tubo PTFE, un'ostruzione all'ingresso della testina o una punta tagliata rimasta dentro."
+  Filament loaded: ''
   Filament move too long: Movimento del filamento troppo lungo
   Filament must be loaded in the extruder, and the build plate on with nothing in the way of the head.: 'Il filamento deve essere caricato nell''estrusore e il piano montato, con nulla che ostacoli la testina.'
   Filament never reached the CFS hub sensor: Il filamento non ha mai raggiunto il sensore dell'hub CFS
@@ -2326,6 +2338,7 @@ translations:
   Host Terminal: 'Terminale dell''host'
   Host and MCU load, temperature, and memory: Carico, temperatura e memoria di host e MCU
   'Host: ': 'Host: '
+  Hot at times.: ''
   Hotend: Hotend
   Hotend Fan: Ventola hotend
   Hotend Heater: Riscaldatore hotend
@@ -2478,6 +2491,7 @@ translations:
   Issue description: Descrizione problema
   It applies after the next Klipper restart.: "Si applica dopo il prossimo riavvio di Klipper."
   It can be un-archived in Spoolman's web UI.: Può essere ripristinata dall'interfaccia web di Spoolman.
+  It chimes if it needs you, and when it is done.: ''
   It has not reported its slots yet. Try again in a moment.: Non ha ancora segnalato i suoi slot. Riprova tra un momento.
   It homes and heats on its own (no start macro found).: Esegue l'homing e scalda da sola (nessuna macro di avvio trovata).
   It is jammed between the hub sensor and the hub gear. Open the CFS and clear the hub before retrying: È inceppato tra il sensore dell'hub e il relativo ingranaggio. Aprire il CFS e liberare l'hub prima di riprovare
@@ -2561,6 +2575,7 @@ translations:
   'Klipper has not loaded the timelapse macros, so no frames are captured. Add this line to printer.cfg and restart Klipper:': 'Klipper non ha caricato le macro del timelapse, quindi non vengono catturati fotogrammi. Aggiungi questa riga a printer.cfg e riavvia Klipper:'
   Klipper is halted — restart firmware to continue: Klipper è fermo — riavvia il firmware per continuare
   Klipper is restarting. Timelapse frames are captured from the next print.: 'Klipper si sta riavviando. I fotogrammi del timelapse vengono catturati dalla prossima stampa.'
+  Klipper may restart: ''
   ? Klipper on the host was updated, and the firmware on one or more controller boards is older. Klipper's message below lists the boards.
   : Klipper sull'host è stato aggiornato e il firmware di una o più schede di controllo è più vecchio. Il messaggio di Klipper qui sotto elenca le schede.
   Klipper or Moonraker may restart while it updates.: 'Klipper o Moonraker potrebbero riavviarsi durante l''aggiornamento.'
@@ -2751,6 +2766,8 @@ translations:
   Lost the printer.: "Stampante persa."
   'Lot # (optional)': 'Lotto # (facoltativo)'
   Lot/Batch Nr: Nr. Lotto/Batch
+  Loud and hot at times.: ''
+  Loud at times.: ''
   Low Memory: Memoria insufficiente
   Lower: Abbassa
   Lower belt: "Cinghia inferiore"
@@ -3030,6 +3047,7 @@ translations:
   Next Zone: "Zona successiva"
   Next Zone (~{} min): "Zona succ. (~{} min)"
   Next Layer: 'Strato successivo'
+  Next, review the results and save them once: ''
   'Next: {}': 'Prossimo: {}'
   Niimbot (Bluetooth): Niimbot (Bluetooth)
   Nixie Clock: 'Orologio Nixie'
@@ -3223,6 +3241,7 @@ translations:
   'Which lane is in the toolhead?': 'Quale corsia è nella testina?'
   'Choose which lane is in the toolhead to unload it': 'Scegli quale corsia è nella testina per scaricarla'
   Nothing was changed. Temperature and material are kept, so a retry is one tap.: 'Nulla è stato modificato. Temperatura e materiale restano, riprovare è un tocco.'
+  Nothing was saved: ''
   Nothing was saved and the heaters are off.: Non è stato salvato nulla e i riscaldatori sono spenti.
   Nothing was saved.: 'Non è stato salvato nulla.'
   Notification: Notifica
@@ -3304,6 +3323,7 @@ translations:
   One tap runs this macro. Dangerous macros still ask.: 'Un tocco esegue questa macro. Le macro pericolose chiedono comunque conferma.'
   One-time setup: "Configurazione iniziale"
   'Only on {0}: {1} Hz': "Solo su {0}: {1} Hz"
+  Only what the steps you picked need, asked once: ''
   Only while this app is connected. Install the HelixPrint plugin to cover every print.: 'Solo mentre questa app è connessa. Installa il plugin HelixPrint per coprire ogni stampa.'
   Only while this app is connected. Update the HelixPrint plugin to cover every print.: 'Solo mentre questa app è connessa. Aggiorna il plugin HelixPrint per coprire ogni stampa.'
   ? Only {} MB of memory is free, and Klipper's analysis needs about {} MB. Running the test would leave the printer stuck until it is power-cycled.
@@ -3335,6 +3355,7 @@ translations:
   Operations: Operazioni
   Optimize Your Printing: Ottimizza la tua stampa
   Optimizes temperature control for stable, consistent heating.: Ottimizza il controllo temperatura per un riscaldamento stabile e costante.
+  Optional: ''
   Optional - select your main lighting source, or skip if your printer doesn't have one: Opzionale - seleziona la fonte di illuminazione principale, o salta se la stampante non ne ha una
   Options: Opzioni
   Or Enter Manually: Oppure inserisci manualmente
@@ -3949,6 +3970,7 @@ translations:
   Request timed out. The printer may be busy.: Richiesta scaduta. La stampante potrebbe essere occupata.
   Require Confirmation?: Richiedi conferma?
   Require confirmation before emergency stop: Richiedi conferma prima dell'arresto di emergenza
+  Required: ''
   Requires Moonraker power device: 'Richiede un dispositivo di alimentazione Moonraker'
   Requires Moonraker-Timelapse plugin: Richiede plugin Moonraker-Timelapse
   Requires Multi-Filament System or MMU hardware: 'Richiede un sistema multi-filamento o hardware MMU'
@@ -4029,6 +4051,7 @@ translations:
   Restored to {:.3f} mm: 'Ripristinato a {:.3f} mm'
   Restoring position: Ripristino posizione
   Restoring the print settings: Ripristino delle impostazioni di stampa
+  Results are saved together at the end: ''
   Resume: Riprendi
   Resume Print: Riprendi stampa
   Resume Requires Restart: 'La ripresa richiede un riavvio'
@@ -4071,6 +4094,7 @@ translations:
   Revert now: 'Ripristina ora'
   Review: Rivedi
   Review detected hardware validation issues: Rivedi problemi di validazione hardware rilevati
+  Review the results, then save once.: ''
   Review the results, then save them all at once.: 'Controlla i risultati, poi salvali tutti insieme.'
   Review your configuration below, then click Finish to save: Rivedi la configurazione qui sotto, poi tocca Fine per salvare
   Rewinding: Riavvolgimento
@@ -4116,6 +4140,7 @@ translations:
   Runout: 'Esaurimento'
   Runout Backup: 'Riserva all''esaurimento'
   Runout Sensor: Sensore esaurimento
+  Runs on its own once started: ''
   Runs the printer's tool offset calibration for every tool.: Esegue la calibrazione degli offset degli strumenti della stampante per tutti gli strumenti.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG non riuscito: {}. Gli offset strumento sono stati applicati ma non salvati. Esegui SAVE_CONFIG manualmente o andranno persi al riavvio.'
   ? 'SAVE_CONFIG failed: {}. Z-offset was applied but not saved. Run SAVE_CONFIG manually or the offset will be lost on restart.'
@@ -4156,6 +4181,7 @@ translations:
   Save Z-Offset Buttons: 'Pulsanti salva Z-Offset'
   Save Z-Offset?: Salvare Z-Offset?
   Save all: 'Salva tutto'
+  Save and restart Klipper: ''
   Save as {} mesh?: "Salvare come mesh {}?"
   Save calibration: Salva calibrazione
   Save changes to persist them across restarts?: Salvare le modifiche per mantenerle dopo i riavvii?
@@ -4190,6 +4216,7 @@ translations:
   Saves when the load on {} finishes.: 'Salva al termine del caricamento su {}.'
   Saves when the unload finishes.: 'Salva al termine dello scaricamento.'
   Saves when the unload on {} finishes.: 'Salva al termine dello scaricamento su {}.'
+  Saving 1 result: ''
   Saving Configuration...: Salvataggio configurazione...
   Saving Z-offset...: Salvataggio Z-offset...
   Saving and finishing...: Salvataggio e completamento...
@@ -4201,6 +4228,7 @@ translations:
   Saving the position and parking the toolhead.: Salvataggio della posizione e parcheggio della testa.
 
   Saving will restart Klipper and CANCEL any active print!: Il salvataggio riavvierà Klipper e ANNULLERÀ qualsiasi stampa attiva!
+  Saving {} results: ''
   Saving...: Salvataggio...
   Scan: Scansiona
   Scan Cal: Cal. scan
@@ -4577,6 +4605,7 @@ translations:
   Static: 'Statico'
   Status: Stato
   Status icons: Icone stato
+  Stay at the printer.: ''
   Std Deviation: Dev. standard
   Stealth: Silenzioso
   Stealth is quiet, Sport is fastest: Silenzioso è il più quieto, Sport il più veloce
@@ -4615,6 +4644,7 @@ translations:
   Stopped between Spool and Lane: Fermo tra bobina e corsia
   Stopped drying %s: 'Essiccazione interrotta: %s'
   Stopping after the current test line.: 'Arresto dopo la linea di prova corrente.'
+  Stopping restarted the printer, so nothing can be saved: ''
   Stopping restarted the printer, which dropped the results of the steps that finished. Nothing can be saved.: 'L''arresto ha riavviato la stampante, perdendo i risultati dei passaggi completati. Non si può salvare nulla.'
   Stops all motion. Requires firmware restart.: Ferma tutto il movimento. Richiede riavvio firmware.
   Storage: 'Archiviazione'
@@ -5407,6 +5437,7 @@ translations:
   Toolhead position and homing, with a plate view and Home All: "Posizione e homing della testina, con vista del piatto e Homing tutto"
   Toolhead position unknown: Posizione della testina sconosciuta
   Toolhead sensors disagree: I sensori della testina non concordano
+  Toolhead unloaded: ''
   Toolheads: Testine
   Tools: Strumenti
   Tools Used: Utensili usati
@@ -5682,6 +5713,7 @@ translations:
   Waiting for the printer's status; try again once it is connected: 'In attesa dello stato della stampante; riprova quando è connessa'
   Waiting for you at the Z offset screen: 'In attesa di te nella schermata dell''offset Z'
   Waiting to read the printer's configuration from Klipper.: "In attesa di leggere la configurazione della stampante da Klipper."
+  Walk away, about {} min: ''
   Wall Speed Shakes This Printer: 'La velocità delle pareti fa vibrare questa stampante'
   Warm: Caldo
   Warm Bed: Preriscalda piano
@@ -5800,6 +5832,7 @@ translations:
   Year: Anno
   Year Month Day: Anno Mese Giorno
   'Yes': Sì
+  You are needed for the first {} min, then it runs on its own: ''
   You can skip this and calibrate later in Settings.: Puoi saltare e calibrare più tardi nelle Impostazioni.
   You have unsaved changes. Discard them?: Hai modifiche non salvate. Scartarle?
   You, about {} min: 'Tu, circa {} min'
@@ -5875,6 +5908,10 @@ translations:
   about 4 min: ''
   about 6 min with heat-up: ''
   about {} min: 'circa {} min'
+  about {} min left: ''
+  about {} min left · you can leave: ''
+  accelerometer: ''
+  all done: ''
   already loaded: 'già caricato'
   assign without adding to Spoolman: assegna senza aggiungere a Spoolman
   attempt {}: 'tentativo {}'
@@ -5924,6 +5961,9 @@ translations:
   heats: 'riscalda'
   heats bed to {}°: ''
   heats to {}°: ''
+  heats bed: ''
+  heats nozzle: ''
+  heats nozzle + bed: ''
   'helixscreen.env ignored: owned by uid {}': 'helixscreen.env ignorato: di proprietà dell''uid {}'
   'helixscreen.env ignored: untrusted symlink chain': 'helixscreen.env ignorato: catena di collegamenti simbolici non affidabile'
   'helixscreen.env ignored: writable by other users': 'helixscreen.env ignorato: scrivibile da altri utenti'
@@ -5956,6 +5996,7 @@ translations:
   needs approval: richiede approvazione
   needs you: 'richiede te'
   never sleeps: non va mai in sospensione
+  no restart: ''
   not detected: non rilevato
   not loaded: 'non caricato'
   nozzle: ugello
@@ -5968,6 +6009,8 @@ translations:
   Monitor for print abnormalities (K2 Plus camera-based): Monitora le anomalie di stampa (basato sulla camera del K2 Plus)
   Monitor for print abnormalities (camera-based): 'Monitora le anomalie di stampa (basato sulla camera)'
   on unit {}: 'sull''unità {}'
+  one restart: ''
+  optional: ''
   or type a macro name: oppure digita un nome di macro
   over memory budget: oltre il budget di memoria
   paper test: 'test della carta'
@@ -5982,7 +6025,9 @@ translations:
   remaining: rimanente
   remaining before clog detection triggers: rimanente prima che si attivi il rilevamento intasamento
   rendering: rendering
+  required: ''
   reset at {} h: 'ripristinato a {} h'
+  runs on its own: ''
   set manually: 'manuale'
   similar color: colore simile
   sleep {} min: sospensione tra {} min
@@ -6019,6 +6064,7 @@ translations:
   within one bin: "entro un bin"
   wpa_supplicant is not running. WiFi features unavailable.: wpa_supplicant non è in esecuzione. Le funzioni WiFi non sono disponibili.
   you have: hai
+  'you: first {} min': ''
   '{0:.0f}-{1:.0f} mm/s: the {2}x ripple meets a {3:.0f} Hz resonance': '{0:.0f}-{1:.0f} mm/s: l''ondulazione {2}x incontra una risonanza a {3:.0f} Hz'
   ? '{0} are open. {1} prints best in a warm, closed enclosure; an open door cools the chamber and can cause warping or layer splits. Close them, or start anyway.'
   : '{0} sono aperte. {1} si stampa meglio in un''enclosure calda e chiusa; una porta aperta raffredda la camera e può causare deformazioni o strati che si separano. Chiudile o avvia comunque.'
@@ -6156,10 +6202,13 @@ translations:
   '{} slots': '{} slot'
   '{} spool cleared': '{}: bobina rimossa'
   '{} started': '{} avviato'
+  '{} steps in {} min · review, then save once': ''
   '{} steps never run · about {} min': '{} passaggi mai eseguiti · circa {} min'
   '{} steps · about {} min': '{} passaggi · circa {} min'
+  '{} steps · {} min': ''
   '{} target set to {}°C': Obiettivo {} impostato a {}°C
   '{} temperature reading failed': '{} lettura temperatura non riuscita'
+  '{} things left to confirm': ''
   '{} turn': "{} giro"
   '{} turns': "{} giri"
   '{} updated': 'Aggiornamento di {}'
@@ -6167,7 +6216,9 @@ translations:
   '{} width sensor': 'Sensore di larghezza {}'
   ? '{} will switch to a slot whose filament type AND color both match the active spool and whose own port sensor reads filament present.'
   : '{} passerà a uno slot il cui tipo di filamento E colore corrispondono entrambi alla bobina attiva e il cui sensore di porta rileva filamento presente.'
+  '{} · pick what to run, then it runs on its own': ''
   '{} · {}': '{} · {}'
+  '{} · {} firmware': ''
   '{} · {} · {}': '{} · {} · {}'
   '{} — response timed out': '{} — tempo scaduto'
   '{} → {}: no filament loaded.': '{} → {}: nessun filamento caricato.'

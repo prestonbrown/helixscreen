@@ -1,8 +1,10 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- One picked step in the guided run's step list while it runs. CalibrationRunOverlay
-     publishes, per step id:
+<!-- One picked step in the guided run's step list while it runs: a status circle
+     (green with a check once done, blue with a dot while running, an empty ring
+     while waiting, amber with a cross when it did not finish), its name and one
+     line under it. CalibrationRunOverlay publishes, per step id:
        cal_run_in_run_<step>  1 when the step is part of this run
        cal_run_state_<step>   0 waiting, 1 running, 2 finished, 3 did not finish
        cal_run_detail_<step>  its time, its result, or why it did not finish -->
@@ -11,34 +13,62 @@
     <prop name="step" type="string" default=""/>
     <prop name="label" type="string" default=""/>
   </api>
+  <consts>
+    <px name="row_radius" value="8"/>
+    <px name="active_dot" value="8"/>
+  </consts>
   <styles>
-    <style name="row_active" bg_color="#card_bg" bg_opa="100%"/>
+    <style name="row_idle" bg_opa="0"/>
+    <style name="row_active" bg_color="#primary" bg_opa="38"/>
+    <style name="circle_waiting" bg_opa="0" border_width="2" border_color="#elevated_bg"/>
+    <style name="circle_running" bg_color="#primary" bg_opa="255" border_width="0"/>
+    <style name="circle_done" bg_color="#success" bg_opa="255" border_width="0"/>
+    <style name="circle_failed" bg_color="#warning" bg_opa="255" border_width="0"/>
+    <style name="name_waiting" opa="204"/>
   </styles>
   <view extends="lv_obj"
-        width="100%" height="content" style_bg_opa="0" style_border_width="0" style_radius="#border_radius"
-        style_pad_left="#space_sm" style_pad_right="#space_sm" style_pad_top="#space_xxs" style_pad_bottom="#space_xxs"
-        style_pad_gap="#space_sm" scrollable="false" flex_flow="row" style_flex_main_place="start"
-        style_flex_cross_place="center">
+        width="100%" height="content" style_min_height="#cal_button_h" style_border_width="0" style_radius="#row_radius"
+        style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm" style_pad_bottom="#space_sm"
+        style_pad_gap="#space_lg" scrollable="false" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center" style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
+    <style name="row_idle"/>
     <bind_style name="row_active" subject="cal_run_state_${step}" ref_value="1"/>
-    <icon name="step_waiting" src="progress_clock" size="xs" variant="secondary">
-      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="0"/>
-    </icon>
-    <spinner name="step_running" size="xs">
-      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="1"/>
-    </spinner>
-    <icon name="step_finished" src="check_circle" size="xs" variant="success">
-      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
-    </icon>
-    <icon name="step_unfinished" src="close_circle" size="xs" variant="warning">
-      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="3"/>
-    </icon>
+    <lv_obj name="step_circle"
+            width="#cal_box" height="#cal_box" style_radius="9999" style_pad_all="0" scrollable="false">
+      <bind_style name="circle_waiting" subject="cal_run_state_${step}" ref_value="0"/>
+      <bind_style name="circle_running" subject="cal_run_state_${step}" ref_value="1"/>
+      <bind_style name="circle_done" subject="cal_run_state_${step}" ref_value="2"/>
+      <bind_style name="circle_failed" subject="cal_run_state_${step}" ref_value="3"/>
+      <icon name="step_finished" src="check_bold" size="xs" color="0xFFFFFF" align="center">
+        <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
+      </icon>
+      <icon name="step_unfinished" src="close" size="xs" color="0xFFFFFF" align="center">
+        <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="3"/>
+      </icon>
+      <lv_obj name="step_running"
+              width="#active_dot" height="#active_dot" align="center" style_radius="9999" style_bg_color="0xFFFFFF"
+              style_bg_opa="255" style_border_width="0" scrollable="false">
+        <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="1"/>
+      </lv_obj>
+    </lv_obj>
     <lv_obj width="0"
-            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
-            scrollable="false">
-      <text_body name="step_name" width="100%" text="$label" long_mode="dots"/>
+            height="content" flex_grow="1" style_pad_all="0" style_pad_gap="0" style_bg_opa="0" style_border_width="0"
+            flex_flow="column" scrollable="false">
+      <text_body name="step_name"
+                 width="100%" text="$label" long_mode="dots" style_text_font="#cal_font_name"
+                 style_text_color="#text_muted">
+        <bind_flag_if_eq subject="cal_run_state_${step}" flag="hidden" ref_value="1"/>
+        <bind_style name="name_waiting" subject="cal_run_state_${step}" ref_value="0"/>
+      </text_body>
+      <text_body name="step_name_running"
+                 width="100%" text="$label" long_mode="dots" style_text_font="#cal_font_name_bold"
+                 style_text_color="#text">
+        <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="1"/>
+      </text_body>
       <text_small name="step_detail"
-                  width="100%" bind_text="cal_run_detail_${step}" long_mode="dots" style_text_color="#text_muted"/>
+                  width="100%" bind_text="cal_run_detail_${step}" long_mode="dots" style_text_font="#cal_font_detail"
+                  style_text_color="#text_muted" style_text_opa="204"/>
     </lv_obj>
   </view>
 </component>

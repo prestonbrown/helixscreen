@@ -437,6 +437,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/calibration_hub_tile.xml",
     "ui_xml/calibration_pid_panel.xml",
     "ui_xml/calibration_zoffset_panel.xml",
+    "ui_xml/calibration_wizard_footer.xml",
+    "ui_xml/calibration_wizard_header.xml",
     "ui_xml/chamber_air_target_row.xml",
     "ui_xml/change_host_modal.xml",
     "ui_xml/color_picker_modal.xml",

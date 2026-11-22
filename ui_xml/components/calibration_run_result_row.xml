@@ -1,9 +1,13 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<!-- One step on the guided run's Results page: its name, what the printer had before and
-     what the run measured. CalibrationRunOverlay publishes, per step id:
+<!-- One step on the guided run's Results table: whether its result is kept, its
+     name, the value before the run, an arrow, and what the run measured. A step
+     with nothing to keep dims, its after struck through. The columns line up with
+     the table's heads in calibration_run_overlay.xml. CalibrationRunOverlay
+     publishes, per step id:
        cal_run_in_run_<step>  1 when the step was part of this run
+       cal_run_keep_<step>    1 when its result goes into the one save
        cal_run_state_<step>   2 finished; anything else did not finish
        cal_run_before_<step>  the value before the run
        cal_run_after_<step>   the measured value, or why there is none -->
@@ -12,23 +16,55 @@
     <prop name="step" type="string" default=""/>
     <prop name="label" type="string" default=""/>
   </api>
+  <consts>
+    <px name="row_radius" value="8"/>
+    <px name="keep_box" value="28"/>
+    <px name="keep_radius" value="6"/>
+  </consts>
+  <styles>
+    <style name="row_kept" bg_color="#card_bg" bg_opa="255" opa="255"/>
+    <style name="row_dropped" bg_opa="0" opa="140"/>
+    <style name="keep_on" bg_color="#primary" bg_opa="255" border_width="0"/>
+    <style name="keep_off" bg_opa="0" border_width="2" border_color="#text_subtle"/>
+  </styles>
   <view extends="lv_obj"
-        width="100%" height="content" style_bg_color="#card_bg" style_bg_opa="100%" style_border_width="0"
-        style_radius="#border_radius" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_xxs"
-        style_pad_bottom="#space_xxs" style_pad_gap="#space_sm" scrollable="false" flex_flow="row"
-        style_flex_main_place="start" style_flex_cross_place="center">
+        width="100%" height="#cal_button_h" style_border_width="0" style_radius="#row_radius" style_pad_left="#space_md"
+        style_pad_right="#space_md" style_pad_top="#space_xxs" style_pad_bottom="#space_xxs" style_pad_gap="#space_md"
+        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
+        style_flex_track_place="center">
     <bind_flag_if_eq subject="cal_run_in_run_${step}" flag="hidden" ref_value="0"/>
-    <text_body name="result_name" width="28%" text="$label" long_mode="dots"/>
+    <bind_style name="row_kept" subject="cal_run_keep_${step}" ref_value="1"/>
+    <bind_style name="row_dropped" subject="cal_run_keep_${step}" ref_value="0"/>
+    <lv_obj width="#cal_keep_w"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <lv_obj name="result_keep"
+              width="#keep_box" height="#keep_box" style_radius="#keep_radius" style_pad_all="0" scrollable="false">
+        <bind_style name="keep_on" subject="cal_run_keep_${step}" ref_value="1"/>
+        <bind_style name="keep_off" subject="cal_run_keep_${step}" ref_value="0"/>
+        <icon src="check_bold" size="xs" color="0xFFFFFF" align="center">
+          <bind_flag_if_eq subject="cal_run_keep_${step}" flag="hidden" ref_value="0"/>
+        </icon>
+      </lv_obj>
+    </lv_obj>
+    <text_body name="result_name"
+               width="0" flex_grow="11" text="$label" long_mode="dots" style_text_font="#cal_font_name"
+               style_text_color="#text"/>
     <text_small name="result_before"
-                width="0" flex_grow="1" bind_text="cal_run_before_${step}" long_mode="wrap"
-                style_text_color="#text_muted"/>
-    <icon name="result_arrow" src="chevron_right" size="xs" variant="secondary"/>
-    <text_small name="result_after" width="0" flex_grow="2" bind_text="cal_run_after_${step}" long_mode="wrap">
-      <bind_flag_if_not_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
+                width="0" flex_grow="10" bind_text="cal_run_before_${step}" long_mode="dots"
+                style_text_font="#cal_font_mono" style_text_color="#text_muted" style_text_opa="204"/>
+    <lv_obj width="#cal_arrow_w"
+            height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+      <icon name="result_arrow" src="arrow_right" size="xs" variant="muted" align="center"/>
+    </lv_obj>
+    <text_small name="result_after"
+                width="0" flex_grow="13" bind_text="cal_run_after_${step}" long_mode="dots"
+                style_text_font="#cal_font_mono" style_text_color="#text">
+      <bind_flag_if_eq subject="cal_run_keep_${step}" flag="hidden" ref_value="0"/>
     </text_small>
-    <text_small name="result_unfinished"
-                width="0" flex_grow="2" bind_text="cal_run_after_${step}" long_mode="wrap" style_text_color="#warning">
-      <bind_flag_if_eq subject="cal_run_state_${step}" flag="hidden" ref_value="2"/>
+    <text_small name="result_after_dropped"
+                width="0" flex_grow="13" bind_text="cal_run_after_${step}" long_mode="dots"
+                style_text_font="#cal_font_mono" style_text_color="#text_muted" style_text_decor="strikethrough">
+      <bind_flag_if_eq subject="cal_run_keep_${step}" flag="hidden" ref_value="1"/>
     </text_small>
   </view>
 </component>
