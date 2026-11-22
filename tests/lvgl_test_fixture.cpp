@@ -5,6 +5,7 @@
 
 #include "ui_test_utils.h"
 
+#include "core/subject.h"
 #include "core/update_queue.h"
 #include "panel_widget_manager.h"
 #include "refresh_period_hold.h"
@@ -100,6 +101,14 @@ void LVGLTestFixture::reclaim_display() {
     }
     if (lv_display_get_default() != s_display) {
         lv_display_set_default(s_display);
+    }
+    // The app publishes the theme's subjects at startup and widgets bind them
+    // unasked, so a case must find them live even when nothing in this process
+    // has run theme_manager_init() yet.
+    if (!helix::subject_is_live(theme_manager_get_breakpoint_subject()) ||
+        !helix::subject_is_live(theme_manager_get_changed_subject())) {
+        helix::theme_manager_init_subjects(s_display);
+        return;
     }
     // A subject can go stale with the pixels untouched - a scope that
     // republished from moved geometry and restored only the pixels, or a
