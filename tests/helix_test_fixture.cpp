@@ -339,10 +339,10 @@ void HelixTestFixture::reset_printer_state() {
 }
 
 void HelixTestFixture::restart_printer_state_observers() {
-    // AmsState's hundreds of lane subjects would otherwise carry one case's values
-    // into the next, and its init rebinds the PrinterState observers it holds.
-    helix::AmsState::instance().deinit_subjects();
-    helix::AmsState::instance().init_subjects(true);
+    // AmsState's re-entry rebinds the PrinterState observers it holds and keeps its
+    // subjects and their XML names; a first init publishes the names.
+    auto& ams = helix::AmsState::instance();
+    ams.init_subjects(!helix::AmsStateTestAccess::initialized(ams));
 
     // PrintControlButtons is a process singleton observing the global PrinterState,
     // and its init_subjects() is a no-op once up, so the observers a PrinterState
@@ -358,7 +358,7 @@ void HelixTestFixture::keep_logger_for_exit() {
     (void)kept;
 }
 
-void HelixTestFixture::reset_all() {
+void HelixTestFixture::reset_all(bool case_start) {
     // A board override a test set must not leak into the next case in the shard.
     helix::board::set_current_override(std::nullopt);
 
@@ -460,6 +460,11 @@ void HelixTestFixture::reset_all() {
     }
     if (!helix::led::LedController::instance().is_initialized()) {
         helix::led::LedController::instance().init(nullptr, nullptr);
+    }
+    // AmsState's hundreds of lane subjects would otherwise carry one case's values
+    // into the next. Once per case: a full cycle costs more than the re-entry below.
+    if (case_start) {
+        helix::AmsState::instance().deinit_subjects();
     }
     restart_printer_state_observers();
     // XML binds an empty subject attribute to this; a fixture that tore the XML

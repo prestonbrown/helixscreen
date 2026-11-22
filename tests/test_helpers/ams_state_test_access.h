@@ -107,6 +107,10 @@ class AmsStateTestAccess {
         ams.sync_from_backend();
     }
 
+    static bool initialized(const AmsState& ams) {
+        return ams.initialized_;
+    }
+
     /// Drop every buffer trace, which outlive a test on the singleton.
     static void clear_buffer_traces(AmsState& ams) {
         ams.buffer_traces_.clear();

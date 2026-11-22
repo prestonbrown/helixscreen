@@ -145,7 +145,7 @@ class CacheSandboxListener : public Catch::EventListenerBase {
     }
 
     void testCaseStarting(Catch::TestCaseInfo const&) override {
-        HelixTestFixture::reset_all();
+        HelixTestFixture::reset_all(/*case_start=*/true);
     }
 
     void testRunEnded(Catch::TestRunStats const&) override {

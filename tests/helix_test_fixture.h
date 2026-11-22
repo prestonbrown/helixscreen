@@ -57,8 +57,9 @@ class HelixTestFixture {
     HelixTestFixture& operator=(HelixTestFixture&&) = delete;
 
     // List expands reactively. Keep small; don't over-reset. Public because the
-    // test runner's listener also calls it before every case (tests/test_main.cpp).
-    static void reset_all();
+    // test runner's listener also calls it before every case (tests/test_main.cpp),
+    // with @p case_start, which also starts the costlier owners fresh.
+    static void reset_all(bool case_start = false);
     /// Panels a run leaves behind die in static destruction, with no
     /// Application::shutdown() ahead of them, and their destructors log after spdlog's
     /// registry is gone. Call once the run has ended.
@@ -69,9 +70,9 @@ class HelixTestFixture {
     // calls this first.
     static void reset_printer_state();
 
-    /// Re-initializes the singletons that observe the global PrinterState (AmsState,
-    /// PrintControlButtons), fresh. A fixture that re-initializes the global
-    /// PrinterState calls this after, or their observers stay on the dead subjects.
+    /// Rebinds the singletons that observe the global PrinterState: AmsState keeps its
+    /// subjects, PrintControlButtons starts fresh. A fixture that re-initializes the
+    /// global PrinterState calls this after, or their observers stay on the dead subjects.
     static void restart_printer_state_observers();
 
   private:
