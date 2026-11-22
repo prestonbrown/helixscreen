@@ -3285,6 +3285,8 @@
   <translation tag="Paused by {}: {}" ja="{}により一時停止: {}"/>
   <translation tag="Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen." ja="選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。"/>
   <translation tag="Pauses on runout" ja="フィラメント切れで一時停止"/>
+  <translation tag="Pauses on runout (no matching spool)" ja="フィラメント切れで一時停止（一致するスプールなし）"/>
+  <translation tag="Pauses on runout ({} off)" ja="フィラメント切れで一時停止（{}オフ）"/>
   <translation tag="Pausing at layer {}." ja="レイヤー {} で一時停止します。"/>
   <translation tag="Pausing..." ja="一時停止中..."/>
   <translation tag="Peak Freq" ja="ピーク周波数"/>
@@ -5647,6 +5649,7 @@
   <translation tag="attempt {}" ja="試行 {}"/>
   <translation tag="auto" ja="自動"/>
   <translation tag="automatic" ja="自動"/>
+  <translation tag="automatic refill" ja="自動補充"/>
   <translation tag="bed" ja="ベッド"/>
   <translation tag="buffer|Neutral" ja="中央"/>
   <translation tag="busy" ja="ビジー状態"/>

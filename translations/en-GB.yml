@@ -3387,6 +3387,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : ''
   Pauses on runout: ''
+  Pauses on runout (no matching spool): ''
+  Pauses on runout ({} off): ''
   Pausing at layer {}.: ''
   Pausing...: ''
   Peak Freq: ''
@@ -5823,6 +5825,7 @@ translations:
   attempt {}: ''
   auto: ''
   automatic: ''
+  automatic refill: ''
   bed: ''
   buffer|Neutral: ''
   busy: ''

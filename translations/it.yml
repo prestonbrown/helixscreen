@@ -3401,6 +3401,8 @@ translations:
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : 'Mette in pausa una stampa a un layer scelto, per cambiare filamento o inserire un oggetto. Durante la stampa, scegli il layer dalla scheda di anteprima nella schermata di stato.'
   Pauses on runout: 'Pausa all''esaurimento'
+  Pauses on runout (no matching spool): 'Pausa all''esaurimento (nessuna bobina corrispondente)'
+  Pauses on runout ({} off): 'Pausa all''esaurimento ({} disattivato)'
   Pausing at layer {}.: 'Pausa allo strato {}.'
   Pausing...: Sospensione...
   Peak Freq: Freq. picco
@@ -5841,6 +5843,7 @@ translations:
   attempt {}: 'tentativo {}'
   auto: auto
   automatic: 'automatico'
+  automatic refill: 'ricarica automatica'
   bed: piano
   buffer|Neutral: Centrato
   busy: 'occupato'
