@@ -404,6 +404,7 @@ void AmsBackendSnapmaker::on_started() {
         main_state_.reset();
         action_code_.reset();
         record_restore_sent_.fill(false);
+        record_restores_made_.fill(0);
         insert_since_declaration_.fill(false);
     }
     if (!api_)
@@ -1639,7 +1640,8 @@ AmsError AmsBackendSnapmaker::apply_user_edit(int slot_index, const SlotInfo& in
         if (record_write) {
             const auto idx = static_cast<size_t>(slot_index);
             // This write is the record's restore until the firmware echoes it.
-            record_restore_sent_[idx] = true;
+            record_restores_made_[idx] = 0;
+            note_record_written_locked(idx);
             sent_record_[idx] = SentRecord{info.material, info.color_rgb & 0xFFFFFFu};
         }
     }
@@ -3513,12 +3515,20 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         }
         if (!is_unset_task_field(*task_type_[idx])) {
             record_restore_sent_[idx] = false;
+            record_restores_made_[idx] = 0;
+            continue;
+        }
+        // A write the record never echoed was overtaken by a clear the
+        // firmware queued before it: past the settle time it goes again.
+        if (record_restore_sent_[idx] &&
+            (record_restores_made_[idx] >= kMaxRecordRestores ||
+             std::chrono::steady_clock::now() - record_restore_sent_at_[idx] <
+                 kRecordRestoreSettle)) {
             continue;
         }
         // A read still pending may yet name a different spool than the
         // declaration.
-        if (record_restore_sent_[idx] || insert_since_declaration_[idx] ||
-            pending_insert_passes_[idx] > 0) {
+        if (insert_since_declaration_[idx] || pending_insert_passes_[idx] > 0) {
             continue;
         }
         // The firmware's clear does not say the spool left: unload-at-end
@@ -3544,10 +3554,16 @@ std::vector<std::pair<int, std::string>> AmsBackendSnapmaker::record_restores_lo
         if (gcode.empty()) {
             continue;
         }
-        record_restore_sent_[idx] = true;
+        note_record_written_locked(idx);
         out.emplace_back(head, std::move(gcode));
     }
     return out;
+}
+
+void AmsBackendSnapmaker::note_record_written_locked(size_t idx) {
+    record_restore_sent_[idx] = true;
+    record_restore_sent_at_[idx] = std::chrono::steady_clock::now();
+    ++record_restores_made_[idx];
 }
 
 std::string AmsBackendSnapmaker::unset_record_restore_locked(int head) const {

@@ -5423,6 +5423,95 @@ TEST_CASE_METHOD(SnapmakerFixture,
     CHECK(h.config_writes().size() == 2);
 }
 
+namespace {
+
+/// print_task_config frame naming heads 0 and 2 as the firmware's clear
+/// leaves them; heads 1 and 3 keep a type.
+json heads_0_and_2_cleared() {
+    return json{
+        {"print_task_config",
+         {{"filament_type", json::array({"NONE", "HIPS", "NONE", "ASA"})},
+          {"filament_color_rgba", json::array({"FFFFFFFF", "E8E8E8FF", "FFFFFFFF", "FFFFFFFF"})},
+          {"filament_official", json::array({false, false, false, false})}}}};
+}
+
+size_t writes_for_head(const FilamentRecordHarness& h, int head) {
+    const std::string key = "CONFIG_EXTRUDER=" + std::to_string(head);
+    size_t n = 0;
+    for (const auto& w : h.config_writes()) {
+        if (w.find(key) != std::string::npos) {
+            ++n;
+        }
+    }
+    return n;
+}
+
+/// Heads 0 and 2 each hold a declared spool resting in the feeder port.
+void declare_heads_0_and_2(FilamentRecordHarness& h) {
+    declare_head0_asa(h);
+    h.frame(make_feed_status(2, "preload_finish", /*filament_detected=*/true));
+    SlotInfo generic = polymaker_asa();
+    generic.brand = "Generic";
+    generic.color_rgb = 0x1A1A1A;
+    helix::test::edit_slot_as_user(h.backend, 2, generic);
+    FilamentRecordHarness::drain();
+    h.frame(make_head_record(2, "ASA", "1A1A1AFF"));
+    h.printer.client.clear_gcode_script_history();
+}
+
+} // namespace
+
+TEST_CASE_METHOD(SnapmakerFixture,
+                 "Snapmaker writes a record back again when the firmware's clear overtook the "
+                 "write",
+                 "[ams][snapmaker][filament_record][record_drift]") {
+    lv_init_safe();
+    FilamentRecordHarness h("drift_restore_overtaken");
+    declare_heads_0_and_2(h);
+
+    // A print that ends at once: the toolhead switches' remove events clear
+    // heads 0 and 2, and the write-back goes out.
+    h.print("printing");
+    h.frame(heads_0_and_2_cleared());
+    h.print("cancelled");
+    REQUIRE(writes_for_head(h, 0) == 2);
+    REQUIRE(writes_for_head(h, 2) == 2);
+    h.printer.client.clear_gcode_script_history();
+
+    // The clears queued before the writes land after them, inside one status
+    // tick: the record never names a type. Within the settle time nothing is
+    // repeated.
+    h.frame(heads_0_and_2_cleared());
+    CHECK(h.config_writes().empty());
+
+    SECTION("the next print runs a runout reload on head 2 and is cancelled") {
+        SnapmakerTestAccess::age_record_restores(h.backend);
+        h.print("printing");
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", false}}}});
+        h.print("paused");
+        h.frame(make_feed_status(2, "load_picking", /*filament_detected=*/true));
+        h.frame(make_feed_status(2, "load_feeding", /*filament_detected=*/true));
+        h.frame(json{{"filament_motion_sensor e2_filament", {{"filament_detected", true}}}});
+        h.frame(make_feed_status(2, "load_finish", /*filament_detected=*/true));
+        h.print("printing");
+        h.frame(heads_0_and_2_cleared());
+        CHECK(h.config_writes().empty());
+
+        h.print("cancelled");
+        CHECK(writes_for_head(h, 0) == 2);
+        CHECK(writes_for_head(h, 2) == 2);
+    }
+    SECTION("a firmware that clears every write is written a bounded number of times") {
+        for (int i = 0; i < 6; ++i) {
+            SnapmakerTestAccess::age_record_restores(h.backend);
+            h.frame(heads_0_and_2_cleared());
+        }
+        // Three writes in all, the first before the history was cleared.
+        CHECK(writes_for_head(h, 0) == 2 * 2);
+        CHECK(writes_for_head(h, 2) == 2 * 2);
+    }
+}
+
 TEST_CASE_METHOD(SnapmakerFixture,
                  "Snapmaker lane truth: an edit's type goes to print_task_config and the record "
                  "copies it from the echo",
