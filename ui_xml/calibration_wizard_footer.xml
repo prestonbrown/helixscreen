@@ -10,6 +10,8 @@
        <b>_text / <b>_tag      its caption (literal) and translation key
        <b>_subject            a string subject that retitles it live
        <b>_hide_subject       an int subject; 1 hides it
+       back_hide_cond / skip_hide_cond  an expression ("wizard_show_skip eq 0") that
+                              hides Back or Skip; give it or the subject, not both
        <b>_callback           what a tap runs
        <b>_name               its widget name, for C++ lookups and tests
      compact_texts="1"        at 480x272 Back and Skip show back_compact_text and
@@ -17,6 +19,7 @@
                               <name>_compact. back_compact_subject retitles the compact
                               Back live, as back_subject does the full one
      back_style="cal_footer_danger" outlines the leading button in red (Stop calibration).
+     skip_subject             a string subject that retitles Skip live
      primary_icon             a trailing icon on the primary (Start's chevron)
      primary_moves_machine    "true" installs the toolhead guard on the primary
      primary_disabled_cond    an expression ("cal_run_prereq_ready eq 0") that disables
@@ -58,12 +61,15 @@
     <prop name="back_tag" type="string" default="Back"/>
     <prop name="back_subject" type="string" default=""/>
     <prop name="back_hide_subject" type="string" default=""/>
+    <prop name="back_hide_cond" type="string" default=""/>
     <prop name="back_callback" type="string" default=""/>
     <prop name="back_name" type="string" default="cal_footer_back"/>
     <prop name="back_style" type="string" default="cal_footer_btn"/>
     <prop name="skip_text" type="string" default="Skip this step"/>
     <prop name="skip_tag" type="string" default="Skip this step"/>
+    <prop name="skip_subject" type="string" default=""/>
     <prop name="skip_hide_subject" type="string" default=""/>
+    <prop name="skip_hide_cond" type="string" default=""/>
     <prop name="skip_callback" type="string" default=""/>
     <prop name="skip_name" type="string" default="cal_footer_skip"/>
     <prop name="compact_texts" type="int" default="0"/>
@@ -124,6 +130,7 @@
           <style name="cal_footer_btn"/>
           <style name="$back_style"/>
           <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="$back_hide_cond" flag="hidden"/>
           <event_cb trigger="clicked" callback="$back_callback"/>
         </ui_button>
       </if>
@@ -140,6 +147,7 @@
             <style name="cal_footer_btn"/>
             <style name="$back_style"/>
             <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="$back_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$back_callback"/>
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
           </ui_button>
@@ -149,6 +157,7 @@
             <style name="cal_footer_btn"/>
             <style name="$back_style"/>
             <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="$back_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$back_callback"/>
             <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
           </ui_button>
@@ -196,11 +205,12 @@
       </lv_obj>
       <if cond="$compact_texts eq 0">
         <ui_button name="$skip_name"
-                   height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
-                   hidden_if_empty="$skip_callback">
+                   height="#cal_button_h" variant="outline" bind_text="$skip_subject" text="$skip_text"
+                   translation_tag="$skip_tag" hidden_if_empty="$skip_callback">
           <style name="cal_footer_btn"/>
           <style name="cal_footer_skip"/>
           <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+          <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
           <event_cb trigger="clicked" callback="$skip_callback"/>
         </ui_button>
       </if>
@@ -212,11 +222,12 @@
                 hidden_if_empty="$skip_callback">
           <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
           <ui_button name="$skip_name"
-                     height="#cal_button_h" variant="outline" text="$skip_text" translation_tag="$skip_tag"
-                     hidden_if_empty="$skip_callback">
+                     height="#cal_button_h" variant="outline" bind_text="$skip_subject" text="$skip_text"
+                     translation_tag="$skip_tag" hidden_if_empty="$skip_callback">
             <style name="cal_footer_btn"/>
             <style name="cal_footer_skip"/>
             <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$skip_callback"/>
             <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
           </ui_button>
@@ -226,6 +237,7 @@
             <style name="cal_footer_btn"/>
             <style name="cal_footer_skip"/>
             <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
+            <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$skip_callback"/>
             <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
           </ui_button>

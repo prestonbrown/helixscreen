@@ -18,6 +18,7 @@
          step_count_subject    an int subject: how many steps (at most 10)
          step_current_subject  an int subject: the current step, 0-based
        eta_subject          a string subject shown at the right of the title row
+                            (a run's time left, the setup wizard's "Step 3 of 9")
        hint / hint_subject  at 480x272 only: a right-hand instruction (hint_color);
                             the progress mark never shows at 480x272
        bar_subject          an int subject 0..100: a full-width progress bar

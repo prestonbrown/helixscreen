@@ -1,95 +1,46 @@
 <?xml version="1.0"?>
 <!-- Copyright (C) 2025-2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The first-run setup wizard: the guided-flow frame the calibration wizard uses
+     (calibration_wizard_header over the step's screen over calibration_wizard_footer).
+
+     Header: the step's title over its subtitle, "Step X of Y" at the right; "of Y"
+     stays off while the total is still an estimate (ui_wizard.cpp composes
+     wizard_step_text).
+     Footer: Back (or Cancel on an add-printer run's first step) on the left; on the
+     right Next (Finish on the last step), or Skip (Skip for now on the last step)
+     while the step sets wizard_show_skip because it offers its own action. Next and
+     Finish wait for connection_test_passed, the step's own verdict; none of them
+     needs Moonraker, which the wizard is still setting up. -->
 <component>
-  <!-- Wizard-specific constants -->
-  <!-- wizard_button_width is responsive: C++ overrides based on screen size -->
-  <!-- See ui_wizard.cpp::ui_wizard_container_register_responsive_constants() -->
-  <consts>
-    <!-- Button width (RESPONSIVE: SMALL=110/MEDIUM=140/LARGE=160) -->
-    <const name="wizard_button_width" value="160"/>
-  </consts>
   <api>
     <!-- Where the current step's screen goes; Wizard fills it from C++. -->
     <slot name="wizard_content"/>
   </api>
-  <!-- Wizard Container Root: Vertical stack (header, content, footer) -->
   <!-- Background color applied via screen_bg runtime constant (theme-aware: light/dark variants) -->
   <view name="wizard_container"
         extends="lv_obj" width="100%" height="100%" style_bg_color="#screen_bg" style_bg_opa="255" flex_flow="column"
-        style_pad_all="0" style_pad_hor="#space_md" style_border_width="0">
-
-    <!-- ==================== HEADER ==================== -->
-    <!-- Reusable header component with title and progress indicator -->
-    <wizard_header_bar name="wizard_header"/>
-
-    <!-- ==================== CONTENT ==================== -->
-    <lv_obj name="wizard_content" width="100%" flex_grow="1" scrollable="true" style_pad_all="0"/>
-
-    <!-- ==================== FOOTER ==================== -->
-    <lv_obj name="wizard_footer"
-            width="100%" height="content" flex_flow="row" style_flex_main_place="space_between"
-            style_flex_cross_place="center" style_flex_track_place="center" style_pad_all="0" style_pad_gap="0"
-            style_pad_bottom="#space_md" scrollable="false">
+        style_pad_all="0" style_pad_gap="0" style_border_width="0">
+    <calibration_wizard_header name="wizard_header"
+                               title_subject="wizard_title" subtitle_subject="wizard_subtitle"
+                               eta_subject="wizard_step_text">
       <style name="styles.cap_chrome"/>
+    </calibration_wizard_header>
 
-      <!-- BACK BUTTON (hidden on step 0 via conditional binding) -->
-      <ui_button name="btn_back" width="#wizard_button_width" text="Back">
-        <event_cb trigger="clicked" callback="on_back_clicked"/>
-        <!-- Hide when wizard_back_visible == 0 (at first visible step) -->
-        <bind_flag_if_eq subject="wizard_back_visible" flag="hidden" ref_value="0"/>
-      </ui_button>
+    <lv_obj name="wizard_content"
+            width="100%" flex_grow="1" scrollable="true" style_pad_all="0" style_pad_hor="#cal_page_pad_x"
+            style_pad_top="#space_sm"/>
 
-      <!-- make sure that the Next button is right justified -->
-      <lv_obj name="wizard_footer_spacer" width="0" height="#button_height" flex_grow="1"/>
-
-      <!-- Next/Skip container - hidden on final step to avoid binding conflicts -->
-      <!-- Two bind_flag_if_eq on the same flag from different subjects conflict:
-           the last observer to fire wins. Wrapping in a container lets
-           wizard_is_final_step hide the whole group while wizard_show_skip
-           only toggles between Next and Skip within. -->
-      <lv_obj name="next_skip_group"
-              width="#wizard_button_width" height="#button_height" style_pad_all="0" style_border_width="0"
-              style_bg_opa="0" scrollable="false">
-        <bind_flag_if_eq subject="wizard_is_final_step" flag="hidden" ref_value="1"/>
-
-        <!-- NEXT BUTTON - visible when NOT showing skip -->
-        <ui_button name="btn_next" width="100%" height="100%" text="Next">
-          <event_cb trigger="clicked" callback="on_next_clicked"/>
-          <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
-          <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
-          <bind_flag_if_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
-        </ui_button>
-
-        <!-- SKIP BUTTON - visible only when wizard_show_skip=1 -->
-        <ui_button name="btn_skip" width="100%" height="100%" text="Skip">
-          <event_cb trigger="clicked" callback="on_next_clicked"/>
-          <bind_flag_if_not_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
-        </ui_button>
-      </lv_obj>
-
-      <!-- FINISH / SKIP FOR NOW - visible ONLY on final step. A last page that offers its own
-           action (Calibration's "Calibrate now") sets wizard_show_skip, so finishing reads as
-           skipping that action. Grouped for the same reason as next_skip_group. -->
-      <lv_obj name="finish_group"
-              width="#wizard_button_width" height="#button_height" style_pad_all="0" style_border_width="0"
-              style_bg_opa="0" scrollable="false">
-        <bind_flag_if_not_eq subject="wizard_is_final_step" flag="hidden" ref_value="1"/>
-        <ui_button name="btn_finish" width="100%" height="100%" text="Finish">
-          <event_cb trigger="clicked" callback="on_next_clicked"/>
-          <!-- Button is enabled when connection_test_passed == 1 (disabled otherwise) -->
-          <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
-          <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
-          <bind_flag_if_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
-        </ui_button>
-        <ui_button name="btn_finish_skip" width="100%" height="100%" text="Skip for now" variant="secondary">
-          <event_cb trigger="clicked" callback="on_next_clicked"/>
-          <bind_state_if_not_eq subject="connection_test_passed" state="disabled" ref_value="1"/>
-          <bind_flag_if_eq subject="connection_test_passed" flag="clickable" ref_value="1"/>
-          <bind_flag_if_not_eq subject="wizard_show_skip" flag="hidden" ref_value="1"/>
-        </ui_button>
-      </lv_obj>
-
-    </lv_obj>
+    <calibration_wizard_footer name="wizard_footer"
+                               back_name="btn_back" back_subject="wizard_back_text" back_tag=""
+                               back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked"
+                               skip_name="btn_skip" skip_subject="wizard_skip_text" skip_tag=""
+                               skip_hide_cond="wizard_show_skip eq 0" skip_callback="on_next_clicked"
+                               primary_name="btn_next" primary_subject="wizard_next_text"
+                               primary_hide_subject="wizard_show_skip"
+                               primary_disabled_cond="connection_test_passed ne 1" primary_needs_printer="0"
+                               primary_callback="on_next_clicked">
+      <style name="styles.cap_chrome"/>
+    </calibration_wizard_footer>
   </view>
 </component>

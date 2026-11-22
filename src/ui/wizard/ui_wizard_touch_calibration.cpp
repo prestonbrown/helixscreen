@@ -41,6 +41,12 @@ extern helix::Subject wizard_subtitle;
 // Global Instance
 // ============================================================================
 
+// The wizard header's bound subtitle label (wizard_subtitle), or null.
+static lv_obj_t* wizard_subtitle_label() {
+    lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "wizard_header");
+    return header ? lv_obj_find_by_name(header, "cal_header_subtitle_bound") : nullptr;
+}
+
 // Flag to force touch calibration step to show (for visual testing on SDL)
 static bool g_force_touch_calibration_step = false;
 
@@ -188,15 +194,17 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
         return screen_root_;
     }
 
-    // Lift the Next/Skip button group above the full-screen capture surface so it
-    // remains clickable during calibration. The group holds both Next and Skip
-    // (toggled by wizard_show_skip), so lifting the group keeps both accessible.
-    raised_skip_ = helix::ui::raise_control_above_capture(lv_screen_active(), "next_skip_group");
+    // Lift the footer's button row above the full-screen capture surface so it
+    // remains clickable during calibration. The row holds both Next and Skip
+    // (toggled by wizard_show_skip), so lifting the row keeps both accessible;
+    // Back is hidden on this first step.
+    raised_skip_ = helix::ui::raise_control_above_capture(
+        lv_obj_find_by_name(lv_screen_active(), "wizard_footer"), "cal_footer_row");
 
     test_touch_area_ = helix::ui::find_required(screen_root_, "test_touch_area", get_name());
 
     // Center the wizard subtitle for this step (keeps it clear of crosshair targets)
-    lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "wizard_subtitle");
+    lv_obj_t* subtitle = wizard_subtitle_label();
     if (subtitle) {
         lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_CENTER, 0);
     }
@@ -252,7 +260,7 @@ void WizardTouchCalibrationStep::cleanup() {
     lv_subject_set_int(&wizard_show_skip, 0);
 
     // Reset wizard subtitle alignment back to left (was centered for this step)
-    lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "wizard_subtitle");
+    lv_obj_t* subtitle = wizard_subtitle_label();
     if (subtitle) {
         lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_LEFT, 0);
     }
