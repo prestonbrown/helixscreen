@@ -1,0 +1,146 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Calibration wizard tokens: the sizes of the guided run's full-screen frame
+  (calibration_wizard_header, calibration_wizard_footer) and the type ladder its
+  pages share. The medium values are the design canvas at 800x480 and 480x800,
+  the micro values the canvas at 480x272; the tiers between and above scale
+  from those two.
+-->
+<component>
+  <consts>
+    <!-- Header bar: title, subtitle and the progress mark. -->
+    <px name="cal_header_h_micro" value="34"/>
+    <px name="cal_header_h_tiny" value="44"/>
+    <px name="cal_header_h_small" value="56"/>
+    <px name="cal_header_h_medium" value="64"/>
+    <px name="cal_header_h_large" value="80"/>
+    <px name="cal_header_h_xlarge" value="96"/>
+    <!-- Footer bar: Back on the left, Skip and the primary action on the right. -->
+    <px name="cal_footer_h_micro" value="52"/>
+    <px name="cal_footer_h_tiny" value="56"/>
+    <px name="cal_footer_h_small" value="62"/>
+    <px name="cal_footer_h_medium" value="68"/>
+    <px name="cal_footer_h_large" value="84"/>
+    <px name="cal_footer_h_xlarge" value="100"/>
+    <!-- Footer button height. -->
+    <px name="cal_button_h_micro" value="44"/>
+    <px name="cal_button_h_tiny" value="44"/>
+    <px name="cal_button_h_small" value="48"/>
+    <px name="cal_button_h_medium" value="48"/>
+    <px name="cal_button_h_large" value="60"/>
+    <px name="cal_button_h_xlarge" value="72"/>
+    <!-- The footer's primary button width. -->
+    <px name="cal_primary_w_micro" value="110"/>
+    <px name="cal_primary_w_tiny" value="120"/>
+    <px name="cal_primary_w_small" value="150"/>
+    <px name="cal_primary_w_medium" value="168"/>
+    <px name="cal_primary_w_large" value="210"/>
+    <px name="cal_primary_w_xlarge" value="250"/>
+    <!-- Page edge: the header's side inset and the body and footer's. -->
+    <px name="cal_header_pad_x_micro" value="10"/>
+    <px name="cal_header_pad_x_tiny" value="12"/>
+    <px name="cal_header_pad_x_small" value="16"/>
+    <px name="cal_header_pad_x_medium" value="20"/>
+    <px name="cal_header_pad_x_large" value="24"/>
+    <px name="cal_header_pad_x_xlarge" value="28"/>
+    <px name="cal_page_pad_x_micro" value="8"/>
+    <px name="cal_page_pad_x_tiny" value="10"/>
+    <px name="cal_page_pad_x_small" value="12"/>
+    <px name="cal_page_pad_x_medium" value="16"/>
+    <px name="cal_page_pad_x_large" value="20"/>
+    <px name="cal_page_pad_x_xlarge" value="24"/>
+    <!-- A pick tile's or checklist row's height. -->
+    <px name="cal_tile_h_micro" value="44"/>
+    <px name="cal_tile_h_tiny" value="48"/>
+    <px name="cal_tile_h_small" value="58"/>
+    <px name="cal_tile_h_medium" value="66"/>
+    <px name="cal_tile_h_large" value="80"/>
+    <px name="cal_tile_h_xlarge" value="96"/>
+    <!-- The tick box on a tile, and the status circle on a step row. -->
+    <px name="cal_box_micro" value="22"/>
+    <px name="cal_box_tiny" value="22"/>
+    <px name="cal_box_small" value="24"/>
+    <px name="cal_box_medium" value="26"/>
+    <px name="cal_box_large" value="32"/>
+    <px name="cal_box_xlarge" value="38"/>
+    <!-- The running step list's width beside the live view. -->
+    <px name="cal_steps_w_micro" value="170"/>
+    <px name="cal_steps_w_tiny" value="180"/>
+    <px name="cal_steps_w_small" value="220"/>
+    <px name="cal_steps_w_medium" value="250"/>
+    <px name="cal_steps_w_large" value="310"/>
+    <px name="cal_steps_w_xlarge" value="370"/>
+    <!-- Results table: the Keep column and the arrow column. -->
+    <px name="cal_keep_w_micro" value="28"/>
+    <px name="cal_keep_w_tiny" value="30"/>
+    <px name="cal_keep_w_small" value="36"/>
+    <px name="cal_keep_w_medium" value="40"/>
+    <px name="cal_keep_w_large" value="50"/>
+    <px name="cal_keep_w_xlarge" value="60"/>
+    <px name="cal_arrow_w_micro" value="16"/>
+    <px name="cal_arrow_w_tiny" value="18"/>
+    <px name="cal_arrow_w_small" value="20"/>
+    <px name="cal_arrow_w_medium" value="24"/>
+    <px name="cal_arrow_w_large" value="30"/>
+    <px name="cal_arrow_w_xlarge" value="36"/>
+
+    <!-- Type. Canvas sizes at medium: title 21 semibold, subtitle 13, a tile's
+         name 16, its detail line 12.5, a badge 11, a button 15, the primary 17. -->
+    <string name="cal_font_title_micro" value="noto_sans_bold_14"/>
+    <string name="cal_font_title_tiny" value="noto_sans_bold_16"/>
+    <string name="cal_font_title_small" value="noto_sans_bold_18"/>
+    <string name="cal_font_title_medium" value="noto_sans_bold_20"/>
+    <string name="cal_font_title_large" value="noto_sans_bold_24"/>
+    <string name="cal_font_title_xlarge" value="noto_sans_bold_28"/>
+    <string name="cal_font_subtitle_micro" value="noto_sans_11"/>
+    <string name="cal_font_subtitle_tiny" value="noto_sans_12"/>
+    <string name="cal_font_subtitle_small" value="noto_sans_12"/>
+    <string name="cal_font_subtitle_medium" value="noto_sans_14"/>
+    <string name="cal_font_subtitle_large" value="noto_sans_16"/>
+    <string name="cal_font_subtitle_xlarge" value="noto_sans_18"/>
+    <string name="cal_font_name_micro" value="noto_sans_14"/>
+    <string name="cal_font_name_tiny" value="noto_sans_14"/>
+    <string name="cal_font_name_small" value="noto_sans_16"/>
+    <string name="cal_font_name_medium" value="noto_sans_16"/>
+    <string name="cal_font_name_large" value="noto_sans_20"/>
+    <string name="cal_font_name_xlarge" value="noto_sans_24"/>
+    <string name="cal_font_name_bold_micro" value="noto_sans_bold_14"/>
+    <string name="cal_font_name_bold_tiny" value="noto_sans_bold_14"/>
+    <string name="cal_font_name_bold_small" value="noto_sans_bold_16"/>
+    <string name="cal_font_name_bold_medium" value="noto_sans_bold_16"/>
+    <string name="cal_font_name_bold_large" value="noto_sans_bold_20"/>
+    <string name="cal_font_name_bold_xlarge" value="noto_sans_bold_24"/>
+    <string name="cal_font_detail_micro" value="noto_sans_11"/>
+    <string name="cal_font_detail_tiny" value="noto_sans_11"/>
+    <string name="cal_font_detail_small" value="noto_sans_12"/>
+    <string name="cal_font_detail_medium" value="noto_sans_12"/>
+    <string name="cal_font_detail_large" value="noto_sans_16"/>
+    <string name="cal_font_detail_xlarge" value="noto_sans_18"/>
+    <string name="cal_font_badge_micro" value="noto_sans_10"/>
+    <string name="cal_font_badge_tiny" value="noto_sans_10"/>
+    <string name="cal_font_badge_small" value="noto_sans_10"/>
+    <string name="cal_font_badge_medium" value="noto_sans_11"/>
+    <string name="cal_font_badge_large" value="noto_sans_14"/>
+    <string name="cal_font_badge_xlarge" value="noto_sans_16"/>
+    <string name="cal_font_button_micro" value="noto_sans_12"/>
+    <string name="cal_font_button_tiny" value="noto_sans_14"/>
+    <string name="cal_font_button_small" value="noto_sans_14"/>
+    <string name="cal_font_button_medium" value="noto_sans_16"/>
+    <string name="cal_font_button_large" value="noto_sans_18"/>
+    <string name="cal_font_button_xlarge" value="noto_sans_24"/>
+    <string name="cal_font_primary_micro" value="noto_sans_bold_14"/>
+    <string name="cal_font_primary_tiny" value="noto_sans_bold_14"/>
+    <string name="cal_font_primary_small" value="noto_sans_bold_16"/>
+    <string name="cal_font_primary_medium" value="noto_sans_bold_16"/>
+    <string name="cal_font_primary_large" value="noto_sans_bold_20"/>
+    <string name="cal_font_primary_xlarge" value="noto_sans_bold_24"/>
+    <string name="cal_font_mono_micro" value="source_code_pro_10"/>
+    <string name="cal_font_mono_tiny" value="source_code_pro_12"/>
+    <string name="cal_font_mono_small" value="source_code_pro_12"/>
+    <string name="cal_font_mono_medium" value="source_code_pro_14"/>
+    <string name="cal_font_mono_large" value="source_code_pro_16"/>
+    <string name="cal_font_mono_xlarge" value="source_code_pro_16"/>
+  </consts>
+</component>

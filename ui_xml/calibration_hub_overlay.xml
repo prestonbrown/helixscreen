@@ -39,23 +39,23 @@
                 height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
                 scrollable="false" clickable="false" event_bubble="true">
           <text_body width="100%"
-                     text="Guided calibration" style_text_font="#font_cal_hub_title" long_mode="dots" clickable="false"
+                     text="Guided calibration" style_text_font="#cal_font_name_bold" long_mode="dots" clickable="false"
                      event_bubble="true"/>
           <lv_obj width="100%"
                   height="content" style_pad_all="0" style_pad_column="#space_xs" flex_flow="row" scrollable="false"
                   clickable="false" event_bubble="true">
             <text_small name="cal_guided_banner_lead"
-                        text="Runs everything this printer needs, in order ·" style_text_font="#font_xs"
+                        text="Runs everything this printer needs, in order ·" style_text_font="#cal_font_detail"
                         style_text_color="#text_muted" clickable="false" event_bubble="true">
               <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
             </text_small>
             <text_small name="cal_guided_banner_text"
-                        width="0" flex_grow="1" bind_text="cal_run_banner_text" style_text_font="#font_xs"
+                        width="0" flex_grow="1" bind_text="cal_run_banner_text" style_text_font="#cal_font_detail"
                         long_mode="dots" style_text_color="#text_muted" clickable="false" event_bubble="true"/>
           </lv_obj>
         </lv_obj>
         <ui_button name="cal_guided_start"
-                   height="#touch_target_min" text="Start" variant="primary" style_text_font="#font_cal_hub_title"
+                   height="#touch_target_min" text="Start" variant="primary" style_text_font="#cal_font_primary"
                    style_pad_left="#space_lg" style_pad_right="#space_lg">
           <event_cb trigger="clicked" callback="on_guided_calibration_clicked"/>
         </ui_button>
