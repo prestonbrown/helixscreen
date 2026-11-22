@@ -363,7 +363,7 @@ struct BoxWinsFixture : OverlayConsumerCommitFixture {
 
 } // namespace
 
-TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names only a disagreeing spool",
+TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names the disagreeing spool",
                  "[ams_edit_overlay][box_wins]") {
     open(true, box_lane());
 
@@ -375,34 +375,75 @@ TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane shows the box and names only a
     CHECK(access.spool_disagreement_text().find("ASA") != std::string::npos);
     CHECK(access.spool_disagreement_text().find("Black") != std::string::npos);
     close_editor_overlay();
+}
 
-    // A lane whose firmware does not own it still follows the spool.
+TEST_CASE_METHOD(BoxWinsFixture, "a lane whose firmware does not own it still follows the spool",
+                 "[ams_edit_overlay][box_wins]") {
     open(false, box_lane());
+
     CHECK(access.working_info().material == "ASA");
     CHECK(access.working_info().brand == "Elegoo");
     CHECK(access.spool_disagrees() == 0);
     close_editor_overlay();
+}
 
-    // Brand alone is not a disagreement, and the record still names it.
-    SlotInfo agreeing = box_lane();
-    agreeing.material = "ASA";
-    agreeing.color_rgb = 0x000000;
-    open(true, agreeing);
+TEST_CASE_METHOD(BoxWinsFixture, "a box-held lane agreeing with its spool shows no note",
+                 "[ams_edit_overlay][box_wins]") {
+    SlotInfo lane = box_lane();
+    lane.material = "ASA";
+    lane.color_rgb = 0x000000;
+    lane.brand = "Creality";
+    open(true, lane);
+
     CHECK(access.spool_disagrees() == 0);
+    // Brand alone is not a disagreement, and the record still names it.
     CHECK(access.working_info().brand == "Elegoo");
     close_editor_overlay();
 }
 
-TEST_CASE_METHOD(BoxWinsFixture,
-                 "re-applying keeps the lane's product and temperatures only for its own vendor",
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying the spool replaces the lane's own name",
                  "[ams_edit_overlay][box_wins]") {
-    const bool other_vendor = GENERATE(false, true);
-    CAPTURE(other_vendor);
+    client.spoolman_mock().get_mock_spools().back().filament_name = "Black ASA";
+    SlotInfo lane = box_lane();
+    lane.spool_name = "CR-PLA";
+    open(true, lane);
+
+    tap("btn_reapply_spool");
+    settle();
+
+    REQUIRE(fired);
+    CHECK(captured.slot_info.spool_name == "Black ASA");
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying only a colour keeps the lane's temperatures",
+                 "[ams_edit_overlay][box_wins]") {
     SlotInfo lane = box_lane();
     lane.material = "ASA";
-    lane.brand = other_vendor ? "Polymaker" : "Elegoo";
-    lane.catalog_id = "asa-product";
+    lane.brand = "Elegoo";
+    lane.nozzle_temp_min = 222;
+    lane.nozzle_temp_max = 233;
+    lane.bed_temp = 77;
+    open(true, lane);
+    REQUIRE(access.spool_disagrees() == 1);
+
+    tap("btn_reapply_spool");
+    settle();
+
+    REQUIRE(fired);
+    CHECK(captured.slot_info.color_rgb == 0x000000U);
+    CHECK(captured.slot_info.nozzle_temp_min == 222);
+    CHECK(captured.slot_info.nozzle_temp_max == 233);
+    CHECK(captured.slot_info.bed_temp == 77);
+}
+
+TEST_CASE_METHOD(BoxWinsFixture, "re-applying another vendor drops the lane's catalog product",
+                 "[ams_edit_overlay][box_wins]") {
+    SlotInfo lane = box_lane();
+    lane.material = "ASA";
+    lane.brand = "Polymaker";
+    lane.catalog_id = "polymaker-asa";
     lane.product_name = "ASA";
+    lane.nozzle_temp_recommended = 255;
     lane.nozzle_temp_min = 222;
     lane.nozzle_temp_max = 233;
     open(true, lane);
@@ -412,11 +453,11 @@ TEST_CASE_METHOD(BoxWinsFixture,
     settle();
 
     REQUIRE(fired);
-    CHECK(captured.slot_info.color_rgb == 0x000000U);
     CHECK(captured.slot_info.brand == "Elegoo");
-    CHECK(captured.slot_info.catalog_id.empty() == other_vendor);
-    CHECK((captured.slot_info.nozzle_temp_min == 222) == !other_vendor);
-    CHECK((captured.slot_info.nozzle_temp_max == 233) == !other_vendor);
+    CHECK(captured.slot_info.catalog_id.empty());
+    CHECK(captured.slot_info.product_name.empty());
+    CHECK(captured.slot_info.nozzle_temp_recommended == 0);
+    CHECK(captured.slot_info.nozzle_temp_min != 222);
 }
 
 TEST_CASE_METHOD(BoxWinsFixture, "a save on a disagreeing lane does not ask about the spool",
@@ -5853,4 +5894,108 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a lane that cannot store colors offers no \
     access.call_add_color();
     CHECK(access.draft_colors().size() == 1);
     close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "a catalog pick files the product's recommended nozzle temperature",
+                 "[ams_edit_overlay][spoolman][2029]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    const SlotInfo info = untracked_slot();
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    const auto* ef = catalog.resolve_id("coex-3d-coex-pla-plus-silk");
+    REQUIRE(ef != nullptr);
+    REQUIRE(ef->nozzle_recommended != (ef->nozzle_min + ef->nozzle_max) / 2);
+
+    AmsEditOverlay::SpoolEditSelection sel;
+    sel.family = "PLA";
+    sel.brand = ef->brand;
+    sel.product_id = ef->id;
+    access.set_sel(sel);
+    access.stage_selection();
+    const SlotInfo staged = access.working_info();
+    CHECK(staged.nozzle_temp_recommended == ef->nozzle_recommended);
+    CHECK(helix::SpoolmanSlotSaver::new_filament_for(info, staged).extruder_temp ==
+          ef->nozzle_recommended);
+
+    // A family with no product attached files the material's midpoint.
+    sel.product_id.clear();
+    access.set_sel(sel);
+    access.stage_selection();
+    CHECK(access.working_info().nozzle_temp_recommended == 0);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "a product named without a catalog id opens selected",
+                 "[ams_edit_overlay][dropdown][product]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.material = "PLA";
+    info.brand = "Creality";
+    REQUIRE(info.catalog_id.empty());
+
+    SECTION("a catalog product") {
+        info.product_name = "Hyper PLA";
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.dropdown_selected("dropdown_product") == "Hyper PLA");
+        CHECK(access.sel().product_id == "creality-hyper-pla");
+        CHECK_FALSE(access.is_dirty());
+    }
+    SECTION("a name the catalog does not carry") {
+        info.product_name = "Shop Special";
+        REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+        UpdateQueue::instance().drain();
+        process_lvgl(10);
+        CHECK(access.dropdown_selected("dropdown_product") == "Shop Special");
+        CHECK(access.sel().product_id.empty());
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "the brand list names Generic once",
+                 "[ams_edit_overlay][dropdown]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+    SlotInfo info = untracked_slot();
+    info.material = "PLA";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    const auto brands = split_options(access.dropdown_options("dropdown_brand"));
+    CHECK(std::count(brands.begin(), brands.end(), std::string("Generic")) == 1);
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(EditorFixture, "unknown material shows as its own selected family option",
+                 "[ams_edit_overlay][dropdown]") {
+    auto& overlay = get_ams_edit_overlay();
+    AmsEditOverlayViewTestAccess access(overlay);
+
+    SlotInfo info = untracked_slot();
+    info.material = "MysteryBlend";
+    info.brand = "NoName Co";
+    REQUIRE(overlay.show_for_slot(test_screen(), 0, info, nullptr, nullptr));
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    // The catalog does not know the family, so it is the dropdown's selected
+    // entry and
+    // an untouched open+save changes nothing (selection not moved).
+    CHECK(access.dropdown_selected("dropdown_material") == "MysteryBlend");
+    CHECK(access.sel().family == "MysteryBlend");
+    CHECK(access.sel().brand == "NoName Co");
+    CHECK_FALSE(access.is_dirty());
+    access.call_handle_save();
+    UpdateQueue::instance().drain();
+    process_lvgl(10);
+    // Round-tripped: the commit carried the unknown values verbatim.
+    CHECK(access.working_info().material == "MysteryBlend");
+    CHECK(access.working_info().brand == "NoName Co");
 }
