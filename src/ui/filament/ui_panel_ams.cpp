@@ -389,6 +389,17 @@ void AmsPanel::init_subjects() {
         [](AmsPanel* self, int /*active*/) { self->update_bypass_spool_from_state(); },
         AmsState::instance().get_subjects_lifetime());
 
+    // Under bypass the slot stays -2 while the toolhead sensor fills or empties.
+    filament_loaded_observer_ = observe<int>(
+        AmsState::instance().get_filament_loaded_subject(), this,
+        [](AmsPanel* self, int /*loaded*/) {
+            if (!self->open_ || !self->subjects_initialized_ || !self->panel_)
+                return;
+            self->update_current_slot_highlight(
+                lv_subject_get_int(AmsState::instance().get_current_slot_subject()));
+        },
+        AmsState::instance().get_subjects_lifetime());
+
     // On a virtual bypass the setting alone decides whether the node is on the path, and the
     // Device Operations toggle changes nothing the backend publishes.
     always_show_bypass_observer_ = observe<int>(
@@ -1058,7 +1069,8 @@ void AmsPanel::update_current_slot_highlight(int slot_index) {
 
     // Update bypass-related state for path canvas visualization
     AmsBackend* backend = AmsState::instance().get_backend();
-    bool bypass_active = (slot_index == -2 && backend && backend->is_bypass_active());
+    const bool bypass_active = slot_index == -2 && backend && backend->is_bypass_active() &&
+                               helix::ui::bypass_filament_at_toolhead(backend->get_system_info());
 
     if (path_canvas_) {
         ui_filament_path_canvas_set_bypass_active(path_canvas_, bypass_active);

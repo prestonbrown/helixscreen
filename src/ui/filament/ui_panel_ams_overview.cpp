@@ -150,6 +150,12 @@ void AmsOverviewPanel::init_subjects() {
             [](AmsOverviewPanel* self, int /*active*/) { self->refresh_bypass_display(); },
             AmsState::instance().get_subjects_lifetime());
 
+        // Under bypass the slot stays -2 while the toolhead sensor fills or empties.
+        filament_loaded_observer_ = observe<int>(
+            AmsState::instance().get_filament_loaded_subject(), this,
+            [](AmsOverviewPanel* self, int /*loaded*/) { self->refresh_bypass_display(); },
+            AmsState::instance().get_subjects_lifetime());
+
         // On a virtual bypass the setting alone decides whether the node is on the path, and
         // the Device Operations toggle changes nothing the backend publishes.
         always_show_bypass_observer_ = observe<int>(
@@ -1209,9 +1215,11 @@ void AmsOverviewPanel::refresh_page_bypass(bool node) {
         ui_filament_path_canvas_set_bypass_has_spool(detail_path_canvas_, ext.has_value() && node);
         if (ext && node)
             ui_filament_path_canvas_set_bypass_color(detail_path_canvas_, ext->color_rgb);
+        const auto info = AmsState::instance().system_info();
         ui_filament_path_canvas_set_bypass_active(
             detail_path_canvas_,
-            node && lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0);
+            node && lv_subject_get_int(AmsState::instance().get_bypass_active_subject()) != 0 &&
+                info && helix::ui::bypass_filament_at_toolhead(*info));
         ui_filament_path_canvas_refresh(detail_path_canvas_);
     }
     update_page_bypass_widgets_position();
@@ -1231,8 +1239,7 @@ void AmsOverviewPanel::refresh_system_bypass() {
         auto* backend = AmsState::instance().get_backend();
         if (backend) {
             AmsSystemInfo info = backend->get_system_info();
-            int current_slot = lv_subject_get_int(AmsState::instance().get_current_slot_subject());
-            bool bypass_active = info.supports_bypass && (current_slot == -2);
+            const bool bypass_active = helix::ui::bypass_filament_at_toolhead(info);
             ui_system_path_canvas_set_bypass(system_path_,
                                              helix::ui::bypass_node_visible_for(backend),
                                              bypass_active, ext_spool->color_rgb);
