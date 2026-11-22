@@ -162,6 +162,10 @@ TEST_CASE_METHOD(FinishFixture, "the heater and input shaper steps measure witho
         INFO(e.step->info().id << ": " << e.message);
         CHECK(e.status == StepStatus::Finished);
     }
+    // The run's step list and results table read the method per heater; the
+    // tuned numbers stay in the summary the history keeps.
+    CHECK(run->entries()[0].result.brief == "nozzle PID");
+    CHECK(run->entries()[0].result.summary.find("Nozzle ") == 0);
     const auto& sent_scripts = client.gcode_script_history();
     CHECK(std::any_of(sent_scripts.begin(), sent_scripts.end(), [](const std::string& g) {
         return g.find("PID_CALIBRATE") != std::string::npos ||

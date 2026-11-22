@@ -25,6 +25,7 @@
                               status_color and status_font its look
      status_compact="1"       at 480x272 the status shows status_compact_subject and
                               status_sub_compact_subject instead
+     divider="0"              no line above the footer (the step intros)
      In portrait the status sits above the buttons and the primary takes the
      width the others leave. -->
 <component>
@@ -74,6 +75,7 @@
     <prop name="primary_name" type="string" default="cal_footer_primary"/>
     <prop name="primary_icon" type="string" default=""/>
     <prop name="primary_moves_machine" type="string" default="false"/>
+    <prop name="divider" type="string" default="1"/>
     <prop name="status" type="string" default=""/>
     <prop name="status_tag" type="string" default=""/>
     <prop name="status_subject" type="string" default=""/>
@@ -86,7 +88,7 @@
   </api>
   <view extends="lv_obj"
         width="100%" style_pad_left="#cal_page_pad_x" style_pad_right="#cal_page_pad_x" style_bg_opa="0"
-        style_radius="0" style_border_width="1" style_border_side="top" style_border_color="#border"
+        style_radius="0" style_border_width="$divider" style_border_side="top" style_border_color="#border"
         style_border_opa="255" flex_flow="column" style_flex_main_place="center" scrollable="false">
     <bind_style_if_eq name="cal_footer_landscape" subject="ui_is_portrait" ref_value="0"/>
     <bind_style_if_eq name="cal_footer_portrait" subject="ui_is_portrait" ref_value="1"/>

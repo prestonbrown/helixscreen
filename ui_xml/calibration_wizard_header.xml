@@ -39,6 +39,9 @@
     <style name="cal_hdr_inline" layout="flex" flex_flow="row" flex_cross_place="center" pad_column="#space_md"/>
     <style name="cal_hdr_full_w" width="100%"/>
     <style name="cal_hdr_content_w" width="content"/>
+    <!-- A subtitle fills its row, or at 480x272 hugs its text so its icon stays beside it. -->
+    <style name="cal_hdr_fill" width="0" flex_grow="1"/>
+    <style name="cal_hdr_hug" width="content" flex_grow="0"/>
     <style name="cal_hdr_grow" flex_grow="1"/>
     <style name="cal_hdr_align_end" text_align="right"/>
   </styles>
@@ -123,67 +126,82 @@
                 hidden_if_prop_not_eq="$bar_subject|">
           <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
           <bind_style_if_eq name="cal_hdr_grow" subject="ui_breakpoint" ref_value="0"/>
+          <!-- The row packs to its end at 480x272, so the icon travels with the text. -->
           <icon src="$subtitle_icon" size="xs" color="$subtitle_color" hidden_if_empty="$subtitle_icon"/>
           <if cond="$subtitle_compact eq 0">
             <lv_obj name="cal_header_subtitle_box"
-                    width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                    scrollable="false">
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
+              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
               <text_body name="cal_header_subtitle"
-                         width="100%" text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
+                         text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
                          style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_prop_not_eq="$subtitle_subject|"/>
+                         hidden_if_prop_not_eq="$subtitle_subject|">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
               <text_body name="cal_header_subtitle_bound"
-                         width="100%" bind_text="$subtitle_subject" long_mode="dots"
-                         style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_empty="$subtitle_subject"/>
+                         bind_text="$subtitle_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
+                         style_text_color="$subtitle_color" hidden_if_empty="$subtitle_subject">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
             </lv_obj>
           </if>
           <if cond="$subtitle_compact eq 1">
             <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
             <lv_obj name="cal_header_subtitle_box"
-                    width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                    scrollable="false">
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
+              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
               <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
               <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
               <text_body name="cal_header_subtitle"
-                         width="100%" text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
+                         text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
                          style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_prop_not_eq="$subtitle_subject|"/>
+                         hidden_if_prop_not_eq="$subtitle_subject|">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
               <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
               <text_body name="cal_header_subtitle_bound"
-                         width="100%" bind_text="$subtitle_subject" long_mode="dots"
-                         style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_empty="$subtitle_subject"/>
+                         bind_text="$subtitle_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
+                         style_text_color="$subtitle_color" hidden_if_empty="$subtitle_subject">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
             </lv_obj>
             <text_body name="cal_header_subtitle_compact"
-                       width="0" flex_grow="1" bind_text="$subtitle_compact_subject" long_mode="dots"
-                       style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color">
-              <bind_style_if_eq name="cal_hdr_align_end" subject="ui_breakpoint" ref_value="0"/>
+                       bind_text="$subtitle_compact_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
+                       style_text_color="$subtitle_color">
+              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
+              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
               <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
             </text_body>
           </if>
           <if cond="$subtitle_compact eq 2">
             <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
             <lv_obj name="cal_header_subtitle_box"
-                    width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-                    scrollable="false">
+                    height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false">
+              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
+              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
               <bind_flag_if cond="ui_breakpoint eq 0 or ui_is_portrait eq 1" flag="hidden"/>
               <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
               <text_body name="cal_header_subtitle"
-                         width="100%" text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
+                         text="$subtitle" translation_tag="$subtitle_tag" long_mode="dots"
                          style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_prop_not_eq="$subtitle_subject|"/>
+                         hidden_if_prop_not_eq="$subtitle_subject|">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
               <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
               <text_body name="cal_header_subtitle_bound"
-                         width="100%" bind_text="$subtitle_subject" long_mode="dots"
-                         style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color"
-                         hidden_if_empty="$subtitle_subject"/>
+                         bind_text="$subtitle_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
+                         style_text_color="$subtitle_color" hidden_if_empty="$subtitle_subject">
+                <bind_style_if_ge name="cal_hdr_full_w" subject="ui_breakpoint" ref_value="1"/>
+              </text_body>
             </lv_obj>
             <!-- DUPLICATE_NAME_OK: one <if> branch is built -->
             <text_body name="cal_header_subtitle_compact"
-                       width="0" flex_grow="1" bind_text="$subtitle_compact_subject" long_mode="dots"
-                       style_text_font="#cal_font_subtitle" style_text_color="$subtitle_color">
-              <bind_style_if_eq name="cal_hdr_align_end" subject="ui_breakpoint" ref_value="0"/>
+                       bind_text="$subtitle_compact_subject" long_mode="dots" style_text_font="#cal_font_subtitle"
+                       style_text_color="$subtitle_color">
+              <bind_style_if_ge name="cal_hdr_fill" subject="ui_breakpoint" ref_value="1"/>
+              <bind_style_if_eq name="cal_hdr_hug" subject="ui_breakpoint" ref_value="0"/>
               <bind_flag_if cond="ui_breakpoint ne 0 and ui_is_portrait eq 0" flag="hidden"/>
             </text_body>
           </if>
@@ -193,16 +211,25 @@
                  bind_text="$eta_subject" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"
                  hidden_if_empty="$eta_subject"/>
       <!-- At 480x272 the progress mark gives its place to the hint. -->
-      <text_body name="cal_header_hint"
-                 text="$hint" translation_tag="$hint_tag" style_text_font="#cal_font_subtitle"
-                 style_text_color="$hint_color" hidden_if_empty="$hint">
-        <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-      </text_body>
-      <text_body name="cal_header_hint_bound"
-                 bind_text="$hint_subject" style_text_font="#cal_font_subtitle" style_text_color="$hint_color"
-                 hidden_if_empty="$hint_subject">
-        <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
-      </text_body>
+      <!-- Each hint sits in a box its prop hides: the breakpoint binding on the
+           label would show an unsupplied hint again. -->
+      <lv_obj width="content"
+              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+              hidden_if_empty="$hint">
+        <text_body name="cal_header_hint"
+                   text="$hint" translation_tag="$hint_tag" style_text_font="#cal_font_subtitle"
+                   style_text_color="$hint_color">
+          <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+        </text_body>
+      </lv_obj>
+      <lv_obj width="content"
+              height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" scrollable="false"
+              hidden_if_empty="$hint_subject">
+        <text_body name="cal_header_hint_bound"
+                   bind_text="$hint_subject" style_text_font="#cal_font_subtitle" style_text_color="$hint_color">
+          <bind_flag_if_ge subject="ui_breakpoint" flag="hidden" ref_value="1"/>
+        </text_body>
+      </lv_obj>
       <if cond="$progress eq 1">
         <calibration_wizard_dots name="cal_header_dots"
                                  count_subject="$step_count_subject" current_subject="$step_current_subject">
