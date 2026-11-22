@@ -17,7 +17,7 @@
 #include "ui_nav_manager.h"
 #include "ui_panel_base.h"
 
-#include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 #include "app_globals.h"
 #include "connection_state.h"
 #include "content_width_cap.h"
@@ -74,7 +74,8 @@ class FakePanel : public PanelBase {
 };
 
 /// A 1480x320 screen with its layout constants, as the resize handler leaves it.
-class UltrawideFixture : public LVGLTestFixture {
+// XMLTestFixture: the theme is up, as in the app; the nav bar binds its change subject.
+class UltrawideFixture : public XMLTestFixture {
   public:
     UltrawideFixture() {
         // The chrome role lives in ui_xml/styles.xml; a test that runs before

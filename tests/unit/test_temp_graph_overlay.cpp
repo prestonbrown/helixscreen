@@ -233,13 +233,15 @@ class TempGraphOverlayPickFixture : public LVGLTestFixture {
   public:
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
     helix::PrinterState state;
+    // Before the members below: TemperatureService observes the state's subjects
+    // as it is constructed.
+    bool state_subjects_up_ = (state.init_subjects(false), true);
     MoonrakerAPI api{client, state};
     std::shared_ptr<helix::TemperatureController> controller_{
         std::make_shared<helix::TemperatureController>(state, &api)};
     TemperatureService service{state, &api};
 
     TempGraphOverlayPickFixture() {
-        state.init_subjects(false);
         service.set_controller(controller_.get());
         // execute_gcode gates on klippy state; the subject defaults to SHUTDOWN.
         state.set_klippy_state_sync(helix::KlippyState::READY);

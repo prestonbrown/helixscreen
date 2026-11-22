@@ -92,7 +92,8 @@ TEST_CASE("HeaterIconBinder: a missing required glyph is logged as an error", "[
 
 TEST_CASE("HeaterIconBinder: bind_subjects still binds when only one subject is non-null",
           "[heater_binder]") {
-    LVGLTestFixture fixture;
+    // The theme is up, as in the app: the heating animator binds its change subject.
+    XMLTestFixture fixture;
 
     lv_obj_t* root = lv_obj_create(lv_screen_active());
     lv_obj_t* icon = lv_label_create(root);

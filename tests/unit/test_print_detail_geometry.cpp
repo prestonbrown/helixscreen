@@ -25,6 +25,7 @@
 #include "ui_print_select_detail_view.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/bypass_engaged_seed.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
@@ -94,7 +95,6 @@ struct ScopedAmsBackend {
 
     explicit ScopedAmsBackend(int slot_count) {
         auto& ams = helix::AmsState::instance();
-        ams.init_subjects(false);
         auto owned = std::make_unique<helix::AmsBackendMock>(slot_count);
         backend = owned.get();
         backend->set_operation_delay(0);
@@ -107,9 +107,7 @@ struct ScopedAmsBackend {
         if (backend) {
             backend->stop();
         }
-        auto& ams = helix::AmsState::instance();
-        ams.clear_backends();
-        ams.deinit_subjects();
+        helix::AmsState::instance().clear_backends();
     }
 };
 
@@ -446,13 +444,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     PrinterStateTestAccess::refresh_option_visibility(ps);
     REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "has_any_preprint_options")) == 1);
 
-    // The scene is measured with AmsState's subjects unpublished, as this file's
-    // ScopedAmsBackend leaves them; a test that published them and walked away
-    // would bind the bypass card hidden and shorten the column.
-    helix::AmsState::instance().deinit_subjects();
-    // A name published through register_xml_subject_names() survives the deinit.
-    lv_xml_unregister_subject(nullptr, "ams_bypass_active");
-    REQUIRE(lv_xml_get_subject(nullptr, "ams_bypass_active") == nullptr);
+    // The engaged bypass card makes the column tall enough to overflow.
+    helix::test::BypassEngagedSeed bypass;
 
     // No filament card: the options column is short enough to fit whole
     // above the width/3 floor at a micro portrait canvas.

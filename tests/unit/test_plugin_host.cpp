@@ -8,6 +8,7 @@
 #include "ui_temp_display.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_fixtures.h"
 #include "../test_helpers/home_panel_test_access.h"
 #include "../test_helpers/plugin_host_test_support.h"
 #include "../test_helpers/process_async_timers.h"
@@ -422,7 +423,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "a widget whose component file is missing is i
 
 namespace {} // namespace
 
-TEST_CASE_METHOD(LVGLTestFixture,
+// XMLTestFixture: the theme is up, as in the app; the tile's heater icon binds it.
+TEST_CASE_METHOD(XMLTestFixture,
                  "an enabled reload rebuilds a placed home tile onto the new runtime",
                  "[plugin][host]") {
     // The rebuilt home page builds its default temperature tile, whose
