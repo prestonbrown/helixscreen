@@ -2,27 +2,18 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- One fact about a calibration step on its intro ("about 4 min", "loud",
-     "heats to 210°"): a pill in the badges row of calibration_intro. Static
-     text in `text`, or a string subject in `bind`. `warm` tints it amber for
-     what makes noise or heat; it maps to LV_STATE_CHECKED. -->
+     "heats to 210°"): a status_pill in the badges row of calibration_intro,
+     sized for the calibration screens. Static text in `text`, or a string
+     subject in `bind`. variant="warm" tints it amber for what makes noise or
+     heat; the default is the quiet neutral pill. -->
 <component>
   <api>
     <prop name="text" type="string" default=""/>
     <prop name="text_tag" type="string" default=""/>
     <prop name="bind" type="string" default=""/>
-    <prop name="warm" type="boolean" default="false"/>
+    <prop name="variant" type="string" default="neutral"/>
   </api>
-  <styles>
-    <style name="neutral" bg_color="#elevated_bg" bg_opa="24%"/>
-    <style name="warm" bg_color="#warning" bg_opa="12%"/>
-  </styles>
-  <view extends="lv_obj"
-        width="content" height="content" style_radius="9999" style_border_width="0" style_pad_hor="#space_md"
-        style_pad_ver="#space_xs" checked="$warm" state_trickle="true" scrollable="false" clickable="false">
-    <style name="neutral"/>
-    <style name="warm" selector="checked"/>
-    <text_small name="badge_text"
-                text="$text" translation_tag="$text_tag" bind_text="$bind" style_text_font="#cal_font_detail"
-                style_text_color="#text_muted" style_text_color-checked="#warning" checked="$warm" clickable="false"/>
-  </view>
+  <view extends="status_pill"
+        text="$text" text_tag="$text_tag" bind_text="$bind" variant="$variant" radius="9999" pad_hor="#space_md"
+        pad_ver="#space_xs" style_text_font="#cal_font_detail" clickable="false"/>
 </component>
