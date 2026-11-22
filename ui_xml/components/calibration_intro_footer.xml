@@ -5,31 +5,44 @@
      left (slot footer_left, a cal_intro_footer_button), an optional line in
      the middle (slot footer_note) and the primary action at the bottom right.
      The primary is disabled while `disabled_cond` holds; it reads global
-     subjects only, and by default the printer being unreachable. -->
+     subjects only. The default is the toolhead guard (machine_motion_blocked,
+     as moves_machine binds it) or an unreachable printer, and a caller that
+     adds a condition keeps both: a second disabled binding would clobber
+     this one. -->
 <component>
   <api>
     <slot name="footer_left" target="cal_intro_footer_left" hide_empty="true"/>
     <slot name="footer_note" target="cal_intro_footer_note"/>
+    <prop name="primary_name" type="string" default="cal_intro_primary"/>
     <prop name="primary_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
-    <prop name="disabled_cond" type="string" default="nav_buttons_enabled eq 0"/>
+    <prop name="disabled_cond" type="string" default="machine_motion_blocked eq 1 or nav_buttons_enabled eq 0"/>
   </api>
   <view extends="lv_obj"
         width="100%" height="content" style_pad_top="#space_sm" style_pad_bottom="#space_md" style_pad_left="#space_lg"
-        style_pad_right="#space_lg" style_pad_gap="#space_lg" style_bg_opa="0" style_border_width="0" flex_flow="row"
-        style_flex_cross_place="center" scrollable="false">
+        style_pad_right="#space_lg" style_pad_gap="#space_lg" style_bg_opa="0" style_border_width="0"
+        flex_flow="row_wrap" style_flex_cross_place="center" scrollable="false">
     <lv_obj name="cal_intro_footer_left"
             width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
             scrollable="false" clickable="false"/>
-    <lv_obj name="cal_intro_footer_note"
-            width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
-            flex_flow="row" style_flex_main_place="center" scrollable="false" clickable="false"/>
-    <ui_button name="cal_intro_primary"
-               width="content" height="#cal_intro_btn_h" variant="primary" text="$primary_text"
-               style_min_width="#cal_intro_primary_w" style_pad_hor="#space_lg"
-               style_text_font="#cal_intro_font_primary">
-      <bind_state_if cond="$disabled_cond" state="disabled"/>
-      <event_cb trigger="clicked" callback="$primary_callback"/>
-    </ui_button>
+    <!-- The note and the primary share one group that is at least as wide as
+         the primary: when the secondary leaves too little room (a narrow
+         portrait screen, a long translation), the group wraps to a line of
+         its own and keeps the primary at the bottom right. -->
+    <lv_obj name="cal_intro_footer_right"
+            width="0" height="content" flex_grow="1" style_min_width="content" style_pad_all="0"
+            style_pad_gap="#space_lg" style_bg_opa="0" style_border_width="0" flex_flow="row"
+            style_flex_main_place="end" style_flex_cross_place="center" scrollable="false" clickable="false">
+      <lv_obj name="cal_intro_footer_note"
+              width="0" height="content" flex_grow="1" style_pad_all="0" style_bg_opa="0" style_border_width="0"
+              flex_flow="row" style_flex_main_place="center" scrollable="false" clickable="false"/>
+      <ui_button name="$primary_name"
+                 width="content" height="#cal_intro_btn_h" variant="primary" text="$primary_text"
+                 style_min_width="#cal_intro_primary_w" style_pad_hor="#space_lg"
+                 style_text_font="#cal_intro_font_primary">
+        <bind_state_if cond="$disabled_cond" state="disabled"/>
+        <event_cb trigger="clicked" callback="$primary_callback"/>
+      </ui_button>
+    </lv_obj>
   </view>
 </component>

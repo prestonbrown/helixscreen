@@ -118,8 +118,8 @@ void ui_panel_input_shaper_register_callbacks() {
     register_xml_callbacks({
         {"input_shaper_axis_cb",
          [](lv_event_t* e) {
-             const auto choice = reinterpret_cast<intptr_t>(lv_event_get_user_data(e));
-             get_global_input_shaper_panel().handle_axis_choice(static_cast<int>(choice));
+             get_global_input_shaper_panel().handle_axis_choice(
+                 helix::calibration::intro_chip_index(e));
          }},
         {"input_shaper_measure_cb",
          [](lv_event_t* /*e*/) { get_global_input_shaper_panel().handle_measure_clicked(); }},

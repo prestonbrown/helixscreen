@@ -10,8 +10,10 @@
      Slots: now (the left column, the default), settings, badges
      (cal_intro_badge pills), footer_left (one outline button), footer_note
      (a line between the footer buttons). The primary is disabled while
-     `disabled_cond` holds; it reads global subjects only, and by default the
-     printer being unreachable. Sizes: calibration_intro_tokens.xml. -->
+     `disabled_cond` holds; it reads global subjects only. The default is the toolhead guard
+     (machine_motion_blocked, as moves_machine binds it) or an unreachable
+     printer; a caller that adds a condition keeps both. One expression,
+     because a second disabled binding would clobber it. Sizes: calibration_intro_tokens.xml. -->
 <component>
   <api>
     <slot name="now" target="cal_intro_now" default="true"/>
@@ -21,9 +23,10 @@
     <slot name="footer_note" target="cal_intro_footer_note"/>
     <prop name="left_label" type="string" default=""/>
     <prop name="right_label" type="string" default=""/>
+    <prop name="primary_name" type="string" default="cal_intro_primary"/>
     <prop name="primary_text" type="string" default=""/>
     <prop name="primary_callback" type="string" default=""/>
-    <prop name="disabled_cond" type="string" default="nav_buttons_enabled eq 0"/>
+    <prop name="disabled_cond" type="string" default="machine_motion_blocked eq 1 or nav_buttons_enabled eq 0"/>
   </api>
   <styles>
     <style name="split_row" layout="flex" flex_flow="row"/>
@@ -72,7 +75,7 @@
       </lv_obj>
     </lv_obj>
     <calibration_intro_footer name="cal_intro_footer"
-                              primary_text="$primary_text" primary_callback="$primary_callback"
-                              disabled_cond="$disabled_cond"/>
+                              primary_name="$primary_name" primary_text="$primary_text"
+                              primary_callback="$primary_callback" disabled_cond="$disabled_cond"/>
   </view>
 </component>

@@ -39,7 +39,7 @@
         <calibration_intro name="shaper_intro"
                            left_label="Now" right_label="Measure" primary_text="Measure resonances"
                            primary_callback="input_shaper_measure_cb"
-                           disabled_cond="printer_has_accelerometer eq 0 or nav_buttons_enabled eq 0">
+                           disabled_cond="machine_motion_blocked eq 1 or printer_has_accelerometer eq 0 or nav_buttons_enabled eq 0">
           <!-- Current shapers, as printer.cfg has them -->
           <lv_obj name="shaper_now_card"
                   width="100%" height="content" style_radius="#border_radius" style_bg_color="#elevated_bg"
@@ -119,14 +119,14 @@
                     width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
                     style_border_width="0" flex_flow="row" scrollable="false">
               <cal_intro_chip name="shaper_axis_both"
-                              label="Both axes" choice="is_axis_choice" index="0" callback="input_shaper_axis_cb"
-                              place="center" label_font="#cal_intro_font_row"/>
+                              label="Both axes" choice="is_axis_choice" value="0" index="0"
+                              callback="input_shaper_axis_cb" label_align="center" label_font="#cal_intro_font_row"/>
               <cal_intro_chip name="shaper_axis_x"
-                              label="X only" choice="is_axis_choice" index="1" callback="input_shaper_axis_cb"
-                              place="center" label_font="#cal_intro_font_row"/>
+                              label="X only" choice="is_axis_choice" value="1" index="1" callback="input_shaper_axis_cb"
+                              label_align="center" label_font="#cal_intro_font_row"/>
               <cal_intro_chip name="shaper_axis_y"
-                              label="Y only" choice="is_axis_choice" index="2" callback="input_shaper_axis_cb"
-                              place="center" label_font="#cal_intro_font_row"/>
+                              label="Y only" choice="is_axis_choice" value="2" index="2" callback="input_shaper_axis_cb"
+                              label_align="center" label_font="#cal_intro_font_row"/>
             </lv_obj>
             <text_small name="shaper_intro_desc"
                         width="100%" style_margin_top="#space_xs" style_text_font="#cal_intro_font_desc"

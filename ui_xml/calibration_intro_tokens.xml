@@ -29,7 +29,7 @@
     <string name="cal_intro_font_row_large" value="noto_sans_18"/>
 
     <!-- Bold row text: selected chips, the left card's title. -->
-    <string name="cal_intro_font_row_bold_micro" value="noto_sans_bold_14"/>
+    <string name="cal_intro_font_row_bold_micro" value="noto_sans_12"/>
     <string name="cal_intro_font_row_bold_tiny" value="noto_sans_bold_14"/>
     <string name="cal_intro_font_row_bold_small" value="noto_sans_bold_14"/>
     <string name="cal_intro_font_row_bold_medium" value="noto_sans_bold_16"/>
@@ -82,6 +82,20 @@
     <px name="cal_intro_chip_h_small" value="44"/>
     <px name="cal_intro_chip_h_medium" value="52"/>
     <px name="cal_intro_chip_h_large" value="60"/>
+
+    <!-- The picture under the left column's label (a mesh, the belt paths). -->
+    <px name="cal_intro_picture_h_micro" value="110"/>
+    <px name="cal_intro_picture_h_tiny" value="130"/>
+    <px name="cal_intro_picture_h_small" value="170"/>
+    <px name="cal_intro_picture_h_medium" value="250"/>
+    <px name="cal_intro_picture_h_large" value="300"/>
+
+    <!-- A filament's color on the intro's filament card. -->
+    <px name="cal_intro_swatch_micro" value="22"/>
+    <px name="cal_intro_swatch_tiny" value="24"/>
+    <px name="cal_intro_swatch_small" value="28"/>
+    <px name="cal_intro_swatch_medium" value="34"/>
+    <px name="cal_intro_swatch_large" value="40"/>
 
     <!-- Footer buttons. -->
     <px name="cal_intro_btn_h_micro" value="36"/>

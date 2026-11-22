@@ -15,21 +15,21 @@
             width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
             style_border_width="0" flex_flow="row" scrollable="false">
       <cal_intro_chip name="mesh_heat_cold"
-                      label="Cold" detail="no heat" choice="bed_mesh_heat_choice" index="0"
+                      label="Cold" detail="no heat" choice="bed_mesh_heat_choice" value="0" index="0"
                       callback="on_bed_mesh_heat_choice"/>
       <cal_intro_chip name="mesh_heat_pla"
-                      label="PLA" bind_detail="bed_mesh_heat_pla" choice="bed_mesh_heat_choice" index="1"
+                      label="PLA" bind_detail="bed_mesh_heat_pla" choice="bed_mesh_heat_choice" value="1" index="1"
                       callback="on_bed_mesh_heat_choice"/>
     </lv_obj>
     <lv_obj name="mesh_heat_row_b"
             width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
             style_border_width="0" flex_flow="row" scrollable="false">
       <cal_intro_chip name="mesh_heat_petg"
-                      label="PETG" bind_detail="bed_mesh_heat_petg" choice="bed_mesh_heat_choice" index="2"
+                      label="PETG" bind_detail="bed_mesh_heat_petg" choice="bed_mesh_heat_choice" value="2" index="2"
                       callback="on_bed_mesh_heat_choice"/>
       <cal_intro_chip name="mesh_heat_abs"
-                      label="ABS / ASA" bind_detail="bed_mesh_heat_abs" choice="bed_mesh_heat_choice" index="3"
-                      callback="on_bed_mesh_heat_choice"/>
+                      label="ABS / ASA" bind_detail="bed_mesh_heat_abs" choice="bed_mesh_heat_choice" value="3"
+                      index="3" callback="on_bed_mesh_heat_choice"/>
     </lv_obj>
     <text_small name="mesh_heat_desc"
                 width="100%" style_text_font="#cal_intro_font_desc" style_text_color="#text_muted"

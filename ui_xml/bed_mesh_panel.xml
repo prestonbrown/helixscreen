@@ -67,12 +67,6 @@
     <px name="bed_mesh_profile_row_height_medium" value="44"/>
     <px name="bed_mesh_profile_row_height_large" value="44"/>
 
-    <!-- The intro's picture of the current mesh, under "Now". -->
-    <px name="bed_mesh_intro_canvas_h_micro" value="110"/>
-    <px name="bed_mesh_intro_canvas_h_tiny" value="130"/>
-    <px name="bed_mesh_intro_canvas_h_small" value="170"/>
-    <px name="bed_mesh_intro_canvas_h_medium" value="250"/>
-    <px name="bed_mesh_intro_canvas_h_large" value="300"/>
   </consts>
   <styles>
     <!-- bed_mesh_view: 0 the intro (picture, bed temperature, Probe the bed),
@@ -83,7 +77,7 @@
     <style name="split_profiles" pad_left="0" pad_right="0" pad_column="#space_md" pad_row="#space_md"/>
     <style name="left_intro" width="#cal_intro_left_w" height="100%" flex_grow="0"/>
     <style name="left_profiles" width="0" height="100%" flex_grow="1"/>
-    <style name="canvas_intro" height="#bed_mesh_intro_canvas_h" flex_grow="0"/>
+    <style name="canvas_intro" height="#cal_intro_picture_h" flex_grow="0"/>
     <style name="canvas_profiles" height="0" flex_grow="1"/>
     <style name="canvas_portrait_profiles" height="45%" flex_grow="0"/>
   </styles>

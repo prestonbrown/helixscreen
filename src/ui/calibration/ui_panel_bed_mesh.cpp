@@ -575,8 +575,7 @@ void BedMeshPanel::register_callbacks() {
         {"on_bed_mesh_back", [](lv_event_t*) { get_global_bed_mesh_panel().handle_back(); }},
         {"on_bed_mesh_heat_choice",
          [](lv_event_t* e) {
-             const auto choice = reinterpret_cast<intptr_t>(lv_event_get_user_data(e));
-             get_global_bed_mesh_panel().set_heat_choice(static_cast<int>(choice));
+             get_global_bed_mesh_panel().set_heat_choice(helix::calibration::intro_chip_index(e));
          }},
 
         // Profile row callbacks (5 profiles)
