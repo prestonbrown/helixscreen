@@ -249,6 +249,13 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered 
         start();
         CHECK(sent("MPC_CALIBRATE HEATER=extruder "));
     }
+    SECTION("supervising firmware gets no offer, since the offer rewrites the config") {
+        helix::test::FirmwareSupervisedFor on(true);
+        activate_and_detect();
+        CHECK(subject_int("cal_offer_cooling_fan") == 0);
+        start();
+        CHECK(sent("MPC_CALIBRATE HEATER=extruder "));
+    }
     SECTION("a heater that names a fan gets no offer") {
         client.set_extruder_cooling_fan("fan_generic mine");
         activate_and_detect();

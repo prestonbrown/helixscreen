@@ -693,7 +693,10 @@ void PIDCalibrationPanel::update_fan_section_visibility() {
     lv_subject_set_int(&subj_show_fan_config_, (is_extruder && is_mpc) ? 1 : 0);
 
     const std::string part_fan = mpc_cooling_fan();
+    // Adding cooling_fan rewrites the heater's config section, which supervising
+    // firmware owns (#2154).
     const bool offer =
+        !helix::firmware_supervised() &&
         offers_cooling_fan(current_control_, selected_method_, heater_names_cooling_fan_, part_fan);
     lv_subject_set_int(&subj_offer_cooling_fan_, offer ? 1 : 0);
 
