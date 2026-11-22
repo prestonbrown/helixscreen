@@ -8,8 +8,9 @@
        - icon only: a circle, as wide as it is tall
        - text, with or without an icon: a pill
        - role: primary (the screen's one main action), neutral (default), danger
-       - collapse="auto" (default): icon + text from the small breakpoint up, the icon
-         alone on micro and tiny; a text-only action keeps its text. "never" keeps it.
+       - collapse="auto" (default): icon + text where the header has room, the icon
+         alone on micro and tiny and in portrait below the large breakpoint (a 480px
+         wide header); a text-only action keeps its text. "never" keeps it.
      Callers give it a name, content, role and callback, never a size or color.
      Bindings written as its children (bind_flag_if*, bind_state_if*) act on the
      button itself, so a Save that greys out while nothing is dirty is one
@@ -47,7 +48,8 @@
   <subjects>
     <!-- The label-hiding rule each collapse value names; ui_button binds it only
          when the action has an icon to collapse to. -->
-    <subject_expr name="header_action_collapse_auto" expr="ui_breakpoint le 1"/>
+    <subject_expr name="header_action_collapse_auto"
+                  expr="ui_breakpoint le 1 or ui_is_portrait eq 1 and ui_breakpoint lt 4"/>
     <subject name="header_action_collapse_never" type="int" value="0"/>
   </subjects>
   <styles>

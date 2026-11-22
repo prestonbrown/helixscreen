@@ -82,7 +82,7 @@ TEST_CASE_METHOD(HeaderActionFixture, "header_action fills by role", "[header_ac
 }
 
 TEST_CASE_METHOD(HeaderActionFixture,
-                 "header_action collapses to its icon on micro and tiny breakpoints",
+                 "header_action collapses to its icon on micro, tiny and narrow portrait",
                  "[header_action][xml]") {
     ScopedBreakpoint bp(UiBreakpoint::Medium);
     lv_obj_t* both = make({"icon", "script_text", "text", "Printer Events"});
@@ -108,6 +108,19 @@ TEST_CASE_METHOD(HeaderActionFixture,
 
     CHECK_FALSE(lv_obj_is_hidden(label));
     CHECK_FALSE(lv_obj_has_state(both, kIconOnly));
+
+    // A portrait header is as narrow as a micro one's below the large breakpoint.
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int32_t was_portrait = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, 1);
+    CHECK(lv_obj_is_hidden(label));
+    {
+        ScopedBreakpoint large(UiBreakpoint::Large);
+        CHECK_FALSE(lv_obj_is_hidden(label));
+    }
+    lv_subject_set_int(portrait, was_portrait);
+    CHECK_FALSE(lv_obj_is_hidden(label));
 }
 
 TEST_CASE_METHOD(HeaderActionFixture, "header_action child bindings act on the button",

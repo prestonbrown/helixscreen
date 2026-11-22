@@ -1246,7 +1246,7 @@ and a callback, never a width, height, radius or color (the gate refuses them).
 | `name` | the button's name, for C++ lookups and tests |
 | `icon`, `text` | at least one. Icon only: a circle, as wide as `#header_button_height` is tall. Text, with or without an icon: a pill |
 | `role` | `primary` (the screen's one main action: Save, Start, Probe, Apply), `neutral` (default: Refresh, settings, folder, Clear All), `danger` (a destructive action that does not confirm) |
-| `collapse` | `auto` (default): icon and text from the small breakpoint up, the icon alone on micro and tiny. A text-only action keeps its text. `never` keeps the text everywhere |
+| `collapse` | `auto` (default): icon and text where the header has room, the icon alone on micro and tiny and in portrait below the large breakpoint. A text-only action keeps its text. `never` keeps the text everywhere |
 | `callback` | the clicked callback |
 | `hidden` | the initial hidden flag, for a button its own binding reveals |
 
