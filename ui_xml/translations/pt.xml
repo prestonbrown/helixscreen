@@ -4883,6 +4883,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." pt="O host não recebeu nada desta placa por vários segundos: um cabo USB ou CAN solto ou com defeito, a placa perdendo alimentação ou um barramento CAN sem terminação."/>
   <translation tag="The label didn&apos;t print: {}" pt="A etiqueta não foi impressa: {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." pt="A lane esquece este carretel. O filamento continua onde está."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." pt="As configurações da lane não foram alteradas e o carretel não foi salvo. Toque em Salvar para salvar o carretel."/>
+  <translation tag="The lane settings weren&apos;t changed." pt="As configurações da lane não foram alteradas."/>
   <translation tag="The lane that takes over when this one runs out" pt="A lane que assume quando esta acaba"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." pt="A última impressão pode ainda estar na mesa. Retire-a antes de a cabeça se mover e depois toque em Liberado."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." pt="A trava se abre e {} pode cair. Segure-a antes de continuar e depois coloque-a na sua doca."/>

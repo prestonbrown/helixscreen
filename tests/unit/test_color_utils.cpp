@@ -301,6 +301,31 @@ TEST_CASE("describe_color: near-whites read as White", "[color][describe]") {
     REQUIRE(helix::describe_color(0xE8E8E8) == "Pale Gray");
 }
 
+TEST_CASE("is_derived_color_name: describe_color's own names", "[color][describe]") {
+    for (const char* name :
+         {"Black", "Deep Black", "White", "Gray", "Dark Gray", "Pale Gray", "Red", "Vibrant Red",
+          "Deep Muted Teal", "Light Soft Blue", "Medium Grayish Lime", "Pale Pink"}) {
+        INFO(name);
+        CHECK(helix::is_derived_color_name(name));
+    }
+    for (const char* name :
+         {"Galaxy Black", "Navy", "Warm Grey", "", "Red Dark", "Gray Gray", "Dark", "Vibrant",
+          "Dark  Gray", " Black", "black", "Vibrant Gray", "Dark Black"}) {
+        INFO('"' << name << '"');
+        CHECK_FALSE(helix::is_derived_color_name(name));
+    }
+}
+
+TEST_CASE("is_derived_color_name accepts every name describe_color gives", "[color][describe]") {
+    for (uint32_t r = 0; r <= 0xFF; r += 0x11)
+        for (uint32_t g = 0; g <= 0xFF; g += 0x11)
+            for (uint32_t b = 0; b <= 0xFF; b += 0x11) {
+                const std::string name = helix::describe_color((r << 16) | (g << 8) | b);
+                INFO(name);
+                REQUIRE(helix::is_derived_color_name(name));
+            }
+}
+
 // ============================================================================
 // nearest_palette_key Tests
 // ============================================================================

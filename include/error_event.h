@@ -137,6 +137,10 @@ struct ErrorEvent {
     /// classifier that owns the fault claims the line, so no later classifier
     /// reports it in the firmware's raw words, and nothing presents it.
     bool leftover = false;
+    /// The title prefix of the firmware's own action:prompt dialog that
+    /// reports this same fault, or empty when it raises none. The fault dialog
+    /// stands in for that prompt whichever arrives first.
+    std::string firmware_prompt;
 };
 
 /// Inputs the classifier needs beyond the raw line. Kept as a plain struct

@@ -37,6 +37,7 @@ std::optional<ErrorEvent> classify(const std::string& raw_line, const ClassifyCo
     const auto known = prose ? error_wording::classify(code.empty() ? e.raw_detail : text, ctx.hw)
                              : std::optional<error_wording::Classification>{};
     if (known) {
+        e.firmware_prompt = error_wording::firmware_prompt_title(*known);
         if (const auto w = error_wording::word(*known)) {
             e.title = w->summary;
             e.detail = w->detail();

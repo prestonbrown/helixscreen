@@ -5022,6 +5022,8 @@ translations:
   : ''
   "The label didn't print: {}": ''
   The lane forgets this spool. The filament itself stays where it is.: ''
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: ''
+  The lane settings weren't changed.: ''
   The lane that takes over when this one runs out: ''
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: ''
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ''

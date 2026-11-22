@@ -23,6 +23,7 @@
 #include "gcode_response_routing.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "printer_discovery.h"
 #include "printer_state.h"
 #include "recovery_modal_presenter.h"
 #include "safety_settings_manager.h"
@@ -696,6 +697,103 @@ TEST_CASE_METHOD(RecoveryPreheatFixture, "An action prompt wakes the display",
     routing.release_routers();
     helix::ActionPromptManager::set_instance(nullptr);
     process_lvgl(20);
+}
+
+namespace {
+
+/// A paused ZMOD printer behind the app's real response routing: each line
+/// reaches the prompt manager and the error router the way a console line does.
+class ZmodConsoleFixture : public RecoveryPreheatFixture {
+  public:
+    ZmodConsoleFixture() {
+        nlohmann::json objects = {"zmod_color", "zmod_afc", "extruder"};
+        helix::PrinterDiscovery hw;
+        hw.parse_objects(objects);
+        get_printer_state().set_hardware(hw);
+        get_printer_state().update_from_status(
+            nlohmann::json{{"pause_resume", {{"is_paused", true}}}});
+        routing_.attach(&mock_client_, &api_);
+    }
+
+    ~ZmodConsoleFixture() override {
+        routing_.detach_handlers(&mock_client_);
+        routing_.release_routers();
+        helix::ActionPromptManager::set_instance(nullptr);
+        get_printer_state().update_from_status(
+            nlohmann::json{{"pause_resume", {{"is_paused", false}}}});
+        get_printer_state().set_hardware(helix::PrinterDiscovery{});
+        process_lvgl(20);
+    }
+
+    void feed(const std::vector<std::string>& lines) {
+        for (const auto& line : lines) {
+            mock_client_.dispatch_gcode_response(line);
+        }
+        helix::ui::UpdateQueue::instance().drain();
+        process_lvgl(20);
+    }
+
+    static bool prompt_on_screen() {
+        return ModalStack::instance().dialog_for_component("action_prompt_modal") != nullptr;
+    }
+
+    helix::GcodeResponseRouting routing_;
+};
+
+/// ZMOD's RESUME refusal (base_client.cfg): the `!!` line, then its own dialog
+/// repeating it with a lone Ok.
+std::vector<std::string> zmod_resume_refusal(const std::string& reason) {
+    return {"!! Resumption interrupted !!! " + reason,
+            "// action:prompt_begin Resumption interrupted !!!", "// action:prompt_text " + reason,
+            "// action:prompt_footer_button Ok|RESPOND TYPE=command MSG=action:prompt_end|info",
+            "// action:prompt_show"};
+}
+
+/// ZMOD's Creator 5 runout dialog for head @p t (_SENSOR_RUNOUT_HANDLER).
+std::vector<std::string> zmod_head_runout_prompt(int t) {
+    const std::string head = "T" + std::to_string(t);
+    return {"// action:prompt_end",
+            "// action:prompt_begin " + head + " runout",
+            "// action:prompt_text " + head + " runout",
+            "// action:prompt_text To load manually without pausing, press 'Manual'",
+            "// action:prompt_footer_button OK|RESPOND TYPE=command MSG=action:prompt_end|primary",
+            "// action:prompt_footer_button Manual|_SENSOR_NOT_PAUSE|secondary",
+            "// action:prompt_show"};
+}
+
+} // namespace
+
+TEST_CASE_METHOD(ZmodConsoleFixture, "A ZMOD resume refusal shows one dialog, not two",
+                 "[recovery-presenter][action_prompt][2155]") {
+    const std::string reason = GENERATE(
+        std::string("\"extruder\" is not hot enough (2), please heat it up and press RESUME again"),
+        std::string("\"e0_sensor\" has detected that the filament has run out, please load it "
+                    "and press RESUME"));
+    CAPTURE(reason);
+
+    feed(zmod_resume_refusal(reason));
+
+    CHECK(fault_dialog() != nullptr);
+    CHECK_FALSE(prompt_on_screen());
+    CHECK_FALSE(helix::ActionPromptManager::is_showing());
+}
+
+TEST_CASE_METHOD(ZmodConsoleFixture, "A ZMOD head runout pause closes that head's runout dialog",
+                 "[recovery-presenter][action_prompt][2155]") {
+    feed(zmod_head_runout_prompt(1));
+    REQUIRE(prompt_on_screen());
+
+    SECTION("the pause for that head") {
+        feed({"!! Filament runout detected T1"});
+        CHECK(fault_dialog() != nullptr);
+        CHECK_FALSE(prompt_on_screen());
+        CHECK_FALSE(helix::ActionPromptManager::is_showing());
+    }
+    SECTION("a pause for another head leaves it up") {
+        feed({"!! Filament runout detected T2"});
+        CHECK(fault_dialog() != nullptr);
+        CHECK(helix::ActionPromptManager::current_prompt_name() == "T1 runout");
+    }
 }
 
 TEST_CASE_METHOD(RecoveryPreheatFixture, "A fault with no actions offers OK to close it",

@@ -4949,6 +4949,8 @@
   <translation tag="The host heard nothing from this board for several seconds: a loose or failed USB or CAN cable, the board losing power, or a CAN bus without termination." ru="Хост несколько секунд не получал ответа от этой платы: ослаблен или неисправен кабель USB или CAN, плата потеряла питание или у шины CAN нет терминатора."/>
   <translation tag="The label didn&apos;t print: {}" ru="Этикетка не напечатана: {}"/>
   <translation tag="The lane forgets this spool. The filament itself stays where it is." ru="Канал забудет эту катушку. Сам филамент останется на месте."/>
+  <translation tag="The lane settings weren&apos;t changed, and the spool wasn&apos;t saved. Press Save to save the spool." ru="Настройки канала не изменены, и катушка не сохранена. Нажмите «Сохранить», чтобы сохранить катушку."/>
+  <translation tag="The lane settings weren&apos;t changed." ru="Настройки канала не изменены."/>
   <translation tag="The lane that takes over when this one runs out" ru="Канал, который продолжит, когда этот закончится"/>
   <translation tag="The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared." ru="Последняя печать, возможно, ещё на столе. Снимите её до того, как головка начнёт двигаться, затем нажмите «Очищено»."/>
   <translation tag="The latch opens and {} can drop. Hold it before you continue, then put it in its dock." ru="Защелка откроется, и {} может упасть. Придержите его, прежде чем продолжить, затем поставьте в док."/>

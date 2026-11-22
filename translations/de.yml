@@ -5053,6 +5053,8 @@ translations:
   : 'Der Host hat mehrere Sekunden lang nichts von dieser Platine gehört: ein lockeres oder defektes USB- oder CAN-Kabel, eine Platine ohne Strom oder ein CAN-Bus ohne Terminierung.'
   "The label didn't print: {}": "Das Etikett wurde nicht gedruckt: {}"
   The lane forgets this spool. The filament itself stays where it is.: 'Die Spur vergisst diese Spule. Das Filament selbst bleibt, wo es ist.'
+  The lane settings weren't changed, and the spool wasn't saved. Press Save to save the spool.: 'Die Spur-Einstellungen wurden nicht geändert, und die Spule wurde nicht gespeichert. Tippe auf Speichern, um die Spule zu speichern.'
+  The lane settings weren't changed.: 'Die Spur-Einstellungen wurden nicht geändert.'
   The lane that takes over when this one runs out: 'Die Spur, die übernimmt, wenn diese ausläuft'
   The last print may still be on the bed. Remove it before the toolhead moves, then tap Cleared.: "Der letzte Druck liegt möglicherweise noch auf dem Heizbett. Entfernen Sie ihn, bevor sich der Werkzeugkopf bewegt, und tippen Sie dann auf Geräumt."
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: Die Verriegelung öffnet sich und {} kann herunterfallen. Halten Sie es fest, bevor Sie fortfahren, und stellen Sie es dann in sein Dock.
