@@ -20,6 +20,7 @@
 #include "core/run_capture.h"
 #include "core/static_panel_registry.h"
 #include "display_format.h"
+#include "display_manager.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
@@ -722,10 +723,14 @@ void TimelapseVideosOverlay::detect_playback_capability() {
         for (const char* player : {"mpv", "ffplay"}) {
             if (on_path(player)) {
                 cached_player = player;
-                cached_can_play = true;
                 break;
             }
         }
+        const DisplayManager* dm = DisplayManager::instance();
+        const DisplayBackend* backend = dm ? dm->backend() : nullptr;
+        cached_can_play = helix::timelapse::external_player_can_show(
+            !cached_player.empty(),
+            backend && helix::ui::display_hosts_other_windows(backend->type()));
         cached_has_ffmpeg = on_path("ffmpeg");
     }
 

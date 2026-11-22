@@ -114,6 +114,16 @@ inline const char* display_backend_type_to_string(DisplayBackendType type) {
 namespace helix::ui {
 
 /**
+ * @brief Whether another program's window can appear on this screen
+ *
+ * Only SDL runs inside a window system. On DRM or the framebuffer this app holds
+ * the display, so a separate player window has nowhere to draw.
+ */
+inline bool display_hosts_other_windows(DisplayBackendType type) {
+    return type == DisplayBackendType::SDL;
+}
+
+/**
  * @brief Short lowercase name of the running display path, for keys and fingerprints
  *
  * "sdl", "fbdev", "drm", or "egl" for DRM rendering through EGL/OpenGL ES.

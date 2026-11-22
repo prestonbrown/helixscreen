@@ -1,6 +1,7 @@
 // Copyright (C) 2025-2026 356C LLC
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+#include "display_backend.h"
 #include "timelapse_thumbnailer.h"
 
 #include <chrono>
@@ -81,6 +82,18 @@ TEST_CASE("Video open: a player plays, else the phone QR, else a toast",
     CHECK(choose_video_open_action(true, "") == VideoOpenAction::Play);
     CHECK(choose_video_open_action(false, "http://x/a.mp4") == VideoOpenAction::PhoneQr);
     CHECK(choose_video_open_action(false, "") == VideoOpenAction::NoPlayerToast);
+}
+
+TEST_CASE("Video open: an installed player plays only where it can open a window",
+          "[timelapse][videos][playback]") {
+    // On DRM or the framebuffer this app holds the screen: ffplay "plays" to
+    // nothing and exits cleanly, so a tap must go to the phone QR instead.
+    CHECK(helix::ui::display_hosts_other_windows(DisplayBackendType::SDL));
+    CHECK_FALSE(helix::ui::display_hosts_other_windows(DisplayBackendType::DRM));
+    CHECK_FALSE(helix::ui::display_hosts_other_windows(DisplayBackendType::FBDEV));
+    CHECK(external_player_can_show(true, true));
+    CHECK_FALSE(external_player_can_show(true, false));
+    CHECK_FALSE(external_player_can_show(false, true));
 }
 
 TEST_CASE("Player exit: only a clean exit is a success", "[timelapse][videos][playback]") {
