@@ -678,6 +678,21 @@ ones). Overlays stay in the tree when another is pushed on top of them, so
 without this a name present in both would resolve to the one behind — a click
 that reports success and does nothing.
 
+Every command that takes a widget name uses this one lookup (`click`,
+`set_value`, `scroll`, `focus`, `state`, `text`, `geom`, `screenshot --target`,
+and `navigate <widget>`), so two commands given the same name land on the same
+widget. When a plain name matches more than one visible widget, `click` and
+`geom` list every match's path under `name_matches`; the reply's `path` (for
+`geom`, `resolved_path`) is the one acted on.
+
+**A sleeping display hides the whole screen.** While the display is asleep,
+dimmed under a screensaver or blanked, the active screen object itself is
+hidden, so every widget on it has a hidden ancestor. `click`, `set_value`,
+`scroll`, `focus`, `navigate` and `wake` therefore wake the display and wait up
+to about a second for the active screen to show again before they resolve
+anything. If it stays hidden, `click`'s refusal says the active screen is
+hidden rather than blaming the widget.
+
 Mutating responses echo `path` (the widget actually hit), `handlers` (its
 registered event count, of every kind), and
 `active_screen` (a `panel > overlay > overlay` breadcrumb). `click` also reports
@@ -801,8 +816,13 @@ helix-screen ctl geom details_view 2      # recurse 2 levels into children
 | `content_w`, `content_h` | Inner area, padding excluded |
 | `req_w`, `req_h` | The size **as authored**: `"content"`, `"50%"`, or a pixel count |
 | `flex_grow` | Flex grow factor |
-| `hidden`, `scrollable` | Flag state |
+| `hidden`, `scrollable` | The entry's own flags. `hidden: false` does not mean visible: see `hidden_by` |
 | `scroll` | `top`/`bottom`/`left`/`right` scrollable extents |
+
+Alongside `widgets`, the reply carries `resolved_path` (the widget measured,
+which `path` in the entries does not give for a name), `hidden_by` (the
+ancestor that hides it, when one does; `s` is the active screen hidden by a
+sleeping display) and, for an ambiguous name, `name_matches`.
 
 `req_*` reports the authored form rather than the raw coord, because LVGL packs
 `LV_SIZE_CONTENT` and percentages into the integer — printed raw they surface as

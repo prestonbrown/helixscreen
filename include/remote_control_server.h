@@ -242,6 +242,12 @@ class RemoteControlServer {
     // Execute a function on the UI thread and wait for result
     nlohmann::json execute_on_ui_thread(std::function<nlohmann::json()> fn);
 
+    // Wake the display and wait, briefly, for it to show the active screen again.
+    // A sleeping display finishes waking on the main loop after the current
+    // update batch, and until then every widget on the screen is hidden.
+    // Transport thread only.
+    void wake_and_await_screen();
+
     // State
     std::atomic<bool> running_{false};
     std::unique_ptr<IRemoteTransport> transport_;
