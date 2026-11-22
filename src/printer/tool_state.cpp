@@ -1194,8 +1194,8 @@ void ToolState::request_tool_change(int tool_index, IMoonrakerAPI* api,
     // Klipper auto-defines Tn → ACTIVATE_EXTRUDER for plain multi-extruder,
     // and toolchanger plugins (ktcc, tapchanger, etc.) override Tn with
     // proper physical tool change logic.
-    // HEAD_LABEL_OK: plain multi-extruder and toolchanger rigs, where Tn is the head change; lane
-    // rigs go through the AMS backend above
+    // HEAD_LABEL_OK: the printer's own Tn macro: the head change on plain multi-extruder and
+    // toolchanger rigs, and the requested tool on a lane rig whose backend has no slot for it
     std::string gcode = helix::ui::tool_label(tool_index);
     spdlog::info("[ToolState] Requesting tool change to T{} via gcode", tool_index);
 
