@@ -542,6 +542,9 @@ sudo systemctl restart helixscreen
 1. Touch device not detected
 2. Wrong input device
 3. Permission issues
+4. The touch controller stopped sending
+
+A touchscreen does not have to be connected when HelixScreen starts. If it is plugged in later, or its USB connection takes a few seconds to come up after boot, HelixScreen picks it up within a second of it appearing, with no restart.
 
 **Solutions:**
 
@@ -569,6 +572,8 @@ Edit `settings.json` in your install's `config/` directory (see [Config File Loc
   }
 }
 ```
+
+**If evtest shows nothing when you tap:** the touch controller itself has stopped sending, and HelixScreen cannot fix that from its side. Unplug the touchscreen's USB cable and plug it back in (HelixScreen reconnects to it on its own), or reboot. If it keeps happening, move the touchscreen to a USB port that is not shared with other busy devices (a probe such as Cartographer, or the printer board), and check the power supply.
 
 **Check permissions:**
 ```bash
