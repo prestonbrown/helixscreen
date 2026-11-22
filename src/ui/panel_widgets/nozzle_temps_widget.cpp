@@ -90,9 +90,10 @@ void register_nozzle_temps_widget() {
 
 } // namespace helix
 
-std::vector<std::string> helix::distinct_extruder_names(const std::vector<ToolInfo>& tools) {
+std::vector<std::string> helix::distinct_extruder_names(const std::vector<ToolInfo>& tools,
+                                                        bool tools_are_lanes) {
     std::vector<std::string> result;
-    for (const auto& head : physical_heads(tools)) {
+    for (const auto& head : physical_heads(tools, false, tools_are_lanes)) {
         if (head.extruder_name)
             result.push_back(*head.extruder_name);
     }
@@ -269,7 +270,8 @@ void NozzleTempsWidget::rebuild_rows() {
     // single extruder; without the collapse a 4-lane unit shows its one nozzle
     // temp four times. A true toolchanger maps each tool to a distinct extruder,
     // so every nozzle still gets its own row.
-    for (const auto& extruder_name : distinct_extruder_names(ToolState::instance().tools())) {
+    for (const auto& extruder_name : distinct_extruder_names(
+             ToolState::instance().tools(), ToolState::instance().tools_are_lanes())) {
         ExtruderRow row;
         row.name = extruder_name;
         create_extruder_row(container, row);

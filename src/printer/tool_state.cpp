@@ -237,13 +237,6 @@ void ToolState::init_tools(const helix::PrinterDiscovery& hardware) {
             // "T{i}" pattern and must not be overwritten.
             tool.name = tool_names[i];
             tool.display_label = noun_tool_label(i);
-            // A klipper-toolchanger tool is a head, and its name stays the
-            // head's own once a filament system's lanes become the tools. Names
-            // counted from the extruders are only what T<n> selects, which a
-            // filament system's lane macros take over.
-            if (toolchanger_reports_mount_) {
-                tool.head_name = tool.name;
-            }
 
             // Map extruder by index if available
             if (i < static_cast<int>(extruder_names.size())) {
@@ -390,7 +383,6 @@ void ToolState::set_ams_topology(const ToolTopology& topo) {
                 t.heater_name = hardware->heater_name;
                 t.fan_name = hardware->fan_name;
                 t.gcode_offsets = hardware->gcode_offsets;
-                t.head_name = hardware->head_name;
             }
             if (named) {
                 t.extruder_name = extruder;
@@ -891,8 +883,10 @@ HeadIdentity head_identity(const std::vector<ToolInfo>& tools,
         id.index = rep;
         return id;
     }
-    id.name = tool.head_name;
-    id.index = head_index;
+    const PhysicalHead& head = heads[static_cast<size_t>(head_index)];
+    const auto extruder =
+        head.extruder_name ? tool_number_for_extruder(*head.extruder_name) : std::nullopt;
+    id.index = extruder.value_or(head_index);
     id.lane_code = tool.name;
     return id;
 }

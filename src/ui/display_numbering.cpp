@@ -97,8 +97,10 @@ std::string head_label_in_form(LaneNoun noun, const HeadIdentity& head, ToolLabe
     if (!head.name.empty())
         return tool_label_in_form(noun, head.name, head.index, form);
     const std::string code = extruder_label(head.index);
-    if (form == ToolLabelForm::Code || code.empty())
+    if (code.empty())
         return code;
+    if (form == ToolLabelForm::Code)
+        return lane_number_text(head.index);
     // Never shortened to the label alone, as a counted-from-zero "Tool 0 (T0)"
     // is: "Tool 5" there reads as T5, which on a lane rig loads some lane.
     return fmt::format(lv_tr("{} ({})"), lane_label(noun, head.index), code);
