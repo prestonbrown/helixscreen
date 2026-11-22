@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One alternate character in the keyboard's long-press popup. The cells share
+     the popup's width equally; a release is matched to the nearest cell center. -->
+<component>
+  <api>
+    <prop name="text" type="string" default=""/>
+  </api>
+  <view name="keyboard_alt_cell"
+        extends="lv_label" text="$text" flex_grow="1" style_text_font="#font_heading" style_text_color="#text"
+        style_text_align="center"/>
+</component>
