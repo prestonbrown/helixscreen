@@ -41,9 +41,7 @@ namespace helix::ui {
  * The state subjects live in a grow-only `IndexedSubjectPool` the renderer
  * owns, so a tile never outlives the subject it binds: the pool is reclaimed
  * only with the renderer, which resets every subject and so uninstalls any
- * binding a still-standing tile holds. `populate()` reuses the slots and
- * re-registers their names, so a second live renderer (a test's own beside
- * the app's) never leaves this one's tiles bound to the other's subjects.
+ * binding a still-standing tile holds. `populate()` reuses the slots.
  */
 class PrePrintOptionsRenderer {
   public:

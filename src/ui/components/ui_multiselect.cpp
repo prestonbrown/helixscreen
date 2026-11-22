@@ -71,7 +71,6 @@ void UiMultiselect::set_items(const std::vector<MultiSelectItem>& items) {
             "multiselect_checked", helix::xml::IndexedSubjectPool::Type::Int);
     }
     checked_pool_->ensure_size(items.size() + (select_all_label_.empty() ? 0 : 1));
-    checked_pool_->republish();
 
     if (!select_all_label_.empty()) {
         all_row_ = build_row({"all", select_all_label_}, true);

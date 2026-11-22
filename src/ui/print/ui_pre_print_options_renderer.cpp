@@ -163,7 +163,6 @@ void PrePrintOptionsRenderer::populate(lv_obj_t* container, const PrePrintOption
     // a sort key only — no subheaders rendered. The single PRINT OPTIONS card
     // header in print_file_detail.xml acts as the section title.
     state_pool_.ensure_size(option_set.options.size());
-    state_pool_.republish();
     for (const auto& opt : option_set.options) {
         make_row(container, opt, visibility_lookup);
     }
