@@ -13,6 +13,10 @@
      Finish wait for connection_test_passed, the step's own verdict; none of them
      needs Moonraker, which the wizard is still setting up. -->
 <component>
+  <styles>
+    <style name="content_gap" pad_top="#space_sm" pad_bottom="#space_sm"/>
+    <style name="content_gap_tight" pad_top="#space_xs" pad_bottom="#space_xs"/>
+  </styles>
   <api>
     <!-- Where the current step's screen goes; Wizard fills it from C++. -->
     <slot name="wizard_content"/>
@@ -27,15 +31,17 @@
       <style name="styles.cap_chrome"/>
     </wizard_frame_header>
 
-    <lv_obj name="wizard_content"
-            width="100%" flex_grow="1" scrollable="true" style_pad_all="0" style_pad_hor="#cal_page_pad_x"
-            style_pad_top="#space_sm"/>
+    <!-- A gap above the footer's divider, as the calibration pages leave: tighter at
+         480x272, where every row of the step counts. -->
+    <lv_obj name="wizard_content" width="100%" flex_grow="1" scrollable="true" style_pad_hor="#cal_page_pad_x">
+      <bind_style_if_ge name="content_gap" subject="ui_breakpoint" ref_value="1"/>
+      <bind_style_if_eq name="content_gap_tight" subject="ui_breakpoint" ref_value="0"/>
+    </lv_obj>
 
     <wizard_frame_footer name="wizard_footer"
                          back_name="btn_back" back_subject="wizard_back_text" back_tag=""
-                         back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked"
-                         back_style="cal_footer_btn_wide" skip_name="btn_skip" skip_style="cal_footer_skip_wide"
-                         skip_fill="1" skip_subject="wizard_skip_text" skip_tag=""
+                         back_hide_cond="wizard_back_visible eq 0" back_callback="on_back_clicked" skip_name="btn_skip"
+                         equal_width="1" skip_subject="wizard_skip_text" skip_tag=""
                          skip_hide_cond="wizard_show_skip eq 0" skip_callback="on_next_clicked" primary_name="btn_next"
                          primary_subject="wizard_next_text" primary_hide_subject="wizard_show_skip"
                          primary_disabled_cond="connection_test_passed ne 1" primary_needs_printer="0"

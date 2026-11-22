@@ -18,13 +18,10 @@
                               skip_compact_text ("Skip"); their widgets are named
                               <name>_compact. back_compact_subject retitles the compact
                               Back live, as back_subject does the full one
-     back_style="cal_footer_danger" outlines the leading button in red (Stop calibration);
-     back_style="cal_footer_btn_wide" and skip_style="cal_footer_skip_wide" give Back
-     and Skip the primary's minimum width, for a footer whose Back and Skip stand alone
-     at the edges (the setup wizard).
-     skip_fill="1"            in portrait Skip takes the width the others leave, as the
-                              primary does: for a footer whose Skip stands in for a
-                              hidden primary
+     back_style="cal_footer_danger" outlines the leading button in red (Stop calibration).
+     equal_width="1"          Back, Skip and the primary all take one width, #cal_steps_w
+                              (room for the longest translated caption), and in portrait
+                              share the row equally (the setup wizard; full captions only)
      skip_subject             a string subject that retitles Skip live
      primary_icon             a trailing icon on the primary (Start's chevron)
      primary_moves_machine    "true" installs the toolhead guard on the primary
@@ -51,9 +48,7 @@
            text_color="#text_muted" text_font="#cal_font_button"/>
     <style name="cal_footer_skip" border_width="2" border_color="#elevated_bg" text_color="#text"/>
     <style name="cal_footer_danger" border_width="2" border_color="#danger" text_color="#danger"/>
-    <style name="cal_footer_btn_wide" min_width="#cal_primary_w"/>
-    <style name="cal_footer_skip_wide"
-           min_width="#cal_primary_w" border_width="2" border_color="#elevated_bg" text_color="#text"/>
+    <style name="cal_footer_equal" width="#cal_steps_w" min_width="0"/>
     <style name="cal_footer_primary"
            min_width="#cal_primary_w" pad_left="#space_lg" pad_right="#space_lg" pad_top="0" pad_bottom="0"
            radius="#btn_radius" shadow_width="0" text_font="#cal_font_primary"/>
@@ -81,8 +76,7 @@
     <prop name="skip_hide_cond" type="string" default=""/>
     <prop name="skip_callback" type="string" default=""/>
     <prop name="skip_name" type="string" default="cal_footer_skip"/>
-    <prop name="skip_style" type="string" default="cal_footer_skip"/>
-    <prop name="skip_fill" type="int" default="0"/>
+    <prop name="equal_width" type="int" default="0"/>
     <prop name="compact_texts" type="int" default="0"/>
     <prop name="back_compact_text" type="string" default="Back"/>
     <prop name="back_compact_tag" type="string" default="Back"/>
@@ -142,6 +136,8 @@
           <style name="$back_style"/>
           <bind_flag_if_eq subject="$back_hide_subject" flag="hidden" ref_value="1"/>
           <bind_flag_if cond="$back_hide_cond" flag="hidden"/>
+          <bind_style_if name="cal_footer_equal" cond="${equal_width}"/>
+          <bind_style_if name="cal_footer_primary_fill" cond="ui_is_portrait eq 1 and ${equal_width}"/>
           <event_cb trigger="clicked" callback="$back_callback"/>
         </ui_button>
       </if>
@@ -219,10 +215,11 @@
                    height="#cal_button_h" variant="outline" bind_text="$skip_subject" text="$skip_text"
                    translation_tag="$skip_tag" hidden_if_empty="$skip_callback">
           <style name="cal_footer_btn"/>
-          <style name="$skip_style"/>
+          <style name="cal_footer_skip"/>
           <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
           <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
-          <bind_style_if name="cal_footer_primary_fill" cond="ui_is_portrait eq 1 and ${skip_fill}"/>
+          <bind_style_if name="cal_footer_equal" cond="${equal_width}"/>
+          <bind_style_if name="cal_footer_primary_fill" cond="ui_is_portrait eq 1 and ${equal_width}"/>
           <event_cb trigger="clicked" callback="$skip_callback"/>
         </ui_button>
       </if>
@@ -237,7 +234,7 @@
                      height="#cal_button_h" variant="outline" bind_text="$skip_subject" text="$skip_text"
                      translation_tag="$skip_tag" hidden_if_empty="$skip_callback">
             <style name="cal_footer_btn"/>
-            <style name="$skip_style"/>
+            <style name="cal_footer_skip"/>
             <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
             <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$skip_callback"/>
@@ -247,7 +244,7 @@
                      height="#cal_button_h" variant="outline" text="$skip_compact_text"
                      translation_tag="$skip_compact_tag" hidden_if_empty="$skip_callback">
             <style name="cal_footer_btn"/>
-            <style name="$skip_style"/>
+            <style name="cal_footer_skip"/>
             <bind_flag_if_eq subject="$skip_hide_subject" flag="hidden" ref_value="1"/>
             <bind_flag_if cond="$skip_hide_cond" flag="hidden"/>
             <event_cb trigger="clicked" callback="$skip_callback"/>
@@ -262,6 +259,7 @@
         <style name="cal_footer_primary"/>
         <style name="cal_footer_primary_off" selector="disabled"/>
         <bind_style_if_eq name="cal_footer_primary_fill" subject="ui_is_portrait" ref_value="1"/>
+        <bind_style_if name="cal_footer_equal" cond="${equal_width}"/>
         <bind_flag_if_eq subject="$primary_hide_subject" flag="hidden" ref_value="1"/>
         <!-- One condition for every reason: a primary that needs the printer is never
              live while it is unreachable, whatever the caller's own condition says. The

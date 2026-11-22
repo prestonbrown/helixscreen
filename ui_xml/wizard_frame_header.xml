@@ -50,7 +50,7 @@
     <style name="cal_hdr_grow" flex_grow="1"/>
     <style name="cal_hdr_align_end" text_align="right"/>
     <style name="cal_hdr_h" height="#cal_header_h" pad_top="0" pad_bottom="0"/>
-    <style name="cal_hdr_tall" height="content" pad_top="#space_md" pad_bottom="#space_md"/>
+    <style name="cal_hdr_tall" height="content" pad_top="#space_sm" pad_bottom="#space_sm"/>
   </styles>
   <api>
     <prop name="title" type="string" default=""/>
