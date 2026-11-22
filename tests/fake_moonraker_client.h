@@ -361,12 +361,16 @@ class FakeMoonrakerClient : public helix::IMoonrakerClient {
     }
     /// Every gcode_script() sent, oldest first.
     std::vector<std::string> gcode_scripts;
-    void get_gcode_store(int count, std::function<void(const std::vector<GcodeStoreEntry>&)>,
+    void get_gcode_store(int count,
+                         std::function<void(const std::vector<GcodeStoreEntry>&)> on_success,
                          helix::SharedCallback<void(const MoonrakerError&)>) override {
         last_gcode_store_count = count;
+        last_gcode_store_cb = std::move(on_success);
     }
     /// The entry count the most recent get_gcode_store() asked for, or -1 if none was asked.
     int last_gcode_store_count = -1;
+    /// The most recent get_gcode_store() success callback, for a test to answer.
+    std::function<void(const std::vector<GcodeStoreEntry>&)> last_gcode_store_cb;
     void get_temperature_store(std::function<void(const TemperatureStore&)>,
                                helix::SharedCallback<void(const MoonrakerError&)>) override {}
     void discover_printer(helix::SharedCallback<void()>,
