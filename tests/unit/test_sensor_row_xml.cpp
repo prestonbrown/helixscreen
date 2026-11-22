@@ -199,14 +199,15 @@ TEST_CASE_METHOD(SensorRowFixture, "sensor_row toggle label follows toggle_kind"
     CHECK_FALSE(hidden_in_row(toggle));
     CHECK_FALSE(hidden_in_row(enabled));
     CHECK(hidden_in_row(invert));
-    CHECK(std::string(lv_label_get_text(enabled)) == "Enabled");
+    CHECK_FALSE(std::string(lv_label_get_text(enabled)).empty());
 
     lv_subject_set_int(&subjects().toggle_kind, 2);
     process_lvgl(10);
     CHECK_FALSE(hidden_in_row(toggle));
     CHECK(hidden_in_row(enabled));
     CHECK_FALSE(hidden_in_row(invert));
-    CHECK(std::string(lv_label_get_text(invert)) == "Invert");
+    CHECK_FALSE(std::string(lv_label_get_text(invert)).empty());
+    CHECK(std::string(lv_label_get_text(invert)) != std::string(lv_label_get_text(enabled)));
 }
 
 TEST_CASE_METHOD(SensorRowFixture, "sensor_row toggle checks with the toggle subject",

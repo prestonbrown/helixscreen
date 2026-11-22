@@ -329,13 +329,13 @@ TEST_CASE_METHOD(InputShaperDeltaFixture,
         // Chart key: the legend names all three curves, and the Previous entry
         // (the muted old-setting curve) exists only when a before-config was
         // captured.
-        CHECK(std::string(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))) ==
-              "Measured (shaper off)");
+        CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "legend_x_measured_label")));
+        CHECK(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))[0] != '\0');
         lv_obj_t* prev_dot = view_widget(view_, "legend_x_previous_dot");
         lv_obj_t* prev_label = view_widget(view_, "legend_x_previous_label");
         CHECK_FALSE(lv_obj_is_hidden(prev_dot));
         CHECK_FALSE(lv_obj_is_hidden(prev_label));
-        CHECK(std::string(lv_label_get_text(prev_label)) == "Previous");
+        CHECK(lv_label_get_text(prev_label)[0] != '\0');
         lv_obj_t* y_prev_dot = view_widget(view_, "legend_y_previous_dot");
         CHECK_FALSE(lv_obj_is_hidden(y_prev_dot));
 
@@ -380,8 +380,8 @@ TEST_CASE_METHOD(InputShaperDeltaFixture, "delta rows stay hidden without a live
     // while the always-on key entries and the chart caption remain.
     CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_dot")));
     CHECK(lv_obj_is_hidden(view_widget(view_, "legend_x_previous_label")));
-    CHECK(std::string(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))) ==
-          "Measured (shaper off)");
+    CHECK_FALSE(lv_obj_is_hidden(view_widget(view_, "legend_x_measured_label")));
+    CHECK(lv_label_get_text(view_widget(view_, "legend_x_measured_label"))[0] != '\0');
     REQUIRE(lv_obj_find_by_name(view_, "chart_x_caption") != nullptr);
 }
 

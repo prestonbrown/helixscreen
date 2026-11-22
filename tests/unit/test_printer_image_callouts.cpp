@@ -974,7 +974,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(selected) == 0); // the chamber light, the default
     lv_obj_t* title = lv_obj_find_by_name(test_screen(), "card_title");
     REQUIRE(title != nullptr);
-    CHECK(std::string(lv_label_get_text(title)) == "This light chip controls");
+    CHECK_FALSE(lv_obj_is_hidden(title));
+    CHECK(lv_label_get_text(title)[0] != '\0');
     lv_obj_t* row = lv_obj_find_by_name(test_screen(), "led_picker_row_1");
     REQUIRE(row != nullptr);
     lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);

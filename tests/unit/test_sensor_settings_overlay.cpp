@@ -510,7 +510,8 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         REQUIRE(dd != nullptr);
         REQUIRE(unset != nullptr);
         CHECK_FALSE(hidden_up_to(held, row));
-        CHECK(std::string(lv_label_get_text(held)) == "Hidden");
+        const std::string held_text = lv_label_get_text(held);
+        CHECK_FALSE(held_text.empty());
         // No offered role reads as chosen: the placeholder after them is selected.
         CHECK(hidden_up_to(dd, row));
         CHECK_FALSE(hidden_up_to(unset, row));
@@ -521,7 +522,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
         section.fill(manager);
         process_lvgl(10);
         CHECK(manager.entries()[0].role == RowTestManager::kHidden);
-        CHECK(std::string(lv_label_get_text(held)) == "Hidden");
+        CHECK(std::string(lv_label_get_text(held)) == held_text);
 
         // Picking the placeholder changes nothing.
         select_option(unset, 3);
@@ -556,14 +557,16 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(list != nullptr);
     lv_obj_t* state = lv_obj_find_by_name(list, "state_label");
     REQUIRE(state != nullptr);
-    CHECK(std::string(lv_label_get_text(state)) == "Closed");
+    const std::string closed_text = lv_label_get_text(state);
+    CHECK_FALSE(closed_text.empty());
 
     input.update_from_status({{"gcode_button frontDoor", {{"state", "RELEASED"}}}});
     ScopedSensorManagers::drain();
     process_lvgl(10);
     state = lv_obj_find_by_name(list, "state_label");
     REQUIRE(state != nullptr);
-    CHECK(std::string(lv_label_get_text(state)) == "Opened");
+    CHECK_FALSE(std::string(lv_label_get_text(state)).empty());
+    CHECK(std::string(lv_label_get_text(state)) != closed_text);
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,

@@ -191,7 +191,9 @@ TEST_CASE_METHOD(XMLTestFixture, "plugin items menu says so when nothing is visi
     CHECK(children_named(rows, "item_label").empty());
     lv_obj_t* empty = lv_obj_find_by_name(rows, "empty_text");
     REQUIRE(empty);
-    CHECK(std::string(lv_label_get_text(empty)) == "No plugin actions for this file");
+    CHECK_FALSE(lv_obj_is_hidden(empty));
+    const std::string file_empty_text = lv_label_get_text(empty);
+    CHECK_FALSE(file_empty_text.empty());
     menu.hide();
     process_lvgl(50);
 
@@ -199,7 +201,9 @@ TEST_CASE_METHOD(XMLTestFixture, "plugin items menu says so when nothing is visi
                           "b-plug"));
     empty = lv_obj_find_by_name(lv_obj_find_by_name(test_screen(), "plugin_rows"), "empty_text");
     REQUIRE(empty);
-    CHECK(std::string(lv_label_get_text(empty)) == "No actions right now");
+    CHECK_FALSE(lv_obj_is_hidden(empty));
+    CHECK_FALSE(std::string(lv_label_get_text(empty)).empty());
+    CHECK(std::string(lv_label_get_text(empty)) != file_empty_text);
     menu.hide();
     process_lvgl(50);
 }

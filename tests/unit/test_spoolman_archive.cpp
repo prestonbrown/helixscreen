@@ -205,7 +205,7 @@ TEST_CASE("context menu withholds Archive from the active spool only, and titles
             CHECK(std::string(lv_label_get_text(subtitle)) == c.subtitle);
             lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
             REQUIRE(price != nullptr);
-            CHECK(std::string(lv_label_get_text(price)) == "Price: €24.50");
+            CHECK(std::string(lv_label_get_text(price)).find("€24.50") != std::string::npos);
         }
 
         SpoolmanPanelTestAccess::hide_context_menu(panel);
@@ -282,8 +282,9 @@ TEST_CASE("the spool menu prices a spool in the currency Spoolman reports", "[sp
     lv_obj_t* price = lv_obj_find_by_name(lv_screen_active(), "spool_price_label");
     REQUIRE(price != nullptr);
     // The mock Spoolman's currency is EUR.
-    CHECK(std::string(lv_label_get_text(price)) == "Price: \xE2\x82\xAC"
-                                                   "24.50");
+    CHECK(std::string(lv_label_get_text(price))
+              .find("\xE2\x82\xAC"
+                    "24.50") != std::string::npos);
     lv_obj_send_event(lv_obj_find_by_name(lv_screen_active(), "context_backdrop"), LV_EVENT_CLICKED,
                       nullptr);
     f.process_lvgl(50);

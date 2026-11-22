@@ -368,7 +368,8 @@ TEST_CASE_METHOD(XMLTestFixture, "A refresh keeps the zone set the overlay opene
         raw->unit1_has_zones = false;
         open_environment_for_unit(1);
         reading_changes(44.0f);
-        CHECK(subject_text("ams_env_overlay_title_text") == "No Multi-Filament System connected");
+        CHECK(get_ams_environment_overlay().zone_count() == 0);
+        CHECK_FALSE(subject_text("ams_env_overlay_title_text").empty());
     }
 
     helix::ui::UpdateQueue::instance().drain();

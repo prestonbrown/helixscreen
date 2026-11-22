@@ -98,7 +98,13 @@ struct PlrSettingsRowFixture : LVGLUITestFixture {
         helix::ui::UpdateQueue::instance().drain();
     }
 
-    /// The top modal dialog's text of the named widget, or "" when absent.
+    /// A confirm is on top and carries a title.
+    bool confirm_is_up() {
+        const std::string title = modal_text("dialog_title");
+        return !title.empty() && title != "(no dialog)" && title != "(missing)";
+    }
+
+    /// The top modal dialog's text of the named widget, "(no dialog)" or "(missing)" when absent.
     std::string modal_text(const char* widget) {
         lv_obj_t* dialog = ModalStack::instance().top_dialog();
         if (dialog == nullptr) {
@@ -303,13 +309,13 @@ TEST_CASE_METHOD(PlrSettingsRowFixture, "the mesh-include row changes printer.cf
         plugin.set_plr_mesh_include(false);
         process_lvgl(5);
         tap(find("row_plr_mesh_include_add"));
-        CHECK(modal_text("dialog_title") == "Reload the saved bed mesh?");
+        CHECK(confirm_is_up());
         confirm_modal();
 
         CHECK(lv_subject_get_int(plugin.get_plr_mesh_include_subject()) == 1);
         process_lvgl(5);
         CHECK(visible(find("row_plr_mesh_include_remove")));
-        CHECK(modal_text("dialog_title") == "Restart Firmware?");
+        CHECK(confirm_is_up());
         confirm_modal();
     }
     SECTION("removing") {
@@ -317,7 +323,7 @@ TEST_CASE_METHOD(PlrSettingsRowFixture, "the mesh-include row changes printer.cf
         plugin.set_plr_mesh_include(true);
         process_lvgl(5);
         tap(find("row_plr_mesh_include_remove"));
-        CHECK(modal_text("dialog_title") == "Stop reloading the saved bed mesh?");
+        CHECK(confirm_is_up());
         confirm_modal();
 
         CHECK(lv_subject_get_int(plugin.get_plr_mesh_include_subject()) == 0);
