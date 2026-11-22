@@ -515,6 +515,54 @@ std::string make_signature(std::string_view tier, int cols, int rows,
     return sig;
 }
 
+enum class TierFit { Unauthored, Fits, OffGrid };
+
+/// Whether @p list places anything at @p bp, and if so whether every placement
+/// it resolves stays on a @p cols x @p rows grid. A grid of 0x0 fits anything.
+TierFit tier_fit(const json& list, UiBreakpoint bp, int cols, int rows) {
+    bool authored = false;
+    for (const auto& entry : list) {
+        const json* placements = entry.is_object() ? ju::find_member(entry, "placements") : nullptr;
+        if (!placements || !placements->is_object()) {
+            continue;
+        }
+        const std::string key = choose_placement_key(*placements, bp, cols, rows);
+        const json* p = key.empty() ? nullptr : ju::find_member(*placements, key.c_str());
+        if (!p || !p->is_object()) {
+            continue;
+        }
+        authored = true;
+        if (cols > 0 && rows > 0 &&
+            (ju::safe_int(*p, "col", 0) + ju::safe_int(*p, "colspan", 1) > cols ||
+             ju::safe_int(*p, "row", 0) + ju::safe_int(*p, "rowspan", 1) > rows)) {
+            return TierFit::OffGrid;
+        }
+    }
+    return authored ? TierFit::Fits : TierFit::Unauthored;
+}
+
+/// The tier the whole table resolves at. @p bp itself whenever the table
+/// authors it. Otherwise the nearest tier the table does author whose every
+/// placement fits the grid, the smaller one first on a tie since it is the one
+/// more likely to fit; -1 when none does. Substituting the whole tier, rather
+/// than letting each widget inherit on its own, keeps one tier's coordinates
+/// from landing beside another's.
+int effective_tier(const json& list, int bp, int cols, int rows) {
+    if (tier_fit(list, as_breakpoint(bp), cols, rows) != TierFit::Unauthored) {
+        return bp;
+    }
+    constexpr int kTiers = to_int(UiBreakpoint::XXLarge) + 1;
+    for (int d = 1; d < kTiers; ++d) {
+        for (const int t : {bp - d, bp + d}) {
+            if (t >= 0 && t < kTiers &&
+                tier_fit(list, as_breakpoint(t), cols, rows) == TierFit::Fits) {
+                return t;
+            }
+        }
+    }
+    return -1;
+}
+
 } // namespace
 
 ResolvedDefault resolve_default_layout(const json& table, const json* overlay,
@@ -563,8 +611,14 @@ ResolvedDefault resolve_default_layout(const json& table, const json* overlay,
         }
     }
 
-    Resolver r(doc, as_breakpoint(bp), cols, rows, caps);
-    if (list) {
+    const int tier_bp = list ? effective_tier(*list, bp, cols, rows) : bp;
+    if (tier_bp != bp) {
+        spdlog::debug("[DefaultLayoutResolver] table {} authors no {} placements; using {}",
+                      variant_used, tier,
+                      tier_bp < 0 ? "none" : breakpoint_fallback_chain(as_breakpoint(tier_bp))[0]);
+    }
+    Resolver r(doc, as_breakpoint(tier_bp < 0 ? bp : tier_bp), cols, rows, caps);
+    if (list && tier_bp >= 0) {
         r.collect_tier_disabled(disabled_owner);
         for (const auto& entry : *list) {
             if (entry.is_object() && !ju::find_member(entry, "slot")) {

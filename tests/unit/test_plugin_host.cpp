@@ -428,6 +428,10 @@ TEST_CASE_METHOD(LVGLTestFixture,
     // The rebuilt home page builds its default temperature tile, whose
     // temp_display component wraps this C++ widget.
     ui_temp_display_init();
+    // Registrations and the tiles' subjects come up together, as at startup:
+    // the default page's tiles then attach to live subjects whichever cases
+    // ran before this one.
+    helix::PanelWidgetManager::instance().init_widget_subjects();
     HostRig rig(enabled("widget-demo", {}));
     rig.host->load_from("tests/fixtures/plugins");
     REQUIRE(rig.info("widget-demo")->status == PluginStatus::Loaded);

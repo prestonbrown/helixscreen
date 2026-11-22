@@ -204,9 +204,9 @@ TEST_CASE("default_layout: the layout file's anchors, and the fallback when it h
         {"malformed JSON", "{ this is not valid json }}}}", fallback},
         {"an empty anchors array", R"({ "anchors": [] })", fallback},
         {"no anchors key", R"({ "something_else": true })", fallback},
-        {"no anchor has the runtime tier",
+        {"no anchor has the runtime tier: the nearest authored tier that fits is used",
          R"({"anchors": [{"id": "printer_image", "placements": {"large": {"col": 0, "row": 0, "colspan": 3, "rowspan": 3}}}]})",
-         fallback},
+         {{"printer_image", true, 0, 0, 3, 3}}},
         {"one anchor with the runtime tier is enough: the other is auto-placed",
          R"({"anchors": [
                {"id": "printer_image", "placements": {"tiny": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2}}},
@@ -621,10 +621,12 @@ const std::map<std::string, TrackBudget> kLandscapeBudget = {
     {"xxlarge", {24, 14}},
 };
 
-/// The two shipping ultrawide panels, measured the same way.
+/// The ultrawide panels, measured the same way.
 const std::map<std::string, TrackBudget> kUltrawideBudget = {
-    {"tiny", {36, 8}},  // 1480x320
-    {"small", {46, 10}} // 1920x440
+    {"tiny", {36, 8}},   // 1480x320
+    {"small", {46, 10}}, // 1920x440
+    {"medium", {30, 8}}, // 1920x480
+    {"xlarge", {34, 10}} // 2560x720
 };
 
 struct AnchorRect {
@@ -1998,6 +2000,20 @@ const std::vector<Persona> kPersonas = {
      {{"printer_image", 0, 0, 8, 4}, {"temperature", 38, 0, 2, 2}, {"bed_temperature", 40, 0, 2, 2},
       {"fan_stack", 42, 0, 2, 2}, {"notifications", 44, 0, 2, 2}, {"filament", 44, 2, 2, 2},
       {"led", 42, 2, 2, 2}, {"print_status", 0, 4, 23, 6}, {"temp_graph", 23, 4, 23, 6}},
+     {"ams", "tips"}},
+    {"ultrawide 1920x480: the same two bands on the coarser medium grid",
+     "medium", 30, 8, {"ultrawide"},
+     {{"led_controllable", 1}, {"filament_sensor_count", 1}},
+     {{"printer_image", 0, 0, 6, 4}, {"temperature", 22, 0, 2, 2}, {"bed_temperature", 24, 0, 2, 2},
+      {"fan_stack", 26, 0, 2, 2}, {"notifications", 28, 0, 2, 2}, {"filament", 28, 2, 2, 2},
+      {"led", 26, 2, 2, 2}, {"print_status", 0, 4, 15, 4}, {"temp_graph", 15, 4, 15, 4}},
+     {"ams", "tips"}},
+    {"ultrawide 2560x720: the two bands edge to edge, the bell in the last column",
+     "xlarge", 34, 10, {"ultrawide"},
+     {{"led_controllable", 1}, {"filament_sensor_count", 1}},
+     {{"printer_image", 0, 0, 8, 4}, {"temperature", 26, 0, 2, 2}, {"bed_temperature", 28, 0, 2, 2},
+      {"fan_stack", 30, 0, 2, 2}, {"notifications", 32, 0, 2, 2}, {"filament", 32, 2, 2, 2},
+      {"led", 30, 2, 2, 2}, {"print_status", 0, 4, 17, 6}, {"temp_graph", 17, 4, 17, 6}},
      {"ams", "tips"}},
     {"ultratall 440x1920: notifications in the corner, the bed mesh below the graph",
      "small", 10, 44, {"portrait"},

@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- The on-screen keyboard's long-press popup: a card above the held key with
+     one keyboard_alt_cell per alternate character, left to right. KeyboardManager
+     creates it on the active screen, passing a size measured from font_heading so
+     the cells stay finger-sized at every breakpoint, then places it over the key. -->
+<component>
+  <api>
+    <prop name="width" type="string" default="0"/>
+    <prop name="height" type="string" default="0"/>
+    <prop name="pad" type="string" default="0"/>
+  </api>
+  <view name="keyboard_alt_popup"
+        extends="lv_obj" width="$width" height="$height" style_pad_all="$pad" style_bg_color="#card_bg"
+        style_bg_opa="229" style_border_width="2" style_border_color="#success" style_radius="8" style_shadow_width="10"
+        style_shadow_opa="76" flex_flow="row" style_flex_main_place="space_evenly" style_flex_cross_place="center"/>
+</component>

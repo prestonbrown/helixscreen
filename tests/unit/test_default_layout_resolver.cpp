@@ -117,10 +117,39 @@ TEST_CASE("resolver: tier fallback chains", "[default_layout_resolver]") {
             "large": {"col": 4, "row": 0, "colspan": 4, "rowspan": 2}}}]})json");
         require_cell(resolve(t2, "xxlarge", {}), "clock", 4, 0, 4, 2);
     }
-    SECTION("medium has no fallback") {
+    SECTION("medium has no chain, so the table falls to its nearest authored tier") {
         const json t = parse(R"json({"anchors": [{"id": "clock", "placements": {
             "small": {"col": 0, "row": 0, "colspan": 4, "rowspan": 2}}}]})json");
-        CHECK_FALSE(resolve(t, "medium", {}).ok);
+        require_cell(resolve(t, "medium", {}), "clock", 0, 0, 4, 2);
+    }
+}
+
+TEST_CASE("resolver: a table without the tier takes its nearest authored tier that fits",
+          "[default_layout_resolver]") {
+    // small and large are both one step from medium.
+    const json t = parse(R"json({"anchors": [
+      {"id": "clock", "placements": {
+        "small": {"col": 0, "row": 0, "colspan": 2, "rowspan": 2},
+        "large": {"col": 10, "row": 0, "colspan": 4, "rowspan": 2}}},
+      {"id": "printer_image", "placements": {
+        "large": {"col": 0, "row": 0, "colspan": 4, "rowspan": 4}}}],
+      "disabled": {"small": ["tips"]}})json");
+
+    SECTION("a tie goes to the smaller tier, the whole tier together") {
+        const auto r = resolve(t, "medium", {}, 16, 8);
+        REQUIRE(r.ok);
+        require_cell(r, "clock", 0, 0, 2, 2);
+        CHECK(placed_entry(r, "printer_image") == nullptr);
+        CHECK(is_disabled(r, "tips"));
+    }
+    SECTION("a tier off the grid gives way to a farther one on it") {
+        const json off = parse(R"json({"anchors": [{"id": "clock", "placements": {
+            "large": {"col": 20, "row": 0, "colspan": 4, "rowspan": 2},
+            "micro": {"col": 1, "row": 0, "colspan": 2, "rowspan": 2}}}]})json");
+        require_cell(resolve(off, "medium", {}, 16, 8), "clock", 1, 0, 2, 2);
+    }
+    SECTION("no authored tier fits the grid: not ok") {
+        CHECK_FALSE(resolve(t, "medium", {}, 1, 1).ok);
     }
 }
 
@@ -572,8 +601,8 @@ TEST_CASE("resolver: unknown ids are ignored and malformed tables are not ok",
     SECTION("unknown tier") {
         CHECK_FALSE(resolve(parse(kSlotTable), "gigantic", {}).ok);
     }
-    SECTION("no anchors for this tier") {
-        CHECK_FALSE(resolve(parse(kSlotTable), "large", {}).ok);
+    SECTION("no authored tier fits the grid") {
+        CHECK_FALSE(resolve(parse(kSlotTable), "large", {}, 6, 4).ok);
     }
 }
 
