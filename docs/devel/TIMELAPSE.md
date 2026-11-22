@@ -166,15 +166,55 @@ The timelapse settings overlay manages videos:
 - **Companion thumbnails** - the preview moonraker-timelapse renders as `<name>.jpg` beside each video (`<name>.thumb.jpg` is also accepted), fetched from the `timelapse` root
 - **Thumbnail caching** - uses the shared `ThumbnailCache` (`get_thumbnail_cache()`, keyed by `thumbnail_cache_id()`)
 - **Render controls** - frame count with capture info (filename + date), progress bar with inline status text, Render Now button
-- **Video playback** - detects available player (mpv preferred, ffplay fallback), launches fullscreen with auto-exit
+- **Video playback** - the in-app player (below) when ffmpeg is installed and the board can decode, else a QR code a phone scans to watch
 - **Delete with confirmation** - long-press card for delete option, confirmation dialog before removal
 - **Generation-based stale rejection** - `nav_generation_` and `thumb_generation_` counters prevent stale async callbacks from modifying UI after navigation changes
 
-**Playback arguments:**
-| Player | Arguments |
-|--------|-----------|
-| `mpv` | `--fs --keep-open=no` |
-| `ffplay` | `-autoexit -exitonmousedown -fs` |
+**What a tap does** is one pure rule, `helix::timelapse::choose_video_open_action()`
+(`include/timelapse_playback.h`), which the card tap and History's open both follow:
+
+| ffmpeg on PATH and the board decodes | Moonraker | Action |
+|---|---|---|
+| yes | same host | play the file in place |
+| yes | remote | download to the runtime dir, then play the copy |
+| no | any | QR code of the video's URL for a phone, else a toast |
+
+"The board decodes" is `inapp_player_supported()`: not the boards PlatformTier calls
+EMBEDDED (under 512 MB or one core). Each card's badge says which (`tap_badge_for()`).
+
+### In-app player
+
+`TimelapsePlayerOverlay` (`include/ui_overlay_timelapse_player.h`,
+`ui_xml/timelapse_player_overlay.xml`) plays a video on the app's own screen, on every
+display backend. It never links libav: `PlayerDecoder` (`include/timelapse_player_decoder.h`)
+runs `ffmpeg` as a child with its stdout on a pipe.
+
+- **Probe** - `ffprobe` for size, frame rate and duration; ffmpeg's own stderr header when
+  ffprobe is missing.
+- **Decode** - `ffmpeg -ss <t> -i <file> -an -vf scale=WxH -pix_fmt <fmt> -f rawvideo -`, the
+  size fitted to the screen with the video's aspect (`fit_frame()`), the format the display's
+  own: `rgb565le` for a 16-bit display, `bgr24` for 24, `bgra` (LVGL XRGB8888) for 32. The
+  child runs at nice 10 with two decoder threads, and dies with the app (`PR_SET_PDEATHSIG`).
+- **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and publishes
+  each into a one-slot `FrameExchange` when it is due (`pace_frame()`). The UI copies the
+  newest into one draw buffer and invalidates the image. A frame the UI has not taken
+  before the next arrives is dropped, never queued.
+- **Controls** - tap toggles the bars, which hide after 3 s while playing; play/pause (pause
+  stops reading, so ffmpeg blocks on the pipe); a scrub bar that seeks on release by
+  replacing the child with one started at `-ss`; at the end the last frame stays with a
+  replay button.
+- **Lifetime** - leaving the overlay, destroying it and seeking each kill and reap the child
+  (`terminate_and_reap()`); the worker is joined before the decoder goes away.
+
+Measured on the desktop mock (headless SDL, 800x480, XRGB8888), 20 s testsrc clips at 30 fps:
+
+| Clip | Decoded at | Added RSS | Main thread | Whole app | ffmpeg | Shown / dropped |
+|---|---|---|---|---|---|---|
+| 1280x720 H.264 | 800x450 | ~10 MB | 1.8% | 3.5% | 11.1% | 554 / 46 of 600 |
+| 640x480 H.264 | 640x480 | ~10 MB | 2.8% | 5.6% | 4.7% | 552 / 48 of 600 |
+
+CPU is percent of one core on a desktop x86 host; a printer's board costs several times
+more. The drops come from the UpdateQueue's 33 ms drain beating against 30 fps frames.
 
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`
@@ -190,7 +230,6 @@ The timelapse settings overlay manages videos:
 | `find_companion_thumbnail(video, listing)` | The preview beside a video: moonraker-timelapse's `video.jpg`, else `video.thumb.jpg` |
 | `ffmpeg_extract_args(input, output)` | Builds ffmpeg command to extract first frame as JPEG |
 | `is_video_file(filename)` | Checks for `.mp4`, `.mkv`, `.avi` extensions |
-| `build_player_args(player, path)` | Builds player-specific argument list |
 
 Local vs remote playback is decided by the `moonraker_is_remote` subject
 (`PrinterState::is_moonraker_remote()`) - the live websocket endpoint's verdict -
@@ -227,6 +266,12 @@ not by a hostname check in the thumbnailer.
 | `ui_xml/timelapse_video_card.xml` | Individual video card component (thumbnail, gradient, labels) |
 | `include/timelapse_thumbnailer.h` | Thumbnail extraction and playback utilities |
 | `src/print/timelapse_thumbnailer.cpp` | Utility function implementations |
-| `tests/unit/test_timelapse_videos.cpp` | Playback argument construction tests |
+| `tests/unit/test_timelapse_videos.cpp` | Phone URL tests |
+| `include/timelapse_playback.h` | Open-action rule, probe parsing, ffmpeg arguments, frame math, pacing, frame assembly and handoff |
+| `include/timelapse_player_decoder.h` | ffmpeg child + worker thread that feeds the player |
+| `include/ui_overlay_timelapse_player.h` | The in-app player overlay |
+| `ui_xml/timelapse_player_overlay.xml` | Player layout (frame, bars, scrub, E-stop) |
+| `tests/unit/test_timelapse_playback.cpp` | Tests for the pure player rules |
+| `tests/unit/test_timelapse_player_decoder.cpp` | Decoder lifetime: stop, seek, pause, end, reaping |
 | `include/display_format.h` | `format_short_date()` for smart date display |
 | `src/system/locale_formats.cpp` | `format_localized_short_date()` with 4 locale patterns |

@@ -1414,6 +1414,7 @@
   <translation tag="Download update?" it="Scaricare aggiornamento?"/>
   <translation tag="Download v{}?" it="Scaricare v{}?"/>
   <translation tag="Downloading the timelapse plugin..." it="Download del plugin timelapse..."/>
+  <translation tag="Downloading the timelapse..." it="Download del timelapse..."/>
   <translation tag="Downloading..." it="Download in corso..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" it="Download in corso... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" it="Disegna un&apos;onda a ogni tocco — aiuta a diagnosticare gli scostamenti"/>
@@ -4921,6 +4922,7 @@
   <translation tag="The temperature was changed elsewhere." it="La temperatura è stata modificata altrove."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." it="L&apos;amplificatore della termocoppia o del PT100 ha segnalato un guasto o una lettura fuori intervallo."/>
   <translation tag="The time, date, and system uptime" it="Ora, data e tempo di attività"/>
+  <translation tag="The timelapse could not be downloaded" it="Impossibile scaricare il timelapse"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." it="La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." it="Il plugin timelapse è installato. Per creare i video serve anche ffmpeg, che non è installato su questa stampante."/>
   <translation tag="The tool change under way finished, and the tool was not parked" it="Il cambio utensile in corso è terminato e l&apos;utensile non è stato parcheggiato"/>
@@ -5064,6 +5066,7 @@
   <translation tag="This update asks for new permissions:" it="Questo aggiornamento richiede nuovi permessi:"/>
   <translation tag="This update removes HelixScreen from the printer." it="Questo aggiornamento rimuove HelixScreen dalla stampante."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." it="Questo aggiorna i pacchetti del sistema operativo della stampante."/>
+  <translation tag="This video could not be played" it="Impossibile riprodurre questo video"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." it="Questa attesa termina solo alla sua temperatura: l&apos;annullamento richiede un arresto di emergenza e un riavvio del firmware."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset al tuo endstop e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." it="Questo applicherà lo Z-offset alla tua sonda e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente."/>

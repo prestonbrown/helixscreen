@@ -1508,6 +1508,7 @@ translations:
   Download update?: Télécharger la mise à jour ?
   Download v{}?: Télécharger v{} ?
   Downloading the timelapse plugin...: 'Téléchargement du plugin timelapse...'
+  Downloading the timelapse...: 'Téléchargement du timelapse...'
   Downloading...: Téléchargement...
   Downloading... {:.1f}/{:.1f} MB: Téléchargement... {:.1f}/{:.1f} Mo
   Draw a ripple at each touch — helps diagnose offsets: Dessine une ondulation à chaque contact — aide à diagnostiquer les décalages
@@ -5097,6 +5098,7 @@ translations:
   The temperature was changed elsewhere.: "La température a été modifiée ailleurs."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: L'amplificateur de thermocouple ou de PT100 a signalé un défaut ou une mesure hors plage.
   The time, date, and system uptime: Heure, date et temps de fonctionnement
+  The timelapse could not be downloaded: 'Le timelapse n''a pas pu être téléchargé'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Le dossier timelapse ou de logs chevauche un dossier protégé, le nettoyage est donc désactivé."
   Timelapse did not start: 'Le timelapse n''a pas démarré'
   Timelapse frames start after Klipper restarts.: 'Les images du timelapse commencent après le redémarrage de Klipper.'
@@ -5274,6 +5276,7 @@ translations:
   'This update asks for new permissions:': 'Cette mise à jour demande de nouvelles autorisations :'
   This update removes HelixScreen from the printer.: 'Cette mise à jour supprime HelixScreen de l''imprimante.'
   This upgrades the printer's operating system packages.: 'Cette opération met à jour les paquets du système d''exploitation de l''imprimante.'
+  This video could not be played: 'Cette vidéo n''a pas pu être lue'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Cette attente ne se termine qu''à sa température : l''annulation nécessite un arrêt d''urgence et un redémarrage du firmware.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Cela appliquera le Z-offset à votre butée et redémarrera Klipper pour enregistrer la configuration. L'imprimante se déconnectera brièvement.

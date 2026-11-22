@@ -185,6 +185,8 @@ src/helix_splash.cpp  # not in the v1 Core+AMS cut
 src/helix_watchdog.cpp  # not in the v1 Core+AMS cut
 src/main.cpp  # not in the v1 Core+AMS cut
 src/print/thumbnail_processor.cpp  # not in the v1 Core+AMS cut
+src/print/timelapse_player_decoder.cpp  # not in the v1 Core+AMS cut
+src/print/timelapse_playback.cpp  # not in the v1 Core+AMS cut
 src/print/timelapse_thumbnailer.cpp  # not in the v1 Core+AMS cut
 src/printer/ams_backend_mock.cpp  # NOT the blanket rule: this one IS compiled, but only on the CONFIG_HELIX_MOCK_PRINTER arm (MOCK_SRCS in CMakeLists.txt), never in the default build
 src/printer/ams_backend_mock_identity.cpp  # NOT the blanket rule: this one IS compiled, but only on the CONFIG_HELIX_MOCK_PRINTER arm (MOCK_SRCS in CMakeLists.txt), never in the default build
@@ -347,6 +349,7 @@ src/ui/printers/ui_overlay_printer_image_tagger.cpp  # compiled out by HELIX_HAS
 src/ui/components/ui_overlay_qr_scanner.cpp  # not in the v1 Core+AMS cut
 src/ui/print/ui_overlay_timelapse_install.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
 src/ui/print/ui_overlay_timelapse_settings.cpp  # scope decision 2026-08-12: unreachable while ESP discovery omits server.info#2; re-adding requires restoring these TUs + verifying flash budget
+src/ui/print/ui_overlay_timelapse_player.cpp  # the in-app player belongs to the viewer, which is gated off here
 src/ui/print/ui_overlay_timelapse_videos.cpp  # viewer UI is gated off here; its helix::ui entry points and the global accessors are stubbed in excluded_subsystems_stub.cpp, which is where kept callers resolve them
 src/ui/calibration/ui_panel_bed_mesh.cpp  # not in the v1 Core+AMS cut
 src/ui/calibration/ui_belt_path_sketch.cpp  # only the Belt Tension panel draws it; not in the v1 Core+AMS cut

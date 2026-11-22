@@ -1497,6 +1497,7 @@ translations:
   Download update?: ''
   Download v{}?: ''
   Downloading the timelapse plugin...: ''
+  Downloading the timelapse...: ''
   Downloading...: ''
   Downloading... {:.1f}/{:.1f} MB: ''
   Draw a ripple at each touch — helps diagnose offsets: ''
@@ -5060,6 +5061,7 @@ translations:
   The temperature was changed elsewhere.: ''
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: ''
   The time, date, and system uptime: ''
+  The timelapse could not be downloaded: ''
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: ''
   Timelapse did not start: ''
   Timelapse frames start after Klipper restarts.: ''
@@ -5238,6 +5240,7 @@ translations:
   'This update asks for new permissions:': ''
   This update removes HelixScreen from the printer.: ''
   This upgrades the printer's operating system packages.: ''
+  This video could not be played: ''
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'This wait ends only at its temperature: cancelling takes an emergency stop and a firmware restart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : ''

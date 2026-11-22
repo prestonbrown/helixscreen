@@ -1496,6 +1496,7 @@ translations:
   Download update?: 下载更新？
   Download v{}?: 下载 v{}？
   Downloading the timelapse plugin...: '正在下载延时摄影插件...'
+  Downloading the timelapse...: '正在下载延时摄影...'
   Downloading...: 下载中...
   Downloading... {:.1f}/{:.1f} MB: 下载中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: 在每次触摸时绘制涟漪 — 有助于诊断偏移
@@ -5085,6 +5086,7 @@ translations:
   The temperature was changed elsewhere.: "温度已在其他位置更改。"
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 热电偶或 PT100 放大器报告故障或读数超出范围。
   The time, date, and system uptime: 时间、日期和系统运行时长
+  The timelapse could not be downloaded: '无法下载延时摄影'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"
   Timelapse did not start: '延时摄影未启动'
   Timelapse frames start after Klipper restarts.: 'Klipper 重启后开始拍摄延时摄影帧。'
@@ -5262,6 +5264,7 @@ translations:
   'This update asks for new permissions:': '此更新请求新的权限：'
   This update removes HelixScreen from the printer.: '此更新会从打印机上移除 HelixScreen。'
   This upgrades the printer's operating system packages.: '这将升级打印机的操作系统软件包。'
+  This video could not be played: '无法播放此视频'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': '此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : 这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。

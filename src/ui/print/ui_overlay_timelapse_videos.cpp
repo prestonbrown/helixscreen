@@ -13,6 +13,7 @@
 #include "ui_info_qr_modal.h"
 #include "ui_modal.h"
 #include "ui_notification.h"
+#include "ui_overlay_timelapse_player.h"
 #include "ui_utils.h"
 
 #include "app_globals.h"
@@ -25,6 +26,7 @@
 #include "helix-xml/src/xml/parsers/lv_xml_responsive_grid_parser.h"
 #include "lv_draw_buf_guard.h"
 #include "lvgl.h"
+#include "platform_capabilities.h"
 #include "printer_state.h"
 #include "system/process_runner.h"
 #include "theme_manager.h"
@@ -53,9 +55,6 @@
 // answered yet (or names no timelapse root): the stock data_path layout.
 static constexpr const char* kTimelapseDataSubpath = "printer_data/timelapse/";
 
-// A player still running this long after launch has opened its window.
-static constexpr int kPlayerWatchMs = 2000;
-static constexpr uint32_t kPlayerWatchPollMs = 100;
 // One frame from a local file; a run this long is a stuck ffmpeg.
 static constexpr int kFrameExtractTimeoutSec = 10;
 
@@ -705,38 +704,18 @@ void TimelapseVideosOverlay::finish_extraction(const ExtractJob& job,
 // ============================================================================
 
 void TimelapseVideosOverlay::detect_playback_capability() {
-    // Cache detection results: player availability doesn't change at runtime
-    static bool detected = false;
-    static bool cached_can_play = false;
-    static bool cached_has_ffmpeg = false;
-    static std::string cached_player;
+    // Neither ffmpeg on PATH nor the board's size changes while the app runs.
+    static const bool cached_has_ffmpeg = [] {
+        int exit_code = -1;
+        return !helix::run_capture("which ffmpeg 2>/dev/null", exit_code).empty();
+    }();
+    static const bool cached_board_can_decode = [] {
+        const auto caps = helix::PlatformCapabilities::detect();
+        return helix::timelapse::inapp_player_supported(caps.total_ram_mb, caps.cpu_cores);
+    }();
 
-    if (!detected) {
-        detected = true;
-        auto on_path = [](const char* program) {
-            int exit_code = -1;
-            return !helix::run_capture(std::string("which ") + program + " 2>/dev/null", exit_code)
-                        .empty();
-        };
-
-        // Check for available players (only once per process)
-        for (const char* player : {"mpv", "ffplay"}) {
-            if (on_path(player)) {
-                cached_player = player;
-                break;
-            }
-        }
-        const DisplayManager* dm = DisplayManager::instance();
-        const DisplayBackend* backend = dm ? dm->backend() : nullptr;
-        cached_can_play = helix::timelapse::external_player_can_show(
-            !cached_player.empty(),
-            backend && helix::ui::display_hosts_other_windows(backend->type()));
-        cached_has_ffmpeg = on_path("ffmpeg");
-    }
-
-    can_play_ = cached_can_play;
     has_ffmpeg_ = cached_has_ffmpeg;
-    player_command_ = cached_player;
+    board_can_decode_ = cached_board_can_decode;
 
     // Remote vs same-host playback path follows the live connection verdict
     // (moonraker_is_remote subject).
@@ -745,23 +724,22 @@ void TimelapseVideosOverlay::detect_playback_capability() {
 
     // The badge says what a tap does: play here, or hand the video to a phone.
     // Whether a phone URL exists depends on the host, never on the file name.
-    int badge = 0;
-    switch (helix::timelapse::choose_video_open_action(can_play_, phone_url_for(""))) {
-    case helix::timelapse::VideoOpenAction::Play:
-        badge = 1;
-        break;
-    case helix::timelapse::VideoOpenAction::PhoneQr:
-        badge = 2;
-        break;
-    case helix::timelapse::VideoOpenAction::NoPlayerToast:
-        break;
-    }
-    lv_subject_set_int(&tap_badge_subject_, badge);
+    lv_subject_set_int(&tap_badge_subject_,
+                       helix::timelapse::tap_badge_for(
+                           helix::timelapse::choose_video_open_action(open_inputs(""))));
 
-    spdlog::info("[{}] Playback capability: can_play={} player='{}' ffmpeg={} local={} "
-                 "lan_ip='{}'",
-                 get_name(), can_play_, player_command_, has_ffmpeg_, is_local_moonraker_,
-                 lan_ipv4_);
+    spdlog::info("[{}] Playback capability: ffmpeg={} board_can_decode={} local={} lan_ip='{}'",
+                 get_name(), has_ffmpeg_, board_can_decode_, is_local_moonraker_, lan_ipv4_);
+}
+
+helix::timelapse::VideoOpenInputs
+TimelapseVideosOverlay::open_inputs(const std::string& filename) const {
+    helix::timelapse::VideoOpenInputs in;
+    in.ffmpeg_available = has_ffmpeg_;
+    in.board_can_decode = board_can_decode_;
+    in.moonraker_local = is_local_moonraker_;
+    in.phone_url = phone_url_for(filename);
+    return in;
 }
 
 // ============================================================================
@@ -827,9 +805,9 @@ std::string TimelapseVideosOverlay::phone_url_for(const std::string& filename) c
 }
 
 void TimelapseVideosOverlay::open_video(const std::string& filename) {
-    const std::string url = phone_url_for(filename);
-    switch (helix::timelapse::choose_video_open_action(can_play_, url)) {
-    case helix::timelapse::VideoOpenAction::Play:
+    switch (helix::timelapse::choose_video_open_action(open_inputs(filename))) {
+    case helix::timelapse::VideoOpenAction::PlayInApp:
+    case helix::timelapse::VideoOpenAction::DownloadThenPlay:
         play_video(filename);
         return;
     case helix::timelapse::VideoOpenAction::PhoneQr:
@@ -869,94 +847,37 @@ void TimelapseVideosOverlay::show_phone_fallback(const std::string& filename,
     }
 }
 
-void TimelapseVideosOverlay::launch_player(const std::vector<std::string>& args,
-                                           const std::string& filename) {
-    auto watch = helix::timelapse::spawn_watched_player(args, kPlayerWatchMs);
-    if (!watch) {
-        spdlog::error("[{}] Could not start {}: {}", get_name(), args.front(), strerror(errno));
-        ui_notification_warning(lv_tr("Video player failed to start"));
-        return;
-    }
-    player_watches_.push_back({*watch, filename});
-    if (!player_watch_timer_.get()) {
-        player_watch_timer_.reset(lv_timer_create(
-            [](lv_timer_t* t) {
-                static_cast<TimelapseVideosOverlay*>(lv_timer_get_user_data(t))
-                    ->poll_player_watches();
-            },
-            kPlayerWatchPollMs, this));
-    }
-}
-
-void TimelapseVideosOverlay::poll_player_watches() {
-    for (auto it = player_watches_.begin(); it != player_watches_.end();) {
-        const auto poll = helix::timelapse::poll_player_watch(it->watch);
-        if (poll.state == helix::timelapse::PlayerWatchState::Pending) {
-            ++it;
-            continue;
-        }
-        if (poll.state == helix::timelapse::PlayerWatchState::Exited &&
-            helix::timelapse::player_exit_failed(poll.wait_status)) {
-            const std::string how = helix::timelapse::describe_wait_status(poll.wait_status);
-            spdlog::warn("[{}] Video player for {} quit right after launch ({})", get_name(),
-                         it->filename, how);
-            show_phone_fallback(
-                it->filename,
-                fmt::format(lv_tr("The video player could not start on this printer ({}). Scan "
-                                  "the code with your phone to watch the timelapse."),
-                            how),
-                fmt::format(lv_tr("Video player failed to start ({})"), how));
-        }
-        it = player_watches_.erase(it);
-    }
-    if (player_watches_.empty()) {
-        player_watch_timer_.reset();
-    }
-}
-
 void TimelapseVideosOverlay::play_video(const std::string& filename) {
-    if (!can_play_ || player_command_.empty()) {
-        spdlog::warn("[{}] No video player available", get_name());
-        return;
-    }
-
     if (is_local_moonraker_) {
         // Local: the file is on this filesystem, under Moonraker's own root
         // when it told us where that is.
-        std::string path = local_video_path(filename);
-        auto args = helix::timelapse::build_player_args(player_command_, path);
-        spdlog::info("[{}] Playing local video: {} {}", get_name(), args[0], path);
-        launch_player(args, filename);
-    } else {
-        // Remote: download to /tmp then play
-        if (!api_)
-            return;
-
-        // Ensure temp directory exists
-        std::string timelapse_dir = app_get_runtime_dir() + "/helix_timelapse";
-        mkdir(timelapse_dir.c_str(), 0755);
-
-        auto tok = lifetime_.token();
-        std::string player = player_command_;
-
-        spdlog::info("[{}] Downloading remote video '{}' for playback", get_name(), filename);
-
-        std::string dest_path = timelapse_dir + "/" + filename;
-
-        api_->transfers().download_file_to_path(
-            "timelapse", filename, dest_path,
-            [this, tok, dest_path, player, filename](const std::string& /*path*/) {
-                tok.defer([this, dest_path, player, filename]() {
-                    auto args = helix::timelapse::build_player_args(player, dest_path);
-                    spdlog::info("[{}] Playing downloaded video: {} {}", get_name(), args[0],
-                                 dest_path);
-                    launch_player(args, filename);
-                });
-            },
-            [](const MoonrakerError& error) {
-                spdlog::error("[Timelapse Videos] Failed to download video: {}", error.message);
-            });
+        helix::ui::open_timelapse_player(local_video_path(filename), filename);
+        return;
     }
+    // Remote: download to the runtime dir, then play the copy.
+    if (!api_) {
+        return;
+    }
+    std::string timelapse_dir = app_get_runtime_dir() + "/helix_timelapse";
+    mkdir(timelapse_dir.c_str(), 0755);
+    const std::string dest_path = timelapse_dir + "/" + filename;
+    spdlog::info("[{}] Downloading remote video '{}' for playback", get_name(), filename);
+    ui_notification_info(lv_tr("Downloading the timelapse..."));
+
+    auto tok = lifetime_.token();
+    api_->transfers().download_file_to_path(
+        "timelapse", filename, dest_path,
+        [tok, dest_path, filename](const std::string& /*path*/) {
+            tok.defer("TimelapseVideosOverlay::play_downloaded", [dest_path, filename]() {
+                helix::ui::open_timelapse_player(dest_path, filename);
+            });
+        },
+        [tok](const MoonrakerError& error) {
+            spdlog::error("[Timelapse Videos] Failed to download video: {}", error.message);
+            tok.defer("TimelapseVideosOverlay::download_failed", []() {
+                ui_notification_warning(lv_tr("The timelapse could not be downloaded"));
+            });
+        });
 }
 
 // ============================================================================

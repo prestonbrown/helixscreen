@@ -1414,6 +1414,7 @@
   <translation tag="Download update?" en="Download update?"/>
   <translation tag="Download v{}?" en="Download v{}?"/>
   <translation tag="Downloading the timelapse plugin..." en="Downloading the timelapse plugin..."/>
+  <translation tag="Downloading the timelapse..." en="Downloading the timelapse..."/>
   <translation tag="Downloading..." en="Downloading..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" en="Downloading... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" en="Draw a ripple at each touch — helps diagnose offsets"/>
@@ -4921,6 +4922,7 @@
   <translation tag="The temperature was changed elsewhere." en="The temperature was changed elsewhere."/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." en="The thermocouple or PT100 amplifier reported a fault or a reading out of range."/>
   <translation tag="The time, date, and system uptime" en="The time, date, and system uptime"/>
+  <translation tag="The timelapse could not be downloaded" en="The timelapse could not be downloaded"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." en="The timelapse or logs folder overlaps a protected folder, so cleanup is off."/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." en="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer."/>
   <translation tag="The tool change under way finished, and the tool was not parked" en="The tool change under way finished, and the tool was not parked"/>
@@ -5064,6 +5066,7 @@
   <translation tag="This update asks for new permissions:" en="This update asks for new permissions:"/>
   <translation tag="This update removes HelixScreen from the printer." en="This update removes HelixScreen from the printer."/>
   <translation tag="This upgrades the printer&apos;s operating system packages." en="This upgrades the printer&apos;s operating system packages."/>
+  <translation tag="This video could not be played" en="This video could not be played"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." en="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart."/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect."/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." en="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect."/>

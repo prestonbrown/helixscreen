@@ -1494,6 +1494,7 @@ translations:
   Download update?: Download update?
   Download v{}?: Download v{}?
   Downloading the timelapse plugin...: Downloading the timelapse plugin...
+  Downloading the timelapse...: Downloading the timelapse...
   Downloading...: Downloading...
   Downloading... {:.1f}/{:.1f} MB: Downloading... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Draw a ripple at each touch — helps diagnose offsets
@@ -5057,6 +5058,7 @@ translations:
   The temperature was changed elsewhere.: The temperature was changed elsewhere.
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: The thermocouple or PT100 amplifier reported a fault or a reading out of range.
   The time, date, and system uptime: The time, date, and system uptime
+  The timelapse could not be downloaded: The timelapse could not be downloaded
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: The timelapse or logs folder overlaps a protected folder, so cleanup is off.
   Timelapse did not start: Timelapse did not start
   Timelapse frames start after Klipper restarts.: Timelapse frames start after Klipper restarts.
@@ -5235,6 +5237,7 @@ translations:
   'This update asks for new permissions:': 'This update asks for new permissions:'
   This update removes HelixScreen from the printer.: This update removes HelixScreen from the printer.
   This upgrades the printer's operating system packages.: This upgrades the printer's operating system packages.
+  This video could not be played: This video could not be played
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.

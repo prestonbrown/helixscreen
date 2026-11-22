@@ -1414,6 +1414,7 @@
   <translation tag="Download update?" zh="下载更新？"/>
   <translation tag="Download v{}?" zh="下载 v{}？"/>
   <translation tag="Downloading the timelapse plugin..." zh="正在下载延时摄影插件..."/>
+  <translation tag="Downloading the timelapse..." zh="正在下载延时摄影..."/>
   <translation tag="Downloading..." zh="下载中..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" zh="下载中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" zh="在每次触摸时绘制涟漪 — 有助于诊断偏移"/>
@@ -4921,6 +4922,7 @@
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." zh="热电偶或 PT100 放大器报告故障或读数超出范围。"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
+  <translation tag="The timelapse could not be downloaded" zh="无法下载延时摄影"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" zh="正在进行的换工具已完成，工具未停放"/>
@@ -5064,6 +5066,7 @@
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
   <translation tag="This update removes HelixScreen from the printer." zh="此更新会从打印机上移除 HelixScreen。"/>
   <translation tag="This upgrades the printer&apos;s operating system packages." zh="这将升级打印机的操作系统软件包。"/>
+  <translation tag="This video could not be played" zh="无法播放此视频"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." zh="此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到探针并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
