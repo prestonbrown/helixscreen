@@ -3142,12 +3142,10 @@ lv_obj_t* tag_pill_beside(AmsEditOverlayViewTestAccess& access, const char* drop
     while (!stack.empty()) {
         lv_obj_t* obj = stack.back();
         stack.pop_back();
-        if (lv_obj_get_child_count(obj) == 1) {
-            lv_obj_t* text = lv_obj_get_child(obj, 0);
-            if (lv_obj_check_type(text, &lv_label_class) &&
-                std::string(lv_label_get_text(text)) == "from tag") {
-                return obj;
-            }
+        // A status_pill is one label: the pill and its text are the same object.
+        if (lv_obj_check_type(obj, &lv_label_class) &&
+            std::string(lv_label_get_text(obj)) == "from tag") {
+            return obj;
         }
         for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i) {
             stack.push_back(lv_obj_get_child(obj, static_cast<int32_t>(i)));

@@ -12,8 +12,6 @@
  * calibration catalog (test_calibration_catalog.cpp).
  */
 
-#include "ui_status_pill.h"
-
 #include "../lvgl_ui_test_fixture.h"
 #include "../test_fixtures.h"
 #include "../test_helpers/xml_stand_in_subject.h"
@@ -36,7 +34,6 @@ class AdvancedBeltRowFixture : public XMLTestFixture {
   public:
     AdvancedBeltRowFixture() : XMLTestFixture() {
         setting_group_register();
-        ui_status_pill_register_widget();
         REQUIRE(register_component("setting_group_header"));
         REQUIRE(register_component("setting_action_row"));
         REQUIRE(register_component("advanced_panel"));

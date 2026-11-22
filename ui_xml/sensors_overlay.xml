@@ -239,11 +239,9 @@
       <!-- NO SENSORS PLACEHOLDER -->
       <!-- ================================================================== -->
       <!-- Shown only when no section lists a row -->
-      <centered_column name="no_sensors_placeholder" flex_grow="1" style_pad_all="#space_lg">
-        <bind_flag_if_not_eq subject="sensor_total_count" flag="hidden" ref_value="0"/>
-        <icon src="sensor" size="md" variant="secondary"/>
-        <text_small text="No sensors detected" style_margin_top="#space_sm"/>
-      </centered_column>
+      <empty_state name="no_sensors_placeholder"
+                   flex_grow="1" style_pad_all="#space_lg" icon="sensor" icon_size="md" text=""
+                   hint="No sensors detected" shown_subject="sensor_total_count"/>
 
       <!-- ================================================================== -->
       <!-- INFO NOTE -->

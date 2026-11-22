@@ -41,6 +41,26 @@ extern helix::Subject wizard_subtitle;
 // Global Instance
 // ============================================================================
 
+// Center the wizard header's bound subtitle labels (wizard_subtitle: the one-line
+// label and the two-line one portrait shows), or hand their alignment back to the header.
+static void center_wizard_subtitle(bool centered) {
+    lv_obj_t* header = lv_obj_find_by_name(lv_screen_active(), "wizard_header");
+    if (!header) {
+        return;
+    }
+    for (const char* name : {"cal_header_subtitle_bound", "cal_header_subtitle_bound_tall"}) {
+        lv_obj_t* label = lv_obj_find_by_name(header, name);
+        if (!label) {
+            continue;
+        }
+        if (centered) {
+            lv_obj_set_style_text_align(label, LV_TEXT_ALIGN_CENTER, 0);
+        } else {
+            lv_obj_remove_local_style_prop(label, LV_STYLE_TEXT_ALIGN, 0);
+        }
+    }
+}
+
 // Flag to force touch calibration step to show (for visual testing on SDL)
 static bool g_force_touch_calibration_step = false;
 
@@ -188,18 +208,17 @@ lv_obj_t* WizardTouchCalibrationStep::create(lv_obj_t* parent) {
         return screen_root_;
     }
 
-    // Lift the Next/Skip button group above the full-screen capture surface so it
-    // remains clickable during calibration. The group holds both Next and Skip
-    // (toggled by wizard_show_skip), so lifting the group keeps both accessible.
-    raised_skip_ = helix::ui::raise_control_above_capture(lv_screen_active(), "next_skip_group");
+    // Lift the footer's button row above the full-screen capture surface so it
+    // remains clickable during calibration. The row holds both Next and Skip
+    // (toggled by wizard_show_skip), so lifting the row keeps both accessible;
+    // Back is hidden on this first step.
+    raised_skip_ = helix::ui::raise_control_above_capture(
+        lv_obj_find_by_name(lv_screen_active(), "wizard_footer"), "cal_footer_row");
 
     test_touch_area_ = helix::ui::find_required(screen_root_, "test_touch_area", get_name());
 
     // Center the wizard subtitle for this step (keeps it clear of crosshair targets)
-    lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "wizard_subtitle");
-    if (subtitle) {
-        lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_CENTER, 0);
-    }
+    center_wizard_subtitle(true);
 
     // Re-set callbacks (cleanup() clears completion callback to prevent
     // updates to destroyed UI, so we must restore it for each create cycle)
@@ -251,11 +270,8 @@ void WizardTouchCalibrationStep::cleanup() {
     // Reset button text to "Next" (in case user skipped without completing)
     lv_subject_set_int(&wizard_show_skip, 0);
 
-    // Reset wizard subtitle alignment back to left (was centered for this step)
-    lv_obj_t* subtitle = lv_obj_find_by_name(lv_screen_active(), "wizard_subtitle");
-    if (subtitle) {
-        lv_obj_set_style_text_align(subtitle, LV_TEXT_ALIGN_LEFT, 0);
-    }
+    // Hand the subtitle's alignment back to the header (it was centered for this step)
+    center_wizard_subtitle(false);
 
     // Restore Next/Skip group to its original parent before deleting reparented widgets
     helix::ui::restore_raised_control(raised_skip_);

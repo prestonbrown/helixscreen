@@ -28,6 +28,7 @@
 #include "calibration_run.h"
 #include "calibration_run_steps.h"
 #include "core/update_queue.h"
+#include "helix-xml/src/xml/lv_xml.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
 #include "printer_state.h"
@@ -679,6 +680,40 @@ TEST_CASE_METHOD(CalibrationSendFixture,
     const auto start = start_calibration(ZOffsetCalibrationStrategy::FIRMWARE_MANAGED, {}, false);
     CHECK(start.scripts.empty());
     CHECK(start.state == ZOffsetCalibrationPanel::State::ERROR);
+}
+
+TEST_CASE_METHOD(CalibrationSendFixture,
+                 "Calibration adjust: the Z adjuster steps the probe and feeds its tape",
+                 "[ui_integration][zoffset][z_adjuster]") {
+    use_strategy(ZOffsetCalibrationStrategy::PROBE_CALIBRATE);
+    MoonrakerClientMock client(MoonrakerClientMock::PrinterType::VORON_24);
+    MoonrakerAPI api(client, state());
+    ZOffsetCalibrationPanel panel;
+    panel.init_subjects();
+    panel.set_api(&api);
+    ZOffsetCalibrationTestAccess::force_state(panel, ZOffsetCalibrationPanel::State::ADJUSTING);
+    const auto subject_int = [](const char* name) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, name);
+        REQUIRE(s != nullptr);
+        return lv_subject_get_int(s);
+    };
+
+    ZOffsetCalibrationTestAccess::pick_step(panel, 0);
+    CHECK(subject_int("zoffset_step") == 0);
+    CHECK(subject_int("zoffset_step_microns") == 10);
+    ZOffsetCalibrationTestAccess::nudge(panel, -1);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(client.last_send_script() == "TESTZ Z=-0.010");
+
+    ZOffsetCalibrationTestAccess::pick_step(panel, 3);
+    CHECK(subject_int("zoffset_step_microns") == 1000);
+    ZOffsetCalibrationTestAccess::nudge(panel, 1);
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(client.last_send_script() == "TESTZ Z=1.000");
+
+    // The tape shows the manual probe's Z.
+    panel.update_z_position(4.25f);
+    CHECK(subject_int("zoffset_z_microns") == 4250);
 }
 
 // --- reference tool --------------------------------------------------------

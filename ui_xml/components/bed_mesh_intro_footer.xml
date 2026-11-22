@@ -6,7 +6,7 @@
      the intro (bed_mesh_view 0). Shared by both orientations of
      bed_mesh_panel.xml. -->
 <component>
-  <view extends="calibration_wizard_footer"
+  <view extends="wizard_frame_footer"
         back_name="btn_mesh_profiles" back_text="Profiles" back_callback="on_bed_mesh_show_profiles"
         primary_name="cal_intro_primary" primary_text="Probe the bed" primary_callback="on_bed_mesh_probe_intro"
         primary_moves_machine="true" divider="0">

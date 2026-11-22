@@ -32,7 +32,7 @@ TEST_CASE_METHOD(XMLTestFixture,
     static helix::Subject ready;
     ready.init_int(1);
     lv_xml_register_subject(nullptr, "test_cal_intro_ready", &ready);
-    REQUIRE(register_component("calibration_wizard_footer"));
+    REQUIRE(register_component("wizard_frame_footer"));
     REQUIRE(register_component("components/cal_intro_section_label"));
     REQUIRE(register_component("components/calibration_intro"));
     const char* attrs[] = {"primary_text",

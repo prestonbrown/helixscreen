@@ -6,6 +6,7 @@
 #include "screensaver_heightfield.h"
 #include "screensaver_pixel_writer.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <functional>
@@ -468,6 +469,56 @@ TEST_CASE("a 2x upscale interpolates and a 4x one replicates, in either format",
             }
         }
         CHECK(sum / 16.0 == Catch::Approx(128.0).margin(2.0));
+    }
+}
+
+TEST_CASE("a 2x upscale gives each channel its own exact 3:1 bilinear mix",
+          "[screensaver][heightfield]") {
+    const PixelFormat format = GENERATE(PixelFormat::XRGB8888, PixelFormat::RGB565);
+    // A band inside the frame, so the vertical neighbour clamps at both of its edges.
+    const int32_t y_from = GENERATE(0, 2);
+    CAPTURE(static_cast<int>(format), y_from);
+    constexpr int32_t kW = 13;
+    constexpr int32_t kH = 9;
+    const int32_t y_to = y_from == 0 ? kH : 7;
+    std::vector<Rgb> frame(static_cast<size_t>(kW) * kH);
+    uint32_t seed = 0x2156u;
+    for (Rgb& c : frame) {
+        seed = seed * 1664525u + 1013904223u;
+        c = Rgb{static_cast<uint8_t>(seed >> 24), static_cast<uint8_t>(seed >> 16),
+                static_cast<uint8_t>(seed >> 8)};
+    }
+    // Pure red, green and blue cells, so a channel landing in another's place shows.
+    frame[0] = Rgb{255, 0, 0};
+    frame[static_cast<size_t>(kW) + 5] = Rgb{0, 255, 0};
+    frame[static_cast<size_t>(kW) * 3 + 12] = Rgb{0, 0, 255};
+
+    TestFrame got(kW * 2, kH * 2, format);
+    TestFrame want(kW * 2, kH * 2, format);
+    upscale_frame(frame, kW, kH, 2, y_from, y_to, got.target);
+
+    const auto at = [&](int32_t x, int32_t y) { return frame[static_cast<size_t>(y) * kW + x]; };
+    PixelWriter expect(want.target);
+    for (int32_t oy = y_from * 2; oy < y_to * 2; oy++) {
+        const int32_t sy = oy / 2;
+        const int32_t sy2 = std::clamp((oy & 1) == 0 ? sy - 1 : sy + 1, y_from, y_to - 1);
+        for (int32_t ox = 0; ox < kW * 2; ox++) {
+            const int32_t sx = ox / 2;
+            const int32_t side = (ox & 1) == 0 ? std::max(0, sx - 1) : std::min(kW - 1, sx + 1);
+            const auto mix = [&](uint8_t Rgb::*ch) {
+                const auto col = [&](int32_t x) { return 3 * (at(x, sy).*ch) + (at(x, sy2).*ch); };
+                return static_cast<uint8_t>((3 * col(sx) + col(side) + 8) >> 4);
+            };
+            expect.put_dithered(ox, oy, Rgb{mix(&Rgb::r), mix(&Rgb::g), mix(&Rgb::b)});
+        }
+    }
+    const PixelWriter read(got.target);
+    const PixelWriter ref(want.target);
+    for (int32_t oy = y_from * 2; oy < y_to * 2; oy++) {
+        for (int32_t ox = 0; ox < kW * 2; ox++) {
+            CAPTURE(ox, oy);
+            REQUIRE(read.get(ox, oy) == ref.get(ox, oy));
+        }
     }
 }
 

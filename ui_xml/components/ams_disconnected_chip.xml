@@ -8,10 +8,8 @@
     <prop name="disconnected" type="subject" default="ams_env_ind_off_flag"/>
   </api>
   <view name="ams_disconnected_chip"
-        extends="lv_obj" width="content" height="content" style_radius="9999" style_bg_color="#warning"
-        style_bg_opa="40" style_border_width="0" style_pad_left="#space_xs" style_pad_right="#space_xs"
-        style_pad_top="0" style_pad_bottom="0" scrollable="false" clickable="false" event_bubble="true">
+        extends="status_pill" text="Disconnected" variant="warning" radius="9999" pad_ver="0" clickable="false"
+        event_bubble="true">
     <bind_flag_if_eq subject="$disconnected" flag="hidden" ref_value="0"/>
-    <text_small text="Disconnected" style_text_color="#warning" clickable="false" event_bubble="true"/>
   </view>
 </component>

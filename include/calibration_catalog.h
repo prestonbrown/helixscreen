@@ -103,6 +103,9 @@ struct CatalogInputs {
     ZOffsetCalibrationStrategy z_strategy{};
     /// The probe measures with the nozzle itself (see probe_contacts_nozzle()).
     bool nozzle_contact_probe = false;
+    /// The firmware sets the nozzle height itself: probe_sets_nozzle_height(), or a
+    /// probe set up to touch the bed (ProbeSensorManager::z_probe_sets_z_by_touch()).
+    bool probe_sets_nozzle_height = false;
     std::vector<TierOverride> tier_overrides;
 };
 
@@ -119,6 +122,33 @@ inline constexpr size_t kStepCount = 13;
 [[nodiscard]] int total_minutes(const std::vector<StepInfo>& steps);
 /// Minutes of the steps the owner has to take part in.
 [[nodiscard]] int hands_on_minutes(const std::vector<StepInfo>& steps);
+
+/// Material temperatures the Heaters step tunes at (PLA).
+inline constexpr int kRunNozzleTempC = 210;
+inline constexpr int kRunBedTempC = 60;
+
+/// One heater as the Heaters step calibrates it, for pricing the step.
+struct HeaterPricing {
+    /// Seconds to heat from now to the calibration temperature, from the
+    /// shared thermal model (ThermalRateManager).
+    float heat_seconds = 0.0f;
+    /// The thermal model's whole-climb rate for this heater, seconds per degree.
+    float climb_rate = 0.0f;
+    bool bed = false;
+    /// MPC_CALIBRATE rather than PID_CALIBRATE.
+    bool mpc = false;
+    /// PID_CALIBRATE repeats cycles until they agree within a TOLERANCE, rather
+    /// than running a fixed number.
+    bool tolerance = false;
+};
+
+/// Seconds the calibration of one heater takes: heating to temperature, then
+/// the cycles a PID calibration runs at the length this heater's rate gives a
+/// cycle, or MPC's measurement.
+[[nodiscard]] float heater_calibration_seconds(const HeaterPricing& heater);
+
+/// The Heaters step's whole minutes for @p heaters, at least 1; 0 for none.
+[[nodiscard]] int heaters_step_minutes(const std::vector<HeaterPricing>& heaters);
 
 /// Database `calibration.steps` entries as overrides: entries with an unknown
 /// step id or tier are dropped.

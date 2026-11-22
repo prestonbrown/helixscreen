@@ -64,11 +64,12 @@ using namespace helix;
 static helix::Subject current_step;
 static helix::Subject total_steps;
 static helix::Subject wizard_title;
-static helix::Subject wizard_step_current;  // String for display, e.g., "1"
-static helix::Subject wizard_step_total;    // String for display, e.g., "7"
-static helix::Subject wizard_total_visible; // Int: 0 until the denominator is settled
+static helix::Subject wizard_step_text; // "Step 3 of 9", or "Step 3" while the total is unsettled
 static helix::Subject wizard_is_final_step; // Int: 0=not final, 1=final (for button visibility)
 static helix::Subject wizard_back_visible;
+static helix::Subject wizard_back_text; // "Back", or "Cancel" on an add-printer run's first step
+static helix::Subject wizard_next_text; // "Next", or "Finish" on the last step
+static helix::Subject wizard_skip_text; // "Skip", or "Skip for now" on the last step
 
 // Non-static: accessible from other wizard step files
 helix::Subject connection_test_passed{}; // Global: 0=connection not validated, 1=validated or N/A
@@ -80,9 +81,24 @@ static SubjectManager wizard_subjects_;
 
 // String buffers (must be persistent)
 static char wizard_title_buffer[64];
-static char wizard_step_current_buffer[8];
-static char wizard_step_total_buffer[8];
+static char wizard_step_text_buffer[64];
 static char wizard_subtitle_buffer[128];
+static char wizard_back_text_buffer[32];
+static char wizard_next_text_buffer[32];
+static char wizard_skip_text_buffer[48];
+
+// What the frame's texts were last composed from, so a language change can
+// recompose them.
+namespace {
+struct WizardChromeState {
+    int display_step = 1;
+    int display_total = 1;
+    bool total_visible = true;
+    bool is_last_step = false;
+    bool back_is_cancel = false;
+};
+} // namespace
+static WizardChromeState g_chrome;
 
 // Wizard container instance
 static helix::ui::WidgetRef wizard_container;
@@ -252,6 +268,7 @@ static void on_next_clicked(lv_event_t* e);
 static void ui_wizard_load_screen(helix::wizard::StepId step);
 static void ui_wizard_cleanup_current_screen();
 static void dismiss_wizard_container();
+static void publish_chrome_texts();
 static const char* get_step_title_from_xml(const char* comp_name);
 static const char* get_step_subtitle_from_xml(const char* comp_name);
 static void ui_wizard_purge_subtree_anims(lv_obj_t* root);
@@ -409,11 +426,14 @@ void ui_wizard_init_subjects() {
 
     UI_MANAGED_SUBJECT_STRING(wizard_title, wizard_title_buffer, "Welcome", "wizard_title",
                               wizard_subjects_);
-    UI_MANAGED_SUBJECT_STRING(wizard_step_current, wizard_step_current_buffer, "1",
-                              "wizard_step_current", wizard_subjects_);
-    UI_MANAGED_SUBJECT_STRING(wizard_step_total, wizard_step_total_buffer, "9", "wizard_step_total",
+    UI_MANAGED_SUBJECT_STRING(wizard_step_text, wizard_step_text_buffer, "", "wizard_step_text",
                               wizard_subjects_);
-    UI_MANAGED_SUBJECT_INT(wizard_total_visible, 1, "wizard_total_visible", wizard_subjects_);
+    UI_MANAGED_SUBJECT_STRING(wizard_back_text, wizard_back_text_buffer, "Back", "wizard_back_text",
+                              wizard_subjects_);
+    UI_MANAGED_SUBJECT_STRING(wizard_next_text, wizard_next_text_buffer, "Next", "wizard_next_text",
+                              wizard_subjects_);
+    UI_MANAGED_SUBJECT_STRING(wizard_skip_text, wizard_skip_text_buffer, "Skip", "wizard_skip_text",
+                              wizard_subjects_);
     UI_MANAGED_SUBJECT_INT(wizard_is_final_step, 0, "wizard_is_final_step", wizard_subjects_);
     UI_MANAGED_SUBJECT_STRING(wizard_subtitle, wizard_subtitle_buffer, "", "wizard_subtitle",
                               wizard_subjects_);
@@ -481,98 +501,23 @@ void ui_wizard_deinit_subjects() {
     spdlog::debug("[Wizard] Subjects deinitialized");
 }
 
-// Helper type for constant name/value pairs
-struct WizardConstant {
-    const char* name;
-    const char* value;
-};
-
-// Helper: Register array of constants to a scope
-static void register_constants_to_scope(lv_xml_component_scope_t* scope,
-                                        const WizardConstant* constants) {
-    if (!scope)
+// Compose the frame's texts (step counter, Back, Next, Skip) from g_chrome in the
+// current language.
+static void publish_chrome_texts() {
+    if (!wizard_subjects_initialized) {
         return;
-    for (int i = 0; constants[i].name != nullptr; i++) {
-        lv_xml_register_const(scope, constants[i].name, constants[i].value);
     }
-}
-
-void ui_wizard_container_register_responsive_constants() {
-    spdlog::debug("[Wizard] Registering responsive constants to wizard_container scope");
-
-    // Detect screen size using custom breakpoints
-    lv_display_t* display = lv_display_get_default();
-    int32_t hor_res = lv_display_get_horizontal_resolution(display);
-    int32_t ver_res = lv_display_get_vertical_resolution(display);
-    int32_t greater_res = LV_MAX(hor_res, ver_res);
-
-    // Determine button width based on breakpoint (only responsive constant remaining)
-    const char* button_width;
-    const char* size_label;
-
-    if (greater_res <= UI_BREAKPOINT_MICRO_MAX) { // ≤272: 480x272
-        button_width = "90";
-        size_label = "MICRO";
-    } else if (greater_res <= UI_BREAKPOINT_SMALL_MAX) { // 273-460
-        // TINY/SMALL share presets — button widths are too similar to warrant separate tiers
-        button_width = "110";
-        size_label = "TINY/SMALL";
-    } else if (greater_res <= UI_BREAKPOINT_MEDIUM_MAX) { // 481-800: 800x480
-        button_width = "140";
-        size_label = "MEDIUM";
-    } else { // >800: 1024x600+
-        button_width = "160";
-        size_label = "LARGE";
-    }
-
-    spdlog::debug("[Wizard] Screen size: {} (greater_res={}px)", size_label, greater_res);
-
-    // Register button width constant
-    WizardConstant constants[] = {
-        {"wizard_button_width", button_width}, {nullptr, nullptr} // Sentinel
-    };
-
-    // Register to wizard_container scope (parent)
-    lv_xml_component_scope_t* parent_scope = lv_xml_component_get_scope("wizard_container");
-    register_constants_to_scope(parent_scope, constants);
-    if (parent_scope)
-        helix::keep_xml_component_registered("wizard_container");
-
-    // Define child components that inherit this constant
-    const char* children[] = {
-        "wizard_touch_calibration",
-        "wizard_wifi_setup",
-        "wizard_connection",
-        "wizard_printer_identify",
-        "wizard_heater_select",
-        "wizard_fan_select",
-        "wizard_ams_identify",
-        "wizard_led_select",
-        "wizard_filament_sensor_select",
-        "wizard_calibration",
-        "wizard_language_chooser",
-        "wizard_appearance",
-        "wizard_screen_power",
-        "wizard_preferences",
-        "wizard_summary",
-        "wizard_telemetry",
-        nullptr // Sentinel
-    };
-
-    // Propagate to all children
-    int child_count = 0;
-    for (int i = 0; children[i] != nullptr; i++) {
-        lv_xml_component_scope_t* child_scope = lv_xml_component_get_scope(children[i]);
-        if (child_scope) {
-            register_constants_to_scope(child_scope, constants);
-            helix::keep_xml_component_registered(children[i]);
-            child_count++;
-        }
-    }
-
-    spdlog::debug(
-        "[Wizard] Registered wizard_button_width={} to wizard_container and {} child components",
-        button_width, child_count);
+    const std::string step_text =
+        g_chrome.total_visible ? fmt::format("{} {} {} {}", lv_tr("Step"), g_chrome.display_step,
+                                             lv_tr("of"), g_chrome.display_total)
+                               : fmt::format("{} {}", lv_tr("Step"), g_chrome.display_step);
+    lv_subject_set_string(&wizard_step_text, step_text.c_str());
+    lv_subject_set_string(&wizard_back_text,
+                          g_chrome.back_is_cancel ? lv_tr("Cancel") : lv_tr("Back"));
+    lv_subject_set_string(&wizard_next_text,
+                          g_chrome.is_last_step ? lv_tr("Finish") : lv_tr("Next"));
+    lv_subject_set_string(&wizard_skip_text,
+                          g_chrome.is_last_step ? lv_tr("Skip for now") : lv_tr("Skip"));
 }
 
 void ui_wizard_register_event_callbacks() {
@@ -709,8 +654,6 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     // Update current_step subject (internal step index for UI bindings)
     crash_handler::breadcrumb::note("wiz", "notify_current", static_cast<long>(step_idx));
     lv_subject_set_int(&current_step, step_idx);
-    crash_handler::breadcrumb::note("wiz", "notify_total_vis", static_cast<long>(step_idx));
-    lv_subject_set_int(&wizard_total_visible, total_visible ? 1 : 0);
 
     // Back button: visible when there is a previous non-skipped step, or when an
     // add-printer cancel callback is registered (shown as "Cancel" on step one).
@@ -718,40 +661,15 @@ void ui_wizard_navigate_to_step(helix::wizard::StepId step) {
     crash_handler::breadcrumb::note("wiz", "notify_back_vis", static_cast<long>(step_idx));
     lv_subject_set_int(&wizard_back_visible, (!at_first_visible || has_cancel) ? 1 : 0);
 
-    // Show "Cancel" instead of "Back" on the first step when add-printer cancel is available
-    if (wizard_container) {
-        lv_obj_t* btn_back = helix::ui::find_required(wizard_container, "btn_back", "Wizard");
-        if (btn_back) {
-            bool is_first_step = at_first_visible;
-            const char* btn_label_text = (is_first_step && has_cancel) ? "Cancel" : "Back";
-            // ui_button stores label as lv_label child — find it by type
-            lv_obj_t* lbl = nullptr;
-            uint32_t child_count = lv_obj_get_child_count(btn_back);
-            for (uint32_t i = 0; i < child_count; i++) {
-                lv_obj_t* child = lv_obj_get_child(btn_back, i);
-                if (lv_obj_check_type(child, &lv_label_class)) {
-                    lbl = child;
-                    break;
-                }
-            }
-            if (lbl) {
-                lv_label_set_text(lbl, btn_label_text);
-            }
-        }
-    }
-
     // Update final step flag for button visibility binding
     crash_handler::breadcrumb::note("wiz", "notify_final", static_cast<long>(step_idx));
     lv_subject_set_int(&wizard_is_final_step, is_last_step ? 1 : 0);
 
-    // Update progress display - step numbers as strings for bind_text
-    snprintf(wizard_step_current_buffer, sizeof(wizard_step_current_buffer), "%d", display_step);
-    crash_handler::breadcrumb::note("wiz", "notify_step_cur", static_cast<long>(step_idx));
-    lv_subject_set_string(&wizard_step_current, wizard_step_current_buffer);
-
-    snprintf(wizard_step_total_buffer, sizeof(wizard_step_total_buffer), "%d", display_total);
-    crash_handler::breadcrumb::note("wiz", "notify_step_tot", static_cast<long>(step_idx));
-    lv_subject_set_string(&wizard_step_total, wizard_step_total_buffer);
+    // "Cancel" replaces "Back" on the first step when add-printer cancel is available.
+    g_chrome = {display_step, display_total, total_visible, is_last_step,
+                at_first_visible && has_cancel};
+    crash_handler::breadcrumb::note("wiz", "notify_chrome_text", static_cast<long>(step_idx));
+    publish_chrome_texts();
 
     // Load screen content
     ui_wizard_load_screen(step);
@@ -779,12 +697,9 @@ void ui_wizard_set_title(const char* title) {
 }
 
 void ui_wizard_refresh_header_translations() {
-    // Re-translate and set the title/subtitle for the current step
-    // Called after language changes to update bound subjects with new translations
-    //
-    // Note: Progress text ("Step X of Y") and buttons (Next/Finish) now use
-    // translation_tag in XML, so they auto-refresh. Only title/subtitle need
-    // manual refresh since they're step-specific and loaded from XML consts.
+    // Re-translate the frame's bound texts after a language change: the step's
+    // title and subtitle (from its XML consts), the step counter and the
+    // Back/Next/Skip captions.
     int step_idx = lv_subject_get_int(&current_step);
     helix::wizard::Step* s =
         helix::wizard::step_by_id(static_cast<helix::wizard::StepId>(step_idx));
@@ -794,6 +709,7 @@ void ui_wizard_refresh_header_translations() {
 
     lv_subject_set_string(&wizard_title, lv_tr(title));
     lv_subject_set_string(&wizard_subtitle, lv_tr(subtitle));
+    publish_chrome_texts();
 
     spdlog::debug("[Wizard] Refreshed header translations for step {}", step_idx);
 }

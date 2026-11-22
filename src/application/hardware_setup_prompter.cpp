@@ -290,7 +290,6 @@ void HardwareSetupPrompter::launch_reconfig_wizard(std::vector<wizard::StepId> s
         return;
     }
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
     ui_wizard_init_subjects();
     // Ending the session — Cancel here, Finish in the on_complete callback
     // below — settles every guided role the session's steps could not
@@ -357,7 +356,6 @@ void HardwareSetupPrompter::launch_deferred_hardware_setup() {
     spdlog::info("[HardwareSetup] Launching deferred hardware setup ({} step(s))", steps.size());
 
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
     ui_wizard_init_subjects();
     // Back on the first targeted step has nothing to retreat to, so give it the
     // same dismiss semantics as the reconfig wizard.
@@ -664,7 +662,6 @@ void HardwareSetupPrompter::open_type_mismatch_review() {
 void HardwareSetupPrompter::launch_type_reidentify_wizard() {
     spdlog::info("[HardwareSetup] Launching printer re-identify wizard");
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
     ui_wizard_init_subjects();
     // Back on the first targeted step has nothing to retreat to, so give it the
     // same dismiss semantics as the deferred hardware-setup session.

@@ -682,6 +682,23 @@ asks `accept_cold_bed` for; `layer_start` reports `method: "layer_start"`, the
 wizard's note that the print resumes at the start of the next layer, and adds
 `accept_next_layer` to `requires`.
 
+### `HELIX_MOCK_PID_BUSY_FAIL`
+
+| Property | Value |
+|----------|-------|
+| Values | seconds, up to 3600 |
+| Default | none |
+
+`PID_CALIBRATE HEATER=heater_bed` fails at once with Klipper's "printer still busy after
+extended wait" line while the mock keeps `idle_timeout` at `Printing` for that many seconds,
+as a bed calibration that outlives the app's wait does, then stages the bed's PID gains and
+goes idle. A guided run shows its Heaters step as failed, waits on the Running page for the
+printer to finish, finds the staged gains and marks Heaters finished before the next step.
+
+```bash
+HELIX_MOCK_PID_BUSY_FAIL=30 ./build/bin/helix-screen --test
+```
+
 ### `HELIX_MOCK_PLR_FAIL`
 
 | Property | Value |
@@ -1739,6 +1756,17 @@ After about 1.2 s the mock answers with the firmware's runout line (`!! [flow_ca
 ```bash
 HELIX_MOCK_PA_FAIL=1 ./build/bin/helix-screen --test -vv
 ```
+
+### `HELIX_MOCK_CARTOGRAPHER_TOUCH`
+
+| | |
+|---|---|
+| **Values** | `1` |
+| **Default** | unset: the mock Cartographer is scan only (`touch.current_model: none`) |
+
+Set to any true value (`1`), the mock Cartographer reports a loaded touch model, as a printer reports once
+`CARTOGRAPHER_TOUCH_CALIBRATE` has run. The app then treats it as setting Z by touch, so the
+Calibration screen and the guided run drop the Z offset step (`include/probe_touch_z.h`).
 
 ### `HELIX_MOCK_PROBE_TYPE`
 

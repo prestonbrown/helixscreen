@@ -331,6 +331,12 @@ picks: the active one, else the last completed, else the first. The caption foll
 `set_current()`, `set_completed()` and `set_label()`. The AMS operation sidebar turns it on
 for its horizontal stepper (a narrow portrait screen).
 
+Each step's state is an int subject the bar owns (0 pending, 1 active, 2 done, 3 failed),
+and its label a string subject; the step components bind them, so the setters only write
+subjects. A list XML already drives, like the guided calibration run's
+(`calibration_run_step_row`), uses the same `step_progress_step_v` row and
+`step_progress_dot` with its own subjects: no number, no connector, a ring while pending.
+
 ---
 
 ## Sensor Framework

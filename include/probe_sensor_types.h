@@ -27,6 +27,7 @@ enum class ProbeSensorType {
     KLICKY = 8,         ///< Klicky magnetic probe (macro-based)
     PRTOUCH_V2 = 9,     ///< Creality prtouch_v2 pressure-based probe (K1/K1C/K1 Max)
     LOADCELL = 10,      ///< Load cell probe (e.g., FlashForge AD5M/AD5X)
+    PRTOUCH_V3 = 11,    ///< Creality prtouch_v3 strain-gauge probe (K2 series, Hi)
 };
 
 /// @brief Configuration for a probe sensor
@@ -47,11 +48,12 @@ struct ProbeSensorConfig {
 
 /// @brief Runtime state for a probe sensor
 struct ProbeSensorState {
-    bool triggered = false;      ///< Last QUERY_PROBE result (status key last_query)
-    float last_z_result = 0.0f;  ///< Last Z probe result in mm
-    float z_offset = 0.0f;       ///< Z offset in mm
-    bool z_offset_known = false; ///< z_offset came from status or a config section
-    bool available = false;      ///< Sensor available in current config
+    bool triggered = false;       ///< Last QUERY_PROBE result (status key last_query)
+    float last_z_result = 0.0f;   ///< Last Z probe result in mm
+    float z_offset = 0.0f;        ///< Z offset in mm
+    bool z_offset_known = false;  ///< z_offset came from status or a config section
+    bool available = false;       ///< Sensor available in current config
+    bool sets_z_by_touch = false; ///< Set up to find Z by touching the bed (touch_z)
 };
 
 inline constexpr EnumName<ProbeSensorRole> kProbeSensorRoles[] = {
@@ -70,6 +72,7 @@ inline constexpr EnumName<ProbeSensorType> kProbeSensorTypes[] = {
     {ProbeSensorType::KLICKY, "klicky", "Klicky"},
     {ProbeSensorType::PRTOUCH_V2, "prtouch_v2", "Creality ProTouch"},
     {ProbeSensorType::LOADCELL, "loadcell", "Load Cell"},
+    {ProbeSensorType::PRTOUCH_V3, "prtouch_v3", "Creality ProTouch"},
 };
 
 [[nodiscard]] inline std::string probe_role_to_string(ProbeSensorRole role) {
@@ -104,7 +107,21 @@ inline constexpr EnumName<ProbeSensorType> kProbeSensorTypes[] = {
     case ProbeSensorType::TAP:
     case ProbeSensorType::SMART_EFFECTOR:
     case ProbeSensorType::PRTOUCH_V2:
+    case ProbeSensorType::PRTOUCH_V3:
     case ProbeSensorType::LOADCELL:
+        return true;
+    default:
+        return false;
+    }
+}
+
+/// The firmware sets the nozzle height from this probe on every home and every print,
+/// as a vendor's own screen expects: there is no Z offset for the owner to calibrate,
+/// only the first-layer squish Print Tune adjusts.
+[[nodiscard]] constexpr bool probe_sets_nozzle_height(ProbeSensorType type) {
+    switch (type) {
+    case ProbeSensorType::PRTOUCH_V2:
+    case ProbeSensorType::PRTOUCH_V3:
         return true;
     default:
         return false;

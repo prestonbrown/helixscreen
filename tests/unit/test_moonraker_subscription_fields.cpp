@@ -589,7 +589,8 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
     SECTION("Cartographer reads its status from the probe object it registers") {
         json subs = build_with({"probe", "cartographer"});
         requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
-        REQUIRE_FALSE(subs.contains("cartographer"));
+        // Only its touch setup comes from its own object.
+        requires_fields(subs, "cartographer", {"touch"});
     }
 
     SECTION("the [probe] alias is not subscribed beside the specific object") {
@@ -601,7 +602,7 @@ TEST_CASE("Subscription: probe objects narrow to ProbeSensorManager reads",
     SECTION("an eddy object beside a Cartographer is not subscribed") {
         json subs = build_with({"probe", "probe_eddy_current carto", "cartographer"});
         requires_fields(subs, "probe", {"last_query", "last_z_result", "z_offset", "name"});
-        REQUIRE_FALSE(subs.contains("cartographer"));
+        requires_fields(subs, "cartographer", {"touch"});
         REQUIRE_FALSE(subs.contains("probe_eddy_current carto"));
     }
 

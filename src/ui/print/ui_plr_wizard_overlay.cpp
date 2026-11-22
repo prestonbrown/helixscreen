@@ -65,6 +65,10 @@ static helix::Subject s_plr_error;
 static char s_plr_error_buf[256];
 static helix::Subject s_plr_warn_layer_start;
 static helix::Subject s_plr_jog_step;
+/// The selected jog step in microns, and the toolhead's Z in microns: what the
+/// Z adjuster's tape zooms by and shows.
+static helix::Subject s_plr_jog_step_microns;
+static helix::Subject s_plr_z_microns;
 /// 1 once the plugin reports the resumed print starting.
 static helix::Subject s_plr_print_starting;
 /// 1 once a downward jog has landed on the tier-1 Z step.
@@ -87,6 +91,15 @@ bool s_wizard_open = false;
 constexpr const char* kNotifyHandler = "plr_wizard";
 constexpr std::array<double, 3> kJogStepsMm = {0.05, 0.1, 1.0};
 constexpr int kDefaultJogStep = 1;
+
+int jog_step_microns(int index) {
+    return static_cast<int>(std::lround(kJogStepsMm[static_cast<size_t>(index)] * 1000.0));
+}
+
+void select_jog_step(int index) {
+    lv_subject_set_int(&s_plr_jog_step, index);
+    lv_subject_set_int(&s_plr_jog_step_microns, jog_step_microns(index));
+}
 constexpr const char* kLayerStartWarning = "layer_start";
 
 /// A translated format string applied to @p args. A mistranslated
@@ -210,6 +223,9 @@ void PlrWizardOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(s_plr_error, s_plr_error_buf, "", "plr_wizard_error", subjects_);
         UI_MANAGED_SUBJECT_INT(s_plr_warn_layer_start, 0, "plr_warn_layer_start", subjects_);
         UI_MANAGED_SUBJECT_INT(s_plr_jog_step, kDefaultJogStep, "plr_jog_step", subjects_);
+        UI_MANAGED_SUBJECT_INT(s_plr_jog_step_microns, jog_step_microns(kDefaultJogStep),
+                               "plr_jog_step_microns", subjects_);
+        UI_MANAGED_SUBJECT_INT(s_plr_z_microns, 0, "plr_wizard_z_microns", subjects_);
         UI_MANAGED_SUBJECT_INT(s_plr_print_starting, 0, "plr_print_starting", subjects_);
         UI_MANAGED_SUBJECT_INT(s_plr_z_jogged, 0, "plr_z_jogged", subjects_);
         UI_MANAGED_SUBJECT_INT(s_plr_need_part, 0, "plr_need_part", subjects_);
@@ -305,7 +321,7 @@ void PlrWizardOverlay::open(IMoonrakerAPI* api) {
                             &s_plr_need_cold_bed, &s_plr_warn_layer_start, &s_plr_print_starting}) {
         lv_subject_set_int(s, 0);
     }
-    lv_subject_set_int(&s_plr_jog_step, kDefaultJogStep);
+    select_jog_step(kDefaultJogStep);
     lv_subject_set_string(&s_plr_progress, "");
     set_step(PlrWizardStep::Offer);
     listen_for_notifications();
@@ -610,7 +626,7 @@ void PlrWizardOverlay::handle_abort() {
 
 void PlrWizardOverlay::handle_step_select(int index) {
     if (index >= 0 && index < static_cast<int>(kJogStepsMm.size())) {
-        lv_subject_set_int(&s_plr_jog_step, index);
+        select_jog_step(index);
     }
 }
 
@@ -729,6 +745,7 @@ void PlrWizardOverlay::update_bed_live() {
 void PlrWizardOverlay::update_z_display(int centimm) {
     position::format_position(centimm, s_plr_z_buf, sizeof(s_plr_z_buf));
     lv_subject_set_string(&s_plr_z, s_plr_z_buf);
+    lv_subject_set_int(&s_plr_z_microns, centimm * 10);
 }
 
 // ============================================================================

@@ -9,7 +9,6 @@
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_temperature_utils.h"
-#include "ui_z_offset_indicator.h"
 
 #include "app_globals.h"
 #include "bed_plate_context.h"
@@ -108,6 +107,9 @@ void ZOffsetCalibrationPanel::init_subjects() {
     UI_MANAGED_SUBJECT_STRING(run_subtitle_short_subject_, run_subtitle_short_buf_, "",
                               "zoffset_run_subtitle_short", subjects_);
     UI_MANAGED_SUBJECT_INT(step_subject_, ztape::kDefaultStepIndex, "zoffset_step", subjects_);
+    UI_MANAGED_SUBJECT_INT(step_microns_subject_, ztape::step_microns(ztape::kDefaultStepIndex),
+                           "zoffset_step_microns", subjects_);
+    UI_MANAGED_SUBJECT_INT(z_microns_subject_, 0, "zoffset_z_microns", subjects_);
     UI_MANAGED_SUBJECT_INT(estimate_subject_, ztape::kNoEstimate, "zoffset_estimate", subjects_);
     UI_MANAGED_SUBJECT_STRING(guide_text_subject_, guide_text_buf_, "", "zoffset_guide_text",
                               subjects_);
@@ -140,10 +142,13 @@ void ZOffsetCalibrationPanel::init_subjects() {
                          static_cast<int>(strtol(idx, nullptr, 10)));
                  }
              }},
-            {"on_zoffset_nozzle_up",
-             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_nudge(+1); }},
-            {"on_zoffset_nozzle_down",
-             [](lv_event_t*) { get_global_zoffset_cal_panel().handle_nudge(-1); }},
+            // user_data "1" raises the nozzle off the bed, "-1" lowers it
+            {"on_zoffset_nudge",
+             [](lv_event_t* e) {
+                 if (auto direction = helix::ui::event_user_int(e)) {
+                     get_global_zoffset_cal_panel().handle_nudge(*direction);
+                 }
+             }},
             {"on_zoffset_back_clicked",
              [](lv_event_t*) { get_global_zoffset_cal_panel().handle_back_clicked(); }},
             {"on_zoffset_skip_clicked",
@@ -324,13 +329,8 @@ void ZOffsetCalibrationPanel::on_activate() {
     cumulative_z_delta_ = 0.0f;
     set_readout(z_text_subject_, "0.000");
 
-    // Reset the visual indicator
-    if (overlay_root_) {
-        lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name());
-        if (indicator) {
-            ui_z_offset_indicator_set_value(indicator, 0);
-        }
+    if (subjects_initialized_) {
+        lv_subject_set_int(&z_microns_subject_, 0);
     }
 
     if (start_run) {
@@ -1185,22 +1185,18 @@ void ZOffsetCalibrationPanel::handle_z_adjust(float delta) {
     if (state_ != State::ADJUSTING)
         return;
     adjust_z(delta);
-
-    // Flash the direction indicator
-    if (overlay_root_) {
-        lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name());
-        if (indicator) {
-            ui_z_offset_indicator_flash_direction(indicator, delta > 0 ? 1 : -1);
-        }
-    }
 }
 
 void ZOffsetCalibrationPanel::handle_step_pick(int index) {
     if (index < 0 || index >= ztape::kStepCount || !subjects_initialized_) {
         return;
     }
+    select_step(index);
+}
+
+void ZOffsetCalibrationPanel::select_step(int index) {
     lv_subject_set_int(&step_subject_, index);
+    lv_subject_set_int(&step_microns_subject_, ztape::step_microns(index));
 }
 
 void ZOffsetCalibrationPanel::handle_nudge(int direction) {
@@ -1229,7 +1225,7 @@ void ZOffsetCalibrationPanel::begin_adjust_session(bool from_probe) {
     session_start_microns_.reset();
     session_from_probe_ = from_probe;
     if (subjects_initialized_) {
-        lv_subject_set_int(&step_subject_, ztape::kDefaultStepIndex);
+        select_step(ztape::kDefaultStepIndex);
         lv_subject_set_int(&estimate_subject_, ztape::kNoEstimate);
     }
 }
@@ -1343,14 +1339,8 @@ void ZOffsetCalibrationPanel::update_z_position(float z_position) {
         refresh_guide();
     }
 
-    // Update the visual indicator (convert mm to microns)
-    if (overlay_root_) {
-        lv_obj_t* indicator =
-            helix::ui::find_required(overlay_root_, "z_offset_indicator", get_name());
-        if (indicator) {
-            int microns = static_cast<int>(z_position * 1000.0f);
-            ui_z_offset_indicator_set_value(indicator, microns);
-        }
+    if (subjects_initialized_) {
+        lv_subject_set_int(&z_microns_subject_, static_cast<int>(z_position * 1000.0f));
     }
 }
 

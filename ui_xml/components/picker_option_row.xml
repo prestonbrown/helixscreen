@@ -7,9 +7,11 @@
        current choice. C++ creates one per option and sets the label (a device
        or macro name is user text, and as a prop a leading '#' would read as a
        const). A caller that passes `callback` gets the row's `index` as event
-       user_data; `selected` maps to LV_STATE_CHECKED. -->
+       user_data. The row is lit while the int subject `selected_subject` (the
+       list's selection) equals `selected_value` (the row's index). -->
   <api>
-    <prop name="selected" type="boolean" default="false"/>
+    <prop name="selected_subject" type="string" default=""/>
+    <prop name="selected_value" type="string" default="0"/>
     <prop name="callback" type="string" default=""/>
     <prop name="index" type="string" default=""/>
     <prop name="pad_all" type="string" default="#space_sm"/>
@@ -17,15 +19,13 @@
     <!-- Optional trailing reading (a fan's speed), dimmed; hidden when empty. -->
     <prop name="value" type="string" default=""/>
   </api>
-  <styles>
-    <style name="selected" bg_color="#primary" bg_opa="30"/>
-  </styles>
   <view extends="lv_obj"
         width="100%" height="content" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center"
         style_flex_track_place="center" style_pad_all="$pad_all" style_pad_gap="$pad_gap" style_radius="6"
-        style_border_width="0" scrollable="false" clickable="true" checked="$selected">
-    <style name="selected" selector="checked"/>
+        scrollable="false" clickable="true">
+    <style name="styles.picker_row_base"/>
     <style name="styles.press_wash" selector="pressed"/>
+    <bind_style_if_eq name="styles.picker_row_selected" subject="$selected_subject" ref_value="$selected_value"/>
     <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
     <text_body name="option_label"
                text="" flex_grow="1" long_mode="dots" style_text_font="noto_sans_14" clickable="false"

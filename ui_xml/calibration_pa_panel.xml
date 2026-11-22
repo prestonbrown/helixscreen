@@ -143,7 +143,7 @@
         </calibration_intro-settings>
         <calibration_intro-badges>
           <cal_intro_badge name="pa_badge_time" text="about 4 min"/>
-          <cal_intro_badge name="pa_badge_heat" bind="pa_cal_intro_heat" warm="true"/>
+          <cal_intro_badge name="pa_badge_heat" bind="pa_cal_intro_heat" variant="warm"/>
           <cal_intro_badge name="pa_badge_filament" text="uses about 30 cm of filament"/>
           <cal_intro_badge name="pa_badge_plate" text="plate must be clear"/>
         </calibration_intro-badges>

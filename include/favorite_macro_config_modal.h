@@ -7,6 +7,7 @@
 
 #include <functional>
 #include <string>
+#include <vector>
 
 namespace helix {
 class IMoonrakerAPI;
@@ -46,6 +47,8 @@ class FavoriteMacroConfigModal : public Modal {
     void populate_macro_list();
     void populate_icon_grid();
     void refresh_highlights();
+    /// Lights the macro list row naming macro_name_.
+    void publish_macro_choice();
     void select_macro(const std::string& name);
     void select_icon(const std::string& name);
     void select_color(uint32_t color);
@@ -68,6 +71,8 @@ class FavoriteMacroConfigModal : public Modal {
     bool require_confirmation_ = true;
 
     lv_obj_t* macro_list_ = nullptr;
+    /// The macro list's rows in order: row i names listed_macros_[i].
+    std::vector<std::string> listed_macros_;
     lv_obj_t* icon_grid_ = nullptr;
 
     /// Saved-defaults editor opened from the Options tab. Owned here so it is

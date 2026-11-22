@@ -5,7 +5,7 @@
  * @file test_print_select_detail_subjects.cpp
  * @brief Unit tests for print select detail view subject initialization
  *
- * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option heap
+ * Pre-print toggle state lives in PrePrintOptionsRenderer's per-option
  * subjects. What is pinned here is the re-show reset: populate() re-initializes
  * every option from default_enabled, so opening a second file cannot inherit
  * the first file's toggles.
@@ -62,7 +62,6 @@
 #include "tool_state.h"
 #include "tools_used_cache.h"
 
-#include <chrono>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -71,7 +70,6 @@
 #include <optional>
 #include <set>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include "../catch_amalgamated.hpp"
@@ -2335,12 +2333,10 @@ TEST_CASE_METHOD(LVGLUITestFixture, "A parse finishing after cleanup never reach
         d.view, "assets/test_gcodes/exclude_object_test.gcode");
     d.view.run_when_loaded([&loaded]() { ++loaded; });
 
-    // The parse's result is built and waiting in the queue, not yet delivered.
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
-    while (helix::ui::UpdateQueueTestAccess::queue_empty(queue) &&
-           std::chrono::steady_clock::now() < deadline) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
-    }
+    // The parse's result is built and waiting in the queue, not yet delivered. The
+    // worker runs at background priority, so a busy machine can hold it off for as
+    // long as it likes: join it rather than wait a fixed time.
+    helix::test_access::gcode_viewer_wait_for_build(viewer);
     REQUIRE_FALSE(helix::ui::UpdateQueueTestAccess::queue_empty(queue));
     REQUIRE(loaded == 0);
 

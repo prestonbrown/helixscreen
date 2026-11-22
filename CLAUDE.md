@@ -174,6 +174,7 @@ On top of the `brainstorming` skill:
 - **Explain the signal first.** UI for a hardware reading opens with what each signal measures, which hardware and backends publish it, and which printers have none.
 - **Measure before suggesting.** `ctl geom` every surface an option will occupy at 800x480 and the smallest breakpoint, and draw options inside those numbers.
 - **Every header a plan defines** gets a `scripts/syntax_check.py` pass first.
+- **Reuse a widget before inventing one.** Before writing a component, search `ui_xml/components/` and `src/ui/components/` for one that already shows the concept (by structure and purpose, not name). Use it; if it is too limited, propose extending it (a prop, a variant, a binding) and discuss that, never fork a near-twin. A new widget only for a concept that is novel or fundamentally different, after that check. `.claude/rules/declarative-ui.md` § "Reuse before you build".
 
 Execution follows § Verification Cadence: no per-task review, one review at the finish, "verify" means the tags, and a new test goes red first.
 

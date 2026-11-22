@@ -398,8 +398,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(label("timelapse") == "Record Timelapse");
 }
 
-TEST_CASE_METHOD(LVGLUITestFixture,
-                 "PrePrintOptionsRenderer: clear() drops rows and resets subjects",
+TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: clear() drops rows",
                  "[print_file_detail][pre_print_options]") {
     PrePrintOptionsRenderer renderer;
     lv_obj_t* container = lv_obj_create(test_screen());
@@ -742,17 +741,22 @@ TEST_CASE_METHOD(LVGLUITestFixture, "PrePrintOptionsRenderer: a tap on a tile to
 
     lv_obj_t* tile = renderer.get_toggle("nozzle_clean"); // default off
     REQUIRE(tile != nullptr);
-    REQUIRE(lv_obj_is_checkable(tile));
+    // The tile is not checkable: its checked state is its subject's, never LVGL's own toggle.
+    REQUIRE_FALSE(lv_obj_is_checkable(tile));
     REQUIRE_FALSE(lv_obj_has_state(tile, LV_STATE_CHECKED));
 
-    // What a real tap does: LVGL's base RELEASED handler flips CHECKED and
-    // sends VALUE_CHANGED (lv_obj.c event handler).
-    lv_obj_add_state(tile, LV_STATE_CHECKED);
-    lv_obj_send_event(tile, LV_EVENT_VALUE_CHANGED, nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
 
     CHECK(toggled_id == "nozzle_clean");
     CHECK(toggled_state == 1);
     CHECK(renderer.get_state("nozzle_clean") == 1);
+    CHECK(lv_obj_has_state(tile, LV_STATE_CHECKED));
+
+    // A second tap turns it back off.
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    CHECK(toggled_state == 0);
+    CHECK(renderer.get_state("nozzle_clean") == 0);
+    CHECK_FALSE(lv_obj_has_state(tile, LV_STATE_CHECKED));
 }
 
 TEST_CASE_METHOD(LVGLUITestFixture,
@@ -814,7 +818,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(icon != nullptr);
     REQUIRE(check != nullptr);
     REQUIRE(label != nullptr);
-    CHECK(lv_obj_has_state(tile, LV_STATE_CHECKED));  // subject observer applied it
+    CHECK(lv_obj_has_state(tile, LV_STATE_CHECKED));  // its subject binding applied it
     CHECK(lv_obj_has_state(check, LV_STATE_CHECKED)); // state_trickle, through the slot
     CHECK(std::string(lv_label_get_text(label)) == "Auto Bed Mesh");
 

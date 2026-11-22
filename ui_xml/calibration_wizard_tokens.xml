@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!--
   Calibration wizard tokens: the sizes of the guided run's full-screen frame
-  (calibration_wizard_header, calibration_wizard_footer) and the type ladder its
+  (wizard_frame_header, wizard_frame_footer) and the type ladder its
   pages share. The medium values are the design canvas at 800x480 and 480x800,
   the micro values the canvas at 480x272; the tiers between and above scale
   from those two.

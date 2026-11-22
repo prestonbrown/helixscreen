@@ -1682,8 +1682,8 @@ nlohmann::json RemoteControlServer::handle_click(const nlohmann::json& params) {
 
         // A synthetic tap does not flip a switch/checkbox/checkable object
         // (LVGL toggles those on the indev press/release). Toggle the state
-        // explicitly and notify, so `click <switch>` and
-        // `click <option_tile_*>` behave like a real tap. An object that is
+        // explicitly and notify, so `click <switch>` behaves like a real
+        // tap. An object that is
         // only CHECKABLE (a tile, a checkable button) still gets the tap after
         // the toggle: a real tap delivers both, and checkable buttons act on
         // it (extruder selector, gcode test Travels).

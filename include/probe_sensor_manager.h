@@ -46,6 +46,10 @@ class ProbeSensorManager : public SensorManager {
     /// section configures it. An unknown offset is not a zero one.
     [[nodiscard]] bool has_z_offset() const;
 
+    /// Whether the Z_PROBE holder is set up to find Z by touching the bed (touch_z),
+    /// which sets the nozzle height itself.
+    [[nodiscard]] bool z_probe_sets_z_by_touch() const;
+
     /// Z offset subject: mm x 1000, -1 when no enabled sensor holds Z_PROBE.
     [[nodiscard]] lv_subject_t* get_probe_z_offset_subject();
 

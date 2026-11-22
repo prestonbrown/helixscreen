@@ -4,26 +4,27 @@
 <!-- One pre-print option as a toggle pill: icon + label (up to two lines,
      then ellipsis). The whole pill is the tap target and there is no check
      box: on, it takes the shared active-chip fill and its icon becomes a
-     check; off, it is an outline with a muted label. state_trickle hands the
-     pill's checked state to its children so each child styles itself with a
-     -checked state style (dash form; the colon form is dropped, see
-     CONTRIBUTOR_GOTCHAS.md). Created by PrePrintOptionsRenderer, which binds
-     the option subject to the pill's checked state and passes its
-     value_changed callback. -->
+     check; off, it is an outline with a muted label. The pill is checked
+     while the int subject `checked_subject` reads 1; state_trickle hands that
+     state to its children so each child styles itself with a -checked state
+     style (dash form; the colon form is dropped, see CONTRIBUTOR_GOTCHAS.md).
+     Created by PrePrintOptionsRenderer, which publishes one subject per option
+     and flips it from `callback`. -->
 <component>
   <api>
     <prop name="label" type="string" default="Option"/>
     <prop name="label_tag" type="string" default=""/>
     <prop name="icon" type="string" default="tune"/>
+    <prop name="checked_subject" type="string" default=""/>
     <prop name="callback" type="string" default=""/>
   </api>
   <view name="option_tile"
         extends="lv_obj" width="48%" height="#option_tile_height" flex_flow="row" style_flex_cross_place="center"
         style_flex_track_place="center" style_pad_hor="#space_xs" style_pad_ver="0" style_pad_gap="#space_xs"
-        style_radius="#border_radius" checkable="true" state_trickle="true" scrollable="false">
+        style_radius="#border_radius" state_trickle="true" scrollable="false">
     <style name="styles.chip_idle"/>
     <style name="styles.chip_active" selector="checked"/>
-    <event_cb trigger="value_changed" callback="$callback"/>
+    <event_cb trigger="clicked" callback="$callback"/>
     <!-- The option's icon and the check share one slot: the check is laid
          over the icon and each shows in one state only, so the label never
          moves when the pill toggles. -->
@@ -38,5 +39,8 @@
     <text_small name="label"
                 text="$label" translation_tag="$label_tag" flex_grow="1" long_mode="dots" max_lines="2"
                 style_text_color="#text_muted" style_text_color-checked="#text" clickable="false"/>
+    <!-- Last: the binding applies the subject's value as it is parsed, and
+         state_trickle reaches only the children that already exist. -->
+    <bind_state_if_eq subject="$checked_subject" state="checked" ref_value="1"/>
   </view>
 </component>

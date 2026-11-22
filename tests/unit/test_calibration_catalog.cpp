@@ -33,7 +33,7 @@ const StepInfo* step_named(const std::vector<StepInfo>& steps, const std::string
     return nullptr;
 }
 
-/// A K2 Plus on Jacobean firmware: CFS cutter, motorized belts, a probe, an
+/// A K2 Plus on Jacobean firmware: CFS cutter, motorized belts, its PRTouch probe, an
 /// accelerometer, measured pressure advance, corexy.
 CatalogInputs k2_jacobean() {
     CatalogInputs in;
@@ -46,6 +46,7 @@ CatalogInputs k2_jacobean() {
     in.supports_belt_compare = true;
     in.z_strategy = ZOffsetCalibrationStrategy::PROBE_CALIBRATE;
     in.nozzle_contact_probe = true;
+    in.probe_sets_nozzle_height = true;
     in.tier_overrides = tier_overrides_from(
         PrinterDetector::get_calibration_step_tiers("Creality K2 Plus (Jacobean firmware)"));
     return in;
@@ -107,6 +108,10 @@ TEST_CASE("Z offset steps aside where another routine owns the Z offset", "[cali
     CHECK(step_named(applicable_steps(in), "z_offset") == nullptr);
     in.z_offset_reapplied_per_head = false;
 
+    in.probe_sets_nozzle_height = true;
+    CHECK(step_named(applicable_steps(in), "z_offset") == nullptr);
+    in.probe_sets_nozzle_height = false;
+
     // Both halves are needed: tool offset calibration alone keeps the paper test.
     in.has_tool_offset_cal = true;
     CHECK(step_named(applicable_steps(in), "z_offset") != nullptr);
@@ -157,6 +162,21 @@ TEST_CASE("only probes that touch with the nozzle skip the paper test", "[calibr
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::EDDY_CURRENT));
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::CARTOGRAPHER));
     CHECK_FALSE(probe_contacts_nozzle(ProbeSensorType::BEACON));
+    CHECK(probe_contacts_nozzle(ProbeSensorType::PRTOUCH_V3));
+}
+
+TEST_CASE("only Creality's probes set the nozzle height themselves", "[calibration_catalog]") {
+    using helix::sensors::probe_sets_nozzle_height;
+    using helix::sensors::probe_type_from_string;
+    using helix::sensors::ProbeSensorType;
+    // The database names the K2's probe by this id.
+    CHECK(probe_type_from_string("prtouch_v3") == ProbeSensorType::PRTOUCH_V3);
+    CHECK(probe_sets_nozzle_height(ProbeSensorType::PRTOUCH_V2));
+    CHECK(probe_sets_nozzle_height(ProbeSensorType::PRTOUCH_V3));
+    // Tap and a load cell still need PROBE_CALIBRATE to find the trigger offset.
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::TAP));
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::LOADCELL));
+    CHECK_FALSE(probe_sets_nozzle_height(ProbeSensorType::STANDARD));
 }
 
 TEST_CASE("every step runs in the fixed order", "[calibration_catalog]") {
@@ -184,9 +204,9 @@ TEST_CASE("every step runs in the fixed order", "[calibration_catalog]") {
 
 TEST_CASE("the K2 Plus on Jacobean firmware gets its database tiers", "[calibration_catalog]") {
     const auto steps = applicable_steps(k2_jacobean());
-    CHECK(ids(steps) == std::vector<std::string>{"belt_tension", "cutter", "z_offset", "heaters",
-                                                 "bed_mesh", "input_shaper", "pressure_advance",
-                                                 "belt_compare", "pa_tuning"});
+    CHECK(ids(steps) == std::vector<std::string>{"belt_tension", "cutter", "heaters", "bed_mesh",
+                                                 "input_shaper", "pressure_advance", "belt_compare",
+                                                 "pa_tuning"});
     const auto tier = [&](const char* id) {
         const StepInfo* s = step_named(steps, id);
         REQUIRE(s != nullptr);
@@ -195,13 +215,12 @@ TEST_CASE("the K2 Plus on Jacobean firmware gets its database tiers", "[calibrat
     CHECK(tier("cutter") == Tier::Required);
     CHECK(tier("heaters") == Tier::Required);
     CHECK(tier("bed_mesh") == Tier::Required);
-    CHECK(tier("z_offset") == Tier::Recommended);
     CHECK(tier("belt_tension") == Tier::Recommended);
     CHECK(tier("input_shaper") == Tier::Recommended);
     CHECK(tier("pressure_advance") == Tier::Optional);
     // Not named in its database entry: the default tier.
     CHECK(tier("belt_compare") == Tier::Optional);
-    // Its probe touches with the nozzle: no paper.
+    // PRTouch sets the nozzle height: no Z offset step, so no paper.
     CHECK((prerequisites_for(steps) & kPrereqPaper) == 0);
 }
 

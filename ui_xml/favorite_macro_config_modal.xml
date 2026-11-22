@@ -3,9 +3,6 @@
 <!-- Favorite-macro widget config: Macro | Appearance | Options tabs. -->
 <!-- NOTE: Backdrop created programmatically by Modal system. -->
 <component>
-  <styles>
-    <style name="tab_active" bg_opa="30" bg_color="#primary" text_color="#primary"/>
-  </styles>
   <!-- Constant height across tabs (no per-tab jump) and full room for the Macro
        list. Height is %-based so it fits small screens, but capped by an
        absolute max so it doesn't grow sparse on large/hi-res panels (the list
@@ -23,27 +20,18 @@
       <lv_obj width="100%"
               height="content" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_top="#space_sm"
               style_pad_bottom="0" flex_flow="row" style_pad_gap="#space_sm" scrollable="false">
-        <ui_button name="tab_macro"
-                   height="#button_height_sm" text="Macro" flex_grow="1" variant="ghost" focusable="false"
-                   click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="0"/>
-          <event_cb trigger="clicked" callback="fav_macro_config_tab_macro_cb"/>
-        </ui_button>
-        <ui_button name="tab_appearance"
-                   height="#button_height_sm" text="Appearance" flex_grow="1" variant="ghost" focusable="false"
-                   click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="1"/>
-          <event_cb trigger="clicked" callback="fav_macro_config_tab_appearance_cb"/>
-        </ui_button>
-        <ui_button name="tab_options"
-                   height="#button_height_sm" text="Options" flex_grow="1" variant="ghost" focusable="false"
-                   click_focusable="false">
-          <style name="tab_active" selector="checked"/>
-          <bind_state_if_eq subject="fav_macro_config_tab" state="checked" ref_value="2"/>
-          <event_cb trigger="clicked" callback="fav_macro_config_tab_options_cb"/>
-        </ui_button>
+        <choice_button name="tab_macro"
+                       height="#button_height_sm" text="Macro" flex_grow="1" variant="ghost" focusable="false"
+                       click_focusable="false" subject="fav_macro_config_tab" value="0"
+                       callback="fav_macro_config_tab_macro_cb" look="tab"/>
+        <choice_button name="tab_appearance"
+                       height="#button_height_sm" text="Appearance" flex_grow="1" variant="ghost" focusable="false"
+                       click_focusable="false" subject="fav_macro_config_tab" value="1"
+                       callback="fav_macro_config_tab_appearance_cb" look="tab"/>
+        <choice_button name="tab_options"
+                       height="#button_height_sm" text="Options" flex_grow="1" variant="ghost" focusable="false"
+                       click_focusable="false" subject="fav_macro_config_tab" value="2"
+                       callback="fav_macro_config_tab_options_cb" look="tab"/>
       </lv_obj>
 
       <!-- Section: Macro (tab 0). flex_grow fills the card's vertical space; the

@@ -38,9 +38,15 @@ constexpr const char* kSlotTextNames[kToolheadPresetSlotCount] = {
     "toolhead_preset_cfg_slot_0_text", "toolhead_preset_cfg_slot_1_text",
     "toolhead_preset_cfg_slot_2_text"};
 
-void add_row(lv_obj_t* list, const std::string& label, bool selected,
+constexpr const char* kChoiceSubject = "toolhead_preset_cfg_choice";
+
+/// Appends row @p index to @p list, lit when @p selected.
+void add_row(lv_obj_t* list, int& index, const std::string& label, bool selected,
              std::function<void()> on_pick) {
-    ui::create_picker_option_row(list, label.c_str(), selected, std::move(on_pick));
+    if (selected)
+        ui::set_choice(kChoiceSubject, index);
+    ui::create_picker_option_row(list, label.c_str(), kChoiceSubject, index, std::move(on_pick));
+    ++index;
 }
 
 bool same_choice(const ToolheadPresetSlot& a, const ToolheadPresetSlot& b) {
@@ -183,9 +189,11 @@ void ToolheadPresetConfigModal::populate_list() {
     // Async: a pick fires from a row in this list.
     ui::safe_clean_children(list_);
     const ToolheadPresetSlot& current = slots_[selected_];
+    ui::set_choice(kChoiceSubject, -1);
+    int row = 0;
 
     if (showing_macros_) {
-        add_row(list_, lv_tr("Back"), false, [this, tok = lifetime_.token()] {
+        add_row(list_, row, lv_tr("Back"), false, [this, tok = lifetime_.token()] {
             if (!tok.expired()) { // L081_OK: a row click runs on the main thread
                 showing_macros_ = false;
                 populate_list();
@@ -199,7 +207,7 @@ void ToolheadPresetConfigModal::populate_list() {
         for (const auto& macro : pickable_macro_names(api->hardware().macros())) {
             const bool selected =
                 current.kind == ToolheadPresetSlot::Kind::Macro && current.macro == macro;
-            add_row(list_, get_display_name(macro, DeviceType::MACRO), selected,
+            add_row(list_, row, get_display_name(macro, DeviceType::MACRO), selected,
                     [this, tok = lifetime_.token(), macro] {
                         if (!tok.expired())
                             pick_macro(macro);
@@ -224,10 +232,11 @@ void ToolheadPresetConfigModal::populate_list() {
             label = toolhead_preset_slot_label(all[i]);
             break;
         }
-        add_row(list_, label, same_choice(all[i], current), [this, tok = lifetime_.token(), i] {
-            if (!tok.expired())
-                pick_choice(i);
-        });
+        add_row(list_, row, label, same_choice(all[i], current),
+                [this, tok = lifetime_.token(), i] {
+                    if (!tok.expired())
+                        pick_choice(i);
+                });
     }
 }
 
