@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Z adjuster tokens: the sizes of components/z_adjust_buttons.xml and
+  components/z_adjust_steps.xml at the calibration canvas's 800x480 board
+  (WizardHandsOn). Own file because the Z offset calibration screen, Print
+  Tune and the power-loss resume wizard all instantiate them; a screen that
+  needs smaller ones passes its own through the components' props.
+-->
+<component>
+  <consts>
+    <px name="zo_ctrl_gap" value="6"/>
+    <px name="zo_ctrl_h" value="52"/>
+    <px name="zo_ctrl_radius" value="10"/>
+    <px name="zo_head_box" value="64"/>
+    <px name="zo_step_gap" value="8"/>
+    <px name="zo_step_h" value="52"/>
+    <px name="zo_step_radius" value="8"/>
+    <px name="zo_step_border" value="2"/>
+  </consts>
+</component>

@@ -1967,10 +1967,13 @@
         "mode": {
           "type": "string"
         },
+        "bed": {
+          "type": "string"
+        },
         "bind_microns": {
           "type": "string"
         },
-        "bind_step": {
+        "bind_step_microns": {
           "type": "string"
         },
         "bind_estimate": {

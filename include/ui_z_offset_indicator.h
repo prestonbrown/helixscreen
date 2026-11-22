@@ -28,9 +28,10 @@ void ui_z_offset_indicator_flash_direction(lv_obj_t* obj, int direction);
 /// Must be called before any XML files using <z_offset_indicator> are parsed.
 ///
 /// Attributes: bind_microns (int subject, microns) places the value.
-/// mode="tape" draws the Z offset step's tape instead of the auto-ranging
-/// meter: a fixed nozzle over a scrolling ruler (src/ui/calibration/z_offset_tape.h),
-/// zoomed by bind_step (int subject, a step index into ztape::kStepMicrons), with
-/// the bed estimated from bind_estimate (int subject, microns; ztape::kNoEstimate
-/// for none).
+/// mode="tape" draws the Z adjuster's tape instead of the auto-ranging meter: a
+/// fixed nozzle over a scrolling ruler (src/ui/calibration/z_offset_tape.h),
+/// zoomed by bind_step_microns (int subject, the selected step size in microns),
+/// with the bed estimated from bind_estimate (int subject, microns;
+/// ztape::kNoEstimate for none). bed="none" leaves the bed and paper out, for an
+/// adjustment with no paper test under it (a live babystep, a resume height).
 void ui_z_offset_indicator_register(void);

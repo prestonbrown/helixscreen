@@ -305,10 +305,13 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void render_translated_texts();
     ObserverGuard language_observer_;
 
-    // The paper test's tape: the selected step (an index into ztape::kStepMicrons),
-    // the estimated drag point in microns (ztape::kNoEstimate for none), and the
-    // line under the readout in two lengths with its tone (ztape::GuideTone).
+    // The paper test's tape: the selected step (an index into ztape::kStepMicrons)
+    // and its size in microns, the Z the nozzle is at in microns, the estimated
+    // drag point in microns (ztape::kNoEstimate for none), and the line under
+    // the readout in two lengths with its tone (ztape::GuideTone).
     helix::Subject step_subject_{};
+    helix::Subject step_microns_subject_{};
+    helix::Subject z_microns_subject_{};
     helix::Subject estimate_subject_{};
     helix::Subject guide_text_subject_{};
     helix::Subject guide_short_subject_{};
@@ -325,6 +328,7 @@ class ZOffsetCalibrationPanel : public OverlayBase {
     void refresh_guide();
     void set_run_mode(bool on);
     void handle_step_pick(int index);
+    void select_step(int index);
     void handle_nudge(int direction);
     void handle_back_clicked();
     void handle_skip_clicked();

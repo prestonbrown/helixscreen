@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<component>
+  <!-- The Z adjuster's step sizes: up to four outlined chips, the selected one
+       filled. `subject` holds the selected index and `callback` gets the
+       tapped chip's index as user_data ("0".."3"); the owner maps an index to
+       its step. chip_w="0" lays the chips in one row; a width over a third
+       ("40%") wraps them two by two. -->
+  <api>
+    <prop name="subject" type="string" default=""/>
+    <prop name="callback" type="string" default=""/>
+    <prop name="text0" type="string" default=""/>
+    <prop name="text1" type="string" default=""/>
+    <prop name="text2" type="string" default=""/>
+    <prop name="text3" type="string" default=""/>
+    <!-- "true" leaves the fourth chip out, for an owner with three steps -->
+    <prop name="chip3_hidden" type="string" default="false"/>
+    <prop name="chip_w" type="string" default="40%"/>
+    <prop name="chip_h" type="string" default="#zo_step_h"/>
+    <prop name="gap" type="string" default="#zo_step_gap"/>
+    <prop name="radius" type="string" default="#zo_step_radius"/>
+  </api>
+  <styles>
+    <style name="zo_step"
+           border_width="#zo_step_border" border_color="#elevated_bg" border_opa="255" text_font="#cal_font_button"/>
+    <style name="zo_step_on" bg_color="#primary" bg_opa="255" border_width="0" text_font="#cal_font_name_bold"/>
+  </styles>
+  <view extends="lv_obj"
+        height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" style_pad_row="$gap"
+        style_pad_column="$gap" flex_flow="row_wrap" scrollable="false">
+    <ui_button name="zo_step_0"
+               width="$chip_w" height="$chip_h" flex_grow="1" variant="outline" text="$text0" style_radius="$radius">
+      <style name="zo_step"/>
+      <style name="zo_step_on" selector="checked"/>
+      <bind_state_if_eq subject="$subject" state="checked" ref_value="0"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="0"/>
+    </ui_button>
+    <ui_button name="zo_step_1"
+               width="$chip_w" height="$chip_h" flex_grow="1" variant="outline" text="$text1" style_radius="$radius">
+      <style name="zo_step"/>
+      <style name="zo_step_on" selector="checked"/>
+      <bind_state_if_eq subject="$subject" state="checked" ref_value="1"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="1"/>
+    </ui_button>
+    <ui_button name="zo_step_2"
+               width="$chip_w" height="$chip_h" flex_grow="1" variant="outline" text="$text2" style_radius="$radius">
+      <style name="zo_step"/>
+      <style name="zo_step_on" selector="checked"/>
+      <bind_state_if_eq subject="$subject" state="checked" ref_value="2"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="2"/>
+    </ui_button>
+    <ui_button name="zo_step_3"
+               width="$chip_w" height="$chip_h" flex_grow="1" variant="outline" text="$text3" style_radius="$radius"
+               hidden="$chip3_hidden">
+      <style name="zo_step"/>
+      <style name="zo_step_on" selector="checked"/>
+      <bind_state_if_eq subject="$subject" state="checked" ref_value="3"/>
+      <event_cb trigger="clicked" callback="$callback" user_data="3"/>
+    </ui_button>
+  </view>
+</component>
