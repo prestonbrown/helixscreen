@@ -115,7 +115,10 @@ struct PhysicalHead {
     [[nodiscard]] int representative_tool(int active_tool) const;
 };
 
-/// The physical heads behind @p tools, ordered by each head's lowest tool.
+/// The physical heads behind @p tools, in the order they stand on the machine:
+/// by each head's lowest tool where every tool is a head, and by extruder
+/// ("extruder", "extruder1", ...) where tools outnumber heads, since lane
+/// numbers follow a lane map rather than the heads.
 /// Tools naming the same extruder share one head; a tool naming none is a head
 /// of its own, since nothing says it shares one. With @p heads_share_heater
 /// every tool is a head of its own even where several name one extruder: they
