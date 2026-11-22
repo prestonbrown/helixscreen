@@ -82,6 +82,15 @@ void GcodeResponseRouting::attach(IMoonrakerClient* client, IMoonrakerAPI* api) 
 
     // The manager runs on the main thread, so the modal follows it in lock-step.
     m_action_prompt_manager->set_on_show([this](const PromptData& data) {
+        // The fault dialog on screen already reports what this prompt repeats.
+        // Closed here and not on the printer, like a sweep: the firmware still
+        // holds it for its other clients. Nothing reads data after the close.
+        if (m_recovery_presenter && m_recovery_presenter->stands_in_for_prompt(data.title)) {
+            spdlog::info("[ActionPrompt] Not showing '{}': the fault dialog reports it",
+                         data.title);
+            m_action_prompt_manager->closed_on_screen(PromptCloseKind::External);
+            return;
+        }
         spdlog::info("[ActionPrompt] Showing prompt: {}", data.title);
         lv_obj_t* screen = lv_screen_active();
         if (m_action_prompt_modal && screen) {

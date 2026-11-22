@@ -80,6 +80,11 @@ class RecoveryModalPresenter {
     /// The fault the dialog shows, nullptr when none is on screen.
     [[nodiscard]] const helix::ErrorEvent* shown_fault() const;
 
+    /// Whether the fault on screen is the one the firmware prompt titled
+    /// @p title repeats (ErrorEvent::firmware_prompt), so that prompt is not
+    /// shown on top of it.
+    [[nodiscard]] bool stands_in_for_prompt(const std::string& title) const;
+
   private:
     friend struct ::RecoveryModalPresenterTestAccess;
 
