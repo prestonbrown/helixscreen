@@ -40,8 +40,7 @@ These rows are under **PRINTER VISUALS** in **Settings > Appearance**. The print
 
 1. Toolhead Style.
 2. G-code Preview.
-3. Z Movement.
-4. Bed Mesh Render.
+3. Bed Mesh Render.
 
 | Key | Default | Values | What it does |
 |-----|---------|--------|--------------|

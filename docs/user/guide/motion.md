@@ -54,21 +54,22 @@ Under the jog pad (beside the Fine / Coarse / Turbo buttons in landscape) is a r
 
 | Button | What it does |
 |--------|--------------|
-| **All** | Homes X, Y and Z. |
+| **All** | Homes X, Y and Z. Shown when the bar is wide enough for five buttons. |
 | **X** | Homes X only. |
 | **Y** | Homes Y only. |
+| **XY** | Homes X and Y together. |
 | **Z** | Homes Z only. |
 
 Each button turns **green** once its axis is homed and stays gray until then. **All** turns green when X, Y and Z are all homed. The buttons are disabled while a homing, leveling or other action started from the Controls panel is running. A home started from this bar or from the jog pad's center does not lock them, so wait for the "homed" message before tapping again, or a second home is sent. When homing finishes, a message tells you ("All axes homed", or "X axis homed" for a single axis), and a failure shows "Homing failed" with the reason.
 
-On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar that adds an **XY** button (see [Homing](#homing)).
+On an 800x480 screen the bar has room for four buttons, so **All** is left out; the house in the middle of the jog pad homes every axis. On a **delta** printer the axes can only be homed together, so the bar shows **All** alone. The Controls panel has a similar bar (see [Homing](#homing)).
 
 The home bar belongs to the Jog Pad layout. The other [Jog layouts](#jog-layouts) have their own home keys.
 
 ![The home bar under the jog pad](../../images/user/motion-home-bar.png)
 
-1. Home all axes.
-2. Home X (Y sits between X and Z).
+1. Home X (Y sits next to it).
+2. Home X and Y together.
 3. Home Z.
 
 ### Z-Axis Controls

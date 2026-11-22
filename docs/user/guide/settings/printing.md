@@ -8,7 +8,7 @@
 
 Rows for things your printer doesn't have are hidden, so your list may be shorter than the one pictured.
 
-Looking for how the printer is *drawn* (toolhead picture, G-code preview, Z button labels, bed mesh view)? That's in [Appearance](appearance.md#printer-visuals).
+Looking for how the printer is *drawn* (toolhead picture, G-code preview, bed mesh view)? That's in [Appearance](appearance.md#printer-visuals).
 
 ![Printing settings, the Machine section](../../../images/user/settings-printing.png)
 

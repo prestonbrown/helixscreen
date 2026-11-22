@@ -156,7 +156,17 @@ images:
     recipe: screws
   - path: docs/images/user/advanced-shaper.png
     kind: app
-    recipe: input-shaper
+    steps:
+      - navigate advanced
+      - click row_calibration
+      - click cal_tile_input_shaper
+      - wait_idle
+      - click btn_calibrate_x
+      - wait_idle
+      - click btn_primary
+      - wait_for is_results_has_x 1 --timeout 300
+      - wait_idle
+      - scroll chip_row_x
   - path: docs/images/user/advanced-spoolman.png
     kind: app
     recipe: spoolman
@@ -382,7 +392,12 @@ images:
     recipe: print-select
   - path: docs/images/user/print-status.png
     kind: app
-    recipe: print-status
+    steps:
+      - demo print-live
+      - wait_for print_progress 10 --timeout 120
+      - demo print-status
+      - wait_idle
+      - freeze
   - path: docs/images/user/print-tune.png
     kind: app
     recipe: print-tune
@@ -495,7 +510,7 @@ images:
       - navigate settings
       - click row_system
       - wait_idle
-      - scroll overlay_content 0 -200
+      - scroll overlay_content 0 -294
     markers:
       - {n: 1, widget: row_telemetry, at: top_right}
       - {n: 2, widget: row_factory_reset, at: top_right}
@@ -576,7 +591,12 @@ images:
       - {n: 2, widget: nav_btn_edit_done, at: top_right}
   - path: docs/images/user/print-status-controls.png
     kind: app
-    recipe: print-status
+    steps:
+      - demo print-live
+      - wait_for print_progress 10 --timeout 120
+      - demo print-status
+      - wait_idle
+      - freeze
     crop: ps_strip_buttons
     margin: 12
     markers:
@@ -627,8 +647,8 @@ images:
     crop: motion_home_bar
     margin: 12
     markers:
-      - {n: 1, widget: btn_home_all, at: top_right}
-      - {n: 2, widget: btn_home_x, at: top_right}
+      - {n: 1, widget: btn_home_x, at: top_right}
+      - {n: 2, widget: btn_home_xy, at: top_right}
       - {n: 3, widget: btn_home_z, at: top_right}
   - path: docs/images/user/motion-z-column.png
     kind: app
@@ -738,8 +758,7 @@ images:
     markers:
       - {n: 1, widget: row_toolhead_style, at: top_right}
       - {n: 2, widget: row_gcode_mode, at: top_right}
-      - {n: 3, widget: row_z_movement_style, at: top_right}
-      - {n: 4, widget: row_bed_mesh_mode, at: top_right}
+      - {n: 3, widget: row_bed_mesh_mode, at: top_right}
   - path: docs/images/user/settings-theme-actions.png
     kind: app
     recipe: theme
