@@ -1203,7 +1203,9 @@ void AmsEditOverlay::update_lane_line() {
     const std::string backup_lane =
         lane_working_.backup >= 0 ? lane_label(noun, lane_working_.backup) : std::string();
 
-    // The summary's row: "Lane Settings" over "Feeds T0 · Pauses on runout".
+    // The summary's row: "Lane Settings" over "Assigned T0 · Pauses on runout".
+    // The tool number is the lane's mapping, which G-code T0 loads; on a rig of
+    // several heads it names no head.
     // The XML shows it only where a lane setting can change.
     const std::string title = fmt::format(fmt::runtime(lv_tr("{} Settings")), noun_text(noun));
     snprintf(lane_title_buf_, sizeof(lane_title_buf_), "%s", title.c_str());
@@ -1211,8 +1213,8 @@ void AmsEditOverlay::update_lane_line() {
     std::string line;
     if (tool_row) {
         line = lane_working_.tool >= 0
-                   ? fmt::format(fmt::runtime(lv_tr("Feeds {}")), tool_label(lane_working_.tool))
-                   : std::string(lv_tr("Feeds no tool"));
+                   ? fmt::format(fmt::runtime(lv_tr("Assigned {}")), tool_label(lane_working_.tool))
+                   : std::string(lv_tr("No tool assigned"));
     }
     const bool tool_editable = tool_row && lv_subject_get_int(&tool_editable_subject_) == 1;
     const bool backup_editable = backup_row && lv_subject_get_int(&backup_editable_subject_) == 1;

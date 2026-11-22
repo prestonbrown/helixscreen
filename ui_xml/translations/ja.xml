@@ -467,6 +467,7 @@
   <translation tag="Assign a role to enable sensor monitoring" ja="センサー監視を有効にするには役割を割り当ててください"/>
   <translation tag="Assign a slot first" ja="先にスロットを割り当ててください"/>
   <translation tag="Assigned Tool" ja="割り当てツール"/>
+  <translation tag="Assigned {}" ja="割り当て {}"/>
   <translation tag="Assisted Retract" ja="アシスト付き引き戻し"/>
   <translation tag="Assisting" ja="アシスト中"/>
   <translation tag="At least {} lines in helixscreen.env were ignored" ja="helixscreen.env の少なくとも{}行が無視されました"/>
@@ -1834,9 +1835,6 @@
   <translation tag="Feeders" ja="フィーダー"/>
   <translation tag="Feeding filament to nozzle" ja="フィラメントをノズルへ送り出し中"/>
   <translation tag="Feeding the head by hand did not finish." ja="ヘッドへの手動供給が完了しませんでした。"/>
-  <translation tag="Feeds Tool" ja="供給先ツール"/>
-  <translation tag="Feeds no tool" ja="供給先ツールなし"/>
-  <translation tag="Feeds {}" ja="{}に供給"/>
   <translation tag="Filament" ja="フィラメント"/>
   <translation tag="Filament Buffer" ja="フィラメントバッファー"/>
   <translation tag="Filament Control" ja="フィラメント制御"/>
@@ -3089,6 +3087,7 @@
   <translation tag="No target printer configured" ja="対象プリンターが設定されていません"/>
   <translation tag="No temperature sensors detected" ja="温度センサーが検出されません"/>
   <translation tag="No timelapse videos found" ja="タイムラプス動画が見つかりません"/>
+  <translation tag="No tool assigned" ja="ツール未割り当て"/>
   <translation tag="No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?" ja="装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？"/>
   <translation tag="No tool is mounted" ja="ツールが装着されていません"/>
   <translation tag="No tool mounted" ja="ツール未装着"/>

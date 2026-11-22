@@ -493,6 +493,7 @@ translations:
   Assign a role to enable sensor monitoring: Rolle zuweisen, um Sensorüberwachung zu aktivieren
   Assign a slot first: 'Zuerst einen Slot zuweisen'
   Assigned Tool: Zugewiesenes Werkzeug
+  Assigned {}: 'Zugewiesen {}'
   Assisted Retract: 'Unterstützter Einzug'
   Assisting: Unterstützend
   At least {} lines in helixscreen.env were ignored: 'Mindestens {} Zeilen in helixscreen.env wurden ignoriert'
@@ -1925,9 +1926,6 @@ translations:
   Feeders: Zuführungen
   Feeding filament to nozzle: "Filament wird zur Düse geführt"
   Feeding the head by hand did not finish.: 'Die manuelle Zuführung zum Kopf wurde nicht abgeschlossen.'
-  Feeds Tool: 'Speist Werkzeug'
-  Feeds no tool: 'Speist kein Werkzeug'
-  Feeds {}: 'Speist {}'
   Filament: Filament
   Filament Buffer: 'Filamentpuffer'
   Filament Control: Filamentsteuerung
@@ -3204,6 +3202,7 @@ translations:
   No target printer configured: Kein Zieldrucker konfiguriert
   No temperature sensors detected: 'Keine Temperatursensoren erkannt'
   No timelapse videos found: Keine Zeitraffer-Videos gefunden
+  No tool assigned: 'Kein Werkzeug zugewiesen'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: 'Kein Werkzeug ist als montiert bekannt. Mit einer gemeinsamen Sonde mit {} kalibrieren. Trotzdem fortfahren?'
   No tool is mounted: 'Kein Werkzeug montiert'
   No tool mounted: 'Kein Werkzeug montiert'

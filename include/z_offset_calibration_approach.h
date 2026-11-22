@@ -22,6 +22,10 @@
 #include <string>
 #include <string_view>
 
+namespace helix {
+class ToolState;
+}
+
 namespace helix::zoffset_cal {
 
 /// Which part of the head the calibration reads at the starting XY.
@@ -81,6 +85,12 @@ enum class ToolGate {
  */
 ToolGate reference_tool_gate(ZOffsetCalibrationStrategy strategy, std::optional<int> reference_tool,
                              int active_tool);
+
+/// reference_tool_gate() for the tool mounted in @p tools, compared as heads:
+/// the reference is a printer tool, and where tools are lanes the mounted lane
+/// stands for its head's printer tool (ToolState::offset_tool_for()).
+ToolGate mounted_reference_gate(ZOffsetCalibrationStrategy strategy,
+                                std::optional<int> reference_tool, const ToolState& tools);
 
 /// Approach height: Klipper's minimum clearance for starting a calibration.
 inline constexpr double kApproachZMm = 5.0;

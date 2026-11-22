@@ -493,6 +493,7 @@ translations:
   Assign a role to enable sensor monitoring: センサー監視を有効にするには役割を割り当ててください
   Assign a slot first: '先にスロットを割り当ててください'
   Assigned Tool: 割り当てツール
+  Assigned {}: '割り当て {}'
   Assisted Retract: 'アシスト付き引き戻し'
   Assisting: アシスト中
   At least {} lines in helixscreen.env were ignored: 'helixscreen.env の少なくとも{}行が無視されました'
@@ -1925,9 +1926,6 @@ translations:
   Feeders: フィーダー
   Feeding filament to nozzle: "フィラメントをノズルへ送り出し中"
   Feeding the head by hand did not finish.: 'ヘッドへの手動供給が完了しませんでした。'
-  Feeds Tool: '供給先ツール'
-  Feeds no tool: '供給先ツールなし'
-  Feeds {}: '{}に供給'
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -3204,6 +3202,7 @@ translations:
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
   No timelapse videos found: タイムラプス動画が見つかりません
+  No tool assigned: 'ツール未割り当て'
   No tool is known to be mounted. With one shared probe, calibrate with {}. Continue anyway?: '装着中のツールが不明です。共有プローブでは {} で校正してください。このまま続行しますか？'
   No tool is mounted: 'ツールが装着されていません'
   No tool mounted: 'ツール未装着'

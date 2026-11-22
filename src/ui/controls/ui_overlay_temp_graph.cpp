@@ -376,9 +376,10 @@ std::string TempGraphOverlay::heater_series_name(const std::string& heater_name)
         return lv_tr("Chamber");
     }
     if (printer_state_) {
-        const auto& extruders = printer_state_->temperature_state().extruders();
-        if (auto it = extruders.find(heater_name); it != extruders.end()) {
-            return it->second.display_name;
+        if (std::string name = helix::ui::temperature::nozzle_display_name(
+                printer_state_->temperature_state(), heater_name);
+            !name.empty()) {
+            return name;
         }
     }
     return lv_tr("Nozzle");

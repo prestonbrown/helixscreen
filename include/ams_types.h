@@ -2520,6 +2520,10 @@ struct DeviceAction {
     /// The tool this action applies to (0-based G-code number), or -1. The UI names
     /// the tool after the label, in the app's one tool-label form.
     int tool_index = -1;
+    /// The Klipper extruder whose head this action applies to, where the
+    /// action is per head and tool numbers may name lanes. The UI names that
+    /// head after the label (helix::head_identity()) and ignores tool_index.
+    std::string extruder;
     bool enabled = true; ///< Whether action is currently available
     /// Running it moves the printer (toolhead, homing, a purge or wipe): the UI greys it
     /// while anything forbids motion and the backend refuses it during a print.
