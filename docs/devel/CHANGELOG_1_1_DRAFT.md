@@ -553,25 +553,31 @@ git log --no-merges --oneline 7915d7fa5b..origin/release/1.1 --not origin/releas
   another tool sets a head's spool (an NFC tag reader through `CHANGE_ZCOLOR`, or
   zmod_afclite's `SET_SPOOL_ID`), the screen reads the record it wrote and shows the new
   spool, name and color within a couple of seconds. (thanks @DIEHARDave)
-- **A new Edit Spool editor** - a slot's Spool Info is renamed Edit Spool and opens straight
-  into one screen that shows the filament in words with its color and remaining weight, and
-  the temperatures for what you picked. Material, Variant, Brand and Product are dropdowns
-  that narrow each other down, with Browse catalog... at the end for searching the full
-  filament catalog or typing your own. Tap the weight to type the grams left. Color swatches
-  are at least 7 mm across on every screen; the full color view puts the presets and a
-  custom color picker side by side where both fit, and on small screens they take turns. On
-  systems that read a spool's tag, a "from tag" pill marks each value the tag supplied, and
-  Reset to tag puts them all back. On AFC, a lane with a TD-1 scan shows the scanned color
-  and TD, with Use Scan to take them (#1151). Spoolman's spool list and QR scan are round
-  buttons in the header, and a linked spool's price, location, lot and notes sit under More.
-  Which tool a slot feeds (Assigned Tool) and its Endless Spool backup are set in Edit Spool
-  and save with its other changes; a slot's menu holds only actions. With AFC's multiple
-  tool mapping turned on, Assigned Tool is disabled and says that tools are assigned in AFC.
-  Save sits in the header and stays disabled until you change something and the printer's
-  records have loaded, and Back with unsaved changes asks whether to save or discard them. A
-  save still talking to Spoolman finishes even if you leave the screen, and a save that only
-  partly succeeds says which part did not: with Spoolman offline, the slot saves and price,
-  location, lot and notes wait in the editor.
+- **A new spool editor, one step per page** - tap a slot and choose Edit Spool. A slot with
+  a spool opens on a summary: the spool drawn in its color and filled to what is left, and
+  its weight as "850 g of 1 kg · 85%" with - and + buttons, a drag bar and a keypad. An empty
+  slot shows what it last held, with Same Filament, New Spool to put in a full spool of it in
+  one tap. New Spool lists your spools; Use puts one in the slot, and a spool that sits in
+  another slot moves over, unless that slot is feeding the print. Tapping the spool opens the
+  Filament page: a brand and its product, or under Generic one list of exact materials such as
+  ASA-CF, with the full filament catalog one tap away, colors, and an NFC button that puts back
+  what the spool's tag says. Lane Settings sets the tool a slot feeds and its runout backup,
+  and takes effect as you pick; with AFC's multiple tool mapping turned on, Feeds Tool is
+  disabled and says that tools are assigned in AFC. A linked spool's price, location, lot
+  and notes have a page of their own. Colors can be multi-color on systems that store them.
+  A weight HelixScreen does not know reads as a full spool of the slot's size, 1 kg when the
+  size is unknown too. Back with unsaved changes asks whether to save or discard them, a
+  save still talking to Spoolman finishes even if you leave the screen, and a save that
+  only partly succeeds says which part did not.
+- **Clear a slot and archive its spool** - Clear Lane asks first, and where the slot holds a
+  Spoolman spool it offers to archive that spool in Spoolman, ticked for you when the spool
+  ran out or has under 20 g left. The spool is archived only once the slot is cleared.
+- **Add a slot's spool to Spoolman in one tap** - a slot whose spool Spoolman does not track
+  shows Add to Spoolman on its summary, which adds the spool as the slot describes it and
+  links the slot, so Spoolman tracks its weight from then on.
+- **Remaining filament reads the same everywhere** - the Active Spool widget, the external
+  spool line and the spool editor with its spool list show what is left as grams and a percent
+  ("850 g · 85%"), and the loaded card shows the percent alone where space is tight.
 - **Creality CFS on the K2 Plus community firmware** - on the Kalico-based K2 Plus port and
   its own CFS module, loads use the module's slot selection, and each CFS unit shows its own
   temperature and humidity. With API revision 4 or later of the CFS module, the Filament
