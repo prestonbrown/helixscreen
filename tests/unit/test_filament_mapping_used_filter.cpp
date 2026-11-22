@@ -35,6 +35,7 @@
 #include "ams_remap.h"
 #include "ams_state.h"
 #include "core/update_queue.h"
+#include "display_numbering.h"
 #include "filament_chip_model.h"
 #include "filament_mapping_plan.h"
 #include "lvgl.h"
@@ -314,14 +315,14 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     CHECK(chip_int(0, "_file_color_known") == 1);
     CHECK((lv_color_to_u32(lv_subject_get_color(chip_subject(0, "_file_color"))) & 0xFFFFFF) ==
           0xFF0000u);
-    CHECK(chip_string(0, "_slot") == "1");
+    CHECK(chip_string(0, "_slot") == helix::ui::lane_number_text(0));
     CHECK(chip_int(0, "_slot_state") == 1);
     CHECK((lv_color_to_u32(lv_subject_get_color(chip_subject(0, "_slot_color"))) & 0xFFFFFF) ==
           0xFF0000u);
     CHECK(chip_int(0, "_severity") == 0);
 
     // T1: right material, wrong colour.
-    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_string(1, "_slot") == helix::ui::lane_number_text(1));
     CHECK(chip_int(1, "_severity") == 1);
 
     // T2: no material in the file, so the header names the tool; no lane.
@@ -347,7 +348,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "The chip subjects for a three-tool f
     lv_obj_t* const warn_slot = lv_obj_find_by_name(warn, "chip_slot");
     REQUIRE(warn_slot != nullptr);
     CHECK_FALSE(lv_obj_is_hidden(warn_slot));
-    CHECK(std::string(lv_label_get_text(warn_slot)) == "2");
+    CHECK(std::string(lv_label_get_text(warn_slot)) == helix::ui::lane_number_text(1));
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(block, "chip_spool")));
     CHECK_FALSE(lv_obj_is_hidden(lv_obj_find_by_name(ok, "chip_spool")));
 
@@ -365,7 +366,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "An empty slot outlines its chip red"
     CHECK(chip_int(0, "_severity") == 0);
     CHECK(chip_int(1, "_severity") == 2);
     CHECK(chip_int(1, "_slot_state") == 2);
-    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_string(1, "_slot") == helix::ui::lane_number_text(1));
     lv_obj_t* const empty = chip(1);
     REQUIRE(empty != nullptr);
     CHECK(lv_obj_is_hidden(lv_obj_find_by_name(empty, "chip_spool")));
@@ -413,13 +414,13 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "set_mappings republishes the slot la
     REQUIRE(chip_count() == 2);
 
     card.set_mappings(mappings_to_slots({3, 1}));
-    CHECK(chip_string(0, "_slot") == "4");
+    CHECK(chip_string(0, "_slot") == helix::ui::lane_number_text(3));
     card.set_mappings(mappings_to_slots({2, 1}));
-    CHECK(chip_string(0, "_slot") == "3");
-    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_string(0, "_slot") == helix::ui::lane_number_text(2));
+    CHECK(chip_string(1, "_slot") == helix::ui::lane_number_text(1));
     lv_obj_t* const label = lv_obj_find_by_name(chip(0), "chip_slot");
     REQUIRE(label != nullptr);
-    CHECK(std::string(lv_label_get_text(label)) == "3");
+    CHECK(std::string(lv_label_get_text(label)) == helix::ui::lane_number_text(2));
 
     process_lvgl(100);
 }
@@ -884,7 +885,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Picking a row records it once, the w
     CHECK(mappings[1].user_picked);
     CHECK_FALSE(mappings[1].is_auto);
     CHECK(mappings[0].mapped_slot == 0); // the other tool is untouched
-    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_string(1, "_slot") == helix::ui::lane_number_text(1));
     CHECK(chip_int(1, "_severity") == 0);
     process_lvgl(100);
 }
@@ -968,7 +969,7 @@ TEST_CASE_METHOD(MappingCardRenderFixture, "Picking Auto shows the lane the tool
     // The mock routes lane-per-tool: T1 prints from lane 2, its own PETG.
     CHECK(chip_int(1, "_severity") != 2);
     CHECK(chip_int(1, "_severity") == 0);
-    CHECK(chip_string(1, "_slot") == "2");
+    CHECK(chip_string(1, "_slot") == helix::ui::lane_number_text(1));
     CHECK(chip_int(1, "_slot_state") == 1);
     // The print-start gate judges the same lane and lets it print.
     CHECK_FALSE(
