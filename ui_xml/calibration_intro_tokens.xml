@@ -97,6 +97,13 @@
     <px name="cal_intro_swatch_medium" value="34"/>
     <px name="cal_intro_swatch_large" value="40"/>
 
+    <!-- A choice chip's inner side margin. -->
+    <px name="cal_intro_chip_pad_micro" value="4"/>
+    <px name="cal_intro_chip_pad_tiny" value="6"/>
+    <px name="cal_intro_chip_pad_small" value="10"/>
+    <px name="cal_intro_chip_pad_medium" value="14"/>
+    <px name="cal_intro_chip_pad_large" value="16"/>
+
     <!-- Footer buttons. -->
     <px name="cal_intro_btn_h_micro" value="36"/>
     <px name="cal_intro_btn_h_tiny" value="40"/>
