@@ -87,6 +87,7 @@ class TimelapsePlayerOverlay : public OverlayBase {
     void play_pause();
     void replay();
     void scrub_pressed();
+    void scrub_moved();
     void scrub_released();
 
     void on_ui_destroyed() override {

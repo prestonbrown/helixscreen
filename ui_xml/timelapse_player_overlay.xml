@@ -64,6 +64,9 @@
                  style_pad_left="#space_md" style_pad_right="#space_md" ext_click_area="#space_md">
         <event_cb trigger="pressed" callback="on_tl_player_scrub_pressed"/>
         <event_cb trigger="released" callback="on_tl_player_scrub_released"/>
+        <!-- A finger that slides off the bar ends the drag there too. -->
+        <event_cb trigger="press_lost" callback="on_tl_player_scrub_released"/>
+        <event_cb trigger="value_changed" callback="on_tl_player_scrub_moved"/>
       </lv_slider>
       <text_small name="player_total" bind_text="timelapse_player_total" clickable="false"/>
     </lv_obj>

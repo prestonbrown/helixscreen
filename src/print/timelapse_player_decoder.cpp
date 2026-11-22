@@ -307,7 +307,7 @@ bool PlayerDecoder::decode_from(double start_s, double fps, FrameSize out, bool&
             break;
         }
         exchange_.publish(assembler.frame(), out, base_index + n,
-                          anchor_s + static_cast<double>(n) / fps);
+                          anchor_s + static_cast<double>(n) / fps, monotonic_seconds());
         got_frame = true;
         ++n;
     }

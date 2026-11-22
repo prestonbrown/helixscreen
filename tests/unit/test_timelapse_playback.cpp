@@ -217,6 +217,22 @@ TEST_CASE("Decode args: raw frames of the fitted size and display format on stdo
     const auto vf = arg_index(args, "-vf");
     REQUIRE(vf >= 0);
     CHECK(args[static_cast<size_t>(vf) + 1].rfind("scale=800:450", 0) == 0);
+    SECTION("one thread for the decoder, the filters and the raw encoder") {
+        const auto in = arg_index(args, "-i");
+        int before = 0, after = 0;
+        for (size_t i = 0; i + 1 < args.size(); ++i) {
+            if (args[i] == "-threads" && args[i + 1] == "1") {
+                (static_cast<ptrdiff_t>(i) < in ? before : after)++;
+            }
+        }
+        CHECK(before == 1);
+        CHECK(after == 1);
+        CHECK(has_arg_pair(args, "-filter_threads", "1"));
+        CHECK(arg_index(args, "-probesize") < in);
+    }
+    SECTION("no nobuffer flag: it stops an MP4 part way through") {
+        CHECK(arg_index(args, "nobuffer") < 0);
+    }
     SECTION("no seek from the start") {
         CHECK(arg_index(args, "-ss") < 0);
     }
@@ -254,6 +270,20 @@ TEST_CASE("Scrub: permille and seconds convert both ways, clamped", "[timelapse]
     CHECK(permille_for(90.0, 60.0) == 1000);
     CHECK(permille_for(-1.0, 60.0) == 0);
     CHECK(permille_for(5.0, 0.0) == 0);
+}
+
+TEST_CASE("Clock: the elapsed label shows the presented frame's time while playing",
+          "[timelapse][player][scrub]") {
+    CHECK(elapsed_label_seconds(false, 0, 3.4, 10.0) == Catch::Approx(3.4));
+    CHECK(elapsed_label_seconds(false, 900, 3.4, 10.0) == Catch::Approx(3.4));
+}
+
+TEST_CASE("Clock: the elapsed label follows the finger while scrubbing",
+          "[timelapse][player][scrub]") {
+    CHECK(elapsed_label_seconds(true, 500, 3.4, 10.0) == Catch::Approx(5.0));
+    CHECK(elapsed_label_seconds(true, 1000, 3.4, 10.0) == Catch::Approx(10.0));
+    CHECK(elapsed_label_seconds(true, -5, 3.4, 10.0) == 0.0);
+    CHECK(elapsed_label_seconds(true, 500, 3.4, 0.0) == 0.0);
 }
 
 TEST_CASE("Clock: elapsed and total read m:ss, h:mm:ss from an hour",
@@ -337,9 +367,16 @@ Shown show(FrameExchange& x, double now) {
     return out;
 }
 
-void put(FrameExchange& x, uint8_t value, int64_t index, double due) {
+void put(FrameExchange& x, uint8_t value, int64_t index, double due, double now = -1.0) {
     std::vector<uint8_t> f{value};
-    x.publish(f, {1, 1}, index, due);
+    x.publish(f, {1, 1}, index, due, now);
+}
+
+/// Every published frame is in exactly one bucket.
+void check_accounted(const FrameExchange& x) {
+    const auto st = x.stats();
+    CHECK(st.published == st.shown + st.skipped_late + st.replaced_late + st.replaced_early +
+                              st.discarded + st.queued);
 }
 
 } // namespace
@@ -369,7 +406,8 @@ TEST_CASE("Exchange: frames on time are all shown, in order", "[timelapse][playe
     const auto st = x.stats();
     CHECK(st.published == 30);
     CHECK(st.shown == 30);
-    CHECK(st.dropped == 0);
+    CHECK(st.dropped() == 0);
+    check_accounted(x);
 }
 
 TEST_CASE("Exchange: a late UI skips to the newest due frame", "[timelapse][player][exchange]") {
@@ -377,17 +415,62 @@ TEST_CASE("Exchange: a late UI skips to the newest due frame", "[timelapse][play
     put(x, 1, 0, 1.0);
     put(x, 2, 1, 1.033);
     CHECK(show(x, 1.05).index == 1);
-    CHECK(x.stats().dropped == 1);
+    CHECK(x.stats().skipped_late == 1);
+    CHECK(x.stats().dropped() == 1);
+    check_accounted(x);
 }
 
 TEST_CASE("Exchange: a full queue drops its oldest frame", "[timelapse][player][exchange]") {
     FrameExchange x;
     for (int i = 0; i < static_cast<int>(FrameExchange::kSlots) + 1; ++i) {
-        put(x, static_cast<uint8_t>(i), i, 1.0 + i);
+        put(x, static_cast<uint8_t>(i), i, 1.0 + i, 0.5);
     }
     CHECK(x.pending() == FrameExchange::kSlots);
-    CHECK(x.stats().dropped == 1);
+    CHECK(x.stats().dropped() == 1);
     CHECK(show(x, 2.0).index == 1);
+    check_accounted(x);
+}
+
+TEST_CASE("Exchange: a frame pushed out after its time is the UI's lateness",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    for (int i = 0; i < static_cast<int>(FrameExchange::kSlots); ++i) {
+        put(x, static_cast<uint8_t>(i), i, 1.0 + i / 30.0, 0.9);
+    }
+    // The UI never looked: by now frame 0 is long due, and a fourth arrives.
+    put(x, 9, 3, 1.1, 1.08);
+    const auto st = x.stats();
+    CHECK(st.replaced_late == 1);
+    CHECK(st.replaced_early == 0);
+    CHECK(st.dropped() == 1);
+    check_accounted(x);
+}
+
+TEST_CASE("Exchange: a frame pushed out before its time is the decoder running ahead",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    for (int i = 0; i < static_cast<int>(FrameExchange::kSlots) + 1; ++i) {
+        put(x, static_cast<uint8_t>(i), i, 5.0 + i, 1.0);
+    }
+    const auto st = x.stats();
+    CHECK(st.replaced_early == 1);
+    CHECK(st.replaced_late == 0);
+    check_accounted(x);
+}
+
+TEST_CASE("Exchange: frames still queued at a seek or close are discarded, not lost",
+          "[timelapse][player][exchange]") {
+    FrameExchange x;
+    put(x, 1, 0, 1.0, 0.9);
+    put(x, 2, 1, 1.033, 0.9);
+    show(x, 1.0);
+    CHECK(x.stats().queued == 1);
+    x.clear();
+    const auto st = x.stats();
+    CHECK(st.discarded == 1);
+    CHECK(st.queued == 0);
+    CHECK(st.dropped() == 0);
+    check_accounted(x);
 }
 
 TEST_CASE("Exchange: a pause pushes the queued frames' times back",
@@ -411,10 +494,10 @@ TEST_CASE("Exchange: a published frame hands back a used buffer to fill",
           "[timelapse][player][exchange]") {
     FrameExchange x;
     std::vector<uint8_t> f(64, 1);
-    x.publish(f, {8, 8}, 0, 1.0);
+    x.publish(f, {8, 8}, 0, 1.0, 0.9);
     show(x, 1.0);
     std::vector<uint8_t> g(64, 2);
-    x.publish(g, {8, 8}, 1, 2.0);
+    x.publish(g, {8, 8}, 1, 2.0, 1.9);
     CHECK(g.size() == 64);
 }
 

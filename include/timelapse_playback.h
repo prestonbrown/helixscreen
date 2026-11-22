@@ -116,6 +116,12 @@ struct FrameSize {
 /// Where a scrub bar shows @p position_s of a @p duration_s video, 0..1000.
 [[nodiscard]] int permille_for(double position_s, double duration_s);
 
+/// The time the elapsed label shows: where the finger holds the scrub bar
+/// (@p scrub_permille of @p duration_s) while @p scrubbing, else the
+/// presented frame's own time @p presented_s.
+[[nodiscard]] double elapsed_label_seconds(bool scrubbing, int scrub_permille, double presented_s,
+                                           double duration_s);
+
 /// "m:ss", or "h:mm:ss" from an hour up. Negative times read as 0:00.
 [[nodiscard]] std::string format_clock(double seconds);
 
@@ -201,12 +207,24 @@ class FrameAssembler {
  */
 class FrameExchange {
   public:
+    /// Where every published frame went. Each lands in exactly one bucket:
+    /// published == shown + skipped_late + replaced_late + replaced_early +
+    /// discarded + queued.
     struct Stats {
         uint64_t published = 0;
         uint64_t shown = 0;
-        uint64_t dropped = 0;       ///< both kinds below
-        uint64_t dropped_late = 0;  ///< skipped because the UI looked too late
-        uint64_t dropped_early = 0; ///< pushed out of a full queue before it was due
+        uint64_t skipped_late = 0; ///< passed over for a newer due frame: the UI looked late
+        uint64_t replaced_late =
+            0; ///< pushed out of a full queue after it was due: the UI is behind
+        uint64_t replaced_early =
+            0; ///< pushed out of a full queue before it was due: the decoder ran ahead
+        uint64_t discarded = 0; ///< thrown away unshown by clear() (a seek, or the player closing)
+        uint64_t queued = 0;    ///< waiting when the stats were read
+
+        /// Frames lost while playing: every bucket but discarded and queued.
+        [[nodiscard]] uint64_t dropped() const {
+            return skipped_late + replaced_late + replaced_early;
+        }
     };
 
     /// Frames waiting at most; more than this and the oldest is dropped. The
@@ -215,9 +233,10 @@ class FrameExchange {
     /// loses a frame, the same bar pick_due_frame() skips at.
     static constexpr size_t kSlots = 3;
 
-    /// Queue @p frame, due at @p due_s (monotonic_seconds()); @p frame comes
-    /// back holding a buffer to reuse.
-    void publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index, double due_s);
+    /// Queue @p frame, due at @p due_s, at @p now_s (both monotonic_seconds());
+    /// @p frame comes back holding a buffer to reuse.
+    void publish(std::vector<uint8_t>& frame, FrameSize size, int64_t index, double due_s,
+                 double now_s);
 
     /// Call @p fn(pixels, size, index) on the frame pick_due_frame() chooses at
     /// @p now_s, under the lock. False when no frame is due.
@@ -233,8 +252,7 @@ class FrameExchange {
             return false;
         }
         for (int i = 0; i < pick; ++i) {
-            ++stats_.dropped;
-            ++stats_.dropped_late;
+            ++stats_.skipped_late;
             recycle_front();
         }
         Slot& slot = queue_.front();
@@ -249,7 +267,8 @@ class FrameExchange {
     /// Push every queued frame's due time back by @p seconds (a pause ended).
     void shift_due(double seconds);
     [[nodiscard]] Stats stats() const;
-    /// Forget the queued frames (a seek makes them stale); stats are kept.
+    /// Forget the queued frames (a seek makes them stale, or the player
+    /// closed); they count as discarded.
     void clear();
 
   private:

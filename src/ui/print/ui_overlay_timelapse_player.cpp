@@ -80,6 +80,8 @@ void TimelapsePlayerOverlay::register_callbacks() {
          [](lv_event_t*) { get_global_timelapse_player().scrub_pressed(); }},
         {"on_tl_player_scrub_released",
          [](lv_event_t*) { get_global_timelapse_player().scrub_released(); }},
+        {"on_tl_player_scrub_moved",
+         [](lv_event_t*) { get_global_timelapse_player().scrub_moved(); }},
     });
 }
 
@@ -205,13 +207,15 @@ void TimelapsePlayerOverlay::stop_decoder() {
     if (!decoder_) {
         return;
     }
-    const auto stats = decoder_->exchange().stats();
     decoder_->stop();
+    // Frames still queued were never shown; count them before the decoder goes.
+    decoder_->exchange().clear();
+    const auto st = decoder_->exchange().stats();
     decoder_.reset();
-    spdlog::info("[{}] Stopped: {} frames decoded, {} shown, {} dropped ({} the UI was late for, "
-                 "{} before due)",
-                 get_name(), stats.published, stats.shown, stats.dropped, stats.dropped_late,
-                 stats.dropped_early);
+    spdlog::info("[{}] Stopped: {} frames decoded, {} shown, {} dropped (UI late: {} skipped, "
+                 "{} pushed out; decoder ahead: {}), {} discarded unshown at a seek or close",
+                 get_name(), st.published, st.shown, st.dropped(), st.skipped_late,
+                 st.replaced_late, st.replaced_early, st.discarded);
 }
 
 void TimelapsePlayerOverlay::on_info(const helix::timelapse::VideoInfo& info) {
@@ -300,14 +304,16 @@ void TimelapsePlayerOverlay::present_frame() {
 }
 
 void TimelapsePlayerOverlay::show_position(double seconds) {
-    if (scrubbing_) {
-        return;
+    if (!scrubbing_) {
+        lv_subject_set_int(&position_subject_,
+                           helix::timelapse::permille_for(seconds, duration_s_));
     }
-    lv_subject_set_int(&position_subject_, helix::timelapse::permille_for(seconds, duration_s_));
-    const long second = static_cast<long>(seconds);
+    const double label_s = helix::timelapse::elapsed_label_seconds(
+        scrubbing_, lv_subject_get_int(&position_subject_), seconds, duration_s_);
+    const long second = static_cast<long>(label_s);
     if (second != shown_second_) {
         shown_second_ = second;
-        lv_subject_set_string(&elapsed_subject_, helix::timelapse::format_clock(seconds).c_str());
+        lv_subject_set_string(&elapsed_subject_, helix::timelapse::format_clock(label_s).c_str());
     }
 }
 
@@ -390,7 +396,16 @@ void TimelapsePlayerOverlay::scrub_pressed() {
     hide_timer_.reset();
 }
 
+void TimelapsePlayerOverlay::scrub_moved() {
+    if (scrubbing_) {
+        show_position(0.0); // the label follows the finger; the time passed is unused
+    }
+}
+
 void TimelapsePlayerOverlay::scrub_released() {
+    if (!scrubbing_) {
+        return; // a release after a press_lost already sought
+    }
     scrubbing_ = false;
     if (!decoder_ || state_ == kLoading || state_ == kFailed) {
         return;

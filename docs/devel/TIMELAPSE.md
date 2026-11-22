@@ -193,8 +193,12 @@ runs `ffmpeg` as a child with its stdout on a pipe.
   ffprobe is missing.
 - **Decode** - `ffmpeg -ss <t> -i <file> -an -vf scale=WxH -pix_fmt <fmt> -f rawvideo -`, the
   size fitted to the screen with the video's aspect (`fit_frame()`), the format the display's
-  own: `rgb565le` for a 16-bit display, `bgr24` for 24, `bgra` (LVGL XRGB8888) for 32. The
-  child runs at nice 10 with two decoder threads, and dies with the app (`PR_SET_PDEATHSIG`).
+  own: `rgb565le` for a 16-bit display, `bgr24` for 24, `bgra` (LVGL XRGB8888) for 32. One
+  thread for the decoder, the filters and the raw encoder: each defaults to one thread per
+  core, every thread holding its own frames, which more than doubled ffmpeg's memory. A
+  small `-probesize`/`-analyzeduration` (a local file's header says enough); never
+  `-fflags nobuffer`, which ends an MP4 early. The child runs at nice 10 and dies with the
+  app (`PR_SET_PDEATHSIG`).
 - **Frames** - a worker thread cuts the stream into frames (`FrameAssembler`) and queues
   each in `FrameExchange` one frame period before it is due, stamped with its due time on
   the monotonic clock (`pace_frame()`). A main-thread timer looking every quarter period
@@ -209,20 +213,21 @@ runs `ffmpeg` as a child with its stdout on a pipe.
   (`terminate_and_reap()`); the worker is joined before the decoder goes away.
 
 Measured on the desktop mock (headless SDL, XRGB8888), 20 s testsrc clips at 30 fps, on a
-32-thread host running other builds (load average 45 to 107):
+32-thread host running other builds (load average 18 to 46):
 
-| Clip | Screen | Decoded at | Added RSS | Main thread | Whole app | ffmpeg | Dropped of 600, typical run |
-|---|---|---|---|---|---|---|---|
-| 1280x720 H.264 | 800x480 | 800x450 | ~12 MB | 1.6-4.1% | 3.8-7.4% | 12-14% | 2-3 |
-| 640x480 H.264 | 800x480 | 640x480 | ~10 MB | 2.4-4.0% | 4.8-7.4% | 5-6% | 1 |
-| 1280x720 H.264 | 480x272 | 480x270 | ~6 MB | 1.9-2.3% | 3.2-4.1% | 9-11% | 0-6 |
-| 640x480 H.264 | 480x272 | 362x272 | ~5 MB | 1.8-2.1% | 3.2-3.7% | 5-6% | 3-6 |
+| Clip | Screen | Decoded at | Added RSS | Main thread | Whole app | ffmpeg CPU | ffmpeg peak RSS | Dropped of 600 |
+|---|---|---|---|---|---|---|---|---|
+| 1280x720 H.264 | 800x480 | 800x450 | ~12 MB | 3.2% | 6.1% | 9.7% | 80 MB | 1 |
+| 640x480 H.264 | 800x480 | 640x480 | ~10 MB | 2.4% | 4.6% | 3.4% | 71 MB | 1 |
+| 1280x720 H.264 | 480x272 | 480x270 | ~6 MB | 2.2% | 3.8% | 7.1% | 69 MB | 1 |
+| 640x480 H.264 | 480x272 | 362x272 | ~5 MB | 2.2% | 3.6% | 3.6% | 61 MB | 1 |
 
 CPU is percent of one core on a desktop x86 host; a printer's board costs several times
-more. The stats log at close splits drops into frames the UI was late for and frames
-pushed out of the queue before they were due; the second is 0 in every instrumented run, so
-the drops that remain are the main loop being descheduled on the loaded host (single runs
-lost 13 to 102 frames at load 53 to 107).
+more. ffmpeg's peak RSS includes about 50 MB that this host's ffmpeg maps for its libraries
+before decoding anything; with the threads defaulted, the 1280x720 decode peaked at 125 MB
+on 32 cores and 86 MB on 4. The stats line at close puts every frame in one bucket: shown,
+skipped or pushed out because the UI was late, pushed out because the decoder ran ahead,
+or discarded unshown at a seek or close.
 
 **Thread safety:**
 - All subject updates via `helix::ui::queue_update()`
