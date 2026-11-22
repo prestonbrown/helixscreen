@@ -27,8 +27,9 @@
   <view name="calibration_hub_tile"
         extends="lv_button" height="#cal_hub_tile_h" style_bg_color="#card_bg" style_bg_opa="100%"
         style_border_width="0" style_shadow_width="0" style_radius="#border_radius" style_pad_top="0"
-        style_pad_bottom="0" style_pad_left="#space_md" style_pad_right="#space_md" style_pad_gap="#space_md"
-        scrollable="false" flex_flow="row" style_flex_main_place="start" style_flex_cross_place="center">
+        style_pad_bottom="0" style_pad_left="#cal_hub_tile_pad" style_pad_right="#cal_hub_tile_pad"
+        style_pad_gap="#cal_hub_tile_pad" scrollable="false" flex_flow="row" style_flex_main_place="start"
+        style_flex_cross_place="center">
     <bind_flag_if_eq subject="cal_shown_${step}" flag="hidden" ref_value="0"/>
     <style name="styles.press_wash" selector="pressed"/>
     <bind_style_if name="tile_half" cond="ui_is_portrait eq 0 and ui_breakpoint gt 0"/>
@@ -38,7 +39,7 @@
             style_border_width="0" style_radius="#border_radius_small" style_pad_all="0" scrollable="false"
             clickable="false" event_bubble="true">
       <text_body name="tile_glyph"
-                 align="center" text="$glyph" style_text_font="#font_body_bold" style_text_color="#secondary"
+                 align="center" text="$glyph" style_text_font="#font_cal_hub_glyph" style_text_color="#secondary"
                  clickable="false" event_bubble="true"/>
       <icon name="tile_icon"
             align="center" src="$icon" size="sm" variant="secondary" hidden="$icon_hidden" clickable="false"
@@ -47,20 +48,22 @@
     <lv_obj width="0"
             height="content" flex_grow="1" style_pad_all="0" style_pad_gap="#space_xxs" flex_flow="column"
             scrollable="false" clickable="false" event_bubble="true">
-      <text_body name="tile_name" width="100%" text="$label" long_mode="dots" clickable="false" event_bubble="true"/>
+      <text_body name="tile_name"
+                 width="100%" text="$label" style_text_font="#font_cal_hub_name" long_mode="dots" clickable="false"
+                 event_bubble="true"/>
       <text_small name="tile_status_idle"
-                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#text_muted"
-                  clickable="false" event_bubble="true">
+                  width="100%" bind_text="cal_status_${step}" style_text_font="#font_xs" long_mode="dots"
+                  style_text_color="#text_muted" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="0"/>
       </text_small>
       <text_small name="tile_status_due"
-                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#warning"
-                  clickable="false" event_bubble="true">
+                  width="100%" bind_text="cal_status_${step}" style_text_font="#font_xs" long_mode="dots"
+                  style_text_color="#warning" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="1"/>
       </text_small>
       <text_small name="tile_status_done"
-                  width="100%" bind_text="cal_status_${step}" long_mode="dots" style_text_color="#success"
-                  clickable="false" event_bubble="true">
+                  width="100%" bind_text="cal_status_${step}" style_text_font="#font_xs" long_mode="dots"
+                  style_text_color="#success" clickable="false" event_bubble="true">
         <bind_flag_if_not_eq subject="cal_tone_${step}" flag="hidden" ref_value="2"/>
       </text_small>
     </lv_obj>

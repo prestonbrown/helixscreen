@@ -501,6 +501,16 @@
     <px name="cal_hub_banner_mark_small" value="34"/>
     <px name="cal_hub_banner_mark_medium" value="40"/>
     <px name="cal_hub_banner_mark_large" value="48"/>
+    <!-- Calibration screen gutters: cal_hub_gutter beside the content, inside the guided
+         banner and between its parts; cal_hub_tile_pad inside a tile and above/below the banner. -->
+    <px name="cal_hub_gutter_micro" value="8"/>
+    <px name="cal_hub_gutter_small" value="10"/>
+    <px name="cal_hub_gutter_medium" value="14"/>
+    <px name="cal_hub_gutter_large" value="18"/>
+    <px name="cal_hub_tile_pad_micro" value="6"/>
+    <px name="cal_hub_tile_pad_small" value="8"/>
+    <px name="cal_hub_tile_pad_medium" value="12"/>
+    <px name="cal_hub_tile_pad_large" value="16"/>
     <!-- Motors Off beside Motion on the Controls position card: at least 40px
          wide to tap, with the glyph sized to the one-button-tall row -->
     <!-- Motion + Motors Off row on a portrait Controls panel: Motion is inline
@@ -973,6 +983,32 @@
     <string name="font_chip_material_xlarge" value="noto_sans_bold_16"/>
     <string name="font_chip_material_xxlarge" value="noto_sans_bold_20"/>
     <!-- NO BASE font_chip_material - registered at runtime -->
+    <!-- Calibration screen type, a step below body text: a tile's name, its glyph,
+         and the guided banner's title. -->
+    <string name="font_cal_hub_name_micro" value="noto_sans_12"/>
+    <string name="font_cal_hub_name_tiny" value="noto_sans_12"/>
+    <string name="font_cal_hub_name_small" value="noto_sans_12"/>
+    <string name="font_cal_hub_name_medium" value="noto_sans_14"/>
+    <string name="font_cal_hub_name_large" value="noto_sans_16"/>
+    <string name="font_cal_hub_name_xlarge" value="noto_sans_18"/>
+    <string name="font_cal_hub_name_xxlarge" value="noto_sans_24"/>
+    <!-- NO BASE font_cal_hub_name - registered at runtime -->
+    <string name="font_cal_hub_glyph_micro" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_glyph_tiny" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_glyph_small" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_glyph_medium" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_glyph_large" value="noto_sans_bold_16"/>
+    <string name="font_cal_hub_glyph_xlarge" value="noto_sans_bold_18"/>
+    <string name="font_cal_hub_glyph_xxlarge" value="noto_sans_bold_20"/>
+    <!-- NO BASE font_cal_hub_glyph - registered at runtime -->
+    <string name="font_cal_hub_title_micro" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_title_tiny" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_title_small" value="noto_sans_bold_14"/>
+    <string name="font_cal_hub_title_medium" value="noto_sans_bold_16"/>
+    <string name="font_cal_hub_title_large" value="noto_sans_bold_18"/>
+    <string name="font_cal_hub_title_xlarge" value="noto_sans_bold_20"/>
+    <string name="font_cal_hub_title_xxlarge" value="noto_sans_bold_24"/>
+    <!-- NO BASE font_cal_hub_title - registered at runtime -->
     <!-- font_mono variants (monospace for console/terminal displays) - Source Code Pro -->
     <string name="font_mono_micro" value="source_code_pro_10"/>
     <string name="font_mono_tiny" value="source_code_pro_10"/>
