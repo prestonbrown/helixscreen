@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" en="Stepper driver {} is overheating"/>
   <translation tag="Stepper driver {} overheated and shut down" en="Stepper driver {} overheated and shut down"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." en="Still reading the printer&apos;s lane record. Try again in a moment."/>
+  <translation tag="Still running; no reply after {} min" en="Still running; no reply after {} min"/>
   <translation tag="Still saving this spool…" en="Still saving this spool…"/>
   <translation tag="Still working... taking longer than usual" en="Still working... taking longer than usual"/>
   <translation tag="Stop" en="Stop"/>

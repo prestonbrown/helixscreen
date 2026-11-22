@@ -4698,6 +4698,7 @@ translations:
   Stepper driver {} is overheating: 'Le pilote du moteur pas à pas {} surchauffe'
   Stepper driver {} overheated and shut down: 'Le pilote du moteur pas à pas {} a surchauffé et s''est arrêté'
   Still reading the printer's lane record. Try again in a moment.: 'Lecture de l''enregistrement des voies de l''imprimante en cours. Réessayez dans un instant.'
+  Still running; no reply after {} min: 'Toujours en cours ; aucune réponse après {} min'
   Still saving this spool…: 'Enregistrement de cette bobine en cours…'
   Still working... taking longer than usual: Toujours en cours... cela prend plus de temps que d'habitude
   Stop: Arrêter

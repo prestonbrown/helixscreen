@@ -4541,6 +4541,7 @@
   <translation tag="Stepper driver {} is overheating" it="Il driver del motore passo-passo {} si sta surriscaldando"/>
   <translation tag="Stepper driver {} overheated and shut down" it="Il driver del motore passo-passo {} si è surriscaldato e si è spento"/>
   <translation tag="Still reading the printer&apos;s lane record. Try again in a moment." it="Lettura del registro delle corsie della stampante in corso. Riprova tra un momento."/>
+  <translation tag="Still running; no reply after {} min" it="Ancora in corso; nessuna risposta dopo {} min"/>
   <translation tag="Still saving this spool…" it="Salvataggio di questa bobina in corso…"/>
   <translation tag="Still working... taking longer than usual" it="Ancora in corso... ci vuole più tempo del solito"/>
   <translation tag="Stop" it="Ferma"/>

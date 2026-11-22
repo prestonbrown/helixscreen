@@ -4686,6 +4686,7 @@ translations:
   Stepper driver {} is overheating: 'O driver do motor de passo {} está superaquecendo'
   Stepper driver {} overheated and shut down: 'O driver do motor de passo {} superaqueceu e desligou'
   Still reading the printer's lane record. Try again in a moment.: 'Ainda lendo o registro de lanes da impressora. Tente novamente em instantes.'
+  Still running; no reply after {} min: 'Ainda em execução; sem resposta após {} min'
   Still saving this spool…: 'Ainda salvando este carretel…'
   Still working... taking longer than usual: Ainda processando... está demorando mais que o normal
   Stop: Parar
