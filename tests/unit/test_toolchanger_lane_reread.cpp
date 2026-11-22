@@ -202,6 +202,33 @@ TEST_CASE("Z-Mod lane truth: the record copies colour and material from the firm
     CHECK(rig.reg->get_slot_info(1).color_rgb == 0xD584DEu);
 }
 
+TEST_CASE("Z-Mod lane truth: an edit's translucency outlasts its colour's echo",
+          "[toolchanger][zmod][lane_truth][translucent]") {
+    Rig rig(/*creator5=*/true);
+    rig.feed(zmod_color_frame("8C8C89"));
+    rig.reg->refresh_lane_records();
+    Rig::settle();
+
+    // A new colour and translucent together: the firmware takes the colour,
+    // snapped, and echoes it with no alpha.
+    SlotInfo edit = rig.reg->get_slot_info(1);
+    edit.color_rgb = 0xD080E0;
+    edit.translucent = true;
+    REQUIRE(rig.reg->commit_user_edit(1, rig.reg->get_slot_info(1), edit).success());
+    Rig::settle();
+    rig.feed(zmod_color_frame("D584DE"));
+    json rec = rig.printer.client.mock_db_get("lane_data", "T1");
+    CHECK(rec["color"] == "#D584DE");
+    CHECK(rec["helix_translucent"] == true);
+    CHECK(rig.reg->get_slot_info(1).translucent);
+
+    // A colour no edit asked for is another filament: its translucency goes.
+    rig.feed(zmod_color_frame("8C8C89"));
+    rec = rig.printer.client.mock_db_get("lane_data", "T1");
+    CHECK(rec["color"] == "#8C8C89");
+    CHECK_FALSE(rec.contains("helix_translucent"));
+}
+
 namespace {
 
 /// A C5 frame whose head 0 reports @p has_filament.
@@ -230,6 +257,7 @@ TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Ejec
                                     {"color", "#48358C"},
                                     {"vendor_name", "Polymaker"},
                                     {"spool_id", 42},
+                                    {"helix_translucent", true},
                                     {"loaded", true}});
     test::RegisteredBackend<StoreBackedChanger> reg(&printer.api, /*creator5=*/true);
     ams::reset_lane_sources();
@@ -255,8 +283,11 @@ TEST_CASE("an emptied tool keeps or clears its record as Keep Spool Info on Ejec
     if (keep) {
         CHECK(rec["spool_id"] == 42);
         CHECK(rec["vendor_name"] == "Polymaker");
+        CHECK(rec["helix_translucent"] == true);
         CHECK(reg->get_slot_info(0).spoolman_id == 42);
     } else {
+        // The spool that left took its translucency with it.
+        CHECK_FALSE(rec.contains("helix_translucent"));
         CHECK(rec["spool_id"].is_null());
         CHECK(rec["vendor_name"].is_null());
         CHECK(reg->get_slot_info(0).spoolman_id == 0);
