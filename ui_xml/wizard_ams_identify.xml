@@ -17,6 +17,7 @@
         flex_flow="column" style_flex_main_place="start" style_flex_cross_place="center">
 
     <!-- Info card -->
+    <!-- At 480x272 the spacers drop out so the card fits above the footer unscrolled. -->
     <ui_card width="100%"
              flex_grow="1" style_radius="#border_radius" style_pad_all="#space_xl" style_pad_gap="#space_sm"
              flex_flow="column" style_flex_main_place="center" style_flex_cross_place="center"
@@ -29,7 +30,9 @@
       </lv_image>
 
       <!-- Spacer between logo and text -->
-      <lv_obj width="1" height="#space_md"/>
+      <lv_obj width="1" height="#space_md">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </lv_obj>
 
       <!-- AMS Type name - REACTIVE BINDING -->
       <text_heading name="ams_type_label" bind_text="wizard_ams_type" style_text_align="center"/>
@@ -38,7 +41,9 @@
       <text_muted name="ams_details_label" bind_text="wizard_ams_details" style_text_align="center"/>
 
       <!-- Spacer between content and message -->
-      <lv_obj width="1" height="#space_lg"/>
+      <lv_obj width="1" height="#space_lg">
+        <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+      </lv_obj>
 
       <!-- Integration message - static text -->
       <text_muted width="85%"

@@ -1756,6 +1756,17 @@ After about 1.2 s the mock answers with the firmware's runout line (`!! [flow_ca
 HELIX_MOCK_PA_FAIL=1 ./build/bin/helix-screen --test -vv
 ```
 
+### `HELIX_MOCK_CARTOGRAPHER_TOUCH`
+
+| | |
+|---|---|
+| **Values** | `1` |
+| **Default** | unset: the mock Cartographer is scan only (`touch.current_model: none`) |
+
+Set to any true value (`1`), the mock Cartographer reports a loaded touch model, as a printer reports once
+`CARTOGRAPHER_TOUCH_CALIBRATE` has run. The app then treats it as setting Z by touch, so the
+Calibration screen and the guided run drop the Z offset step (`include/probe_touch_z.h`).
+
 ### `HELIX_MOCK_PROBE_TYPE`
 
 Choose which Z-probe the mock printer advertises. Controls both the Klipper object added to the mock object list and the probe status payload in the initial state dispatch.

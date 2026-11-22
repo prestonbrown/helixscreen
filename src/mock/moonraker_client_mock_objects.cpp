@@ -1375,8 +1375,13 @@ json mock_probe_status(helix::mock::PrinterType type) {
     if (probe_type == "cartographer") {
         const json mode = {
             {"current_model", "default"}, {"models", "default"}, {"last_z_result", nullptr}};
+        // Scan only unless HELIX_MOCK_CARTOGRAPHER_TOUCH=1 loads a touch model: a touch
+        // model means the printer sets Z by touch, which drops the Z offset step.
+        const bool touch = helix::env_flag("HELIX_MOCK_CARTOGRAPHER_TOUCH");
+        const json no_touch = {
+            {"current_model", "none"}, {"models", ""}, {"last_z_result", nullptr}};
         st["cartographer"] = {{"scan", mode},
-                              {"touch", mode},
+                              {"touch", touch ? mode : no_touch},
                               {"mcu", {{"last_sample", nullptr}, {"constants", nullptr}}}};
         st["probe"] = {{"name", "cartographer"},
                        {"last_query", 0},

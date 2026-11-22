@@ -1037,8 +1037,8 @@ int32_t live_content_max_width(lv_obj_t* obj);
  *
  * Chrome is a header or footer that spans the whole view while the content
  * between them is capped. A component declares the role in XML with
- * <style name="styles.cap_chrome"/>; header_bar, wizard_header_bar and the
- * wizard footer do. Null before ui_xml/styles.xml is registered.
+ * <style name="styles.cap_chrome"/>; header_bar and the setup wizard's header and
+ * footer do. Null before ui_xml/styles.xml is registered.
  */
 const lv_style_t* cap_chrome_style();
 

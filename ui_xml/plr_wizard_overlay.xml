@@ -148,7 +148,7 @@
               <text_heading name="plr_z_display" bind_text="plr_wizard_z"/>
               <z_adjust_steps width="100%"
                               subject="plr_jog_step" callback="on_plr_wizard_step" text0="0.05 mm" text1="0.1 mm"
-                              text2="1 mm" chip3_hidden="true" chip_w="0" chip_h="#button_height" gap="#space_xs"/>
+                              text2="1 mm" chip3_hidden="true" two_rows="false" chip_h="#button_height" gap="#space_xs"/>
               <z_adjust_buttons width="100%"
                                 callback="on_plr_wizard_jog" flow="row" gap="#space_sm" btn_w="0" btn_grow="1"
                                 btn_h="#button_height" head_hidden="true" moves_machine="true"/>

@@ -441,8 +441,8 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/calibration_hub_tile.xml",
     "ui_xml/calibration_pid_panel.xml",
     "ui_xml/calibration_zoffset_panel.xml",
-    "ui_xml/calibration_wizard_footer.xml",
-    "ui_xml/calibration_wizard_header.xml",
+    "ui_xml/wizard_frame_footer.xml",
+    "ui_xml/wizard_frame_header.xml",
     "ui_xml/chamber_air_target_row.xml",
     "ui_xml/change_host_modal.xml",
     "ui_xml/color_picker_modal.xml",
@@ -1002,6 +1002,30 @@ TEST_CASE("a file classified as commanding nothing carries no toolhead guard",
         REQUIRE(scan.attributes == 0);
         REQUIRE(scan.recognized == 0);
     }
+}
+
+TEST_CASE("every forwarded toolhead guard names a prop its component declares",
+          "[ui][xml][job_holds_machine]") {
+    // A `moves_machine="$prop"` socket installs the caller's guard only while
+    // the name matches a declared prop: a misspelt one expands to nothing and
+    // every caller's guard drops without a count changing anywhere.
+    size_t sockets = 0;
+    for (const std::string& path : walk_ui_xml()) {
+        const std::string xml = read_xml(path);
+        const std::string socket = kSocketGuard;
+        for (size_t pos = 0; (pos = xml.find(socket, pos)) != std::string::npos;
+             pos += socket.size()) {
+            const size_t start = pos + socket.size();
+            const size_t end = xml.find('"', start);
+            REQUIRE(end != std::string::npos);
+            const std::string prop = xml.substr(start, end - start);
+            ++sockets;
+            INFO(path << " forwards moves_machine=\"$" << prop << "\" but declares no <prop name=\""
+                      << prop << "\">");
+            CHECK(xml.find("<prop name=\"" + prop + "\"") != std::string::npos);
+        }
+    }
+    CHECK(sockets > 0);
 }
 
 TEST_CASE("every derived toolhead guard names the test that proves its subject",

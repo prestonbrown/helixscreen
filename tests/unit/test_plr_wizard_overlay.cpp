@@ -140,6 +140,17 @@ class PlrWizardFixture : public LVGLUITestFixture {
         settle();
     }
 
+    /// Open a tier-1 wizard and run it to the Z jog step.
+    void reach_tier1_z_step() {
+        open();
+        set_subject("plr_ack_part", 1);
+        set_subject("plr_ack_nozzle", 1);
+        PlrWizardOverlayTestAccess::tap_continue(get_plr_wizard_overlay());
+        settle();
+        REQUIRE(run_past(PlrWizardStep::Preparing));
+        REQUIRE(wizard_step() == PlrWizardStep::ZStep);
+    }
+
     static PlrWizardStep wizard_step() {
         return PlrWizardOverlayTestAccess::step(get_plr_wizard_overlay());
     }
@@ -613,17 +624,41 @@ TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: leaving after the print starts d
     CHECK(client.count(helix::kPlrAbortRpc) == 0);
 }
 
+namespace {
+
+/// printer_bed_moves for one case, back to the head moving on Z after it.
+struct BedMovesScope {
+    explicit BedMovesScope(int bed_moves) {
+        lv_subject_t* s = lv_xml_get_subject(nullptr, "printer_bed_moves");
+        REQUIRE(s != nullptr);
+        lv_subject_set_int(s, bed_moves);
+    }
+    ~BedMovesScope() {
+        if (lv_subject_t* s = lv_xml_get_subject(nullptr, "printer_bed_moves")) {
+            lv_subject_set_int(s, 0);
+        }
+    }
+};
+
+} // namespace
+
 TEST_CASE_METHOD(PlrWizardFixture,
                  "PLR wizard: the Z adjuster's chips pick the jog and its tape follows Z",
                  "[plr][wizard_overlay][z_adjuster]") {
     helix::ScopedEnv tier{"HELIX_MOCK_PLR_TIER", "1"};
-    open();
-    set_subject("plr_ack_part", 1);
-    set_subject("plr_ack_nozzle", 1);
-    PlrWizardOverlayTestAccess::tap_continue(get_plr_wizard_overlay());
-    settle();
-    REQUIRE(run_past(PlrWizardStep::Preparing));
-    REQUIRE(wizard_step() == PlrWizardStep::ZStep);
+    // The pair is named for what moves on Z; the button that brings nozzle and
+    // part together sends Z- either way: Lower nozzle, or Raise bed.
+    const int bed_moves = GENERATE(0, 1);
+    INFO("printer_bed_moves=" << bed_moves);
+    reach_tier1_z_step();
+    BedMovesScope kinematics{bed_moves};
+
+    const char* closer = bed_moves ? "btn_z_raise_bed" : "btn_z_lower_nozzle";
+    const char* farther = bed_moves ? "btn_z_lower_bed" : "btn_z_raise_nozzle";
+    CHECK_FALSE(lv_obj_is_hidden(wizard_widget(closer)));
+    CHECK_FALSE(lv_obj_is_hidden(wizard_widget(farther)));
+    CHECK(lv_obj_is_hidden(wizard_widget(bed_moves ? "btn_z_lower_nozzle" : "btn_z_raise_bed")));
+    CHECK(lv_obj_is_hidden(wizard_widget(bed_moves ? "btn_z_raise_nozzle" : "btn_z_lower_bed")));
 
     // The tape zooms by the selected step, in microns.
     CHECK(subject("plr_jog_step") == 1);
@@ -634,23 +669,55 @@ TEST_CASE_METHOD(PlrWizardFixture,
     CHECK(subject("plr_jog_step") == 2);
     CHECK(subject("plr_jog_step_microns") == 1000);
 
-    // The pair sends +Z for Raise nozzle and -Z for Lower nozzle, at that step.
-    const size_t before = client.sent.size();
-    helix::ui::send_tap(wizard_widget("btn_z_lower_nozzle"));
-    settle();
-    bool lowered = false;
-    for (size_t i = before; i < client.sent.size(); ++i) {
-        if (client.sent[i].first == "printer.gcode.script" &&
-            client.sent[i].second.value("script", "").find("Z-1") != std::string::npos) {
-            lowered = true;
+    const auto sent_z = [&](size_t from, const char* delta) {
+        for (size_t i = from; i < client.sent.size(); ++i) {
+            if (client.sent[i].first == "printer.gcode.script" &&
+                client.sent[i].second.value("script", "").find(delta) != std::string::npos) {
+                return true;
+            }
         }
-    }
-    CHECK(lowered);
+        return false;
+    };
+
+    // Farther is Z+ and never counts as reaching the part.
+    size_t before = client.sent.size();
+    helix::ui::send_tap(wizard_widget(farther));
+    settle();
+    CHECK(sent_z(before, "G0 Z1"));
+    CHECK(subject("plr_z_jogged") == 0);
+
+    before = client.sent.size();
+    helix::ui::send_tap(wizard_widget(closer));
+    settle();
+    CHECK(sent_z(before, "G0 Z-1"));
     CHECK(subject("plr_z_jogged") == 1);
 
     lv_subject_set_int(get_printer_state().motion_state().get_position_z_subject(), 1234);
     helix::ui::UpdateQueue::instance().drain();
     CHECK(subject("plr_wizard_z_microns") == 12340);
+}
+
+TEST_CASE_METHOD(PlrWizardFixture,
+                 "PLR wizard: the Z adjuster's jog keys refuse while the machine is held",
+                 "[plr][wizard_overlay][z_adjuster][job_holds_machine]") {
+    helix::ScopedEnv tier{"HELIX_MOCK_PLR_TIER", "1"};
+    reach_tier1_z_step();
+    lv_subject_t* blocked = get_printer_state().print_state().get_machine_motion_blocked_subject();
+    const int blocked_before = lv_subject_get_int(blocked);
+    constexpr const char* kPair[] = {"btn_z_raise_nozzle", "btn_z_raise_bed", "btn_z_lower_nozzle",
+                                     "btn_z_lower_bed"};
+
+    lv_subject_set_int(blocked, 1);
+    for (const char* name : kPair) {
+        INFO(name);
+        CHECK(lv_obj_has_state(wizard_widget(name), LV_STATE_DISABLED));
+    }
+    lv_subject_set_int(blocked, 0);
+    for (const char* name : kPair) {
+        INFO(name);
+        CHECK_FALSE(lv_obj_has_state(wizard_widget(name), LV_STATE_DISABLED));
+    }
+    lv_subject_set_int(blocked, blocked_before);
 }
 
 TEST_CASE_METHOD(PlrWizardFixture, "PLR wizard: tier 1 resumes only after jogging down",

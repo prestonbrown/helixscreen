@@ -125,7 +125,7 @@ shrink or remove the overflow). Its callers:
 
 **Chrome spans, content caps.** A header or footer declares the chrome role with
 `<style name="styles.cap_chrome"/>` (a property-less marker in `ui_xml/styles.xml`).
-`header_bar`, `wizard_header_bar` and the wizard footer carry it. A direct child of a capped
+`header_bar` and the setup wizard's header and footer (`wizard_container`) carry it. A direct child of a capped
 root that carries the role keeps the root's full width: a back button and title stay at the
 left, while right-side items (Motion's position readout, the gear, the wizard's Next button)
 sit at the screen's right edge. It gets a pixel width reaching into the cap's padding and a

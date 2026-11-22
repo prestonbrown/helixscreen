@@ -230,7 +230,6 @@ bool Application::run_wizard() {
     }
 
     ui_wizard_register_event_callbacks();
-    ui_wizard_container_register_responsive_constants();
 
     lv_obj_t* wizard = ui_wizard_create(m_screen);
     if (!wizard) {

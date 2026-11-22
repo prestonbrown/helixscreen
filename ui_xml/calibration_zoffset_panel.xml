@@ -61,14 +61,13 @@
       <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="1"/>
     </header_bar>
     <!-- Inside a guided run the wizard's own header names the step and its place. -->
-    <calibration_wizard_header name="zo_run_header"
-                               title="Z offset" subtitle_subject="zoffset_run_subtitle" subtitle_color="#warning"
-                               subtitle_icon="hand" subtitle_compact="1"
-                               subtitle_compact_subject="zoffset_run_subtitle_short" progress="2"
-                               segment_style="seg_on_warn" step_count_subject="zoffset_run_step_count"
-                               step_current_subject="zoffset_run_step_current">
+    <wizard_frame_header name="zo_run_header"
+                         title="Z offset" subtitle_subject="zoffset_run_subtitle" subtitle_color="#warning"
+                         subtitle_icon="hand" subtitle_compact="1" subtitle_compact_subject="zoffset_run_subtitle_short"
+                         progress="2" segment_style="seg_on_warn" step_count_subject="zoffset_run_step_count"
+                         step_current_subject="zoffset_run_step_current">
       <bind_flag_if_eq subject="zoffset_cal_run_mode" flag="hidden" ref_value="0"/>
-    </calibration_wizard_header>
+    </wizard_frame_header>
     <!-- Content Area -->
     <lv_obj name="overlay_content"
             width="100%" flex_grow="1" style_pad_all="0" flex_flow="column" style_pad_gap="0" scrollable="false">
@@ -325,12 +324,12 @@
             </lv_obj>
           </lv_obj>
         </if>
-        <calibration_wizard_footer name="zo_footer"
-                                   back_text="Back" back_callback="on_zoffset_back_clicked" back_name="btn_abort"
-                                   back_subject="zoffset_back_text" compact_texts="1"
-                                   back_compact_subject="zoffset_back_text" skip_callback="on_zoffset_skip_clicked"
-                                   skip_hide_subject="zoffset_not_run" primary_text="Paper drags: done"
-                                   primary_callback="on_zoffset_accept_clicked" primary_name="btn_accept"/>
+        <wizard_frame_footer name="zo_footer"
+                             back_text="Back" back_callback="on_zoffset_back_clicked" back_name="btn_abort"
+                             back_subject="zoffset_back_text" compact_texts="1" back_compact_subject="zoffset_back_text"
+                             skip_callback="on_zoffset_skip_clicked" skip_hide_subject="zoffset_not_run"
+                             primary_text="Paper drags: done" primary_callback="on_zoffset_accept_clicked"
+                             primary_name="btn_accept"/>
       </lv_obj>
       <!-- ================================================================== -->
       <!-- STATE: SAVING (3) - Saving configuration -->
