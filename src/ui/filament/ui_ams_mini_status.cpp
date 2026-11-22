@@ -1032,7 +1032,10 @@ static void place_cells_in_groups(AmsMiniStatusData* data, lv_obj_t* sc,
             g.unit = sp.unit;
             g.titled = titled;
             g.title = sp.unit >= 0 ? data->unit_rows[sp.unit].title : "";
-            const char* attrs[] = {"titled", titled ? "1" : "0", nullptr};
+            const char* titled_attrs[] = {nullptr};
+            const char* untitled_attrs[] = {"untitled", "true", "box_opa", "0",
+                                            "box_pad",  "0",    nullptr};
+            const char** attrs = titled ? titled_attrs : untitled_attrs;
             g.obj = static_cast<lv_obj_t*>(lv_xml_create(sc, "ams_mini_unit_group", attrs));
             if (!g.obj)
                 spdlog::error("[AmsMiniStatus] ams_mini_unit_group creation failed");
