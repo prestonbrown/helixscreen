@@ -96,6 +96,10 @@ class AmsPanelTestAccess {
     static lv_obj_t* page_dots(const AmsOverviewPanel& p) {
         return p.page_dots_;
     }
+    /// The unit page's spool widget at @p i, nullptr when it has none.
+    static lv_obj_t* detail_slot(const AmsOverviewPanel& p, int i) {
+        return p.detail_slot_widgets_[i].get();
+    }
     static void resync(AmsOverviewPanel& p) {
         p.sync_pages(/*reopen=*/false);
     }

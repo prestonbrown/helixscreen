@@ -10,6 +10,7 @@
 #include "../test_helpers/scoped_breakpoint.h"
 #include "color_recents.h"
 #include "config.h"
+#include "core/static_subject_registry.h"
 
 #include <algorithm>
 #include <string>
@@ -382,4 +383,31 @@ TEST_CASE_METHOD(PickerFixture, "LED picker: Done keeps the color and adds it to
     // The filament list is another list.
     CHECK(ColorRecents::list(ColorRecents::Kind::Filament) ==
           ColorRecents::seed(ColorRecents::Kind::Filament));
+}
+
+TEST_CASE_METHOD(PickerFixture, "ColorPickerView: each attach starts opaque",
+                 "[color_picker][translucent]") {
+    attach(0xE8E8FF);
+    view.set_translucent(true);
+    REQUIRE(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_picker_translucent")) == 1);
+    view.detach();
+
+    attach(0x2266AA);
+    CHECK_FALSE(view.translucent());
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "color_picker_translucent")) == 0);
+}
+
+TEST_CASE_METHOD(PickerFixture,
+                 "ColorPickerView: teardown withdraws the readout's translucency name",
+                 "[color_picker][translucent]") {
+    attach(0xE8E8FF);
+    view.detach();
+    REQUIRE(lv_xml_get_subject(nullptr, "color_picker_translucent") != nullptr);
+    REQUIRE(StaticSubjectRegistry::instance().deinit_one("ColorPickerView"));
+    CHECK(lv_xml_get_subject(nullptr, "color_picker_translucent") == nullptr);
+    CHECK(lv_xml_get_subject(nullptr, "color_picker_hex") == nullptr);
+
+    // The next picker registers it again.
+    attach(0x2266AA);
+    CHECK(lv_xml_get_subject(nullptr, "color_picker_translucent") != nullptr);
 }

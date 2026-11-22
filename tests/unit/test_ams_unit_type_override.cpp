@@ -509,3 +509,23 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows hide when the filament syst
     NavigationManager::instance().go_back();
     settle();
 }
+
+TEST_CASE_METHOD(UnitTypePanel, "unit type: a refresh with the pick unchanged keeps the unit page",
+                 "[ams][unit-type][ui_integration]") {
+    install(true);
+    open();
+    overview().show_unit_view(1);
+    settle();
+    process_lvgl(80);
+    pick(1, "emu");
+    REQUIRE(unit_page_drawing() == "emu");
+    lv_obj_t* const slot = AmsPanelTestAccess::detail_slot(overview(), 0);
+    REQUIRE(slot != nullptr);
+
+    // Fresh slot data that changes no drawing lays nothing out again.
+    AmsState::instance().bump_slots_version();
+    settle();
+    process_lvgl(80);
+    CHECK(AmsPanelTestAccess::detail_slot(overview(), 0) == slot);
+    CHECK(unit_page_drawing() == "emu");
+}

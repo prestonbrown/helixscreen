@@ -1302,3 +1302,20 @@ TEST_CASE_METHOD(OverlayXmlFixture,
         CHECK(helix::ui::has_swatch_paint(disc));
     }
 }
+
+TEST_CASE_METHOD(LedApplyColorFixture, "overlay: the Custom color picker goes with its overlay",
+                 "[led][overlay][color_picker]") {
+    add_native("neopixel strip_a", true, false);
+    helix::PrinterState ps;
+    {
+        LedControlOverlayTestAccess access;
+        access.activate("neopixel strip_a");
+        lv_obj_t* host = lv_obj_create(test_screen());
+        access.open_custom_color(lv_obj_create(host));
+        REQUIRE(helix::ui::ColorPickerView::active() != nullptr);
+        access.drop_root();
+    }
+    drain();
+    // No picker outlives the overlay its callbacks act on.
+    CHECK(helix::ui::ColorPickerView::active() == nullptr);
+}
