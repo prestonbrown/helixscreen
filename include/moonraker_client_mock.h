@@ -230,6 +230,12 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
         klippy_state_.store(state);
     }
 
+    /// The state a FIRMWARE_RESTART or RESTART ends in: READY, or ERROR for a
+    /// restart whose config Klipper refuses (with set_klippy_error_message()).
+    void set_restart_outcome(KlippyState state) {
+        restart_outcome_.store(state);
+    }
+
     /// The state_message printer.info reports while Klippy is in ERROR. Empty
     /// keeps the generic text. Set before connecting: not synchronised.
     void set_klippy_error_message(std::string message) {
@@ -2436,6 +2442,7 @@ class MoonrakerClientMock : public helix::MoonrakerClient {
 
     // Klippy service state (for RESTART/FIRMWARE_RESTART simulation)
     std::atomic<KlippyState> klippy_state_{KlippyState::READY};
+    std::atomic<KlippyState> restart_outcome_{KlippyState::READY};
     std::string klippy_error_message_;
 
     // Fan speed tracking (multiple fans by name)

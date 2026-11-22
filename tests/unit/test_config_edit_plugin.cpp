@@ -11,6 +11,7 @@
 
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/moonraker_client_test_access.h"
+#include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/update_queue_test_access.h"
 #include "helix_plugin_features.h"
 #include "http_executor.h"
@@ -89,11 +90,18 @@ json option(const std::string& value, bool autosave = false) {
 /// records every call; everything else goes to the stock mock.
 class ConfigPluginMockClient : public MoonrakerClientMock {
   public:
-    using MoonrakerClientMock::MoonrakerClientMock;
+    // The mock's FIRMWARE_RESTART takes 3s of simulated time to reach READY;
+    // at this speed the health monitor sees it in a few milliseconds.
+    ConfigPluginMockClient() {
+        set_simulation_speedup(1000.0);
+    }
 
     json config_reply;
     json edit_reply = {{"dry_run", false}, {"files", json::array()}, {"backups", json::array()}};
     bool fail_read = false;
+    /// configfile.settings a printer.objects.query for configfile answers
+    /// with; null leaves the query to the stock mock.
+    json settings_reply;
 
     std::vector<std::pair<std::string, json>> calls() const {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -130,6 +138,13 @@ class ConfigPluginMockClient : public MoonrakerClientMock {
         if (method == "server.helix.config_edit") {
             if (success_cb)
                 success_cb({{"result", edit_reply}});
+            return 0;
+        }
+        if (method == "printer.objects.query" && !settings_reply.is_null() &&
+            params.contains("objects") && params["objects"].contains("configfile")) {
+            if (success_cb)
+                success_cb(
+                    {{"result", {{"status", {{"configfile", {{"settings", settings_reply}}}}}}}});
             return 0;
         }
         return MoonrakerClientMock::send_jsonrpc(method, params, std::move(success_cb),
@@ -488,14 +503,16 @@ TEST_CASE_METHOD(LVGLTestFixture,
 }
 
 TEST_CASE_METHOD(LVGLTestFixture,
-                 "plugin path restores the plugin's backups when Klipper does not come back",
+                 "plugin path restores the plugin's backups when Klipper comes back in error",
                  "[plugin_config_edit][config][editor]") {
     PrinterState state;
     ConfigPluginMockClient client;
     MoonrakerAPIMock api(client, state);
     api.set_config_files({{"printer.cfg", kShaperRoot}});
-    // Disconnected and never back: the monitor times out and reverts.
-    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::DISCONNECTED);
+    // Moonraker stays connected; Klippy refuses the new config (#2157).
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+    client.set_restart_outcome(MoonrakerClientMock::KlippyState::ERROR);
+    client.set_klippy_error_message("Option 'heater_power' is not valid in section 'extruder'");
     client.config_reply = read_result("input_shaper", {{"shaper_freq_x", option("40")}});
     client.edit_reply = {
         {"dry_run", false},
@@ -510,10 +527,176 @@ TEST_CASE_METHOD(LVGLTestFixture,
 
     CHECK_FALSE(run.succeeded);
     CHECK(run.error.find("Original config restored") != std::string::npos);
+    CHECK(run.error.find("heater_power' is not valid") != std::string::npos);
     auto copies = client.params_of("server.files.copy");
     REQUIRE(copies.size() == 1);
     CHECK(copies[0]["source"] == "config/printer.cfg.helixbak-20261022-1");
     CHECK(copies[0]["dest"] == "config/printer.cfg");
+}
+
+// ============================================================================
+// A restart counts only when Klippy is READY on the new config (#2157)
+// ============================================================================
+
+namespace {
+
+const std::string kExtruderRoot = "[include machine.cfg]\n[printer]\nkinematics: corexy\n";
+
+json extruder_read() {
+    return read_result("extruder", {{"control", option("pid")}});
+}
+
+json plugin_backups() {
+    return {{"dry_run", false},
+            {"files", {"machine.cfg"}},
+            {"backups", {{{"file", "machine.cfg"}, {"backup", "machine.cfg.helixbak-1"}}}}};
+}
+
+json extruder_settings(const std::string& control) {
+    return {{"extruder", {{"control", control}, {"heater_power", 50.0}}}};
+}
+
+} // namespace
+
+TEST_CASE("judge_restart_poll counts a READY or ERROR only once the restart shows",
+          "[plugin_config_edit][config][restart_watch]") {
+    SECTION("a READY lingering from before the restart is not the new Klippy") {
+        RestartWatch watch = restart_watch_for(30000);
+        CHECK(judge_restart_poll(watch, KlippyState::READY, 500) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, std::nullopt, 1000) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::STARTUP, 1500) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::READY, 4000) == RestartVerdict::Ready);
+    }
+    SECTION("an ERROR after the restart fails at once") {
+        RestartWatch watch = restart_watch_for(30000);
+        CHECK(judge_restart_poll(watch, KlippyState::STARTUP, 500) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::ERROR, 1000) == RestartVerdict::Failed);
+    }
+    SECTION("an ERROR from before the restart is waited past") {
+        RestartWatch watch = restart_watch_for(30000);
+        CHECK(judge_restart_poll(watch, KlippyState::ERROR, 500) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::ERROR, 2000) == RestartVerdict::Failed);
+    }
+    SECTION("a restart too fast to see still counts once it settles") {
+        RestartWatch watch = restart_watch_for(30000);
+        CHECK(judge_restart_poll(watch, KlippyState::READY, 1999) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::READY, 2000) == RestartVerdict::Ready);
+    }
+    SECTION("a Klippy still starting gets the allowance, then fails") {
+        RestartWatch watch = restart_watch_for(10000);
+        CHECK(judge_restart_poll(watch, KlippyState::STARTUP, 15000) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::STARTUP, 20000) == RestartVerdict::Failed);
+    }
+    SECTION("a SHUTDOWN waits out the timeout, then fails") {
+        RestartWatch watch = restart_watch_for(10000);
+        CHECK(judge_restart_poll(watch, KlippyState::SHUTDOWN, 9999) == RestartVerdict::Waiting);
+        CHECK(judge_restart_poll(watch, KlippyState::SHUTDOWN, 10000) == RestartVerdict::Failed);
+    }
+}
+
+TEST_CASE("settings_hold compares what configfile.settings reports",
+          "[plugin_config_edit][config][restart_watch]") {
+    const json settings = {{"extruder", {{"control", "mpc"}, {"heater_power", 50.0}}},
+                           {"heater_bed", {{"control", "pid"}}}};
+    std::string why;
+    CHECK(settings_hold(settings, {{"extruder", "control", "mpc"}}));
+    CHECK(settings_hold(settings, {{"Extruder", "Control", "MPC"}}));
+    CHECK(settings_hold(settings, {{"extruder", "heater_power", "50"}}));
+    CHECK(settings_hold(settings, {}));
+    CHECK_FALSE(settings_hold(settings, {{"heater_bed", "control", "mpc"}}, &why));
+    CHECK(why == "[heater_bed] control is 'pid', not 'mpc'");
+    CHECK_FALSE(settings_hold(settings, {{"extruder", "cooling_fan", "fan"}}, &why));
+    CHECK(why == "[extruder] cooling_fan is unset, not 'fan'");
+    CHECK_FALSE(settings_hold(json(nullptr), {{"extruder", "control", "mpc"}}));
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "an expected setting the restart did not take reverts the edit",
+                 "[plugin_config_edit][config][editor][restart_watch]") {
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files(
+        {{"printer.cfg", kExtruderRoot}, {"machine.cfg", "[extruder]\ncontrol: pid\n"}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+    client.config_reply = extruder_read();
+    client.edit_reply = plugin_backups();
+    // Klippy comes back READY, but a SAVE_CONFIG copy kept the old control.
+    client.settings_reply = extruder_settings("pid");
+
+    KlipperConfigEditor editor;
+    editor.set_feature_state_source([]() { return PluginFeatureState::Ready; });
+    editor.set_restart_poll_interval(std::chrono::milliseconds(1));
+    EditorRun run;
+    editor.safe_multi_edit(
+        api, "extruder", {{ConfigEdit::Type::ADD_KEY, "control", "mpc"}},
+        [&run]() { run.succeeded = true; }, [&run](const std::string& err) { run.error = err; },
+        300, {{"extruder", "control", "mpc"}});
+    helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+    REQUIRE(wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
+    helix::ui::UpdateQueue::instance().drain();
+
+    CHECK_FALSE(run.succeeded);
+    CHECK(run.error.find("[extruder] control is 'pid', not 'mpc'") != std::string::npos);
+    CHECK(run.error.find("Original config restored") != std::string::npos);
+    auto copies = client.params_of("server.files.copy");
+    REQUIRE(copies.size() == 1);
+    CHECK(copies[0]["source"] == "config/machine.cfg.helixbak-1");
+    CHECK(copies[0]["dest"] == "config/machine.cfg");
+}
+
+TEST_CASE_METHOD(LVGLTestFixture, "a PID to MPC migration calibrates only on a confirmed MPC",
+                 "[plugin_config_edit][config][pid][restart_watch]") {
+    PrinterState state;
+    ConfigPluginMockClient client;
+    MoonrakerAPIMock api(client, state);
+    api.set_config_files(
+        {{"printer.cfg", kExtruderRoot}, {"machine.cfg", "[extruder]\ncontrol: pid\n"}});
+    MoonrakerClientTestAccess::force_connection_state(client, ConnectionState::CONNECTED);
+    client.config_reply = extruder_read();
+    client.edit_reply = plugin_backups();
+
+    PIDCalibrationPanel panel;
+    panel.init_subjects();
+    panel.set_api(&api);
+    using Access = helix::ui::PIDCalibrationPanelTestAccess;
+    Access::use_mpc(panel);
+    auto& editor = Access::config_editor(panel);
+    editor.set_feature_state_source([]() { return PluginFeatureState::Ready; });
+    editor.set_restart_poll_interval(std::chrono::milliseconds(1));
+    Access::set_migration_restart_timeout_ms(panel, 300);
+
+    auto migrate = [&]() {
+        Access::start_mpc_migration(panel);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        REQUIRE(
+            wait_until([]() { return helix::http::HttpExecutor::fast().inflight() == 0; }, 15000));
+        helix::ui::UpdateQueue::instance().drain();
+    };
+
+    SECTION("Klippy halted on the new config: no calibration, the edit reverted") {
+        client.set_restart_outcome(MoonrakerClientMock::KlippyState::ERROR);
+        client.set_klippy_error_message("Option 'heater_power' is not valid in section 'extruder'");
+        migrate();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+        CHECK(Access::error_message(panel).find("Original config restored") != std::string::npos);
+        CHECK(client.params_of("server.files.copy").size() == 1);
+    }
+    SECTION("Klippy ready but still on PID: no calibration, the edit reverted") {
+        client.settings_reply = extruder_settings("pid");
+        migrate();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+        CHECK(Access::error_message(panel).find("control is 'pid'") != std::string::npos);
+        CHECK(client.params_of("server.files.copy").size() == 1);
+    }
+    SECTION("Klippy ready on MPC: calibration starts") {
+        client.settings_reply = extruder_settings("mpc");
+        migrate();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
+        CHECK(client.params_of("server.files.copy").empty());
+    }
+    // The restart's simulated return to READY runs on a mock thread; let it land here.
+    process_lvgl(50);
+    helix::ui::UpdateQueue::instance().drain();
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "safe_edit_value takes the plugin path when it is ready",

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "klippy_state.h"
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -92,6 +94,52 @@ std::optional<std::string> config_backup_original(const std::string& path);
 std::string config_edit_target_file(const std::map<std::string, SectionLocation>& section_map,
                                     const std::string& root_content, const std::string& section,
                                     const std::vector<ConfigEdit>& edits);
+
+/// A value a safe edit expects Klipper's configfile.settings to hold once the
+/// restart is done. A restart that leaves it otherwise failed the edit: the
+/// value was shadowed (a SAVE_CONFIG copy on a build that lets the block win)
+/// or the restart never happened.
+struct ExpectedSetting {
+    std::string section;
+    std::string option;
+    std::string value;
+};
+
+/// Whether configfile.settings @p settings holds every @p expected value.
+/// Klipper keys settings by lowercased section and option; a string compares
+/// ignoring case, a number by value. On false, @p mismatch (when given) says
+/// which value is off.
+bool settings_hold(const nlohmann::json& settings, const std::vector<ExpectedSetting>& expected,
+                   std::string* mismatch = nullptr);
+
+/// What the FIRMWARE_RESTART monitor makes of one printer.info poll.
+enum class RestartVerdict {
+    Waiting, ///< poll again
+    Ready,   ///< Klippy is ready on the restarted config
+    Failed,  ///< the restart left Klippy in error, or not ready in time
+};
+
+/// The FIRMWARE_RESTART monitor's memory across polls. Right after the restart
+/// is accepted, printer.info can still answer with the old Klippy's state, so
+/// a READY or ERROR counts only once a poll has seen the restart (Klippy
+/// starting, or Moonraker without a Klippy) or `settle_ms` have passed.
+struct RestartWatch {
+    int settle_ms = 2000;
+    /// How long Klippy has to reach READY or ERROR.
+    int timeout_ms = 15000;
+    /// Extra time a Klippy still starting up (or still away) is given past the
+    /// timeout: a slow MCU handshake is not a failed config.
+    int startup_allowance_ms = 15000;
+    bool saw_restart = false;
+};
+
+/// The watch a monitor with @p restart_timeout_ms starts from.
+RestartWatch restart_watch_for(int restart_timeout_ms);
+
+/// Judge one poll @p elapsed_ms after the restart was accepted. @p state is
+/// nullopt when Moonraker has no Klippy ("disconnected") or did not answer.
+RestartVerdict judge_restart_poll(RestartWatch& watch, std::optional<KlippyState> state,
+                                  int elapsed_ms);
 
 /// The HelixPrint plugin feature that reads and writes the config
 /// (server.helix.config / server.helix.config_edit), and the contract this
@@ -225,7 +273,7 @@ class KlipperConfigEditor {
     /// thread it answers Absent.
     void set_feature_state_source(FeatureStateSource source);
 
-    /// How often the FIRMWARE_RESTART health monitor checks the connection and
+    /// How often the FIRMWARE_RESTART health monitor polls Klippy's state and
     /// the cancel flag. A monitor already running keeps the interval it started with.
     void set_restart_poll_interval(std::chrono::milliseconds interval) {
         restart_poll_interval_ = interval;
@@ -252,13 +300,17 @@ class KlipperConfigEditor {
                                            const std::vector<ConfigEdit>& edits) const;
 
     /// Safe multi-edit: load config, apply edits, backup, upload, restart, monitor health.
-    /// If Klipper fails to restart, auto-restore backups.
+    /// Success means Klippy came back READY on the new config and configfile.settings
+    /// holds every @p expected value; anything else (an ERROR, no READY in time, an
+    /// expected value that did not take) restores the backups, restarts again and
+    /// reports why through @p on_error.
     /// With the plugin's config_edit feature ready, the plugin writes the edits
     /// instead (config_edit_route()), and the restart and revert are the same.
     /// Call safe_multi_edit() and safe_edit_value() from the main thread.
     void safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
                          const std::vector<ConfigEdit>& edits, SuccessCallback on_success,
-                         ErrorCallback on_error, int restart_timeout_ms = 15000);
+                         ErrorCallback on_error, int restart_timeout_ms = 15000,
+                         std::vector<ExpectedSetting> expected = {});
 
   private:
     /// How a restart that Klipper does not survive is undone, and what a
@@ -271,22 +323,30 @@ class KlipperConfigEditor {
     /// The file-API route: load, apply, back up, upload, then restart.
     void file_api_multi_edit(IMoonrakerAPI& api, const std::string& section,
                              const std::vector<ConfigEdit>& edits, SuccessCallback on_success,
-                             ErrorCallback on_error, int restart_timeout_ms);
+                             ErrorCallback on_error, int restart_timeout_ms,
+                             std::vector<ExpectedSetting> expected);
 
     /// The plugin route: read the section, write through
     /// server.helix.config_edit, then restart. Falls back to the file route
     /// when the plugin cannot serve the list.
     void plugin_multi_edit(IMoonrakerAPI& api, const std::string& section,
                            const std::vector<ConfigEdit>& edits, SuccessCallback on_success,
-                           ErrorCallback on_error, int restart_timeout_ms);
+                           ErrorCallback on_error, int restart_timeout_ms,
+                           std::vector<ExpectedSetting> expected);
 
-    /// Send FIRMWARE_RESTART and watch Klipper come back; @p recovery undoes
-    /// the edit when it does not within @p restart_timeout_ms.
+    /// Send FIRMWARE_RESTART and watch Klipper come back (judge_restart_poll());
+    /// @p recovery undoes the edit when it does not come back READY with every
+    /// @p expected setting within @p restart_timeout_ms.
     void restart_and_monitor(IMoonrakerAPI& api, RestartRecovery recovery,
                              SuccessCallback on_success, ErrorCallback on_error,
-                             int restart_timeout_ms);
+                             int restart_timeout_ms, std::vector<ExpectedSetting> expected);
 
     ConfigEditRoute route() const;
+
+    /// Undo an edit whose restart failed: restore through @p recovery, restart
+    /// again, and report @p problem with what the undo did. Any thread.
+    static void revert_after_failed_restart(IMoonrakerAPI& api, const RestartRecovery& recovery,
+                                            ErrorCallback on_error, const std::string& problem);
 
     /// Undo by copying each .helix_backup over its file; clean up by deleting them.
     RestartRecovery file_api_recovery();
