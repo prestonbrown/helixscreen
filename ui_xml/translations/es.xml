@@ -5737,6 +5737,7 @@
   <translation tag="Your printer has an automatic filament changer" es="Tu impresora tiene un cambiador de filamento automático"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" es="Su impresora estaba desconectada durante la configuración, por lo que se omitieron las opciones de hardware. ¿Configurarlas ahora?"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." es="El firmware de tu impresora gestiona el software de HelixScreen, así que el plugin HelixPrint debe proporcionarlo el firmware. No se puede instalar desde esta pantalla."/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." es="El firmware de tu impresora gestiona su configuración, así que ajusta estos valores allí."/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." es="El manual de tu impresora indica piezas y lubricante para tu modelo."/>
   <translation tag="Your usual build plate is on" es="Tu placa de impresión habitual está puesta"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." es="Tu {0} está configurada para {1}, pero parece de serie."/>

@@ -5737,6 +5737,7 @@
   <translation tag="Your printer has an automatic filament changer" zh="您的打印机配有自动换色系统"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" zh="设置期间打印机离线，硬件选项已跳过。现在设置吗？"/>
   <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." zh="打印机固件管理 HelixScreen 的软件，因此 HelixPrint 插件必须由固件提供，无法在此屏幕上安装。"/>
+  <translation tag="Your printer&apos;s firmware manages its configuration, so set these values there." zh="打印机的配置由其固件管理，请在固件中设置这些值。"/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." zh="打印机手册列有适合您机型的部件和润滑剂。"/>
   <translation tag="Your usual build plate is on" zh="已放上常用的打印板"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." zh="您的 {0} 设置为 {1}，但看起来是原厂状态。"/>

@@ -144,20 +144,24 @@ bool reject_plugin_rpc(helix::PrinterState& state, const std::string& method,
     // Firmware that supervises HelixScreen owns the software and the configuration
     // (#2154): no plugin updates components or rewrites the config root there.
     if (helix::firmware_supervised()) {
-        const bool updates =
-            method.rfind("machine.update.", 0) == 0 && method != "machine.update.status";
-        const bool file_write = method == "server.files.delete_file" ||
-                                method == "server.files.copy" || method == "server.files.move" ||
-                                method == "server.files.post_directory" ||
-                                method == "server.files.delete_directory";
+        const bool updates = method.rfind("machine.update.", 0) == 0 &&
+                             method != "machine.update.status" &&
+                             method != "machine.update.refresh";
+        const bool file_write =
+            method == "server.files.delete_file" || method == "server.files.copy" ||
+            method == "server.files.move" || method == "server.files.post_directory" ||
+            method == "server.files.delete_directory" || method == "server.files.zip";
         if (updates || (file_write && (moonraker_internal::names_config_root("", str("path")) ||
                                        moonraker_internal::names_config_root("", str("source")) ||
                                        moonraker_internal::names_config_root("", str("dest"))))) {
             spdlog::warn("{} Refusing plugin call to {}: {}", kTag, method,
                          helix::kFirmwareSupervisedConfigRefusal);
             if (on_error) {
-                on_error(
-                    MoonrakerError::not_ready(method, helix::kFirmwareSupervisedConfigRefusal));
+                MoonrakerError err;
+                err.type = MoonrakerErrorType::PERMISSION_DENIED;
+                err.method = method;
+                err.message = helix::kFirmwareSupervisedConfigRefusal;
+                on_error(err);
             }
             return true;
         }

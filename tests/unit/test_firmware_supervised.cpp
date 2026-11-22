@@ -10,9 +10,12 @@
 
 #include "../../src/api/moonraker_gcode_guards.h"
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/firmware_supervised_override.h"
+#include "helix_plugin_features.h"
 #include "klipper_config_editor.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "moonraker_validation.h"
 #include "platform_info.h"
 #include "printer_state.h"
 #include "system/update_checker.h"
@@ -33,15 +36,7 @@ using helix::system::KlipperConfigEditor;
 
 namespace {
 
-/// Forces firmware_supervised() for one case.
-struct SupervisedFor {
-    explicit SupervisedFor(bool on) {
-        set_firmware_supervised_override(on ? 1 : 0);
-    }
-    ~SupervisedFor() {
-        set_firmware_supervised_override(-1);
-    }
-};
+using SupervisedFor = helix::test::FirmwareSupervisedFor;
 
 class SupervisedApiFixture : public LVGLTestFixture {
   public:
@@ -115,14 +110,33 @@ TEST_CASE_METHOD(SupervisedApiFixture,
                  "firmware supervision: the config editor refuses on either route",
                  "[firmware_supervised]") {
     SupervisedFor on(true);
+    const bool plugin_route = GENERATE(false, true);
+    const bool one_value = GENERATE(false, true);
+    CAPTURE(plugin_route, one_value);
     KlipperConfigEditor editor;
+    editor.set_feature_state_source([plugin_route]() {
+        return plugin_route ? PluginFeatureState::Ready : PluginFeatureState::Absent;
+    });
     bool succeeded = false;
     std::string error;
-    editor.safe_multi_edit(
-        *api, "input_shaper", {{ConfigEdit::Type::SET_VALUE, "shaper_freq_x", "50"}},
-        [&]() { succeeded = true; }, [&](const std::string& e) { error = e; });
+    auto ok = [&]() { succeeded = true; };
+    auto fail = [&](const std::string& e) { error = e; };
+    if (one_value) {
+        editor.safe_edit_value(*api, "probe", "x_offset", "5", ok, fail);
+    } else {
+        editor.safe_multi_edit(*api, "input_shaper",
+                               {{ConfigEdit::Type::SET_VALUE, "shaper_freq_x", "50"}}, ok, fail);
+    }
     CHECK_FALSE(succeeded);
     CHECK(error == kFirmwareSupervisedConfigRefusal);
+}
+
+TEST_CASE("firmware supervision: a folder named config under another root is not the config root",
+          "[firmware_supervised]") {
+    CHECK(moonraker_internal::names_config_root("config", "printer.cfg"));
+    CHECK(moonraker_internal::names_config_root("", "config/printer.cfg"));
+    CHECK_FALSE(moonraker_internal::names_config_root("gcodes", "config/part.gcode"));
+    CHECK_FALSE(moonraker_internal::names_config_root("", "config_backup/printer.cfg"));
 }
 
 #if HELIX_HAS_PLUGINS
@@ -137,6 +151,7 @@ TEST_CASE_METHOD(SupervisedApiFixture,
         CHECK(plugin_call_refused("server.files.move",
                                   {{"source", "gcodes/a.cfg"}, {"dest", "config/a.cfg"}}));
         CHECK_FALSE(plugin_call_refused("server.files.delete_file", {{"path", "gcodes/a.gcode"}}));
+        CHECK(plugin_call_refused("server.files.zip", {{"dest", "config/all.zip"}}));
     }
     SupervisedFor off(false);
     CHECK_FALSE(plugin_call_refused("machine.update.upgrade", {{"name", "moonraker"}}));

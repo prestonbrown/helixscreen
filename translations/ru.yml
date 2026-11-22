@@ -6036,6 +6036,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Конфигурацией принтера управляет его прошивка, поэтому задайте эти значения там.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'

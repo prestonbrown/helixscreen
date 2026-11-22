@@ -5960,6 +5960,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Votre imprimante était hors ligne lors de la configuration, les options matérielles ont donc été ignorées. Les configurer maintenant ?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : 'Le firmware de votre imprimante gère le logiciel de HelixScreen, le plugin HelixPrint doit donc être fourni par le firmware. Il ne peut pas être installé depuis cet écran.'
+  Your printer's firmware manages its configuration, so set these values there.: 'Le firmware de votre imprimante gère sa configuration, réglez donc ces valeurs là-bas.'
   Your printer's manual has the parts and lubricant for your model.: "Le manuel de votre imprimante indique pièces et lubrifiant pour votre modèle."
   Your usual build plate is on: 'Votre plaque d''impression habituelle est en place'
   Your {0} is set up for {1}, but it looks stock.: 'Votre {0} est configurée pour {1}, mais elle semble d''origine.'

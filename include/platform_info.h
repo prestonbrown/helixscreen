@@ -45,12 +45,10 @@ inline constexpr const char* kFirmwareSupervisedConfigRefusal =
 /// True when this install's updates are owned by something other than HelixScreen
 /// by DEFAULT, so the in-app updater must stay quiet unless explicitly turned on.
 ///
-/// The board module decides it (board::firmware_manages_updates): today only a
-/// Snapmaker U1 running PAXX Extended Firmware's own HelixScreen package, which
-/// extended-pkg downloads as a pinned, sha256-verified tarball into
-/// /oem/apps/helixscreen. Self-updating there rewrites a package the firmware believes
-/// it owns, and the firmware hook does not export HELIX_DISABLE_AUTO_UPDATES. A U1 on
-/// stock firmware, where our installer owns /userdata/helixscreen, self-updates.
+/// firmware_supervised() decides it: firmware that supervises HelixScreen owns its
+/// package, such as PAXX Extended Firmware's pinned, sha256-verified tarball in
+/// /oem/apps/helixscreen on a Snapmaker U1, and self-updating would rewrite it. A U1
+/// on stock firmware, where our installer owns /userdata/helixscreen, self-updates.
 ///
 /// The single source of this rule; updates_externally_managed() consults it for the
 /// default and an explicit HELIX_DISABLE_AUTO_UPDATES (either direction) still wins,

@@ -5914,6 +5914,7 @@ translations:
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Your printer was offline during setup, so hardware options were skipped. Set them up now?
   ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
   : Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  Your printer's firmware manages its configuration, so set these values there.: Your printer's firmware manages its configuration, so set these values there.
   Your printer's manual has the parts and lubricant for your model.: Your printer's manual has the parts and lubricant for your model.
   Your usual build plate is on: Your usual build plate is on
   Your {0} is set up for {1}, but it looks stock.: Your {0} is set up for {1}, but it looks stock.
