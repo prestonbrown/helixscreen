@@ -625,6 +625,11 @@ class PIDCalibrationPanel : public OverlayBase {
     bool adding_cooling_fan();
     /// build_control_migration_edits() for the selected heater.
     std::vector<helix::system::ConfigEdit> control_migration_edits(CalibMethod target) const;
+    /// The part fan a config rewrite names: none when the owner switched it off.
+    [[nodiscard]] std::string migration_cooling_fan() const;
+    /// The filament system refuses to heat the selected nozzle: warns and
+    /// answers true. A bed is never refused.
+    [[nodiscard]] bool nozzle_heat_refused() const;
 
     // Event handlers
     void handle_heater_extruder_clicked();

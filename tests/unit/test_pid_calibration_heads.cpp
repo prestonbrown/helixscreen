@@ -9,6 +9,9 @@
 #include "../lvgl_test_fixture.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
+#include "../test_helpers/registered_backend.h"
+#include "ams_backend_mock.h"
+#include "ams_state.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -38,6 +41,15 @@ void load_tools(const nlohmann::json& objects) {
     ts.init_subjects(false);
     ts.init_tools(hw);
 }
+
+/// A filament system that refuses to heat the nozzle.
+class NozzleBlockedMock : public helix::AmsBackendMock {
+  public:
+    using AmsBackendMock::AmsBackendMock;
+    std::string nozzle_heat_blocked_reason() const override {
+        return "Load a tool before heating the nozzle";
+    }
+};
 
 struct PidHeadsFixture : LVGLTestFixture {
     MoonrakerClientMock client{MoonrakerClientMock::PrinterType::VORON_24};
@@ -260,6 +272,21 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC heater with no cooling_fan is offered 
             names_fan = names_fan || e.key == "cooling_fan";
         }
         CHECK_FALSE(names_fan);
+    }
+    SECTION("a filament system that blocks the nozzle after the switch page opened stops it") {
+        client.set_extruder_control("pid");
+        activate_and_detect();
+        start();
+        Access::power_pick(panel, 3);
+        REQUIRE(subject_int("cal_switch_ready") == 1);
+        helix::test::RegisteredBackend<NozzleBlockedMock> blocked(4);
+        REQUIRE_FALSE(helix::AmsState::instance().nozzle_heat_blocked_reason().empty());
+
+        Access::switch_mpc_clicked(panel);
+        helix::ui::UpdateQueue::instance().drain();
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::IDLE);
+        CHECK(subject_int("pid_page") == 1);
+        CHECK_FALSE(sent("MPC_CALIBRATE"));
     }
     SECTION("leaving the offer behind drops the choice") {
         activate_and_detect();

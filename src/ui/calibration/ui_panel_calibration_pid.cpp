@@ -1069,14 +1069,8 @@ void PIDCalibrationPanel::handle_temp_down() {
 void PIDCalibrationPanel::handle_start_clicked() {
     spdlog::debug("[PIDCal] Start clicked (method={})",
                   selected_method_ == CalibMethod::MPC ? "MPC" : "PID");
-    if (selected_heater_ == Heater::EXTRUDER) {
-        // PID_CALIBRATE / MPC_CALIBRATE heat by name, past any printer-side
-        // M104 guard, so the filament system's refusal is checked here.
-        const std::string blocked = helix::AmsState::instance().nozzle_heat_blocked_reason();
-        if (!blocked.empty()) {
-            NOTIFY_WARNING("{}", blocked);
-            return;
-        }
+    if (nozzle_heat_refused()) {
+        return;
     }
     // The nozzle's move to MPC has its own confirm page; the rarer rewrites
     // (back to PID, a bed to MPC, naming the part fan) confirm in a dialog.
@@ -1091,6 +1085,20 @@ void PIDCalibrationPanel::handle_start_clicked() {
     }
 
     begin_calibration(selected_method_);
+}
+
+bool PIDCalibrationPanel::nozzle_heat_refused() const {
+    if (selected_heater_ != Heater::EXTRUDER) {
+        return false;
+    }
+    // PID_CALIBRATE / MPC_CALIBRATE heat by name, past any printer-side M104
+    // guard, so the filament system's refusal is checked before each start.
+    const std::string blocked = helix::AmsState::instance().nozzle_heat_blocked_reason();
+    if (blocked.empty()) {
+        return false;
+    }
+    NOTIFY_WARNING("{}", blocked);
+    return true;
 }
 
 void PIDCalibrationPanel::begin_calibration(CalibMethod method) {
@@ -1129,6 +1137,9 @@ void PIDCalibrationPanel::confirm_migration() {
         [this, adding_fan]() {
             if (!migration_still_valid(adding_fan, adding_cooling_fan(), needs_migration_)) {
                 spdlog::warn("[PIDCal] Config rewrite no longer applies; nothing changed");
+                return;
+            }
+            if (nozzle_heat_refused()) {
                 return;
             }
             set_state(State::MIGRATING);
@@ -1600,8 +1611,11 @@ PIDCalibrationPanel::build_cooling_fan_edits(const std::string& cooling_fan) {
 
 std::vector<helix::system::ConfigEdit>
 PIDCalibrationPanel::control_migration_edits(CalibMethod target) const {
-    return build_control_migration_edits(target, heater_wattage_,
-                                         fan_declined() ? std::string() : mpc_cooling_fan());
+    return build_control_migration_edits(target, heater_wattage_, migration_cooling_fan());
+}
+
+std::string PIDCalibrationPanel::migration_cooling_fan() const {
+    return fan_declined() ? std::string() : mpc_cooling_fan();
 }
 
 void PIDCalibrationPanel::update_migration_notice() {
@@ -1675,16 +1689,18 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
 
     const std::string section = heater_name();
     const bool to_mpc = target == CalibMethod::MPC;
+    const std::string fan = migration_cooling_fan();
     std::vector<helix::system::ConfigEdit> edits =
-        adding_fan ? build_cooling_fan_edits(mpc_cooling_fan()) : control_migration_edits(target);
+        adding_fan ? build_cooling_fan_edits(fan)
+                   : build_control_migration_edits(target, heater_wattage_, fan);
+    const bool names_fan = to_mpc && !fan.empty();
 
     if (adding_fan) {
-        spdlog::info("[PIDCal] Adding cooling_fan='{}' to MPC heater '{}'", mpc_cooling_fan(),
-                     section);
+        spdlog::info("[PIDCal] Adding cooling_fan='{}' to MPC heater '{}'", fan, section);
     } else if (to_mpc) {
         spdlog::info("[PIDCal] Starting PID->MPC migration for '{}' with heater_power={}W, "
                      "cooling_fan='{}'",
-                     section, heater_wattage_, mpc_cooling_fan());
+                     section, heater_wattage_, fan);
     } else {
         spdlog::info("[PIDCal] Starting MPC->PID migration for '{}'", section);
     }
@@ -1694,11 +1710,11 @@ void PIDCalibrationPanel::start_migration(CalibMethod target, bool adding_fan) {
     auto token = run_lifetime_.token();
     config_editor_.safe_multi_edit(
         *api_, section, edits,
-        [this, token, target]() {
-            token.defer([this, target]() {
+        [this, token, target, names_fan]() {
+            token.defer([this, target, names_fan]() {
                 current_control_ =
                     (target == CalibMethod::MPC) ? ControlType::MPC : ControlType::PID;
-                heater_names_cooling_fan_ = target == CalibMethod::MPC;
+                heater_names_cooling_fan_ = names_fan;
                 update_migration_notice();
                 spdlog::info("[PIDCal] Migration complete, starting calibration");
                 begin_calibration(target);
@@ -2131,7 +2147,7 @@ void PIDCalibrationPanel::handle_switch_mpc_clicked() {
     if (state_ != State::IDLE || page_ != Page::SWITCH_MPC) {
         return;
     }
-    if (lv_subject_get_int(subj_switch_ready_.get()) == 0) {
+    if (lv_subject_get_int(subj_switch_ready_.get()) == 0 || nozzle_heat_refused()) {
         return;
     }
     set_page(Page::INTRO);
