@@ -52,6 +52,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <optional>
 
 #if HELIX_HAS_CAMERA
 // Defined in src/ui/panel_widgets/camera_widget.cpp; that directory is not on
@@ -100,6 +101,24 @@ bool feed_prompt_lines(const std::string& name, const std::vector<std::string>& 
     return true;
 }
 
+#ifdef HELIX_ENABLE_MOCKS
+/// The mock's speed from before `demo print-live` raised it; the next demo
+/// command puts it back.
+std::optional<double>& speed_before_live_print() {
+    static std::optional<double> speed;
+    return speed;
+}
+
+void restore_speed_after_live_print() {
+    auto& speed = speed_before_live_print();
+    auto* mock = get_moonraker_client_mock();
+    if (speed && mock != nullptr) {
+        mock->set_simulation_speedup(*speed);
+    }
+    speed.reset();
+}
+#endif
+
 } // namespace
 
 // Bring up a demo overlay/modal with representative sample data. These screens
@@ -109,6 +128,9 @@ bool feed_prompt_lines(const std::string& name, const std::vector<std::string>& 
 // screenshots with the real widget lifecycle. Must run on the UI thread.
 bool show_demo_overlay(const std::string& name, std::string* error) {
     lv_obj_t* screen = lv_screen_active();
+#ifdef HELIX_ENABLE_MOCKS
+    restore_speed_after_live_print();
+#endif
 
     if (name == "preflight-material") {
         // A seated slot with no material set while a calibration that needs
@@ -409,6 +431,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
     if (name == "print-live") {
         // Starts the mock's sample print at high speed, so a capture can wait
         // for a chosen print_progress and then `freeze` the simulation there.
+        // The next demo command restores the speed the mock had before.
         auto* mock = get_moonraker_client_mock();
         if (mock == nullptr) {
             const std::string reason = name + ": needs the --test mock printer";
@@ -419,6 +442,7 @@ bool show_demo_overlay(const std::string& name, std::string* error) {
             return false;
         }
         constexpr double kLivePrintSpeedup = 10.0;
+        speed_before_live_print() = mock->get_simulation_speedup();
         mock->set_simulation_speedup(kLivePrintSpeedup);
         mock->gcode_script(std::string("SDCARD_PRINT_FILE FILENAME=") +
                            RuntimeConfig::kDefaultTestFile);
