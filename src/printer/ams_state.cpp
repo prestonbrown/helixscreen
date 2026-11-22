@@ -2199,6 +2199,19 @@ void AmsState::sync_current_loaded_from_backend(const AmsSystemInfo& primary_inf
             if (strcmp(lv_subject_get_string(&current_material_text_), label.c_str()) != 0) {
                 lv_subject_copy_string(&current_material_text_, label.c_str());
             }
+            // The bypass feeding is its spool's load: assert it as the active
+            // spool the way a lane load does. A link saved while the bypass
+            // was not feeding set nothing, and no backend switches a spool it
+            // has no lane for.
+            if (api_ && filament_loaded && ext.spoolman_id > 0 &&
+                ext.spoolman_id != last_synced_spoolman_id_ &&
+                helix_sets_active_spool_on_edit(loaded_backend, /*external_spool=*/true)) {
+                last_synced_spoolman_id_ = ext.spoolman_id;
+                spdlog::info("[AMS State] Setting active Spoolman spool to {} (bypass)",
+                             ext.spoolman_id);
+                api_->spoolman().set_active_spool(
+                    ext.spoolman_id, []() {}, [](const MoonrakerError&) {});
+            }
 
             if (ext.total_weight_g > 0.0f && ext.remaining_weight_g >= 0.0f) {
                 // The loaded card's line is narrow: the percent alone.

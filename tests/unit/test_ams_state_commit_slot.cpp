@@ -712,6 +712,36 @@ TEST_CASE("a fresh load re-sends its spool after the server's active spool was c
     CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 9);
 }
 
+TEST_CASE("the bypass feeding asserts the spool linked to it",
+          "[ams][commit][spoolman_sync][bypass]") {
+    // AFC-shaped: the backend switches lane spools itself, and has no lane for
+    // the bypass spool.
+    CommitFixture f;
+    f.setup_manages_active_spool(9);
+    f.backend->set_operation_delay(0);
+    REQUIRE(f.backend->start().success());
+    auto& ams = AmsState::instance();
+    if (f.backend->is_filament_loaded()) {
+        REQUIRE(f.backend->unload_filament(f.backend->get_current_slot()).success());
+        f.backend->wait_for_operation_thread();
+    }
+    ams.sync_current_loaded_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+
+    // Linked while the bypass is not feeding: nothing to set yet.
+    SlotInfo external;
+    external.material = "ASA";
+    external.spoolman_id = 151;
+    ams.commit_external_spool_edit(external);
+    f.client.spoolman_mock().set_active_spool_id(0);
+
+    REQUIRE(f.backend->enable_bypass().success());
+    ams.sync_current_loaded_from_backend();
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(f.backend->get_current_slot() == helix::ui::kExternalSpoolSlot);
+    CHECK(f.client.spoolman_mock().get_mock_active_spool_id() == 151);
+}
+
 namespace {
 
 /// A printer whose firmware or T<n> macros switch the active spool, staged on
