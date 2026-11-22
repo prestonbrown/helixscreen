@@ -39,10 +39,12 @@ TEST_CASE("timelapse settings still read from a bare dict", "[timelapse][setting
     TimelapseSettings s;
     REQUIRE(parse_timelapse_settings(
         R"({"enabled":true,"autorender":false,"mode":"hyperlapse","park_retract_distance":2.0,)"
-        R"("hyperlapse_cycle":null})",
+        R"("parkhead":true,"hyperlapse_cycle":null})",
         s));
     CHECK(s.enabled);
     CHECK_FALSE(s.autorender);
+    // Off by default; the Hyperlapse switch reads it to put parking back.
+    CHECK(s.parkhead);
     CHECK(s.mode == "hyperlapse");
     CHECK(s.park_retract_distance == 2);
     CHECK(s.hyperlapse_cycle == 30);

@@ -20,6 +20,7 @@
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "standard_macros.h"
+#include "timelapse_state.h"
 
 #include <algorithm>
 #include <atomic>
@@ -448,6 +449,29 @@ TEST_CASE("A discovery step acts on its reply only while its pass is current",
     } else {
         CHECK(observe() == before);
     }
+}
+
+TEST_CASE("Discovery records the timelapse plugin's recording mode",
+          "[discovery][klippy_gate][timelapse]") {
+    LVGLTestFixture fixture;
+    get_printer_state().init_subjects(false);
+    // The No Timelapse Frames warning fires only in Layer mode, which this sets.
+    helix::TimelapseState::instance().set_mode("");
+    REQUIRE_FALSE(helix::TimelapseState::instance().layer_mode());
+
+    const json reply{{"result", {{"enabled", true}, {"mode", "layermacro"}}}};
+    HeldStepClient client(HeldStep{"timelapse settings", "machine.timelapse.get_settings", 0, false,
+                                   false, false, reply});
+    client.set_klippy_state(MoonrakerClientMock::KlippyState::READY);
+    client.discover_printer_real([]() {}, [](const std::string&) {});
+    REQUIRE_FALSE(client.held_success.empty());
+    client.holding = false;
+    for (auto& cb : client.held_success) {
+        cb(reply);
+    }
+    helix::ui::UpdateQueue::instance().drain_until_empty();
+    CHECK(helix::TimelapseState::instance().layer_mode());
+    helix::TimelapseState::instance().set_mode("");
 }
 
 TEST_CASE("The last MCU reply publishes what the fan-out gathered, whichever way it ended",
