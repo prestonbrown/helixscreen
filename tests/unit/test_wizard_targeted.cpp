@@ -270,3 +270,50 @@ TEST_CASE_METHOD(LVGLUITestFixture, "setup wizard footer follows the step's subj
 
     ui_wizard_complete_targeted();
 }
+
+// equal_width gives the footer's buttons one width; a calibration footer
+// without it keeps the canvas look, Back sized to its caption.
+TEST_CASE_METHOD(LVGLUITestFixture, "wizard frame footer equal_width gives its buttons one width",
+                 "[wizard][wizard_frame]") {
+    auto make_footer = [this](const char* equal) {
+        const char* attrs[] = {"back_callback",
+                               "on_back_clicked",
+                               "back_name",
+                               "eq_back",
+                               "skip_callback",
+                               "on_next_clicked",
+                               "skip_name",
+                               "eq_skip",
+                               "primary_callback",
+                               "on_next_clicked",
+                               "primary_name",
+                               "eq_next",
+                               "primary_text",
+                               "Next",
+                               "equal_width",
+                               equal,
+                               nullptr};
+        auto* footer =
+            static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "wizard_frame_footer", attrs));
+        REQUIRE(footer != nullptr);
+        lv_obj_update_layout(footer);
+        return footer;
+    };
+    auto width_of = [](lv_obj_t* footer, const char* name) {
+        lv_obj_t* btn = lv_obj_find_by_name(footer, name);
+        REQUIRE(btn != nullptr);
+        REQUIRE_FALSE(lv_obj_is_hidden(btn));
+        return lv_obj_get_width(btn);
+    };
+
+    lv_obj_t* equal = make_footer("1");
+    const int32_t back_w = width_of(equal, "eq_back");
+    CHECK(back_w > 0);
+    CHECK(width_of(equal, "eq_skip") == back_w);
+    CHECK(width_of(equal, "eq_next") == back_w);
+    lv_obj_delete(equal);
+
+    lv_obj_t* canvas = make_footer("0");
+    CHECK(width_of(canvas, "eq_back") < width_of(canvas, "eq_next"));
+    lv_obj_delete(canvas);
+}
