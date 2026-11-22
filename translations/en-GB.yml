@@ -2602,7 +2602,7 @@ translations:
   Layer Pause: ''
   ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
   : ''
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
   : ''
   Layer {} of {} · {:.2f} mm: ''
   Layer {} of {}.: ''
@@ -3249,6 +3249,7 @@ translations:
   Objects: ''
   Objects in the print, with a tap to open the skip map: ''
   'Off': ''
+  Off for This Print: ''
   'Off:': ''
   'Off: runs with these values without asking': ''
   Offer to save Z-offset changes to the printer config: ''
@@ -5283,7 +5284,6 @@ translations:
   'Time: ': ''
   Timelapse: ''
   Timelapse Available: ''
-  Timelapse Off: ''
   Timelapse Settings: ''
   Timelapse Videos: ''
   Timelapse plugin installed successfully!: ''

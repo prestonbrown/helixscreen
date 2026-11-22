@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" zh="层高"/>
   <translation tag="Layer Pause" zh="层暂停"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" zh="层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，但只有打印执行这一行时才会拍摄。请将它添加到切片软件的换层 G-code 中，否则视频几乎是空的：&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." zh="层模式在每次换层时拍摄一帧，但只有打印执行下面的宏时才会拍摄；没有它，视频几乎是空的。&#10;请将它添加到切片软件的换层 G-code 中：&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;超延时按固定时间间隔拍摄，无需设置切片软件，但每一帧中喷头都在当时所在的位置。"/>
   <translation tag="Layer {} of {} · {:.2f} mm" zh="第 {} / {} 层 · {:.2f} mm"/>
   <translation tag="Layer {} of {}." zh="第 {} 层，共 {} 层。"/>
   <translation tag="Layer {}, Z {:.2f} mm" zh="第 {} 层，Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" zh="对象"/>
   <translation tag="Objects in the print, with a tap to open the skip map" zh="打印中的对象，点按打开跳过地图"/>
   <translation tag="Off" zh="关"/>
+  <translation tag="Off for This Print" zh="本次打印关闭"/>
   <translation tag="Off:" zh="关:"/>
   <translation tag="Off: runs with these values without asking" zh="关: 不询问,直接以这些值运行"/>
   <translation tag="Offer to save Z-offset changes to the printer config" zh="提供将 Z 偏移更改保存到打印机配置的选项"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " zh="时间: "/>
   <translation tag="Timelapse" zh="延时摄影"/>
   <translation tag="Timelapse Available" zh="延时摄影可用"/>
-  <translation tag="Timelapse Off" zh="关闭延时摄影"/>
   <translation tag="Timelapse Settings" zh="延时摄影设置"/>
   <translation tag="Timelapse Videos" zh="延时摄影视频"/>
   <translation tag="Timelapse did not start" zh="延时摄影未启动"/>

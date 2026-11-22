@@ -575,7 +575,7 @@ CheckResult gate_timelapse_frames(const PrintStartContext& ctx) {
               "TIMELAPSE_TAKE_FRAME\nHyperlapse takes frames on a timer instead."),
         lv_tr("Print Anyway"));
     r.alternatives = {{lv_tr("Use Hyperlapse"), GateChoice::TimelapseHyperlapse},
-                      {lv_tr("Timelapse Off"), GateChoice::TimelapseOff}};
+                      {lv_tr("Off for This Print"), GateChoice::TimelapseOff}};
     return r;
 }
 

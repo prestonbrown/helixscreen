@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" es="Altura de Capa"/>
   <translation tag="Layer Pause" es="Pausa por capa"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" es="Capa toma un fotograma en cada cambio de capa. El G-code de cambio de capa de tu laminador debe ejecutar:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." es="Capa toma un fotograma en cada cambio de capa, pero solo cuando la impresión ejecuta esta línea. Añádela al G-code de cambio de capa de tu laminador, o el vídeo quedará casi vacío:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse toma un fotograma cada cierto tiempo y no requiere configurar el laminador, pero cada fotograma capta el cabezal donde esté."/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." es="Capa toma un fotograma en cada cambio de capa, pero solo cuando la impresión ejecuta la macro de abajo; sin ella, el vídeo queda casi vacío.&#10;Añádela al G-code de cambio de capa de tu laminador:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse toma un fotograma cada cierto tiempo y no requiere configurar el laminador, pero cada fotograma capta el cabezal donde esté."/>
   <translation tag="Layer {} of {} · {:.2f} mm" es="Capa {} de {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." es="Capa {} de {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" es="Capa {}, Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" es="Objetos"/>
   <translation tag="Objects in the print, with a tap to open the skip map" es="Objetos de la impresión, con un toque abre el mapa para omitir"/>
   <translation tag="Off" es="Apagado"/>
+  <translation tag="Off for This Print" es="Desactivar en esta impresión"/>
   <translation tag="Off:" es="Apagado:"/>
   <translation tag="Off: runs with these values without asking" es="Desactivado: ejecuta con estos valores sin preguntar"/>
   <translation tag="Offer to save Z-offset changes to the printer config" es="Ofrecer guardar los cambios de Z-Offset en la configuración de la impresora"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " es="Hora: "/>
   <translation tag="Timelapse" es="Timelapse"/>
   <translation tag="Timelapse Available" es="Timelapse Disponible"/>
-  <translation tag="Timelapse Off" es="Timelapse desactivado"/>
   <translation tag="Timelapse Settings" es="Configuración de Timelapse"/>
   <translation tag="Timelapse Videos" es="Videos timelapse"/>
   <translation tag="Timelapse did not start" es="El timelapse no se inició"/>

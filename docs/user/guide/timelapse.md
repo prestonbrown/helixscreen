@@ -57,7 +57,7 @@ In Layer mode the plugin can move the head out of the way for each picture, so t
 
 Parking adds a short pause at every layer. On some prints that pause can leave a small mark where the nozzle stopped. If that bothers you, turn parking off or raise the retraction in the plugin's park settings.
 
-Hyperlapse takes its pictures at random points in a layer, so parking there stops the print at random spots. Most people leave parking off for Hyperlapse.
+Hyperlapse takes its pictures at random points in a layer, so parking there stops the print at random spots. Most people leave parking off for Hyperlapse, and **Use Hyperlapse** in the warning below turns it off for that print.
 
 ---
 
@@ -67,8 +67,8 @@ When you start a print with timelapse on in Layer mode, HelixScreen reads the be
 
 | Button | What happens |
 |--------|--------------|
-| **Use Hyperlapse** | The print starts and records in Hyperlapse mode. When the print ends (finished, cancelled or failed), HelixScreen switches the plugin back to Layer mode for you |
-| **Timelapse Off** | The print starts with timelapse recording off |
+| **Use Hyperlapse** | The print starts and records in Hyperlapse mode, with head parking off if it was on. When the print ends (finished, cancelled or failed), HelixScreen puts Layer mode and parking back for you |
+| **Off for This Print** | The print starts with timelapse recording off. When it ends, HelixScreen turns timelapse back on |
 | **Print Anyway** | The print starts as is. Expect a video with almost no frames |
 | **Cancel** | Nothing starts. Tapping outside the dialog does the same |
 
@@ -90,8 +90,8 @@ The plugin has one on/off setting for the whole printer, so each of these change
 
 ## Gotchas
 
-- **The switch back to Layer survives a restart.** If HelixScreen restarts or loses its connection during that print, it switches the plugin back once it reconnects and the print is over. If you pick a recording mode yourself in **Settings > Printing > Timelapse** before then, HelixScreen keeps your choice. A mode picked in Mainsail or Fluidd during that print is not seen: if it is still Hyperlapse when the print ends, HelixScreen sets it back to Layer.
+- **The switch back survives a restart.** If HelixScreen restarts or loses its connection during that print, it puts the settings back once it reconnects and the print is over. A setting you changed yourself in the meantime (anywhere, Mainsail and Fluidd included) is left as you set it. Picking a recording mode in **Settings > Printing > Timelapse** cancels the switch back altogether. The one case it cannot tell apart: if you set the very value the switch set (Hyperlapse, parking off, or timelapse off), HelixScreen still puts the old one back.
 - **Other screens see the change.** Mainsail, Fluidd and other screens show the plugin in Hyperlapse mode while that print runs, because there is only one mode setting.
-- **Timelapse Off changes the printer's setting.** Like the print options tile, it turns timelapse off for later prints too until you turn it back on.
+- **The print options tile is different.** Turning off the **Timelapse** tile before printing changes the printer's setting for later prints too; only **Off for This Print** in the warning comes back on by itself.
 - **The plugin's Klipper macros must be loaded.** If Klipper has not loaded `timelapse.cfg`, no mode records anything. **Settings > Printing > Timelapse** shows a card with the line to add when they are missing.
 - **Printers that record timelapses in their own firmware** (for example the Snapmaker U1) do not use the plugin. Their timelapse option is on the file screen, and none of this page applies to them.

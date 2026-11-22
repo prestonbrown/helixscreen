@@ -2508,7 +2508,7 @@
   <translation tag="Layer Height" fr="Hauteur de couche"/>
   <translation tag="Layer Pause" fr="Pause à la couche"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" fr="Couche prend une image à chaque changement de couche. Le G-code de changement de couche de votre trancheur doit exécuter :&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." fr="Couche prend une image à chaque changement de couche, mais seulement lorsque l&apos;impression exécute cette ligne. Ajoutez-la au G-code de changement de couche de votre trancheur, sinon la vidéo reste presque vide :&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu&apos;elle soit."/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." fr="Couche prend une image à chaque changement de couche, mais seulement lorsque l&apos;impression exécute la macro ci-dessous ; sans elle, la vidéo reste presque vide.&#10;Ajoutez-la au G-code de changement de couche de votre trancheur :&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse prend une image à intervalle régulier et ne demande aucun réglage du trancheur, mais chaque image saisit la tête où qu&apos;elle soit."/>
   <translation tag="Layer {} of {} · {:.2f} mm" fr="Couche {} sur {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." fr="Couche {} sur {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" fr="Couche {}, Z {:.2f} mm"/>
@@ -3155,6 +3155,7 @@
   <translation tag="Objects" fr="Objets"/>
   <translation tag="Objects in the print, with a tap to open the skip map" fr="Objets de l&apos;impression, un toucher ouvre la carte d&apos;exclusion"/>
   <translation tag="Off" fr="Éteint"/>
+  <translation tag="Off for This Print" fr="Désactivé pour cette impression"/>
   <translation tag="Off:" fr="Arrêt :"/>
   <translation tag="Off: runs with these values without asking" fr="Désactivé : exécute avec ces valeurs sans demander"/>
   <translation tag="Offer to save Z-offset changes to the printer config" fr="Proposer d&apos;enregistrer les modifications du Z-Offset dans la configuration de l&apos;imprimante"/>
@@ -5104,7 +5105,6 @@
   <translation tag="Time: " fr="Heure : "/>
   <translation tag="Timelapse" fr="Timelapse"/>
   <translation tag="Timelapse Available" fr="Timelapse disponible"/>
-  <translation tag="Timelapse Off" fr="Timelapse désactivé"/>
   <translation tag="Timelapse Settings" fr="Paramètres du timelapse"/>
   <translation tag="Timelapse Videos" fr="Vidéos timelapse"/>
   <translation tag="Timelapse did not start" fr="Le timelapse n&apos;a pas démarré"/>

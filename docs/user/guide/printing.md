@@ -329,7 +329,7 @@ If the Moonraker-Timelapse plugin is installed, a **Timelapse** item appears in 
 
 During printing, frame captures happen automatically based on your timelapse settings (per-layer or time-based). When the print finishes, the video renders automatically if auto-render is enabled.
 
-Layer mode takes a frame only when the file calls `TIMELAPSE_TAKE_FRAME`. When a file you start has no such call, HelixScreen shows **No Timelapse Frames** and offers Hyperlapse for that print, Timelapse off, or printing anyway. See [Timelapse](timelapse.md#the-no-timelapse-frames-warning).
+Layer mode takes a frame only when the file calls `TIMELAPSE_TAKE_FRAME`. When a file you start has no such call, HelixScreen shows **No Timelapse Frames** and offers Hyperlapse for that print, timelapse off for that print, or printing anyway. See [Timelapse](timelapse.md#the-no-timelapse-frames-warning).
 
 ---
 

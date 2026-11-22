@@ -25,6 +25,12 @@ bool starts_with_ci(std::string_view s, std::string_view prefix) {
     return true;
 }
 
+// Not GCodeOpsDetector's is_layer_marker() / is_first_extrusion(): those find
+// where the start block ends, so ";Z:" counts as a marker (one layer change
+// counted twice here) and any positive-E G1 as extrusion (a retract under M82).
+// Counting whole layer changes needs one marker per change and a real
+// printing move.
+
 /// A slicer's layer-change comment: PrusaSlicer, SuperSlicer and OrcaSlicer
 /// write ";LAYER_CHANGE", Orca and Bambu "; CHANGE_LAYER", Cura and ideaMaker
 /// ";LAYER:<n>", Simplify3D "; layer <n>, Z = ...".
@@ -53,22 +59,30 @@ bool is_layer_marker(std::string_view line) {
     return false;
 }
 
-/// A move that extrudes: G1 (or G0/G2/G3) with an E word above zero.
+/// A printing move: G0-G3 with an X or Y word and an E word above zero. A
+/// retract under absolute extrusion (M82) has a positive E and no X or Y.
 bool extrudes(std::string_view line) {
     const std::string_view word = gcode::GCodeOpsDetector::command_word(line);
     if (word.size() != 2 || std::toupper(static_cast<unsigned char>(word[0])) != 'G' ||
         word[1] < '0' || word[1] > '3') {
         return false;
     }
-    const size_t comment = line.find(';');
-    const std::string_view code = line.substr(0, comment);
+    const std::string_view code = line.substr(0, line.find(';'));
+    bool moves_xy = false;
+    bool positive_e = false;
     for (size_t i = word.size(); i + 1 < code.size(); ++i) {
-        if ((code[i] == 'E' || code[i] == 'e') && (code[i - 1] == ' ' || code[i - 1] == '\t')) {
+        if (code[i - 1] != ' ' && code[i - 1] != '\t') {
+            continue;
+        }
+        const char axis = static_cast<char>(std::toupper(static_cast<unsigned char>(code[i])));
+        if (axis == 'X' || axis == 'Y') {
+            moves_xy = true;
+        } else if (axis == 'E') {
             const std::string number(code.substr(i + 1, 16));
-            return std::strtod(number.c_str(), nullptr) > 0.0;
+            positive_e = std::strtod(number.c_str(), nullptr) > 0.0;
         }
     }
-    return false;
+    return moves_xy && positive_e;
 }
 
 } // namespace

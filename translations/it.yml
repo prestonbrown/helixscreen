@@ -2616,8 +2616,10 @@ translations:
   : 'Strato scatta un fotogramma a ogni cambio di strato. Il G-code di cambio strato dello slicer deve eseguire:
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue questa riga. Aggiungila al G-code di cambio strato dello slicer, altrimenti il video resta quasi vuoto:
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue la macro qui sotto; senza, il video resta quasi vuoto.
+
+    Aggiungila al G-code di cambio strato dello slicer:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3269,6 +3271,7 @@ translations:
   Objects: Oggetti
   Objects in the print, with a tap to open the skip map: 'Oggetti della stampa, tocca per aprire la mappa'
   'Off': 'Off'
+  Off for This Print: 'Disattiva per questa stampa'
   'Off:': 'Off:'
   'Off: runs with these values without asking': 'Disattivato: esegue con questi valori senza chiedere'
   Offer to save Z-offset changes to the printer config: 'Proponi di salvare le modifiche allo Z-Offset nella configurazione della stampante'
@@ -5318,7 +5321,6 @@ translations:
   'Time: ': 'Ora: '
   Timelapse: Timelapse
   Timelapse Available: Timelapse disponibile
-  Timelapse Off: 'Timelapse disattivato'
   Timelapse Settings: Impostazioni timelapse
   Timelapse Videos: Video timelapse
   Timelapse plugin installed successfully!: Plugin timelapse installato con successo!

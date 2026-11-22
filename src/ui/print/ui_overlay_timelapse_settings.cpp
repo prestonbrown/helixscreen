@@ -109,12 +109,13 @@ void TimelapseSettingsOverlay::register_callbacks() {
          [](lv_event_t*) {
              helix::ui::modal_alert(
                  lv_tr("Recording Mode"),
-                 // The macro name sits on a line of its own so wrapping never splits it.
+                 // The macro name and the G-code line each get a line of their own so
+                 // wrapping never splits them.
                  lv_tr("Layer takes one frame at each layer change, but only when the print "
-                       "runs this line. Add it to your slicer's layer change G-code, or the "
-                       "video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a "
-                       "frame on a timer and needs no slicer setup, but each frame catches the "
-                       "head wherever it is."),
+                       "runs the macro below; without it the video stays nearly empty.\nAdd "
+                       "it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\n"
+                       "Hyperlapse takes a frame on a timer and needs no slicer setup, but each "
+                       "frame catches the head wherever it is."),
                  ModalSeverity::Info);
          }},
         {"on_timelapse_framerate_changed",

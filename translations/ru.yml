@@ -2680,8 +2680,10 @@ translations:
   : 'Послойный режим снимает кадр при каждой смене слоя. G-код смены слоя в слайсере должен выполнять:
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Послойный режим снимает один кадр при каждой смене слоя, но только когда печать выполняет эту строку. Добавьте её в G-код смены слоя слайсера, иначе видео останется почти пустым:
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Послойный режим снимает один кадр при каждой смене слоя, но только когда печать выполняет макрос ниже; без него видео останется почти пустым.
+
+    Добавьте его в G-код смены слоя слайсера:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3333,6 +3335,7 @@ translations:
   Objects: Объекты
   Objects in the print, with a tap to open the skip map: 'Объекты печати, касание открывает карту пропуска'
   'Off': Выкл
+  Off for This Print: 'Выкл. для этой печати'
   'Off:': 'Выкл:'
   'Off: runs with these values without asking': 'Выкл.: запуск с этими значениями без запроса'
   Offer to save Z-offset changes to the printer config: 'Предлагать сохранить изменения Z-Offset в конфигурации принтера'
@@ -5406,7 +5409,6 @@ translations:
   'Time: ': 'Время: '
   Timelapse: Таймлапс
   Timelapse Available: Таймлапс доступен
-  Timelapse Off: 'Таймлапс выкл.'
   Timelapse Settings: Настройки таймлапса
   Timelapse Videos: Видео таймлапс
   Timelapse plugin installed successfully!: Плагин таймлапса успешно установлен!

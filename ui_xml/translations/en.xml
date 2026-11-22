@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" en="Layer Height"/>
   <translation tag="Layer Pause" en="Layer Pause"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" en="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." en="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." en="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."/>
   <translation tag="Layer {} of {} · {:.2f} mm" en="Layer {} of {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." en="Layer {} of {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" en="Layer {}, Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" en="Objects"/>
   <translation tag="Objects in the print, with a tap to open the skip map" en="Objects in the print, with a tap to open the skip map"/>
   <translation tag="Off" en="Off"/>
+  <translation tag="Off for This Print" en="Off for This Print"/>
   <translation tag="Off:" en="Off:"/>
   <translation tag="Off: runs with these values without asking" en="Off: runs with these values without asking"/>
   <translation tag="Offer to save Z-offset changes to the printer config" en="Offer to save Z-offset changes to the printer config"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " en="Time: "/>
   <translation tag="Timelapse" en="Timelapse"/>
   <translation tag="Timelapse Available" en="Timelapse Available"/>
-  <translation tag="Timelapse Off" en="Timelapse Off"/>
   <translation tag="Timelapse Settings" en="Timelapse Settings"/>
   <translation tag="Timelapse Videos" en="Timelapse Videos"/>
   <translation tag="Timelapse did not start" en="Timelapse did not start"/>

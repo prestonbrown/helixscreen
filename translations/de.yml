@@ -2616,8 +2616,10 @@ translations:
   : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck diese Zeile ausführt. Füge sie in den Schichtwechsel-G-Code deines Slicers ein, sonst bleibt das Video fast leer:
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.
+
+    Füge es in den Schichtwechsel-G-Code deines Slicers ein:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3269,6 +3271,7 @@ translations:
   Objects: Objekte
   Objects in the print, with a tap to open the skip map: 'Objekte des Drucks, per Tipp zur Überspringen-Karte'
   'Off': Aus
+  Off for This Print: 'Für diesen Druck aus'
   'Off:': 'Aus:'
   'Off: runs with these values without asking': 'Aus: führt diese Werte aus, ohne zu fragen'
   Offer to save Z-offset changes to the printer config: 'Anbieten, Z-Offset-Änderungen in der Druckerkonfiguration zu speichern'
@@ -5318,7 +5321,6 @@ translations:
   'Time: ': 'Zeit: '
   Timelapse: Zeitraffer
   Timelapse Available: Zeitraffer verfügbar
-  Timelapse Off: 'Zeitraffer aus'
   Timelapse Settings: Zeitraffer-Einstellungen
   Timelapse Videos: Zeitraffer-Videos
   Timelapse plugin installed successfully!: Zeitraffer-Plugin erfolgreich installiert!

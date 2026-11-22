@@ -2616,8 +2616,10 @@ translations:
   : 'Camada tira um quadro a cada mudança de camada. O G-code de mudança de camada do seu fatiador deve executar:
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Camada tira um quadro a cada mudança de camada, mas só quando a impressão executa esta linha. Adicione-a ao G-code de mudança de camada do seu fatiador, ou o vídeo fica quase vazio:
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Camada tira um quadro a cada mudança de camada, mas só quando a impressão executa a macro abaixo; sem ela, o vídeo fica quase vazio.
+
+    Adicione-a ao G-code de mudança de camada do seu fatiador:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3269,6 +3271,7 @@ translations:
   Objects: Objetos
   Objects in the print, with a tap to open the skip map: 'Objetos da impressão, toque para abrir o mapa de exclusão'
   'Off': Desligado
+  Off for This Print: 'Desligar nesta impressão'
   'Off:': 'Desligado:'
   'Off: runs with these values without asking': 'Desativado: executa com estes valores sem perguntar'
   Offer to save Z-offset changes to the printer config: 'Oferecer salvar alterações de Z-Offset na configuração da impressora'
@@ -5318,7 +5321,6 @@ translations:
   'Time: ': 'Hora: '
   Timelapse: Timelapse
   Timelapse Available: Timelapse Disponível
-  Timelapse Off: 'Timelapse Desligado'
   Timelapse Settings: Configurações de Timelapse
   Timelapse Videos: Vídeos timelapse
   Timelapse plugin installed successfully!: Plugin de timelapse instalado com sucesso!

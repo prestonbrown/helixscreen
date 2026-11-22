@@ -2599,8 +2599,8 @@ translations:
   Layer Pause: Layer Pause
   ? "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
   : "Layer takes a frame at each layer change. Your slicer's layer change G-code must run:\nTIMELAPSE_TAKE_FRAME"
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
   Layer {} of {} · {:.2f} mm: Layer {} of {} · {:.2f} mm
   Layer {} of {}.: Layer {} of {}.
   Layer {}, Z {:.2f} mm: Layer {}, Z {:.2f} mm
@@ -3246,6 +3246,7 @@ translations:
   Objects: Objects
   Objects in the print, with a tap to open the skip map: Objects in the print, with a tap to open the skip map
   'Off': 'Off'
+  Off for This Print: Off for This Print
   'Off:': 'Off:'
   'Off: runs with these values without asking': 'Off: runs with these values without asking'
   Offer to save Z-offset changes to the printer config: Offer to save Z-offset changes to the printer config
@@ -5280,7 +5281,6 @@ translations:
   'Time: ': 'Time: '
   Timelapse: Timelapse
   Timelapse Available: Timelapse Available
-  Timelapse Off: Timelapse Off
   Timelapse Settings: Timelapse Settings
   Timelapse Videos: Timelapse Videos
   Timelapse plugin installed successfully!: Timelapse plugin installed successfully!

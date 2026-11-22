@@ -2616,8 +2616,10 @@ translations:
   : '层模式在每次换层时拍摄一帧。切片软件的换层 G-code 必须执行：
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : '层模式在每次换层时拍摄一帧，但只有打印执行这一行时才会拍摄。请将它添加到切片软件的换层 G-code 中，否则视频几乎是空的：
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : '层模式在每次换层时拍摄一帧，但只有打印执行下面的宏时才会拍摄；没有它，视频几乎是空的。
+
+    请将它添加到切片软件的换层 G-code 中：
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3269,6 +3271,7 @@ translations:
   Objects: 对象
   Objects in the print, with a tap to open the skip map: '打印中的对象，点按打开跳过地图'
   'Off': 关
+  Off for This Print: '本次打印关闭'
   'Off:': '关:'
   'Off: runs with these values without asking': '关: 不询问,直接以这些值运行'
   Offer to save Z-offset changes to the printer config: '提供将 Z 偏移更改保存到打印机配置的选项'
@@ -5318,7 +5321,6 @@ translations:
   'Time: ': '时间: '
   Timelapse: 延时摄影
   Timelapse Available: 延时摄影可用
-  Timelapse Off: '关闭延时摄影'
   Timelapse Settings: 延时摄影设置
   Timelapse Videos: 延时摄影视频
   Timelapse plugin installed successfully!: 延时摄影插件安装成功！

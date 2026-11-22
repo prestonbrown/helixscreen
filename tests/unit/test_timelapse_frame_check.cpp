@@ -180,3 +180,21 @@ TEST_CASE("Layer mode comes back only when the Hyperlapse print ends", "[timelap
     CHECK_FALSE(latch.ended_by(PrintState::Printing));
     CHECK_FALSE(latch.ended_by(PrintState::Complete));
 }
+
+TEST_CASE("a Preparing flicker before the print reports printing is not its end",
+          "[timelapse][frame-check]") {
+    helix::timelapse::PrintEndLatch latch;
+    CHECK_FALSE(latch.ended_by(PrintState::Complete));
+    CHECK_FALSE(latch.ended_by(PrintState::Preparing));
+    // print_stats still holds the previous job's end for a moment.
+    CHECK_FALSE(latch.ended_by(PrintState::Complete));
+    CHECK_FALSE(latch.ended_by(PrintState::Printing));
+    CHECK(latch.ended_by(PrintState::Complete));
+}
+
+TEST_CASE("an absolute-extrusion retract is not a printing move", "[timelapse][frame-check]") {
+    // M82: the change-layer retract carries a positive E but no X or Y.
+    const std::string head = kStart + "M82\n" + prusa_layer(1, "") +
+                             ";LAYER_CHANGE\n;Z:0.4\n;HEIGHT:0.2\nG1 E12.3 F2100\n";
+    CHECK(frame_calls_in(head, false, kTakeFrame) == FrameCalls::Unknown);
+}

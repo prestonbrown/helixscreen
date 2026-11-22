@@ -61,6 +61,11 @@ void PrintGateChoiceModal::on_quaternary() {
 }
 
 void PrintGateChoiceModal::on_dismissed() {
+    // The owner closing its own dialog has decided already; every other close
+    // (backdrop, ESC, a rebuild) is the user walking away.
+    if (close_reason_ == ModalCloseReason::Programmatic) {
+        return;
+    }
     if (config_.on_cancel) {
         auto cancel = config_.on_cancel;
         cancel();

@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" it="Altezza layer"/>
   <translation tag="Layer Pause" it="Pausa al layer"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" it="Strato scatta un fotogramma a ogni cambio di strato. Il G-code di cambio strato dello slicer deve eseguire:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." it="Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue questa riga. Aggiungila al G-code di cambio strato dello slicer, altrimenti il video resta quasi vuoto:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse scatta un fotogramma a intervalli regolari e non richiede configurazione dello slicer, ma ogni fotogramma riprende la testina ovunque si trovi."/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." it="Strato scatta un fotogramma a ogni cambio di strato, ma solo quando la stampa esegue la macro qui sotto; senza, il video resta quasi vuoto.&#10;Aggiungila al G-code di cambio strato dello slicer:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse scatta un fotogramma a intervalli regolari e non richiede configurazione dello slicer, ma ogni fotogramma riprende la testina ovunque si trovi."/>
   <translation tag="Layer {} of {} · {:.2f} mm" it="Strato {} di {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." it="Strato {} di {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" it="Strato {}, Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" it="Oggetti"/>
   <translation tag="Objects in the print, with a tap to open the skip map" it="Oggetti della stampa, tocca per aprire la mappa"/>
   <translation tag="Off" it="Off"/>
+  <translation tag="Off for This Print" it="Disattiva per questa stampa"/>
   <translation tag="Off:" it="Off:"/>
   <translation tag="Off: runs with these values without asking" it="Disattivato: esegue con questi valori senza chiedere"/>
   <translation tag="Offer to save Z-offset changes to the printer config" it="Proponi di salvare le modifiche allo Z-Offset nella configurazione della stampante"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " it="Ora: "/>
   <translation tag="Timelapse" it="Timelapse"/>
   <translation tag="Timelapse Available" it="Timelapse disponibile"/>
-  <translation tag="Timelapse Off" it="Timelapse disattivato"/>
   <translation tag="Timelapse Settings" it="Impostazioni timelapse"/>
   <translation tag="Timelapse Videos" it="Video timelapse"/>
   <translation tag="Timelapse did not start" it="Il timelapse non è partito"/>

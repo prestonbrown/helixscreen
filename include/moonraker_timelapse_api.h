@@ -112,15 +112,13 @@ class MoonrakerTimelapseAPI : public helix::ITimelapseAPI {
                                ErrorCallback on_error) override;
 
     /**
-     * @brief Set the recording mode without changing other settings
+     * @brief Set the named settings without changing the others
      *
-     * Changed while a print runs, the plugin starts or stops its Hyperlapse
-     * timer at once.
-     *
-     * @param mode "layermacro" or "hyperlapse"
+     * A mode changed while a print runs starts or stops the plugin's
+     * Hyperlapse timer at once.
      */
-    void set_timelapse_mode(const std::string& mode, SuccessCallback on_success,
-                            ErrorCallback on_error) override;
+    void set_timelapse_values(const std::vector<std::pair<std::string, std::string>>& values,
+                              SuccessCallback on_success, ErrorCallback on_error) override;
 
     // ========================================================================
     // Timelapse Render / Frame Operations (JSON-RPC)

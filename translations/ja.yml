@@ -2616,8 +2616,10 @@ translations:
   : 'レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code で次を実行する必要があります:
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷がこの行を実行したときだけです。スライサーのレイヤー変更 G-code に追加しないと、動画はほとんど空になります:
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷が下のマクロを実行したときだけです。ないと動画はほとんど空になります。
+
+    スライサーのレイヤー変更 G-code に追加してください:
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3269,6 +3271,7 @@ translations:
   Objects: オブジェクト
   Objects in the print, with a tap to open the skip map: '印刷中のオブジェクト。タップでスキップマップを開きます'
   'Off': オフ
+  Off for This Print: 'この印刷ではオフ'
   'Off:': 'オフ:'
   'Off: runs with these values without asking': 'オフ: これらの値で確認なしに実行'
   Offer to save Z-offset changes to the printer config: 'Z-Offset の変更をプリンター設定に保存する操作を表示します'
@@ -5318,7 +5321,6 @@ translations:
   'Time: ': '時刻: '
   Timelapse: タイムラプス
   Timelapse Available: タイムラプス利用可能
-  Timelapse Off: 'タイムラプスオフ'
   Timelapse Settings: タイムラプス設定
   Timelapse Videos: タイムラプス動画
   Timelapse plugin installed successfully!: タイムラプスプラグインのインストール成功！

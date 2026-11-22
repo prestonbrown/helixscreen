@@ -302,7 +302,12 @@ void PrintStartController::execute_print_start() {
         helix::material_zoffset::MaterialZOffsetState::instance().note_screen_start(
             api_, primary_material, gcode::join_gcode_path(path, filename_to_print));
 
-        if (timelapse_choice == helix::GateChoice::TimelapseOff) {
+        if (timelapse_choice == helix::GateChoice::TimelapseOff && api_) {
+            // Owed before the start sends enabled=False, so the flag comes back
+            // at this print's end even across a restart.
+            helix::TimelapseState::instance().begin_print_without_timelapse(
+                api_->timelapse(), printer_state_.print_state().get_print_lifecycle_subject(),
+                printer_state_.get_subjects_lifetime());
             prep_manager->force_start_option_off("timelapse");
         }
         const bool hyperlapse = timelapse_choice == helix::GateChoice::TimelapseHyperlapse;
@@ -368,11 +373,14 @@ void PrintStartController::execute_print_start() {
                         if (!success) {
                             helix::material_zoffset::MaterialZOffsetState::instance()
                                 .note_screen_start_failed(api);
+                            helix::TimelapseState::instance().start_ended_without_print();
                         }
-                        if (success && hyperlapse) {
+                        if (success && hyperlapse && api) {
                             // The plugin starts its Hyperlapse timer when the mode
                             // changes mid-print, so the switch waits for the start.
-                            helix::TimelapseState::instance().record_print_as_hyperlapse();
+                            helix::TimelapseState::instance().record_print_as_hyperlapse(
+                                api->timelapse(), ps->print_state().get_print_lifecycle_subject(),
+                                ps->get_subjects_lifetime());
                         }
                         if (success) {
                             // Deliberately does NOT end preparation: the RPC

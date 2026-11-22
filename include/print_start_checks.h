@@ -170,8 +170,9 @@ struct PrintStartContext {
 /// A way around a gate's warning other than starting as is or not starting.
 /// The controller carries it out, then starts.
 enum class GateChoice {
-    TimelapseHyperlapse, ///< Record this print in Hyperlapse mode, then restore the user's mode
-    TimelapseOff,        ///< Record no timelapse of this print
+    TimelapseHyperlapse, ///< Record this print in Hyperlapse, parking off; the user's settings come
+                         ///< back at its end
+    TimelapseOff, ///< Record no timelapse of this print; the enabled flag comes back at its end
 };
 
 struct GateAlternative {

@@ -31,6 +31,7 @@ bool helix::parse_timelapse_settings(const std::string& body, TimelapseSettings&
     s.mode = json_util::safe_string(d, "mode", s.mode);
     s.output_framerate = json_util::safe_int(d, "output_framerate", s.output_framerate);
     s.autorender = json_util::safe_bool(d, "autorender", s.autorender);
+    s.parkhead = json_util::safe_bool(d, "parkhead", s.parkhead);
     s.park_retract_distance =
         json_util::safe_int(d, "park_retract_distance", s.park_retract_distance);
     s.park_extrude_speed = json_util::safe_double(d, "park_extrude_speed", s.park_extrude_speed);
@@ -194,18 +195,22 @@ void MoonrakerTimelapseAPI::set_timelapse_enabled(bool enabled, SuccessCallback 
                      "set_timelapse_enabled", std::move(on_success), std::move(on_error));
 }
 
-void MoonrakerTimelapseAPI::set_timelapse_mode(const std::string& mode, SuccessCallback on_success,
-                                               ErrorCallback on_error) {
-    if (mode != "layermacro" && mode != "hyperlapse") {
-        helix::report_validation_error(
-            on_error, "set_timelapse_mode",
-            "Invalid timelapse mode (must be 'layermacro' or 'hyperlapse')",
-            fmt::format("Invalid timelapse mode '{}'.", mode));
-        return;
+void MoonrakerTimelapseAPI::set_timelapse_values(
+    const std::vector<std::pair<std::string, std::string>>& values, SuccessCallback on_success,
+    ErrorCallback on_error) {
+    std::string query;
+    for (const auto& [key, value] : values) {
+        if (key == "mode" && value != "layermacro" && value != "hyperlapse") {
+            helix::report_validation_error(
+                on_error, "set_timelapse_values",
+                "Invalid timelapse mode (must be 'layermacro' or 'hyperlapse')",
+                fmt::format("Invalid timelapse mode '{}'.", value));
+            return;
+        }
+        query += (query.empty() ? "" : "&") + key + "=" + value;
     }
-    spdlog::info("[Timelapse API] Setting timelapse mode={}", mode);
-    post_one_setting("mode=" + mode, "set_timelapse_mode", std::move(on_success),
-                     std::move(on_error));
+    spdlog::info("[Timelapse API] Setting timelapse {}", query);
+    post_one_setting(query, "set_timelapse_values", std::move(on_success), std::move(on_error));
 }
 
 void MoonrakerTimelapseAPI::post_one_setting(const std::string& query, const char* op,

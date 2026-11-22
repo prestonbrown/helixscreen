@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" ja="レイヤー高さ"/>
   <translation tag="Layer Pause" ja="レイヤー一時停止"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" ja="レイヤーはレイヤー変更ごとにフレームを撮影します。スライサーのレイヤー変更 G-code で次を実行する必要があります:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." ja="レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷がこの行を実行したときだけです。スライサーのレイヤー変更 G-code に追加しないと、動画はほとんど空になります:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。"/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." ja="レイヤーはレイヤー変更ごとに 1 フレームを撮影しますが、印刷が下のマクロを実行したときだけです。ないと動画はほとんど空になります。&#10;スライサーのレイヤー変更 G-code に追加してください:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;ハイパーラプスは一定間隔でフレームを撮影し、スライサーの設定は不要ですが、各フレームにはヘッドがその時の位置に写ります。"/>
   <translation tag="Layer {} of {} · {:.2f} mm" ja="レイヤー {} / {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." ja="レイヤー {} / {}。"/>
   <translation tag="Layer {}, Z {:.2f} mm" ja="レイヤー {}、Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" ja="オブジェクト"/>
   <translation tag="Objects in the print, with a tap to open the skip map" ja="印刷中のオブジェクト。タップでスキップマップを開きます"/>
   <translation tag="Off" ja="オフ"/>
+  <translation tag="Off for This Print" ja="この印刷ではオフ"/>
   <translation tag="Off:" ja="オフ:"/>
   <translation tag="Off: runs with these values without asking" ja="オフ: これらの値で確認なしに実行"/>
   <translation tag="Offer to save Z-offset changes to the printer config" ja="Z-Offset の変更をプリンター設定に保存する操作を表示します"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " ja="時刻: "/>
   <translation tag="Timelapse" ja="タイムラプス"/>
   <translation tag="Timelapse Available" ja="タイムラプス利用可能"/>
-  <translation tag="Timelapse Off" ja="タイムラプスオフ"/>
   <translation tag="Timelapse Settings" ja="タイムラプス設定"/>
   <translation tag="Timelapse Videos" ja="タイムラプス動画"/>
   <translation tag="Timelapse did not start" ja="タイムラプスが開始されませんでした"/>

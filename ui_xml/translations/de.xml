@@ -2502,7 +2502,7 @@
   <translation tag="Layer Height" de="Schichthöhe"/>
   <translation tag="Layer Pause" de="Schichtpause"/>
   <translation tag="Layer takes a frame at each layer change. Your slicer&apos;s layer change G-code must run:&#10;TIMELAPSE_TAKE_FRAME" de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf. Der Schichtwechsel-G-Code deines Slicers muss ausführen:&#10;TIMELAPSE_TAKE_FRAME"/>
-  <translation tag="Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer&apos;s layer change G-code, or the video stays nearly empty:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck diese Zeile ausführt. Füge sie in den Schichtwechsel-G-Code deines Slicers ein, sonst bleibt das Video fast leer:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist."/>
+  <translation tag="Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.&#10;Add it to your slicer&apos;s layer change G-code:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is." de="Schicht nimmt bei jedem Schichtwechsel ein Bild auf, aber nur, wenn der Druck das Makro unten ausführt; ohne es bleibt das Video fast leer.&#10;Füge es in den Schichtwechsel-G-Code deines Slicers ein:&#10;TIMELAPSE_TAKE_FRAME&#10;&#10;Hyperlapse nimmt Bilder in festen Zeitabständen auf und braucht keine Slicer-Einrichtung, aber jedes Bild zeigt den Kopf dort, wo er gerade ist."/>
   <translation tag="Layer {} of {} · {:.2f} mm" de="Schicht {} von {} · {:.2f} mm"/>
   <translation tag="Layer {} of {}." de="Schicht {} von {}."/>
   <translation tag="Layer {}, Z {:.2f} mm" de="Schicht {}, Z {:.2f} mm"/>
@@ -3149,6 +3149,7 @@
   <translation tag="Objects" de="Objekte"/>
   <translation tag="Objects in the print, with a tap to open the skip map" de="Objekte des Drucks, per Tipp zur Überspringen-Karte"/>
   <translation tag="Off" de="Aus"/>
+  <translation tag="Off for This Print" de="Für diesen Druck aus"/>
   <translation tag="Off:" de="Aus:"/>
   <translation tag="Off: runs with these values without asking" de="Aus: führt diese Werte aus, ohne zu fragen"/>
   <translation tag="Offer to save Z-offset changes to the printer config" de="Anbieten, Z-Offset-Änderungen in der Druckerkonfiguration zu speichern"/>
@@ -5098,7 +5099,6 @@
   <translation tag="Time: " de="Zeit: "/>
   <translation tag="Timelapse" de="Zeitraffer"/>
   <translation tag="Timelapse Available" de="Zeitraffer verfügbar"/>
-  <translation tag="Timelapse Off" de="Zeitraffer aus"/>
   <translation tag="Timelapse Settings" de="Zeitraffer-Einstellungen"/>
   <translation tag="Timelapse Videos" de="Zeitraffer-Videos"/>
   <translation tag="Timelapse did not start" de="Zeitraffer nicht gestartet"/>

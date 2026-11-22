@@ -2628,8 +2628,10 @@ translations:
   : 'Couche prend une image à chaque changement de couche. Le G-code de changement de couche de votre trancheur doit exécuter :
 
     TIMELAPSE_TAKE_FRAME'
-  ? "Layer takes one frame at each layer change, but only when the print runs this line. Add it to your slicer's layer change G-code, or the video stays nearly empty:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
-  : 'Couche prend une image à chaque changement de couche, mais seulement lorsque l''impression exécute cette ligne. Ajoutez-la au G-code de changement de couche de votre trancheur, sinon la vidéo reste presque vide :
+  ? "Layer takes one frame at each layer change, but only when the print runs the macro below; without it the video stays nearly empty.\nAdd it to your slicer's layer change G-code:\nTIMELAPSE_TAKE_FRAME\n\nHyperlapse takes a frame on a timer and needs no slicer setup, but each frame catches the head wherever it is."
+  : 'Couche prend une image à chaque changement de couche, mais seulement lorsque l''impression exécute la macro ci-dessous ; sans elle, la vidéo reste presque vide.
+
+    Ajoutez-la au G-code de changement de couche de votre trancheur :
 
     TIMELAPSE_TAKE_FRAME
 
@@ -3281,6 +3283,7 @@ translations:
   Objects: Objets
   Objects in the print, with a tap to open the skip map: 'Objets de l''impression, un toucher ouvre la carte d''exclusion'
   'Off': Éteint
+  Off for This Print: 'Désactivé pour cette impression'
   'Off:': 'Arrêt :'
   'Off: runs with these values without asking': 'Désactivé : exécute avec ces valeurs sans demander'
   Offer to save Z-offset changes to the printer config: 'Proposer d''enregistrer les modifications du Z-Offset dans la configuration de l''imprimante'
@@ -5330,7 +5333,6 @@ translations:
   'Time: ': 'Heure : '
   Timelapse: Timelapse
   Timelapse Available: Timelapse disponible
-  Timelapse Off: 'Timelapse désactivé'
   Timelapse Settings: Paramètres du timelapse
   Timelapse Videos: Vidéos timelapse
   Timelapse plugin installed successfully!: Plugin timelapse installé avec succès !
