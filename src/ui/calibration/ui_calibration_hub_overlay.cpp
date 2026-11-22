@@ -21,18 +21,36 @@
 
 namespace helix::ui {
 
+bool tile_shows_reading(calibration::StepKind kind) {
+    using calibration::StepKind;
+    switch (kind) {
+    case StepKind::CutterPosition:
+    case StepKind::ZOffset:
+    case StepKind::Heaters:
+    case StepKind::BedMesh:
+    case StepKind::PressureAdvance:
+    case StepKind::PressureAdvanceTuning:
+        return true;
+    // A result per axis, belt, screw, tool or band: the step's own screen shows it.
+    case StepKind::BeltTension:
+    case StepKind::InputShaper:
+    case StepKind::BeltCompare:
+    case StepKind::BedScrews:
+    case StepKind::ToolOffsets:
+    case StepKind::VerticalArtifact:
+    case StepKind::VibrationCheck:
+        break;
+    }
+    return false;
+}
+
 TileStatus tile_status(const calibration::StepInfo& step, const calibration::HistoryEntry* last,
                        const std::string* in_config) {
     using calibration::Tier;
     if (last) {
         const auto date = calibration::parse_iso_date(last->date);
         const std::string when = date ? locale::format_localized_month_day(&*date) : last->date;
-        // A half-width tile at 800x480 holds the date and one short reading; a
-        // longer or multi-part result belongs on the step's own screen.
-        constexpr size_t kTileSummaryMax = 16;
-        const bool show_summary = !last->summary.empty() &&
-                                  last->summary.size() <= kTileSummaryMax &&
-                                  last->summary.find(" · ") == std::string::npos;
+        const bool show_summary = !last->summary.empty() && tile_shows_reading(step.kind);
         std::string text = show_summary ? fmt::format(lv_tr("Done {} · {}"), when, last->summary)
                                         : fmt::format(lv_tr("Done {}"), when);
         return {std::move(text), TileTone::Done};

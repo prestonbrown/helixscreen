@@ -22,9 +22,13 @@ namespace helix::ui {
 /// The color of a tile's status line; the values are calibration_hub_tile.xml's.
 enum class TileTone : int { Idle = 0, Due = 1, Done = 2 };
 
-/// What a tile's status line says about a step: when it last ran with its
-/// result if that is one short reading, else the result the printer's config
-/// holds (@p in_config, no date), else its tier.
+/// Whether a done tile repeats the step's result after its date: true for a
+/// step whose result is one reading (a Z offset, a heater model, a mesh range).
+[[nodiscard]] bool tile_shows_reading(calibration::StepKind kind);
+
+/// What a tile's status line says about a step: when it last ran, with its
+/// result where tile_shows_reading() says so, else the result the printer's
+/// config holds (@p in_config, no date), else its tier.
 struct TileStatus {
     std::string text;
     TileTone tone;

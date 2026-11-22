@@ -251,6 +251,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "a Calibration tile says when a step last ran, else how much it matters",
                  "[calibration_history]") {
     StepInfo step;
+    step.kind = StepKind::Heaters;
     step.tier = Tier::Required;
     const HistoryEntry done{"2026-11-20", "MPC 60 W", json::object()};
     auto s = helix::ui::tile_status(step, &done, nullptr);
@@ -258,11 +259,12 @@ TEST_CASE_METHOD(LVGLTestFixture,
     CHECK(s.tone == helix::ui::TileTone::Done);
     const HistoryEntry bare{"2026-03-09", "", json::object()};
     CHECK(helix::ui::tile_status(step, &bare, nullptr).text == "Done Mar 9");
-    // A tile holds one short reading; a longer or multi-part result shows the date alone.
-    const HistoryEntry joined{"2026-11-20", "X: MZV · Y: EI", json::object()};
-    CHECK(helix::ui::tile_status(step, &joined, nullptr).text == "Done Nov 20");
-    const HistoryEntry wordy{"2026-11-20", "MPC thermal model for extruder", json::object()};
-    CHECK(helix::ui::tile_status(step, &wordy, nullptr).text == "Done Nov 20");
+    // A step with a result per axis shows the date alone; its screen shows the result.
+    StepInfo shaper;
+    shaper.kind = StepKind::InputShaper;
+    const HistoryEntry axes{"2026-11-20", "X: MZV 52 Hz · Y: EI 48 Hz", json::object()};
+    CHECK(helix::ui::tile_status(shaper, &axes, nullptr).text == "Done Nov 20");
+    CHECK(helix::ui::tile_status(shaper, &axes, nullptr).tone == helix::ui::TileTone::Done);
 
     using helix::ui::TileTone;
     const std::pair<Tier, std::pair<const char*, TileTone>> never[] = {
@@ -283,6 +285,7 @@ TEST_CASE_METHOD(LVGLTestFixture,
                  "a Calibration tile with no history shows what the printer's config holds",
                  "[calibration_history]") {
     StepInfo step;
+    step.kind = StepKind::ZOffset;
     step.tier = Tier::Recommended;
     const std::string in_config = "-1.250 mm";
     auto s = helix::ui::tile_status(step, nullptr, &in_config);
@@ -300,6 +303,20 @@ TEST_CASE_METHOD(LVGLTestFixture,
     const std::string axes = "X: MZV 50.0 · Y: MZV 50.0";
     CHECK(helix::ui::tile_status(shaper, nullptr, &axes).text == axes);
     CHECK(s.tone == helix::ui::TileTone::Done);
+}
+
+TEST_CASE("a done tile repeats its result only for a one-reading step", "[calibration_history]") {
+    using helix::ui::tile_shows_reading;
+    for (StepKind k :
+         {StepKind::CutterPosition, StepKind::ZOffset, StepKind::Heaters, StepKind::BedMesh,
+          StepKind::PressureAdvance, StepKind::PressureAdvanceTuning}) {
+        CHECK(tile_shows_reading(k));
+    }
+    for (StepKind k :
+         {StepKind::BeltTension, StepKind::InputShaper, StepKind::BeltCompare, StepKind::BedScrews,
+          StepKind::ToolOffsets, StepKind::VerticalArtifact, StepKind::VibrationCheck}) {
+        CHECK_FALSE(tile_shows_reading(k));
+    }
 }
 
 TEST_CASE_METHOD(LVGLTestFixture, "every change to the calibration history moves its version",
