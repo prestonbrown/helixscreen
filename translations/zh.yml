@@ -741,6 +741,7 @@ translations:
   Checking webcam: 正在检查摄像头
   Checking...: 检查中...
   Checking…: 检查中…
+  Choose a Different Spool: '选择其他料盘'
   Choose a discovered printer: "选择发现的打印机"
   Choose 12-hour or 24-hour time display: 选择 12 小时制或 24 小时制
   Choose Filament: 选择耗材
@@ -783,6 +784,7 @@ translations:
 
   Clear the extruder?: '清空挤出机？'
   Clear the plate and load {}. The tower prints in the middle of the bed.: 请清空热床并装入{}。测试塔打印在热床中央。
+  Clear {}?: '清空{}？'
   Cleared: 已清空
   Cleared from settings — system unpair failed, may need OS Bluetooth: 已从设置中清除；系统解除配对失败，可能需使用系统蓝牙设置
   Clipboard unavailable - use SSH: 剪贴板不可用 - 请使用 SSH
@@ -915,6 +917,7 @@ translations:
   Console Settings: 控制台设置
   Context: 上下文
   Continue: 继续
+  Continues from {} on runout: '用尽时从{}继续'
   Control optional print start features: 控制可选的打印启动功能
   Control power relays and smart outlets: 控制电源继电器和智能插座
   Controllable Fans: 可控风扇
@@ -1012,6 +1015,7 @@ translations:
   Could not update filaments: 无法更新耗材
   Could not verify Spoolman status. Moonraker may still be restarting.: 无法验证 Spoolman
     状态。Moonraker 可能仍在重启中。
+  Couldn't archive the spool in Spoolman: '无法在 Spoolman 中归档料盘'
   Couldn't assign the tool: 无法分配工具
   Couldn't clear the printer's gate map: 无法清空打印机的通道映射
   Couldn't load spools — tap to retry: '无法加载料盘 — 点按重试'
@@ -1529,6 +1533,9 @@ translations:
   Feeder: 送料器
   Feeders: 送料器
   Feeding filament forward: 正在向前送料
+  Feeds Tool: '供料工具'
+  Feeds no tool: '不供料任何工具'
+  Feeds {}: '供料至{}'
   Filament: 耗材
   Filament Buffer: '耗材缓冲区'
   Filament Control: 耗材控制
@@ -2104,6 +2111,7 @@ translations:
   Last 24 hours: '最近 24 小时'
   Last 30 days: '最近 30 天'
   Last 7 days: '最近 7 天'
+  'Last held: {}': '上次装载：{}'
   Last measured: '上次测量'
   Last print canceled: 上次打印已取消
   Last print failed: 上次打印失败
@@ -2405,6 +2413,7 @@ translations:
   Moving the plate...: 正在移动热床...
 
   Moving {} to the front...: 正在将{}移到前方...
+  Multi-Color: '多色'
   Multi-Filament: 多耗材
   Multi-Filament Overview: 多耗材概览
   Multi-Filament System: 多耗材系统
@@ -2556,6 +2565,7 @@ translations:
   No spools match. Add it as a new spool below.: '没有匹配的料盘。请在下方添加为新料盘。'
   No spools placed: 未放置料盘
 
+  No spools to show. Add it as a new spool below.: '没有可显示的料盘。请在下方添加为新料盘。'
   No tape detected in printer: 打印机中未检测到标签带
   No target printer configured: 未配置目标打印机
   No temperature sensors detected: '未检测到温度传感器'
@@ -2733,6 +2743,7 @@ translations:
   Original file location unknown: 原始文件位置未知
   Oscillating... cycle %d/%d: 振荡中... 循环 %d/%d
   Other: 其他
+  Other…: '其他…'
   Outcome: 结果
   Output Device: 输出设备
   Output Mode: 输出模式
@@ -2807,6 +2818,7 @@ translations:
   Paused by a command: 由命令暂停
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '在选定的层暂停打印，用于换料或放入嵌件。打印时，在打印状态页面的预览卡片中设置层。'
+  Pauses on runout: '用尽时暂停'
   Pausing at layer {}.: '将在第 {} 层暂停。'
   Pausing...: 暂停中...
   Peak Freq: 峰值频率
@@ -3389,6 +3401,7 @@ translations:
   Running tight: '偏紧'
   Running {}...: 正在运行 {}...
   Runout: '用尽'
+  Runout Backup: '用尽备用'
   Runout Sensor: 断料传感器
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
@@ -3410,6 +3423,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : '安全模式：由于应用程序在启动时反复崩溃，插件已禁用，小部件布局显示为默认设置。重启即可恢复正常。'
   Safety & Alerts: 安全与警报
+  Same Filament, New Spool: '相同耗材，新料盘'
   Same spool in {}? Tap Clear if it is a new one.: '{} 是同一个料盘吗？如果是新料盘，请点击清除。'
   Sample: 样本
   Sample %d/%d: 样本 %d/%d
@@ -3706,12 +3720,14 @@ translations:
   Spool archived: 料盘已归档
   Spool created successfully: 料盘创建成功
   Spool deleted: 料盘已删除
+  Spool is empty, archive it in Spoolman: '料盘已空，在 Spoolman 中归档'
   Spool menu: '料盘操作'
   Spool motor: 料盘电机
   Spool saved: 料盘已保存
   Spool switching per tool and lane: '按工具和耗材通道切换料盘'
   Spool wt (g): 料盘重量 (g)
   Spoolman: Spoolman
+  Spoolman Details: 'Spoolman 详情'
   Spoolman Not Available: 'Spoolman 不可用'
   Spoolman Server: Spoolman 服务器
   Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman 中已有此品牌颜色相近的“{}”。用于耗材通道{}，还是添加新耗材？"
@@ -3920,6 +3936,7 @@ translations:
   Temporary adjustment for this print: "此打印的临时调整"
   Temporary adjustment for this print, unless saved on Controls panel: 此打印的临时调整，除非在控制面板上保存
   Temporary for this print; a tool change resets it: "仅限此打印的临时调整；换工具会将其重置"
+  Temps: '温度'
   'Tensioner: {}': "张紧器：{}"
   Tertiary: 第三
   Test All Lanes: '测试所有耗材通道'
@@ -4012,6 +4029,8 @@ translations:
   The heater was turned off at the heater.: '加热器已在加热器本身上关闭。'
   The heater will cycle on and off several times.: 加热器将多次开关循环。
   The helper macros are installed and activate after Klipper restarts.: '帮助宏已安装，将在 Klipper 重启后启用。'
+  The lane forgets this spool. The filament itself stays where it is.: '耗材通道将忘记此料盘。耗材本身保持原位。'
+  The lane that takes over when this one runs out: '此耗材通道用尽时接替的耗材通道'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: 锁定装置会打开，{}可能掉落。继续前请用手接住它，然后将其放回停靠位。
   The left RFID reader in this CFS unit may need service: 此 CFS 单元的左侧 RFID 读取器可能需要维修
   'The linked spool says {}.': '关联的料盘显示为 {}。'
@@ -4117,6 +4136,7 @@ translations:
   'The toolhead may still be at the chute. Move it away before printing.': '打印头可能仍在清料槽处。打印前请将其移开。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: 工具头传感器显示耗材已装载。仍要继续装载吗？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: 工具头传感器显示无耗材。仍要继续卸载吗？
+  The toolhead this lane loads into: '此耗材通道装载到的工具头'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: '检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: 该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS
   The unit reported a fault with no further detail. Restart the printer if it repeats: 该单元报告了故障但无更多信息。若反复出现，请重启打印机
@@ -4353,6 +4373,7 @@ translations:
   TouchCalibration: 触摸校准
   Trace: 跟踪
   Trigger: 触发器
+  Track this spool's weight there: '在其中跟踪此料盘的重量'
   'Tried ports {} and {}.': "已尝试端口 {} 和 {}。"
   'Troubleshooting:': 故障排除：
   Try adjusting your search or filters: 尝试调整搜索或筛选条件
@@ -4584,6 +4605,8 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : '当切片软件上传并启动的文件超出此打印机的行程、加热超过其上限或使用不存在的工具时，保留文件但不开始打印。'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: 启用时仅运行宏。禁用时先设置温度，然后运行宏。
+  When this spool runs out, printing continues from {}.: '此料盘用尽时，将从{}继续打印。'
+  When this spool runs out, the print pauses.: '此料盘用尽时，打印将暂停。'
   Where UI sounds play: 界面声音的播放位置
   Whether filament is loaded: 耗材是否已装载
   Which macro switches the ACE path back on: '重新开启ACE通路的宏'
@@ -4750,6 +4773,8 @@ translations:
   'helixscreen.env ignored: {}': '已忽略 helixscreen.env：{}'
   idle: 空闲
   in unit {} slot {}: 在单元 {} 槽位 {}
+  in {}: '位于{}'
+  in {}, feeding the print: '位于{}，正在供料打印'
   incompatible: 不兼容
   invalid: 无效
   just now: 刚刚
@@ -4833,6 +4858,7 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0} 在 {2:.0f} Hz 处的共振远强于 {1}。这说明是机械差异(同步轮顶丝、惰轮轴承、皮带走向),而不是张力。"
   '{:.0f} g left': '剩余 {:.0f} g'
+  '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 约 {} 分钟'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} 个挤出机'
@@ -4840,6 +4866,7 @@ translations:
   '{} Issues Detected': '检测到 {} 个问题'
   '{} LED strips available': '{} 条 LED 灯带可用'
   '{} MCUs': '{} 个 MCU'
+  '{} Settings': '{}设置'
   '{} Tools': '{} 个工具'
   '{} and {}': '{} 和 {}'
   '{} and {} are both mapped here': '{} 和 {} 都映射到这里'
@@ -4873,6 +4900,7 @@ translations:
   '{} is asking to connect to this printer.': '{} 请求连接到此打印机。'
   '{} is blocked — manual intervention required': '{} 被阻塞 — 需要手动干预'
   '{} is due: {} h reached': '{}需要维护：已达 {} 小时'
+  '{} is empty': '{}为空'
   '{} is feeding the current print. Clear it after the print ends.': '{} 正在为当前打印供料。请在打印结束后清除。'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} 已安装，但其无限料盘设置已关闭，因此耗材用尽时不会切换。'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} 已安装，但无法读取其无限料盘设置 - 请勿指望无限料盘。'
@@ -4931,6 +4959,7 @@ translations:
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '已安装 {0}。共用一个探针时，请用 {1} 校准。继续使用 {0}？'
   'Basic': '标准'
   'Recycled': '再生'
+  Add to Spoolman: '添加到 Spoolman'
   Add to Spoolman & Assign: '添加到 Spoolman 并分配'
   'Add to Spoolman + label': '添加到 Spoolman + 标签'
   'More': '更多'

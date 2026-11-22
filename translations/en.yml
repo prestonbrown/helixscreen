@@ -275,6 +275,7 @@ translations:
   Add page: Add page
   Add to Mainsail/Fluidd Webcams: Add to Mainsail/Fluidd Webcams
   Add to Queue: Add to Queue
+  Add to Spoolman: Add to Spoolman
   Add to Spoolman & Assign: Add to Spoolman & Assign
   Add to Spoolman + label: Add to Spoolman + label
   Added: Added
@@ -774,6 +775,7 @@ translations:
   Checking webcam: Checking webcam
   Checking...: Checking...
   Checking…: Checking…
+  Choose a Different Spool: Choose a Different Spool
   Choose a discovered printer: Choose a discovered printer
   Choose 12-hour or 24-hour time display: Choose 12-hour or 24-hour time display
   Choose Filament: Choose Filament
@@ -817,6 +819,7 @@ translations:
   : Clear the area above and below the plate. Lay the spools on the plate, cover them with a box (a printed lid or the filament's packaging) and close the door.
   Clear the extruder?: Clear the extruder?
   Clear the plate and load {}. The tower prints in the middle of the bed.: Clear the plate and load {}. The tower prints in the middle of the bed.
+  Clear {}?: Clear {}?
   Cleared: Cleared
   Cleared from settings — system unpair failed, may need OS Bluetooth: Cleared from
     settings — system unpair failed, may need OS Bluetooth
@@ -958,6 +961,7 @@ translations:
   Console Settings: Console Settings
   Context: Context
   Continue: Continue
+  Continues from {} on runout: Continues from {} on runout
   Control optional print start features: Control optional print start features
   Control power relays and smart outlets: Control power relays and smart outlets
   Controllable Fans: Controllable Fans
@@ -1052,6 +1056,7 @@ translations:
   Could not update filaments: Could not update filaments
   Could not verify Spoolman status. Moonraker may still be restarting.: Could not
     verify Spoolman status. Moonraker may still be restarting.
+  Couldn't archive the spool in Spoolman: Couldn't archive the spool in Spoolman
   Couldn't assign the tool: Couldn't assign the tool
   Couldn't clear the printer's gate map: Couldn't clear the printer's gate map
   Couldn't load spools — tap to retry: Couldn't load spools — tap to retry
@@ -1574,6 +1579,9 @@ translations:
   Feeder: Feeder
   Feeders: Feeders
   Feeding filament forward: Feeding filament forward
+  Feeds Tool: Feeds Tool
+  Feeds no tool: Feeds no tool
+  Feeds {}: Feeds {}
   Filament: Filament
   Filament Buffer: 'Filament Buffer'
   Filament Control: Filament Control
@@ -2170,6 +2178,7 @@ translations:
   Last 24 hours: Last 24 hours
   Last 30 days: Last 30 days
   Last 7 days: Last 7 days
+  'Last held: {}': 'Last held: {}'
   Last measured: Last measured
   Last print canceled: Last print canceled
   Last print failed: Last print failed
@@ -2483,6 +2492,7 @@ translations:
   Moving over the resume point: Moving over the resume point
   Moving the plate...: Moving the plate...
   Moving {} to the front...: Moving {} to the front...
+  Multi-Color: Multi-Color
   Multi-Filament: Multi-Filament
   Multi-Filament Overview: Multi-Filament Overview
   Multi-Filament System: Multi-Filament System
@@ -2637,6 +2647,7 @@ translations:
   No spools match your search: No spools match your search
   No spools match. Add it as a new spool below.: No spools match. Add it as a new spool below.
   No spools placed: No spools placed
+  No spools to show. Add it as a new spool below.: No spools to show. Add it as a new spool below.
   No tape detected in printer: No tape detected in printer
   No target printer configured: No target printer configured
   No temperature sensors detected: No temperature sensors detected
@@ -2813,6 +2824,7 @@ translations:
   Original file location unknown: Original file location unknown
   Oscillating... cycle %d/%d: Oscillating... cycle %d/%d
   Other: Other
+  Other…: Other…
   Outcome: Outcome
   Output Device: Output Device
   Output Mode: Output Mode
@@ -2889,6 +2901,7 @@ translations:
   Paused by a command: Paused by a command
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
+  Pauses on runout: Pauses on runout
   Pausing at layer {}.: Pausing at layer {}.
   Pausing...: Pausing...
   Peak Freq: Peak Freq
@@ -3492,6 +3505,7 @@ translations:
   Running tight: Running tight
   Running {}...: Running {}...
   Runout: Runout
+  Runout Backup: Runout Backup
   Runout Sensor: Runout Sensor
   Runs the printer's tool offset calibration for every tool.: Runs the printer's tool offset calibration for every tool.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.'
@@ -3514,6 +3528,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   Safety & Alerts: Safety & Alerts
+  Same Filament, New Spool: Same Filament, New Spool
   Same spool in {}? Tap Clear if it is a new one.: Same spool in {}? Tap Clear if it is a new one.
   Sample: Sample
   Sample %d/%d: Sample %d/%d
@@ -3831,12 +3846,14 @@ translations:
   Spool archived: Spool archived
   Spool created successfully: Spool created successfully
   Spool deleted: Spool deleted
+  Spool is empty, archive it in Spoolman: Spool is empty, archive it in Spoolman
   Spool menu: Spool menu
   Spool motor: Spool motor
   Spool saved: Spool saved
   Spool switching per tool and lane: Spool switching per tool and lane
   Spool wt (g): Spool wt (g)
   Spoolman: Spoolman
+  Spoolman Details: Spoolman Details
   Spoolman Not Available: Spoolman Not Available
   Spoolman Server: Spoolman Server
   Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?
@@ -4048,6 +4065,7 @@ translations:
   Temporary adjustment for this print, unless saved on Controls panel: Temporary adjustment
     for this print, unless saved on Controls panel
   Temporary for this print; a tool change resets it: Temporary for this print; a tool change resets it
+  Temps: Temps
   'Tensioner: {}': 'Tensioner: {}'
   Tertiary: Tertiary
   Test All Lanes: Test All Lanes
@@ -4142,6 +4160,8 @@ translations:
   The heater will cycle on and off several times.: The heater will cycle on and off
     several times.
   The helper macros are installed and activate after Klipper restarts.: The helper macros are installed and activate after Klipper restarts.
+  The lane forgets this spool. The filament itself stays where it is.: The lane forgets this spool. The filament itself stays where it is.
+  The lane that takes over when this one runs out: The lane that takes over when this one runs out
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: The latch opens and {} can drop. Hold it before you continue, then put it in its dock.
   The left RFID reader in this CFS unit may need service: The left RFID reader in this CFS unit may need service
   The linked spool says {}.: The linked spool says {}.
@@ -4249,6 +4269,7 @@ translations:
     toolhead sensor indicates filament is already loaded. Proceed with load anyway?
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: The
     toolhead sensor indicates no filament is present. Proceed with unload anyway?
+  The toolhead this lane loads into: The toolhead this lane loads into
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck
   The unit reported a fault with no further detail. Restart the printer if it repeats: The unit reported a fault with no further detail. Restart the printer if it repeats
@@ -4501,6 +4522,7 @@ translations:
   TouchCalibration: TouchCalibration
   Trace: Trace
   Trigger: Trigger
+  Track this spool's weight there: Track this spool's weight there
   'Tried ports {} and {}.': 'Tried ports {} and {}.'
   'Troubleshooting:': 'Troubleshooting:'
   Try adjusting your search or filters: Try adjusting your search or filters
@@ -4747,6 +4769,8 @@ translations:
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: When
     enabled, only the macro runs. When disabled, temperatures are set first, then
     the macro runs.
+  When this spool runs out, printing continues from {}.: When this spool runs out, printing continues from {}.
+  When this spool runs out, the print pauses.: When this spool runs out, the print pauses.
   Where UI sounds play: Where UI sounds play
   Whether filament is loaded: Whether filament is loaded
   Which macro switches the ACE path back on: Which macro switches the ACE path back on
@@ -4919,6 +4943,8 @@ translations:
   'helixscreen.env ignored: {}': 'helixscreen.env ignored: {}'
   idle: idle
   in unit {} slot {}: in unit {} slot {}
+  in {}: in {}
+  in {}, feeding the print: in {}, feeding the print
   incompatible: incompatible
   invalid: invalid
   just now: just now
@@ -4996,6 +5022,7 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   '{:.0f} g left': '{:.0f} g left'
+  '{:.0f} g of {} · {}%': '{:.0f} g of {} · {}%'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · about {} min'
   '{} ({})': '{} ({})'
   '{} Extruders': '{} Extruders'
@@ -5003,6 +5030,7 @@ translations:
   '{} Issues Detected': '{} Issues Detected'
   '{} LED strips available': '{} LED strips available'
   '{} MCUs': '{} MCUs'
+  '{} Settings': '{} Settings'
   '{} Tools': '{} Tools'
   '{} and {}': '{} and {}'
   '{} and {} are both mapped here': '{} and {} are both mapped here'
@@ -5036,6 +5064,7 @@ translations:
   '{} is asking to connect to this printer.': '{} is asking to connect to this printer.'
   '{} is blocked — manual intervention required': '{} is blocked — manual intervention required'
   '{} is due: {} h reached': '{} is due: {} h reached'
+  '{} is empty': '{} is empty'
   '{} is feeding the current print. Clear it after the print ends.': '{} is feeding the current print. Clear it after the print ends.'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.'

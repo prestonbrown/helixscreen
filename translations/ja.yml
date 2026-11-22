@@ -742,6 +742,7 @@ translations:
   Checking webcam: ウェブカメラを確認中
   Checking...: 確認中...
   Checking…: 確認中…
+  Choose a Different Spool: '別のスプールを選択'
   Choose a discovered printer: "見つかったプリンターを選択"
   Choose 12-hour or 24-hour time display: 12時間表示または24時間表示を選択
   Choose Filament: フィラメントを選択
@@ -784,6 +785,7 @@ translations:
 
   Clear the extruder?: 'エクストルーダーを空にしますか？'
   Clear the plate and load {}. The tower prints in the middle of the bed.: ベッドを片付けて{}をロードしてください。タワーはベッド中央に印刷されます。
+  Clear {}?: '{}をクリアしますか？'
   Cleared: クリア済み
   Cleared from settings — system unpair failed, may need OS Bluetooth: 設定から削除しました。システムのペアリング解除に失敗、OS
     の Bluetooth 設定が必要な場合があります
@@ -917,6 +919,7 @@ translations:
   Console Settings: コンソール設定
   Context: コンテキスト
   Continue: 続行
+  Continues from {} on runout: 'フィラメント切れ時は{}から続行'
   Control optional print start features: オプションの印刷開始機能を制御
   Control power relays and smart outlets: 電源リレーとスマートコンセントを制御
   Controllable Fans: 制御可能なファン
@@ -1014,6 +1017,7 @@ translations:
   Could not update filaments: フィラメントを更新できませんでした
   Could not verify Spoolman status. Moonraker may still be restarting.: Spoolman のステータスを確認できませんでした。Moonraker
     がまだ再起動中の可能性があります。
+  Couldn't archive the spool in Spoolman: 'Spoolmanでスプールをアーカイブできませんでした'
   Couldn't assign the tool: ツールを割り当てられませんでした
   Couldn't clear the printer's gate map: プリンターのゲートマップをクリアできませんでした
   Couldn't load spools — tap to retry: 'スプールを読み込めませんでした — タップして再試行'
@@ -1533,6 +1537,9 @@ translations:
   Feeder: フィーダー
   Feeders: フィーダー
   Feeding filament forward: フィラメントを前方に送り出し中
+  Feeds Tool: '供給先ツール'
+  Feeds no tool: '供給先ツールなし'
+  Feeds {}: '{}に供給'
   Filament: フィラメント
   Filament Buffer: 'フィラメントバッファー'
   Filament Control: フィラメント制御
@@ -2109,6 +2116,7 @@ translations:
   Last 24 hours: '過去24時間'
   Last 30 days: '過去30日間'
   Last 7 days: '過去7日間'
+  'Last held: {}': '前回のスプール: {}'
   Last measured: '前回の測定値'
   Last print canceled: 前回の印刷がキャンセルされました
   Last print failed: 前回の印刷が失敗しました
@@ -2411,6 +2419,7 @@ translations:
   Moving the plate...: ベッドを移動中...
 
   Moving {} to the front...: '{}を前方へ移動中...'
+  Multi-Color: 'マルチカラー'
   Multi-Filament: マルチフィラメント
   Multi-Filament Overview: マルチフィラメント概要
   Multi-Filament System: マルチフィラメントシステム
@@ -2563,6 +2572,7 @@ translations:
   No spools match. Add it as a new spool below.: '一致するスプールがありません。下から新しいスプールとして追加してください。'
   No spools placed: スプールは置いていません
 
+  No spools to show. Add it as a new spool below.: '表示するスプールがありません。下で新規スプールとして追加してください。'
   No tape detected in printer: プリンターにテープが検出されません
   No target printer configured: 対象プリンターが設定されていません
   No temperature sensors detected: '温度センサーが検出されません'
@@ -2740,6 +2750,7 @@ translations:
   Original file location unknown: 元のファイルの場所が不明です
   Oscillating... cycle %d/%d: 振動中... サイクル %d/%d
   Other: その他
+  Other…: 'その他…'
   Outcome: 結果
   Output Device: 出力デバイス
   Output Mode: 出力モード
@@ -2814,6 +2825,7 @@ translations:
   Paused by a command: コマンドで一時停止
   ? Pauses a print at a chosen layer, for a filament swap or an insert. During a print, set the layer from the preview card on the print status screen.
   : '選んだレイヤーで印刷を一時停止し、フィラメント交換やインサートを行えます。印刷中に印刷状況画面のプレビューカードからレイヤーを設定します。'
+  Pauses on runout: 'フィラメント切れで一時停止'
   Pausing at layer {}.: 'レイヤー {} で一時停止します。'
   Pausing...: 一時停止中...
   Peak Freq: ピーク周波数
@@ -3398,6 +3410,7 @@ translations:
   Running tight: '張り気味'
   Running {}...: '{} を実行中...'
   Runout: 'フィラメント切れ'
+  Runout Backup: 'フィラメント切れ時の予備'
   Runout Sensor: フィラメント切れセンサー
   Runs the printer's tool offset calibration for every tool.: プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。'
@@ -3419,6 +3432,7 @@ translations:
   ? 'Safe mode: the app kept crashing on startup, so plugins are off and widget layouts show their defaults. Restart to return to normal.'
   : 'セーフモード: 起動時にアプリがクラッシュし続けたため、プラグインは無効になり、ウィジェットのレイアウトはデフォルトで表示されています。再起動すると通常に戻ります。'
   Safety & Alerts: 安全とアラート
+  Same Filament, New Spool: '同じフィラメント、新規スプール'
   Same spool in {}? Tap Clear if it is a new one.: '{} は同じスプールですか？新しいスプールならクリアをタップしてください。'
   Sample: サンプル
   Sample %d/%d: サンプル %d/%d
@@ -3715,12 +3729,14 @@ translations:
   Spool archived: スプールをアーカイブしました
   Spool created successfully: スプールを作成しました
   Spool deleted: スプールを削除しました
+  Spool is empty, archive it in Spoolman: 'スプールは空です。Spoolmanでアーカイブ'
   Spool menu: 'スプールのメニュー'
   Spool motor: スプールモーター
   Spool saved: スプールを保存しました
   Spool switching per tool and lane: 'ツールとレーンごとのスプール切り替え'
   Spool wt (g): スプール重量 (g)
   Spoolman: Spoolman
+  Spoolman Details: 'Spoolmanの詳細'
   Spoolman Not Available: 'Spoolman は利用できません'
   Spoolman Server: Spoolman サーバー
   Spoolman already has "{}" from this brand in a close color. Use it for lane {}, or add a new filament?: "Spoolman には、このブランドの近い色の「{}」がすでにあります。レーン {} に使用しますか、それとも新しいフィラメントを追加しますか？"
@@ -3928,6 +3944,7 @@ translations:
   Temporary adjustment for this print: "この印刷のみの一時的な調整です"
   Temporary adjustment for this print, unless saved on Controls panel: コントロールパネルで保存しない限り、この印刷のみの一時的な調整です
   Temporary for this print; a tool change resets it: "この印刷のみの一時的な調整です。ツール交換でリセットされます"
+  Temps: '温度'
   'Tensioner: {}': "テンショナー: {}"
   Tertiary: ターシャリ
   Test All Lanes: '全レーンをテスト'
@@ -4021,6 +4038,8 @@ translations:
   The heater was turned off at the heater.: 'ヒーター本体で電源がオフにされました。'
   The heater will cycle on and off several times.: ヒーターは数回オン/オフを繰り返します。
   The helper macros are installed and activate after Klipper restarts.: 'ヘルパーマクロはインストール済みで、Klipper の再起動後に有効になります。'
+  The lane forgets this spool. The filament itself stays where it is.: 'レーンはこのスプールの情報を消去します。フィラメント自体はそのままです。'
+  The lane that takes over when this one runs out: 'このレーンが切れたときに引き継ぐレーン'
   The latch opens and {} can drop. Hold it before you continue, then put it in its dock.: ラッチが開き、{}が落ちる可能性があります。続行する前に手で支え、その後ドックに戻してください。
   The left RFID reader in this CFS unit may need service: この CFS ユニットの左側 RFID リーダーは修理が必要な可能性があります
   'The linked spool says {}.': 'リンクされたスプールの情報: {}'
@@ -4126,6 +4145,7 @@ translations:
   'The toolhead may still be at the chute. Move it away before printing.': 'ツールヘッドがまだシュートにある可能性があります。印刷前に移動してください。'
   The toolhead sensor indicates filament is already loaded. Proceed with load anyway?: ツールヘッドセンサーがフィラメント装填済みを検出しました。それでも装填を続行しますか？
   The toolhead sensor indicates no filament is present. Proceed with unload anyway?: ツールヘッドセンサーがフィラメント未検出を報告しました。それでもアンロードを続行しますか？
+  The toolhead this lane loads into: 'このレーンが装填するツールヘッド'
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
@@ -4362,6 +4382,7 @@ translations:
   TouchCalibration: タッチキャリブレーション
   Trace: トレース
   Trigger: トリガー
+  Track this spool's weight there: 'このスプールの重量をそこで管理'
   'Tried ports {} and {}.': "ポート{}と{}を試しました。"
   'Troubleshooting:': 'トラブルシューティング:'
   Try adjusting your search or filters: 検索やフィルターを調整してみてください
@@ -4593,6 +4614,8 @@ translations:
   ? When a slicer uploads and starts a file that moves past this printer's travel, heats past its limits or uses a missing tool, keep the file but do not start it.
   : 'スライサーがこのプリンターの移動範囲を超える、加熱上限を超える、または存在しないツールを使うファイルをアップロードして開始したとき、ファイルは残して印刷は開始しません。'
   When enabled, only the macro runs. When disabled, temperatures are set first, then the macro runs.: 有効時はマクロのみ実行されます。無効時は先に温度を設定してからマクロが実行されます。
+  When this spool runs out, printing continues from {}.: 'このスプールが切れると、{}から印刷を続行します。'
+  When this spool runs out, the print pauses.: 'このスプールが切れると、印刷を一時停止します。'
   Where UI sounds play: UIサウンドの再生先
   Whether filament is loaded: フィラメントの装填状態
   Which macro switches the ACE path back on: 'ACE経路を再びオンにするマクロ'
@@ -4760,6 +4783,8 @@ translations:
   'helixscreen.env ignored: {}': 'helixscreen.env は無視されました：{}'
   idle: アイドル
   in unit {} slot {}: 'ユニット {} スロット {}'
+  in {}: '{}内'
+  in {}, feeding the print: '{}内、印刷に供給中'
   incompatible: 互換性なし
   invalid: 不正
   just now: たった今
@@ -4843,6 +4868,7 @@ translations:
   ? '{0} resonates much more than {1} at {2:.0f} Hz. That points at a mechanical difference (pulley grub screws, idler bearings, belt tracking), not tension.'
   : "{0}は{2:.0f} Hzで{1}よりはるかに強く共振しています。張力ではなく機械的な違い(プーリーのイモネジ、アイドラーのベアリング、ベルトの走行)を示しています。"
   '{:.0f} g left': '残り {:.0f} g'
+  '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz · about {} min': '{:.0f}-{:.0f} Hz · 約{}分'
   '{} ({})': '{}（{}）'
   '{} Extruders': '{} エクストルーダー'
@@ -4850,6 +4876,7 @@ translations:
   '{} Issues Detected': '問題を {} 件検出'
   '{} LED strips available': '{} 個の LED ストリップが利用可能です'
   '{} MCUs': '{} MCU'
+  '{} Settings': '{}の設定'
   '{} Tools': '{} ツール'
   '{} and {}': '{}と{}'
   '{} and {} are both mapped here': '{} と {} の両方がここに割り当てられています'
@@ -4883,6 +4910,7 @@ translations:
   '{} is asking to connect to this printer.': '{} がこのプリンターへの接続を求めています。'
   '{} is blocked — manual intervention required': '{} がブロックされています — 手動での対応が必要です'
   '{} is due: {} h reached': '{}の交換時期です: {} 時間に到達'
+  '{} is empty': '{}は空です'
   '{} is feeding the current print. Clear it after the print ends.': '{} は現在の印刷に給紙中です。印刷終了後にクリアしてください。'
   '{} is installed but its Endless Spool setting is turned off, so nothing will switch on runout.': '{} はインストールされていますが、エンドレススプールの設定がオフになっているため、フィラメント切れになっても何も切り替わりません。'
   '{} is installed, but its Endless Spool setting could not be read - do not count on Endless Spool.': '{} はインストールされていますが、エンドレススプールの設定を読み取れませんでした - エンドレススプールを当てにしないでください。'
@@ -4941,6 +4969,7 @@ translations:
   '{0} is mounted. With one shared probe, calibrate with {1}. Continue with {0}?': '{0} が装着されています。共有プローブでは {1} で校正してください。{0} で続行しますか？'
   'Basic': '標準'
   'Recycled': 'リサイクル'
+  Add to Spoolman: 'Spoolmanに追加'
   Add to Spoolman & Assign: 'Spoolmanに追加して割り当て'
   'Add to Spoolman + label': 'Spoolman に追加 + ラベル'
   'More': 'その他'
