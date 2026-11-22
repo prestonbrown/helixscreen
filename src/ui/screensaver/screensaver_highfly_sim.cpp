@@ -44,9 +44,7 @@ constexpr float kHaze = 0.22f;
 /// World x of the field under the screen's centre.
 constexpr float kFieldX0 = 64.0f;
 
-/// The deck's colours with no print; the cloud textures are baked in these.
-constexpr Rgb kCShadow = kHighflyDay.shadow;
-constexpr Rgb kCMidtone = kHighflyDay.midtone;
+/// The deck's sunlit tops with no print.
 constexpr Rgb kCLit = kHighflyDay.lit;
 constexpr Rgb INSIDE{200, 216, 230};
 constexpr Rgb kNumeral{226, 238, 250};
@@ -96,13 +94,70 @@ constexpr int32_t kDeckRise = 3;
 /// cloud ahead, this frame and last, with room to spare. Past it boxes merge, never drop.
 constexpr size_t kBoxCap = 12;
 
-/// Cloud shade 0-1 to colour: shadow blue to midtone, then midtone to sunlit white.
-Rgb shade_to_rgb(float s, Rgb shadow = kCShadow, Rgb midtone = kCMidtone, Rgb lit = kCLit) {
+/// A cloud's color by shade 0-1: `shadow` at 0 to `midtone` at `knee`, then to `lit` at 1.
+struct CloudRamp {
+    Rgb shadow;
+    Rgb midtone;
+    Rgb lit;
+    float knee;
+};
+
+Rgb ramp_rgb(float s, const CloudRamp& r) {
     s = std::clamp(s, 0.0f, 1.0f);
-    if (s < 0.55f) {
-        return mix_rgb(shadow, midtone, s / 0.55f);
+    if (s < r.knee) {
+        return mix_rgb(r.shadow, r.midtone, s / r.knee);
     }
-    return mix_rgb(midtone, lit, (s - 0.55f) / 0.45f);
+    return mix_rgb(r.midtone, r.lit, (s - r.knee) / (1.0f - r.knee));
+}
+
+/// The deck's and the flat billboards' ramp under `p`: shadow blue to midtone, then to sunlit.
+CloudRamp deck_ramp(const HighflyPalette& p) {
+    return {p.shadow, p.midtone, p.lit, 0.55f};
+}
+
+/// Day value `v` of one channel moved through `p` the way the day palette's shadow, midtone and
+/// lit values of that channel (`day0` < `day1` < `day2`) move to `p`'s (`to0`, `to1`, `to2`).
+uint8_t regrade_channel(uint8_t v, uint8_t day0, uint8_t day1, uint8_t day2, uint8_t to0,
+                        uint8_t to1, uint8_t to2) {
+    const auto lerp = [v](uint8_t a, uint8_t b, uint8_t ta, uint8_t tb) {
+        const float t =
+            std::clamp(static_cast<float>(v - a) / static_cast<float>(b - a), 0.0f, 1.0f);
+        return static_cast<uint8_t>(static_cast<float>(ta) + (tb - ta) * t + 0.5f);
+    };
+    return v < day1 ? lerp(day0, day1, to0, to1) : lerp(day1, day2, to1, to2);
+}
+
+/// Day color `c` regraded per channel through `p`; kHighflyDay returns `c` unchanged.
+Rgb regrade(Rgb c, const HighflyPalette& p) {
+    const HighflyPalette& d = kHighflyDay;
+    return {
+        regrade_channel(c.r, d.shadow.r, d.midtone.r, d.lit.r, p.shadow.r, p.midtone.r, p.lit.r),
+        regrade_channel(c.g, d.shadow.g, d.midtone.g, d.lit.g, p.shadow.g, p.midtone.g, p.lit.g),
+        regrade_channel(c.b, d.shadow.b, d.midtone.b, d.lit.b, p.shadow.b, p.midtone.b, p.lit.b)};
+}
+
+/// A tower's stops in the day palette: blue-grey under the lobes, pale blue between.
+constexpr Rgb kTowerShade{118, 152, 184};
+constexpr Rgb kTowerMid{196, 218, 236};
+
+CloudRamp tower_ramp(const HighflyPalette& p) {
+    return {regrade(kTowerShade, p), regrade(kTowerMid, p), p.lit, 0.5f};
+}
+
+/// Recolors `t` from its shades through `ramp`, keeping each texel's coverage.
+void tint_texture(HighFlyTexture& t, const CloudRamp& ramp) {
+    std::array<Rgb, 256> lut;
+    for (size_t i = 0; i < lut.size(); i++) {
+        lut[i] = ramp_rgb(static_cast<float>(i) / 255.0f, ramp);
+    }
+    for (size_t i = 0; i < t.shade.size(); i++) {
+        uint8_t* px = &t.rgba[i * 4];
+        const uint32_t a = px[3];
+        const Rgb c = lut[t.shade[i]];
+        px[0] = static_cast<uint8_t>((c.r * a + 127u) / 255u);
+        px[1] = static_cast<uint8_t>((c.g * a + 127u) / 255u);
+        px[2] = static_cast<uint8_t>((c.b * a + 127u) / 255u);
+    }
 }
 
 // ---------- Grid helpers ----------
@@ -187,14 +242,6 @@ void add_blob(std::vector<float>& d, int32_t w, int32_t h, float cx, float cy, f
     }
 }
 
-/// `c` at coverage `alpha` (0 to 1) as premultiplied RGBA bytes at `out`.
-void premultiplied_rgba(Rgb c, float alpha, uint8_t* out) {
-    out[0] = static_cast<uint8_t>(c.r * alpha + 0.5f);
-    out[1] = static_cast<uint8_t>(c.g * alpha + 0.5f);
-    out[2] = static_cast<uint8_t>(c.b * alpha + 0.5f);
-    out[3] = static_cast<uint8_t>(alpha * 255.0f + 0.5f);
-}
-
 /// The premultiplied RGBA texel at column `u` of `row`, as one little-endian word.
 inline uint32_t texel_at(const uint8_t* row, int32_t u) {
     uint32_t v = 0;
@@ -211,7 +258,7 @@ inline uint32_t lerp_rgba(uint32_t p, uint32_t q, int32_t f) {
     return even | odd;
 }
 
-/// Density to premultiplied RGBA, lit from above by the light the cloud lets through.
+/// Density to coverage and shade, lit from above by the light the cloud lets through.
 void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wisp_scale, int32_t w,
                  int32_t h, bool wrap_x, float dens_k, float absorb, int32_t smooth, float bias,
                  bool crown, HighFlyTexture& out) {
@@ -237,6 +284,7 @@ void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wi
     out.w = w;
     out.h = h;
     out.rgba.assign(static_cast<size_t>(w) * h * 4, 0);
+    out.shade.assign(static_cast<size_t>(w) * h, 0);
     for (int32_t y = 0; y < h; y++) {
         const int32_t yu = std::max(0, y - 1);
         const int32_t yd = std::min(h - 1, y + 1);
@@ -255,8 +303,8 @@ void shade_cloud(std::vector<float>& d, const std::vector<float>& wisp, float wi
                 // Sunlit tops read white, not bluish.
                 s += 0.25f * std::clamp(1.0f - od[i] / 2.0f, 0.0f, 1.0f);
             }
-            const Rgb c = shade_to_rgb(s);
-            premultiplied_rgba(c, alpha, &out.rgba[i * 4]);
+            out.shade[i] = unit_to_u8(s);
+            out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
 }
@@ -312,17 +360,6 @@ void make_layer(std::minstd_rand& rng, HighFlyTexture& out) {
     shade_cloud(d, wisp, 1.0f, w, h, true, 1.8f, 0.9f, 1, 0.0f, false, out);
 }
 
-/// Cumulus colour by shade 0-1: blue-grey under the lobes to sunlit white on top.
-Rgb tower_rgb(float s) {
-    constexpr Rgb kShade{118, 152, 184};
-    constexpr Rgb kMid{196, 218, 236};
-    s = std::clamp(s, 0.0f, 1.0f);
-    if (s < 0.5f) {
-        return mix_rgb(kShade, kMid, s / 0.5f);
-    }
-    return mix_rgb(kMid, kCLit, (s - 0.5f) / 0.5f);
-}
-
 /// A towering cumulus lit from above and a little in front: each lobe takes Lambert light on a
 /// normal from the smoothed density, so the crown and the tops of the lobes read sunlit white
 /// and their undersides blue-grey, darkening toward the base.
@@ -347,6 +384,7 @@ void shade_tower(std::vector<float>& d, int32_t w, int32_t h, HighFlyTexture& ou
     out.w = w;
     out.h = h;
     out.rgba.assign(static_cast<size_t>(w) * h * 4, 0);
+    out.shade.assign(static_cast<size_t>(w) * h, 0);
     for (int32_t y = 0; y < h; y++) {
         const int32_t yu = std::max(0, y - 1);
         const int32_t yd = std::min(h - 1, y + 1);
@@ -373,8 +411,8 @@ void shade_tower(std::vector<float>& d, int32_t w, int32_t h, HighFlyTexture& ou
             const float base = static_cast<float>(y) / static_cast<float>(h);
             const float s = 0.30f + 0.50f * diffuse + 0.30f * lit - 0.25f * base * base +
                             0.25f * std::clamp(1.0f - od[i] / 2.0f, 0.0f, 1.0f);
-            const Rgb c = tower_rgb(s);
-            premultiplied_rgba(c, alpha, &out.rgba[i * 4]);
+            out.shade[i] = unit_to_u8(s);
+            out.rgba[i * 4 + 3] = unit_to_u8(alpha);
         }
     }
 }
@@ -434,7 +472,15 @@ void make_tower(std::minstd_rand& rng, HighFlyTexture& out) {
 } // namespace
 
 size_t HighFlyTexture::heap_bytes() const {
-    return buffer_bytes(rgba);
+    return buffer_bytes(rgba, shade);
+}
+
+void HighFlyTexture::release() {
+    release_buffers(rgba, shade);
+}
+
+Rgb highfly_tower_rgb(float s, const HighflyPalette& p) {
+    return ramp_rgb(s, tower_ramp(p));
 }
 
 // ---------- Field ----------
@@ -822,6 +868,7 @@ void HighFlySim::build_scene(std::minstd_rand& rng) {
     for (HighFlyTexture& tower : towers_tex_) {
         make_tower(rng, tower);
     }
+    tint_billboards();
     std::vector<float> wisp;
     fbm(rng, 64, 128, true, {{8, 1.0f}, {32, 0.6f}}, wisp);
     for (float& v : wisp) {
@@ -843,14 +890,15 @@ void HighFlySim::build_scene(std::minstd_rand& rng) {
 }
 
 void HighFlySim::release_scene() {
-    release_buffers(deck_height_, deck_shade_, sky_, slice_lut_, band_.rgba, wisp_, polar_, col_u0_,
-                    col_fu_, slice_vis_, tower_entries_, fly_starts_, boxes_, last_boxes_);
+    release_buffers(deck_height_, deck_shade_, sky_, slice_lut_, wisp_, polar_, col_u0_, col_fu_,
+                    slice_vis_, tower_entries_, fly_starts_, boxes_, last_boxes_);
     renderer_.clear();
+    band_.release();
     for (HighFlyTexture& t : layers_) {
-        release_buffer(t.rgba);
+        t.release();
     }
     for (HighFlyTexture& t : towers_tex_) {
-        release_buffer(t.rgba);
+        t.release();
     }
     baked_w_ = 0;
     baked_h_ = 0;
@@ -931,7 +979,7 @@ void HighFlySim::bake_slice_lut() {
         const HeightfieldSlice& slice = renderer_.slices()[s];
         const float near = kNearK * std::clamp(1.0f - slice.z / kNearWhite, 0.0f, 1.0f);
         for (int32_t i = 0; i < 256; i++) {
-            Rgb c = shade_to_rgb(static_cast<float>(i) / 255.0f, p.shadow, p.midtone, p.lit);
+            Rgb c = ramp_rgb(static_cast<float>(i) / 255.0f, deck_ramp(p));
             c = mix_rgb(c, p.lit, near);
             c = mix_rgb(c, p.fog, slice.fog);
             slice_lut_[s * 256 + i] = c;
@@ -968,6 +1016,19 @@ void HighFlySim::follow_print(const ClockReading& reading, float dt_s) {
     if (!scene_released_) {
         build_sky();
         bake_slice_lut();
+        tint_billboards();
+    }
+}
+
+void HighFlySim::tint_billboards() {
+    const CloudRamp flat = deck_ramp(palette_);
+    tint_texture(band_, flat);
+    for (HighFlyTexture& layer : layers_) {
+        tint_texture(layer, flat);
+    }
+    const CloudRamp tower = tower_ramp(palette_);
+    for (HighFlyTexture& t : towers_tex_) {
+        tint_texture(t, tower);
     }
 }
 

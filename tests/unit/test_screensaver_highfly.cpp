@@ -47,6 +47,9 @@ class HighFlySimTestAccess {
     static void repaint_all(HighFlySim& sim) {
         sim.painted_ = false;
     }
+    static const HighFlyTexture& band(const HighFlySim& sim) {
+        return sim.band_;
+    }
 };
 
 /// Reads the text lines a HighFlyScreensaver owns.
@@ -824,7 +827,7 @@ TEST_CASE(
     sim.init(frame.target, rng, start, r);
     std::vector<DirtyRect> dirty;
     const size_t heap = sim.heap_bytes();
-    CHECK(heap <= 4608u * 1024u);
+    CHECK(heap <= 5120u * 1024u);
     for (size_t level = start; level < kHighflyLevelCount; level++) {
         sim.request_level(level);
         for (int i = 0; i < 20; i++) {
@@ -951,6 +954,75 @@ TEST_CASE("the sky repaints per palette step, not per frame", "[screensaver][hig
     CHECK(full >= static_cast<size_t>(helix::ui::kHighflyPaletteSteps));
     CHECK(full <= static_cast<size_t>(helix::ui::kHighflyPaletteSteps) + 3);
     CHECK(red_over_blue(w.get(200, 2)) > red_over_blue(start) + 0.5f);
+}
+
+TEST_CASE("a tower's colors follow the palette, and the day palette keeps its day stops",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_tower_rgb;
+    using helix::ui::kHighflyDay;
+    using helix::ui::kHighflyGolden;
+    CHECK(highfly_tower_rgb(0.0f, kHighflyDay) == Rgb{118, 152, 184});
+    CHECK(highfly_tower_rgb(0.5f, kHighflyDay) == Rgb{196, 218, 236});
+    CHECK(highfly_tower_rgb(1.0f, kHighflyDay) == kHighflyDay.lit);
+    CHECK(highfly_tower_rgb(1.0f, kHighflyGolden) == kHighflyGolden.lit);
+    for (const float s : {0.0f, 0.5f}) {
+        CAPTURE(s);
+        CHECK(red_over_blue(highfly_tower_rgb(s, kHighflyGolden)) >
+              red_over_blue(highfly_tower_rgb(s, kHighflyDay)) + 0.3f);
+    }
+}
+
+TEST_CASE("a print's palette recolors the towers and the far band, and the day palette restores "
+          "them",
+          "[screensaver][highfly][clock]") {
+    using helix::ui::highfly_palette;
+    using helix::ui::HighFlyTexture;
+    using helix::ui::kHighflyDay;
+    TestFrame frame(400, 240, PixelFormat::XRGB8888);
+    std::minstd_rand rng(3);
+    HighFlySim sim;
+    const ClockReading idle = reading_at(10 * 3600);
+    sim.init(frame.target, rng, 0, idle);
+    const std::vector<uint8_t> day_tower = sim.tower_texture(0).rgba;
+    const std::vector<uint8_t> day_band = HighFlySimTestAccess::band(sim).rgba;
+    // Every fully sunlit texel shows the palette's lit color at its coverage, premultiplied.
+    const auto lit_texels = [](const HighFlyTexture& t, Rgb lit) {
+        size_t n = 0;
+        size_t off = 0;
+        const auto near = [](uint8_t got, uint8_t want, int32_t a) {
+            return std::abs(static_cast<int32_t>(got) - (want * a + 127) / 255) <= 1;
+        };
+        for (size_t i = 0; i < t.shade.size(); i++) {
+            const int32_t a = t.rgba[i * 4 + 3];
+            if (t.shade[i] == 255 && a >= 128) {
+                n++;
+                const bool on = near(t.rgba[i * 4], lit.r, a) &&
+                                near(t.rgba[i * 4 + 1], lit.g, a) &&
+                                near(t.rgba[i * 4 + 2], lit.b, a);
+                off += on ? 0 : 1;
+            }
+        }
+        CAPTURE(n, off);
+        CHECK(n > 100);
+        CHECK(off == 0);
+    };
+    lit_texels(sim.tower_texture(0), kHighflyDay.lit);
+
+    const ClockReading late = print_reading(ClockMode::COUNTDOWN, 100);
+    const Rgb golden_lit = highfly_palette(late).lit;
+    REQUIRE_FALSE(golden_lit == kHighflyDay.lit);
+    std::vector<DirtyRect> dirty;
+    sim.step(100, frame.target, rng, late, dirty);
+    for (size_t v = 0; v < kHighflyTowerVariants; v++) {
+        CAPTURE(v);
+        lit_texels(sim.tower_texture(v), golden_lit);
+    }
+    CHECK(sim.tower_texture(0).rgba != day_tower);
+    CHECK(HighFlySimTestAccess::band(sim).rgba != day_band);
+
+    sim.step(100, frame.target, rng, idle, dirty);
+    CHECK(sim.tower_texture(0).rgba == day_tower);
+    CHECK(HighFlySimTestAccess::band(sim).rgba == day_band);
 }
 
 TEST_CASE("the end of a print flies through a cloud into the sunset",

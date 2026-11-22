@@ -70,12 +70,15 @@ inline constexpr float kHighflyWhiteoutMax = 0.62f;
 inline constexpr float kHighflyTowerMinS = 13.0f;
 inline constexpr float kHighflyTowerMaxS = 14.0f;
 
-/// A premultiplied RGBA texture, row-major.
+/// A premultiplied RGBA cloud texture, row-major. Its color comes from `shade` through the
+/// palette's cloud ramp, so a palette change recolors `rgba` without baking the cloud again.
 struct HighFlyTexture {
     int32_t w = 0;
     int32_t h = 0;
-    std::vector<uint8_t> rgba; ///< premultiplied, 4 bytes per texel
+    std::vector<uint8_t> rgba;  ///< premultiplied, 4 bytes per texel; alpha is the coverage
+    std::vector<uint8_t> shade; ///< per texel, 0 (shadow) to 255 (sunlit)
     size_t heap_bytes() const;
+    void release();
 };
 
 /// Field texels per world unit: a world height is the stored height / kHighflyTexelsPerUnit.
@@ -155,6 +158,10 @@ inline constexpr int kHighflyPaletteSteps = 10;
 /// kHighflyPaletteSteps steps; kHighflySunset for DONE, kHighflyOvercast for FAILED and
 /// CANCELLED.
 HighflyPalette highfly_palette(const ClockReading& r);
+/// A towering cumulus' color at shade `s` (0 to 1) under `p`: blue-grey under its lobes to
+/// `p.lit` on top. Its shadow and midtone stops are the day stops regraded per channel through
+/// `p`'s shadow, midtone and lit, so kHighflyDay gives the day stops exactly.
+Rgb highfly_tower_rgb(float s, const HighflyPalette& p);
 /// Forward speed while a print is paused, against 1 otherwise.
 inline constexpr float kHighflyPausedSpeed = 0.25f;
 /// How far the paused view sways to either side, field texels, and its rate, radians a second.
@@ -277,6 +284,8 @@ class HighFlySim {
     void build_sky();
     /// Per deck slice: 256 shades through the palette's near white and fog.
     void bake_slice_lut();
+    /// Recolors the band, layer and tower textures from their shades through palette_.
+    void tint_billboards();
     /// Follows the print over `dt_s` seconds: forward speed and sway ease toward paused or not,
     /// the step into DONE starts a fly-through, and the palette moves to highfly_palette()
     /// (DONE's once a fly-through's whiteout covers the frame), asking for a repaint.

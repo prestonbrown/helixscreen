@@ -734,11 +734,13 @@ white haze over the bottom rows.
   (H:MM big, seconds small, hours to 99 with no leading zero) while the left lines show the
   finish time and the time of day, AM/PM blank, in the state colour. The sky, the deck's light
   and the haze blend from the day palette toward golden hour with progress in
-  `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer (the cloud textures
-  are not recoloured). The step into DONE flies through a cloud and comes out into the sunset
-  palette; a failed or cancelled print turns overcast. A pause slows flight time to 25% and
-  sways the view sideways in a slow holding pattern. With no print every one of these is the
-  idle scene exactly.
+  `kHighflyPaletteSteps` steps, each a rebake of the existing sky buffer and a recolor of the
+  band, layer and tower textures from the shade byte each texel keeps (about 0.5 MB in all), so a
+  near tower warms with the deck. A tower's day stops are regraded through the palette's shadow,
+  midtone and lit (`highfly_tower_rgb`). The step into DONE flies through a cloud and comes out
+  into the sunset palette; a failed or cancelled print turns overcast. A pause slows flight time
+  to 25% and sways the view sideways in a slow holding pattern. With no print every one of these
+  is the idle scene exactly.
 - Its per-pixel work is fixed point: the deck is stored as 16-bit heights and byte shades (half
   the floats' cache footprint), billboards sample with two channels per multiply and depth-test
   through a per-slice visibility table, and the renderer's span gradient and feather step in
