@@ -128,7 +128,7 @@ make mips                           # Static (musl); `k1` and `ad5x` are aliases
 | Toolchain | crosstool-NG musl (`helixscreen/toolchain-mips`: GCC 13.2, musl 1.2.4) |
 | Architecture | MIPS32r2 little-endian, `-mnan=2008 -mfp64` (the encoding the K1 and AD5X kernels both exec) |
 | Linking | Fully static (musl) |
-| Optimization | `-Os` with LTO (size-optimized) |
+| Optimization | `-O2` with LTO |
 | Display backend | fbdev (`/dev/fb0`) |
 | SSL | Enabled (static OpenSSL) |
 | Platform define | `HELIX_PLATFORM_MIPS` |
