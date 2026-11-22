@@ -31,6 +31,34 @@ constexpr uint8_t dither_channel(uint8_t c, uint8_t max_level, uint8_t threshold
     return static_cast<uint8_t>(std::min<uint32_t>(max_level, scaled / (255u * 32u)));
 }
 
+/// dither_channel() for every threshold and channel value at one `max_level`: RGB565 writes
+/// look levels up here, since the division costs more than the rest of the pixel on cores
+/// without a fast divider.
+struct DitherTable {
+    uint8_t v[16][256];
+};
+
+constexpr DitherTable make_dither_table(uint8_t max_level) {
+    DitherTable t{};
+    for (int threshold = 0; threshold < 16; threshold++) {
+        for (int c = 0; c < 256; c++) {
+            t.v[threshold][c] = dither_channel(static_cast<uint8_t>(c), max_level,
+                                               static_cast<uint8_t>(threshold));
+        }
+    }
+    return t;
+}
+
+/// RGB565's red and blue (0-31) and green (0-63) levels.
+inline constexpr DitherTable kDither5 = make_dither_table(31);
+inline constexpr DitherTable kDither6 = make_dither_table(63);
+
+/// `c` as an RGB565 word, dithered at `threshold` (0-15).
+inline uint16_t dither_rgb565(Rgb c, uint8_t threshold) {
+    return static_cast<uint16_t>(kDither5.v[threshold][c.r] << 11 |
+                                 kDither6.v[threshold][c.g] << 5 | kDither5.v[threshold][c.b]);
+}
+
 /// Bytes one pixel takes in `format`.
 constexpr uint32_t pixel_bytes(PixelFormat format) {
     return format == PixelFormat::RGB565 ? 2 : 4;
@@ -187,10 +215,7 @@ class PixelWriter {
     template <PixelFormat F>
     static void put_dithered_in_row(uint8_t* row, int32_t x, int32_t y, Rgb c) {
         if constexpr (F == PixelFormat::RGB565) {
-            const uint8_t t = kBayer4x4[y & 3][x & 3];
-            const auto v =
-                static_cast<uint16_t>(dither_channel(c.r, 31, t) << 11 |
-                                      dither_channel(c.g, 63, t) << 5 | dither_channel(c.b, 31, t));
+            const uint16_t v = dither_rgb565(c, kBayer4x4[y & 3][x & 3]);
             uint8_t* p = row + static_cast<size_t>(x) * 2;
             p[0] = static_cast<uint8_t>(v & 0xFF);
             p[1] = static_cast<uint8_t>(v >> 8);

@@ -5,6 +5,7 @@
 #include "screensaver_heightfield.h"
 
 #include "screensaver_buffer.h"
+#include "screensaver_fast_math.h"
 #include "screensaver_motion.h"
 #include "screensaver_pixel_writer.h"
 
@@ -73,8 +74,8 @@ float bilinear_sample(const float* grid, int32_t w, int32_t h, float u, float v,
     float fu = 0.0f;
     float fv = 0.0f;
     if (wrap) {
-        const float u0 = std::floor(u);
-        const float v0 = std::floor(v);
+        const float u0 = saver_floor(u);
+        const float v0 = saver_floor(v);
         fu = u - u0;
         fv = v - v0;
         i0 = screensaver::wrap_index(static_cast<int32_t>(u0), w);
@@ -169,14 +170,14 @@ void HeightfieldRenderer::render(HeightfieldScene& scene) {
                 continue;
             }
             if (s == 0 && !view_.first_slice_fills) {
-                top_[x] = std::min(yb, std::ceil(row));
+                top_[x] = std::min(yb, saver_ceil(row));
                 last_drew_[x] = 1;
                 last_color_[x] = c;
                 continue;
             }
 
-            const int32_t r_from = std::max(0, static_cast<int32_t>(std::ceil(row)));
-            const int32_t r_to = std::min(H, static_cast<int32_t>(std::ceil(yb)));
+            const int32_t r_from = std::max(0, static_cast<int32_t>(saver_ceil(row)));
+            const int32_t r_to = std::min(H, static_cast<int32_t>(saver_ceil(yb)));
             const bool grad = view_.span_gradient && last_drew_[x] != 0;
             const Rgb last = last_color_[x];
             const float inv_span = 1.0f / std::max(yb - row, 1.0f);
@@ -239,7 +240,7 @@ void HeightfieldRenderer::render(HeightfieldScene& scene) {
                 }
             }
             span_pixels_ += static_cast<uint32_t>(std::max(0, r_to - r_from));
-            top_[x] = soft ? std::min(yb, row + feather) : std::min(yb, std::ceil(row));
+            top_[x] = soft ? std::min(yb, row + feather) : std::min(yb, saver_ceil(row));
             last_drew_[x] = 1;
             last_color_[x] = c;
         }
@@ -259,7 +260,7 @@ void HeightfieldRenderer::feather_silhouette() {
         if (sil >= static_cast<float>(H) || sil < 0.0f) {
             continue;
         }
-        const auto r0 = static_cast<int32_t>(std::floor(sil));
+        const auto r0 = static_cast<int32_t>(saver_floor(sil));
         const float frac = static_cast<float>(r0 + 1) - sil;
         const uint32_t cov = unit_to_u8(frac);
         const size_t i = static_cast<size_t>(x) * H + r0;
@@ -271,7 +272,7 @@ void HeightfieldRenderer::feather_silhouette() {
     // [1 2 1] / 4 across columns over the three rows around each silhouette, read from the
     // unsmoothed buffers before any is written back.
     const auto row_of = [this](int32_t x) {
-        return static_cast<int32_t>(std::floor(std::max(silhouette_[x], 0.0f)));
+        return static_cast<int32_t>(saver_floor(std::max(silhouette_[x], 0.0f)));
     };
     for (int32_t x = 0; x < W; x++) {
         const int32_t r0 = row_of(x);
@@ -413,36 +414,45 @@ void upscale_rows(const std::vector<Rgb>& frame, int32_t w, int32_t scale, int32
             continue;
         }
         // Bilinear at weights 3/4 and 1/4: each output pixel leans to the neighbour on its
-        // own side, rows clamped to the band being written. Blue, green and red ride in 16-bit
-        // lanes of one word, so each sum is one add for all three.
+        // own side, rows clamped to the band being written. Blue and red ride in 16-bit lanes
+        // of one 32-bit word and green in another, so each sum is two adds for all three: the
+        // largest lane, (3 * 1020 + 1020 + 8), stays under 2^16, and 32-bit words keep the
+        // arithmetic native on 32-bit cores.
         const int32_t sy2 = std::clamp((oy & 1) == 0 ? sy - 1 : sy + 1, y_from, y_to - 1);
         const Rgb* b = &frame[static_cast<size_t>(sy2) * w];
+        struct Lanes {
+            uint32_t rb; ///< blue in bits 0-15, red in bits 16-31
+            uint32_t g;
+        };
         const auto lanes = [](Rgb c) {
-            return static_cast<uint64_t>(c.b) | static_cast<uint64_t>(c.g) << 16 |
-                   static_cast<uint64_t>(c.r) << 32;
+            return Lanes{static_cast<uint32_t>(c.b) | static_cast<uint32_t>(c.r) << 16, c.g};
         };
         // A column sum: 3/4 own row, 1/4 neighbour, x4.
-        const auto vert = [a, b, &lanes](int32_t sx) { return 3 * lanes(a[sx]) + lanes(b[sx]); };
-        // Leaning 1/4 toward the neighbour column, rounded: each lane back to 0-255.
-        const auto lean = [](uint64_t own, uint64_t side) {
-            constexpr uint64_t ROUND = 8 | 8ull << 16 | 8ull << 32;
-            return (3 * own + side + ROUND) >> 4 & 0x000000FF00FF00FFull;
+        const auto vert = [a, b, &lanes](int32_t sx) {
+            const Lanes p = lanes(a[sx]);
+            const Lanes q = lanes(b[sx]);
+            return Lanes{3 * p.rb + q.rb, 3 * p.g + q.g};
         };
-        const auto emit = [&](int32_t ox, uint64_t v) {
+        // Leaning 1/4 toward the neighbour column, rounded: each lane back to 0-255.
+        const auto lean = [](Lanes own, Lanes side) {
+            constexpr uint32_t ROUND = 8 | 8u << 16;
+            return Lanes{(3 * own.rb + side.rb + ROUND) >> 4 & 0x00FF00FFu,
+                         (3 * own.g + side.g + 8) >> 4 & 0xFFu};
+        };
+        const auto emit = [&](int32_t ox, Lanes v) {
             if constexpr (F == PixelFormat::XRGB8888) {
-                const auto word = static_cast<uint32_t>(0xFF000000u | (v & 0xFF) |
-                                                        (v >> 8 & 0xFF00) | (v >> 16 & 0xFF0000));
+                const uint32_t word = 0xFF000000u | v.rb | v.g << 8;
                 std::memcpy(row + static_cast<size_t>(ox) * 4, &word, sizeof(word));
             } else {
                 put(row, ox, oy,
-                    {static_cast<uint8_t>(v >> 32), static_cast<uint8_t>(v >> 16 & 0xFF),
-                     static_cast<uint8_t>(v & 0xFF)});
+                    {static_cast<uint8_t>(v.rb >> 16), static_cast<uint8_t>(v.g),
+                     static_cast<uint8_t>(v.rb & 0xFF)});
             }
         };
-        uint64_t prev = vert(std::max(0, x_from - 1));
-        uint64_t cur = vert(x_from);
+        Lanes prev = vert(std::max(0, x_from - 1));
+        Lanes cur = vert(x_from);
         for (int32_t sx = x_from; sx < x_to; sx++) {
-            const uint64_t next = sx + 1 < w ? vert(sx + 1) : cur;
+            const Lanes next = sx + 1 < w ? vert(sx + 1) : cur;
             const int32_t ox = sx * 2;
             if (ox < cols) {
                 emit(ox, lean(cur, prev));
