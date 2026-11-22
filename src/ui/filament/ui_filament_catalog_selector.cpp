@@ -197,6 +197,10 @@ std::string FilamentCatalogSelector::current_vendor() const {
     return sel < vendor_order_.size() ? vendor_order_[sel] : std::string{};
 }
 
+const std::string& FilamentCatalogSelector::favorites_vendor() {
+    return kFavoritesVendor;
+}
+
 bool FilamentCatalogSelector::is_favorites_vendor(const std::string& vendor) {
     return vendor == kFavoritesVendor;
 }

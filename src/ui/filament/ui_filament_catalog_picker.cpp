@@ -59,6 +59,10 @@ void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::strin
     show(parent, std::move(seed_type), std::nullopt, std::move(on_select));
 }
 
+void FilamentCatalogPickerModal::set_seed_vendor(std::optional<std::string> vendor) {
+    seed_vendor_ = std::move(vendor);
+}
+
 void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::string> seed_type,
                                       std::optional<std::vector<std::string>> allowed_types,
                                       SelectCallback on_select) {
@@ -74,7 +78,7 @@ void FilamentCatalogPickerModal::show(lv_obj_t* parent, std::optional<std::strin
 void FilamentCatalogPickerModal::on_show() {
     lv_obj_t* fragment = helix::ui::find_required(dialog(), "catalog_selector", get_name());
     selector_.attach(fragment);
-    selector_.configure(seed_type_, allowed_types_);
+    selector_.configure(seed_type_, allowed_types_, seed_vendor_);
     selector_.set_show_edit_affordances(true); // standalone picker allows catalog editing
     selector_.populate();
 }

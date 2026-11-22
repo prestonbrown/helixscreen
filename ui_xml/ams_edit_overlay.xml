@@ -102,6 +102,11 @@
          palette), which is also about what fits at 800x480 with nothing below
          the colors (13 across, 6 lines, less the dot and the rainbow tile). -->
     <int name="ams_edit_swatch_cap" value="72"/>
+    <!-- The spool tiles a new spool starts from: spool_assign::kSpoolTiles. -->
+    <int name="ams_edit_spool_tiles" value="12"/>
+    <!-- One row of favorite tiles at the small classes: the first slots,
+         which are the favorites, four to a row. -->
+    <int name="ams_edit_favorite_row_tiles" value="4"/>
     <!-- The Filament page's label column, and the label's drop to sit level
          with the first line of swatches beside it. -->
     <px name="ams_edit_label_w_micro" value="64"/>
@@ -472,6 +477,24 @@
             <bind_flag_if_eq subject="ams_edit_product_hidden" flag="hidden" ref_value="1"/>
             <event_cb trigger="value_changed" callback="ams_edit_product_dd_cb"/>
           </lv_dropdown>
+          <!-- The product's favorite star: outlined until starred, filled after. -->
+          <lv_obj name="btn_favorite"
+                  width="#button_height_sm" height="#button_height_sm" ext_click_area="#ams_edit_tag_hit"
+                  style_pad_all="0" style_radius="#border_radius" style_bg_opa="0" style_border_width="0"
+                  flex_flow="row" style_flex_main_place="center" style_flex_cross_place="center"
+                  style_flex_track_place="center" scrollable="false" clickable="true" hidden="true">
+            <style name="styles.press_wash" selector="pressed"/>
+            <bind_flag_if_eq subject="ams_edit_star_state" flag="hidden" ref_value="0"/>
+            <event_cb trigger="clicked" callback="ams_edit_star_cb"/>
+            <icon name="favorite_star_outline"
+                  src="star_outline" size="sm" variant="muted" clickable="false" event_bubble="true">
+              <bind_flag_if_not_eq subject="ams_edit_star_state" flag="hidden" ref_value="1"/>
+            </icon>
+            <icon name="favorite_star"
+                  src="star" size="sm" variant="warning" clickable="false" event_bubble="true" hidden="true">
+              <bind_flag_if_not_eq subject="ams_edit_star_state" flag="hidden" ref_value="2"/>
+            </icon>
+          </lv_obj>
           <lv_dropdown name="dropdown_material"
                        width="1" height="#button_height_sm" flex_grow="1" style_radius="#border_radius" options="">
             <bind_flag_if cond="ams_edit_product_hidden eq 0 and ams_edit_no_product eq 0" flag="hidden"/>
@@ -548,23 +571,31 @@
           <tag_badge subject="ams_edit_tag_temps"/>
         </lv_obj>
 
-        <!-- Adding a spool: the common ones fill the form in one tap. -->
+        <!-- Adding a spool: the user's favorites, then the common spools, fill
+             the form in one tap (spool_assign::spool_tiles()). -->
         <lv_obj name="common_spools"
                 width="100%" height="content" style_pad_all="0" flex_flow="row_wrap" style_pad_column="#space_xxs"
                 style_pad_row="#space_xxs" scrollable="false" hidden="true">
           <bind_flag_if cond="ams_edit_adding eq 0 or ui_breakpoint le 1" flag="hidden"/>
-          <common_spool_tile tile_name="common_spool_0" label="PLA" color_subject="ams_edit_common_color_0"/>
-          <common_spool_tile tile_name="common_spool_3" label="PETG" color_subject="ams_edit_common_color_0"/>
-          <common_spool_tile tile_name="common_spool_6" label="ABS" color_subject="ams_edit_common_color_0"/>
-          <common_spool_tile tile_name="common_spool_9" label="ASA" color_subject="ams_edit_common_color_0"/>
-          <common_spool_tile tile_name="common_spool_1" label="PLA" color_subject="ams_edit_common_color_1"/>
-          <common_spool_tile tile_name="common_spool_4" label="PETG" color_subject="ams_edit_common_color_1"/>
-          <common_spool_tile tile_name="common_spool_7" label="ABS" color_subject="ams_edit_common_color_1"/>
-          <common_spool_tile tile_name="common_spool_10" label="ASA" color_subject="ams_edit_common_color_1"/>
-          <common_spool_tile tile_name="common_spool_2" label="PLA" color_subject="ams_edit_common_color_2"/>
-          <common_spool_tile tile_name="common_spool_5" label="PETG" color_subject="ams_edit_common_color_2"/>
-          <common_spool_tile tile_name="common_spool_8" label="ABS" color_subject="ams_edit_common_color_2"/>
-          <common_spool_tile tile_name="common_spool_11" label="ASA" color_subject="ams_edit_common_color_2"/>
+          <repeat count="#ams_edit_spool_tiles">
+            <common_spool_tile tile_name="spool_tile_${i}"
+                               color_subject="ams_edit_tile_color_${i}" label_subject="ams_edit_tile_label_${i}"
+                               favorite_subject="ams_edit_tile_fav_${i}"/>
+          </repeat>
+        </lv_obj>
+
+        <!-- The small classes have room for one row: the favorites alone, and
+             only while there are some. Shown before the color row is measured,
+             so the swatches give up a row for it. -->
+        <lv_obj name="favorite_spools"
+                width="100%" height="content" style_pad_all="0" flex_flow="row" style_pad_column="#space_xxs"
+                scrollable="false" hidden="true">
+          <bind_flag_if cond="ams_edit_adding eq 0 or ui_breakpoint gt 1 or ams_edit_has_favorites eq 0" flag="hidden"/>
+          <repeat count="#ams_edit_favorite_row_tiles">
+            <common_spool_tile tile_name="favorite_tile_${i}"
+                               color_subject="ams_edit_tile_color_${i}" label_subject="ams_edit_tile_label_${i}"
+                               favorite_subject="ams_edit_tile_fav_${i}" show_subject="ams_edit_tile_fav_${i}"/>
+          </repeat>
         </lv_obj>
 
         <!-- Adding with Spoolman set up: whether the spool goes into it. -->

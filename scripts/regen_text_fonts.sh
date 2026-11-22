@@ -86,6 +86,10 @@ echo "CJK fonts found - will include Chinese and Japanese support"
 # 欢迎！中文ようこそ！日本語
 WIZARD_CJK="0x3046,0x3053,0x305d,0x3088,0x4e2d,0x6587,0x65e5,0x672c,0x6b22,0x8a9e,0x8fce,0xff01"
 
+# Symbols Noto Sans lacks, taken from the CJK SC font in every size:
+# U+2605 black star (the spool editor's "★ Favorites").
+CJK_FALLBACK_SYMBOLS="0x2605"
+
 # Unicode ranges for Latin/Cyrillic
 UNICODE_RANGES=""
 UNICODE_RANGES+="0x20-0x7F"      # Basic Latin (ASCII)
@@ -156,7 +160,7 @@ for SIZE in $SIZES_REGULAR; do
 
     lv_font_conv \
         --font "$FONT_REGULAR" --size "$SIZE" --range "$UNICODE_RANGES" \
-        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK" \
+        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK,$CJK_FALLBACK_SYMBOLS" \
         --font "$FONT_CJK_JP" --size "$SIZE" --range "$WIZARD_CJK" \
         --bpp 4 --format lvgl \
         --no-compress \
@@ -178,7 +182,7 @@ for SIZE in $SIZES_LIGHT; do
 
     lv_font_conv \
         --font "$FONT_LIGHT" --size "$SIZE" --range "$UNICODE_RANGES" \
-        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK" \
+        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK,$CJK_FALLBACK_SYMBOLS" \
         --font "$FONT_CJK_JP" --size "$SIZE" --range "$WIZARD_CJK" \
         --bpp 4 --format lvgl \
         --no-compress \
@@ -200,7 +204,7 @@ for SIZE in $SIZES_BOLD; do
 
     lv_font_conv \
         --font "$FONT_BOLD" --size "$SIZE" --range "$UNICODE_RANGES" \
-        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK" \
+        --font "$FONT_CJK_SC" --size "$SIZE" --range "$WIZARD_CJK,$CJK_FALLBACK_SYMBOLS" \
         --font "$FONT_CJK_JP" --size "$SIZE" --range "$WIZARD_CJK" \
         --bpp 4 --format lvgl \
         --no-compress \

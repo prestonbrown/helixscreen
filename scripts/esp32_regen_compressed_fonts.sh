@@ -98,6 +98,9 @@ fi
 # 欢迎！中文ようこそ！日本語
 WIZARD_CJK="0x3046,0x3053,0x305d,0x3088,0x4e2d,0x6587,0x65e5,0x672c,0x6b22,0x8a9e,0x8fce,0xff01"
 
+# Symbols Noto Sans lacks, taken from the CJK SC font: U+2605 black star.
+CJK_FALLBACK_SYMBOLS="0x2605"
+
 # Unicode ranges for Latin/Cyrillic (Noto text faces + Source Code Pro)
 UNICODE_RANGES=""
 UNICODE_RANGES+="0x20-0x7F"      # Basic Latin (ASCII)
@@ -142,7 +145,7 @@ gen_noto() { # <src_ttf> <size> <outname> [bin]
     echo "  $name (compressed) -> $out"
     lv_font_conv \
         --font "$src"        --size "$size" --range "$UNICODE_RANGES" \
-        --font "$FONT_CJK_SC" --size "$size" --range "$WIZARD_CJK" \
+        --font "$FONT_CJK_SC" --size "$size" --range "$WIZARD_CJK,$CJK_FALLBACK_SYMBOLS" \
         --font "$FONT_CJK_JP" --size "$size" --range "$WIZARD_CJK" \
         --bpp 4 --format lvgl \
         -o "$out"
@@ -151,7 +154,7 @@ gen_noto() { # <src_ttf> <size> <outname> [bin]
         echo "  $name (compressed) -> $OUT_DIR/$name.bin  [frogfs twin]"
         lv_font_conv \
             --font "$src"        --size "$size" --range "$UNICODE_RANGES" \
-            --font "$FONT_CJK_SC" --size "$size" --range "$WIZARD_CJK" \
+            --font "$FONT_CJK_SC" --size "$size" --range "$WIZARD_CJK,$CJK_FALLBACK_SYMBOLS" \
             --font "$FONT_CJK_JP" --size "$size" --range "$WIZARD_CJK" \
             --bpp 4 --format bin \
             -o "$OUT_DIR/$name.bin"

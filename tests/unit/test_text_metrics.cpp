@@ -37,7 +37,10 @@ TEST_CASE_METHOD(LVGLTestFixture, "fit_dropdown_to_text widens a dropdown to its
 TEST_CASE_METHOD(LVGLTestFixture, "show_label_that_fits falls back when the full text overflows",
                  "[text_metrics]") {
     lv_obj_t* box = lv_obj_create(test_screen());
+    // The box's content width is the room: no padding and no border, which
+    // the active theme otherwise sets (LVGL's default draws a 2 px border).
     lv_obj_set_style_pad_all(box, 0, LV_PART_MAIN);
+    lv_obj_set_style_border_width(box, 0, LV_PART_MAIN);
     lv_obj_t* full = lv_label_create(box);
     lv_obj_t* fallback = lv_label_create(box);
     lv_label_set_text(full, "205\xC2\xB0"

@@ -4788,8 +4788,8 @@ TEST_CASE_METHOD(EditorFixture, "a common spool tile fills the form",
     process_lvgl(10);
     REQUIRE(access.shown("common_spools"));
 
-    // "ABS White": material-major, Black/White/Gray.
-    lv_obj_t* tile = access.widget("common_spool_7");
+    // "ABS White": the tiles read a color at a time, ABS the third of four.
+    lv_obj_t* tile = access.widget("spool_tile_6");
     REQUIRE(tile != nullptr);
     lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
     UpdateQueue::instance().drain();
