@@ -5,7 +5,6 @@
 
 #include "cloexec_pipe.h"
 #include "core/text_io.h"
-#include "display_backend.h"
 #include "host_identity.h"
 #include "hv/hurl.h"
 
