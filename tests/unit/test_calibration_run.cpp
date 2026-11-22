@@ -227,6 +227,36 @@ TEST_CASE("warming the bed first adds its priced warm-up to the Z offset step on
     CHECK_FALSE(with_run_options(zoffset, off).heats);
 }
 
+TEST_CASE("the run counts down what is left of the running step, not its whole estimate",
+          "[calibration_run]") {
+    auto entry = [](int minutes, StepStatus status, int percent) {
+        auto s = std::make_unique<FakeStep>("s");
+        s->info_.minutes = minutes;
+        CalibrationRun::Entry e;
+        e.step = std::move(s);
+        e.status = status;
+        e.progress.percent = percent;
+        return e;
+    };
+    std::vector<CalibrationRun::Entry> run;
+    run.push_back(entry(5, StepStatus::Finished, -1));
+    run.push_back(entry(10, StepStatus::Running, 50));
+    run.push_back(entry(10, StepStatus::Pending, -1));
+    CHECK(minutes_left(run[0]) == 0);
+    CHECK(minutes_left(run[1]) == 5);
+    CHECK(minutes_left(run[2]) == 10);
+    CHECK(minutes_left(run) == 15);
+
+    // Before the step reports a percentage, all of it is left; near its end, a minute.
+    run[1].progress.percent = -1;
+    CHECK(minutes_left(run) == 20);
+    run[1].progress.percent = 99;
+    CHECK(minutes_left(run[1]) == 1);
+    // A step that ended counts nothing, whatever its last progress said.
+    run[1].status = StepStatus::Failed;
+    CHECK(minutes_left(run) == 10);
+}
+
 TEST_CASE("a warm-up's seconds round up to whole minutes", "[calibration_run]") {
     CHECK(heating_minutes(0.0f) == 0);
     CHECK(heating_minutes(-5.0f) == 0);
