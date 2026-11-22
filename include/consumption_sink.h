@@ -151,6 +151,9 @@ class AmsSlotSink : public IConsumptionSink {
     float density_g_cm3_ = 0.0f;
     float diameter_mm_ = filament::kDefaultDiameterMm;
     float last_written_weight_g_ = 0.0f;
+    /// The weight the printer holds for this slot as far as the meter knows:
+    /// the snapshot's, or the last one persisted. flush() writes only past it.
+    float last_persisted_weight_g_ = 0.0f;
     uint32_t last_persist_tick_ms_ = 0;
     uint32_t persist_interval_override_ms_ = 0;
 

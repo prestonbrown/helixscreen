@@ -376,6 +376,7 @@ bool AmsState::any_filament_batch_in_flight() const {
 
 void AmsState::before_disconnect() {
     assert_main_thread();
+    registry_.release_sinks();
     for (const auto& backend : registry_.backends()) {
         if (backend) {
             backend->before_disconnect();

@@ -498,9 +498,13 @@ class AmsState {
     [[nodiscard]] bool any_filament_batch_in_flight() const;
 
     /**
-     * @brief Give every backend its AmsBackend::before_disconnect() turn
+     * @brief Persist what the backends still owe the printer, then give every
+     *        backend its AmsBackend::before_disconnect() turn
      *
-     * Teardown calls it before the client disconnects. Main thread.
+     * Teardown calls it before the client disconnects. The consumption sinks
+     * are unregistered here, which flushes their metered weight while the
+     * client still reaches the printer the weight belongs to; clear_backends()
+     * then finds none left to flush. Main thread.
      */
     void before_disconnect();
 
