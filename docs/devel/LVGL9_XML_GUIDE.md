@@ -189,8 +189,31 @@ An instance's widget children land in the default slot; `<component-slot>` fills
 a named one; `bind_*`, `event_cb` and `style` children still act on the instance
 root. A host's default content shows until the slot is filled. C++ that fills a
 slot at runtime asks `lv_xml_component_get_slot(instance, "body")` (`nullptr` for
-the default) instead of looking a container up by name. Semantics:
+the default) instead of looking a container up by name. A slot declared
+`hide_empty="true"` keeps its host hidden until something fills it, so an
+optional footer or header strip costs an unfilled instance no space. Semantics:
 [`BINDINGS.md` § *Slots*](../../lib/helix-xml/docs/BINDINGS.md#slots--where-an-instances-children-go).
+
+`dialog_frame` (`ui_xml/components/dialog_frame.xml`) is the reference for a
+component with several slots: a default `body`, plus `footer` and `header_extra`
+that hide while empty. A dialog's widget children land in the body, its button row
+goes in `<dialog_frame-footer>`, and attributes on `<dialog_frame-body>` restyle the
+body host itself ([MODAL_SYSTEM.md](MODAL_SYSTEM.md#dialog_frame)):
+
+```xml
+<view name="my_modal" extends="dialog_frame" title="Rename" icon="pencil">
+    <dialog_frame-body style_flex_cross_place="center">
+        <text_input name="new_name" width="100%"/>
+    </dialog_frame-body>
+    <dialog_frame-footer>
+        <modal_button_row primary_text="Rename" primary_callback="on_rename"/>
+    </dialog_frame-footer>
+</view>
+```
+
+A view that extends a component with slots fills them through the base component's
+name: `extends="dialog_frame"` writes `<dialog_frame-footer>`, and a view extending
+`overlay_panel` writes `<overlay_panel-actions>`.
 
 A widget written in C++ takes XML children the same way when its create_cb calls
 `lv_xml_set_child_host(obj, cb, user_data)`: `cb` returns the object each child
@@ -1794,6 +1817,60 @@ lv_xml_register_event_cb(nullptr, "on_slider_changed", [](lv_event_t* e) {
     spdlog::info("Slider: {}", value);
 });
 ```
+
+### Rows that report their index
+
+A row in a data list is a component created per item with
+`lv_xml_create(list, "my_row", attrs)`, and its callback learns which row was
+tapped from the event's user data, declared in the component:
+
+```xml
+<!-- ui_xml/hardware_issue_row.xml -->
+<api>
+    <prop name="index" type="int" default="0"/>
+</api>
+<view extends="lv_obj">
+    <ui_button name="btn_ignore" text="Ignore">
+        <event_cb trigger="clicked" callback="on_hardware_issue_ignore" user_data="$index"/>
+    </ui_button>
+</view>
+```
+
+C++ passes the index as a prop, keeps the row's data in a vector it indexes, and
+reads the index back with `helix::ui::event_user_int(e)`
+(`include/ui_callback_helpers.h#event_user_int`), which returns `std::nullopt`
+for a binding with no number:
+
+```cpp
+const std::string index = std::to_string(issue_names_.size());
+const char* attrs[] = {"severity", sev, "message", msg, "index", index.c_str(), nullptr};
+lv_obj_t* row = static_cast<lv_obj_t*>(lv_xml_create(list, "hardware_issue_row", attrs));
+helix::ui::set_row_label_text(row, "hardware_name", issue.hardware_name.c_str());
+issue_names_.push_back(issue.hardware_name);
+
+// The callback, registered once for every row:
+const auto index = helix::ui::event_user_int(e);
+if (!index || *index < 0 || static_cast<size_t>(*index) >= self.issue_names_.size()) {
+    return;
+}
+```
+
+- **Bounds-check the index.** The vector is rebuilt with the rows, and a stale
+  event must find nothing rather than the wrong row.
+- **Copy what you act on** before acting when the action rebuilds the list: the
+  vector goes with the rows.
+- **Printer and user text is set after creation**, with
+  `helix::ui::set_row_label_text()` (`include/ui_row_text.h`), never passed as a
+  prop: the engine resolves a prop value that starts with `#` as a constant and
+  drops it when no such constant exists, so a name like `#2 nozzle` would come
+  up blank.
+- No heap payload, no `lv_obj_add_event_cb()` and no delete callback to free it:
+  the user data is the `$index` string the engine already owns.
+
+`src/ui/settings/ui_settings_hardware_health.cpp#on_issue_action` is the worked
+example. The AMS unit tiles, the widget catalog, the pre-print option tiles, the
+barcode scanner, fan and nozzle rows and the power device picker follow the same
+pattern.
 
 ### Common Triggers
 

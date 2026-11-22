@@ -169,7 +169,7 @@ sudo journalctl -u moonraker | grep -i spoolman
 
 **Check, in order:**
 1. **Was the slot linked before the print started?** Usage is only recorded while a spool is active, and HelixScreen makes a slot's spool active when the slot loads or when you link a spool to the loaded slot. A print that ran before the link is not deducted afterwards.
-2. **Is the right spool linked to that slot?** Open the slot's **Edit Spool** editor: a linked slot shows the Spoolman icon and spool number in its title. Names don't matter; only the link does.
+2. **Is the right spool linked to that slot?** Open the slot's **Edit Spool** editor: a linked slot shows the Spoolman icon in its title, and **New Spool** at the top lists your spools with the slot's own one first, marked **Current**, with its number. Names don't matter; only the link does.
 3. **Does your filament system set the spool itself?** AFC, Happy Hare (with its Spoolman support on) and INDX do, and HelixScreen leaves it to them.
 
 Details: [Which spool Spoolman charges](../guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).

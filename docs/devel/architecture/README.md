@@ -17,6 +17,7 @@ you want the 15-minute whole-app mental model.
 | add or read a printer sensor | [06 - Discovery & capabilities](06-discovery-capabilities.md) |
 | support a new filament system | [07 - Filament & AMS](07-filament-ams.md), then [FILAMENT_MANAGEMENT](../FILAMENT_MANAGEMENT.md) |
 | add a screen, overlay, or modal | [08 - Panels, overlays & modals](08-panels-navigation.md), then [MODAL_SYSTEM](../MODAL_SYSTEM.md) |
+| work on the Calibration screen, the guided calibration run, or how calibration results are saved | [08 - Panels, overlays & modals](08-panels-navigation.md#calibration-a-catalog-one-screen-and-a-run-that-outlives-its-view), then [CALIBRATION](../CALIBRATION.md) |
 | add a home-screen widget | [09 - Home panel widgets](09-home-widgets.md) |
 | change colors, spacing, or theming | [10 - Theme, tokens & layout](10-theme-tokens-layout.md), then [THEME_SYSTEM](../THEME_SYSTEM.md) |
 | change boot or shutdown ordering, or what a printer switch rebuilds | [11 - Startup & shutdown](11-startup-shutdown.md) |

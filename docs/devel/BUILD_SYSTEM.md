@@ -357,6 +357,21 @@ make deploy-ad5m AD5M_HOST=192.168.1.67
 AD5M_HOST=192.168.1.67 make deploy-ad5m
 ```
 
+**Using make targets for the K2 series:**
+```bash
+make deploy-k2 K2_HOST=192.168.x.x       # Full deploy, start in background
+make deploy-k2-fg K2_HOST=192.168.x.x    # Deploy and run in foreground (debug)
+make deploy-k2-bin K2_HOST=192.168.x.x   # Binaries only (fast iteration)
+```
+
+`K2_HOST` has no default. The K2 targets work on stock Creality firmware (OpenWrt, procd) and on Jacobean's K2 image (systemd). They decide on the device with `K2_SYSTEMD_TEST` (`mk/cross.mk#K2_SYSTEMD_TEST`), true when systemd is running and has a `helixscreen` unit:
+
+- Every K2 target stops the app with the shared `deploy-stop-app` step (`scripts/deploy-stop-app-remote.sh`), as `deploy-common` does for the other targets. A systemd unit is stopped through `systemctl` before anything is synced, because killing a `Restart=always` unit's process makes systemd respawn it from a half-copied `bin/`; a unit that will not stop ends the deploy with instructions.
+- The OpenWrt init script, procd shim and web-server carve-out install only where systemd does not run HelixScreen.
+- `k2-start` starts the app through `systemctl start helixscreen` where there is a unit, and through the installed launcher (`<deploy dir>/bin/helix-launcher.sh`) otherwise.
+
+Details: `docs/devel/printers/CREALITY_K2_SUPPORT.md` § "Stock firmware and Jacobean's systemd image".
+
 **Manual deployment:**
 ```bash
 # Raspberry Pi

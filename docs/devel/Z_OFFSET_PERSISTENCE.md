@@ -254,6 +254,29 @@ no save to withhold, and the Motion row is hidden while `z_offset_can_save` is 0
 
 ---
 
+## The restart confirmation
+
+`save_dirty_offsets_shared()` (`src/ui/calibration/z_offset_utils.cpp#save_dirty_offsets_shared`)
+is what every Save button calls. After the route checks (per-material, refused while a job
+holds the machine, a save already in flight), it warns about a Klipper restart only when one
+is coming, so the confirmation never promises a disconnect that does not happen:
+
+- **A machine-wide offset is dirty** (`SaveAvailability::global_dirty`): always confirm. The
+  probe's `z_offset` or the endstop takes effect only on a restart.
+- **Only tool offsets are dirty, on a firmware that persists them without `SAVE_CONFIG`**
+  (`helix::tool_offsets::persist_requires_save_config()` false): save at once, no question.
+- **Only tool offsets are dirty, on a firmware that needs `SAVE_CONFIG`**: tool offsets are live
+  once staged, so only what else is pending can force the restart. On Kalico, `SAVE_CONFIG
+  RESTART=0` writes the config without restarting when every pending item is already live
+  (`src/printer/save_config_live.cpp#restart_required`), so the answer depends on the printer.
+  `SaveConfigWatch::query_restarts()` asks it, and the reply decides between the confirmation and
+  a direct save. One question is out at a time: a second tap while it is pending does nothing,
+  rather than stacking a second confirmation. When the reply arrives, the decision re-reads
+  `global_dirty`, because a baby step made meanwhile turns the save into a machine-wide one,
+  which always restarts.
+
+---
+
 ## The saved offset beside the adjustment
 
 Print Tune keeps Klipper's session offset as the big number, since that is what the
@@ -309,6 +332,17 @@ decision, a pure function unit-tested in `tests/unit/test_printer_profile_state.
 - **No probe and no reading yet** stays `ENDSTOP`: Klipper requires `position_endstop`
   on a switch-homed `[stepper_z]`, so the reading is only late.
 - **An external persistence provider** still forces `FIRMWARE_MANAGED` on top (above).
+- **The database wins where the config misleads.** A stock FlashForge Adventurer 5M or 5M Pro
+  homes Z on a Z-max switch (`position_endstop` 220), so the table alone would pick
+  `ENDSTOP`. Its bed mesh has no zero reference, though, so the nozzle probe sets Z0: a
+  `position_endstop` written by `Z_OFFSET_APPLY_ENDSTOP` is cancelled by the next
+  `BED_MESH_CALIBRATE`, while the probe's `z_offset` survives it. Both AD5M rows in
+  `assets/config/printer_database.json` therefore name `probe_calibrate`. ZMOD and Forge-X
+  still latch `FIRMWARE_MANAGED` on top, because their `SET_GCODE_OFFSET` stores own the
+  offset; the database value only decides for an AD5M with neither (Klipper Mod, or a bare
+  Klipper install). The Elegoo Centauri Carbon's row pins `endstop` the other way: COSMOS homes
+  Z on its switch with a zero-referenced mesh, and its own `CALIBRATE_Z_OFFSET` saves with
+  `Z_OFFSET_APPLY_ENDSTOP`.
 
 **When the inputs arrive.** Discovery reads `stepper_z.position_endstop` from the same
 `configfile.settings` query as the build volume (`PrinterDiscovery::z_position_endstop()`),

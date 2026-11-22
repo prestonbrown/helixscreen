@@ -201,16 +201,8 @@ Two of these are dormant: no `ui_xml/` file uses `<timeline>` or `<animation>` t
 | `<api><param>` - multi-argument props, used as `prop-param="…"` | We hardcode exactly one instance of this shape (`bind_text-fmt` on labels and spangroups). The generic mechanism is absent; `process_prop_element` drops every non-`prop` child, and `resolve_params` has no hyphen-suffix path. A vestigial `type = "compound"` marker is the only trace |
 | `<enumdef>` / `<enum>` | Widget-scoped named enums. We have about 50 C++-registered custom widgets whose enum-ish attributes are unvalidated strings |
 | `<element access="add\|get\|set">` | Declares widget sub-structures in the API block |
-| Real `<slot>` declarations | See below - ours is a lookalike, not a slot system |
 | `<targets>` / `if_target` | Build-time UI variants keyed on display size and memory budget |
 | `<preview>` contexts, Figma plugin, online viewer, C export | Editor-side tooling. Not applicable |
-
-**On slots specifically:** the `<component-slotname>`
-*usage* syntax does parse (`lib/helix-xml/src/xml/lv_xml.c#"state->composed_cap = 0;"`). But there is no `<slot>` declaration, no
-validation against the component's API, no default content, and no multi-slot dispatch. It
-degrades to `lv_obj_find_by_name(parent, slot_name)` - and when that returns NULL you get the
-generic "unknown tag / STALE BINARY" error, which is a genuinely bad diagnostic. This is the one
-gap that actively costs us something today.
 
 ### Ahead (we have it, they don't)
 
@@ -219,6 +211,7 @@ gap that actively costs us something today.
 | `cond=` expression language on `bind_flag_if` / `bind_state_if` / `bind_style_if`, and `<subject_expr>` derived subjects | Full Pratt parser: arithmetic, comparison, boolean, word forms. Upstream's binding model is still one subject and one comparison operator per bind - there is no way to express `a or b gt c` in their XML |
 | `<repeat count=>` with reactive rebuild, `$i`, `${expr}` composition | Kills the C++ create-and-wire loop (CLAUDE.md rule 8) |
 | `<if cond=>` / `<else/>` structural conditionals | Builds only the matching branch |
+| `<slot>` declarations in `<api>`: a default slot, named slots with `target=`, `hide_empty`, `lv_xml_component_get_slot()` | A component owns the containers its callers fill; `dialog_frame` and `overlay_panel` are built on it ([`BINDINGS.md` § *Slots*](../../lib/helix-xml/docs/BINDINGS.md#slots--where-an-instances-children-go)) |
 | `parts="main,indicator,knob"` on style binds | One line instead of three |
 | `hidden_if_prop_eq` / `hidden_if_prop_not_eq` / `hidden_if_empty` | Prop-driven visibility without a subject |
 | A literal `text=` implying its own `translation_tag`, and `X=` its component's `X_tag` prop | ~1,660 redundant tag attributes gone from `ui_xml/`; each copy was heap in a view definition |
@@ -249,13 +242,10 @@ gap that actively costs us something today.
 5. **Chasing it invites the one mistake we can't undo.** A parity backlog creates standing
    pressure to "just check how they did it." Nothing in this repo is worth that.
 
-**Adopt three things anyway - on their own merits, not for parity:**
+**Adopt two things anyway - on their own merits, not for parity:**
 
 - **`<api><param>`.** Generic multi-argument props. We already need it; `bind_text-fmt` is the
-  hardcoded proof. Cheapest of the three and unblocks well-typed custom-widget APIs.
-- **Real `<slot>` declarations.** Fixes an active footgun. The current silent-NULL path produces a
-  misleading "STALE BINARY" error, and `lv_xml_create()` doesn't implement the fallback at all -
-  the two entry points behave differently, which is worse than not having slots.
+  hardcoded proof. The cheaper of the two, and it unblocks well-typed custom-widget APIs.
 - **`<enumdef>`.** Turns ~50 widgets' worth of unvalidated string attributes into checked values,
   and gives the XML linter something to check against.
 

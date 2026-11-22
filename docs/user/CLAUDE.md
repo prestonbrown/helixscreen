@@ -51,7 +51,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | `guide/bluetooth-setup.md` | Enabling Bluetooth on Raspberry Pi and BTT Pi, UART conflicts, USB dongle setup |
 | `guide/barcode-scanner.md` | USB + Bluetooth barcode scanner setup, keymaps, BT-HID bonded-only workaround |
 | `guide/label-printing.md` | Label printer setup, supported printers (Brother/Phomemo/Niimbot/MakeID), Bluetooth pairing, labels printed for new Spoolman spools, troubleshooting |
-| `guide/calibration.md` | Bed mesh, screws tilt, input shaper, probe/Z/tool offsets, vertical artifact compensation and check, belt tension, pressure advance, PID/MPC |
+| `guide/calibration.md` | The Calibration screen and its tiles, guided calibration (picking steps, before you start, running, stopping, Save all / Discard all, what restarts on Klipper vs Kalico), bed mesh, screws tilt, input shaper, probe/Z/tool offsets, vertical artifact compensation and check, belt tension, pressure advance, PID/MPC |
 | `guide/touch-calibration.md` | Touch screen calibration, forcing recalibration, config reference |
 | `guide/settings.md` | Settings hub: the three groups (Screen, Printer, HelixScreen) and their pages |
 | `guide/settings/display.md` | Screen rotation, UI scale, brightness, screen dim, display sleep, screensaver, sleep while printing |
