@@ -18,7 +18,10 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
 #include <set>
 #include <thread>
 
@@ -1082,39 +1085,223 @@ ConfigEditRoute KlipperConfigEditor::route() const {
 }
 
 // ============================================================================
+// Judging a FIRMWARE_RESTART
+// ============================================================================
+
+namespace {
+
+std::string lowercase(std::string text) {
+    std::transform(text.begin(), text.end(), text.begin(),
+                   [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return text;
+}
+
+/// A string compares ignoring case, a number by value, a bool by name.
+bool setting_matches(const nlohmann::json& actual, const std::string& want) {
+    if (actual.is_string())
+        return lowercase(actual.get<std::string>()) == lowercase(want);
+    if (actual.is_boolean())
+        return std::string(actual.get<bool>() ? "true" : "false") == lowercase(want);
+    if (actual.is_number()) {
+        char* end = nullptr;
+        const double parsed = std::strtod(want.c_str(), &end);
+        if (end == want.c_str())
+            return false;
+        const double have = actual.get<double>();
+        return std::fabs(have - parsed) <= 1e-9 * std::max(1.0, std::fabs(parsed));
+    }
+    return false;
+}
+
+} // namespace
+
+bool settings_hold(const nlohmann::json& settings, const std::vector<ExpectedSetting>& expected,
+                   std::string* mismatch) {
+    for (const auto& want : expected) {
+        const std::string section_key = lowercase(want.section);
+        const std::string option_key = lowercase(want.option);
+        const nlohmann::json* section =
+            helix::json_util::find_member(settings, section_key.c_str());
+        const nlohmann::json* value =
+            (section != nullptr && section->is_object())
+                ? helix::json_util::find_member(*section, option_key.c_str())
+                : nullptr;
+        if (value != nullptr && setting_matches(*value, want.value))
+            continue;
+        if (mismatch != nullptr) {
+            const std::string have =
+                value == nullptr
+                    ? "unset"
+                    : "'" + (value->is_string() ? value->get<std::string>() : value->dump()) + "'";
+            *mismatch =
+                fmt::format("[{}] {} is {}, not '{}'", want.section, want.option, have, want.value);
+        }
+        return false;
+    }
+    return true;
+}
+
+RestartWatch restart_watch_for(int restart_timeout_ms) {
+    RestartWatch watch;
+    watch.timeout_ms = std::max(restart_timeout_ms, 1);
+    // A third of the window: never so long that a short test timeout runs out
+    // before a lingering pre-restart state may count.
+    watch.settle_ms = std::min(2000, watch.timeout_ms / 3);
+    watch.startup_allowance_ms = watch.timeout_ms;
+    return watch;
+}
+
+RestartVerdict judge_restart_poll(RestartWatch& watch, std::optional<KlippyState> state,
+                                  int elapsed_ms) {
+    const bool settled = watch.saw_restart || elapsed_ms >= watch.settle_ms;
+    if (!state || *state == KlippyState::STARTUP) {
+        watch.saw_restart = true;
+        return elapsed_ms < watch.timeout_ms + watch.startup_allowance_ms ? RestartVerdict::Waiting
+                                                                          : RestartVerdict::Failed;
+    }
+    if (*state == KlippyState::READY && settled)
+        return RestartVerdict::Ready;
+    if (*state == KlippyState::ERROR && settled)
+        return RestartVerdict::Failed;
+    // A pre-restart READY or ERROR still lingering, or a SHUTDOWN: wait for
+    // the restart to show, up to the timeout.
+    return elapsed_ms < watch.timeout_ms ? RestartVerdict::Waiting : RestartVerdict::Failed;
+}
+
+namespace {
+
+/// How long one poll waits for Moonraker's answer before it counts as none.
+constexpr auto kPollAnswerTimeout = std::chrono::seconds(2);
+
+int elapsed_ms_since(std::chrono::steady_clock::time_point start) {
+    return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now() - start)
+                                .count());
+}
+
+struct PolledKlippy {
+    std::optional<KlippyState> state; ///< nullopt: no Klippy, or no answer
+    std::string state_text;
+    std::string message;
+};
+
+/// printer.info, waited for on the calling (monitor) thread.
+PolledKlippy poll_klippy(IMoonrakerAPI& api) {
+    auto answer = std::make_shared<std::promise<KlippyStatus>>();
+    auto answered = std::make_shared<std::atomic<bool>>(false);
+    auto future = answer->get_future();
+    api.get_klippy_status(
+        [answer, answered](const KlippyStatus& status) {
+            if (!answered->exchange(true))
+                answer->set_value(status);
+        },
+        [answer, answered](const MoonrakerError& err) {
+            if (!answered->exchange(true))
+                answer->set_value(KlippyStatus{"unreachable", err.message});
+        });
+    if (future.wait_for(kPollAnswerTimeout) != std::future_status::ready)
+        return {std::nullopt, "no answer", ""};
+    const KlippyStatus status = future.get();
+    return {parse_klippy_state(status.state), status.state, status.state_message};
+}
+
+/// configfile.settings, waited for on the calling (monitor) thread; nullopt
+/// when Moonraker gives none in time.
+std::optional<nlohmann::json> query_config_settings(IMoonrakerAPI& api) {
+    auto answer = std::make_shared<std::promise<std::optional<nlohmann::json>>>();
+    auto answered = std::make_shared<std::atomic<bool>>(false);
+    auto future = answer->get_future();
+    api.get_client().send_jsonrpc(
+        "printer.objects.query",
+        nlohmann::json{{"objects", {{"configfile", nlohmann::json::array({"settings"})}}}},
+        [answer, answered](const nlohmann::json& response) {
+            if (answered->exchange(true))
+                return;
+            const nlohmann::json* result = helix::json_util::find_member(response, "result");
+            const nlohmann::json* status =
+                result ? helix::json_util::find_member(*result, "status") : nullptr;
+            const nlohmann::json* configfile =
+                status ? helix::json_util::find_member(*status, "configfile") : nullptr;
+            const nlohmann::json* settings =
+                configfile ? helix::json_util::find_member(*configfile, "settings") : nullptr;
+            answer->set_value(settings ? std::optional<nlohmann::json>(*settings) : std::nullopt);
+        },
+        [answer, answered](const MoonrakerError&) {
+            if (!answered->exchange(true))
+                answer->set_value(std::nullopt);
+        },
+        0, /*silent=*/true);
+    if (future.wait_for(kPollAnswerTimeout) != std::future_status::ready)
+        return std::nullopt;
+    return future.get();
+}
+
+} // namespace
+
+void KlipperConfigEditor::revert_after_failed_restart(IMoonrakerAPI& api,
+                                                      const RestartRecovery& recovery,
+                                                      ErrorCallback on_error,
+                                                      const std::string& problem) {
+    recovery.restore(
+        api,
+        [&api, on_error, problem]() {
+            spdlog::info("[ConfigEditor] Backups restored, sending recovery FIRMWARE_RESTART");
+            api.restart_firmware(
+                [on_error, problem]() {
+                    if (on_error)
+                        on_error(problem + ". Original config restored.");
+                },
+                [on_error, problem](const MoonrakerError& err) {
+                    spdlog::error("[ConfigEditor] Recovery FIRMWARE_RESTART failed: {}",
+                                  err.message);
+                    if (on_error)
+                        on_error(problem + ". Backups restored but restart failed: " + err.message);
+                });
+        },
+        [on_error, problem](const std::string& restore_err) {
+            spdlog::error("[ConfigEditor] Failed to restore backups: {}", restore_err);
+            if (on_error)
+                on_error(problem + ", AND backup restore failed: " + restore_err);
+        });
+}
+
+// ============================================================================
 // Safe edits: write, FIRMWARE_RESTART, revert if Klipper does not come back
 // ============================================================================
 
 void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string& section,
                                           const std::vector<ConfigEdit>& edits,
                                           SuccessCallback on_success, ErrorCallback on_error,
-                                          int restart_timeout_ms) {
+                                          int restart_timeout_ms,
+                                          std::vector<ExpectedSetting> expected) {
     spdlog::info("[ConfigEditor] Starting safe multi-edit on [{}] ({} edits)", section,
                  edits.size());
     if (route() == ConfigEditRoute::Plugin) {
         plugin_multi_edit(api, section, edits, std::move(on_success), std::move(on_error),
-                          restart_timeout_ms);
+                          restart_timeout_ms, std::move(expected));
         return;
     }
     file_api_multi_edit(api, section, edits, std::move(on_success), std::move(on_error),
-                        restart_timeout_ms);
+                        restart_timeout_ms, std::move(expected));
 }
 
 void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::string& section,
                                             const std::vector<ConfigEdit>& edits,
                                             SuccessCallback on_success, ErrorCallback on_error,
-                                            int restart_timeout_ms) {
+                                            int restart_timeout_ms,
+                                            std::vector<ExpectedSetting> expected) {
     spdlog::info("[ConfigEditor] Editing [{}] through the HelixPrint plugin", section);
     api.get_client().send_jsonrpc(
         "server.helix.config", nlohmann::json{{"section", section}},
-        [this, &api, section, edits, on_success, on_error,
-         restart_timeout_ms](const nlohmann::json& response) {
+        [this, &api, section, edits, on_success, on_error, restart_timeout_ms,
+         expected](const nlohmann::json& response) {
             const nlohmann::json* result = helix::json_util::find_member(response, "result");
             auto plan = plan_plugin_config_edits(section, edits,
                                                  result ? *result : nlohmann::json::object());
             if (plan.kind == PluginConfigEditPlan::Kind::FileApi) {
                 spdlog::info("[ConfigEditor] [{}] edit served by the file API", section);
-                file_api_multi_edit(api, section, edits, on_success, on_error, restart_timeout_ms);
+                file_api_multi_edit(api, section, edits, on_success, on_error, restart_timeout_ms,
+                                    expected);
                 return;
             }
             if (plan.kind == PluginConfigEditPlan::Kind::Error) {
@@ -1126,8 +1313,8 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
             api.get_client().send_jsonrpc(
                 "server.helix.config_edit",
                 nlohmann::json{{"edits", plan.edits}, {"dry_run", false}},
-                [this, &api, on_success, on_error,
-                 restart_timeout_ms](const nlohmann::json& edit_response) {
+                [this, &api, on_success, on_error, restart_timeout_ms,
+                 expected](const nlohmann::json& edit_response) {
                     const nlohmann::json* edit_result =
                         helix::json_util::find_member(edit_response, "result");
                     auto backups = plugin_config_edit_backups(
@@ -1146,7 +1333,7 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                             done();
                     };
                     restart_and_monitor(api, std::move(recovery), on_success, on_error,
-                                        restart_timeout_ms);
+                                        restart_timeout_ms, expected);
                 },
                 [on_error](const MoonrakerError& err) {
                     spdlog::error("[ConfigEditor] Plugin config edit failed: {}", err.message);
@@ -1154,24 +1341,26 @@ void KlipperConfigEditor::plugin_multi_edit(IMoonrakerAPI& api, const std::strin
                         on_error("Config edit refused: " + err.message);
                 });
         },
-        [this, &api, section, edits, on_success, on_error,
-         restart_timeout_ms](const MoonrakerError& err) {
+        [this, &api, section, edits, on_success, on_error, restart_timeout_ms,
+         expected](const MoonrakerError& err) {
             // Nothing is written yet, so the file API can still serve the edit.
             spdlog::warn("[ConfigEditor] Plugin config read failed ({}); using the file API",
                          err.message);
-            file_api_multi_edit(api, section, edits, on_success, on_error, restart_timeout_ms);
+            file_api_multi_edit(api, section, edits, on_success, on_error, restart_timeout_ms,
+                                expected);
         });
 }
 
 void KlipperConfigEditor::file_api_multi_edit(IMoonrakerAPI& api, const std::string& section,
                                               const std::vector<ConfigEdit>& edits,
                                               SuccessCallback on_success, ErrorCallback on_error,
-                                              int restart_timeout_ms) {
+                                              int restart_timeout_ms,
+                                              std::vector<ExpectedSetting> expected) {
     // Step 1: Load config files to populate cache and section map
     load_config_files(
         api,
-        [this, &api, section, edits, on_success, on_error,
-         restart_timeout_ms](std::map<std::string, SectionLocation> section_map) {
+        [this, &api, section, edits, on_success, on_error, restart_timeout_ms,
+         expected](std::map<std::string, SectionLocation> section_map) {
             // Step 2: Find which file the edits belong in
             const std::string file_path = config_edit_target_file(
                 section_map, get_cached_file(kRootConfigFile).value_or(""), section, edits);
@@ -1207,12 +1396,13 @@ void KlipperConfigEditor::file_api_multi_edit(IMoonrakerAPI& api, const std::str
             // Step 5: Backup the file, then upload, then restart
             backup_file(
                 api, file_path,
-                [this, &api, file_path, modified, on_success, on_error, restart_timeout_ms]() {
+                [this, &api, file_path, modified, on_success, on_error, restart_timeout_ms,
+                 expected]() {
                     // Step 6: Upload modified content
                     api.transfers().upload_file(
                         "config", file_path, *modified,
-                        [this, &api, file_path, modified, on_success, on_error,
-                         restart_timeout_ms]() {
+                        [this, &api, file_path, modified, on_success, on_error, restart_timeout_ms,
+                         expected]() {
                             {
                                 std::lock_guard<std::mutex> lock(cache_mutex_);
                                 file_cache_[file_path] = *modified;
@@ -1220,7 +1410,7 @@ void KlipperConfigEditor::file_api_multi_edit(IMoonrakerAPI& api, const std::str
                             spdlog::info("[ConfigEditor] Multi-edit written, sending "
                                          "FIRMWARE_RESTART");
                             restart_and_monitor(api, file_api_recovery(), on_success, on_error,
-                                                restart_timeout_ms);
+                                                restart_timeout_ms, expected);
                         },
                         [file_path, on_error](const MoonrakerError& err) {
                             spdlog::error("[ConfigEditor] Failed to upload modified {}: {}",
@@ -1280,112 +1470,82 @@ void KlipperConfigEditor::restore_plugin_backups(
 
 void KlipperConfigEditor::restart_and_monitor(IMoonrakerAPI& api, RestartRecovery recovery,
                                               SuccessCallback on_success, ErrorCallback on_error,
-                                              int restart_timeout_ms) {
+                                              int restart_timeout_ms,
+                                              std::vector<ExpectedSetting> expected) {
     api.restart_firmware(
-        [this, &api, recovery, on_success, on_error, restart_timeout_ms,
+        [this, &api, recovery, on_success, on_error, restart_timeout_ms, expected,
          poll_interval = restart_poll_interval_]() {
             // HttpExecutor::fast(), never a raw std::thread: a spawn failure is
             // std::terminate on AD5M (#724, #837). The future goes to
             // track_restart_monitor() so ~KlipperConfigEditor() can wait this
             // loop out: it holds `this` and `api` by reference and outlives neither.
             track_restart_monitor(helix::http::HttpExecutor::fast().submit(
-                [&api, recovery, on_success, on_error, restart_timeout_ms, poll_interval,
+                [&api, recovery, on_success, on_error, restart_timeout_ms, expected, poll_interval,
                  cancel = monitor_cancel_]() {
-                    const auto timeout = std::chrono::milliseconds(restart_timeout_ms);
                     const auto start = std::chrono::steady_clock::now();
+                    RestartWatch watch = restart_watch_for(restart_timeout_ms);
+                    std::string problem;
+                    std::string last_state = "no answer";
 
-                    // Phase 1: Wait for disconnect (Klipper going down).
-                    // It may already be disconnected by the time we check.
-                    bool saw_disconnect = false;
-                    while (std::chrono::steady_clock::now() - start < timeout) {
+                    while (true) {
                         if (cancel->load()) {
                             spdlog::info("[ConfigEditor] Editor going away — abandoning "
                                          "restart monitor");
                             return; // Touch nothing: not api, not this, not the callbacks.
                         }
-                        if (!api.is_connected()) {
-                            saw_disconnect = true;
-                            spdlog::debug("[ConfigEditor] Klipper disconnected after "
-                                          "FIRMWARE_RESTART");
-                            break;
-                        }
-                        std::this_thread::sleep_for(poll_interval);
-                    }
+                        const PolledKlippy polled = poll_klippy(api);
+                        if (cancel->load())
+                            return;
+                        const int elapsed = elapsed_ms_since(start);
+                        last_state = polled.state_text;
+                        RestartVerdict verdict = judge_restart_poll(watch, polled.state, elapsed);
+                        if (polled.state == KlippyState::ERROR && !polled.message.empty())
+                            problem = "Klipper reported: " + polled.message;
 
-                    if (!saw_disconnect) {
-                        // Klipper never disconnected. It might have restarted so fast
-                        // we missed it, or the restart failed silently.
-                        // Treat as success since it's still connected.
-                        spdlog::info("[ConfigEditor] Klipper stayed connected after "
-                                     "FIRMWARE_RESTART (fast restart)");
-                        recovery.cleanup(api, [on_success]() {
-                            spdlog::info("[ConfigEditor] Safe edit complete (fast restart)");
-                            if (on_success)
-                                on_success();
-                        });
-                        return;
-                    }
-
-                    // Phase 2: Wait for reconnect within remaining timeout.
-                    while (std::chrono::steady_clock::now() - start < timeout) {
-                        if (cancel->load()) {
-                            spdlog::info("[ConfigEditor] Editor going away — abandoning "
-                                         "restart monitor");
-                            return; // Touch nothing: not api, not this, not the callbacks.
+                        if (verdict == RestartVerdict::Ready) {
+                            if (expected.empty()) {
+                                spdlog::info("[ConfigEditor] Klippy ready {}ms after "
+                                             "FIRMWARE_RESTART",
+                                             elapsed);
+                                break;
+                            }
+                            const auto settings = query_config_settings(api);
+                            std::string mismatch;
+                            if (settings && settings_hold(*settings, expected, &mismatch)) {
+                                spdlog::info("[ConfigEditor] Klippy ready {}ms after "
+                                             "FIRMWARE_RESTART with the new settings",
+                                             elapsed);
+                                break;
+                            }
+                            problem = settings ? "Klipper restarted, but " + mismatch +
+                                                     ". A SAVE_CONFIG value in printer.cfg may "
+                                                     "override it."
+                                               : "Klipper restarted, but its settings could "
+                                                 "not be read";
+                            spdlog::debug("[ConfigEditor] {} ({}ms)", problem, elapsed);
+                            verdict = elapsed >= watch.timeout_ms ? RestartVerdict::Failed
+                                                                  : RestartVerdict::Waiting;
                         }
-                        if (api.is_connected()) {
-                            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                std::chrono::steady_clock::now() - start);
-                            spdlog::info("[ConfigEditor] Klipper reconnected after {}ms",
-                                         elapsed.count());
-                            recovery.cleanup(api, [on_success]() {
-                                spdlog::info("[ConfigEditor] Safe edit complete, backups "
-                                             "cleaned up");
-                                if (on_success)
-                                    on_success();
-                            });
+
+                        if (verdict == RestartVerdict::Failed) {
+                            if (problem.empty())
+                                problem = fmt::format("Klipper was not ready {}s after the "
+                                                      "restart (state '{}')",
+                                                      elapsed / 1000, last_state);
+                            spdlog::error("[ConfigEditor] Config edit failed after "
+                                          "FIRMWARE_RESTART ({}ms): {}; reverting",
+                                          elapsed, problem);
+                            revert_after_failed_restart(api, recovery, on_error, problem);
                             return;
                         }
                         std::this_thread::sleep_for(poll_interval);
                     }
 
-                    // Timeout: Klipper did not come back. Revert the edit.
-                    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
-                        std::chrono::steady_clock::now() - start);
-                    spdlog::error("[ConfigEditor] Klipper failed to reconnect within "
-                                  "{}ms, reverting config",
-                                  elapsed.count());
-
-                    recovery.restore(
-                        api,
-                        [&api, on_error]() {
-                            // Backups restored, try another FIRMWARE_RESTART to recover
-                            spdlog::info("[ConfigEditor] Backups restored, sending "
-                                         "recovery FIRMWARE_RESTART");
-                            api.restart_firmware(
-                                [on_error]() {
-                                    if (on_error)
-                                        on_error("Config change caused Klipper to fail. "
-                                                 "Original config restored.");
-                                },
-                                [on_error](const MoonrakerError& err) {
-                                    spdlog::error("[ConfigEditor] Recovery "
-                                                  "FIRMWARE_RESTART failed: {}",
-                                                  err.message);
-                                    if (on_error)
-                                        on_error("Config change caused Klipper to fail. "
-                                                 "Backups restored but restart failed: " +
-                                                 err.message);
-                                });
-                        },
-                        [on_error](const std::string& restore_err) {
-                            spdlog::error("[ConfigEditor] Failed to restore backups: {}",
-                                          restore_err);
-                            if (on_error)
-                                on_error("Config change caused Klipper to fail AND backup "
-                                         "restore failed: " +
-                                         restore_err);
-                        });
+                    recovery.cleanup(api, [on_success]() {
+                        spdlog::info("[ConfigEditor] Safe edit complete");
+                        if (on_success)
+                            on_success();
+                    });
                 }));
         },
         [on_error](const MoonrakerError& err) {
@@ -1402,7 +1562,7 @@ void KlipperConfigEditor::safe_edit_value(IMoonrakerAPI& api, const std::string&
     spdlog::info("[ConfigEditor] Starting safe edit: [{}] {} = {}", section, key, new_value);
     if (route() == ConfigEditRoute::Plugin) {
         plugin_multi_edit(api, section, {{ConfigEdit::Type::SET_VALUE, key, new_value}},
-                          std::move(on_success), std::move(on_error), restart_timeout_ms);
+                          std::move(on_success), std::move(on_error), restart_timeout_ms, {});
         return;
     }
 
@@ -1412,7 +1572,8 @@ void KlipperConfigEditor::safe_edit_value(IMoonrakerAPI& api, const std::string&
         [this, &api, on_success, on_error, restart_timeout_ms]() {
             // Step 2: Edit succeeded, send FIRMWARE_RESTART and watch it
             spdlog::info("[ConfigEditor] Edit written, sending FIRMWARE_RESTART");
-            restart_and_monitor(api, file_api_recovery(), on_success, on_error, restart_timeout_ms);
+            restart_and_monitor(api, file_api_recovery(), on_success, on_error, restart_timeout_ms,
+                                {});
         },
         on_error);
 }
