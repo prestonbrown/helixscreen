@@ -336,13 +336,15 @@ $(OBJ_DIR)/system/helix_fs.o: override CXXFLAGS += -D_FILE_OFFSET_BITS=64
 # loops take a quarter less CPU at -O2 for about 100 KB of binary and no resident memory,
 # where -O2 on the whole build costs 4.4 MB resident. The -O2 follows -Os on the command
 # line, so it is the one GCC uses.
-ifneq ($(filter -Os,$(CXXFLAGS)),)
-$(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SCREENSAVER_SRCS)): override CXXFLAGS += -O2
+SCREENSAVER_OBJS := $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SCREENSAVER_SRCS))
+SCREENSAVER_CXXFLAGS := $(if $(filter -Os,$(CXXFLAGS)),-O2)
+ifneq ($(SCREENSAVER_CXXFLAGS),)
+$(SCREENSAVER_OBJS): override CXXFLAGS += $(SCREENSAVER_CXXFLAGS)
 endif
 
 # print-compile-command (Makefile) prints a source's command from outside its
 # object's context, where no target-specific variable reaches, so it adds these
-# from here. tests/shell/test_print_compile_command.bats fails when an object
+# and the screensaver pair above from here. tests/shell/test_print_compile_command.bats fails when an object
 # carries a target-specific CXXFLAGS this list does not repeat.
 LFS_OBJS := $(OBJ_DIR)/rendering/gcode_data_source.o $(OBJ_DIR)/system/text_io.o $(OBJ_DIR)/system/helix_fs.o
 LFS_CXXFLAGS := -D_FILE_OFFSET_BITS=64
