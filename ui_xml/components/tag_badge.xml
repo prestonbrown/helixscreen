@@ -2,16 +2,15 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <component>
-  <!-- "from tag" pill beside a value read from the spool's RFID/NFC tag.
-       Shown while the int subject is non-zero. -->
+  <!-- "from tag" pill beside a value read from the spool's RFID/NFC tag: a
+       round info status_pill in the xs font. Shown while the int subject is
+       non-zero; subject="" leaves visibility to a binding on the instance. -->
   <api>
     <prop name="subject" type="subject" default="ams_edit_tag_badge_visible"/>
   </api>
   <view name="tag_badge"
-        extends="lv_obj" width="content" height="content" style_pad_hor="#space_xs" style_pad_ver="0"
-        style_radius="9999" style_bg_color="#info" style_bg_opa="60" style_border_width="0" scrollable="false"
+        extends="status_pill" text="from tag" variant="info" radius="9999" pad_ver="0" style_text_font="#font_xs"
         clickable="false" hidden="true">
     <bind_flag_if_eq subject="$subject" flag="hidden" ref_value="0"/>
-    <text_xs text="from tag" clickable="false"/>
   </view>
 </component>

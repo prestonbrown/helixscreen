@@ -102,3 +102,19 @@ TEST_CASE_METHOD(XMLTestFixture,
     process_lvgl(10);
     CHECK_FALSE(lv_obj_is_hidden(chip));
 }
+
+TEST_CASE_METHOD(XMLTestFixture, "tag_badge: a round info pill shown while its subject is non-zero",
+                 "[status_pill]") {
+    lv_subject_t* from_tag = helix::test::xml_stand_in("status_pill_test_from_tag", 0);
+    const char* attrs[] = {"subject", "status_pill_test_from_tag", nullptr};
+    lv_obj_t* badge = make(test_screen(), "tag_badge", attrs);
+    REQUIRE(badge != nullptr);
+    CHECK(UITest::get_text(badge) == "from tag");
+    CHECK(same_color(fill_of(badge), theme_manager_get_color("info")));
+    CHECK(same_color(text_of(badge), theme_manager_get_color("info")));
+    CHECK(lv_obj_is_hidden(badge));
+
+    lv_subject_set_int(from_tag, 2);
+    process_lvgl(10);
+    CHECK_FALSE(lv_obj_is_hidden(badge));
+}
