@@ -18,6 +18,7 @@
 #include "motor_ripple_store.h"
 #include "printer_detector.h"
 #include "printer_state.h"
+#include "tool_state.h"
 #include "tools_used_cache.h"
 
 #include <spdlog/spdlog.h>
@@ -181,10 +182,19 @@ std::optional<FitMachine> current_fit_machine() {
         return std::nullopt;
     }
     AmsState& ams = AmsState::instance();
-    return fit_machine_with_live_nozzles(
+    FitMachine machine = fit_machine_with_live_nozzles(
         fit_machine_for_screen(*base, known_printer_model(state.profile_state().printer_type()),
                                ams.is_available(), ams.printable_y_shrink_mm()),
         live_nozzles(state.temperature_state()));
+    // Where tool numbers name lanes, a file's T<n> prints on the head its lane feeds.
+    const ToolState& tools = ToolState::instance();
+    if (tools.tools_are_lanes()) {
+        for (int i = 0; i < tools.tool_count(); ++i) {
+            machine.tool_extruder.push_back(
+                tool_number_for_extruder(tools.extruder_name_for_tool(i)).value_or(-1));
+        }
+    }
+    return machine;
 }
 
 uint32_t file_facts_stall_ms(const FileMetadata& metadata) {
