@@ -489,3 +489,23 @@ TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows open on the viewed unit and
     NavigationManager::instance().go_back();
     settle();
 }
+
+TEST_CASE_METHOD(UnitTypePanel, "unit type: the rows hide when the filament system goes away",
+                 "[ams][unit-type][ui_integration]") {
+    install(false);
+    auto& overlay = ui::get_ams_device_operations_overlay();
+    overlay.init_subjects();
+    overlay.show(test_screen());
+    settle();
+    lv_subject_t* available = lv_xml_get_subject(nullptr, "ams_unit_type_available");
+    REQUIRE(available != nullptr);
+    REQUIRE(lv_subject_get_int(available) == 1);
+
+    AmsState::instance().set_backend(nullptr);
+    overlay.refresh();
+    settle();
+    CHECK(lv_subject_get_int(available) == 0);
+
+    NavigationManager::instance().go_back();
+    settle();
+}
