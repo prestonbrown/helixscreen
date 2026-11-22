@@ -236,6 +236,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "dialog_frame's close X takes a full touch t
         lv_obj_get_coords(lv_obj_find_by_name(dlg, "dialog_header"), &header);
         const int32_t half = kTarget / 2 - 1;
         lv_point_t points[] = {{cx - half, cy},
+                               {cx + half, cy},
                                {cx, std::max(cy - half, header.y1)},
                                {cx, std::min(cy + half, header.y2)}};
         for (lv_point_t& p : points) {
