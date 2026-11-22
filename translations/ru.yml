@@ -5059,6 +5059,7 @@ translations:
   The curve draws in as the axis sweeps: 'Кривая строится по ходу развёртки оси'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: Лезвие не вернулось. Проверьте, не намотался ли филамент на режущий механизм
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: Резак смещён. Выполните повторную калибровку командой CALIBRATE_CUT_POS
+  The drawing shown for this unit. Automatic uses what the system reports: 'Рисунок, который показывается для этого узла. Автоматический использует то, что сообщает система'
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: Драйвер {1} перегрелся, обычно из-за слишком высокого тока мотора или недостаточного охлаждения драйверов.
   The driver for {1} reported an error, and the firmware stopped the printer.: Драйвер {1} сообщил об ошибке, и прошивка остановила принтер.
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': 'Драйвер {1} обнаружил замыкание в проводке мотора: повреждён кабель, разъём или сам мотор либо неисправен драйвер.'
@@ -5343,6 +5344,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'Верхняя крышка отключена. Для качества печати подключите её, прежде чем продолжить.'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: Блок уже выполняет другую операцию. Дождитесь её завершения или сбросьте CFS, если он завис
   The unit reported a fault with no further detail. Restart the printer if it repeats: Блок сообщил о неисправности без подробностей. Если повторится, перезапустите принтер
+  The unit whose drawing to set: 'Узел, для которого выбирается рисунок'
   The unit's onboard storage has failed. The CFS mainboard needs replacing: Встроенная память блока вышла из строя. Требуется замена материнской платы CFS
   'The unload did not start: unload by hand, then start again': 'Выгрузка не началась: выгрузите вручную и начните заново'
   The unload finishes on its own, but the plate will not move.: 'Выгрузка завершится сама, но стол не будет перемещаться.'
@@ -5707,6 +5709,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: Время удаления истекло. Скрипт мог зависнуть.
   Unit: Узел
   'Unit ': 'Узел '
+  Unit Type: 'Тип узла'
   Unit text: 'Обозначение единицы'
   'Units: %d   Boxes: %d   Dryers: %d': 'Узлы: %d   Коробки: %d   Сушилки: %d'
   Unknown: Неизвестно

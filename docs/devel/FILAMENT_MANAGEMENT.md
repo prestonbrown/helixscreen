@@ -3330,6 +3330,23 @@ The `AmsDeviceOperationsOverlay` (`ui_ams_device_operations_overlay.h`) consolid
 | Abort | `cancel()` | Cancel current operation |
 | Bypass Toggle | `enable_bypass()` / `disable_bypass()` | Toggle bypass mode (if supported) |
 
+### Unit Type
+
+A **Unit Type** card picks the drawing a unit is shown as, for setups whose backend reports
+nothing that identifies the hardware (`docs/devel/UNIT_ART.md` § "The live tray" has the
+resolver input). It holds two `setting_row`s with dropdowns bound by `bind_options`: **Unit**
+(`ams_unit_type_units` / `ams_unit_type_unit`, hidden unless `ams_unit_type_many_units`),
+which opens on the unit whose own number is `AmsState::viewed_unit()`, else the first, and **Unit Type**
+(`ams_unit_type_options` / `ams_unit_type_selected`), built by `helix::ui::unit_type_menu()`
+(`include/ams_unit_type_menu.h`): Automatic, then `tray::unit_shell_choices()` for the unit.
+The overlay keeps the identities it listed and the menu it built, and resolves a tap against
+them, so a unit arriving or moving while a dropdown is open cannot redirect the pick. The card hides (`ams_unit_type_available`) when no unit has a drawing to pick,
+as on the firmware build, which carries no unit art. A pick saves through
+`SettingsManager::set_ams_unit_drawing()` and bumps `slots_version`: the overview redraws
+its tiles, and `AmsPanel` and the overview's unit page lay their slots out again when
+`unit_art_effective_picks()` differs from the picks they laid out (checked on every bump and
+when `AmsPanel` opens). Nothing on the backend side reads the pick.
+
 ### The Bypass Toggle row: one shared policy for all three surfaces
 
 The table's last row names the backend calls, not the UI path. Three surfaces flip bypass,

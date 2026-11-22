@@ -4971,6 +4971,7 @@ translations:
   The curve draws in as the axis sweeps: 'La curva si disegna durante la scansione dell''asse'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: La lama non è rientrata. Verificare che non ci sia filamento avvolto attorno al meccanismo di taglio
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: La taglierina è disallineata. Ricalibrare con CALIBRATE_CUT_POS
+  The drawing shown for this unit. Automatic uses what the system reports: 'Il disegno mostrato per questa unità. Automatico usa ciò che il sistema riporta'
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: Il driver di {1} si è surriscaldato, di solito per una corrente di funzionamento troppo alta o un raffreddamento insufficiente dei driver.
   The driver for {1} reported an error, and the firmware stopped the printer.: Il driver di {1} ha segnalato un errore e il firmware ha fermato la stampante.
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': 'Il driver di {1} ha rilevato un cortocircuito nel cablaggio del motore: un cavo, un connettore o un motore danneggiato, oppure un driver guasto.'
@@ -5255,6 +5256,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'La copertura superiore è stata scollegata. Per garantire la qualità di stampa, ricollegala prima di continuare.'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: L'unità sta già eseguendo un'altra operazione. Attendere il completamento, oppure reimpostare il CFS se resta bloccato
   The unit reported a fault with no further detail. Restart the printer if it repeats: L'unità ha segnalato un guasto senza ulteriori dettagli. Riavviare la stampante se si ripete
+  The unit whose drawing to set: 'L''unità di cui scegliere il disegno'
   The unit's onboard storage has failed. The CFS mainboard needs replacing: La memoria interna dell'unità è guasta. La scheda madre del CFS va sostituita
   'The unload did not start: unload by hand, then start again': 'Lo scarico non è partito: scarica a mano, poi ricomincia'
   The unload finishes on its own, but the plate will not move.: 'Lo scaricamento termina da solo, ma il piano non si sposterà.'
@@ -5619,6 +5621,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: Disinstallazione scaduta. Lo script potrebbe essere bloccato.
   Unit: Unità
   'Unit ': 'Unità '
+  Unit Type: 'Tipo di unità'
   Unit text: 'Testo dell''unità'
   'Units: %d   Boxes: %d   Dryers: %d': 'Unità: %d   Scatole: %d   Essiccatori: %d'
   Unknown: Sconosciuto

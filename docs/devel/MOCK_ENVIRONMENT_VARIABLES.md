@@ -833,6 +833,7 @@ Select the mock AMS topology/type.
 | `hh_mmx` | 1 | Happy Hare on an MMX: vendor `MMX`, LINEAR (a ServoSelector), 4 lanes |
 | `hh_3ms` | 1 | Happy Hare on a 3MS: vendor `3MS`, HUB (a VirtualSelector), 4 lanes |
 | `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB (a VirtualSelector), 4 lanes |
+| `hh_other` | 1 | Happy Hare on hardware it has no vendor constant for: vendor `Other`, HUB, `HELIX_AMS_GATES` lanes. Nothing identifies the unit, so it is drawn as the generic tray until a **Unit Type** is picked in Multi-Filament System Management |
 | `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: model `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
 | `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
 | `afc_bmcu` | 1 | AFC BMCU (`BMCU BMCU_1`), HUB, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |

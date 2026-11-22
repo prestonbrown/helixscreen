@@ -87,7 +87,7 @@ const tray::UnitShell* view_shell(const helix::AmsSystemInfo& info, int unit_ind
                                   bool has_dryer) {
     if (unit_index < 0 && info.units.size() == 1)
         unit_index = 0;
-    return tray::unit_shell_for(info, unit_index, has_dryer);
+    return helix::ui::unit_art_shell_for(info, unit_index, has_dryer);
 }
 
 const tray::UnitShell* view_shell(int unit_index, bool has_dryer) {
@@ -193,7 +193,7 @@ const tray::UnitArtGeom* unit_view_art_geom(const helix::AmsSystemInfo& info, in
     const tray::UnitShell* shell = u >= 0 && u < static_cast<int>(info.units.size()) &&
                                            info.units[static_cast<size_t>(u)].slot_count == lanes &&
                                            helix::ui::unit_art_available(info, u, dryer)
-                                       ? tray::unit_shell_for(info, u, dryer)
+                                       ? helix::ui::unit_art_shell_for(info, u, dryer)
                                        : nullptr;
     const tray::UnitArtGeom* found = shell ? tray::unit_art_geometry(shell->id, lanes) : nullptr;
     return found && tray::unit_view_fits(*found) ? found : nullptr;

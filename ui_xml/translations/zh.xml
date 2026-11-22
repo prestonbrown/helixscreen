@@ -4809,6 +4809,7 @@
   <translation tag="The curve draws in as the axis sweeps" zh="曲线随轴扫描绘制"/>
   <translation tag="The cutter blade didn&apos;t return — check for filament wrapped around the cutting mechanism" zh="切刀未复位。请检查切刀机构上是否缠绕耗材"/>
   <translation tag="The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS" zh="切刀未对准。请使用 CALIBRATE_CUT_POS 重新校准"/>
+  <translation tag="The drawing shown for this unit. Automatic uses what the system reports" zh="此单元显示的图示。自动使用系统报告的内容"/>
   <translation tag="The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers." zh="{1} 的驱动过热，通常是运行电流设置过高或驱动散热不足。"/>
   <translation tag="The driver for {1} reported an error, and the firmware stopped the printer." zh="{1} 的驱动报告错误，固件已停止打印机。"/>
   <translation tag="The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver." zh="{1} 的驱动检测到电机线路短路：电机线缆、接头或电机损坏，或驱动故障。"/>
@@ -5072,6 +5073,7 @@
   <translation tag="The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing." zh="检测到顶盖已断开连接。为确保打印质量，请连接顶盖后再继续使用。"/>
   <translation tag="The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck" zh="该单元正在执行其他操作。请等待其完成；若持续卡住，请重置 CFS"/>
   <translation tag="The unit reported a fault with no further detail. Restart the printer if it repeats" zh="该单元报告了故障但无更多信息。若反复出现，请重启打印机"/>
+  <translation tag="The unit whose drawing to set" zh="要设置图示的单元"/>
   <translation tag="The unit&apos;s onboard storage has failed. The CFS mainboard needs replacing" zh="该单元的板载存储已损坏。需更换 CFS 主板"/>
   <translation tag="The unload did not start: unload by hand, then start again" zh="卸载未开始:请手动卸载,然后重新开始"/>
   <translation tag="The unload finishes on its own, but the plate will not move." zh="卸载会自行完成,但热床不会移动。"/>
@@ -5396,6 +5398,7 @@
   <translation tag="Uninstallation timed out. The script may be stuck." zh="卸载超时。脚本可能已卡住。"/>
   <translation tag="Unit" zh="单元"/>
   <translation tag="Unit " zh="单元 "/>
+  <translation tag="Unit Type" zh="单元类型"/>
   <translation tag="Unit text" zh="单位文字"/>
   <translation tag="Units: %d   Boxes: %d   Dryers: %d" zh="单元: %d   料盒: %d   干燥器: %d"/>
   <translation tag="Unknown" zh="未知"/>

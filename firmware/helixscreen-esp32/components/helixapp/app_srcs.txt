@@ -621,6 +621,7 @@ src/ui/filament/ui_clog_meter.cpp
 src/generated/ams_unit_shells_gen.cpp
 src/ui/filament/ams_tray_shell_draw.cpp
 src/ui/filament/ams_unit_shell.cpp
+src/ui/filament/ams_unit_type_menu.cpp
 src/ui/filament/ui_unit_art.cpp
 src/ui/filament/unit_art_spin.cpp
 src/ui/filament/unit_art_geometry.cpp

@@ -730,6 +730,57 @@ void SettingsManager::set_mount_feed_purge_mm(int mm) {
     config->save();
 }
 
+// A unit's picked drawing, per printer: {"<unit identity>": "<shell id>"}.
+namespace {
+constexpr const char* kAmsUnitDrawingsKey = "ams/unit_drawings";
+} // namespace
+
+std::map<std::string, std::string> SettingsManager::get_ams_unit_drawings() const {
+    std::map<std::string, std::string> out;
+    Config* config = Config::get_instance();
+    if (!config) {
+        return out;
+    }
+    const json drawings = config->get<json>(config->df() + kAmsUnitDrawingsKey, json::object());
+    if (!drawings.is_object()) {
+        return out;
+    }
+    for (auto it = drawings.begin(); it != drawings.end(); ++it) {
+        if (it.value().is_string()) {
+            out[it.key()] = json_util::as_string(it.value());
+        }
+    }
+    return out;
+}
+
+std::string SettingsManager::get_ams_unit_drawing(const std::string& unit_identity) const {
+    const auto drawings = get_ams_unit_drawings();
+    const auto it = drawings.find(unit_identity);
+    return it == drawings.end() ? std::string{} : it->second;
+}
+
+void SettingsManager::set_ams_unit_drawing(const std::string& unit_identity,
+                                           const std::string& shell_id) {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return;
+    }
+    const std::string path = config->df() + kAmsUnitDrawingsKey;
+    json drawings = config->get<json>(path, json::object());
+    if (!drawings.is_object()) {
+        drawings = json::object();
+    }
+    if (shell_id.empty()) {
+        drawings.erase(unit_identity);
+    } else {
+        drawings[unit_identity] = shell_id;
+    }
+    spdlog::info("[SettingsManager] set_ams_unit_drawing({}, {})", unit_identity,
+                 shell_id.empty() ? "automatic" : shell_id);
+    config->set<json>(path, drawings);
+    config->save();
+}
+
 // Print cost: prices are global ("/print_cost"), the printer's watts are per printer.
 namespace {
 constexpr const char* kCostRoot = "/print_cost";

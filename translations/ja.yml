@@ -4971,6 +4971,7 @@ translations:
   The curve draws in as the axis sweeps: '軸のスイープに合わせて曲線が描かれます'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: カッターの刃が戻りませんでした。切断機構にフィラメントが巻き付いていないか確認してください
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: カッターの位置がずれています。CALIBRATE_CUT_POS で再校正してください
+  The drawing shown for this unit. Automatic uses what the system reports: 'このユニットに表示する図。自動はシステムの報告に従います'
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: '{1} のドライバーが過熱しました。通常、run current の設定が高すぎるか、ドライバーの冷却不足が原因です。'
   The driver for {1} reported an error, and the firmware stopped the printer.: '{1} のドライバーがエラーを報告したため、ファームウェアがプリンターを停止しました。'
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': '{1} のドライバーがモーター配線のショートを検出しました: モーターケーブル、コネクター、モーターの損傷、またはドライバーの故障です。'
@@ -5255,6 +5256,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'トップカバーが外れました。印刷品質のため、続行する前にトップカバーを接続してください。'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: ユニットは既に別の処理を実行中です。完了を待つか、固まったままの場合は CFS をリセットしてください
   The unit reported a fault with no further detail. Restart the printer if it repeats: ユニットが詳細不明の障害を報告しました。繰り返す場合はプリンターを再起動してください
+  The unit whose drawing to set: '図を設定するユニット'
   The unit's onboard storage has failed. The CFS mainboard needs replacing: ユニットの内蔵ストレージが故障しました。CFS のメインボードの交換が必要です
   'The unload did not start: unload by hand, then start again': '排出が始まりませんでした: 手で排出してから、もう一度始めてください'
   The unload finishes on its own, but the plate will not move.: '排出はそのまま完了しますが、ベッドは移動しません。'
@@ -5619,6 +5621,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: アンインストールがタイムアウトしました。スクリプトが停止している可能性があります。
   Unit: ユニット
   'Unit ': 'ユニット '
+  Unit Type: 'ユニットの種類'
   Unit text: '単位の表示'
   'Units: %d   Boxes: %d   Dryers: %d': 'ユニット: %d   ボックス: %d   ドライヤー: %d'
   Unknown: 不明

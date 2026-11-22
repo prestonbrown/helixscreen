@@ -21,8 +21,10 @@
 
 #include <chrono>
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
 #include <vector>
 
 /**
@@ -220,6 +222,9 @@ class AmsPanel : public PanelBase {
     ObserverGuard endless_status_observer_;
     int endless_status_shown_ = -1; ///< whether that line showed at the last layout; -1 unknown
     bool slot_creation_pending_ = false; ///< Coalesces rapid slot count changes
+    /// The picks that took effect (helix::ui::unit_art_effective_picks) when the slots were laid
+    /// out: a change lays them out again, since the drawing decides where the spools stand.
+    std::map<std::string, std::string> laid_out_drawings_;
     bool open_ = false; ///< Pushed and not yet closed; a closed panel's observers wait
     /// Opened while the backend reported one unit. A backend that reports its units one at a
     /// time (multiACE's ACEs arrive after the SnapSwap) can turn that into several while the
@@ -228,6 +233,8 @@ class AmsPanel : public PanelBase {
     bool overview_handoff_queued_ = false;
     /// Hands the panel to the overview once the units it was opened for have become several.
     void hand_off_if_multi_unit(const helix::AmsSystemInfo& info);
+    /// Whether the user's unit drawings differ from those the slots were laid out for.
+    [[nodiscard]] bool drawings_changed(const helix::AmsSystemInfo& info) const;
     bool path_update_pending_ = false; ///< Coalesces rapid path state changes
 
     // === Dynamic Slot State ===

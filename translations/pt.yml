@@ -4971,6 +4971,7 @@ translations:
   The curve draws in as the axis sweeps: 'A curva é desenhada durante a varredura do eixo'
   The cutter blade didn't return — check for filament wrapped around the cutting mechanism: A lâmina não retornou. Verifique se há filamento enrolado no mecanismo de corte
   The cutter is out of alignment — recalibrate with CALIBRATE_CUT_POS: O cortador está desalinhado. Recalibre com CALIBRATE_CUT_POS
+  The drawing shown for this unit. Automatic uses what the system reports: 'O desenho mostrado para esta unidade. Automático usa o que o sistema informa'
   The driver for {1} got too hot, usually from a run current set too high or too little cooling over the drivers.: O driver de {1} esquentou demais, geralmente por uma corrente de operação alta demais ou pouco resfriamento sobre os drivers.
   The driver for {1} reported an error, and the firmware stopped the printer.: O driver de {1} relatou um erro, e o firmware parou a impressora.
   'The driver for {1} saw a short in the motor wiring: a damaged motor cable, connector or motor, or a failed driver.': 'O driver de {1} detectou um curto na fiação do motor: um cabo, conector ou motor danificado, ou um driver com defeito.'
@@ -5255,6 +5256,7 @@ translations:
   The top cover has been disconnected. To ensure print quality, reconnect the top cover before continuing.: 'A cobertura superior foi desligada. Para garantir a qualidade de impressão, volte a ligá-la antes de continuar.'
   The unit is already running another operation. Wait for it to finish, or reset the CFS if it stays stuck: A unidade já está executando outra operação. Aguarde a conclusão, ou reinicie o CFS se ele continuar travado
   The unit reported a fault with no further detail. Restart the printer if it repeats: A unidade relatou uma falha sem mais detalhes. Reinicie a impressora se repetir
+  The unit whose drawing to set: 'A unidade cujo desenho definir'
   The unit's onboard storage has failed. The CFS mainboard needs replacing: O armazenamento interno da unidade falhou. A placa-mãe do CFS precisa ser substituída
   'The unload did not start: unload by hand, then start again': 'A descarga não começou: descarregue à mão e comece de novo'
   The unload finishes on its own, but the plate will not move.: 'A descarga termina sozinha, mas a mesa não vai se mover.'
@@ -5619,6 +5621,7 @@ translations:
   Uninstallation timed out. The script may be stuck.: A desinstalação — tempo esgotado. O script pode estar travado.
   Unit: Unidade
   'Unit ': 'Unidade '
+  Unit Type: 'Tipo de unidade'
   Unit text: 'Texto da unidade'
   'Units: %d   Boxes: %d   Dryers: %d': 'Unidades: %d   Caixas: %d   Secadores: %d'
   Unknown: Desconhecido

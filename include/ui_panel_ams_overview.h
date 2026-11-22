@@ -19,6 +19,7 @@
 #include "display_numbering.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -280,6 +281,9 @@ class AmsOverviewPanel : public PanelBase {
     static constexpr int kMaxRelayoutPasses = helix::ui::kAmsDetailMaxRelayoutPasses;
     int relayout_passes_ = 0; ///< how deep create_detail_slots() is in laying a unit out again
     int shown_unit_pos_ = -1; ///< Position in AmsSystemInfo::units of the unit on screen
+    /// The picks that took effect (helix::ui::unit_art_effective_picks) when the unit view was
+    /// laid out.
+    std::map<std::string, std::string> laid_out_drawings_;
 
     // === Pages ===
     std::vector<helix::ui::UnitPage> pages_;

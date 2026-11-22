@@ -241,6 +241,10 @@ class AmsState {
     /// `ams_viewed_unit_disconnected` describes it. Works for any unit index,
     /// not only those below kMaxUnits. Main thread only.
     void set_viewed_unit(int unit_index);
+    /// The unit set_viewed_unit() last named, or -1.
+    [[nodiscard]] int viewed_unit() const {
+        return viewed_unit_;
+    }
 
     /// @name Unit paging
     /// What the overview's unit view shows: which page of how many, and the unit on it.

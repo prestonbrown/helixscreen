@@ -21,6 +21,8 @@
 #include "ams_spool_retention.h"
 #include "ams_state.h"
 #include "ams_types.h"
+#include "ams_unit_shell.h"
+#include "ams_unit_type_menu.h"
 #include "core/observer_factory.h"
 #include "core/static_panel_registry.h"
 #include "display_numbering.h"
@@ -97,6 +99,17 @@ void AmsDeviceOperationsOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_STRING(details_subject_, details_buf_, "", "ams_device_ops_details",
                                   subjects_);
         UI_MANAGED_SUBJECT_INT(has_details_subject_, 0, "ams_device_ops_has_details", subjects_);
+
+        UI_MANAGED_SUBJECT_STRING(unit_type_units_subject_, unit_type_units_buf_, "",
+                                  "ams_unit_type_units", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_type_unit_subject_, 0, "ams_unit_type_unit", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_type_many_units_subject_, 0, "ams_unit_type_many_units",
+                               subjects_);
+        UI_MANAGED_SUBJECT_STRING(unit_type_options_subject_, unit_type_options_buf_, "",
+                                  "ams_unit_type_options", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_type_selected_subject_, 0, "ams_unit_type_selected", subjects_);
+        UI_MANAGED_SUBJECT_INT(unit_type_available_subject_, 0, "ams_unit_type_available",
+                               subjects_);
     });
 }
 
@@ -202,6 +215,18 @@ void AmsDeviceOperationsOverlay::register_callbacks() {
         {"on_ams_tag_links_spoolman_toggled",
          [](lv_event_t* e) {
              SettingsManager::instance().set_ams_tag_links_spoolman(event_checked(e));
+         }},
+        {"on_ams_unit_type_unit_changed",
+         [](lv_event_t* e) {
+             auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             get_ams_device_operations_overlay().on_unit_type_unit_picked(
+                 static_cast<int>(lv_dropdown_get_selected(dropdown)));
+         }},
+        {"on_ams_unit_type_changed",
+         [](lv_event_t* e) {
+             auto* dropdown = static_cast<lv_obj_t*>(lv_event_get_current_target(e));
+             get_ams_device_operations_overlay().on_unit_type_picked(
+                 static_cast<int>(lv_dropdown_get_selected(dropdown)));
          }},
         {"on_ams_force_bypass_controls_toggled",
          [](lv_event_t* e) {
@@ -339,6 +364,92 @@ std::vector<DeviceDetailRow> ams_device_detail_rows(const AmsSystemInfo& info) {
     return rows;
 }
 
+namespace {
+/// Set @p subject to @p value, notifying even when it already holds it: a dropdown whose
+/// options were just replaced shows their first entry until its value is announced again.
+void set_int_and_notify(lv_subject_t* subject, int value) {
+    if (lv_subject_get_int(subject) == value) {
+        lv_subject_notify(subject);
+    } else {
+        lv_subject_set_int(subject, value);
+    }
+}
+} // namespace
+
+void AmsDeviceOperationsOverlay::update_unit_type(const AmsSystemInfo* info) {
+    if (!subjects_initialized_) {
+        return;
+    }
+    const int units = info ? static_cast<int>(info->units.size()) : 0;
+    bool any_choices = false;
+    std::string names;
+    unit_type_units_.clear();
+    for (int i = 0; i < units; ++i) {
+        const AmsUnit& unit = info->units[static_cast<size_t>(i)];
+        any_choices = any_choices || !tray::unit_shell_choices(unit).empty();
+        names += (i ? "\n" : "") + unit_display_name(unit, i);
+        unit_type_units_.push_back(ams_unit_identity(unit));
+    }
+    lv_subject_set_int(&unit_type_available_subject_, any_choices ? 1 : 0);
+    lv_subject_set_int(&unit_type_many_units_subject_, units > 1 ? 1 : 0);
+    if (!any_choices) {
+        unit_type_identity_.clear();
+        unit_type_menu_ = {};
+        return;
+    }
+    // The unit the rows set, by identity: a unit that moved keeps them, one that left gives
+    // them to the viewed unit (by its own number, which need not be its position), else the
+    // first.
+    int pos = -1;
+    for (int i = 0; i < units && pos < 0; ++i) {
+        if (unit_type_units_[static_cast<size_t>(i)] == unit_type_identity_)
+            pos = i;
+    }
+    const int viewed = AmsState::instance().viewed_unit();
+    for (int i = 0; i < units && pos < 0; ++i) {
+        if (viewed >= 0 && info->units[static_cast<size_t>(i)].unit_index == viewed)
+            pos = i;
+    }
+    pos = std::max(pos, 0);
+    unit_type_identity_ = unit_type_units_[static_cast<size_t>(pos)];
+
+    snprintf(unit_type_units_buf_, sizeof(unit_type_units_buf_), "%s", names.c_str());
+    lv_subject_set_string(&unit_type_units_subject_, unit_type_units_buf_);
+    set_int_and_notify(&unit_type_unit_subject_, pos);
+
+    const AmsUnit& unit = info->units[static_cast<size_t>(pos)];
+    unit_type_menu_ =
+        unit_type_menu(unit, SettingsManager::instance().get_ams_unit_drawing(unit_type_identity_),
+                       lv_tr("Automatic"));
+    snprintf(unit_type_options_buf_, sizeof(unit_type_options_buf_), "%s",
+             unit_type_menu_.options.c_str());
+    lv_subject_set_string(&unit_type_options_subject_, unit_type_options_buf_);
+    set_int_and_notify(&unit_type_selected_subject_, unit_type_menu_.selected);
+}
+
+void AmsDeviceOperationsOverlay::on_unit_type_unit_picked(int option) {
+    AmsBackend* backend = AmsState::instance().get_backend();
+    if (!backend || option < 0 || option >= static_cast<int>(unit_type_units_.size())) {
+        return;
+    }
+    // The option names the unit as the dropdown listed it, whatever has moved since.
+    unit_type_identity_ = unit_type_units_[static_cast<size_t>(option)];
+    const AmsSystemInfo info = backend->get_system_info();
+    update_unit_type(&info);
+}
+
+void AmsDeviceOperationsOverlay::on_unit_type_picked(int option) {
+    if (unit_type_identity_.empty()) {
+        return;
+    }
+    // Resolved against the menu on screen and the unit it was built for, not a fresh reading:
+    // units can arrive or reorder while the dropdown is open.
+    SettingsManager::instance().set_ams_unit_drawing(
+        unit_type_identity_, unit_type_menu_choice(unit_type_menu_, option));
+    // Every unit picture redraws from the new pick.
+    AmsState::instance().bump_slots_version();
+}
+
 void AmsDeviceOperationsOverlay::refresh() {
     if (!overlay_) {
         return;
@@ -384,6 +495,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
         lv_subject_set_int(&has_details_subject_, 0);
         system_info_buf_[0] = '\0';
         lv_subject_set_string(&system_info_subject_, system_info_buf_);
+        update_unit_type(nullptr);
 
         if (section_list_container_) {
             helix::ui::safe_clean_children(section_list_container_); // [L081]
@@ -398,6 +510,7 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
 
     // Query capabilities
     auto info = backend->get_system_info();
+    update_unit_type(&info);
 
     // System info line (e.g. "System: AFC · v1.2.3")
     if (info.version.empty() || info.version == "unknown") {

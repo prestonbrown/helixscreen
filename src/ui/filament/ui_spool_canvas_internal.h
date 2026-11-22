@@ -8,6 +8,7 @@
 #include "lvgl/lvgl.h"
 #include "spool_spin.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
@@ -59,5 +60,14 @@ SpoolCanvasData* spool_canvas_data(lv_obj_t* obj);
 
 /// Paint the spool's pixels; false when the draw buffer is unavailable.
 bool redraw_spool_pixels(SpoolCanvasData* data);
+
+/// The most bytes of rendered spools the render cache keeps. Where spools turn,
+/// it holds a full turn of a large tray spool (24 vent phases of 36 KB at 96 px)
+/// beside a screen of still ones; where they never turn (@p reduced_effects), only
+/// a few still renders, since every canvas keeps its own pixels.
+size_t spool_render_cache_budget(bool reduced_effects);
+
+/// Bytes of rendered pixels the render cache holds now.
+size_t spool_render_cache_bytes();
 
 } // namespace helix::ui

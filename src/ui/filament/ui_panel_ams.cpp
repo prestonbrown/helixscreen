@@ -24,6 +24,7 @@
 #include "ui_panel_common.h"
 #include "ui_side_band.h"
 #include "ui_spool_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -193,9 +194,19 @@ void AmsPanel::init_subjects() {
             if (!self->open_ || !self->subjects_initialized_ || !self->panel_)
                 return;
             spdlog::trace("[AmsPanel] Gates version changed - refreshing slots");
-            if (const auto info = AmsState::instance().system_info())
+            const auto info = AmsState::instance().system_info();
+            if (info)
                 self->hand_off_if_multi_unit(*info);
             self->refresh_slots();
+            if (info && !self->slot_creation_pending_ && self->current_slot_count_ > 0 &&
+                self->drawings_changed(*info)) {
+                self->slot_creation_pending_ = true;
+                self->object_lifetime_.defer("AmsPanel::drawing_relayout", [self]() {
+                    self->slot_creation_pending_ = false;
+                    if (self->open_ && self->current_slot_count_ > 0)
+                        self->create_slots(self->current_slot_count_);
+                });
+            }
         },
         AmsState::instance().get_subjects_lifetime());
 
@@ -526,7 +537,9 @@ void AmsPanel::on_activate() {
     AmsState::instance().sync_from_backend();
 
     int slot_count = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
-    if (slot_count != current_slot_count_) {
+    const auto activated_info = AmsState::instance().system_info();
+    if (slot_count != current_slot_count_ ||
+        (activated_info && current_slot_count_ > 0 && drawings_changed(*activated_info))) {
         create_slots(slot_count);
     }
 
@@ -732,6 +745,10 @@ void AmsPanel::setup_slots() {
                   get_name());
 }
 
+bool AmsPanel::drawings_changed(const AmsSystemInfo& info) const {
+    return helix::ui::unit_art_effective_picks(info) != laid_out_drawings_;
+}
+
 void AmsPanel::create_slots(int count) {
     (void)count; // Slot count determined by shared helper from backend
 
@@ -742,6 +759,8 @@ void AmsPanel::create_slots(int count) {
     ams_detail_pre_show_env_indicator(detail_widgets_, kAllUnits);
 
     // Create new slots
+    if (const auto info = AmsState::instance().system_info())
+        laid_out_drawings_ = helix::ui::unit_art_effective_picks(*info);
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, kMaxVisibleSlots,
                                           kAllUnits, on_slot_clicked, this);
 

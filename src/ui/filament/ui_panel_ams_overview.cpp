@@ -22,6 +22,7 @@
 #include "ui_side_band.h"
 #include "ui_spool_canvas.h"
 #include "ui_system_path_canvas.h"
+#include "ui_unit_art.h"
 #include "ui_utils.h"
 #include "ui_widget_ref.h"
 
@@ -391,13 +392,6 @@ void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
 
 namespace {
 
-/// A unit's identity across rebuilds: its name, or its first slot when it has none. The
-/// position in the backend's list is not stable, and neither is the slot a unit starts at
-/// when a backend that sorts its units gains one.
-std::string unit_key(const AmsUnit& unit) {
-    return unit.name.empty() ? "#" + std::to_string(unit.first_slot_global_index) : unit.name;
-}
-
 /// What makes two page lists the same screen: the same units in the same order, grouped the
 /// same way. The drying flags are not part of it; they only repaint the stubs.
 bool same_page_structure(const std::vector<helix::ui::UnitPage>& a,
@@ -444,7 +438,7 @@ void AmsOverviewPanel::sync_pages(bool reopen, int focus_unit) {
     std::vector<std::string> units;
     units.reserve(pages.size());
     for (const auto& p : pages)
-        units.push_back(unit_key(info.units[p.unit_index]));
+        units.push_back(helix::ams_unit_identity(info.units[p.unit_index]));
 
     int target = focus_unit >= 0 ? helix::ui::page_of_unit(pages, focus_unit) : -1;
     if (target < 0 && reopen) {
@@ -485,7 +479,7 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
         return;
     const AmsUnit& unit = info.units[page.unit_index];
 
-    const std::string key = unit_key(unit);
+    const std::string key = helix::ams_unit_identity(unit);
     const bool new_unit = key != shown_unit_key_;
     shown_unit_key_ = key;
     shown_unit_pos_ = page.unit_index;
@@ -499,7 +493,9 @@ void AmsOverviewPanel::show_current_page(const AmsSystemInfo& info, bool relayou
     ams.set_unit_page_header(helix::ui::unit_display_name(unit, page.unit_index), logo.path,
                              logo.color);
 
-    if (relayout || new_unit || detail_slot_count_ != std::min(unit.slot_count, kMaxDetailSlots)) {
+    // A new drawing pick moves the spools, so it lays the page out again too.
+    if (relayout || new_unit || detail_slot_count_ != std::min(unit.slot_count, kMaxDetailSlots) ||
+        helix::ui::unit_art_effective_picks(info) != laid_out_drawings_) {
         create_detail_slots(info, page.unit_index);
     }
     helix::ui::ams_detail_sync_slot_states(detail_slot_widgets_, detail_slot_count_, info);
@@ -749,6 +745,7 @@ void AmsOverviewPanel::create_detail_slots(const AmsSystemInfo& info, int unit_p
 
     // The environment readout is keyed on the unit's own number.
     ams_detail_pre_show_env_indicator(detail_widgets_, info.units[unit_pos].unit_index);
+    laid_out_drawings_ = helix::ui::unit_art_effective_picks(info);
 
     auto result = ams_detail_create_slots(detail_widgets_, detail_slot_widgets_, kMaxDetailSlots,
                                           unit_pos, on_detail_slot_clicked, this);

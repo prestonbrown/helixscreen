@@ -27,6 +27,7 @@
 #include <array>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -121,8 +122,12 @@ static inline float fast_sqrt_01(float x) {
 // size). Rendering a 64x64 spool costs ~10 gradient-fill scanline loops; a
 // cache hit collapses that to a single memcpy (~16KB). Fill level is bucketed
 // into 10% steps — visually indistinguishable at this scale, and it keeps the
-// working set small while scrolling a list of many spools.
-static constexpr size_t kCacheMaxEntries = 128;
+// working set small while scrolling a list of many spools. The cache is bounded
+// by bytes (spool_render_cache_budget): a canvas keeps its own pixels, so an
+// unchanged spool never needs it, and the entries it holds are only states a
+// canvas may return to.
+static constexpr size_t kCacheBudgetBytes = 2u * 1024u * 1024u;
+static constexpr size_t kCacheBudgetReducedBytes = 256u * 1024u;
 static constexpr int kFillBuckets = 10;
 // At or below this the spool is drawn empty: no filament, its bare core.
 // Bucket 0 holds only empty spools, since they render differently from the
@@ -150,6 +155,15 @@ using SpoolCacheIndex =
 
 static SpoolCacheList s_cache_list;
 static SpoolCacheIndex s_cache_index;
+static size_t s_cache_bytes = 0;
+
+size_t helix::ui::spool_render_cache_budget(bool reduced_effects) {
+    return reduced_effects ? kCacheBudgetReducedBytes : kCacheBudgetBytes;
+}
+
+size_t helix::ui::spool_render_cache_bytes() {
+    return s_cache_bytes;
+}
 
 static uint8_t compute_fill_bucket(float fill) {
     float clamped = fill < 0.0f ? 0.0f : (fill > 1.0f ? 1.0f : fill);
@@ -172,17 +186,21 @@ static const SpoolCacheEntry* cache_get(const SpoolCacheKey& key) {
     return &(*it->second);
 }
 
+static void cache_erase(SpoolCacheList::iterator it) {
+    s_cache_bytes -= it->pixels.size();
+    s_cache_index.erase(it->key);
+    s_cache_list.erase(it);
+}
+
 static void cache_put(const SpoolCacheKey& key, std::vector<uint8_t>&& pixels) {
-    auto idx_it = s_cache_index.find(key);
-    if (idx_it != s_cache_index.end()) {
-        idx_it->second->pixels = std::move(pixels);
-        s_cache_list.splice(s_cache_list.begin(), s_cache_list, idx_it->second);
+    if (auto idx_it = s_cache_index.find(key); idx_it != s_cache_index.end())
+        cache_erase(idx_it->second);
+    const size_t budget = helix::ui::spool_render_cache_budget(helix::ui::reduced_effects());
+    if (pixels.size() > budget)
         return;
-    }
-    if (s_cache_list.size() >= kCacheMaxEntries) {
-        s_cache_index.erase(s_cache_list.back().key);
-        s_cache_list.pop_back();
-    }
+    while (!s_cache_list.empty() && s_cache_bytes + pixels.size() > budget)
+        cache_erase(std::prev(s_cache_list.end()));
+    s_cache_bytes += pixels.size();
     s_cache_list.push_front({key, std::move(pixels)});
     s_cache_index[key] = s_cache_list.begin();
 }
@@ -1302,6 +1320,7 @@ lv_color_t ui_spool_canvas_get_color(lv_obj_t* canvas) {
 void ui_spool_canvas_invalidate_cache(void) {
     s_cache_list.clear();
     s_cache_index.clear();
+    s_cache_bytes = 0;
     clear_glow_cache();
     s_registry.for_each([](lv_obj_t* /*canvas*/, SpoolCanvasData* data) {
         if (data) {

@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <atomic>
 #include <iterator>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -744,6 +745,14 @@ class SettingsManager {
     lv_subject_t* subject_ams_force_bypass_controls() {
         return settings_.subject(Key::AmsForceBypassControls);
     }
+
+    /// The drawing this printer's user picked for the unit whose identity is @p unit_identity
+    /// (helix::ams_unit_identity): a unit shell id, or empty for detection.
+    std::string get_ams_unit_drawing(const std::string& unit_identity) const;
+    /// Every unit drawing this printer's user picked, by unit identity, in one read.
+    std::map<std::string, std::string> get_ams_unit_drawings() const;
+    /// Save @p shell_id as the unit's drawing on this printer; empty returns it to detection.
+    void set_ams_unit_drawing(const std::string& unit_identity, const std::string& shell_id);
 
     // =========================================================================
     // POST-OP COOLDOWN (owned by SettingsManager — per-printer filament behavior)

@@ -11,10 +11,12 @@
  * the active gate. A unit with no matching art hides the widget.
  */
 
+#include "ams_unit_shell.h"
 #include "lvgl/lvgl.h"
 #include "spool_spin.h"
 
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -66,6 +68,19 @@ std::string unit_art_base_stem(const tray::UnitShell& shell, int lanes, UnitArtT
 
 /// What one bay shows.
 UnitArtLane unit_art_lane(const SlotInfo& slot);
+
+/// The drawing this printer's user picked for each of @p info's units (Settings > Multi-Filament
+/// System Management > Unit Type), as the resolver takes them. Every unit picture reads it.
+tray::ShellChoices unit_art_choices(const AmsSystemInfo& info);
+
+/// The picks that take effect, by unit identity: a unit whose pick the resolver draws. A
+/// screen laid out for one set lays itself out again when the set changes; units coming,
+/// going or reordering with no pick in play change nothing.
+std::map<std::string, std::string> unit_art_effective_picks(const AmsSystemInfo& info);
+
+/// The shell unit @p unit_index is drawn with: the user's pick, else detection.
+const tray::UnitShell* unit_art_shell_for(const AmsSystemInfo& info, int unit_index,
+                                          bool has_dryer = false);
 
 /// What a picture shows: the one unit, or the whole device it is part of. They differ only for
 /// a device a backend reports as several units (tray::device_shell_for).
