@@ -99,8 +99,8 @@
     <px name="ams_edit_preview_h_large" value="28"/>
     <!-- The most color swatches the Filament page builds, AmsEditOverlay's cap
          too: every color it can offer (12 recents and the 60-color filament
-         palette), which is also about what fits at 800x480 with nothing below
-         the colors (13 across, 6 lines, less the dot and the rainbow tile). -->
+         palette). The page shows as many as fit, far fewer at the
+         Filament page's swatch size. -->
     <int name="ams_edit_swatch_cap" value="72"/>
     <!-- The spool tiles a new spool starts from: spool_assign::kSpoolTiles. -->
     <int name="ams_edit_spool_tiles" value="12"/>
@@ -114,11 +114,31 @@
     <px name="ams_edit_label_w_small" value="88"/>
     <px name="ams_edit_label_w_medium" value="104"/>
     <px name="ams_edit_label_w_large" value="124"/>
-    <px name="ams_edit_label_pad_micro" value="6"/>
-    <px name="ams_edit_label_pad_tiny" value="8"/>
-    <px name="ams_edit_label_pad_small" value="10"/>
-    <px name="ams_edit_label_pad_medium" value="12"/>
-    <px name="ams_edit_label_pad_large" value="12"/>
+    <px name="ams_edit_label_pad_micro" value="9"/>
+    <px name="ams_edit_label_pad_tiny" value="10"/>
+    <px name="ams_edit_label_pad_small" value="16"/>
+    <px name="ams_edit_label_pad_medium" value="20"/>
+    <px name="ams_edit_label_pad_large" value="23"/>
+    <!-- The Filament page's color swatches: fewer and larger than the color
+         picker's dense grid, each a finger target. Size plus twice the hit
+         reach is touch_target_min or more, and the gap is twice the hit, so
+         neighbors' touch areas meet without overlapping. The color row pads
+         by the hit reach so the outer swatches are hit-testable to the edge. -->
+    <px name="ams_edit_swatch_size_micro" value="40"/>
+    <px name="ams_edit_swatch_size_tiny" value="40"/>
+    <px name="ams_edit_swatch_size_small" value="44"/>
+    <px name="ams_edit_swatch_size_medium" value="48"/>
+    <px name="ams_edit_swatch_size_large" value="52"/>
+    <px name="ams_edit_swatch_gap_micro" value="10"/>
+    <px name="ams_edit_swatch_gap_tiny" value="10"/>
+    <px name="ams_edit_swatch_gap_small" value="12"/>
+    <px name="ams_edit_swatch_gap_medium" value="12"/>
+    <px name="ams_edit_swatch_gap_large" value="14"/>
+    <px name="ams_edit_swatch_hit_micro" value="5"/>
+    <px name="ams_edit_swatch_hit_tiny" value="5"/>
+    <px name="ams_edit_swatch_hit_small" value="6"/>
+    <px name="ams_edit_swatch_hit_medium" value="6"/>
+    <px name="ams_edit_swatch_hit_large" value="7"/>
     <!-- ↺'s hit reach: #button_height_sm plus twice this is 44 or more. -->
     <px name="ams_edit_tag_hit_micro" value="10"/>
     <px name="ams_edit_tag_hit_tiny" value="8"/>
@@ -133,9 +153,6 @@
     <px name="ams_edit_lane_dd_w_large" value="240"/>
   </consts>
   <styles>
-    <!-- The color row pads by its swatches' reach so the outer ones are
-         hit-testable. -->
-    <style name="color_row_pad" pad_all="#swatch_grid_gap_half"/>
     <!-- A full-width row that opens another page: card-toned, pressable. -->
     <style name="nav_row"
            bg_color="#elevated_bg" bg_opa="255" radius="#border_radius" border_width="0" pad_hor="#space_sm"
@@ -550,19 +567,22 @@
                  under the count, so they wrap with the dots and the rainbow
                  tile ends the last line. -->
             <lv_obj name="color_row"
-                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#swatch_grid_gap"
-                    style_flex_cross_place="center" scrollable="false">
-              <style name="color_row_pad"/>
-              <ams_edit_color_dots name="color_dots" hide_add="true"/>
+                    width="100%" height="content" flex_flow="row_wrap" style_pad_gap="#ams_edit_swatch_gap"
+                    style_pad_all="#ams_edit_swatch_hit" style_flex_cross_place="center" scrollable="false">
+              <ams_edit_color_dots name="color_dots"
+                                   hide_add="true" size="#ams_edit_swatch_size" hit="#ams_edit_swatch_hit"
+                                   gap="#ams_edit_swatch_gap"/>
               <repeat count="#ams_edit_swatch_cap">
                 <color_swatch index="${i}"
                               color_subject="ams_edit_recent_${i}" callback="ams_edit_recent_cb"
-                              size="#swatch_grid_size" hit="#swatch_grid_gap_half" reach="#swatch_grid_ring_reach"
+                              size="#ams_edit_swatch_size" hit="#ams_edit_swatch_hit" reach="#swatch_grid_ring_reach"
                               ring="styles.grid_swatch_ring">
                   <bind_flag_if cond="ams_edit_recent_count le ${i}" flag="hidden"/>
                 </color_swatch>
               </repeat>
-              <custom_color_swatch name="btn_all_colors" icon="palette" callback="ams_edit_color_page_cb"/>
+              <custom_color_swatch name="btn_all_colors"
+                                   icon="palette" callback="ams_edit_color_page_cb" size="#ams_edit_swatch_size"
+                                   hit="#ams_edit_swatch_hit"/>
             </lv_obj>
           </lv_obj>
         </lv_obj>
