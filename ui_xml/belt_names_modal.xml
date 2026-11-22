@@ -55,34 +55,24 @@
       <!-- settings_belt_layout: helix::calibration::BeltLayout -->
       <lv_obj width="100%"
               height="content" style_pad_all="0" flex_flow="column" style_pad_row="#space_xs" scrollable="false">
-        <ui_button name="btn_layout_0" width="100%" height="#button_height_sm" text="Not set" long_mode="dots">
-          <bind_style name="styles.choice_fill_selected" subject="settings_belt_layout" ref_value="0"/>
-          <bind_style_if name="styles.choice_fill_idle" cond="settings_belt_layout ne 0"/>
-          <event_cb trigger="clicked" callback="belt_names_layout_cb" user_data="0"/>
-        </ui_button>
+        <choice_button name="btn_layout_0"
+                       width="100%" height="#button_height_sm" text="Not set" long_mode="dots"
+                       subject="settings_belt_layout" value="0" callback="belt_names_layout_cb" user_data="0"/>
         <!-- The four pairings, two to a row: each row is one axis's two readings. -->
         <responsive_grid min_col_width="#belt_layout_choice_min"
                          max_cols="2" style_pad_row="#space_xs" style_pad_column="#space_xs">
-          <ui_button name="btn_layout_1" height="#button_height_sm" text="A left, B right" long_mode="dots">
-            <bind_style name="styles.choice_fill_selected" subject="settings_belt_layout" ref_value="1"/>
-            <bind_style_if name="styles.choice_fill_idle" cond="settings_belt_layout ne 1"/>
-            <event_cb trigger="clicked" callback="belt_names_layout_cb" user_data="1"/>
-          </ui_button>
-          <ui_button name="btn_layout_2" height="#button_height_sm" text="A right, B left" long_mode="dots">
-            <bind_style name="styles.choice_fill_selected" subject="settings_belt_layout" ref_value="2"/>
-            <bind_style_if name="styles.choice_fill_idle" cond="settings_belt_layout ne 2"/>
-            <event_cb trigger="clicked" callback="belt_names_layout_cb" user_data="2"/>
-          </ui_button>
-          <ui_button name="btn_layout_3" height="#button_height_sm" text="A upper, B lower" long_mode="dots">
-            <bind_style name="styles.choice_fill_selected" subject="settings_belt_layout" ref_value="3"/>
-            <bind_style_if name="styles.choice_fill_idle" cond="settings_belt_layout ne 3"/>
-            <event_cb trigger="clicked" callback="belt_names_layout_cb" user_data="3"/>
-          </ui_button>
-          <ui_button name="btn_layout_4" height="#button_height_sm" text="A lower, B upper" long_mode="dots">
-            <bind_style name="styles.choice_fill_selected" subject="settings_belt_layout" ref_value="4"/>
-            <bind_style_if name="styles.choice_fill_idle" cond="settings_belt_layout ne 4"/>
-            <event_cb trigger="clicked" callback="belt_names_layout_cb" user_data="4"/>
-          </ui_button>
+          <choice_button name="btn_layout_1"
+                         height="#button_height_sm" text="A left, B right" long_mode="dots"
+                         subject="settings_belt_layout" value="1" callback="belt_names_layout_cb" user_data="1"/>
+          <choice_button name="btn_layout_2"
+                         height="#button_height_sm" text="A right, B left" long_mode="dots"
+                         subject="settings_belt_layout" value="2" callback="belt_names_layout_cb" user_data="2"/>
+          <choice_button name="btn_layout_3"
+                         height="#button_height_sm" text="A upper, B lower" long_mode="dots"
+                         subject="settings_belt_layout" value="3" callback="belt_names_layout_cb" user_data="3"/>
+          <choice_button name="btn_layout_4"
+                         height="#button_height_sm" text="A lower, B upper" long_mode="dots"
+                         subject="settings_belt_layout" value="4" callback="belt_names_layout_cb" user_data="4"/>
         </responsive_grid>
       </lv_obj>
     </dialog_frame-body>

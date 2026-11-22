@@ -140,30 +140,24 @@
       <text_small text="Length:">
         <bind_flag_if_lt subject="ui_breakpoint" flag="hidden" ref_value="2"/>
       </text_small>
-      <ui_button name="extrude_length_0"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="0"/>
-        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="0"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_0"/>
+      <choice_button name="extrude_length_0"
+                     height="$length_height" flex_grow="1" bind_text="settings_extrude_length_0" bind_text-fmt="%dmm"
+                     style_text_font="#font_small" subject="filament_extrude_length_index" value="0"
+                     callback="on_filament_extrude_length_0">
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_0_hold"/>
-      </ui_button>
-      <ui_button name="extrude_length_1"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="1"/>
-        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="1"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_1"/>
+      </choice_button>
+      <choice_button name="extrude_length_1"
+                     height="$length_height" flex_grow="1" bind_text="settings_extrude_length_1" bind_text-fmt="%dmm"
+                     style_text_font="#font_small" subject="filament_extrude_length_index" value="1"
+                     callback="on_filament_extrude_length_1">
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_1_hold"/>
-      </ui_button>
-      <ui_button name="extrude_length_2"
-                 height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
-                 style_text_font="#font_small">
-        <bind_style_if_eq name="styles.choice_fill_selected" subject="filament_extrude_length_index" ref_value="2"/>
-        <bind_style_if_not_eq name="styles.choice_fill_idle" subject="filament_extrude_length_index" ref_value="2"/>
-        <event_cb trigger="clicked" callback="on_filament_extrude_length_2"/>
+      </choice_button>
+      <choice_button name="extrude_length_2"
+                     height="$length_height" flex_grow="1" bind_text="settings_extrude_length_2" bind_text-fmt="%dmm"
+                     style_text_font="#font_small" subject="filament_extrude_length_index" value="2"
+                     callback="on_filament_extrude_length_2">
         <event_cb trigger="long_pressed" callback="on_filament_extrude_length_2_hold"/>
-      </ui_button>
+      </choice_button>
       <!-- Extrude/retract speed: presets of the extrude_speed setting that
            Machine Limits also edits. C++ fills the options and the shown speed. -->
       <lv_dropdown name="extrude_speed_dropdown"
