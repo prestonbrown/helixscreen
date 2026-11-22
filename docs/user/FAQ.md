@@ -204,9 +204,9 @@ On the printer, not on the screen. Your filament system keeps what it can (color
 
 Spoolman records usage only against its **active spool**. On a multi-filament system (CFS, AFC, Happy Hare and others), HelixScreen makes a slot's linked spool active when that slot loads, so the slot has to be linked to the spool before the print starts. Matching uses the linked spool only, never the material name. See [Which spool Spoolman charges](guide/filament-tracking.md#which-spool-spoolman-charges-on-a-multi-filament-system).
 
-### Why is a spool grayed out when I pick one?
+### Why is a spool's Use button grayed out when I pick one?
 
-It is already linked to another slot or tool. On the External Spool editor, every spool linked to a slot is grayed out. To link a spool to a CFS or AMS slot, edit that slot instead. See [Editing Filament Properties](guide/filament.md#editing-filament-properties).
+That spool is in the slot feeding the current print, and a spool can't be moved out of it until the print ends. Any other spool that sits in another slot can be picked: tapping **Use** moves it, clearing the slot it was in first. See [Putting in a different spool](guide/filament-ams-panel.md#putting-in-a-different-spool).
 
 ### Does my K2 run its bed mesh twice?
 
