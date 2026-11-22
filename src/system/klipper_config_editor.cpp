@@ -12,6 +12,7 @@
 #include "json_utils.h"
 #include "klipper_config_includes.h"
 #include "moonraker_error.h"
+#include "platform_info.h"
 #include "printer_state.h"
 
 #include <spdlog/spdlog.h>
@@ -1091,6 +1092,15 @@ void KlipperConfigEditor::safe_multi_edit(IMoonrakerAPI& api, const std::string&
                                           int restart_timeout_ms) {
     spdlog::info("[ConfigEditor] Starting safe multi-edit on [{}] ({} edits)", section,
                  edits.size());
+    // Firmware that supervises HelixScreen owns the Klipper config (#2154), on either route.
+    if (helix::firmware_supervised()) {
+        spdlog::warn("[ConfigEditor] Not editing [{}]: {}", section,
+                     helix::kFirmwareSupervisedConfigRefusal);
+        if (on_error) {
+            on_error(helix::kFirmwareSupervisedConfigRefusal);
+        }
+        return;
+    }
     if (route() == ConfigEditRoute::Plugin) {
         plugin_multi_edit(api, section, edits, std::move(on_success), std::move(on_error),
                           restart_timeout_ms);

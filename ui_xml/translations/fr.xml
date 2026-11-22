@@ -4464,6 +4464,7 @@
   <translation tag="Spoolman is not configured — nothing to remove." fr="Spoolman n&apos;est pas configuré — rien à supprimer."/>
   <translation tag="Spoolman is offline, so brand and material can&apos;t be saved." fr="Spoolman est hors ligne, la marque et le matériau ne peuvent donc pas être enregistrés."/>
   <translation tag="Spoolman is offline. Brand and material can change once it&apos;s back." fr="Spoolman est hors ligne. La marque et le matériau pourront être modifiés à son retour."/>
+  <translation tag="Spoolman is set up through your printer&apos;s firmware, not on this screen." fr="Spoolman se configure via le firmware de votre imprimante, pas sur cet écran."/>
   <translation tag="Spoolman needs a brand for this filament." fr="Spoolman a besoin d&apos;une marque pour ce filament."/>
   <translation tag="Spoolman needs a color for this filament." fr="Spoolman a besoin d&apos;une couleur pour ce filament."/>
   <translation tag="Spoolman needs a material for this filament." fr="Spoolman a besoin d&apos;un matériau pour ce filament."/>

@@ -4599,6 +4599,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman が設定されていません — 削除する項目はありません。
   Spoolman is offline, so brand and material can't be saved.: Spoolman がオフラインのため、ブランドと素材を保存できません。
   Spoolman is offline. Brand and material can change once it's back.: Spoolman がオフラインです。復帰後にブランドと素材を変更できます。
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman はこの画面ではなく、プリンターのファームウェアで設定します。'
   Spoolman needs a brand for this filament.: Spoolman にはこのフィラメントのブランドが必要です。
   Spoolman needs a color for this filament.: Spoolman にはこのフィラメントの色が必要です。
   Spoolman needs a material for this filament.: Spoolman にはこのフィラメントの素材が必要です。

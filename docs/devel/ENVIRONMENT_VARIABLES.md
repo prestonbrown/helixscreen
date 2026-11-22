@@ -32,7 +32,7 @@ Only these keys are read; any other key is ignored with one logged warning per k
 `HELIX_ALSA_DEVICE`, `HELIX_AUTO_QUIT_MS`, `HELIX_AUTO_SCREENSHOT`, `HELIX_BACKLIGHT_DEVICE`,
 `HELIX_COLOR_SWAP_RB`, `HELIX_DEBUG`, `HELIX_DEBUG_TOUCH`, `HELIX_DIAGNOSTIC_UPLOADS`,
 `HELIX_DISABLE_AUTO_UPDATES`, `HELIX_DISPLAY_BACKEND`, `HELIX_DISPLAY_ROTATION`, `HELIX_DPI`,
-`HELIX_DRM_DEVICE`, `HELIX_FB_DEVICE`, `HELIX_GCODE_MODE`,
+`HELIX_DRM_DEVICE`, `HELIX_FB_DEVICE`, `HELIX_FIRMWARE_MANAGED`, `HELIX_GCODE_MODE`,
 `HELIX_GCODE_STREAMING`, `HELIX_KEYBOARD_DEVICE`, `HELIX_LOG_DEST`, `HELIX_LOG_FILE`,
 `HELIX_LOG_LEVEL`, `HELIX_MOUSE_DEVICE`, `HELIX_NICE`, `HELIX_NO_SPLASH`, `HELIX_PWM_SOUND`,
 `HELIX_REMOTE_CONTROL`, `HELIX_REMOTE_HTTP_TOKEN`, `HELIX_REMOTE_SOCKET`, `HELIX_REQUIRE_POINTER`, `HELIX_SCREEN_SIZE`, `HELIX_SCROLL_GUARD`,
@@ -2314,6 +2314,25 @@ HELIX_GUI_PIDFILE=/var/run/gui.pid ./bin/helix-watchdog -- ./bin/helix-screen
 **Why the watchdog and not the other two processes:** on CC1/COSMOS the stock `gui-switcher stop` runs `start-stop-daemon -K` against this pidfile. The watchdog is the one process that supervises the whole launcher → watchdog → helix-screen tree and reaps it on SIGTERM. Signalling the launcher cannot work (its cleanup trap is deferred behind the foreground child), and signalling `helix-screen` just makes the watchdog respawn it.
 
 Exported by `assets/config/platform/hooks-cc1.sh`. A failed write logs `[Watchdog] Could not write GUI pidfile <path>` and is otherwise non-fatal.
+
+### `HELIX_FIRMWARE_MANAGED`
+
+Declare that the printer's firmware supervises HelixScreen (prestonbrown/helixscreen#2154): it owns the installed package and the host's Moonraker and Klipper configuration, and installs whatever components HelixScreen's features need. HelixScreen then only detects what is there and uses it.
+
+| Property | Value |
+|----------|-------|
+| **Values** | Truthy: `1`, `true`, `yes`, `on`. Any other non-empty value turns it off. |
+| **Default** | Unset: the board module decides (`helix::board::firmware_manages_updates()`), today a Snapmaker U1 running PAXX Extended Firmware's own package from `/oem/apps/helixscreen` |
+| **File** | `src/system/platform_info.cpp` (`helix::firmware_supervised()`) |
+
+Exported by the firmware's launch hook; it may also sit in `helixscreen.env`. While it holds, HelixScreen:
+
+- never runs an installer: the HelixPrint plugin's `install.sh` (install, uninstall, relink, Moonraker restart) and the timelapse clone, link and checkout repair all refuse (`src/system/helix_plugin_installer.cpp#run_install_script`, `src/system/local_plugin_installer.cpp#install_plugin_locally`);
+- never writes under Moonraker's `config` root: uploads, deletes, copies, moves and directory changes there fail with `PERMISSION_DENIED` (`src/api/moonraker_api_internal.h#reject_supervised_config_write`), which covers the helper macros, the timelapse and Spoolman setup, the config editor's file route and AFC/IFS saves; the config editor and the PLR mesh include refuse up front on the plugin route too, and Lua plugins cannot call `machine.update.*` or change files there;
+- never syncs the `[update_manager helixscreen]` stanza, never runs `restore-user-config.sh` at boot, and never updates itself;
+- hides what would only fail: Setup Timelapse, the plugin's Install and Uninstall rows, Install and Update Helper Macros, Spoolman setup, Change and Remove, the PLR mesh-include rows and the timelapse macro card (the `firmware_supervised` subject).
+
+What the firmware provides instead: the HelixPrint plugin (`moonraker-plugin/helix_print.py` from the package, loaded the way it loads its other Moonraker components) with a `[helix_print]` section, the helper macro include if it wants the macro-backed features, and any Spoolman or timelapse configuration.
 
 ### `HELIX_DISABLE_AUTO_UPDATES`
 

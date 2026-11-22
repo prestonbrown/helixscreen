@@ -4599,6 +4599,7 @@ translations:
   Spoolman is not configured — nothing to remove.: Spoolman no está configurado — no hay nada que eliminar.
   Spoolman is offline, so brand and material can't be saved.: Spoolman está desconectado, por lo que no se pueden guardar la marca y el material.
   Spoolman is offline. Brand and material can change once it's back.: Spoolman está desconectado. La marca y el material se podrán cambiar cuando vuelva.
+  Spoolman is set up through your printer's firmware, not on this screen.: 'Spoolman se configura desde el firmware de tu impresora, no en esta pantalla.'
   Spoolman needs a brand for this filament.: Spoolman necesita una marca para este filamento.
   Spoolman needs a color for this filament.: Spoolman necesita un color para este filamento.
   Spoolman needs a material for this filament.: Spoolman necesita un material para este filamento.
