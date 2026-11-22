@@ -102,8 +102,9 @@ SwatchFinish swatch_effective_finish(SwatchFinish finish, int32_t w, int32_t h);
 lv_color_t swatch_matte_color(lv_color_t c);
 
 /// The side of one checkerboard square on a translucent swatch whose short side
-/// is @p short_side px: a quarter of it, so even the smallest chip shows four
-/// squares across, from 3 px up to 8 px.
+/// is @p short_side px: a quarter of it, clamped to 3..8 px. Four squares span
+/// a short side from 12 to 32 px; a smaller chip shows fewer (about three at
+/// 8 px), and a larger one more.
 int32_t swatch_check_cell_px(int32_t short_side);
 
 /// Whether the checkerboard square holding pixel (@p x, @p y), counted from the
