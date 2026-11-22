@@ -52,6 +52,11 @@ void FanSettingsOverlay::on_row_clicked(lv_event_t* e) {
     self.handle_fan_rename(object_name, current ? current : "");
 }
 
+void FanSettingsOverlay::init_subjects() {
+    init_subjects_guarded(
+        [this]() { UI_MANAGED_SUBJECT_INT(fan_count_, 0, "fan_settings_fan_count", subjects_); });
+}
+
 lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
         return nullptr;
@@ -60,7 +65,6 @@ lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     // Containers for dynamic row population
     controllable_list_ = find_required(overlay_root_, "controllable_fans_list", get_name());
     auto_list_ = find_required(overlay_root_, "auto_fans_list", get_name());
-    no_fans_placeholder_ = find_required(overlay_root_, "no_fans_placeholder", get_name());
     return overlay_root_;
 }
 
@@ -172,10 +176,7 @@ void FanSettingsOverlay::populate_fans() {
         lv_obj_set_hidden(auto_section, auto_count == 0);
     }
 
-    // Show empty state if no fans at all
-    if (no_fans_placeholder_) {
-        lv_obj_set_hidden(no_fans_placeholder_, !fans.empty());
-    }
+    lv_subject_set_int(&fan_count_, static_cast<int>(fans.size()));
 
     // Populate row lists. Rows in both index row_objects_.
     row_objects_.clear();
