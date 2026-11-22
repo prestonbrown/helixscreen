@@ -1497,6 +1497,7 @@ translations:
   Download update?: アップデートをダウンロードしますか？
   Download v{}?: v{}をダウンロードしますか？
   Downloading the timelapse plugin...: 'タイムラプスプラグインをダウンロード中...'
+  Downloading the timelapse...: 'タイムラプスをダウンロード中...'
   Downloading...: ダウンロード中...
   Downloading... {:.1f}/{:.1f} MB: ダウンロード中... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: タッチごとに波紋を描画 — ズレの診断に役立ちます
@@ -4771,6 +4772,8 @@ translations:
   The DNS server is not a valid address.: 'DNSサーバーが有効なアドレスではありません。'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : HelixPrint プラグインは、クイック再印刷のためのベッドメッシュスキップなど、プリンター上で直接高速 G-code 修正を可能にします。
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'HelixPrintプラグインは、HelixScreenのソフトウェアを管理しているプリンターのファームウェアから提供される必要があります。'
+  The HelixPrint plugin is managed by your printer's firmware.: 'HelixPrintプラグインはプリンターのファームウェアによって管理されています。'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'HelixPrint プラグインが PRINT_START の古いコマンドを非表示の名前に変更します。'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'IFS ボードが時間内に応答しませんでした: ケーブルの問題、ボードのフリーズ、または純正画面が同じポートを使用しています。'
   The IFS board reported a driver error on every retry.: IFS ボードが再試行のたびにドライバーエラーを報告しました。
@@ -5098,6 +5101,7 @@ translations:
   The temperature was changed elsewhere.: "温度が別の場所で変更されました。"
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: 熱電対または PT100 アンプが異常または範囲外の値を報告しました。
   The time, date, and system uptime: 時間、日付、稼働時間
+  The timelapse could not be downloaded: 'タイムラプスをダウンロードできませんでした'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "タイムラプスまたはログのフォルダーが保護されたフォルダーと重なっているため、クリーンアップはオフになっています。"
   Timelapse did not start: 'タイムラプスが開始されませんでした'
   Timelapse frames start after Klipper restarts.: 'タイムラプスのフレームは Klipper の再起動後に撮影されます。'
@@ -5136,7 +5140,6 @@ translations:
   'The {0} motor was not measured: {1}.': '{0} モーターは測定されませんでした: {1}。'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': '更新からの応答がなくなりました。結果は不明です。使用する前にプリンターを確認してください。'
   The update's result is unknown: '更新の結果は不明です'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'このプリンターで動画プレーヤーを起動できませんでした（{}）。スマートフォンでコードを読み取ってタイムラプスをご覧ください。'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : '{1} の加速度センサーが想定した ID で応答しませんでした。未接続、ケーブルの損傷、または SPI ピンの誤りの可能性が高いです。'
   The {1} motor lost steps: '{1} のモーターが脱調しました'
@@ -5283,6 +5286,7 @@ translations:
   'This update asks for new permissions:': 'この更新は新しい権限を要求します：'
   This update removes HelixScreen from the printer.: 'この更新はプリンターから HelixScreen を削除します。'
   This upgrades the printer's operating system packages.: 'プリンターのOSパッケージを更新します。'
+  This video could not be played: 'この動画を再生できませんでした'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'この待機は温度に達するまで終わりません。キャンセルには緊急停止とファームウェアの再起動が必要です。'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset をエンドストップに適用し、設定を保存するために Klipper を再起動します。プリンターは一時的に切断されます。
@@ -5628,8 +5632,6 @@ translations:
   Vibration: 振動
   Vibration compensation active: 振動補正が有効です
   Video playback speed: 動画再生速度
-  Video player failed to start: '動画プレーヤーを起動できませんでした'
-  Video player failed to start ({}): '動画プレーヤーを起動できませんでした（{}）'
   View: 表示
   View Changelog: 変更履歴を表示
   View Full History: 全履歴を表示
@@ -5798,6 +5800,8 @@ translations:
   Your printer at a glance: プリンターを一目で確認
   Your printer has an automatic filament changer: プリンターに自動フィラメントチェンジャーが搭載されています
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: セットアップ中にプリンターがオフラインだったため、ハードウェアオプションはスキップされました。今すぐ設定しますか？
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'プリンターのファームウェアがHelixScreenのソフトウェアを管理しているため、HelixPrintプラグインはファームウェアから提供される必要があります。この画面からはインストールできません。'
   Your printer's manual has the parts and lubricant for your model.: "部品と潤滑剤はプリンターのマニュアルで確認できます。"
   Your usual build plate is on: 'いつものビルドプレートが載っている'
   Your {0} is set up for {1}, but it looks stock.: 'お使いの{0}は{1}用に設定されていますが、標準状態のようです。'

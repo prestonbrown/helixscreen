@@ -104,6 +104,8 @@ See [Filament: When Bypass Doesn't Appear](../filament.md#when-bypass-doesnt-app
 
 Connects HelixScreen to your [Spoolman](https://github.com/Donkie/Spoolman) server for spool tracking, weight updates, label printing and barcode scanning. For the bigger picture, see [Filament Tracking & Spoolman](../filament-tracking.md).
 
+Open it from **Settings > Printing > Spoolman**, in the Filament group, or from the gear in the header of the Spoolman spool list (**Advanced > Spoolman**). Both open the same page.
+
 ### Server Setup
 
 If Spoolman isn't set up yet, this is what you see. Enter your Spoolman server's IP address (or host name) in **IP Address / Hostname** and its **Port** (7912 by default), then tap **Connect**, or **Cancel** to leave. HelixScreen checks the connection and sets up Moonraker for you. You don't need to edit `moonraker.conf`.

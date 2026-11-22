@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<!-- Copyright (C) 2025-2026 356C LLC -->
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Timelapse player: one video on the whole screen, decoded in the app.
+     timelapse_player_state: 0 loading, 1 playing, 2 paused, 3 ended, 4 failed.
+     A tap anywhere off the bars shows or hides them; they hide by themselves
+     while the video plays. -->
+<component>
+  <styles>
+    <!-- The bars sit over the picture: the card color, mostly opaque. -->
+    <style name="bar" bg_color="#card_bg" bg_opa="200" border_width="0" radius="0"/>
+  </styles>
+  <view name="timelapse_player_overlay"
+        width="100%" height="100%" style_bg_color="#screen_bg" style_bg_opa="255" style_radius="0"
+        style_border_width="0" style_pad_all="0" scrollable="false">
+    <event_cb trigger="clicked" callback="on_tl_player_tap"/>
+    <!-- The frame: C++ hands it a draw buffer sized to fit the screen. -->
+    <lv_image name="video_frame" align="center" clickable="false" event_bubble="true"/>
+    <!-- Loading -->
+    <lv_obj width="content"
+            height="content" align="center" style_bg_opa="0" style_border_width="0" style_pad_all="#space_md"
+            flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md" clickable="false"
+            event_bubble="true" scrollable="false">
+      <bind_flag_if_not_eq subject="timelapse_player_state" flag="hidden" ref_value="0"/>
+      <spinner size="lg"/>
+    </lv_obj>
+    <!-- Failed -->
+    <lv_obj width="80%"
+            height="content" align="center" style_bg_opa="0" style_border_width="0" style_pad_all="#space_md"
+            flex_flow="column" style_flex_cross_place="center" style_pad_gap="#space_md" clickable="false"
+            event_bubble="true" scrollable="false">
+      <bind_flag_if_not_eq subject="timelapse_player_state" flag="hidden" ref_value="4"/>
+      <icon src="video_off" size="lg" variant="secondary" clickable="false" event_bubble="true"/>
+      <text_body width="100%"
+                 text="This video could not be played" style_text_align="center" clickable="false" event_bubble="true"/>
+    </lv_obj>
+    <!-- Top bar: back closes the player -->
+    <lv_obj name="player_top_bar" width="100%" height="content" align="top_mid" style_pad_all="0" scrollable="false">
+      <style name="bar"/>
+      <bind_flag_if_eq subject="timelapse_player_controls" flag="hidden" ref_value="0"/>
+      <header_bar name="player_header" title="Timelapse" title_subject="timelapse_player_title" title_transform="none"/>
+    </lv_obj>
+    <!-- Bottom bar: play/pause/replay, elapsed, scrub, total -->
+    <lv_obj name="player_bottom_bar"
+            width="100%" height="#header_height" align="bottom_mid" style_pad_left="#space_lg"
+            style_pad_right="#space_lg" style_pad_ver="0" flex_flow="row" style_flex_cross_place="center"
+            style_pad_gap="#space_md" scrollable="false">
+      <style name="bar"/>
+      <bind_flag_if_eq subject="timelapse_player_controls" flag="hidden" ref_value="0"/>
+      <header_action name="btn_pause" icon="pause" callback="on_tl_player_play_pause">
+        <bind_flag_if_not_eq subject="timelapse_player_state" flag="hidden" ref_value="1"/>
+      </header_action>
+      <header_action name="btn_play" icon="play" callback="on_tl_player_play_pause">
+        <bind_flag_if_not_eq subject="timelapse_player_state" flag="hidden" ref_value="2"/>
+      </header_action>
+      <header_action name="btn_replay" icon="restart" callback="on_tl_player_replay">
+        <bind_flag_if_not_eq subject="timelapse_player_state" flag="hidden" ref_value="3"/>
+      </header_action>
+      <text_small name="player_elapsed" bind_text="timelapse_player_elapsed" clickable="false"/>
+      <!-- The track's own side padding insets the knob's travel, so the knob
+           never reaches past the slider onto the time labels. -->
+      <lv_slider name="player_scrub"
+                 flex_grow="1" min_value="0" max_value="1000" bind_value="timelapse_player_position"
+                 style_pad_left="#space_md" style_pad_right="#space_md" ext_click_area="#space_md">
+        <event_cb trigger="pressed" callback="on_tl_player_scrub_pressed"/>
+        <event_cb trigger="released" callback="on_tl_player_scrub_released"/>
+        <!-- A finger that slides off the bar ends the drag there too. -->
+        <event_cb trigger="press_lost" callback="on_tl_player_scrub_released"/>
+        <event_cb trigger="value_changed" callback="on_tl_player_scrub_moved"/>
+      </lv_slider>
+      <text_small name="player_total" bind_text="timelapse_player_total" clickable="false"/>
+    </lv_obj>
+    <!-- This view covers the navbar, so it carries its own E-stop while a job
+         holds the machine. The inset host keeps it off the screen edge. -->
+    <lv_obj width="100%"
+            height="100%" style_bg_opa="0" style_border_width="0" style_pad_all="#space_lg" clickable="false"
+            event_bubble="true" scrollable="false">
+      <ui_button name="player_estop_fab"
+                 width="#button_height" height="#button_height" align="right_mid" style_radius="9999" variant="danger"
+                 focusable="false" hidden="true">
+        <bind_flag_if_eq subject="estop_visible" flag="hidden" ref_value="0"/>
+        <icon src="alert_octagon" size="sm" variant="text" align="center" clickable="false" event_bubble="true"/>
+        <event_cb trigger="clicked" callback="emergency_stop_clicked"/>
+      </ui_button>
+    </lv_obj>
+  </view>
+</component>

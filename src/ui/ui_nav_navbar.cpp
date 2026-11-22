@@ -107,15 +107,19 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
     // The printer badge is the one navbar element a setting can add or remove
     // while the user is looking at it, and its toggle lives inside an overlay —
     // so the navbar the user sees is the backdrop's frozen snapshot, not the
-    // widget the binding just un-hid. Re-take the snapshot so the change lands
-    // immediately instead of waiting for the stack to pop.
+    // widget the binding just un-hid. Re-take the snapshot, and any open modal's,
+    // so the change lands immediately instead of waiting for the stack to pop.
     printer_switcher_observer_ = observe<int>(
         SettingsManager::instance().subject_show_printer_switcher(), this,
-        [](NavigationManager* mgr, int /* shown */) { mgr->refresh_overlay_backdrop(); },
+        [](NavigationManager* mgr, int /* shown */) {
+            mgr->refresh_overlay_backdrop();
+            mgr->refresh_modal_backdrops_after_settle();
+        },
         SettingsManager::instance().get_subjects_lifetime());
 
     // A live theme or mode switch from inside an overlay (Settings > Appearance)
-    // repaints the navbar widget the snapshot hides, so re-take it too. The
+    // repaints the navbar widget the snapshot hides, so re-take it too, and the
+    // picture behind any open modal. The
     // change subject fires after the repaint, so the new shot shows the new mode.
     // It also fires on subscription and on re-applies of the same palette, which
     // change no pixel.
@@ -124,6 +128,11 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         [](NavigationManager* mgr, int /* generation */) {
             if (mgr->backdrop_.palette_changed())
                 mgr->refresh_overlay_backdrop();
+            std::string key = helix::ui::active_palette_key();
+            if (key != mgr->modal_palette_key_) {
+                mgr->modal_palette_key_ = std::move(key);
+                mgr->refresh_modal_backdrops_after_settle();
+            }
         },
         subject_never_freed());
 

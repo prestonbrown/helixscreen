@@ -1497,6 +1497,7 @@ translations:
   Download update?: Scaricare aggiornamento?
   Download v{}?: Scaricare v{}?
   Downloading the timelapse plugin...: 'Download del plugin timelapse...'
+  Downloading the timelapse...: 'Download del timelapse...'
   Downloading...: Download in corso...
   Downloading... {:.1f}/{:.1f} MB: Download in corso... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Disegna un'onda a ogni tocco — aiuta a diagnosticare gli scostamenti
@@ -4771,6 +4772,8 @@ translations:
   The DNS server is not a valid address.: 'Il server DNS non è un indirizzo valido.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : Il plugin HelixPrint abilita modifiche G-code rapide direttamente sulla stampante, come saltare la mesh piano per ristampe veloci.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'Il plugin HelixPrint deve essere fornito dal firmware della stampante, che gestisce il software di HelixScreen.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'Il plugin HelixPrint è gestito dal firmware della stampante.'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Il plugin HelixPrint sposta le vecchie chiamate di PRINT_START sui nomi nascosti.'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'La scheda IFS non ha risposto in tempo: un problema di cavo, una scheda bloccata oppure lo schermo nativo che usa la stessa porta.'
   The IFS board reported a driver error on every retry.: La scheda IFS ha segnalato un errore del driver a ogni tentativo.
@@ -5098,6 +5101,7 @@ translations:
   The temperature was changed elsewhere.: "La temperatura è stata modificata altrove."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: L'amplificatore della termocoppia o del PT100 ha segnalato un guasto o una lettura fuori intervallo.
   The time, date, and system uptime: Ora, data e tempo di attività
+  The timelapse could not be downloaded: 'Impossibile scaricare il timelapse'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "La cartella timelapse o di log sovrappone una cartella protetta, quindi la pulizia è disattivata."
   Timelapse did not start: 'Il timelapse non è partito'
   Timelapse frames start after Klipper restarts.: 'I fotogrammi del timelapse iniziano dopo il riavvio di Klipper.'
@@ -5136,7 +5140,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'Il motore {0} non è stato misurato: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'L''aggiornamento non dà più notizie. Il risultato è sconosciuto: controlla la stampante prima di usarla.'
   The update's result is unknown: 'Il risultato dell''aggiornamento è sconosciuto'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Il lettore video non è riuscito ad avviarsi su questa stampante ({}). Scansiona il codice con il telefono per guardare il timelapse.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : L'accelerometro {1} non ha risposto con l'ID previsto. Molto probabilmente è scollegato, il suo cavo è danneggiato o i suoi pin SPI sono errati.
   The {1} motor lost steps: Il motore {1} ha perso passi
@@ -5283,6 +5286,7 @@ translations:
   'This update asks for new permissions:': 'Questo aggiornamento richiede nuovi permessi:'
   This update removes HelixScreen from the printer.: 'Questo aggiornamento rimuove HelixScreen dalla stampante.'
   This upgrades the printer's operating system packages.: 'Questo aggiorna i pacchetti del sistema operativo della stampante.'
+  This video could not be played: 'Impossibile riprodurre questo video'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Questa attesa termina solo alla sua temperatura: l''annullamento richiede un arresto di emergenza e un riavvio del firmware.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Questo applicherà lo Z-offset al tuo endstop e riavvierà Klipper per salvare la configurazione. La stampante si disconnetterà brevemente.
@@ -5628,8 +5632,6 @@ translations:
   Vibration: Vibrazione
   Vibration compensation active: Compensazione vibrazione attiva
   Video playback speed: Velocità riproduzione video
-  Video player failed to start: 'Impossibile avviare il lettore video'
-  Video player failed to start ({}): 'Impossibile avviare il lettore video ({})'
   View: Visualizza
   View Changelog: Visualizza Modifiche
   View Full History: Visualizza cronologia completa
@@ -5798,6 +5800,8 @@ translations:
   Your printer at a glance: La tua stampante a colpo d'occhio
   Your printer has an automatic filament changer: La stampante ha un cambio filamento automatico
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: La stampante era offline durante la configurazione, quindi le opzioni hardware sono state saltate. Configurarle ora?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'Il firmware della stampante gestisce il software di HelixScreen, quindi il plugin HelixPrint deve essere fornito dal firmware. Non può essere installato da questa schermata.'
   Your printer's manual has the parts and lubricant for your model.: "Il manuale della stampante indica ricambi e lubrificante per il tuo modello."
   Your usual build plate is on: 'Il tuo piatto di stampa abituale è montato'
   Your {0} is set up for {1}, but it looks stock.: 'La tua {0} è configurata per {1}, ma sembra di serie.'

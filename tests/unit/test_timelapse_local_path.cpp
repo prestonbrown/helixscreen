@@ -48,10 +48,10 @@ struct TimelapseVideosOverlayTestAccess {
     static void clear_video_grid(TimelapseVideosOverlay& o) {
         o.clear_video_grid();
     }
-    /// A player that exists, against a remote Moonraker: a tap downloads first.
-    static void set_remote_player(TimelapseVideosOverlay& o, const std::string& command) {
-        o.can_play_ = true;
-        o.player_command_ = command;
+    /// The in-app player can run, against a remote Moonraker: a tap downloads first.
+    static void set_remote_player(TimelapseVideosOverlay& o) {
+        o.has_ffmpeg_ = true;
+        o.board_can_decode_ = true;
         o.is_local_moonraker_ = false;
     }
     /// The card handlers populate_video_grid() attaches.
@@ -150,7 +150,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     state.init_subjects(false);
     MoonrakerAPIMock api{client, state};
     TimelapseVideosOverlay overlay(&api);
-    TimelapseVideosOverlayTestAccess::set_remote_player(overlay, "/bin/true");
+    TimelapseVideosOverlayTestAccess::set_remote_player(overlay);
 
     lv_obj_t* card = lv_obj_create(test_screen());
     lv_obj_set_size(card, 200, 120);

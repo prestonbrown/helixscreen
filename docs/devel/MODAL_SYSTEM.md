@@ -41,6 +41,27 @@ on a navbar button. The one exception is the E-stop's own confirmation, which ca
 
 Backdrops are always created in C++, never in XML, so a dialog never ends up with two.
 
+**A backdrop is a picture of the screen, taken without closing modals.** Where blur is on,
+`helix::ui::create_fullscreen_backdrop()` snapshots the screen (`lv_snapshot_take()` in
+`src/ui/effects/backdrop_blur.cpp#create_blurred_backdrop`) and shows it blurred and dimmed; the
+image does not follow later changes by itself. A modal still in its exit animation when the next one opens would
+stay in that image long after it is gone, so `Modal::show()` and `Modal::create_and_show()` take
+the backdrop through `create_modal_backdrop()` (`src/ui/ui_modal.cpp#create_modal_backdrop`): it
+hides every backdrop `ModalStack::exiting_backdrops()` lists for the one snapshot, then restores
+them so their exit animation finishes. A caller replacing one dialog with another (the runout
+dialog closing as a recovery dialog opens) needs no delay between `hide()` and the next show.
+
+The picture is blurred on 32-bit displays and darkened on RGB565; on ESP32, or once a snapshot
+has failed, the backdrop is a plain translucent dim layer instead. A picture does not track what
+changes beneath it, so `NavigationManager` asks
+`ModalStack::schedule_backdrop_refresh()` to re-take every visible modal's picture after a panel
+switch, an overlay push or pop, a theme or light/dark switch, and the printer switcher appearing
+in or leaving the navbar. The re-take waits a fixed 250ms (`kModalBackdropSettleMs`), long
+enough for the 200ms overlay slide and the navbar's 180ms crossfade to finish; content a panel
+fills in later than that is not in the picture until the next re-take. `ModalStack::refresh_backdrops()` re-takes them
+lowest first, each into the buffer it already owns, with itself and every modal above it hidden.
+A change beneath an open modal that navigation does not cover calls it directly.
+
 ---
 
 ## When to Use What
@@ -453,6 +474,17 @@ Each row carries its own top divider, so there is no shared `divider_horizontal`
 Subject props resolve in `modal_button_row`'s scope plus globals, so a subject declared in
 the calling component's own `<subjects>` cannot be passed in.
 
+**Row height.** The row fixes every button at `#modal_button_height`, not `#button_height`.
+The two match at every breakpoint except micro (480x272), where `#button_height` is 26px and
+`#modal_button_height` is 44px: a dialog's confirm/cancel pair is the one control the user must
+hit, so it stays a full touch target on the smallest screen. A hand-built footer shaped like the
+row (`network_test_modal`, `update_download_modal`) and any action button standing in the
+footer's place (the runout dialog's Load/Unload/Purge and Use Another Toolhead buttons,
+`ui_xml/runout_guidance_modal.xml`) sets `height="#modal_button_height"` too. The chrome-budget
+gate recognizes a hand-built row by either height token. `helix::ui::fit_dialog_to_screen()`
+(`src/ui/ui_modal.cpp#fit_dialog_to_screen`) gives the taller row its room by shrinking the
+content scroll area, and the measured content caps below already include the 44px row.
+
 Use `primary_variant="danger"` (not a color override) for destructive primaries. The
 tertiary button is hidden by default so existing two-button callers are unaffected; a
 hidden flex child drops out of layout entirely.
@@ -560,6 +592,12 @@ Pick the token by the card's chrome shape (values in `ui_xml/globals.xml`):
 | `#dialog_content_pinned_max` | …plus ONE pinned block below the scroll area (a diagram, a status row) | `ams_loading_error_modal` |
 | `#dialog_content_recovery_max` | header + divider + scroll area + ONE button row, measured on that card | `klipper_recovery_dialog` |
 
+The micro values carry the 44px `#modal_button_height` row in their measured chrome:
+`#dialog_content_pinned_max` is 103px there and `#dialog_content_recovery_max` 135px, with the
+card cap still 85% of the screen. A change to the footer row's height at any breakpoint means
+re-measuring these two ladders at that breakpoint (the comment above each in `globals.xml`
+lists the measured chrome per breakpoint).
+
 - `dialog_frame` is the `#dialog_content_max` shape: its body is the scroll area, capped at
   that token, and its footer holds the one button row. Content in the body is correct by
   construction.
@@ -629,7 +667,7 @@ class ControlsPanel {
 
 - **Z-ordering**: Multiple stacked modals maintain correct visual order
 - **Top-modal queries**: `Modal::get_top()` returns the topmost dialog
-- **Animation state**: `mark_exiting()` prevents double-hide during exit animation
+- **Animation state**: `mark_exiting()` prevents double-hide during exit animation; `exiting_backdrops()` lists the backdrops still fading out, which a new modal's snapshot leaves out
 - **Backdrop-to-dialog mapping**: Links each backdrop to its dialog
 - **Owner tracking**: Records the `Modal*` that shows each dialog, so a dialog can be traced back to the C++ instance behind it
 

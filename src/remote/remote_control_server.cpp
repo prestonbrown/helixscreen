@@ -17,6 +17,7 @@
 #include "demo_overlays.h"
 #include "display_manager.h"
 #include "display_settings_manager.h"
+#include "display_wake_request.h"
 #include "grid_edit_drop.h"
 #include "input_settings_manager.h"
 #include "json_utils.h"
@@ -38,6 +39,7 @@
 #include "remote_client.h"
 #include "remote_pointer.h"
 #include "runtime_config.h"
+#include "screen_hide_hold.h"
 #include "screensaver.h"
 #include "screensaver_registry.h"
 #include "screenshot.h"
@@ -103,12 +105,12 @@ static std::optional<helix::PanelId> name_to_panel_id(const std::string& name) {
     return std::nullopt;
 }
 
-// Reset the LVGL inactivity timer as if the user touched the screen. Since
-// helixctl injects synthetic events (not through the input device), the idle
-// timer never resets on its own, so DisplayManager would start the screensaver
-// mid-drive. Calling this on every interaction both prevents that and makes
-// DisplayManager close an already-active screensaver on its next tick. UI thread.
+// Reset the LVGL inactivity timer as if the user touched the screen, and wake a
+// dimmed, sleeping or screensaver display. helixctl injects synthetic events
+// (not through the input device), so the idle timer never resets on its own and
+// DisplayManager would start the screensaver mid-drive. UI thread.
 static void wake_display() {
+    helix::request_display_wake();
     lv_display_trigger_activity(lv_display_get_default());
 }
 
@@ -332,10 +334,37 @@ nlohmann::json RemoteControlServer::execute_on_ui_thread(std::function<nlohmann:
     throw std::runtime_error("UI thread timeout (10s)");
 }
 
+void RemoteControlServer::wake_and_await_screen() {
+    // Each check is its own UI-thread hop, so the main loop runs between them and
+    // can finish the wake it owes. A hold that outlasts the wait is left to the
+    // caller's own reachability check, which then names the hidden screen.
+    constexpr int kMaxChecks = 25; // 25 * 40 ms: well past one loop iteration
+    auto screen_held = [this](bool wake) {
+        return execute_on_ui_thread([wake]() -> nlohmann::json {
+                   if (wake) {
+                       wake_display();
+                   }
+                   return helix::active_screen_hide_hold().is_held();
+               })
+            .get<bool>();
+    };
+    if (!screen_held(true)) {
+        return;
+    }
+    for (int i = 0; i < kMaxChecks; ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(40));
+        if (!screen_held(false)) {
+            return;
+        }
+    }
+    spdlog::debug("[RemoteControl] active screen still hidden after waking the display");
+}
+
 // Forward declaration: the widget-resolution helpers live further down in this
 // file, alongside the other widget-interaction handlers, but handle_screenshot
 // (below) needs to resolve its --target before that point.
-static lv_obj_t* resolve_widget(const nlohmann::json& params);
+static lv_obj_t* resolve_widget(const nlohmann::json& params,
+                                std::vector<lv_obj_t*>* name_matches = nullptr);
 
 // =============================================================================
 // Built-in handlers
@@ -469,16 +498,12 @@ nlohmann::json RemoteControlServer::handle_navigate(const nlohmann::json& params
     //    real handler opens, running the full production lifecycle
     //    (init_subjects/create/on_activate) -- never a raw lv_xml_create shell.
     //    It is the fs-metaphor "cd into something ls showed you".
+    wake_and_await_screen();
     return execute_on_ui_thread([target]() -> nlohmann::json {
         wake_display();
-        lv_obj_t* widget = nullptr;
-        if (lv_obj_t* screen = lv_screen_active()) {
-            widget = lv_obj_find_by_name(screen, target.c_str());
-        }
-        if (!widget) {
-            // Overlays/modals can live on the top layer -- look there too.
-            widget = lv_obj_find_by_name(lv_layer_top(), target.c_str());
-        }
+        // The same name lookup as click: the topmost visible match on the screen
+        // or the top layer, never a hidden twin that happens to come first.
+        lv_obj_t* widget = resolve_widget({{"name", target}});
         if (!widget) {
             throw std::invalid_argument("Not a panel, and no widget named '" + target +
                                         "' on screen");
@@ -1276,7 +1301,12 @@ static std::vector<lv_obj_t*> matches_for_name(const std::string& name, lv_obj_t
         scope, [&name](const char* candidate) { return name == candidate; }, include_hidden);
 }
 
-static lv_obj_t* resolve_widget(const nlohmann::json& params) {
+// The one lookup behind every command that takes a widget name or path. A plain
+// name resolves to the topmost visible match; @p name_matches, when given,
+// receives every visible match of that name so a caller can report the
+// ambiguity it settled.
+static lv_obj_t* resolve_widget(const nlohmann::json& params,
+                                std::vector<lv_obj_t*>* name_matches) {
     lv_obj_t* scope = scope_root(params);
 
     if (auto path = json_util::read_field<std::string>(params, "path")) {
@@ -1341,9 +1371,38 @@ static lv_obj_t* resolve_widget(const nlohmann::json& params) {
             }
             return matches[static_cast<size_t>(wanted)];
         }
+        if (name_matches) {
+            *name_matches = matches;
+        }
         return topmost_visible(matches);
     }
     return nullptr;
+}
+
+// Lists every visible widget a plain name matched, when it matched more than
+// one, so a reply says which twin it acted on and which it passed over.
+static void add_name_matches(nlohmann::json& result, const std::vector<lv_obj_t*>& matches) {
+    if (matches.size() < 2) {
+        return;
+    }
+    nlohmann::json paths = nlohmann::json::array();
+    for (lv_obj_t* m : matches) {
+        paths.push_back(path_of(m));
+    }
+    result["name_matches"] = paths;
+}
+
+// " (hidden by <path>)" naming what hides @p obj, or "" when nothing does. The
+// active screen itself is hidden while the display sleeps or a screensaver runs.
+static std::string hidden_by_suffix(lv_obj_t* obj) {
+    lv_obj_t* hider = helix::ui::hidden_ancestor(obj);
+    if (!hider || hider == obj) {
+        return {};
+    }
+    if (hider == lv_screen_active()) {
+        return " (the active screen is hidden: the display is asleep or a screensaver is up)";
+    }
+    return " (hidden by " + path_of(hider) + ")";
 }
 
 // Human-readable label for a target (path or name), for result messages.
@@ -1570,9 +1629,11 @@ nlohmann::json RemoteControlServer::handle_click(const nlohmann::json& params) {
         throw std::invalid_argument("Missing required parameter: name or path");
     }
 
+    wake_and_await_screen();
     return execute_on_ui_thread([params]() -> nlohmann::json {
         wake_display();
-        lv_obj_t* target = resolve_widget(params);
+        std::vector<lv_obj_t*> name_matches;
+        lv_obj_t* target = resolve_widget(params, &name_matches);
         if (!target) {
             throw std::invalid_argument("Widget not found: " + target_label(params));
         }
@@ -1584,14 +1645,16 @@ nlohmann::json RemoteControlServer::handle_click(const nlohmann::json& params) {
         const bool force = params.value("force", false);
         if (const char* blocked = helix::click_blocker(widget)) {
             if (!force) {
-                throw std::invalid_argument(
-                    "Widget '" + target_label(params) + "' is " + blocked +
-                    " - a real tap would not reach it. Pass --force to send the event anyway.");
+                throw std::invalid_argument("Widget '" + target_label(params) + "' is " + blocked +
+                                            hidden_by_suffix(widget) +
+                                            " - a real tap would not reach it. Pass --force to "
+                                            "send the event anyway.");
             }
         }
 
         nlohmann::json result;
         result["clicked"] = target_label(params);
+        add_name_matches(result, name_matches);
         if (const char* blocked = helix::click_blocker(widget)) {
             // Forced. Say so in the response: a transcript that reads like an
             // ordinary click is exactly how a synthetic success gets mistaken
@@ -1664,6 +1727,7 @@ nlohmann::json RemoteControlServer::handle_set_widget_value(const nlohmann::json
 
     auto value_json = params["value"];
 
+    wake_and_await_screen();
     return execute_on_ui_thread([params, value_json]() -> nlohmann::json {
         wake_display();
         lv_obj_t* target = resolve_widget(params);
@@ -2096,6 +2160,7 @@ nlohmann::json RemoteControlServer::handle_focus(const nlohmann::json& params) {
         throw std::invalid_argument("Missing required parameter: name or path");
     }
 
+    wake_and_await_screen();
     return execute_on_ui_thread([params]() -> nlohmann::json {
         wake_display();
         lv_obj_t* obj = resolve_widget(params);
@@ -2407,6 +2472,7 @@ nlohmann::json RemoteControlServer::handle_scroll(const nlohmann::json& params) 
     int dx = params.value("dx", 0);
     int dy = params.value("dy", 0);
 
+    wake_and_await_screen();
     return execute_on_ui_thread([params, has_delta, dx, dy]() -> nlohmann::json {
         wake_display();
         lv_obj_t* obj = resolve_widget(params);
@@ -2496,13 +2562,21 @@ nlohmann::json RemoteControlServer::handle_geom(const nlohmann::json& params) {
     int depth = params.value("depth", 0);
 
     return execute_on_ui_thread([params, depth]() -> nlohmann::json {
-        lv_obj_t* obj = resolve_widget(params);
+        std::vector<lv_obj_t*> name_matches;
+        lv_obj_t* obj = resolve_widget(params, &name_matches);
         if (!obj) {
             throw std::invalid_argument("Widget not found: " + target_label(params));
         }
         nlohmann::json widgets = nlohmann::json::array();
         geom_walk(obj, target_label(params), depth, widgets);
-        return {{"widgets", widgets}};
+        // Each entry's "hidden" is that widget's own flag; "hidden_by" names the
+        // ancestor that keeps the measured widget off screen when there is one.
+        nlohmann::json result = {{"widgets", widgets}, {"resolved_path", path_of(obj)}};
+        if (lv_obj_t* hider = helix::ui::hidden_ancestor(lv_obj_get_parent(obj))) {
+            result["hidden_by"] = path_of(hider);
+        }
+        add_name_matches(result, name_matches);
+        return result;
     });
 }
 
@@ -2547,6 +2621,7 @@ nlohmann::json RemoteControlServer::handle_get_const(const nlohmann::json& param
 }
 
 nlohmann::json RemoteControlServer::handle_wake(const nlohmann::json& /*params*/) {
+    wake_and_await_screen();
     return execute_on_ui_thread([]() -> nlohmann::json {
         wake_display();
         return {{"awake", true}};

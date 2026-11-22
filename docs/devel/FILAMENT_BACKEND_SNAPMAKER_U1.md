@@ -477,9 +477,50 @@ sets `exception_code[ch]`: 10-15 preload, 30-35 reaching the head, 50-51 at the 
 unload, 90 hand feed). `include/snapmaker_exceptions.h#word_fault` gives the cause and fix
 for each code (the full map is in `docs/devel/printers/SNAPMAKER_U1_SUPPORT.md`), with a generic load failure for a code it does not know, and the backend
 (`src/printer/ams_backend_snapmaker.cpp#classify_coded_fault`) titles it with the head
-("Toolhead 1 didn't load"). During a print it is a dialog with Load (Unload for an unload
-fault; Open Filament when the fault names no head or has no retry), Cancel Print and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
+("Toolhead 1 didn't load"). During a print it is a dialog with the way on, Cancel Print
+and Close; idle, a toast with the same words. The feeder's status line meanwhile reads "Feeder N: Load failed"
 rather than the firmware's `channel_error` token.
+
+The way on is the failed operation again, on the fault's head, chosen by
+`snapmaker::feed_retry()` (`src/printer/snapmaker_exceptions.cpp#feed_retry`): **Load** for a
+preload, load or purge failure and for an unknown 525 code; **Unload** for a failed unload (70)
+and for filament already in the feed path (15), which has to come out first; **Open Filament**
+for the auto-feed setting (0), a hand feed (90) and a fault naming no head. Load and Unload are
+guided flows, not gcode: the action carries `guided_flow = kLoadLaneFlowId` / `kUnloadLaneFlowId`
+and `lane = <head>`, and `RecoveryModalPresenter` starts the flow's `start_on_lane(lane)`
+(`src/ui/filament/ui_guided_device_flow.cpp#register_recovery_flows`), which runs
+`execute_filament_load()` / `execute_filament_unload()`, the same executors as the Filament
+panel's buttons. The backend's own refusals (an already loaded head, a feeder out of automatic
+mode, Auto loading off, a disabled sensor) and its feed tracking therefore apply, and a load that runs for minutes reports
+through the feed's completion instead of timing out a raw gcode send. Cancel Print runs the
+`cancel_print` flow (the Stop button's confirmation).
+
+**A head whose load failed holds something.** A channel in `load_fail` whose lane still detects
+filament (`load_failed_into_head_locked()`) may have filament the feed pushed into the head,
+sometimes a broken stub the toolhead switch cannot see. `slot_filament_parked_in_toolhead()`
+(`src/printer/ams_backend_snapmaker.cpp#slot_filament_parked_in_toolhead`) answers true for it,
+so the Filament panel, the head picker and the unload executor offer Unload and Purge for that
+head. Load is unchanged.
+
+**The fault's text during a pause.** A load the user runs in a runout pause fails on its own head,
+which the runout's stop reason does not name. `AmsState` notes the stop reason standing when a
+filament operation starts during a pause (`track_pause_operation()`,
+`src/printer/ams_state.cpp#track_pause_operation`); a fault after that operation is the
+operation's, so `standing_fault_cause()` (`include/ams_standing_fault.h#standing_fault_cause`)
+gives no cause and the backend's own text shows ("Toolhead 4: Load failed"), or the recent `!!`
+line when the backend has none. The fault that caused the pause, and a new stop reason in the
+same pause, still take the stop reason. Operations already running when the pause began do not
+count as started in it.
+
+**A runout left over from an ended print.** The U1 keeps a head runout standing in
+`exception_manager` after the print it paused is cancelled, and replays it on every reconnect.
+`classify_coded_fault()` marks a runout with no job waiting as `ErrorEvent::leftover`, and
+`GcodeErrorRouter::process_line()` logs and drops it, so no later classifier shows it in the
+firmware's raw words. A job waits while `print_stats` reads printing or paused, or
+`pause_resume.is_paused` is set: `ClassifyContext::is_job_paused` carries `print_stats` paused,
+which Klipper reports before `pause_resume` while a PAUSE is still running, so a runout raised in
+that gap is not a leftover. A live idle runout is the filament sensor's own "Filament removed"
+notice.
 
 **Resume waits for a confirmed load.** `FEED_AUTO` answers OK without feeding when the
 port reads empty under `PRINTING=1`, and raises 525 (`extruder[N]: state: ..., error: ...!`)
@@ -1096,16 +1137,65 @@ clears them when it sees no print in progress.
 
 Every refusal inside `INNER_AUTO_REPLENISH_FILAMENT` is log-and-return, so a clean reply proves
 nothing, and the pause ending proves nothing either (the firmware also resumes on the runout head
-when it refeeds in place). After sending, the chooser judges the switch by its target
-(`runout_other_head::judge_switch`): `extruder_map_table` moved every logical tool of the runout
-head onto `continues_on`, and the print left the pause. The routing moves before the RESUME, and
-the print stays paused through the heat and purge, so a moved routing waits for the reply. A
-RESUME that fails after the routing moved (its preconditions, `CHECK_FILAMENT_RUNOUT` on the new
-head, a feed that fails) leaves the print paused on the new head: the chooser says so, hides the
-runout dialog, whose advice is about the old head, and offers `RESUME REPLENISH=1
-REPLENISH_EXTRUDER=<new>`, the step the firmware's own replenish runs. Without a moved routing it
-reports the print still paused. The send waits 150 s, and a timed-out send is judged by the outcome
-up to three minutes. Source: Snapmaker/u1-klipper `<klipper>/klippy/extras/print_task_config.py`.
+when it refeeds in place). After sending, a `SwitchWatch` (`src/ui/modals/ui_runout_other_head_modal.cpp`)
+re-reads the backend's facts (`AmsBackend::runout_other_head_facts()`) every second and asks
+`runout_other_head::judge_switch()` (`src/printer/runout_other_head.cpp#judge_switch`), which judges
+the switch by its target: `extruder_map_table` moved every logical tool of the runout head onto
+`continues_on`, and the print left the pause. The firmware writes the routing before its RESUME,
+and the print stays paused through the heat, load and purge, so a moved routing alone settles
+nothing.
+
+| `SwitchStep` | When | What the watch does |
+|--------------|------|---------------------|
+| `Wait` | Nothing decisive yet; or the routing moved and the firmware is still busy inside the pause (`printer_busy`, below) and less than `kSwitchBusyGiveUpMs` (15 min) has passed since sending | Keeps watching |
+| `Done` | Routing moved onto `continues_on` and the print left the pause | Clears the borrowed label, closes the runout dialog (`on_moved`) |
+| `Diverted` | Routing moved onto another head (the firmware found an identical record first) | Warning toast naming both heads; clears the label, closes the runout dialog |
+| `Stranded` | Routing moved onto `continues_on`, the firmware no longer busy, the print still paused, and the reply was refused, or settled `kSwitchSettleMs` (5 s) ago, or `kSwitchGiveUpMs` (3 min) passed | Clears the label, closes the runout dialog, then offers Resume on the new head (below) |
+| `Fail` | Routing never moved, and the reply settled or 3 min passed. Without a routing reported before sending, only the pause ending counts | Puts the empty head's record back, error toast ("did not switch ... still paused" or "... continued without switching"), restores the runout dialog's guidance (`on_not_moved`) |
+
+`printer_busy` is `machine_state_manager.action_code` other than IDLE while paused
+(`src/printer/ams_backend_snapmaker.cpp#runout_other_head_facts`). A load that retries and cleans
+the nozzle inside the firmware's replenish can run about five minutes, past both the send's own
+150 s timeout and the 3 min give-up, so a busy firmware with the routing moved is waited out
+rather than called stranded. The switch send is `silent=true` with
+`caller_surfaces_errors=false`, and the stranded Resume is silent too: a timeout is no outcome,
+the watch reports the outcome, and the printer's own `!!` line goes to the router. A silent timeout also does not end
+the label's life early: the label is cleared only on a decisive step, never mid-load.
+
+**While the switch runs.** From the send (`SwitchHooks::on_sent`) until the outcome, the runout
+dialog stays up in its switching state: `RunoutGuidanceModal::set_switch_progress()`
+(`include/ui_runout_guidance_modal.h#set_switch_progress`) sets `runout_switch_in_progress` and
+`runout_switch_message` ("Switching to Toolhead 3. The printer heats and purges it, then resumes
+the print."), which swap the guidance for a spinner row and disable every button, Close and Cancel
+Print included; ESC and the backdrop do not close it. The firmware busy inside the pause on its
+own (its own resume or Auto-Replenish, `printer_busy` with no switch sent) shows the same state
+with "The printer is working on the paused print. Wait for it to finish." and Cancel Print left
+live, for up to `kSwitchGiveUpMs`; past that the guidance comes back. Throughout, the guidance's
+Resume gate and port reading stay frozen on the runout head (`FilamentRunoutHandler::guidance_current()`):
+once the printer is busy or has moved off it, the active tool's port sensor describes another
+head. The handler re-reads the printer every second while the dialog is up, so the
+**Use Another Toolhead** offer follows the printer (`RunoutOtherHeadModal::available()`:
+`worth_offering()`). Whatever closes the dialog ends its state with it (`end_guidance()` on the
+dialog's `on_hidden`), since the subjects it drives are shared with every runout dialog.
+
+**Stranded, or a failed load.** A routing that moved while the RESUME after it failed (its
+preconditions, `CHECK_FILAMENT_RUNOUT` on the new head) leaves the print paused on the new head.
+The runout dialog, whose advice is about the old head, closes first, so the next dialog opens over
+the print rather than over one on its way out. Then:
+
+- **Stranded:** "Print Did Not Resume" (`show_stranded_dialog()`) names the new head and offers
+  `RESUME REPLENISH=1 REPLENISH_EXTRUDER=<new>` (`resume_on_gcode()`), the step the firmware's own
+  replenish runs, sent silent.
+- **A load that failed during the switch:** the new head's feeder reports `load_fail` and
+  `load_failed_by_switch()` (`src/printer/runout_other_head.cpp#load_failed_by_switch`) is true,
+  so no stranded dialog shows: the feeder's own 525 fault already reports it, with Load in place
+  (§ "A failed load explains itself"). A failure the head already showed when the switch was sent
+  is not this switch's and still gets the stranded dialog.
+
+The runout handler applies the same stranded test without a switch of ours: a print whose routing
+left the runout head, firmware idle, still paused for more than `kSwitchSettleMs`
+(`runout_other_head::stranded_on()`; the firmware writes the routing before it marks itself busy)
+closes the runout guidance and offers the same Resume (`RunoutOtherHeadModal::show_stranded()`).
 
 The label does not outlive the switch. The firmware replaces a head's record only on an official
 RFID read or an edit (a tagless spool is ignored while the vendor is not `NONE`), so a borrowed

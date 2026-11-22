@@ -1497,6 +1497,7 @@ translations:
   Download update?: Update herunterladen?
   Download v{}?: v{} herunterladen?
   Downloading the timelapse plugin...: 'Zeitraffer-Plugin wird heruntergeladen...'
+  Downloading the timelapse...: 'Zeitraffer wird heruntergeladen...'
   Downloading...: Wird heruntergeladen...
   Downloading... {:.1f}/{:.1f} MB: Wird heruntergeladen... {:.1f}/{:.1f} MB
   Draw a ripple at each touch — helps diagnose offsets: Bei jeder Berührung einen Effekt zeichnen — hilft beim Diagnostizieren von Versätzen
@@ -4771,6 +4772,8 @@ translations:
   The DNS server is not a valid address.: 'Der DNS-Server ist keine gültige Adresse.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : Das HelixPrint-Plugin ermöglicht schnelle G-Code-Modifikationen direkt auf Ihrem Drucker – wie das Überspringen des Bettnetzes für schnelle Neudrucke.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'Das HelixPrint-Plugin muss von der Firmware Ihres Druckers kommen, die die Software von HelixScreen verwaltet.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'Das HelixPrint-Plugin wird von der Firmware Ihres Druckers verwaltet.'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Das HelixPrint-Plugin stellt alte PRINT_START-Aufrufe auf die ausgeblendeten Namen um.'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'Die IFS-Platine hat nicht rechtzeitig geantwortet: ein Kabelproblem, eine hängende Platine oder der native Bildschirm nutzt denselben Port.'
   The IFS board reported a driver error on every retry.: Die IFS-Platine hat bei jedem Wiederholungsversuch einen Treiberfehler gemeldet.
@@ -5098,6 +5101,7 @@ translations:
   The temperature was changed elsewhere.: "Die Temperatur wurde anderswo geändert."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Der Thermoelement- oder PT100-Verstärker hat einen Fehler oder einen Messwert außerhalb des Bereichs gemeldet.
   The time, date, and system uptime: Uhrzeit, Datum und Betriebszeit
+  The timelapse could not be downloaded: 'Der Zeitraffer konnte nicht heruntergeladen werden'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Der Zeitraffer- oder Protokoll-Ordner überlappt einen geschützten Ordner, daher ist die Bereinigung ausgeschaltet."
   Timelapse did not start: 'Zeitraffer nicht gestartet'
   Timelapse frames start after Klipper restarts.: 'Zeitraffer-Bilder werden nach dem Neustart von Klipper aufgenommen.'
@@ -5136,7 +5140,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'Der {0}-Motor wurde nicht gemessen: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Das Update meldet sich nicht mehr. Sein Ergebnis ist unbekannt: Prüfe den Drucker, bevor du ihn benutzt.'
   The update's result is unknown: 'Das Ergebnis des Updates ist unbekannt'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Der Videoplayer konnte auf diesem Drucker nicht starten ({}). Scannen Sie den Code mit Ihrem Telefon, um den Zeitraffer anzusehen.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Der Beschleunigungssensor {1} hat nicht mit seiner erwarteten ID geantwortet. Höchstwahrscheinlich ist er ausgesteckt, sein Kabel ist beschädigt oder seine SPI-Pins sind falsch.
   The {1} motor lost steps: Der Motor {1} hat Schritte verloren
@@ -5283,6 +5286,7 @@ translations:
   'This update asks for new permissions:': 'Dieses Update fragt nach neuen Berechtigungen:'
   This update removes HelixScreen from the printer.: 'Dieses Update entfernt HelixScreen vom Drucker.'
   This upgrades the printer's operating system packages.: 'Dies aktualisiert die Betriebssystempakete des Druckers.'
+  This video could not be played: 'Dieses Video konnte nicht abgespielt werden'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Dieses Warten endet erst bei seiner Temperatur: Abbrechen erfordert einen Notaus und einen Firmware-Neustart.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Dies wendet den Z-offset auf Ihren Endschalter an und startet Klipper neu, um die Konfiguration zu speichern. Der Drucker wird kurz getrennt.
@@ -5628,8 +5632,6 @@ translations:
   Vibration: Vibration
   Vibration compensation active: Vibrationskompensation aktiv
   Video playback speed: Videowiedergabegeschwindigkeit
-  Video player failed to start: 'Videoplayer konnte nicht starten'
-  Video player failed to start ({}): 'Videoplayer konnte nicht starten ({})'
   View: Ansicht
   View Changelog: Changelog anzeigen
   View Full History: Vollständigen Verlauf anzeigen
@@ -5798,6 +5800,8 @@ translations:
   Your printer at a glance: Ihr Drucker auf einen Blick
   Your printer has an automatic filament changer: Ihr Drucker hat einen automatischen Filamentwechsler
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Ihr Drucker war während der Einrichtung offline, daher wurden Hardware-Optionen übersprungen. Jetzt einrichten?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'Die Firmware Ihres Druckers verwaltet die Software von HelixScreen, daher muss das HelixPrint-Plugin von der Firmware bereitgestellt werden. Es kann nicht über diesen Bildschirm installiert werden.'
   Your printer's manual has the parts and lubricant for your model.: "Im Druckerhandbuch stehen Teile und Schmiermittel für dieses Modell."
   Your usual build plate is on: 'Deine übliche Druckplatte liegt auf'
   Your {0} is set up for {1}, but it looks stock.: 'Ihr {0} ist für {1} eingerichtet, wirkt aber wie Serienzustand.'

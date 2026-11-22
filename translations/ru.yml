@@ -1557,6 +1557,7 @@ translations:
   Download update?: Загрузить обновление?
   Download v{}?: Загрузить v{}?
   Downloading the timelapse plugin...: 'Загрузка плагина таймлапса...'
+  Downloading the timelapse...: 'Загрузка таймлапса...'
   Downloading...: Загрузка...
   Downloading... {:.1f}/{:.1f} MB: Загрузка... {:.1f}/{:.1f} МБ
   Draw a ripple at each touch — helps diagnose offsets: Рисовать круг при каждом касании — помогает диагностировать смещения
@@ -4859,6 +4860,8 @@ translations:
   The DNS server is not a valid address.: 'DNS-сервер не является допустимым адресом.'
   ? The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints.
   : Плагин HelixPrint позволяет быстро модифицировать G-code прямо на принтере — например, пропускать сетку стола для быстрых перепечаток.
+  The HelixPrint plugin has to come from your printer's firmware, which manages HelixScreen's software.: 'Плагин HelixPrint должен поставляться прошивкой принтера, которая управляет программным обеспечением HelixScreen.'
+  The HelixPrint plugin is managed by your printer's firmware.: 'Плагином HelixPrint управляет прошивка принтера.'
   The HelixPrint plugin moves old PRINT_START calls to the hidden names.: 'Плагин HelixPrint переводит старые вызовы в PRINT_START на скрытые имена.'
   'The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port.': 'Плата IFS не ответила вовремя: проблема с кабелем, плата зависла или родной экран использует тот же порт.'
   The IFS board reported a driver error on every retry.: Плата IFS сообщала об ошибке драйвера при каждой повторной попытке.
@@ -5186,6 +5189,7 @@ translations:
   The temperature was changed elsewhere.: "Температуру изменили в другом месте."
   The thermocouple or PT100 amplifier reported a fault or a reading out of range.: Усилитель термопары или PT100 сообщил о неисправности или показаниях вне диапазона.
   The time, date, and system uptime: Время, дата и время работы системы
+  The timelapse could not be downloaded: 'Не удалось загрузить таймлапс'
   The timelapse or logs folder overlaps a protected folder, so cleanup is off.: "Папка таймлапсов или журналов пересекается с защищённой папкой, поэтому очистка выключена."
   Timelapse did not start: 'Таймлапс не запустился'
   Timelapse frames start after Klipper restarts.: 'Кадры таймлапса начнут сниматься после перезапуска Klipper.'
@@ -5224,7 +5228,6 @@ translations:
   'The {0} motor was not measured: {1}.': 'Мотор {0} не измерен: {1}.'
   'The update stopped reporting. Its result is unknown: check the printer before using it.': 'Обновление перестало сообщать о ходе работы. Результат неизвестен: проверьте принтер перед использованием.'
   The update's result is unknown: 'Результат обновления неизвестен'
-  The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse.: 'Не удалось запустить видеоплеер на этом принтере ({}). Отсканируйте код телефоном, чтобы посмотреть таймлапс.'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Акселерометр {1} не ответил ожидаемым ID. Скорее всего, он отключён, его кабель повреждён или неверно заданы пины SPI.
   The {1} motor lost steps: Мотор {1} потерял шаги
@@ -5371,6 +5374,7 @@ translations:
   'This update asks for new permissions:': 'Это обновление запрашивает новые разрешения:'
   This update removes HelixScreen from the printer.: 'Это обновление удаляет HelixScreen с принтера.'
   This upgrades the printer's operating system packages.: 'Будут обновлены пакеты операционной системы принтера.'
+  This video could not be played: 'Не удалось воспроизвести это видео'
   'This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart.': 'Это ожидание заканчивается только по достижении температуры: для отмены нужны аварийная остановка и перезапуск прошивки.'
   ? This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect.
   : Z-offset будет применён к вашему концевику, и Klipper перезапустится для сохранения конфигурации. Принтер ненадолго отключится.
@@ -5716,8 +5720,6 @@ translations:
   Vibration: Вибрация
   Vibration compensation active: Компенсация вибраций активна
   Video playback speed: Скорость воспроизведения видео
-  Video player failed to start: 'Не удалось запустить видеоплеер'
-  Video player failed to start ({}): 'Не удалось запустить видеоплеер ({})'
   View: Просмотр
   View Changelog: Просмотр изменений
   View Full History: Просмотреть полную историю
@@ -5886,6 +5888,8 @@ translations:
   Your printer at a glance: Ваш принтер одним взглядом
   Your printer has an automatic filament changer: Ваш принтер оснащён автоматическим сменщиком филамента
   Your printer was offline during setup, so hardware options were skipped. Set them up now?: Принтер был не в сети во время настройки, поэтому параметры оборудования пропущены. Настроить их сейчас?
+  ? Your printer's firmware manages HelixScreen's software, so the HelixPrint plugin has to be provided by the firmware. It can't be installed from this screen.
+  : 'Прошивка принтера управляет программным обеспечением HelixScreen, поэтому плагин HelixPrint должен предоставляться прошивкой. Его нельзя установить с этого экрана.'
   Your printer's manual has the parts and lubricant for your model.: "В руководстве указаны детали и смазка для вашей модели."
   Your usual build plate is on: 'Установлена ваша обычная печатная пластина'
   Your {0} is set up for {1}, but it looks stock.: 'Ваш {0} настроен для {1}, но выглядит стоковым.'

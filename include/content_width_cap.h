@@ -73,6 +73,31 @@ constexpr int32_t fit_dialog_scroller(int32_t scroller_h, int32_t hidden, int32_
 }
 
 /**
+ * @brief Narrowest the ultrawide side band may be, as a ratio of screen height.
+ *
+ * The side band (include/ui_side_band.h) hosts Motion or the AMS view in the
+ * width the cap leaves beside a host panel. Those views are laid out for a box
+ * about one and a half screen heights wide; at one screen height Motion's jog
+ * pad still fits beside its Z column, and below that its step buttons and
+ * readout run off the screen. An ultrawide screen only just past the layout's
+ * 2.5:1 threshold (1280x480, 1920x720) leaves a sliver of under 120 px, so the
+ * band shows only when the leftover reaches this width.
+ */
+constexpr int32_t kSideBandMinWidthNum = 1;
+constexpr int32_t kSideBandMinWidthDen = 1;
+
+/// The narrowest side band for a screen of @p ver_res pixels tall.
+constexpr int32_t side_band_min_width(int32_t ver_res) {
+    return ver_res * kSideBandMinWidthNum / kSideBandMinWidthDen;
+}
+
+/// Whether a host @p host_width wide, its main column capped at @p cap, leaves
+/// a side band at least side_band_min_width(@p ver_res) wide.
+constexpr bool side_band_has_room(int32_t host_width, int32_t cap, int32_t ver_res) {
+    return host_width - cap >= side_band_min_width(ver_res);
+}
+
+/**
  * @brief How far a view of @p width overshoots the cap.
  *
  * An overlay keeps its full opaque width, so it occludes the backdrop as

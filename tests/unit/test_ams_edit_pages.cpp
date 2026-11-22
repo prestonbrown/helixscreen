@@ -18,13 +18,16 @@
 #include "../test_helpers/toast_log.h"
 #include "ams_backend_mock.h"
 #include "ams_state.h"
+#include "config.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
 #include "display_numbering.h"
 #include "filament_catalog.h"
+#include "filament_favorites.h"
 #include "filament_variants.h"
 #include "lane_translation.h"
 #include "moonraker_client_mock_spoolman.h"
+#include "theme_manager.h"
 
 #include <optional>
 
@@ -898,5 +901,242 @@ TEST_CASE_METHOD(PagesFixture, "a failed Add to Spoolman leaves the lane as it w
     CHECK(now.color_rgb == lane.color_rgb);
     CHECK(access.page() == AmsEditOverlay::kPageSummary);
     CHECK(access.shown("add_spoolman_row"));
+    close_editor_overlay();
+}
+
+namespace {
+/// Stars @p ids in the app-wide favorites for one test.
+struct StarredFavorites {
+    explicit StarredFavorites(const std::vector<std::string>& ids) {
+        helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath, ids);
+    }
+    ~StarredFavorites() {
+        helix::Config::get_instance()->set(helix::filament_favorites::kFavoriteIdsPath,
+                                           std::vector<std::string>{});
+    }
+};
+
+/// The first @p n catalog products of named makers, in catalog order.
+std::vector<const helix::printer::EffectiveFilament*>
+catalog_products(const helix::printer::FilamentCatalog& catalog, size_t n) {
+    std::vector<const helix::printer::EffectiveFilament*> out;
+    for (const auto& brand : catalog.all_brands()) {
+        if (helix::text_io::equals_ignore_case(brand, "Generic")) {
+            continue;
+        }
+        for (const auto* ef : catalog.products_for_brand(brand)) {
+            if (out.size() < n) {
+                out.push_back(ef);
+            }
+        }
+    }
+    return out;
+}
+} // namespace
+
+TEST_CASE_METHOD(PagesFixture,
+                 "a new spool starts from the user's favorites, then the common spools",
+                 "[ams_edit_overlay][pages][favorites]") {
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    const auto favs = catalog_products(catalog, 3);
+    REQUIRE(favs.size() == 3);
+    StarredFavorites starred({favs[0]->id, favs[1]->id, favs[2]->id});
+
+    open(1, SlotInfo{});
+    access.click("btn_choose_spool");
+    access.click("btn_add_new");
+    settle();
+    REQUIRE(access.page() == AmsEditOverlay::kPageFilament);
+    REQUIRE(access.shown("common_spools"));
+
+    // Star order, each named; the common spools after them.
+    for (int i = 0; i < 3; ++i) {
+        INFO(i);
+        CHECK(access.subject_text(("ams_edit_tile_label_" + std::to_string(i)).c_str()) ==
+              helix::spool_assign::spool_tile_label(favs[static_cast<size_t>(i)]->brand,
+                                                    favs[static_cast<size_t>(i)]->name));
+        CHECK(lv_subject_get_int(lv_xml_get_subject(
+                  nullptr, ("ams_edit_tile_fav_" + std::to_string(i)).c_str())) == 1);
+    }
+    CHECK(access.subject_text("ams_edit_tile_label_3") == "Generic PLA");
+    CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_tile_fav_3")) == 0);
+
+    // A favorite fills the form as a catalog pick does.
+    lv_obj_t* tile = access.widget("spool_tile_1");
+    REQUIRE(tile != nullptr);
+    lv_obj_send_event(tile, LV_EVENT_CLICKED, nullptr);
+    settle();
+    CHECK(access.sel().product_id == favs[1]->id);
+    CHECK(access.sel().brand == favs[1]->brand);
+    CHECK(access.sel().family == filament::display_family(favs[1]->type));
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "Brand leads with Favorites only while there are favorites",
+                 "[ams_edit_overlay][pages][favorites]") {
+    const auto first_brand = [this] {
+        const std::string all = access.dropdown_options("dropdown_brand");
+        return all.substr(0, all.find('\n'));
+    };
+    SECTION("none starred: Generic leads") {
+        open(1, describe_lane(*backend, 1, "PLA"));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        settle();
+        CHECK(first_brand() == "Generic");
+    }
+    SECTION("starred: Favorites leads, and opens the picker on its Favorites view") {
+        const auto catalog = helix::printer::FilamentCatalog::load_full();
+        StarredFavorites starred({catalog_products(catalog, 1).front()->id});
+        open(1, describe_lane(*backend, 1, "PLA"));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        settle();
+        REQUIRE(first_brand() == "Favorites \xE2\x98\x85");
+        REQUIRE(access.pick_dropdown("dropdown_brand", "Favorites \xE2\x98\x85"));
+        settle();
+        lv_obj_t* picker = ModalStack::instance().top_dialog();
+        REQUIRE(picker != nullptr);
+        lv_obj_t* vendor = lv_obj_find_by_name(picker, "vendor_dropdown");
+        REQUIRE(vendor != nullptr);
+        char buf[64] = {};
+        lv_dropdown_get_selected_str(vendor, buf, sizeof(buf));
+        CHECK(std::string(buf) == "Favorites");
+        ModalStack::instance().clear();
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "the Filament row's star adds the lane's product to the favorites",
+                 "[ams_edit_overlay][pages][favorites]") {
+    StarredFavorites starred({});
+    const auto star_state = [] {
+        return lv_subject_get_int(lv_xml_get_subject(nullptr, "ams_edit_star_state"));
+    };
+    SECTION("Generic: no star") {
+        open(1, describe_lane(*backend, 1, "PLA"));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        REQUIRE(access.pick_dropdown("dropdown_brand", "Generic"));
+        settle();
+        CHECK_FALSE(access.shown("btn_favorite"));
+        CHECK(star_state() == 0);
+    }
+    SECTION("a catalog product: outlined, and a tap stars it") {
+        const auto catalog = helix::printer::FilamentCatalog::load_full();
+        const auto* product = catalog_products(catalog, 1).front();
+        SlotInfo lane = describe_lane(*backend, 1, "PLA");
+        lane.brand = product->brand;
+        lane.catalog_id = product->id;
+        lane.material = product->type;
+        REQUIRE(helix::test::apply_edit(*backend, 1, lane).success());
+        open(1, backend->get_slot_info(1));
+        access.open_page(AmsEditOverlay::kPageFilament);
+        settle();
+        REQUIRE(access.sel().product_id == product->id);
+        REQUIRE(access.shown("btn_favorite"));
+        CHECK(access.shown("favorite_star_outline"));
+        CHECK_FALSE(access.shown("favorite_star"));
+
+        access.click("btn_favorite");
+        settle();
+        const auto ids = helix::filament_favorites::load_favorite_ids();
+        CHECK(std::find(ids.begin(), ids.end(), product->id) != ids.end());
+        CHECK(star_state() == 2);
+        CHECK(access.shown("favorite_star"));
+        CHECK_FALSE(access.shown("favorite_star_outline"));
+        // It leads the spool tiles now.
+        CHECK(access.subject_text("ams_edit_tile_label_0") ==
+              helix::spool_assign::spool_tile_label(product->brand, product->name));
+
+        // A second tap takes it off again.
+        access.click("btn_favorite");
+        settle();
+        CHECK(helix::filament_favorites::load_favorite_ids().empty());
+        CHECK(star_state() == 1);
+    }
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "the small classes give favorites one row, taken from the swatches",
+                 "[ams_edit_overlay][pages][favorites]") {
+    lv_display_t* disp = lv_display_get_default();
+    const auto catalog = helix::printer::FilamentCatalog::load_full();
+    const auto favs = catalog_products(catalog, 3);
+    REQUIRE(favs.size() == 3);
+    const auto add_spool = [this] {
+        open(1, SlotInfo{});
+        access.click("btn_choose_spool");
+        access.click("btn_add_new");
+        settle();
+        REQUIRE(access.page() == AmsEditOverlay::kPageFilament);
+    };
+    for (const auto& [w, h] : {std::pair{480, 320}, std::pair{480, 272}}) {
+        CAPTURE(w, h);
+        ScopedResolution res(disp, w, h);
+        theme_manager_refresh_layout_constants(disp);
+
+        // No favorites: as before, no tiles at all.
+        add_spool();
+        CHECK_FALSE(access.shown("favorite_spools"));
+        CHECK_FALSE(access.shown("common_spools"));
+        const size_t swatches_without = access.color_row().size();
+        close_editor_overlay();
+
+        {
+            StarredFavorites starred({favs[0]->id, favs[1]->id, favs[2]->id});
+            add_spool();
+            REQUIRE(access.shown("favorite_spools"));
+            CHECK_FALSE(access.shown("common_spools"));
+            // The favorites alone: the fourth slot is a common spool and stays hidden.
+            CHECK(access.shown("favorite_tile_0"));
+            CHECK(access.shown("favorite_tile_2"));
+            CHECK_FALSE(access.shown("favorite_tile_3"));
+            // The swatches gave up room for the row.
+            CHECK(access.color_row().size() < swatches_without);
+            close_editor_overlay();
+        }
+    }
+    theme_manager_refresh_layout_constants(disp);
+}
+
+TEST_CASE_METHOD(PagesFixture, "a lane holding an unrecorded spool opens on its summary",
+                 "[ams_edit_overlay][pages]") {
+    SlotInfo lane = backend->get_slot_info(1);
+    lane.material.clear();
+    lane.brand.clear();
+    lane.spoolman_id = 0;
+    lane.status = SlotStatus::AVAILABLE;
+    open(1, lane);
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    // Its unknown state: no material, a full spool of the lane's size.
+    CHECK(access.working_info().material.empty());
+    CHECK(access.shown("btn_hdr_new_spool"));
+    close_editor_overlay();
+}
+
+TEST_CASE_METHOD(PagesFixture, "a label scanned on the empty page or the list opens the summary",
+                 "[ams_edit_overlay][pages][scan]") {
+    SpoolInfo spool;
+    spool.id = 77;
+    spool.vendor = "Polymaker";
+    spool.material = "PLA";
+    spool.color_hex = "202020";
+    spool.remaining_weight_g = 700;
+    spool.initial_weight_g = 1000;
+    SlotInfo empty;
+    empty.status = SlotStatus::EMPTY;
+    SECTION("from the empty page") {
+        open(1, empty);
+        REQUIRE(access.page() == AmsEditOverlay::kPageEmpty);
+    }
+    SECTION("from the New Spool list") {
+        open(1, empty);
+        access.click("btn_choose_spool");
+        settle();
+        REQUIRE(access.page() == AmsEditOverlay::kPageList);
+    }
+    access.scan_spool(spool);
+    settle();
+    CHECK(access.page() == AmsEditOverlay::kPageSummary);
+    CHECK(access.working_info().spoolman_id == 77);
+    CHECK(access.save_disabled() == 0);
     close_editor_overlay();
 }

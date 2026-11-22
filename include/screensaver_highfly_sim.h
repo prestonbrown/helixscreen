@@ -70,13 +70,30 @@ inline constexpr float kHighflyWhiteoutMax = 0.62f;
 inline constexpr float kHighflyTowerMinS = 13.0f;
 inline constexpr float kHighflyTowerMaxS = 14.0f;
 
-/// A premultiplied RGBA texture, row-major.
+/// A premultiplied RGBA cloud texture, row-major. Its color comes from `shade` through the
+/// palette's cloud ramp, so a palette change recolors `rgba` without baking the cloud again.
 struct HighFlyTexture {
     int32_t w = 0;
     int32_t h = 0;
-    std::vector<uint8_t> rgba; ///< premultiplied, 4 bytes per texel
+    std::vector<uint8_t> rgba; ///< premultiplied, 4 bytes per texel; alpha is the coverage
+    /// 0 (shadow) to 255 (sunlit) at half resolution, sw x sh, one cell per 2 x 2 texels. A
+    /// billboard never draws larger than about a pixel a texel where it shows, so the half
+    /// resolution shade is at or below what reaches the screen.
+    std::vector<uint8_t> shade;
+    int32_t sw = 0;
+    int32_t sh = 0;
+    bool wrap = false; ///< tiles across x, so shade_at() wraps there
+    /// The shade of texel (x, y), upsampled bilinearly from `shade`.
+    uint8_t shade_at(int32_t x, int32_t y) const;
     size_t heap_bytes() const;
+    void release();
 };
+
+/// Stores `full` (one shade per texel of `t`, t.w x t.h) in `t.shade` at half resolution, with
+/// `t.rgba`'s alpha already set: each cell the coverage-weighted mean of its 2 x 2 texels. An
+/// empty cell takes its covered neighbours' mean, twice over, so upsampling at a cloud's edge
+/// never pulls toward the shadow end. `wrap_x` for a texture that tiles across x.
+void highfly_pack_shade(const std::vector<uint8_t>& full, bool wrap_x, HighFlyTexture& t);
 
 /// Field texels per world unit: a world height is the stored height / kHighflyTexelsPerUnit.
 inline constexpr float kHighflyTexelsPerUnit = 2.0f;
@@ -155,11 +172,21 @@ inline constexpr int kHighflyPaletteSteps = 10;
 /// kHighflyPaletteSteps steps; kHighflySunset for DONE, kHighflyOvercast for FAILED and
 /// CANCELLED.
 HighflyPalette highfly_palette(const ClockReading& r);
+/// A towering cumulus' color at shade `s` (0 to 1) under `p`: blue-grey under its lobes to
+/// `p.lit` on top. Its shadow and midtone stops are the day stops regraded per channel through
+/// `p`'s shadow, midtone and lit, so kHighflyDay gives the day stops exactly.
+Rgb highfly_tower_rgb(float s, const HighflyPalette& p);
 /// Forward speed while a print is paused, against 1 otherwise.
 inline constexpr float kHighflyPausedSpeed = 0.25f;
 /// How far the paused view sways to either side, field texels, and its rate, radians a second.
 inline constexpr float kHighflySwayTexels = 24.0f;
 inline constexpr float kHighflySwayRate = 0.15f;
+
+/// The word the big numerals spell in place of a time: "DONE" for a finished print, or the
+/// check mark (kGlyphCheck) where the reading spells no states; "" while they show numbers.
+const char* highfly_word(const ClockReading& r);
+/// Most glyphs highfly_word() returns.
+inline constexpr size_t kHighflyWordMax = 4;
 
 /// Where the clock sits on a w x h canvas, moved by the drift (dx, dy).
 struct HighFlyClockLayout {
@@ -176,6 +203,11 @@ struct HighFlyClockLayout {
     DirtyRect bounds;
 };
 HighFlyClockLayout layout_highfly_clock(int32_t w, int32_t h, int32_t dx, int32_t dy);
+/// Boxes of the first `count` (at most kHighflyWordMax) glyphs of a word the big numerals spell:
+/// each a numeral's size on the numerals' row, a numeral gap apart, the run centred on the
+/// numerals.
+std::array<DirtyRect, kHighflyWordMax> highfly_word_boxes(const HighFlyClockLayout& l,
+                                                          size_t count);
 
 class HighFlySim {
   public:
@@ -277,6 +309,8 @@ class HighFlySim {
     void build_sky();
     /// Per deck slice: 256 shades through the palette's near white and fog.
     void bake_slice_lut();
+    /// Recolors the band, layer and tower textures from their shades through palette_.
+    void tint_billboards();
     /// Follows the print over `dt_s` seconds: forward speed and sway ease toward paused or not,
     /// the step into DONE starts a fly-through, and the palette moves to highfly_palette()
     /// (DONE's once a fly-through's whiteout covers the frame), asking for a repaint.
@@ -312,10 +346,15 @@ class HighFlySim {
     struct NumeralLayer {
         DirtyRect box;
         std::vector<uint32_t> over;
-        std::array<int, 4> digits{-1, -1, -1, -1}; ///< what `over` shows, -1 before a bake
+        /// What `over` shows: its digits, all -1 before a bake; for a word, -2 then the word's
+        /// first character and length (the seconds layer: all -2).
+        std::array<int, 4> digits{-1, -1, -1, -1};
     };
     class LayerWriter;
-    /// Draws group `g` of `reading` at layout `l` into `writer`.
+    /// Draws `word` (highfly_word()) in the numerals' size, style and halo at layout `l`.
+    void draw_word(LayerWriter& writer, const char* word, const HighFlyClockLayout& l) const;
+    /// Draws group `g` of `reading` at layout `l` into `writer`: the numerals, or for a reading
+    /// with a highfly_word() that word in place of the hours and minutes and no seconds.
     void draw_numeral_group(LayerWriter& writer, const ClockReading& reading, NumeralGroup g,
                             const HighFlyClockLayout& l) const;
     /// Sizes the two layers for the current clock size.

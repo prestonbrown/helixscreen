@@ -324,7 +324,8 @@ Navigate to **Advanced > Timelapse Videos** to browse your recorded timelapses:
 
 - **Thumbnail grid** with responsive card sizing that adapts to your screen
 - Each card shows a **video thumbnail**, filename, file size, and date
-- **Tap** a card to play the video fullscreen (requires mpv or ffplay on your device)
+- **Tap** a card to play the video full screen, right on the printer's display. Tap the video to show the controls: play and pause, a scrub bar to jump anywhere, and replay at the end. Playback needs `ffmpeg` on the device running HelixScreen.
+- Without `ffmpeg`, on very small boards (under 512 MB of memory or a single core), or while a print is running, a tap shows a **QR code** instead: scan it with your phone to watch the video there.
 - **Long-press** a card to delete it (with confirmation)
 - Videos are stored on your printer and managed by the timelapse plugin
 

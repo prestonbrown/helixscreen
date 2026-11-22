@@ -869,7 +869,11 @@ everywhere; `toggle_favorite()` persists immediately, with no separate save
 step. In the selector, favorites surface as a pseudo-vendor row that leads
 the vendor list (a control byte in its internal name keeps it from colliding
 with a real vendor), and starred rows float to the top of their vendor's
-list.
+list. The picker can open on a given vendor, the Favorites view included
+(`FilamentCatalogPickerModal::set_seed_vendor()`,
+`FilamentCatalogSelector::favorites_vendor()`): the spool editor's **Favorites ★**
+brand entry opens it there. The spool editor reads the same ids for its spool tiles
+and stars a product from its Filament page (§ "The lane spool editor").
 
 ### User overlay format
 
@@ -1577,9 +1581,13 @@ overlay (`COLOR_SWATCHES.md` § "The color picker").
 
 **Which page opens.** `show_for_slot()` resets every per-session field, then asks
 `helix::spool_assign::screen_for_lane()` (`include/spool_assign.h#screen_for_lane`): a
-lane that holds a spool (a Spoolman link or a material) opens on the summary in
-`kModeEdit`, and a lane its sensor reports empty opens on the empty page whatever record
-it still carries, since that record is what it last held. `open_on_picker` (the lane
+lane its status reports holding filament (available, loaded, from the buffer, blocked;
+`slot_status_reports_filament()`) opens on the summary in `kModeEdit`, recorded or not,
+so a tagless spool is described there rather than on the empty page. A lane whose status
+is unknown opens on the summary when it records a spool (a Spoolman link or a material)
+and on the empty page when it records nothing. A lane its sensor reports empty opens on
+the empty page whatever record it still carries, since that record is what it last
+held. `open_on_picker` (the lane
 menu's **Select Spool**, and the sidebar for an unlinked lane when Spoolman is set up)
 opens the New Spool list, and Back from it returns to the page the lane would have
 opened on. The title follows the page (`update_page_title()`): the lane in the backend's
@@ -1686,13 +1694,22 @@ Rows read as sentences, a label column on the left and the controls on the right
 **Filament** is Brand, then what the spool is, so a material is picked in exactly one
 place (`rebuild_option_lists()`):
 
-- **Brand**: Generic, then the recent brands (from Spoolman's spools), then every other
-  catalog maker, then "Browse catalog...". A value the catalog lacks stays in the list,
+- **Brand**: **Favorites ★** while the user has starred any product, then Generic, then
+  the recent brands (from Spoolman's spools), then every other catalog maker, then
+  "Browse catalog...". **Favorites ★** opens the catalog picker on its Favorites view
+  (`FilamentCatalogPickerModal::set_seed_vendor()` with
+  `FilamentCatalogSelector::favorites_vendor()`), and a pick there applies as any catalog
+  pick does (`apply_catalog_pick()`). A value the catalog lacks stays in the list,
   selected, so an untouched open and Save round-trips it.
 - **Product**, under a named brand: that brand's catalog lines the firmware accepts, then
   "Other…". A product carries its own material and type, so a product pick sets both.
   Firmware that names a product without a catalog id (the CFS fork's `NAME`) opens on the
-  line of that name, or on the name itself when the catalog has none.
+  line of that name, or on the name itself when the catalog has none. A star beside the
+  Product list (`btn_favorite`, on the `ams_edit_star_state` subject: 0 hidden, 1 outlined,
+  2 filled; `update_star_state()`) adds the selected product to the favorites or takes it
+  out (`filament_favorites::toggle_favorite()`, `handle_star_toggle()`). It shows only for
+  a product the catalog resolves, never under Generic, "Other…" or a product named without
+  a catalog id, and the Brand list and the spool tiles follow the change at once.
 - **Material**, under Generic, under "Other…", or for a product the catalog does not know:
   one flat list of precise types ("ASA", "ASA-CF", "Silk PLA"), each family's catalog
   variants in order, spelled by `filament::compose_family_type()`. The families lead with
@@ -1716,28 +1733,60 @@ every tag field back (`ams::reset_to_tag()`).
 room for, then the rainbow tile. `size_color_row()` measures the row's width and
 `color_row_rows()` the rows the page has height for, and runs again from `on_activate()`
 and on every switch to this page, because the push sets the overlay's final width after
-the editor was built. A swatch stages its color in the draft at once; the dots and the
-rainbow tile push the color page, which edits the same draft live. Where the lane can
-store several colors (`multi_color_capable()`: `AmsBackend::stores_multi_color()`, or a
-lane linked to a Spoolman spool, whose filament holds them), the color page carries the
-**Multi-Color** row (`ui_xml/components/ams_edit_multi_color.xml`): a switch, two to four
-colors as dots (tap to edit one in the picker, hold to remove it, "+" to add one) and
-Gradient or Coaxial. Other hosts of the color page open the bare picker. A multi-color
-spool then shows a Colors bar on the Filament page, blended for Gradient and banded for
-Coaxial. Where the lane cannot store several colors, a multi-color spool shows its first
-color and a pick replaces them. Save writes `SlotInfo::multi_color_hexes` and
-`color_mode` (the lane record's `colors` and `color_mode`,
-docs/specs/filament_slots.md §3), and on a linked spool files a Spoolman filament with
-`multi_color_hexes` and `multi_color_direction` (`longitudinal` for Gradient).
+the editor was built. The color row and the color page it opens are described under
+"Color and the color page" and "Multi-color" below.
+
+**Color and the color page.** A recent or palette chip stages its color in the editor's draft
+at once. Tapping the selected dot or the rainbow tile pushes the color page (`ColorPickerPage`,
+`COLOR_SWATCHES.md` § "The color picker"), which edits the same draft live: Back keeps it and
+only Save commits it, adding every color to the filament recents in one write
+(`ColorRecents::remember_all()`) once the lane holds the save. The spool card shows the draft.
+
+**Multi-color.** A lane can keep several colors where `multi_color_capable()` holds:
+`AmsBackend::stores_multi_color()` (true where HelixScreen's own full lane record holds them:
+`AmsSubscriptionBackend` with a store that is not extras-only, and the mock; false for AFC's and
+Happy Hare's narrowed records and for the lane-status backend, whose producer's commands take no
+color list yet), or the lane is linked to a Spoolman spool, whose filament holds them. Only then
+does the color page carry the **Multi-Color** row (`ui_xml/components/ams_edit_multi_color.xml`,
+passed as the page's `host_controls`); other hosts of the color page open the bare picker. The
+row is a switch, the colors as dots, an outlined "+" while there are fewer than four
+(`kMaxColors`), and a Gradient / Coaxial dropdown. Turning the switch on adds a second color to
+edit; turning it off keeps the color being edited. Tapping a dot on the page points the picker
+below at that color (`edit_selected_on_color_page()`), a long press removes it, and one left
+makes the spool single-color. On the Filament page a multi-color spool shows its dots in the
+color row (no "+" there) and a Colors bar of its colors: blended for Gradient
+(`swatch_paint blend="on"`), banded for Coaxial. Tapping a dot selects it, and the recents and
+the page then edit that one; tapping the selected dot opens the page. A list longer than four
+keeps its later colors; only the first four show as dots. Where the lane cannot store several
+colors, a multi-color spool shows its first color as one dot, the spool drawing shows its
+colors, and a pick replaces them.
+
+Save writes `SlotInfo::multi_color_hexes` and `SlotInfo::color_mode` (`"gradient"` or
+`"coaxial"`, empty for one color; `include/filament_color_mode.h`), which the lane record carries
+as `colors` and `color_mode` (`FILAMENT_SLOT_METADATA.md`, `docs/specs/filament_slots.md` §3). On
+a linked spool `SpoolmanSlotSaver` (`src/spoolman/spoolman_slot_saver.cpp`) finds or creates the
+Spoolman filament with the same list and direction, and a PATCH of a multi-color filament sends
+`multi_color_hexes` (normalized, comma-separated), `multi_color_direction` (`longitudinal` for
+Gradient, `coaxial`; Gradient when unset) and `color_hex: null`. Going back to one color sends
+`multi_color_hexes: null`, `multi_color_direction: null` and the `color_hex`. Lists that differ
+only in spelling count as the same filament.
 
 **Temps** is read-only and follows the selection live (`update_temp_display()`): a picked
 product's range, else the material database's range once the selection moved or on a lane
 with no material, else the slot's stored values.
 
-While adding a spool (`ams_edit_adding`), the page also shows the common spool tiles
-(`spool_assign::common_spools()`: PLA, PETG, ABS and ASA in Black, White and Gray, twelve
-tiles, hidden at the two smallest breakpoints), where a tap fills Brand (Generic), Material and
-Color; and, where Spoolman is set up, the **Add to Spoolman** checkbox (checked by
+While adding a spool (`ams_edit_adding`), the page also shows the spool tiles
+(`spool_assign::spool_tiles()`, rebuilt by `refresh_spool_tiles()` with every option
+rebuild): the user's favorites in star order, each a star and its name, then the common
+spools (`common_spools()`) a color at a time, every material in Black, then White, then
+Gray, twelve tiles in all. `spool_tile_label()` names the vendor once ("Generic PLA",
+"Creality CR-PETG", "Bambu ASA" for a Bambu Lab product already named after its maker).
+A favorite tile fills the form as a catalog pick does; a common one sets Generic, its
+material and its color (`handle_spool_tile()`). At the two smallest breakpoints (480x320
+and 480x272) the grid is hidden and one row of up to four favorite tiles shows instead,
+only while there are favorites (`favorite_spools`, on `ams_edit_has_favorites`). That row
+shows before the color row is measured, so the swatches give up a row for it. The page
+also shows, where Spoolman is set up, the **Add to Spoolman** checkbox (checked by
 default), which decides whether the summary's Save files the new spool in Spoolman
 (`CreateAndRebind`) or assigns it to the lane alone (`handle_assign_local()`, which also
 drops any link the lane had). On a linked lane the **Spoolman Details** row ("Price,
@@ -1833,8 +1882,26 @@ in (`spool_assign::undo_still_applies()`; each toast keeps its own lane), and is
 offered after a save that rewrote a linked Spoolman record, since the lane alone cannot
 be put back; and, on a Spoolman spool with a label printer set up, **Print Label** (the
 toast's optional second action, `ToastAction`). A spool the save created has its label
-printed at once, so the toast's button is the reprint, and the toast waits at most 1.5 s
-for that print's outcome before it shows alone.
+printed at once, so the toast's button is the reprint.
+
+**One closing toast for a new spool's label.** A save that creates a Spoolman
+spool with a label printer configured starts that print (`print_new_spool_label()`)
+and parks its outcome in a `helix::LabelOutcomeHold` (`include/label_outcome_hold.h#LabelOutcomeHold`).
+The print and the closing toast finish in either order: `settle()` records the
+print's answer, `when_settled()` hands the toast the outcome at once or when it
+comes, and only the first presentation runs. The closing toast then carries
+"Label printed" or "The label didn't print: <reason>" in its detail line, and
+the print's own "Printing label..." / "Label printed" toasts never stack on it.
+The toast waits at most `kNewSpoolLabelGraceMs` (1.5 s,
+`include/ui_ams_edit_overlay.h#kNewSpoolLabelGraceMs`): a slow printer (a
+sleeping Bluetooth one takes about 25 s) must not hold back the save's toast and
+its Undo, so past the grace `stop_waiting()` swaps in the standalone toasts
+(`label_outcome_toasts()`) and the closing toast shows alone. A held outcome with
+no closing toast to carry it (a save that did not stick, the editor dismissed or
+reopened before the save echoes, a late save landing after the editor closed)
+goes the same way through `release_new_spool_label()`, so a label's outcome never
+surfaces in the next editor session. A manual **Print Label** tap and the IPP
+sheet dialog always report through the standalone toasts.
 
 On a Spoolman-linked slot an identity change (material, brand or color) asks **Different
 filament?**: **Update in Spoolman** (`SpoolmanSlotSaver::LinkIntent::UpdateLinked`:
@@ -1843,8 +1910,9 @@ or **Unlink, keep on this slot** (the logistics fields are dropped with the link
 Details fields (price, location, lot, notes) PATCH the spool the slot names, and only once
 that spool's record has landed: a QR scan blanks them until the new record arrives, and a
 late record for a spool the slot no longer names is dropped. A QR scan (**Scan Label**) stages the
-scanned spool in `kModeEdit` for review (`apply_scanned_spool()`); it never commits on
-its own, and the summary's Save commits it.
+scanned spool in `kModeEdit` for review (`apply_scanned_spool()`), and a scan from the
+empty page or the New Spool list moves to the summary, where Save is. A scan never
+commits on its own; the summary's Save commits it.
 
 On a backend whose firmware owns lane identity
 (`BackendTraits::firmware_owns_lane_identity`, CFS only) the box wins: when the linked
@@ -1895,7 +1963,7 @@ are pure functions with their own tests:
 | The weight step, kept within the size | `spool_assign::step_remaining()` |
 | When Clear pre-checks the archive | `spool_assign::kArchiveBelowGrams` |
 | The list's order and close-match notes | `spool_assign::rank_spools()`, `close_note()` |
-| The starter tiles | `spool_assign::common_spools()` |
+| The spool tiles: favorites first, then the common spools, and their labels | `spool_assign::spool_tiles()`, `spool_tile_label()`, `common_spools()` |
 | Whether a card line repeats the material | `spool_assign::product_names_material()` |
 | Whether Undo still applies, and whether a save left anything to undo | `spool_assign::undo_still_applies()`, `save_changed_lane()` |
 | How a remaining weight reads | `include/spool_remaining_format.h` (below) |
@@ -2178,6 +2246,16 @@ takes the faulted lane from it for Eject (`ILaneFaults::current_error_with_cause
 panel is open or not. The panel's own dialog still stands aside for a backend with
 `current_error()` on both targets.
 
+**An operation run during the pause owns its fault.** The stop reason explains the fault that
+paused the print, not one a user's own Load in that pause raises on another lane.
+`AmsState::track_pause_operation()` notes the stop reason standing when a filament operation
+starts during the current pause (`stop_reason_before_op_`; an operation already running when the
+pause began does not count). While that stop reason still stands, `standing_fault_cause()`
+(`include/ams_standing_fault.h#standing_fault_cause`) answers empty when the backend has text of
+its own for the fault (`last_operation_detail_`, the U1's "Toolhead 4: Load failed"), else the
+recent `!!` line. A new stop reason in the same pause, and the fault that caused the pause, still
+take the stop reason.
+
 **Per-backend gates and recovery sets:**
 
 | Backend | Channel A gate | Channel B gate | Recovery actions (`build_recovery_actions()`) |
@@ -2187,7 +2265,7 @@ panel is open or not. The panel's own dialog still stands aside for a backend wi
 | **AD5X IFS** | - | `AmsAction::ERROR`, raised by `evaluate_runout_locked()` or by an operation timeout | Runout: Resume (primary, hot) · Purge (hot): `_GOTO_TRASH`+`PURGE_FILAMENT` on zMod, else `M83`+`G1 E` · `IFS_UNLOCK` (danger, cold). Timeout: `IFS_UNLOCK` alone. **No "Load slot N"**: every IFS load path self-homes and trash-moves into the part |
 | **CFS** | **inverted**, `is_bang_line()` returns `nullopt`, so `!!` `key8xx` codes stay with the generic classifier. Claims only paused `respond_info` lines matching the auto-refill give-up wording |, (never assigns `AmsAction::ERROR`) | Resume (primary, hot) · Reset CFS = `BOX_ERROR_CLEAR` (danger, cold) |
 | **QIDI Box** | - | `AmsAction::ERROR`, raised by a negative `slot<N>` state word (blocked lane) | Lone dismiss: recovery gcode unknown, clearance is manual (#1041) |
-| **Snapmaker** | `is_bang_line()`, while paused or printing, then the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | - | Lone OK dismiss: no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below |
+| **Snapmaker** | `is_bang_line()`, then a coded `exception_manager` fault (`classify_coded_fault()`: every code worded; a runout with no job waiting is a `leftover` the router drops; a 525 feeder fault while a job waits blocks with its way on), else, while paused or printing, the firmware's `e<N> not edit filament` resume refusal, as "Filament not set" with `command_refusal` set (§ third channel below) | - | Feeder fault: Load or Unload of the fault's head (`load_lane` / `unload_lane` guided flows) or Open Filament, Cancel Print, Close. Filament not set: lone OK dismiss, no one-tap gcode sets a filament type. Runout itself is the generic modal's, as below, plus Use Another Toolhead (§ "Continuing a runout on another head") |
 | **ACE**, **Tool changer** | - | - | - (generic runout modal owns these; see below) |
 
 **There is a third channel, and it decides whether Channel A speaks at all.** When the fault
@@ -2969,7 +3047,8 @@ whenever auto-refill was off.
 | Happy Hare | `Available` | `mmu.endless_spool_enabled`; forced to `Unknown` before `slots_` is initialised | `Group` on a single unit, `ReadOnly` otherwise | `None`; `MultiUnit` on a multi-unit rig; `NotReady` before the registry initialises | Yes - `endless_spool_config_from_groups()` over each gate's `endless_spool_group` |
 | CFS | `Available` | `box.auto_refill` / `box.runout_swap_enabled` | `ReadOnly` | `FirmwareManaged` | **No, deliberately** - see below |
 | AD5X IFS | `Available` in all three modes (stock zMod, bambufy, lessWaste) | stock zMod: always `On` (ANALOG_PRUTOK has no toggle); plugin path: `variable_backup`, with a genuine `Unknown` when it was never read | `ReadOnly` | `FirmwareManaged` on stock zMod; `PluginReadOnly` on the plugin path | No |
-| ACE, QIDI Box, Snapmaker U1, Tool Changer | `Unsupported` (base default; no override at all) | -- | `ReadOnly` | `None` | No |
+| Snapmaker U1 | `Available` once `print_task_config`'s Auto-Replenish preference is reported (nothing before) | the Auto-Replenish preference | `ReadOnly`, `switchable` (the one Endless Spool switch writes it through `SET_PRINT_PREFERENCES`) | `FirmwareManaged`: the firmware picks the backup head | No. Continuing a runout on a head the user picks is the chooser below |
+| ACE, QIDI Box, Tool Changer | `Unsupported` (base default; no override at all) | -- | `ReadOnly` | `None` | No |
 | Mock | `set_endless_spool_supported()` | `system_info_.endless_spool_enabled` | `PerSlot` when `set_endless_spool_editable(true)`, else `ReadOnly` | `FirmwareManaged` when read-only | Yes - edges from its `SlotRegistry` |
 
 CFS, and AD5X IFS in every mode (stock zMod, bambufy, lessWaste), report `Available` while
@@ -2979,6 +3058,40 @@ the base's empty relation is correct, and it is what keeps the spool editor from
 dropdown that could only ever read "None" (see [Lane Settings in the Spool Editor](#lane-settings-in-the-spool-editor)).
 
 ---
+
+### Continuing a runout on another head
+
+A print paused by a runout can finish on another, already loaded head when the firmware can
+re-route the rest of the job's tool changes; a plain resume on another head would send the next
+tool change straight back to the empty one. `helix::runout_other_head`
+(`include/runout_other_head.h`, `src/printer/runout_other_head.cpp`) holds the two questions and
+never names a firmware:
+
+- **Which heads may take over:** `assess()`, the same rules on every printer: same nozzle size
+  and flow type, fed by its feeder, a fully identified filament whose material the database knows
+  and the sliced temperatures suit (a different type or subtype in the same group is eligible with
+  a warning, a different color with a warning), the runout head still the active one, the printer
+  not busy inside the pause, the routing not already moved. Each refusal has a user-facing
+  `refusal_text()`.
+- **What the printer must be told:** `build_plan()`, one row per filament system in the provider
+  table (`kProviders`: `plan`, `record_usable`, `resume_on`). The U1 is the only row; AFC and Happy
+  Hare take a tool remap while paused and are the next candidates. A plan is refused whole, never
+  partial.
+
+A backend joins by adding its provider row and overriding `AmsBackend::runout_other_head_facts()`
+(`include/ams_backend.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
+active head, each head's nozzle, feeder, record and `load_failed`, the logical-tool routing, and
+`printer_busy`. `runout_other_head::supported(type)` gates the whole feature.
+
+The runout dialog (`FilamentRunoutHandler`, `RunoutGuidanceModal`) shows **Use Another Toolhead**
+while `RunoutOtherHeadModal::available()` (`worth_offering()`: the runout head's feeder cannot
+supply it, the printer is idle inside the pause, the routing has not moved) and re-checks every
+second while the dialog is up. The button stacks the chooser (`RunoutOtherHeadModal`,
+`ui_xml/runout_other_head_modal.xml`) on the runout dialog: one row per head with its verdict,
+then a confirmation naming what differs. After the send, `SwitchWatch` judges the outcome by its
+target with `judge_switch()` (`Wait` / `Done` / `Diverted` / `Stranded` / `Fail`) while the runout
+dialog shows a switching state with every action disabled. The U1's rules, timings and
+recovery dialogs are in `FILAMENT_BACKEND_SNAPMAKER_U1.md` § "Continuing a runout on another head".
 
 ## Dryer / Box-Heater Control
 
@@ -3625,6 +3738,24 @@ and are registered by `register_cfs_device_flows()`, one row of the registrar ta
 that once, before any overlay builds (`Application::register_xml_components()`, and the ESP32
 `app_boot.cpp` boot path), and never names a vendor. A new vendor's flows are one new file, one
 row in that table, and one `guided_flow` string on its backend's action.
+
+**Recovery flows.** A fault dialog's `RecoveryAction` can name a flow too (`guided_flow`, empty
+`gcode`); `RecoveryModalPresenter::on_guided_flow_tapped()` starts it after the dialog closes.
+`register_recovery_flows()` (`src/ui/filament/ui_guided_device_flow.cpp#register_recovery_flows`)
+registers the vendor-neutral ones, ids in `include/error_event.h`:
+
+| Id | Runs |
+|----|------|
+| `kOpenFilamentFlowId` (`open_filament`) | Opens the Filament panel, where each head's own Load and Unload live |
+| `kCancelPrintFlowId` (`cancel_print`) | The Stop button's cancel confirmation |
+| `kLoadLaneFlowId` (`load_lane`) | `execute_filament_load()` on `RecoveryAction::lane` |
+| `kUnloadLaneFlowId` (`unload_lane`) | `execute_filament_unload()` on `RecoveryAction::lane`, the lane taken as loaded |
+
+A lane flow supplies `start_on_lane(lane)` in place of `start(label)`, and the presenter calls it
+when the action's `lane` is set. Because it runs the same executors as the Filament panel's
+buttons, the backend's refusals, the op gate and feed tracking all apply, and a long load
+reports through its completion instead of a raw gcode timeout. The U1's feeder faults use them
+(`FILAMENT_BACKEND_SNAPMAKER_U1.md` § "A failed load explains itself").
 
 #### Tracked device actions
 

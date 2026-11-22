@@ -1415,6 +1415,7 @@
   <translation tag="Download update?" zh="下载更新？"/>
   <translation tag="Download v{}?" zh="下载 v{}？"/>
   <translation tag="Downloading the timelapse plugin..." zh="正在下载延时摄影插件..."/>
+  <translation tag="Downloading the timelapse..." zh="正在下载延时摄影..."/>
   <translation tag="Downloading..." zh="下载中..."/>
   <translation tag="Downloading... {:.1f}/{:.1f} MB" zh="下载中... {:.1f}/{:.1f} MB"/>
   <translation tag="Draw a ripple at each touch — helps diagnose offsets" zh="在每次触摸时绘制涟漪 — 有助于诊断偏移"/>
@@ -4623,6 +4624,8 @@
   <translation tag="The CFS ran out of filament. Printing continues on what is left in the tube." zh="CFS 耗材已用完。打印将使用管内剩余的耗材继续。"/>
   <translation tag="The DNS server is not a valid address." zh="DNS 服务器不是有效地址。"/>
   <translation tag="The HelixPrint plugin enables fast G-code modifications directly on your printer—like skipping bed mesh for quick reprints." zh="HelixPrint 插件可在打印机上直接进行快速 G-code 修改——例如跳过热床网格以快速重新打印。"/>
+  <translation tag="The HelixPrint plugin has to come from your printer&apos;s firmware, which manages HelixScreen&apos;s software." zh="HelixPrint 插件必须由打印机固件提供，HelixScreen 的软件由固件管理。"/>
+  <translation tag="The HelixPrint plugin is managed by your printer&apos;s firmware." zh="HelixPrint 插件由打印机固件管理。"/>
   <translation tag="The HelixPrint plugin moves old PRINT_START calls to the hidden names." zh="HelixPrint 插件会将 PRINT_START 中的旧调用改为隐藏名称。"/>
   <translation tag="The IFS board did not reply in time: a cable problem, a board that hung, or the native screen using the same port." zh="IFS 板未及时响应：线缆问题、板卡死机，或原厂屏幕占用了同一端口。"/>
   <translation tag="The IFS board reported a driver error on every retry." zh="IFS 板在每次重试时都报告驱动错误。"/>
@@ -4923,6 +4926,7 @@
   <translation tag="The temperature was changed elsewhere." zh="温度已在其他位置更改。"/>
   <translation tag="The thermocouple or PT100 amplifier reported a fault or a reading out of range." zh="热电偶或 PT100 放大器报告故障或读数超出范围。"/>
   <translation tag="The time, date, and system uptime" zh="时间、日期和系统运行时长"/>
+  <translation tag="The timelapse could not be downloaded" zh="无法下载延时摄影"/>
   <translation tag="The timelapse or logs folder overlaps a protected folder, so cleanup is off." zh="延时摄影或日志文件夹与受保护的文件夹重叠，因此清理功能已关闭。"/>
   <translation tag="The timelapse plugin is installed. Making videos also needs ffmpeg, which is not installed on this printer." zh="延时摄影插件已安装。生成视频还需要 ffmpeg，但此打印机上没有安装它。"/>
   <translation tag="The tool change under way finished, and the tool was not parked" zh="正在进行的换工具已完成，工具未停放"/>
@@ -4954,7 +4958,6 @@
   <translation tag="The update failed" zh="更新失败"/>
   <translation tag="The update stopped reporting. Its result is unknown: check the printer before using it." zh="更新已停止报告进度。结果未知：使用前请检查打印机。"/>
   <translation tag="The update&apos;s result is unknown" zh="更新结果未知"/>
-  <translation tag="The video player could not start on this printer ({}). Scan the code with your phone to watch the timelapse." zh="视频播放器无法在此打印机上启动（{}）。用手机扫描二维码观看延时摄影。"/>
   <translation tag="The {0} motor was not measured: {1}." zh="{0} 电机未测量：{1}。"/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." zh="{1} 加速度计未返回预期的 ID。很可能是未插好、线缆损坏，或 SPI 引脚错误。"/>
   <translation tag="The {1} motor lost steps" zh="{1} 电机丢步"/>
@@ -5068,6 +5071,7 @@
   <translation tag="This update asks for new permissions:" zh="此更新请求新的权限："/>
   <translation tag="This update removes HelixScreen from the printer." zh="此更新会从打印机上移除 HelixScreen。"/>
   <translation tag="This upgrades the printer&apos;s operating system packages." zh="这将升级打印机的操作系统软件包。"/>
+  <translation tag="This video could not be played" zh="无法播放此视频"/>
   <translation tag="This wait ends only at its temperature: canceling takes an emergency stop and a firmware restart." zh="此等待只有达到其温度才会结束：取消需要紧急停止并重启固件。"/>
   <translation tag="This will apply the Z-offset to your endstop and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到限位开关并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
   <translation tag="This will apply the Z-offset to your probe and restart Klipper to save the configuration. The printer will briefly disconnect." zh="这将把 Z-offset 应用到探针并重启 Klipper 以保存配置。打印机将短暂断开连接。"/>
@@ -5417,8 +5421,6 @@
   <translation tag="Vibration" zh="振动"/>
   <translation tag="Vibration compensation active" zh="振动补偿已启用"/>
   <translation tag="Video playback speed" zh="视频播放速度"/>
-  <translation tag="Video player failed to start" zh="视频播放器启动失败"/>
-  <translation tag="Video player failed to start ({})" zh="视频播放器启动失败（{}）"/>
   <translation tag="View" zh="查看"/>
   <translation tag="View Changelog" zh="查看更新日志"/>
   <translation tag="View Full History" zh="查看完整历史"/>
@@ -5590,6 +5592,7 @@
   <translation tag="Your printer at a glance" zh="一览您的打印机"/>
   <translation tag="Your printer has an automatic filament changer" zh="您的打印机配有自动换色系统"/>
   <translation tag="Your printer was offline during setup, so hardware options were skipped. Set them up now?" zh="设置期间打印机离线，硬件选项已跳过。现在设置吗？"/>
+  <translation tag="Your printer&apos;s firmware manages HelixScreen&apos;s software, so the HelixPrint plugin has to be provided by the firmware. It can&apos;t be installed from this screen." zh="打印机固件管理 HelixScreen 的软件，因此 HelixPrint 插件必须由固件提供，无法在此屏幕上安装。"/>
   <translation tag="Your printer&apos;s manual has the parts and lubricant for your model." zh="打印机手册列有适合您机型的部件和润滑剂。"/>
   <translation tag="Your usual build plate is on" zh="已放上常用的打印板"/>
   <translation tag="Your {0} is set up for {1}, but it looks stock." zh="您的 {0} 设置为 {1}，但看起来是原厂状态。"/>

@@ -2,17 +2,31 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "../lvgl_test_fixture.h"
 #include "lvgl/lvgl.h"
+
+#include <optional>
 
 #include "../catch_amalgamated.hpp"
 
 namespace helix::test {
 
-/// Set ui_is_ultrawide for one case and put it back after.
+/// An ultrawide screen as tall as the fixture's, so the content cap and the
+/// size tier stay put, with room for the side band beside the cap.
+constexpr int32_t kUltrawideTestWidth = 1920;
+
+/// Set ui_is_ultrawide for one case and put it back after. Setting it to 1 also
+/// widens the display to kUltrawideTestWidth, so the band has its room.
 class ScopedUltrawide {
   public:
     explicit ScopedUltrawide(int value) : subject_(lv_xml_get_subject(nullptr, "ui_is_ultrawide")) {
         REQUIRE(subject_ != nullptr);
+        if (value == 1) {
+            lv_display_t* disp = lv_display_get_default();
+            REQUIRE(disp != nullptr);
+            resolution_.emplace(disp, kUltrawideTestWidth,
+                                lv_display_get_vertical_resolution(disp));
+        }
         original_ = lv_subject_get_int(subject_);
         lv_subject_set_int(subject_, value);
     }
@@ -28,6 +42,7 @@ class ScopedUltrawide {
   private:
     lv_subject_t* subject_;
     int original_ = 0;
+    std::optional<ScopedResolution> resolution_;
 };
 
 /// A host tree shaped like controls_panel.xml: a row holding side_band_main

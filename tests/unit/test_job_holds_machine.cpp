@@ -763,6 +763,7 @@ constexpr const char* kNoMachineControlFiles[] = {
     "ui_xml/thermistor_configure_picker.xml",
     "ui_xml/tile_edit_callout.xml",
     "ui_xml/timelapse_install_overlay.xml",
+    "ui_xml/timelapse_player_overlay.xml",
     "ui_xml/timelapse_settings_overlay.xml",
     "ui_xml/timelapse_video_card.xml",
     "ui_xml/timelapse_videos_overlay.xml",

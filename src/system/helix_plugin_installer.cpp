@@ -27,12 +27,10 @@
 #include <atomic>
 #include <cerrno>
 #include <chrono>
-#include <csignal>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
 #include <fcntl.h>
-#include <pthread.h>
 #include <unistd.h>
 #include <vector>
 
@@ -202,20 +200,10 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
         argv.push_back(arg.c_str());
     }
     argv.push_back(nullptr);
-    const long open_max = sysconf(_SC_OPEN_MAX);
-    const int last_fd = open_max > 0 && open_max < 65536 ? static_cast<int>(open_max) : 65536;
-
-    // Until exec the child is a copy of the app, handlers included: a SIGTERM
-    // that ends it early must not run the app's own handler in it. Signals stay
-    // blocked across the fork, and the child resets every handled one first.
-    sigset_t all_signals;
-    sigset_t old_mask;
-    sigfillset(&all_signals);
-    pthread_sigmask(SIG_SETMASK, &all_signals, &old_mask);
-    pid_t pid = fork();
-    if (pid != 0) {
-        pthread_sigmask(SIG_SETMASK, &old_mask, nullptr);
-    }
+    ChildIo io;
+    io.stdout_fd = fds[1];
+    io.stderr_fd = fds[1];
+    const pid_t pid = spawn_child("/bin/sh", argv.data(), envp.data(), io);
     if (pid < 0) {
         result.error = result.spawn_failed = true;
         result.error_message = strerror(errno);
@@ -223,29 +211,6 @@ static WaitResult run_sh(const std::vector<std::string>& sh_args, int timeout_se
         close(fds[0]);
         close(fds[1]);
         return result;
-    }
-
-    if (pid == 0) {
-        for (int sig = 1; sig < NSIG; ++sig) {
-            struct sigaction current {};
-            if (sigaction(sig, nullptr, &current) == 0 && current.sa_handler != SIG_IGN) {
-                struct sigaction reset {};
-                reset.sa_handler = SIG_DFL;
-                sigaction(sig, &reset, nullptr);
-            }
-        }
-        sigprocmask(SIG_SETMASK, &old_mask, nullptr);
-        const int null_fd = open("/dev/null", O_RDONLY);
-        if (null_fd >= 0) {
-            dup2(null_fd, STDIN_FILENO);
-        }
-        dup2(fds[1], STDOUT_FILENO);
-        dup2(fds[1], STDERR_FILENO);
-        for (int fd = STDERR_FILENO + 1; fd < last_fd; ++fd) {
-            close(fd);
-        }
-        execve("/bin/sh", const_cast<char* const*>(argv.data()), envp.data());
-        _exit(127);
     }
 
     close(fds[1]);
@@ -406,6 +371,12 @@ HelixPluginInstaller::SyncInstallResult HelixPluginInstaller::install_local_sync
 
 HelixPluginInstaller::LocalInstallJob HelixPluginInstaller::begin_local_install() {
     LocalInstallJob job;
+    if (firmware_owns_plugin()) {
+        spdlog::info("[PluginInstaller] Install refused: the firmware owns the plugin");
+        job.refusal = {false, lv_tr("The HelixPrint plugin has to come from your printer's "
+                                    "firmware, which manages HelixScreen's software.")};
+        return job;
+    }
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-install on remote Moonraker");
         job.refusal = {false, lv_tr("Auto-install only works on local Moonraker")};
@@ -480,6 +451,14 @@ constexpr int kUninstallExitNeedsAttention = 2;
 } // namespace
 
 void HelixPluginInstaller::uninstall_local(UninstallCallback callback) {
+    if (firmware_owns_plugin()) {
+        spdlog::info("[PluginInstaller] Uninstall refused: the firmware owns the plugin");
+        if (callback) {
+            callback(UninstallOutcome::FAILED,
+                     lv_tr("The HelixPrint plugin is managed by your printer's firmware."));
+        }
+        return;
+    }
     if (!is_local_moonraker()) {
         spdlog::warn("[PluginInstaller] Cannot auto-uninstall on remote Moonraker");
         if (callback) {
@@ -788,23 +767,7 @@ std::string HelixPluginInstaller::get_install_script_path() const {
         exe_dir = script_search_root_;
         search_paths = {script_search_root_ + "/moonraker-plugin/install.sh"};
     } else {
-        std::string exe = running_exe_override_;
-        if (exe.empty()) {
-#ifdef __APPLE__
-            char path[1024];
-            uint32_t size = sizeof(path);
-            if (_NSGetExecutablePath(path, &size) == 0) {
-                exe = path;
-            }
-#else
-            char path[1024];
-            ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
-            if (len != -1) {
-                path[len] = '\0';
-                exe = path;
-            }
-#endif
-        }
+        const std::string exe = running_exe();
         if (exe.empty()) {
             return "";
         }
@@ -871,6 +834,33 @@ bool local_moonraker_loads_addons() {
 
 } // namespace
 
+std::string HelixPluginInstaller::running_exe() const {
+    if (!running_exe_override_.empty()) {
+        return running_exe_override_;
+    }
+#ifdef __APPLE__
+    char path[1024];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        return path;
+    }
+#else
+    char path[1024];
+    ssize_t len = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (len != -1) {
+        path[len] = '\0';
+        return path;
+    }
+#endif
+    return "";
+}
+
+bool HelixPluginInstaller::firmware_owns_plugin() const {
+    const std::string exe = running_exe();
+    return board::firmware_manages_updates(board::current(), exe.empty() ? "/proc/self/exe" : exe,
+                                           probe_root_);
+}
+
 bool HelixPluginInstaller::should_prompt_install() const {
     Config* config = Config::get_instance();
 
@@ -884,6 +874,11 @@ bool HelixPluginInstaller::should_prompt_install() const {
 
     if (prompt_settled_for_session_) {
         spdlog::debug("[PluginInstaller] Plugin prompt already settled this session");
+        return false;
+    }
+
+    if (firmware_owns_plugin()) {
+        spdlog::debug("[PluginInstaller] The firmware owns the plugin, not offering it");
         return false;
     }
 

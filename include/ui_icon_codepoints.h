@@ -284,6 +284,7 @@ static const IconMapping kIconMap[] = {
     {"spirit_level",       "\xF3\xB1\x93\xB1"},  // F14F1 spirit-level (QGL/Z-Tilt)
     {"spoolman",           "\xF3\xBE\x80\x80"},  // FE000 Spoolman logo (custom glyph)
     {"star",               "\xF3\xB0\x93\x8E"},  // F04CE star (favorites/recent)
+    {"star_outline",       "\xF3\xB0\x93\x92"},  // F04D2 star-outline
     {"stop",               "\xF3\xB0\x93\x9B"},  // F04DB stop
     {"swap_horizontal",    "\xF3\xB0\x93\xA1"},  // F04E1 swap-horizontal
     {"swap_vertical",      "\xF3\xB0\x93\xA2"},  // F04E2 swap-vertical

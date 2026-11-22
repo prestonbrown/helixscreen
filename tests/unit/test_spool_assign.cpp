@@ -120,9 +120,6 @@ TEST_CASE("common spools: four materials by three colors, until a few spools exi
     CHECK(std::string(common[4].color_name) == "White");
     CHECK(std::string(common[11].material) == "ASA");
     CHECK(common[11].rgb == 0x7F7F7F);
-    CHECK(show_common_spools(0));
-    CHECK(show_common_spools(2));
-    CHECK_FALSE(show_common_spools(3));
 }
 
 TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-assign]") {
@@ -138,26 +135,13 @@ TEST_CASE("a lane with a spool opens to Edit, an empty one to Assign", "[spool-a
     ran_out.spoolman_id = 12;
     ran_out.status = SlotStatus::EMPTY;
     CHECK(screen_for_lane(ran_out) == LaneScreen::Assign);
-}
-
-TEST_CASE("bottom action: Add New while spools are listed, Add & Assign when none, Assign "
-          "without Spoolman",
-          "[spool-assign]") {
-    CHECK(bottom_action(true, 4) == BottomAction::AddNewSecondary);
-    CHECK(bottom_action(true, 0) == BottomAction::AddToSpoolmanAndUse);
-    CHECK(bottom_action(false, 0) == BottomAction::AssignLocal);
-    CHECK(bottom_action(false, 5) == BottomAction::AssignLocal);
-    CHECK(offers_local_assign(BottomAction::AddToSpoolmanAndUse));
-    CHECK_FALSE(offers_local_assign(BottomAction::AddNewSecondary));
-    CHECK_FALSE(offers_local_assign(BottomAction::AssignLocal));
-}
-
-TEST_CASE("size chips light for a full spool of their size, else Partial", "[spool-assign]") {
-    CHECK(size_chip_for(1000, 1000) == 0);
-    CHECK(size_chip_for(750, 750) == 1);
-    CHECK(size_chip_for(250, 250) == 2);
-    CHECK(size_chip_for(400, 1000) == kPartialChip);
-    CHECK(size_chip_for(500, 500) == kPartialChip);
+    // A tagless spool: filament reported, nothing recorded.
+    SlotInfo tagless;
+    tagless.status = SlotStatus::AVAILABLE;
+    CHECK(screen_for_lane(tagless) == LaneScreen::Edit);
+    SlotInfo unrecorded_empty;
+    unrecorded_empty.status = SlotStatus::EMPTY;
+    CHECK(screen_for_lane(unrecorded_empty) == LaneScreen::Assign);
 }
 
 TEST_CASE("remaining steps stay between empty and the spool's total", "[spool-assign]") {
@@ -179,6 +163,7 @@ TEST_CASE("Assign Spool's size starts from what the lane reads", "[spool-assign]
     check(size_for_reading(0, 1000), kPartialChip, 0, 1000);     // metered empty stays empty
     check(size_for_reading(300, -1), kPartialChip, 300, 1000);   // no total: a 1 kg spool's
     check(size_for_reading(-1, 250), 2, 250, 250);               // only a total: full
+    check(size_for_reading(500, 500), kPartialChip, 500, 500);   // full, but no chip's size
 }
 
 TEST_CASE("lane history keeps the latest filament first, once, and caps its length",
@@ -350,4 +335,51 @@ TEST_CASE("a product that names its material spares the line under it the repeat
     CHECK_FALSE(product_names_material("Polymaker Basic", "PLA"));
     CHECK_FALSE(product_names_material("Polymaker PLAtinum", "PLA"));
     CHECK_FALSE(product_names_material("Polymaker", ""));
+}
+
+TEST_CASE("the spool tiles lead with favorites and top up with the common spools",
+          "[spool-assign][favorites]") {
+    const auto& common = common_spools();
+    SECTION("no favorites: the common spools, a color at a time") {
+        const auto tiles = spool_tiles({});
+        REQUIRE(tiles.size() == kSpoolTiles);
+        for (const auto& t : tiles) {
+            CHECK_FALSE(t.favorite());
+        }
+        CHECK(std::string(common[tiles[0].common].material) == "PLA");
+        CHECK(common[tiles[0].common].rgb == tiles[0].rgb);
+        CHECK(std::string(common[tiles[1].common].material) == "PETG");
+        CHECK(tiles[1].rgb == tiles[0].rgb);
+        CHECK(std::string(common[tiles[4].common].material) == "PLA");
+        CHECK(tiles[4].rgb != tiles[0].rgb);
+    }
+    SECTION("two favorites, then the common spools fill the rest") {
+        const auto tiles = spool_tiles(
+            {{"Polymaker", "PolyLite ASA", "poly-asa"}, {"Bambu Lab", "Bambu PLA", "bambu-pla"}});
+        REQUIRE(tiles.size() == kSpoolTiles);
+        CHECK(tiles[0].product_id == "poly-asa");
+        CHECK(tiles[0].label == "Polymaker PolyLite ASA");
+        CHECK(tiles[1].label == "Bambu PLA");
+        CHECK(tiles[1].product_id == "bambu-pla");
+        CHECK_FALSE(tiles[2].favorite());
+        CHECK(tiles[2].label == "Generic PLA");
+    }
+    SECTION("more favorites than tiles: the first in star order") {
+        std::vector<FavoriteTile> favs;
+        for (int i = 0; i < 15; ++i) {
+            favs.push_back({"Brand", "F" + std::to_string(i), "id" + std::to_string(i)});
+        }
+        const auto tiles = spool_tiles(favs);
+        REQUIRE(tiles.size() == kSpoolTiles);
+        CHECK(tiles.front().product_id == "id0");
+        CHECK(tiles.back().product_id == "id11");
+    }
+}
+
+TEST_CASE("a spool tile names its vendor once", "[spool-assign][favorites]") {
+    CHECK(spool_tile_label("Generic", "PLA") == "Generic PLA");
+    CHECK(spool_tile_label("Creality", "CR-PETG") == "Creality CR-PETG");
+    CHECK(spool_tile_label("Bambu Lab", "Bambu ASA") == "Bambu ASA");
+    CHECK(spool_tile_label("Polymaker", "Polymaker PolyLite") == "Polymaker PolyLite");
+    CHECK(spool_tile_label("", "PLA") == "PLA");
 }
