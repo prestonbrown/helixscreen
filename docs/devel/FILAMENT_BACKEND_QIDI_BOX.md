@@ -211,9 +211,27 @@ observation on a Max 4 (01.01.07.01). Not yet seen on our own Box hardware.
 | Dryer | Yes | Per-box PTC heater + aht20 humidity, 35-90°C (ceiling refined from configfile), up to 720 min, allowed during print (#1019). `ENABLE_BOX_DRY` when the box_extras timer is present, `SET_HEATER_TEMPERATURE` otherwise; countdown from `box_drying_state` end_time |
 | Lane Eject | Yes (capability-gated) | `supports_lane_eject()` only when `[force_move]` is enabled or the Max 4 `multi_color_controller` dialect is detected (#1041, #1083) |
 | Device Actions | Eject params | `get_device_actions()` publishes the user-tunable eject distance and speed as two sliders in Filament Control |
-| Error channel | Yes | A blocked slot (`slot<N>` negative) raises a sticky CRITICAL `ErrorEvent` with a dismiss-only affordance (#1172, #1041) |
+| Error channel | Yes | A blocked slot (`slot<N>` negative) raises a sticky CRITICAL `ErrorEvent`: worded from `retry_step` with Retry where Faults and Retry below allows it, else dismiss-only (#1172, #1041) |
 
 Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), bypass (above), and path visualization (`get_filament_segment()` returns `NONE`). `clear_slot_override()` IS implemented - see Slot Metadata below. `select_slot()` is deliberately `not_supported` — `load_filament()` is the only path. Filament ops gate at `FilamentOpGate::PrintActiveOnly`, a deliberate narrowing (the box reports `AmsAction::LOADING` itself).
+
+### Faults and Retry
+
+The Box's faults are QIDI `QDE_004_xxx` codes. Their wording and channels (`!!`, `//` info lines, bare `Code:` lines) are in `printers/QIDI_SUPPORT.md` § "Fault codes"; the code is read by `helix::qidi::classify_fault_line()` (`src/printer/qidi_fault_codes.cpp#classify_fault_line`), which `helix::faultcodes` asks for any Box printer (`architecture/06-discovery-capabilities.md` § "Error wording"). The backend adds QIDI's own retry on top.
+
+**`TRY_MOVE_AGAIN`.** QIDI's Box modules (Plus 4, Q2) record the step a load or unload fault interrupted in `save_variables.retry_step` (`QDE_004_<idx>_<slot>`, slot 1-based, `_00` none) and re-run it, heating first where needed and resuming the print, on `TRY_MOVE_AGAIN`. `qidi::try_again_retries()` is true for the codes that write it (004_001 to 007 and 009). The Max 4's `multi_color_controller` dialect has not been seen to carry it, so a Box in that dialect never offers Retry.
+
+Two copies of the same fault reach the user, and both follow one rule:
+
+- **The console raise.** `AmsBackendQidi::classify_error()` (`src/printer/ams_backend_qidi.cpp#classify_error`) claims a retryable code before the generic provider does. When the print is paused and `retry_step` names the same code, it offers Retry (`offer_try_again()`); otherwise the dialog has OK only (`offer_dismiss()`), since `retry_step` reaches the backend with the next status push and may not have caught up.
+- **The standing fault.** `AmsBackendQidi::current_error()` (`src/printer/ams_backend_qidi.cpp#current_error`) words a blocked slot from `retry_step` while the slot it names reads blocked, so the standing fault and the console raise carry the same words and one presentation covers both. It offers Retry only while the print is paused; at boot or idle the persisted fault shows with OK and the Filament panel's own operations. A blocked slot `retry_step` does not describe keeps the generic "is blocked" text with OK.
+
+Retry is a `RecoveryAction` with `gcode = "TRY_MOVE_AGAIN"`, `requires_paused = true` and `acts_on_lane` set to `retry_step`'s slot:
+
+- **Paused, checked at the tap.** Both `retry_step` and the slot state persist across prints and restarts, so anywhere but a paused print Retry would heat and move filament on stale state. `RecoveryModalPresenter` refuses the tap ("The print is no longer paused") once the print reads otherwise, and `AmsErrorBridge::refresh_shown_lane_actions()` withdraws the button from a shown dialog when the pause ends.
+- **Only under text naming its slot.** `keep_lane_actions_named()` drops Retry unless the dialog's text names that slot (`qidi::named_slot()` reads QIDI's `1A`..`4D` labels; `lane_named_in()` exposes it to the shared code). 004_006, 007 and 009, whose lines name no slot, therefore get no Retry. When `AmsState::standing_fault()` swaps a different fault cause above the standing copy, the same rule drops a Retry for another slot.
+
+**Runout (004_016).** The Box raises no runout fault of its own, so the stock runout guidance owns the paused print. 004_016 classifies as a warning toast whose `runout_lane` is the slot it names, and that toast stands down where the runout dialog already explains the slot.
 
 ### Key Files
 
@@ -222,6 +240,7 @@ Not implemented: `recover()` / `reset()` / `cancel()` (return `not_supported`), 
 | `include/ams_backend_qidi.h` | Backend class declaration, capability overrides, RFID/fila-profile types |
 | `src/printer/ams_backend_qidi.cpp` | Full implementation: save_variables parse, gcode builders, dryer, RFID reverse-lookups |
 | `src/printer/printer_discovery_parse.cpp` | `box_stepper slot<N>` detection + slot count |
+| `include/qidi_fault_codes.h`, `src/printer/qidi_fault_codes.cpp` | `QD<k>_<module>_<index>` decoding, the wording table, `retry_step` decoding, slot labels |
 | `include/ams_types.h` | `AmsType::QIDI_BOX` enum + string converters |
 | `tests/unit/test_ams_backend_qidi.cpp` | save_variables parsing, the per-slot loaded reconcile (#1199), tool map, dryer, eject, remap, filas list, fingerprint swap detection, metadata clear |
 

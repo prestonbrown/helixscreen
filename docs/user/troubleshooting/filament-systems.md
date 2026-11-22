@@ -93,6 +93,14 @@ Run home operation first - many load/unload macros require homing.
 **Check temperatures:**
 Some backends require extruder at temperature before operations.
 
+### A filament system error dialog: what it shows and what Retry does
+
+When a filament system reports a fault, HelixScreen shows a dialog that says, in plain words, what went wrong and what to do about it. Faults that carry a code show it too, so you can look it up in the maker's documentation.
+
+- **QIDI Box.** Box faults show QIDI's code (for example `QDE_004_006`) with a summary, a cause and a fix that name the slot (`1A` to `4D`). When the Box stopped partway through loading or unloading a slot, a paused print's dialog offers **Retry**, which asks the Box to run that step again (heating first if it needs to) and resumes the print when nothing else fails. Retry appears only while the print is paused and only when the message names the slot the Box will retry. If the print is resumed or cancelled from another screen or app, Retry stops working and says the print is no longer paused. After a restart, or with no print paused, the dialog shows **OK** only: use the Filament screen's own Load and Unload instead. A slot that ran out (`QDE_004_016`) shows a short message naming the slot, and the usual runout dialog handles the paused print.
+- **FlashForge AD5X (IFS).** A failed load or unload shows ZMOD's message in plain words, in the same wording the printer's console message gets.
+- **Snapmaker U1.** Every U1 fault code reads in plain words.
+
 ---
 
 ## Spoolman Issues

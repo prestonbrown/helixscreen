@@ -194,6 +194,7 @@ Details that matter when reading that code:
 - **The recorded identity is Klipper's raw wording**, before the wording table rewords it.
   The router therefore looks up `raw_detail` first and falls back to `detail`, so a message
   `error_wording` words ("Must home axis first" reads as a cause and a fix) still matches.
+  The table and its presenters: `architecture/06-discovery-capabilities.md` § "Error wording".
 - **Only the router's plain-TOAST arm defers and re-checks.** `present_deferred()`
   (`src/application/gcode_error_router.cpp#present_deferred`) re-runs the lookup when its timer fires,
   which is what catches an RPC reply that lands *after* the `!!` line. A CRITICAL modal fires
@@ -348,3 +349,6 @@ Two things follow:
 - `LED_CONTROL.md` § the `toggle_all()` settle triple - a per-branch example of declaring both
   `on_queued` and error ownership
 - `REVIEW_RUBRIC.md` § "Tier 2" (silent failures)
+- `architecture/06-discovery-capabilities.md` § "Error wording" - the table that rewords a `!!` line's
+  detail (so `raw_detail` and `detail` differ), the coded-fault providers the router asks first, and
+  the lane-bound recovery actions (`requires_paused`, `acts_on_lane`)
