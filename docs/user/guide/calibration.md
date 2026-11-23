@@ -57,16 +57,16 @@ Start a guided calibration from either place:
 
 ### Picking the Calibrations
 
-The first page lists the calibrations the guided run offers on your printer, each with its time and what it involves: whether it needs you, uses the paper test, heats or is loud.
+The first page lists the calibrations the guided run offers on your printer, one row each, with its time and what it involves: whether it needs you, uses the paper test, heats or is loud. The right end of each row says what that calibration last measured, or that it never ran.
 
-![Picking the calibrations: Z offset with Warm the bed first, Heaters, Bed mesh and Input shaper, all ticked, with the total time at the bottom](../../images/user/calibration-guided-pick.png)
+![Picking the calibrations: Z offset with Warm the bed first on, Heaters marked optional with its Bed option, Bed mesh and Input shaper, all ticked, with the total time and how long you are needed at the bottom](../../images/user/calibration-guided-pick.png)
 
 - Recommended calibrations start ticked. Optional ones start unticked.
 - A calibration your printer's profile marks as required stays ticked and cannot be unticked.
 - The total time, and how much of it needs you, update as you tick and untick.
 - **Heaters** starts unticked when your printer's configuration already has tuning for its heaters (PID values or MPC): working tuning does not need redoing. A heater with no tuning makes it start ticked again, and the printer's profile decides whether it can be unticked.
-- The **Heaters** card has a **Bed** option, shown while Heaters is ticked. By default only the nozzle is tuned; tap **Bed** to tune the bed as well, and the card's time grows by the bed's share, which can be most of an hour on a large bed. A bed with no tuning yet is always tuned: the option shows on, with a lock.
-- The **Z offset** card has **Warm the bed first**. Tap it to heat the bed before the printer probes, so the offset is measured with the bed expanded the way it is when you print. Tap it again to turn it off.
+- The **Heaters** row has a **Bed** option, shown while Heaters is ticked. By default only the nozzle is tuned; tap **Bed** to tune the bed as well, and the row's time grows by the bed's share, which can be most of an hour on a large bed. A bed with no tuning yet is always tuned: the option shows on, with a lock.
+- The **Z offset** row has **Warm the bed first**. Tap it to heat the bed before the printer probes, so the offset is measured with the bed expanded the way it is when you print. Tap it again to turn it off.
 
 Tap **Start** when the list is right, or **Skip for now** to close the guided calibration without running anything.
 
@@ -125,7 +125,7 @@ If the printer shuts down or restarts during a run for any other reason, the fin
 
 ### Results: Save or Discard All
 
-When every calibration has ended, or after a stop, tap **See results**. Each calibration shows the value from before the run beside what the run measured, or why it failed, was skipped or was not run.
+When every calibration has ended, or after a stop, tap **See results**. Each calibration shows the value from before the run beside what the run measured, or why it failed, was skipped or was not run. A result with one value per axis, like the input shaper's, shows each axis on its own line.
 
 ![Results: each calibration's value before the run and after it, with Discard all and Save and restart Klipper at the bottom](../../images/user/calibration-guided-results.png)
 
