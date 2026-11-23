@@ -23,6 +23,7 @@
   <translation tag="Calibrate input shaping to reduce ringing artifacts in prints" en-GB="Calibrate input shaping to reduce ringing artefacts in prints"/>
   <translation tag="Calibration canceled." en-GB="Calibration cancelled."/>
   <translation tag="Canceled" en-GB="Cancelled"/>
+  <translation tag="Canceled From" en-GB="Cancelled From"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." en-GB="Cancelling turns the chamber target off so the wait ends, then stops the print."/>
   <translation tag="Center" en-GB="Centre"/>
   <translation tag="Center QR code in frame" en-GB="Centre QR code in frame"/>

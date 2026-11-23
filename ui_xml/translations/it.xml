@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" it="Calibrazione e Strumenti"/>
   <translation tag="Calibration Complete!" it="Calibrazione completata!"/>
   <translation tag="Calibration Failed" it="Calibrazione fallita"/>
+  <translation tag="Calibration Outcome" it="Esito calibrazione"/>
   <translation tag="Calibration Saved" it="Calibrazione salvata"/>
   <translation tag="Calibration and system configuration" it="Calibrazione e configurazione di sistema"/>
   <translation tag="Calibration canceled." it="Calibrazione annullata."/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" it="Annulla stampa"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." it="Annullamento inviato. La stampante completa la sequenza di avvio, poi si ferma prima di stampare."/>
   <translation tag="Canceled" it="Annullato"/>
+  <translation tag="Canceled From" it="Annullato da"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." it="L&apos;annullamento spegne il target della camera per terminare l&apos;attesa, poi ferma la stampa."/>
   <translation tag="Cannot add to queue: internal error" it="Impossibile aggiungere alla coda: errore interno"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" it="Non modificabile da qui su un MMU multi-unità"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" it="Comando duplicato nella configurazione"/>
   <translation tag="Duplicated" it="Duplicato"/>
   <translation tag="Duration" it="Durata"/>
+  <translation tag="During Print: " it="Durante la stampa: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." it="Durante la stampa vedi un indicatore per ogni riscaldatore, ventola e luce, l&apos;elenco della sequenza di avvio, e avanzamento e comandi in un&apos;unica barra."/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." it="Durante la ricarica automatica, il vecchio filamento non è stato spurgato dalla testina."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." it="Polvere e grasso vecchio su guide o barre X e Y causano rumore, ringing e usura."/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" it="Caricamento del G-code riscritto fallito: {}"/>
   <translation tag="Failed: {}" it="Non riuscito: {}"/>
   <translation tag="Failed: {}. Saves {}" it="Non riuscito: {}. Salva {}"/>
+  <translation tag="Failure Reason" it="Causa dell&apos;errore"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." it="Linee tenui: compensazione disattivata. Linee brillanti: compensazione attivata."/>
   <translation tag="Fair match" it="Corrispondenza discreta"/>
   <translation tag="Fan" it="Ventola"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." it="La mappatura filamento non è disponibile su questo dispositivo."/>
   <translation tag="Filament Mapping is unavailable" it="La mappatura filamento non è disponibile"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" it="Questa stampante non supporta la mappatura filamento, quindi la stampa usa gli strumenti assegnati sulla stampante"/>
+  <translation tag="Filament Operation" it="Operazione filamento"/>
   <translation tag="Filament Operations" it="Operazioni filamento"/>
   <translation tag="Filament Runout" it="Esaurimento filamento"/>
   <translation tag="Filament Sensor" it="Sensore filamento"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" it="OpenAMS conserva questa bobina in Spoolman, che qui accetta solo materiale, colore, marca e peso"/>
   <translation tag="OpenAMS manages this spool&apos;s link" it="OpenAMS gestisce il collegamento di questa bobina"/>
   <translation tag="Opened" it="Aperta"/>
+  <translation tag="Operation" it="Operazione"/>
   <translation tag="Operation already in progress" it="Operazione già in corso"/>
   <translation tag="Operation timed out" it="Timeout dell&apos;operazione"/>
   <translation tag="Operations" it="Operazioni"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" it="I nomi dei profili non possono contenere &apos;;&apos;"/>
   <translation tag="Profile renamed" it="Profilo rinominato"/>
   <translation tag="Profiles" it="Profili"/>
+  <translation tag="Progress" it="Avanzamento"/>
   <translation tag="Progress, file, and time remaining" it="Avanzamento, file e tempo rimanente"/>
   <translation tag="Prompt before running this macro" it="Chiedi prima di eseguire questa macro"/>
   <translation tag="Provide a boolean {}" it="Fornisci un valore booleano per {}"/>
