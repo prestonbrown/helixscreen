@@ -1471,13 +1471,26 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
                  "Calibration run: tuned heaters start unticked, and the bed is the owner's "
                  "choice unless it has no tuning",
                  "[ui_integration][calibration_run]") {
+    enum class Config { AllTuned, BedUntuned, NozzleUntuned, ActiveExtruderUntuned };
+    const Config config = GENERATE(Config::AllTuned, Config::BedUntuned, Config::NozzleUntuned,
+                                   Config::ActiveExtruderUntuned);
     helix::PrinterDiscovery hw;
-    hw.parse_objects(json::array({"probe", "heater_bed", "extruder"}));
+    hw.parse_objects(json::array({"probe", "heater_bed", "extruder", "extruder1"}));
     const json pid = {{"control", "pid"}, {"pid_kp", 22.0}, {"pid_ki", 1.0}, {"pid_kd", 100.0}};
-    const bool bed_tuned = GENERATE(true, false);
-    hw.parse_calibration_in_config(bed_tuned ? json{{"extruder", pid}, {"heater_bed", pid}}
-                                             : json{{"extruder", pid}});
+    json settings = {{"extruder", pid}, {"heater_bed", pid}};
+    if (config == Config::BedUntuned) {
+        settings.erase("heater_bed");
+    } else if (config == Config::NozzleUntuned) {
+        settings.erase("extruder");
+    }
+    hw.parse_calibration_in_config(settings);
     state().set_hardware(hw);
+    if (config == Config::ActiveExtruderUntuned) {
+        // The second tool is active, and only the first is tuned.
+        state().temperature_state().init_extruders(hw.heaters());
+        state().temperature_state().set_active_extruder("extruder1");
+        REQUIRE(state().temperature_state().active_extruder_name() == "extruder1");
+    }
     auto& overlay = helix::ui::get_calibration_run_overlay();
     overlay.open();
     settle();
@@ -1493,7 +1506,8 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
     REQUIRE(locked != nullptr);
     REQUIRE(summary != nullptr);
 
-    if (bed_tuned) {
+    switch (config) {
+    case Config::AllTuned: {
         CHECK(lv_subject_get_int(picked) == 0);
         CHECK(lv_subject_get_int(locked) == 0);
         CHECK(lv_obj_is_hidden(chip));
@@ -1502,23 +1516,37 @@ TEST_CASE_METHOD(ZOffsetRunFixture,
         REQUIRE(lv_subject_get_int(picked) == 1);
         CHECK_FALSE(lv_obj_is_hidden(chip));
         CHECK(lv_subject_get_int(bed) == 0);
+        CHECK_FALSE(lv_obj_has_state(chip, LV_STATE_DISABLED));
         const std::string nozzle_only = lv_subject_get_string(summary);
         overlay.toggle_heaters_bed();
         settle();
         CHECK(lv_subject_get_int(bed) == 1);
+        CHECK_FALSE(lv_obj_has_state(chip, LV_STATE_DISABLED));
         CHECK(std::string(lv_subject_get_string(summary)) != nozzle_only);
         overlay.toggle_heaters_bed();
         settle();
         CHECK(lv_subject_get_int(bed) == 0);
         CHECK(std::string(lv_subject_get_string(summary)) == nozzle_only);
-    } else {
-        // An untuned bed: Heaters is ticked, and the bed stays in.
+        break;
+    }
+    case Config::BedUntuned:
+        // Heaters is ticked, and the bed stays in: its chip takes no taps.
         CHECK(lv_subject_get_int(picked) == 1);
         CHECK_FALSE(lv_obj_is_hidden(chip));
         CHECK(lv_subject_get_int(bed) == 2);
+        CHECK(lv_obj_has_state(chip, LV_STATE_DISABLED));
         overlay.toggle_heaters_bed();
         settle();
         CHECK(lv_subject_get_int(bed) == 2);
+        break;
+    case Config::NozzleUntuned:
+    case Config::ActiveExtruderUntuned:
+        // The nozzle needs tuning; the tuned bed stays the owner's choice.
+        CHECK(lv_subject_get_int(picked) == 1);
+        CHECK_FALSE(lv_obj_is_hidden(chip));
+        CHECK(lv_subject_get_int(bed) == 0);
+        CHECK_FALSE(lv_obj_has_state(chip, LV_STATE_DISABLED));
+        break;
     }
 
     overlay.close();

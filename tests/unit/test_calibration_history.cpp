@@ -512,10 +512,18 @@ TEST_CASE("results_in_config reads each step's tuned value from configfile.setti
         s["cartographer touch_model default"] = {{"z_offset", -0.06}};
         CHECK(results_in_config(s).at("z_offset") == "-0.060 mm");
     }
-    SECTION("MPC counts; watermark has nothing tuned") {
+    SECTION("MPC counts once calibrated; watermark has nothing tuned") {
         json s = settings;
         s["extruder"]["control"] = "mpc";
+        s["extruder"]["heater_power"] = 50.0;
+        // Kalico's model before MPC_CALIBRATE has saved it: nothing tuned yet.
+        CHECK(results_in_config(s).count("heaters") == 0);
+        CHECK(heater_controls_in_config(s).count("extruder") == 0);
+        s["extruder"]["block_heat_capacity"] = 18.4;
+        s["extruder"]["sensor_responsiveness"] = 0.12;
+        s["extruder"]["ambient_transfer"] = 0.09;
         CHECK(results_in_config(s).at("heaters") == "MPC");
+        CHECK(heater_controls_in_config(s).at("extruder") == "mpc");
         s["extruder"]["control"] = "watermark";
         CHECK(results_in_config(s).count("heaters") == 0);
     }

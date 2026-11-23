@@ -4,8 +4,8 @@
 <!-- An option of one step on the guided run's Pick page, in the step row's
      `extra` slot: the Z offset's "Warm the bed first", the Heaters' "Bed".
      Outlined while off, warning tinted while on. The int `subject` reads 0
-     off, 1 on, 2 on and required (a lock in place of the icon; a tap changes
-     nothing the run does). `hidden_when` hides the chip, usually while its
+     off, 1 on, 2 on and required (a lock in place of the icon, and disabled,
+     so a tap does nothing). `hidden_when` hides the chip, usually while its
      step is not picked. -->
 <component>
   <api>
@@ -32,6 +32,7 @@
     <bind_flag_if cond="$hidden_when" flag="hidden"/>
     <bind_style_if name="chip_off" cond="${subject} eq 0"/>
     <bind_style_if name="chip_on" cond="${subject} ge 1"/>
+    <bind_state_if cond="${subject} eq 2" state="disabled"/>
     <style name="styles.press_wash" selector="pressed"/>
     <icon src="$icon" size="xs" variant="muted" clickable="false" event_bubble="true">
       <bind_flag_if cond="${subject} ne 0" flag="hidden"/>

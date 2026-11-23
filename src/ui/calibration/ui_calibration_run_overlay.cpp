@@ -888,7 +888,12 @@ void CalibrationRunOverlay::toggle_zoffset_warm_bed() {
 }
 
 void CalibrationRunOverlay::toggle_heaters_bed() {
-    if (page_ != RunPage::Pick) {
+    const auto heaters =
+        std::find_if(candidates_.begin(), candidates_.end(),
+                     [](const StepInfo& s) { return s.kind == calibration::StepKind::Heaters; });
+    // A bed with no tuning is tuned whatever the chip says, and its chip is disabled.
+    if (page_ != RunPage::Pick || heaters == candidates_.end() ||
+        heaters->bed != calibration::BedTuning::Optional) {
         return;
     }
     heaters_bed_ = !heaters_bed_;

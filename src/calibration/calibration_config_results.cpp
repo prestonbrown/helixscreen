@@ -106,7 +106,10 @@ void z_offset(const json& settings, ConfigResults& out) {
 }
 
 // A heater section's control when it is a tuned one, "pid_v" read as "pid";
-// watermark has nothing to tune.
+// watermark has nothing to tune. Klipper refuses a PID heater without its
+// gains, but Kalico accepts `control: mpc` before MPC_CALIBRATE has saved the
+// model, and runs the heater only once these three are set (control_mpc.py
+// is_valid); a model value left unset is absent from the settings.
 std::optional<std::string> tuned_control(const json& section) {
     const auto control = section.find("control");
     if (control == section.end() || !control->is_string()) {
@@ -116,7 +119,8 @@ std::optional<std::string> tuned_control(const json& section) {
     if (kind == "pid" || kind == "pid_v") {
         return std::string("pid");
     }
-    if (kind == "mpc") {
+    if (kind == "mpc" && section.contains("block_heat_capacity") &&
+        section.contains("sensor_responsiveness") && section.contains("ambient_transfer")) {
         return kind;
     }
     return std::nullopt;

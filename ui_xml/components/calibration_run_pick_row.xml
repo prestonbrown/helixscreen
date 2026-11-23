@@ -2,9 +2,10 @@
 <!-- Copyright (C) 2026 356C LLC -->
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
 <!-- One step on the guided run's Pick page: a tick box (a lock on a required
-     step), its name with a REQUIRED or OPTIONAL badge, what it needs, and what it
-     last measured in the corner. At 480x272 it is one line: box, name, a short
-     detail. CalibrationRunOverlay publishes, per step id:
+     step), its name with a REQUIRED or OPTIONAL badge and what it last measured,
+     and below them what it needs. At 480x272 it is one line: box, name, a short
+     detail. On the name line the badges and the step's option keep their width;
+     what it last measured gives way first, then the name, each ending in dots. CalibrationRunOverlay publishes, per step id:
        cal_run_shown_<step>       1 when the run offers the step
        cal_run_picked_<step>      1 when it is ticked
        cal_run_locked_<step>      1 when the printer requires it, so it stays ticked
@@ -13,7 +14,7 @@
        cal_run_meta_short_<step>  "4 min · needs you"
        cal_run_last_<step>        what it last measured, or "never"
      An option of the step's own (the Z offset's warm-up) goes in the `extra`
-     slot, at the end of the name line; it shows at every size. -->
+     slot, after the badges on the name line; it shows at every size. -->
 <component>
   <api>
     <prop name="step" type="string" default=""/>
@@ -69,9 +70,20 @@
               height="content" style_pad_all="0" style_pad_gap="#space_md" flex_flow="row"
               style_flex_cross_place="center" style_bg_opa="0" style_border_width="0" scrollable="false"
               clickable="false" event_bubble="true">
-        <text_body name="pick_name"
-                   text="$label" translation_tag="$label_tag" long_mode="dots" style_text_font="#cal_font_name"
-                   style_text_color="#text" clickable="false" event_bubble="true"/>
+        <!-- The name takes the width left after the badges and the step's option, up to
+             its own width: an invisible copy at full width sets that cap (a flex item's
+             content width is its children's), and the shown name ends in dots within it.
+             Its grow outweighs the corner status's, so the status gives way first. -->
+        <lv_obj name="pick_name_box"
+                width="0" height="content" flex_grow="255" style_max_width="content" style_pad_all="0" style_bg_opa="0"
+                style_border_width="0" scrollable="false" clickable="false" event_bubble="true">
+          <text_body name="pick_name_measure"
+                     text="$label" translation_tag="$label_tag" style_text_font="#cal_font_name" style_opa="0"
+                     clickable="false" event_bubble="true"/>
+          <text_body name="pick_name"
+                     width="100%" align="left_mid" text="$label" translation_tag="$label_tag" long_mode="dots"
+                     style_text_font="#cal_font_name" style_text_color="#text" clickable="false" event_bubble="true"/>
+        </lv_obj>
         <text_small name="pick_required"
                     text="Required" text_transform="uppercase" style_text_font="#cal_font_badge"
                     style_text_color="#warning" clickable="false" event_bubble="true">
@@ -91,6 +103,12 @@
         <lv_obj name="pick_extra"
                 width="content" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0"
                 scrollable="false" clickable="false" event_bubble="true"/>
+        <text_small name="pick_last"
+                    width="0" flex_grow="1" bind_text="cal_run_last_${step}" long_mode="dots" style_text_align="right"
+                    style_text_font="#cal_font_detail" style_text_color="#text_muted" style_text_opa="204"
+                    clickable="false" event_bubble="true">
+          <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
+        </text_small>
       </lv_obj>
       <text_small name="pick_meta"
                   width="100%" bind_text="cal_run_meta_${step}" long_mode="dots" style_text_font="#cal_font_detail"
@@ -98,11 +116,6 @@
         <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
       </text_small>
     </lv_obj>
-    <text_small name="pick_last"
-                bind_text="cal_run_last_${step}" style_text_font="#cal_font_detail" style_text_color="#text_muted"
-                style_text_opa="204" clickable="false" event_bubble="true">
-      <bind_flag_if_eq subject="ui_breakpoint" flag="hidden" ref_value="0"/>
-    </text_small>
     <event_cb trigger="clicked" callback="on_cal_run_pick_toggle" user_data="$step"/>
   </view>
 </component>

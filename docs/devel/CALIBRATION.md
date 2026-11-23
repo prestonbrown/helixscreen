@@ -160,8 +160,10 @@ the printer lacks stays hidden whatever its tier says.
 
 `applicable_steps()` decides two things about the Heaters step from `CatalogInputs`'
 `has_heated_bed`, `nozzle_tuned` and `bed_tuned`, which `catalog_inputs_from()` reads from
-`PrinterDiscovery::heater_controls_in_config()` (the active extruder and `heater_bed` running
-`pid`, `pid_v` or `mpc` in the config, a vendor's shipped values included):
+`PrinterDiscovery::heater_controls_in_config()`: the active extruder and `heater_bed` running
+`pid` or `pid_v` (Klipper requires the gains), or Kalico's `mpc` with the model `MPC_CALIBRATE`
+saves (`block_heat_capacity`, `sensor_responsiveness`, `ambient_transfer`; Kalico runs an MPC
+heater only with all three). A vendor's shipped values count.
 
 | Config | Heaters tier | `StepInfo::bed` |
 |--------|--------------|-----------------|
@@ -328,7 +330,11 @@ The Heaters card's **Bed** chip (`calibration_run_option_chip`, the Z offset's w
 chip's component) sets `RunOptions::heaters_bed`, offered where `StepInfo::bed` is not `None` and
 shown only while Heaters is ticked; `with_run_options()` then sets `tunes_bed` and adds
 `bed_minutes`, so the card, the Pick totals and the Running estimate follow the choice. A Required
-bed shows the chip on with a lock, and the tap changes nothing.
+bed shows the chip on with a lock and disabled, and `toggle_heaters_bed()` ignores it too.
+In a step row (`calibration_run_pick_row`) the name line holds the name, the tier badge, the
+step's chip and the last result. The badge and the chip keep their width; the last result takes
+what is left and ends in dots first, then the name does, so a long translation never pushes the
+chip out of the tile.
 
 ### The four pages
 
@@ -540,9 +546,11 @@ Heaters step from each heater's `HeaterPricing`: the thermal model's heating sec
 calibration temperature, plus the cycles a PID calibration runs times a cycle length that scales
 with the heater's whole-climb rate (`ThermalRateModel::climb_rate()`), slower for a bed's mass.
 Mainline runs five cycles; Kalico's tolerance mode is priced at six: a large bed's spread roughly
-halves each cycle (0.70 at the fourth sample, 0.30 at the fifth), so it meets 0.15 around the sixth. A heater already on MPC is priced as heating plus a fixed measurement.
-`current_printer_steps()` applies it through `price_heaters_step()`, so the Pick page, the Calibration screen's banner, setup's
-last page and the Running page's countdown all read the same number.
+halves each cycle (0.70 at the fourth sample, 0.30 at the fifth), so it meets 0.15 around the
+sixth. A heater already on MPC is priced as heating plus a fixed measurement.
+`current_printer_steps()` applies it through `price_heaters_step()`, so the Pick page, the
+Calibration screen's banner, setup's last page and the Running page's countdown all read the same
+number.
 
 ### Stopping: the least destructive stop
 

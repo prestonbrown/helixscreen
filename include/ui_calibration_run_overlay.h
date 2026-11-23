@@ -101,8 +101,8 @@ class CalibrationRunOverlay : public OverlayBase {
     void toggle_pick(const std::string& step_id);
     /// The Z offset card's "Warm the bed first".
     void toggle_zoffset_warm_bed();
-    /// The Heaters card's Bed chip. A bed with no tuning is tuned
-    /// whatever the choice (calibration::BedTuning::Required).
+    /// The Heaters card's Bed chip. Ignored where the bed is not the owner's
+    /// choice: a bed with no tuning is always tuned (calibration::BedTuning::Required).
     void toggle_heaters_bed();
     void toggle_prereq(const std::string& prereq_id);
     void next();

@@ -326,6 +326,14 @@ TEST_CASE_METHOD(FinishFixture,
     CHECK(helix::ui::run_before_text(z, 0) == "-1.200 mm");
 }
 
+namespace {
+/// An MPC heater whose model MPC_CALIBRATE saved.
+const nlohmann::json kCalibratedMpc = {{"control", "mpc"},
+                                       {"block_heat_capacity", 18.4},
+                                       {"sensor_responsiveness", 0.12},
+                                       {"ambient_transfer", 0.09}};
+} // namespace
+
 TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER, per heater",
                  "[calibration_run]") {
     StepInfo heaters;
@@ -336,7 +344,7 @@ TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER
     helix::PrinterDiscovery hw;
     hw.parse_objects(nlohmann::json::array({"extruder", "heater_bed"}));
     hw.parse_calibration_in_config(
-        {{"extruder", {{"control", "pid_v"}}}, {"heater_bed", {{"control", "mpc"}}}});
+        {{"extruder", {{"control", "pid_v"}}}, {"heater_bed", kCalibratedMpc}});
     get_printer_state().set_hardware(hw);
 
     SECTION("from the config when the history has nothing") {
@@ -355,7 +363,7 @@ TEST_CASE_METHOD(FinishFixture, "the results' heater BEFORE reads like its AFTER
     SECTION("a printer without a heated bed has only the nozzle") {
         helix::PrinterDiscovery no_bed;
         no_bed.parse_objects(nlohmann::json::array({"extruder"}));
-        no_bed.parse_calibration_in_config({{"extruder", {{"control", "mpc"}}}});
+        no_bed.parse_calibration_in_config({{"extruder", kCalibratedMpc}});
         get_printer_state().set_hardware(no_bed);
         CHECK(helix::ui::run_before_text(heaters, 0) == "nozzle MPC");
     }
