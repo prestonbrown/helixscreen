@@ -66,9 +66,7 @@ void finish_started_queued_job(AsyncLifetimeGuard& lifetime, IMoonrakerAPI* api,
         }));
 }
 
-// ============================================================================
 // QueuedJobStarter
-// ============================================================================
 
 QueuedJobStarter::QueuedJobStarter(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api), prep_source_([this]() {

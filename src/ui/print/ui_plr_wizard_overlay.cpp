@@ -198,9 +198,7 @@ PlrWizardOverlay::~PlrWizardOverlay() {
     }
 }
 
-// ============================================================================
 // SUBJECTS / CALLBACKS
-// ============================================================================
 
 void PlrWizardOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -266,9 +264,7 @@ void PlrWizardOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION / LIFECYCLE
-// ============================================================================
 
 lv_obj_t* PlrWizardOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -350,9 +346,7 @@ void PlrWizardOverlay::on_dismissed() {
     jog_.reset();
 }
 
-// ============================================================================
 // STEP MACHINE
-// ============================================================================
 
 void PlrWizardOverlay::set_step(PlrWizardStep step) {
     step_ = step;
@@ -584,9 +578,7 @@ void PlrWizardOverlay::on_connection_changed(int state) {
     }
 }
 
-// ============================================================================
 // USER ACTIONS
-// ============================================================================
 
 void PlrWizardOverlay::handle_continue() {
     if (step_ == PlrWizardStep::Checks) {
@@ -680,9 +672,7 @@ void PlrWizardOverlay::send_jog(const AxisMove& move) {
         }));
 }
 
-// ============================================================================
 // PRESENTATION
-// ============================================================================
 
 void PlrWizardOverlay::publish_plan() {
     if (!plan_ || !plan_reply_) {
@@ -748,9 +738,7 @@ void PlrWizardOverlay::update_z_display(int centimm) {
     lv_subject_set_int(&s_plr_z_microns, centimm * 10);
 }
 
-// ============================================================================
 // NOTIFICATIONS
-// ============================================================================
 
 void PlrWizardOverlay::listen_for_notifications() {
     if (!api_ || listening_) {

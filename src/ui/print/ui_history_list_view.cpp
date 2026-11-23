@@ -18,17 +18,13 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Destruction
-// ============================================================================
 
 HistoryListView::~HistoryListView() {
     cleanup();
 }
 
-// ============================================================================
 // Setup / Cleanup
-// ============================================================================
 
 bool HistoryListView::setup(lv_obj_t* container, lv_obj_t* scroll_parent,
                             RowClickCallback on_click) {
@@ -101,9 +97,7 @@ void HistoryListView::reset() {
     spdlog::debug("[HistoryListView] reset()");
 }
 
-// ============================================================================
 // Pool Initialization
-// ============================================================================
 
 bool HistoryListView::add_pool_row() {
     if (!container_) {
@@ -120,9 +114,7 @@ bool HistoryListView::add_pool_row() {
     return true;
 }
 
-// ============================================================================
 // Static Callbacks
-// ============================================================================
 
 void HistoryListView::on_row_click_static(lv_event_t* e) {
     auto* view = static_cast<HistoryListView*>(lv_event_get_user_data(e));
@@ -144,9 +136,7 @@ void HistoryListView::on_row_click_static(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Row Configuration
-// ============================================================================
 
 // Status color/text helpers (duplicated from HistoryListPanel to keep view self-contained)
 static const char* get_status_color(PrintJobStatus status) {
@@ -198,7 +188,6 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
         lv_label_set_text(filament_label, materials.empty() ? lv_tr("Unknown") : materials.c_str());
     }
 
-    // Status text
     const char* status_text = lv_tr(status_to_label(job.status));
     const char* status_color = get_status_color(job.status);
 
@@ -224,9 +213,7 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
     (void)data_index; // Used by on_row_click_static via pool_indices_
 }
 
-// ============================================================================
 // Population / Visibility
-// ============================================================================
 
 void HistoryListView::populate(const std::vector<PrintHistoryJob>& jobs, bool preserve_scroll) {
     if (!container_) {

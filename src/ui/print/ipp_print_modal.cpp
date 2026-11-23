@@ -23,13 +23,9 @@
 
 namespace helix {
 
-// ============================================================================
 // Static callback registration
-// ============================================================================
 
-// ============================================================================
 // IppPrintModal
-// ============================================================================
 
 IppPrintModal::IppPrintModal() = default;
 
@@ -144,9 +140,7 @@ void IppPrintModal::on_cancel() {
     hide();
 }
 
-// ============================================================================
 // Free function
-// ============================================================================
 
 bool maybe_show_ipp_print_modal(const SpoolInfo& spool, PrintCallback callback) {
     auto& settings = LabelPrinterSettingsManager::instance();
