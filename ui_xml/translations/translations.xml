@@ -6154,6 +6154,7 @@
   <translation tag="{} MCUs" de="{} MCUs" en="{} MCUs" es="{} MCU" fr="{} MCU" it="{} MCU" ja="{} MCU" pt="{} MCUs" ru="{} MCU" zh="{} 个 MCU"/>
   <translation tag="{} MPC" de="{} MPC" en="{} MPC" es="{} MPC" fr="{} MPC" it="{} MPC" ja="{} MPC" pt="{} MPC" ru="{} MPC" zh="{} MPC"/>
   <translation tag="{} PID" de="{} PID" en="{} PID" es="{} PID" fr="{} PID" it="{} PID" ja="{} PID" pt="{} PID" ru="{} PID" zh="{} PID"/>
+  <translation tag="{} Sensor" de="{}-Sensor" en="{} Sensor" es="Sensor de {}" fr="Capteur {}" it="Sensore {}" ja="{}センサー" pt="Sensor de {}" ru="Датчик {}" zh="{}传感器"/>
   <translation tag="{} Settings" de="{}-Einstellungen" en="{} Settings" es="Ajustes de {}" fr="Paramètres de {}" it="Impostazioni {}" ja="{}の設定" pt="Configurações de {}" ru="Настройки: {}" zh="{}设置"/>
   <translation tag="{} Tools" de="{} Werkzeuge" en="{} Tools" es="{} herramientas" fr="{} outils" it="{} utensili" ja="{} ツール" pt="{} ferramentas" ru="Инструментов: {}" zh="{} 个工具"/>
   <translation tag="{} accelerometers" de="{} Beschleunigungssensoren" en="{} accelerometers" es="{} acelerómetros" fr="{} accéléromètres" it="{} accelerometri" ja="加速度センサー {} 個" pt="{} acelerômetros" ru="Акселерометров: {}" zh="{} 个加速度传感器"/>

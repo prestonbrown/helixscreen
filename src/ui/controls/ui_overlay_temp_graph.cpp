@@ -409,7 +409,7 @@ std::vector<std::string> TempGraphOverlay::chip_labels() const {
     for (const auto& s : series_) {
         names.push_back(s.display_name);
     }
-    return helix::temp_graph_chip_labels(names, lv_tr("Sensor"));
+    return helix::temp_graph_chip_labels(names, lv_tr("{} Sensor"));
 }
 
 void TempGraphOverlay::discover_series() {

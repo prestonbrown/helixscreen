@@ -6403,6 +6403,7 @@ translations:
   '{} MCUs': '{} MCU'
   '{} MPC': '{} MPC'
   '{} PID': '{} PID'
+  '{} Sensor': 'Датчик {}'
   '{} Settings': 'Настройки: {}'
   '{} Tools': 'Инструментов: {}'
   '{} accelerometers': 'Акселерометров: {}'

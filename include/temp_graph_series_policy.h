@@ -5,6 +5,8 @@
 
 #include "temperature_sensor_types.h"
 
+#include <spdlog/fmt/fmt.h>
+
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -69,20 +71,20 @@ temp_graph_sensor_series(const std::vector<sensors::TemperatureSensorConfig>& se
  * @brief Chip texts for the graph's series, in series order.
  *
  * A series whose text matches an earlier chip's (a chamber sensor beside the
- * chamber heater series) takes @p sensor_word ("Sensor") in place of its trailing
- * " Temperature", so the earlier chip keeps the plain name. A series is only
- * reworded on a real collision.
+ * chamber heater series) is run through @p sensor_format ("{} Sensor", one translatable string so
+ * each language orders the words itself) in place of its trailing " Temperature", so the earlier
+ * chip keeps the plain name. A series is only reworded on a real collision.
  */
 [[nodiscard]] inline std::vector<std::string>
 temp_graph_chip_labels(const std::vector<std::string>& display_names,
-                       const std::string& sensor_word) {
+                       const std::string& sensor_format) {
     std::vector<std::string> labels;
     labels.reserve(display_names.size());
     for (const auto& name : display_names) {
         std::string label = temp_graph_chip_label(name);
         for (const auto& earlier : labels) {
             if (earlier == label) {
-                label += ' ' + sensor_word;
+                label = fmt::format(fmt::runtime(sensor_format), label);
                 break;
             }
         }
