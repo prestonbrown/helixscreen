@@ -18,6 +18,7 @@
 #include "ams_backend.h"
 #include "ams_bypass_policy.h"
 #include "ams_spool_retention.h"
+#include "ams_spoolman_tag_links.h"
 #include "ams_state.h"
 #include "ams_types.h"
 #include "ams_unit_shell.h"
@@ -76,7 +77,7 @@ void AmsDeviceOperationsOverlay::init_subjects() {
                                "ams_device_ops_record_only_identity", subjects_);
 
         // Link-spools-from-tags row visibility. Gates on
-        // AmsBackend::tags_name_spoolman_spools() in update_from_backend().
+        // ISpoolmanTagLinks::tags_name_spoolman_spools() in update_from_backend().
         UI_MANAGED_SUBJECT_INT(tags_name_spools_subject_, 0, "ams_device_ops_tags_name_spools",
                                subjects_);
 
@@ -551,7 +552,9 @@ void AmsDeviceOperationsOverlay::update_from_backend() {
 
     // Linking a lane from its tag means something only where a tag can name a
     // Spoolman spool.
-    lv_subject_set_int(&tags_name_spools_subject_, backend->tags_name_spoolman_spools() ? 1 : 0);
+    const auto* tag_links = backend->as<helix::ISpoolmanTagLinks>();
+    lv_subject_set_int(&tags_name_spools_subject_,
+                       tag_links != nullptr && tag_links->tags_name_spoolman_spools() ? 1 : 0);
 
     // Firmware with its own per-lane retention setting owns Keep Spool Info:
     // the switch shows and writes that setting instead of HelixScreen's.

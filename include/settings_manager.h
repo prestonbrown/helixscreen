@@ -704,7 +704,7 @@ class SettingsManager {
      * @brief Link a lane to the Spoolman spool its tag names when the spool is seated.
      *
      * Read by AmsState's tag-link pass, which acts only on backends whose tags
-     * can name a spool (AmsBackend::tags_name_spoolman_spools()). Default on.
+     * can name a spool (ISpoolmanTagLinks::tags_name_spoolman_spools()). Default on.
      * Per-printer setting.
      */
     bool get_ams_tag_links_spoolman() const {
