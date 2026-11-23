@@ -7,14 +7,12 @@ using namespace helix;
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // Jacobean's K2 Plus firmware profile
 //
 // The replacement firmware's START_PRINT (config/k2/start_print.cfg in
 // Jacob10383/kalico) narrates each step through STATUS_MSG: M117 plus RESPOND
 // PREFIX="[START_PRINT]:". Every input below is that macro's literal text with
 // its float temperatures filled in (prestonbrown/helixscreen#2087).
-// ============================================================================
 
 TEST_CASE("PrintStartProfile: k2_jacobean maps the firmware's narration",
           "[profile][print][k2][2087]") {

@@ -14,7 +14,7 @@ using namespace helix;
 
 namespace helix {
 void register_print_status_widget();
-} // namespace helix
+}
 
 TEST_CASE_METHOD(HelixTestFixture, "PrintStatusWidget config defaults", "[print_status][config]") {
     PrintStatusWidget w;
@@ -32,7 +32,7 @@ TEST_CASE_METHOD(HelixTestFixture, "PrintStatusWidget config sets detailed",
     REQUIRE(w.layout_style_for_test() == "detailed");
     // 'extruder1' doesn't resolve in this fixture (no multi-extruder PrinterState
     // init), so set_config's formatter dispatch returns false and the widget
-    // clears the stale override back to 'auto'. That's the expected fallback —
+    // clears the stale override back to 'auto'. That's the expected fallback;
     // see DetailedFormatter::set_nozzle_tool_override and the matching
     // ghost-tool clean-up in PrintStatusWidget::set_config.
     REQUIRE(w.nozzle_tool_override_for_test() == "auto");

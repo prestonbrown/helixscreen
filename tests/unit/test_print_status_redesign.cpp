@@ -2036,10 +2036,8 @@ TEST_CASE_METHOD(Portrait600, "the lane tray leaves the pre-print checklist ever
     CHECK(preparing_tray_h <= printing_tray_h);
 }
 
-// ============================================================================
 // Inline Tune: where the layout has room, the Tune section shows beside the
 // print and the Tune button that opens the overlay goes.
-// ============================================================================
 
 namespace {
 

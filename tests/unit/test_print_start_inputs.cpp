@@ -263,9 +263,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(ctx.tools_used == std::set<int>{0, 2});
 }
 
-// ============================================================================
 // FileStartFactsLoader
-// ============================================================================
 
 namespace {
 
@@ -429,9 +427,7 @@ TEST_CASE_METHOD(LoaderFixture, "a later load supersedes an unanswered one",
     CHECK(answered == std::vector<std::string>{second.name()});
 }
 
-// ============================================================================
 // The file's tools, as the pre-print step and the slicer-start check read them
-// ============================================================================
 
 TEST_CASE("file_tools_used reads scanned tools, then per-tool weights",
           "[print_start_inputs][reprint]") {
@@ -452,7 +448,7 @@ constexpr const char* kT0T2Footer = "; filament_type = PLA;PLA;PETG\n"
                                     "T0\n"
                                     "T2\n"
                                     "; filament used [g] = 1.50, 0.00, 2.25\n";
-} // namespace
+}
 
 TEST_CASE_METHOD(LoaderFixture,
                  "a reprint with no tools in hand reads them from the file for the pre-print step",

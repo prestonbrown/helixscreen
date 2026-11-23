@@ -98,14 +98,12 @@ TEST_CASE_METHOD(HelixTestFixture, "Tool override: stale pin falls back to auto"
     REQUIRE(std::string(lv_subject_get_string(nozzle_sub)).find("123") != std::string::npos);
 }
 
-// ============================================================================
 // The multi-tool gate counts HOTENDS, not lanes
 //
 // set_ams_topology() expands ToolState's tool list to one entry per filament
 // slot, so tool_count() on a 4-lane AMS or a 16-wide AD5X tool map says nothing
 // about how many nozzles the machine has. Driving print_status_multi_tool from
 // it stamped a "Slot 1" badge and a tool-picker chevron onto single-hotend printers.
-// ============================================================================
 
 namespace {
 
@@ -241,9 +239,7 @@ TEST_CASE_METHOD(HelixTestFixture,
     UpdateQueue::instance().drain_until_empty();
 }
 
-// ============================================================================
 // The nozzle picker lists extruders that exist
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: rows come from the discovered extruders",
                  "[print_status][tool_override]") {
@@ -308,9 +304,7 @@ TEST_CASE_METHOD(
     CHECK(options[1].label == "Nozzle 2");
 }
 
-// ============================================================================
 // A rejected pin is not written to the widget's config
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "Nozzle picker: a rejected override is not persisted",
                  "[print_status][tool_override]") {
