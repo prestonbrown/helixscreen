@@ -562,8 +562,7 @@ TEST_CASE_METHOD(ShowFixture, "is_showing() covers queued, stacked and sliding-o
 TEST_CASE_METHOD(LVGLUITestFixture, "XML overlay roots yield a component telemetry id, never anon",
                  "[overlay_base][telemetry]") {
     // Overlays pushed with a null lifecycle (keypad, notification history,
-    // theme preview, ...) and the print file detail view, whose root used to
-    // be a shared name. Each yields its own component name.
+    // theme preview, ...) and the detail views each yield an id of their own.
     // The keypad component names its own root "keypad_panel".
     struct Row {
         const char* component;
