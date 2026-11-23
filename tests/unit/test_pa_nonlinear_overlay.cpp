@@ -4,6 +4,7 @@
 #include "ui_overlay_pa_nonlinear.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/scoped_env.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "moonraker_api.h"
@@ -21,11 +22,17 @@ using nlohmann::json;
 namespace {
 
 struct NonlinearFixture : LVGLTestFixture {
+    // Firmware with selectable models, and its tower module unless a case
+    // says otherwise. Declared before the client, which reads them.
+    helix::ScopedEnv pa_model_env;
+    helix::ScopedEnv pa_test_env;
     MoonrakerClientMock client;
     MoonrakerAPI api;
     PaNonlinearOverlay overlay;
 
-    explicit NonlinearFixture(bool tower = true) : api(client, get_printer_state()) {
+    explicit NonlinearFixture(bool tower = true)
+        : pa_model_env("HELIX_MOCK_PA_MODEL", "linear"),
+          pa_test_env("HELIX_MOCK_PA_TEST", tower ? "1" : "0"), api(client, get_printer_state()) {
         auto& state = get_printer_state();
         state.init_subjects(false);
         state.set_klippy_state_sync(KlippyState::READY);
