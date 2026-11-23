@@ -6,6 +6,7 @@
 #if HELIX_HAS_IFS
 
 #include "ad5x_status_parse.h"
+#include "ams_insert_signals.h"
 #include "ams_print_routing.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
@@ -117,7 +118,8 @@ class Ad5xIfsTestAccess;
 /// grouped four to a unit ("IFS 1", "IFS 2", ...), one per physical IFS.
 class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
                           public helix::IStepOperation,
-                          public helix::IPrintRouting {
+                          public helix::IPrintRouting,
+                          public helix::IInsertSignals {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IStepOperation>()) {
@@ -126,8 +128,20 @@ class AmsBackendAd5xIfs : public AmsSubscriptionBackend,
         if (tag == helix::type_tag<helix::IPrintRouting>()) {
             return static_cast<helix::IPrintRouting*>(this);
         }
+        if (tag == helix::type_tag<helix::IInsertSignals>()) {
+            return static_cast<helix::IInsertSignals*>(this);
+        }
         return AmsSubscriptionBackend::capability(tag);
     }
+
+    /// The feeder's port reading, once one has been seen (zmod_ifs.Ports or the
+    /// plugin's per-port sensors). nullopt until then: stock ZMOD publishes no
+    /// port reading, and a port that has said nothing is unknown, not empty.
+    /// Filament at the toolhead never enters into it.
+    [[nodiscard]] std::optional<bool> slot_insert_presence(int slot_index) const override;
+
+    /// This backend has no tag reader to wait on.
+    [[nodiscard]] InsertIdentity slot_insert_identity(int slot_index) const override;
 
     AmsBackendAd5xIfs(IMoonrakerAPI* api, helix::IMoonrakerClient* client);
     ~AmsBackendAd5xIfs() override;
