@@ -19,6 +19,8 @@
 #include "ams_state.h"
 #include "core/update_queue.h"
 #include "settings_manager.h"
+#include "system_settings_manager.h"
+#include "test_helpers/scoped_language.h"
 
 #include <memory>
 #include <string>
@@ -267,6 +269,33 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     REQUIRE(material != nullptr);
     REQUIRE_FALSE(AmsState::instance().get_external_spool_info().has_value());
     CHECK(std::string(lv_label_get_text(material)) == lv_tr("External"));
+
+    lv_obj_delete(lv_obj_get_parent(w));
+    teardown_ams();
+}
+
+TEST_CASE_METHOD(LVGLUITestFixture,
+                 "ams_mini bypass: the External caption follows a language switch",
+                 "[ams][mini_status][mini-bypass][i18n]") {
+    AlwaysShowSetting setting(false);
+    install_mock(std::make_unique<AmsBackendMock>(4));
+
+    lv_obj_t* w = make_strip(test_screen(), 400);
+    lv_obj_t* material = UITest::find_by_name(w, "bypass_material");
+    REQUIRE(material != nullptr);
+    REQUIRE(std::string(lv_label_get_text(material)) == "External");
+
+    lv_subject_t* language = helix::SystemSettingsManager::instance().subject_language();
+    const int32_t saved = lv_subject_get_int(language);
+    {
+        helix::ScopedLanguage ru("ru");
+        REQUIRE(std::string(lv_tr("External")) != "External");
+        lv_subject_set_int(language, helix::SystemSettingsManager::language_code_to_index("ru"));
+        settle();
+        CHECK(std::string(lv_label_get_text(material)) == lv_tr("External"));
+    }
+    lv_subject_set_int(language, saved);
+    settle();
 
     lv_obj_delete(lv_obj_get_parent(w));
     teardown_ams();
