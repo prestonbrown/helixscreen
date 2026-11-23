@@ -76,8 +76,27 @@ describe("purgeOldTallies", () => {
       },
       delete: async (ks: string[]) => ks.forEach((k) => keys.delete(k)),
     };
-    const n = await purgeOldTallies(bucket as never, "2026-11-23", 3);
+    const n = await purgeOldTallies(bucket as never, undefined, "2026-11-23", 3);
     expect(n).toBe(2);
     expect([...keys].sort()).toEqual(["caps/errors/2026-11-21/x.json", "events/2026/11/01/a.json"]);
+  });
+});
+
+describe("purgeOldTallies dropped counts", () => {
+  it("writes an error_flood point for a stale tally that dropped events, then deletes it", async () => {
+    const dev = "e".repeat(64);
+    const stale = `caps/errors/2026-11-01/${dev}.json`;
+    const quiet = `caps/errors/2026-11-01/${"f".repeat(64)}.json`;
+    const bodies: Record<string, string> = { [stale]: '{"stored":100,"dropped":37}', [quiet]: '{"stored":4,"dropped":0}' };
+    const deleted: string[] = [];
+    const bucket = {
+      list: async () => ({ objects: [{ key: stale }, { key: quiet }], truncated: false }),
+      get: async (k: string) => ({ text: async () => bodies[k] }),
+      delete: async (ks: string[]) => void deleted.push(...ks),
+    };
+    const points: unknown[] = [];
+    await purgeOldTallies(bucket as never, { writeDataPoint: (p: unknown) => void points.push(p) } as never, "2026-11-23", 3);
+    expect(points).toEqual([{ indexes: ["error_flood"], blobs: expect.arrayContaining([dev, "2026-11-01"]), doubles: expect.arrayContaining([37]) }]);
+    expect(deleted).toEqual([stale, quiet]);
   });
 });

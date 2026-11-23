@@ -8,6 +8,10 @@ describe("memoryReasonCode", () => {
     expect(memoryReasonCode("rss_warning", "anything 12MB")).toBe("rss_warning");
   });
 
+  it("derives a code from the text when the client's code is not one of the fixed set", () => {
+    expect(memoryReasonCode("made_up_code", "RSS 31MB exceeds warning threshold 30MB")).toBe("rss_warning");
+  });
+
   it("groups the same wording at different measurements", () => {
     const a = memoryReasonCode(undefined, "RSS 30MB exceeds warning threshold 30MB");
     const b = memoryReasonCode(undefined, "RSS 31MB exceeds warning threshold 30MB");

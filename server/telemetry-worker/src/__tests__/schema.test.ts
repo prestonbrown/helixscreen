@@ -128,6 +128,11 @@ describe("POINT_KINDS table", () => {
           "pressure_level": "blob17",
           "uptime_sec": "double1",
         },
+        "error_flood": {
+          "day": "blob2",
+          "device_id": "blob1",
+          "dropped": "double1",
+        },
         "feature_adoption": {
           "app_platform": "blob3",
           "app_version": "blob2",

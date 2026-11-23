@@ -7,6 +7,7 @@
 // written once per ingest request that carries error events from that device.
 // Concurrent requests can race on it, so the cap is approximate by a few events.
 
+import { pointOfKind } from "./analytics";
 import { isDeviceId } from "./devices";
 import type { EventRecord } from "./schema";
 
@@ -117,10 +118,13 @@ export const TALLY_PREFIX = "caps/errors/";
 
 /**
  * Deletes the tallies of days before the last `keepDays` UTC days up to and
- * including `today` (YYYY-MM-DD). Returns how many it deleted.
+ * including `today` (YYYY-MM-DD), first writing each one that dropped events to
+ * Analytics Engine as an `error_flood` point (device, day, dropped) so the count
+ * outlives the tally. Returns how many it deleted.
  */
 export async function purgeOldTallies(
-  bucket: Pick<R2Bucket, "list" | "delete">,
+  bucket: Pick<R2Bucket, "list" | "delete" | "get">,
+  analytics: Pick<AnalyticsEngineDataset, "writeDataPoint"> | undefined,
   today: string,
   keepDays = TALLY_KEEP_DAYS,
 ): Promise<number> {
@@ -133,10 +137,26 @@ export async function purgeOldTallies(
     const page = await bucket.list({ prefix: TALLY_PREFIX, cursor });
     const stale = page.objects.map((o) => o.key).filter((k) => k.slice(TALLY_PREFIX.length, TALLY_PREFIX.length + 10) < oldest);
     if (stale.length > 0) {
+      for (const key of stale) await recordDropped(bucket, analytics, key);
       await bucket.delete(stale);
       deleted += stale.length;
     }
     cursor = page.truncated ? page.cursor : undefined;
   } while (cursor);
   return deleted;
+}
+
+/** Writes the dropped count of the tally at `key` (caps/errors/DAY/DEVICE.json), when it has one. */
+async function recordDropped(
+  bucket: Pick<R2Bucket, "get">,
+  analytics: Pick<AnalyticsEngineDataset, "writeDataPoint"> | undefined,
+  key: string,
+): Promise<void> {
+  const [day, file] = key.slice(TALLY_PREFIX.length).split("/");
+  const obj = analytics ? await bucket.get(key) : null;
+  if (!analytics || !obj || !file) return;
+  const dropped = Number((JSON.parse(await obj.text()) as Partial<DeviceDayTally> | null)?.dropped) || 0;
+  if (dropped > 0) {
+    analytics.writeDataPoint(pointOfKind("error_flood", { device_id: file.replace(/\.json$/, ""), day, dropped }));
+  }
 }
