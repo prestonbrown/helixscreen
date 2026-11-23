@@ -3126,8 +3126,8 @@ never names a firmware:
   Hare take a tool remap while paused and are the next candidates. A plan is refused whole, never
   partial.
 
-A backend joins by adding its provider row and overriding `AmsBackend::runout_other_head_facts()`
-(`include/ams_backend.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
+A backend joins by adding its provider row and implementing `IRunoutOtherHead::runout_other_head_facts()`
+(`include/ams_runout_other_head.h`), which returns a `RunoutFacts` snapshot: the runout head, pause state,
 active head, each head's nozzle, feeder, record and `load_failed`, the logical-tool routing, and
 `printer_busy`. `runout_other_head::supported(type)` gates the whole feature.
 
@@ -4148,6 +4148,9 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   switcher treats every error on a docking machine as a changer error.
 - `INarrationMatcher` (`include/ams_narration_matcher.h`) -- What a console line means to the step
   bar; see the toolchange narration seam below. AFC implements it.
+- `IRunoutOtherHead` (`include/ams_runout_other_head.h`) -- The `RunoutFacts` snapshot that decides whether a
+  runout-paused print can continue on another loaded head (§ Continuing a runout on another head). The Snapmaker U1 and
+  MultiACE implement it. Without it the runout flow offers no other head.
 
 **Optional overrides (with default implementations):**
 

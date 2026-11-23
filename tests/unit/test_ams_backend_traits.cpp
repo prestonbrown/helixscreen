@@ -194,6 +194,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         const IFirmwarePromptDedup* prompt_dedup = nullptr;
         const ISharedSpoolLanes* shared_spools = nullptr;
         const ILaneFaults* lane_faults = nullptr;
+        const IRunoutOtherHead* runout_other_head = nullptr;
     };
     const Row rows[] = {
         {.backend = &ace, .dryer = &ace},
@@ -203,10 +204,15 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
          .insert = &multi_ace,
          .dryer = &multi_ace,
          .routing = &multi_ace,
-         .shared_spools = &multi_ace},
+         .shared_spools = &multi_ace,
+         .runout_other_head = &multi_ace},
         {.backend = &openams, .dryer = &openams},
         {.backend = &qidi, .dryer = &qidi},
-        {.backend = &snapmaker, .steps = &snapmaker, .insert = &snapmaker, .routing = &snapmaker},
+        {.backend = &snapmaker,
+         .steps = &snapmaker,
+         .insert = &snapmaker,
+         .routing = &snapmaker,
+         .runout_other_head = &snapmaker},
         {.backend = &indx, .feeder = &indx, .steps = &indx},
         {.backend = &tool_changer, .feeder = &tool_changer, .steps = &tool_changer},
         {.backend = &afc,
@@ -240,6 +246,7 @@ TEST_CASE("Each optional interface answers only on the backends that implement i
         CHECK(row.backend->as<IFirmwarePromptDedup>() == row.prompt_dedup);
         CHECK(row.backend->as<ISharedSpoolLanes>() == row.shared_spools);
         CHECK(row.backend->as<ILaneFaults>() == row.lane_faults);
+        CHECK(row.backend->as<IRunoutOtherHead>() == row.runout_other_head);
         // A start that promises a pre-print step needs something to build it.
         CHECK((!row.backend->requires_preprint_send() || row.routing != nullptr));
         CHECK(row.backend->as<NothingImplementsThis>() == nullptr);

@@ -6,6 +6,7 @@
 #include "ui_toast_manager.h"
 
 #include "ams_backend.h"
+#include "ams_runout_other_head.h"
 #include "ams_state.h"
 #include "app_globals.h"
 #include "core/observer_factory.h"
@@ -64,7 +65,8 @@ std::optional<roh::RunoutFacts> facts_for(int runout_head) {
     if (backend == nullptr || !roh::supported(backend->get_type())) {
         return std::nullopt;
     }
-    return backend->runout_other_head_facts(runout_head);
+    const auto* reporter = backend->as<IRunoutOtherHead>();
+    return reporter != nullptr ? reporter->runout_other_head_facts(runout_head) : std::nullopt;
 }
 
 const roh::HeadFacts* head_facts(const roh::RunoutFacts& facts, int head) {
