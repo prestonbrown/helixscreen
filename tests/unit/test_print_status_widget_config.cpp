@@ -14,7 +14,7 @@ using namespace helix;
 
 namespace helix {
 void register_print_status_widget();
-}
+} // namespace helix
 
 TEST_CASE_METHOD(HelixTestFixture, "PrintStatusWidget config defaults", "[print_status][config]") {
     PrintStatusWidget w;

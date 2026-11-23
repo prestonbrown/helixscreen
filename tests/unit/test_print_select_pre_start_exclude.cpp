@@ -418,7 +418,7 @@ const char* kToolPlate = "; HEADER\n"
                          "G28\n"
                          "T1\n";
 
-}
+} // namespace
 
 TEST_CASE_METHOD(PickStartFixture, "The remap modal's OK lays only its picks over the card",
                  "[print_select][remap][routing]") {
