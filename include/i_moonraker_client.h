@@ -71,8 +71,8 @@ inline constexpr const char* kWholeObjectsMarker = "_helix_whole_objects";
  * transport should depend on this interface rather than the concrete MoonrakerClient.
  * The concrete class inherits this interface (alongside hv::WebSocketClient).
  *
- * This interface IS the complete consumer contract for MoonrakerClient (Plan 3 Task 2,
- * docs/devel/specs/2026-06-10-esp32-*): every method a consumer (MoonrakerAPI, UI code,
+ * This interface IS the complete consumer contract for MoonrakerClient,
+ * (docs/devel/specs/2026-06-10-esp32-*): every method a consumer (MoonrakerAPI, UI code,
  * platform client factories) calls on MoonrakerClient is declared here. Only
  * hv::WebSocketClient itself and protected/private implementation details remain on
  * the concrete class.

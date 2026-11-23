@@ -146,7 +146,6 @@ class WizardPrinterIdentifyStep : public helix::wizard::Step {
 
     lv_obj_t* screen_root_ = nullptr;
 
-    // Printer preview image widget
     lv_obj_t* printer_preview_image_ = nullptr;
 
     // Printer type list container (populated once, reparented across wizard visits)

@@ -110,12 +110,12 @@ class CrashReporter {
         // abort_msg nor terminate_msg is available (issue #987).
         std::vector<std::string> recent_errors;
 
-        // Fault info (Phase 2 - from siginfo_t)
+        // Fault info (from siginfo_t)
         std::string fault_addr;
         int fault_code = 0;
         std::string fault_code_name;
 
-        // Register state (Phase 2 - from ucontext_t)
+        // Register state (from ucontext_t)
         std::string reg_pc;
         std::string reg_sp;
         std::string reg_lr; // ARM only

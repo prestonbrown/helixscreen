@@ -18,7 +18,7 @@ namespace helix::ui {
  * @file ui_preflight_check_modal.h
  * @brief Enriched pre-flight filament check modal
  *
- * Replaces the simple confirmation dialog the print-start gate used to show.
+ * Shown by the print-start gate in place of a plain confirmation dialog.
  * For each required tool it renders a row with:
  *   - "Tx" label
  *   - the slicer-intended color swatch

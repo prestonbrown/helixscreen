@@ -24,7 +24,6 @@ class IMoonrakerAPI;
 /**
  * @brief Centralized Spoolman weight polling, circuit breaker, and identity cache
  *
- * Extracted from AmsState to decouple Spoolman from AMS hardware.
  * Spoolman works independently — printers without AMS can still use
  * Spoolman for filament tracking.
  *
@@ -37,8 +36,7 @@ class IMoonrakerAPI;
  * - Each fetched spool record, filed as its lane's Spoolman record
  *   (`file_spool_on_lane()`)
  *
- * @note The charter used to be "polling + circuit breaker, holds no spool data".
- *       It is deliberately wider now: this class also owns a per-`spool_id`
+ * @note Beyond polling and the circuit breaker, this class also owns a per-`spool_id`
  *       cache of `helix::SpoolIdentity` (vendor / filament name / material).
  *       That data lives here rather than on `SlotInfo` on purpose — the weight
  *       poll files lane records and never writes a slot (a slot write would

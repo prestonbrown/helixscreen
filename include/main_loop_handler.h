@@ -35,7 +35,6 @@ class MainLoopHandler {
         // Auto-quit timeout (0 = disabled)
         int timeout_sec{0};
 
-        // Benchmark mode
         bool benchmark_mode{false};
         uint32_t benchmark_report_interval_ms{5000};
     };

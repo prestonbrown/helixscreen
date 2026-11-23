@@ -285,7 +285,6 @@ class KeyboardManager {
     // Keyboard state
     KeyboardMode mode_ = MODE_ALPHA_LC;
 
-    // Long-press state tracking
     LongPressState longpress_state_ = LP_IDLE;
     helix::ui::WidgetRef overlay_;
     uint32_t pressed_btn_id_ = 0;

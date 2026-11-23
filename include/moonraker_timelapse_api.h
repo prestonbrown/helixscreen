@@ -5,8 +5,7 @@
  * @file moonraker_timelapse_api.h
  * @brief Timelapse and webcam operations via Moonraker
  *
- * Extracted from MoonrakerAPI to encapsulate all timelapse and webcam
- * functionality in a dedicated class. Uses MoonrakerClient for JSON-RPC
+ * Encapsulates all timelapse and webcam functionality. Uses MoonrakerClient for JSON-RPC
  * transport and HTTP for timelapse plugin settings.
  */
 

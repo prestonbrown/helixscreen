@@ -93,7 +93,6 @@ class SpoolmanPanel : public OverlayBase {
     int active_spool_id_ = -1;
     std::string currency_; ///< Spoolman's currency code, for the spool menu's price line
 
-    // ========== Search ==========
     std::string search_query_;
     std::string selected_location_;           ///< Currently selected location filter ("" = All)
     bool updating_location_dropdown_ = false; ///< Guard against dropdown event feedback loop
@@ -103,7 +102,6 @@ class SpoolmanPanel : public OverlayBase {
     helix::ui::SpoolmanListView list_view_;
     bool preserve_scroll_ = false; ///< Preserve scroll position on next populate
 
-    // ========== Subjects ==========
     SubjectManager subjects_;              ///< RAII subject manager
     helix::Subject panel_state_subject_{}; ///< Panel display state (loading/empty/spools)
     helix::Subject header_title_subject_{};
@@ -142,7 +140,6 @@ class SpoolmanPanel : public OverlayBase {
     void print_label_for_spool(int spool_id);
 #endif
 
-    // === Context Menu ===
     helix::ui::SpoolmanContextMenu context_menu_;
     helix::ui::SpoolEditModal edit_modal_;
 

@@ -14,7 +14,7 @@
  *
  * The fix is a multiplicative UI scale factor applied on top of the existing
  * ladder. Breakpoint selection stays on raw pixels, so no existing device can
- * change tier — regression is structurally impossible rather than merely
+ * change tier, which is structurally impossible rather than merely
  * unlikely.
  *
  * @note This scale is deliberately NOT fed to lv_display_set_dpi(). LVGL
@@ -175,8 +175,8 @@ class DisplayMetrics {
                                       board::Board board, int scale_setting);
 
     /// Scale an authored pixel constant. The single choke point every future
-    /// physical-units caller goes through, so widening the refactor past
-    /// Android does not mean rewriting call sites again.
+    /// physical-units caller goes through, so a new platform needs no
+    /// call-site changes.
     static int32_t scaled_px(int32_t authored_px, double scale);
 
     /// Remap a font asset name to the face nearest the scaled size, e.g.
