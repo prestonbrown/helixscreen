@@ -232,5 +232,5 @@ Read in this order; about 30 minutes total.
 10. `src/ui/panel_widgets/fan_stack_widget.cpp#register_fan_stack_widget`: then `attach_stack`, `bind_fans`, `bind_fan_observer` (note the manual initial-value read), and the version observer in `setup_common_observers`.
 11. `src/ui/panel_widgets/led_widget.cpp#attach` through `bind_led()`: the second instance of the version-observer pattern.
 12. `src/ui/panel_widgets/camera_widget.cpp#detach`: the lightweight contract in action, stream alive, pointers out.
-13. `src/plugin/plugin_host.cpp#"bool PluginHost::load(PluginInfo& info)"`: how a manifest's widgets become runtime defs with a `LuaPanelWidget` factory.
+13. `src/ui/plugin/plugin_host.cpp#"bool PluginHost::load(PluginInfo& info)"`: how a manifest's widgets become runtime defs with a `LuaPanelWidget` factory.
 14. [`include/grid_edit_mode.h`](../../../include/grid_edit_mode.h): the other half of the layout story; end here, and continue in [`../LAYOUT_SYSTEM.md`](../LAYOUT_SYSTEM.md) and [`../HOME_EDIT_MODE.md`](../HOME_EDIT_MODE.md).
