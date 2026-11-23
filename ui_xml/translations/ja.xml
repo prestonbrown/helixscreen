@@ -4071,6 +4071,7 @@
   <translation tag="Runout" ja="フィラメント切れ"/>
   <translation tag="Runout Backup" ja="フィラメント切れ時の予備"/>
   <translation tag="Runout Sensor" ja="フィラメント切れセンサー"/>
+  <translation tag="Runs everything this printer needs, in order" ja="このプリンターに必要なものを順にすべて実行"/>
   <translation tag="Runs everything this printer needs, in order ·" ja="このプリンターに必要なものを順にすべて実行 ·"/>
   <translation tag="Runs on its own once started" ja="開始後は自動で進みます"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ja="プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。"/>

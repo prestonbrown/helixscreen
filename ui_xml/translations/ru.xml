@@ -4131,6 +4131,7 @@
   <translation tag="Runout" ru="Окончание"/>
   <translation tag="Runout Backup" ru="Резерв при окончании"/>
   <translation tag="Runout Sensor" ru="Датчик окончания"/>
+  <translation tag="Runs everything this printer needs, in order" ru="Выполняет всё, что нужно этому принтеру, по порядку"/>
   <translation tag="Runs everything this printer needs, in order ·" ru="Выполняет всё, что нужно этому принтеру, по порядку ·"/>
   <translation tag="Runs on its own once started" ru="После запуска работает сам"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>

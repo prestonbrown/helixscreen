@@ -4071,6 +4071,7 @@
   <translation tag="Runout" de="Auslauf"/>
   <translation tag="Runout Backup" de="Ersatz bei Auslauf"/>
   <translation tag="Runout Sensor" de="Auslaufsensor"/>
+  <translation tag="Runs everything this printer needs, in order" de="Führt alles aus, was dieser Drucker braucht, der Reihe nach"/>
   <translation tag="Runs everything this printer needs, in order ·" de="Führt alles aus, was dieser Drucker braucht, der Reihe nach ·"/>
   <translation tag="Runs on its own once started" de="Läuft nach dem Start von selbst"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." de="Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus."/>

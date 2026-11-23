@@ -4071,6 +4071,7 @@
   <translation tag="Runout" en="Runout"/>
   <translation tag="Runout Backup" en="Runout Backup"/>
   <translation tag="Runout Sensor" en="Runout Sensor"/>
+  <translation tag="Runs everything this printer needs, in order" en="Runs everything this printer needs, in order"/>
   <translation tag="Runs everything this printer needs, in order ·" en="Runs everything this printer needs, in order ·"/>
   <translation tag="Runs on its own once started" en="Runs on its own once started"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." en="Runs the printer&apos;s tool offset calibration for every tool."/>

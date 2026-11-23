@@ -4287,6 +4287,7 @@ translations:
   Runout Backup: 'Резерв при окончании'
   Runout Sensor: Датчик окончания
   Runs on its own once started: После запуска работает сам
+  Runs everything this printer needs, in order: 'Выполняет всё, что нужно этому принтеру, по порядку'
   Runs everything this printer needs, in order ·: 'Выполняет всё, что нужно этому принтеру, по порядку ·'
   Runs the printer's tool offset calibration for every tool.: Запускает калибровку смещений инструментов принтера для всех инструментов.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'Ошибка SAVE_CONFIG: {}. Смещения инструментов применены, но не сохранены. Выполните SAVE_CONFIG вручную, иначе они будут потеряны при перезапуске.'

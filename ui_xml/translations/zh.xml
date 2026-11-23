@@ -4071,6 +4071,7 @@
   <translation tag="Runout" zh="用尽"/>
   <translation tag="Runout Backup" zh="用尽备用"/>
   <translation tag="Runout Sensor" zh="断料传感器"/>
+  <translation tag="Runs everything this printer needs, in order" zh="按顺序运行此打印机所需的一切"/>
   <translation tag="Runs everything this printer needs, in order ·" zh="按顺序运行此打印机所需的一切 ·"/>
   <translation tag="Runs on its own once started" zh="启动后自动运行"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." zh="为所有工具运行打印机的工具偏移校准。"/>

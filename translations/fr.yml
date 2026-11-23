@@ -4219,6 +4219,7 @@ translations:
   Runout Backup: 'Secours en fin de filament'
   Runout Sensor: Capteur de fin de filament
   Runs on its own once started: Fonctionne seul une fois lancé
+  Runs everything this printer needs, in order: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre'
   Runs everything this printer needs, in order ·: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre ·'
   Runs the printer's tool offset calibration for every tool.: Lance la calibration des offsets d'outil de l'imprimante pour tous les outils.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': "SAVE_CONFIG a échoué : {}. Les décalages d'outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."

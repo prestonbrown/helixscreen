@@ -142,8 +142,8 @@
     <string name="cal_font_mono_tiny" value="source_code_pro_12"/>
     <string name="cal_font_mono_small" value="source_code_pro_12"/>
     <string name="cal_font_mono_medium" value="source_code_pro_16"/>
-    <string name="cal_font_mono_large" value="source_code_pro_18"/>
-    <string name="cal_font_mono_xlarge" value="source_code_pro_20"/>
+    <string name="cal_font_mono_large" value="source_code_pro_16"/>
+    <string name="cal_font_mono_xlarge" value="source_code_pro_18"/>
 
     <!-- ================================================================ -->
     <!-- INTRO: the intro page each calibration step opens on               -->

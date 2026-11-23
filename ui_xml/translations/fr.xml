@@ -4077,6 +4077,7 @@
   <translation tag="Runout" fr="Fin de filament"/>
   <translation tag="Runout Backup" fr="Secours en fin de filament"/>
   <translation tag="Runout Sensor" fr="Capteur de fin de filament"/>
+  <translation tag="Runs everything this printer needs, in order" fr="Exécute tout ce dont cette imprimante a besoin, dans l&apos;ordre"/>
   <translation tag="Runs everything this printer needs, in order ·" fr="Exécute tout ce dont cette imprimante a besoin, dans l&apos;ordre ·"/>
   <translation tag="Runs on its own once started" fr="Fonctionne seul une fois lancé"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." fr="Lance la calibration des offsets d&apos;outil de l&apos;imprimante pour tous les outils."/>

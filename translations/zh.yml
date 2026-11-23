@@ -4207,6 +4207,7 @@ translations:
   Runout Backup: '用尽备用'
   Runout Sensor: 断料传感器
   Runs on its own once started: 启动后自动运行
+  Runs everything this printer needs, in order: '按顺序运行此打印机所需的一切'
   Runs everything this printer needs, in order ·: '按顺序运行此打印机所需的一切 ·'
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。

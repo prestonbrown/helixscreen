@@ -4207,6 +4207,7 @@ translations:
   Runout Backup: 'フィラメント切れ時の予備'
   Runout Sensor: フィラメント切れセンサー
   Runs on its own once started: 開始後は自動で進みます
+  Runs everything this printer needs, in order: 'このプリンターに必要なものを順にすべて実行'
   Runs everything this printer needs, in order ·: 'このプリンターに必要なものを順にすべて実行 ·'
   Runs the printer's tool offset calibration for every tool.: プリンターのツールオフセットキャリブレーションをすべてのツールに対して実行します。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG に失敗しました: {}。ツールオフセットは適用されましたが保存されていません。SAVE_CONFIG を手動で実行しないと、再起動時に失われます。'

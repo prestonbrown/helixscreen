@@ -4071,6 +4071,7 @@
   <translation tag="Runout" it="Esaurimento"/>
   <translation tag="Runout Backup" it="Riserva all&apos;esaurimento"/>
   <translation tag="Runout Sensor" it="Sensore esaurimento"/>
+  <translation tag="Runs everything this printer needs, in order" it="Esegue tutto ciò che serve a questa stampante, in ordine"/>
   <translation tag="Runs everything this printer needs, in order ·" it="Esegue tutto ciò che serve a questa stampante, in ordine ·"/>
   <translation tag="Runs on its own once started" it="Procede da solo una volta avviato"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." it="Esegue la calibrazione degli offset degli strumenti della stampante per tutti gli strumenti."/>

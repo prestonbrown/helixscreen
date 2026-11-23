@@ -4207,6 +4207,7 @@ translations:
   Runout Backup: 'Riserva all''esaurimento'
   Runout Sensor: Sensore esaurimento
   Runs on its own once started: Procede da solo una volta avviato
+  Runs everything this printer needs, in order: 'Esegue tutto ciò che serve a questa stampante, in ordine'
   Runs everything this printer needs, in order ·: 'Esegue tutto ciò che serve a questa stampante, in ordine ·'
   Runs the printer's tool offset calibration for every tool.: Esegue la calibrazione degli offset degli strumenti della stampante per tutti gli strumenti.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG non riuscito: {}. Gli offset strumento sono stati applicati ma non salvati. Esegui SAVE_CONFIG manualmente o andranno persi al riavvio.'
