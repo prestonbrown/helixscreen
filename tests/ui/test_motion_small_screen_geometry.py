@@ -297,3 +297,52 @@ def test_unfilled_header_slot_leaves_control_overlay_geometry(tmp_path):
                 "slot must cost no layout")
     finally:
         _restore_size(before)
+
+
+@pytest.mark.parametrize("size", ["480x400", "800x480", "1024x600"])
+def test_jog_mode_labels_fit_their_buttons(size, tmp_path):
+    """Fine / Coarse / Turbo share the bottom row with the home bar; each label
+    must sit inside its button's content box, not spill past it and clip."""
+    app, before = _run_app(size, tmp_path)
+    try:
+        with app:
+            _open_motion(app)
+            for name in ("jog_mode_fine", "jog_mode_coarse", "jog_mode_turbo"):
+                widgets = app.geom(name, 2)["widgets"]
+                button = widgets[0]
+                labels = [w for w in widgets[1:]
+                          if not w["hidden"] and not w["name"].endswith("_icon")]
+                assert labels, f"{size}: {name} shows no label"
+                for label in labels:
+                    assert label["w"] <= button["content_w"], (
+                        f"{size}: {name} label is {label['w']}px wide in a "
+                        f"{button['content_w']}px content box, so it clips")
+    finally:
+        _restore_size(before)
+
+
+# The title's own width at each size, measured off a screenshot with the
+# shortest readout: "MOTION" in the heading face. The title grows into any slack,
+# so a floor at its natural width is what a squeezed title falls under.
+_TITLE_FLOOR = [
+    ("480x320", 64),
+    ("480x400", 82),
+    ("800x480", 104),
+    ("1024x600", 112),
+]
+
+
+@pytest.mark.parametrize("size,floor", _TITLE_FLOOR, ids=[s for s, _ in _TITLE_FLOOR])
+def test_header_title_stays_whole_with_three_digit_coords(size, floor, tmp_path):
+    """The readout gives way to the title: with 350.00 / 350.00 / 250.00 showing,
+    "MOTION" keeps at least its natural width."""
+    app, before = _run_app(size, tmp_path)
+    try:
+        with app:
+            _open_motion(app)
+            title = _geom(app, "header_title")["w"]
+            assert title >= floor, (
+                f"{size}: title is {title}px wide with 3-digit coords, floor {floor}px: "
+                "the readout squeezes it")
+    finally:
+        _restore_size(before)
