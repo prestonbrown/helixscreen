@@ -8,6 +8,7 @@
 #include "ui_update_queue.h"
 
 #include "../lvgl_test_fixture.h"
+#include "../test_helpers/firmware_supervised_override.h"
 #include "../test_helpers/pid_calibration_panel_test_access.h"
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
@@ -402,4 +403,24 @@ TEST_CASE_METHOD(PidHeadsFixture, "An MPC result that lands behind the screensav
     Access::navigate_away(panel);
     Access::activate(panel);
     CHECK(subject_int("pid_cal_state") == 0);
+}
+
+// Switching method rewrites the heater's config section, which firmware that
+// supervises HelixScreen owns (#2154): there the run tunes the control the
+// heater already uses.
+TEST_CASE_METHOD(PidHeadsFixture,
+                 "Under supervising firmware heater calibration keeps the heater's own control",
+                 "[pid_cal][firmware_supervised]") {
+    {
+        helix::test::FirmwareSupervisedFor off(false);
+        Access::detect_control_type(panel); // the mock's extruder runs PID
+        helix::ui::UpdateQueue::instance().drain();
+        REQUIRE(subject_int("cal_method_is_mpc") == 1); // MPC preselected...
+        CHECK(subject_int("cal_needs_migration") == 1); // ...which needs a config change
+    }
+    helix::test::FirmwareSupervisedFor on(true);
+    Access::detect_control_type(panel);
+    helix::ui::UpdateQueue::instance().drain();
+    CHECK(subject_int("cal_method_is_mpc") == 0);
+    CHECK(subject_int("cal_needs_migration") == 0);
 }

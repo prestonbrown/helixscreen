@@ -82,38 +82,54 @@
         <bind_flag_if_eq subject="probe_config_loaded" flag="hidden" ref_value="0"/>
 
         <setting_section_header title="CONFIGURATION" icon="tune"/>
+        <!-- Firmware that supervises HelixScreen owns the configuration (#2154):
+             the values still show, and the rows take no edit. Hidden until the
+             subject says otherwise, so a screen without it keeps its room. -->
+        <text_small name="probe_cfg_firmware_note"
+                    width="100%" long_mode="wrap" style_text_color="#text_muted"
+                    text="Your printer's firmware manages its configuration, so set these values there." hidden="true">
+          <bind_flag_if_eq subject="firmware_supervised" flag="hidden" ref_value="0"/>
+        </text_small>
 
         <!-- X Offset -->
         <setting_action_row name="btn_cfg_x_offset"
-                            label="X Offset" icon="arrow_right" bind_description="probe_cfg_x_offset">
+                            disabled="firmware_supervised" label="X Offset" icon="arrow_right"
+                            bind_description="probe_cfg_x_offset">
           <event_cb trigger="clicked" callback="on_probe_cfg_x_offset"/>
         </setting_action_row>
 
         <!-- Y Offset -->
         <setting_action_row name="btn_cfg_y_offset"
-                            label="Y Offset" icon="arrow_down" bind_description="probe_cfg_y_offset">
+                            disabled="firmware_supervised" label="Y Offset" icon="arrow_down"
+                            bind_description="probe_cfg_y_offset">
           <event_cb trigger="clicked" callback="on_probe_cfg_y_offset"/>
         </setting_action_row>
 
         <!-- Samples -->
-        <setting_action_row name="btn_cfg_samples" label="Samples" icon="target" bind_description="probe_cfg_samples">
+        <setting_action_row name="btn_cfg_samples"
+                            disabled="firmware_supervised" label="Samples" icon="target"
+                            bind_description="probe_cfg_samples">
           <event_cb trigger="clicked" callback="on_probe_cfg_samples"/>
         </setting_action_row>
 
         <!-- Speed -->
-        <setting_action_row name="btn_cfg_speed" label="Probe Speed" icon="play" bind_description="probe_cfg_speed">
+        <setting_action_row name="btn_cfg_speed"
+                            disabled="firmware_supervised" label="Probe Speed" icon="play"
+                            bind_description="probe_cfg_speed">
           <event_cb trigger="clicked" callback="on_probe_cfg_speed"/>
         </setting_action_row>
 
         <!-- Sample Retract Distance -->
         <setting_action_row name="btn_cfg_retract"
-                            label="Retract Distance" icon="arrow_up" bind_description="probe_cfg_retract_dist">
+                            disabled="firmware_supervised" label="Retract Distance" icon="arrow_up"
+                            bind_description="probe_cfg_retract_dist">
           <event_cb trigger="clicked" callback="on_probe_cfg_retract"/>
         </setting_action_row>
 
         <!-- Samples Tolerance -->
         <setting_action_row name="btn_cfg_tolerance"
-                            label="Samples Tolerance" icon="tune" bind_description="probe_cfg_tolerance">
+                            disabled="firmware_supervised" label="Samples Tolerance" icon="tune"
+                            bind_description="probe_cfg_tolerance">
           <event_cb trigger="clicked" callback="on_probe_cfg_tolerance"/>
         </setting_action_row>
       </lv_obj>

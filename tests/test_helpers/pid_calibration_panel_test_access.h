@@ -53,6 +53,10 @@ struct PIDCalibrationPanelTestAccess {
     static std::vector<helix::system::ConfigEdit> mpc_migration_edits(PIDCalibrationPanel& p) {
         return p.control_migration_edits(PIDCalibrationPanel::CalibMethod::MPC);
     }
+    /// The control-type query on_activate() runs, with MPC preselected.
+    static void detect_control_type(PIDCalibrationPanel& p) {
+        p.detect_heater_control_type(true);
+    }
     static void suspend(PIDCalibrationPanel& p) {
         p.on_deactivate(DeactivateReason::Suspended);
     }
