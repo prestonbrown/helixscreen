@@ -1006,6 +1006,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: 'Elige qué versiones recibir y si compartir estadísticas anónimas.'
   'Chute position: X {:.1f}, Y {:.1f}': 'Posición del conducto de purga: X {:.1f}, Y {:.1f}'
 
+  Clean: 'Limpiar'
   Clean Brush: 'Limpiar cepillo'
   Clean Nozzle: Limpiar Boquilla
   Clean Up Storage: 'Limpiar almacenamiento'

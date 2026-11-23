@@ -1008,6 +1008,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" ru="Выберите, какая дорожка в печатающей головке, чтобы выгрузить её"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." ru="Выберите, какие выпуски получать и делиться ли анонимной статистикой."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" ru="Позиция лотка прочистки: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" ru="Очистить"/>
   <translation tag="Clean Brush" ru="Очистить щётку"/>
   <translation tag="Clean Nozzle" ru="Очистить сопло"/>
   <translation tag="Clean Up Storage" ru="Очистка хранилища"/>

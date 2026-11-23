@@ -600,7 +600,7 @@ const TokenEntry k_token_table[] = {
     {"px", "fan_btn_height_small", "24"},
     {"px", "fan_btn_height_medium", "28"},
     {"px", "fan_btn_height_large", "32"},
-    {"px", "filament_portrait_row_h_tiny", "42"},
+    {"px", "filament_portrait_row_h_tiny", "56"},
     {"px", "filament_portrait_row_h_small", "48"},
     {"px", "filament_portrait_row_h_medium", "48"},
     {"px", "filament_portrait_row_h_large", "48"},

@@ -1006,6 +1006,7 @@ translations:
   Choose which releases to get, and whether to share anonymous statistics.: '受け取るリリースと、匿名の統計を共有するかどうかを選択します。'
   'Chute position: X {:.1f}, Y {:.1f}': 'パージシュート位置: X {:.1f}, Y {:.1f}'
 
+  Clean: '清掃'
   Clean Brush: 'ブラシを清掃'
   Clean Nozzle: ノズル清掃
   Clean Up Storage: 'ストレージのクリーンアップ'

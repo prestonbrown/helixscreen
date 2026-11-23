@@ -966,6 +966,7 @@
   <translation tag="Choose which lane is in the toolhead to unload it" pt="Escolha qual via está na cabeça para descarregá-la"/>
   <translation tag="Choose which releases to get, and whether to share anonymous statistics." pt="Escolha quais versões receber e se deseja compartilhar estatísticas anônimas."/>
   <translation tag="Chute position: X {:.1f}, Y {:.1f}" pt="Posição da calha de purga: X {:.1f}, Y {:.1f}"/>
+  <translation tag="Clean" pt="Limpar"/>
   <translation tag="Clean Brush" pt="Limpar escova"/>
   <translation tag="Clean Nozzle" pt="Limpar Bico"/>
   <translation tag="Clean Up Storage" pt="Limpar armazenamento"/>

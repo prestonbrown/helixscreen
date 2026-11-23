@@ -5,7 +5,9 @@
 #include "ui_button.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/label_fits.h"
 #include "../test_helpers/scoped_breakpoint.h"
+#include "../test_helpers/scoped_int_subject.h"
 
 #include "../catch_amalgamated.hpp"
 
@@ -55,6 +57,45 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Operations buttons keep their icons at 480x
         lv_obj_t* icon = ui_button_get_icon(lv_obj_find_by_name(card, name));
         REQUIRE(icon != nullptr);
         CHECK_FALSE(lv_obj_is_hidden(icon));
+    }
+    lv_obj_delete(card);
+}
+
+// The card as filament_panel.xml sizes it at 480x272: the right column's
+// width, and the height the column leaves under the Material card. The rows
+// share that height, Clean included.
+TEST_CASE_METHOD(LVGLUITestFixture, "Operations controls fit a 480x272 card",
+                 "[filament][layout]") {
+    helix::test::ScopedBreakpoint micro(UiBreakpoint::Micro);
+    helix::test::ScopedIntSubject clean_shown("filament_clean_nozzle_shown", 1);
+    const char* attrs[] = {"row_height", "26",     "length_height", "40",   "width",
+                           "250",        "height", "144",           nullptr};
+    lv_obj_t* card =
+        static_cast<lv_obj_t*>(lv_xml_create(test_screen(), "filament_operations_group", attrs));
+    REQUIRE(card != nullptr);
+    lv_obj_update_layout(test_screen());
+
+    lv_area_t c;
+    lv_obj_get_content_coords(card, &c);
+    for (const char* name : {"btn_load", "btn_unload", "btn_purge", "btn_clean_nozzle",
+                             "extrude_length_0", "extrude_length_1", "extrude_length_2",
+                             "btn_extrude", "btn_retract", "extrude_speed_dropdown"}) {
+        INFO(name);
+        lv_obj_t* obj = lv_obj_find_by_name(card, name);
+        REQUIRE(obj != nullptr);
+        REQUIRE_FALSE(lv_obj_is_hidden(obj));
+        lv_area_t a;
+        lv_obj_get_coords(obj, &a);
+        // Inside the card, and no shorter than the row height the panel asks for.
+        CHECK(a.x1 >= c.x1);
+        CHECK(a.x2 <= c.x2);
+        CHECK(a.y1 >= c.y1);
+        CHECK(a.y2 <= c.y2);
+        CHECK(lv_area_get_height(&a) >= 26);
+    }
+    // The four filament-change buttons show their labels whole.
+    for (const char* name : {"btn_load", "btn_unload", "btn_purge", "btn_clean_nozzle"}) {
+        helix::test::require_label_fits(ui_button_get_label(lv_obj_find_by_name(card, name)), name);
     }
     lv_obj_delete(card);
 }
