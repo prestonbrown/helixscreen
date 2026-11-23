@@ -569,6 +569,7 @@ class AmsEditOverlay : public OverlayBase {
     /// kSaveFailed with save_error_subject_ saying why.
     lv_subject_t save_state_subject_{};
     lv_subject_t save_error_subject_{}; ///< "ams_edit_save_error"
+    lv_subject_t save_op_subject_{};    ///< "ams_edit_save_op": Save's op-state, 1 while waiting
     /// 1 = the lane and its linked spool disagree ("ams_edit_spool_disagrees")
     lv_subject_t spool_disagrees_subject_{};
     lv_subject_t spool_disagreement_text_subject_{}; ///< "ams_edit_spool_disagreement_text"
