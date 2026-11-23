@@ -18,10 +18,16 @@ constexpr Rgb kTextColor{170, 150, 130};
 
 void NixieClockScreensaver::reset_clock_text() {
     meridiem_.reset();
+    sub_meridiem_.reset();
 }
 
 void NixieClockScreensaver::draw_clock_text(const std::vector<DirtyRect>& under,
                                             std::vector<DirtyRect>& dirty) {
+    // The small row's marker changes only with a relayout, which clears the space beneath it.
+    const FlipLayout& layout = sim_.layout();
+    sub_meridiem_.draw(canvas(), clock_meridiem_text(layout.sub_meridiem), layout.sub_meridiem_box,
+                       kTextColor, LV_OPA_COVER, LV_TEXT_ALIGN_LEFT, under, dirty);
+
     const FlipFace face = clock_.face();
     const std::string text = clock_meridiem_text(face.meridiem);
     const DirtyRect box = sim_.meridiem_box();

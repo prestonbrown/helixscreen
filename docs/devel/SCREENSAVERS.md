@@ -402,8 +402,8 @@ a print runs, a row of small cards under them (`kSubCardScale` of the main size)
 | Reading | Cards | Small cards |
 |---|---|---|
 | No print | HH:MM, AM/PM on the first hour card in 12-hour mode (blank before 10) | none |
-| Running, no estimate yet (PROGRESS) | the percent, `63%` | the time of day |
-| Counting down | H:MM:SS (as many hour cards as the hours need, up to `kClockMaxCountdownS`) | the finish time, then the percent |
+| Running, no estimate yet (PROGRESS) | the percent, `63%` | the time of day, with its AM/PM in 12-hour mode |
+| Counting down | H:MM:SS (as many hour cards as the hours need, up to `kClockMaxCountdownS`) | the finish time with its AM/PM in 12-hour mode, then the percent |
 | Paused | `PAUSE` | the time left as H:MM when there is an estimate, then the percent |
 | Done, failed, cancelled | `DONE`, `FAIL`, `STOP` | the percent the print reached |
 
@@ -435,8 +435,10 @@ countdown's tick) and letters flip straight to the value. A value that changes m
 on to from where the drum stands. When the saver starts, every digit card spins up from blank
 (`FlipClockSim::spin_up`). A level that does not animate swaps at once. A new shape (the clock becoming a
 countdown, the hours gaining a digit) and the drift every `kClockDriftStepMs` repaint the
-layout whole. The AM/PM marker is `lv_draw_label` text on the canvas (`SaverLabel`), which is
-why its canvas uses `kLvDrawCanvasFormat`.
+layout whole. The AM/PM markers are `lv_draw_label` text on the canvas (`SaverLabel`), which is
+why its canvas uses `kLvDrawCanvasFormat`. The small row's marker (`FlipFace::sub_meridiem`)
+takes a slot of its own after the time (`CardGeometry::sub_marker`,
+`FlipLayout::sub_meridiem_box`) and is part of the layout, so AM turning to PM repaints it.
 
 ## Nixie clock
 
@@ -447,7 +449,8 @@ gives a tube its proportions (thin wire numerals, a glass dome above them, a soc
 Letters and symbols glow as stroke glyphs like the digits. The neon is orange while the clock
 or a running print shows, and `print_state_color` otherwise. The AM/PM marker is a `SaverLabel`
 on the first tube's socket (`NixieClockSim::meridiem_box`), below the reach of any glow, so a
-fade never redraws it.
+fade never redraws it; the small row's marker sits in its slot after the time, as on the flip
+clock.
 
 - **Cached art.** `NixieTubeArt` is built once per tube size: the unlit tube in `Rgb` (a
   straight glass cylinder whose shoulders slope in to a narrow flat crown with the sealed exhaust tip, its
@@ -685,7 +688,8 @@ and one octave of wrinkle; then a near-neutral cool tint.
   a brief glint. `kAquaMaxDroplets` caps what is emitted; nothing in flight is culled.
 - The ring clock: the hour ring fills through the 12 or 24 hours, the minute ring through the
   hour, and the small top ring through the minute, or the print's progress while one runs.
-  The date or print line under the rings is a `SaverLabel`.
+  The date or print line under the rings is a `SaverLabel`, and so is AM/PM inside the top ring
+  in 12-hour mode (`AquaClockLayout::meridiem`).
 - A frame repaints the water band (from the highest silhouette down, the clock included) and
   the boxes of droplets above it. The last rung keeps the scene still and redraws only the
   clock, from a copy of the pixels under it; a drift step puts back the old place and copies

@@ -508,6 +508,14 @@ AquaClockLayout layout_aqua_clock(int32_t w, int32_t h, int32_t dx, int32_t dy) 
         std::max(3, static_cast<int32_t>(std::lround(0.8f * static_cast<float>(l.ring_r) /
                                                      (kStrokeDigitPathH + kDigitStroke))));
     l.text = {cx - px(220.0f), cy + px(48.0f), cx + px(220.0f), cy + px(70.0f)};
+    // AM/PM inside the top ring, every corner pixel clear of the ring's antialiased edge.
+    const float inner =
+        static_cast<float>(l.top_r) - static_cast<float>(l.ring_width) / 2.0f - 0.5f;
+    const int32_t half_h = std::max(3, px(9.0f));
+    const float corner_y = static_cast<float>(half_h) + 0.5f;
+    const auto half_w = static_cast<int32_t>(
+        std::floor(std::sqrt(std::max(0.0f, inner * inner - corner_y * corner_y)) - 0.5f - 1e-3f));
+    l.meridiem = {l.top_cx - half_w, l.top_cy - half_h, l.top_cx + half_w, l.top_cy + half_h};
     const int32_t pad = l.ring_width + 1;
     l.bounds = {};
     l.bounds.add(l.hour_cx - l.ring_r - pad, l.hour_cy - l.ring_r - pad, l.hour_cx + l.ring_r + pad,

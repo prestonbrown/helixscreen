@@ -16,6 +16,7 @@
 #include "screensaver_flip_clock.h"
 #include "screensaver_flip_clock_sim.h"
 #include "screensaver_highfly.h"
+#include "screensaver_nixie_clock_sim.h"
 #include "screensaver_pixel_writer.h"
 #include "screensaver_print_colors.h"
 
@@ -148,6 +149,20 @@ helix::ui::ClockReading active_clock_reading(ScreensaverType type, uint32_t adva
         advance_saver(*saver, advance_ms);
     }
     return static_cast<Saver*>(saver)->clock().reading();
+}
+
+/// Pixels inside `box` of the saver's canvas brighter than the black background.
+template <typename Saver> size_t lit_text_in(Saver& ss, const DirtyRect& box) {
+    const FrameTarget frame =
+        helix::test::frame_of(lv_canvas_get_draw_buf(SaverTestAccess::canvas(ss)));
+    const PixelWriter writer(frame);
+    size_t lit = 0;
+    for (int32_t y = box.y1; y <= box.y2; y++) {
+        for (int32_t x = box.x1; x <= box.x2; x++) {
+            lit += writer.get(x, y).g > 60 ? 1 : 0;
+        }
+    }
+    return lit;
 }
 
 } // namespace
@@ -364,6 +379,93 @@ TEST_CASE("the finish time on the small row wraps past midnight",
     in.use_24h = true;
     state.step(16, in);
     CHECK(sub_text(state.face()) == "00:20 40%");
+}
+
+TEST_CASE("the time on the small row carries its own AM/PM in 12-hour mode, none in 24-hour",
+          "[screensaver][screensaver_flip_clock]") {
+    ClockInput in = printing(hms(0, 30));
+    in.seconds_of_day = hms(11, 50);
+    in.use_24h = false;
+    {
+        // The finish time is past noon though the clock is not.
+        FlipClockState state;
+        state.step(16, in);
+        CHECK(sub_text(state.face()) == "12:20 40%");
+        CHECK(state.face().sub_meridiem == ClockMeridiem::PM);
+    }
+    {
+        FlipClockState state;
+        ClockInput no_estimate = in;
+        no_estimate.print.remaining_s = -1;
+        state.step(16, no_estimate);
+        CHECK(sub_text(state.face()) == "11:50");
+        CHECK(state.face().sub_meridiem == ClockMeridiem::AM);
+    }
+    {
+        FlipClockState state;
+        in.use_24h = true;
+        state.step(16, in);
+        CHECK(sub_text(state.face()) == "12:20 40%");
+        CHECK(state.face().sub_meridiem == ClockMeridiem::NONE);
+    }
+    {
+        // Paused, the small row shows time left, which is no time of day.
+        FlipClockState state;
+        in.use_24h = false;
+        state.step(16, in);
+        in.print.phase = ClockPrintPhase::PAUSED;
+        state.step(16, in);
+        REQUIRE(state.mode() == ClockMode::PAUSED);
+        CHECK(state.face().sub_meridiem == ClockMeridiem::NONE);
+    }
+}
+
+TEST_CASE("the small row's AM/PM sits between its time and its percent, clear of every card",
+          "[screensaver][screensaver_flip_clock]") {
+    struct Screen {
+        int32_t w;
+        int32_t h;
+    };
+    const Screen screen =
+        GENERATE(Screen{800, 480}, Screen{480, 272}, Screen{480, 800}, Screen{1280, 720});
+    const helix::ui::CardGeometry& geometry =
+        *GENERATE(&helix::ui::kFlipCardGeometry, &helix::ui::kNixieTubeGeometry);
+    // "12:20 100%" and "9:41 4%" under a countdown.
+    const FlipShape sub = GENERATE(shape_of({2, 2, 4}), shape_of({1, 2, 2}));
+    const FlipShape shape = shape_of({2, 2, 2});
+    const uint8_t time_cards = static_cast<uint8_t>(sub.groups[0] + sub.groups[1]);
+    CAPTURE(screen.w, screen.h, sub.groups[0], sub.groups[2]);
+
+    helix::ui::ClockDrift drift;
+    drift.set_range(helix::ui::flip_centred_bounds(screen.w, screen.h, shape, sub, 1,
+                                                   ClockMeridiem::PM, geometry),
+                    screen.w, screen.h);
+    const DirtyRect whole{0, 0, screen.w - 1, screen.h - 1};
+    for (int s : {-1, 1}) {
+        const FlipLayout layout =
+            helix::ui::layout_flip_cards(screen.w, screen.h, shape, sub, s * drift.max_dx,
+                                         s * drift.max_dy, 1, ClockMeridiem::PM, geometry);
+        const DirtyRect& box = layout.sub_meridiem_box;
+        REQUIRE_FALSE(box.empty());
+        CHECK(layout.sub_meridiem == ClockMeridiem::PM);
+        CHECK(inside(box, whole));
+        CHECK(inside(box, layout.bounds()));
+        const DirtyRect& last_time = layout.cards[layout.card_count + time_cards - 1];
+        const DirtyRect& first_pct = layout.cards[layout.card_count + time_cards];
+        CHECK(box.x1 > last_time.x2);
+        CHECK(box.x2 < first_pct.x1);
+        CHECK(box.y1 >= last_time.y1);
+        CHECK(box.y2 <= last_time.y2);
+        // Tall enough for a legible font, wide enough for its two letters.
+        CHECK(box.y2 - box.y1 + 1 >= 8);
+        CHECK(box.x2 - box.x1 + 1 >= box.y2 - box.y1 + 1);
+    }
+
+    // In 24-hour mode the row has no marker.
+    const FlipLayout plain = helix::ui::layout_flip_cards(screen.w, screen.h, shape, sub, 0, 0, 1,
+                                                          ClockMeridiem::NONE, geometry);
+    CHECK(plain.sub_meridiem_box.empty());
+    CHECK(plain.sub_meridiem == ClockMeridiem::NONE);
 }
 
 TEST_CASE("the countdown ticks at wall-clock rate and ignores small estimate jitter",
@@ -1034,6 +1136,28 @@ TEST_CASE("between changes a frame writes nothing", "[screensaver][screensaver_f
     CHECK(bytes_differing(frame.bytes, before) == 0);
 }
 
+TEST_CASE("a small row turning from AM to PM repaints where its marker stands",
+          "[screensaver][screensaver_flip_clock]") {
+    TestFrame frame(400, 240, PixelFormat::RGB565);
+    FlipClockSim sim;
+    FlipClockState state;
+    ClockInput in = printing(hms(0, 30));
+    in.seconds_of_day = hms(11, 0);
+    state.step(16, in);
+    FlipFace face = state.face();
+    REQUIRE(face.sub_meridiem == ClockMeridiem::AM);
+    sim.init(frame.target, 0, face);
+    const DirtyRect box = sim.layout().sub_meridiem_box;
+    REQUIRE_FALSE(box.empty());
+
+    std::vector<DirtyRect> dirty;
+    face.sub_meridiem = ClockMeridiem::PM;
+    sim.step(16, frame.target, face, dirty);
+    CHECK(sim.layout().sub_meridiem == ClockMeridiem::PM);
+    CHECK(std::any_of(dirty.begin(), dirty.end(),
+                      [&box](const DirtyRect& d) { return inside(box, d); }));
+}
+
 TEST_CASE("a level that does not animate swaps the digits at once",
           "[screensaver][screensaver_flip_clock]") {
     REQUIRE_FALSE(kFlipClockLevels[kFlipClockLevelCount - 1].animate);
@@ -1210,6 +1334,8 @@ TEST_CASE_METHOD(LVGLTestFixture, "the flip clock saver counts down the print it
     REQUIRE(ss.is_active());
     CHECK(ss.clock().mode() == ClockMode::COUNTDOWN);
     CHECK(cards_text(ss.clock().face()) == "1:00:00");
+    // The 3:00 PM finish time is marked on the screen.
+    CHECK(lit_text_in(ss, ss.sim().layout().sub_meridiem_box) > 0);
 
     reported.print.phase = ClockPrintPhase::PAUSED;
     advance_saver(ss, 33);

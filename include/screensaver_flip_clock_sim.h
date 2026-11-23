@@ -108,6 +108,9 @@ struct FlipFace {
     std::array<FlipCard, kFlipMaxSubCards> sub{};
     /// The small row has a colon after its first `sub_colons` groups, a gap after the rest.
     uint8_t sub_colons = 0;
+    /// The small row's AM/PM, after its time (the groups up to the last colon); NONE with no
+    /// time of day on it, or in 24-hour mode.
+    ClockMeridiem sub_meridiem = ClockMeridiem::NONE;
 
     bool has_sub() const {
         return sub_shape.group_count > 0;
@@ -180,6 +183,10 @@ struct CardGeometry {
     /// to read as two values, not one.
     float sub_spacer = 1.6f;
     float sub_scale = kSubCardScale; ///< size of a small card against a main one
+    /// On the small row, the room after the time for its AM/PM marker, the gap before it
+    /// included.
+    float sub_marker = 2.4f;
+    float sub_marker_h = 1.35f; ///< the small row's AM/PM line height, on the digits' baseline
 };
 
 /// The flip clock's cards.
@@ -210,6 +217,8 @@ struct FlipLayout {
     std::array<DirtyRect, kFlipMaxGroups + 1> colons{};
     uint8_t main_colon_count = 0; ///< colons[0 .. main_colon_count) belong to the main row
     DirtyRect meridiem;           ///< AM/PM, in the first card's top-left corner
+    ClockMeridiem sub_meridiem = ClockMeridiem::NONE;
+    DirtyRect sub_meridiem_box; ///< the small row's AM/PM, after its time; empty with none
     FlipRowMetrics main;
     FlipRowMetrics small;
     // The main row's metrics, as most callers read them.
@@ -229,16 +238,19 @@ struct FlipLayout {
 /// Lays out the cards of `shape` as large as fit on a `w` x `h` screen: every group in one
 /// row with a colon between groups, or, when that makes them larger (portrait), one group per
 /// row; the small row of `sub_shape` centred under them (a colon after its first `sub_colons`
-/// groups); centred, then moved by (`dx`, `dy`). Cards take `geometry`'s proportions.
+/// groups, and room for `sub_meridiem` after its time unless NONE); centred, then moved by
+/// (`dx`, `dy`). Cards take `geometry`'s proportions.
 FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                              const FlipShape& sub_shape, int32_t dx, int32_t dy,
                              uint8_t sub_colons = 1,
+                             ClockMeridiem sub_meridiem = ClockMeridiem::NONE,
                              const CardGeometry& geometry = kFlipCardGeometry);
 
 /// Box round the layout of `shape` centred on a `w` x `h` screen, undrifted: what the clock's
 /// drift range is measured from (ClockDrift::set_range()).
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
                               const FlipShape& sub_shape, uint8_t sub_colons = 1,
+                              ClockMeridiem sub_meridiem = ClockMeridiem::NONE,
                               const CardGeometry& geometry = kFlipCardGeometry);
 
 /**
@@ -345,6 +357,7 @@ class FlipClockSim {
     /// The shape drift_'s range was set for.
     FlipShape drift_shape_;
     FlipShape drift_sub_shape_;
+    ClockMeridiem drift_sub_meridiem_ = ClockMeridiem::NONE;
     /// The digits' colour for the face shown.
     Rgb ink_ = kDigit;
     FlipLayout layout_;

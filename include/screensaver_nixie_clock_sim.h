@@ -232,6 +232,7 @@ class NixieClockSim {
     ClockDrift drift_;
     FlipShape drift_shape_;
     FlipShape drift_sub_shape_;
+    ClockMeridiem drift_sub_meridiem_ = ClockMeridiem::NONE;
     Rgb ink_ = kNeon;
     /// Glow byte to added colour for the ink, 0 black.
     std::array<Rgb, 256> ramp_{};
