@@ -181,8 +181,7 @@ std::vector<std::string> default_file_paths(const std::string& probe_root) {
     const auto launcher = launcher_log_paths("", probe_root);
     paths.insert(paths.end(), launcher.begin(), launcher.end());
 
-    // Legacy /tmp location — pre-v0.99.62 installs wrote here. Kept for
-    // backward compatibility with debug bundles from older devices.
+    // Legacy /tmp location, where pre-v0.99.62 installs wrote.
     paths.emplace_back("/tmp/helixscreen.log");
     return paths;
 }

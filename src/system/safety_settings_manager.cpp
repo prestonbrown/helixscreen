@@ -88,7 +88,6 @@ void SafetySettingsManager::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Self-register cleanup with StaticSubjectRegistry
     StaticSubjectRegistry::instance().register_deinit(
         "SafetySettingsManager", []() { SafetySettingsManager::instance().deinit_subjects(); });
 
@@ -106,9 +105,7 @@ void SafetySettingsManager::deinit_subjects() {
     spdlog::trace("[SafetySettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // GETTERS / SETTERS
-// =============================================================================
 
 int SafetySettingsManager::get_cancel_escalation_timeout_seconds() const {
     int index = lv_subject_get_int(const_cast<lv_subject_t*>(&cancel_escalation_timeout_subject_));

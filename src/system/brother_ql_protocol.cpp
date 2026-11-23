@@ -121,7 +121,6 @@ std::vector<uint8_t> brother_ql_build_raster(const LabelBitmap& bitmap, const La
             }
         }
 
-        // Check if flipped row is all white
         bool all_white = true;
         for (int b = 0; b < label_byte_width; b++) {
             if (flipped_row[b] != 0x00) {

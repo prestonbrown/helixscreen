@@ -49,9 +49,7 @@ namespace hfs = helix::fs;
 
 namespace helix {
 
-// ============================================================================
 // Process Execution Helpers
-// ============================================================================
 
 /**
  * @brief Wait result from wait_for_child_with_timeout()
@@ -330,9 +328,7 @@ std::vector<std::string> script_output_lines(const std::string& output) {
     return lines;
 }
 
-// ============================================================================
 // HelixPluginInstaller Implementation
-// ============================================================================
 
 void HelixPluginInstaller::set_api(IMoonrakerAPI* api) {
     api_ = api;

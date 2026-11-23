@@ -161,9 +161,8 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
         // Load optional per-widget config. Default to {} rather than the
         // default-constructed JSON null so downstream set_config() implementations
         // can use .value("key", default) without guarding against null. Layouts
-        // written before a widget gained config fields omit "config" entirely;
-        // that path used to ship a JSON null and crash the widget on lookup
-        // (json::type_error::306, regression introduced in v0.99.54 by 5ac58e051).
+        // written before a widget gained config fields omit "config" entirely, and
+        // a JSON null there crashes the widget on lookup (json::type_error::306).
         nlohmann::json widget_config = nlohmann::json::object();
         if (const nlohmann::json* config = helix::json_util::find_object(item, "config")) {
             widget_config = *config;
@@ -245,7 +244,6 @@ void PanelWidgetConfig::load() {
         if (legacy.is_array() && !legacy.empty()) {
             spdlog::info("[PanelWidgetConfig] Migrating legacy home_widgets to panel_widgets.home");
             config_.set<json>(panel_path, legacy);
-            // Remove legacy key
             config_.get_json("").erase("home_widgets");
             config_.save();
             saved = legacy;
@@ -337,7 +335,6 @@ void PanelWidgetConfig::load() {
             next_page_id_ = static_cast<int>(pages_.size());
         }
 
-        // Clamp main_page_index
         if (main_page_index_ >= pages_.size()) {
             main_page_index_ = 0;
         }
@@ -902,7 +899,6 @@ bool PanelWidgetConfig::remove_page(size_t page_index) {
     json retained = std::move(pages_[page_index].retained);
     pages_.erase(pages_.begin() + static_cast<ptrdiff_t>(page_index));
 
-    // Adjust main_page_index
     if (main_page_index_ > page_index) {
         --main_page_index_;
     }
@@ -1399,7 +1395,7 @@ void PanelWidgetConfig::switch_to_grid(int cols, int rows) {
         return;
     }
 
-    // The ported pages are no longer the resolver's output for any grid.
+    // The ported pages replace the resolver's output for this grid.
     has_default_ = false;
     default_signature_.clear();
     default_hash_.clear();

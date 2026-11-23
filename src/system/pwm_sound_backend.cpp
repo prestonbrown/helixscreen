@@ -332,9 +332,7 @@ void PWMSoundBackend::shutdown() {
     initialized_ = false;
 }
 
-// ============================================================================
 // Tone mode (SFX, system sounds) — variable frequency via period
-// ============================================================================
 
 static void sysfs_write_fd(int fd, int value) {
     char buf[16];
@@ -464,9 +462,7 @@ void PWMSoundBackend::set_waveform(Waveform w) {
     current_wave_ = w;
 }
 
-// ============================================================================
 // PCM mode (tracker playback) — fixed carrier, variable duty cycle
-// ============================================================================
 
 void PWMSoundBackend::set_render_source(std::function<void(float*, size_t, int)> fn) {
     if (!initialized_) {
@@ -712,7 +708,6 @@ void PWMSoundBackend::render_loop() {
                 peak = abs_val;
         }
 
-        // Adjust AGC gain
         if (peak * agc_gain > 1.0f) {
             // Peak would clip — reduce gain quickly
             agc_gain = std::max(1.0f, 1.0f / peak);

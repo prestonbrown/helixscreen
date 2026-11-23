@@ -83,9 +83,7 @@ void PrinterImageManager::deinit_subjects() {
     subjects_initialized_ = false;
 }
 
-// =============================================================================
 // Active image resolution
-// =============================================================================
 
 std::string PrinterImageManager::get_active_image_id() const {
     Config* config = Config::get_instance();
@@ -224,9 +222,7 @@ std::string PrinterImageManager::get_displayed_image_path(int screen_width) {
     return get_detected_image_path(screen_width);
 }
 
-// =============================================================================
 // Display name formatting
-// =============================================================================
 
 std::string PrinterImageManager::format_display_name(const std::string& stem) {
     std::string name = stem;
@@ -242,9 +238,7 @@ std::string PrinterImageManager::format_display_name(const std::string& stem) {
     return name;
 }
 
-// =============================================================================
 // Browsing
-// =============================================================================
 
 std::vector<PrinterImageManager::ImageInfo>
 PrinterImageManager::get_shipped_images(int screen_width) const {
@@ -445,9 +439,7 @@ std::vector<std::string> PrinterImageManager::scan_for_images(const std::string&
     return results;
 }
 
-// =============================================================================
 // Validation
-// =============================================================================
 
 PrinterImageManager::ValidationResult
 PrinterImageManager::validate_image(const std::string& path) const {
@@ -489,9 +481,7 @@ PrinterImageManager::validate_image(const std::string& path) const {
     return result;
 }
 
-// =============================================================================
 // Import + conversion
-// =============================================================================
 
 int PrinterImageManager::invalidate_printer_image_cache(const std::string& source_image_path) {
     int removed = 0;
@@ -628,9 +618,7 @@ void PrinterImageManager::import_image_async(const std::string& source_path,
     }
 }
 
-// =============================================================================
 // Cleanup
-// =============================================================================
 
 bool PrinterImageManager::delete_custom_image(const std::string& name) {
     if (custom_dir_.empty())

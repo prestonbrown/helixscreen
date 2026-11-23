@@ -60,7 +60,6 @@ void InputSettingsManager::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Self-register cleanup with StaticSubjectRegistry
     StaticSubjectRegistry::instance().register_deinit(
         "InputSettingsManager", []() { InputSettingsManager::instance().deinit_subjects(); });
 
@@ -78,9 +77,7 @@ void InputSettingsManager::deinit_subjects() {
     spdlog::trace("[InputSettingsManager] Subjects deinitialized");
 }
 
-// =============================================================================
 // GETTERS / SETTERS
-// =============================================================================
 
 // Scroll throw, scroll limit and long-press time are live indev properties:
 // the next gesture uses the new values. Every pointer indev gets them, so this

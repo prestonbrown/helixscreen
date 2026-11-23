@@ -400,7 +400,6 @@ MemoryInfo get_system_memory_info() {
         info.available_kb = (free_pages * page_size) / 1024;
     }
 
-    // Get total memory
     int mib[2] = {CTL_HW, HW_MEMSIZE};
     int64_t memsize = 0;
     size_t len = sizeof(memsize);
@@ -519,9 +518,7 @@ bool is_gcode_2d_streaming_safe(size_t file_size_bytes) {
                                            display_width, display_height, cache_dir_is_ram_backed);
 }
 
-// ============================================================================
 // OOM priority
-// ============================================================================
 
 bool parse_oom_score_adj(const char* value, int& out) {
     if (value == nullptr || *value == '\0')
