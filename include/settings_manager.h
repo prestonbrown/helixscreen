@@ -12,6 +12,7 @@
 #include "persisted_setting.h"
 #include "subject_managed_panel.h"
 #include "toolhead_style.h"
+#include "unit_colors.h"
 
 #include <algorithm>
 #include <atomic>
@@ -753,6 +754,12 @@ class SettingsManager {
     std::map<std::string, std::string> get_ams_unit_drawings() const;
     /// Save @p shell_id as the unit's drawing on this printer; empty returns it to detection.
     void set_ams_unit_drawing(const std::string& unit_identity, const std::string& shell_id);
+    /// The colors this printer's user picked for the unit whose identity is @p unit_identity
+    /// (helix::ams_unit_identity); every region unset when none were picked.
+    helix::UnitColors get_ams_unit_colors(const std::string& unit_identity) const;
+    /// Save @p colors as the unit's colors on this printer; all unset returns it to its baked
+    /// colors.
+    void set_ams_unit_colors(const std::string& unit_identity, const helix::UnitColors& colors);
 
     // =========================================================================
     // POST-OP COOLDOWN (owned by SettingsManager — per-printer filament behavior)

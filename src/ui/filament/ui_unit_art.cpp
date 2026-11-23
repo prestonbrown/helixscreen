@@ -79,6 +79,46 @@ lv_obj_t* add_layer(lv_obj_t* art, const std::string& path) {
     return image;
 }
 
+/// A white mask the widget fills with one live color: a lane's filament or a unit region's
+/// chosen color.
+lv_obj_t* add_tint_layer(lv_obj_t* art, const std::string& path, const std::string& name) {
+    lv_obj_t* image = add_layer(art, path);
+    lv_obj_set_name(image, name.c_str());
+    // DECLARATIVE_OK: the tint's colour is per-widget live data.
+    lv_obj_set_style_image_recolor_opa(image, LV_OPA_COVER, LV_PART_MAIN);
+    return image;
+}
+
+/// Fold the region layers' depths, regions and colors into one key; 0 for none.
+uint64_t region_layers_key(const std::vector<UnitColorLayer>& regions) {
+    if (regions.empty())
+        return 0;
+    uint64_t key = 1469598103934665603ull;
+    for (const UnitColorLayer& layer : regions) {
+        key = (key ^
+               (static_cast<uint64_t>(layer.depth) << 8 | static_cast<uint64_t>(layer.region))) *
+              kFnvPrime;
+        key = (key ^ static_cast<uint64_t>(layer.color)) * kFnvPrime;
+    }
+    return key;
+}
+
+/// Stack the region layers at @p depth: each region's mask filled with the user's color, then
+/// its shading, so the color reads with the drawing's light.
+void add_region_layers(lv_obj_t* layers, const std::string& base,
+                       const std::vector<UnitColorLayer>& regions, UnitArtDepth depth) {
+    for (const UnitColorLayer& layer : regions) {
+        if (layer.depth != depth)
+            continue;
+        lv_obj_t* tint =
+            add_tint_layer(layers, base + "_" + layer.stem + ".png", layer.stem + "_tint");
+        // DECLARATIVE_OK: the region's colour is the user's per-unit setting.
+        lv_obj_set_style_image_recolor(tint, lv_color_hex(layer.color), LV_PART_MAIN);
+        lv_obj_set_name(add_layer(layers, base + "_" + layer.stem + "_shade.png"),
+                        (layer.stem + "_shade").c_str());
+    }
+}
+
 void set_lane_visible(lv_obj_t* image, bool visible) {
     // DECLARATIVE_OK: per-lane state with no subject behind it.
     if (visible)
@@ -87,7 +127,10 @@ void set_lane_visible(lv_obj_t* image, bool visible) {
         lv_obj_set_hidden(image, true);
 }
 
-void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count) {
+} // namespace
+
+void unit_art_detail::build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell,
+                                   int lane_count, const std::vector<UnitColorLayer>& regions) {
     // The old children are deleted asynchronously and may draw once more, so each old buffer
     // goes with the child that shows it: the masks with the lane stacks under layers.
     free_with(data->flat, data->flat_buf);
@@ -134,6 +177,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     // just behind its spool and its dim just in front of it, so whatever stands nearer covers
     // both as it covers the spool.
     lv_obj_set_name(add_layer(data->layers, base + "_back.png"), "back");
+    add_region_layers(data->layers, base, regions, UnitArtDepth::Back);
     const bool stacks = data->geom != nullptr; // a drawing with spools bakes a stack per lane
     const bool marked = stacks && data->tier == UnitArtTier::Full;
     data->lanes.resize(static_cast<size_t>(lane_count));
@@ -154,8 +198,7 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
             images.body = add_layer(data->layers, stem + "_body.png");
             lv_obj_set_name(images.body, (name + "_body").c_str());
         }
-        images.color = add_layer(data->layers, stem + ".png");
-        lv_obj_set_name(images.color, (name + "_tint").c_str());
+        images.color = add_tint_layer(data->layers, stem + ".png", name + "_tint");
         // Filled at the widget's size once a translucent filament needs it.
         images.checks = lv_image_create(data->layers);
         lv_obj_set_size(images.checks, lv_pct(100), lv_pct(100));
@@ -180,12 +223,11 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
             lv_obj_add_event_cb(images.rim, draw_ghost_rim, LV_EVENT_DRAW_MAIN, nullptr);
             set_lane_visible(images.rim, false);
         }
-        // DECLARATIVE_OK: each lane's colour is per-widget live data.
-        lv_obj_set_style_image_recolor_opa(images.color, LV_OPA_COVER, LV_PART_MAIN);
         data->lanes[static_cast<size_t>(lane)] = images;
     }
     data->front = add_layer(data->layers, base + "_front.png");
     lv_obj_set_name(data->front, "front");
+    add_region_layers(data->layers, base, regions, UnitArtDepth::Front);
     if (data->geom && data->tier == UnitArtTier::Full) {
         // A faulted sensor shows over everything it is drawn in.
         lv_obj_t* faults = lv_obj_create(data->layers);
@@ -204,7 +246,10 @@ void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, in
     }
     data->built_id = shell->id;
     data->built_lanes = lane_count;
+    data->built_colors = region_layers_key(regions);
 }
+
+namespace {
 
 constexpr lv_opa_t kDimOpa = 150;         ///< how far a missing bay's spool fades into the card
 constexpr lv_opa_t kGhostAlpha = 110;     ///< how opaque a ghost spool is drawn
@@ -768,6 +813,15 @@ tray::ShellChoices unit_art_choices(const AmsSystemInfo& info) {
     return choices;
 }
 
+UnitColors unit_art_colors(const AmsUnit& unit) {
+#ifdef ESP_PLATFORM
+    (void)unit; // the firmware carries no unit art to color
+    return {};
+#else
+    return SettingsManager::instance().get_ams_unit_colors(ams_unit_identity(unit));
+#endif
+}
+
 std::map<std::string, std::string> unit_art_effective_picks(const AmsSystemInfo& info) {
     std::map<std::string, std::string> picks;
     const tray::ShellChoices choices = unit_art_choices(info);
@@ -850,8 +904,12 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
     const AmsUnit& unit = info.units[static_cast<size_t>(unit_index)];
     const std::vector<UnitArtLane> lanes = art_lanes(info, drawn.unit_indices);
     const int lane_count = static_cast<int>(lanes.size());
-    if (data->built_id != shell->id || data->built_lanes != lane_count)
-        build_layers(art, data, shell, lane_count);
+    const std::vector<UnitColorLayer> regions =
+        unit_color_layers(shell->color_regions, unit_art_colors(unit));
+    const uint64_t colors_key = region_layers_key(regions);
+    if (data->built_id != shell->id || data->built_lanes != lane_count ||
+        data->built_colors != colors_key)
+        build_layers(art, data, shell, lane_count, regions);
     lv_obj_set_hidden(art, false);
 
     lv_obj_update_layout(art);
@@ -874,6 +932,7 @@ void unit_art_set_unit(lv_obj_t* art, const AmsSystemInfo& info, int unit_index,
     }
     data->mask_w = w;
     data->mask_h = h;
+    key = (key ^ colors_key) * kFnvPrime;
     data->lane_key = key;
     flatten(art, data, key ^ marks_key(data));
     refresh_spins(art, data);
