@@ -121,6 +121,7 @@ translations:
   1 profile: '1 個のプロファイル'
   1 step in {} min · review, then save once: 1ステップ {}分 · 確認して一度に保存
   1 step due · about {} min: '実行が必要なステップ 1 · 約{}分'
+  1 step in {} min · saved: '1ステップ {}分 · 保存済み'
   1 step never run · about {} min: '未実行のステップ 1 · 約{}分'
   1 step · about {} min: '1ステップ · 約{}分'
   1 step · {} min: 1ステップ · {}分
@@ -6381,6 +6382,7 @@ translations:
   '{} started': '{} を開始しました'
   '{} steps in {} min · review, then save once': '{}ステップ {}分 · 確認して一度に保存'
   '{} steps due · about {} min': '実行が必要なステップ {} · 約{}分'
+  '{} steps in {} min · saved': '{}ステップ {}分 · 保存済み'
   '{} steps never run · about {} min': '未実行のステップ {} · 約{}分'
   '{} steps · about {} min': '{}ステップ · 約{}分'
   '{} steps · {} min': '{}ステップ · {}分'

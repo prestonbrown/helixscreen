@@ -107,6 +107,7 @@
   <translation tag="1 profile" en="1 profile"/>
   <translation tag="1 step due · about {} min" en="1 step due · about {} min"/>
   <translation tag="1 step in {} min · review, then save once" en="1 step in {} min · review, then save once"/>
+  <translation tag="1 step in {} min · saved" en="1 step in {} min · saved"/>
   <translation tag="1 step never run · about {} min" en="1 step never run · about {} min"/>
   <translation tag="1 step · about {} min" en="1 step · about {} min"/>
   <translation tag="1 step · {} min" en="1 step · {} min"/>
@@ -6161,6 +6162,7 @@
   <translation tag="{} started" en="{} started"/>
   <translation tag="{} steps due · about {} min" en="{} steps due · about {} min"/>
   <translation tag="{} steps in {} min · review, then save once" en="{} steps in {} min · review, then save once"/>
+  <translation tag="{} steps in {} min · saved" en="{} steps in {} min · saved"/>
   <translation tag="{} steps never run · about {} min" en="{} steps never run · about {} min"/>
   <translation tag="{} steps · about {} min" en="{} steps · about {} min"/>
   <translation tag="{} steps · {} min" en="{} steps · {} min"/>

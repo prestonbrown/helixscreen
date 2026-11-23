@@ -169,6 +169,7 @@ translations:
   1 profile: '1 профиль'
   1 step in {} min · review, then save once: 1 шаг за {} мин · проверьте и сохраните один раз
   1 step due · about {} min: '1 шаг к выполнению · около {} мин'
+  1 step in {} min · saved: '1 шаг за {} мин · сохранено'
   1 step never run · about {} min: '1 шаг не выполнялся · около {} мин'
   1 step · about {} min: '1 шаг · около {} мин'
   1 step · {} min: 1 шаг · {} мин
@@ -6497,6 +6498,7 @@ translations:
   '{} started': '{} запущено'
   '{} steps in {} min · review, then save once': 'Шагов: {} за {} мин · проверьте и сохраните один раз'
   '{} steps due · about {} min': 'Шагов к выполнению: {} · около {} мин'
+  '{} steps in {} min · saved': 'Шагов: {} за {} мин · сохранено'
   '{} steps never run · about {} min': 'Не выполнялось шагов: {} · около {} мин'
   '{} steps · about {} min': 'Шагов: {} · около {} мин'
   '{} steps · {} min': 'Шагов: {} · {} мин'

@@ -121,6 +121,7 @@ translations:
   1 profile: '1 个配置'
   1 step in {} min · review, then save once: 1 个步骤，用时 {} 分钟 · 检查后一次保存
   1 step due · about {} min: '1 个步骤待完成 · 约 {} 分钟'
+  1 step in {} min · saved: '1 个步骤，用时 {} 分钟 · 已保存'
   1 step never run · about {} min: '1 个步骤从未运行 · 约 {} 分钟'
   1 step · about {} min: '1 个步骤 · 约 {} 分钟'
   1 step · {} min: 1 个步骤 · {} 分钟
@@ -6381,6 +6382,7 @@ translations:
   '{} started': '已开始{}'
   '{} steps in {} min · review, then save once': '{} 个步骤，用时 {} 分钟 · 检查后一次保存'
   '{} steps due · about {} min': '{} 个步骤待完成 · 约 {} 分钟'
+  '{} steps in {} min · saved': '{} 个步骤，用时 {} 分钟 · 已保存'
   '{} steps never run · about {} min': '{} 个步骤从未运行 · 约 {} 分钟'
   '{} steps · about {} min': '{} 个步骤 · 约 {} 分钟'
   '{} steps · {} min': '{} 个步骤 · {} 分钟'

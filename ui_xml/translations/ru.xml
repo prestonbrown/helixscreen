@@ -143,6 +143,7 @@
   <translation tag="1 profile" ru="1 профиль"/>
   <translation tag="1 step due · about {} min" ru="1 шаг к выполнению · около {} мин"/>
   <translation tag="1 step in {} min · review, then save once" ru="1 шаг за {} мин · проверьте и сохраните один раз"/>
+  <translation tag="1 step in {} min · saved" ru="1 шаг за {} мин · сохранено"/>
   <translation tag="1 step never run · about {} min" ru="1 шаг не выполнялся · около {} мин"/>
   <translation tag="1 step · about {} min" ru="1 шаг · около {} мин"/>
   <translation tag="1 step · {} min" ru="1 шаг · {} мин"/>
@@ -6248,6 +6249,7 @@
   <translation tag="{} started" ru="{} запущено"/>
   <translation tag="{} steps due · about {} min" ru="Шагов к выполнению: {} · около {} мин"/>
   <translation tag="{} steps in {} min · review, then save once" ru="Шагов: {} за {} мин · проверьте и сохраните один раз"/>
+  <translation tag="{} steps in {} min · saved" ru="Шагов: {} за {} мин · сохранено"/>
   <translation tag="{} steps never run · about {} min" ru="Не выполнялось шагов: {} · около {} мин"/>
   <translation tag="{} steps · about {} min" ru="Шагов: {} · около {} мин"/>
   <translation tag="{} steps · {} min" ru="Шагов: {} · {} мин"/>

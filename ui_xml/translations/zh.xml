@@ -107,6 +107,7 @@
   <translation tag="1 profile" zh="1 个配置"/>
   <translation tag="1 step due · about {} min" zh="1 个步骤待完成 · 约 {} 分钟"/>
   <translation tag="1 step in {} min · review, then save once" zh="1 个步骤，用时 {} 分钟 · 检查后一次保存"/>
+  <translation tag="1 step in {} min · saved" zh="1 个步骤，用时 {} 分钟 · 已保存"/>
   <translation tag="1 step never run · about {} min" zh="1 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="1 step · about {} min" zh="1 个步骤 · 约 {} 分钟"/>
   <translation tag="1 step · {} min" zh="1 个步骤 · {} 分钟"/>
@@ -6161,6 +6162,7 @@
   <translation tag="{} started" zh="已开始{}"/>
   <translation tag="{} steps due · about {} min" zh="{} 个步骤待完成 · 约 {} 分钟"/>
   <translation tag="{} steps in {} min · review, then save once" zh="{} 个步骤，用时 {} 分钟 · 检查后一次保存"/>
+  <translation tag="{} steps in {} min · saved" zh="{} 个步骤，用时 {} 分钟 · 已保存"/>
   <translation tag="{} steps never run · about {} min" zh="{} 个步骤从未运行 · 约 {} 分钟"/>
   <translation tag="{} steps · about {} min" zh="{} 个步骤 · 约 {} 分钟"/>
   <translation tag="{} steps · {} min" zh="{} 个步骤 · {} 分钟"/>
