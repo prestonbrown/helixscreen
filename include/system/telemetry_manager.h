@@ -1280,11 +1280,18 @@ class TelemetryManager {
     /// calibration step) into a range string
     static std::string bucket_short_duration(int sec);
 
-    nlohmann::json build_filament_op_event(const std::string& backend,
-                                           helix::telemetry::FilamentOp op,
-                                           helix::telemetry::FilamentOpOutcome outcome,
-                                           helix::telemetry::FilamentOpError error,
-                                           int duration_sec, bool during_print) const;
+    /// One filament_op tally: operations alike in every field but how many.
+    struct FilamentOpTally {
+        std::string backend;
+        helix::telemetry::FilamentOp op{};
+        helix::telemetry::FilamentOpOutcome outcome{};
+        helix::telemetry::FilamentOpError error{};
+        std::string duration_bucket;
+        bool during_print = false;
+        int64_t count = 1;
+    };
+
+    nlohmann::json build_filament_op_event(const FilamentOpTally& tally) const;
 
     nlohmann::json build_calibration_outcome_event(const std::string& type,
                                                    helix::telemetry::CalibrationOutcome outcome,
@@ -1470,8 +1477,8 @@ class TelemetryManager {
     /// Last queued time of each failing tally key.
     std::unordered_map<std::string, std::chrono::steady_clock::time_point>
         filament_op_last_failure_;
-    /// Pooled tallies by key; each is a filament_op event whose count grows.
-    std::unordered_map<std::string, nlohmann::json> filament_op_pool_;
+    /// Pooled tallies by key, built into events when they are queued.
+    std::unordered_map<std::string, FilamentOpTally> filament_op_pool_;
     /// Processes a memory_warning at warning or critical names, largest first.
     static constexpr size_t kTopProcessCount = 3;
 
