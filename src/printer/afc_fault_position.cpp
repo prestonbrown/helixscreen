@@ -131,6 +131,10 @@ LaneSensor afc_fault_lane_sensor(std::string_view message) {
     if (contains_word(message, "check filament at trigger") ||
         contains_word(message, "load trigger not triggered"))
         return LaneSensor::LOAD;
+    // AFC_lane.py _perform_pause_runout: "Runout triggered for lane <name> and runout lane is
+    // not setup to switch to another lane." Raised when the lane's prep switch opens mid-print.
+    if (contains_word(message, "runout triggered for lane"))
+        return LaneSensor::PREP;
     return LaneSensor::NONE;
 }
 

@@ -10,6 +10,7 @@
 #include "config.h"
 #include "core/text_io.h"
 #include "core/update_queue.h"
+#include "fault_path_position.h"
 #include "happy_hare_status_parse.h"
 #include "hh_defaults.h"
 #include "humidity_sensor_types.h"
@@ -1353,7 +1354,10 @@ void AmsBackendHappyHare::apply_fault_edge_locked(const MmuFrame& frame) {
     if (faulted && !frame.was_faulted) {
         error_segment_ = path_segment_from_happy_hare_pos(filament_pos_);
         if (auto* entry = slots_.get_mut(system_info_.current_slot)) {
-            entry->info.error = SlotError{display_reason(reason_for_pause_), SlotError::ERROR};
+            entry->info.error = SlotError{
+                display_reason(reason_for_pause_), SlotError::ERROR,
+                faultpath::lane_sensor_at(reason_for_pause_,
+                                          slots_.name_of(system_info_.current_slot), true, {})};
             spdlog::debug("[AMS HappyHare] Error on slot {}: {}", system_info_.current_slot,
                           reason_for_pause_);
         }

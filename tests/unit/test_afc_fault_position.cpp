@@ -258,3 +258,42 @@ TEST_CASE("a lane fault naming no lane is the current lane's", "[afc][fault][sen
     CHECK(lane_sensor_at(kMsgNotLoaded, "lane2", true, lanes) == LaneSensor::LOAD);
     CHECK(lane_sensor_at(kMsgNotLoaded, "lane1", false, lanes) == LaneSensor::NONE);
 }
+
+// ============================================================================
+// The prep sensor at fault
+// ============================================================================
+
+namespace {
+// AFC_lane.py _perform_pause_runout, verbatim.
+const std::string kMsgPrepRunout =
+    "Runout triggered for lane lane2 and runout lane is not setup to switch to another lane."
+    "\nPlease manually load next spool into toolhead and then hit resume to continue.";
+// Happy Hare 4 Mmu._runout, verbatim (the sensor name is the unprefixed mmu_entry_<gate>).
+const std::string kMsgHhEntry = "Runout detected on T2 (gate 2) by mmu_entry_2\n"
+                                "No alternative gates available after checking Gate 3: empty";
+// Happy Hare 3 Mmu._runout, verbatim.
+const std::string kMsgHhPreGate = "Runout detected on mmu_pre_gate_2\n"
+                                  "No alternative gates available after checking Gate 3: empty";
+} // namespace
+
+TEST_CASE("AFC's prep runout is at the prep sensor", "[afc][fault][sensor][prep]") {
+    CHECK(afc_fault_lane_sensor(kMsgPrepRunout) == LaneSensor::PREP);
+    const std::vector<std::string> lanes{"lane1", "lane2"};
+    CHECK(lane_sensor_at(kMsgPrepRunout, "lane2", false, lanes) == LaneSensor::PREP);
+    CHECK(lane_sensor_at(kMsgPrepRunout, "lane1", true, lanes) == LaneSensor::NONE);
+    // The minimum-weight variant is not a sensor event.
+    CHECK(afc_fault_lane_sensor("Minimum weight threshold reached for lane lane2 and runout "
+                                "lane is not setup to switch to another lane.") ==
+          LaneSensor::NONE);
+}
+
+TEST_CASE("Happy Hare's pre-gate runout is at the prep sensor",
+          "[happy_hare][fault][sensor][prep]") {
+    const std::vector<std::string> lanes{"0", "1", "2", "3"};
+    CHECK(lane_sensor_at(kMsgHhEntry, "2", true, lanes) == LaneSensor::PREP);
+    CHECK(lane_sensor_at(kMsgHhPreGate, "2", true, lanes) == LaneSensor::PREP);
+    // Other Happy Hare pauses place nothing at a lane sensor.
+    CHECK(lane_sensor_at("Runout detected on T2 (gate 2) by toolhead\nNo alternative gates", "2",
+                         true, lanes) == LaneSensor::NONE);
+    CHECK(lane_sensor_at("Gate 2 is empty!", "2", true, lanes) == LaneSensor::NONE);
+}
