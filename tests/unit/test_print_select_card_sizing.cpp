@@ -93,7 +93,7 @@ TEST_CASE_METHOD(PrintSelectPanelFixture,
     const int grown_h = lv_obj_get_content_height(container);
     const FirstScreen regrown = measure_first_screen(container);
     CHECK(regrown.overflow == 0);
-    // Every on-screen card shares one height: none was left at the old size.
+    // Every on-screen card shares one height: none keeps a stale size.
     int card_h = -1;
     for (uint32_t i = 0; i < lv_obj_get_child_count(container); i++) {
         lv_obj_t* child = lv_obj_get_child(container, static_cast<int32_t>(i));
