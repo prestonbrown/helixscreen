@@ -38,7 +38,9 @@ struct PIDCalibrationPanelTestAccess {
     static void navigate_away(PIDCalibrationPanel& p) {
         p.on_deactivate(DeactivateReason::NavigateAway);
     }
+    /// The confirmed migration, as confirm_migration() runs it.
     static void start_mpc_migration(PIDCalibrationPanel& p) {
+        p.set_state(PIDCalibrationPanel::State::MIGRATING);
         p.start_migration(PIDCalibrationPanel::CalibMethod::MPC);
     }
     static helix::system::KlipperConfigEditor& config_editor(PIDCalibrationPanel& p) {
