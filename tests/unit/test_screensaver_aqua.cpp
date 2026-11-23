@@ -39,6 +39,9 @@ class AquaScreensaverTestAccess {
     static const SaverLabel& line(const AquaScreensaver& saver) {
         return saver.line_;
     }
+    static const SaverLabel& meridiem(const AquaScreensaver& saver) {
+        return saver.meridiem_;
+    }
 };
 
 } // namespace helix::ui
@@ -590,6 +593,11 @@ TEST_CASE("the clock fits in the water at every drift and screen size",
                 CHECK(l.bounds.y2 < s.h);
                 CHECK(l.text.y1 > l.hour_cy + l.ring_r);
                 CHECK(l.top_cy + l.top_r < l.hour_cy - l.ring_r);
+                // AM/PM sits inside the top ring's stroke.
+                CHECK(l.meridiem.x1 > l.top_cx - l.top_r + l.ring_width);
+                CHECK(l.meridiem.x2 < l.top_cx + l.top_r - l.ring_width);
+                CHECK(l.meridiem.y1 > l.top_cy - l.top_r + l.ring_width);
+                CHECK(l.meridiem.y2 < l.top_cy + l.top_r - l.ring_width);
                 CHECK(l.hour_cx + l.ring_r < l.minute_cx - l.ring_r);
                 // Two digits side by side fit inside a ring.
                 const int32_t digits_w =
@@ -958,6 +966,11 @@ TEST_CASE_METHOD(LVGLTestFixture, "the aqua saver shows the print its source rep
     REQUIRE(ss.is_active());
     CHECK(ss.clock().mode() == ClockMode::COUNTDOWN);
     CHECK(AquaScreensaverTestAccess::line(ss).text().rfind("ETA ", 0) == 0);
+    // The rings read 02:00 in the afternoon.
+    CHECK(AquaScreensaverTestAccess::meridiem(ss).text() == "PM");
+    reported.use_24h = true;
+    advance_saver(ss, 1100);
+    CHECK(AquaScreensaverTestAccess::meridiem(ss).text().empty());
 
     // The water and the running line are cool; only the paused amber is far redder than blue.
     const auto amber_pixels = [&ss] {

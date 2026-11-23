@@ -129,7 +129,7 @@ char face_char(const FlipFace& face, size_t i) {
 
 bool shape_differs(const FlipFace& face, const FlipLayout& layout) {
     return face.shape != layout.shape || face.sub_shape != layout.sub_shape ||
-           face.sub_colons != layout.sub_colons;
+           face.sub_colons != layout.sub_colons || face.sub_meridiem != layout.sub_meridiem;
 }
 
 uint32_t to_amount(float share) {
@@ -562,8 +562,9 @@ void NixieClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face)
     drift_.reset();
     drift_shape_ = face.shape;
     drift_sub_shape_ = face.sub_shape;
+    drift_sub_meridiem_ = face.sub_meridiem;
     drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
-                                         face.sub_colons, kNixieTubeGeometry),
+                                         face.sub_colons, face.sub_meridiem, kNixieTubeGeometry),
                      frame_w_, frame_h_);
     since_cycle_ms_ = 0;
     cycle_ms_ = kNixieCycleMs;
@@ -571,7 +572,7 @@ void NixieClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face)
     ink_ = print_state_color(face.mode, kNeon);
     build_ramp();
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0,
-                                face.sub_colons, kNixieTubeGeometry);
+                                face.sub_colons, face.sub_meridiem, kNixieTubeGeometry);
     build_art(face);
     for (size_t i = 0; i < anims_.size(); i++) {
         const char c = face_char(face, i);
@@ -744,11 +745,14 @@ void NixieClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& fac
     dirty.clear();
     const bool fade = kNixieClockLevels[level_].fade;
 
-    if (face.shape != drift_shape_ || face.sub_shape != drift_sub_shape_) {
+    if (face.shape != drift_shape_ || face.sub_shape != drift_sub_shape_ ||
+        face.sub_meridiem != drift_sub_meridiem_) {
         drift_shape_ = face.shape;
         drift_sub_shape_ = face.sub_shape;
+        drift_sub_meridiem_ = face.sub_meridiem;
         drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
-                                             face.sub_colons, kNixieTubeGeometry),
+                                             face.sub_colons, face.sub_meridiem,
+                                             kNixieTubeGeometry),
                          frame_w_, frame_h_);
     }
     const bool moved = drift_.step(dt_ms);
@@ -804,7 +808,7 @@ void NixieClockSim::relayout(FrameTarget& frame, const FlipFace& face,
     DirtyRect area = layout_.bounds();
     PixelWriter(frame).fill_rect(area, kBackground);
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, drift_.dx,
-                                drift_.dy, face.sub_colons, kNixieTubeGeometry);
+                                drift_.dy, face.sub_colons, face.sub_meridiem, kNixieTubeGeometry);
     build_art(face);
     for (size_t i = 0; i < tube_count(); i++) {
         draw_tube(frame, i);

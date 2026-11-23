@@ -49,7 +49,7 @@ std::string percent_text(int32_t pct) {
 }
 
 /// Adds a clock time as two groups: the hour (24-hour with a leading zero, 12-hour without)
-/// and the minute.
+/// and the minute, with its AM/PM marker in 12-hour mode.
 void add_sub_time(FlipFace& face, const ClockTime& t, bool use_24h) {
     std::string hour = std::to_string(t.hour);
     if (use_24h && hour.size() < 2) {
@@ -57,6 +57,7 @@ void add_sub_time(FlipFace& face, const ClockTime& t, bool use_24h) {
     }
     add_text_group(face.sub_shape, face.sub, hour);
     add_text_group(face.sub_shape, face.sub, (t.minute < 10 ? "0" : "") + std::to_string(t.minute));
+    face.sub_meridiem = t.meridiem;
 }
 
 // ---------- Layout ----------
@@ -80,6 +81,8 @@ struct Metrics {
     int32_t row_gap;
     int32_t sub_gap;
     int32_t spacer;
+    int32_t marker;
+    int32_t marker_h;
 };
 
 Metrics metrics_for(int32_t unit, const CardGeometry& g) {
@@ -97,6 +100,8 @@ Metrics metrics_for(int32_t unit, const CardGeometry& g) {
     m.row_gap = px(g.row_gap);
     m.sub_gap = px(g.sub_gap);
     m.spacer = px(g.sub_spacer);
+    m.marker = px(g.sub_marker);
+    m.marker_h = px(g.sub_marker_h);
     return m;
 }
 
@@ -138,15 +143,17 @@ int32_t sub_spacers(const FlipShape& sub, uint8_t sub_colons) {
 }
 
 Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShape& sub,
-                    uint8_t sub_colons, const CardGeometry& g) {
+                    uint8_t sub_colons, bool sub_marker, const CardGeometry& g) {
     const auto groups = static_cast<float>(std::max<uint8_t>(1, shape.group_count));
     const float card_w = 1.0f + g.stroke + 2 * g.pad_x;
     const float card_h = kStrokeDigitPathH + g.stroke + g.pad_top + g.pad_bottom;
     const bool has_sub = sub.group_count > 0;
     // The small row in main units: a scaled copy of the cards.
+    const float marker = sub_marker ? g.sub_marker : 0.0f;
     const float sub_w = has_sub ? g.sub_scale * (row_width(sub, card_w, g.card_gap, g.group_gap) +
                                                  static_cast<float>(sub_spacers(sub, sub_colons)) *
-                                                     (g.sub_spacer - g.group_gap))
+                                                     (g.sub_spacer - g.group_gap) +
+                                                 marker)
                                 : 0;
     const float tail = has_sub ? g.sub_gap + g.sub_scale * card_h : 0.0f;
     const float row_w = std::max(row_width(shape, card_w, g.card_gap, g.group_gap), sub_w);
@@ -168,7 +175,8 @@ Arrangement arrange(int32_t w, int32_t h, const FlipShape& shape, const FlipShap
         const int32_t sn = sub.group_count;
         sub_w_px = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
                    (sn - 1) * (sm.group_gap - sm.card_gap) +
-                   sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap);
+                   sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap) +
+                   (sub_marker ? sm.marker : 0);
         tail_px = m.sub_gap + sm.card_h;
     }
     if (a.column) {
@@ -334,6 +342,7 @@ DirtyRect FlipLayout::bounds() const {
     for (size_t i = 0; i < static_cast<size_t>(card_count + sub_count); i++) {
         box.add(cards[i]);
     }
+    box.add(sub_meridiem_box);
     return box;
 }
 
@@ -356,19 +365,21 @@ FlipShape fit_shape(const FlipShape& shape, size_t max_cards) {
 
 FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                              const FlipShape& sub_shape, int32_t dx, int32_t dy, uint8_t sub_colons,
-                             const CardGeometry& g) {
+                             ClockMeridiem sub_meridiem, const CardGeometry& g) {
     FlipShape fit = fit_shape(shape, kFlipMaxCards);
     if (fit.group_count == 0) {
         fit.groups[fit.group_count++] = 1;
     }
     const FlipShape sub = fit_shape(sub_shape, kFlipMaxSubCards);
-    const Arrangement a = arrange(w, h, fit, sub, sub_colons, g);
+    const bool marker = sub.group_count > 0 && sub_meridiem != ClockMeridiem::NONE;
+    const Arrangement a = arrange(w, h, fit, sub, sub_colons, marker, g);
     const Metrics m = metrics_for(a.unit, g);
     FlipLayout layout;
     layout.unit = a.unit;
     layout.shape = fit;
     layout.sub_shape = sub;
     layout.sub_colons = sub_colons;
+    layout.sub_meridiem = marker ? sub_meridiem : ClockMeridiem::NONE;
     layout.card_count = fit.card_count();
     const int32_t x0 = (w - a.content_w) / 2 + dx;
     const int32_t y0 = (h - a.content_h) / 2 + dy;
@@ -403,7 +414,8 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
         layout.sub_count = sub.card_count();
         const int32_t sub_w = group_width(sub.card_count(), sm.card_w, sm.card_gap) +
                               (sub.group_count - 1) * (sm.group_gap - sm.card_gap) +
-                              sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap);
+                              sub_spacers(sub, sub_colons) * (sm.spacer - sm.group_gap) +
+                              (marker ? sm.marker : 0);
         const int32_t sy = layout.cards[layout.card_count - 1].y2 + 1 + m.sub_gap;
         int32_t sx = x0 + (a.content_w - sub_w) / 2;
         for (size_t g = 0; g < sub.group_count; g++) {
@@ -417,8 +429,15 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
                 layout.cards[i] = {cx, sy, cx + sm.card_w - 1, sy + sm.card_h - 1};
             }
             const bool colon_next = g + 1 <= sub_colons;
-            sx += group_width(sub.groups[g], sm.card_w, sm.card_gap) +
-                  (colon_next ? sm.group_gap : sm.spacer);
+            sx += group_width(sub.groups[g], sm.card_w, sm.card_gap);
+            if (marker && g == sub_colons) {
+                const int32_t gap = sm.spacer / 4;
+                const int32_t base = sy + sm.pad_top + sm.glyph_h - 1;
+                layout.sub_meridiem_box = {sx + gap, base - sm.marker_h + 1, sx + sm.marker - 1,
+                                           base};
+                sx += sm.marker;
+            }
+            sx += colon_next ? sm.group_gap : sm.spacer;
         }
     }
 
@@ -437,9 +456,10 @@ FlipLayout layout_flip_cards(int32_t w, int32_t h, const FlipShape& shape,
 
 DirtyRect flip_centred_bounds(int32_t w, int32_t h, const FlipShape& shape,
                               const FlipShape& sub_shape, uint8_t sub_colons,
-                              const CardGeometry& g) {
-    const Arrangement a =
-        arrange(w, h, shape, fit_shape(sub_shape, kFlipMaxSubCards), sub_colons, g);
+                              ClockMeridiem sub_meridiem, const CardGeometry& g) {
+    const FlipShape sub = fit_shape(sub_shape, kFlipMaxSubCards);
+    const bool marker = sub.group_count > 0 && sub_meridiem != ClockMeridiem::NONE;
+    const Arrangement a = arrange(w, h, shape, sub, sub_colons, marker, g);
     const int32_t x1 = (w - a.content_w) / 2;
     const int32_t y1 = (h - a.content_h) / 2;
     return {x1, y1, x1 + a.content_w - 1, y1 + a.content_h - 1};
@@ -461,7 +481,7 @@ FlipCard face_card(const FlipFace& face, size_t i) {
 /// True when `face` needs a different layout from the one drawn for `layout`.
 bool shape_differs(const FlipFace& face, const FlipLayout& layout) {
     return face.shape != layout.shape || face.sub_shape != layout.sub_shape ||
-           face.sub_colons != layout.sub_colons;
+           face.sub_colons != layout.sub_colons || face.sub_meridiem != layout.sub_meridiem;
 }
 
 } // namespace
@@ -473,13 +493,14 @@ void FlipClockSim::init(FrameTarget& frame, size_t level, const FlipFace& face) 
     drift_.reset();
     drift_shape_ = face.shape;
     drift_sub_shape_ = face.sub_shape;
-    drift_.set_range(
-        flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_, face.sub_colons),
-        frame_w_, frame_h_);
+    drift_sub_meridiem_ = face.sub_meridiem;
+    drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
+                                         face.sub_colons, face.sub_meridiem),
+                     frame_w_, frame_h_);
     PixelWriter(frame).fill(kBackground);
     ink_ = print_state_color(face.mode, kDigit);
-    layout_ =
-        layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0, face.sub_colons);
+    layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, 0, 0,
+                                face.sub_colons, face.sub_meridiem);
     build_glyphs(face);
     for (size_t i = 0; i < anims_.size(); i++) {
         anims_[i] = still(face_card(face, i));
@@ -536,11 +557,13 @@ void FlipClockSim::step(uint32_t dt_ms, FrameTarget& frame, const FlipFace& face
     const bool animate = kFlipClockLevels[level_].animate;
 
     // The drift's range follows the shape being drawn.
-    if (face.shape != drift_shape_ || face.sub_shape != drift_sub_shape_) {
+    if (face.shape != drift_shape_ || face.sub_shape != drift_sub_shape_ ||
+        face.sub_meridiem != drift_sub_meridiem_) {
         drift_shape_ = face.shape;
         drift_sub_shape_ = face.sub_shape;
+        drift_sub_meridiem_ = face.sub_meridiem;
         drift_.set_range(flip_centred_bounds(frame_w_, frame_h_, drift_shape_, drift_sub_shape_,
-                                             face.sub_colons),
+                                             face.sub_colons, face.sub_meridiem),
                          frame_w_, frame_h_);
     }
     const bool moved = drift_.step(dt_ms);
@@ -627,7 +650,7 @@ void FlipClockSim::relayout(FrameTarget& frame, const FlipFace& face,
     DirtyRect area = layout_.bounds();
     PixelWriter(frame).fill_rect(area, kBackground);
     layout_ = layout_flip_cards(frame_w_, frame_h_, face.shape, face.sub_shape, drift_.dx,
-                                drift_.dy, face.sub_colons);
+                                drift_.dy, face.sub_colons, face.sub_meridiem);
     build_glyphs(face);
     for (size_t i = 0; i < static_cast<size_t>(layout_.card_count + layout_.sub_count); i++) {
         draw_card(frame, i);

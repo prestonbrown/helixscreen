@@ -41,6 +41,7 @@ class NixieClockScreensaver : public ClockSaver<NixieClockSim, NixieClockState> 
 
   private:
     SaverLabel meridiem_;
+    SaverLabel sub_meridiem_; ///< after the small row's time
 };
 
 } // namespace helix::ui

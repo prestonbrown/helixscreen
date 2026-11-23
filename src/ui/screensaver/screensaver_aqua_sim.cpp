@@ -508,6 +508,9 @@ AquaClockLayout layout_aqua_clock(int32_t w, int32_t h, int32_t dx, int32_t dy) 
         std::max(3, static_cast<int32_t>(std::lround(0.8f * static_cast<float>(l.ring_r) /
                                                      (kStrokeDigitPathH + kDigitStroke))));
     l.text = {cx - px(220.0f), cy + px(48.0f), cx + px(220.0f), cy + px(70.0f)};
+    const int32_t inner = l.top_r - l.ring_width - 1;
+    const int32_t half_h = std::max(4, px(9.0f));
+    l.meridiem = {l.top_cx - inner, l.top_cy - half_h, l.top_cx + inner, l.top_cy + half_h};
     const int32_t pad = l.ring_width + 1;
     l.bounds = {};
     l.bounds.add(l.hour_cx - l.ring_r - pad, l.hour_cy - l.ring_r - pad, l.hour_cx + l.ring_r + pad,

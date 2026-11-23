@@ -346,13 +346,14 @@ TEST_CASE("the tubes, colon tubes and their sealed tips fit every screen at the 
     const DirtyRect whole{0, 0, screen.w - 1, screen.h - 1};
     helix::ui::ClockDrift drift;
     drift.set_range(helix::ui::flip_centred_bounds(screen.w, screen.h, face.shape, face.sub_shape,
-                                                   face.sub_colons, kNixieTubeGeometry),
+                                                   face.sub_colons, face.sub_meridiem,
+                                                   kNixieTubeGeometry),
                     screen.w, screen.h);
     for (const int32_t sx : {-1, 1}) {
         for (const int32_t sy : {-1, 1}) {
             const FlipLayout layout = helix::ui::layout_flip_cards(
                 screen.w, screen.h, face.shape, face.sub_shape, sx * drift.max_dx,
-                sy * drift.max_dy, face.sub_colons, kNixieTubeGeometry);
+                sy * drift.max_dy, face.sub_colons, face.sub_meridiem, kNixieTubeGeometry);
             CHECK(inside(layout.bounds(), whole));
             // Each tube's and colon tube's tip moves with its box.
             const FlipLayout& still = sim.layout();
@@ -490,6 +491,21 @@ TEST_CASE_METHOD(LVGLTestFixture, "the nixie clock saver counts down the print i
     CHECK(ss.clock().mode() == ClockMode::COUNTDOWN);
     CHECK(ss.sim().layout().card_count == 5);
     CHECK(ss.sim().layout().sub_count > 0);
+    // The 3:00 PM finish time is marked on the screen.
+    {
+        const DirtyRect& box = ss.sim().layout().sub_meridiem_box;
+        REQUIRE_FALSE(box.empty());
+        const helix::ui::FrameTarget frame =
+            helix::test::frame_of(lv_canvas_get_draw_buf(helix::ui::SaverTestAccess::canvas(ss)));
+        const PixelWriter writer(frame);
+        size_t lit = 0;
+        for (int32_t y = box.y1; y <= box.y2; y++) {
+            for (int32_t x = box.x1; x <= box.x2; x++) {
+                lit += writer.get(x, y).g > 60 ? 1 : 0;
+            }
+        }
+        CHECK(lit > 0);
+    }
 
     reported.print.phase = ClockPrintPhase::PAUSED;
     helix::ui::advance_saver(ss, 33);

@@ -34,10 +34,22 @@ void AquaScreensaver::draw_clock_text(const std::vector<DirtyRect>& under,
     }
     line_.draw(canvas(), text_, box, print_state_color(clock_reading().mode, LINE_COLOR), LV_OPA_90,
                LV_TEXT_ALIGN_CENTER, under, dirty);
+
+    // The rings read the time of day, so AM/PM sits with them, in the top ring.
+    const ClockReading& reading = clock_reading();
+    const std::string meridiem = clock_meridiem_text(reading.time.meridiem);
+    const DirtyRect& mbox = sim_.clock_layout().meridiem;
+    if (meridiem != meridiem_.text() || !(mbox == meridiem_.box())) {
+        FrameTarget frame = canvas().frame();
+        sim_.restore(frame, meridiem_.box(), dirty);
+    }
+    meridiem_.draw(canvas(), meridiem, mbox, print_state_color(reading.mode, LINE_COLOR), LV_OPA_90,
+                   LV_TEXT_ALIGN_CENTER, under, dirty);
 }
 
 void AquaScreensaver::reset_clock_text() {
     line_.reset();
+    meridiem_.reset();
     std::string().swap(text_);
 }
 
