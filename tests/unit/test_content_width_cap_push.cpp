@@ -12,6 +12,7 @@
  */
 
 #include "ui_dialog.h"
+#include "ui_emergency_stop.h"
 #include "ui_modal.h"
 #include "ui_nav.h"
 #include "ui_nav_manager.h"
@@ -152,11 +153,13 @@ class UltrawideFixture : public XMLTestFixture {
 
     /// Connection loss on Controls clears the overlay stack, as in the app;
     /// then the cached @p w is pushed again. wire_events() installs the
-    /// connection observer, which needs the printer-state subjects.
+    /// connection and E-stop observers, which need the printer-state and
+    /// E-stop subjects up, as the app has them.
     static void lose_connection_and_repush(lv_obj_t* w, IPanelLifecycle& lifecycle) {
         auto& nav = NavigationManager::instance();
         auto& queue = helix::ui::UpdateQueue::instance();
         get_printer_state().init_subjects(false);
+        EmergencyStopOverlay::instance().init_subjects();
         nav.wire_events(lv_obj_create(lv_screen_active()));
         lv_subject_t* conn =
             get_printer_state().network_state().get_printer_connection_state_subject();
@@ -176,6 +179,7 @@ class UltrawideFixture : public XMLTestFixture {
         nav.push_overlay(w);
         queue.drain();
         lv_obj_update_layout(w);
+        EmergencyStopOverlay::instance().deinit_subjects();
         get_printer_state().deinit_subjects();
     }
 
