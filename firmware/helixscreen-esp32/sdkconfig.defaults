@@ -194,3 +194,7 @@ CONFIG_ESP_IPC_TASK_STACK_SIZE=1792
 # Moonraker session up (84KB without; spec 2026-07-13 budget table).
 CONFIG_ESP_WIFI_IRAM_OPT=n
 CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+
+# Error codes log as numbers, not names: the name table costs about 8KB of
+# the app slot.
+CONFIG_ESP_ERR_TO_NAME_LOOKUP=n
