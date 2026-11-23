@@ -420,25 +420,25 @@ class CalibrationCollectorCore {
         }
         // The captured owner reference keeps the collector, and with it this core,
         // alive until the drain.
-        helix::ui::queue_update(
-            // QUEUE_RAW_THIS_OK: owner reference above.
-            "CalibrationCollectorCore::arm_idle_fallback",
-            [this, owner, &state, backstop_ms, stream_intact]() {
-                if (completed() || fallback_.armed) {
-                    return;
-                }
-                fallback_.armed = true;
-                fallback_.awaits_lines_only =
-                    !fallback_.edge_immediate && (stream_intact || !busy_flag_tracks_macro_);
-                if (fallback_.awaits_lines_only) {
-                    watch_while_awaiting_lines(state);
-                } else {
-                    watch_idle_edge(state);
-                }
-                fallback_.state = &state;
-                fallback_.backstop_ms = backstop_ms;
-                begin_backstop(backstop_ms);
-            });
+        helix::ui::queue_update("CalibrationCollectorCore::arm_idle_fallback",
+                                // QUEUE_RAW_THIS_OK: owner reference above.
+                                [this, owner, &state, backstop_ms, stream_intact]() {
+                                    if (completed() || fallback_.armed) {
+                                        return;
+                                    }
+                                    fallback_.armed = true;
+                                    fallback_.awaits_lines_only =
+                                        !fallback_.edge_immediate &&
+                                        (stream_intact || !busy_flag_tracks_macro_);
+                                    if (fallback_.awaits_lines_only) {
+                                        watch_while_awaiting_lines(state);
+                                    } else {
+                                        watch_idle_edge(state);
+                                    }
+                                    fallback_.state = &state;
+                                    fallback_.backstop_ms = backstop_ms;
+                                    begin_backstop(backstop_ms);
+                                });
     }
 
     /// The macro reported progress, so it is still running: an armed backstop
