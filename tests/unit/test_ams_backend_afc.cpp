@@ -624,7 +624,7 @@ class AmsBackendAfcTestHelper : public AmsBackendAfc {
         feed_status_update(params);
     }
 
-    // Phase 2 mixed topology accessors
+    // Mixed topology accessors
     const std::vector<AfcUnitInfo>& get_unit_infos() const {
         return AfcTestAccess::unit_infos(*this);
     }
@@ -1279,10 +1279,10 @@ TEST_CASE("an AFC with no Spoolman refuses a spool link before writing it",
 // reset_tool_mappings() Tests
 
 // One command resets every lane's mapping, whatever the lane count. AFC dev/1.3
-// (Klipper-Add-On #832) renamed RESET_AFC_MAPPING to AFC_RESET_MAPPING and
-// publishes multiple_tool_mapping alongside the rename. The flag's VALUE is the
-// opt-in to virtual tools and defaults false, so key presence is the version
-// signal, never the value; without the key the new name is an unknown command.
+// (Klipper-Add-On #832) calls the command AFC_RESET_MAPPING (older firmware:
+// RESET_AFC_MAPPING) and publishes multiple_tool_mapping alongside the new name. The flag's VALUE
+// is the opt-in to virtual tools and defaults false, so key presence is the version signal, never
+// the value; without the key the new name is an unknown command.
 TEST_CASE("AFC reset_tool_mappings sends one reset under the firmware's name",
           "[ams][afc][tool_mapping][reset]") {
     struct Row {
@@ -1402,7 +1402,7 @@ TEST_CASE("AFC reset_endless_spool with no lanes yet refuses instead of silently
     REQUIRE(helper.captured_gcodes.empty());
 }
 
-// Phase 1: Bug Fixes & Critical Data Sync Tests
+// Critical data sync tests
 //
 // These tests verify parsing of fields that the real AFC device exposes
 // (captured from 192.168.1.112). Tests use fixture data to validate that
@@ -2165,7 +2165,7 @@ TEST_CASE("AFC current_load and next_lane tracked", "[ams][afc][state][phase1]")
     REQUIRE(helper.get_action() == AmsAction::LOADING);
 }
 
-// Phase 2: Full Data Parsing Tests
+// Full data parsing tests
 //
 // These tests verify parsing of extended hub, extruder, stepper, and buffer
 // fields from real AFC device data. Tests use fixture structures captured
@@ -2254,7 +2254,7 @@ TEST_CASE("AFC bowden slider max accommodates real bowden length",
     }
 }
 
-// Phase 3: New Device Actions & Commands Tests
+// Device actions and commands tests
 //
 // Tests for new maintenance section, LED/mode toggles, and maintenance commands.
 
@@ -2443,13 +2443,13 @@ TEST_CASE("AFC device action quiet_mode dispatches an explicit ENABLE",
     }
 }
 
-// Phase 4: Error Recovery Improvements Tests
+// Error recovery tests
 //
 // Tests for differentiated reset (AFC_RESET vs AFC_HOME), per-lane reset,
 // and error message surfacing.
 
 TEST_CASE("AFC recover sends AFC_RESET", "[ams][afc][recovery][phase4]") {
-    // Regression guard — recover() should continue using AFC_RESET
+    // recover() uses AFC_RESET
     AmsBackendAfcTestHelper helper;
     helper.initialize_test_lanes_with_slots(4);
     helper.set_running(true); // Bypass precondition for unit test
@@ -2742,9 +2742,9 @@ TEST_CASE("AFC lane reset is refused for a lane routed direct (no hub)", "[ams][
     helper.set_lane_hub_routing("lane1", "direct");
     helper.set_hub_sensor("Turtle_1", true);
 
-    // Force the latched field true so this case discriminates: the pre-fix body
-    // returned it directly and would answer true here. Without this the sensor's
-    // false default makes old and new code agree, and the test proves nothing.
+    // Force the latched field true so this case discriminates: a body that
+    // returned it directly would answer true here. Without this the sensor's
+    // false default makes both implementations agree, and the test proves nothing.
     helper.set_lane_loaded_to_hub(0, true);
 
     // Every other gate satisfied, so "direct" routing is the sole reason for the
@@ -3489,7 +3489,7 @@ TEST_CASE("AFC drain arm expires so a stale budget cannot eat a later unrelated 
     REQUIRE(helper.gcode_count("AFC_CLEAR_MESSAGE") == 1);
 }
 
-// Phase 2: Mixed Topology — Flat String Units, AFC_lane, Unit Objects, Multi-Extruder
+// Mixed Topology — Flat String Units, AFC_lane, Unit Objects, Multi-Extruder
 
 // 2a: Flat string units array
 
@@ -4502,7 +4502,7 @@ TEST_CASE("AFC backend backward compat: mixed string and object units", "[ams][a
     REQUIRE(unit_infos[0].name == "AMS_1");
 }
 
-// Phase 6: Backward Compatibility Tests
+// Backward compatibility tests
 
 TEST_CASE("AFC get_unit_topology falls back to get_topology when unit_infos empty",
           "[ams][afc][backward_compat]") {
@@ -4522,7 +4522,7 @@ TEST_CASE("AFC get_unit_topology falls back to get_topology when unit_infos empt
 }
 
 TEST_CASE("AFC get_topology still returns HUB for standard AFC", "[ams][afc][backward_compat]") {
-    // Regression guard: get_topology() must always return HUB for AFC backend
+    // get_topology() always returns HUB for the AFC backend
     AmsBackendAfcTestHelper helper;
     REQUIRE(helper.get_topology() == PathTopology::HUB);
 }
@@ -5660,7 +5660,7 @@ TEST_CASE_METHOD(AfcFourRunningLanes,
 // #999: selecting a non-active lane and pressing Unload must unload THAT lane,
 // not whatever is loaded on the shuttle. AFC's TOOL_UNLOAD LANE=<lane> picks up
 // the correct tool first, so the requested lane is honored even in toolchanger
-// mode (previously this sent a bare AFC_UNSELECT_TOOL and ignored the slot).
+// mode (a bare AFC_UNSELECT_TOOL would ignore the slot).
 TEST_CASE_METHOD(AfcFourRunningLanes,
                  "AFC unload_filament sends TOOL_UNLOAD LANE=<lane> for specific slot (#999)",
                  "[ams][afc][toolchanger]") {
@@ -5750,10 +5750,9 @@ TEST_CASE_METHOD(AfcFourRunningLanes, "AFC bypass disengaged by a lone delta rel
 
 // Bypass: the external spool feeds the toolhead with no lane behind it, so
 // slots_.name_of(-2) resolves to "" and AFC unloads whatever is at the head via
-// its own user-configured macro. The backend has always done this correctly —
-// the UI decision layer refused to dispatch, treating -2 as "nothing resolved"
-// alongside -1. Pinned here so a future tightening of the lane lookup cannot
-// start rejecting the sentinel outright.
+// its own user-configured macro. The backend accepts -2; the UI decision
+// layer must not treat it as "nothing resolved" alongside -1. Pinned here so a future tightening of
+// the lane lookup cannot start rejecting the sentinel outright.
 TEST_CASE_METHOD(AfcFourRunningLanes, "AFC unload_filament under bypass sends bare TOOL_UNLOAD",
                  "[ams][afc][bypass]") {
     helper.set_supports_bypass(true);
@@ -6116,7 +6115,7 @@ TEST_CASE("Non-contiguous lane numbering assigns sequential global indices", "[a
     CHECK(expected_global == 12);
 }
 
-// Bug fix: Tool changer current_slot overwrite
+// Tool changer current_slot is not overwritten
 
 TEST_CASE_METHOD(AfcFourZeroBasedLanes,
                  "AFC tool changer reconciliation preserves current_load slot",
@@ -6168,7 +6167,7 @@ TEST_CASE_METHOD(AfcFourZeroBasedLanes, "AFC apply_lane_data does not overwrite 
     CHECK(info.current_slot == 2);
 }
 
-// Bug fix: 3-unit premature reorganize drops last unit's lanes
+// 3-unit premature reorganize must not drop the last unit's lanes
 
 TEST_CASE("AFC 3-unit incremental arrival preserves all unit lanes",
           "[ams][afc][mixed][toolchanger]") {
@@ -6589,7 +6588,7 @@ TEST_CASE_METHOD(AfcFourZeroBasedLanes,
     // tool-swap). The tool number comes from Klipper's own toolchanger object,
     // which is where a mid-swap tool number REALLY comes from — AFC.get_status()
     // publishes no "current_tool" key on any version (AFC.py v1.2.0:2531-2564),
-    // so the fixture used to prove this with a field the firmware never sends.
+    // so the fixture must not prove this with a field the firmware never sends.
     //
     // Both keys land in one frame, the same way Moonraker batches them:
     // apply_afc_state() runs first and clears the tool on the null current_load,
@@ -8135,7 +8134,7 @@ TEST_CASE("AFC no-op load resolves on the macro ack", "[ams][afc][dispatch][1183
     h.ack(0);
 
     REQUIRE(h.action() == AmsAction::IDLE);
-    // Asserting the end value alone would pass without the fix — IDLE is where
+    // Asserting the end value alone would pass vacuously — IDLE is where
     // this started. The busy leg is the load-bearing half.
     REQUIRE(trace_contains(h.trace(), AmsAction::LOADING));
     REQUIRE(h.trace().back() == AmsAction::IDLE);
@@ -8436,8 +8435,8 @@ TEST_CASE("AFC enable_bypass sends the sensor enable when nothing is loaded",
 // (AFC_extruder.py:222-223 = `config.get("extruder_name", <section name>)`,
 // consumed at AFC_Toolchanger.py:231-232, both v1.2.0). That value is published
 // in NO get_status() anywhere — configfile.settings is the only surface that
-// carries it. The old code read the SECTION name, threw on anything that was
-// not `extruder<N>`, caught the throw and mapped every toolhead to T0.
+// carries it. Deriving it from the SECTION name fails on anything that is not
+// `extruder<N>`, and must not fall back to mapping every toolhead to T0.
 
 TEST_CASE("AFC extruder tool index prefers configfile extruder_name",
           "[ams][afc][extruder_tool_index]") {
@@ -8469,8 +8468,8 @@ TEST_CASE("AFC extruder tool index prefers configfile extruder_name",
     }
 
     SECTION("unresolvable is -1, never a silent T0") {
-        // This is the whole defect: `e1` used to throw inside substr(8), get
-        // caught, and become T0 — as did e2, e3 and every other toolhead.
+        // `e1` must not become T0 (as a substr(8) parse would make it), nor
+        // e2, e3 or any other toolhead.
         REQUIRE(helper.tool_index_for("e1") == -1);
         REQUIRE(helper.tool_index_for("e2") == -1);
         REQUIRE(helper.tool_index_for("left_head") == -1);
@@ -8518,9 +8517,9 @@ TEST_CASE("AFC v1.1.0 resolves tool indices with no configfile answer at all",
 
 TEST_CASE_METHOD(AfcFourLanes, "AFC unresolvable extruder makes no lane attribution claim",
                  "[ams][afc][extruder_tool_index]") {
-    // Two toolheads named so the section name carries no index. Before the fix
-    // both resolved to T0 and each in turn claimed to be the active tool, so
-    // current_slot tracked whichever AFC_extruder frame arrived last.
+    // Two toolheads named so the section name carries no index. If both
+    // resolved to T0 each would in turn claim to be the active tool, and
+    // current_slot would track whichever AFC_extruder frame arrived last.
     // AFC.extruders is what routes an "AFC_extruder <name>" frame to a parser.
     helper.feed_afc_state({{"extruders", {"e0", "e1"}}});
     REQUIRE(helper.get_extruder_names() == std::vector<std::string>{"e0", "e1"});

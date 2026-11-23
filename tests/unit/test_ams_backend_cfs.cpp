@@ -168,7 +168,7 @@ class CfsRemapHelper : public AmsBackendCfs {
     // Capture the assembled load/swap/unload script that change_tool /
     // load_filament / unload_filament hand to dispatch_action_script. Returns
     // success without touching a live Moonraker connection, so the WITH/WITHOUT-
-    // material selection (#968 Phase 2) is observable from tests.
+    // material selection (#968) is observable from tests.
     AmsError dispatch_action_script(std::string gcode) override {
         dispatched.push_back(gcode);
         return AmsErrorHelper::success();
@@ -473,18 +473,17 @@ TEST_CASE("CFS bypass: stock dialect declaration + sensor derivation", "[ams][cf
     }
 
     SECTION("the box re-arming itself does NOT drop the declaration") {
-        // This section used to assert the opposite, on the premise that enable=1
-        // meant "someone re-enabled the CFS through Creality's own screen". That
-        // premise is false and the frame below is why: it is the literal frame a
-        // K2 Plus sent after re-arming with no host involved — no
-        // BOX_ENABLE_CFS_PRINT in klippy.log, no disable_bypass() in ours (the
-        // only thing that sends ENABLE=1), and the prints in that window were
-        // plain Moonraker start_print calls from a third-party client.
+        // enable=1 does not mean "someone re-enabled the CFS through Creality's
+        // own screen": the frame below is the literal frame a K2 Plus sent after
+        // re-arming with no host involved — no BOX_ENABLE_CFS_PRINT in
+        // klippy.log, no disable_bypass() in ours (the only thing that sends
+        // ENABLE=1), and the prints in that window were plain Moonraker
+        // start_print calls from a third-party client.
         //
-        // Because partial frames omit `enable`, the old rule only bit on the
-        // first full frame after a restart — so bypass survived all session and
-        // died on relaunch, while the external spool was still feeding the
-        // nozzle and Unload greyed out.
+        // Dropping the declaration on enable=1 would bite only on the first full
+        // frame after a restart (partial frames omit `enable`): bypass would
+        // survive the session and die on relaunch, while the external spool was
+        // still feeding the nozzle and Unload greyed out.
         backend.enable_bypass();
         REQUIRE(backend.is_bypass_active());
 
@@ -1207,9 +1206,8 @@ TEST_CASE("CFS names each lane by its box number and bay letter", "[ams][cfs][la
 }
 
 TEST_CASE("CFS material database", "[ams][cfs]") {
-    // Material resolution now goes through FilamentCatalog's transient
-    // "cfs"-coded slice (Task 5, filament-catalog merge) rather than the
-    // retired CfsMaterialDb::instance()/lookup() material table.
+    // Material resolution goes through FilamentCatalog's transient "cfs"-coded
+    // slice.
     const auto catalog = FilamentCatalog::load_codes("cfs");
 
     SECTION("known material lookup") {
@@ -1988,7 +1986,7 @@ TEST_CASE("CFS K1 macro variant (#968)", "[ams][cfs]") {
     }
 }
 
-// #968 Phase 2 — WITH/WITHOUT-material selection keys on filament-at-nozzle,
+// #968 — WITH/WITHOUT-material selection keys on filament-at-nozzle,
 // NOT a preloaded (cassette) slot. K1 CFS reports a preloaded slot index with
 // the nozzle still EMPTY; cutting in that state is the reporter's "hallucinated
 // cut on empty nozzle" bug.
@@ -2151,9 +2149,8 @@ TEST_CASE("CFS backend ctor latches macro variant from PrinterDetector (#968)", 
 }
 
 TEST_CASE("PrinterDiscovery enables CFS for K1 box object (#968 gate)", "[ams][cfs][discovery]") {
-    // Before 6ebe7417b: K1 + `box` → no CFS, warn log.
-    // After the #968 fix flip: K1 + `box` → CFS enabled, K1 dialect chosen
-    // downstream by AmsBackendCfs ctor.
+    // K1 + `box` → CFS enabled, K1 dialect chosen downstream by AmsBackendCfs
+    // ctor.
     auto* config = Config::get_instance();
     const std::string type_path = config->df() + "type";
     const std::string saved = config->get<std::string>(type_path, "");
@@ -2427,8 +2424,8 @@ TEST_CASE("CFS set_tool_mapping updates local tool_to_slot_map", "[ams][cfs][rem
         REQUIRE(lane3 != nullptr);
         CHECK(lane3->mapped_tool == 1);
 
-        // Both losing sides give up their claim: lane 1 no longer answers to
-        // T1, and T3 no longer resolves to the lane T1 just took.
+        // Both losing sides give up their claim: lane 1 does not answer to T1,
+        // and T3 does not resolve to the lane T1 just took.
         const auto* lane1 = info.get_slot_global(1);
         REQUIRE(lane1 != nullptr);
         CHECK(lane1->mapped_tool == -1);
@@ -2609,7 +2606,7 @@ TEST_CASE("CFS has no per-slot prep sensors", "[ams][cfs]") {
     }
 }
 
-// Task 14: filament slot override integration
+// Filament slot override integration
 
 TEST_CASE("CFS apply_user_edit writes to store", "[ams][cfs][filament_slot_override]") {
     CfsTmpCacheDir tmp("task14_persist_true");
@@ -2654,7 +2651,7 @@ TEST_CASE("CFS apply_user_edit writes to store", "[ams][cfs][filament_slot_overr
     CHECK(stored["material"] == "PLA");
     CHECK(stored["color"] == "#FF5500");
 
-    // Legacy namespace NOT touched — CFS no longer writes there.
+    // Legacy namespace NOT touched — CFS does not write there.
     CHECK(mock_printer.client.mock_db_get("helix-screen", "cfs_slot_overrides").is_null());
 }
 
@@ -2786,7 +2783,7 @@ TEST_CASE("CFS empty RFID fingerprint does not update baseline or clear",
 // (color_value/material_type) latch stale data and read sentinels for untagged
 // 3rd-party spools, and box.filament is a SELECTION index — not a loaded flag.
 
-// Fix 1: box.filament is a stale active-lane SELECTION pointer, NOT a loaded
+// box.filament is a stale active-lane SELECTION pointer, NOT a loaded
 // flag. With box.filament=1 but T1.filament="None" and no toolhead sensor, the
 // system must report current_slot == -1 and filament_loaded == false.
 TEST_CASE("CFS: box.filament selection index does not fake a loaded slot", "[ams][cfs]") {
@@ -2811,7 +2808,7 @@ TEST_CASE("CFS: box.filament selection index does not fake a loaded slot", "[ams
     REQUIRE(sys.filament_loaded == false);
 }
 
-// Fix 1c regression guard: a partial top-level-only box update (e.g.
+// A partial top-level-only box update (e.g.
 // box:{filament:N} when a lane is selected during a tool change) carries no
 // per-unit lane data, so it must NOT clear a still-valid active slot. The clear
 // is gated on has_unit_data.
@@ -2840,7 +2837,7 @@ TEST_CASE("CFS: partial box.filament update does not clear active slot", "[ams][
     REQUIRE(backend.get_system_info().current_slot == 0);
 }
 
-// Fix 1 regression guard: the toolhead sensor is the SOLE writer of
+// The toolhead sensor is the SOLE writer of
 // filament_loaded. A sensor update sets it true; a SUBSEQUENT box-only update
 // (carrying box.filament but no sensor param) must NOT clobber it back to false.
 TEST_CASE("CFS: box-only update does not clobber sensor-derived filament_loaded", "[ams][cfs]") {
@@ -4060,7 +4057,7 @@ TEST_CASE("CFS: a labeled untagged spool stays AVAILABLE while it is seated",
     //
     // material_type here is the code our own identity push wrote (#968), not one
     // read off a tag. That suppresses the untagged remain_len fallback, which is
-    // exactly the case the removed override->AVAILABLE promotion used to cover.
+    // exactly the case an override->AVAILABLE promotion would otherwise cover.
     CfsOverrideRig rig("cfs_labeled_untagged_seated");
 
     json box_seated =
@@ -4101,10 +4098,10 @@ TEST_CASE("CFS: labeling an untagged bay does not blank it on vender-sentinel fi
     // There, `vender` reports occupancy for any seated spool, so presence never
     // consults the untagged remain_len fallback. On firmware where `vender`
     // stays sentinel for an untagged spool — the #1077 population the fallback
-    // was written for — that fallback is the ONLY thing keeping the bay
-    // visible, and labeling used to switch it off: the label is written to
-    // `material_type` (#968), firmware echoes it back, and a non-sentinel
-    // material_type reads as tag payload. Naming your spool made it vanish.
+    // exists for — that fallback is the ONLY thing keeping the bay visible, and
+    // labeling must not switch it off: the label is written to `material_type`
+    // (#968), firmware echoes it back, and a non-sentinel material_type reads as
+    // tag payload. Naming a spool must not make it vanish.
     CfsOverrideRig rig("cfs_label_untagged_vender_sentinel");
 
     // Untagged 3rd-party spool in bay A: no vendor, no RFID payload, real
@@ -4665,9 +4662,9 @@ TEST_CASE("CFS load routes the bypass sentinel instead of refusing it", "[ams][c
     SECTION("stock K2: -2 dispatches a load instead of invalid_slot") {
         helix::test::StartedBackend<CfsRemapHelper> backend;
 
-        // The regression: slot_to_tnn(-2) has no answer, so this refused
-        // outright and an external spool could never be loaded from the app —
-        // which also left no way to reach the state the bypass UNLOAD needs.
+        // slot_to_tnn(-2) has no answer, but the load must not refuse outright:
+        // an external spool has to be loadable from the app, which is also the
+        // only way to reach the state the bypass UNLOAD needs.
         REQUIRE(backend.load_filament(helix::ui::kExternalSpoolSlot).result == AmsResult::SUCCESS);
         REQUIRE(backend.dispatched.size() == 1);
         CHECK(backend.dispatched[0].find("G0 E80 F600") != std::string::npos);
@@ -4818,8 +4815,8 @@ TEST_CASE("CFS unload routes the bypass sentinel away from the bay script", "[am
         REQUIRE(backend.unload_filament(helix::ui::kExternalSpoolSlot).result ==
                 AmsResult::SUCCESS);
         REQUIRE(backend.dispatched.size() == 1);
-        // The regression: CR_BOX_RETRUDE is keyed on a TNN and silently no-ops
-        // with the box stood down, so the cut ran and nothing came out.
+        // CR_BOX_RETRUDE is keyed on a TNN and silently no-ops with the box
+        // stood down: the cut would run and nothing would come out.
         CHECK(backend.dispatched[0].find("CR_BOX_RETRUDE") == std::string::npos);
         CHECK(backend.dispatched[0].find("G0 E-80 F600") != std::string::npos);
         CHECK(CfsTestAccess::phase_bypass_unload(backend));
@@ -5052,8 +5049,8 @@ TEST_CASE("CFS phase verify: a raised fault survives later status frames", "[ams
     REQUIRE(backend.current_error().has_value());
 
     // The box keeps streaming after the failure. Phase synthesis runs off those
-    // frames and used to be free to overwrite `action` with LOADING/CUTTING —
-    // which would erase the fault and dismiss the modal the user is reading.
+    // frames and must not overwrite `action` with LOADING/CUTTING —
+    // that would erase the fault and dismiss the modal the user is reading.
     nlohmann::json n = {
         {"params", nlohmann::json::array(
                        {{{"filament_switch_sensor filament_sensor", {{"filament_detected", false}}},
@@ -5145,7 +5142,7 @@ TEST_CASE("CFS phase verify: clearing the toolhead by hand retires an unload fau
     REQUIRE(backend.current_error().has_value());
 
     // The user pulls the stub out and the switch reads empty: the fault named
-    // exactly this condition, so it no longer holds.
+    // exactly this condition, so the fault clears.
     backend.fire_status(toolhead_sensor_frame(false));
     CHECK_FALSE(backend.current_error().has_value());
     CHECK(backend.get_system_info().action == AmsAction::IDLE);
