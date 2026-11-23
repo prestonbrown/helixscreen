@@ -470,8 +470,8 @@ void Application::run_rotation_probe_and_layout() {
             }
 
             // Rotation changed screen dimensions — refresh theme layout constants
-            // (nav_width, overlay widths, spacing tokens) that were calculated
-            // during Phase 6 with pre-rotation dimensions.
+            // (nav_width, overlay widths, spacing tokens) that theme init
+            // calculated from the pre-rotation dimensions.
             if (m_screen_width != pre_w || m_screen_height != pre_h) {
                 theme_manager_refresh_layout_constants(m_display->display());
             }

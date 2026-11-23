@@ -351,14 +351,14 @@ void graceful_quit_signal_handler(int sig) {
             errno = saved_errno;
             return;
         }
-        // A supervisor stop is not a crash. Because this path skips
-        // Application::shutdown() — the only other place the crash-restart
-        // marker is cleared — every SIGTERM used to leave its start timestamp
-        // behind. On the Elegoo CC1, COSMOS's resonance-calibration macro
-        // stops and starts the UI through gui-switcher (SIGTERM by pidfile);
-        // three of those inside the 120s window tripped "Crash loop detected"
-        // and HelixScreen refused to boot. unlink(2) is async-signal-safe;
-        // the path was cached at startup so nothing is constructed here.
+        // A supervisor stop is not a crash. This path skips
+        // Application::shutdown(), the only other place the crash-restart
+        // marker is cleared, so the marker must go here or a SIGTERM leaves its
+        // start timestamp behind. On the Elegoo CC1, COSMOS's resonance-calibration
+        // macro stops and starts the UI through gui-switcher (SIGTERM by pidfile);
+        // three of those inside the 120s window would trip "Crash loop detected"
+        // and refuse to boot. unlink(2) is async-signal-safe; the path was cached
+        // at startup so nothing is constructed here.
         helix::clear_crash_marker_signal_safe();
         // Blank the panel, or the last frame shows through a reboot's boot
         // screen. open/write/close only; a no-op unless fbdev registered it.
@@ -711,12 +711,9 @@ int Application::run(int argc, char** argv) {
     }
 
     // Sync TelemetryManager's LVGL subject with its current enabled state.
-    // TelemetryManager already loaded the value from settings.json in init();
-    // this call no longer needs to pull from SystemSettingsManager (which
-    // used to be a separate source of truth — the sync here silently
-    // disabled telemetry whenever settings.json lacked /telemetry_enabled).
-    // Instead, re-assert the already-loaded state so start_auto_send() runs
-    // now that discovery has completed.
+    // TelemetryManager loaded the value from settings.json in init(); re-assert
+    // that state (SystemSettingsManager is not a second source of truth) so
+    // start_auto_send() runs now that discovery has completed.
     TelemetryManager::instance().set_enabled(TelemetryManager::instance().is_enabled());
 
     init_sound_services();
@@ -737,7 +734,7 @@ int Application::run(int argc, char** argv) {
     // which the watchdog interprets as a deterministic crash and (after
     // kCrashLoopMaxCrashes) shows the recovery dialog. main_loop()'s own
     // crash guard wraps its iterations but does not cover this pre-loop
-    // window — a follow_overlay regression can hit exactly here, in
+    // window — a follow_overlay failure can hit exactly here, in
     // HomePanel::finalize_setup() → set_config(null) (json::type_error::306).
     // Catch + log + breadcrumb + toast + continue so the user gets a degraded
     // but usable app instead of a watchdog crash loop they can only escape by

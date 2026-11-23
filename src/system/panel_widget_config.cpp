@@ -161,9 +161,8 @@ std::vector<PanelWidgetEntry> PanelWidgetConfig::parse_widget_array(const nlohma
         // Load optional per-widget config. Default to {} rather than the
         // default-constructed JSON null so downstream set_config() implementations
         // can use .value("key", default) without guarding against null. Layouts
-        // written before a widget gained config fields omit "config" entirely;
-        // that path used to ship a JSON null and crash the widget on lookup
-        // (json::type_error::306, regression introduced in v0.99.54 by 5ac58e051).
+        // written before a widget gained config fields omit "config" entirely, and
+        // a JSON null there crashes the widget on lookup (json::type_error::306).
         nlohmann::json widget_config = nlohmann::json::object();
         if (const nlohmann::json* config = helix::json_util::find_object(item, "config")) {
             widget_config = *config;
@@ -1399,7 +1398,7 @@ void PanelWidgetConfig::switch_to_grid(int cols, int rows) {
         return;
     }
 
-    // The ported pages are no longer the resolver's output for any grid.
+    // The ported pages replace the resolver's output for this grid.
     has_default_ = false;
     default_signature_.clear();
     default_hash_.clear();

@@ -505,7 +505,7 @@ static void migrate_v17_to_v18(json& config, const std::string& /*config_path*/)
                  "(recheck_pending=true)");
 }
 
-/// Phase 2 offline filament picker (Task 6): /preset_materials grows from a 4-string
+/// Offline filament picker: /preset_materials grows from a 4-string
 /// array to a 4-object array so branded filament info (id/brand/name/temps) can be
 /// attached to each quick-material preset slot. Idempotent: elements already objects
 /// are left untouched, so re-running against an already-migrated config never clobbers
@@ -579,12 +579,10 @@ static bool has_any_value(const json& node) {
 /// Config::get_json() vivified into settings.json (#1129), and retire the
 /// legacy top-level /led block for good.
 ///
-/// Previously the /led → printers/<id>/leds fold lived in
-/// LedController::load_config() and LedAutoState::load_config(), which run on
-/// EVERY boot — so the probes there re-created the /led orphan each time and
-/// erasing it would have been pointless. Doing the fold here (once, guarded by
-/// the version number, using non-vivifying contains()) is what makes the
-/// erase stick.
+/// The /led → printers/<id>/leds fold happens here, once, guarded by the version
+/// number and using non-vivifying contains(). LedController::load_config() and
+/// LedAutoState::load_config() run on EVERY boot and their probes would re-create
+/// the /led orphan, so the erase only sticks because the fold is not done there.
 ///
 /// The /printer erase matters beyond tidiness: normalize_versionless_document() gates on
 /// `config.contains("printer") && config["printer"].is_object()`, so a
@@ -916,11 +914,10 @@ static void migrate_v21_to_v22(json& config, const std::string& /*config_path*/)
 /// Migration v22→v23: the Macro Button widget's per-instance run gate changed
 /// polarity and name.
 ///
-/// It used to be "skip_param_prompt" (default false), which suppressed only the
-/// parameter-entry modal — the Settings → Safety confirmation still fired, so a
-/// user who asked for a one-tap macro button got a dialog anyway. It is now
-/// "require_confirmation" (default true), governing both prompts, and its
-/// off-state is what actually delivers the one-tap run.
+/// The old key "skip_param_prompt" (default false) suppressed only the
+/// parameter-entry modal; the Settings → Safety confirmation still fired, so a
+/// one-tap macro button still showed a dialog. "require_confirmation" (default
+/// true) governs both prompts, and its off-state delivers the one-tap run.
 ///
 /// The two keys are exact inverses, so the rewrite is lossless: a widget that
 /// had skip_param_prompt:true becomes require_confirmation:false and keeps

@@ -538,10 +538,8 @@ void Application::check_wifi_availability() {
     // start_async()es it — which is also where credentials are re-applied on
     // firmwares whose wpa_supplicant discards them.
     //
-    // This used to be gated on is_wifi_expected(), which defaults to false and
-    // is absent from settings.json on a Snapmaker U1 — so that device never
-    // started WiFi at boot at all, and only ever connected once the user opened
-    // a WiFi screen. Bringup is not a user-intent question.
+    // Bringup is not gated on is_wifi_expected(): it defaults to false and is absent
+    // from settings.json on a Snapmaker U1, which would then never start WiFi at boot.
     auto wifi = get_wifi_manager();
 
     // An IPv4 change the user never kept is undone at boot.

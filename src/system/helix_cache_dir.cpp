@@ -340,8 +340,8 @@ int migrate_state_root(const std::string& legacy_root, const std::string& curren
         }
     }
 
-    // An empty legacy tree is pure scaffolding: the pre-rename platform hook
-    // recreates <legacy>/logs at every pre-start. fs::remove refuses a
+    // An empty legacy tree is pure scaffolding: the platform hook for the old
+    // root name recreates <legacy>/logs at every pre-start. fs::remove refuses a
     // non-empty directory, so anything with content survives on its own.
     for (const char* sub : {"cache", "logs"}) {
         const fs::path dir = fs::path(legacy_root) / sub;

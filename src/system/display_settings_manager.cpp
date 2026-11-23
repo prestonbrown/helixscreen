@@ -82,8 +82,8 @@ struct TimezoneEntry {
 };
 
 // Ordered by UTC offset so the list scans west-to-east. Names are the countries
-// people search for, not regional or historical groupings — #1340 was filed
-// because UTC+7 was labelled "Indochina" and a user in Vietnam never found it.
+// people search for, not regional or historical groupings: a user in Vietnam
+// does not find UTC+7 under "Indochina" (#1340).
 //
 // Same-offset zones are listed separately when their DST rules differ: picking
 // America/Denver from Arizona, or Europe/Berlin from Lagos, yields the right
