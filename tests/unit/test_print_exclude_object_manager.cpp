@@ -74,7 +74,7 @@ class ExcludeManagerFixture : public LVGLTestFixture {
         manager = std::make_unique<PrintExcludeObjectManager>(api.get(), state, nullptr);
         manager->init();
         // observe<int> defers an initial-value callback through UpdateQueue
-        // (per L048 / core/observer_factory.h). Drain it now so the print-state
+        // (per L048 / core/observer_factory.h). Drain it so the print-state
         // watchdog's STANDBY=0 fire-on-subscribe doesn't clear test-injected
         // awaiting_confirmation_ entries on the first real drain.
         UpdateQueue::instance().drain();
@@ -107,21 +107,19 @@ void set_print_state_str(PrinterState& state, const char* moonraker_state) {
 
 } // namespace
 
-// ============================================================================
 // Status subscription is the source of truth
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeManagerFixture,
                  "status subscription promotes awaiting-confirmation to excluded",
                  "[exclude_object][manager][regression]") {
     // Manager has dispatched an EXCLUDE_OBJECT RPC for "Part_1"; visual is optimistic
-    // but excluded_objects_ is still empty because we now wait for Klipper to confirm
+    // but excluded_objects_ is still empty because we wait for Klipper to confirm
     // via the exclude_object.excluded_objects status field.
     PrintExcludeObjectManagerTestAccess::add_awaiting_confirmation(*manager, "Part_1");
     REQUIRE(PrintExcludeObjectManagerTestAccess::is_awaiting_confirmation(*manager, "Part_1"));
     REQUIRE(manager->get_excluded_objects().count("Part_1") == 0);
 
-    // Klipper pushes a status update via Moonraker subscription: Part_1 is now excluded.
+    // Klipper pushes a status update via Moonraker subscription: Part_1 is excluded.
     state.excluded_objects_state().set_excluded_objects({"Part_1"});
     UpdateQueue::instance().drain();
 
@@ -206,9 +204,7 @@ TEST_CASE_METHOD(ExcludeManagerFixture,
     }
 }
 
-// ============================================================================
 // RPC error branching — TIMEOUT is advisory, other errors are fatal-to-the-dispatch
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeManagerFixture,
                  "RPC TIMEOUT error leaves awaiting entry intact for status to confirm later",
@@ -279,9 +275,7 @@ TEST_CASE_METHOD(ExcludeManagerFixture, "RPC CONNECTION_LOST clears awaiting",
         PrintExcludeObjectManagerTestAccess::is_awaiting_confirmation(*manager, "OrphanedExclude"));
 }
 
-// ============================================================================
 // Print-state watchdog — drop stuck optimistic visuals when the print ends
-// ============================================================================
 
 TEST_CASE_METHOD(ExcludeManagerFixture,
                  "print ending clears awaiting-confirmation entries silently",

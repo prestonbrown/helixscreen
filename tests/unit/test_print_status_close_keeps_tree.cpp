@@ -10,7 +10,7 @@
  * These cases open the real overlay through PrintStatusPanel::push_overlay(),
  * close it through NavigationManager's close paths (back, navbar, overlay stack
  * clear; animations off), and read what the panel kept. A close callback that
- * runs a tick late is modelled by taking it off the widget and calling it after
+ * runs a tick late is modeled by taking it off the widget and calling it after
  * the tree was pushed again.
  */
 

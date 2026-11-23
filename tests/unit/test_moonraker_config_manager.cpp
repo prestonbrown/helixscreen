@@ -26,9 +26,7 @@ bool defines_all(const std::string& content, const std::vector<std::string>& req
 
 } // namespace
 
-// ============================================================================
-// Task 1: has_section
-// ============================================================================
+// has_section
 
 TEST_CASE("has_section matches a whole, uncommented section header", "[config_manager]") {
     struct Row {
@@ -53,9 +51,7 @@ TEST_CASE("has_section matches a whole, uncommented section header", "[config_ma
     }
 }
 
-// ============================================================================
-// Task 2: add_section
-// ============================================================================
+// add_section
 
 TEST_CASE("add_section appends a section with its entries in order", "[config_manager]") {
     SECTION("after existing content, with a comment line") {
@@ -98,9 +94,7 @@ TEST_CASE("add_section leaves an existing section untouched", "[config_manager][
     CHECK(result == content);
 }
 
-// ============================================================================
-// Task 3: remove_section
-// ============================================================================
+// remove_section
 
 TEST_CASE("remove_section deletes the section, its entries and its comment block",
           "[config_manager]") {
@@ -162,9 +156,7 @@ TEST_CASE("remove_section deletes the section, its entries and its comment block
     }
 }
 
-// ============================================================================
-// Task 4: has_include_line, add_include_line, get_section_value
-// ============================================================================
+// has_include_line, add_include_line, get_section_value
 
 TEST_CASE("has_include_line finds only an uncommented include", "[config_manager]") {
     CHECK(MoonrakerConfigManager::has_include_line(
@@ -225,10 +217,8 @@ TEST_CASE("get_section_value reads a key inside its own section only", "[config_
     }
 }
 
-// ============================================================================
 // upsert_section: updating an existing section in place. add_section() returns
 // early when the section exists, so changing a configured URL needs this path.
-// ============================================================================
 
 TEST_CASE("upsert_section writes keys into the target section and nothing else",
           "[config_manager][upsert]") {
@@ -368,11 +358,9 @@ TEST_CASE("upsert_section adds a missing section and is stable on a second pass"
     }
 }
 
-// ============================================================================
 // resolve_config_upload_location: can the file API write the config Moonraker
 // actually loads? On stock Creality K2, config_file is
 // /usr/share/moonraker/moonraker.conf while data_path is /mnt/UDISK/printer_data.
-// ============================================================================
 
 TEST_CASE("resolve_config_upload_location finds the config under data_path/config",
           "[config_manager][config_path]") {
@@ -430,7 +418,6 @@ TEST_CASE("resolve_config_upload_location finds the config under data_path/confi
     }
 }
 
-// ============================================================================
 // server.config files[] handling — detecting an unreachable config WITHOUT
 // needing an absolute path.
 //
@@ -441,7 +428,6 @@ TEST_CASE("resolve_config_upload_location finds the config under data_path/confi
 //              "sections": ["server","file_manager","database","data_store",
 //                           "machine","authorization","octoprint_compat","history"] } ]
 // Reachability therefore has to be proven by content, not by path.
-// ============================================================================
 
 // The exact files[] entry captured from stock Creality K2 firmware.
 static std::vector<helix::LoadedConfigFile> k2_server_config_files() {
@@ -466,7 +452,6 @@ TEST_CASE("select_primary_config_index picks the file defining [server]",
     CHECK(MoonrakerConfigManager::select_primary_config_index(blank) == -1);
 }
 
-// ============================================================================
 // Root vs primary — the COSMOS split (#1242)
 //
 // select_primary_config_index answers "which file can prove reachability by
@@ -481,7 +466,6 @@ TEST_CASE("select_primary_config_index picks the file defining [server]",
 //
 // files[] captured live from each device on 2026-08-09. Moonraker reports the
 // config chain root-first, then in include order — confirmed on all six.
-// ============================================================================
 
 // COSMOS 26.07.0, Elegoo Centauri Carbon. Root defines NO sections.
 static std::vector<helix::LoadedConfigFile> cosmos_server_config_files() {
@@ -505,14 +489,14 @@ TEST_CASE("select_root_config_index picks the user-editable root on COSMOS, not 
     REQUIRE(root == 0);
     CHECK(files[static_cast<size_t>(root)].filename == "moonraker.conf");
 
-    // The specific regression: never hand back a path inside the vendor tree.
+    // Never hand back a path inside the vendor tree.
     CHECK(files[static_cast<size_t>(root)].filename.find("-readonly/") == std::string::npos);
 }
 
 TEST_CASE("select_root_config_index leaves single-file firmwares alone",
           "[config_manager][config_path][1242]") {
-    // K2: one file, defines [server]. Root and primary must agree, or the
-    // original K2 unreachable-config fix regresses.
+    // K2: one file, defines [server]. Root and primary must agree, or K2
+    // unreachable-config detection breaks.
     auto k2 = k2_server_config_files();
     CHECK(MoonrakerConfigManager::select_root_config_index(k2) == 0);
     CHECK(MoonrakerConfigManager::select_primary_config_index(k2) == 0);
@@ -587,7 +571,7 @@ TEST_CASE("config_path_from_relative accepts a path inside the config root",
 
 TEST_CASE("K2 case: a stray file under the config root fails the section match",
           "[config_manager][config_path]") {
-    // The file HelixScreen previously wrote into data_path/config on the K2. It is
+    // A file HelixScreen could write into data_path/config on the K2. It is
     // named moonraker.conf but is NOT what Moonraker loaded. This must be detected so
     // setup errors out instead of reporting a false success.
     auto files = k2_server_config_files();
@@ -618,7 +602,7 @@ TEST_CASE("section match survives HelixScreen adding its include line",
           "[config_manager][config_path]") {
     // The check is a subset test, not equality: once setup adds
     // [include helixscreen.conf] the file has a section Moonraker never reported.
-    // A later re-run must still recognise the file as reachable.
+    // A later re-run must still recognize the file as reachable.
     auto files = k2_server_config_files();
     std::string real = "[server]\n[file_manager]\n[database]\n[data_store]\n[machine]\n"
                        "[authorization]\n[octoprint_compat]\n[history]\n";
@@ -643,13 +627,11 @@ TEST_CASE("the Match verdict is a subset test, not equality", "[config_manager][
     CHECK_FALSE(defines_all("[a]\n", {"a", "b"}));
 }
 
-// ============================================================================
 // Standard Fluidd/Mainsail layout — verified against a real CB1/Voron
 // (192.168.1.112, 2026-07). This is the "must keep working, must not emit a
 // spurious error" side of the detection, and it is materially more complex than
 // the K2 fixture: a two-entry config chain, section names containing spaces, and
 // an [include] line present in the file text but absent from files[] sections.
-// ============================================================================
 
 // The exact files[] chain reported by the CB1.
 static std::vector<helix::LoadedConfigFile> cb1_server_config_files() {
@@ -689,8 +671,8 @@ static std::string cb1_moonraker_conf_text() {
 
 TEST_CASE("CB1: standard layout passes the section match with no spurious error",
           "[config_manager][config_path]") {
-    // The regression that matters on the working-machine side: if this ever fails we
-    // emit a "config not writable" error on a perfectly healthy Fluidd install.
+    // If this ever fails we emit a "config not writable" error on a perfectly healthy Fluidd
+    // install.
     auto files = cb1_server_config_files();
     CHECK(defines_all(cb1_moonraker_conf_text(), files[0].sections));
 }
@@ -779,7 +761,7 @@ TEST_CASE("CB1: upsert rewrites the existing [spoolman] URL without disturbing t
           "http://192.168.1.56:7912");
     CHECK(result.find("192.168.1.58") == std::string::npos);
     // Every section Moonraker reported still present, include line intact, and a
-    // neighbouring key untouched.
+    // neighboring key untouched.
     CHECK(defines_all(result, files[0].sections));
     CHECK(result.find("[include moonraker-obico-update.cfg]") != std::string::npos);
     CHECK(MoonrakerConfigManager::get_section_value(result, "update_manager", "channel") == "dev");
@@ -795,7 +777,6 @@ TEST_CASE("CB1: upsert targets a spaced section name precisely", "[config_manage
     CHECK(MoonrakerConfigManager::get_section_value(result, "update_manager", "origin").empty());
 }
 
-// ============================================================================
 // Choosing WHERE [spoolman] is written.
 //
 // A config that already defines [spoolman] natively (verified on the CB1) must be
@@ -805,7 +786,6 @@ TEST_CASE("CB1: upsert targets a spaced section name precisely", "[config_manage
 //
 // Mirrors SpoolmanOverlay's decision: >1 defining file -> ambiguous (refuse),
 // exactly 1 -> update that file in place, 0 -> helixscreen.conf + [include].
-// ============================================================================
 
 namespace {
 enum class SpoolmanTarget { Ambiguous, InPlace, IncludeFile };
@@ -899,7 +879,7 @@ TEST_CASE("idempotence: fresh setup converges after a second run", "[config_mana
     std::vector<helix::LoadedConfigFile> fresh = {
         {"moonraker.conf", {"server", "file_manager", "history"}}};
 
-    // --- run 1: include flow ---
+    // run 1: include flow
     REQUIRE(decide_spoolman_target(fresh).mode == SpoolmanTarget::IncludeFile);
     std::string moonraker = "[server]\nhost: 0.0.0.0\n[file_manager]\n[history]\n";
     std::string helix = MoonrakerConfigManager::upsert_section(
@@ -907,12 +887,12 @@ TEST_CASE("idempotence: fresh setup converges after a second run", "[config_mana
     moonraker = MoonrakerConfigManager::add_include_line(moonraker);
     REQUIRE(MoonrakerConfigManager::has_include_line(moonraker));
 
-    // After the restart Moonraker loads helixscreen.conf, so it now appears in files[].
+    // After the restart Moonraker loads helixscreen.conf, so it appears in files[].
     std::vector<helix::LoadedConfigFile> after_run1 = {
         {"moonraker.conf", {"server", "file_manager", "history"}},
         {"helixscreen.conf", {"spoolman"}}};
 
-    // --- run 2: in place on helixscreen.conf, moonraker.conf untouched ---
+    // run 2: in place on helixscreen.conf, moonraker.conf untouched
     auto plan2 = decide_spoolman_target(after_run1);
     CHECK(plan2.mode == SpoolmanTarget::InPlace);
     CHECK(plan2.target == "helixscreen.conf");
@@ -928,7 +908,7 @@ TEST_CASE("idempotence: fresh setup converges after a second run", "[config_mana
     size_t sec = helix.find("[spoolman]");
     CHECK(helix.find("[spoolman]", sec + 1) == std::string::npos);
 
-    // --- run 3 is byte-identical ---
+    // run 3 is byte-identical
     auto run3 = MoonrakerConfigManager::upsert_section(
         helix, "spoolman", {{"server", "http://a:7912"}}, "Spoolman - added by HelixScreen");
     CHECK(run3 == helix);
@@ -953,7 +933,6 @@ TEST_CASE("idempotence: CB1 in-place setup converges after a second run",
     CHECK(defines_all(run1, files[0].sections));
 }
 
-// ============================================================================
 // Display and Remove act on the file that actually defines [spoolman].
 //
 // Neither path may assume helixscreen.conf. On a natively-configured Moonraker
@@ -971,7 +950,6 @@ TEST_CASE("idempotence: CB1 in-place setup converges after a second run",
 // target and remove_section() produces the text -- the stand-in supplies only the
 // order the statuses are checked in. Residual gap: reordering the overlay switch
 // would not fail these tests.
-// ============================================================================
 
 namespace {
 enum class RemoveOutcome { Removed, NothingToRemove, RefusedAmbiguous, RefusedUnreachable };
@@ -1014,9 +992,9 @@ TEST_CASE("CB1 display: URL comes from the native moonraker.conf, not blank",
     auto url =
         MoonrakerConfigManager::get_section_value(cb1_moonraker_conf_text(), "spoolman", "server");
     CHECK(url == "http://192.168.1.58:7912");
-    CHECK_FALSE(url.empty()); // the old helixscreen.conf assumption produced exactly this
+    CHECK_FALSE(url.empty()); // reading from helixscreen.conf instead would yield an empty URL
 
-    // ...and the old assumption really would have come up empty.
+    // ...and an absent file really does come up empty.
     CHECK(MoonrakerConfigManager::get_section_value("", "spoolman", "server").empty());
 }
 
@@ -1093,7 +1071,6 @@ TEST_CASE("remove with no [spoolman] anywhere: nothing to remove, not success",
     CHECK(r.target.empty());
 }
 
-// ============================================================================
 // Absolute filenames that still land inside the writable config root.
 //
 // Moonraker names each loaded file relative to the ROOT config file's parent
@@ -1106,7 +1083,6 @@ TEST_CASE("remove with no [spoolman] anywhere: nothing to remove, not success",
 //
 // So an absolute name inside the caller-supplied config root is accepted; with
 // no root supplied every absolute name is refused.
-// ============================================================================
 
 TEST_CASE("config_path_from_relative accepts an absolute path inside the supplied config root",
           "[config_manager][config_path][abs_root]") {
@@ -1175,20 +1151,18 @@ TEST_CASE("config_path_from_relative accepts an absolute path inside the supplie
     }
 }
 
-// ============================================================================
 // Section drift — an edited config is still the config Moonraker loaded.
 //
 // Moonraker serves the section list it PARSED AT STARTUP. Any edit since the last
-// restart makes the reported list disagree with the file on disk, and the strict
-// superset test read that as "this is not the file Moonraker loaded" and refused
-// to continue.
+// restart makes the reported list disagree with the file on disk, and a strict
+// superset test would read that as "this is not the file Moonraker loaded" and
+// refuse to continue.
 //
 // Captured live from a Snapmaker U1 (192.168.30.103) on 2026-08-14: HelixScreen
 // had been uninstalled, which removed [update_manager helixscreen] from
 // moonraker.conf, while Moonraker (up 16 days) still reported it. 12 of 13
 // reported sections were present. Restarting Moonraker made the lists agree
 // again, confirming the mechanism.
-// ============================================================================
 
 // The U1's /server/config files[] BEFORE the confirming restart.
 static std::vector<helix::LoadedConfigFile> u1_server_config_files() {
@@ -1234,7 +1208,7 @@ TEST_CASE("classify_section_match: the U1 drift case is Drifted, not Mismatch",
     REQUIRE(m.missing.size() == 1);
     CHECK(m.missing[0] == "update_manager helixscreen");
 
-    // The old strict test is exactly what failed here.
+    // A strict all-sections test fails here.
     CHECK_FALSE(defines_all(u1_moonraker_conf_text(), files[0].sections));
 }
 
@@ -1251,9 +1225,9 @@ TEST_CASE("classify_section_match: an unedited config is a clean Match",
 
 TEST_CASE("classify_section_match: the K2 stray file is a Mismatch",
           "[config_manager][config_path][drift]") {
-    // The file HelixScreen previously wrote into data_path/config on the K2: named
+    // A file HelixScreen could write into data_path/config on the K2: named
     // moonraker.conf, but not what Moonraker loaded. Drift tolerance must not
-    // resurrect the false success this originally caught.
+    // turn this into a false success.
     auto files = k2_server_config_files();
     auto m = MoonrakerConfigManager::classify_section_match("[include helixscreen.conf]\n",
                                                             files[0].sections);
@@ -1289,7 +1263,7 @@ TEST_CASE("classify_section_match: drift is graded by how many went missing, not
     CHECK(six.matched == 6);
     CHECK(six.verdict == helix::SectionMatch::Drifted);
 
-    // A strict majority — which the old rule accepted — is now a different file.
+    // A strict majority is a different file.
     auto majority =
         MoonrakerConfigManager::classify_section_match("[a]\n[b]\n[c]\n[d]\n[e]\n", required);
     CHECK(majority.matched == 5);
@@ -1312,11 +1286,10 @@ TEST_CASE("classify_section_match: drift is graded by how many went missing, not
 
 TEST_CASE("classify_section_match: a decoy sharing the stock section set is still a Mismatch",
           "[config_manager][config_path][drift]") {
-    // The regression the majority rule opened: an unrelated moonraker.conf left under
-    // the writable config root by an earlier HelixScreen release shares every stock
-    // section with the vendor config Moonraker actually loaded, and differs only in
-    // the extras. Under a fraction rule it scored well above the bar and got written
-    // to; the file Moonraker reads never changed and setup reported success.
+    // An unrelated moonraker.conf left under the writable config root shares every
+    // stock section with the vendor config Moonraker actually loaded, and differs only
+    // in the extras. A fraction rule would score it well above the bar and write to
+    // it; the file Moonraker reads would never change and setup would report success.
     const std::vector<std::string> vendor = {"server",
                                              "file_manager",
                                              "database",
@@ -1400,10 +1373,8 @@ TEST_CASE("Match means every reported section is genuinely present",
 
 // SpoolmanOverlay::verify_config_reachable() accepts a candidate exactly when
 // grade_config_candidate() does — everything else it owns is the retry recursion
-// and the logging. Calling the grader is what keeps the accept/reject rule in one
-// place: the local copy this replaced knew only the Match/Drifted/Mismatch verdict
-// and never had the speculative or in-place rejections, so the two tests below
-// could not have existed against it.
+// and the logging. Calling the grader keeps the accept/reject rule in one place,
+// including the speculative and in-place rejections the two tests below pin.
 namespace {
 enum class VerifyOutcome { Proceed, Unreachable };
 
@@ -1472,14 +1443,12 @@ TEST_CASE("verify dispatch: an in-place rewrite target must define [spoolman]",
     CHECK(simulate_verify(with, required, /*in_place=*/true) == VerifyOutcome::Proceed);
 }
 
-// ============================================================================
 // Include line with an explicit target
 //
 // The K2 needs `[include /mnt/UDISK/printer_data/config/helixscreen.conf]` in a
 // vendor moonraker.conf that lives in /usr/share/moonraker: a bare
 // "helixscreen.conf" there resolves against the vendor directory, where no such
 // file exists — and Moonraker refuses to start on an include it cannot match.
-// ============================================================================
 
 TEST_CASE("has_include_line matches the include target exactly", "[config_manager][include_line]") {
     const std::string absolute = "/mnt/UDISK/printer_data/config/helixscreen.conf";
@@ -1506,9 +1475,7 @@ TEST_CASE("add_include_line inserts an absolute target once, before the first se
     CHECK(MoonrakerConfigManager::add_include_line(out, target) == out);
 }
 
-// ============================================================================
 // set_existing_value: the update_manager channel sync
-// ============================================================================
 
 namespace {
 
@@ -1630,9 +1597,7 @@ TEST_CASE("set_existing_value leaves duplicate stanzas alone", "[config_manager]
     CHECK(set_channel(dup, "beta") == dup);
 }
 
-// ============================================================================
 // find_section_file: where Moonraker reads a section from
-// ============================================================================
 
 namespace {
 

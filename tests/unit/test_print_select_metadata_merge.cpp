@@ -41,9 +41,7 @@ PrintFileData make_cached_entry(const std::string& filename, size_t size,
 
 } // namespace
 
-// ============================================================================
 // Basic carry-forward
-// ============================================================================
 
 TEST_CASE("Unchanged file with thumbnail carries forward", "[print_select][merge]") {
     auto old = make_cached_entry("print.gcode", 1024, "A:helix_thumbs/abc.bin");
@@ -72,9 +70,7 @@ TEST_CASE("Entry without metadata_fetched is never carried forward", "[print_sel
     REQUIRE(should_carry_forward_print_file_metadata(old, 1024, true, true) == false);
 }
 
-// ============================================================================
-// Retry-missing-thumbnail path (the actual bug)
-// ============================================================================
+// Retry-missing-thumbnail path
 
 TEST_CASE("Empty thumbnail carries forward on polling refresh", "[print_select][merge][retry]") {
     // Polling refresh (not panel activation): retry flag is false. The stale entry
@@ -148,9 +144,7 @@ TEST_CASE("Size change wins over retry flag for empty-thumbnail entry",
     REQUIRE(should_carry_forward_print_file_metadata(old, 2048, true, true) == false);
 }
 
-// ============================================================================
-// cap_print_file_list_to_newest (Task 11 R1 — ESP32 newest-N file cap)
-// ============================================================================
+// cap_print_file_list_to_newest (ESP32 newest-N file cap)
 
 namespace {
 
@@ -220,9 +214,7 @@ TEST_CASE("Cap on an all-directory list changes nothing", "[print_select][cap]")
     REQUIRE(files.size() == 3);
 }
 
-// ============================================================================
 // Listing merge
-// ============================================================================
 
 namespace {
 std::vector<PrintFileData> listing(const std::vector<std::string>& names) {

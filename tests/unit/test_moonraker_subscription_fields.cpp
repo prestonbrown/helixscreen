@@ -6,8 +6,8 @@
 //
 // The contract under test: each Klipper object subscription must include
 // every field the corresponding HelixScreen parser reads. A missing field
-// causes a silent regression — the value never updates past whatever the
-// subscription response carried as initial state.
+// leaves the value stuck at whatever the subscription response carried as
+// initial state.
 //
 // Each test names the specific parser file it is mirroring; if you add a new
 // field read in that parser, update both the subscription and this test.
@@ -715,7 +715,7 @@ TEST_CASE("Subscription: mmu subscribed only for Happy Hare", "[moonraker][subsc
 // "A new request will override a previous request." A separate
 // printer.objects.subscribe call from PerformanceSource would wipe the entire
 // subscription, severing notify_status_update for heaters / print_stats /
-// fans / AFC. Regression of this guard reintroduces the v0.99.68 outage.
+// fans / AFC. Breaking this guard freezes the core UI.
 TEST_CASE("Subscription: MCU objects narrow to PerformanceSource reads",
           "[moonraker][subscription]") {
     SECTION("none subscribed when no MCU objects discovered") {

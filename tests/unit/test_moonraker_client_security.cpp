@@ -27,9 +27,7 @@ using namespace helix;
  * robust error handling that prevents crashes and undefined behavior.
  */
 
-// ============================================================================
 // Test Fixtures
-// ============================================================================
 
 /**
  * @brief Base fixture for MoonrakerClient security tests
@@ -61,7 +59,6 @@ class MoonrakerClientSecurityFixture {
         captured_error = MoonrakerError();
     }
 
-    // Standard callbacks for testing
     void success_callback(json response) {
         success_called = true;
         callback_count++;
@@ -74,10 +71,8 @@ class MoonrakerClientSecurityFixture {
         captured_error = err;
     }
 
-    // Test objects
     std::unique_ptr<MoonrakerClient> client;
 
-    // Callback tracking
     std::atomic<bool> success_called{false};
     std::atomic<bool> error_called{false};
     std::atomic<int> callback_count{0};
@@ -85,9 +80,7 @@ class MoonrakerClientSecurityFixture {
     json captured_response;
 };
 
-// ============================================================================
 // Issue #4: Use-After-Free - Destructor Cleanup
-// ============================================================================
 
 // [slow] tag: the create/destroy SECTIONs churn real libhv connect attempts
 // against a dead port, so they belong in the dedicated test-eventloop CI lane
@@ -108,15 +101,12 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
         std::atomic<bool> connected_called{false};
         std::atomic<bool> disconnected_called{false};
 
-        // Start connection to non-existent server (will fail)
         client->connect(
             "ws://127.0.0.1:19999/websocket", [&connected_called]() { connected_called = true; },
             [&disconnected_called]() { disconnected_called = true; });
 
-        // Destroy client immediately before connection resolves
         client.reset();
 
-        // Sleep briefly to allow any pending events
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
         // If callbacks weren't cleared, this could crash with UAF
@@ -129,7 +119,6 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
 
         std::atomic<bool> error_callback_invoked{false};
 
-        // Send request that will never complete (no connection)
         client->send_jsonrpc(
             "printer.info", json(), [](json) { FAIL("Success callback should not be called"); },
             [&error_callback_invoked](const MoonrakerError& err) {
@@ -140,7 +129,6 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
         // Destroy client - should invoke error callbacks with CONNECTION_LOST
         client.reset();
 
-        // Error callback should have been invoked during cleanup
         REQUIRE(error_callback_invoked.load());
     }
 
@@ -151,15 +139,12 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
         for (int i = 0; i < 20; i++) {
             auto client = std::make_unique<MoonrakerClient>();
 
-            // Start connection
             client->connect(
                 "ws://127.0.0.1:19999/websocket", []() { /* connected */ },
                 []() { /* disconnected */ });
 
-            // Send pending request
             client->send_jsonrpc("printer.info", json(), [](json) {}, [](const MoonrakerError&) {});
 
-            // Destroy immediately
             client.reset();
             cycles_completed++;
         }
@@ -173,15 +158,12 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
 
         std::atomic<bool> notify_callback_invoked{false};
 
-        // Register persistent status update callback
         client->register_notify_update(
             [&notify_callback_invoked](json j) { notify_callback_invoked = true; });
 
-        // Register persistent method callback
         client->register_method_callback("notify_gcode_response", "test_handler",
                                          [](json j) { /* callback */ });
 
-        // Destroy client
         client.reset();
 
         // If callbacks weren't cleared, accessing them would crash
@@ -189,9 +171,7 @@ TEST_CASE("MoonrakerClient destructor clears callbacks (UAF prevention)",
     }
 }
 
-// ============================================================================
 // Issue #6: Deadlock Risk - Two-Phase Timeout Pattern
-// ============================================================================
 
 // NOTE: This test requires an actual WebSocket connection to test timeout behavior.
 // Without a connection, send_jsonrpc immediately fails with CONNECTION_LOST
@@ -201,8 +181,8 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
                  "[connection][security][deadlock][issue6][.integration][slow]") {
     SECTION("Timeout callback can safely call send_jsonrpc (no deadlock)") {
         // This test verifies the two-phase timeout pattern:
-        // Phase 1: Copy callbacks under lock
-        // Phase 2: Invoke callbacks outside lock
+        // 1. Copy callbacks under lock
+        // 2. Invoke callbacks outside lock
 
         bool timeout_callback_invoked = false;
         bool nested_request_sent = false;
@@ -227,13 +207,10 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
                 nested_request_sent = true;
             });
 
-        // Wait for timeout to occur
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
 
-        // Trigger timeout check
         client->process_timeouts();
 
-        // Verify callback was invoked and nested request succeeded
         REQUIRE(timeout_callback_invoked);
         REQUIRE(nested_request_sent);
     }
@@ -264,15 +241,12 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
         // Destroy client to trigger cleanup
         client.reset();
 
-        // Verify callback was invoked and nested request succeeded
         REQUIRE(cleanup_callback_invoked);
         REQUIRE(nested_request_sent);
     }
 }
 
-// ============================================================================
 // Issue #9: Exception Safety
-// ============================================================================
 
 TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
                  "MoonrakerClient state change callback is exception safe",
@@ -282,7 +256,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
         // the body returns, while the fixture's client still holds this callback.
         auto callback_invoked = std::make_shared<std::atomic<bool>>(false);
 
-        // Register callback that throws
         client->set_state_change_callback(
             [callback_invoked](ConnectionState old_state, ConnectionState new_state) {
                 *callback_invoked = true;
@@ -293,7 +266,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
         // Exception should be caught and logged, not propagate
         REQUIRE_NOTHROW(client->connect("ws://127.0.0.1:19999/websocket", []() {}, []() {}));
 
-        // Verify callback was invoked (and threw)
         REQUIRE(callback_invoked->load());
     }
 }
@@ -334,7 +306,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
     SECTION("Error callback throwing doesn't crash during timeout") {
         bool timeout_callback_called = false;
 
-        // Set very short timeout
         client->set_default_request_timeout(50);
 
         // Register request with throwing timeout callback
@@ -345,7 +316,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
                 throw std::runtime_error("Test exception in timeout");
             });
 
-        // Wait for timeout
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         // Process timeouts - should not crash
@@ -361,7 +331,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
     SECTION("Notify callback throwing doesn't crash") {
         std::atomic<bool> callback_invoked{false};
 
-        // Register notify callback that throws
         client->register_notify_update([&callback_invoked](const json& notification) {
             callback_invoked = true;
             throw std::runtime_error("Test exception in notify callback");
@@ -375,7 +344,6 @@ TEST_CASE_METHOD(MoonrakerClientSecurityFixture,
     SECTION("Method callback throwing doesn't crash") {
         std::atomic<bool> callback_invoked{false};
 
-        // Register method callback that throws
         client->register_method_callback(
             "notify_gcode_response", "test_handler", [&callback_invoked](const json& notification) {
                 callback_invoked = true;
@@ -393,27 +361,22 @@ TEST_CASE("MoonrakerClient all callback types exception-safe (comprehensive)",
     SECTION("Exception in every callback type doesn't crash") {
         auto client = std::make_unique<MoonrakerClient>();
 
-        // Connection callbacks
         REQUIRE_NOTHROW(client->connect(
             "ws://127.0.0.1:19999/websocket",
             []() { throw std::runtime_error("onopen exception"); },
             []() { throw std::runtime_error("onclose exception"); }));
 
-        // Request callbacks
         REQUIRE_NOTHROW(client->send_jsonrpc(
             "printer.info", json(), [](json) { throw std::runtime_error("success exception"); },
             [](const MoonrakerError&) { throw std::runtime_error("error exception"); }));
 
-        // Notify callbacks
         REQUIRE_NOTHROW(client->register_notify_update(
             [](json) { throw std::runtime_error("notify exception"); }));
 
-        // Method callbacks
         REQUIRE_NOTHROW(client->register_method_callback("test_method", "test_handler", [](json) {
             throw std::runtime_error("method exception");
         }));
 
-        // State change callback
         REQUIRE_NOTHROW(client->set_state_change_callback(
             [](ConnectionState, ConnectionState) { throw std::runtime_error("state exception"); }));
 
@@ -422,9 +385,7 @@ TEST_CASE("MoonrakerClient all callback types exception-safe (comprehensive)",
     }
 }
 
-// ============================================================================
 // Issue #357: Callback Lifecycle Mutex - Destructor/Callback Synchronization
-// ============================================================================
 
 TEST_CASE("MoonrakerClient destructor waits for in-flight callbacks (issue #357)",
           "[connection][security][uaf][issue357][eventloop][slow]") {
@@ -448,7 +409,6 @@ TEST_CASE("MoonrakerClient destructor waits for in-flight callbacks (issue #357)
                 "ws://127.0.0.1:19999/websocket", [&callback_count]() { callback_count++; },
                 [&callback_count]() { callback_count++; });
 
-            // Send pending requests
             client->send_jsonrpc("printer.info", json(), [](json) {}, [](const MoonrakerError&) {});
 
             // Destroy immediately — destructor must set is_destroying_ FIRST,
@@ -475,7 +435,6 @@ TEST_CASE("MoonrakerClient destructor waits for in-flight callbacks (issue #357)
         // state_cb should have been called for CONNECTING transition
         REQUIRE(state_cb_called);
 
-        // Reset tracking
         state_cb_called = false;
 
         // Destroy — is_destroying_ should prevent state change callback during teardown
@@ -487,9 +446,7 @@ TEST_CASE("MoonrakerClient destructor waits for in-flight callbacks (issue #357)
     }
 }
 
-// ============================================================================
 // Integration Tests - Multiple Security Properties
-// ============================================================================
 
 // Destroys a client with 50 pending requests whose error callbacks throw and re-enter
 // it to send more. The destructor's two-phase cleanup, its callback drain, and the
@@ -502,19 +459,16 @@ TEST_CASE("MoonrakerClient security properties work together correctly",
 
         std::atomic<int> cleanup_callbacks_invoked{0};
 
-        // Send many requests with various properties
         for (int i = 0; i < 50; i++) {
             client->send_jsonrpc(
                 "printer.info", json(), [](json) { throw std::runtime_error("Success exception"); },
                 [&cleanup_callbacks_invoked, &client](const MoonrakerError& err) {
                     cleanup_callbacks_invoked++;
 
-                    // Some callbacks throw
                     if (cleanup_callbacks_invoked % 3 == 0) {
                         throw std::runtime_error("Cleanup exception");
                     }
 
-                    // Some callbacks send nested requests
                     if (cleanup_callbacks_invoked % 5 == 0) {
                         client->send_jsonrpc(
                             "nested.request", json(), [](json) {}, [](const MoonrakerError&) {});
@@ -528,7 +482,6 @@ TEST_CASE("MoonrakerClient security properties work together correctly",
         // - Callback cleanup (no UAF)
         REQUIRE_NOTHROW(client.reset());
 
-        // All cleanup callbacks should have been invoked
         REQUIRE(cleanup_callbacks_invoked == 50);
     }
 }

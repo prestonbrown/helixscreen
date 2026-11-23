@@ -26,32 +26,26 @@
 using namespace helix;
 using namespace std::chrono;
 
-// ============================================================================
 // Discovery Error Callback Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer error callback",
                  "[moonraker][discovery][callback]") {
     SECTION("Error callback invoked when Klippy in STARTUP state") {
-        // Create mock client
         MoonrakerClientMock client;
 
         // Set Klippy to STARTUP state (simulates Klippy not connected)
         client.set_klippy_state(MoonrakerClientMock::KlippyState::STARTUP);
 
-        // Track callbacks
         std::atomic<bool> success_called{false};
         std::atomic<bool> error_called{false};
         std::string error_reason;
 
-        // Call discover_printer with both callbacks
         client.discover_printer([&success_called]() { success_called.store(true); },
                                 [&error_called, &error_reason](const std::string& reason) {
                                     error_called.store(true);
                                     error_reason = reason;
                                 });
 
-        // Verify error callback was called, success was not
         REQUIRE(error_called.load() == true);
         REQUIRE(success_called.load() == false);
         REQUIRE(error_reason.find("Klippy") != std::string::npos);
@@ -110,7 +104,6 @@ TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer error 
         client.discover_printer(
             []() {}, [&error_reason](const std::string& reason) { error_reason = reason; });
 
-        // Verify the error message is descriptive
         REQUIRE(error_reason.empty() == false);
         REQUIRE(error_reason.find("Klippy not ready") != std::string::npos);
         REQUIRE(error_reason.find("startup") != std::string::npos);
@@ -145,15 +138,12 @@ TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer error 
 
         REQUIRE(error_called.load() == true);
 
-        // Verify hostname wasn't set (remains default)
         // Hardware shouldn't be populated when discovery fails
         REQUIRE(client.hardware().hostname().empty() == true);
     }
 }
 
-// ============================================================================
-// Regression Tests
-// ============================================================================
+// Backwards compatibility
 
 TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer regression tests",
                  "[moonraker][discovery][regression]") {
@@ -163,7 +153,7 @@ TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer regres
 
         std::atomic<bool> success_called{false};
 
-        // Call with only success callback (old API style)
+        // Call with only success callback (no error callback)
         client.discover_printer([&success_called]() { success_called.store(true); });
 
         REQUIRE(success_called.load() == true);
@@ -178,7 +168,6 @@ TEST_CASE_METHOD(HelixTestFixture, "MoonrakerClientMock: discover_printer regres
 
         REQUIRE(success_called.load() == true);
 
-        // Hardware should have been populated
         // Default mock has heaters, sensors, etc.
         REQUIRE(client.hardware().heaters().empty() == false);
     }

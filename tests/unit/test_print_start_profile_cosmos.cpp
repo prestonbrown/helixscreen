@@ -9,7 +9,6 @@
 
 using namespace helix;
 
-// ============================================================================
 // COSMOS (Elegoo Centauri Carbon) Profile Tests
 //
 // Console lines are verbatim from klippy.log of a CC1 print on COSMOS 26.08
@@ -19,7 +18,6 @@ using namespace helix;
 // PREFIX="Info:" goes out raw, so it carries no "// ". Lines for branches that
 // print did not take (chamber wait, adaptive mesh, cancels) are the
 // SET_DISPLAY_TEXT messages in COSMOS macros.cfg.
-// ============================================================================
 
 static std::shared_ptr<PrintStartProfile> get_cosmos_profile() {
     return PrintStartProfile::load("cosmos_cc1");

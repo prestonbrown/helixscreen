@@ -30,9 +30,7 @@
 #include "../catch_amalgamated.hpp"
 
 using namespace helix;
-// ============================================================================
 // Test Fixture for Motion Testing
-// ============================================================================
 
 /**
  * @brief Test fixture that captures notifications from MoonrakerClientMock
@@ -226,9 +224,7 @@ inline bool approx_equal(double a, double b, double tolerance = 0.001) {
     return std::abs(a - b) < tolerance;
 }
 
-// ============================================================================
 // Movement Command Tests (G0/G1)
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock G0/G1 movement commands", "[api][movement]") {
     MockMotionTestFixture fixture;
@@ -258,7 +254,6 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement commands", "[api][movement]") {
                 if (!toolhead.contains("position") || !toolhead["position"].is_array()) {
                     return false;
                 }
-                // Check if X=10, Y=20
                 double x = toolhead["position"][0].get<double>();
                 double y = toolhead["position"][1].get<double>();
                 return approx_equal(x, 10.0) && approx_equal(y, 20.0);
@@ -463,9 +458,7 @@ TEST_CASE("MoonrakerClientMock G0/G1 movement commands", "[api][movement]") {
     }
 }
 
-// ============================================================================
 // Homing Command Tests (G28)
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock G28 homing commands", "[slow][api][homing]") {
     MockMotionTestFixture fixture;
@@ -734,9 +727,7 @@ TEST_CASE("MoonrakerClientMock G28 homing commands", "[slow][api][homing]") {
     }
 }
 
-// ============================================================================
 // Position Reporting Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock position in status updates", "[api][position_reporting]") {
     MockMotionTestFixture fixture;
@@ -772,7 +763,6 @@ TEST_CASE("MoonrakerClientMock position in status updates", "[api][position_repo
             },
             2000));
 
-        // Verify each axis was updated
         auto pos = fixture.get_matched_position();
         REQUIRE(pos.has_value());
         REQUIRE(approx_equal((*pos)[0], 25.0));
@@ -849,7 +839,6 @@ TEST_CASE("MoonrakerClientMock position in status updates", "[api][position_repo
             REQUIRE(z >= -5.0); // Allow small negative for bed mesh probing
             REQUIRE(z <= 500.0);
 
-            // Verify homed_axes field
             REQUIRE(toolhead.contains("homed_axes"));
             REQUIRE(toolhead["homed_axes"].is_string());
 
@@ -867,9 +856,7 @@ TEST_CASE("MoonrakerClientMock position in status updates", "[api][position_repo
     }
 }
 
-// ============================================================================
 // Out-of-Range Movement Error Tests
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock out-of-range move error handling", "[api][movement][errors]") {
     SECTION("Move beyond X_MAX returns error") {
@@ -1069,9 +1056,7 @@ TEST_CASE("MoonrakerClientMock out-of-range move error handling", "[api][movemen
     }
 }
 
-// ============================================================================
 // Multi-line script error fidelity (mock must mirror real Moonraker)
-// ============================================================================
 
 TEST_CASE("MoonrakerClientMock multi-line script surfaces the failing line's error",
           "[api][movement][errors][mock_fidelity]") {

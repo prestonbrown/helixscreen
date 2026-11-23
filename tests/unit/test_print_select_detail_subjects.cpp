@@ -76,9 +76,7 @@
 
 using helix::test::make_skip_and_addon_set;
 
-// ============================================================================
 // Pre-print Option Subject Default Tests
-// ============================================================================
 
 // populate() re-initializes every state subject from default_enabled, so opening
 // a second file cannot inherit the first file's toggles
@@ -112,9 +110,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     renderer.clear();
 }
 
-// ============================================================================
 // detail_mapping_ready skeleton latch (tools-used cache + scan readiness)
-// ============================================================================
 
 namespace {
 
@@ -495,15 +491,13 @@ TEST_CASE_METHOD(LVGLUITestFixture, "detail_mapping_ready tracks cache seed and 
     }
 }
 
-// ============================================================================
 // print_file_detail.xml structure
-// ============================================================================
 
 namespace {
-// No fixture builds this root today. LVGLUITestFixture registers every
-// production component and initialises subjects first, so this should work;
-// if it returns null, the detail view's own subjects are not part of the
-// fixture's Phase 4 and this whole XML-structure approach is not viable.
+// LVGLUITestFixture registers every production component and initializes
+// subjects first, so the root builds; a null return means the detail view's
+// own subjects are not part of the fixture and this XML-structure approach
+// is not viable.
 lv_obj_t* make_detail_root(lv_obj_t* parent) {
     return static_cast<lv_obj_t*>(lv_xml_create(parent, "print_file_detail", nullptr));
 }
@@ -671,9 +665,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "Print button sits outside the options scrol
     CHECK_FALSE(lv_obj_is_clickable(cue));
 }
 
-// ============================================================================
 // Preflight keeps colour, material and an empty lane apart
-// ============================================================================
 //
 // PreflightResult separates them: has_block() is the empty lane,
 // has_advisory() is the material mismatch, and a colour mismatch is neither.
@@ -781,9 +773,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     }
 }
 
-// ============================================================================
 // One card, one gate
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture, "One filament card, titled FILAMENTS, with the tap chevron",
                  "[print_select][detail][xml]") {
@@ -1483,9 +1473,7 @@ TEST_CASE_METHOD(LVGLUITestFixture,
     CHECK(lv_subject_get_int(lv_xml_get_subject(nullptr, "filament_chip_0_severity")) == 0);
 }
 
-// ============================================================================
 // Start-blocked reason (prestonbrown/helixscreen#1395)
-// ============================================================================
 //
 // The Print button's disabled state binds print_select_can_print (owned by
 // PrintSelectPanel), and the reason label beside it binds
@@ -1587,9 +1575,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "More-below subject tracks the options scrol
     CHECK(lv_subject_get_int(more) == 0);
 }
 
-// ============================================================================
 // Pre-start object picks
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "prep time estimate line appears once the file's metadata is in",
@@ -2409,9 +2395,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show after the tree is deleted externally r
     CHECK(PrintSelectDetailViewTestAccess::gcode_viewer(d.view) != nullptr);
 }
 
-// ============================================================================
 // Plugin actions (the more button)
-// ============================================================================
 
 #if HELIX_HAS_PLUGINS
 namespace {

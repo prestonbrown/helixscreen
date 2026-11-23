@@ -9,9 +9,7 @@
 
 using namespace moonraker_internal;
 
-// ============================================================================
 // is_safe_path() Tests
-// ============================================================================
 
 TEST_CASE("is_safe_path() accepts valid paths", "[moonraker_validation][path]") {
     SECTION("simple filename") {
@@ -114,9 +112,7 @@ TEST_CASE("is_safe_path() rejects empty path", "[moonraker_validation][path]") {
     REQUIRE(is_safe_path("") == false);
 }
 
-// ============================================================================
 // is_safe_identifier() Tests
-// ============================================================================
 
 TEST_CASE("is_safe_identifier() accepts valid identifiers", "[moonraker_validation][identifier]") {
     SECTION("simple name") {
@@ -170,15 +166,13 @@ TEST_CASE("is_safe_identifier() rejects empty identifier", "[moonraker_validatio
     REQUIRE(is_safe_identifier("") == false);
 }
 
-// ============================================================================
 // is_safe_material_param() / gcode_param_value() Tests
-// ============================================================================
 //
-// SET_MATERIAL (AFC) and MMU_GATE_MAP (Happy Hare) used to gate the material on
+// SET_MATERIAL (AFC) and MMU_GATE_MAP (Happy Hare) must not gate the material on
 // is_safe_gcode_param() -> is_safe_identifier(), whose charset is [A-Za-z0-9_ ].
-// That rejected `PLA+` — which HelixScreen itself offers from
-// filament_database.h — so every spool save silently dropped the material and
-// still reported success.
+// That rejects `PLA+`, which HelixScreen itself offers from
+// filament_database.h, so a spool save would silently drop the material and
+// still report success.
 
 TEST_CASE("is_safe_material_param() accepts real material names",
           "[moonraker_validation][material]") {
@@ -262,7 +256,7 @@ TEST_CASE("is_safe_material_param() rejects empty material", "[moonraker_validat
 
 TEST_CASE("is_safe_material_param() accepts every material HelixScreen offers",
           "[moonraker_validation][material]") {
-    // The bug class, not just the one reported instance: any name the filament
+    // Any name the filament
     // database offers must survive the validator that persists it, or picking it
     // in the UI silently writes nothing.
     for (const auto& mat : *filament::materials()) {
@@ -285,9 +279,7 @@ TEST_CASE("gcode_param_value() quotes only what Klipper would tokenize",
     }
 }
 
-// ============================================================================
 // is_safe_url_param() Tests
-// ============================================================================
 
 TEST_CASE("is_safe_url_param() accepts Moonraker config section names",
           "[moonraker_validation][url_param]") {
@@ -360,9 +352,9 @@ TEST_CASE("is_safe_url_param() rejects control characters",
 
 TEST_CASE("is_safe_url_param() is looser than is_safe_identifier for power devices",
           "[moonraker_validation][url_param][1241]") {
-    // Regression for prestonbrown/helixscreen#1241: `[power -Power-]` is a legal
-    // Moonraker section name, and gating set_device_power() on is_safe_identifier()
-    // silently broke power control for it. The two validators must stay distinct:
+    // #1241: `[power -Power-]` is a legal Moonraker section name, so
+    // set_device_power() must not be gated on is_safe_identifier(). The two
+    // validators must stay distinct:
     // identifiers reach G-code, URL params get percent-encoded.
     REQUIRE(is_safe_identifier("-Power-") == false);
     REQUIRE(is_safe_url_param("-Power-") == true);
@@ -372,9 +364,7 @@ TEST_CASE("is_safe_url_param() is looser than is_safe_identifier for power devic
     REQUIRE(is_safe_url_param("psu\nG28") == false);
 }
 
-// ============================================================================
 // is_valid_axis() Tests
-// ============================================================================
 
 TEST_CASE("is_valid_axis() accepts valid axes", "[moonraker_validation][axis]") {
     SECTION("uppercase") {
@@ -401,9 +391,7 @@ TEST_CASE("is_valid_axis() rejects invalid axes", "[moonraker_validation][axis]"
     REQUIRE(is_valid_axis('\0') == false);
 }
 
-// ============================================================================
 // reject_invalid_path() Tests
-// ============================================================================
 
 TEST_CASE("reject_invalid_path() returns false for valid paths", "[moonraker_validation][reject]") {
     bool error_called = false;
@@ -442,9 +430,7 @@ TEST_CASE("reject_invalid_path() works with nullptr callback", "[moonraker_valid
     REQUIRE(reject_invalid_path("good/path", "test", nullptr) == false);
 }
 
-// ============================================================================
 // reject_invalid_identifier() Tests
-// ============================================================================
 
 TEST_CASE("reject_invalid_identifier() returns false for valid identifiers",
           "[moonraker_validation][reject]") {
@@ -476,9 +462,7 @@ TEST_CASE("reject_invalid_identifier() works with nullptr callback",
     REQUIRE(reject_invalid_identifier("good_id", "test", nullptr) == false);
 }
 
-// ============================================================================
 // reject_invalid_file_root() Tests
-// ============================================================================
 
 TEST_CASE("reject_invalid_file_root() accepts hidden Moonraker roots",
           "[moonraker_validation][reject]") {
@@ -507,9 +491,7 @@ TEST_CASE("reject_invalid_file_root() rejects unsafe roots", "[moonraker_validat
     REQUIRE(reject_invalid_file_root(".", "list_files", nullptr, true) == true);
 }
 
-// ============================================================================
 // reject_out_of_range() Tests
-// ============================================================================
 
 TEST_CASE("reject_out_of_range() returns false for values in range",
           "[moonraker_validation][reject]") {
@@ -578,9 +560,7 @@ TEST_CASE("reject_out_of_range() handles negative ranges", "[moonraker_validatio
     }
 }
 
-// ============================================================================
 // Safety Limit Validation Functions Tests
-// ============================================================================
 
 TEST_CASE("is_safe_temperature() validates temperature ranges", "[moonraker_validation][safety]") {
     SafetyLimits limits;

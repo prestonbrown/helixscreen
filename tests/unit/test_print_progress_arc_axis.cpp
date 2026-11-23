@@ -78,8 +78,8 @@ TEST_CASE_METHOD(LVGLUITestFixture, "progress arc and bar agree while the displa
         bar_pct = arc_pct;
     }
     // Destroy the shared formatter while this fixture's subjects are still
-    // alive (see test_print_status_widget_recycle.cpp), then assert — a
-    // regression fails cleanly instead of taking teardown down with it.
+    // alive (see test_print_status_widget_recycle.cpp), then assert, so a
+    // failure is reported cleanly instead of taking teardown down with it.
     PrintStatusWidget::destroy_formatter_for_test();
 
     REQUIRE(mid_arc == 47);

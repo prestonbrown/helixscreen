@@ -142,7 +142,6 @@ TEST_CASE("control view: missing macro slot disables primary", "[print_control_v
     REQUIRE_FALSE(compute_control_button_view(c).stop_enabled);
 }
 
-// ============================================================================
 // The preparing window (#798)
 //
 // Governing rule: affordance is a function of PrintState alone. It must never
@@ -150,11 +149,10 @@ TEST_CASE("control view: missing macro slot disables primary", "[print_control_v
 // firmware-side inside Klipper's PRINT_START. The two architectures report
 // different job states for the same user-visible moment, so any rule keyed on
 // job state alone gives the user different controls for the same situation.
-// ============================================================================
 
 TEST_CASE("control view: Cancel is enabled during a host-side preparing window",
           "[print_control_view][preparing]") {
-    // Regression: keying stop_enabled on PRINTING||PAUSED disabled Cancel for
+    // Keying stop_enabled on PRINTING||PAUSED would disable Cancel for
     // exactly the window in which the host-side cancel path is the only one that
     // works, making that path unreachable by touch.
     auto v = compute_control_button_view(preparing_host_side());
@@ -183,9 +181,10 @@ TEST_CASE("control view: Cancel is enabled during a firmware-side preparing wind
 
 TEST_CASE("control view: Pause is disabled in BOTH preparing architectures",
           "[print_control_view][preparing]") {
-    // The parity assertion. Before this rule, host-side preparing disabled Pause
-    // only incidentally (job state was not PRINTING) while firmware-side left it
-    // live for the whole window — pressing it sent PAUSE mid-PRINT_START.
+    // The parity assertion. Keying Pause on job state alone would disable it for
+    // host-side preparing only incidentally (job state is not PRINTING) while
+    // firmware-side left it live for the whole window, and pressing it would
+    // send PAUSE mid-PRINT_START.
     REQUIRE_FALSE(compute_control_button_view(preparing_host_side()).primary_enabled);
     REQUIRE_FALSE(compute_control_button_view(preparing_firmware_side()).primary_enabled);
 }
@@ -228,13 +227,11 @@ TEST_CASE("control view: an externally started print in PRINT_START cannot retir
     REQUIRE(v.stop_enabled);
 }
 
-// ============================================================================
 // A start the printer was sent but has not reported (#1890)
 //
 // Some firmwares run the whole print-start sequence inside SDCARD_PRINT_FILE,
 // so print_stats stays idle while the printer homes, heats and probes. The
 // start is already on the printer: withdrawing it locally stops nothing.
-// ============================================================================
 
 TEST_CASE("control view: Cancel after the start was sent goes to the printer",
           "[print_control_view][preparing]") {
@@ -265,13 +262,11 @@ TEST_CASE("control view: a cancel in flight disables Stop", "[print_control_view
     CHECK_FALSE(compute_control_button_view(taken).stop_enabled);
 }
 
-// ============================================================================
 // A start the printer announced itself (#2054)
 //
 // Another app started the print: no preparing job of ours, and print_stats
 // still reports the previous job until the file opens. The start is on the
 // printer, so only a cancel sent there stops it.
-// ============================================================================
 
 TEST_CASE("control view: Stop during a printer-announced start cancels on the printer",
           "[print_control_view][preparing][2054]") {

@@ -3,16 +3,16 @@
 
 /**
  * @file test_moonraker_request_tracker_callback_safety.cpp
- * @brief Regression tests asserting that throwing user callbacks do not unwind
+ * @brief Tests asserting that throwing user callbacks do not unwind
  *        out of MoonrakerRequestTracker::route_response().
  *
- * Pre-#931 the success callback was wrapped but the error callback was not. A
- * throwing error_cb would propagate through libhv's onmessage handler, out of
- * Application::main_loop(), and exit the process with code 134 — appearing to
- * the watchdog as a crash and triggering the recovery dialog after
- * kCrashLoopMaxCrashes boots.
+ * A throwing error_cb that escaped would propagate through libhv's onmessage
+ * handler, out of Application::main_loop(), and exit the process with code
+ * 134, which the watchdog reads as a crash and answers with the recovery
+ * dialog after kCrashLoopMaxCrashes boots (#931).
  *
- * Both callbacks are now wrapped: any exception is logged and swallowed.
+ * Both the success and error callbacks are wrapped: any exception is logged
+ * and swallowed.
  */
 
 #include "../test_helpers/moonraker_request_tracker_test_access.h"
