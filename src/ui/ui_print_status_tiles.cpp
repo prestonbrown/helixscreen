@@ -238,7 +238,15 @@ void PrintStatusTiles::init_subjects(SubjectManager& subjects) {
         },
         ps));
     for (const auto& in : PrinterImageManager::detection_inputs()) {
-        image_observers_.push_back(observe<int>(in.subject, this, image_changed, in.lifetime));
+        image_observers_.push_back(observe<int>(
+            in.subject, this,
+            [](PrintStatusTiles* self, int) {
+                if (self->detection_watch_.changed()) {
+                    self->image_stale_ = true;
+                    self->request_update();
+                }
+            },
+            in.lifetime));
     }
 }
 

@@ -478,8 +478,9 @@ void PrinterImageWidget::apply_printer_image(bool force) {
 void PrinterImageWidget::refresh_if_detected_image_changed() {
     // Hardware subjects change on every connect; redrawing an unchanged image
     // would drop its decoded copy for nothing.
-    if (!widget_obj_ || helix::PrinterImageManager::instance().get_displayed_image_path(
-                            printer_images::current_screen_width()) == current_source_path_)
+    if (!widget_obj_ || !detection_watch_.changed() ||
+        helix::PrinterImageManager::instance().get_displayed_image_path(
+            printer_images::current_screen_width()) == current_source_path_)
         return;
     schedule_image_refresh();
 }

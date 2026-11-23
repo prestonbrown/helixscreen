@@ -5,6 +5,7 @@
 
 #include "../test_fixtures.h"
 #include "../test_helpers/config_test_access.h"
+#include "../test_helpers/log_capture.h"
 #include "../test_helpers/process_async_timers.h"
 #include "../test_helpers/typed_mock_backend.h"
 #include "ams_state.h"
@@ -656,6 +657,55 @@ TEST_CASE_METHOD(XMLTestFixture,
     helix::ui::UpdateQueue::instance().drain();
     process_async_timers();
     CHECK(source() == plain);
+
+    w.detach();
+    process_async_timers();
+    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "");
+}
+
+// The filament-system data revision moves on every unit status update, about
+// once a second on a printer with one. Re-resolving the image each time logged
+// two lines a second and probed the asset tree for an unchanged picture.
+TEST_CASE_METHOD(XMLTestFixture,
+                 "PrinterImageWidget skips the image lookup when a data tick changes no hardware",
+                 "[panel_widget][printer_image][printer_image_variants]") {
+    helix::init_widget_registrations();
+    helix::PanelWidgetManager::instance().init_widget_subjects();
+    get_printer_state().init_subjects(false);
+    AmsState& ams = AmsState::instance();
+    ams.clear_backends();
+    ams.init_subjects(false);
+
+    Config* cfg = Config::get_instance();
+    cfg->set<std::string>(cfg->df() + helix::wizard::PRINTER_TYPE, "Creality K2");
+
+    lv_obj_t* widget_obj = lv_obj_create(test_screen());
+    lv_obj_set_size(widget_obj, 200, 200);
+    lv_obj_t* img = lv_image_create(widget_obj);
+    lv_obj_set_name(img, "printer_image");
+    process_lvgl(2);
+
+    helix::PrinterImageWidget w;
+    w.attach(widget_obj, test_screen());
+    auto source = [&]() {
+        helix::ui::UpdateQueue::instance().drain();
+        process_async_timers();
+        return std::string(static_cast<const char*>(lv_image_get_src(img)));
+    };
+    ams.add_backend(std::make_unique<helix::test::TypedMockBackend>(AmsType::CFS));
+    const std::string with_cfs = source();
+    REQUIRE(with_cfs.find("creality-k2-cfs") != std::string::npos);
+
+    LogCapture log;
+    for (int i = 0; i < 5; ++i) {
+        ams.bump_data_revision();
+    }
+    CHECK(source() == with_cfs);
+    CHECK(log.count_containing("[PrinterDetector] image for") == 0);
+
+    ams.clear_backends();
+    CHECK(source().find("creality-k2-cfs") == std::string::npos);
+    CHECK(log.count_containing("[PrinterDetector] image for") > 0);
 
     w.detach();
     process_async_timers();
