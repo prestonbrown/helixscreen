@@ -27,6 +27,7 @@
 #include "helix-xml/src/xml/lv_xml_parser.h"
 #include "helix-xml/src/xml/lv_xml_utils.h"
 #include "helix-xml/src/xml/parsers/lv_xml_obj_parser.h"
+#include "observe_language.h"
 #include "panel_widget_size.h"
 #include "settings_manager.h"
 #include "spool_remaining_format.h"
@@ -256,6 +257,8 @@ struct AmsMiniStatusData {
     ObserverGuard bypass_active_observer;
     ObserverGuard external_spool_observer;
     ObserverGuard always_show_bypass_observer;
+    // The bypass cell's "External" is translated in C++, once per render.
+    ObserverGuard language_observer;
 
     // Re-entrancy guard: slots_version and current_slot observers can both fire
     // in one UpdateQueue batch. Without this, the second rebuild_bars would try
@@ -1717,6 +1720,7 @@ static void on_delete(lv_event_t* e) {
             data->bypass_active_observer.reset();
             data->external_spool_observer.reset();
             data->always_show_bypass_observer.reset();
+            data->language_observer.reset();
         }
         // data automatically freed when unique_ptr goes out of scope
         s_registry.take(obj);
@@ -1839,6 +1843,15 @@ static lv_obj_t* create_mini_status(lv_obj_t* parent, int32_t height, const char
     }
 
     bind_bypass_observers(data, container);
+
+    // A language switch changes no AmsState read, so the sync's no-change
+    // shortcut is lifted for it: the text is re-measured and re-rendered.
+    data->language_observer = helix::ui::observe_language_change(container, [](lv_obj_t* obj) {
+        if (auto* d = get_data(obj)) {
+            d->synced = false;
+            sync_from_ams_state(d);
+        }
+    });
     return container;
 }
 
