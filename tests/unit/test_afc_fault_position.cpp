@@ -271,6 +271,9 @@ const std::string kMsgPrepRunout =
 // Happy Hare 4 Mmu._runout, verbatim (the sensor name is the unprefixed mmu_entry_<gate>).
 const std::string kMsgHhEntry = "Runout detected on T2 (gate 2) by mmu_entry_2\n"
                                 "No alternative gates available after checking Gate 3: empty";
+// Happy Hare 4.0 and 4.1 Mmu._runout, verbatim.
+const std::string kMsgHhEntryNoBy = "Runout detected on mmu_entry_2\n"
+                                    "No alternative gates available after checking Gate 3: empty";
 // Happy Hare 3 Mmu._runout, verbatim.
 const std::string kMsgHhPreGate = "Runout detected on mmu_pre_gate_2\n"
                                   "No alternative gates available after checking Gate 3: empty";
@@ -291,6 +294,7 @@ TEST_CASE("Happy Hare's pre-gate runout is at the prep sensor",
           "[happy_hare][fault][sensor][prep]") {
     const std::vector<std::string> lanes{"0", "1", "2", "3"};
     CHECK(lane_sensor_at(kMsgHhEntry, "2", true, lanes) == LaneSensor::PREP);
+    CHECK(lane_sensor_at(kMsgHhEntryNoBy, "2", true, lanes) == LaneSensor::PREP);
     CHECK(lane_sensor_at(kMsgHhPreGate, "2", true, lanes) == LaneSensor::PREP);
     // Other Happy Hare pauses place nothing at a lane sensor.
     CHECK(lane_sensor_at("Runout detected on T2 (gate 2) by toolhead\nNo alternative gates", "2",
