@@ -30,9 +30,9 @@ _SIZES = [
 ]
 
 _NOZZLE = ("btn_nozzle_temp", "", ["preset_off", "preset_1", "preset_2", "preset_3",
-                                   "nozzle_btn_custom"])
+                                   "nozzle_btn_custom"], "nozzle_control_strip")
 _BED = ("btn_bed_temp", "bed_", ["bed_preset_off", "bed_preset_1", "bed_preset_2",
-                                 "bed_preset_3", "bed_btn_custom"])
+                                 "bed_preset_3", "bed_btn_custom"], "bed_control_strip")
 
 
 def _geom(app: HelixApp, target: str) -> dict:
@@ -42,11 +42,11 @@ def _geom(app: HelixApp, target: str) -> dict:
     return widgets[0]
 
 
-@pytest.mark.parametrize("opener,_prefix,buttons", [_NOZZLE, _BED],
+@pytest.mark.parametrize("opener,_prefix,buttons,strip_name", [_NOZZLE, _BED],
                          ids=["nozzle", "bed"])
 @pytest.mark.parametrize("size,tiny", _SIZES, ids=[s for s, _ in _SIZES])
 def test_control_buttons_fit_inside_screen_and_panel(size, tiny, opener, _prefix,
-                                                     buttons, tmp_path):
+                                                     buttons, strip_name, tmp_path):
     if not _BINARY.exists():
         pytest.skip(f"{_BINARY} not built - run `make`")
     saved = {k: os.environ.get(k) for k in ("HELIX_SCREEN_SIZE", "HELIX_MOCK_PRINTER")}
@@ -65,14 +65,16 @@ def test_control_buttons_fit_inside_screen_and_panel(size, tiny, opener, _prefix
 
             width, height = (int(v) for v in size.split("x"))
             content = _geom(app, "overlay_content")
-            bottom_limit = min(height, content["y"] + content["h"])
+            strip = _geom(app, strip_name)
+            bottom_limit = min(height, content["y"] + content["h"],
+                               strip["y"] + strip["h"])
             for name in buttons:
                 geo = _geom(app, name + "_tiny" if tiny else name)
                 assert geo["x"] >= 0 and geo["x"] + geo["w"] <= width, (
                     f"{size} {name}: x {geo['x']}..{geo['x'] + geo['w']} leaves the screen")
                 assert geo["y"] >= content["y"] and geo["y"] + geo["h"] <= bottom_limit, (
                     f"{size} {name}: y {geo['y']}..{geo['y'] + geo['h']} is not inside "
-                    f"the panel (limit {bottom_limit})")
+                    f"the panel or its control strip (limit {bottom_limit})")
     finally:
         for key, value in saved.items():
             if value is None:
