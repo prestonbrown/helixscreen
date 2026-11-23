@@ -654,3 +654,74 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE_FALSE(error_.load());
     REQUIRE_FALSE(success_.load());
 }
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "An MPC run that outlives its RPC timeout still reports its result",
+                 "[calibration][transport][2160]") {
+    // MPC_CALIBRATE moves no toolhead, so idle_timeout never reports Printing
+    // while it runs: the printer reads idle for the whole calibration.
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 0);
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 20 min", "MPC_CALIBRATE");
+
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 255, 3,
+        [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+
+    settle();
+    // The socket stayed up, so no result line can have been lost: an idle
+    // printer is no reason to conclude the run ended.
+    REQUIRE_FALSE(fire_grace());
+    REQUIRE_FALSE(error_.load());
+
+    mock_client_.dispatch_gcode_response("Finished MPC calibration of heater 'extruder'");
+    mock_client_.dispatch_gcode_response("block_heat_capacity=19.8449 [J/K]");
+    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.0910928 [K/s/K]");
+    mock_client_.dispatch_gcode_response("ambient_transfer=0.0994815 [W/K]");
+    mock_client_.dispatch_gcode_response(
+        "fan_ambient_transfer=0.0994815, 0.141702, 0.155653 [W/K]");
+    settle();
+
+    REQUIRE(success_.load());
+    REQUIRE_FALSE(error_.load());
+}
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "After an RPC timeout only the backstop ends a run that never answers",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1);
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 20 min", "PID_CALIBRATE");
+
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+
+    settle();
+    lv_subject_set_int(idle, 0);
+    settle();
+    REQUIRE_FALSE(fire_grace());
+    REQUIRE_FALSE(error_.load());
+
+    REQUIRE(fire_backstop());
+
+    REQUIRE(error_.load());
+    REQUIRE_FALSE(success_.load());
+    // Nothing observed says the printer finished; the answer says only that
+    // no result came.
+    REQUIRE(captured_error_.find("result unavailable") == std::string::npos);
+    REQUIRE(captured_error_.find("no result") != std::string::npos);
+}
