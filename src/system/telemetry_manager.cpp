@@ -2582,11 +2582,12 @@ void TelemetryManager::record_filament_op(const std::string& backend,
         return;
     }
     using namespace helix::telemetry;
-    const bool success = outcome == FilamentOpOutcome::Success;
-    json event = build_filament_op_event(backend, op, outcome, error, duration_sec, during_print);
+    const bool success = outcome == FilamentOpOutcome::Succeeded;
+    FilamentOpTally tally{backend,      op, outcome, error, bucket_short_duration(duration_sec),
+                          during_print, 1};
     const std::string key = fmt::format(
         "{}|{}|{}|{}|{}|{}", backend, filament_op_name(op), filament_op_outcome_name(outcome),
-        filament_op_error_name(error), event["duration_bucket"].get<std::string>(), during_print);
+        filament_op_error_name(error), tally.duration_bucket, during_print);
     bool queue_now = false;
     bool pool_full = false;
     {
@@ -2600,22 +2601,22 @@ void TelemetryManager::record_filament_op(const std::string& backend,
         if (queue_now) {
             // The repeats pooled since the last one alike ride on this event.
             if (pooled != filament_op_pool_.end()) {
-                event["count"] = helix::json_util::as_int64(pooled->second["count"]) + 1;
+                tally.count += pooled->second.count;
                 filament_op_pool_.erase(pooled);
             }
             filament_op_last_failure_[key] = now;
             ++filament_op_failures_;
         } else if (pooled != filament_op_pool_.end()) {
-            pooled->second["count"] = helix::json_util::as_int64(pooled->second["count"]) + 1;
+            ++pooled->second.count;
         } else {
-            filament_op_pool_.emplace(key, std::move(event));
+            filament_op_pool_.emplace(key, tally);
         }
         pool_full = filament_op_pool_.size() > kMaxPooledFilamentOps;
     }
     spdlog::debug("[TelemetryManager] filament_op {}: {} ({}s)", queue_now ? "queued" : "pooled",
                   key, duration_sec);
     if (queue_now) {
-        enqueue_event(std::move(event));
+        enqueue_event(build_filament_op_event(tally));
     }
     if (pool_full) {
         flush_filament_ops();
@@ -2623,15 +2624,14 @@ void TelemetryManager::record_filament_op(const std::string& backend,
 }
 
 void TelemetryManager::flush_filament_ops() {
-    std::unordered_map<std::string, json> pool;
+    std::unordered_map<std::string, FilamentOpTally> pool;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         pool.swap(filament_op_pool_);
     }
-    for (auto& [key, event] : pool) {
-        // Stamped when the tally closes, the end of the window it counts.
-        event["timestamp"] = get_timestamp();
-        enqueue_event(std::move(event));
+    // Built now, so each is stamped when its tally closes.
+    for (const auto& [key, tally] : pool) {
+        enqueue_event(build_filament_op_event(tally));
     }
 }
 
@@ -2666,23 +2666,20 @@ nlohmann::json TelemetryManager::build_calibration_outcome_event(
     return event;
 }
 
-nlohmann::json TelemetryManager::build_filament_op_event(
-    const std::string& backend, helix::telemetry::FilamentOp op,
-    helix::telemetry::FilamentOpOutcome outcome, helix::telemetry::FilamentOpError error,
-    int duration_sec, bool during_print) const {
+nlohmann::json TelemetryManager::build_filament_op_event(const FilamentOpTally& tally) const {
     using namespace helix::telemetry;
     json event;
     stamp_envelope(event);
     event["event"] = "filament_op";
     event["device_id"] = get_hashed_device_id();
     event["timestamp"] = get_timestamp();
-    event["backend"] = backend;
-    event["op"] = filament_op_name(op);
-    event["outcome"] = filament_op_outcome_name(outcome);
-    event["error_class"] = filament_op_error_name(error);
-    event["duration_bucket"] = bucket_short_duration(duration_sec);
-    event["during_print"] = during_print;
-    event["count"] = 1;
+    event["backend"] = tally.backend;
+    event["op"] = filament_op_name(tally.op);
+    event["outcome"] = filament_op_outcome_name(tally.outcome);
+    event["error_class"] = filament_op_error_name(tally.error);
+    event["duration_bucket"] = tally.duration_bucket;
+    event["during_print"] = tally.during_print;
+    event["count"] = tally.count;
     return event;
 }
 
@@ -3592,17 +3589,17 @@ std::string filament_fault_text() {
 void on_ams_action_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* subject) {
     using namespace helix::telemetry;
     const auto action = static_cast<AmsAction>(lv_subject_get_int(subject));
-    // PRINT_STATE_CAST_OK: telemetry reads the printer's own job state.
-    const auto job = static_cast<PrintJobState>(
-        lv_subject_get_int(get_printer_state().print_state().get_print_state_enum_subject()));
-    const auto done = s_filament_op_tracker.on_action(action, std::chrono::steady_clock::now(),
-                                                      printer_has_job(job));
+    // A load during PRINT_START (Preparing) is part of the print too.
+    const bool printing =
+        job_holds_machine(get_printer_state().print_state().get_print_lifecycle());
+    const auto done =
+        s_filament_op_tracker.on_action(action, std::chrono::steady_clock::now(), printing);
     if (!done) {
         return;
     }
     const FilamentOpError error = done->outcome == FilamentOpOutcome::Failed
                                       ? classify_filament_op_error(filament_fault_text())
-                                      : FilamentOpError::None;
+                                      : FilamentOpError::NoError;
     const auto type = AmsState::instance().primary_type();
     const char* backend = ams_type_telemetry_slug(type ? *type : AmsType::NONE);
     spdlog::info("[Telemetry] filament_op {} {} on {} - error={}, {}s, during_print={}",

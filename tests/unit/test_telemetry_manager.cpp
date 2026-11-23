@@ -653,8 +653,8 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     // A long multicolor print: every success counted, in one pooled row.
     tm.clear_queue();
     for (int i = 0; i < 600; ++i) {
-        tm.record_filament_op("ace", FilamentOp::ToolChange, FilamentOpOutcome::Success,
-                              FilamentOpError::None, 20, true);
+        tm.record_filament_op("ace", FilamentOp::ToolChange, FilamentOpOutcome::Succeeded,
+                              FilamentOpError::NoError, 20, true);
     }
     CHECK(events_named(tm, "filament_op").empty());
     tm.flush_filament_ops();
@@ -3548,7 +3548,7 @@ TEST_CASE_METHOD(TelemetryTestFixture,
     tm.record_calibration_outcome("input_shaper", CalibrationOutcome::Failed,
                                   FailureClass::Accelerometer, 400);
     tm.record_calibration_outcome("Bed mesh: 0.2 mm", CalibrationOutcome::Completed,
-                                  FailureClass::None, 10);
+                                  FailureClass::NotFailed, 10);
     auto events = events_named(tm, "calibration_outcome");
     REQUIRE(events.size() == 1);
     CHECK(events[0]["type"] == "input_shaper");

@@ -2,6 +2,7 @@
 
 // The fixed classes the outcome events send in place of the printer's words.
 
+#include "ams_types.h"
 #include "system/telemetry_outcomes.h"
 
 #include <chrono>
@@ -102,7 +103,7 @@ TEST_CASE("Filament op tracker: actions make one operation, named by what moved"
         run(t, {AmsAction::HEATING, AmsAction::LOADING, AmsAction::PURGING, AmsAction::IDLE});
     REQUIRE(load);
     CHECK(load->op == FilamentOp::Load);
-    CHECK(load->outcome == FilamentOpOutcome::Success);
+    CHECK(load->outcome == FilamentOpOutcome::Succeeded);
     CHECK(load->duration_sec == 3);
 
     auto unload = run(t, {AmsAction::CUTTING, AmsAction::UNLOADING, AmsAction::IDLE});
@@ -144,7 +145,7 @@ TEST_CASE("Filament op tracker: an error or pause fails it, a cancel aborts it",
     t.note_cancel_requested();
     auto next = run(t, {AmsAction::LOADING, AmsAction::IDLE});
     REQUIRE(next);
-    CHECK(next->outcome == FilamentOpOutcome::Success);
+    CHECK(next->outcome == FilamentOpOutcome::Succeeded);
 }
 
 TEST_CASE("Filament op error class: the fault's text picks a fixed class",
