@@ -13,6 +13,7 @@
 #include "lvgl/src/misc/cache/instance/lv_image_cache.h"
 #include "spool_spin.h"
 #include "unit_art_geometry.h"
+#include "unit_colors.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -103,7 +104,15 @@ struct ArtData {
     int32_t carriage_w = 0, carriage_h = 0;
     int carriage_gate = 0;
     bool carriage_placed = false;
+
+    /// The user's unit colors the layers were built with (region_layers_key); 0 for none.
+    uint64_t built_colors = 0;
 };
+
+/// Build @p art's layers for @p shell at @p lane_count lanes, with @p regions (unit_color_layers)
+/// tinted in their places in the depth.
+void build_layers(lv_obj_t* art, ArtData* data, const tray::UnitShell* shell, int lane_count,
+                  const std::vector<UnitColorLayer>& regions);
 
 inline ArtData* data_of(lv_obj_t* art) {
     return static_cast<ArtData*>(lv_obj_get_user_data(art));

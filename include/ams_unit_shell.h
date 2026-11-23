@@ -104,6 +104,9 @@ struct UnitShell {
     float spool_lift_px = 0.0f;
     /// The unit stands in front of loose spools, so the tray under them is the plain one.
     bool plain_tray = false;
+    /// The color region masks its drawing bakes, as unit_color_mask_bit bits; 0 for a unit
+    /// drawn only in its own colors.
+    uint8_t color_regions = 0;
 };
 
 /// The head-on art for a unit built with @p lanes gates, or nullptr.

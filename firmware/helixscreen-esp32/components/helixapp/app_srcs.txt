@@ -408,6 +408,7 @@ src/system/runtime_config.cpp
 src/system/remote_screen_settings_manager.cpp
 src/system/safety_settings_manager.cpp
 src/system/settings_manager.cpp
+src/system/unit_colors.cpp
 src/system/release_signature.cpp
 src/system/sha256_util.cpp
 src/system/simulated_clock.cpp

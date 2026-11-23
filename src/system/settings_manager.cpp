@@ -28,6 +28,7 @@
 #include "spdlog/spdlog.h"
 #include "system/telemetry_manager.h"
 #include "system_settings_manager.h"
+#include "unit_colors.h"
 #include "wizard_config_paths.h"
 
 #include <algorithm>
@@ -782,6 +783,46 @@ void SettingsManager::set_ams_unit_drawing(const std::string& unit_identity,
     spdlog::info("[SettingsManager] set_ams_unit_drawing({}, {})", unit_identity,
                  shell_id.empty() ? "automatic" : shell_id);
     config->set<json>(path, drawings);
+    config->save();
+}
+
+// A unit's picked colors, per printer: {"<unit identity>": {"main": "#RRGGBB", ...}}.
+namespace {
+constexpr const char* kAmsUnitColorsKey = "ams/unit_colors";
+} // namespace
+
+helix::UnitColors SettingsManager::get_ams_unit_colors(const std::string& unit_identity) const {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return {};
+    }
+    const json all = config->get<json>(config->df() + kAmsUnitColorsKey, json::object());
+    if (!all.is_object()) {
+        return {};
+    }
+    const auto it = all.find(unit_identity);
+    return it == all.end() ? helix::UnitColors{} : helix::unit_colors_from_json(*it);
+}
+
+void SettingsManager::set_ams_unit_colors(const std::string& unit_identity,
+                                          const helix::UnitColors& colors) {
+    Config* config = Config::get_instance();
+    if (!config || unit_identity.empty()) {
+        return;
+    }
+    const std::string path = config->df() + kAmsUnitColorsKey;
+    json all = config->get<json>(path, json::object());
+    if (!all.is_object()) {
+        all = json::object();
+    }
+    if (colors.empty()) {
+        all.erase(unit_identity);
+    } else {
+        all[unit_identity] = helix::unit_colors_to_json(colors);
+    }
+    spdlog::info("[SettingsManager] set_ams_unit_colors({}, {})", unit_identity,
+                 colors.empty() ? std::string("baked") : all[unit_identity].dump());
+    config->set<json>(path, all);
     config->save();
 }
 
