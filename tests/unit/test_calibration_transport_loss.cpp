@@ -625,3 +625,27 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(captured_error_.find("result unavailable") == std::string::npos);
     REQUIRE(captured_error_.find("no result") != std::string::npos);
 }
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "After an RPC timeout the backstop still names a printer that stays busy",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1);
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 20 min", "PID_CALIBRATE");
+
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+
+    settle();
+    REQUIRE(fire_backstop());
+
+    REQUIRE(error_.load());
+    REQUIRE(captured_error_.find("still busy") != std::string::npos);
+}

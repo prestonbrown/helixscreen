@@ -440,10 +440,10 @@ class CalibrationCollectorCore {
                         return;
                     }
                     const bool still_busy = idle_subject && lv_subject_get_int(idle_subject) == 1;
-                    if (fallback_.awaits_lines_only) {
-                        conclude_unrecovered(kNoResultInExtendedWait);
-                    } else if (still_busy) {
+                    if (still_busy) {
                         conclude_unrecovered("printer still busy after extended wait");
+                    } else if (fallback_.awaits_lines_only) {
+                        conclude_unrecovered(kNoResultInExtendedWait);
                     } else if (fallback_.edge_immediate && !fallback_.was_busy_at_arm) {
                         // The re-read has to give the same answer the idle
                         // reports give: a printer never seen busy proves nothing
