@@ -632,6 +632,7 @@ class FilamentPanel : public PanelBase {
     /// Re-finds extrude_speed_dropdown_ when the heads count moves it.
     ObserverGuard speed_dropdown_rewire_observer_;
     void bind_extrude_speed_dropdown();
+    void observe_speed_dropdown_moves();
     // 1 with no AMS and one head: the card shows the external spool row in
     // place of the AMS row, centered, without its header.
     helix::Subject external_spool_mode_subject_{};

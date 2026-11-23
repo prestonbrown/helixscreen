@@ -3,20 +3,24 @@
 
 /**
  * @file test_filament_clean_nozzle.cpp
- * @brief The Operations card's Clean button follows the CleanNozzle macro slot:
- * it shows only while the slot resolves to something the printer runs.
+ * @brief The Operations card in the real Filament panel: Clean follows the
+ * CleanNozzle macro slot, and the extrude speed dropdown stays filled wherever
+ * the layout moves it.
  */
 
 #include "ui_panel_filament.h"
 
 #include "../lvgl_ui_test_fixture.h"
+#include "../test_helpers/scoped_int_subject.h"
 #include "ams_state.h"
+#include "core/update_queue.h"
 #include "printer_discovery.h"
 #include "quick_action_buttons.h"
 #include "standard_macros.h"
 #include "tool_state.h"
 
 #include <memory>
+#include <string>
 
 #include "../catch_amalgamated.hpp"
 
@@ -94,4 +98,34 @@ TEST_CASE("macro_button_state: ready, unavailable or hidden", "[filament][clean_
 
     info.detected_macro = "CLEAN_NOZZLE";
     CHECK(macro_button_state(info) == MacroButtonState::Ready);
+}
+
+// A rotation rebuilds the Operations card, and with it the <if> pair that puts
+// the speed dropdown in the heading or beside the heads. A head-count change
+// afterwards moves the dropdown again; the panel must fill the one it lands in.
+TEST_CASE_METHOD(
+    LVGLUITestFixture,
+    "Filament panel: the speed dropdown stays filled after a rotation and a head change",
+    "[filament][clean_nozzle]") {
+    discover_macros({});
+    helix::test::ScopedIntSubject single_head("target_tool_multi_head", 0);
+    CleanHarness h(*this);
+    lv_subject_t* portrait = lv_xml_get_subject(nullptr, "ui_is_portrait");
+    REQUIRE(portrait != nullptr);
+    const int was_portrait = lv_subject_get_int(portrait);
+    lv_subject_set_int(portrait, was_portrait ? 0 : 1);
+    process_lvgl(10);
+    lv_subject_set_int(portrait, was_portrait);
+    process_lvgl(10);
+
+    lv_subject_set_int(lv_xml_get_subject(nullptr, "target_tool_multi_head"), 1);
+    helix::ui::UpdateQueue::instance().drain();
+    process_lvgl(10);
+
+    lv_obj_t* dd = lv_obj_find_by_name(h.root, "extrude_speed_dropdown");
+    REQUIRE(dd != nullptr);
+    CHECK(lv_dropdown_get_option_count(dd) > 0);
+    const char* text = lv_dropdown_get_text(dd);
+    REQUIRE(text != nullptr);
+    CHECK(std::string(text).find("mm/s") != std::string::npos);
 }

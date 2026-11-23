@@ -704,6 +704,7 @@ void FilamentPanel::bind_widgets() {
     // Trigger initial extrude length selection (notifies bind_style observers)
     handle_extrude_length_select(extrude_length_index_);
     sync_extrude_speed_dropdown();
+    observe_speed_dropdown_moves();
 
     setup_temp_graph();
     setup_portrait_graph_fit();
@@ -799,19 +800,25 @@ void FilamentPanel::setup_orientation_rewire_observer() {
         portrait_subject, this,
         [](FilamentPanel* self, int /*is_portrait*/) { self->bind_widgets(); },
         subject_never_freed(), helix::ui::Dispatch::Immediate);
+}
 
+void FilamentPanel::observe_speed_dropdown_moves() {
     // The extrude speed dropdown sits in the Operations heading or, where
     // landscape hides the heading for several heads, in the heads row: an
-    // <if> pair on target_tool_multi_head builds exactly one. Immediate for the
-    // same ordering reason as above.
+    // <if> pair on target_tool_multi_head builds exactly one. A head-count
+    // change rebuilds that pair synchronously, and LVGL notifies observers in
+    // registration order, so this one must register after the pair's: every
+    // orientation flip builds a fresh pair, hence the re-registration from
+    // bind_widgets() each time. The registration fire re-finds the dropdown,
+    // which is harmless.
     lv_subject_t* multi_head_subject = lv_xml_get_subject(nullptr, "target_tool_multi_head");
-    if (multi_head_subject) {
-        speed_dropdown_rewire_observer_ = helix::ui::observe<int>(
-            multi_head_subject, this,
-            [](FilamentPanel* self, int /*multi_head*/) { self->bind_extrude_speed_dropdown(); },
-            helix::ui::TargetTool::instance().get_subjects_lifetime(),
-            helix::ui::Dispatch::Immediate);
+    if (!multi_head_subject) {
+        return;
     }
+    speed_dropdown_rewire_observer_ = helix::ui::observe<int>(
+        multi_head_subject, this,
+        [](FilamentPanel* self, int /*multi_head*/) { self->bind_extrude_speed_dropdown(); },
+        helix::ui::TargetTool::instance().get_subjects_lifetime(), helix::ui::Dispatch::Immediate);
 }
 
 void FilamentPanel::bind_extrude_speed_dropdown() {
