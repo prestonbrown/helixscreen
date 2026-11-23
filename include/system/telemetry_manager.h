@@ -167,6 +167,15 @@ struct UpdateFailureDetail {
     std::string install_detail; ///< scrubbed cause line from install.sh's output
 };
 
+/// Why and where a print ended, for a print_outcome event. Every field is a
+/// number or a fixed token; an unset field is left out of the event.
+struct PrintOutcomeDetail {
+    int progress_pct = -1;     ///< highest progress the job reached, 0-100; -1 omits
+    std::string cancel_origin; ///< "in_app" or "external" for a cancel; empty omits
+    /// telemetry::failure_class_name() of why it failed or was canceled; empty omits
+    std::string failure_class;
+};
+
 } // namespace helix
 
 /**
@@ -295,10 +304,12 @@ class TelemetryManager {
      * @param filament_type Filament material (e.g., "PLA", "PETG", "ABS")
      * @param nozzle_temp Target nozzle temperature in degrees C
      * @param bed_temp Target bed temperature in degrees C
+     * @param detail Progress, cancel origin and failure class; unset fields are omitted
      */
     void record_print_outcome(const std::string& outcome, int duration_sec, int phases_completed,
                               float filament_used_mm, const std::string& filament_type,
-                              int nozzle_temp, int bed_temp);
+                              int nozzle_temp, int bed_temp,
+                              const helix::PrintOutcomeDetail& detail = {});
 
     /**
      * @brief Record an update failure event
@@ -1054,7 +1065,8 @@ class TelemetryManager {
     nlohmann::json build_print_outcome_event(const std::string& outcome, int duration_sec,
                                              int phases_completed, float filament_used_mm,
                                              const std::string& filament_type, int nozzle_temp,
-                                             int bed_temp) const;
+                                             int bed_temp,
+                                             const helix::PrintOutcomeDetail& detail = {}) const;
 
     nlohmann::json build_update_failed_event(const std::string& reason, const std::string& version,
                                              const std::string& platform, int http_code,

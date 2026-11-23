@@ -3,7 +3,7 @@
 # HelixScreen Privacy Policy
 
 **Effective date**: July 2026
-**Last updated**: October 2026
+**Last updated**: November 2026
 
 ---
 
@@ -74,9 +74,12 @@ Recorded when a print job reaches a terminal state (completion, failure, or canc
 | `duration_sec` | integer | Print duration in seconds |
 | `phases_completed` | integer | Number of print start phases completed (0-10) |
 | `filament_used_mm` | float | Filament consumed in millimeters |
-| `filament_type` | string | Filament material type (e.g., `"PLA"`, `"PETG"`, `"ABS"`) |
+| `filament_type` | string | Filament material type (e.g., `"PLA"`, `"PETG"`, `"ABS"`); when the file names none, the loaded material's name from HelixScreen's built-in filament database, never text you typed |
 | `nozzle_temp` | integer | Highest nozzle target during the print, in degrees Celsius |
 | `bed_temp` | integer | Highest bed target during the print, in degrees Celsius |
+| `progress_pct` | integer | How far the print got, 0 to 100 |
+| `cancel_origin` | string | For a cancelled print, `"in_app"` or `"external"` |
+| `failure_class` | string | For a failed or cancelled print, one value from a fixed list of reasons (see the [Telemetry documentation](TELEMETRY.md)); Klipper's message text is never sent |
 
 ### 4.3 Crash Reports
 

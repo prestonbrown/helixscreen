@@ -122,6 +122,7 @@ void MoonrakerJobAPI::resume_print(SuccessCallback on_success, ErrorCallback on_
 
 void MoonrakerJobAPI::cancel_print(SuccessCallback on_success, ErrorCallback on_error) {
     spdlog::info("[Moonraker API] Canceling print");
+    cancels_sent_.fetch_add(1, std::memory_order_relaxed);
 
     client_.send_jsonrpc(
         "printer.print.cancel", json::object(),

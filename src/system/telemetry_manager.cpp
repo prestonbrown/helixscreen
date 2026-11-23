@@ -4,6 +4,7 @@
 #include "system/telemetry_manager.h"
 
 #include "accel_sensor_manager.h"
+#include "active_material_provider.h"
 #include "ams_backend_row.h"
 #include "ams_state.h"
 #include "ams_types.h"
@@ -26,13 +27,16 @@
 #include "install_provenance.h"
 #include "json_utils.h"
 #include "klipper_extruder_naming.h"
+#include "klippy_state.h"
 #include "load_cell_manager.h"
 #include "moonraker_types.h"
 #include "panel_widget_config.h"
 #include "panel_widget_manager.h"
 #include "platform_capabilities.h"
 #include "platform_table.h"
+#include "print_stop_reason.h"
 #include "printer_discovery.h"
+#include "printer_event_journal.h"
 #include "printer_state.h"
 #include "random_bytes.h"
 #include "runtime_config.h"
@@ -44,6 +48,7 @@
 #include "system/device_identity.h"
 #include "system/ingest_client.h"
 #include "system/sha256_util.h"
+#include "system/telemetry_outcomes.h"
 #include "system/update_checker.h"
 #include "system_settings_manager.h"
 #include "temperature_rules.h"
@@ -534,14 +539,15 @@ void TelemetryManager::record_session() {
 void TelemetryManager::record_print_outcome(const std::string& outcome, int duration_sec,
                                             int phases_completed, float filament_used_mm,
                                             const std::string& filament_type, int nozzle_temp,
-                                            int bed_temp) {
+                                            int bed_temp, const helix::PrintOutcomeDetail& detail) {
     if (shutting_down_.load() || !initialized_.load() || !enabled_.load()) {
         return;
     }
 
     spdlog::debug("[TelemetryManager] Recording print outcome: {} ({}s)", outcome, duration_sec);
-    auto event = build_print_outcome_event(outcome, duration_sec, phases_completed,
-                                           filament_used_mm, filament_type, nozzle_temp, bed_temp);
+    auto event =
+        build_print_outcome_event(outcome, duration_sec, phases_completed, filament_used_mm,
+                                  filament_type, nozzle_temp, bed_temp, detail);
     enqueue_event(std::move(event));
 }
 
@@ -1789,11 +1795,10 @@ nlohmann::json TelemetryManager::build_session_event() const {
     return event;
 }
 
-nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& outcome,
-                                                           int duration_sec, int phases_completed,
-                                                           float filament_used_mm,
-                                                           const std::string& filament_type,
-                                                           int nozzle_temp, int bed_temp) const {
+nlohmann::json TelemetryManager::build_print_outcome_event(
+    const std::string& outcome, int duration_sec, int phases_completed, float filament_used_mm,
+    const std::string& filament_type, int nozzle_temp, int bed_temp,
+    const helix::PrintOutcomeDetail& detail) const {
     json event;
     stamp_envelope(event);
     event["event"] = "print_outcome";
@@ -1806,6 +1811,15 @@ nlohmann::json TelemetryManager::build_print_outcome_event(const std::string& ou
     event["filament_type"] = filament_type;
     event["nozzle_temp"] = nozzle_temp;
     event["bed_temp"] = bed_temp;
+    if (detail.progress_pct >= 0) {
+        event["progress_pct"] = std::min(detail.progress_pct, 100);
+    }
+    if (!detail.cancel_origin.empty()) {
+        event["cancel_origin"] = detail.cancel_origin;
+    }
+    if (!detail.failure_class.empty()) {
+        event["failure_class"] = detail.failure_class;
+    }
 
     return event;
 }
@@ -3141,6 +3155,73 @@ void on_target_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* 
     }
 }
 
+/// Highest print progress (0-100) the job reached. A cancel macro can reset
+/// the file position before the printer reports the job over.
+int s_telemetry_peak_progress = 0;
+
+/// The loaded filament's material, as the filament database names it, seen
+/// while the job ran: the fallback for a file whose metadata names none. End
+/// gcode often unloads before the job is reported over.
+std::string s_telemetry_lane_material;
+
+/// The active lane's material, else the active spool's, by the database's
+/// name for it: a material the database does not know (free text a user typed)
+/// reads as empty and is never sent.
+std::string active_material_type() {
+    const auto active = helix::get_active_material();
+    return active ? active->material_info.name : std::string();
+}
+
+/// IMoonrakerJobAPI::cancels_sent() when the job started: a cancel the screen
+/// sent while the job ran moves it.
+uint32_t s_telemetry_cancels_at_start = 0;
+
+uint32_t cancels_sent() {
+    auto* api = get_moonraker_api();
+    return api ? api->job().cancels_sent() : 0;
+}
+
+void sample_lane_material() {
+    if (s_telemetry_lane_material.empty()) {
+        s_telemetry_lane_material = active_material_type();
+    }
+}
+
+void on_progress_changed_for_telemetry(lv_observer_t* /*observer*/, lv_subject_t* subject) {
+    if (s_telemetry_first_update && printer_has_job(s_telemetry_prev_state)) {
+        s_telemetry_peak_progress =
+            std::max(s_telemetry_peak_progress, lv_subject_get_int(subject));
+        sample_lane_material();
+    }
+}
+
+/// Why the job that just ended as @p outcome stopped, as a failure class name.
+std::string print_failure_class(PrintJobState outcome) {
+    auto& ps = get_printer_state();
+    auto& network = ps.network_state();
+    const bool klippy_down = lv_subject_get_int(network.get_klippy_state_subject()) !=
+                             static_cast<int>(KlippyState::READY);
+    const char* message = lv_subject_get_string(ps.print_state().get_print_message_subject());
+    std::string text = message ? message : "";
+    if (text.empty() && klippy_down) {
+        text = network.get_klippy_state_message();
+    }
+    if (text.empty()) {
+        text = helix::recent_gcode_error(ps.print_state(), helix::wall_now_s());
+    }
+    auto& ams = AmsState::instance();
+    const bool ams_fault =
+        ams.are_subjects_initialized() &&
+        (lv_subject_get_int(ams.get_ams_action_subject()) == static_cast<int>(AmsAction::ERROR) ||
+         !ams.fault_cause().empty());
+    helix::telemetry::FailureEvidence evidence;
+    evidence.text = text;
+    evidence.filament_system_fault = ams_fault;
+    evidence.klippy_down = klippy_down;
+    evidence.failed = outcome == PrintJobState::ERROR;
+    return helix::telemetry::failure_class_name(helix::telemetry::classify_failure(evidence));
+}
+
 /// Observer callback for print state transitions (telemetry recording)
 void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t* subject) {
     (void)observer;
@@ -3187,10 +3268,16 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
 
         reset_target_peaks();
         sample_target_peaks();
+        // The previous job's progress is still published until this frame's
+        // virtual_sdcard update, so the new job starts from zero.
+        s_telemetry_peak_progress = 0;
+        s_telemetry_cancels_at_start = cancels_sent();
 
         // Reset filament cache (prevent stale data from previous print)
         s_telemetry_filament_type.clear();
         s_telemetry_filament_used_mm = 0.0f;
+        s_telemetry_lane_material.clear();
+        sample_lane_material();
 
         // Fetch file metadata to populate filament info for this print.
         // Note: if print ends before the async callback arrives, filament data
@@ -3279,18 +3366,38 @@ void on_print_state_changed_for_telemetry(lv_observer_t* observer, lv_subject_t*
         int nozzle_temp = helix::temperature_rules::deci_to_degrees(s_telemetry_peak_nozzle_deci);
         int bed_temp = helix::temperature_rules::deci_to_degrees(s_telemetry_peak_bed_deci);
 
-        // Use filament data cached at print start from file metadata
+        // Use filament data cached at print start from file metadata; a file
+        // that names no material falls back to the loaded lane's or spool's.
         float filament_used_mm = s_telemetry_filament_used_mm;
         std::string filament_type = s_telemetry_filament_type;
+        if (filament_type.empty()) {
+            filament_type = active_material_type();
+        }
+        if (filament_type.empty()) {
+            filament_type = s_telemetry_lane_material;
+        }
+
+        helix::PrintOutcomeDetail detail;
+        detail.progress_pct =
+            std::max(s_telemetry_peak_progress,
+                     lv_subject_get_int(ps.print_state().get_print_progress_subject()));
+        const bool canceled_in_app = cancels_sent() != s_telemetry_cancels_at_start;
+        if (current == PrintJobState::CANCELLED) {
+            detail.cancel_origin = canceled_in_app ? "in_app" : "external";
+        }
+        if (current != PrintJobState::COMPLETE) {
+            detail.failure_class = print_failure_class(current);
+        }
 
         spdlog::info("[Telemetry] Print {} - duration={}s, phases={}, nozzle={}C, bed={}C, "
-                     "filament='{}' {:.0f}mm",
+                     "filament='{}' {:.0f}mm, progress={}%, cancel_origin='{}', failure='{}'",
                      outcome, duration_sec, phases_completed, nozzle_temp, bed_temp, filament_type,
-                     filament_used_mm);
+                     filament_used_mm, detail.progress_pct, detail.cancel_origin,
+                     detail.failure_class);
 
         TelemetryManager::instance().record_print_outcome(outcome, duration_sec, phases_completed,
                                                           filament_used_mm, filament_type,
-                                                          nozzle_temp, bed_temp);
+                                                          nozzle_temp, bed_temp, detail);
 
         // Reset phase tracking for next print
         s_telemetry_max_phase = 0;
@@ -3309,6 +3416,8 @@ std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
     s_telemetry_max_phase = 0;
     s_telemetry_filament_type.clear();
     s_telemetry_filament_used_mm = 0.0f;
+    s_telemetry_peak_progress = 0;
+    s_telemetry_lane_material.clear();
     reset_target_peaks();
 
     spdlog::debug("[Telemetry] Print outcome observer registered");
@@ -3320,5 +3429,7 @@ std::vector<ObserverGuard> TelemetryManager::init_print_outcome_observer() {
                         on_target_changed_for_telemetry, nullptr);
     guards.emplace_back(ps.temperature_state().get_bed_target_subject(),
                         on_target_changed_for_telemetry, nullptr);
+    guards.emplace_back(ps.print_state().get_print_progress_subject(),
+                        on_progress_changed_for_telemetry, nullptr);
     return guards;
 }

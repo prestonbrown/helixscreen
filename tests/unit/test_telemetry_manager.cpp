@@ -19,6 +19,7 @@
 #include "../test_helpers/config_test_access.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "../test_helpers/scoped_board.h"
+#include "../test_helpers/scoped_mock_ams.h"
 #include "../test_helpers/scoped_moonraker_api.h"
 #include "../test_helpers/scoped_moonraker_client.h"
 #include "../test_helpers/telemetry_manager_test_access.h"
@@ -426,6 +427,108 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         auto second = last_print_outcome(tm);
         CHECK(second["nozzle_temp"] == 200);
         CHECK(second["bed_temp"] == 50);
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome observer says how far the job got, who canceled it and why "
+                 "it failed",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto* progress = state.print_state().get_print_progress_subject();
+    auto* message = state.print_state().get_print_message_subject();
+    lv_subject_set_int(state.network_state().get_klippy_state_subject(),
+                       static_cast<int>(KlippyState::READY));
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api(client, state);
+    ScopedMoonrakerApi installed(&api);
+    auto cancel_from_screen = [&]() {
+        api.job().cancel_print([] {}, [](const MoonrakerError&) {});
+    };
+
+    {
+        auto guards = tm.init_print_outcome_observer();
+
+        // A cancel from elsewhere, after the cancel macro reset the file position.
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 37);
+        lv_subject_set_int(progress, 0);
+        set_job(PrintJobState::CANCELLED);
+        auto external = last_print_outcome(tm);
+        CHECK(external["progress_pct"] == 37);
+        CHECK(external["cancel_origin"] == "external");
+        CHECK(external["failure_class"] == "none");
+
+        // A cancel the screen sent.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 12);
+        cancel_from_screen();
+        set_job(PrintJobState::CANCELLED);
+        auto in_app = last_print_outcome(tm);
+        CHECK(in_app["progress_pct"] == 12);
+        CHECK(in_app["cancel_origin"] == "in_app");
+
+        // A cancel asked for before a job started is not that job's.
+        set_job(PrintJobState::STANDBY);
+        cancel_from_screen();
+        set_job(PrintJobState::PRINTING);
+        set_job(PrintJobState::CANCELLED);
+        CHECK(last_print_outcome(tm)["cancel_origin"] == "external");
+
+        // A failure says why, as a class and never in Klipper's words.
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 80);
+        lv_subject_set_string(message, "Heater extruder not heating at expected rate");
+        set_job(PrintJobState::ERROR);
+        auto failed = last_print_outcome(tm);
+        CHECK(failed["failure_class"] == "thermal_runaway");
+        CHECK_FALSE(failed.contains("cancel_origin"));
+        CHECK(failed.dump().find("Heater") == std::string::npos);
+
+        // A finished job reports neither.
+        lv_subject_set_string(message, "");
+        set_job(PrintJobState::STANDBY);
+        set_job(PrintJobState::PRINTING);
+        lv_subject_set_int(progress, 100);
+        set_job(PrintJobState::COMPLETE);
+        auto done = last_print_outcome(tm);
+        CHECK(done["progress_pct"] == 100);
+        CHECK_FALSE(done.contains("cancel_origin"));
+        CHECK_FALSE(done.contains("failure_class"));
+    }
+    PrinterStateTestAccess::reset(state);
+}
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "Print outcome falls back to the loaded lane's material when the file names "
+                 "none",
+                 "[telemetry][print_outcome]") {
+    lv_init_safe();
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+    auto& state = get_printer_state();
+    PrinterStateTestAccess::reset(state);
+    state.init_subjects(false);
+    auto* job = state.print_state().get_print_state_enum_subject();
+    auto set_job = [&](PrintJobState s) { lv_subject_set_int(job, static_cast<int>(s)); };
+
+    {
+        helix::test::ScopedMockAms ams({{0xFF0000, "PETG"}});
+        auto guards = tm.init_print_outcome_observer();
+        set_job(PrintJobState::PRINTING);
+        set_job(PrintJobState::COMPLETE);
+        CHECK(last_print_outcome(tm)["filament_type"] == "PETG");
     }
     PrinterStateTestAccess::reset(state);
 }

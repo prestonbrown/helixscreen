@@ -799,13 +799,33 @@ describe("mapEventToDataPoints", () => {
     expect(dp.blobs![1]).toBe("success");
     expect(dp.blobs![2]).toBe("PLA");
     expect(dp.blobs![3]).toBe("0.9.19");
-    expect(dp.blobs).toHaveLength(14);
+    expect(dp.blobs).toHaveLength(16);
     expect(dp.doubles![0]).toBe(3600);
     expect(dp.doubles![1]).toBe(210);
     expect(dp.doubles![2]).toBe(60);
     expect(dp.doubles![3]).toBe(15000);
     expect(dp.doubles![4]).toBe(8);
-    expect(dp.doubles).toHaveLength(8);
+    expect(dp.doubles).toHaveLength(9);
+    // A client too old to say why leaves the reason columns empty.
+    expect(dp.blobs![14]).toBe("");
+    expect(dp.blobs![15]).toBe("");
+    expect(dp.doubles![8]).toBe(0);
+  });
+
+  it("maps print_outcome's ending reason, refusing values outside its lists", () => {
+    const base = { event: "print_outcome", device_id: "dev-456", outcome: "cancelled" };
+    const dp = mapEventToDataPoints({
+      ...base,
+      cancel_origin: "in_app",
+      failure_class: "thermal_runaway",
+      progress_pct: 0,
+    })[0];
+    expect(dp.blobs![14]).toBe("in_app");
+    expect(dp.blobs![15]).toBe("thermal_runaway");
+    expect(dp.doubles![8]).toBe(1); // 0 percent, stored + 1
+    const odd = mapEventToDataPoints({ ...base, cancel_origin: "mainsail", failure_class: "Heater x" })[0];
+    expect(odd.blobs![14]).toBe("unknown");
+    expect(odd.blobs![15]).toBe("unknown");
   });
 
   it("maps crash event correctly", () => {

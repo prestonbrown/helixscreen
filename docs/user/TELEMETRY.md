@@ -62,9 +62,14 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 | `duration_sec` | Total print duration in seconds | `3600` |
 | `phases_completed` | The furthest print start phase reached, as its number in that build (13 = complete) | `13` |
 | `filament_used_mm` | Filament consumed in millimeters | `1500.0` |
-| `filament_type` | Filament material | `"PLA"`, `"PETG"`, `"ABS"` |
+| `filament_type` | Filament material, from the file; when the file names none, the loaded lane's or spool's material as HelixScreen's filament database names it (a material the database does not know is left empty) | `"PLA"`, `"PETG"`, `"ABS"` |
 | `nozzle_temp` | Highest nozzle target during the print, in degrees C | `215` |
 | `bed_temp` | Highest bed target during the print, in degrees C | `60` |
+| `progress_pct` | How far the print got, 0 to 100 | `37` |
+| `cancel_origin` | For a cancelled print: whether it was cancelled on this screen (`in_app`) or elsewhere, such as Mainsail, Fluidd or a macro (`external`) | `"in_app"` |
+| `failure_class` | For a failed or cancelled print: why it stopped, as one value from a fixed list (`none`, `thermal_runaway`, `heater`, `mcu_shutdown`, `emergency_stop`, `driver`, `homing_probe`, `move`, `accelerometer`, `config`, `gcode_error`, `runout`, `filament_system`, `timeout`, `klippy_shutdown`, `other`, `unknown`) | `"runout"` |
+
+HelixScreen works out `failure_class` on the device from Klipper's message and state. The message itself is never sent.
 
 ### Crash Reports
 

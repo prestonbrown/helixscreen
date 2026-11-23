@@ -59,6 +59,27 @@ const INSTALL_SOURCES = ["helix-installer", "kiauh", "helper-script", "curl", "o
 const HOST_MODS = ["forge_x", "zmod", "klipper_mod", "cosmos", "paxx", "simple_af", "rinkhals", "none"];
 // Mirrors src/system/telemetry_manager.cpp#gcode_render_mode_name.
 const GCODE_RENDER_MODES = ["auto", "3d", "2d", "thumbnail"];
+// Mirrors src/system/telemetry_outcomes.cpp#failure_class_name.
+const FAILURE_CLASSES = [
+  "none",
+  "thermal_runaway",
+  "heater",
+  "mcu_shutdown",
+  "emergency_stop",
+  "driver",
+  "homing_probe",
+  "move",
+  "accelerometer",
+  "config",
+  "gcode_error",
+  "runout",
+  "filament_system",
+  "timeout",
+  "klippy_shutdown",
+  "other",
+  "unknown",
+];
+const CANCEL_ORIGINS = ["in_app", "external"];
 
 // ---------- Readers ----------
 
@@ -359,6 +380,11 @@ const KINDS: PointKind[] = [
     dbl(3, "bed_temp"),
     dbl(4, "filament_used_mm"),
     dbl(5, "phases_completed"),
+    // Why and where it ended (#2166); empty on clients too old to say.
+    blob(15, "cancel_origin", allowlisted(flat("cancel_origin"), CANCEL_ORIGINS)),
+    blob(16, "failure_class", allowlisted(flat("failure_class"), FAILURE_CLASSES)),
+    // 0 percent is a real reading, so stored + 1 (0 = absent).
+    dbl(9, "progress_pct", plusOne("progress_pct")),
   ]),
 
   kind("crash", [

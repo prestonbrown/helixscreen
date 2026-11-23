@@ -127,7 +127,11 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
 
     tm.record_session();
     collect();
-    tm.record_print_outcome("completed", 600, 5, 300.0f, "PLA", 200, 60);
+    helix::PrintOutcomeDetail outcome_detail;
+    outcome_detail.progress_pct = 42;
+    outcome_detail.cancel_origin = "in_app";
+    outcome_detail.failure_class = "none";
+    tm.record_print_outcome("cancelled", 600, 5, 300.0f, "PLA", 200, 60, outcome_detail);
     collect();
     TelemetryManager::UpdateFailureDetail update_detail;
     update_detail.transfer_error = "http";
