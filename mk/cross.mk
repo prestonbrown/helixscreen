@@ -1952,12 +1952,10 @@ pi32-asan-test: pi32-asan-docker deploy-pi32-asan-fg
 # INSTALLER's own detection, asked of the device by scripts/device-profile.sh.
 # Override with AD5M_DEPLOY_DIR if needed.
 #
-# This used to be hand-rolled here, a two-branch `if [ -d ... ]` sitting next to
-# the installer's four-way detect_mod_flavor(), and the two copies drifted: no
-# zmod branch at all (so hooks-ad5m-zmod.sh was unreachable from a deploy), the
-# /opt/config/mod/.root test placed BEFORE /ZMOD (so a ZMOD rig got the Forge-X
-# hooks), and only /root/printer_software vs /opt/helixscreen for the directory
-# (so it missed both ZMOD's /srv/helixscreen and the Forge-X payload root).
+# A second hand-rolled copy of the installer's four-way detect_mod_flavor() would
+# drift from it: it would miss the zmod branch (hooks-ad5m-zmod.sh), test
+# /opt/config/mod/.root before /ZMOD (a ZMOD rig would get the Forge-X hooks),
+# and miss ZMOD's /srv/helixscreen and the Forge-X payload root.
 # See the header of scripts/device-profile.sh.
 AD5M_HOST ?= ad5m.local
 AD5M_USER ?= root

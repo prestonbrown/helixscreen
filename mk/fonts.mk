@@ -208,7 +208,7 @@ $(FONT_SRCS): .fonts.stamp
 generate-fonts: .fonts.stamp
 
 # Validate that all icons in ui_icon_codepoints.h are present in compiled fonts
-# This prevents the bug where icons are added to code but fonts aren't regenerated
+# Catches icons added to code whose fonts were not regenerated.
 validate-fonts:
 	$(ECHO) "$(CYAN)Validating icon font codepoints...$(RESET)"
 	$(Q)if [ -f scripts/validate_icon_fonts.sh ]; then \

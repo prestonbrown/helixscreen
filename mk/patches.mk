@@ -5,8 +5,8 @@
 # Handles automatic application of patches to LVGL and other dependencies
 
 # Files modified by LVGL patches (used by reset-patches)
-# XML patches are no longer needed — that engine is lib/helix-xml, our own
-# submodule, edited and pushed directly rather than patched.
+# The XML engine is lib/helix-xml, our own submodule, edited and pushed directly
+# rather than patched, so it has no entry here.
 LVGL_PATCHED_FILES := \
 	src/drivers/sdl/lv_sdl_window.c \
 	src/drivers/sdl/lv_sdl_sw.c \
@@ -272,7 +272,7 @@ export HELIX_FROM_CLEAN_SENTINEL
 # text search, so it also works in a docker tree rsynced from a worktree, where
 # the submodules are not git repositories at all. 'make regen-patch-markers'
 # rederives the table; the recorded patch hash makes a changed patch fail
-# loudly instead of silently checking a marker that no longer exists.
+# loudly instead of silently checking a marker the patch no longer carries.
 PATCH_MARKERS_TSV := mk/patch-markers.tsv
 PATCH_MARKER_STAMP := $(BUILD_DIR)/.patch-markers-verified
 PATCH_MARKER_CHECK := python3 scripts/check_patch_markers.py \
@@ -429,12 +429,11 @@ endef
 
 # Reset all patched files in every patched submodule to upstream state.
 #
-# libhv used to be missing here, which made `make reapply-patches` unable to fix
-# the one thing it is advertised to fix. A tree carrying an older revision of a
-# libhv patch fails `git apply --check` on the newer one, and the recipe tells you
-# to run reapply-patches — which reset only LVGL, left the stale libhv hunks in
-# place, and failed identically next time. That is how the #1212 null-hloop guard
-# stayed out of a tree with no way to get it back short of editing by hand.
+# libhv is reset along with LVGL: a tree carrying an older revision of a libhv
+# patch fails `git apply --check` on the newer one, and the recipe tells you to
+# run reapply-patches. Resetting only LVGL would leave the stale libhv hunks in
+# place and fail identically next time (the #1212 null-hloop guard is one such
+# patch).
 #
 # Deliberately NOT reset: config.mk and hconfig.h. Both are dirty in a built tree
 # but neither is patched — libhv's own ./configure writes them, and the libhv

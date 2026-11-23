@@ -378,11 +378,10 @@ TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pcm_pipe_sound_backen
 # prior sanitizer runs, reordered test sources, or removed test files
 # don't linger and pollute the link.
 #
-# Sanitizer cross-contamination is no longer a concern here: test-asan
-# and test-tsan build into $(ASAN_OBJ_DIR)/$(TSAN_OBJ_DIR), so they
-# cannot leave instrumented objects in this build's paths. Use `make clean-sanitizers` to drop those
-# trees. (Historically they shared $(OBJ_DIR) and a plain `make test`
-# would then fail to link with "undefined reference to __asan_init".)
+# test-asan and test-tsan build into $(ASAN_OBJ_DIR)/$(TSAN_OBJ_DIR), so they
+# cannot leave instrumented objects in this build's paths (a plain `make test`
+# would fail to link with "undefined reference to __asan_init"). Use
+# `make clean-sanitizers` to drop those trees.
 clean-tests:
 	$(ECHO) "$(YELLOW)Cleaning test artifacts...$(RESET)"
 	$(Q)rm -rf $(OBJ_DIR)/tests
@@ -949,11 +948,9 @@ test-smoke: test-build
 # Phase 2: Normal deps and linking (when _PARALLEL_GUARD is set)
 #
 # Same three-way handling as the main build (mk/rules.mk `all:`), and for the
-# same reason. Phase 1 used to ALWAYS force -j$(NPROC), which silently discarded
-# an explicit bound: `make test -j6` still ran -j32 here. That is invisible until
-# several sessions share one checkout, at which point it multiplies — four
-# concurrent `make test` runs produced 103 cc1plus and drove a 123G box into
-# swap.
+# same reason. Forcing -j$(NPROC) unconditionally would discard an explicit bound
+# (`make test -j6` would still run -j32), which multiplies when several sessions
+# share one checkout.
 #
 # A bounded -jN puts a --jobserver-auth entry in MAKEFLAGS. `exec` replaces the
 # process image but KEEPS open file descriptors, so the jobserver FDs survive and
@@ -1173,16 +1170,11 @@ TSAN_FLAGS := -fsanitize=thread -fno-omit-frame-pointer -g
 
 # Sanitizer builds get their own object tree.
 #
-# They used to compile into $(OBJ_DIR) alongside the normal build, which made
-# `make test-asan` a trap: instrumented .o files landed on top of the ordinary
-# ones, so the next plain `make test` died at link with "undefined reference to
-# __asan_init" — from files the user never touched. The documented recovery was
-# a full `make clean`, i.e. a from-scratch rebuild, and the failure gave no hint
-# that a sanitizer run was the cause. Recovering by hand cost an evening once.
-#
-# Separate trees make the collision impossible instead of recoverable, and the
-# two builds no longer invalidate each other, so switching between them is
-# incremental rather than a full rebuild each way.
+# Instrumented .o files must never land on top of the ordinary ones: the next
+# plain `make test` would die at link with "undefined reference to __asan_init"
+# from files the user never touched. Separate trees make the collision
+# impossible, and the builds do not invalidate each other, so switching between
+# them is incremental.
 ASAN_OBJ_DIR := $(BUILD_DIR)/obj-asan
 TSAN_OBJ_DIR := $(BUILD_DIR)/obj-tsan
 
