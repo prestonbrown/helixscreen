@@ -2050,6 +2050,7 @@ bool MoonrakerClientMock::cancel_print_internal() {
 
     print_phase_.store(MockPrintPhase::CANCELLED);
     print_state_.store(4); // "cancelled" for backward compatibility
+    end_pa_tower();
 
     spdlog::debug("[MoonrakerClientMock] Print cancelled at {:.1f}% progress",
                   print_progress_.load() * 100.0);
@@ -2081,6 +2082,7 @@ void MoonrakerClientMock::emergency_stop_internal() {
     // Set print state to error (matches real Klipper M112 behavior)
     print_phase_.store(MockPrintPhase::ERROR);
     print_state_.store(5); // error
+    end_pa_tower();
     dispatch_print_state_notification("error");
 
     // Klippy enters SHUTDOWN, reported both ways Moonraker does: a webhooks
@@ -2180,6 +2182,24 @@ void MoonrakerClientMock::advance_print_progress(double dt_simulated) {
     double rate = 1.0 / total_time; // Progress per simulated second
     double current = print_progress_.load();
     print_progress_.store(std::min(1.0, current + rate * dt_simulated));
+}
+
+void MoonrakerClientMock::step_printing(double dt_simulated) {
+    advance_print_progress(dt_simulated);
+    service_pa_tower();
+    if (print_progress_.load() >= 1.0) {
+        complete_print_internal();
+    }
+}
+
+void MoonrakerClientMock::complete_print_internal() {
+    print_phase_.store(MockPrintPhase::COMPLETE);
+    print_state_.store(3); // "complete" for backward compatibility
+    extruder_target_.store(0.0);
+    bed_target_.store(0.0);
+    end_pa_tower();
+    spdlog::info("[MoonrakerClientMock] Print complete!");
+    dispatch_print_state_notification("complete");
 }
 
 void MoonrakerClientMock::dispatch_print_state_notification(const std::string& state) {

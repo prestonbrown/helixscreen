@@ -1126,39 +1126,6 @@ MoonrakerClientMock::gcode_set_fan_speed(const std::string& gcode) {
 }
 
 // LED control - SET_LED LED=<name> RED=<0-1> GREEN=<0-1> BLUE=<0-1> [WHITE=<0-1>]
-MoonrakerClientMock::PressureAdvance
-MoonrakerClientMock::pressure_advance_for(const std::string& extruder) const {
-    std::lock_guard<std::mutex> lock(pressure_advance_mutex_);
-    auto it = pressure_advance_.find(extruder);
-    return it == pressure_advance_.end() ? PressureAdvance{} : it->second;
-}
-
-MoonrakerClientMock::GcodeResult
-MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
-    // Klipper defaults EXTRUDER to the active one; the mock prints on "extruder".
-    const std::string extruder =
-        helix::gcode::gcode_param_value(gcode, "EXTRUDER").value_or("extruder");
-    PressureAdvance pa = pressure_advance_for(extruder);
-    if (auto v = helix::gcode::gcode_param_value(gcode, "ADVANCE")) {
-        pa.advance = std::max(0.0, std::strtod(v->c_str(), nullptr));
-    }
-    if (auto v = helix::gcode::gcode_param_value(gcode, "SMOOTH_TIME")) {
-        pa.smooth_time = std::max(0.0, std::strtod(v->c_str(), nullptr));
-    }
-    {
-        std::lock_guard<std::mutex> lock(pressure_advance_mutex_);
-        pressure_advance_[extruder] = pa;
-    }
-    spdlog::info("[MoonrakerClientMock] SET_PRESSURE_ADVANCE {} ADVANCE={:.4f} SMOOTH_TIME={:.4f}",
-                 extruder, pa.advance, pa.smooth_time);
-    dispatch_status_update(
-        {{extruder, {{"pressure_advance", pa.advance}, {"smooth_time", pa.smooth_time}}}});
-    // Klipper's own acknowledgement, so console consumers see the same text.
-    dispatch_gcode_response(fmt::format("pressure_advance: {:.6f}", pa.advance));
-    dispatch_gcode_response(fmt::format("pressure_advance_smooth_time: {:.6f}", pa.smooth_time));
-    return std::nullopt;
-}
-
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_set_led(const std::string& gcode) {
     std::string led_name;
     auto led_pos = gcode.find("LED=");
@@ -1642,8 +1609,17 @@ int MoonrakerClientMock::gcode_script(const std::string& raw_gcode) {
         spdlog::info("[MoonrakerClientMock] MEASURE_AXES_NOISE");
         dispatch_measure_axes_noise_response();
     }
-    if (has_token(g, "SET_PRESSURE_ADVANCE")) {
+    if (is_command(g, "TUNING_TOWER")) {
+        if (auto tower = gcode_tuning_tower(g)) {
+            return *tower;
+        }
+    } else if (has_token(g, "SET_PRESSURE_ADVANCE")) {
         gcode_set_pressure_advance(g);
+    }
+    if (is_command(g, "PRINT_PA_TOWER")) {
+        if (auto tower = gcode_print_pa_tower(g)) {
+            return *tower;
+        }
     }
     if (has_token(g, "SET_LED")) {
         gcode_set_led(g);

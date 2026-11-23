@@ -576,6 +576,14 @@ void MoonrakerClientMock::populate_capabilities() {
     // (e.g. adaptive bed mesh) light up under --test.
     mock_objects.push_back("exclude_object");
 
+    // Kalico's pa_test module: its object and the config section that enables it.
+    if (pa_test_enabled()) {
+        mock_objects.push_back(helix::pa::kTowerObject);
+        extra_config_settings_[helix::pa::kTowerSection] = {
+            {"height", 50.0},        {"layer_height", 0.2},     {"first_layer_height", 0.2},
+            {"slow_velocity", 25.0}, {"medium_velocity", 50.0}, {"fast_velocity", 80.0}};
+    }
+
     // Add common macros for all printer types (for testing macro panel)
     mock_objects.push_back("gcode_macro START_PRINT");
     mock_objects.push_back("gcode_macro END_PRINT");

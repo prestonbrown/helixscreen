@@ -1741,6 +1741,38 @@ firmware's speeds through the mock's own `SET_FAN_SPEED`.
 
 Confirm what you got from the log line: `[MoonrakerManager] Creating MOCK client (<printer>, <n>x speed)`.
 
+### `HELIX_MOCK_PA_MODEL`
+
+Make the mock's extruders run a model-aware pressure advance, as Kalico's selectable models do.
+
+| Property | Value |
+|----------|-------|
+| **Values** | `classic`, `linear`, `tanh`, `recipr` |
+| **Default** | `classic`: the extruder reports `pressure_advance` and `smooth_time` only |
+| **File** | `src/mock/moonraker_client_mock_pa.cpp` |
+
+`linear` adds `pressure_advance_model` and `time_offset`. `tanh` and `recipr` report `pressure_advance_model`, `linear_advance`, `nonlinear_offset`, `linearization_velocity` (starts at 1), `time_offset` and `smooth_time`, and no `pressure_advance`. Under any model but `classic`, `SET_PRESSURE_ADVANCE` takes `MODEL=` (an unknown name fails with `Invalid MODEL='x' choice`), `ADVANCE=` (K under `linear`, `linear_advance` under a nonlinear model), `OFFSET=`, `VELOCITY=`, `TIME_OFFSET=` (-0.2 to 0.2) and `SMOOTH_TIME=`; a nonlinear `OFFSET` above 0 with `VELOCITY` at or below 0 is refused. A model switch notifies the new model's full key set.
+
+```bash
+HELIX_MOCK_PA_MODEL=tanh ./build/bin/helix-screen --test -vv
+```
+
+### `HELIX_MOCK_PA_TEST`
+
+Enable the firmware's `pa_test` module in the mock: the `pa_test` object and config section (height 50, layer height 0.2, first layer 0.2, velocities 25/50/80) and the `PRINT_PA_TOWER` command. Without it `PRINT_PA_TOWER` fails as an unknown command.
+
+| Property | Value |
+|----------|-------|
+| **Values** | any truthy flag value (`1`) |
+| **Default** | unset: no tower module |
+| **File** | `src/mock/moonraker_client_mock_pa.cpp` |
+
+`TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=ADVANCE|OFFSET|TIME_OFFSET START=<f> FACTOR=<f>` arms a sweep of `START + z * FACTOR`. `PRINT_PA_TOWER NOZZLE=<f> TARGET_TEMP=<f>` refuses unless the extruder's target already equals `TARGET_TEMP`; otherwise it prints a tower named `PA tower` through the mock's normal print phase, one 0.2 mm layer at a time up to 50 mm (about two minutes at 1x, so `--sim-speed` shortens it). Each new layer applies the armed sweep as a `SET_PRESSURE_ADVANCE`; the print ends `complete`, or `cancelled` on `CANCEL_PRINT`, and the sweep is disarmed.
+
+```bash
+HELIX_MOCK_PA_MODEL=tanh HELIX_MOCK_PA_TEST=1 ./build/bin/helix-screen --test --sim-speed 6 -vv
+```
+
 ### `HELIX_MOCK_PA_FAIL`
 
 Make the mock's `FLOW_CALIBRATE` run (the Snapmaker U1 pressure advance calibration) refuse instead of converging. The refusal path is otherwise unreachable in mock mode, and it is one of the states the calibration panel shows most visibly.
