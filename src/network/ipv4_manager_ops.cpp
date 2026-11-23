@@ -12,9 +12,7 @@
 
 #include <spdlog/spdlog.h>
 
-// ============================================================================
 // WiFiManager
-// ============================================================================
 
 namespace helix {
 
@@ -93,9 +91,7 @@ void WiFiManager::apply_ipv4_change_async(
 
 } // namespace helix
 
-// ============================================================================
 // EthernetManager
-// ============================================================================
 
 bool EthernetManager::supports_ipv4_config() {
     return backend_ && backend_->supports_ipv4_config();

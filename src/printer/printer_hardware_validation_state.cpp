@@ -144,7 +144,6 @@ void PrinterHardwareValidationState::remove_hardware_issue(const std::string& ha
     remove_by_name(hardware_validation_result_.newly_discovered);
     remove_by_name(hardware_validation_result_.changed_from_last_session);
 
-    // Re-apply the updated result to refresh all subjects
     set_hardware_validation_result(hardware_validation_result_);
 
     spdlog::debug("[PrinterHardwareValidationState] Removed hardware issue: {}", hardware_name);

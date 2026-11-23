@@ -143,9 +143,7 @@ std::optional<Ipv4Link> ipv4_link_from_name(std::string_view name) {
     return std::nullopt;
 }
 
-// ============================================================================
 // Address arithmetic
-// ============================================================================
 
 std::optional<uint32_t> parse_ipv4(std::string_view text) {
     text = trim(text);
@@ -224,9 +222,7 @@ std::string prefix_to_netmask(int prefix) {
     return format_ipv4(prefix_mask(prefix));
 }
 
-// ============================================================================
 // Form validation
-// ============================================================================
 
 Ipv4Verdict validate_ipv4_form(const Ipv4Form& form) {
     Ipv4Verdict v;
@@ -331,9 +327,7 @@ Ipv4Config ipv4_keep_unshown(const Ipv4Config& current, Ipv4Config next) {
 }
 
 #ifdef HELIX_ENABLE_MOCKS
-// ============================================================================
 // Mock store
-// ============================================================================
 
 Ipv4Result MockIpv4Config::get(Ipv4Config& out) const {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -403,9 +397,7 @@ std::string MockIpv4Config::static_address() const {
 
 #endif // HELIX_ENABLE_MOCKS
 
-// ============================================================================
 // NetworkManager
-// ============================================================================
 
 std::string nm_active_uuid_for_device(const std::string& output, const std::string& iface) {
     if (iface.empty()) {
@@ -587,9 +579,7 @@ std::vector<std::string> nm_ipv4_modify_argv(const std::string& uuid, const Ipv4
     return argv;
 }
 
-// ============================================================================
 // Confirm-or-revert
-// ============================================================================
 
 void Ipv4RevertCountdown::start(uint32_t now_ms, uint32_t seconds) {
     running_ = true;
@@ -777,9 +767,7 @@ std::mutex& ipv4_change_mutex() {
     return mutex;
 }
 
-// ============================================================================
 // Change flow
-// ============================================================================
 
 Ipv4ChangeFlow::Action Ipv4ChangeFlow::begin(const Ipv4Config& current, const Ipv4Config& next) {
     if (state_ != State::Idle) {

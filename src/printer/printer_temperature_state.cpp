@@ -471,7 +471,6 @@ lv_subject_t* PrinterTemperatureState::get_extruder_power_subject(const std::str
 }
 
 void PrinterTemperatureState::set_active_extruder(const std::string& name) {
-    // Verify the extruder exists in our map
     auto it = extruders_.find(name);
     if (it == extruders_.end()) {
         spdlog::warn("[PrinterTemperatureState] Unknown extruder '{}', keeping '{}'", name,

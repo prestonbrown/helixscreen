@@ -9,9 +9,7 @@
 #include "wifi_ui_utils.h"
 
 #if !defined(__APPLE__) && !defined(__ANDROID__)
-// ============================================================================
 // Linux Implementation: netd line-protocol client
-// ============================================================================
 
 #include <cctype>
 #include <cerrno>
@@ -59,9 +57,7 @@ std::string default_mac_reader() {
 
 } // namespace
 
-// ============================================================================
 // Lifecycle
-// ============================================================================
 
 WifiBackendNetd::WifiBackendNetd(int reconnect_ms, int scan_watchdog_ms, MacReader mac_reader,
                                  int liveness_probe_ms, int liveness_giveup_ms)
@@ -256,9 +252,7 @@ bool WifiBackendNetd::is_running() const {
     return init_succeeded_.load();
 }
 
-// ============================================================================
 // Init / connection management (loop thread)
-// ============================================================================
 
 void WifiBackendNetd::init_netd() {
     read_mac_address_if_empty();
@@ -448,12 +442,9 @@ void WifiBackendNetd::try_reconnect() {
     arm_reconnect_timer();
 }
 
-// ============================================================================
 // Read path (loop thread)
-// ============================================================================
 
 void WifiBackendNetd::_on_read(hio_t* io, void* data, int nbyte) {
-    // Static trampoline: extract the instance and forward.
     auto* instance = static_cast<WifiBackendNetd*>(hio_context(io));
     if (instance != nullptr) {
         instance->on_read(data, nbyte);
@@ -694,9 +685,7 @@ void WifiBackendNetd::finish_scan(helix::netd::Ack::Kind completing) {
     dispatch_event("SCAN_COMPLETE", "");
 }
 
-// ============================================================================
 // Write path (any thread)
-// ============================================================================
 
 bool WifiBackendNetd::write_line_from_loop(const std::string& line) {
     // LOOP THREAD ONLY. io_/fd_ are mutated only by open_connection() and
@@ -830,9 +819,7 @@ void WifiBackendNetd::cancel_liveness_probe() {
     }
 }
 
-// ============================================================================
 // WifiBackend Interface Implementation
-// ============================================================================
 
 WiFiError WifiBackendNetd::trigger_scan() {
     if (!is_running()) {

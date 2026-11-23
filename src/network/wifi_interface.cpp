@@ -129,7 +129,6 @@ std::string find_rfkill_node(const std::string& sys_root, const std::string& net
                     continue;
 
                 std::string type_value = std::move(*type_line);
-                // Trim trailing whitespace.
                 while (!type_value.empty() &&
                        (type_value.back() == '\r' || type_value.back() == '\n' ||
                         type_value.back() == ' ' || type_value.back() == '\t'))

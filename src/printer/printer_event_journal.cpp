@@ -65,9 +65,7 @@ std::optional<double> number_at(const std::string& s, std::size_t pos) {
 
 } // namespace
 
-// ---------------------------------------------------------------------------
 // Classification
-// ---------------------------------------------------------------------------
 
 std::string journal_error_text(const std::string& line) {
     std::string text = trim(line);
@@ -118,9 +116,7 @@ std::string journal_pause_cause(const std::vector<JournalEntry>& entries, double
     return error ? "error" : "unknown";
 }
 
-// ---------------------------------------------------------------------------
 // Source decision
-// ---------------------------------------------------------------------------
 
 JournalPlan decide_journal_source(PluginFeatureState state, bool recorder_built) {
     if (state == PluginFeatureState::Ready) {
@@ -132,9 +128,7 @@ JournalPlan decide_journal_source(PluginFeatureState state, bool recorder_built)
     return {JournalSource::Screen, true};
 }
 
-// ---------------------------------------------------------------------------
 // Wire format
-// ---------------------------------------------------------------------------
 
 std::optional<std::size_t> journal_repeat_of(const std::vector<JournalEntry>& entries,
                                              const JournalEntry& e) {
@@ -240,9 +234,7 @@ nlohmann::json build_event_journal_section(JournalSource source,
             {"entries", std::move(list)}};
 }
 
-// ---------------------------------------------------------------------------
 // Backfill
-// ---------------------------------------------------------------------------
 
 std::vector<JournalEntry> backfill_from_gcode_store(const std::vector<GcodeStoreEntry>& store,
                                                     double since, const PrinterDiscovery* hw) {
@@ -351,9 +343,7 @@ bool backfill_needs_klippy_log(bool klippy_shutdown_now,
     });
 }
 
-// ---------------------------------------------------------------------------
 // LocalEventJournal
-// ---------------------------------------------------------------------------
 
 LocalEventJournal& LocalEventJournal::instance() {
     static LocalEventJournal journal;
@@ -491,9 +481,7 @@ void LocalEventJournal::clear() {
     ++version_;
 }
 
-// ---------------------------------------------------------------------------
 // Presentation
-// ---------------------------------------------------------------------------
 
 JournalRow describe_journal_entry(const JournalEntry& e) {
     using namespace journal_kind;
