@@ -37,7 +37,7 @@ The image follows one update channel, chosen when you build it:
 |---|---|
 | nothing extra | The newest release on the Stable channel. It must be 1.1 or newer; while Stable is still on 1.0, the build stops because that release has no desktop package. |
 | `--build-arg CHANNEL=beta` | The newest Beta release. |
-| `--build-arg HELIX_VERSION=v1.1.0` | That one release. |
+| `--build-arg HELIX_VERSION=v1.1.0 --build-arg HELIX_SHA256=<sha256>` | That one release. Give the zip's SHA-256 so the download can be checked: the `zip_sha256` value from a channel manifest that served that release (`https://releases.helixscreen.org/beta/manifest.json`, for example). |
 
 Tag a build `helixscreen/homeserver:beta` (or any name you like) to keep a Stable and a Beta image side by side.
 

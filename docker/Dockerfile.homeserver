@@ -20,6 +20,8 @@ FROM debian:bookworm-slim
 
 ARG CHANNEL=stable
 ARG HELIX_VERSION=
+# Required with HELIX_VERSION: the release zip's sha256, since only channel manifests publish one.
+ARG HELIX_SHA256=
 ARG R2_BASE_URL=https://releases.helixscreen.org
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -33,14 +35,15 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
 RUN set -eu; \
     if [ -n "$HELIX_VERSION" ]; then \
         url="$R2_BASE_URL/releases/$HELIX_VERSION/helixscreen-x86-desktop.zip"; \
-        sha=""; \
+        sha="$HELIX_SHA256"; \
+        if [ -z "$sha" ]; then echo "HELIX_VERSION needs HELIX_SHA256 (the zip's sha256)" >&2; exit 1; fi; \
     else \
         curl -fsSL "$R2_BASE_URL/$CHANNEL/manifest.json" -o /tmp/manifest.json; \
         url=$(jq -er '.assets["x86-desktop"].zip_url' /tmp/manifest.json); \
         sha=$(jq -er '.assets["x86-desktop"].zip_sha256' /tmp/manifest.json); \
     fi; \
     curl -fsSL "$url" -o /tmp/helixscreen.zip; \
-    if [ -n "$sha" ]; then echo "$sha  /tmp/helixscreen.zip" | sha256sum -c -; fi; \
+    echo "$sha  /tmp/helixscreen.zip" | sha256sum -c -; \
     mkdir -p /opt/helixscreen /tmp/pkg; \
     unzip -q /tmp/helixscreen.zip -d /tmp/pkg; \
     top=$(find /tmp/pkg -maxdepth 2 -type f -path '*/bin/helix-screen' | head -n1); \
