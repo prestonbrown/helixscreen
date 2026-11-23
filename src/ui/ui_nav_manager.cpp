@@ -1831,6 +1831,8 @@ void NavigationManager::deinit_subjects() {
     active_panel_observer_.reset();
     connection_state_observer_.reset();
     klippy_state_observer_.reset();
+    estop_slot_observer_.reset();
+    drying_slot_observer_.reset();
 
     subjects_.deinit_all();
 
