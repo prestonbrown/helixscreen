@@ -11,7 +11,7 @@
 // AFC_ACE.py's dryer and climate fields and which answers AFC_ACE_DRY /
 // AFC_ACE_DRY_STOP. HELIX_MOCK_AMS=quattro_box and afc_bmcu run a Quattro Box or a
 // BMCU the same way, as `[AFC_QuattroBox QuattroBox_1]` / `[AFC_BMCU BMCU_1]` over
-// `[AFC_lane laneN]`, no buffer.
+// `[AFC_lane laneN]`, with the TurtleNeck buffer.
 
 #include "core/text_io.h"
 #include "mock_persona.h"
@@ -45,9 +45,10 @@ struct UnitShape {
 constexpr UnitShape kBoxTurtle = {"Turtle_1", "Box_Turtle", "AFC_BoxTurtle ", "AFC_stepper ", true};
 constexpr UnitShape kAce = {"Ace_1", "ACE", "AFC_ACE ", "AFC_lane ", false};
 constexpr UnitShape kCfs = {"cfs_1", "CFS", "AFC_CFS ", "AFC_lane ", false};
+// A TurtleNeck buffer belongs to the toolhead path, not the unit: these rigs carry one.
 constexpr UnitShape kQuattroBox = {"QuattroBox_1", "Quattro_Box", "AFC_QuattroBox ", "AFC_lane ",
-                                   false};
-constexpr UnitShape kBmcu = {"BMCU_1", "BMCU", "AFC_BMCU ", "AFC_lane ", false};
+                                   true};
+constexpr UnitShape kBmcu = {"BMCU_1", "BMCU", "AFC_BMCU ", "AFC_lane ", true};
 
 /// The unit an AFC mock mode runs, nullptr for a mode that is not one.
 const UnitShape* unit_shape_for(std::string_view mode) {
