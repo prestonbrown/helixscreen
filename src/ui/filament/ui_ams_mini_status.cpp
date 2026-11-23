@@ -1503,7 +1503,7 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
     // (Titled units snap to their group's start instead.)
     lv_obj_remove_local_style_prop(sc, LV_STYLE_MAX_WIDTH, LV_PART_MAIN);
     if (scrolls && grid_spans.size() == 1 && !grid.plan.groups.empty()) {
-        const int bypass_w = bypass_cell ? cell_px + 2 * gap + 1 : 0;
+        const int bypass_w = bypass_cell ? cell_px + 1 + 2 * (gap + bypass_divider_margin()) : 0;
         const int visible = (avail_w - bypass_w + gap) / (cell_px + gap);
         if (visible >= 1 && visible < grid.plan.groups[0].cols)
             lv_obj_set_style_max_width(sc, visible * cell_px + (visible - 1) * gap, LV_PART_MAIN);
