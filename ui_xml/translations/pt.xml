@@ -521,6 +521,7 @@
   <translation tag="Bypass failed" pt="Falha no bypass"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" pt="O bypass está ativo, mas esta impressão usa slots AMS. A impressora pode não conseguir carregar um slot enquanto houver filamento de bypass no cabeçote. Remova o filamento e desative o bypass antes de imprimir. Iniciar mesmo assim?"/>
   <translation tag="Bypass mode is not currently active" pt="O modo bypass não está ativo no momento"/>
+  <translation tag="Bypass mode is on" pt="O modo bypass está ativo"/>
   <translation tag="Bypass off macro" pt="Macro de desligar bypass"/>
   <translation tag="Bypass on macro" pt="Macro de ligar bypass"/>
   <translation tag="Bypass toggle failed" pt="Falha ao alternar bypass"/>
@@ -4234,6 +4235,7 @@
   <translation tag="Turn On LEDs" pt="Ligar os LEDs"/>
   <translation tag="Turn On Toolhead LED" pt="Ligar o LED do cabeçote"/>
   <translation tag="Turn off bed check" pt="Desligar verificação da mesa"/>
+  <translation tag="Turn off bypass mode to load from a lane" pt="Desligue o modo bypass para carregar de uma lane"/>
   <translation tag="Turn off detection" pt="Desligar detecção"/>
   <translation tag="Turn on the lights your light buttons control" pt="Liga as luzes que os botões de luz controlam"/>
   <translation tag="Turn the extruder heater off after a load or unload finishes" pt="Desliga o aquecedor do extrusor ao concluir um carregamento ou descarregamento"/>

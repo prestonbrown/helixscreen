@@ -566,6 +566,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Il bypass è attivo, ma questa stampa usa gli slot AMS. La stampante potrebbe rifiutare il caricamento di uno slot mentre il filamento del bypass è nella testina. Rimuovi il filamento e disattiva il bypass prima di stampare. Avviare comunque?
   Bypass mode is not currently active: 'La modalità bypass non è attiva'
+  Bypass mode is on: 'La modalità bypass è attiva'
   Bypass off macro: 'Macro di disattivazione bypass'
   Bypass on macro: 'Macro di attivazione bypass'
   Bypass toggle failed: Cambio bypass fallito
@@ -4655,6 +4656,7 @@ translations:
   Turn On LEDs: 'Accendi i LED'
   Turn On Toolhead LED: "Accendi il LED della testina"
   Turn off bed check: 'Disattiva controllo piano'
+  Turn off bypass mode to load from a lane: 'Disattiva la modalità bypass per caricare da una corsia'
   Turn off detection: Disattiva rilevamento
   Turn on the lights your light buttons control: Accende le luci controllate dai pulsanti luce
   Turn the extruder heater off after a load or unload finishes: Spegni il riscaldatore dell'estrusore al termine di un caricamento o scaricamento

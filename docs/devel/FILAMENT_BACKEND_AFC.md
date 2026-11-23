@@ -916,6 +916,20 @@ absent from `src/` and `include/`, and is recorded here so the reasoning is not 
 | Dryer | ACE units only | `AFC_ACE_DRY` (see [ACE Pro units](#ace-pro-units-afc_ace-name-afc_ace2-name)) |
 | Device Actions | Yes | Setup, Speed, Toolhead, Maintenance, Hub & Cutter, Tip Forming, Purge & Wipe (see [Device Operations Overlay](FILAMENT_MANAGEMENT.md#device-operations-overlay)) |
 
+**Bypass: virtual switch or automatic hardware sensor.** AFC looks up
+`[filament_switch_sensor bypass]` at startup (AFC.py, where it sets `self.bypass`). With none
+configured it creates `filament_switch_sensor virtual_bypass`, a switch the user flips and AFC
+saves across restarts; AFC never turns it on by itself. The hardware form is an automatic
+bypass: a 2-into-1 hub whose switch sits on the bypass input only, so it triggers when a
+hand-fed bypass filament goes in and never for the filament system's own input. Either way,
+with bypass on AFC refuses lane loads ("Filament loaded in bypass, not doing tool load") and
+turns its unload into the printer's stock `UNLOAD_FILAMENT`. That refusal raises no G-code
+error, so `load_filament()` and a non-toolchanger `change_tool()` refuse first with
+`WRONG_STATE` ("Bypass mode is on" / "Turn off bypass mode to load from a lane")
+(`src/printer/ams_backend_afc.cpp#lane_load_refusal_locked`). With bypass off, filament at the
+toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
+UI with a toolhead that reads full and a unit that reads empty.
+
 **An engaged bypass is the selected path; the toolhead sensor says whether it is fed.** While
 `bypass_state` is true, `AmsBackendAfc::apply_bypass_to_system_info()`
 (`src/printer/ams_backend_afc.cpp#apply_bypass_to_system_info`) sets `current_slot` to -2, and

@@ -611,6 +611,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?
   Bypass mode is not currently active: 'Режим обхода сейчас не активен'
+  Bypass mode is on: 'Режим обхода включён'
   Bypass off macro: 'Макрос выключения обхода'
   Bypass on macro: 'Макрос включения обхода'
   Bypass toggle failed: Не удалось переключить байпас
@@ -4699,6 +4700,7 @@ translations:
   Turn On LEDs: 'Включить LED'
   Turn On Toolhead LED: "Включить LED печатающей головки"
   Turn off bed check: 'Отключить проверку стола'
+  Turn off bypass mode to load from a lane: 'Выключите режим обхода, чтобы загрузить из канала'
   Turn off detection: Отключить обнаружение
   Turn on the lights your light buttons control: Включает свет, которым управляют кнопки света
   Turn the extruder heater off after a load or unload finishes: Выключать нагреватель экструдера после загрузки или выгрузки

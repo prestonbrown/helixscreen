@@ -521,6 +521,7 @@
   <translation tag="Bypass failed" es="Error en bypass"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" es="El bypass está activo, pero esta impresión usa ranuras AMS. La impresora puede negarse a cargar una ranura mientras haya filamento de bypass en el cabezal. Retire el filamento y desactive el bypass antes de imprimir. ¿Iniciar de todos modos?"/>
   <translation tag="Bypass mode is not currently active" es="El modo bypass no está activo actualmente"/>
+  <translation tag="Bypass mode is on" es="El modo bypass está activo"/>
   <translation tag="Bypass off macro" es="Macro de bypass desactivado"/>
   <translation tag="Bypass on macro" es="Macro de bypass activado"/>
   <translation tag="Bypass toggle failed" es="Error al alternar bypass"/>
@@ -4234,6 +4235,7 @@
   <translation tag="Turn On LEDs" es="Encender los LED"/>
   <translation tag="Turn On Toolhead LED" es="Encender el LED del cabezal"/>
   <translation tag="Turn off bed check" es="Desactivar comprobación de cama"/>
+  <translation tag="Turn off bypass mode to load from a lane" es="Desactiva el modo bypass para cargar desde un carril"/>
   <translation tag="Turn off detection" es="Desactivar detección"/>
   <translation tag="Turn on the lights your light buttons control" es="Enciende las luces que controlan tus botones de luz"/>
   <translation tag="Turn the extruder heater off after a load or unload finishes" es="Apagar el calentador del extrusor al terminar una carga o descarga"/>

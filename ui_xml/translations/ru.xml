@@ -560,6 +560,7 @@
   <translation tag="Bypass failed" ru="Ошибка байпаса"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ru="Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?"/>
   <translation tag="Bypass mode is not currently active" ru="Режим обхода сейчас не активен"/>
+  <translation tag="Bypass mode is on" ru="Режим обхода включён"/>
   <translation tag="Bypass off macro" ru="Макрос выключения обхода"/>
   <translation tag="Bypass on macro" ru="Макрос включения обхода"/>
   <translation tag="Bypass toggle failed" ru="Не удалось переключить байпас"/>
@@ -4297,6 +4298,7 @@
   <translation tag="Turn On LEDs" ru="Включить LED"/>
   <translation tag="Turn On Toolhead LED" ru="Включить LED печатающей головки"/>
   <translation tag="Turn off bed check" ru="Отключить проверку стола"/>
+  <translation tag="Turn off bypass mode to load from a lane" ru="Выключите режим обхода, чтобы загрузить из канала"/>
   <translation tag="Turn off detection" ru="Отключить обнаружение"/>
   <translation tag="Turn on the lights your light buttons control" ru="Включает свет, которым управляют кнопки света"/>
   <translation tag="Turn the extruder heater off after a load or unload finishes" ru="Выключать нагреватель экструдера после загрузки или выгрузки"/>

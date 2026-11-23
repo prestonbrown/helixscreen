@@ -537,6 +537,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : バイパスが有効ですが、この印刷はAMSスロットを使用します。バイパスのフィラメントがツールヘッドにある間は、プリンターがスロットの装填を拒否する場合があります。印刷前にフィラメントを取り除き、バイパスをオフにしてください。それでも印刷を開始しますか？
   Bypass mode is not currently active: 'バイパスモードは現在アクティブではありません'
+  Bypass mode is on: 'バイパスモードがオンです'
   Bypass off macro: 'バイパスオフのマクロ'
   Bypass on macro: 'バイパスオンのマクロ'
   Bypass toggle failed: バイパス切替に失敗しました
@@ -4416,6 +4417,7 @@ translations:
   Turn On LEDs: 'LEDを点灯'
   Turn On Toolhead LED: "ツールヘッドLEDを点灯"
   Turn off bed check: 'ベッドチェックをオフにする'
+  Turn off bypass mode to load from a lane: 'レーンから装填するにはバイパスモードをオフにしてください'
   Turn off detection: 検出をオフにする
   Turn on the lights your light buttons control: ライトボタンが操作するライトを点灯します
   Turn the extruder heater off after a load or unload finishes: 装填または排出の完了後にエクストルーダーヒーターをオフにします

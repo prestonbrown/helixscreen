@@ -536,6 +536,7 @@ translations:
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : 旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？
   Bypass mode is not currently active: '旁通模式当前未启用'
+  Bypass mode is on: '旁通模式已开启'
   Bypass off macro: '关闭旁路宏'
   Bypass on macro: '开启旁路宏'
   Bypass toggle failed: 旁通切换失败
@@ -4407,6 +4408,7 @@ translations:
   Turn On LEDs: '打开 LED'
   Turn On Toolhead LED: "打开工具头 LED"
   Turn off bed check: '关闭热床检查'
+  Turn off bypass mode to load from a lane: '请关闭旁通模式后再从耗材通道装载'
   Turn off detection: 关闭检测
   Turn on the lights your light buttons control: 开启灯光按钮所控制的灯光
   Turn the extruder heater off after a load or unload finishes: 加载或卸载完成后关闭挤出机加热器

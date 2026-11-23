@@ -521,6 +521,7 @@
   <translation tag="Bypass failed" zh="旁通失败"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" zh="旁路已启用，但此打印使用 AMS 槽位。当旁路耗材仍在工具头中时，打印机可能拒绝装载槽位。请在打印前取出耗材并关闭旁路。仍要开始打印吗？"/>
   <translation tag="Bypass mode is not currently active" zh="旁通模式当前未启用"/>
+  <translation tag="Bypass mode is on" zh="旁通模式已开启"/>
   <translation tag="Bypass off macro" zh="关闭旁路宏"/>
   <translation tag="Bypass on macro" zh="开启旁路宏"/>
   <translation tag="Bypass toggle failed" zh="旁通切换失败"/>
@@ -4234,6 +4235,7 @@
   <translation tag="Turn On LEDs" zh="打开 LED"/>
   <translation tag="Turn On Toolhead LED" zh="打开工具头 LED"/>
   <translation tag="Turn off bed check" zh="关闭热床检查"/>
+  <translation tag="Turn off bypass mode to load from a lane" zh="请关闭旁通模式后再从耗材通道装载"/>
   <translation tag="Turn off detection" zh="关闭检测"/>
   <translation tag="Turn on the lights your light buttons control" zh="开启灯光按钮所控制的灯光"/>
   <translation tag="Turn the extruder heater off after a load or unload finishes" zh="加载或卸载完成后关闭挤出机加热器"/>

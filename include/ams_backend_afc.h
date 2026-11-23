@@ -1116,6 +1116,9 @@ class AmsBackendAfc : public AmsSubscriptionBackend {
     /// True when AFC publishes a `Toolchanger` unit: its heads are mounted by
     /// AFC_SELECT_TOOL, not by T{n}. @pre mutex_ held.
     [[nodiscard]] bool has_toolchanger_unit_locked() const;
+    /// WRONG_STATE when AFC would refuse a lane load (bypass mode on), else
+    /// success. @pre mutex_ held.
+    [[nodiscard]] AmsError lane_load_refusal_locked() const;
 
     /// False only when configfile has answered and no AFC_extruder section
     /// named, or resolving to, @p klipper_name sets `toolchanger_unit`. AFC_SELECT_TOOL on such a
