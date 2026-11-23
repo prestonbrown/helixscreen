@@ -114,7 +114,6 @@ std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools, const
         return spools;
     }
 
-    // Split query into lowercase terms (space-separated)
     std::vector<std::string> terms;
     std::istringstream stream(query);
     std::string term;
@@ -156,11 +155,9 @@ std::vector<SpoolInfo> filter_spools(const std::vector<SpoolInfo>& spools, const
 
         bool all_match =
             std::all_of(terms.begin(), terms.end(), [&searchable](const std::string& t) {
-                // Fast path: exact substring match
                 if (searchable.find(t) != std::string::npos) {
                     return true;
                 }
-                // Slow path: fuzzy match against individual words
                 return fuzzy_match_any_word(t, searchable);
             });
 

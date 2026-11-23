@@ -490,7 +490,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
     spdlog::debug("[WifiBackend] Starting wpa_supplicant backend...");
     shutdown_requested_ = false;
 
-    // Pre-flight checks before starting event loop
     WiFiError preflight_result = check_system_prerequisites();
     if (!preflight_result.success()) {
         // User-facing critical error - wpa_supplicant not running or no permissions
@@ -534,7 +533,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
         init_complete_ = false;
         loop()->runInLoop(std::bind(&WifiBackendWpaSupplicant::init_wpa, this));
     } else {
-        // Start new event loop thread with initialization callback
         spdlog::info("[WifiBackend] Starting event loop thread");
         init_complete_ = false;
         try {
@@ -549,7 +547,6 @@ WiFiError WifiBackendWpaSupplicant::start() {
         }
     }
 
-    // Wait for init_wpa() to complete (with timeout)
     {
         std::unique_lock<std::mutex> lock(init_mutex_);
         if (!init_cv_.wait_for(lock, std::chrono::seconds(5),
@@ -692,13 +689,11 @@ void WifiBackendWpaSupplicant::stop() {
 WiFiError WifiBackendWpaSupplicant::check_system_prerequisites() {
     spdlog::debug("[WifiBackend] Performing system prerequisites check");
 
-    // 1. Check WiFi hardware availability
     WiFiError hw_result = check_wifi_hardware();
     if (!hw_result.success()) {
         return hw_result;
     }
 
-    // 2. Check if any wpa_supplicant sockets exist
     std::vector<std::string> socket_paths = wpa_socket_dirs();
     bool socket_found = false;
     std::string accessible_socket;
@@ -941,7 +936,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         }
     }
 
-    // Helper to signal completion and notify waiters
     auto signal_init_complete = [this]() {
         init_complete_ = true;
         init_cv_.notify_all();
@@ -973,7 +967,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         spdlog::debug("[WifiBackend] Using client socket dir: {}", cli_dir);
     }
 
-    // Open control connection (for sending commands)
     bool ctrl_open = false;
     {
         std::lock_guard<std::mutex> lock(cmd_mutex_);
@@ -1000,7 +993,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Open monitor connection (for receiving events)
     mon_conn = wpa_ctrl_open2(wpa_socket.c_str(),
                               cli_dir); // SECURITY: Use member variable to prevent leak
     if (mon_conn == nullptr) {
@@ -1021,7 +1013,6 @@ void WifiBackendWpaSupplicant::init_wpa() {
         return;
     }
 
-    // Attach to wpa_supplicant event stream
     if (wpa_ctrl_attach(mon_conn) != 0) {
         LOG_ERROR_INTERNAL("Failed to attach to wpa_supplicant events");
         dispatch_event("INIT_FAILED", "Failed to attach to wpa_supplicant events");
@@ -1211,7 +1202,6 @@ void WifiBackendWpaSupplicant::cleanup_wpa() {
         mon_io_ = nullptr;
     }
 
-    // Close monitor connection (detach from events)
     if (mon_conn) {
         spdlog::trace("[WifiBackend] Detaching from wpa_supplicant events");
         wpa_ctrl_detach(mon_conn); // Detach from event stream
@@ -1268,7 +1258,6 @@ void WifiBackendWpaSupplicant::handle_wpa_events(void* data, int len) {
         return;
     }
 
-    // Convert to string (may contain newlines)
     std::string event = std::string(static_cast<char*>(data), len);
 
     spdlog::trace("[WifiBackend] Event received: {}", helix::redact::names_in_text(event));
@@ -1382,7 +1371,6 @@ std::string WifiBackendWpaSupplicant::send_command(const std::string& cmd) {
         return "";
     }
 
-    // Null-terminate response
     resp[len] = '\0';
 
     // SECURITY: Don't log password responses
@@ -1714,7 +1702,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
             return WiFiErrorHelper::connection_failed("Failed to add network to wpa_supplicant");
         }
 
-        // Parse network ID (should be a number)
         network_id = add_result;
         if (!network_id.empty() && network_id.back() == '\n') {
             network_id.pop_back();
@@ -1732,7 +1719,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         spdlog::debug("[WifiBackend] Added network with ID: {}", network_id);
     }
 
-    // Step 2: Set SSID
     std::string set_ssid_cmd = "SET_NETWORK " + network_id + " ssid \"" + clean_ssid + "\"";
     std::string ssid_result = send_command(set_ssid_cmd);
     if (ssid_result != "OK\n") {
@@ -1778,7 +1764,6 @@ WiFiError WifiBackendWpaSupplicant::connect_network(const std::string& ssid,
         }
         spdlog::debug("[WifiBackend] Configured as open network");
     } else {
-        // Secured network with PSK
         std::string set_psk_cmd = "SET_NETWORK " + network_id + " psk \"" + clean_password + "\"";
         std::string psk_result = send_command(set_psk_cmd);
         if (psk_result != "OK\n") {

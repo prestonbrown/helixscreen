@@ -190,7 +190,6 @@ void WifiBackendNetworkManager::stop() {
 
     spdlog::info("[WifiBackend] Stopping NetworkManager backend");
 
-    // Signal threads to cancel
     scan_active_ = false;
     connect_active_ = false;
 
@@ -372,7 +371,6 @@ WiFiError WifiBackendNetworkManager::trigger_scan() {
                          "WiFi system not ready");
     }
 
-    // Clean up existing scan thread
     scan_active_ = false;
     if (scan_thread_.joinable()) {
         scan_thread_.join();
@@ -393,7 +391,6 @@ WiFiError WifiBackendNetworkManager::trigger_scan() {
 void WifiBackendNetworkManager::scan_thread_func() {
     spdlog::debug("[WifiBackend] NM: Scan thread started");
 
-    // Request a rescan (may take a few seconds)
     exec_nmcli("device wifi rescan ifname " + wifi_interface_);
 
     // Wait for scan to complete (nmcli rescan is async)
@@ -464,7 +461,6 @@ std::vector<std::string> WifiBackendNetworkManager::split_nmcli_fields(const std
                 current += line[i];
             }
         } else if (line[i] == ':') {
-            // Field separator
             fields.push_back(current);
             current.clear();
         } else {
@@ -472,7 +468,6 @@ std::vector<std::string> WifiBackendNetworkManager::split_nmcli_fields(const std
         }
     }
 
-    // Don't forget the last field
     fields.push_back(current);
     return fields;
 }
@@ -507,7 +502,6 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
         std::string security = fields[3];
         std::string freq_str = (fields.size() >= 5) ? fields[4] : "";
 
-        // Skip hidden networks (empty SSID)
         if (ssid.empty()) {
             continue;
         }
@@ -524,7 +518,6 @@ std::vector<WiFiNetwork> WifiBackendNetworkManager::parse_scan_output(const std:
 
         signal = std::max(0, std::min(100, signal));
 
-        // Determine security type
         bool is_secured = false;
         std::string security_type = "Open";
 
@@ -628,7 +621,6 @@ WiFiError WifiBackendNetworkManager::connect_network(const std::string& ssid,
     spdlog::info("[WifiBackend] NM: Connecting to network '{}'{}", helix::redact::ssid(clean_ssid),
                  is_hidden ? " (hidden)" : "");
 
-    // Clean up existing connect thread
     connect_active_ = false;
     if (connect_thread_.joinable()) {
         connect_thread_.join();
@@ -874,7 +866,6 @@ WiFiError WifiBackendNetworkManager::disconnect_network() {
 
     spdlog::info("[WifiBackend] NM: Disconnecting from WiFi");
 
-    // nmcli device disconnect <iface>
     std::string result = exec_nmcli("device disconnect " + wifi_interface_);
 
     // nmcli reports success even if already disconnected

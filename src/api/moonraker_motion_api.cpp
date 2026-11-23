@@ -85,7 +85,6 @@ void MoonrakerMotionAPI::home_axes(const std::string& axes, SuccessCallback on_s
 
 void MoonrakerMotionAPI::move_axis(char axis, double distance, double feedrate,
                                    SuccessCallback on_success, ErrorCallback on_error) {
-    // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({distance, feedrate}, "move_axis", on_error)) {
         return;
     }
@@ -98,7 +97,6 @@ void MoonrakerMotionAPI::move_axis(char axis, double distance, double feedrate,
         return;
     }
 
-    // Validate distance is within safety limits
     if (!is_safe_distance(distance, safety_limits_)) {
         report_validation_error(
             on_error, "move_axis",
@@ -179,7 +177,6 @@ void MoonrakerMotionAPI::move_relative(double dx, double dy, double dz, double x
 
 void MoonrakerMotionAPI::move_to_position(char axis, double position, double feedrate,
                                           SuccessCallback on_success, ErrorCallback on_error) {
-    // Reject NaN/Inf before any G-code generation
     if (reject_non_finite({position, feedrate}, "move_to_position", on_error)) {
         return;
     }
@@ -191,7 +188,6 @@ void MoonrakerMotionAPI::move_to_position(char axis, double position, double fee
         return;
     }
 
-    // Validate position is within safety limits
     if (!is_safe_position(position, safety_limits_)) {
         report_validation_error(
             on_error, "move_to_position",

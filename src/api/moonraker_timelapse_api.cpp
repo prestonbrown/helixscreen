@@ -129,7 +129,6 @@ void MoonrakerTimelapseAPI::set_timelapse_settings(const TimelapseSettings& sett
         return;
     }
 
-    // Validate framerate (reasonable bounds: 1-120 fps)
     if (settings.output_framerate < 1 || settings.output_framerate > 120) {
         helix::report_validation_error(
             on_error, "set_timelapse_settings", "Invalid timelapse framerate (must be 1-120)",

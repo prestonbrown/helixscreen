@@ -58,11 +58,9 @@ void WifiBackendMock::stop() {
     if (!running_)
         return;
 
-    // Signal threads to stop
     cancel_sim(scan_active_);
     cancel_sim(connect_active_);
 
-    // Wait for threads to complete
     if (scan_thread_.joinable()) {
         scan_thread_.join();
     }
@@ -92,7 +90,6 @@ WiFiError WifiBackendMock::trigger_scan() {
 
     spdlog::debug("[WifiBackend] Mock: Triggering network scan");
 
-    // Clean up any existing scan thread
     cancel_sim(scan_active_);
     if (scan_thread_.joinable()) {
         scan_thread_.join();
@@ -113,7 +110,6 @@ WiFiError WifiBackendMock::get_scan_results(std::vector<WiFiNetwork>& networks) 
                          "WiFi scanner not ready", "Initialize the WiFi system first");
     }
 
-    // Add some realism - vary signal strengths slightly
     vary_signal_strengths();
 
     // Extract public WiFiNetwork objects (without passwords), collapse per-BSS

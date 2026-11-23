@@ -445,7 +445,6 @@ void WifiBackendNetd::try_reconnect() {
 // Read path (loop thread)
 
 void WifiBackendNetd::_on_read(hio_t* io, void* data, int nbyte) {
-    // Static trampoline: extract the instance and forward.
     auto* instance = static_cast<WifiBackendNetd*>(hio_context(io));
     if (instance != nullptr) {
         instance->on_read(data, nbyte);
