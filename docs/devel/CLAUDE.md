@@ -24,7 +24,6 @@ All developer documentation lives here. When working on features, look up the re
 | `RELEASE_PROCESS.md` | Release workflow, versioning |
 | `RELEASE_SIGNING.md` | Signed channel manifests: the `release-signing` environment and secrets, who verifies them, rollout order |
 | `CHANGELOG_STYLE.md` | How `CHANGELOG.md` entries are written: user-facing voice, hyphen separator, bare `(#N)` links, daily vs milestone shapes. Read before drafting a release's changelog section |
-| `CHANGELOG_1_1_DRAFT.md` | Running release notes for everything on `main` that is not in the 1.0 release. Kept out of `CHANGELOG.md` so the release tooling owns that file; becomes the `## [1.1]` entry at release, then delete |
 | `CI_CD_GUIDE.md` | CI pipeline, GitHub Actions |
 | `ANDROID_PLAY_STORE.md` | Play Store publishing pipeline, one-time setup, promotion flow |
 | `ANDROID_ASSETS.md` | How `ui_xml/`/`assets/`/`config/` reach the APK, what stays out, the on-device storage layout (seed-only `config/`, settings backups) and the Auto Backup rules. Read before touching anything under `android/app/src/main/assets/` — it is a Gradle build output, not source |

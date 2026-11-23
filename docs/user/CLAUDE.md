@@ -17,6 +17,7 @@ These docs are **end-user facing**. They must be written for people who are NOT 
 | Doc | Contents |
 |-----|----------|
 | `USER_GUIDE.md` | Landing page with links to all guide sub-pages |
+| `guide/release-notes-1-1.md` | Every change in 1.1 against 1.0, with the upgrade notes; the condensed version is the `[1.1.0]` entry in `CHANGELOG.md` |
 | `guide/getting-started.md` | Navigation, touch gestures, setup wizard, keyboard |
 | `guide/supported-printers.md` | Per-printer feature detail for deeply-integrated models (AD5X IFS, K1/K2 CFS, QIDI Box, Snapmaker U1, ACE), generic auto-detection baseline |
 | `guide/install-k1.md` | End-to-end K1/K1C/K1 Max setup: root access, Simple AF / Guilouz firmware, HelixScreen install, updating, firmware upgrade path (`guide/creality-k1c-setup.md` is a redirect stub to it) |

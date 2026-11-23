@@ -1,102 +1,50 @@
-# CHANGELOG draft - 1.1
+# HelixScreen 1.1 release notes
 
-Working draft of the release notes for 1.1. Lives here rather than in
-`CHANGELOG.md` so the release tooling owns that file uncontested; at release,
-this becomes the `## [1.1.0]` entry more or less verbatim. The heading has to be
-the exact string in `VERSION.txt` at that point, because
-`make release-gate` refuses a version with no section and the release workflow
-looks the section up by it for the update notes and the Discord post. The Play
-Store text for 1.1.0 is separate: `android/whatsnew/<version>.txt`, written in
-the release commit.
+This page lists every change in HelixScreen 1.1 against 1.0.
 
-Each `1.1.0-beta.N` tag from the trunk gets its own short `CHANGELOG.md` entry for
-what that build changed. This file is the cumulative story of the release, not a
-running log of the betas.
-
-**Scope:** everything on `main` that is not in the 1.0 release. Work that shipped
-in 0.99.112 and earlier belongs to the release it shipped in and is deliberately
-absent.
-
-**Keeping it current:** 1.1.0 ships from `release/1.1`, so that branch is what this file
-tracks. Every entry of `CHANGELOG.md` from `1.1.0-beta.1` through `1.1.0-rc.6`, checked against `release/1.1` at `fdcc5bfef3`. An entry that also shipped in a 1.0.x release
-is left out, since it is not new against 1.0; `git show origin/release/1.0:CHANGELOG.md`
-lists those. The next fold starts at what lands on the release branch after that SHA:
-
-```bash
-git log --no-merges --oneline fdcc5bfef3..origin/release/1.1 --not origin/release/1.0
-```
-
----
-
-## [1.1.0] - UNRELEASED
-
-1.1 is the first release since 1.0 that changes how HelixScreen looks and what it can drive.
-The home screen becomes a grid you arrange yourself, with new widgets and screens built for
-ultrawide and portrait panels; filament handling is rebuilt around a new spool editor and
-works across AFC, Happy Hare, ACE, CFS, the Snapmaker U1 and more; calibration and tuning
-move to guided screens; and Lua plugins, the HelixPrint companion plugin and a beta
-BTT K-Touch firmware join the line-up. It also fixes a long list of crashes, hangs and
-printer-specific problems found since 1.0.
+HelixScreen 1.1 is the first feature release since 1.0, and it is a big one. Printing gets a
+new Print Status screen built around a picture of your printer, a live pre-print checklist,
+pause-at-layer, a print queue and a plain answer when a print stops. The home screen gets more
+than a dozen new widgets, and every widget shows more as you make it bigger, on a finer grid,
+with layouts made for ultrawide and portrait displays. Filament systems are rebuilt around a
+new spool editor that works the same on AFC, Happy Hare, ACE, CFS, OpenAMS, the QIDI Box, the
+AD5X and the Snapmaker U1. Calibration gets pressure advance tuning on a live print and guided
+belt tuning. Lua plugins, the HelixPrint companion plugin with power-loss resume, new printers,
+new screensavers and a beta firmware for the BTT K-Touch round it out, along with hundreds of
+fixes since 1.0.
 
 **Upgrading from 1.0?**
 
-- **Your print signal macros keep their names.** If your printer already has HelixScreen's
-  helper macros, `HELIX_READY` and the `HELIX_PHASE_*` macros stay as they are, including when
-  you update the macro pack from Settings, so your `PRINT_START` needs no changes. They also
-  stay in your Fluidd or Mainsail macro list for now; you can hide them in Fluidd's macro
-  settings. A later release will move existing printers to the hidden names.
-- **Your home screen is converted, not reset.** The home screen moves to a square-cell
-  grid, and your layout comes with it. Positions are converted onto the new grid in
-  proportion: a widget that filled the left third of the screen still fills the left third,
-  and two widgets that were touching stay touching. Sizes can shift slightly, because the
-  new grid does not divide the screen the same way and each widget lands on the nearest size
-  it is allowed to hold. A widget that genuinely will not fit is re-placed automatically,
-  and only that widget. Which widgets you have, their per-widget settings, and your extra
-  pages all survive. The conversion happens the first time the home screen is drawn after
-  the update, so what you see on that first boot is what gets saved.
-- **Going back to 1.0 costs you the home layout and your Material Temperatures changes.** A
-  1.0 build saves home positions in its own grid's units, so when you return to 1.1 the home
-  screen comes back rearranged, or, from some 1.0 builds, reset to its defaults. Arrange it
-  again in edit mode. 1.1 keeps your Material Temperatures changes in user_filaments.json,
-  and 1.0 only reads them from `settings.json`, so a 1.0 build does not see them; note them
-  down first if you might go back. Everything else survives the round trip.
-- **Lane details come from the printer.** HelixScreen keeps no lane details of its own any
-  more: everything a lane shows is read from the printer, where 1.0 already wrote it. A detail
-  that only ever lived on the screen, never sent to the printer, does not carry over; set it
-  again. On AFC, AFC's own remember-spool setting decides what a lane keeps when its spool comes
-  out.
-- **Lanes count from 0 on systems that count from 0.** On AFC and Happy Hare, lane numbers
-  start at 0 by default. **Number slots from 0** in Settings > Printing still changes it.
-- **Plugin authors: a card that taps needs `clickable="true"`.** A `ui_card` takes no touch
-  unless its XML says so, so a plugin card that should respond to taps needs that attribute
-  next to its `event_cb`. Without it the card ignores the tap and shows no press. See
-  `docs/devel/PLUGIN_DEVELOPMENT.md`.
-- **Your 1.0 settings are kept** (#1305). The first start of 1.1 saves your old
-  `settings.json` beside the new one as `settings.json.pre-migration`, before converting it.
-  HelixScreen never reads that copy back; it is there if you want your 1.0 settings.
-- **Settings pages moved; your settings did not** (#1023). Nothing is reset. The table under
-  Changed shows where each page went.
-- **Print Completion Alert now uses its documented default.** A printer that never changed
-  the setting showed only the short notification; it now shows the full-screen summary. A
-  choice you made yourself is kept.
-- **Some installs move on disk, automatically.** On the AD5M, HelixScreen's own files move
-  to `/data/.helixscreen` so they stop showing up in the print file list. On the K2, the
-  install moves off the 240MB system overlay onto the user partition. Both are migrated in
-  place by the update.
-- **A refused `helixscreen.env` says so on screen** (#1712). When the file cannot be trusted
-  (wrong owner, or still writable by others after the automatic repair) the launcher used
-  to fall back to defaults with nothing on the display. Now a startup warning says what is
-  wrong, names the one command that fixes it, and stays on screen until closed; lines the
-  launcher skips (a setting this file may not change, shell syntax in the value, a bad
-  quote) are listed with the key and the reason each was ignored.
-- **A custom update server moves out of `settings.json`** (#1718). `settings.json` can be
-  edited from the web interface, so it no longer chooses where updates are downloaded from.
-  To point a printer at your own server, put `r2_url` or `dev_url` in
-  `/var/lib/helixscreen/update_urls.json`, a file only root or HelixScreen's own user may
-  own. The old keys in `settings.json` are ignored, and the log says where to move them. A
-  custom `log_path` has to sit under `/tmp`, `/var/log` or HelixScreen's own folders.
+- **Check your home screen after the first start.** 1.1 converts your 1.0 layout onto the
+  new, finer grid, keeping your widgets, their settings and your extra pages, and placing each
+  widget in proportion to where it was. We do our best, but the new grid does not divide the
+  screen the same way, so a widget can come out a little larger or smaller, or move if it no
+  longer fits. If something looks off, long-press the widget grid to enter Edit Mode and drag
+  it back. Your layout is saved as you see it on that first start.
+- **Filament lanes now follow the shared Moonraker `lane_data` format.** HelixScreen reads and
+  writes each filament lane's spool, material and color in Moonraker's `lane_data` records and
+  your filament system's own state (AFC, Happy Hare, the CFS, the AD5X, the QIDI Box, the U1,
+  ACE), the same records Mainsail, Fluidd, OrcaSlicer and other tools read. Every screen and
+  your slicer now see the same lane, and a change made in one shows up in the others.
+  HelixScreen no longer keeps a private copy, so a color, material or spool you set only on the
+  HelixScreen screen in 1.0, which never reached the printer, needs setting once more. On AFC,
+  AFC's remember-spool setting decides what a lane keeps when its spool comes out.
+- **AFC and Happy Hare lanes are numbered from 0** by default, to match their own commands and
+  logs. Other systems still count from 1. **Number slots from 0** in Settings > Printing
+  switches it.
+- **Going back to 1.0 rearranges or resets your home layout and hides your Material
+  Temperatures changes.** 1.0 cannot read 1.1's layout or the new file that holds your per-
+  material temperatures, so note those down first if you might downgrade.
+- **Your 1.0 settings are backed up** (#1305) as `settings.json.pre-migration` the first time 1.1
+  starts, in case you want them.
+- **AD5M and K2: HelixScreen moves itself.** On the AD5M its files move to `/data/.helixscreen`,
+  so they stop showing up in your print file list. On the K2 the install moves off the small
+  system partition onto the user partition. The update does this for you.
+- **Using your own update server?** (#1718) Move `r2_url` or `dev_url` out of `settings.json` into
+  `/var/lib/helixscreen/update_urls.json`. The old keys are ignored, and the log says where to
+  put them.
 
-### Added
+## Added
 
 **Home screen**
 
@@ -1443,7 +1391,7 @@ attached and remote screens.
   widget, are not available on it. The install guide (`docs/user/guide/install-esp32.md`)
   covers flashing from the browser or with esptool, first-boot setup and recovery.
 
-### Changed
+## Changed
 
 **Across the app**
 
@@ -1776,7 +1724,7 @@ attached and remote screens.
 - **Network library messages reach HelixScreen's log** (#1317) - tagged `[libhv]`, so
   connection problems leave a trace beside the rest of the log.
 
-### Fixed
+## Fixed
 
 **Connection, settings and dialogs**
 
@@ -2755,89 +2703,3 @@ attached and remote screens.
   work for Cyrillic, Greek and accented Latin text.
 - **Printer connection errors and notices are translated**, including Wi-Fi failures, and
   French "Currently Loaded" no longer shows garbled characters (#1678).
-
-### Internal
-
-- Two speed and flow code paths were unreachable, and the overrides go through one clamp
-  rather than three copies of it.
-- The mock Voron personas model a real center-origin bed (-175..175 on the 2.4, -125..125 on
-  the Trident) through every path the mock serves, so the demo G-code files sliced for
-  center-origin printers pass the print-start fit check: 14 of 18 fit the default persona
-  instead of 3 (#1868).
-- The pluck-based belt tuner libraries (#1303, #1231: pluck detection, harmonic pitch
-  estimation, the five-pluck median) stay in the tree with no UI. They have never measured a
-  real belt and their thresholds come from one Voron's captures; `BELT_TUNER.md` § Validation
-  status lists the hardware runs needed before any screen uses them.
-- helix-xml warns on a style attribute written with `:` for its state selector
-  (`style_bg_opa:checked`, which applies nothing) and on a negated const reference (`-#space_md`,
-  which it drops), and the unknown-attribute check now covers misspelled `style_*` names on
-  built-in widgets. `make lint-xml` fails on both spellings. The input shaper's recommended row
-  gets the highlight its markup always asked for; the dead chip, preset and Save attributes are
-  gone, and the home AMS label and notification badge get the offsets they were written with.
-- K1, AD5X, Creator 5 Pro and K2 builds (musl) link with `-Wl,-z,stack-size=1048576`, because
-  musl gives each thread 128 KiB unless the binary asks for more. Every app thread, libhv's
-  loop and the thumbnail workers included, installs its own signal stack
-  (`helix::install_thread_altstack`), so an overflow on any of them leaves a crash file. A
-  lint gate keeps `std::regex`, whose matcher recurses per
-  input character, out of app code (`// STD_REGEX_OK: <reason>` opts out).
-- A cached `lv_obj_t*` member is a `helix::ui::WidgetRef`, which clears itself on the widget's
-  delete, instead of a per-site `LV_EVENT_DELETE` hook (#1298). A ratchet counts the raw
-  members that remain.
-- The four `SlotRegistry` backends build their snapshot from their own system info and
-  overwrite only the slot-owned fields, instead of copying the rest by name (#1626).
-- `helix-tests` links through a response file: the inline object list passed Linux's 128 KiB
-  per-argument limit and the ASAN link failed with "Argument list too long".
-- Debug bundles, crash reports and telemetry name the printer board (for example
-  `creator5-pro`) next to the platform key, so one `mips` build is no longer one lump in the
-  numbers. The K1's panel size now comes from its own table row, so its startup log names the
-  known panel instead of the 160 DPI fallback; sizing does not change. One board table
-  (`include/board_identity.h`) answers which printer the build is on, and a lint ratchet
-  refuses new vendor branches in generic code (`scripts/check_vendor_branches.py`).
-- The pre-v22 grid is reconstructed rather than recorded. `legacy_grid_cols()` is a frozen
-  copy of the old column table, and the old row count is read back off the saved layout, which
-  is what makes converting a layout possible at all without having stored a resolution.
-  Boundaries are mapped once per axis and every widget rebuilt from them, so neighbors that
-  were flush stay flush; mapping each widget's own edges opens sliver gaps between them.
-- Three cross-test state leaks, found because four tests failed only in a full run and passed
-  alone. Two set the process-global `ui_breakpoint` subject without restoring it, so every
-  later test built a Micro-cell grid. Fixing that exposed the third and worse one: a test had
-  registered a **stack** `lv_subject_t` under a name four production components bind, and
-  LVGL's XML subject scope has no unregister, so the first test to build one of them
-  afterwards dereferenced a dead stack frame. The suite went from four failures to none.
-- The temperature graph allocated a timer per drawn frame and the filament path one per setter
-  in a state update, both on the belief that `lv_async_call` deduplicates by callback. It does
-  not. Both now coalesce onto one timer whose destructor cancels its own pending work.
-- `StaticSubjectRegistry` appended a shutdown callback per registration, so a subject source
-  torn down and re-created under the same name left its superseded callback to run at exit
-  alongside the live one.
-- The print-status thumbnail wrote synchronously inside an update batch, cascading a layout
-  pass into a grid that might be mid-rebuild. The idle path already escaped; the active one
-  had no guard.
-- Filament load, unload, purge and cancel had grown to three copies of the same dispatch
-  ladder across two owners; they now share one executor. Bed dimensions resolve through one
-  fallback chain and one mm-to-pixel mapper instead of per-view copies. The clog meter's arc
-  and bar now subscribe once and share one safe-state predicate, and dropping the fill-mode
-  presentation removed about 280 lines reachable only through a flag nothing set any more.
-- A worktree whose `libhv.a` predated another tree's patch application kept that archive
-  forever, and the two objects disagreed about class layout, which read as a deadlock in test
-  teardown. The build now depends on the patched sources rather than a per-tree stamp.
-- The mock could not reach the clog meter at all: one healthy reading seeded in the
-  constructor and never moved, FlowGuard unreachable entirely. Nine scenarios now walk
-  healthy, warning, blocked, the three FlowGuard positions, buffer armed and counting down,
-  and no-hardware. `SAVE_CONFIG` also returned failure from every gcode script call, which
-  meant no test could drive a probe calibration through to a save.
-- BTT K-Touch (beta) firmware: the theme, tool switcher, filament sidebar and slot menu
-  values and the settings store moved from the ESP32's scarce internal RAM to PSRAM, keeping
-  internal RAM under the ceiling the WiFi driver's receive buffers need.
-- 306 test files were missing their copyright header.
-- A content-fit sweep now measures every widget against its authored minimum on all eight
-  shipping geometries, and the user guide, configuration reference and FAQ were corrected:
-  the home layout upgrade promise, widget config units, a probe widget that does not exist,
-  23 of 37 widget IDs and 9 of 11 config keys that were undocumented, and three pages routing
-  users to a settings overlay that is gone.
-- The mock printer can be a named printer type (`HELIX_MOCK_PRINTER=snapmaker_u1`), so a
-  `--test` run renders that printer's real pre-print options and hardware instead of the
-  generic persona. The Snapmaker U1 persona has four extruders and auto-detects from the
-  U1's own objects, with no saved printer type.
-- `helix-screen ctl click` on a checkable widget now flips its checked state and sends
-  VALUE_CHANGED then CLICKED, the way a finger tap does, so it toggles an option tile.

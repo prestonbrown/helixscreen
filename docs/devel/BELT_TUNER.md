@@ -151,7 +151,7 @@ Measured on the reference machine, so these do not need re-testing first:
 
 - GitHub #1303 (accelerometer-based CoreXY belt tension) and #1231 (Beta: Belt Tension -
   finish or drop).
-- `CHANGELOG_1_1_DRAFT.md` § Internal lists the libraries as unvalidated, with no user entry.
+- The 1.1 release notes list no user-facing entry for it: the libraries are unvalidated.
 
 **Do not wire a UI to these libraries, and do not call them verified in a changelog,
 until the matrix above has actually been run.**

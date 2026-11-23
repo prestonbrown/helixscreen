@@ -5,6 +5,218 @@ All notable changes to HelixScreen will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-11-23
+
+HelixScreen 1.1 is the first feature release since 1.0, and it is a big one. Printing gets a
+new Print Status screen built around a picture of your printer, a live pre-print checklist,
+pause-at-layer, a print queue and a plain answer when a print stops. The home screen gets more
+than a dozen new widgets, and every widget shows more as you make it bigger, on a finer grid,
+with layouts made for ultrawide and portrait displays. Filament systems are rebuilt around a
+new spool editor that works the same on AFC, Happy Hare, ACE, CFS, OpenAMS, the QIDI Box, the
+AD5X and the Snapmaker U1. Calibration gets pressure advance tuning on a live print and guided
+belt tuning. Lua plugins, the HelixPrint companion plugin with power-loss resume, new printers,
+new screensavers and a beta firmware for the BTT K-Touch round it out, along with hundreds of
+fixes since 1.0.
+
+**Upgrading from 1.0?**
+
+- **Check your home screen after the first start.** 1.1 converts your 1.0 layout onto the
+  new, finer grid, keeping your widgets, their settings and your extra pages, and placing each
+  widget in proportion to where it was. We do our best, but the new grid does not divide the
+  screen the same way, so a widget can come out a little larger or smaller, or move if it no
+  longer fits. If something looks off, long-press the widget grid to enter Edit Mode and drag
+  it back. Your layout is saved as you see it on that first start.
+- **Filament lanes now follow the shared Moonraker `lane_data` format.** HelixScreen reads and
+  writes each filament lane's spool, material and color in Moonraker's `lane_data` records and
+  your filament system's own state (AFC, Happy Hare, the CFS, the AD5X, the QIDI Box, the U1,
+  ACE), the same records Mainsail, Fluidd, OrcaSlicer and other tools read. Every screen and
+  your slicer now see the same lane, and a change made in one shows up in the others.
+  HelixScreen no longer keeps a private copy, so a color, material or spool you set only on the
+  HelixScreen screen in 1.0, which never reached the printer, needs setting once more. On AFC,
+  AFC's remember-spool setting decides what a lane keeps when its spool comes out.
+- **AFC and Happy Hare lanes are numbered from 0** by default, to match their own commands and
+  logs. Other systems still count from 1. **Number slots from 0** in Settings > Printing
+  switches it.
+- **Going back to 1.0 rearranges or resets your home layout and hides your Material
+  Temperatures changes.** 1.0 cannot read 1.1's layout or the new file that holds your per-
+  material temperatures, so note those down first if you might downgrade.
+- **Your 1.0 settings are backed up** (#1305) as `settings.json.pre-migration` the first time 1.1
+  starts, in case you want them.
+- **AD5M and K2: HelixScreen moves itself.** On the AD5M its files move to `/data/.helixscreen`,
+  so they stop showing up in your print file list. On the K2 the install moves off the small
+  system partition onto the user partition. The update does this for you.
+- **Using your own update server?** (#1718) Move `r2_url` or `dev_url` out of `settings.json` into
+  `/var/lib/helixscreen/update_urls.json`. The old keys are ignored, and the log says where to
+  put them.
+
+### Added
+
+**Printing**
+
+- **A new Print Status screen** - built around a picture of your printer, with a chip beside each heater, fan and light. A heater chip turns red with a flame while it heats, green with a check at its target and amber when it drifts during a print, and the speed chip shows live mm/s and mm³/s. Tap any chip for its graph or controls.
+- **A pre-print checklist** - while a print warms up, homes, levels and meshes, you see each finished step with how long it took, the current one with a countdown, and an estimate for the rest. A long heat soak never looks frozen again.
+- **Why a print stopped** - a canceled or failed print shows the reason, such as a quad gantry level that never converged.
+- **Print .3mf plates straight from your slicer** (#2063) - the file list shows each plate's picture and the name you gave it, and Print sends exactly the plate you see, even on printers whose firmware cannot read .3mf files.
+- **Pre-print options and warnings** - skip bed mesh, QGL or Z tilt for one print, options your own PRINT_START macro accepts, objects to skip picked before the start, and warnings for an open door, mixed-temperature materials or a chamber that is not heating.
+- **Pause a running print at a layer** (#1703) - tap the layer count to pause at the next layer or one you pick.
+- **Queue the next print while one runs** (#1395) - an Up next line shows what is waiting, and the completion dialog offers Start next once you have cleared the bed.
+- **Spaghetti detection on the K2 Plus** (#1378) - HelixScreen runs Creality's own failure detection on camera snapshots and pauses the print when it sees a failure, so replacing the stock screen no longer costs you that protection.
+
+**Home screen widgets**
+
+- **The printer picture shows what the printer is doing** (#1397) - temperature, fan and light chips sit on the picture while heaters work; tap a chip for its graph or controls. A Creality K2 with a CFS shows the CFS on top.
+- **New print and printer widgets** - Speed / Flow, Z-Offset (with Save and baby steps), Printer Message (#1125), Exclude Objects, Job Queue and a weekly Print Stats.
+- **New filament widgets** - Filament Dryer, Filament Buffer (#1724) and a horizontal clog meter (#1017).
+- **New system and control widgets** - Host Health, a Toolhead widget you can move the toolhead from, a Bed Mesh heatmap and a Maintenance widget with hour meters (#1807).
+- **Every light gets the same controls** (#1130), and thermistor tiles can set a heater target. Dryers and other add-on heaters appear on the temperature graph.
+
+**Home screen**
+
+- **A finer grid, and widgets that grow with their space** (#1126, #1559) - the home grid now places widgets on square cells and half cells, and every widget shows more as you give it more room: a small tile shows the essentials, a large one adds graphs, details and controls. A lattice appears while you drag, dropping on a widget swaps the two, a removed widget can be undone, and you can swipe between pages in edit mode (#1503, #1638).
+- **A default layout built for your printer and screen** - an untouched layout uses the widgets your printer can actually use and rearranges itself when you add hardware such as a filament system or chamber heater.
+- **Widget catalog with categories and search** (#1016) - widgets this printer cannot use are listed in their own section with the reason.
+- **UI Scale setting, with a layout per scale** (#1484) - Settings > Display offers Automatic or a fixed 100 to 200%, and each scale keeps its own home arrangement.
+- **A tour of what's new** - the first start after updating from 1.0 shows a short tour of the rebuilt screens, with your own printer's picture. Help & About replays it.
+
+**Motion**
+
+- **Jog and Move tabs** (#865) - the Move tab sends the toolhead to a 3x3 grid of named bed positions, and a Bed tab lets you tap or drag on a map of the plate to move there.
+- **Moves lift clear of a print left on the bed** - after a print ends, moves across the plate lift above its height, with a Cleared button once you have removed the part.
+- **Park, Motors Off and tap-to-move** - Park runs your printer's parking macro, and tapping a coordinate in the header opens a number pad to move there. Nothing on the screen homes by itself.
+- **Hold to repeat and a choice of jog layouts** (#865) - hold the jog pad or Z buttons to repeat, or pick the Arrows, Arrows + Home or Axis Rows layout under Settings > Printing > Motion.
+
+**Tool changers and multi-toolhead printers**
+
+- **IDEX and dual-extruder printers get the multi-tool screens** (#1350) - they are recognized by their hot ends and get the tool selector and filament screens.
+- **Tool Offsets screen with automatic calibration** (#1480) - per-tool X, Y and Z offsets in one place, plus a one-tap calibration that runs your printer's own routine. Print Tune can set a per-tool Z offset.
+- **Snapmaker U1** - load or unload several toolheads at once, a guided toolhead offset calibration, and Auto loading per toolhead (#1982).
+- **Bondtech INDX** (#1333) - early support for tool changes, parking, loads, heater calibration and recovery.
+- **MedusaHC** - a Purge Length setting, tool offsets, a Clean nozzle action and clearer failure messages.
+
+**Filament systems**
+
+- **Filament lanes you share with every other tool** (#1649, #1653) - an edit goes to your filament system and to Moonraker's `lane_data`, so HelixScreen, Mainsail, Fluidd and OrcaSlicer all show the same spool, material and color in each filament lane.
+- **A new spool editor, one job per page** - a summary with the spool drawn in its color and weight, Same Filament and New Spool for an empty slot, Undo and Print Label after a save (#2095), and one color picker everywhere.
+- **Spool swaps are noticed** (#1710) - a different tag, material or color read off the spool clears the old spool's details, even a swap made while the screen was off. A tag that names a Spoolman spool links the slot to it.
+- **OpenAMS support** (#1150, #1786) - lanes, loads, spool edits, the filament path, per-unit dryers and a fault recovery dialog.
+- **Several ACE units on the ACEPRO driver** and **Snapmaker U1 with multiACE** (#1660) - each unit has its own dryer, humidity and state, and the path shows where the filament actually is (#1677, #1678).
+- **Happy Hare, AFC and CFS additions** - dry only the lanes you choose (#1026), Preload and Refresh Spoolman, AFC Calibrate Toolhead, CFS support on the K2 Plus community firmware, and K1 cutter and purge chute calibration (#1282).
+- **Load filament by hand in one dialog** (#2000) - on a printer with no filament system, Load heats the nozzle and walks you through it.
+- **Catalog and slicer improvements** - favorite filaments (#1100), SpoolmanDB search from the spool wizard, and OrcaSlicer picking the exact filament preset (#2002, #1923).
+- **Clog Detection from a plain motion sensor** (#1823) and a reason line when a Happy Hare clog bar trips (#1755).
+
+**Drying filament**
+
+- **Dry filament on the heated bed** (#1730) - on an enclosed printer, a guided flow unloads the toolhead, homes and moves the plate away so you can lay spools under a box.
+- **Dry filament with a Panda Breath** (#1299) - run a drying cycle from the chamber card with a material preset, the time left and a Stop button.
+- **Humidity and drying per box** - the environment screen follows how your hardware encloses filament: one heated enclosure, a sealed box per lane, or one box per unit.
+
+**Chamber heaters**
+
+- **Add-on chamber heaters are detected and explained** (#1290) - DragonBreath and Panda Breath heaters are found at startup, and the chamber card shows faults with a translated reason and a Reset button.
+- **Chamber temperature per material** (#1263) - Material Temperatures has a chamber column on printers with a chamber heater.
+- **Heater duty on every heater** (#1290) - a percentage beside each heater shows how hard it is working.
+
+**Calibration and tuning**
+
+- **Pressure advance tuning on a live test print** (#982) - Advanced > Calibration > Pressure Advance Tuning prints a small tower, and you watch it and pick the band that looks best. Printers that can measure pressure advance themselves, such as the Snapmaker U1, run that measurement from the screen too (#1452).
+- **Belt Tension check and guided belt tuning** (#1303, #1721, #1736) - on a CoreXY printer with an accelerometer, compare both belt paths on one chart and tune the gap one belt at a time.
+- **Live sweep graphs** (#1812) - Input Shaper and Belt Tension draw the response while the printer sweeps.
+- **Bed screw adjustment shows the tilt** - the bed diagram is shaded by height and the screw furthest off is highlighted.
+- **Probe and heater calibration** - Eddy, Beacon and Cartographer calibration from the probe screen (#1994), heater calibration on tool changers (#1870), and a Kalico PID/MPC switch (#1237).
+- **Save Z-Offset can be turned off per printer** (#1766), and Print Tune shows the saved Z-offset (#1998).
+
+**Printers**
+
+- **New printers** - VzBot 330 and 235 (#1689), FLSUN S1 and S1 Pro, the base Creality K2 (#1606), the Anycubic Kobra X (#2074) and QIDI Plus 5 (#1791).
+- **FlashForge Creator 5 and Creator 5 Pro** (#1714) - supported on Z-Mod, Reforge and OpenCreator, with mounting and parking driven from the screen.
+- **Snapmaker U1** - firmware settings read and set on screen, nozzle size per toolhead (#1927), and the Top Cover (#2015).
+- **Jacobean's K2 Plus and K2 Pro firmware is recognized** (#2087, #2148).
+- **Power-loss recovery on QIDI printers** (#1716) - a Q2, Q1 Pro or Plus 4 on stock firmware offers the printer's own resume flow.
+
+**Display, sound and touch**
+
+- **Glass Effects** - an appearance option that gives buttons a lit, glassy finish, drawn from your theme's own colors.
+- **New screensavers** - Bouncing Printer (#1680), Bouncing Logo, Flip Clock (the new default), Fireworks, 3D Maze, Hyperspace, Fireflies, Aqua Surface, High Fly and a Random choice. Savers run on every board, and one a printer cannot run smoothly is left out of the list.
+- **Made for ultrawide and portrait screens** - from 1480x320 bars to 1920x440 and tall portrait panels, every screen is laid out for its shape, with Print Status in columns, side panels and a lane tray.
+- **Hardware rotation with touch that follows** (#1275) and **pinch to zoom** in the 3D G-code preview and bed mesh.
+- **Delta printers get a round bed**, and **portrait splash screens** (#2073, #2072) fit tall displays.
+
+**Setup and settings**
+
+- **See and drive the screen from Mainsail or Fluidd** (#1825) - HelixScreen shows up as a webcam of its own screen, with optional remote control from the browser.
+- **Find your printer by searching** (#1028) and **find printers on your local network** - setup lists every Moonraker it can see, and a moved printer is offered its new address (#1217).
+- **Install HelixScreen's helper macros from Settings** (#1271) - with a printer.cfg backup and a refusal to touch anything mid-print.
+- **Safe mode after a crash loop** (#1315) - three restarts inside two minutes start the app with plugins off and the default layout.
+- **Setup wizard additions** - a preferences step (#1336), joining a hidden WiFi network (#1975), and a WiFi country setting.
+- **Fan RPM on standard Klipper** (#2071, #2082) and **Restart Moonraker from Advanced**.
+
+**Plugins**
+
+- **Lua plugins** - drop a plugin into `helixscreen/plugins` in your printer's config folder. Plugins can add home screen tiles, screens and a settings page, and each runs in a sandbox with memory and time limits.
+- **Six example plugins and a build tutorial** - including a temperature sparkline, Maintenance Meter, Print Watcher notifications and Ambient Tile.
+- **Plugin dialogs, translations and menu actions** - dialogs look like the app's own, packs follow the app language, and items can be added to the print details, filament slot and Spoolman menus.
+- **Sounds, tables, keypad and keyboard** (#1826, #1827, #1828, #1829) for plugin authors.
+
+**HelixPrint plugin**
+
+- **Guided power-loss resume** (#1716, #1863, #1864) - after a power cut, Resume checks the part is still on the bed, heats bed and nozzle, and has you confirm the nozzle height.
+- **Does the file fit this printer?** - a file that would move past the travel, overheat or use a missing tool is stopped with a message naming each problem.
+- **Print photos, Storage and Printer Events** - two camera pictures of every print, a Settings > System > Storage cleanup screen, and a log of shutdowns, lost MCUs, runouts and errors.
+- **Spoolman and start options** - the active spool follows the tool that is printing, and start options apply to prints from Mainsail, Fluidd or a slicer.
+- **Plugin overview** - Advanced > HelixPrint Plugin lists every feature as Running, Off or Not available here.
+
+**Files, USB and installing**
+
+- **USB sticks mount on boards that do not mount them** - mounted read-only, and unmounted on shutdown.
+- **One package for the K1 series and the AD5X**, and **smaller downloads** - packages carry only the splash screens and printer images they need.
+- **Logs and caches survive an update** on the K1, Centauri Carbon, U1 and AD5X.
+- **Run HelixScreen in a window on a Linux desktop** - a new x86_64 package installed with `install.sh --desktop`, no `sudo`.
+- **A 32-bit Android app** - devices that refused the app with "no matching ABIs" can install `helixscreen-android-armv7`.
+
+**BTT K-Touch (beta)**
+
+- **HelixScreen firmware for the BigTreeTech K-Touch** - each release carries `helixscreen-esp32-ktouch` firmware that runs as a remote screen for your printer's Moonraker, with print history and Reprint Last.
+
+### Changed
+
+- **The E-stop sits on the navigation bar during a print** - it stays bright and tappable over dialogs and number pads.
+- **Settings is one list of thirteen pages in three groups** (#1023) - Screen, Printer and HelixScreen.
+- **Tools and lanes are numbered from 1 by default** (#957) - "Tool 1" and "Nozzle 1" rather than T0, except AFC and Happy Hare lanes, which count from 0 like their firmware.
+- **Toolheads on AFC lane rigs are named by the toolhead** (#2158) - E0, E1 and so on, following the Number slots from 0 setting.
+- **Screen sleep defaults to an hour** - a configuration still at the old 20-minute default moves to an hour.
+- **Clear Spool forgets everything** (#1661) - it erases everything HelixScreen and the printer's firmware remember about the slot.
+- **Material Temperatures changes live in one editable file** - your per-material temperatures and preheat macros move out of `settings.json`.
+- **The Filament panel is laid out in cards** - like the Controls panel, with a Temperature card above the graph and lane bars.
+- **The tool switcher is rebuilt for tool changers** (#1784, #1769) - a segmented strip that keeps every head a finger-sized target.
+- **Pressed feedback everywhere** (#1297) - cards, rows, chips and value fields respond when pressed; cards that do nothing take no touch.
+- **Temperature keypads stop at your printer's maximum** (#1615, #1619).
+- **Loading filament does not preheat twice** (#1494, #1495).
+- **K1: Creality Print keeps working** (#1468, #1637) - installing HelixScreen leaves Creality's backend services running.
+- **AD5M: no startup music** - playing it ties up the single core and has killed prints.
+- **Self-built and forked builds do not send diagnostics** (#1410) - set `HELIX_DIAGNOSTIC_UPLOADS=1` to turn them on.
+
+### Fixed
+
+1.1 fixes a long list of crashes, hangs and printer-specific problems found since 1.0, including crashes when switching printers or shutting down, filament system faults on AFC, AD5X, ACE, QIDI Box, CFS and the Snapmaker U1, and K2, AD5M, AD5X and Android problems. The highlights:
+
+- **Every crash leaves a report you can send** - including crashes on background threads and ones that ran out of stack, which used to leave nothing.
+- **Switching printers could crash** - and the previous printer's data and fans no longer carry over to the new one.
+- **Unplugging a touchscreen or mouse** could crash the app or leave input dead.
+- **AD5M Pro crash loop** - the watchdog could retry a crashing app forever with the screen dark. It now gives up and hands over to the system.
+- **A Klipper that failed to start looked shut down forever** - the screen now asks until Klipper is ready or reports its startup error, and the recovery dialog opens when Klipper never starts.
+- **A large G-code preview could freeze a Raspberry Pi 3 or older** - the 3D preview now caps its detail by what the GPU can draw.
+- **WiFi recovers from a slow or busy wpa_supplicant** (#2066) - one late reply no longer empties the network list or shows "scan failed" on a working radio.
+- **Printers that require a Moonraker login connect** - with `force_logins` enabled, Moonraker refused every request from the screen.
+- **Android's backup saved nothing**, and **telemetry was never sent from Android** - both now work.
+- **K2 Plus: saving config flashed "Printer Shutdown"**, and **the Creality K2 ran the bed mesh twice** - both fixed.
+- **Snapmaker U1: Unload could be unavailable, or the filament system stuck on Unloading**, and a print with an unset spool is caught before it starts.
+- **AD5X IFS: a failed load or unload left the screen busy for 90 seconds**, and **K2 with a CFS at boot** (#1933) no longer looks single-spool.
+- **Switching a heater from PID to MPC** (#2157) and **bed screw arrows on the AD5M and AD5X** (#1860), which were reversed, are fixed.
+- **K1 series and AD5X: switching back to Stable could not install 1.0** (#1789).
+
+The complete list of every change in 1.1 is in the [1.1 release notes](https://helixscreen.org/guide/release-notes-1-1/).
+
 ## [1.1.0-rc.6] - 2026-11-22
 
 ### Added
@@ -10522,6 +10734,7 @@ Initial tagged release. Foundation for all subsequent development.
 - Automated GitHub Actions release pipeline
 - One-liner installation script with platform auto-detection
 
+[1.1.0]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.6...v1.1.0
 [1.1.0-rc.6]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/prestonbrown/helixscreen/compare/v1.1.0-rc.3...v1.1.0-rc.4
