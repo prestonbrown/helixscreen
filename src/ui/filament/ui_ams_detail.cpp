@@ -300,7 +300,6 @@ AmsDetailSlotResult ams_detail_create_slots(AmsDetailWidgets& w,
     lv_xml_register_event_cb(nullptr, "on_ams_detail_slot_pressed", slot_pressed_cb);
     lv_xml_register_event_cb(nullptr, "on_ams_detail_slot_released", slot_released_cb);
 
-    // Create slot widgets via XML system
     for (int i = 0; i < count; ++i) {
         lv_obj_t* slot = static_cast<lv_obj_t*>(lv_xml_create(w.slot_grid, "ams_slot", nullptr));
         if (!slot) {
@@ -1301,7 +1300,6 @@ bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
     }
     ui_filament_path_canvas_set_active_slot(canvas, active_slot);
 
-    // Set filament color from active slot
     int global_active = (unit_index >= 0) ? active_slot + slot_offset : active_slot;
     if (global_active >= 0) {
         helix::SlotInfo slot_info = backend->get_slot_info(global_active);
@@ -1315,7 +1313,6 @@ bool ams_detail_setup_path_canvas(lv_obj_t* canvas, lv_obj_t* slot_grid, int uni
         ui_filament_path_canvas_set_eject_mode(canvas, false);
     }
 
-    // Set filament and error segments
     ui_filament_path_canvas_set_filament_segment(canvas, static_cast<int>(segment));
 
     // Bowden progress fills the output tube from the hub: as far as a load has

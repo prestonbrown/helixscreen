@@ -179,7 +179,6 @@ void AmsContextMenu::set_action_callback(ActionCallback callback) {
 bool AmsContextMenu::show_near_widget(lv_obj_t* parent, int slot_index, lv_obj_t* near_widget,
                                       bool is_loaded, AmsBackend* backend,
                                       std::optional<lv_point_t> tap) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Store AMS-specific state BEFORE base class calls on_created
@@ -206,7 +205,6 @@ bool AmsContextMenu::show_anchored(lv_obj_t* parent, int item_index, lv_obj_t* a
 
 bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_widget,
                                              bool offer_toggle, std::optional<lv_point_t> tap) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Configure for external spool mode (no backend operations)

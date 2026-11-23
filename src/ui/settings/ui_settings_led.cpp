@@ -570,7 +570,6 @@ void LedSettingsOverlay::handle_save_macro_device(int index) {
     // --- Validation ---
     // Trim and check for empty name
     std::string display_name = updated[index].display_name;
-    // Trim whitespace
     auto start = display_name.find_first_not_of(" \t\n\r");
     auto end = display_name.find_last_not_of(" \t\n\r");
     display_name = (start == std::string::npos) ? "" : display_name.substr(start, end - start + 1);

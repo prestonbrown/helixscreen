@@ -51,7 +51,6 @@ SpoolmanPanel::~SpoolmanPanel() {
 
 void SpoolmanPanel::init_subjects() {
     init_subjects_guarded([this]() {
-        // Initialize panel state subject (starts in LOADING state)
         UI_MANAGED_SUBJECT_INT(panel_state_subject_,
                                static_cast<int32_t>(SpoolmanPanelState::LOADING),
                                "spoolman_panel_state", subjects_);
@@ -117,7 +116,6 @@ void SpoolmanPanel::register_callbacks() {
 
              auto& panel = get_global_spoolman_panel();
 
-             // Store the new query text
              const char* text = lv_textarea_get_text(textarea);
              panel.search_query_ = text ? text : "";
 
@@ -168,7 +166,6 @@ lv_obj_t* SpoolmanPanel::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find widget references
     spool_list_ = helix::ui::find_required(overlay_root_, "spool_list", get_name());
     if (!spool_list_) {
         return nullptr;
@@ -201,7 +198,6 @@ void SpoolmanPanel::on_activate() {
 
     spdlog::debug("[{}] on_activate()", get_name());
 
-    // Clear search and location filter on activation
     search_query_.clear();
     selected_location_.clear();
     lv_obj_t* search_box = helix::ui::find_required(overlay_root_, "search_box", get_name());
@@ -224,7 +220,6 @@ void SpoolmanPanel::on_ui_destroyed() {
 void SpoolmanPanel::on_deactivating(DeactivateReason) {
     SpoolmanManager::instance().stop_spoolman_polling();
 
-    // Clean up debounce timer
     search_debounce_.cancel();
 
     // Reset visible state but keep pool intact for reactivation
@@ -381,7 +376,6 @@ void SpoolmanPanel::populate_spool_list() {
         search_query_ = text ? text : "";
     }
 
-    // Apply current search filter
     apply_filter();
     update_location_filter_dropdown();
 
@@ -492,7 +486,6 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
     if (!row)
         return;
 
-    // Get spool ID from user_data
     void* user_data = lv_obj_get_user_data(row);
     int spool_id = static_cast<int>(reinterpret_cast<intptr_t>(user_data));
 
@@ -504,7 +497,6 @@ void SpoolmanPanel::handle_spool_clicked(lv_obj_t* row) {
         return;
     }
 
-    // Set up context menu action handler
     context_menu_.set_action_callback([this](helix::ui::SpoolmanContextMenu::MenuAction action,
                                              int id) { handle_context_action(action, id); });
 

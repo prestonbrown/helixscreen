@@ -514,7 +514,6 @@ void SpoolEditModal::handle_color_clicked() {
         // string; it must not land in filament_name, which is the user's own
         // Spoolman filament name.
 
-        // Update color label and spool preview
         const std::string display = color_name.empty() ? working_spool_.color_hex : color_name;
         lv_subject_set_string(&color_subject_, display.c_str());
         update_spool_preview();

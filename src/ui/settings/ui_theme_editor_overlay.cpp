@@ -115,7 +115,6 @@ lv_obj_t* ThemeEditorOverlay::create(lv_obj_t* parent) {
         return nullptr;
     }
 
-    // Find panel widget (content container)
     panel_ = helix::ui::find_required(overlay_root_, "overlay_content", get_name());
 
     // The picker sits in the page with no readout (the selected role bar is
@@ -173,7 +172,6 @@ void ThemeEditorOverlay::register_callbacks() {
          [](lv_event_t* e) {
              get_theme_editor_overlay().handle_more_clicked(lv_event_get_current_target_obj(e));
          }},
-        // Save As dialog callbacks
         {"on_theme_save_as_confirm",
          [](lv_event_t*) { get_theme_editor_overlay().handle_save_as_confirm(); }},
         {"on_theme_save_as_cancel",
@@ -266,10 +264,8 @@ void ThemeEditorOverlay::load_theme(const std::string& filename) {
     // Clear dirty state since we just loaded
     clear_dirty();
 
-    // Update visual swatches
     update_swatch_colors();
 
-    // Update property sliders
     update_property_sliders();
 
     // Apply editing theme colors to editor UI elements (sliders, buttons, etc.)
@@ -297,7 +293,6 @@ void ThemeEditorOverlay::update_property_sliders() {
         return;
     }
 
-    // Update border radius slider
     lv_obj_t* radius_row = helix::ui::find_required(overlay_root_, "row_border_radius", get_name());
     lv_obj_t* radius_slider = helix::ui::find_required(radius_row, "slider", get_name());
     if (radius_slider) {
@@ -305,14 +300,12 @@ void ThemeEditorOverlay::update_property_sliders() {
                             LV_ANIM_OFF);
     }
 
-    // Update border width slider
     lv_obj_t* width_row = helix::ui::find_required(overlay_root_, "row_border_width", get_name());
     lv_obj_t* width_slider = helix::ui::find_required(width_row, "slider", get_name());
     if (width_slider) {
         lv_slider_set_value(width_slider, editing_theme_.properties.border_width, LV_ANIM_OFF);
     }
 
-    // Update border opacity slider
     lv_obj_t* opacity_row =
         helix::ui::find_required(overlay_root_, "row_border_opacity", get_name());
     lv_obj_t* opacity_slider = helix::ui::find_required(opacity_row, "slider", get_name());
@@ -320,7 +313,6 @@ void ThemeEditorOverlay::update_property_sliders() {
         lv_slider_set_value(opacity_slider, editing_theme_.properties.border_opacity, LV_ANIM_OFF);
     }
 
-    // Update shadow intensity slider
     lv_obj_t* shadow_row =
         helix::ui::find_required(overlay_root_, "row_shadow_intensity", get_name());
     lv_obj_t* shadow_slider = helix::ui::find_required(shadow_row, "slider", get_name());
@@ -478,7 +470,6 @@ void ThemeEditorOverlay::handle_save_clicked() {
 }
 
 void ThemeEditorOverlay::handle_save_as_clicked() {
-    // Show save as dialog to get new filename
     show_save_as_dialog();
 }
 
@@ -518,7 +509,6 @@ void ThemeEditorOverlay::handle_reset_clicked() {
                 editing_theme_ = original_theme_;
                 clear_dirty();
 
-                // Update UI to reflect reverted values
                 update_swatch_colors();
                 update_property_sliders();
 
@@ -545,12 +535,10 @@ void ThemeEditorOverlay::perform_reset_to_default() {
         return;
     }
 
-    // Update editing theme with default
     editing_theme_ = *result;
     original_theme_ = *result;
     clear_dirty();
 
-    // Update UI to reflect default values
     update_swatch_colors();
     update_property_sliders();
 
@@ -668,7 +656,6 @@ void ThemeEditorOverlay::show_save_as_dialog() {
     // No error line from a previous attempt
     show_save_as_status("");
 
-    // Show save as modal
     save_as_dialog_ = helix::ui::ComponentModal::show_owned("theme_save_as_modal");
     if (!save_as_dialog_) {
         spdlog::error("[{}] Failed to show Save As dialog", get_name());
@@ -762,11 +749,9 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     }
     std::string unique_filename = generate_unique_filename(base_filename, themes_dir);
 
-    // Update theme data with new name and filename
     editing_theme_.name = theme_name;
     editing_theme_.filename = unique_filename;
 
-    // Save to new file
     std::string filepath = themes_dir + "/" + unique_filename + ".json";
     if (!helix::save_theme_to_file(editing_theme_, filepath)) {
         spdlog::error("[{}] Failed to save theme to '{}'", get_name(), filepath);
@@ -774,7 +759,6 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
         return;
     }
 
-    // Update config to use new theme
     DisplaySettingsManager::instance().set_theme_name(unique_filename);
 
     // Clear dirty state
@@ -784,11 +768,9 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     spdlog::info("[{}] Theme saved as '{}' (file: {}.json)", get_name(), theme_name,
                  unique_filename);
 
-    // Hide save as dialog
     Modal::hide(save_as_dialog_);
     save_as_dialog_ = nullptr;
 
-    // Apply live (no restart needed)
     theme_manager_apply_theme(editing_theme_, theme_manager_is_dark_mode());
 
     spdlog::info("[{}] Theme saved as '{}' and applied live", get_name(), editing_theme_.name);
@@ -817,7 +799,6 @@ std::string ThemeEditorOverlay::sanitize_filename(const std::string& name) {
         // Skip all other characters (punctuation, special chars, etc.)
     }
 
-    // Trim trailing underscores
     while (!result.empty() && result.back() == '_') {
         result.pop_back();
     }
@@ -826,7 +807,6 @@ std::string ThemeEditorOverlay::sanitize_filename(const std::string& name) {
     constexpr size_t kMaxFilenameLen = 32;
     if (result.size() > kMaxFilenameLen) {
         result.resize(kMaxFilenameLen);
-        // Trim trailing underscore from truncation
         while (!result.empty() && result.back() == '_') {
             result.pop_back();
         }

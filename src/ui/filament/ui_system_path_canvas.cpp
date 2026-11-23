@@ -451,7 +451,6 @@ static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** a
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, true);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
     // The canvas takes taps only for its "+N units" chips; bypass taps land on the
@@ -534,7 +533,6 @@ lv_obj_t* ui_system_path_canvas_create(lv_obj_t* parent) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, true);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, system_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, system_path_delete_cb, LV_EVENT_DELETE, nullptr);
     // The canvas takes taps only for its "+N units" chips; bypass taps land on the
@@ -812,7 +810,6 @@ void ui_system_path_canvas_set_tool_virtual_numbers(lv_obj_t* obj, const int* nu
         data->tool_virtual_number[i] = numbers[i];
         snprintf(data->tool_labels[i], sizeof(data->tool_labels[i]), "%c%d", prefix, numbers[i]);
     }
-    // Clear remaining entries
     for (int i = n; i < SystemPathData::kMaxTools; ++i) {
         const int fallback_n = helix::ui::lane_number(i);
         data->tool_virtual_number[i] = fallback_n;

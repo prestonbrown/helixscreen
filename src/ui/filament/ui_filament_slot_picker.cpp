@@ -352,7 +352,6 @@ void FilamentSlotPicker::position_card(lv_obj_t* card) {
     int32_t card_h = lv_obj_get_height(card);
     int32_t card_w = lv_obj_get_width(card);
 
-    // Get trigger position in screen coordinates
     lv_area_t trigger_area;
     lv_obj_get_coords(trigger_, &trigger_area);
 

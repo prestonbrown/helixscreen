@@ -76,7 +76,6 @@ void AmsSelectorMenu::set_action_callback(ActionCallback callback) {
 
 bool AmsSelectorMenu::show_at(lv_obj_t* parent, lv_obj_t* anchor, lv_point_t click_pt,
                               AmsBackend* backend) {
-    // Register callbacks once (idempotent)
     register_callbacks();
 
     // Store state BEFORE base class calls on_created

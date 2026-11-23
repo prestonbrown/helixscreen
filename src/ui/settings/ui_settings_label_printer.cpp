@@ -218,7 +218,6 @@ void LabelPrinterSettingsOverlay::on_activate() {
     init_bt_printer_dropdown();
     init_label_count_dropdown();
 
-    // Update IPP selected subject based on current config
     update_ipp_selected_subject();
 
     // Start detection based on current printer type
@@ -536,12 +535,10 @@ void LabelPrinterSettingsOverlay::handle_printer_selected(int index) {
     spdlog::info("[{}] Selected printer: {} ({}:{}, protocol={}, rp='{}')", get_name(),
                  printer.name, printer.ip_address, port, np.protocol, printer.resource_path);
 
-    // Update IPP selected subject and refresh dependent UI
     update_ipp_selected_subject();
     init_label_size_dropdown();
     init_label_count_dropdown();
 
-    // Update address and port input fields
     if (overlay_root_) {
         lv_obj_t* addr_row = find_required(overlay_root_, "row_address_port", get_name());
         if (addr_row) {
@@ -639,7 +636,6 @@ void LabelPrinterSettingsOverlay::handle_type_changed(int index) {
         settings.set_printer_protocol("raw");
     }
 
-    // Update IPP selected subject
     update_ipp_selected_subject();
 
     // Refresh label size dropdown for new backend
@@ -1067,7 +1063,6 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
                                         lv_dropdown_set_options(dd, options.c_str());
                                     }
                                 }
-                                // Update connect button
                                 lv_obj_t* b = helix::ui::find_required(
                                     ov.overlay_root_, "btn_bt_connect", "Label Printer");
                                 if (b) {
@@ -1112,7 +1107,6 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
                                      [](const BtDeviceInfo& d) { return !d.paired; }),
                       bt_devices_.end());
 
-    // Update UI to show scanning state
     lv_subject_set_int(&bt_scanning_subject_, 1);
     if (overlay_root_) {
         lv_obj_t* row = find_required(overlay_root_, "row_bt_printers", get_name());
@@ -1211,7 +1205,6 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
                           helix::redact::mac(info.mac));
         }
 
-        // Update dropdown
         if (overlay_root_) {
             lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_bt_printers", get_name());
             if (row) {
@@ -1359,7 +1352,6 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
                                     ToastManager::instance().show(
                                         ToastSeverity::SUCCESS, lv_tr("Paired successfully"), 2000);
 
-                                    // Update device info and save settings
                                     auto& ov = get_label_printer_settings_overlay();
                                     for (auto& dev : ov.bt_devices_) {
                                         if (dev.mac == mac) {
@@ -1530,7 +1522,6 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
 
                 auto& ov = get_label_printer_settings_overlay();
 
-                // Update device state
                 for (auto& dev : ov.bt_devices_) {
                     if (dev.mac == mac) {
                         dev.paired = paired_ok;
@@ -1561,7 +1552,6 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
                         }
                     }
 
-                    // Update connect button state
                     lv_obj_t* btn = helix::ui::find_required(ov.overlay_root_, "btn_bt_connect",
                                                              "Label Printer");
                     if (btn) {

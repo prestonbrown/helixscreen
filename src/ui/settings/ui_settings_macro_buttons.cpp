@@ -174,16 +174,13 @@ void MacroButtonsOverlay::populate_dropdowns() {
             options = "(Empty)";
         }
 
-        // Add all printer macros
         for (const auto& macro : printer_macros_) {
             options += "\n" + macro;
         }
 
         lv_dropdown_set_options(dropdown, options.c_str());
 
-        // Set selected value
         if (!info.configured_macro.empty()) {
-            // Find the configured macro in the list
             int idx = 1; // Start after "(Auto/Empty)"
             for (const auto& macro : printer_macros_) {
                 if (macro == info.configured_macro) {

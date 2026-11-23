@@ -38,7 +38,6 @@ bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_messa
 
 bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_message,
                                 const std::string& hint_message, RetryCallback retry_callback) {
-    // Store state
     error_message_ = error_message;
     retry_callback_ = std::move(retry_callback);
     init_subjects();

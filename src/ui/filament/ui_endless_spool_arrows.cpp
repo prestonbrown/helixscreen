@@ -84,7 +84,6 @@ static void load_theme_colors(EndlessSpoolArrowsData* data) {
     // Use text_muted for subtle arrow color
     data->arrow_color = theme_manager_get_color("text_muted");
 
-    // Get responsive sizing from theme
     int32_t space_xxs = theme_manager_get_spacing("space_xxs");
     data->line_width = LV_MAX(2, space_xxs);
     data->lane_step = LV_MAX(data->line_width + 2, theme_manager_get_spacing("space_md"));
@@ -452,7 +451,6 @@ static void endless_spool_arrows_draw_cb(lv_event_t* e) {
         return;
     }
 
-    // Get widget dimensions
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     int32_t height = lv_area_get_height(&obj_coords);
@@ -577,7 +575,6 @@ static void* endless_spool_arrows_xml_create(lv_xml_parser_state_t* state, const
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, false);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,
@@ -656,7 +653,6 @@ lv_obj_t* ui_endless_spool_arrows_create(lv_obj_t* parent) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, false);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, endless_spool_arrows_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_delete_cb, LV_EVENT_DELETE, nullptr);
     lv_obj_add_event_cb(obj, endless_spool_arrows_ext_draw_cb, LV_EVENT_REFR_EXT_DRAW_SIZE,

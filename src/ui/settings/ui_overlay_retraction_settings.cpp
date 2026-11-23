@@ -221,7 +221,6 @@ void RetractionSettingsOverlay::send_retraction_settings() {
         return;
     }
 
-    // Get current slider values
     int length_centimm = retract_length_slider_ ? lv_slider_get_value(retract_length_slider_) : 0;
     int retract_speed = retract_speed_slider_ ? lv_slider_get_value(retract_speed_slider_) : 35;
     int extra_centimm = unretract_extra_slider_ ? lv_slider_get_value(unretract_extra_slider_) : 0;

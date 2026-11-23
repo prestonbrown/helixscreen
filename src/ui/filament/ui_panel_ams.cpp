@@ -361,7 +361,6 @@ void AmsPanel::init_subjects() {
     external_spool_observer_ = observe<int>(
         AmsState::instance().get_external_spool_color_subject(), this,
         [](AmsPanel* self, int /*color_int*/) {
-            // Update path canvas bypass indicator
             if (self->path_canvas_) {
                 // Use full spool info check (not just color != 0) to handle black spools correctly
                 auto ext_spool = AmsState::instance().get_external_spool_info();
@@ -752,7 +751,6 @@ void AmsPanel::create_slots(int count) {
     // Show the environment chip for this unit; update_tray places it on the lid.
     ams_detail_pre_show_env_indicator(detail_widgets_, kAllUnits);
 
-    // Create new slots
     if (const auto info = AmsState::instance().system_info())
         laid_out_drawings_ = helix::ui::unit_art_effective_picks(*info);
     auto result = ams_detail_create_slots(detail_widgets_, slot_widgets_, kMaxVisibleSlots,
@@ -766,7 +764,6 @@ void AmsPanel::create_slots(int count) {
     // Move badges to overlay layer (in front of tray)
     ams_detail_update_badges(detail_widgets_, slot_widgets_, result.slot_count, result.layout);
 
-    // Update path canvas sizing
     if (path_canvas_) {
         ui_filament_path_canvas_set_slot_overlap(path_canvas_, result.layout.overlap);
         ui_filament_path_canvas_set_slot_width(path_canvas_, result.layout.slot_width);
@@ -981,7 +978,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
     spdlog::trace("[{}] Endless spool relation has {} group(s) over {} slots", get_name(),
                   config.groups.size(), slot_count);
 
-    // Get slot width and overlap from current layout
     int32_t slot_width = kDefaultSlotWidth;
     int32_t overlap = 0;
     int32_t offset = 0;
@@ -997,7 +993,6 @@ void AmsPanel::update_endless_arrows_from_backend() {
         }
     }
 
-    // Update canvas
     ui_endless_spool_arrows_set_slot_count(endless_arrows_, slot_count);
     ui_endless_spool_arrows_set_slot_width(endless_arrows_, slot_width);
     ui_endless_spool_arrows_set_slot_overlap(endless_arrows_, overlap);
@@ -1050,7 +1045,6 @@ void AmsPanel::update_slot_colors() {
         }
 
         if (i >= slot_count) {
-            // Hide slots beyond configured count
             lv_obj_set_hidden(slot_widgets_[i], true);
             continue;
         }
@@ -1222,7 +1216,6 @@ void AmsPanel::handle_slot_tap(int slot_index) {
         return;
     }
 
-    // Show context menu near the tapped slot
     if (slot_index >= 0 && slot_index < kMaxVisibleSlots && slot_widgets_[slot_index]) {
         show_context_menu(slot_index, slot_widgets_[slot_index]);
     }
@@ -1273,7 +1266,6 @@ void AmsPanel::show_loading_error_modal() {
         error_modal_ = std::make_unique<helix::ui::AmsLoadingErrorModal>();
     }
 
-    // Get error details from backend
     AmsSystemInfo info = backend->get_system_info();
     // A fixed phrase is stored as its catalog key; firmware text passes through.
     std::string error_message = lv_tr(info.operation_detail.c_str());
@@ -1457,7 +1449,6 @@ AmsPanel& get_global_ams_panel() {
         // Initialize AmsState subjects BEFORE XML creation so bindings work
         AmsState::instance().init_subjects(true);
 
-        // Create the panel on the active screen
         lv_obj_t* screen = lv_screen_active();
         s_ams_panel_obj = helix::ui::create_xml_hidden(screen, "ams_panel");
 

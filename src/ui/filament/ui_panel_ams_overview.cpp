@@ -210,7 +210,6 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Standard overlay panel setup (header bar, responsive padding)
     ui_overlay_panel_setup_standard(panel_, parent_screen_, "overlay_header", "overview_content");
 
-    // Find the unit cards row container from XML
     cards_row_ = helix::ui::find_required(panel_, "unit_cards_row", get_name());
     if (!cards_row_) {
         return;
@@ -281,7 +280,6 @@ void AmsOverviewPanel::setup(lv_obj_t* panel, lv_obj_t* parent_screen) {
     // Store global instance for callback access (back button + animation callbacks)
     g_overview_panel_instance.store(this);
 
-    // Set up the shared sidebar component
     sidebar_ = helix::ui::AmsOperationSidebar::attach(printer_state_, panel_);
 
     // Initial population from backend state
@@ -913,7 +911,6 @@ void AmsOverviewPanel::clear_panel_reference() {
     // Clear global instance pointer
     g_overview_panel_instance.store(nullptr);
 
-    // Clear widget references
     detach_widget_hooks();
     system_path_ = nullptr;
     system_path_area_ = nullptr;
@@ -924,7 +921,6 @@ void AmsOverviewPanel::clear_panel_reference() {
     unit_cards_.clear();
     forget_path_room();
 
-    // Clear unit view state
     detail_container_ = nullptr;
     path_container_ = nullptr;
     prev_button_ = nullptr;
@@ -1009,7 +1005,6 @@ static void ensure_overview_registered() {
     // exactly once, before create_unit_cards() parses ams_unit_card.xml.
     helix::ui::ensure_ams_env_indicator_registered();
 
-    // Register canvas widgets
     ui_system_path_canvas_register();
     ui_filament_path_canvas_register();
 
@@ -1081,12 +1076,10 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
         AmsState::instance().set_unit_view_active(false);
         AmsState::instance().set_unit_page(0, 0);
 
-        // Create the panel on the active screen
         lv_obj_t* screen = lv_screen_active();
         s_ams_overview_panel_obj = helix::ui::create_xml_hidden(screen, "ams_overview_panel");
 
         if (s_ams_overview_panel_obj) {
-            // Initialize panel observers
             if (!panel.are_subjects_initialized()) {
                 panel.init_subjects();
             }

@@ -862,7 +862,6 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     const lv_color_t filament_color = drawn.color;
     const std::vector<lv_color_t>& band_colors = drawn.bands;
 
-    // Clear canvas
     lv_canvas_fill_bg(data->canvas, lv_color_black(), LV_OPA_TRANSP);
 
     SpoolLayer layer{data->draw_buf};

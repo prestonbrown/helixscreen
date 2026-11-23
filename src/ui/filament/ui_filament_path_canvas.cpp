@@ -250,7 +250,6 @@ static void filament_path_click_cb(lv_event_t* e) {
     lv_indev_t* indev = lv_indev_active();
     lv_indev_get_point(indev, &point);
 
-    // Get widget dimensions
     lv_area_t obj_coords;
     lv_obj_get_coords(obj, &obj_coords);
     int32_t height = lv_area_get_height(&obj_coords);
@@ -349,7 +348,6 @@ static void filament_path_click_cb(lv_event_t* e) {
     if (point.y < entry_y - kEntryHitMarginTop || point.y > prep_y + kEntryHitMarginBottom)
         return; // Click not in entry area
 
-    // Find which slot was clicked
     if (data->slot_callback) {
         for (int i = 0; i < data->slot_count; i++) {
             int32_t slot_x = x_off + get_slot_x(data, i, x_off);
@@ -399,7 +397,6 @@ static lv_obj_t* create_widget(lv_obj_t* parent) {
     lv_obj_set_scrollable(obj, false);
     lv_obj_set_clickable(obj, true);
 
-    // Register event handlers
     lv_obj_add_event_cb(obj, filament_path_draw_cb, LV_EVENT_DRAW_POST, nullptr);
     lv_obj_add_event_cb(obj, filament_path_click_cb, LV_EVENT_CLICKED, nullptr);
     lv_obj_add_event_cb(obj, filament_path_delete_cb, LV_EVENT_DELETE, nullptr);

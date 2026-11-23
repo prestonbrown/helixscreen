@@ -88,7 +88,6 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
     if (!list)
         return;
 
-    // Clear existing rows
     uint32_t child_count = lv_obj_get_child_count(list);
     for (int i = static_cast<int>(child_count) - 1; i >= 0; i--) {
         lv_obj_t* child = lv_obj_get_child(list, i);
@@ -107,7 +106,6 @@ void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
         char speed_buf[16];
         snprintf(speed_buf, sizeof(speed_buf), "%d%%", fan.speed_percent);
 
-        // Create row from XML component
         const char* type_label = lv_tr(helix::fan_type_label(fan.type));
         const std::string index = std::to_string(row_objects_.size());
         const char* attrs[] = {

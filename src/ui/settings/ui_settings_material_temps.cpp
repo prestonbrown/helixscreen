@@ -188,7 +188,6 @@ void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     int cur_bed = (ovr && ovr->bed_temp) ? *ovr->bed_temp : default_bed;
     int cur_chamber = (ovr && ovr->chamber_temp) ? *ovr->chamber_temp : default_chamber;
 
-    // Update name subject
     snprintf(edit_name_buf_, sizeof(edit_name_buf_), "%s", material_name.c_str());
     lv_subject_set_string(&edit_name_subject_, edit_name_buf_);
 
@@ -370,7 +369,6 @@ void MaterialTempsOverlay::handle_save() {
     if (!shipped || chamber_temp != shipped->chamber_temp_c)
         ovr.chamber_temp = chamber_temp;
 
-    // Add macro override from dropdown selection
     if (macro_dropdown_) {
         uint32_t sel = lv_dropdown_get_selected(macro_dropdown_);
         if (sel < macro_names_.size() && !macro_names_[sel].empty()) {

@@ -152,7 +152,6 @@ void SystemSettingsOverlay::perform_factory_reset() {
     config->save();
     spdlog::info("[{}] Config reset to defaults", get_name());
 
-    // Show confirmation toast and restart
     ToastManager::instance().show(ToastSeverity::INFO,
                                   lv_tr("Settings reset to defaults. Restarting..."), 1500);
 

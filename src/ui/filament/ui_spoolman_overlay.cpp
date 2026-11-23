@@ -73,7 +73,6 @@ void SpoolmanOverlay::init_subjects() {
         UI_MANAGED_SUBJECT_INT(refresh_interval_subject_, kDefaultRefreshIntervalSeconds,
                                "ams_spoolman_refresh_interval", subjects_);
 
-        // Initialize scanner device status subject
         auto scanner_name = helix::SettingsManager::instance().get_scanner_device_name();
         auto scanner_id = helix::SettingsManager::instance().get_scanner_device_id();
         const char* status = scanner_id.empty() ? lv_tr("Auto-detect") : scanner_name.c_str();
@@ -340,7 +339,6 @@ int SpoolmanOverlay::seconds_to_dropdown_index(int seconds) {
 }
 
 void SpoolmanOverlay::update_ui_from_subjects() {
-    // Update dropdown to match current interval
     if (interval_dropdown_) {
         int interval_seconds = lv_subject_get_int(&refresh_interval_subject_);
         int dropdown_index = seconds_to_dropdown_index(interval_seconds);

@@ -287,7 +287,6 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
         spdlog::debug("[NetworkSettingsOverlay] WiFiManager obtained from global singleton");
     }
 
-    // Check WiFi hardware availability and update subject
     const bool hw_available = wifi_manager_ && wifi_manager_->has_hardware();
     lv_subject_set_int(&wifi_hardware_available_, hw_available ? 1 : 0);
     lv_subject_set_int(&wifi_toggle_locked_, hw_available ? 0 : 1);
@@ -295,20 +294,17 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
         spdlog::info("[NetworkSettingsOverlay] WiFi hardware not available - controls disabled");
     }
 
-    // Initialize Ethernet manager
     if (!ethernet_manager_) {
         ethernet_manager_ = std::make_unique<EthernetManager>();
         spdlog::debug("[NetworkSettingsOverlay] EthernetManager initialized");
     }
 
-    // Initialize NetworkTester
     if (!network_tester_) {
         network_tester_ = std::make_shared<NetworkTester>();
         network_tester_->init_self_reference(network_tester_);
         spdlog::debug("[NetworkSettingsOverlay] NetworkTester initialized");
     }
 
-    // Update initial connection status
     update_wifi_status();
     update_ethernet_status();
     update_any_network_connected();
@@ -776,7 +772,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
 
     clear_network_list();
 
-    // Update count
     snprintf(count_buffer_, sizeof(count_buffer_), "(%zu)", networks.size());
     lv_subject_notify(&network_count_);
 
@@ -794,7 +789,6 @@ void NetworkSettingsOverlay::build_network_list(const std::vector<WiFiNetwork>& 
     // on a 2.4GHz-only radio every row would read "2.4G" (helixscreen#1189).
     const bool show_bands = helix::ui::wifi::wifi_scan_spans_multiple_bands(sorted_networks);
 
-    // Create network items
     static int item_counter = 0;
     for (const auto& network : sorted_networks) {
         const int icon_state = helix::ui::wifi::wifi_compute_signal_icon_state(
@@ -1059,7 +1053,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
         lv_subject_set_int(&wifi_scanning_, 0);
         clear_network_list();
 
-        // Update connection status
         lv_subject_set_int(&wifi_connected_, 0);
         ssid_buffer_[0] = '\0';
         ip_buffer_[0] = '\0';
@@ -1076,7 +1069,6 @@ void NetworkSettingsOverlay::finish_wlan_toggle(bool requested, bool success, bo
     // still costs one write.
     SystemSettingsManager::instance().set_wifi_enabled(outcome.enabled);
 
-    // Update combined network status
     update_any_network_connected();
 }
 
@@ -1167,7 +1159,6 @@ void NetworkSettingsOverlay::handle_test_network_clicked() {
         return;
     }
 
-    // Find the step_container and create the step widget
     lv_obj_t* step_container = lv_obj_find_by_name(test_modal_, "step_container");
     if (!step_container) {
         spdlog::error("[NetworkSettingsOverlay] step_container not found in modal");
@@ -1292,7 +1283,6 @@ void NetworkSettingsOverlay::handle_network_test_close() {
         lv_subject_set_int(&test_running_, 0);
     }
 
-    // Hide the modal
     if (test_modal_) {
         helix::ui::modal_hide(test_modal_);
         test_modal_ = nullptr;
@@ -1474,7 +1464,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     // No error line from a previous attempt
     show_password_status("");
 
-    // Show modal
     const char* modal_attrs[] = {"cancel_callback",
                                  "on_network_settings_password_cancel",
                                  "connect_callback",
@@ -1490,7 +1479,6 @@ void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
         return;
     }
 
-    // Clear password input and register keyboard
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (password_input) {
         lv_textarea_set_text(password_input, "");
@@ -1528,7 +1516,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
         return;
     }
 
-    // Get password from input
     lv_obj_t* password_input = lv_obj_find_by_name(password_modal_, "password_input");
     if (!password_input) {
         spdlog::error("[NetworkSettingsOverlay] Password input not found");
@@ -1546,7 +1533,6 @@ void NetworkSettingsOverlay::handle_password_connect_clicked() {
         return;
     }
 
-    // Show connecting state (hides form, shows spinner)
     lv_subject_set_int(&wifi_connecting_, 1);
 
     spdlog::info("[NetworkSettingsOverlay] Connecting to secured network: {}",

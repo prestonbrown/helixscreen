@@ -1339,7 +1339,6 @@ void AmsOperationSidebar::start_operation(StepOperationType op_type, int target_
     // belongs to it.
     AmsState::instance().set_narration_phase(-1, "");
 
-    // Create step progress with correct steps
     recreate_step_progress_for_operation(op_type);
 
     // Mark the operation busy right away (the XML binding hides the buttons on

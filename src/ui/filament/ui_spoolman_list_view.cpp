@@ -153,7 +153,6 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
         ui_spool_canvas_redraw(rw.canvas);
     }
 
-    // Update spool ID label
     if (rw.id_label) {
         char id_buf[16];
         snprintf(id_buf, sizeof(id_buf), "#%d", spool.id);
@@ -177,7 +176,6 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
         lv_label_set_text(rw.vendor_label, vendor_text.c_str());
     }
 
-    // Update weight
     if (rw.weight_label) {
         // Grams here; the row's percent column beside it carries the percent.
         const std::string weight = helix::format_spool_grams(spool.remaining_weight_g);
@@ -185,7 +183,6 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
         lv_label_set_text(rw.weight_label, weight.c_str());
     }
 
-    // Update percentage
     if (rw.percent_label) {
         char percent_buf[16];
         helix::format::format_percent(static_cast<int>(spool.remaining_percent()), percent_buf,
@@ -206,7 +203,6 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
     }
     lv_obj_set_state(rw.root, LV_STATE_CHECKED, is_active);
 
-    // Show the row
     lv_obj_set_hidden(rw.root, false);
 }
 

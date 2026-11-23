@@ -647,10 +647,8 @@ void AmsOverviewPanel::update_unit_card(UnitCard& card, const AmsUnit& unit,
         }
     }
 
-    // Update slot count
     set_slot_count_label(card.slot_count_label, noun, unit.slot_count);
 
-    // Update error badge visibility and color
     if (card.error_badge) {
         bool animate = DisplaySettingsManager::instance().get_animations_enabled();
         auto worst = ams_draw::worst_unit_severity(unit);
@@ -848,11 +846,9 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
 
     push_unit_anchors(/*relayout=*/true);
 
-    // Set active unit based on current slot
     int active_unit = info.get_active_unit_index();
     ui_system_path_canvas_set_active_unit(system_path_, active_unit);
 
-    // Set filament color from active slot
     if (current_slot >= 0) {
         const SlotInfo* slot = info.get_slot_global(current_slot);
         if (slot) {
@@ -860,7 +856,6 @@ void AmsOverviewPanel::refresh_system_path(const AmsSystemInfo& info, int curren
         }
     }
 
-    // Set whether filament is fully loaded
     ui_system_path_canvas_set_filament_loaded(system_path_, info.filament_loaded);
 
     // Set bypass path state (canvas draws the connecting lines only)

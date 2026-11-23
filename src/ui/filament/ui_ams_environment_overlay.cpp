@@ -988,18 +988,15 @@ void AmsEnvironmentOverlay::update_comfort_text(float humidity_pct) {
         // Set status subject (controls which icon variant is visible in XML)
         lv_subject_set_int(&comfort_status_[row_idx], status_val);
 
-        // Set text subject
         snprintf(comfort_text_buf_[row_idx], sizeof(comfort_text_buf_[row_idx]),
                  "%s: %s (< %.0f%%)", mat_name.c_str(), status_text, range->max_humidity_good);
         lv_subject_set_string(&comfort_text_[row_idx], comfort_text_buf_[row_idx]);
 
-        // Show row
         lv_subject_set_int(&comfort_visible_[row_idx], 1);
 
         row_idx++;
     }
 
-    // Hide unused rows
     for (int i = row_idx; i < kMaxComfortRows; ++i) {
         lv_subject_set_int(&comfort_visible_[i], 0);
     }

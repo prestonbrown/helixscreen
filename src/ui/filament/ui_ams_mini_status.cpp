@@ -691,7 +691,6 @@ static void rebuild_bars(AmsMiniStatusData* data) {
         helix::ui::safe_delete_deferred(condemned_parent);
     }
 
-    // Update overflow label
     if (data->overflow_label) {
         if (overflow_count > 0) {
             lv_label_set_text_fmt(data->overflow_label, "+%d", overflow_count);
@@ -1828,7 +1827,6 @@ static lv_obj_t* create_mini_status(lv_obj_t* parent, int32_t height, const char
     data_ptr->bars_container = lv_obj_find_by_name(container, "ams_bars_container");
     data_ptr->overflow_label = lv_obj_find_by_name(container, "ams_overflow_label");
 
-    // Register and set up cleanup
     AmsMiniStatusData* data = data_ptr.release();
     s_registry.set(container, data);
     lv_obj_add_event_cb(container, on_delete, LV_EVENT_DELETE, nullptr);
@@ -2096,7 +2094,6 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
             data->absent_slots.push_back(i);
         }
     }
-    // Clear any stale unit rows beyond current count
     for (int u = data->unit_count; u < 8; ++u) {
         data->unit_rows[u].first_slot = 0;
         data->unit_rows[u].slot_count = 0;
