@@ -822,3 +822,71 @@ TEST_CASE_METHOD(TransportLossFixture,
     REQUIRE(error_.load());
     CHECK(captured_error_.find("result unavailable") != std::string::npos);
 }
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "A socket drop during a timed-out MPC run keeps waiting for its lines",
+                 "[calibration][transport][2160]") {
+    // MPC_CALIBRATE moves no toolhead: the busy flag reads idle the whole run.
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 0);
+    link_up_and_ready();
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 60 min", "MPC_CALIBRATE");
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 255, 3,
+        [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::DISCONNECTED));
+    settle();
+    REQUIRE_FALSE(fire_grace());
+    REQUIRE_FALSE(error_.load());
+
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+    mock_client_.dispatch_gcode_response("Finished MPC calibration of heater 'extruder'");
+    mock_client_.dispatch_gcode_response("block_heat_capacity=19.8449 [J/K]");
+    mock_client_.dispatch_gcode_response("sensor_responsiveness=0.0910928 [K/s/K]");
+    mock_client_.dispatch_gcode_response("ambient_transfer=0.0994815 [W/K]");
+    mock_client_.dispatch_gcode_response(
+        "fan_ambient_transfer=0.0994815, 0.141702, 0.155653 [W/K]");
+    settle();
+    CHECK(success_.load());
+    CHECK_FALSE(error_.load());
+}
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "An MPC run that loses its socket waits for its lines, not the idle flag",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 0);
+    link_up_and_ready();
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::CONNECTION_LOST,
+                                        "Connection to printer lost", "MPC_CALIBRATE");
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 255, 3,
+        [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+    REQUIRE_FALSE(fire_grace());
+    REQUIRE_FALSE(error_.load());
+
+    // Back online to a Klipper that restarted: no result is coming.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::STARTUP);
+    settle();
+    REQUIRE(error_.load());
+    CHECK(captured_error_.find("Klipper stopped") != std::string::npos);
+    CHECK_FALSE(success_.load());
+}

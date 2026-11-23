@@ -14,6 +14,9 @@ struct PIDCalibrationPanelTestAccess {
     static void send_save_config(PIDCalibrationPanel& p) {
         p.send_save_config();
     }
+    static void enter_migrating(PIDCalibrationPanel& p) {
+        p.set_state(PIDCalibrationPanel::State::MIGRATING);
+    }
     static void abort_clicked(PIDCalibrationPanel& p) {
         p.handle_abort_clicked();
     }

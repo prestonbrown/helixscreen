@@ -1227,6 +1227,7 @@ void PIDCalibrationPanel::confirm_migration() {
 void PIDCalibrationPanel::handle_abort_clicked() {
     spdlog::info("[PIDCal] Abort clicked, sending emergency stop + firmware restart");
     ++run_generation_;
+    cancel_klippy_ready_wait();
 
     // E-stop + firmware restart: klippy comes back, so this is an expected
     // reconnect, not a fault
