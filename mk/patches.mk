@@ -637,7 +637,7 @@ $(PATCHES_STAMP): $(PATCH_FILES) $(LVGL_HEAD) $(LIBHV_HEAD) $(LUA_HEAD) $(APPLIE
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_event_null_guards.patch "LVGL obj-event NULL guards (VHTR49QJ — recoverable bail + telemetry)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_null_guards.patch "LVGL style NULL guards patch (null style pointers in transitions/cache)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_subject_deinit_refuses_observers.patch "LVGL subject deinit refuses observers patch (#1279)"
-	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_flag_screen_parent_null_guard.patch "LVGL obj flag screen-parent NULL guard (hide/unhide a screen)"
+	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_obj_flag_screen_parent_null_guard.patch "LVGL obj flag screen-parent NULL guard; a hidden change re-lays out the parent"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_thread_check_hook.patch "LVGL thread-check hook patch (subject/timer/delete entry points, #1942)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_check_arg_site_logger.patch "LVGL check-arg SITE log mode (one cold file:line logger; ESP32 flash)"
 	$(Q)$(APPLY_PATCH) $(LVGL_DIR) $(PATCH_DIR)/lvgl_style_report_refreshes_every_part.patch "LVGL style report refreshes every part's cache mask"
