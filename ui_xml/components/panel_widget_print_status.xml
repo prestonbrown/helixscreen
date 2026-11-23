@@ -26,7 +26,7 @@
     <style name="library_cell_grid_bottom" layout="flex" flex_main_place="start"/>
     <style name="library_icon_grid" text_font="#icon_font_xs"/>
   </styles>
-  <view extends="ui_card" width="100%" height="100%">
+  <view extends="ui_card" width="100%" height="100%" clickable="true">
     <bind_state_if_not_eq subject="printer_connection_state" state="disabled" ref_value="2"/>
     <event_cb trigger="clicked" callback="print_card_clicked_cb"/>
     <!-- IDLE STATE: Library card with thumbnail + file actions.

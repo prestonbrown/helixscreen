@@ -38,7 +38,13 @@ static void* ui_card_xml_create(lv_xml_parser_state_t* state, const char** attrs
     // (theme applies ObjBase with LV_SIZE_CONTENT, but remove_style strips it)
     lv_obj_set_size(obj, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
 
-    // Pressed state: the theme's tier rule, shared with buttons.
+    // A card is a container: a tap on its background does nothing unless the
+    // card has an action, so it takes touches only when the XML opts in with
+    // clickable="true" (as a card with an event_cb of its own must).
+    lv_obj_set_clickable(obj, false);
+
+    // Pressed state: the theme's tier rule, shared with buttons. It shows only
+    // on a card that is clickable.
     lv_obj_add_style(obj, ThemeManager::instance().get_style(StyleRole::CardPressed),
                      LV_PART_MAIN | LV_STATE_PRESSED);
 
