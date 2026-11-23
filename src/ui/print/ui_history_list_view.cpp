@@ -188,7 +188,6 @@ void HistoryListView::configure_row(lv_obj_t* row, size_t data_index, const Prin
         lv_label_set_text(filament_label, materials.empty() ? lv_tr("Unknown") : materials.c_str());
     }
 
-    // Status text
     const char* status_text = lv_tr(status_to_label(job.status));
     const char* status_color = get_status_color(job.status);
 

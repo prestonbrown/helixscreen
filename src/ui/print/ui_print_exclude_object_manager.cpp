@@ -247,7 +247,6 @@ void PrintExcludeObjectManager::handle_exclude_cancelled() {
     spdlog::info("[PrintExcludeObjectManager] Exclusion cancelled for '{}'",
                  pending_exclude_object_);
 
-    // Clear pending state
     pending_exclude_object_.clear();
 
     // Clear selection in viewer
@@ -276,7 +275,6 @@ void PrintExcludeObjectManager::handle_exclude_undo() {
         helix::ui::gcode_viewer_set_excluded_objects(gcode_viewer_, excluded_objects_);
     }
 
-    // Clear pending
     pending_exclude_object_.clear();
 
     // Show confirmation that undo succeeded

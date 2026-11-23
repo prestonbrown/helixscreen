@@ -4,8 +4,6 @@
 /**
  * @file ui_print_start_controller.cpp
  * @brief Controller for print initiation workflow
- *
- * Extracted from ui_panel_print_select.cpp to separate print start concerns.
  */
 
 #include "ui_print_start_controller.h"
@@ -1774,7 +1772,6 @@ void PrintStartController::restore_filament_mapping() {
         return;
     }
 
-    // Get current mapping to compare
     auto current_mapping = backend->get_tool_mapping();
 
     if (saved.outlived_a_print) {

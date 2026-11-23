@@ -410,7 +410,6 @@ void HistoryDashboardPanel::update_statistics(const std::vector<PrintHistoryJob>
         }
     }
 
-    // Calculate success rate
     double success_rate = 0.0;
     if (total_prints > 0) {
         success_rate =
@@ -473,7 +472,6 @@ void HistoryDashboardPanel::create_trend_chart() {
         return;
     }
 
-    // Create line chart for prints trend
     trend_chart_ = lv_chart_create(trend_chart_container_);
     if (!trend_chart_) {
         spdlog::error("[{}] Failed to create trend chart", get_name());
@@ -670,7 +668,6 @@ void HistoryDashboardPanel::update_filament_chart(const std::vector<PrintHistory
         fil_shown_pool_.set_int(i, 0);
     }
 
-    // Aggregate filament by type
     std::map<std::string, double> filament_by_type;
 
     for (const auto& job : jobs) {

@@ -128,10 +128,9 @@ void PageScrollAutoInject::walk_and_attach(lv_obj_t* obj, bool ancestor_managed)
             // Synchronous erase is safe ONLY because PageScrollController's
             // on_container_deleted() nulls container_ BEFORE invoking this callback
             // (so the destroyed controller's dtor is a no-op) and invokes it as its
-            // provably-last statement with no `self` access afterward (Task 3
-            // hardening). This is a `delete this`-adjacent pattern — do not add code
-            // that touches the controller after erase, and keep that invariant if you
-            // edit the controller.
+            // provably-last statement with no `self` access afterward. This is a `delete
+            // this`-adjacent pattern — do not add code that touches the controller after erase, and
+            // keep that invariant if you edit the controller.
             ctl->set_on_container_deleted([this, key]() {
                 controllers_.erase(key); // container gone; drop controller
             });

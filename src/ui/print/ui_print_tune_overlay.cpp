@@ -301,7 +301,6 @@ void PrintTuneOverlay::sync_to_state() {
         return;
     }
 
-    // Get current values from PrinterState
     int speed = lv_subject_get_int(printer_state_->motion_state().get_speed_factor_subject());
     int flow = lv_subject_get_int(printer_state_->motion_state().get_flow_factor_subject());
 

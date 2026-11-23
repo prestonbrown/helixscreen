@@ -118,7 +118,6 @@ bool PrintSelectUsbSource::setup(lv_obj_t* panel) {
         return false;
     }
 
-    // Find the source selector container
     source_selector_ = lv_obj_find_by_name(panel, "source_selector");
     if (!source_selector_) {
         spdlog::warn("[UsbSource] Source selector container not found");

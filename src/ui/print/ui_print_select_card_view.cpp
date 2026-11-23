@@ -471,7 +471,7 @@ void PrintSelectCardView::apply_thumbnail(lv_obj_t* card, CardWidgetData& data,
     } else {
         bool has_real_thumb = has_real_thumbnail(file.thumbnail_path);
 #if defined(HELIX_PLATFORM_ESP32)
-        // No disk thumbnail cache on this platform (Task 10 R6) — a fetched
+        // No disk thumbnail cache on this platform: a fetched
         // thumbnail lives in file.esp_thumbnail (PSRAM) instead of a file at
         // file.thumbnail_path, so has_real_thumbnail()'s on-disk exists
         // check alone would always report false here.
@@ -650,7 +650,6 @@ void PrintSelectCardView::update_visible(const std::vector<PrintFileData>& file_
         return;
     }
 
-    // Get scroll position and container dimensions
     int32_t scroll_y = lv_obj_get_scroll_y(container_);
     int32_t viewport_height = lv_obj_get_height(container_);
 

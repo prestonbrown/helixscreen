@@ -1113,15 +1113,15 @@ void PrintPreparationManager::start_print(const std::string& filename,
         start_pin_key_.clear();
     }
 
-    // No double-tap guard here any more. The flag it used to read is now
-    // published by PrinterPrintState from the preparing job, and the caller arms
-    // that job immediately before calling us - so this check would only ever see
-    // the job it was just handed and would reject every print. The guard belongs
-    // at the arming site, and PrintStartController::start_now() already runs it
-    // (can_start_new_print(), before begin_preparing()).
+    // No double-tap guard here: the flag is published by PrinterPrintState from
+    // the preparing job, and the caller arms that job immediately before calling
+    // us, so a check here would only see the job it was just handed and reject
+    // every print. The guard belongs at the arming site, and
+    // PrintStartController::start_now() runs it (can_start_new_print(), before
+    // begin_preparing()).
 
     // The in-progress flag is published by PrinterPrintState from the preparing
-    // job itself, so there is no longer a wrapper clearing it on every exit.
+    // job itself, so no wrapper clears it on exit.
     PrintCompletionCallback wrapped_completion = on_completion;
 
     // Build full path for print

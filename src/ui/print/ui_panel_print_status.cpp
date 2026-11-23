@@ -316,7 +316,7 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         ps_subjects);
     print_state_observer_ = observe_print_state<PrintStatusPanel>(
         // RAW_PRINT_STATE_OK: the panel's lifecycle_ adopts the published
-        // PrintState (Phase 0b); this observer feeds it the wire transition that
+        // PrintState; this observer feeds it the wire transition that
         // derive_print_state() needs alongside the live phase.
         printer_state_.print_state().get_print_state_enum_subject(), this,
         [](PrintStatusPanel* self, PrintJobState state) { self->on_print_state_changed(state); },
@@ -540,7 +540,6 @@ PrintStatusPanel::PrintStatusPanel(PrinterState& printer_state, IMoonrakerAPI* a
         [](PrintStatusPanel* self, int) { self->recompute_end_overlay_visibility(); }, ps_subjects);
     recompute_end_overlay_visibility();
 
-    // Create filament runout handler (extracted from PrintStatusPanel)
     runout_handler_ = std::make_unique<helix::ui::FilamentRunoutHandler>(api_);
     runout_handler_->set_wake([] {
         if (auto* dm = DisplayManager::instance())
@@ -613,7 +612,6 @@ void PrintStatusPanel::init_subjects() {
     // Populated lazily at first update (icon_cube const resolves only after globals load).
     UI_MANAGED_SUBJECT_STRING(view_toggle_icon_subject_, view_toggle_icon_buf_, "",
                               "view_toggle_icon", subjects_);
-    // Initialize light/timelapse controls (extracted Phase 2)
     light_timelapse_controls_.init_subjects();
     light_timelapse_controls_.set_api(api_);
     light_timelapse_controls_.set_printer_state(printer_state_);
@@ -621,7 +619,6 @@ void PrintStatusPanel::init_subjects() {
     layer_pause_controls_.init_subjects(printer_state_);
     layer_pause_controls_.set_api(api_);
 
-    // Preparing state subjects
     UI_MANAGED_SUBJECT_INT(preparing_visible_subject_, 0, "preparing_visible", subjects_);
     UI_MANAGED_SUBJECT_INT(preparing_progress_subject_, 0, "preparing_progress", subjects_);
 
@@ -985,7 +982,6 @@ void PrintStatusPanel::deinit_subjects() {
 
     // Tune overlay singleton handles its own cleanup via StaticPanelRegistry
 
-    // Clear light/timelapse global accessor
     set_global_light_timelapse_controls(nullptr);
     light_timelapse_controls_.deinit_subjects();
     layer_pause_controls_.deinit_subjects();
@@ -1028,7 +1024,6 @@ void PrintStatusPanel::deinit_subjects() {
 lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
     parent_screen_ = parent;
 
-    // Create overlay root from XML
     overlay_root_ = helix::ui::create_xml_hidden(parent, xml_component());
     if (!overlay_root_) {
         spdlog::error("[{}] Failed to create overlay from XML", get_name());
@@ -1065,7 +1060,6 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
                                     "overlay_content");
 
     lv_obj_t* overlay_content = find_required(overlay_root_, "overlay_content", get_name());
-    // Find thumbnail section for nested widgets
     lv_obj_t* thumbnail_section = find_required(overlay_content, "thumbnail_section", get_name());
     if (!thumbnail_section) {
         // Half built and unregistered: a root left set would be pushed by the next open.
@@ -1107,7 +1101,6 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
             },
             this);
 
-        // Create and initialize exclude object manager
         exclude_manager_ = std::make_unique<helix::ui::PrintExcludeObjectManager>(
             api_, printer_state_, gcode_viewer_);
         exclude_manager_->init();
@@ -1187,7 +1180,6 @@ lv_obj_t* PrintStatusPanel::create(lv_obj_t* parent) {
         spdlog::debug("[{}]   ✓ Error badge", get_name());
     }
 
-    // Progress bar widget
     progress_bar_ = find_required(overlay_content, "print_progress", get_name());
     if (progress_bar_) {
         lv_bar_set_range(progress_bar_, 0, 100);
@@ -1378,8 +1370,8 @@ void PrintStatusPanel::on_deactivating(DeactivateReason reason) {
         helix::ui::gcode_viewer_set_paused(gcode_viewer_, true);
 
         // Release heavy renderer state when leaving the panel after a print has
-        // reached a terminal state. Previously gated on system-wide available
-        // memory (< 64MB) — that threshold is "kernel about to OOM," not "we're
+        // reached a terminal state. Gating on system-wide available
+        // memory (< 64MB) would be wrong: that threshold is "kernel about to OOM," not "we're
         // using too much," so devices with abundant free RAM but heavy process
         // RSS would hold the ParsedGCodeFile + GPU geometry indefinitely after
         // a print ended (telemetry: pi32 held 632MB for 1+ hour post-print).
@@ -1885,7 +1877,6 @@ void PrintStatusPanel::update_all_displays() {
 
     progress_text_.refresh_layer();
 
-    // Filament used text
     progress_text_.refresh_filament_used();
 
     // Time displays - Preparing: preprint observers own these.

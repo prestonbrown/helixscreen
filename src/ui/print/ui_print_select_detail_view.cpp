@@ -2844,7 +2844,7 @@ void PrintSelectDetailView::populate_option_rows() {
 
     // Wire up the option-state provider on the prep manager so that
     // collect_macro_skip_params() reads from these dynamic subjects. -1 means
-    // "not bound" — manager falls back to its legacy subject path or the
+    // "not bound" — manager falls back to its subject path or the
     // option's default.
     if (prep_manager_) {
         prep_manager_->set_option_state_provider([this](const std::string& id) -> int {

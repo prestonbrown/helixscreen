@@ -304,7 +304,6 @@ void HistoryListPanel::on_deactivating(DeactivateReason reason) {
     // detail's Back; that return has to take the full refresh.
     detail_overlay_open_ = false;
 
-    // Remove history manager observer
     if (history_manager_ && history_observer_) {
         history_manager_->remove_observer(&history_observer_);
         history_observer_ = nullptr;
@@ -654,7 +653,6 @@ void HistoryListPanel::attach_row_click_handler(lv_obj_t* row, size_t index) {
 }
 
 void HistoryListPanel::on_row_clicked_static(lv_event_t* e) {
-    // Get panel instance from event user data
     HistoryListPanel* panel = static_cast<HistoryListPanel*>(lv_event_get_user_data(e));
     // Get the row that was clicked (target of the event)
     lv_obj_t* row = static_cast<lv_obj_t*>(lv_event_get_target(e));
@@ -913,7 +911,6 @@ void HistoryListPanel::init_detail_subjects() {
     UI_MANAGED_SUBJECT_STRING(detail_filament_type_, detail_filament_type_buf_, "",
                               "history_detail_filament_type", subjects_);
 
-    // Initialize int subjects
     UI_MANAGED_SUBJECT_INT(detail_can_reprint_, 1, "history_detail_can_reprint", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_status_code_, 0, "history_detail_status_code", subjects_);
     UI_MANAGED_SUBJECT_INT(detail_has_timelapse_, 0, "history_detail_has_timelapse", subjects_);
@@ -931,7 +928,6 @@ void HistoryListPanel::show_detail_overlay(const PrintHistoryJob& job) {
     detail_overlay_open_ = true;
     history_changed_while_detail_open_ = false;
 
-    // Update subjects with job data first
     update_detail_subjects(job);
     fetch_spool_usage(job);
 
@@ -1365,7 +1361,6 @@ void HistoryListPanel::check_scroll_position() {
         return;
     }
 
-    // Get scroll position and content height
     int32_t scroll_y = lv_obj_get_scroll_y(list_content_);
     int32_t content_height = lv_obj_get_scroll_bottom(list_content_);
 

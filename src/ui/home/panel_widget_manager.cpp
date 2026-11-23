@@ -69,7 +69,7 @@ struct ClampedCell {
 /// `col_step` / `row_step` are the track boundaries the widget may occupy. A
 /// saved layout can carry an origin or span off those boundaries — written by a
 /// build where the widget still declared half-cell support, or edited by hand —
-/// and the load path used to honour it verbatim, so the straddle survived every
+/// and honouring it verbatim would keep the straddle across every
 /// restart (#1126). Snapping DOWN keeps the widget's top-left where the user put
 /// it to within half a cell; if the snapped position now collides, the caller's
 /// existing fallback re-seats it through auto-placement.
@@ -582,7 +582,6 @@ lv_obj_t* create_tile(lv_obj_t* container, WidgetSlot& slot, const TileCell& cel
 
     const auto t_attach = std::chrono::steady_clock::now();
 
-    // Place in grid cell
     lv_obj_set_grid_cell(widget, LV_GRID_ALIGN_STRETCH, cell.col, cell.colspan,
                          LV_GRID_ALIGN_STRETCH, cell.row, cell.rowspan);
 
@@ -1507,13 +1506,11 @@ PanelWidgetManager::populate_widgets(const std::string& panel_id, lv_obj_t* cont
                                             grid.cols(), grid.rows(), card_col_step, card_row_step);
 
             // Whether a widget wants the shared card is a property of the
-            // widget, not of its size — `merges_into_card` in the registry. It
-            // used to be inferred from "is this exactly one cell", which
-            // conflated wanting a card with being small and was wrong both
-            // ways: a 2x1 fan_stack paints nothing of its own and got no
-            // background, while a one-cell ams brings its own and got two.
+            // widget, not of its size — `merges_into_card` in the registry. Size
+            // does not decide it: a 2x1 fan_stack paints nothing of its own and
+            // needs the background, while a one-cell ams brings its own.
             //
-            // Geometry no longer has a say. In tracks a widget's footprint is
+            // Geometry has no say. In tracks a widget's footprint is
             // exact whatever its size or alignment, so the flag alone decides:
             // a widget that opts out blocks merges through the tracks it
             // touches and is on its own for a background.
@@ -2268,9 +2265,9 @@ PanelWidgetConfig& PanelWidgetManager::get_widget_config(const std::string& pane
     }
     // load() is a no-op if already loaded. Callers that bypass the setters must
     // call notify_config_changed() → mark_dirty() (or clear_all_panel_configs()
-    // on a printer switch) to trigger a reload. Previously this unconditionally
-    // reloaded on every access, churning pages_ many times per panel populate
-    // and leaving outer frames exposed to invalidated references (#804).
+    // on a printer switch) to trigger a reload. Reloading on every access would
+    // churn pages_ many times per panel populate and leave outer frames exposed
+    // to invalidated references (#804).
     it->second.load();
     return it->second;
 }

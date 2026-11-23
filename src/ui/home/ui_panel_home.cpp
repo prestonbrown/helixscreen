@@ -326,7 +326,6 @@ void HomePanel::build_carousel(int initial_page) {
     spdlog::debug("[{}] Building carousel: {} pages, showing page {}", get_name(), num_pages,
                   shown);
 
-    // Create carousel programmatically inside the host
     carousel_ = ui_carousel_create_obj(carousel_host_);
     if (!carousel_) {
         spdlog::error("[{}] Failed to create carousel", get_name());
@@ -635,14 +634,12 @@ bool HomePanel::populate_page(int page_index, bool force) {
 
     pages_[idx].widgets.clear();
 
-    // Populate widgets for this page
     auto widgets = helix::PanelWidgetManager::instance().populate_widgets(
         "home", container, page_index, std::move(reuse));
 
     // Enable event bubbling for edit mode detection
     set_event_bubble_recursive(container);
 
-    // If edit mode is active, disable clickability
     if (grid_edit_mode_.is_active()) {
         disable_widget_clicks_recursive(container);
     }
@@ -1082,9 +1079,8 @@ static bool should_suppress_edit_mode(lv_event_t* e) {
 
     // A hold that reaches the grid while the lock screen is up was never a
     // request to rearrange widgets — the panel is not even the thing the user
-    // is looking at. Waking an Android device with a resting finger used to
-    // deliver exactly that, so edit mode activated underneath the PIN pad and
-    // was found once the PIN cleared (#1245).
+    // is looking at. Waking an Android device with a resting finger delivers
+    // exactly that, and edit mode would activate underneath the PIN pad (#1245).
     if (helix::LockManager::instance().is_locked())
         return true;
 

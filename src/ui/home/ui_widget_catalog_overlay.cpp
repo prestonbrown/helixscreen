@@ -763,7 +763,6 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
     g_catalog_state.on_close = std::move(on_close);
     g_catalog_state.fits = std::move(fits);
 
-    // Create overlay from XML
     auto* overlay = helix::ui::create_xml_hidden(parent_screen, "widget_catalog_overlay");
     if (!overlay) {
         spdlog::error("[WidgetCatalog] Failed to create widget_catalog_overlay from XML");
@@ -860,8 +859,7 @@ void WidgetCatalogOverlay::show(lv_obj_t* parent_screen, const PanelWidgetConfig
             release_catalog_state();
             // The pop that triggered this callback has already run, so the
             // widget is off the stack and safe to reclaim. Without this the
-            // header back button leaks the whole tree the same way close_catalog
-            // used to.
+            // header back button leaks the whole tree.
             retire_overlay(overlay, "catalog_root_reclaim");
             spdlog::debug("[WidgetCatalog] Closed via navigation go_back");
         }

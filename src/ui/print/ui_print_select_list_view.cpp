@@ -75,7 +75,6 @@ void PrintSelectListView::clear_cached_state() {
         }
     }
 
-    // Clear data structures
     list_data_pool_.clear();
     list_pool_.clear();
     list_pool_indices_.clear();
@@ -317,7 +316,6 @@ void PrintSelectListView::update_visible(const std::vector<PrintFileData>& file_
         return;
     }
 
-    // Get scroll position and container dimensions
     int32_t scroll_y = lv_obj_get_scroll_y(container_);
     int32_t viewport_height = lv_obj_get_height(container_);
 

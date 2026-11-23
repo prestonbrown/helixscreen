@@ -273,7 +273,6 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
         render_height = lv_obj_get_height(render_section);
     }
 
-    // Grid container top padding
     int32_t grid_pad_top = lv_obj_get_style_pad_top(video_grid_container_, LV_PART_MAIN);
 
     // Content row gap (between render section and grid)
@@ -283,7 +282,6 @@ TimelapseCardDimensions TimelapseVideosOverlay::calculate_card_dimensions() {
     int32_t available_height = overlay_height - header_height - content_pad_top -
                                content_pad_bottom - render_height - grid_pad_top - content_gap;
 
-    // Card gap from grid container
     int card_gap = lv_obj_get_style_pad_row(video_grid_container_, LV_PART_MAIN);
 
     // Calculate card height for 2 rows
