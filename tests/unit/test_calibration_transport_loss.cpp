@@ -18,6 +18,7 @@
 #include "../lvgl_ui_test_fixture.h"
 #include "app_globals.h"
 #include "calibration_types.h"
+#include "connection_state.h"
 #include "i_moonraker_sub_apis.h"
 #include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
@@ -648,4 +649,76 @@ TEST_CASE_METHOD(TransportLossFixture,
 
     REQUIRE(error_.load());
     REQUIRE(captured_error_.find("still busy") != std::string::npos);
+}
+
+namespace {
+void link_up_and_ready() {
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::READY);
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::CONNECTED));
+}
+} // namespace
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "After an RPC timeout Klipper leaving READY ends the wait at once",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 0);
+    link_up_and_ready();
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 60 min", "MPC_CALIBRATE");
+    api_->advanced().start_mpc_calibrate(
+        "extruder", 255, 3,
+        [this](const MoonrakerAdvancedAPI::MPCResult&) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+    REQUIRE_FALSE(error_.load());
+
+    // An e-stop or FIRMWARE_RESTART prints no result line.
+    get_printer_state().set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+    settle();
+
+    REQUIRE(error_.load());
+    CHECK_FALSE(success_.load());
+    CHECK(captured_error_.find("Klipper stopped") != std::string::npos);
+}
+
+TEST_CASE_METHOD(TransportLossFixture,
+                 "After an RPC timeout a dropped socket hands over to the busy->idle edge",
+                 "[calibration][transport][2160]") {
+    lv_subject_t* idle = global_idle_subject();
+    REQUIRE(idle != nullptr);
+    lv_subject_set_int(idle, 1);
+    link_up_and_ready();
+
+    mock_client_.force_next_gcode_error(MoonrakerErrorType::TIMEOUT,
+                                        "Request timed out after 20 min", "PID_CALIBRATE");
+    api_->advanced().start_pid_calibrate(
+        "heater_bed", 60, [this](float, float, float) { success_.store(true); },
+        [this](const MoonrakerError& err) {
+            captured_error_ = err.message;
+            error_.store(true);
+        });
+    settle();
+    lv_subject_set_int(idle, 0);
+    settle();
+    REQUIRE(helix::calibration::armed_idle_grace() == nullptr);
+
+    // Lines sent while the socket is down are lost, so the edge decides again.
+    lv_subject_set_int(get_printer_state().network_state().get_printer_connection_state_subject(),
+                       static_cast<int>(ConnectionState::DISCONNECTED));
+    settle();
+    lv_subject_set_int(idle, 1);
+    settle();
+    lv_subject_set_int(idle, 0);
+    settle();
+
+    REQUIRE(fire_grace());
+    REQUIRE(error_.load());
+    CHECK(captured_error_.find("result unavailable") != std::string::npos);
 }

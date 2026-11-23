@@ -716,6 +716,28 @@ TEST_CASE_METHOD(LVGLTestFixture, "a PID to MPC migration calibrates only on a c
         CHECK(panel.get_state() == PIDCalibrationPanel::State::CALIBRATING);
         CHECK(mpc_sent());
     }
+    SECTION("Klippy shuts down again during the wait: no heating on the next READY") {
+        state.init_subjects(false);
+        state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        client.settings_reply = extruder_settings("mpc");
+        migrate();
+        REQUIRE(panel.get_state() == PIDCalibrationPanel::State::MIGRATING);
+
+        state.set_klippy_state_sync(helix::KlippyState::STARTUP);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        REQUIRE(panel.get_state() == PIDCalibrationPanel::State::MIGRATING);
+
+        // An e-stop or MCU fault, then a restart inside the wait.
+        state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+        state.set_klippy_state_sync(helix::KlippyState::READY);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        CHECK(panel.get_state() == PIDCalibrationPanel::State::ERROR);
+        for (const auto& p : client.params_of("printer.gcode.script")) {
+            CHECK(p.value("script", "").find("MPC_CALIBRATE") == std::string::npos);
+        }
+    }
     SECTION("Klippy never reported ready to the client: the wait ends in an error") {
         state.init_subjects(false);
         state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);

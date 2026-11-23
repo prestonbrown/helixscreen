@@ -13,8 +13,10 @@
 #include "../test_helpers/print_state_test_drivers.h"
 #include "../test_helpers/printer_state_test_access.h"
 #include "app_globals.h"
+#include "moonraker_advanced_api.h"
 #include "moonraker_api.h"
 #include "moonraker_client_mock.h"
+#include "operation_timeout_guard.h"
 #include "printer_discovery.h"
 #include "printer_state.h"
 #include "tool_state.h"
@@ -423,4 +425,39 @@ TEST_CASE_METHOD(PidHeadsFixture,
     helix::ui::UpdateQueue::instance().drain();
     CHECK(subject_int("cal_method_is_mpc") == 0);
     CHECK(subject_int("cal_needs_migration") == 0);
+}
+
+TEST_CASE_METHOD(PidHeadsFixture, "An aborted run's late answer never lands on the next run",
+                 "[pid][pid_heads][2160]") {
+    discover_extruder();
+    Access::activate(panel);
+    Access::use_mpc(panel);
+
+    // The first run's RPC times out, so its collector keeps listening behind
+    // a long backstop after the user aborts it.
+    client.force_next_gcode_error(MoonrakerErrorType::TIMEOUT, "Request timed out",
+                                  "MPC_CALIBRATE");
+    start();
+    REQUIRE(wait_until([] {
+        helix::ui::UpdateQueue::instance().drain();
+        return helix::calibration::armed_idle_backstop() != nullptr;
+    }));
+    OperationTimeoutGuard* first_backstop = helix::calibration::armed_idle_backstop();
+    lv_timer_t* first_timer = first_backstop->pending_timer();
+    REQUIRE(first_timer != nullptr);
+
+    Access::abort_clicked(panel);
+    helix::ui::UpdateQueue::instance().drain();
+    REQUIRE(subject_int("pid_cal_state") == 0); // IDLE
+    start();
+    REQUIRE(subject_int("pid_cal_state") == 1); // CALIBRATING, second run
+
+    // The first run's backstop comes due while the second run is heating.
+    lv_timer_set_period(first_timer, 1);
+    lv_timer_ready(first_timer);
+    process_lvgl(20);
+    for (int i = 0; i < 4; ++i)
+        helix::ui::UpdateQueue::instance().drain();
+
+    CHECK(subject_int("pid_cal_state") == 1);
 }

@@ -745,13 +745,14 @@ void PIDCalibrationPanel::send_pid_calibrate() {
     spdlog::info("[PIDCal] Starting PID calibration: {} at {}°C", heater, target_temp_);
 
     auto token = run_lifetime_.token();
+    const uint32_t run = run_generation_;
     api_->advanced().start_pid_calibrate(
         heater, target_temp_,
-        [this, token](float kp, float ki, float kd) {
+        [this, token, run](float kp, float ki, float kd) {
             // Callback from background thread - marshal to UI thread
-            token.defer([this, kp, ki, kd]() {
+            token.defer([this, run, kp, ki, kd]() {
                 // Ignore results if user already aborted
-                if (state_ != State::CALIBRATING) {
+                if (state_ != State::CALIBRATING || run != run_generation_) {
                     spdlog::info("[PIDCal] Ignoring PID result (state={}, user likely aborted)",
                                  static_cast<int>(state_));
                     return;
@@ -760,10 +761,10 @@ void PIDCalibrationPanel::send_pid_calibrate() {
                 on_calibration_result(true, kp, ki, kd);
             });
         },
-        [this, token](const MoonrakerError& err) {
+        [this, token, run](const MoonrakerError& err) {
             std::string msg = err.message;
-            token.defer([this, msg]() {
-                if (state_ != State::CALIBRATING) {
+            token.defer([this, run, msg]() {
+                if (state_ != State::CALIBRATING || run != run_generation_) {
                     spdlog::info("[PIDCal] Ignoring PID error (state={}, user likely aborted)",
                                  static_cast<int>(state_));
                     return;
@@ -772,8 +773,11 @@ void PIDCalibrationPanel::send_pid_calibrate() {
                 on_calibration_result(false, 0, 0, 0, msg);
             });
         },
-        [this, token](int sample, float tolerance) {
-            token.defer([this, sample, tolerance]() { on_pid_progress(sample, tolerance); });
+        [this, token, run](int sample, float tolerance) {
+            token.defer([this, run, sample, tolerance]() {
+                if (run == run_generation_)
+                    on_pid_progress(sample, tolerance);
+            });
         });
 }
 
@@ -974,6 +978,7 @@ void PIDCalibrationPanel::handle_start_clicked() {
 }
 
 void PIDCalibrationPanel::begin_calibration(CalibMethod method) {
+    ++run_generation_;
     run_heater_ = heater_name();
     run_extruder_ = extruder_name();
     set_state(State::CALIBRATING);
@@ -993,34 +998,54 @@ void PIDCalibrationPanel::begin_calibration_when_ready(CalibMethod method) {
         return;
     }
 
+    // The state the restart left behind (notify_klippy_disconnected sets
+    // SHUTDOWN) is what this waits out. A shutdown or error reported after
+    // that is a new one (an e-stop, an MCU fault): heating after it needs a
+    // fresh start.
+    const int left_by_restart = lv_subject_get_int(klippy);
+    klippy_ready_moved_ = false;
     spdlog::info("[PIDCal] Waiting for the client to see Klipper ready before calibrating");
     klippy_ready_observer_ = helix::ui::observe<int>(
         klippy, this,
-        [method](PIDCalibrationPanel* self, int state) {
-            if (state != static_cast<int>(helix::KlippyState::READY)) {
-                return;
-            }
-            self->cancel_klippy_ready_wait();
+        [method, left_by_restart](PIDCalibrationPanel* self, int state) {
             if (self->state_ != State::MIGRATING) {
+                self->cancel_klippy_ready_wait();
                 return;
             }
-            spdlog::info("[PIDCal] Client sees Klipper ready, starting calibration");
-            self->begin_calibration(method);
+            if (!self->klippy_ready_moved_ && state == left_by_restart) {
+                return;
+            }
+            self->klippy_ready_moved_ = true;
+            switch (static_cast<helix::KlippyState>(state)) {
+            case helix::KlippyState::READY:
+                self->cancel_klippy_ready_wait();
+                spdlog::info("[PIDCal] Client sees Klipper ready, starting calibration");
+                self->begin_calibration(method);
+                return;
+            case helix::KlippyState::STARTUP:
+                return;
+            default:
+                self->fail_klippy_ready_wait("Klipper stopped again after the restart");
+                return;
+            }
         },
         api_->printer_state().get_subjects_lifetime());
 
     klippy_ready_wait_.begin(static_cast<uint32_t>(migration_restart_timeout_ms_), [this]() {
-        klippy_ready_observer_.reset();
-        if (state_ != State::MIGRATING) {
-            return;
-        }
-        spdlog::error("[PIDCal] Klipper restarted on the new settings, but the connection never "
-                      "reported it ready");
-        lv_subject_copy_string(&subj_error_message_,
-                               "Klipper restarted on the new settings, but did not report "
-                               "ready. Start the calibration again.");
-        set_state(State::ERROR);
+        fail_klippy_ready_wait("the connection never reported Klipper ready");
     });
+}
+
+void PIDCalibrationPanel::fail_klippy_ready_wait(const char* why) {
+    cancel_klippy_ready_wait();
+    if (state_ != State::MIGRATING) {
+        return;
+    }
+    spdlog::error("[PIDCal] Not calibrating after the migration: {}", why);
+    lv_subject_copy_string(&subj_error_message_,
+                           "Klipper restarted on the new settings, but did not report "
+                           "ready. Start the calibration again.");
+    set_state(State::ERROR);
 }
 
 void PIDCalibrationPanel::cancel_klippy_ready_wait() {
@@ -1054,6 +1079,7 @@ void PIDCalibrationPanel::confirm_migration() {
 
 void PIDCalibrationPanel::handle_abort_clicked() {
     spdlog::info("[PIDCal] Abort clicked, sending emergency stop + firmware restart");
+    ++run_generation_;
 
     // E-stop + firmware restart: klippy comes back, so this is an expected
     // reconnect, not a fault
@@ -1635,27 +1661,31 @@ void PIDCalibrationPanel::send_mpc_calibrate() {
                  target_temp_, fan_breakpoints_);
 
     auto token = run_lifetime_.token();
+    const uint32_t run = run_generation_;
     api_->advanced().start_mpc_calibrate(
         heater, target_temp_, fan_breakpoints_,
-        [this, token](const MoonrakerAdvancedAPI::MPCResult& result) {
-            token.defer([this, result]() {
-                if (state_ != State::CALIBRATING)
+        [this, token, run](const MoonrakerAdvancedAPI::MPCResult& result) {
+            token.defer([this, run, result]() {
+                if (state_ != State::CALIBRATING || run != run_generation_)
                     return;
                 on_mpc_result(result);
             });
         },
-        [this, token](const MoonrakerError& err) {
+        [this, token, run](const MoonrakerError& err) {
             std::string msg = err.message;
-            token.defer([this, msg]() {
-                if (state_ != State::CALIBRATING)
+            token.defer([this, run, msg]() {
+                if (state_ != State::CALIBRATING || run != run_generation_)
                     return;
                 spdlog::error("[PIDCal] MPC calibration failed: {}", msg);
                 lv_subject_copy_string(&subj_error_message_, msg.c_str());
                 set_state(State::ERROR);
             });
         },
-        [this, token](int phase, int total, const std::string& desc) {
-            token.defer([this, phase, total, desc]() { on_mpc_progress(phase, total, desc); });
+        [this, token, run](int phase, int total, const std::string& desc) {
+            token.defer([this, run, phase, total, desc]() {
+                if (run == run_generation_)
+                    on_mpc_progress(phase, total, desc);
+            });
         });
 }
 
