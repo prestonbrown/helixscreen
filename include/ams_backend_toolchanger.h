@@ -6,6 +6,7 @@
 #include "ams_feeder_control.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
+#include "ams_tool_park.h"
 #include "cleanup_hold.h"
 #include "core/timer_guard.h"
 #include "filament_slot_override_store.h"
@@ -64,7 +65,8 @@ class ToolChangerTestAccess;
  */
 class AmsBackendToolChanger : public AmsSubscriptionBackend,
                               public helix::IFeederControl,
-                              public helix::IStepOperation {
+                              public helix::IStepOperation,
+                              public helix::IToolPark {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IFeederControl>()) {
@@ -72,6 +74,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::IStepOperation>()) {
             return static_cast<helix::IStepOperation*>(this);
+        }
+        if (tag == helix::type_tag<helix::IToolPark>()) {
+            return static_cast<helix::IToolPark*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
@@ -332,6 +337,9 @@ class AmsBackendToolChanger : public AmsSubscriptionBackend,
     /// tool for another.
     [[nodiscard]] bool supports_tool_park() const override {
         return !tool_commands_.present || !tool_commands_.unselect.empty();
+    }
+    AmsError park_active_tool() override {
+        return run_park_active_tool(supports_tool_park());
     }
 
     /// Sends the feeder's own open or close command, refused while a print or

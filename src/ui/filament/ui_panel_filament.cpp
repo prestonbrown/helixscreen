@@ -21,6 +21,7 @@
 #include "ui_utils.h"
 
 #include "ams_state.h"
+#include "ams_tool_park.h"
 #include "app_constants.h"
 #include "app_globals.h"
 #include "config.h"
@@ -1057,9 +1058,9 @@ void FilamentPanel::update_target_tool_action() {
     }
     const auto& ts = helix::ToolState::instance();
     AmsBackend* backend = AmsState::instance().get_backend();
-    const auto action = helix::ui::decide_target_tool_action(
-        target_tool(), ts.active_tool_index(), ts.has_multiple_toolheads(),
-        backend && backend->supports_tool_park());
+    const auto action = helix::ui::decide_target_tool_action(target_tool(), ts.active_tool_index(),
+                                                             ts.has_multiple_toolheads(),
+                                                             usable_tool_park(backend) != nullptr);
     lv_subject_set_int(&target_tool_action_subject_, static_cast<int>(action));
 }
 

@@ -11,6 +11,7 @@
 #include "ams_backend.h"
 #include "ams_print_routing.h"
 #include "ams_state.h"
+#include "ams_tool_park.h"
 #include "app_globals.h"
 #include "core/update_queue.h"
 #include "filament_macro_profiles.h"
@@ -111,7 +112,7 @@ FilamentHeadView read_filament_head_view(AmsBackend* backend, PrinterState& stat
     const AmsSystemInfo& sys = *snapshot;
     view.max_heads_per_op = backend->max_heads_per_filament_op();
     view.heads_dock = backend->carriage_can_be_empty();
-    view.supports_park = backend->supports_tool_park();
+    view.supports_park = usable_tool_park(backend) != nullptr;
     view.system_busy = sys.is_busy();
     view.print_blocks_op = print_blocks_filament_op(state.print_state().get_print_lifecycle(),
                                                     backend->filament_ops_self_home());

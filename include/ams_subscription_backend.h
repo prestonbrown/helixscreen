@@ -119,9 +119,6 @@ class AmsSubscriptionBackend : public AmsBackend {
     AmsError unload_filament(int slot_index) final;
     AmsError select_slot(int slot_index) final;
     AmsError change_tool(int tool_number) final;
-    /// Through the same gate and claim as the four above: parking moves the
-    /// toolhead. Backends implement do_park_active_tool().
-    AmsError park_active_tool() final;
 
     /// Batch load/unload, through the SAME gate and claim as the per-slot ops
     /// above: one claim covers the whole batch, so a batch cannot start while
@@ -405,8 +402,13 @@ class AmsSubscriptionBackend : public AmsBackend {
     virtual AmsError do_unload_filament(int slot_index) = 0;
     virtual AmsError do_select_slot(int slot_index) = 0;
     virtual AmsError do_change_tool(int tool_number) = 0;
-    /// Backend implementation of park_active_tool(), same contract as the hooks
-    /// above. Default refuses, matching AmsBackend::supports_tool_park().
+    /// The IToolPark run for a backend that implements it: not_supported()
+    /// unless @p supported, then through the same gate and claim as the per-slot
+    /// ops, since parking moves the toolhead, to do_park_active_tool().
+    AmsError run_park_active_tool(bool supported);
+
+    /// Backend implementation of run_park_active_tool(), same contract as the
+    /// hooks above. Default refuses.
     virtual AmsError do_park_active_tool() {
         return AmsErrorHelper::not_supported("Tool park");
     }

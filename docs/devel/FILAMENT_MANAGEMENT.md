@@ -4054,7 +4054,7 @@ Create include/ams_backend_mysystem.h and src/printer/ams_backend_mysystem.cpp. 
 
 - `start()`, `stop()`, `is_running()`, `set_event_callback()` -- Lifecycle and events (`final`). Use the `on_started()`, `on_stopping()`, `on_stopped()` and `additional_start_checks()` hooks instead
 - `get_current_action()`, `get_current_tool()`, `get_current_slot()`, `is_filament_loaded()` -- State queries (`final`). `get_slot_info()` is implemented too and stays overridable
-- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()`, `park_active_tool()`, `load_filament_batch()`, `unload_filament_batch()` -- Filament operations (`final`). Each runs the print-active gate and the one-operation claim, then calls your `do_*` hook, so a backend cannot skip the gate
+- `load_filament()`, `unload_filament()`, `select_slot()`, `change_tool()`, `load_filament_batch()`, `unload_filament_batch()` -- Filament operations (`final`). Each runs the print-active gate and the one-operation claim, then calls your `do_*` hook, so a backend cannot skip the gate. A backend that implements `IToolPark` answers `park_active_tool()` with `run_park_active_tool(supports_tool_park())`, the same gate and claim before `do_park_active_tool()`
 
 **Required overrides.** The subscription base's own pure virtuals:
 
@@ -4157,6 +4157,10 @@ A caller spells out what a backend without the interface means: the sidebar's bu
   system takes no bed area.
 - `ISpoolmanTagLinks` (`include/ams_spoolman_tag_links.h`) -- Whether tag readings can name a Spoolman spool, which
   gates the Link Spools from Tags setting. CFS implements it (stock schema). Without it the setting is hidden.
+- `IToolPark` (`include/ams_tool_park.h`) -- Docking the mounted tool: `supports_tool_park()` per machine and
+  `park_active_tool()`, which runs through `AmsSubscriptionBackend::run_park_active_tool()` (print gate and
+  claim). The tool changer, INDX, the Snapmaker U1, MultiACE and the mock implement it. Callers ask
+  `helix::usable_tool_park()`, nullptr where the machine cannot park.
 - `IEditFollowUp` (`include/ams_edit_follow_up.h`) -- The question a slot edit raises about printer state it did
   not write, and the run on yes (§ Edit follow-ups). INDX implements it; its run goes through
   `AmsSubscriptionBackend::run_edit_follow_up()`, which refuses while a print holds the printer.
