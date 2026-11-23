@@ -2,6 +2,7 @@
 // HelixScreen telemetry ingestion worker — stores batched events in R2.
 
 import { mapEventToDataPoints } from "./analytics";
+import { applyErrorCap, purgeOldTallies, r2TallyStore } from "./flood_cap";
 import {
   executeQuery,
   excludedBy,
@@ -42,7 +43,7 @@ import { loopDeps, queryConfigOf, runScheduledLoop } from "./loop/wiring";
 import { runLoop } from "./loop/run";
 import { r2Store, type LoopEnv } from "./loop/ports";
 import { reportKey, reportWeeks, REPORT_PREFIX, WEEK_PATTERN } from "./loop/report";
-import { num, rowsOf, str } from "./schema";
+import { num, rowsOf, str, type EventRecord } from "./schema";
 import { attributePrints, printsByVersion } from "./prints";
 import { buildRetention } from "./retention";
 import {
@@ -387,9 +388,15 @@ export default {
         return json({ error: "Failed to store events" }, 500);
       }
 
+      // One device cannot add more than its daily share of error events to the dashboards' copy.
+      const capped = await applyErrorCap(body as EventRecord[], utcDay(now), r2TallyStore(env.TELEMETRY_BUCKET));
+      if (capped.dropped > 0) {
+        console.log(`${now.toISOString()} ingest: dropped ${capped.dropped} error events over the per-device daily cap`);
+      }
+
       // Dual-write to Analytics Engine (fire-and-forget, never blocks response)
       if (env.TELEMETRY_ANALYTICS) {
-        for (const evt of body) {
+        for (const evt of capped.keep) {
           try {
             const points = mapEventToDataPoints(evt as Record<string, unknown>);
             for (const point of points) {
@@ -401,7 +408,7 @@ export default {
         }
       }
 
-      return json({ status: "ok", stored: body.length });
+      return json({ status: "ok", stored: body.length, ...(capped.dropped > 0 ? { capped: capped.dropped } : {}) });
     }
 
     // Event listing — returns keys for a given date prefix (for analytics pull)
@@ -1728,6 +1735,12 @@ export default {
       ctx.waitUntil(runScheduledLoop(env, new Date(event.scheduledTime)));
       return;
     }
+    // Housekeeping must never fail the snapshot, so it is a separate task that logs and swallows.
+    ctx.waitUntil(
+      purgeOldTallies(env.TELEMETRY_BUCKET, utcDay(new Date(event.scheduledTime))).catch((e) =>
+        console.log(`${new Date().toISOString()} [caps] purge failed: ${e instanceof Error ? e.message : String(e)}`),
+      ),
+    );
     const date = previousUtcDay(new Date());
     ctx.waitUntil(captureCdnFleetDay(env, date));
   },

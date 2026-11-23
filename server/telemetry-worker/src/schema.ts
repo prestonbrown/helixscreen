@@ -293,6 +293,44 @@ const blob = (slot: number, field: string, read?: Reader): ColumnDef => column("
 
 const dbl = (slot: number, field: string, read?: Reader): ColumnDef => column("double", slot, field, read);
 
+/**
+ * Ordered so the more specific wording wins ("held below warning threshold"
+ * before "below warning threshold"). The ids match the codes the client sends
+ * (src/system/memory_monitor.cpp#memory_pressure_cause_code), so a client that
+ * predates `reason_code` groups with one that sends it.
+ */
+const MEMORY_REASON_PATTERNS: readonly [RegExp, string][] = [
+  [/exceeds critical threshold/i, "rss_critical"],
+  [/exceeds warning threshold/i, "rss_warning"],
+  [/held below warning threshold/i, "sustained_low_available"],
+  [/below critical threshold/i, "available_critical"],
+  [/below warning threshold/i, "available_warning"],
+  [/growth .* exceeds threshold/i, "growth"],
+  [/held by hysteresis/i, "hysteresis"],
+  [/^no memory pressure/i, "none"],
+];
+
+/**
+ * A memory_warning reason as a code with no measurements in it. The client's
+ * `reason_code` wins; otherwise a known wording maps to its code, and any
+ * other text becomes a snake_case slug of its words with the numbers dropped.
+ */
+export function memoryReasonCode(reasonCode: unknown, reason: unknown): string {
+  if (typeof reasonCode === "string" && reasonCode !== "") return reasonCode.slice(0, 64);
+  const text = typeof reason === "string" ? reason : "";
+  for (const [pattern, code] of MEMORY_REASON_PATTERNS) {
+    if (pattern.test(text)) return code;
+  }
+  return text
+    .replace(/[+-]?\d+(\.\d+)?/g, " ")
+    .toLowerCase()
+    .replace(/[^a-z]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 64);
+}
+
+const memoryReason: Reader = reads(["reason_code", "reason"], (e) => memoryReasonCode(e.reason_code, e.reason));
+
 const device = blob(1, "device_id");
 const versionPlatform = [
   blob(2, "app_version", appVersion),
@@ -417,7 +455,8 @@ const KINDS: PointKind[] = [
     device,
     ...versionPlatform,
     blob(4, "level"),
-    blob(5, "reason"),
+    // A code, not the client's text: the text carries the measurements, which have their own columns.
+    blob(5, "reason", memoryReason),
     dbl(1, "uptime_sec"),
     dbl(2, "rss_kb"),
     dbl(3, "vm_size_kb"),

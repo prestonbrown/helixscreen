@@ -146,6 +146,7 @@ inline std::map<std::string, nlohmann::json> record_one_of_every_event(Telemetry
     helix::MemoryWarningEvent warning;
     warning.level = helix::MemoryPressureLevel::warning;
     warning.reason = "rss_growth";
+    warning.reason_code = "growth";
     tm.record_memory_warning(warning);
     collect();
     tm.record_hardware_profile();
