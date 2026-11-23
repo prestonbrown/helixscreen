@@ -2804,12 +2804,11 @@ json DebugBundleCollector::build_event_journal(bool from_plugin, const json& plu
 
 std::string DebugBundleCollector::collect_moonraker_log_tail(int num_lines,
                                                              const LogLocator& locate) {
-    // moonraker.log used to ship raw against a 512 KiB window. Both were wrong in
-    // the same direction: the condenser is shape-based rather than Klipper-specific,
-    // so it collapses moonraker's log_request() padding just as well (1524 KiB of a
-    // real file down to 240 KiB), and once the payload shrinks a bigger fetch costs
-    // little. Measured on Vger1700's logs, 512 KiB reached 7656 lines for 167 KB
-    // shipped; 2 MiB reached all 23862 for 240 KB.
+    // The log is condensed and fetched over a wide window: the condenser is shape-based rather than
+    // Klipper-specific, so it collapses moonraker's log_request() padding just as well (1524 KiB of
+    // a real file down to 240 KiB), and once the payload shrinks a bigger fetch costs little.
+    // Measured on Vger1700's logs, 512 KiB reached 7656 lines for 167 KB shipped; 2 MiB reached all
+    // 23862 for 240 KB.
     //
     // This matters more than the klippy budget does. moonraker.log carries the only
     // record of the gcode queue stalling (klippy_connection.wait() pending ages) and

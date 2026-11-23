@@ -115,7 +115,6 @@ bool Application::register_widgets() {
 
     helix::MemoryProfiler::init(m_args.memory_report);
 
-    // Log system memory info
     auto mem = helix::get_system_memory_info();
     spdlog::debug("[Application] System memory: total={}MB, available={}MB", mem.total_kb / 1024,
                   mem.available_mb());
@@ -435,9 +434,8 @@ void Application::init_monitoring_services() {
     // alive and the screen lit, so the watchdog (which only supervises exit)
     // cannot see it and the user just gets a panel that ignores touch.
     //
-    // Detection only for now — this reports and does not kill. The abort
-    // lives behind one guarded call site below so turning it on later is a
-    // single change rather than a refactor.
+    // Detection only: this reports and does not kill. The abort lives behind
+    // one guarded call site below.
     {
         uint32_t hang_ms = helix::MainLoopHangDetector::kDefaultThresholdMs;
         if (const char* env = std::getenv("HELIX_HANG_THRESHOLD_SEC")) {

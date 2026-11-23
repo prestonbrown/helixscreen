@@ -708,7 +708,6 @@ void PWMSoundBackend::render_loop() {
                 peak = abs_val;
         }
 
-        // Adjust AGC gain
         if (peak * agc_gain > 1.0f) {
             // Peak would clip — reduce gain quickly
             agc_gain = std::max(1.0f, 1.0f / peak);

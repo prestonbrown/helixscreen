@@ -379,7 +379,6 @@ void DisplaySleepController::tick() {
         inhibit_sleep_entry = true;
     }
 
-    // Get configured sleep timeout from settings (0 = disabled)
     int sleep_timeout_sec = DisplaySettingsManager::instance().get_display_sleep_sec();
 
     // Get LVGL inactivity time (milliseconds since last touch/input)

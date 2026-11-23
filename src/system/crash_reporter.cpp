@@ -828,7 +828,6 @@ std::string CrashReporter::generate_github_url(const CrashReport& report) {
 
     // Truncate body if URL exceeds 2000 chars
     if (url.size() > 2000) {
-        // Rebuild with minimal body
         std::string minimal_body = "## Crash: " + report.signal_name + " in v" +
                                    report.app_version + " on " + report.platform;
         url = "https://github.com/" + std::string(GITHUB_REPO) +

@@ -114,7 +114,6 @@ void PhomemoPrinter::print(const LabelBitmap& bitmap, const LabelSize& size,
             bool success = false;
             std::string error;
 
-            // Find the usblp device node for this VID:PID
             std::string dev_path = find_usblp_device(vid, pid);
             if (dev_path.empty()) {
                 error = fmt::format("No USB printer device found for {:04x}:{:04x}. "

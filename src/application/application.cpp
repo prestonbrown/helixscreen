@@ -467,7 +467,6 @@ int Application::run(int argc, char** argv) {
     helix::android_configure_backup_dirs();
 #endif
 
-    // Ensure we're running from the project root
     ensure_project_root_cwd();
 
     // Phase 1: Parse command line args
@@ -676,7 +675,7 @@ int Application::run(int argc, char** argv) {
     get_printer_state().set_active_printer_name(m_config->get_active_printer_name());
 
     // Phase 9b: Initialize Moonraker (creates client + API)
-    // Now works because PrinterState exists from phase 9a.
+    // PrinterState exists from phase 9a.
     // Start HTTP executors first — the Moonraker APIs submit to them on
     // every request. Two lanes (fast for REST, slow for file transfers)
     // prevent a large upload from head-of-line blocking status polls.
@@ -1016,7 +1015,6 @@ int Application::main_loop() {
 
     m_splash_manager.arm_invalidation_failsafe(DisplayManager::get_ticks());
 
-    // Configure main loop handler
     helix::application::MainLoopHandler::Config loop_config;
     loop_config.screenshot_enabled = m_args.screenshot_enabled;
     loop_config.screenshot_delay_ms = static_cast<uint32_t>(m_args.screenshot_delay_sec) * 1000U;
@@ -1029,9 +1027,6 @@ int Application::main_loop() {
     helix::ui::glass_gate_start();
 
     // Show one-time post-migration notice before entering the main loop.
-    // Splash handoff timing risk on target hardware (AD5M, Pi 3B) is theoretical —
-    // verify on real hardware as part of Task 5 manual checks. If it's an issue,
-    // move this call after the post-splash refresh block or defer via lv_async_call.
 #if HELIX_ENABLE_SCREENSAVER
     show_screensaver_migration_notice_if_pending();
 #endif
@@ -1123,7 +1118,6 @@ int Application::main_loop() {
             // Process timeouts
             check_timeouts();
 
-            // Process Moonraker notifications
             process_notifications();
 
             // Asleep, queued work wakes the loop (the enqueue hook) and runs here, in the
@@ -1132,7 +1126,6 @@ int Application::main_loop() {
                 helix::ui::UpdateQueue::instance().drain_until_empty();
             }
 
-            // Check display sleep
             m_display->check_display_sleep();
 
             // Periodic full-screen invalidation on fbdev (self-heal kernel console bleed-through)

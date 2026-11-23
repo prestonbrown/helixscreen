@@ -4,8 +4,6 @@
 /**
  * @file memory_profiling.cpp
  * @brief Development-time memory profiling implementation
- *
- * Extracted from main.cpp to improve modularity and reusability.
  */
 
 #include "memory_profiling.h"

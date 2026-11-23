@@ -168,7 +168,6 @@ std::set<std::string> resolve_active_files(const std::map<std::string, std::stri
             return;
         }
 
-        // Find file content
         auto it = files.find(file_path);
         if (it == files.end()) {
             spdlog::debug("klipper_config_includes: included file not found: {}", file_path);

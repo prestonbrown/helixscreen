@@ -234,7 +234,7 @@ std::string write_frame(const CapturedFrame& frame, const std::string& out_path)
     // (B,G,R,A); CapturedFrame stores true RGBA (R,G,B,A) per capture_frame().
     // Swap the channels back before handing off to those (already-tested)
     // encoders — the R/B swap is its own inverse, so this is the same helper
-    // capture_frame() used to build the frame in the first place.
+    // capture_frame() uses to build the frame.
     std::vector<uint8_t> argb = argb8888_to_rgba(
         frame.rgba.data(), static_cast<size_t>(frame.width) * static_cast<size_t>(frame.height));
 

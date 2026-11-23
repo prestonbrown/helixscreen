@@ -59,7 +59,6 @@ void AudioSettingsManager::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Self-register cleanup with StaticSubjectRegistry
     StaticSubjectRegistry::instance().register_deinit(
         "AudioSettingsManager", []() { AudioSettingsManager::instance().deinit_subjects(); });
 

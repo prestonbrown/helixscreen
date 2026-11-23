@@ -335,7 +335,6 @@ void PanelWidgetConfig::load() {
             next_page_id_ = static_cast<int>(pages_.size());
         }
 
-        // Clamp main_page_index
         if (main_page_index_ >= pages_.size()) {
             main_page_index_ = 0;
         }
@@ -900,7 +899,6 @@ bool PanelWidgetConfig::remove_page(size_t page_index) {
     json retained = std::move(pages_[page_index].retained);
     pages_.erase(pages_.begin() + static_cast<ptrdiff_t>(page_index));
 
-    // Adjust main_page_index
     if (main_page_index_ > page_index) {
         --main_page_index_;
     }

@@ -283,7 +283,6 @@ void SoundManager::play(const std::string& sound_name, SoundPriority priority) {
         load_theme(theme_name_);
     }
 
-    // Look up sound in current theme
     auto it = current_theme_.sounds.find(sound_name);
     if (it == current_theme_.sounds.end()) {
         spdlog::debug("[SoundManager] play('{}') - sound not in theme '{}'", sound_name,

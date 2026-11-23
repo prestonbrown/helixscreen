@@ -262,7 +262,6 @@ void MakeIdBluetoothPrinter::print(const LabelBitmap& bitmap, const LabelSize& s
                         break;
                     }
 
-                    // Read ACK for this chunk
                     auto resp = read_response(fd, fmt::format("chunk[{}]", i).c_str(), 5000);
                     if (resp.status == MakeIdResponseStatus::Resend) {
                         // Resend once

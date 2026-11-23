@@ -206,8 +206,8 @@ bool DisplayManager::init(const Config& config) {
     // must come after it but before any display backend setup).
     helix::logging::register_lvgl_log_handler();
 
-    // Initialize helix-xml engine (extracted from LVGL 9.5)
-    // Must be called after lv_init() - sets up XML component scopes, widget registry, etc.
+    // Initialize helix-xml engine. Must be called after lv_init(); sets up XML component scopes,
+    // widget registry, etc.
     lv_xml_init();
 
     // Create display backend (auto-detects: DRM → framebuffer → SDL)
@@ -585,7 +585,6 @@ void DisplayManager::shutdown() {
     m_backlight.reset();
     m_backend.reset();
 
-    // Shutdown UI update queue before LVGL
     helix::ui::update_queue_shutdown();
 
     // Quit SDL before LVGL deinit - must be called outside the SDL event handler.
@@ -794,7 +793,6 @@ void DisplayManager::finish_input_setup(int scroll_throw, int scroll_limit) {
         arm_pointer_reopen();
     }
 
-    // Create keyboard input device (optional)
     create_keyboard_input();
 
     // Refresh pacing overrides, now that the refresh, animation, input and update-queue

@@ -88,7 +88,6 @@ void SafetySettingsManager::init_subjects() {
 
     subjects_initialized_ = true;
 
-    // Self-register cleanup with StaticSubjectRegistry
     StaticSubjectRegistry::instance().register_deinit(
         "SafetySettingsManager", []() { SafetySettingsManager::instance().deinit_subjects(); });
 

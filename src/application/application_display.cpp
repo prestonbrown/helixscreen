@@ -376,7 +376,6 @@ bool Application::init_theme() {
 
     theme_manager_init(m_display->display(), dark_mode);
 
-    // Apply background color to screen
     theme_manager_apply_bg_color(m_screen, "screen_bg", LV_PART_MAIN);
 
     // Show LVGL splash screen only when no external splash process is running.

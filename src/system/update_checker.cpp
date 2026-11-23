@@ -3753,10 +3753,8 @@ void UpdateChecker::start_auto_check() {
         return;
     }
 
-    // A machine that can check but cannot install. Report it: this state shipped
-    // in v0.99.96 and was found in v0.99.113 only because one user kept pushing on
-    // Discord — in aggregate it would have shown as a cohort of installs that
-    // never once fetched a manifest. Emitted here rather than from init() because
+    // A machine that can check but cannot install. Report it: in aggregate it shows as a cohort of
+    // installs that never once fetched a manifest. Emitted here rather than from init() because
     // TelemetryManager::init() runs after UpdateChecker::init() (application.cpp),
     // and after the auto_check_timer_ guard so a Moonraker reconnect does not
     // re-send it. Firmware-managed installs returned above and are not reported:
