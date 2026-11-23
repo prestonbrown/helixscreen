@@ -94,9 +94,7 @@ clean-images:
 list-images:
 	$(Q)./$(REGEN_IMAGES_SCRIPT) --list
 
-# =============================================================================
 # Placeholder Thumbnail Pre-rendering
-# =============================================================================
 # Pre-renders placeholder thumbnails for instant display on embedded devices
 REGEN_PLACEHOLDER_SCRIPT := scripts/regen_placeholder_images.sh
 
@@ -117,9 +115,7 @@ clean-placeholder-images:
 list-placeholder-images:
 	$(Q)./$(REGEN_PLACEHOLDER_SCRIPT) --list
 
-# =============================================================================
 # Printer Image Pre-rendering
-# =============================================================================
 # Generates optimized versions of printer images at 300px and 150px
 # Original PNGs kept as fallbacks
 
@@ -144,9 +140,7 @@ clean-printer-images:
 list-printer-images:
 	$(Q)./$(REGEN_PRINTER_IMAGES_SCRIPT) --list
 
-# =============================================================================
 # 3D Splash Image Generation (full-screen composited)
-# =============================================================================
 # Generates full-screen 3D splash images (dark + light modes) at all sizes.
 # These are composited images: logo centered on bg-colored canvas at screen res.
 GEN_SPLASH_3D_SCRIPT := scripts/gen_splash_3d.py
@@ -192,9 +186,7 @@ gen-all-images: gen-images gen-splash-3d gen-printer-images gen-placeholder-imag
 .PHONY: clean-all-images
 clean-all-images: clean-images clean-splash-3d clean-printer-images clean-placeholder-images
 
-# =============================================================================
 # Help
-# =============================================================================
 
 # Help text for image targets
 .PHONY: help-images

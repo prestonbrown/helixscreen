@@ -4,9 +4,7 @@
 # HelixScreen UI Prototype - Font & Icon Generation Module
 # Handles font generation and Material Design icons
 
-# =============================================================================
 # Per-tier font file lists
-# =============================================================================
 # Each tier lists the text fonts and icon fonts its globals.xml constants reference.
 # FONT_SRCS is assembled from the union of declared FONT_TIERS.
 

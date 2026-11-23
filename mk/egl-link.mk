@@ -44,9 +44,7 @@ EGL_APP_CXXFLAGS := $(CXXFLAGS) $(EGL_DEFINE) $(EGL_SYMBOL_RENAMES)
 EGL_LVGL_CFLAGS := $(SUBMODULE_CFLAGS) $(EGL_DEFINE) $(EGL_SYMBOL_RENAMES)
 EGL_LVGL_CXXFLAGS := $(SUBMODULE_CXXFLAGS) -fpermissive $(EGL_DEFINE) $(EGL_SYMBOL_RENAMES)
 
-# =============================================================================
 # LVGL driver objects that change with the config
-# =============================================================================
 # The DRM drivers decide which of the two back ends compiles at all, and the
 # OpenGL ES drivers compile to nothing without it. The shader asset is held out
 # because it changes COMPILER, not just flags — see its rule below.
@@ -83,9 +81,7 @@ $(EGL_LVGL_SHADER_OBJ): $(EGL_LVGL_SHADER_SRC) lv_conf.h $(PATCHES_STAMP) $(ABI_
 	$(ECHO) "$(CYAN)[CXX/egl]$(RESET) $< (raw string literals)"
 	$(Q)$(CXX) $(EGL_LVGL_CXXFLAGS) $(INCLUDES) $(LV_CONF) -c $< -o $@
 
-# =============================================================================
 # App objects that change with the config
-# =============================================================================
 # display_backend_drm.cpp is the whole list: it is the only file under src/ or
 # include/ that reads an EGL config macro. The base build's compile of it stays
 # in the link as the dumb-buffer backend.
@@ -99,18 +95,14 @@ $(EGL_VARIANT_DIR)/display_backend_drm.o: src/platform/display/display_backend_d
 $(EGL_VARIANT_DIR):
 	$(Q)mkdir -p $@
 
-# =============================================================================
 # Link
-# =============================================================================
 # Extra prerequisites of the DRM link in mk/rules.mk, whose recipe links $^.
 # The fbdev link leaves them out (mk/pi-dual-link.mk): it carries no GPU path.
 EGL_PATH_OBJS := $(EGL_APP_VARIANT_OBJS) $(EGL_LVGL_LINKED_OBJS)
 
 $(TARGET): $(EGL_PATH_OBJS)
 
-# =============================================================================
 # Verification — the stale-object trap has no other symptom
-# =============================================================================
 # If the EGL objects did not make it into the link, the binary still builds and
 # still runs, and HELIX_DISPLAY_BACKEND=egl finds no EGL backend and presents
 # through dumb buffers while the launcher believes it is on the GPU.

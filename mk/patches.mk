@@ -121,9 +121,7 @@ LIBHV_PATCHED_SRCS := $(wildcard $(addprefix $(LIBHV_DIR)/,$(LIBHV_PATCHED_FILES
 LUA_PATCHED_FILES := \
 	lstrlib.c
 
-# ============================================================================
 # THIRD-PARTY HEADER ABI STAMP
-# ============================================================================
 # Our objects reach the patched LVGL and libhv headers through -isystem, and
 # DEPFLAGS is -MMD, which by design leaves system headers out of the generated
 # .d files. A patch that adds a member to a shared type therefore moves every
@@ -237,9 +235,7 @@ define check_abi_unchanged
 	fi
 endef
 
-# ============================================================================
 # PATCH STAMP FILE - Skip checking if patches haven't changed
-# ============================================================================
 # The stamp file tracks when patches were last verified/applied.
 # Re-check only when: patch files change, submodule HEAD changes, or stamp missing.
 PATCHES_STAMP := $(BUILD_DIR)/.patches-applied

@@ -4,9 +4,7 @@
 # HelixScreen UI Prototype - Test Module
 # Handles all test compilation and execution targets
 
-# ============================================================================
 # Parallel Test Execution Infrastructure
-# ============================================================================
 # Uses Catch2 sharding (--shard-count N --shard-index M) to split tests across
 # multiple processes. Each shard runs in its own process with its own LVGL
 # instance, avoiding thread-safety issues entirely.
@@ -292,9 +290,7 @@ define summarize_unity_cases
 	fi
 endef
 
-# ============================================================================
 # Test Dependency System - AUTOMATIC DISCOVERY
-# ============================================================================
 # Instead of manually listing every .o file (error-prone, causes CI failures),
 # we use automatic discovery: include ALL app objects except a small exclude list.
 #
@@ -327,9 +323,7 @@ TEST_TOOL_OBJS := $(OBJ_DIR)/tools/xml_attribute_validator.o
 # libhv dns_resolv C source needed by test_dns_resolver (not in libhv.a)
 DNS_RESOLV_OBJ := $(OBJ_DIR)/tests/dns_resolv.o
 
-# ============================================================================
 # AUTOMATIC APP OBJECT DISCOVERY
-# ============================================================================
 # Include ALL application objects except those that conflict with tests.
 # A test double for a filtered object may be inert, or the object may be
 # linked; it may not be a copy of the logic (tests/CLAUDE.md).
@@ -376,9 +370,7 @@ TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/jz_pwm_sound_backend.
 # on the host - same treatment again.
 TEST_APP_OBJS := $(sort $(TEST_APP_OBJS) $(OBJ_DIR)/system/pcm_pipe_sound_backend.o)
 
-# ============================================================================
 # Test Targets
-# ============================================================================
 
 # Clean test artifacts (test objects, all test binary variants).
 #
@@ -429,9 +421,7 @@ prune-orphan-test-objs:
 		rm -f $(TEST_BIN); \
 	fi
 
-# ============================================================================
 # Main Test Targets
-# ============================================================================
 # IMPORTANT: The ~[.] filter excludes tests with tags starting with '.'
 # including: [.ui_integration], [.disabled], [.benchmark], [.slow], etc.
 # This is Catch2's hidden test convention.
@@ -441,9 +431,7 @@ prune-orphan-test-objs:
 test: test-build
 	$(ECHO) "$(CYAN)Run one filter with: make t F='[tag]'$(RESET)"
 
-# ----------------------------------------------------------------------------
 # t: the inner loop
-# ----------------------------------------------------------------------------
 # Build, then run exactly one Catch2 filter. F takes a tag, an exact case name,
 # or any Catch2 expression, so one variable covers every way of naming a case:
 #
@@ -523,9 +511,7 @@ CI_SHARDS ?= 8
 land-gate:
 	$(Q)TEST_HOST="$(TEST_HOST)" CI_SHARDS="$(CI_SHARDS)" MAKE="$(MAKE)" scripts/land-gate.sh $(if $(STAGES),--rerun "$(STAGES)")
 
-# ----------------------------------------------------------------------------
 # test-run: a signpost that refuses
-# ----------------------------------------------------------------------------
 # The shortest name that runs anything becomes the reflex, and a 96-shard run is
 # the wrong answer to almost every question that prompts it. So this one refuses
 # and routes the question to the target that fits it.
@@ -559,9 +545,7 @@ test-run:
 	echo "Cadence table: tests/CLAUDE.md, 'What to run when'."; \
 	exit 2
 
-# ----------------------------------------------------------------------------
 # dev-timing: what the dev loop actually costs
-# ----------------------------------------------------------------------------
 # Rebuilds a wall-clock ledger of every build, suite and test run from session
 # transcripts, so "is this worth running" is answered from measured medians
 # rather than from a guess. Output is derived and gitignored; regenerating is
@@ -633,9 +617,7 @@ test-hidden-list: test-build
 # signpost, which names the target that fits the question.
 tests: test-run
 
-# ============================================================================
 # KIAUH Extension Tests
-# ============================================================================
 # Tests that our KIAUH extension is discoverable by KIAUH's discover_extensions().
 # Catches the class of bug where KIAUH crashes with IndexError because extension
 # code doesn't match KIAUH's discovery conventions.
@@ -646,9 +628,7 @@ test-kiauh:
 	python3 -m unittest scripts.kiauh.tests.test_kiauh_extension -v; \
 	$(call report_test_result,KIAUH extension tests)
 
-# ============================================================================
 # Shell/Bats Tests
-# ============================================================================
 
 # Run shell/bats tests for platform hooks and installer scripts. The parallel
 # run holds its -j as jobpool tokens (`helix-claim hold`), so it shares the
@@ -722,9 +702,7 @@ test-shell:
 		echo "  Install with: brew install bats-core (macOS) or apt install bats (Linux)"; \
 	fi
 
-# ============================================================================
 # helix-xml Submodule Test Suite (standalone CMake + Unity + ctest)
-# ============================================================================
 # lib/helix-xml is our own submodule (github.com/prestonbrown/helix-xml) and
 # carries its own test suite, which the HelixScreen test binary does NOT run:
 # helix-tests exercises the engine only through the app. These tests cover the
@@ -783,9 +761,7 @@ test-xml:
 	$(call report_test_result,helix-xml submodule tests); \
 	$(call summarize_unity_cases,$(HELIX_XML_TEST_BUILD_DIR))
 
-# ============================================================================
 # Out-of-Process UI Tests (pytest, tests/ui/)
-# ============================================================================
 # Named test-ui-pytest, not test-ui: that name is already taken by the
 # in-process Catch2 convenience target above ([navigation],[theme],[wizard]).
 # Renaming the existing one to make room was out of scope for wiring this
@@ -836,9 +812,7 @@ test-ui-ci:
 		$(VENV_PYTHON) -m pytest $(UI_CI_PYTEST_RUN); \
 	$(call report_test_result,Out-of-process UI tests (CI slice))
 
-# ============================================================================
 # Moonraker Plugin Tests (pytest, moonraker-plugin/tests/)
-# ============================================================================
 # The plugin runs inside Moonraker on the printer, so nothing in the C++ suite
 # reaches it -- these are its only coverage. They need no binary and no printer;
 # the Moonraker component surface is mocked in the test file.
@@ -867,9 +841,7 @@ test-python:
 	$(VENV_PYTHON) -m pytest $(PYTHON_TESTS) -v --tb=short; \
 	$(call report_test_result,Python script tests)
 
-# ============================================================================
 # Convenience Test Targets - Run tests by component
-# ============================================================================
 
 # Run tests with per-test timing (shows slow tests)
 test-verbose: test-build
@@ -892,9 +864,7 @@ test-list-tags: test-build
 test-list: test-build
 	$(Q)$(TEST_BIN) --list-tests
 
-# ============================================================================
 # Test Timing and Performance Targets
-# ============================================================================
 # Use these targets to identify slow tests and optimize test runtime.
 # Tests tagged [slow] are excluded from test-fast for quick iteration.
 
@@ -956,9 +926,7 @@ test-smoke: test-build
 	$(TEST_BIN) "[config],[navigation],[ui_theme],[parser]" "~[slow]" "~[.]"; \
 	$(call report_test_result,Smoke tests)
 
-# ============================================================================
 # Slow Test Candidates (>500ms) - Tag with [slow] incrementally
-# ============================================================================
 # Based on timing analysis, these tests are candidates for [slow] tagging:
 #
 # Connection retry tests (~5s each):
@@ -972,7 +940,6 @@ test-smoke: test-build
 # To tag a test as slow, add [slow] to its tags:
 #   TEST_CASE("My slow test", "[feature][slow]") { ... }
 #
-# ============================================================================
 
 # Unified test binary - uses automatic app object discovery
 # No more manual dependency lists! New source files are automatically included.
@@ -1192,9 +1159,7 @@ $(OBJ_DIR)/tests/mocks/%.o: $(TEST_MOCK_DIR)/%.cpp lv_conf.h $(LIBHV_LIB) $(LIBH
 	$(Q)$(call TEST_MOCK_COMPILE,$(DEPFLAGS)) -c $< -o $@
 	$(call emit-compile-command,$(call TEST_MOCK_COMPILE),$<,$@)
 
-# ============================================================================
 # Sanitizer Targets (Memory Safety Testing)
-# ============================================================================
 # These targets rebuild the test binary with sanitizers enabled for detecting:
 # - ASAN: Memory leaks, use-after-free, buffer overflows
 # - TSAN: Data races, deadlocks, thread safety issues
@@ -1490,9 +1455,7 @@ clean-sanitizers:
 	$(Q)rm -rf $(APP_ASAN_OBJ_DIR) $(APP_TSAN_OBJ_DIR)
 	$(ECHO) "$(GREEN)✓ Sanitizer artifacts cleaned (normal build untouched)$(RESET)"
 
-# ============================================================================
 # App-level sanitizer runs: drive the real binary headlessly
-# ============================================================================
 # The targets above exercise helix-tests; these drive the actual app under
 # a sanitizer, via scripts/screenshot.sh (--test mock data, private socket,
 # recipe-driven navigation, no capture). The verdict reuses
@@ -1606,9 +1569,7 @@ tsan-app:
 	$(call report_sanitizer_result,TSAN app,/tmp/tsan-app-app.log,$(TSAN_REPORT_RE)); \
 	$(call app_pass_count_check,tsan-app,/tmp/tsan-app-run.log,$(REPEAT))
 
-# ============================================================================
 # Test Help
-# ============================================================================
 
 .PHONY: help-test test-kiauh test-shell test-xml test-ui-pytest test-ui-ci test-plugin test-python test-serial test-hidden test-hidden-list test-asan test-asan-build test-tsan test-tsan-build test-asan-one test-tsan-one clean-sanitizers
 help-test:
@@ -1660,7 +1621,6 @@ help-test:
 	echo "  $${G}clean-tests$${X}          - Remove test build artifacts"; \
 	echo "  $${G}clean-sanitizers$${X}     - Remove sanitizer test binaries"
 
-# ============================================================================
 # Test quality gates
 #
 # The suite being green says nothing about whether it would go red if the code
@@ -1675,7 +1635,6 @@ help-test:
 #
 # Only the last one is an oracle. The first three are cheap screens that find
 # the degenerate cases before you spend a build per hunk on the real question.
-# ============================================================================
 
 # One full --success report, shared by every gate that reads a run. Generating
 # it costs a whole suite pass, so test-vacuous and test-order-dependence both
@@ -1744,7 +1703,7 @@ MIRROR_MAX_STUB_LOGIC ?= 0
 MIRROR_MAX_ARGS = --max redefined-symbol=$(MIRROR_MAX_REDEFINED_SYMBOL) \
 	--max stub-logic=$(MIRROR_MAX_STUB_LOGIC)
 
-# ---- diff coverage ---------------------------------------------------------
+# diff coverage
 # Its own object tree, so this never disturbs the normal build.
 COV_FILTER ?= ~[.]~[slow]
 
@@ -1770,7 +1729,7 @@ cov-run:
 cov-diff: cov-build cov-run
 	$(Q)python3 scripts/cov_diff.py $(COV_DIFF_ARGS)
 
-# ---- mutation --------------------------------------------------------------
+# mutation
 # Reverts each changed hunk in turn and looks for red. A src/ or include/ hunk
 # costs a compile plus a link; a ui_xml/, assets/config/ or scripts/ hunk costs
 # only its suite, since nothing has to be rebuilt to see it. Each changed file

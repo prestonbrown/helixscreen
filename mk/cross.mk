@@ -41,9 +41,7 @@
 #   make x86-all-docker        # Docker-based x86_64 build (both variants)
 #   make x86-desktop-docker    # Docker-based x86_64 desktop build (SDL window)
 
-# =============================================================================
 # Docker Build Configuration
-# =============================================================================
 
 # NPROC_DOCKER_RUN: Number of parallel jobs for Docker builds
 # Capped at 8 to prevent resource exhaustion in containerized environments
@@ -51,9 +49,7 @@
 _NPROC_HOST := $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 NPROC_DOCKER_RUN ?= $(shell echo $$(($(_NPROC_HOST) > 8 ? 8 : $(_NPROC_HOST))))
 
-# =============================================================================
 # Target Platform Definitions
-# =============================================================================
 
 # musl gives every thread 128 KiB unless the binary's PT_GNU_STACK asks for more
 # (musl >= 1.1.21; K1 ships 1.2.4, K2 1.2.5), and the Moonraker callbacks run on
@@ -774,9 +770,7 @@ ifneq ($(filter pi pi-both pi32 pi32-both x86 x86-both,$(PLATFORM_TARGET)),)
     DLOPEN_GPU_LIBS := yes
 endif
 
-# =============================================================================
 # Cross-Compiler Configuration
-# =============================================================================
 
 ifneq ($(CROSS_COMPILE),)
     # Override compilers for cross-compilation
@@ -828,9 +822,7 @@ ifneq ($(PLATFORM_TARGET),)
 endif
 endif
 
-# =============================================================================
 # Target-Specific Flags
-# =============================================================================
 
 ifdef TARGET_CFLAGS
     CFLAGS += $(TARGET_CFLAGS)
@@ -839,9 +831,7 @@ ifdef TARGET_CFLAGS
     SUBMODULE_CXXFLAGS += $(TARGET_CFLAGS)
 endif
 
-# =============================================================================
 # HELIX_MAX_FONT_TIER - compile-time maximum font tier linked for this platform
-# =============================================================================
 # Derived from FONT_TIERS (set per-platform above). Used by theme_manager to
 # distinguish expected-missing fonts (pruned by tier) from unexpected-missing
 # fonts (build bug). Tier numbers: micro=0, tiny=1, small=2, medium=3, large=4,
@@ -870,9 +860,7 @@ CXXFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 SUBMODULE_CFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 SUBMODULE_CXXFLAGS += -DHELIX_MAX_FONT_TIER=$(HELIX_MAX_FONT_TIER)
 
-# =============================================================================
 # Size flags for device builds
-# =============================================================================
 # -fno-rtti  on every non-native target. The codebase is RTTI-free by policy
 #            and lint-enforced (scripts/code_lint.sh); a grep for
 #            non-comment typeid/dynamic_cast across src/ and include/ returns
@@ -1014,9 +1002,7 @@ endif
 # Constrained FBDEV devices (AD5M, CC1, K1/MIPS, AD5X, K2, U1) use 16 (RGB565).
 # Pi (DRM) and desktop (SDL) use 32 (ARGB8888).
 
-# =============================================================================
 # Cross-Compilation Build Targets
-# =============================================================================
 
 .PHONY: pi pi-both pi32 pi32-both ad5m ad5m-br cc1 mips k1 ad5x creator5 k2 snapmaker-u1 x86 x86-both pi-docker pi32-docker ad5m-docker cc1-docker mips-docker k1-docker ad5x-docker creator5-docker k2-docker ustreamer-k2 snapmaker-u1-docker x86-docker x86-fbdev-docker x86-all-docker x86-desktop-docker docker-toolchains docker-toolchain-snapmaker-u1 docker-toolchain-x86 cross-info ensure-docker ensure-buildx maybe-stop-colima
 
@@ -1614,9 +1600,7 @@ help-cross:
 	echo "  Display backend: $(DISPLAY_BACKEND)"; \
 	echo "  SDL enabled: $(ENABLE_SDL)"
 
-# =============================================================================
 # Common Deployment Settings
-# =============================================================================
 
 # Rsync flags for asset sync: delete stale files, checksum-based skip, exclude junk
 DEPLOY_RSYNC_FLAGS := -avzz --delete --checksum
@@ -1799,9 +1783,7 @@ define deploy-common
 	$(call deploy-platform-hooks,$(1),$(2),$(4))
 endef
 
-# =============================================================================
 # Pi Deployment Configuration
-# =============================================================================
 
 # Pi deployment settings (can override via environment or command line)
 # Example: make deploy-pi PI_HOST=192.168.1.50 PI_USER=pi
@@ -1818,9 +1800,7 @@ else
     PI_SSH_TARGET := $(PI_HOST)
 endif
 
-# =============================================================================
 # Pi Deployment Targets
-# =============================================================================
 
 # Restart helix-screen on the Pi (64- and 32-bit share the device) and re-arm
 # the update watcher that deploy-common stopped.
@@ -1862,9 +1842,7 @@ pi-ssh:
 # Full cycle: build + deploy + run in foreground
 pi-test: pi-docker deploy-pi-fg
 
-# =============================================================================
 # Pi AddressSanitizer Deployment Targets
-# =============================================================================
 # Deploys the SANITIZE=address build (build/pi-asan/bin/) and starts the
 # binary with ASAN_OPTIONS configured for the wizard-transition investigation.
 # Suppressions file is shipped to the device alongside the binary.
@@ -1907,9 +1885,7 @@ deploy-pi-asan-fg: deploy-pi-asan
 # Full cycle: ASAN build + deploy + run in foreground.
 pi-asan-test: pi-asan-docker deploy-pi-asan-fg
 
-# =============================================================================
 # Pi 32-bit Deployment Targets
-# =============================================================================
 # Shares PI_HOST/PI_USER/PI_DEPLOY_DIR with 64-bit Pi (same device, different binary arch)
 
 .PHONY: deploy-pi32 deploy-pi32-fg deploy-pi32-bin pi32-test
@@ -1966,9 +1942,7 @@ deploy-pi32-asan-fg: deploy-pi32-asan
 # Full cycle: ASAN build + deploy + run in foreground.
 pi32-asan-test: pi32-asan-docker deploy-pi32-asan-fg
 
-# =============================================================================
 # AD5M Deployment Configuration
-# =============================================================================
 
 # AD5M deployment settings (can override via environment or command line)
 # Example: make deploy-ad5m AD5M_HOST=192.168.1.100
@@ -2006,9 +1980,7 @@ AD5M_HOOK_KEY = $(call device-profile-value,PLATFORM_HOOK_KEY,$(AD5M_PROFILE))
 AD5M_MOD_FLAVOR = $(call device-profile-value,MOD_FLAVOR,$(AD5M_PROFILE))
 AD5M_SERVICE_MECHANISM = $(call device-profile-value,SERVICE_MECHANISM,$(AD5M_PROFILE))
 
-# =============================================================================
 # AD5M Deployment Targets
-# =============================================================================
 
 .PHONY: deploy-ad5m deploy-ad5m-fg deploy-ad5m-bin ad5m-ssh ad5m-test
 
@@ -2126,9 +2098,7 @@ deploy-ad5m-bin:
 	ssh $(AD5M_SSH_TARGET) "killall helix-watchdog helix-screen helix-splash 2>/dev/null || true; sleep 1; cd $(AD5M_DEPLOY_DIR) && ./bin/helix-launcher.sh >/dev/null 2>&1 &"
 	@echo "$(GREEN)✓ helix-screen restarted$(RESET)"
 
-# =============================================================================
 # AD5X deploy
-# =============================================================================
 # The AD5X does NOT resolve via mDNS, so the host is required rather than
 # defaulted, the way the K2's is.
 AD5X_HOST ?=
@@ -2179,9 +2149,7 @@ ad5m-ssh:
 # Full cycle: remote build + deploy + run in foreground
 ad5m-test: remote-ad5m deploy-ad5m-fg
 
-# =============================================================================
 # CC1 Deployment Configuration
-# =============================================================================
 
 # Centauri Carbon 1 deployment settings (can override via environment or command line)
 # Example: make deploy-cc1 CC1_HOST=192.168.1.100
@@ -2202,9 +2170,7 @@ CC1_INIT_SCRIPT ?= /etc/init.d/helixscreen
 # Build SSH target for CC1
 CC1_SSH_TARGET := $(CC1_USER)@$(CC1_HOST)
 
-# =============================================================================
 # CC1 Deployment Targets
-# =============================================================================
 
 .PHONY: deploy-cc1 deploy-cc1-fg deploy-cc1-bin cc1-ssh cc1-test
 
@@ -2289,9 +2255,7 @@ cc1-ssh:
 # Full cycle: docker build + deploy + run in foreground
 cc1-test: cc1-docker deploy-cc1-fg
 
-# =============================================================================
 # Snapmaker U1 Deployment Configuration
-# =============================================================================
 # Snapmaker U1 deployment settings
 # Specs: Rockchip RK3562 ARM64, 3.5" 480x320 display, 961MB RAM, Debian Trixie
 # Deploy to /home/lava/helixscreen (persistent across reboots — /opt/ is overlay)
@@ -2303,9 +2267,7 @@ SNAPMAKER_U1_USER ?= root
 SNAPMAKER_U1_SSH_TARGET := $(SNAPMAKER_U1_USER)@$(SNAPMAKER_U1_HOST)
 SNAPMAKER_U1_DEPLOY_DIR ?= /userdata/helixscreen
 
-# =============================================================================
 # Snapmaker U1 Deployment Targets
-# =============================================================================
 
 .PHONY: deploy-snapmaker-u1 deploy-snapmaker-u1-fg deploy-snapmaker-u1-bin snapmaker-u1-ssh
 
@@ -2390,9 +2352,7 @@ deploy-snapmaker-u1-bin:
 snapmaker-u1-ssh:
 	ssh $(SNAPMAKER_U1_SSH_TARGET)
 
-# =============================================================================
 # K1 Deployment Configuration
-# =============================================================================
 # Creality K1 series deployment settings
 # Based on pellcorp/creality Simple AF structure
 #
@@ -2408,9 +2368,7 @@ K1_DEPLOY_DIR ?= /usr/data/helixscreen
 # Build SSH target for K1
 K1_SSH_TARGET := $(K1_USER)@$(K1_HOST)
 
-# =============================================================================
 # K1 Deployment Targets
-# =============================================================================
 
 .PHONY: deploy-k1 deploy-k1-fg deploy-k1-bin k1-ssh k1-test
 
@@ -2498,9 +2456,7 @@ k1-ssh:
 # Full cycle: docker build + deploy + run in foreground
 k1-test: k1-docker deploy-k1-fg
 
-# =============================================================================
 # K2 Deployment Configuration
-# =============================================================================
 #
 # Creality K2 series deployment (K2, K2 Pro, K2 Plus)
 # Based on K1 deployment pattern but adapted for K2 differences:
@@ -2539,9 +2495,7 @@ endef
 # Build SSH target for K2 (lazy evaluation — only errors when deploy targets actually use it)
 K2_SSH_TARGET = $(if $(K2_HOST),$(K2_USER)@$(K2_HOST),$(error K2_HOST is required. K2 does not resolve via mDNS. Use: make deploy-k2 K2_HOST=192.168.x.x))
 
-# =============================================================================
 # K2 Deployment Targets
-# =============================================================================
 
 .PHONY: deploy-k2 deploy-k2-fg deploy-k2-bin k2-ssh k2-test
 
@@ -2681,9 +2635,7 @@ k2-ssh:
 # Full cycle: docker build + deploy + run in foreground
 k2-test: k2-docker deploy-k2-fg
 
-# =============================================================================
 # Release Packaging
-# =============================================================================
 # Creates one distributable zip archive per platform
 # Includes: binaries, ui_xml, config, assets (fonts/images only, no test files)
 
