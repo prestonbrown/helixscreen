@@ -644,4 +644,14 @@ class PanelWidgetConfig {
 /// the loader uses.
 const char* choose_breakpoint_key(const nlohmann::json& by_bp, UiBreakpoint breakpoint);
 
+/// The process-wide PanelWidgetConfig for @p panel_id, created on first use
+/// from Config::get_instance(). Every access calls load(), a no-op once loaded
+/// (#804): a caller that edits the stored layout without the setters calls
+/// mark_dirty() on it to force the next reload. Main thread only.
+PanelWidgetConfig& cached_panel_widget_config(const std::string& panel_id);
+
+/// mark_printer_changed() on every cached config: the active printer changed,
+/// so each reloads from the new printer's /printers/<id>/panel_widgets path.
+void mark_cached_panel_widget_configs_printer_changed();
+
 } // namespace helix

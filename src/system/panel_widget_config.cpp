@@ -30,6 +30,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 namespace helix {
 
@@ -1631,6 +1632,30 @@ bool PanelWidgetConfig::reresolve_default_if_changed(int cols, int rows, bool pe
 std::pair<int, int> PanelWidgetConfig::stamped_grid() const {
     return {parse_grid_axis(grid_signature_, /*want_cols=*/true),
             parse_grid_axis(grid_signature_, /*want_cols=*/false)};
+}
+
+namespace {
+std::unordered_map<std::string, PanelWidgetConfig>& panel_widget_config_cache() {
+    static std::unordered_map<std::string, PanelWidgetConfig> cache;
+    return cache;
+}
+} // namespace
+
+PanelWidgetConfig& cached_panel_widget_config(const std::string& panel_id) {
+    auto& cache = panel_widget_config_cache();
+    auto it = cache.find(panel_id);
+    if (it == cache.end()) {
+        it = cache.emplace(panel_id, PanelWidgetConfig(panel_id, *Config::get_instance())).first;
+    }
+    it->second.load();
+    return it->second;
+}
+
+void mark_cached_panel_widget_configs_printer_changed() {
+    for (auto& [panel_id, config] : panel_widget_config_cache()) {
+        (void)panel_id;
+        config.mark_printer_changed();
+    }
 }
 
 } // namespace helix

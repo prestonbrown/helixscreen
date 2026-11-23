@@ -15,6 +15,10 @@ namespace helix {
 
 class PanelWidget;
 
+/// The widest grid, in tracks, the home layout engine builds
+/// (GridLayout::kMaxTracks): the span that means "uncapped" in a definition.
+inline constexpr int kWidgetMaxTracks = 64;
+
 using WidgetFactory = std::function<std::unique_ptr<PanelWidget>(const std::string& instance_id)>;
 using SubjectInitFn = std::function<void()>;
 
