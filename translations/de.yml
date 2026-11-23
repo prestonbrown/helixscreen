@@ -784,6 +784,7 @@ translations:
   Calibration & Tools: Kalibrierung & Werkzeuge
   Calibration Complete!: Kalibrierung abgeschlossen!
   Calibration Failed: Kalibrierung fehlgeschlagen
+  Calibration Outcome: 'Kalibrierungsergebnis'
   Calibration Saved: Kalibrierung gespeichert
   Calibration and system configuration: 'Kalibrierung und Systemkonfiguration'
   Calibration canceled.: Kalibrierung abgebrochen.
@@ -828,6 +829,7 @@ translations:
   Cancel print: 'Druck abbrechen'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: 'Abbruch gesendet. Der Drucker beendet seine Startsequenz und hält dann vor dem Drucken an.'
   Canceled: Abgebrochen
+  Canceled From: 'Abgebrochen über'
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'Beim Abbrechen wird das Kammerziel ausgeschaltet, damit das Warten endet; dann wird der Druck gestoppt.'
   'Cannot add to queue: internal error': 'Zur Warteschlange hinzufügen nicht möglich: interner Fehler'
   Cannot be changed from here on a multi-unit MMU: Bei einer MMU mit mehreren Einheiten hier nicht änderbar
@@ -1265,6 +1267,7 @@ translations:
   Could not answer the connection request: 'Verbindungsanfrage konnte nicht beantwortet werden'
   'Could not check {} - it stays in the queue': '{} konnte nicht geprüft werden – bleibt in der Warteschlange'
   Cut: "Ausschneiden"
+  'During Print: ': 'Während des Drucks: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "Während des Drucks sehen Sie je einen Chip für Heizungen, Lüfter und Licht, eine Checkliste der Startsequenz sowie Fortschritt und Steuerung in einer Leiste."
   "Every screen and setting explained": "Jeder Bildschirm und jede Einstellung erklärt"
@@ -1907,6 +1910,7 @@ translations:
   'Failed to upload modified G-code: {}': 'Geänderten G-Code hochladen fehlgeschlagen: {}'
   'Failed: {}': 'Fehlgeschlagen: {}'
   'Failed: {}. Saves {}': 'Fehlgeschlagen: {}. Gespeichert wird {}'
+  Failure Reason: 'Fehlerursache'
   'Faint lines: compensation off. Bright lines: compensation on.': 'Blasse Linien: Kompensation aus. Helle Linien: Kompensation ein.'
   Fair match: "Mäßige Passung"
   'Failed to upload the extracted G-code: {}': 'Extrahierter G-code konnte nicht hochgeladen werden: {}'
@@ -1960,6 +1964,7 @@ translations:
   Filament Mapping is unavailable: Filament-Zuordnung ist nicht verfügbar
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: Filament-Zuordnung wird von diesem Drucker nicht unterstützt, daher verwendet der Druck die am Drucker zugewiesenen Werkzeuge
   Filament Runout: Filament aufgebraucht
+  Filament Operation: 'Filament-Operation'
   Filament Operations: Filament-Operationen
   Filament Sensor: Filamentsensor
   Filament Sensors: 'Filamentsensoren'
@@ -3435,6 +3440,7 @@ translations:
   This filament system keeps its own spool records: "Dieses Filamentsystem führt seine Spulendaten selbst"
   AFC has no Spoolman configured: "In AFC ist kein Spoolman eingerichtet"
   Opened: Geöffnet
+  Operation: 'Operation'
   Operation already in progress: Vorgang läuft bereits
   Operation timed out: Zeitüberschreitung beim Vorgang
   Operations: Operationen
@@ -3843,6 +3849,7 @@ translations:
   Profile names cannot contain ';': "Profilnamen dürfen kein ';' enthalten"
   Profile renamed: Profil umbenannt
   Profiles: Profile
+  Progress: 'Fortschritt'
   Progress, file, and time remaining: Fortschritt, Datei und Restzeit
   Prompt before running this macro: Vor dem Ausführen dieses Makros nachfragen
   Provide a boolean {}: 'Geben Sie einen booleschen Wert für {} an'

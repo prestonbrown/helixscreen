@@ -134,6 +134,10 @@ std::vector<TelemetryEventLine> describe_telemetry_event(const nlohmann::json& e
             event_type = lv_tr("Update Failed");
         } else if (event_type == "update_success") {
             event_type = lv_tr("Update Success");
+        } else if (event_type == "filament_op") {
+            event_type = lv_tr("Filament Operation");
+        } else if (event_type == "calibration_outcome") {
+            event_type = lv_tr("Calibration Outcome");
         }
     }
 
@@ -321,6 +325,26 @@ std::vector<TelemetryEventLine> describe_telemetry_event(const nlohmann::json& e
         add_field_num("bed_temp", lv_tr("Bed"),
                       "\xC2\xB0"
                       "C");
+        add_field_num("progress_pct", lv_tr("Progress"), "%");
+        add_field_str("cancel_origin", lv_tr("Canceled From"));
+        add_field_str("failure_class", lv_tr("Failure Reason"));
+
+    } else if (type_str == "filament_op") {
+        add_field_str("backend", lv_tr("System"));
+        add_field_str("op", lv_tr("Operation"));
+        add_field_str("outcome", lv_tr("Outcome"));
+        add_field_str("error_class", lv_tr("Failure Reason"));
+        add_field_str("duration_bucket", lv_tr("Duration"));
+        if (auto during_print = read_field<bool>(event, "during_print")) {
+            add(std::string(lv_tr("During Print: ")) + (*during_print ? lv_tr("Yes") : lv_tr("No")),
+                "text_subtle");
+        }
+
+    } else if (type_str == "calibration_outcome") {
+        add_field_str("type", lv_tr("Calibration"));
+        add_field_str("outcome", lv_tr("Outcome"));
+        add_field_str("failure_class", lv_tr("Failure Reason"));
+        add_field_str("duration_bucket", lv_tr("Duration"));
 
     } else if (type_str == "crash") {
         add_field_str("signal_name", lv_tr("Signal"));

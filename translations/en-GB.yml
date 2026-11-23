@@ -790,6 +790,7 @@ translations:
   Calibration & Tools: ''
   Calibration Complete!: ''
   Calibration Failed: ''
+  Calibration Outcome: ''
   Calibration Saved: ''
   Calibration and system configuration: ''
   Calibration canceled.: Calibration cancelled.
@@ -834,6 +835,7 @@ translations:
   Cancel print: ''
   Cancel sent. The printer finishes its start sequence, then stops before printing.: ''
   Canceled: Cancelled
+  Canceled From: Cancelled From
   Canceling turns the chamber target off so the wait ends, then stops the print.: Cancelling turns the chamber target off so the wait ends, then stops the print.
   'Cannot add to queue: internal error': ''
   Cannot be changed from here on a multi-unit MMU: ''
@@ -1269,6 +1271,7 @@ translations:
   Could not answer the connection request: ''
   'Could not check {} - it stays in the queue': ''
   Cut: ''
+  'During Print: ': ''
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : ""
   "Every screen and setting explained": ""
@@ -1903,6 +1906,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': ''
   'Failed: {}': ''
   'Failed: {}. Saves {}': ''
+  Failure Reason: ''
   'Faint lines: compensation off. Bright lines: compensation on.': ''
   Fair match: ''
   Fan: ''
@@ -1954,6 +1958,7 @@ translations:
   Filament Mapping is unavailable: ''
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: ''
   Filament Runout: ''
+  Filament Operation: ''
   Filament Operations: ''
   Filament Sensor: ''
   Filament Sensors: ''
@@ -3412,6 +3417,7 @@ translations:
   This filament system keeps its own spool records: ''
   AFC has no Spoolman configured: ''
   Opened: ''
+  Operation: ''
   Operation already in progress: ''
   Operation timed out: ''
   Operations: ''
@@ -3821,6 +3827,7 @@ translations:
   Profile names cannot contain ';': ''
   Profile renamed: ''
   Profiles: ''
+  Progress: ''
   Progress, file, and time remaining: ''
   Prompt before running this macro: ''
   Provide a boolean {}: ''

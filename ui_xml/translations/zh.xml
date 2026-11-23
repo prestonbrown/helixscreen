@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" zh="校准与工具"/>
   <translation tag="Calibration Complete!" zh="校准完成！"/>
   <translation tag="Calibration Failed" zh="校准失败"/>
+  <translation tag="Calibration Outcome" zh="校准结果"/>
   <translation tag="Calibration Saved" zh="校准已保存"/>
   <translation tag="Calibration and system configuration" zh="校准与系统配置"/>
   <translation tag="Calibration canceled." zh="校准已取消。"/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" zh="取消打印"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." zh="已发送取消。打印机会先完成启动流程，然后在打印前停止。"/>
   <translation tag="Canceled" zh="已取消"/>
+  <translation tag="Canceled From" zh="取消来源"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." zh="取消会关闭腔体目标温度以结束等待，然后停止打印。"/>
   <translation tag="Cannot add to queue: internal error" zh="无法添加到队列：内部错误"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" zh="多单元 MMU 无法在此处更改"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" zh="配置中存在重复命令"/>
   <translation tag="Duplicated" zh="已复制"/>
   <translation tag="Duration" zh="持续时间"/>
+  <translation tag="During Print: " zh="打印期间: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." zh="打印时，您可以看到每个加热器、风扇和灯的状态标签、启动流程清单，以及集中在一条栏中的进度和控制按钮。"/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." zh="自动续料时，旧耗材无法从工具头中排出。"/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." zh="X、Y 导轨或光杆上的灰尘和旧油脂会导致噪音、振纹和磨损。"/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" zh="上传改写后的 G-code 失败：{}"/>
   <translation tag="Failed: {}" zh="失败：{}"/>
   <translation tag="Failed: {}. Saves {}" zh="失败：{}。将保存 {}"/>
+  <translation tag="Failure Reason" zh="失败原因"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." zh="浅色线条：补偿关闭。亮色线条：补偿开启。"/>
   <translation tag="Fair match" zh="匹配中等"/>
   <translation tag="Fan" zh="风扇"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." zh="此设备不支持耗材映射。"/>
   <translation tag="Filament Mapping is unavailable" zh="耗材映射不可用"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" zh="此打印机不支持耗材映射，因此打印将使用打印机上分配的工具"/>
+  <translation tag="Filament Operation" zh="耗材操作"/>
   <translation tag="Filament Operations" zh="耗材操作"/>
   <translation tag="Filament Runout" zh="耗材用尽"/>
   <translation tag="Filament Sensor" zh="耗材传感器"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" zh="OpenAMS 在 Spoolman 中管理此料盘，此处只能更改材料、颜色、品牌和重量"/>
   <translation tag="OpenAMS manages this spool&apos;s link" zh="此料盘的关联由 OpenAMS 管理"/>
   <translation tag="Opened" zh="已打开"/>
+  <translation tag="Operation" zh="操作"/>
   <translation tag="Operation already in progress" zh="操作正在进行中"/>
   <translation tag="Operation timed out" zh="操作超时"/>
   <translation tag="Operations" zh="操作"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" zh="配置名称不能包含 &apos;;&apos;"/>
   <translation tag="Profile renamed" zh="配置文件已重命名"/>
   <translation tag="Profiles" zh="配置"/>
+  <translation tag="Progress" zh="进度"/>
   <translation tag="Progress, file, and time remaining" zh="进度、文件和剩余时间"/>
   <translation tag="Prompt before running this macro" zh="运行此宏前询问"/>
   <translation tag="Provide a boolean {}" zh="请为 {} 提供布尔值"/>

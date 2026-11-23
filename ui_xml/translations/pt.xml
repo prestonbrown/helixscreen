@@ -754,6 +754,7 @@
   <translation tag="Calibration &amp; Tools" pt="Calibração e Ferramentas"/>
   <translation tag="Calibration Complete!" pt="Calibração Concluída!"/>
   <translation tag="Calibration Failed" pt="Calibração Falhou"/>
+  <translation tag="Calibration Outcome" pt="Resultado da calibração"/>
   <translation tag="Calibration Saved" pt="Calibração salva"/>
   <translation tag="Calibration and system configuration" pt="Calibração e configuração do sistema"/>
   <translation tag="Calibration canceled." pt="Calibração cancelada."/>
@@ -798,6 +799,7 @@
   <translation tag="Cancel print" pt="Cancelar impressão"/>
   <translation tag="Cancel sent. The printer finishes its start sequence, then stops before printing." pt="Cancelamento enviado. A impressora conclui a sequência de início e para antes de imprimir."/>
   <translation tag="Canceled" pt="Cancelado"/>
+  <translation tag="Canceled From" pt="Cancelado a partir de"/>
   <translation tag="Canceling turns the chamber target off so the wait ends, then stops the print." pt="Cancelar desliga o alvo da câmara para que a espera termine e depois para a impressão."/>
   <translation tag="Cannot add to queue: internal error" pt="Não foi possível adicionar à fila: erro interno"/>
   <translation tag="Cannot be changed from here on a multi-unit MMU" pt="Não pode ser alterado aqui em um MMU de várias unidades"/>
@@ -1489,6 +1491,7 @@
   <translation tag="Duplicate command in the configuration" pt="Comando duplicado na configuração"/>
   <translation tag="Duplicated" pt="Duplicado"/>
   <translation tag="Duration" pt="Duração"/>
+  <translation tag="During Print: " pt="Durante a impressão: "/>
   <translation tag="During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip." pt="Durante a impressão, veja um indicador para cada aquecedor, ventoinha e luz, uma lista da sequência de início, e o progresso e os controles em uma única faixa."/>
   <translation tag="During auto refill, the old filament would not purge out of the toolhead." pt="Durante o reabastecimento automático, o filamento antigo não foi purgado do cabeçote."/>
   <translation tag="Dust and old grease on the X and Y rails or rods cause noise, ringing and wear." pt="Pó e graxa velha nos trilhos ou varões X e Y causam ruído, ringing e desgaste."/>
@@ -1815,6 +1818,7 @@
   <translation tag="Failed to upload the rewritten G-code: {}" pt="Falha ao enviar o G-code reescrito: {}"/>
   <translation tag="Failed: {}" pt="Falhou: {}"/>
   <translation tag="Failed: {}. Saves {}" pt="Falhou: {}. Salva {}"/>
+  <translation tag="Failure Reason" pt="Motivo da falha"/>
   <translation tag="Faint lines: compensation off. Bright lines: compensation on." pt="Linhas claras: compensação desligada. Linhas brilhantes: compensação ligada."/>
   <translation tag="Fair match" pt="Correspondência razoável"/>
   <translation tag="Fan" pt="Ventoinha"/>
@@ -1867,6 +1871,7 @@
   <translation tag="Filament Mapping is not available on this device." pt="O mapeamento de filamento não está disponível neste dispositivo."/>
   <translation tag="Filament Mapping is unavailable" pt="O mapeamento de filamento está indisponível"/>
   <translation tag="Filament Mapping isn&apos;t supported on this printer, so the print uses the tools assigned on the printer" pt="Esta impressora não suporta o mapeamento de filamento, então a impressão usa as ferramentas atribuídas na impressora"/>
+  <translation tag="Filament Operation" pt="Operação de filamento"/>
   <translation tag="Filament Operations" pt="Operações de filamento"/>
   <translation tag="Filament Runout" pt="Fim de Filamento"/>
   <translation tag="Filament Sensor" pt="Sensor de Filamento"/>
@@ -3304,6 +3309,7 @@
   <translation tag="OpenAMS keeps this spool in Spoolman, which takes only material, color, brand and weight here" pt="O OpenAMS guarda este carretel no Spoolman, que aqui aceita apenas material, cor, marca e peso"/>
   <translation tag="OpenAMS manages this spool&apos;s link" pt="O OpenAMS gerencia o vínculo deste carretel"/>
   <translation tag="Opened" pt="Aberta"/>
+  <translation tag="Operation" pt="Operação"/>
   <translation tag="Operation already in progress" pt="Operação já em andamento"/>
   <translation tag="Operation timed out" pt="Tempo limite da operação esgotado"/>
   <translation tag="Operations" pt="Operações"/>
@@ -3711,6 +3717,7 @@
   <translation tag="Profile names cannot contain &apos;;&apos;" pt="Os nomes de perfil não podem conter &apos;;&apos;"/>
   <translation tag="Profile renamed" pt="Perfil renomeado"/>
   <translation tag="Profiles" pt="Perfis"/>
+  <translation tag="Progress" pt="Progresso"/>
   <translation tag="Progress, file, and time remaining" pt="Progresso, arquivo e tempo restante"/>
   <translation tag="Prompt before running this macro" pt="Perguntar antes de executar esta macro"/>
   <translation tag="Provide a boolean {}" pt="Forneça um valor booleano para {}"/>

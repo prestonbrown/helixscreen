@@ -784,6 +784,7 @@ translations:
   Calibration & Tools: キャリブレーションとツール
   Calibration Complete!: キャリブレーション完了！
   Calibration Failed: キャリブレーション失敗
+  Calibration Outcome: 'キャリブレーション結果'
   Calibration Saved: キャリブレーションを保存しました
   Calibration and system configuration: 'キャリブレーションとシステム設定'
   Calibration canceled.: キャリブレーションをキャンセルしました。
@@ -828,6 +829,7 @@ translations:
   Cancel print: '印刷をキャンセル'
   Cancel sent. The printer finishes its start sequence, then stops before printing.: 'キャンセルを送信しました。プリンターは開始シーケンスを終えてから、印刷前に停止します。'
   Canceled: キャンセル済み
+  Canceled From: 'キャンセル元'
   Canceling turns the chamber target off so the wait ends, then stops the print.: 'キャンセルするとチャンバーの目標温度をオフにして待機を終了し、その後印刷を停止します。'
   'Cannot add to queue: internal error': 'キューに追加できません: 内部エラー'
   Cannot be changed from here on a multi-unit MMU: マルチユニット MMU ではここから変更できません
@@ -1265,6 +1267,7 @@ translations:
   Could not answer the connection request: '接続リクエストに応答できませんでした'
   'Could not check {} - it stays in the queue': '{} を確認できませんでした – キューに残ります'
   Cut: "切り取り"
+  'During Print: ': '印刷中: '
   ? "During a print, see a chip for each heater, fan, and light, a checklist of the start sequence, and progress with controls in one strip."
   : "印刷中は、ヒーター、ファン、ライトごとのチップ、開始シーケンスのチェックリスト、進行状況と操作をまとめたバーが表示されます。"
   "Every screen and setting explained": "すべての画面と設定の説明"
@@ -1909,6 +1912,7 @@ translations:
   'Failed to upload the rewritten G-code: {}': '書き換えたG-codeのアップロードに失敗しました: {}'
   'Failed: {}': '失敗: {}'
   'Failed: {}. Saves {}': '失敗: {}。保存されるもの: {}'
+  Failure Reason: '失敗の理由'
   'Faint lines: compensation off. Bright lines: compensation on.': '薄い線: 補正オフ。明るい線: 補正オン。'
   Fair match: "まずまずの一致"
   Fan: ファン
@@ -1960,6 +1964,7 @@ translations:
   Filament Mapping is unavailable: フィラメントマッピングは利用できません
   Filament Mapping isn't supported on this printer, so the print uses the tools assigned on the printer: このプリンターはフィラメントマッピングに対応していないため、プリンターで割り当てられたツールで印刷します
   Filament Runout: フィラメント切れ
+  Filament Operation: 'フィラメント操作'
   Filament Operations: フィラメント操作
   Filament Sensor: フィラメントセンサー
   Filament Sensors: 'フィラメントセンサー'
@@ -3435,6 +3440,7 @@ translations:
   This filament system keeps its own spool records: "このフィラメントシステムはスプールの記録を自身で管理しています"
   AFC has no Spoolman configured: "AFC に Spoolman が設定されていません"
   Opened: 開
+  Operation: '操作'
   Operation already in progress: 操作がすでに進行中です
   Operation timed out: 操作がタイムアウトしました
   Operations: 操作
@@ -3843,6 +3849,7 @@ translations:
   Profile names cannot contain ';': "プロファイル名に ';' は使用できません"
   Profile renamed: プロファイル名を変更しました
   Profiles: プロファイル
+  Progress: '進行状況'
   Progress, file, and time remaining: 進行状況、ファイル、残り時間
   Prompt before running this macro: このマクロの実行前に確認する
   Provide a boolean {}: '{} を真偽値で入力してください'
