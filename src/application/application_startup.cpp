@@ -108,13 +108,11 @@ bool Application::register_widgets() {
     helix::ui::register_filament_motion_glyph_widget();
     helix::ui::register_plate_glow_widget();
 
-    // Initialize component systems
     ui_component_header_bar_init();
 
     // Small delay to stabilize display
     DisplayManager::delay(100);
 
-    // Initialize memory profiling
     helix::MemoryProfiler::init(m_args.memory_report);
 
     // Log system memory info

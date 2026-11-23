@@ -266,13 +266,10 @@ bool Application::init_display() {
                      pre_set_dpi, scale.lvgl_dpi);
     }
 
-    // Get active screen
     m_screen = lv_screen_active();
 
-    // Set window icon
     ui_set_window_icon(m_display->display());
 
-    // Initialize resize handler
     m_display->init_resize_handler(m_screen);
 
     // Refresh theme tokens (nav_width, overlay widths, spacing) and the
@@ -377,7 +374,6 @@ bool Application::init_theme() {
         return false;
     }
 
-    // Initialize theme
     theme_manager_init(m_display->display(), dark_mode);
 
     // Apply background color to screen

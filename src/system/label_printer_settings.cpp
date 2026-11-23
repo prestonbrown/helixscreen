@@ -114,7 +114,6 @@ void LabelPrinterSettingsManager::set_printer_address(const std::string& addr) {
     config->set<std::string>("/label_printer/address", addr);
     config->save();
 
-    // Update configured subject
     if (subjects_initialized_) {
         lv_subject_set_int(&printer_configured_subject_, addr.empty() ? 0 : 1);
     }

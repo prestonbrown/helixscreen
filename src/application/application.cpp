@@ -981,7 +981,6 @@ int Application::main_loop() {
     spdlog::info("[Application] Entering main loop");
     m_running = true;
 
-    // Initialize timing
     uint32_t start_time = DisplayManager::get_ticks();
     m_last_timeout_check = start_time;
     m_timeout_check_interval = static_cast<uint32_t>(

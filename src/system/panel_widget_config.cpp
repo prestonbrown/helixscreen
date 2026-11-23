@@ -244,7 +244,6 @@ void PanelWidgetConfig::load() {
         if (legacy.is_array() && !legacy.empty()) {
             spdlog::info("[PanelWidgetConfig] Migrating legacy home_widgets to panel_widgets.home");
             config_.set<json>(panel_path, legacy);
-            // Remove legacy key
             config_.get_json("").erase("home_widgets");
             config_.save();
             saved = legacy;

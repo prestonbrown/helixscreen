@@ -209,7 +209,6 @@ PrintingTip TipsManager::get_random_unique_tip() {
         return PrintingTip{};
     }
 
-    // Check if all tips have been viewed
     if (viewed_tip_ids_.size() >= tips_cache.size()) {
         spdlog::info("[TipsManager] All {} tips viewed - resetting session", tips_cache.size());
         viewed_tip_ids_.clear();

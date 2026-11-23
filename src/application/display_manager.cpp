@@ -194,7 +194,6 @@ bool DisplayManager::init(const Config& config) {
         return false;
     }
 
-    // Initialize LVGL library
     lv_init();
 
     // lv_init() builds both cache objects even when lv_conf.h sizes them at 0,
@@ -275,7 +274,6 @@ bool DisplayManager::init(const Config& config) {
     };
     propagate_size_explicit(m_backend.get());
 
-    // Create LVGL display
     m_display = m_backend->create_display(m_width, m_height);
 
     // If the primary backend failed to create a display, try falling back

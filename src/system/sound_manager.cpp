@@ -597,7 +597,6 @@ void SoundManager::play_file(const std::string& path, SoundPriority priority) {
     }
     sequencer_->stop();
 
-    // Create and start tracker
     tracker_ = std::make_unique<helix::audio::TrackerPlayer>(backend_);
     tracker_->load(std::move(*module));
     tracker_priority_ = priority;

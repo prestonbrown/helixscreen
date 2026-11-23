@@ -1025,7 +1025,6 @@ void Config::init(const std::string& config_path) {
         }
 #endif
     } else {
-        // Create default config
         spdlog::info("[Config] Creating default config at {}", path);
         data = get_default_config("127.0.0.1", false);
         config_modified = true;
