@@ -738,6 +738,22 @@ TEST_CASE_METHOD(LVGLTestFixture, "a PID to MPC migration calibrates only on a c
             CHECK(p.value("script", "").find("MPC_CALIBRATE") == std::string::npos);
         }
     }
+    SECTION("Abort during the wait: no heating on the next READY") {
+        state.init_subjects(false);
+        state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);
+        client.settings_reply = extruder_settings("mpc");
+        migrate();
+        REQUIRE(panel.get_state() == PIDCalibrationPanel::State::MIGRATING);
+
+        Access::abort_clicked(panel);
+        // A second migration confirmed while the first wait's READY is due.
+        Access::enter_migrating(panel);
+        state.set_klippy_state_sync(helix::KlippyState::READY);
+        helix::ui::UpdateQueueTestAccess::drain_all(helix::ui::UpdateQueue::instance());
+        for (const auto& p : client.params_of("printer.gcode.script")) {
+            CHECK(p.value("script", "").find("MPC_CALIBRATE") == std::string::npos);
+        }
+    }
     SECTION("Klippy never reported ready to the client: the wait ends in an error") {
         state.init_subjects(false);
         state.set_klippy_state_sync(helix::KlippyState::SHUTDOWN);

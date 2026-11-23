@@ -394,6 +394,14 @@ class CalibrationCollectorCore {
         fallback_.edge_immediate = edge_immediate;
     }
 
+    /// False for a macro that moves no toolhead (MPC_CALIBRATE): idle_timeout
+    /// never reads busy while it runs, so the busy->idle edge says nothing about
+    /// it, and its wait stays on its own lines, Klipper's state and the
+    /// backstop whatever the transport did. Set before arming.
+    void set_busy_flag_tracks_macro(bool tracks) {
+        busy_flag_tracks_macro_ = tracks;
+    }
+
     /// Arm the busy->idle follow-up after an absorbed transport error. Runs on
     /// the main thread (observer attach and the backstop timer both require
     /// it); the driver's error callback may fire on the WebSocket thread, so
@@ -419,7 +427,8 @@ class CalibrationCollectorCore {
                     return;
                 }
                 fallback_.armed = true;
-                fallback_.awaits_lines_only = stream_intact && !fallback_.edge_immediate;
+                fallback_.awaits_lines_only =
+                    !fallback_.edge_immediate && (stream_intact || !busy_flag_tracks_macro_);
                 if (fallback_.awaits_lines_only) {
                     watch_while_awaiting_lines(state);
                 } else {
@@ -542,7 +551,7 @@ class CalibrationCollectorCore {
     }
 
     void on_link_report(PrinterState& state, int link) {
-        if (!fallback_.armed || !fallback_.awaits_lines_only) {
+        if (!fallback_.armed || !fallback_.awaits_lines_only || !busy_flag_tracks_macro_) {
             return;
         }
         if (link == static_cast<int>(ConnectionState::CONNECTED)) {
@@ -662,6 +671,7 @@ class CalibrationCollectorCore {
     std::string handler_name_;
     std::atomic<bool> registered_{false};
     std::atomic<bool> completed_{false};
+    bool busy_flag_tracks_macro_ = true;
 
     /// How long the line-driven collectors let result lines trail the
     /// busy->idle edge before concluding they were lost to the outage.
@@ -1118,6 +1128,7 @@ class MPCCalibrateCollector : public std::enable_shared_from_this<MPCCalibrateCo
                                "the result arrived");
             },
             [this](const std::string& why) { complete_error("MPC_CALIBRATE " + why); });
+        core_.set_busy_flag_tracks_macro(false);
     }
 
     void unregister() {
