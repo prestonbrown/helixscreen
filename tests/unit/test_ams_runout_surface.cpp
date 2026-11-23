@@ -134,9 +134,7 @@ int indicator() {
 
 } // namespace
 
-// ============================================================================
 // 1. ams_filament_runout — edge, not level
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Stale filament_useup latch is not a runout",
                  "[1250][runout-surface][ams]") {
@@ -269,9 +267,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "A runout edge outside a job never arms",
     ams.set_backend(nullptr);
 }
 
-// ============================================================================
 // 2. RuntimeConfig::should_show_runout_modal()
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "Generic runout modal defers only to backends that speak",
                  "[1250][runout-surface][runtime-config]") {

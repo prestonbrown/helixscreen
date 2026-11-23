@@ -75,7 +75,7 @@ class ToolChangerCharHelper : public AmsBackendToolChanger {
 };
 } // namespace helix
 
-// --- emit_event ---
+// emit_event
 
 TEST_CASE("AMS backends: emit_event calls registered callback", "[ams][characterization]") {
     SECTION("AFC") {
@@ -113,7 +113,7 @@ TEST_CASE("AMS backends: emit_event with no callback is safe", "[ams][characteri
     REQUIRE_NOTHROW(backend.call_emit_event(helix::AmsBackend::EVENT_STATE_CHANGED, ""));
 }
 
-// --- check_preconditions ---
+// check_preconditions
 
 TEST_CASE("AMS backends: check_preconditions when not running", "[ams][characterization]") {
     SECTION("AFC") {
@@ -136,7 +136,7 @@ TEST_CASE("AMS backends: check_preconditions when not running", "[ams][character
     }
 }
 
-// --- execute_gcode ---
+// execute_gcode
 
 TEST_CASE("AMS backends: execute_gcode without API returns error", "[ams][characterization]") {
     SECTION("AFC") {
@@ -159,7 +159,7 @@ TEST_CASE("AMS backends: execute_gcode without API returns error", "[ams][charac
     }
 }
 
-// --- State query defaults ---
+// State query defaults
 
 TEST_CASE("AMS backends: default state after construction", "[ams][characterization]") {
     SECTION("AFC") {
@@ -191,7 +191,7 @@ TEST_CASE("AMS backends: default state after construction", "[ams][characterizat
     }
 }
 
-// --- is_running / stop ---
+// is_running / stop
 
 TEST_CASE("AMS backends: stop when not running is safe", "[ams][characterization]") {
     helix::AmsBackendAfc afc(nullptr, nullptr);
@@ -202,7 +202,7 @@ TEST_CASE("AMS backends: stop when not running is safe", "[ams][characterization
     REQUIRE_NOTHROW(tc.stop());
 }
 
-// --- start without client/api ---
+// start without client/api
 
 TEST_CASE("AMS backends: start without client returns not_connected", "[ams][characterization]") {
     SECTION("AFC") {

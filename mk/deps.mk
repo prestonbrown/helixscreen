@@ -273,9 +273,7 @@ install-deps:
 # Note: libhv builds in-tree, so we must clean before cross-compilation
 # to avoid mixing object files from different architectures
 
-# =============================================================================
 # Library Clean Targets
-# =============================================================================
 # Individual clean targets for forcing rebuilds after flag changes or
 # architecture switches. The main 'clean' target calls these automatically,
 # but they're useful for targeted rebuilds without full clean.
@@ -332,9 +330,7 @@ endif
 libs-clean: libhv-clean sdl2-clean lvgl-clean libnl-clean wpa-clean
 	$(ECHO) "$(GREEN)✓ All library artifacts cleaned$(RESET)"
 
-# =============================================================================
 # Library Build Targets
-# =============================================================================
 
 # Per-arch out-of-tree libhv objects + archive (prestonbrown/helixscreen#1058).
 # libhv's own build compiles objects IN-TREE (lib/libhv/base/hsocket.o etc.) and
@@ -671,9 +667,7 @@ venv-setup:
 $(VENV_PYTHON):
 	$(Q)$(MAKE) venv-setup
 
-# ============================================================================
 # Git Hooks Setup
-# ============================================================================
 
 .PHONY: setup-hooks
 setup-hooks:
@@ -688,9 +682,7 @@ setup-hooks:
 		exit 1; \
 	fi
 
-# ============================================================================
 # Build/Dependency Help
-# ============================================================================
 
 .PHONY: libhv-clean sdl2-clean lvgl-clean libnl-clean wpa-clean libs-clean distclean help-build
 help-build:

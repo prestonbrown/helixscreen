@@ -35,9 +35,7 @@
 using namespace helix;
 using namespace helix::ui;
 
-// ============================================================================
 // TestAccess helper — exposes AmsEditOverlay internals for white-box testing
-// ============================================================================
 
 class AmsEditOverlayTestAccess {
   public:
@@ -135,7 +133,6 @@ class AmsEditOverlayTestAccess {
     AmsEditOverlay& overlay_;
 };
 
-// ============================================================================
 // OverlayCommitFixture — the backend/API wiring of CommitFixture
 // (test_ams_state_commit_slot.cpp) plus the temp-config isolation of
 // ExternalSpoolCommitFixture (test_external_spool.cpp). The completion
@@ -143,7 +140,6 @@ class AmsEditOverlayTestAccess {
 // commit_external_spool_edit now, so an overlay save in these tests must
 // reach a mock backend AND a mock Spoolman API without contaminating the
 // real config.
-// ============================================================================
 
 struct OverlayCommitFixture : LVGLTestFixture {
     MoonrakerClientMock client;
@@ -207,10 +203,8 @@ struct OverlayCommitFixture : LVGLTestFixture {
     }
 };
 
-// ============================================================================
 // Tests: a save syncs the active spool with Moonraker via the completion
-// consumer's AmsState commit (the overlay no longer pre-fires it itself)
-// ============================================================================
+// consumer's AmsState commit (the overlay does not pre-fire it itself)
 
 TEST_CASE_METHOD(OverlayCommitFixture, "handle_save sets active spool when spool assigned (0 -> N)",
                  "[ams_edit_overlay][spoolman][active_spool]") {
@@ -437,9 +431,7 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     REQUIRE(client.spoolman_mock().get_mock_active_spool_id() == 169);
 }
 
-// ============================================================================
 // Tests: completion is fired exactly once (covered-vs-dismissed correctness)
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLTestFixture, "fire_completion is idempotent via completion_fired_",
                  "[ams_edit_overlay][lifecycle]") {
@@ -468,10 +460,7 @@ TEST_CASE_METHOD(LVGLTestFixture, "fire_completion is idempotent via completion_
     REQUIRE(fire_count == 1);
 }
 
-// ============================================================================
-// Tests: #1071 create-gate + identity-change predicates (unchanged semantics
-// in this phase — Phase 5 rewrites the gate to the Save-to-Spoolman toggle)
-// ============================================================================
+// Tests: #1071 create-gate + identity-change predicates
 
 TEST_CASE("AmsEditOverlay::should_create_new_spool is gated by the Save-to-Spoolman toggle",
           "[ams_edit_overlay][spoolman][toggle]") {
@@ -690,11 +679,9 @@ TEST_CASE("AmsEditOverlay::is_material_identity_change flags different-spool edi
     CHECK(AmsEditOverlayTestAccess::is_material_identity_change(original, diff_color));
 }
 
-// ============================================================================
 // Tests: #1071 initial-view routing on the singleton overlay. show_for_slot
 // pushes via NavigationManager (async) — drain before asserting, and pop the
 // overlay afterwards so the next test starts clean.
-// ============================================================================
 
 TEST_CASE_METHOD(LVGLUITestFixture,
                  "show_for_slot opens on Assign Spool when asked to pick a spool (#1071)",
@@ -742,9 +729,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "show_for_slot opens a lane with a spool on 
     process_lvgl(10);
 }
 
-// ============================================================================
 // Lane settings: a write the backend refuses is not taken as saved
-// ============================================================================
 
 namespace {
 
@@ -858,10 +843,8 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     CHECK_FALSE(access.lane_dirty());
 }
 
-// ============================================================================
 // Tests: a spool created from the editor becomes active only through the
 // commit's rule (the loaded lane, and only where nothing else switches it)
-// ============================================================================
 
 namespace {
 
@@ -951,10 +934,8 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     CHECK(AmsState::instance().get_external_spool_info().value_or(SlotInfo{}).spoolman_id == 43);
 }
 
-// ============================================================================
 // Tests: the external spool sets or clears the active spool only while it is
 // what feeds (no lane loaded, or the bypass engaged)
-// ============================================================================
 
 namespace {
 
@@ -1033,11 +1014,9 @@ TEST_CASE_METHOD(OverlayCommitFixture,
     CHECK(client.spoolman_mock().get_mock_active_spool_id() == 55);
 }
 
-// ============================================================================
 // A spool added to Spoolman prints its label at once; the save's closing toast
 // reports that print, but never waits long on it, and a label whose editor
 // closed without a toast still reports on its own.
-// ============================================================================
 
 namespace {
 SlotInfo new_external_spool() {

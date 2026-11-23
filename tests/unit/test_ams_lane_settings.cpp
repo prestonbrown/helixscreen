@@ -139,11 +139,9 @@ TEST_CASE("lane_settings::show_backup_row needs a relation, not just availabilit
     }
 }
 
-// =============================================================================
 // Backup eligibility is the BACKEND's rule, reached through
 // AmsBackend::endless_spool_backup_eligibility(), so a backend that tightens it
 // (AD5X IFS) tightens the "(incompatible)" label too.
-// =============================================================================
 
 TEST_CASE("Backup options are tagged by the backend's eligibility rule",
           "[ams][lane_settings][endless_spool][1250]") {

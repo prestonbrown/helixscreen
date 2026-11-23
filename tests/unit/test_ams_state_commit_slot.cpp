@@ -517,9 +517,7 @@ TEST_CASE("context-menu clear on the bypass sentinel names the external spool",
     CHECK(f.backend->get_slot_info(0).material == "PLA");
 }
 
-// ============================================================================
 // The lane source model: what a commit records as the user's own declaration
-// ============================================================================
 
 TEST_CASE("an AFC relink after a restart survives its own echo",
           "[ams][commit][lane][spoolman][afc]") {

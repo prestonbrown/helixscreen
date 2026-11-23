@@ -13,15 +13,14 @@ using namespace helix;
  *
  * The mock is what every `--test` run and every UI-level check actually drives, so
  * where it disagrees with the real backend a regression in the real one is
- * invisible. This file pins the disagreements that mattered.
+ * invisible. This file pins the rules where they must agree.
  *
- * can_unload_from_toolhead() is the one that bit: the mock never overrode it, so it
- * inherited AmsBackend's PARALLEL rule (slot.is_present(), true for every toolhead
- * forever). That feeds the context menu's `toolhead_unload` factor, which inverts
- * into decide_can_load() — so Load came up disabled on every docked tool and the
- * only way to mount one from the AMS panel was gone. That is exactly the shape of
- * prestonbrown/helixscreen#1199, which AmsBackendToolChanger fixed by keying on the
- * carriage slot instead.
+ * can_unload_from_toolhead() must key on the carriage slot, as
+ * AmsBackendToolChanger does (prestonbrown/helixscreen#1199). AmsBackend's
+ * PARALLEL rule (slot.is_present()) is true for every toolhead forever; that
+ * feeds the context menu's `toolhead_unload` factor, which inverts into
+ * decide_can_load(), so Load would come up disabled on every docked tool and
+ * the only way to mount one from the AMS panel would be gone.
  */
 
 TEST_CASE("Mock tool changer: only the carriage tool can unload from the toolhead",

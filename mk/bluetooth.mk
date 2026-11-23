@@ -14,7 +14,7 @@ BT_SO   := $(BIN_DIR)/libhelix-bluetooth.so
 # miniLZO (LZO1X compression for MakeID protocol, compiled into the BT plugin)
 MINILZO_OBJ := $(OBJ_DIR)/bluetooth/minilzo.o
 
-# --- Dependency detection ---
+# Dependency detection
 # Native: use pkg-config / compile test
 # Cross: check sysroot for libraries
 ifneq ($(CROSS_COMPILE),)
@@ -56,7 +56,7 @@ endif
 # recipe adds. print-compile-command (Makefile) prints it for src/bluetooth/.
 BT_COMPILE = $(CXX) $(BT_CXXFLAGS) $(1)
 
-# --- Build rules ---
+# Build rules
 
 .PHONY: bluetooth-plugin
 

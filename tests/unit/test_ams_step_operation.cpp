@@ -28,9 +28,7 @@ using helix::AmsAction;
 using helix::detect_step_operation;
 using helix::StepOperationType;
 
-// ============================================================================
 // External Swap Detection (filament loaded, various start actions)
-// ============================================================================
 
 TEST_CASE("Step operation: external swap starting with HEATING", "[ams-step][step-detect]") {
     // Classic case: nozzle is cold, backend starts with HEATING
@@ -69,9 +67,7 @@ TEST_CASE("Step operation: external swap starting with UNLOADING", "[ams-step][s
     REQUIRE(result.op_type == StepOperationType::LOAD_SWAP);
 }
 
-// ============================================================================
 // External Fresh Load (no filament loaded)
-// ============================================================================
 
 TEST_CASE("Step operation: external fresh load starting with HEATING", "[ams-step][step-detect]") {
     auto result = detect_step_operation(
@@ -101,9 +97,7 @@ TEST_CASE("Step operation: LOADING action always means LOAD_FRESH even if filame
     REQUIRE(result.op_type == StepOperationType::LOAD_FRESH);
 }
 
-// ============================================================================
 // External Unload
-// ============================================================================
 
 TEST_CASE("Step operation: explicit unload (UNLOADING after non-cutting prev)",
           "[ams-step][step-detect]") {
@@ -142,9 +136,7 @@ TEST_CASE("Step operation: UNLOADING does not override LOAD_SWAP", "[ams-step][s
     REQUIRE_FALSE(result.should_recreate);
 }
 
-// ============================================================================
 // Mid-Operation Upgrade: UNLOAD → LOAD_SWAP
-// ============================================================================
 
 TEST_CASE("Step operation: upgrade UNLOAD to LOAD_SWAP when LOADING arrives",
           "[ams-step][step-detect]") {
@@ -165,9 +157,7 @@ TEST_CASE("Step operation: LOADING during LOAD_SWAP does not recreate", "[ams-st
     REQUIRE_FALSE(result.should_recreate);
 }
 
-// ============================================================================
 // UI-Initiated Operations (not external)
-// ============================================================================
 
 TEST_CASE("Step operation: UI-initiated operations are never detected", "[ams-step][step-detect]") {
     // is_external = false — operation was started by our UI via start_operation()
@@ -192,9 +182,7 @@ TEST_CASE("Step operation: UI-initiated LOAD_SWAP not upgraded", "[ams-step][ste
     REQUIRE_FALSE(result.should_recreate);
 }
 
-// ============================================================================
 // Edge Cases
-// ============================================================================
 
 TEST_CASE("Step operation: IDLE action never triggers detection", "[ams-step][step-detect]") {
     auto result =
@@ -220,9 +208,7 @@ TEST_CASE("Step operation: non-IDLE to active does not trigger initial detection
     REQUIRE_FALSE(result.should_recreate);
 }
 
-// ============================================================================
 // Backends whose unloads stand alone (one toolhead per lane, no swap)
-// ============================================================================
 
 TEST_CASE("Step operation: stand-alone unload starting with UNLOADING stays an unload",
           "[ams-step][step-detect]") {

@@ -203,7 +203,7 @@ TEST_CASE_METHOD(LVGLUITestFixture, "ams_mini: idle unload clears the lane highl
     AmsState::instance().sync_from_backend();
     helix::ui::UpdateQueue::instance().drain();
 
-    // current_slot still points at lane 0 — the stale signal the strip used to read.
+    // current_slot still points at lane 0 — the stale signal the strip must not read.
     REQUIRE(lv_subject_get_int(AmsState::instance().get_current_slot_subject()) == 0);
     REQUIRE(lv_subject_get_int(AmsState::instance().get_slot_active_loaded_subject(0)) == 0);
     CHECK_FALSE(badge_is_active(w, 0));

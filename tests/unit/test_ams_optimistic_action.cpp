@@ -542,9 +542,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     helix::ui::UpdateQueue::instance().drain();
 }
 
-// =============================================================================
 // The sidebar on a cold nozzle: FilamentOpHeater runs the wait
-// =============================================================================
 
 TEST_CASE_METHOD(OptimisticSidebarFixture,
                  "Happy Hare cold load: the Heat step follows the heater, then the load runs",
@@ -682,9 +680,7 @@ TEST_CASE_METHOD(OptimisticSidebarFixture,
     CHECK(api_.sent == std::vector<std::string>{"MMU_UNLOAD"});
 }
 
-// =============================================================================
 // Snapmaker U1: silent until its firmware starts, one toolhead per lane
-// =============================================================================
 
 TEST_CASE_METHOD(OptimisticSidebarFixture,
                  "Snapmaker U1 unload: the gap before channel_state moves keeps the unload steps",
