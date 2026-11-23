@@ -48,9 +48,7 @@ static constexpr size_t kMaxPngInputSize = 10 * 1024 * 1024; // 10 MB compressed
 static constexpr int kMaxSourceDimension = kThumbnailMaxSourceDimension;
 static constexpr int kMaxOutputDimension = 1024; // 1K max output
 
-// ============================================================================
 // Singleton
-// ============================================================================
 
 ThumbnailProcessor& ThumbnailProcessor::instance() {
     static ThumbnailProcessor instance;
@@ -94,9 +92,7 @@ void ThumbnailProcessor::shutdown() {
     // when spdlog is already destroyed (static destruction order fiasco)
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ThumbnailProcessor::deliver_result(const ProcessResult& result, const std::string& source,
                                         ProcessSuccessCallback on_success,
@@ -371,9 +367,7 @@ void ThumbnailProcessor::submit_test_task(std::function<void()> task) {
     }
 }
 
-// ============================================================================
 // Private Implementation
-// ============================================================================
 
 ProcessResult
 ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::string& source_path,
@@ -403,9 +397,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
         return result;
     }
 
-    // ========================================================================
     // Step 1: Decode PNG with stb_image
-    // ========================================================================
     int src_width = 0, src_height = 0, src_channels = 0;
 
     helix::MemoryMonitor::log_now("thumbnail_decode_start");
@@ -444,9 +436,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
     spdlog::trace("[ThumbnailProcessor] Decoded {}x{} ({} channels)", src_width, src_height,
                   src_channels);
 
-    // ========================================================================
     // Step 2: Calculate output dimensions (preserve aspect ratio, cover target)
-    // ========================================================================
     // Scale to fit within the target area while maintaining aspect ratio.
     // Using min() ensures the image never exceeds the target dimensions.
 
@@ -468,9 +458,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
     spdlog::trace("[ThumbnailProcessor] Scaling {}x{} -> {}x{} (scale: {:.2f})", src_width,
                   src_height, out_width, out_height, scale);
 
-    // ========================================================================
     // Step 3: Resize with stb_image_resize (high-quality Mitchell filter)
-    // ========================================================================
     std::vector<unsigned char> resized_pixels(out_width * out_height * 4);
 
     int resize_result =
@@ -487,9 +475,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
         return result;
     }
 
-    // ========================================================================
     // Step 4: Convert RGBA to ARGB8888 (LVGL's expected format)
-    // ========================================================================
     // stb_image gives RGBA (R,G,B,A in memory). LV_COLOR_FORMAT_ARGB8888 on
     // little-endian is stored as B,G,R,A in memory, because read as a uint32_t
     // it is 0xAARRGGBB.
@@ -506,9 +492,7 @@ ThumbnailProcessor::do_process(const std::vector<uint8_t>& png_data, const std::
     crash_handler::breadcrumb::note("thumb", "decode_end",
                                     static_cast<long>(out_width) * 10000 + out_height);
 
-    // ========================================================================
     // Step 5: Write LVGL binary file
-    // ========================================================================
     std::string filename = thumbnail_file_name(cache_key, &target);
     std::string output_path = cache_dir + "/" + filename;
 
