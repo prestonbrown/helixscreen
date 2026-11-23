@@ -138,7 +138,17 @@ validate() { run bash -c 'cd "$1" && bash scripts/validate_icon_fonts.sh' _ "$RO
     validate
     [ "$status" -eq 1 ]
     contains "UNDEFINED ICONS (1)" "$output"
-    contains "ghost (used in: a.xml" "$output"
+    contains "ghost (used in: a.xml)" "$output"
+}
+
+@test "validate: an undefined icon used by several files lists them comma-separated" {
+    table '0xF0001 home'
+    both_fonts F0001
+    icon_map home
+    printf '<icon icon="ghost"/>\n' > "$ROOT/ui_xml/a.xml"
+    printf '<icon icon="ghost"/>\n' > "$ROOT/ui_xml/b.xml"
+    validate
+    contains "ghost (used in: a.xml, b.xml)" "$output"
 }
 
 @test "validate: an icon in a commented-out XML line or a *_icon attribute is not a use" {

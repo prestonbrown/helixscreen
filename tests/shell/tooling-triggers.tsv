@@ -54,6 +54,7 @@ tests/shell/test_deploy_platform_hooks.bats	mk/cross.mk scripts/lib/installer/se
 tests/shell/test_deploy_retired_binaries.bats	Makefile mk/cross.mk scripts/lib/installer/requirements.sh
 tests/shell/test_deploy_stop_app.bats	mk/cross.mk scripts/deploy-stop-app-remote.sh
 tests/shell/test_design_ratchets_gate.bats	scripts/design_ratchets.py scripts/qc/design_ratchets.sh scripts/qc/_lib.sh scripts/quality-checks.sh scripts/ratchet.py scripts/check_namespace_compliance.py scripts/check_layering.py scripts/check_vendor_branches.py scripts/check_hand_rolled_swatch.py scripts/check_imperative_ui.py scripts/check_orphan_subjects.py scripts/check_overlay_boilerplate.py scripts/check_cached_widget_pointers.py scripts/check_todo_markers.py scripts/check_comment_archaeology.py scripts/lvgl96_rename.py scripts/diff_base.py scripts/source_strip.py
+tests/shell/test_design_tokens_phase1_gates.bats	scripts/qc/design_tokens.sh scripts/qc/phase1.sh scripts/qc/_lib.sh scripts/ratchet.py scripts/quality-checks.sh
 tests/shell/test_device_env_set.bats	config/helixscreen.env scripts/device-env-set-remote.sh scripts/device-env-set.sh
 tests/shell/test_device_profile.bats	mk/cross.mk scripts/device-profile.sh scripts/lib/installer/common.sh scripts/lib/installer/host_profile.sh scripts/lib/installer/main.sh scripts/lib/installer/platform.sh assets/config/platform/
 tests/shell/test_distribution_partners.bats	.github/workflows/release.yml docs/devel/INSTALLER.md scripts/distribution_partners.json scripts/distribution_partners.py
