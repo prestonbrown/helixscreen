@@ -457,6 +457,28 @@ TEST_CASE("the printer's own start and end macros are picked with their temperat
     }
 }
 
+TEST_CASE("the tower passes its material to a start macro that reads one",
+          "[pa_tuning][pa_macros]") {
+    auto m = pick_machine_macros(kStart, kEnd,
+                                 lookup({{"PRINT_START", {"BED", "EXTRUDER", "MATERIAL"}}}));
+    CHECK(m.start_material_param == "MATERIAL");
+    CHECK(start_macro_call(m, 60, 205, "PLA") == "PRINT_START BED=60 EXTRUDER=205 MATERIAL=PLA");
+
+    SECTION("a macro reading FILAMENT_TYPE gets it under that name") {
+        auto ft = pick_machine_macros(kStart, kEnd, lookup({{"START_PRINT", {"FILAMENT_TYPE"}}}));
+        CHECK(start_macro_call(ft, 60, 205, "PETG-CF") == "START_PRINT FILAMENT_TYPE=PETG-CF");
+    }
+    SECTION("a macro that reads no material is not given one") {
+        auto none = pick_machine_macros(kStart, kEnd, lookup({{"PRINT_START", {"BED"}}}));
+        CHECK(start_macro_call(none, 60, 205, "PLA") == "PRINT_START BED=60");
+    }
+    SECTION("a material a gcode parameter cannot carry is left out") {
+        CHECK(start_macro_call(m, 60, 205, "") == "PRINT_START BED=60 EXTRUDER=205");
+        CHECK(start_macro_call(m, 60, 205, "PLA Matte") == "PRINT_START BED=60 EXTRUDER=205");
+        CHECK(start_macro_call(m, 60, 205, "PLA;x") == "PRINT_START BED=60 EXTRUDER=205");
+    }
+}
+
 TEST_CASE("the tower starts through the start macro and ends through the end macro",
           "[pa_tuning][pa_macros]") {
     TestPrintParams p;
@@ -478,6 +500,13 @@ TEST_CASE("the tower starts through the start macro and ends through the end mac
         const std::string bare = generate_test_gcode(p);
         CHECK(bare.find("SET_HEATER_TEMPERATURE HEATER=extruder TARGET=215") <
               bare.find("\nPRINT_START\n"));
+    }
+    SECTION("a macro that reads the material gets the tower's") {
+        p.macros.start_material_param = "MATERIAL";
+        p.material = "PLA";
+        CHECK(generate_test_gcode(p).find(
+                  "\nPRINT_START BED_TEMP=60 EXTRUDER_TEMP=215 MATERIAL=PLA\n") !=
+              std::string::npos);
     }
     SECTION("no start macro homes and heats itself") {
         p.macros = MachineMacros{};

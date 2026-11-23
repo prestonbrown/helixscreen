@@ -1442,6 +1442,7 @@
   <translation tag="Do not touch the printer during calibration" en="Do not touch the printer during calibration"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." en="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start."/>
   <translation tag="Do not turn the printer off until the update finishes." en="Do not turn the printer off until the update finishes."/>
+  <translation tag="Do what the message asks, then try again." en="Do what the message asks, then try again."/>
   <translation tag="Dock" en="Dock"/>
   <translation tag="Dock every toolhead first" en="Dock every toolhead first"/>
   <translation tag="Dock position change too large" en="Dock position change too large"/>
@@ -5146,6 +5147,7 @@
   <translation tag="The update&apos;s result is unknown" en="The update&apos;s result is unknown"/>
   <translation tag="The {0} motor was not measured: {1}." en="The {0} motor was not measured: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." en="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong."/>
+  <translation tag="The {1} macro stopped with this message." en="The {1} macro stopped with this message."/>
   <translation tag="The {1} motor lost steps" en="The {1} motor lost steps"/>
   <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped." en="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." en="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe."/>
@@ -6069,6 +6071,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" en="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)"/>
   <translation tag="{1} never triggered" en="{1} never triggered"/>
   <translation tag="{1} temperature reading is out of range" en="{1} temperature reading is out of range"/>
+  <translation tag="{2}" en="{2}"/>
   <translation tag="{:.0f} g left" en="{:.0f} g left"/>
   <translation tag="{:.0f} g of {} · {}%" en="{:.0f} g of {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" en="{:.0f}-{:.0f} Hz sweep"/>

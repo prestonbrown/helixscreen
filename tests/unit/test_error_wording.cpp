@@ -93,11 +93,18 @@ TEST_CASE("each Klipper message classifies by its own row", "[error-wording]") {
          "CF-2",
          {"sensor_typ", "extruder"}},
         {"Section 'fan_generic foo' is not a valid config section", "CF-3", {"fan_generic foo"}},
-        {"Error evaluating 'gcode_macro PRINT_START:gcode': UndefinedError: 'dict object' has no "
-         "attribute 'BED_TEMP'",
+        {"Error evaluating 'gcode_macro PRINT_START:gcode': jinja2.exceptions.UndefinedError: "
+         "'dict object' has no attribute 'BED_TEMP'",
          "GC-5",
-         {"gcode_macro PRINT_START:gcode", "UndefinedError",
+         {"gcode_macro PRINT_START:gcode", "jinja2.exceptions.UndefinedError",
           "'dict object' has no attribute 'BED_TEMP'"}},
+        {"Error evaluating 'gcode_macro PRINT_START:gcode': klippy.gcode.CommandError: "
+         "PRINT_START: no filament at the toolhead.",
+         "GC-6",
+         {"PRINT_START", "PRINT_START: no filament at the toolhead."}},
+        {"Error evaluating 'gcode_macro START_PRINT:gcode': gcode.CommandError: Bed too cold",
+         "GC-6",
+         {"START_PRINT", "Bed too cold"}},
         {"SAVE_CONFIG section 'probe' option 'z_offset' conflicts with included value",
          "SC-1",
          {"probe", "z_offset"}},
@@ -134,6 +141,21 @@ TEST_CASE("each Klipper message classifies by its own row", "[error-wording]") {
             CHECK(got->captures[i + 1] == c.captures[i]);
         }
     }
+}
+
+TEST_CASE("a macro that stops on purpose is reported in its own words", "[error-wording]") {
+    // print_stats.message as Kalico reports a PRINT_START action_raise_error.
+    const std::string msg =
+        "Error evaluating 'gcode_macro PRINT_START:gcode': klippy.gcode.CommandError: "
+        "PRINT_START: no filament at the toolhead. Load a lane, then start the print again.\n";
+    const auto got = classify(msg);
+    REQUIRE(got.has_value());
+    const auto w = word(*got);
+    REQUIRE(w.has_value());
+    CHECK(w->summary ==
+          "PRINT_START: no filament at the toolhead. Load a lane, then start the print again.");
+    CHECK(w->cause.find("PRINT_START") != std::string::npos);
+    CHECK(w->cause.find("slicer") == std::string::npos);
 }
 
 TEST_CASE("a message no row knows is left alone", "[error-wording]") {

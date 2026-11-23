@@ -1527,6 +1527,7 @@ translations:
   Do not touch the printer during calibration: Não toque na impressora durante a calibração
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Não desligue a impressora até terminar. Uma queda de energia durante a gravação pode impedir a impressora de iniciar.'
   Do not turn the printer off until the update finishes.: 'Não desligue a impressora até a atualização terminar.'
+  Do what the message asks, then try again.: 'Faça o que a mensagem pede e tente novamente.'
   Dock: Encaixar
   Dock every toolhead first: 'Coloque todos os cabeçotes na doca primeiro'
   Dock position change too large: 'Mudança da posição da doca grande demais'
@@ -5334,6 +5335,7 @@ translations:
   The update's result is unknown: 'O resultado da atualização é desconhecido'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : O acelerômetro {1} não respondeu com o ID esperado. Provavelmente está desconectado, o cabo está danificado ou os pinos SPI estão errados.
+  The {1} macro stopped with this message.: 'A macro {1} parou com esta mensagem.'
   The {1} motor lost steps: O motor {1} perdeu passos
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': 'O motor {1} pulou passos ou travou: o cabeçote bateu na impressão ou uma correia patinou.'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: O sensor {1} leu {2} °C, fora da faixa permitida de {3} a {4} °C, então o firmware desligou todos os aquecedores por segurança.
@@ -6295,6 +6297,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Ondulação {0}x a {1:.0f} mm/s: {2:.0f} antes, {3:.0f} depois ({4}% mais)'
   '{1} never triggered': '{1} nunca acionou'
   '{1} temperature reading is out of range': Leitura de temperatura de {1} fora da faixa
+  '{2}': '{2}'
   '{:.0f} g left': restam {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g de {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': varredura de {:.0f}-{:.0f} Hz

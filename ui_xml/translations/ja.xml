@@ -1442,6 +1442,7 @@
   <translation tag="Do not touch the printer during calibration" ja="キャリブレーション中はプリンターに触れないでください"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." ja="完了するまでプリンターの電源を切らないでください。書き込み中に電源が切れると、プリンターが起動しなくなる可能性があります。"/>
   <translation tag="Do not turn the printer off until the update finishes." ja="更新が完了するまでプリンターの電源を切らないでください。"/>
+  <translation tag="Do what the message asks, then try again." ja="メッセージの指示に従ってから、もう一度お試しください。"/>
   <translation tag="Dock" ja="ドック"/>
   <translation tag="Dock every toolhead first" ja="先にすべてのツールヘッドをドックに戻してください"/>
   <translation tag="Dock position change too large" ja="ドック位置の変更が大きすぎます"/>
@@ -5146,6 +5147,7 @@
   <translation tag="The update&apos;s result is unknown" ja="更新の結果は不明です"/>
   <translation tag="The {0} motor was not measured: {1}." ja="{0} モーターは測定されませんでした: {1}。"/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." ja="{1} の加速度センサーが想定した ID で応答しませんでした。未接続、ケーブルの損傷、または SPI ピンの誤りの可能性が高いです。"/>
+  <translation tag="The {1} macro stopped with this message." ja="マクロ {1} がこのメッセージで停止しました。"/>
   <translation tag="The {1} motor lost steps" ja="{1} のモーターが脱調しました"/>
   <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped." ja="{1} のモーターが脱調または停止しました: ツールヘッドが造形物に当たったか、ベルトが滑りました。"/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." ja="{1} センサーが {2} °C を読み取りました。許容範囲 {3}～{4} °C の外のため、安全のためファームウェアがすべてのヒーターを停止しました。"/>
@@ -6069,6 +6071,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" ja="{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 増加)"/>
   <translation tag="{1} never triggered" ja="{1} が反応しませんでした"/>
   <translation tag="{1} temperature reading is out of range" ja="{1} の温度の読み取り値が範囲外です"/>
+  <translation tag="{2}" ja="{2}"/>
   <translation tag="{:.0f} g left" ja="残り {:.0f} g"/>
   <translation tag="{:.0f} g of {} · {}%" ja="{:.0f} g / {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" ja="{:.0f}-{:.0f} Hz スイープ"/>

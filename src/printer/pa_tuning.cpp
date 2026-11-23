@@ -8,6 +8,7 @@
 #include <spdlog/fmt/fmt.h>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <limits>
 
@@ -143,6 +144,18 @@ constexpr const char* kBedParams[] = {"BED_TEMP", "BED", "BED_TEMPERATURE", "BED
 constexpr const char* kNozzleParams[] = {
     "EXTRUDER_TEMP", "EXTRUDER", "HOTEND_TEMP",         "HOTEND",
     "NOZZLE_TEMP",   "NOZZLE",   "EXTRUDER_TEMPERATURE"};
+/// Spellings a start macro reads the print's material under: what a material
+/// Z offset or a vendor's per-material start sequence keys on.
+constexpr const char* kMaterialParams[] = {"MATERIAL", "FILAMENT_TYPE"};
+
+/// Whether @p material can travel as a gcode parameter value: Klipper splits
+/// parameters on whitespace and cuts a line at '#' or ';'.
+bool material_is_param_safe(std::string_view material) {
+    return !material.empty() && std::all_of(material.begin(), material.end(), [](char c) {
+        return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == '-' || c == '+' ||
+               c == '.';
+    });
+}
 
 template <size_t N>
 std::string first_known(const std::vector<std::string>& params, const char* const (&names)[N]) {
@@ -168,6 +181,7 @@ MachineMacros pick_machine_macros(const std::vector<std::string>& start_candidat
             m.start = name;
             m.start_bed_param = first_known(*params, kBedParams);
             m.start_nozzle_param = first_known(*params, kNozzleParams);
+            m.start_material_param = first_known(*params, kMaterialParams);
             break;
         }
     }
@@ -180,7 +194,8 @@ MachineMacros pick_machine_macros(const std::vector<std::string>& start_candidat
     return m;
 }
 
-std::string start_macro_call(const MachineMacros& m, int bed_temp, int nozzle_temp) {
+std::string start_macro_call(const MachineMacros& m, int bed_temp, int nozzle_temp,
+                             std::string_view material) {
     if (m.start.empty()) {
         return {};
     }
@@ -190,6 +205,9 @@ std::string start_macro_call(const MachineMacros& m, int bed_temp, int nozzle_te
     }
     if (!m.start_nozzle_param.empty()) {
         call += fmt::format(" {}={}", m.start_nozzle_param, nozzle_temp);
+    }
+    if (!m.start_material_param.empty() && material_is_param_safe(material)) {
+        call += fmt::format(" {}={}", m.start_material_param, material);
     }
     return call;
 }
@@ -345,7 +363,8 @@ std::string generate_test_gcode(const TestPrintParams& p) {
 
 std::vector<std::string> machine_ready_lines(const TestPrintParams& p) {
     std::vector<std::string> out;
-    const std::string start_call = start_macro_call(p.macros, p.bed_temp, p.nozzle_temp);
+    const std::string start_call =
+        start_macro_call(p.macros, p.bed_temp, p.nozzle_temp, p.material);
     const bool macro_heats =
         !p.macros.start_bed_param.empty() && !p.macros.start_nozzle_param.empty();
     // The tower's extruder is heated by name: a T parameter on M104/M109 is

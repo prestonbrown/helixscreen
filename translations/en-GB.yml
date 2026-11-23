@@ -1528,6 +1528,7 @@ translations:
   Do not touch the printer during calibration: ''
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: ''
   Do not turn the printer off until the update finishes.: ''
+  Do what the message asks, then try again.: ''
   Dock: ''
   Dock every toolhead first: ''
   Dock position change too large: ''
@@ -5300,6 +5301,7 @@ translations:
   The update's result is unknown: ''
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : ''
+  The {1} macro stopped with this message.: ''
   The {1} motor lost steps: ''
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': ''
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: ''
@@ -6259,6 +6261,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': ''
   '{1} never triggered': ''
   '{1} temperature reading is out of range': ''
+  '{2}': ''
   '{:.0f} g left': ''
   '{:.0f} g of {} · {}%': ''
   '{:.0f}-{:.0f} Hz sweep': ''

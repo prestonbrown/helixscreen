@@ -1587,6 +1587,7 @@ translations:
   Do not touch the printer during calibration: Не трогайте принтер во время калибровки
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Не выключайте принтер до завершения. Пропадание питания во время прошивки может привести к тому, что принтер не запустится.'
   Do not turn the printer off until the update finishes.: 'Не выключайте принтер до завершения обновления.'
+  Do what the message asks, then try again.: 'Выполните то, что требует сообщение, затем попробуйте снова.'
   Dock: Парковать
   Dock every toolhead first: 'Сначала поставьте все головки в доки'
   Dock position change too large: 'Слишком большое изменение положения дока'
@@ -5422,6 +5423,7 @@ translations:
   The update's result is unknown: 'Результат обновления неизвестен'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Акселерометр {1} не ответил ожидаемым ID. Скорее всего, он отключён, его кабель повреждён или неверно заданы пины SPI.
+  The {1} macro stopped with this message.: 'Макрос {1} остановился с этим сообщением.'
   The {1} motor lost steps: Мотор {1} потерял шаги
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': 'Мотор {1} пропустил шаги или остановился: печатающая головка ударилась о модель или проскользнул ремень.'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: Датчик {1} показал {2} °C вне допустимого диапазона от {3} до {4} °C, поэтому прошивка ради безопасности остановила все нагреватели.
@@ -6387,6 +6389,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': 'Пульсация {0}x на {1:.0f} mm/s: {2:.0f} до, {3:.0f} после ({4}% больше)'
   '{1} never triggered': '{1} так и не сработал'
   '{1} temperature reading is out of range': Показания температуры {1} вне диапазона
+  '{2}': '{2}'
   '{:.0f} g left': осталось {:.0f} г
   '{:.0f} g of {} · {}%': '{:.0f} г из {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': развертка {:.0f}-{:.0f} Гц

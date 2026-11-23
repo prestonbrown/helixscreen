@@ -1527,6 +1527,7 @@ translations:
   Do not touch the printer during calibration: キャリブレーション中はプリンターに触れないでください
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完了するまでプリンターの電源を切らないでください。書き込み中に電源が切れると、プリンターが起動しなくなる可能性があります。'
   Do not turn the printer off until the update finishes.: '更新が完了するまでプリンターの電源を切らないでください。'
+  Do what the message asks, then try again.: 'メッセージの指示に従ってから、もう一度お試しください。'
   Dock: ドック
   Dock every toolhead first: '先にすべてのツールヘッドをドックに戻してください'
   Dock position change too large: 'ドック位置の変更が大きすぎます'
@@ -5334,6 +5335,7 @@ translations:
   The update's result is unknown: '更新の結果は不明です'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : '{1} の加速度センサーが想定した ID で応答しませんでした。未接続、ケーブルの損傷、または SPI ピンの誤りの可能性が高いです。'
+  The {1} macro stopped with this message.: 'マクロ {1} がこのメッセージで停止しました。'
   The {1} motor lost steps: '{1} のモーターが脱調しました'
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': '{1} のモーターが脱調または停止しました: ツールヘッドが造形物に当たったか、ベルトが滑りました。'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: '{1} センサーが {2} °C を読み取りました。許容範囲 {3}～{4} °C の外のため、安全のためファームウェアがすべてのヒーターを停止しました。'
@@ -6295,6 +6297,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s での {0}x リップル: 前 {2:.0f}、後 {3:.0f} ({4}% 増加)'
   '{1} never triggered': '{1} が反応しませんでした'
   '{1} temperature reading is out of range': '{1} の温度の読み取り値が範囲外です'
+  '{2}': '{2}'
   '{:.0f} g left': 残り {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz スイープ'

@@ -1527,6 +1527,7 @@ translations:
   Do not touch the printer during calibration: 校准期间请勿触碰打印机
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: '完成之前请勿关闭打印机。刷写过程中断电可能导致打印机无法启动。'
   Do not turn the printer off until the update finishes.: '更新完成之前请勿关闭打印机。'
+  Do what the message asks, then try again.: '请按消息的要求操作，然后重试。'
   Dock: 归位
   Dock every toolhead first: '请先停靠所有工具头'
   Dock position change too large: '停靠位置变化过大'
@@ -5334,6 +5335,7 @@ translations:
   The update's result is unknown: '更新结果未知'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : '{1} 加速度计未返回预期的 ID。很可能是未插好、线缆损坏，或 SPI 引脚错误。'
+  The {1} macro stopped with this message.: '宏 {1} 已停止，并给出了此消息。'
   The {1} motor lost steps: '{1} 电机丢步'
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': '{1} 电机丢步或堵转：工具头撞到打印件，或皮带打滑。'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: '{1} 传感器读数为 {2} °C，超出允许的 {3} 至 {4} °C 范围，为安全起见，固件已停止所有加热器。'
@@ -6295,6 +6297,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{1:.0f} mm/s 下的 {0}x 纹波：之前 {2:.0f}，之后 {3:.0f}（增加 {4}%）'
   '{1} never triggered': '{1} 从未触发'
   '{1} temperature reading is out of range': '{1} 温度读数超出范围'
+  '{2}': '{2}'
   '{:.0f} g left': 剩余 {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g / {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz 扫频'

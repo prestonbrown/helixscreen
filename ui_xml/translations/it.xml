@@ -1442,6 +1442,7 @@
   <translation tag="Do not touch the printer during calibration" it="Non toccare la stampante durante la calibrazione"/>
   <translation tag="Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start." it="Non spegnere la stampante finché non ha finito. Un&apos;interruzione di corrente durante il flash può impedire l&apos;avvio della stampante."/>
   <translation tag="Do not turn the printer off until the update finishes." it="Non spegnere la stampante finché l&apos;aggiornamento non è terminato."/>
+  <translation tag="Do what the message asks, then try again." it="Fai ciò che chiede il messaggio, poi riprova."/>
   <translation tag="Dock" it="Aggancia"/>
   <translation tag="Dock every toolhead first" it="Aggancia prima tutte le testine"/>
   <translation tag="Dock position change too large" it="Modifica della posizione del dock troppo grande"/>
@@ -5146,6 +5147,7 @@
   <translation tag="The update&apos;s result is unknown" it="Il risultato dell&apos;aggiornamento è sconosciuto"/>
   <translation tag="The {0} motor was not measured: {1}." it="Il motore {0} non è stato misurato: {1}."/>
   <translation tag="The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong." it="L&apos;accelerometro {1} non ha risposto con l&apos;ID previsto. Molto probabilmente è scollegato, il suo cavo è danneggiato o i suoi pin SPI sono errati."/>
+  <translation tag="The {1} macro stopped with this message." it="La macro {1} si è fermata con questo messaggio."/>
   <translation tag="The {1} motor lost steps" it="Il motore {1} ha perso passi"/>
   <translation tag="The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped." it="Il motore {1} ha saltato passi o si è bloccato: la testina ha colpito la stampa oppure una cinghia è slittata."/>
   <translation tag="The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe." it="Il sensore {1} ha letto {2} °C, fuori dall&apos;intervallo consentito da {3} a {4} °C, quindi il firmware ha fermato tutti i riscaldatori per sicurezza."/>
@@ -6069,6 +6071,7 @@
   <translation tag="{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)" it="Ondulazione {0}x a {1:.0f} mm/s: {2:.0f} prima, {3:.0f} dopo ({4}% in più)"/>
   <translation tag="{1} never triggered" it="{1} non si è mai attivato"/>
   <translation tag="{1} temperature reading is out of range" it="Lettura della temperatura di {1} fuori intervallo"/>
+  <translation tag="{2}" it="{2}"/>
   <translation tag="{:.0f} g left" it="restano {:.0f} g"/>
   <translation tag="{:.0f} g of {} · {}%" it="{:.0f} g di {} · {}%"/>
   <translation tag="{:.0f}-{:.0f} Hz sweep" it="scansione {:.0f}-{:.0f} Hz"/>

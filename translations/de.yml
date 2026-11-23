@@ -1527,6 +1527,7 @@ translations:
   Do not touch the printer during calibration: Drucker während der Kalibrierung nicht berühren
   Do not turn the printer off until it finishes. Losing power while it flashes can leave the printer unable to start.: 'Schalte den Drucker nicht aus, bis es fertig ist. Ein Stromausfall während des Flashens kann den Drucker unstartbar machen.'
   Do not turn the printer off until the update finishes.: 'Schalte den Drucker nicht aus, bis das Update abgeschlossen ist.'
+  Do what the message asks, then try again.: 'Tun, was die Meldung verlangt, dann erneut versuchen.'
   Dock: Andocken
   Dock every toolhead first: 'Zuerst alle Werkzeugköpfe andocken'
   Dock position change too large: 'Änderung der Dock-Position zu groß'
@@ -5334,6 +5335,7 @@ translations:
   The update's result is unknown: 'Das Ergebnis des Updates ist unbekannt'
   ? The {1} accelerometer did not answer with its expected ID. It is most likely unplugged, its cable is damaged, or its SPI pins are wrong.
   : Der Beschleunigungssensor {1} hat nicht mit seiner erwarteten ID geantwortet. Höchstwahrscheinlich ist er ausgesteckt, sein Kabel ist beschädigt oder seine SPI-Pins sind falsch.
+  The {1} macro stopped with this message.: 'Das Makro {1} hat mit dieser Meldung angehalten.'
   The {1} motor lost steps: Der Motor {1} hat Schritte verloren
   'The {1} motor skipped steps or stalled: the toolhead hit the print, or a belt slipped.': 'Der Motor {1} hat Schritte übersprungen oder ist blockiert: Der Werkzeugkopf ist gegen den Druck gestoßen oder ein Riemen ist durchgerutscht.'
   The {1} sensor read {2} °C, outside its allowed range of {3} to {4} °C, so the firmware stopped every heater to be safe.: Der Sensor {1} hat {2} °C gemessen, außerhalb seines zulässigen Bereichs von {3} bis {4} °C, daher hat die Firmware zur Sicherheit alle Heizungen abgeschaltet.
@@ -6295,6 +6297,7 @@ translations:
   '{0}x ripple at {1:.0f} mm/s: {2:.0f} before, {3:.0f} after ({4}% more)': '{0}x-Welligkeit bei {1:.0f} mm/s: {2:.0f} vorher, {3:.0f} nachher ({4}% mehr)'
   '{1} never triggered': '{1} hat nie ausgelöst'
   '{1} temperature reading is out of range': Temperaturmessung von {1} außerhalb des Bereichs
+  '{2}': '{2}'
   '{:.0f} g left': noch {:.0f} g
   '{:.0f} g of {} · {}%': '{:.0f} g von {} · {}%'
   '{:.0f}-{:.0f} Hz sweep': '{:.0f}-{:.0f} Hz Durchlauf'
