@@ -834,26 +834,27 @@ Select the mock AMS topology/type.
 
 | Value | Units | What it simulates |
 |-------|-------|-------------------|
-| *(unset)* | 1 | The persona's default AMS (see **Default**). Where that is Happy Hare it is **mock HARDWARE, real backend**: Happy Hare 4 on one ERCF (`HELIX_AMS_GATES` gates, spools 1-8 of the mock Spoolman in turn, gate 1 loaded, gate 4 empty), publishing `mmu`, `mmu_machine` and the v4 configfile sections and answering `MMU_LOAD` / `MMU_UNLOAD` / `MMU_EJECT` / `MMU_SELECT` / `MMU_SELECT_BYPASS` / `MMU_HOME` / `T<n>` with frame-by-frame `action` and `filament_pos`, plus `MMU_GATE_MAP`, `MMU_TTG_MAP`, `MMU_ENDLESS_SPOOL`, `MMU_PRELOAD`, `MMU_RECOVER`, `MMU_SYNC_FEEDBACK` and `MMU_FAN` (`src/mock/moonraker_client_mock_happy_hare.cpp`), so real discovery builds the production `AmsBackendHappyHare`. Setting any knob only `AmsBackendMock` serves (`helix::mock::kMockBackendKnobs`: `HELIX_MOCK_AMS_STATE` other than `idle`, the `HELIX_MOCK_DRYER*` / `HELIX_MOCK_DRYING` family, `HELIX_MOCK_AMS_ENV`, `HELIX_MOCK_NO_HUMIDITY`, `HELIX_MOCK_REMAP*`, `HELIX_MOCK_BUFFER_STATE`) keeps the default on `AmsBackendMock`'s Happy Hare simulation, as do `ercf` and `tradrack` |
+| *(unset)* | 1 | The persona's default AMS (see **Default**). Where that is Happy Hare it is **mock HARDWARE, real backend**: Happy Hare 4 on one ERCF (`HELIX_AMS_GATES` gates, spools 1-8 of the mock Spoolman in turn, gate 1 loaded, gate 4 empty), publishing `mmu`, `mmu_machine` and the v4 configfile sections and answering `MMU_LOAD` / `MMU_UNLOAD` / `MMU_EJECT` / `MMU_SELECT` / `MMU_SELECT_BYPASS` / `MMU_HOME` / `T<n>` with frame-by-frame `action` and `filament_pos`, plus `MMU_GATE_MAP`, `MMU_TTG_MAP`, `MMU_ENDLESS_SPOOL`, `MMU_PRELOAD`, `MMU_RECOVER`, `MMU_SYNC_FEEDBACK` and `MMU_FAN` (`src/mock/moonraker_client_mock_happy_hare.cpp`), so real discovery builds the production `AmsBackendHappyHare`. Setting any knob only `AmsBackendMock` serves (`helix::mock::kMockBackendKnobs`: `HELIX_MOCK_AMS_STATE` other than `idle`, the `HELIX_MOCK_DRYER*` / `HELIX_MOCK_DRYING` family, `HELIX_MOCK_AMS_ENV`, `HELIX_MOCK_NO_HUMIDITY`, `HELIX_MOCK_REMAP*`, `HELIX_MOCK_BUFFER_STATE`) keeps the default on `AmsBackendMock`'s Happy Hare simulation |
 | `happy_hare` / `hh` | 1 | The Happy Hare mock hardware above, whatever scenario knobs are set |
 | `none` | - | No mock AMS at all |
 | `ace` | 1 | Anycubic ACE identity on the mock backend, 4 slots whatever `HELIX_AMS_GATES` says |
 | `afc` | 1 | **AFC on one Box Turtle - mock HARDWARE, real backend.** Publishes `AFC`, `AFC_BoxTurtle Turtle_1`, its hub, TurtleNeck buffer, `AFC_extruder extruder` and `AFC_stepper lane1`..`laneN` (`HELIX_AMS_GATES`, 2 to 8, the counts a Box Turtle is built in; lane 1 tooled, lane 4 unlinked and weightless) with no `mmu`, and answers `TOOL_LOAD` / `CHANGE_TOOL` / `T<n>` / `TOOL_UNLOAD`, `SET_COLOR` / `SET_MATERIAL` / `SET_WEIGHT` / `SET_SPOOL_ID` / `SET_MAP`, AFC DEV's `AFC_SET_SPOOL_TEMP` and `SET_FILAMENT_INFO` (both listed in `printer.gcode.help`) and `LANE_UNLOAD`, so real discovery builds the production `AmsBackendAfc`. Aliases: `box_turtle`, `boxturtle` |
 | `afc_ace` | 1 | **An ACE Pro run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_ACE Ace_1` over `AFC_lane lane1`..`lane4` (an ACE Pro has four; `HELIX_AMS_GATES` is ignored) and no buffer. The unit object carries AFC_ACE.py's `ace_dryer` / `ace_dryer_target` / `ace_dryer_duration` / `ace_dryer_remain` / `ace_temp` / `ace_humidity`, mid cycle at start (50 °C, 205 of 240 minutes left), and `ace_slots` with an identified RFID tag for every loaded spool, and `AFC_ACE_DRY UNIT=Ace_1 TEMP= DURATION=` / `AFC_ACE_DRY_STOP UNIT=Ace_1` start and stop it. Alias: `afc-ace` |
 | `afc_cfs` | 1 | **A Creality CFS run through AFC DEV - mock HARDWARE, real backend.** The `afc` mock with `AFC_CFS cfs_1` over `AFC_lane lane1`..`lane4` (a CFS has four; `HELIX_AMS_GATES` is ignored) and no buffer; the unit object's `cfs.lanes.<lane>.tag` carries each loaded spool's decoded tag (material, color, 1000 g). Alias: `afc-cfs` |
-| `kms` | 1 | Happy Hare on a KMS: the mock backend with the unit reporting vendor `KMS`, HUB, 4 lanes (the count its drawing has) |
-| `hh_vivid` | 1 | Happy Hare on a BTT ViViD: the mock backend with the unit reporting vendor `VVD`, LINEAR, always 4 lanes |
+| `ercf`, `tradrack` | 1 | Happy Hare on that selector rail - **mock HARDWARE, real backend**, like the default: the same simulation with the unit reporting vendor `ERCF` or `Tradrack` and a `LinearSelector`. `HELIX_AMS_GATES` picks the gate count (art exists for 4, 6, 8, 9 and 12) |
+| `kms` | 1 | Happy Hare on a KMS - **mock HARDWARE, real backend**, as is every `hh_*` row: the default's simulation with the unit reporting vendor `KMS` and a `VirtualSelector` (HUB) |
+| `hh_vivid` | 1 | Happy Hare on a BTT ViViD: vendor `VVD`, `IndexedSelector` (LINEAR), always 4 lanes |
 | `hh_qidi` | 1 | Happy Hare on a QIDI Box: vendor `QIDI`, HUB, always 4 lanes |
-| `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, LINEAR, 4 lanes |
+| `hh_htlf` | 1 | Happy Hare on an HTLF: vendor `HTLF`, `RotarySelector` (LINEAR), 4 lanes |
 | `hh_night_owl` | 1 | Happy Hare on a Night Owl: vendor `NightOwl`, HUB, always 2 lanes |
 | `hh_box_turtle` | 1 | Happy Hare on a Box Turtle: vendor `BoxTurtle`, HUB, `HELIX_AMS_GATES` lanes from 2 to 8; the enclosed drawing while the mock reports a dryer or climate |
-| `hh_mmx` | 1 | Happy Hare on an MMX: vendor `MMX`, LINEAR (a ServoSelector), 4 lanes |
-| `hh_3ms` | 1 | Happy Hare on a 3MS: vendor `3MS`, HUB (a VirtualSelector), 4 lanes |
-| `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB (a VirtualSelector), 4 lanes |
+| `hh_mmx` | 1 | Happy Hare on an MMX: vendor `MMX`, `ServoSelector` (LINEAR), 4 lanes |
+| `hh_3ms` | 1 | Happy Hare on a 3MS: vendor `3MS`, HUB, 4 lanes |
+| `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB, 4 lanes |
 | `hh_other` | 1 | Happy Hare on hardware it has no vendor constant for: vendor `Other`, HUB, `HELIX_AMS_GATES` lanes. Nothing identifies the unit, so it is drawn as the generic tray until a **Unit Type** is picked in Multi-Filament System Management |
-| `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: model `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
-| `quattro_box` | 1 | AFC Quattro Box, HUB, always 4 lanes. Alias: `quattrobox` |
-| `afc_bmcu` | 1 | AFC BMCU (`BMCU BMCU_1`), HUB, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
+| `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: vendor `Other`, display name `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
+| `quattro_box` | 1 | AFC Quattro Box - **mock HARDWARE, real backend**: `afc`'s simulation as `[AFC_QuattroBox QuattroBox_1]` over `AFC_lane` lanes, no buffer, always 4 lanes. Alias: `quattrobox` |
+| `afc_bmcu` | 1 | AFC BMCU - **mock HARDWARE, real backend**: `[AFC_BMCU BMCU_1]` over `AFC_lane` lanes, no buffer, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |
@@ -897,7 +898,7 @@ HELIX_MOCK_MULTIACE_UNITS=2 ./build/bin/helix-screen --test
 
 A mode that stands for a real product keeps `HELIX_AMS_GATES` inside the lane counts that product is built in (a Box Turtle 2 to 8, a Night Owl 2, the others named above 4) and logs the count it ignored (`helix::mock::mock_real_lane_count` in `include/mock_persona.h`). `kms` and `hh_htlf` still take `HELIX_AMS_GATES` as given.
 
-`HELIX_MOCK_AMS=ercf` and `HELIX_MOCK_AMS=tradrack` report the Happy Hare mock as that selector rail; `HELIX_AMS_GATES` picks the gate count (art exists for 4, 6, 8, 9 and 12).
+The Happy Hare unit modes (`ercf`, `tradrack`, `kms`, `hh_*`) run the production backend on any persona that publishes `mmu`, whatever the mock-backend knobs say; on one that does not (`cc1`, `ad5x`, `k2`, `snapmaker_u1`), `AmsBackendMock` shows the unit instead. Their rows are `helix::mock::happy_hare_mock_unit` in `include/mock_persona.h`.
 
 `HELIX_MOCK_AMS=indx` takes these knobs (read when the mock builds its object list):
 

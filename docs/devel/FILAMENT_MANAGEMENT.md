@@ -3865,13 +3865,18 @@ sliders in its **Filament Control** section (`AmsBackendQidi::get_device_actions
 
 ## Mock Mode for Testing
 
-The `AmsBackendMock` simulates any of the supported backend types for UI development and testing.
+Most `HELIX_MOCK_AMS` modes are mock HARDWARE: `MoonrakerClientMock` publishes the objects a real
+controller does and answers the G-code its backend sends, so `--test` runs the production backend
+(`helix::mock::mock_hardware_backend()` in `include/mock_persona.h` is the one list). `AmsBackendMock`
+remains for the fictional screenshot topologies (`mixed`, `multi`, `torture`, `stealth`,
+`afc_direct`, `vivid`, `htlf_toolchanger`), the `ace` identity, the default Happy Hare when a
+scenario knob only it serves is set, and as a seedable backend for unit tests.
 
 ### Activation
 
 Mock mode is activated when `RuntimeConfig::should_mock_ams()` returns true (typically via the `--test` CLI flag). The factory method `AmsBackend::create()` automatically returns a mock backend in this case.
 
-Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test`: for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The default persona's Happy Hare is itself mock hardware: `helix::mock::HappyHareSim` (`src/mock/moonraker_client_mock_happy_hare.cpp`) publishes Happy Hare 4 on one ERCF and answers the `MMU_*` and `T<n>` commands the backend sends, stepping `action` and `filament_pos` through each move, so plain `--test` already runs `AmsBackendHappyHare` unless a knob only `AmsBackendMock` serves is set (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` § `HELIX_MOCK_AMS`).
+Pass `--real-ams` alongside `--test` to opt back out and drive a real backend (e.g. `AmsBackendHappyHare`) against the mock Moonraker client instead of `AmsBackendMock`. This is what makes backend-specific chokepoints reachable under `--test`: for example `AmsSubscriptionBackend::ensure_homed_then()`'s G28 in front of an unhomed operation, which `AmsBackendMock` never goes near since it doesn't inherit `AmsSubscriptionBackend`. The default persona's Happy Hare is itself mock hardware: `helix::mock::HappyHareSim` (`src/mock/moonraker_client_mock_happy_hare.cpp`) publishes Happy Hare 4 on one unit (an ERCF by default; `ercf`, `tradrack`, `kms` and the `hh_*` modes name another) and answers the `MMU_*` and `T<n>` commands the backend sends, stepping `action` and `filament_pos` through each move, so plain `--test` already runs `AmsBackendHappyHare` unless a knob only `AmsBackendMock` serves is set (`docs/devel/MOCK_ENVIRONMENT_VARIABLES.md` § `HELIX_MOCK_AMS`).
 
 **`--real-ams` seeds Happy Hare only and does not compose with `HELIX_MOCK_AMS`.** The backend comes from mock hardware discovery, not from `HELIX_MOCK_AMS`: that variable is read inside `AmsBackend::create()`'s mock branch (`src/printer/ams_backend.cpp`), which `--real-ams` bypasses entirely. So a mode `AmsBackendMock` simulates (`mixed`, say) combined with `--real-ams` gets the default persona's Happy Hare, not that topology. The modes that are mock hardware (`helix::mock::mock_hardware_backend()`) imply `--real-ams` on their own.
 
