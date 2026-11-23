@@ -403,6 +403,7 @@ void CalibrationRunOverlay::init_subjects() {
     add_string(results_sub_, results_sub_buf_, kLongLen, "cal_run_results_sub");
     add_string(save_line_, save_line_buf_, kLongLen, "cal_run_save_line");
     add_string(save_sub_, save_sub_buf_, kShortLen, "cal_run_save_sub");
+    add_int(save_sub_hidden_, 1, "cal_run_save_sub_hidden");
     add_int(has_error_, 0, "cal_run_has_error");
     add_string(error_, error_buf_, kLongLen, "cal_run_error");
 
@@ -812,7 +813,7 @@ void CalibrationRunOverlay::publish_run() {
     const bool offers_save = can_save && !busy;
     lv_subject_set_int(&offers_save_, offers_save ? 1 : 0);
     set_text(results_primary_, results_primary_label(offers_save, restart_known_, save_restarts_));
-    set_text(save_sub_, "");
+    std::string save_sub;
     switch (phase) {
     case RunPhase::Saving:
         set_text(save_line_, lv_tr("Saving..."));
@@ -838,12 +839,14 @@ void CalibrationRunOverlay::publish_run() {
             // The count and the restart on two lines: beside a long translation of the
             // save button one line has no room for both.
             set_text(save_line_, count);
-            set_text(save_sub_, !restart_known_  ? lv_tr("Klipper may restart")
-                                : save_restarts_ ? lv_tr("one restart")
-                                                 : lv_tr("no restart"));
+            save_sub = !restart_known_  ? lv_tr("Klipper may restart")
+                       : save_restarts_ ? lv_tr("one restart")
+                                        : lv_tr("no restart");
         }
         break;
     }
+    set_text(save_sub_, save_sub);
+    lv_subject_set_int(&save_sub_hidden_, save_sub.empty() ? 1 : 0);
     const std::string err = run_->error().empty() ? end_note_text(run_->end_note()) : run_->error();
     lv_subject_set_int(&has_error_, err.empty() ? 0 : 1);
     set_text(error_, err);

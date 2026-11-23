@@ -32,6 +32,9 @@
                               "0" for a primary that sends nothing (See results, Done)
      status / status_subject  the status line; status_sub_subject a second line;
                               status_color and status_font its look
+     status_sub_hide_subject  an int subject; 1 hides the second line, so a status
+                              with nothing under it sits centered (not with
+                              status_compact, whose lines bind their own hiding)
      status_compact="1"       at 480x272 the status shows status_compact_subject and
                               status_sub_compact_subject instead
      divider="0"              no line above the footer (the step intros)
@@ -98,6 +101,7 @@
     <prop name="status_tag" type="string" default=""/>
     <prop name="status_subject" type="string" default=""/>
     <prop name="status_sub_subject" type="string" default=""/>
+    <prop name="status_sub_hide_subject" type="string" default=""/>
     <prop name="status_color" type="string" default="#text_muted"/>
     <prop name="status_font" type="string" default="#cal_font_subtitle"/>
     <prop name="status_compact" type="int" default="0"/>
@@ -120,7 +124,9 @@
                  style_text_align="center" style_text_font="$status_font" style_text_color="$status_color"/>
       <text_body width="100%"
                  bind_text="$status_sub_subject" long_mode="dots" style_text_align="center"
-                 style_text_font="#cal_font_detail" style_text_color="#text_muted" hidden_if_empty="$status_sub_subject"/>
+                 style_text_font="#cal_font_detail" style_text_color="#text_muted" hidden_if_empty="$status_sub_subject">
+        <bind_flag_if_eq subject="$status_sub_hide_subject" flag="hidden" ref_value="1"/>
+      </text_body>
     </lv_obj>
     <lv_obj name="cal_footer_row"
             width="100%" height="content" style_pad_all="0" style_bg_opa="0" style_border_width="0" flex_flow="row"
@@ -182,7 +188,9 @@
           <text_body name="cal_footer_status_sub"
                      width="100%" bind_text="$status_sub_subject" long_mode="dots" style_text_align="center"
                      style_text_font="#cal_font_detail" style_text_color="#text_muted"
-                     hidden_if_empty="$status_sub_subject"/>
+                     hidden_if_empty="$status_sub_subject">
+            <bind_flag_if_eq subject="$status_sub_hide_subject" flag="hidden" ref_value="1"/>
+          </text_body>
         </if>
         <if cond="$status_compact eq 1">
           <!-- DUPLICATE_NAME_OK: one <if> branch is built -->

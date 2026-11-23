@@ -285,6 +285,8 @@ class CalibrationRunOverlay : public OverlayBase {
     /// Under the save line: whether saving restarts Klipper, when it offers a save.
     helix::Subject save_sub_;
     char save_sub_buf_[kShortLen]{};
+    /// 1 while save_sub_ is empty, so the save line sits alone and centered.
+    helix::Subject save_sub_hidden_;
     helix::Subject has_error_;
     helix::Subject error_;
     char error_buf_[kLongLen]{};

@@ -268,9 +268,10 @@
       <wizard_frame_footer name="cal_run_results_footer"
                            back_text="Discard all" back_callback="on_cal_run_discard" back_name="btn_cal_run_discard"
                            back_hide_subject="cal_run_hide_discard" status_subject="cal_run_save_line"
-                           status_sub_subject="cal_run_save_sub" primary_subject="cal_run_results_primary"
-                           primary_callback="on_cal_run_results_primary" primary_name="btn_cal_run_save"
-                           primary_hide_subject="cal_run_results_busy" primary_needs_printer="cal_run_offers_save eq 1"/>
+                           status_sub_subject="cal_run_save_sub" status_sub_hide_subject="cal_run_save_sub_hidden"
+                           primary_subject="cal_run_results_primary" primary_callback="on_cal_run_results_primary"
+                           primary_name="btn_cal_run_save" primary_hide_subject="cal_run_results_busy"
+                           primary_needs_printer="cal_run_offers_save eq 1"/>
     </lv_obj>
   </view>
 </component>
