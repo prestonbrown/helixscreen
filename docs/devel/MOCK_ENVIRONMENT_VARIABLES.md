@@ -853,8 +853,8 @@ Select the mock AMS topology/type.
 | `hh_emu` | 1 | Happy Hare on an EMU: vendor `EMU`, HUB, 4 lanes |
 | `hh_other` | 1 | Happy Hare on hardware it has no vendor constant for: vendor `Other`, HUB, `HELIX_AMS_GATES` lanes. Nothing identifies the unit, so it is drawn as the generic tray until a **Unit Type** is picked in Multi-Filament System Management |
 | `hh_yammu` | 1 | Happy Hare on one YAMMU drawer: vendor `Other`, display name `YAMMU`, HUB, always 4 lanes; drawn as the upper drawer |
-| `quattro_box` | 1 | AFC Quattro Box - **mock HARDWARE, real backend**: `afc`'s simulation as `[AFC_QuattroBox QuattroBox_1]` over `AFC_lane` lanes, no buffer, always 4 lanes. Alias: `quattrobox` |
-| `afc_bmcu` | 1 | AFC BMCU - **mock HARDWARE, real backend**: `[AFC_BMCU BMCU_1]` over `AFC_lane` lanes, no buffer, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
+| `quattro_box` | 1 | AFC Quattro Box - **mock HARDWARE, real backend**: `afc`'s simulation as `[AFC_QuattroBox QuattroBox_1]` over `AFC_lane` lanes with the TurtleNeck buffer, always 4 lanes. Alias: `quattrobox` |
+| `afc_bmcu` | 1 | AFC BMCU - **mock HARDWARE, real backend**: `[AFC_BMCU BMCU_1]` over `AFC_lane` lanes with the TurtleNeck buffer, always 4 lanes: the BMCU drawing, its spools on a roller tray. Alias: `afc-bmcu` |
 | `toolchanger` / `tc` | 1 | **klipper-toolchanger - mock HARDWARE, real backend.** Publishes `toolchanger` and `tool T0`..`tool T3` with no `mmu`, seeds `lane_data` `T0`..`T3` from Spoolman spools 1-4, and answers `SELECT_TOOL` / `UNSELECT_TOOL` with a "changing" then "ready" frame on the new `tool_number`, so real discovery builds the production `AmsBackendToolChanger`. Alias: `tool_changer`; the `creator5` persona's default |
 | `mixed` | 3 | Box Turtle + 2x OpenAMS, 6 tools |
 | `multi` | 2 | Box Turtle (4 slots) + Night Owl (2 slots), single toolhead |

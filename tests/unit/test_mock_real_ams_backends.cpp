@@ -515,6 +515,8 @@ TEST_CASE("AFC mock: a Quattro Box and a BMCU publish their own unit objects", "
     REQUIRE(status.contains(unit_object));
     CHECK(status[unit_object]["lanes"].size() == 4);
     CHECK(status.contains("AFC_lane lane1"));
+    // The toolhead path's TurtleNeck, which drives the loaded card's buffer and clog readouts.
+    CHECK(status["AFC"]["buffers"].size() == 1);
     CHECK_FALSE(status.contains("mmu"));
 }
 
