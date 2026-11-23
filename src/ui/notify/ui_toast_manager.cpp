@@ -230,6 +230,10 @@ ToastSeverity toast_severity(helix::NoticeSeverity severity) {
 
 // Safe from any thread: every show*() marshals the widget work itself.
 void present_notice(const helix::Notice& notice) {
+    if (notice.delivery != helix::NoticeDelivery::Toast) {
+        helix::ui::present_notification_notice(notice);
+        return;
+    }
     auto& toasts = ToastManager::instance();
     const ToastSeverity severity = toast_severity(notice.severity);
     if (notice.action) {

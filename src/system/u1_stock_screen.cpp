@@ -2,9 +2,9 @@
 
 #include "u1_stock_screen.h"
 
-#include "core/notification_api.h"
 #include "core/text_io.h"
 #include "lvgl.h"
+#include "notice.h"
 
 #include <spdlog/spdlog.h>
 
@@ -24,9 +24,10 @@ void surface_root_ssh_down_from_hook() {
     spdlog::error("[U1] Root Access is on but SSH (dropbear) did not start");
     // Sticky: with the stock screen disabled, SSH is how the user gets back to
     // it, so this must stay until read.
-    ui_notification_warning_sticky(
-        lv_tr("SSH did not start although Root access is on"),
-        lv_tr("Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide"));
+    publish_detail_notification(
+        NoticeSeverity::WARNING, lv_tr("SSH did not start although Root access is on"),
+        lv_tr("Restart the printer. If SSH still refuses, see the Snapmaker U1 install guide"),
+        /*sticky=*/true);
 }
 
 bool restore_stock_screen_offered(const char* trigger_path) {

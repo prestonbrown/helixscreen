@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include "core/notification_api.h"
+#include "notice.h"
 
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
@@ -14,7 +14,7 @@
  * @file error_reporting.h
  * @brief Convenience macros for error reporting with automatic UI notifications
  *
- * These macros combine spdlog logging with UI notifications for better user experience.
+ * These macros log and publish a helix::Notice (notice.h); the UI decides how to present it.
  *
  * Usage Examples:
  * ```cpp
@@ -69,7 +69,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::error("[USER] {}", formatted_msg);                                                 \
-        ui_notification_error(nullptr, formatted_msg.c_str(), false);                              \
+        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, formatted_msg);              \
     } while (0)
 
 /**
@@ -82,7 +82,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::error("[USER] {}: {}", title, formatted_msg);                                      \
-        ui_notification_error(title, formatted_msg.c_str(), false);                                \
+        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, formatted_msg, title);       \
     } while (0)
 
 /**
@@ -95,7 +95,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::warn("[USER] {}", formatted_msg);                                                  \
-        ui_notification_warning(formatted_msg.c_str());                                            \
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, formatted_msg);            \
     } while (0)
 
 /**
@@ -105,7 +105,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::warn("[USER] {}: {}", title, formatted_msg);                                       \
-        ui_notification_warning(title, formatted_msg.c_str());                                     \
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, formatted_msg, title);     \
     } while (0)
 
 /**
@@ -115,7 +115,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::info("[USER] {}", formatted_msg);                                                  \
-        ui_notification_info(formatted_msg.c_str());                                               \
+        ::helix::publish_notification(::helix::NoticeSeverity::INFO, formatted_msg);               \
     } while (0)
 
 /**
@@ -125,7 +125,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::info("[USER] {}: {}", title, formatted_msg);                                       \
-        ui_notification_info(title, formatted_msg.c_str());                                        \
+        ::helix::publish_notification(::helix::NoticeSeverity::INFO, formatted_msg, title);        \
     } while (0)
 
 /**
@@ -135,7 +135,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::info("[USER] {}", formatted_msg);                                                  \
-        ui_notification_success(formatted_msg.c_str());                                            \
+        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, formatted_msg);            \
     } while (0)
 
 /**
@@ -145,7 +145,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::info("[USER] {}: {}", title, formatted_msg);                                       \
-        ui_notification_success(title, formatted_msg.c_str());                                     \
+        ::helix::publish_notification(::helix::NoticeSeverity::SUCCESS, formatted_msg, title);     \
     } while (0)
 
 // ============================================================================
@@ -162,7 +162,7 @@
     do {                                                                                           \
         std::string formatted_msg = ::fmt::format(msg, ##__VA_ARGS__);                             \
         spdlog::error("[CRITICAL] {}: {}", title, formatted_msg);                                  \
-        ui_notification_error(title, formatted_msg.c_str(), true);                                 \
+        ::helix::publish_alert(title, formatted_msg);                                              \
     } while (0)
 
 // ============================================================================
@@ -195,7 +195,7 @@ class ErrorContext {
     // The parentheses stop the ESP32 spdlog shim's error() macro expanding this declarator.
     void(error)(const char* details) {
         spdlog::error("[{}] {}", operation_, details);
-        ui_notification_error(operation_, details, false);
+        ::helix::publish_notification(::helix::NoticeSeverity::ERROR, details, operation_);
     }
 
     /**
@@ -206,7 +206,7 @@ class ErrorContext {
     // The parentheses stop the ESP32 spdlog shim's critical() macro expanding this declarator.
     void(critical)(const char* details) {
         spdlog::error("[{}] CRITICAL: {}", operation_, details);
-        ui_notification_error(operation_, details, true);
+        ::helix::publish_alert(operation_, details);
     }
 
     /**
@@ -217,7 +217,7 @@ class ErrorContext {
     void warning(const char* details) {
         spdlog::warn("[{}] {}", operation_, details);
         std::string msg = ::fmt::format("{}: {}", operation_, details);
-        ui_notification_warning(msg.c_str());
+        ::helix::publish_notification(::helix::NoticeSeverity::WARNING, msg);
     }
 
   private:
