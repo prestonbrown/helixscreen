@@ -133,6 +133,15 @@ class EmergencyStopOverlay {
      */
     void deinit_subjects();
 
+    /// The estop_visible subject (1 while a job holds the machine).
+    lv_subject_t* get_visible_subject() {
+        return &estop_visible_;
+    }
+    /// Death signal for every subject above, for observers outside the overlay.
+    [[nodiscard]] SubjectLifetime get_subjects_lifetime() const {
+        return subjects_.get_subjects_lifetime();
+    }
+
     /**
      * @brief Initialize visibility coordination
      *

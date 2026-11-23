@@ -832,6 +832,8 @@ class NavigationManager {
     ObserverGuard connection_state_observer_;
     ObserverGuard klippy_state_observer_;
     ObserverGuard printer_switcher_observer_;
+    ObserverGuard estop_slot_observer_;
+    ObserverGuard drying_slot_observer_;
     ObserverGuard theme_observer_;
 
     // Track previous states for detecting transitions

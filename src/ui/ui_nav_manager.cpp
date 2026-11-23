@@ -17,6 +17,7 @@
 
 #include "app_globals.h"
 #include "backdrop_blur.h"
+#include "bed_drying_controller.h"
 #include "connection_state.h" // For ConnectionState enum
 #include "display_settings_manager.h"
 #include "env_knobs.h"
@@ -1097,6 +1098,21 @@ void NavigationManager::wire_events(lv_obj_t* navbar) {
         SettingsManager::instance().subject_show_printer_switcher(), this,
         [](NavigationManager* mgr, int /* shown */) { mgr->refresh_overlay_backdrop(); },
         SettingsManager::instance().get_subjects_lifetime());
+
+    // The E-stop and bed-drying slots open in the navbar on their own, often
+    // while an overlay is up (Print Status as a print starts). The live buttons
+    // re-flow to make room; the backdrop has to as well, or the old spacing
+    // shows under the live E-stop.
+    auto refresh_on_change = [](NavigationManager* mgr, int /* value */) {
+        mgr->refresh_overlay_backdrop();
+    };
+    auto& estop = EmergencyStopOverlay::instance();
+    estop_slot_observer_ = observe<int>(estop.get_visible_subject(), this, refresh_on_change,
+                                        estop.get_subjects_lifetime());
+    if (auto* drying = get_bed_drying_controller()) {
+        drying_slot_observer_ = observe<int>(drying->get_state_subject(), this, refresh_on_change,
+                                             drying->get_subjects_lifetime());
+    }
 
     // A live theme or mode switch from inside an overlay (Settings > Appearance)
     // repaints the navbar widget the snapshot hides, so re-take it too. The
@@ -2205,6 +2221,8 @@ void NavigationManager::deinit_subjects() {
     active_panel_observer_.reset();
     connection_state_observer_.reset();
     klippy_state_observer_.reset();
+    estop_slot_observer_.reset();
+    drying_slot_observer_.reset();
 
     subjects_.deinit_all();
 

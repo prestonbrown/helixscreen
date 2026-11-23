@@ -19,6 +19,7 @@
  * itself.
  */
 
+#include "ui_emergency_stop.h"
 #include "ui_nav_manager.h"
 
 #include "../lvgl_test_fixture.h"
@@ -26,13 +27,17 @@
 #include "../test_helpers/navigation_manager_test_access.h"
 #include "../test_helpers/snapshot_backdrops_mode.h"
 #include "backdrop_blur.h"
+#include "bed_drying_controller.h"
 #include "helix-xml/src/xml/lv_xml.h"
 #include "lvgl/lvgl.h"
 #include "lvgl/src/draw/lv_draw_buf_private.h" // handler fields: no public setters
+#include "panel_widget_manager.h"
 #include "settings_manager.h"
 #include "theme_manager.h"
 
 #include <algorithm>
+#include <memory>
+#include <string>
 #include <unordered_set>
 
 #include "../catch_amalgamated.hpp"
@@ -293,6 +298,84 @@ TEST_CASE_METHOD(LVGLUITestFixture, "a theme switch under an open overlay re-sna
     NavigationManagerTestAccess::set_panel_stack(nav, {});
     nav.set_app_layout(saved_layout);
     theme_manager_apply_theme(theme, was_dark);
+}
+
+// The E-stop and bed-drying slots appear in the navbar on their own, often
+// while an overlay is open (Print Status as a print starts). The live navbar
+// re-flows its buttons to make room, so the backdrop's picture of it has to
+// follow or the old button spacing shows under the live E-stop.
+TEST_CASE_METHOD(LVGLUITestFixture, "a navbar slot appearing under an open overlay re-snapshots it",
+                 "[navigation][backdrop][estop_navbar]") {
+    const bool drying_slot = GENERATE(false, true);
+    CAPTURE(drying_slot);
+    SnapshotBackdropsMode snapshots(true);
+    auto& nav = NavigationManager::instance();
+    lv_obj_t* saved_layout = NavigationManagerTestAccess::app_layout_widget(nav);
+
+    // The navbar binds the drying slot to the controller's subject, so the
+    // controller has to be up before the navbar is built.
+    std::unique_ptr<BedDryingController> drying;
+    lv_subject_t* subject = EmergencyStopOverlay::instance().get_visible_subject();
+    if (drying_slot) {
+        drying =
+            std::make_unique<BedDryingController>(state(), nullptr, nullptr, [] { return 0LL; });
+        drying->init_subjects();
+        PanelWidgetManager::instance().register_shared_resource<BedDryingController>(drying.get());
+        subject = drying->get_state_subject();
+    }
+    const int32_t saved_value = lv_subject_get_int(subject);
+    lv_subject_set_int(subject, 0);
+
+    lv_obj_t* layout = lv_obj_create(test_screen());
+    lv_obj_remove_style_all(layout);
+    lv_obj_set_size(layout, LV_PCT(100), LV_PCT(100));
+    lv_obj_t* navbar = static_cast<lv_obj_t*>(lv_xml_create(layout, "navigation_bar", nullptr));
+    REQUIRE(navbar != nullptr);
+    nav.set_app_layout(layout);
+    nav.wire_events(navbar);
+    lv_obj_update_layout(test_screen());
+    process_lvgl(20);
+
+    lv_area_t a;
+    lv_obj_get_coords(navbar, &a);
+    // The navbar's whole column in the backdrop image, as one string of pixels.
+    auto navbar_column = [&]() {
+        lv_obj_t* backdrop = NavigationManagerTestAccess::overlay_backdrop(nav);
+        REQUIRE(backdrop != nullptr);
+        std::string pixels;
+        for (int32_t y = a.y1; y <= a.y2; ++y) {
+            for (int32_t x = a.x1; x <= a.x2; ++x) {
+                const Rgb px =
+                    backdrop_pixel(backdrop, static_cast<uint32_t>(x), static_cast<uint32_t>(y));
+                pixels.append(
+                    {static_cast<char>(px.r), static_cast<char>(px.g), static_cast<char>(px.b)});
+            }
+        }
+        return pixels;
+    };
+
+    NavigationManagerTestAccess::adopt_overlay_backdrop(nav, test_screen());
+    const std::string without_slot = navbar_column();
+
+    lv_subject_set_int(subject, 1);
+    process_lvgl(20);
+    const std::string shown = navbar_column();
+
+    NavigationManagerTestAccess::refresh_overlay_backdrop(nav);
+    process_lvgl(20);
+    const std::string fresh = navbar_column();
+
+    // The slot re-flows the buttons, so a fresh picture differs from the old one.
+    REQUIRE(fresh != without_slot);
+    // And the backdrop already showed it, without anyone asking for a refresh.
+    CHECK(shown == fresh);
+
+    lv_subject_set_int(subject, saved_value);
+    NavigationManagerTestAccess::set_panel_stack(nav, {});
+    nav.set_app_layout(saved_layout);
+    if (drying) {
+        PanelWidgetManager::instance().unregister_shared_resource<BedDryingController>();
+    }
 }
 
 // ============================================================================
