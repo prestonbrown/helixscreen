@@ -417,7 +417,7 @@
                moves the rows above it; a save in progress shows as Save's
                spinner. -->
           <text_small name="lane_records_loading"
-                      width="1" flex_grow="1" long_mode="wrap" text="Loading lane details…"
+                      width="1" height="#button_height" flex_grow="1" long_mode="dots" text="Loading lane details…"
                       style_text_color="#text_muted">
             <bind_flag_if_eq subject="ams_lane_records_ready" flag="hidden" ref_value="1"/>
           </text_small>
