@@ -1933,6 +1933,9 @@ TelemetryManager::build_memory_warning_event(const helix::MemoryWarningEvent& wa
     event["timestamp"] = get_timestamp();
     event["level"] = helix::pressure_level_to_string(warning.level);
     event["reason"] = warning.reason;
+    if (!warning.reason_code.empty()) {
+        event["reason_code"] = warning.reason_code;
+    }
 
     auto now = std::chrono::steady_clock::now();
     auto uptime = std::chrono::duration_cast<std::chrono::seconds>(now - init_time_);

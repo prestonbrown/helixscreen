@@ -1,0 +1,66 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+import { describe, expect, it } from "vitest";
+import { applyErrorCap, tallyKey, type DeviceDayTally, type TallyStore } from "../flood_cap";
+
+const A = "a".repeat(64);
+const B = "b".repeat(64);
+const DAY = "2026-11-23";
+
+function memoryStore(initial: Record<string, DeviceDayTally> = {}): TallyStore & { data: Map<string, DeviceDayTally> } {
+  const data = new Map(Object.entries(initial));
+  return {
+    data,
+    get: async (k) => data.get(k) ?? null,
+    put: async (k, v) => {
+      data.set(k, v);
+    },
+  };
+}
+
+const err = (device_id: string, code = "parse_error") => ({ event: "error_encountered", device_id, category: "websocket", code });
+
+describe("applyErrorCap", () => {
+  it("keeps every event under the cap and tallies them", async () => {
+    const store = memoryStore();
+    const res = await applyErrorCap([err(A), err(A)], DAY, store, 3);
+    expect(res.keep).toHaveLength(2);
+    expect(res.dropped).toBe(0);
+    expect(store.data.get(tallyKey(DAY, A))).toEqual({ stored: 2, dropped: 0 });
+  });
+
+  it("drops the events over the cap and counts them", async () => {
+    const store = memoryStore({ [tallyKey(DAY, A)]: { stored: 2, dropped: 1 } });
+    const res = await applyErrorCap([err(A), err(A), err(A)], DAY, store, 3);
+    expect(res.keep).toHaveLength(1);
+    expect(res.dropped).toBe(2);
+    expect(store.data.get(tallyKey(DAY, A))).toEqual({ stored: 3, dropped: 3 });
+  });
+
+  it("caps each device on its own and passes other events through", async () => {
+    const store = memoryStore({ [tallyKey(DAY, A)]: { stored: 3, dropped: 0 } });
+    const other = { event: "session", device_id: A };
+    const res = await applyErrorCap([err(A), err(B), other], DAY, store, 3);
+    expect(res.keep).toEqual([err(B), other]);
+    expect(res.dropped).toBe(1);
+  });
+
+  it("keeps everything when the store fails", async () => {
+    const store: TallyStore = {
+      get: async () => {
+        throw new Error("r2 down");
+      },
+      put: async () => {
+        throw new Error("r2 down");
+      },
+    };
+    const res = await applyErrorCap([err(A), err(A)], DAY, store, 1);
+    expect(res.keep).toHaveLength(2);
+    expect(res.dropped).toBe(0);
+  });
+
+  it("does not touch the store for a batch with no error events", async () => {
+    const store = memoryStore();
+    await applyErrorCap([{ event: "session", device_id: A }], DAY, store, 1);
+    expect(store.data.size).toBe(0);
+  });
+});

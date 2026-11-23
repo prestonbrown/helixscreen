@@ -92,6 +92,7 @@ struct MemoryStats {
 struct MemoryWarningEvent {
     MemoryPressureLevel level = MemoryPressureLevel::none;
     std::string reason;
+    std::string reason_code; ///< stable id of the cause; see memory_pressure_cause_code()
     MemoryStats stats;
     MemoryInfo system_info;
     int64_t growth_5min_kb = 0;
@@ -220,7 +221,7 @@ class MemoryMonitor {
     void evaluate_thresholds(const MemoryStats& stats);
     void fire_warning(MemoryPressureLevel level, const std::string& reason,
                       const MemoryStats& stats, const MemoryInfo& sys_info, int64_t growth_kb,
-                      bool report, bool dispatch);
+                      bool report, bool dispatch, const char* reason_code = "");
 
     friend class MemoryMonitorTestAccess;
 
@@ -297,6 +298,10 @@ MemoryPressureAssessment assess_memory_pressure(const MemoryStats& stats,
 std::string describe_memory_pressure(const MemoryPressureAssessment& assessment,
                                      const MemoryStats& stats, const MemoryThresholds& thresholds,
                                      const MemoryInfo& sys_info, int64_t growth_kb);
+
+/// Stable snake_case id of a cause (for example "rss_warning"). Unlike the reason
+/// text it carries no measurements, so telemetry can group warnings on it.
+const char* memory_pressure_cause_code(MemoryPressureCause cause);
 
 /// Decide whether this sample is worth a log line and a telemetry event.
 ///

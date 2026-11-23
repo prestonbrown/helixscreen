@@ -586,6 +586,16 @@ TEST_CASE("describe_memory_pressure: the reason names the band that set the leve
     }
 }
 
+TEST_CASE("memory_pressure_cause_code: every cause has its own measurement-free id",
+          "[memory_monitor]") {
+    CHECK(std::string(memory_pressure_cause_code(MemoryPressureCause::rss_warning)) ==
+          "rss_warning");
+    CHECK(std::string(memory_pressure_cause_code(MemoryPressureCause::sustained_low_available)) ==
+          "sustained_low_available");
+    CHECK(std::string(memory_pressure_cause_code(MemoryPressureCause::growth)) == "growth");
+    CHECK(std::string(memory_pressure_cause_code(MemoryPressureCause::none)) == "none");
+}
+
 // =============================================================================
 // should_report_memory_pressure()
 // =============================================================================

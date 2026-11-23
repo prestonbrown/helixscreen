@@ -413,6 +413,28 @@ std::string describe_memory_pressure(const MemoryPressureAssessment& assessment,
                        sys_info.available_mb());
 }
 
+const char* memory_pressure_cause_code(MemoryPressureCause cause) {
+    switch (cause) {
+    case MemoryPressureCause::rss_critical:
+        return "rss_critical";
+    case MemoryPressureCause::rss_warning:
+        return "rss_warning";
+    case MemoryPressureCause::available_critical:
+        return "available_critical";
+    case MemoryPressureCause::available_warning:
+        return "available_warning";
+    case MemoryPressureCause::growth:
+        return "growth";
+    case MemoryPressureCause::sustained_low_available:
+        return "sustained_low_available";
+    case MemoryPressureCause::hysteresis:
+        return "hysteresis";
+    case MemoryPressureCause::none:
+        break;
+    }
+    return "none";
+}
+
 bool should_report_memory_pressure(MemoryReportState& state, MemoryPressureLevel level,
                                    size_t rss_kb, size_t growth_step_kb, bool interval_elapsed) {
     if (level == MemoryPressureLevel::none || level < state.level) {
@@ -528,12 +550,14 @@ void MemoryMonitor::evaluate_thresholds(const MemoryStats& stats) {
                       reason, our_footprint);
     }
 
-    fire_warning(level, reason, stats, sys_info, growth_kb, report, dispatch);
+    fire_warning(level, reason, stats, sys_info, growth_kb, report, dispatch,
+                 memory_pressure_cause_code(assessment.cause));
 }
 
 void MemoryMonitor::fire_warning(MemoryPressureLevel level, const std::string& reason,
                                  const MemoryStats& stats, const MemoryInfo& sys_info,
-                                 int64_t growth_kb, bool report, bool dispatch) {
+                                 int64_t growth_kb, bool report, bool dispatch,
+                                 const char* reason_code) {
     // Copy callbacks under lock, then invoke outside to minimize hold time
     WarningCallback warning_cb;
     std::vector<std::pair<PressureResponderId, std::function<void(MemoryPressureLevel)>>>
@@ -549,6 +573,7 @@ void MemoryMonitor::fire_warning(MemoryPressureLevel level, const std::string& r
         MemoryWarningEvent event;
         event.level = level;
         event.reason = reason;
+        event.reason_code = reason_code;
         event.stats = stats;
         event.system_info = sys_info;
         event.growth_5min_kb = growth_kb;

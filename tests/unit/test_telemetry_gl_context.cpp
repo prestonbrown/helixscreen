@@ -262,3 +262,22 @@ TEST_CASE_METHOD(TelemetryTestFixture,
         }
     }
 }
+
+TEST_CASE_METHOD(TelemetryTestFixture,
+                 "A memory warning carries a measurement-free reason code beside the reason text",
+                 "[telemetry][memory_warning]") {
+    auto& tm = TelemetryManager::instance();
+    tm.set_enabled(true);
+
+    helix::MemoryWarningEvent warning;
+    warning.level = helix::MemoryPressureLevel::warning;
+    warning.reason = "RSS 31MB exceeds warning threshold 30MB";
+    warning.reason_code =
+        helix::memory_pressure_cause_code(helix::MemoryPressureCause::rss_warning);
+    tm.record_memory_warning(warning);
+
+    auto snapshot = tm.get_queue_snapshot();
+    REQUIRE(snapshot.size() == 1);
+    CHECK(snapshot[0]["reason_code"] == "rss_warning");
+    CHECK(snapshot[0]["reason"] == warning.reason);
+}

@@ -6,7 +6,7 @@ import { HEALTH_WINDOWS, filterFor, healthQueries, versionInClause, windowClause
 const KEYS: HealthQueryKey[] = [
   "actives_cur", "actives_prev", "top_versions", "release_cur", "release_prev",
   "release_devices_cur", "release_devices_prev", "prints_cur", "prints_prev",
-  "print_sessions_cur", "print_sessions_prev", "errors_cur", "errors_prev", "errors_baseline", "crashes_cur", "crashes_prev",
+  "print_sessions_cur", "print_sessions_prev", "errors_cur", "errors_prev", "errors_baseline", "errors_by_device", "crashes_cur", "crashes_prev",
   "cdn_latest", "kind_days",
 ];
 
@@ -204,6 +204,32 @@ describe("buildHealth", () => {
     it("is steady when cur is under double prev", () => {
       expect(err(9, 5, true)[0].status).toBe("steady");
     });
+    it("is steady when one device accounts for more than half the count", () => {
+      const r = emptyRows();
+      r.errors_cur = [{ category: "net", code: "E1", count: 10, devices: 4 }];
+      r.errors_prev = [{ category: "net", code: "E1", count: 2, devices: 1 }];
+      r.errors_baseline = r.errors_prev;
+      r.errors_by_device = [
+        { category: "net", code: "E1", count: 6 },
+        { category: "net", code: "E1", count: 3 },
+      ];
+      expect(buildHealth(r, "2026-10-15").errors[0].status).toBe("steady");
+    });
+    it("is rising when the busiest device holds exactly half", () => {
+      const r = emptyRows();
+      r.errors_cur = [{ category: "net", code: "E1", count: 10, devices: 4 }];
+      r.errors_prev = [{ category: "net", code: "E1", count: 2, devices: 1 }];
+      r.errors_baseline = r.errors_prev;
+      r.errors_by_device = [{ category: "net", code: "E1", count: 5 }];
+      expect(buildHealth(r, "2026-10-15").errors[0].status).toBe("rising");
+    });
+    it("is steady when a single device reports it", () => {
+      const r = emptyRows();
+      r.errors_cur = [{ category: "net", code: "E1", count: 10, devices: 1 }];
+      r.errors_prev = [{ category: "net", code: "E1", count: 2, devices: 1 }];
+      r.errors_baseline = r.errors_prev;
+      expect(buildHealth(r, "2026-10-15").errors[0].status).toBe("steady");
+    });
     it("drops rows with cur 0", () => {
       expect(err(0, 4, true)).toEqual([]);
     });
@@ -212,7 +238,7 @@ describe("buildHealth", () => {
       r.errors_cur = [
         { category: "a", code: "steady_big", count: 50, devices: 1 },
         { category: "a", code: "new_small", count: 1, devices: 1 },
-        { category: "a", code: "rising", count: 12, devices: 1 },
+        { category: "a", code: "rising", count: 12, devices: 2 },
         { category: "a", code: "steady_small", count: 6, devices: 1 },
         { category: "a", code: "new_big", count: 3, devices: 1 },
       ];
