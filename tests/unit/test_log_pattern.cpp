@@ -307,10 +307,9 @@ TEST_CASE("Ring dump still reports a genuine clock step", "[logging][pattern][12
 }
 
 TEST_CASE("Ring holds a run of identical lines in one entry", "[logging][pattern][ring]") {
-    // A poller logging the same line every 10 s filled a 2000-line ring in five
-    // hours, leaving the bundle nothing older. The run must cost one entry: a
-    // 16-entry ring keeps "before" through 100 repeats, and the dump still says
-    // how many there were and when the last one came.
+    // A run costs one entry, so a poller cannot push the rest of the session
+    // out: a 16-entry ring keeps "before" through 100 repeats, and the dump
+    // still says how many there were and when the last one came.
     std::vector<double> stamps{50.0};
     for (int i = 0; i < 100; ++i)
         stamps.push_back(100.0 + 10.0 * i);
@@ -345,7 +344,10 @@ TEST_CASE("Ring keeps lines that differ only in level as separate entries",
     REQUIRE(sink->size() == 2);
 }
 
-TEST_CASE("Ring tail limit counts output lines, summaries included", "[logging][pattern][ring]") {
+TEST_CASE("Ring tail limit counts entries, a run's summary riding with its entry",
+          "[logging][pattern][ring]") {
+    // The bundle dumps at ring capacity, so counting lines would drop the
+    // oldest entries of a ring holding runs.
     auto sink = make_ring({1.0, 2.0, 3.0, 4.0});
     push(sink, 1000.0, "line-one");
     push(sink, 1001.0, "line-two");
@@ -353,9 +355,10 @@ TEST_CASE("Ring tail limit counts output lines, summaries included", "[logging][
     push(sink, 1003.0, "line-three");
 
     auto lines = sink->last_formatted(2);
-    REQUIRE(lines.size() == 2);
-    REQUIRE(lines[0].find("repeated 1 more time") != std::string::npos);
-    REQUIRE(lines[1].find("line-three") != std::string::npos);
+    REQUIRE(lines.size() == 3);
+    REQUIRE(lines[0].find("line-two") != std::string::npos);
+    REQUIRE(lines[1].find("repeated 1 more time") != std::string::npos);
+    REQUIRE(lines[2].find("line-three") != std::string::npos);
 }
 
 TEST_CASE("Ring dump is idempotent", "[logging][pattern][1218][ring]") {
