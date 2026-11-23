@@ -99,9 +99,7 @@ AmsZoneOverviewOverlay::~AmsZoneOverviewOverlay() {
     }
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void AmsZoneOverviewOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -220,9 +218,7 @@ void AmsZoneOverviewOverlay::rebuild_rows() {
     lv_subject_set_int(&count_subject_, static_cast<int>(n));
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void AmsZoneOverviewOverlay::on_activate() {
     OverlayBase::on_activate();

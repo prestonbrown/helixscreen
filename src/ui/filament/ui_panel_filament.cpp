@@ -136,13 +136,10 @@ static void length_hold(lv_event_t* e, int index) {
     }
 }
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
-    // Initialize buffer contents with default values
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
                             sizeof(temp_display_buf_));
     std::snprintf(status_buf_, sizeof(status_buf_), "%s", lv_tr("Select material to begin"));
@@ -153,7 +150,6 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     format_target_or_off(0, material_nozzle_buf_, sizeof(material_nozzle_buf_));
     format_target_or_off(0, material_bed_buf_, sizeof(material_bed_buf_));
 
-    // Register XML event callbacks
     register_xml_callbacks({
         {"filament_manage_slots_cb",
          [](lv_event_t*) {
@@ -325,8 +321,8 @@ FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
         self->update_safety_warning_text();
     });
 
-    // Re-evaluate Load/Unload/Purge gating whenever live AMS load state changes
-    // (Task 5): the aggregate filament_loaded flag and the active-slot index.
+    // Re-evaluate Load/Unload/Purge gating whenever live AMS load state changes:
+    // the aggregate filament_loaded flag and the active-slot index.
     // Both are static AmsState subjects — no SubjectLifetime token needed.
     ams_loaded_observer_ = observe<int>(
         AmsState::instance().get_filament_loaded_subject(), this,
@@ -382,14 +378,11 @@ FilamentPanel::~FilamentPanel() {
     }
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void FilamentPanel::init_subjects() {
     init_subjects_guarded([this]() {
         side_band_.init_subjects();
-        // Initialize subjects with default values
         UI_MANAGED_SUBJECT_STRING(temp_display_subject_, temp_display_buf_, temp_display_buf_,
                                   "filament_temp_display", subjects_);
         UI_MANAGED_SUBJECT_STRING(status_subject_, status_buf_, status_buf_, "filament_status",
@@ -422,7 +415,7 @@ void FilamentPanel::init_subjects() {
         // Operation in progress subject (for disabling buttons during filament ops)
         operation_guard_.init_subject("filament_operation_in_progress", subjects_);
 
-        // LIVE load-state gating subjects (Task 5). Default: Load enabled, Unload
+        // LIVE load-state gating subjects. Default: Load enabled, Unload
         // disabled (cold start = nothing loaded). Recomputed by
         // update_filament_op_buttons() from the selected tool's live load state.
         UI_MANAGED_SUBJECT_INT(load_disabled_subject_, 0, "filament_load_disabled", subjects_);
@@ -640,7 +633,6 @@ void FilamentPanel::bind_widgets() {
     if (!panel_)
         return;
 
-    // Find preset buttons (for visual state updates)
     const char* preset_names[] = {"preset_pla", "preset_petg", "preset_abs", "preset_tpu"};
     for (int i = 0; i < 4; i++) {
         preset_buttons_[i] = lv_obj_find_by_name(panel_, preset_names[i]);
@@ -648,7 +640,6 @@ void FilamentPanel::bind_widgets() {
 
     // Action buttons (btn_load, btn_unload, btn_purge) - disabled state managed by XML bindings
 
-    // Find safety warning card
     safety_warning_ = helix::ui::find_required(panel_, "safety_warning", get_name());
 
     // Find status icon for dynamic updates
@@ -672,11 +663,9 @@ void FilamentPanel::bind_widgets() {
     extrude_speed_dropdown_ =
         helix::ui::find_required(panel_, "extrude_speed_dropdown", get_name());
 
-    // Find external spool row widgets
     external_spool_container_ =
         helix::ui::find_required(panel_, "external_spool_container", get_name());
 
-    // Find spool preset widgets
     spool_preset_row_ = helix::ui::find_required(panel_, "spool_preset_row", get_name());
     spool_preset_button_ = helix::ui::find_required(panel_, "preset_spool", get_name());
 
@@ -689,10 +678,9 @@ void FilamentPanel::bind_widgets() {
     sync_target_tool_ui();
     update_multi_filament_card_visibility();
 
-    // Seed Load/Unload/Purge gating from current live load state (Task 5).
+    // Seed Load/Unload/Purge gating from current live load state.
     update_filament_op_buttons();
 
-    // Initialize visual state
     update_preset_buttons_visual();
     update_temp_display();
     update_material_temp_display();
@@ -830,9 +818,7 @@ void FilamentPanel::bind_extrude_speed_dropdown() {
     sync_extrude_speed_dropdown();
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void FilamentPanel::update_temp_display() {
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
@@ -844,7 +830,6 @@ void FilamentPanel::update_status_icon(const char* icon_name, const char* varian
     if (!status_icon_)
         return;
 
-    // Update icon imperatively using ui_icon API
     helix::ui::icon::set_source(status_icon_, icon_name);
     helix::ui::icon::set_variant(status_icon_, variant);
 }
@@ -1138,9 +1123,7 @@ void FilamentPanel::update_all_temps() {
     }
 }
 
-// ============================================================================
 // INSTANCE HANDLERS
-// ============================================================================
 
 void FilamentPanel::handle_preset_button(int material_id) {
     // Delegate state update and display refresh to the public API
@@ -1243,9 +1226,8 @@ bool FilamentPanel::handle_preset_longpress(int slot) {
     catalog_picker_.set_reset_callback(
         []() { get_global_filament_panel().reset_presets_to_defaults(); });
     // Fires synchronously on the main thread from the modal's Select button click —
-    // same threading context the old material_picker_ callback ran in — so call
-    // straight through get_global_filament_panel() (singleton, lives for process
-    // lifetime) with no defer/lifetime-token needed, matching that prior pattern.
+    // so call straight through get_global_filament_panel() (singleton, lives for
+    // process lifetime) with no defer/lifetime-token needed.
     catalog_picker_.show(screen, std::optional<std::string>(helix::presets::name(slot)),
                          [slot](const helix::printer::EffectiveFilament& ef) {
                              get_global_filament_panel().apply_preset_pick(slot, ef);
@@ -1403,16 +1385,14 @@ void FilamentPanel::sync_extrude_speed_dropdown() {
     helix::ui::fit_dropdown_to_text(extrude_speed_dropdown_);
 }
 
-// ============================================================================
 // ON-BUTTON OPERATION FEEDBACK
 //
 // Each op button shows its own progress (animated spinner → checkmark) via an
-// int subject bound to ui_button bind_op_state, replacing the old stacked
-// start/complete toasts. Errors/timeouts keep their toast. All setters below run
+// int subject bound to ui_button bind_op_state, with no start/complete
+// toasts. Errors/timeouts raise a toast. All setters below run
 // on the main thread (op_started from the click handler; op_succeeded/op_failed
 // inside the object_lifetime_.bg_cb bodies that marshal off the WebSocket
 // background thread).
-// ============================================================================
 
 constexpr uint32_t kOpDoneRevertMs = 1500;     ///< how long the "done" checkmark shows
 constexpr uint32_t kMinSpinnerVisibleMs = 500; ///< floor so instant ops still flash a spinner
@@ -1961,9 +1941,7 @@ void FilamentPanel::execute_retract() {
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
-// ============================================================================
 // EXTRUDER DROPDOWN
-// ============================================================================
 
 // Left-column sizing: graph always grows to fill, spool card hugs its
 // content. Works for every breakpoint and every AMS mode — previous
@@ -2028,7 +2006,6 @@ void FilamentPanel::setup_external_spool_display() {
     lv_obj_set_clickable(external_spool_canvas_, false);
     lv_obj_set_event_bubble(external_spool_canvas_, true);
 
-    // Set initial state from AmsState
     update_external_spool_from_state();
 
     // Observe external spool color changes to reactively update display
@@ -2149,7 +2126,7 @@ void FilamentPanel::update_filament_op_buttons() {
     update_safety_state();
 
     // Recompute Load/Unload/Purge gating from the SELECTED tool's LIVE load
-    // state (Task 5). Without an AMS backend (single-extruder / external-spool
+    // state. Without an AMS backend (single-extruder / external-spool
     // mode) we have no per-slot load signal, so leave both enabled — the only
     // disablers there are the safety-warning / operation-in-progress XML binds.
     //
@@ -2344,9 +2321,7 @@ void FilamentPanel::handle_cooldown() {
     update_preset_buttons_visual();
 }
 
-// ============================================================================
 // PUBLIC API
-// ============================================================================
 
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
@@ -2557,9 +2532,7 @@ void FilamentPanel::set_limits(const SafetyLimits& limits) {
                   max_temp);
 }
 
-// ============================================================================
 // POST-PLAN OUTCOME — what execute_load()/execute_unload() do with a plan
-// ============================================================================
 
 namespace helix::ui {
 
@@ -2642,9 +2615,7 @@ FilamentPanelOutcome panel_unload_outcome(const FilamentOpPlan& plan, bool backe
 
 } // namespace helix::ui
 
-// ============================================================================
 // FILAMENT SENSOR WARNING HELPERS
-// ============================================================================
 
 helix::ui::FilamentOpPlan FilamentPanel::current_load_plan() const {
     // The three-tier routing (AMS backend → configured macro → raw gcode) lives
@@ -2944,9 +2915,7 @@ void FilamentPanel::show_unload_warning() {
     spdlog::debug("[{}] Unload warning dialog shown", get_name());
 }
 
-// ============================================================================
 // GLOBAL INSTANCE (needed by main.cpp)
-// ============================================================================
 
 FilamentPanel& get_global_filament_panel() {
     return helix::lazy_global<FilamentPanel>("FilamentPanel", get_printer_state(), nullptr);

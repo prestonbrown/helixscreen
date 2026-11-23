@@ -41,9 +41,7 @@ namespace helix::settings {
 using helix::ui::event_selected;
 using helix::ui::find_required;
 
-// ============================================================================
 // HELPERS
-// ============================================================================
 
 /// Map cryptic BLE chip names to user-friendly product names.
 /// Some printers advertise their SoC name rather than the product brand.
@@ -121,9 +119,7 @@ static std::vector<helix::LabelSize> get_sizes_for_current_printer() {
     return BrotherQLPrinter::supported_sizes_static();
 }
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 LabelPrinterSettingsOverlay::~LabelPrinterSettingsOverlay() {
     stop_label_printer_discovery();
@@ -131,9 +127,7 @@ LabelPrinterSettingsOverlay::~LabelPrinterSettingsOverlay() {
     stop_bt_discovery();
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_subjects() {
     // Ensure manager subjects are initialized (reads config for initial value)
@@ -208,9 +202,7 @@ void LabelPrinterSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -226,7 +218,6 @@ void LabelPrinterSettingsOverlay::on_activate() {
     init_bt_printer_dropdown();
     init_label_count_dropdown();
 
-    // Update IPP selected subject based on current config
     update_ipp_selected_subject();
 
     // Start detection based on current printer type
@@ -247,9 +238,7 @@ void LabelPrinterSettingsOverlay::on_deactivating(DeactivateReason) {
     stop_bt_discovery();
 }
 
-// ============================================================================
 // INTERNAL METHODS
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::handle_manual_entry_started() {
     auto_picked_ = false;
@@ -366,9 +355,7 @@ void LabelPrinterSettingsOverlay::init_preset_dropdown() {
     }
 }
 
-// ============================================================================
 // MDNS DISCOVERY
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_discovery_dropdown() {
     if (!overlay_root_)
@@ -548,12 +535,10 @@ void LabelPrinterSettingsOverlay::handle_printer_selected(int index) {
     spdlog::info("[{}] Selected printer: {} ({}:{}, protocol={}, rp='{}')", get_name(),
                  printer.name, printer.ip_address, port, np.protocol, printer.resource_path);
 
-    // Update IPP selected subject and refresh dependent UI
     update_ipp_selected_subject();
     init_label_size_dropdown();
     init_label_count_dropdown();
 
-    // Update address and port input fields
     if (overlay_root_) {
         lv_obj_t* addr_row = find_required(overlay_root_, "row_address_port", get_name());
         if (addr_row) {
@@ -581,9 +566,7 @@ void LabelPrinterSettingsOverlay::update_ipp_selected_subject() {
     lv_subject_set_int(&ipp_selected_subject_, ipp_val);
 }
 
-// ============================================================================
 // PRINTER TYPE
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_printer_type_dropdown() {
     if (!overlay_root_)
@@ -653,7 +636,6 @@ void LabelPrinterSettingsOverlay::handle_type_changed(int index) {
         settings.set_printer_protocol("raw");
     }
 
-    // Update IPP selected subject
     update_ipp_selected_subject();
 
     // Refresh label size dropdown for new backend
@@ -684,9 +666,7 @@ void LabelPrinterSettingsOverlay::handle_type_changed(int index) {
     }
 }
 
-// ============================================================================
 // LABEL COUNT
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_label_count_dropdown() {
     if (!overlay_root_)
@@ -727,9 +707,7 @@ void LabelPrinterSettingsOverlay::handle_label_count_changed(int index) {
     LabelPrinterSettingsManager::instance().set_label_count(count);
 }
 
-// ============================================================================
 // USB DETECTION
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_usb_printer_dropdown() {
     if (!overlay_root_)
@@ -825,9 +803,7 @@ void LabelPrinterSettingsOverlay::handle_usb_printer_selected(int index) {
     settings.set_usb_serial(printer.serial);
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::handle_address_changed() {
     lv_obj_t* row = find_required(overlay_root_, "row_address_port", get_name());
@@ -978,9 +954,7 @@ void LabelPrinterSettingsOverlay::handle_test_print() {
     });
 }
 
-// ============================================================================
 // BLUETOOTH DISCOVERY
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
     if (!overlay_root_)
@@ -1046,7 +1020,7 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
             auto bt_token = lifetime_.token();
             auto shared_ctx = bt_ctx_;
             std::string addr = saved_addr;
-            // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+            // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
             try {
                 helix::make_thread([bt_token, shared_ctx, addr]() {
                     auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1089,7 +1063,6 @@ void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
                                         lv_dropdown_set_options(dd, options.c_str());
                                     }
                                 }
-                                // Update connect button
                                 lv_obj_t* b = helix::ui::find_required(
                                     ov.overlay_root_, "btn_bt_connect", "Label Printer");
                                 if (b) {
@@ -1134,7 +1107,6 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
                                      [](const BtDeviceInfo& d) { return !d.paired; }),
                       bt_devices_.end());
 
-    // Update UI to show scanning state
     lv_subject_set_int(&bt_scanning_subject_, 1);
     if (overlay_root_) {
         lv_obj_t* row = find_required(overlay_root_, "row_bt_printers", get_name());
@@ -1233,7 +1205,6 @@ void LabelPrinterSettingsOverlay::start_bt_discovery() {
                           helix::redact::mac(info.mac));
         }
 
-        // Update dropdown
         if (overlay_root_) {
             lv_obj_t* row = helix::ui::find_required(overlay_root_, "row_bt_printers", get_name());
             if (row) {
@@ -1329,9 +1300,7 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
     bool is_saved = (device.mac == settings.get_bt_address());
     if (!device.paired && !is_saved) {
         auto msg = fmt::format("{} {}?", lv_tr("Pair with"), device.name);
-        // The MAC rides in the capture; the old lv_event_cb_t form kept it in a
-        // heap std::string that only the button callbacks freed, so a dismissal
-        // leaked it (#1380).
+        // The MAC rides in the capture, so a dismissal leaks nothing (#1380).
         helix::ui::ConfirmOptions opts;
         opts.owner_token = lifetime_.token(); // gates the confirm on this overlay
         auto* dialog = helix::ui::modal_confirm(
@@ -1350,7 +1319,7 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
                 auto shared_ctx = bt_ctx_;
 
                 // Pair on a detached thread
-                // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+                // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
                 try {
                     helix::make_thread([mac, shared_ctx, token]() {
                         auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1383,7 +1352,6 @@ void LabelPrinterSettingsOverlay::handle_bt_printer_selected(int index) {
                                     ToastManager::instance().show(
                                         ToastSeverity::SUCCESS, lv_tr("Paired successfully"), 2000);
 
-                                    // Update device info and save settings
                                     auto& ov = get_label_printer_settings_overlay();
                                     for (auto& dev : ov.bt_devices_) {
                                         if (dev.mac == mac) {
@@ -1495,7 +1463,7 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
     auto token = lifetime_.token();
     auto shared_ctx = bt_ctx_;
 
-    // Wrap spawn per feedback_no_bare_threads_arm.md (#724, #837, [L083]).
+    // Thread spawn can fail, so it sits in try/catch (#724, #837, [L083]).
     try {
         helix::make_thread([mac, shared_ctx, token]() {
             auto& ldr = helix::bluetooth::BluetoothLoader::instance();
@@ -1554,7 +1522,6 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
 
                 auto& ov = get_label_printer_settings_overlay();
 
-                // Update device state
                 for (auto& dev : ov.bt_devices_) {
                     if (dev.mac == mac) {
                         dev.paired = paired_ok;
@@ -1585,7 +1552,6 @@ void LabelPrinterSettingsOverlay::handle_bt_connect() {
                         }
                     }
 
-                    // Update connect button state
                     lv_obj_t* btn = helix::ui::find_required(ov.overlay_root_, "btn_bt_connect",
                                                              "Label Printer");
                     if (btn) {
@@ -1637,8 +1603,8 @@ void LabelPrinterSettingsOverlay::handle_bt_forget() {
     }
 
     auto tok = lifetime_.token();
-    // Wrap the std::thread spawn in try/catch per feedback_no_bare_threads_arm.md
-    // (#724) — thread creation can fail on AD5M/CC1 due to tight thread limits.
+    // Thread creation can fail on AD5M/CC1 due to tight thread limits, so the
+    // spawn sits in try/catch (#724).
     try {
         helix::make_thread([this, tok, mac]() {
             bool bluez_ok = false;

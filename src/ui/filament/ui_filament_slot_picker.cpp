@@ -121,9 +121,7 @@ FilamentSlotPicker::~FilamentSlotPicker() {
     hide();
 }
 
-// ============================================================================
 // Show / Hide
-// ============================================================================
 
 void FilamentSlotPicker::show(lv_obj_t* parent, lv_obj_t* trigger, int tool_index,
                               const std::string& expected_material,
@@ -259,9 +257,7 @@ void FilamentSlotPicker::hide() {
     spdlog::debug("[FilamentSlotPicker] Hidden");
 }
 
-// ============================================================================
 // Taps
-// ============================================================================
 
 void FilamentSlotPicker::row_cb(lv_event_t* e) {
     // The row's choice: its index, or "auto", "extra", "cancel".
@@ -308,9 +304,7 @@ void FilamentSlotPicker::select(const Selection& sel) {
     }
 }
 
-// ============================================================================
 // Positioning
-// ============================================================================
 
 void FilamentSlotPicker::fit_card_width(lv_obj_t* card) {
     // Rows fill the card (width 100%), and a percentage child gives a
@@ -358,7 +352,6 @@ void FilamentSlotPicker::position_card(lv_obj_t* card) {
     int32_t card_h = lv_obj_get_height(card);
     int32_t card_w = lv_obj_get_width(card);
 
-    // Get trigger position in screen coordinates
     lv_area_t trigger_area;
     lv_obj_get_coords(trigger_, &trigger_area);
 

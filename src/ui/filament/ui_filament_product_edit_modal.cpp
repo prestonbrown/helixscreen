@@ -102,9 +102,7 @@ void FilamentProductEditModal::set_on_saved(SavedCallback cb) {
     on_saved_ = std::move(cb);
 }
 
-// ============================================================================
 // Show entry points
-// ============================================================================
 
 bool FilamentProductEditModal::show_for_add(lv_obj_t* parent) {
     register_callbacks();
@@ -126,9 +124,7 @@ bool FilamentProductEditModal::show_for_edit(lv_obj_t* parent, const std::string
     return Modal::show(parent, names_.attrs());
 }
 
-// ============================================================================
 // Modal hooks
-// ============================================================================
 
 void FilamentProductEditModal::on_show() {
     lv_subject_set_string(&title_subject_,
@@ -138,9 +134,7 @@ void FilamentProductEditModal::on_show() {
     configure_secondary_button();
 }
 
-// ============================================================================
 // Internal
-// ============================================================================
 
 void FilamentProductEditModal::init_subjects() {
     if (!names_.empty())
@@ -257,9 +251,7 @@ void FilamentProductEditModal::configure_secondary_button() {
                           is_builtin_ ? lv_tr("Restore Defaults") : lv_tr("Delete"));
 }
 
-// ============================================================================
 // Actions
-// ============================================================================
 
 void FilamentProductEditModal::handle_save() {
     FilamentFormValues v = read_form();
@@ -326,9 +318,7 @@ void FilamentProductEditModal::handle_close() {
     hide();
 }
 
-// ============================================================================
 // Callback registration + dispatch
-// ============================================================================
 
 void FilamentProductEditModal::register_callbacks() {
     if (callbacks_registered_)

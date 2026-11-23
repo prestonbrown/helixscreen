@@ -87,9 +87,7 @@ static constexpr int32_t kOutlinePx = 2;
 // - spool_body_shade: Back flange color (darker shade)
 // - spool_hub_top, spool_hub_bottom: Center hub gradient
 
-// ----------------------------------------------------------------------------
 // sqrt LUT (idea #4)
-// ----------------------------------------------------------------------------
 // draw_gradient_ellipse / draw_gradient_rect / draw_ellipse_left_edge all call
 // sqrtf() on values in [0,1] in their per-scanline inner loops. A 1024-entry
 // table fits comfortably in L1 and collapses those to a single load + branch.
@@ -115,9 +113,7 @@ static inline float fast_sqrt_01(float x) {
     return get_sqrt_lut()[idx];
 }
 
-// ----------------------------------------------------------------------------
 // Render cache (idea #2)
-// ----------------------------------------------------------------------------
 // Bucketed LRU of rendered ARGB pixel buffers keyed on (color, fill_bucket,
 // size). Rendering a 64x64 spool costs ~10 gradient-fill scanline loops; a
 // cache hit collapses that to a single memcpy (~16KB). Fill level is bucketed
@@ -866,14 +862,11 @@ static void render_spool_pixels(SpoolCanvasData* data) {
     const lv_color_t filament_color = drawn.color;
     const std::vector<lv_color_t>& band_colors = drawn.bands;
 
-    // Clear canvas
     lv_canvas_fill_bg(data->canvas, lv_color_black(), LV_OPA_TRANSP);
 
     SpoolLayer layer{data->draw_buf};
 
-    // ========================================
     // STEP 1: Draw BACK FLANGE (left side) with gradient + edge highlight
-    // ========================================
     {
         lv_color_t bf_light = ams_draw::lighten_color(back_color, kFlangeLift);
         lv_color_t bf_dark = ams_draw::darken_color(back_color, kFlangeDrop);
@@ -900,11 +893,9 @@ static void render_spool_pixels(SpoolCanvasData* data) {
                 {left_x - flange_rx, cy - flange_ry, left_x + flange_rx, cy + flange_ry},
                 [&](float) { return behind; });
 
-    // ========================================
     // STEP 2: Draw complete FILAMENT cylinder
     // Back ellipse + rectangle body + front ellipse
     // Gradient: lighter at top (lit), darker at bottom (shadow)
-    // ========================================
     if (fill > kEmptyFill) {
         lv_color_t fil_light = shading.top(filament_color);
         lv_color_t fil_dark = shading.bottom(filament_color);
@@ -970,9 +961,7 @@ static void render_spool_pixels(SpoolCanvasData* data) {
                            core_dark);
     }
 
-    // ========================================
     // STEP 3: Draw FRONT FLANGE (right side) with gradient + edge highlight
-    // ========================================
     {
         lv_color_t ff_light = ams_draw::lighten_color(front_color, kFlangeLift);
         lv_color_t ff_dark = ams_draw::darken_color(front_color, kFlangeDrop);
@@ -1002,10 +991,8 @@ static void render_spool_pixels(SpoolCanvasData* data) {
                     [&](float face_radius) { return face_radius <= wound_r ? wound : behind; });
     }
 
-    // ========================================
     // STEP 4: Draw CENTER HOLE ellipse (hub)
     // Stronger gradient: dark at top (deep shadow), lighter at bottom (illuminated)
-    // ========================================
     lv_color_t hub_top =
         theme_manager_get_color("spool_hub_top"); // Nearly black at top (deep in shadow)
     lv_color_t hub_bottom =
@@ -1330,9 +1317,7 @@ void ui_spool_canvas_invalidate_cache(void) {
     spdlog::debug("[SpoolCanvas] Render cache invalidated");
 }
 
-// ----------------------------------------------------------------------------
 // Glow layer
-// ----------------------------------------------------------------------------
 // A glow is one image per (shape, accent, simple), shared by every layer that
 // shows it: the cache and the layers hold references, so a buffer lives
 // exactly as long as something needs it. Glows keep their own small LRU so

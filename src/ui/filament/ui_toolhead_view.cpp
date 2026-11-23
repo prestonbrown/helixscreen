@@ -70,9 +70,7 @@ void draw_toolhead_fitted(lv_layer_t* layer, const lv_area_t& box,
     draw_toolhead(layer, fit.cx, fit.nozzle_y, filament, fit.scale, opa);
 }
 
-// ---------------------------------------------------------------------------
 // <toolhead_view>: the file is the widget (declarative-ui structural exception)
-// ---------------------------------------------------------------------------
 
 namespace {
 

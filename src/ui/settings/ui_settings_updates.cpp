@@ -220,7 +220,6 @@ void UpdatesSettingsOverlay::show_update_download_modal(bool start_immediately) 
         return;
     }
 
-    // Set to Confirming state with version info
     auto info = UpdateChecker::instance().get_cached_update();
     std::string text = info ? fmt::format(lv_tr("Download v{}?"), info->version)
                             : std::string(lv_tr("Download update?"));

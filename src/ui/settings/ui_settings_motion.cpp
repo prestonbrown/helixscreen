@@ -23,9 +23,7 @@
 
 namespace helix::settings {
 
-// ============================================================================
 // ROW DESCRIPTORS
-// ============================================================================
 
 namespace {
 
@@ -114,9 +112,7 @@ bool field_in_range(int raw) {
 
 } // namespace
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 static MotionSettingsOverlay& get_motion_settings_overlay() {
     return lazy_global<MotionSettingsOverlay>("MotionSettingsOverlay");
@@ -128,9 +124,7 @@ void show_motion_settings_overlay() {
     overlay.show(lv_screen_active());
 }
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 MotionSettingsOverlay::~MotionSettingsOverlay() {
     // persist_timer_ cancels itself as a member; a still-pending write dies
@@ -142,9 +136,7 @@ void MotionSettingsOverlay::set_api(IMoonrakerAPI* api) {
     api_ = api;
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void MotionSettingsOverlay::init_subjects() {
     for (size_t i = 0; i < kFieldCount; ++i) {
@@ -207,9 +199,7 @@ void MotionSettingsOverlay::deinit_subjects() {
     deinit_subjects_base(subjects_);
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void MotionSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -240,9 +230,7 @@ void MotionSettingsOverlay::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // DISPLAY REFRESH
-// ============================================================================
 
 void MotionSettingsOverlay::format_display(size_t i) {
     const FieldSpec& spec = kFieldSpecs[i];
@@ -329,9 +317,7 @@ void MotionSettingsOverlay::refresh_sliders() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void MotionSettingsOverlay::handle_jog_speed_changed(bool is_z, int mm_s) {
     const size_t i =
@@ -465,9 +451,7 @@ void MotionSettingsOverlay::handle_reset_distances() {
         opts);
 }
 
-// ============================================================================
 // KEYPAD
-// ============================================================================
 
 void MotionSettingsOverlay::on_keypad_value(float value, void* user_data) {
     auto* self = static_cast<MotionSettingsOverlay*>(user_data);
