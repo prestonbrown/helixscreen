@@ -391,25 +391,25 @@ void TempGraphOverlay::retranslate_series() {
             continue; // named from the printer's config, not translated
         }
         s.display_name = heater_series_name(s.heater_name);
-        if (s.chip) {
-            helix::ui::set_row_label_text(s.chip, "chip_label",
-                                          chip_label_for(s.display_name).c_str());
-        }
         if (controller_) {
             controller_->set_series_name(s.klipper_name, s.display_name);
         }
     }
+    const auto labels = chip_labels();
+    for (size_t i = 0; i < series_.size(); ++i) {
+        if (series_[i].chip) {
+            helix::ui::set_row_label_text(series_[i].chip, "chip_label", labels[i].c_str());
+        }
+    }
 }
 
-std::string TempGraphOverlay::chip_label_for(const std::string& display_name) {
-    // Strip the redundant " Temperature" suffix for chip brevity
-    std::string chip_label = display_name;
-    const std::string suffix = " Temperature";
-    if (chip_label.size() > suffix.size() &&
-        chip_label.compare(chip_label.size() - suffix.size(), suffix.size(), suffix) == 0) {
-        chip_label.erase(chip_label.size() - suffix.size());
+std::vector<std::string> TempGraphOverlay::chip_labels() const {
+    std::vector<std::string> names;
+    names.reserve(series_.size());
+    for (const auto& s : series_) {
+        names.push_back(s.display_name);
     }
-    return chip_label;
+    return helix::temp_graph_chip_labels(names, lv_tr("Sensor"));
 }
 
 void TempGraphOverlay::discover_series() {
@@ -564,6 +564,7 @@ void TempGraphOverlay::create_chips() {
 
     chip_color_pool_.ensure_size(series_.size());
     chip_visible_pool_.ensure_size(series_.size());
+    const auto labels = chip_labels();
     for (size_t i = 0; i < series_.size(); ++i) {
         auto& s = series_[i];
         chip_color_pool_.set_color(i, lv_color_to_u32(s.color) & 0xFFFFFF);
@@ -576,7 +577,7 @@ void TempGraphOverlay::create_chips() {
             continue;
 
         // A sensor name is user text: as a prop a leading '#' would read as a const.
-        helix::ui::set_row_label_text(chip, "chip_label", chip_label_for(s.display_name).c_str());
+        helix::ui::set_row_label_text(chip, "chip_label", labels[i].c_str());
 
         s.chip = chip;
 

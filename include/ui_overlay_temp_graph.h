@@ -129,8 +129,8 @@ class TempGraphOverlay : public OverlayBase {
     [[nodiscard]] std::string heater_series_name(const std::string& heater_name) const;
     /// Re-word the heater series' chips and legend after a language change.
     void retranslate_series();
-    /// The chip's text for @p display_name: without a trailing " Temperature".
-    [[nodiscard]] static std::string chip_label_for(const std::string& display_name);
+    /// The chips' texts, in series order (see temp_graph_chip_labels).
+    [[nodiscard]] std::vector<std::string> chip_labels() const;
 
     // Publish currently-visible klipper names to the global snapshot consumed
     // by widgets that opt into "follow my graph selection" mode.

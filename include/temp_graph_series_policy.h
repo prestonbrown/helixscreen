@@ -55,6 +55,42 @@ temp_graph_sensor_series(const std::vector<sensors::TemperatureSensorConfig>& se
     return out;
 }
 
+/// The chip text for @p display_name: without a trailing " Temperature".
+[[nodiscard]] inline std::string temp_graph_chip_label(const std::string& display_name) {
+    const std::string suffix = " Temperature";
+    if (display_name.size() > suffix.size() &&
+        display_name.compare(display_name.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        return display_name.substr(0, display_name.size() - suffix.size());
+    }
+    return display_name;
+}
+
+/**
+ * @brief Chip texts for the graph's series, in series order.
+ *
+ * A series whose text matches an earlier chip's (a chamber sensor beside the
+ * chamber heater series) takes @p sensor_word ("Sensor") in place of its trailing
+ * " Temperature", so the earlier chip keeps the plain name. A series is only
+ * reworded on a real collision.
+ */
+[[nodiscard]] inline std::vector<std::string>
+temp_graph_chip_labels(const std::vector<std::string>& display_names,
+                       const std::string& sensor_word) {
+    std::vector<std::string> labels;
+    labels.reserve(display_names.size());
+    for (const auto& name : display_names) {
+        std::string label = temp_graph_chip_label(name);
+        for (const auto& earlier : labels) {
+            if (earlier == label) {
+                label += ' ' + sensor_word;
+                break;
+            }
+        }
+        labels.push_back(std::move(label));
+    }
+    return labels;
+}
+
 /// The opt-in choices the graph remembers.
 struct TempGraphSensorPrefs {
     bool show_mcu = false;

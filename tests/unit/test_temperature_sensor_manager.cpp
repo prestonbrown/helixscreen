@@ -901,3 +901,22 @@ TEST_CASE_METHOD(TemperatureSensorTestFixture,
     CHECK_FALSE(chips[0].visible);
     CHECK(chips[1].visible);
 }
+
+TEST_CASE("Temp graph: a chamber sensor chip is told apart from the chamber heater chip",
+          "[temperature][temp_graph_overlay]") {
+    // The chamber heater series comes first and keeps the plain name.
+    const auto both = temp_graph_chip_labels({"Chamber", "Bed", "Chamber Temperature"}, "Sensor");
+    REQUIRE(both.size() == 3);
+    CHECK(both[0] == "Chamber");
+    CHECK(both[2] != both[0]);
+    CHECK(both[2].find("Chamber") == 0);
+
+    // No collision, no rewording: a lone chamber series and an unrelated sensor.
+    const auto alone = temp_graph_chip_labels({"Chamber", "Hotbox Temperature"}, "Sensor");
+    CHECK(alone[0] == "Chamber");
+    CHECK(alone[1] == "Hotbox");
+
+    // A sensor that already carries its chip type never collides.
+    const auto chip = temp_graph_chip_labels({"Chamber", "Chamber Temperature (BME280)"}, "Sensor");
+    CHECK(chip[1] == "Chamber Temperature (BME280)");
+}
