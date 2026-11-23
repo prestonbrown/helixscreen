@@ -80,62 +80,70 @@
     <px name="cal_arrow_w_large" value="30"/>
     <px name="cal_arrow_w_xlarge" value="36"/>
 
-    <!-- Type. Canvas sizes at medium: title 21 semibold, subtitle 13, a tile's
-         name 16, its detail line 12.5, a badge 11, a button 15, the primary 17. -->
+    <!-- Type. Medium (800x480) tracks the app's own ladder: details and subtitles
+         16 (font_small), names and buttons 18 (font_body), titles 24, badges 14. -->
     <string name="cal_font_title_micro" value="noto_sans_bold_14"/>
     <string name="cal_font_title_tiny" value="noto_sans_bold_16"/>
     <string name="cal_font_title_small" value="noto_sans_bold_18"/>
-    <string name="cal_font_title_medium" value="noto_sans_bold_20"/>
-    <string name="cal_font_title_large" value="noto_sans_bold_24"/>
-    <string name="cal_font_title_xlarge" value="noto_sans_bold_28"/>
+    <string name="cal_font_title_medium" value="noto_sans_bold_24"/>
+    <string name="cal_font_title_large" value="noto_sans_bold_28"/>
+    <string name="cal_font_title_xlarge" value="noto_sans_bold_32"/>
     <string name="cal_font_subtitle_micro" value="noto_sans_11"/>
     <string name="cal_font_subtitle_tiny" value="noto_sans_12"/>
     <string name="cal_font_subtitle_small" value="noto_sans_12"/>
-    <string name="cal_font_subtitle_medium" value="noto_sans_14"/>
-    <string name="cal_font_subtitle_large" value="noto_sans_16"/>
-    <string name="cal_font_subtitle_xlarge" value="noto_sans_18"/>
+    <string name="cal_font_subtitle_medium" value="noto_sans_16"/>
+    <string name="cal_font_subtitle_large" value="noto_sans_18"/>
+    <string name="cal_font_subtitle_xlarge" value="noto_sans_20"/>
     <string name="cal_font_name_micro" value="noto_sans_14"/>
     <string name="cal_font_name_tiny" value="noto_sans_14"/>
     <string name="cal_font_name_small" value="noto_sans_16"/>
-    <string name="cal_font_name_medium" value="noto_sans_16"/>
+    <string name="cal_font_name_medium" value="noto_sans_18"/>
     <string name="cal_font_name_large" value="noto_sans_20"/>
     <string name="cal_font_name_xlarge" value="noto_sans_24"/>
     <string name="cal_font_name_bold_micro" value="noto_sans_bold_14"/>
     <string name="cal_font_name_bold_tiny" value="noto_sans_bold_14"/>
     <string name="cal_font_name_bold_small" value="noto_sans_bold_16"/>
-    <string name="cal_font_name_bold_medium" value="noto_sans_bold_16"/>
+    <string name="cal_font_name_bold_medium" value="noto_sans_bold_18"/>
     <string name="cal_font_name_bold_large" value="noto_sans_bold_20"/>
     <string name="cal_font_name_bold_xlarge" value="noto_sans_bold_24"/>
     <string name="cal_font_detail_micro" value="noto_sans_11"/>
     <string name="cal_font_detail_tiny" value="noto_sans_11"/>
     <string name="cal_font_detail_small" value="noto_sans_12"/>
-    <string name="cal_font_detail_medium" value="noto_sans_12"/>
-    <string name="cal_font_detail_large" value="noto_sans_16"/>
-    <string name="cal_font_detail_xlarge" value="noto_sans_18"/>
+    <string name="cal_font_detail_medium" value="noto_sans_16"/>
+    <string name="cal_font_detail_large" value="noto_sans_18"/>
+    <string name="cal_font_detail_xlarge" value="noto_sans_20"/>
     <string name="cal_font_badge_micro" value="noto_sans_10"/>
     <string name="cal_font_badge_tiny" value="noto_sans_10"/>
     <string name="cal_font_badge_small" value="noto_sans_10"/>
-    <string name="cal_font_badge_medium" value="noto_sans_11"/>
-    <string name="cal_font_badge_large" value="noto_sans_14"/>
-    <string name="cal_font_badge_xlarge" value="noto_sans_16"/>
+    <string name="cal_font_badge_medium" value="noto_sans_14"/>
+    <string name="cal_font_badge_large" value="noto_sans_16"/>
+    <string name="cal_font_badge_xlarge" value="noto_sans_18"/>
     <string name="cal_font_button_micro" value="noto_sans_12"/>
     <string name="cal_font_button_tiny" value="noto_sans_14"/>
     <string name="cal_font_button_small" value="noto_sans_14"/>
-    <string name="cal_font_button_medium" value="noto_sans_16"/>
-    <string name="cal_font_button_large" value="noto_sans_18"/>
+    <string name="cal_font_button_medium" value="noto_sans_18"/>
+    <string name="cal_font_button_large" value="noto_sans_20"/>
     <string name="cal_font_button_xlarge" value="noto_sans_24"/>
     <string name="cal_font_primary_micro" value="noto_sans_bold_14"/>
     <string name="cal_font_primary_tiny" value="noto_sans_bold_14"/>
     <string name="cal_font_primary_small" value="noto_sans_bold_16"/>
-    <string name="cal_font_primary_medium" value="noto_sans_bold_16"/>
+    <string name="cal_font_primary_medium" value="noto_sans_bold_18"/>
     <string name="cal_font_primary_large" value="noto_sans_bold_20"/>
     <string name="cal_font_primary_xlarge" value="noto_sans_bold_24"/>
+    <!-- Two lines of cal_font_detail, rounded up: a step row's result wraps once,
+         then ends in dots. -->
+    <px name="cal_detail_two_lines_micro" value="32"/>
+    <px name="cal_detail_two_lines_tiny" value="32"/>
+    <px name="cal_detail_two_lines_small" value="36"/>
+    <px name="cal_detail_two_lines_medium" value="46"/>
+    <px name="cal_detail_two_lines_large" value="54"/>
+    <px name="cal_detail_two_lines_xlarge" value="60"/>
     <string name="cal_font_mono_micro" value="source_code_pro_10"/>
     <string name="cal_font_mono_tiny" value="source_code_pro_12"/>
     <string name="cal_font_mono_small" value="source_code_pro_12"/>
-    <string name="cal_font_mono_medium" value="source_code_pro_14"/>
+    <string name="cal_font_mono_medium" value="source_code_pro_16"/>
     <string name="cal_font_mono_large" value="source_code_pro_16"/>
-    <string name="cal_font_mono_xlarge" value="source_code_pro_16"/>
+    <string name="cal_font_mono_xlarge" value="source_code_pro_18"/>
 
     <!-- ================================================================ -->
     <!-- INTRO: the intro page each calibration step opens on               -->

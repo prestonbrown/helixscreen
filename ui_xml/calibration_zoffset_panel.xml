@@ -235,12 +235,11 @@
                           text="Slide the paper back and forth." long_mode="wrap" style_text_font="#cal_font_detail"
                           style_text_color="#text_muted" style_text_align="center"/>
                 <lv_label width="100%"
-                          text="Stop when the paper just lightly drags between the toolhead nozzle and the bed."
-                          long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#text_muted"
-                          style_text_align="center"/>
+                          text="Stop when the paper just drags under the nozzle." long_mode="wrap"
+                          style_text_font="#cal_font_detail" style_text_color="#text_muted" style_text_align="center"/>
               </lv_obj>
               <lv_label width="100%"
-                        text="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed."
+                        text="Slide the paper back and forth. Stop when the paper just drags under the nozzle."
                         long_mode="wrap" style_text_font="#cal_font_detail" style_text_color="#text_muted"
                         style_text_align="center">
                 <bind_flag_if_eq subject="ui_is_portrait" flag="hidden" ref_value="0"/>

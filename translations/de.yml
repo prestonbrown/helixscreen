@@ -2414,6 +2414,7 @@ translations:
   'Identify failed: {}': "Identifizieren fehlgeschlagen: {}"
   Idle: Leerlauf
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Wenn Moonraker lokal ist oder der Bildschirm direkt am Drucker angeschlossen ist, verbinden wir automatisch
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Ist Moonraker lokal oder der Bildschirm am Drucker angeschlossen, verbinden wir automatisch
   If the extruder has no tension lever, see your printer's manual.: "Hat der Extruder keinen Spannhebel, siehe Druckerhandbuch."
   Ignore: Ignorieren
   Ignore the click that fires when you lift after scrolling: Klick ignorieren, der nach dem Scrollen beim Loslassen ausgelöst wird
@@ -4207,6 +4208,7 @@ translations:
   Runout Backup: 'Ersatz bei Auslauf'
   Runout Sensor: Auslaufsensor
   Runs on its own once started: Läuft nach dem Start von selbst
+  Runs everything this printer needs, in order: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach'
   Runs everything this printer needs, in order ·: 'Führt alles aus, was dieser Drucker braucht, der Reihe nach ·'
   Runs the printer's tool offset calibration for every tool.: Führt die Werkzeug-Offset-Kalibrierung des Druckers für alle Werkzeuge aus.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG fehlgeschlagen: {}. Die Werkzeug-Offsets wurden angewendet, aber nicht gespeichert. Führe SAVE_CONFIG manuell aus, sonst gehen sie beim Neustart verloren.'
@@ -4445,6 +4447,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Filamenttyp und Farbe für diesen Slot von Hand einstellen. Sollte der Tag lesbar sein, die Spule bei stillstehender Box mit dem Etikett zum Leser neu einlegen
   Set the filament type for this head in the filament panel, then resume.: 'Filamenttyp für diesen Kopf im Filament-Bereich setzen, dann fortsetzen.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Lege fest, wie hell der Bildschirm ist und wann er ruht. Du kannst alles später in den Einstellungen ändern.'
   Set the slot's filament information, or load the slot by hand.: Filamentinformationen des Slots setzen oder den Slot von Hand laden.
   Set this to Spoolman's currency if you use both.: "Stelle hier die Währung von Spoolman ein, wenn du beides verwendest."
   Set up: Einrichten
@@ -4538,6 +4541,7 @@ translations:
   Sliced for {}, not {}.: 'Für {} gesliced, nicht für {}.'
   Slicer: Slicer
   Slide the paper back and forth.: "Schiebe das Papier hin und her."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Schiebe das Papier hin und her. Hör auf, sobald das Papier unter der Düse leicht schleift.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Schiebe das Papier hin und her. Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Sliders: Regler
   Slot: Slot
@@ -4717,6 +4721,7 @@ translations:
   Stop the running cycle before starting another: 'Beenden Sie den laufenden Zyklus, bevor Sie einen neuen starten'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Webcams, Zeitraffer und zusätzliche Dienste auf dem Host stoppen, Netzteil und SD-Karte prüfen, dann die Firmware neu starten. Wenn es an derselben Stelle erneut passiert, die Geschwindigkeit oder die Microsteps senken.
+  Stop when the paper just drags under the nozzle.: Hör auf, sobald das Papier unter der Düse leicht schleift.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Hör auf, sobald das Papier zwischen Düse und Heizbett leicht schleift."
   Stop with an emergency stop?: 'Mit Notaus stoppen?'
   Stopped: Gestoppt
@@ -5953,6 +5958,7 @@ translations:
   Year: Jahr
   Year Month Day: Jahr Monat Tag
   'Yes': Ja
+  You are needed for the first {} min: Du wirst die ersten {} Min. gebraucht
   You are needed for the first {} min, then it runs on its own: Du wirst die ersten {} Min. gebraucht, dann läuft es von selbst
   You can skip this and calibrate later in Settings.: Sie können dies überspringen und später in den Einstellungen kalibrieren.
   You have unsaved changes. Discard them?: Sie haben ungespeicherte Änderungen. Verwerfen?

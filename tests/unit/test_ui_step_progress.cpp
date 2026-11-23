@@ -472,3 +472,51 @@ TEST_CASE_METHOD(XMLTestFixture,
     lv_subject_set_int(&in_run, 0);
     CHECK(lv_obj_is_hidden(row));
 }
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "calibration run row: a long result wraps to a second line, then ends in dots",
+                 "[ui][step][calibration_run]") {
+    static helix::Subject in_run;
+    static helix::Subject state;
+    static helix::Subject detail;
+    static char detail_buf[96];
+    in_run.publish_int(1);
+    state.publish_int(2);
+    if (!detail.is_live())
+        detail.init_string(detail_buf, "");
+    lv_xml_register_subject(nullptr, "cal_run_in_run_wrap_step", &in_run);
+    lv_xml_register_subject(nullptr, "cal_run_state_wrap_step", &state);
+    lv_xml_register_subject(nullptr, "cal_run_detail_wrap_step", &detail);
+
+    // The step column's width at 800x480.
+    lv_obj_t* parent = make_sized_parent(test_screen());
+    lv_obj_set_width(parent, 250);
+    const char* attrs[] = {"step", "wrap_step", "label", "Input shaper", nullptr};
+    auto* row = static_cast<lv_obj_t*>(lv_xml_create(parent, "calibration_run_step_row", attrs));
+    REQUIRE(row != nullptr);
+    lv_obj_t* text = part(row, "step_detail");
+    const int32_t line = lv_font_get_line_height(lv_obj_get_style_text_font(text, LV_PART_MAIN));
+
+    SECTION("a result one line holds stays on one line") {
+        lv_subject_set_string(&detail, "0.64 mm range");
+        lv_obj_update_layout(parent);
+        CHECK(lv_obj_get_height(text) == line);
+    }
+    SECTION("a two-axis shaper result shows whole on two lines") {
+        const std::string value = "X: 3HUMP_EI 83.2 · Y: MZV 39.6";
+        lv_subject_set_string(&detail, value.c_str());
+        lv_obj_update_layout(parent);
+        CHECK(lv_obj_get_height(text) == 2 * line);
+        CHECK(std::string(lv_label_get_text(text)) == value);
+    }
+    SECTION("a result longer than two lines stops at two and ends in dots") {
+        lv_subject_set_string(
+            &detail, "X: 3HUMP_EI 83.2 · Y: 2HUMP_EI 139.6 · Z: 3HUMP_EI 120.4 · A: EI 47.6");
+        lv_obj_update_layout(parent);
+        CHECK(lv_obj_get_height(text) >= 2 * line);
+        CHECK(lv_obj_get_height(text) < 3 * line);
+        const std::string shown_text = lv_label_get_text(text);
+        REQUIRE(shown_text.size() > 3);
+        CHECK(shown_text.substr(shown_text.size() - 3) == "...");
+    }
+}

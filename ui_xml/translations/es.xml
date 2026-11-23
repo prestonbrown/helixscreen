@@ -2312,6 +2312,7 @@
   <translation tag="Identify failed: {}" es="Error al identificar: {}"/>
   <translation tag="Idle" es="Inactivo"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" es="Si Moonraker es local o tu pantalla está conectada directamente a la impresora, nos conectaremos automáticamente"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" es="Si Moonraker es local o tu pantalla está conectada a la impresora, nos conectaremos automáticamente"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." es="Si el extrusor no tiene palanca de tensión, consulte el manual de su impresora."/>
   <translation tag="Ignore" es="Ignorar"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" es="Ignora el clic que se dispara al levantar el dedo después de desplazarte"/>
@@ -4071,6 +4072,7 @@
   <translation tag="Runout" es="Agotamiento"/>
   <translation tag="Runout Backup" es="Reserva por agotamiento"/>
   <translation tag="Runout Sensor" es="Sensor de Agotamiento"/>
+  <translation tag="Runs everything this printer needs, in order" es="Ejecuta todo lo que necesita esta impresora, en orden"/>
   <translation tag="Runs everything this printer needs, in order ·" es="Ejecuta todo lo que necesita esta impresora, en orden ·"/>
   <translation tag="Runs on its own once started" es="Funciona solo una vez iniciado"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." es="Ejecuta la calibración de offsets de herramienta de la impresora para todas las herramientas."/>
@@ -4304,6 +4306,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." es="Configura el reloj, el tema y las unidades. Puedes cambiarlos más tarde en Ajustes."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" es="Ajuste a mano el tipo y el color del filamento para esta ranura. Si la etiqueta debería poder leerse, vuelva a colocar la bobina con la etiqueta hacia el lector cuando la caja esté inactiva"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." es="Asigna el tipo de filamento de este cabezal en el panel de filamento y reanuda."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." es="Elige el brillo de la pantalla y cuándo descansa. Puedes cambiarlo más tarde en Ajustes."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." es="Configura la información de filamento de la ranura, o carga la ranura a mano."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." es="Elige aquí la moneda de Spoolman si usas ambos."/>
   <translation tag="Set up" es="Configurar"/>
@@ -4397,6 +4400,7 @@
   <translation tag="Sliced for {}, not {}." es="Laminado para {}, no para {}."/>
   <translation tag="Slicer" es="Laminador"/>
   <translation tag="Slide the paper back and forth." es="Desliza el papel hacia adelante y atrás."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." es="Desliza el papel hacia adelante y atrás. Para cuando el papel roce bajo la boquilla."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." es="Desliza el papel hacia adelante y atrás. Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."/>
   <translation tag="Sliders" es="Controles"/>
   <translation tag="Slot" es="Ranura"/>
@@ -4568,6 +4572,7 @@
   <translation tag="Stop the check?" es="¿Detener la comprobación?"/>
   <translation tag="Stop the running cycle before starting another" es="Detenga el ciclo en curso antes de iniciar otro"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." es="Detén las webcams, los timelapses y los servicios extra del host, revisa su fuente de alimentación y su tarjeta SD, y reinicia el firmware. Si vuelve a ocurrir en el mismo punto, baja la velocidad o los micropasos."/>
+  <translation tag="Stop when the paper just drags under the nozzle." es="Para cuando el papel roce bajo la boquilla."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." es="Para cuando el papel roce ligeramente entre la boquilla del cabezal y la cama."/>
   <translation tag="Stop with an emergency stop?" es="¿Detener con una parada de emergencia?"/>
   <translation tag="Stopped" es="Detenido"/>
@@ -5742,6 +5747,7 @@
   <translation tag="Year" es="Año"/>
   <translation tag="Year Month Day" es="Año Mes Día"/>
   <translation tag="Yes" es="Sí"/>
+  <translation tag="You are needed for the first {} min" es="Te necesita los primeros {} min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" es="Te necesita los primeros {} min y luego funciona solo"/>
   <translation tag="You can skip this and calibrate later in Settings." es="Puede omitir esto y calibrar más tarde en Ajustes."/>
   <translation tag="You have unsaved changes. Discard them?" es="Tiene cambios sin guardar. ¿Descartarlos?"/>

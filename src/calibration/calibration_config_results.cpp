@@ -219,6 +219,11 @@ std::string format_shaper_axis(std::string_view type, double freq_hz) {
     return fmt::format("{} {:.1f}", text_io::to_upper(type), freq_hz);
 }
 
+namespace {
+/// What join_shaper_axes() puts between the two axes.
+constexpr std::string_view kShaperAxisJoin = " · ";
+} // namespace
+
 std::string join_shaper_axes(const std::string& x, const std::string& y) {
     // Each axis names itself: the two rarely share a shaper or a frequency, and
     // a printer shaping one axis must still say which. No unit: with one, both
@@ -228,7 +233,17 @@ std::string join_shaper_axes(const std::string& x, const std::string& y) {
     };
     const std::string lx = labeled('X', x);
     const std::string ly = labeled('Y', y);
-    return lx.empty() ? ly : ly.empty() ? lx : fmt::format("{} · {}", lx, ly);
+    return lx.empty() ? ly : ly.empty() ? lx : lx + std::string(kShaperAxisJoin) + ly;
+}
+
+std::string shaper_axes_on_lines(std::string_view joined) {
+    std::string out(joined);
+    const auto at = out.find(kShaperAxisJoin);
+    if (at != std::string::npos && out.compare(0, 3, "X: ") == 0 &&
+        out.compare(at + kShaperAxisJoin.size(), 3, "Y: ") == 0) {
+        out.replace(at, kShaperAxisJoin.size(), "\n");
+    }
+    return out;
 }
 
 std::string format_pid(double kp, double ki, double kd) {

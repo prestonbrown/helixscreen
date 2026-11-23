@@ -219,7 +219,8 @@ colors.
 **The Guided calibration banner** sits above the tiles. It shows when the run would have at least
 one step ticked by default, and says how many of those never ran and how long the run takes
 (`guided_banner_text()`): "2 steps never run · about 20 min", or "Run everything again · about
-25 min" once all have a result. The ESP32 firmware leaves the guided run out of its build, so the
+25 min" once all have a result. That line follows the banner's lead sentence and drops to its
+own line when both do not fit, so the step count and minutes are never cut. The ESP32 firmware leaves the guided run out of its build, so the
 banner never shows there.
 
 ### In config: results the printer already holds
@@ -336,6 +337,13 @@ step's chip and the last result. The badge and the chip keep their width; the la
 what is left and ends in dots first, then the name does, so a long translation never pushes the
 chip out of the tile.
 
+**Type.** The calibration screens and the first-run wizard's header and footer take their sizes
+from the `cal_font_*` tokens in `ui_xml/calibration_wizard_tokens.xml`. At 800x480 (medium) they
+match the app's own ladder: titles bold 24, subtitles and detail lines 16 (`font_small`), names
+and buttons 18 (`font_body`), badges 14, the results table's mono 16. Large and xlarge step up
+from there; small and below keep tighter sizes. A text that no longer fits at these sizes is cut
+to fewer words, or wraps where the layout has room, rather than ending in dots.
+
 ### The four pages
 
 `CalibrationRunOverlay` (`src/ui/calibration/ui_calibration_run_overlay.cpp`) owns the run, not
@@ -343,9 +351,11 @@ the view: closing the screen mid-run leaves the run going, and `open()` reopens 
 run is on. Every page binds to subjects the overlay publishes; the subject names are in
 `init_subjects()`.
 
-1. **Pick.** One row per offered step with its time, whether it needs the owner, a paper test,
-   heat or noise, and its tile line. The summary reads "3 steps · about 20 min" and says how much
-   of that is hands-on.
+1. **Pick.** One full-width row per offered step, in a single column at every size, with its
+   time, whether it needs the owner, a paper test, heat or noise, and its tile line. The guided
+   run offers at most four steps (`in_guided_run()`), which fit at 800x480 with room to spare; the
+   list scrolls should it ever hold more. The summary reads "3 steps · about 20 min" and the line
+   under it says how much of that is hands-on; that the rest runs on its own is in the header.
 2. **Before you start.** `prereq_lines()` lists every prerequisite of the picked steps once, in
    `kPrereqOrder`, with the steps that need it ("For: Z offset, Bed mesh"). The owner ticks each
    one; an accelerometer is pre-ticked, since the run only offers input shaping where discovery

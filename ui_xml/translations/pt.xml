@@ -2312,6 +2312,7 @@
   <translation tag="Identify failed: {}" pt="Falha ao identificar: {}"/>
   <translation tag="Idle" pt="Ocioso"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" pt="Se o Moonraker for local ou sua tela estiver conectada diretamente à impressora, conectaremos automaticamente"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" pt="Se o Moonraker for local ou sua tela estiver conectada à impressora, conectaremos automaticamente"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." pt="Se a extrusora não tiver alavanca de tensão, consulte o manual da impressora."/>
   <translation tag="Ignore" pt="Ignorar"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" pt="Ignora o clique que ocorre ao soltar após rolagem"/>
@@ -4071,6 +4072,7 @@
   <translation tag="Runout" pt="Fim de filamento"/>
   <translation tag="Runout Backup" pt="Reserva no fim de filamento"/>
   <translation tag="Runout Sensor" pt="Sensor de Fim de Filamento"/>
+  <translation tag="Runs everything this printer needs, in order" pt="Executa tudo o que esta impressora precisa, em ordem"/>
   <translation tag="Runs everything this printer needs, in order ·" pt="Executa tudo o que esta impressora precisa, em ordem ·"/>
   <translation tag="Runs on its own once started" pt="Funciona sozinho depois de iniciado"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." pt="Executa a calibração de offsets de ferramenta da impressora para todas as ferramentas."/>
@@ -4304,6 +4306,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." pt="Defina o relógio, o tema e as unidades. Você pode alterá-los depois em Configurações."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" pt="Defina manualmente o tipo e a cor do filamento deste slot. Se a etiqueta deveria ser legível, reencaixe o carretel com o rótulo voltado para o leitor quando a caixa estiver ociosa"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." pt="Defina o tipo de filamento deste cabeçote no painel de filamento e retome."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." pt="Defina o brilho da tela e quando ela descansa. Você pode mudar tudo depois em Configurações."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." pt="Defina as informações de filamento do slot, ou carregue o slot à mão."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." pt="Defina aqui a moeda do Spoolman se usar ambos."/>
   <translation tag="Set up" pt="Configurar"/>
@@ -4397,6 +4400,7 @@
   <translation tag="Sliced for {}, not {}." pt="Fatiado para {}, não para {}."/>
   <translation tag="Slicer" pt="Fatiador"/>
   <translation tag="Slide the paper back and forth." pt="Deslize o papel para frente e para trás."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." pt="Deslize o papel para frente e para trás. Pare quando o papel arrastar sob o bico."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." pt="Deslize o papel para frente e para trás. Pare quando o papel arrastar levemente entre o bico do cabeçote e a mesa."/>
   <translation tag="Sliders" pt="Controles"/>
   <translation tag="Slot" pt="Slot"/>
@@ -4568,6 +4572,7 @@
   <translation tag="Stop the check?" pt="Parar a verificação?"/>
   <translation tag="Stop the running cycle before starting another" pt="Pare o ciclo em andamento antes de iniciar outro"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." pt="Pare webcams, timelapses e serviços extras no host, verifique a fonte de alimentação e o cartão SD, e reinicie o firmware. Se acontecer de novo no mesmo ponto, reduza a velocidade ou os micropassos."/>
+  <translation tag="Stop when the paper just drags under the nozzle." pt="Pare quando o papel arrastar sob o bico."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." pt="Pare quando o papel arrastar levemente entre o bico do cabeçote e a mesa."/>
   <translation tag="Stop with an emergency stop?" pt="Parar com uma parada de emergência?"/>
   <translation tag="Stopped" pt="Parado"/>
@@ -5742,6 +5747,7 @@
   <translation tag="Year" pt="Ano"/>
   <translation tag="Year Month Day" pt="Ano Mês Dia"/>
   <translation tag="Yes" pt="Sim"/>
+  <translation tag="You are needed for the first {} min" pt="Você é necessário nos primeiros {} min"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" pt="Você é necessário nos primeiros {} min, depois funciona sozinho"/>
   <translation tag="You can skip this and calibrate later in Settings." pt="Você pode pular isto e calibrar depois nas Configurações."/>
   <translation tag="You have unsaved changes. Discard them?" pt="Você tem alterações não salvas. Descartar?"/>

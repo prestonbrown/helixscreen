@@ -2401,6 +2401,7 @@ translations:
   'Identify failed: {}': 'Identify failed: {}'
   Idle: Idle
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: If Moonraker is local or your screen is attached to the printer, we'll connect automatically
   If the extruder has no tension lever, see your printer's manual.: If the extruder has no tension lever, see your printer's manual.
   Ignore: Ignore
   Ignore the click that fires when you lift after scrolling: Ignore the click that fires when you lift after scrolling
@@ -4178,6 +4179,7 @@ translations:
   Runout: Runout
   Runout Backup: Runout Backup
   Runout Sensor: Runout Sensor
+  Runs everything this printer needs, in order: Runs everything this printer needs, in order
   Runs everything this printer needs, in order ·: Runs everything this printer needs, in order ·
   Runs on its own once started: Runs on its own once started
   Runs the printer's tool offset calibration for every tool.: Runs the printer's tool offset calibration for every tool.
@@ -4418,6 +4420,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   Set the filament type for this head in the filament panel, then resume.: Set the filament type for this head in the filament panel, then resume.
+  Set the screen brightness and when it rests. You can change these later in Settings.: Set the screen brightness and when it rests. You can change these later in Settings.
   Set the slot's filament information, or load the slot by hand.: Set the slot's filament information, or load the slot by hand.
   Set this to Spoolman's currency if you use both.: Set this to Spoolman's currency if you use both.
   Set up: Set up
@@ -4511,6 +4514,7 @@ translations:
   Sliced for {}, not {}.: Sliced for {}, not {}.
   Slicer: Slicer
   Slide the paper back and forth.: Slide the paper back and forth.
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Slide the paper back and forth. Stop when the paper just drags under the nozzle.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.
   Sliders: Sliders
   Slot: Slot
@@ -4685,6 +4689,7 @@ translations:
   Stop the running cycle before starting another: Stop the running cycle before starting another
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
+  Stop when the paper just drags under the nozzle.: Stop when the paper just drags under the nozzle.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: Stop when the paper just lightly drags between the toolhead nozzle and the bed.
   Stop with an emergency stop?: Stop with an emergency stop?
   Stopped: Stopped
@@ -5919,6 +5924,7 @@ translations:
   Year: Year
   Year Month Day: Year Month Day
   'Yes': 'Yes'
+  You are needed for the first {} min: You are needed for the first {} min
   You are needed for the first {} min, then it runs on its own: You are needed for the first {} min, then it runs on its own
   You can skip this and calibrate later in Settings.: You can skip this and calibrate later in Settings.
   You have unsaved changes. Discard them?: You have unsaved changes. Discard them?

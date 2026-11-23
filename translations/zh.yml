@@ -2414,6 +2414,7 @@ translations:
   'Identify failed: {}': "识别失败：{}"
   Idle: 空闲
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: 如果 Moonraker 在本地或屏幕直接连接到打印机，将自动连接
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: 如果 Moonraker 在本地或屏幕连接到打印机，将自动连接
   If the extruder has no tension lever, see your printer's manual.: "如果挤出机没有张紧杆,请参阅打印机手册。"
   Ignore: 忽略
   Ignore the click that fires when you lift after scrolling: 忽略滚动后抬起手指时触发的点击
@@ -4207,6 +4208,7 @@ translations:
   Runout Backup: '用尽备用'
   Runout Sensor: 断料传感器
   Runs on its own once started: 启动后自动运行
+  Runs everything this printer needs, in order: '按顺序运行此打印机所需的一切'
   Runs everything this printer needs, in order ·: '按顺序运行此打印机所需的一切 ·'
   Runs the printer's tool offset calibration for every tool.: 为所有工具运行打印机的工具偏移校准。
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': SAVE_CONFIG 失败：{}。工具偏移已应用但未保存。请手动执行 SAVE_CONFIG，否则重启后将丢失。
@@ -4445,6 +4447,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : 请手动设置该槽位的耗材类型和颜色。若标签本应可读，请在料盒空闲时将料盘取出并使标签朝向读取器重新装入
   Set the filament type for this head in the filament panel, then resume.: '请在耗材面板中为此工具头设置耗材类型，然后恢复。'
+  Set the screen brightness and when it rests. You can change these later in Settings.: '设置屏幕亮度以及何时休眠。以后可在“设置”中更改。'
   Set the slot's filament information, or load the slot by hand.: 请设置该槽位的耗材信息，或手动加载该槽位。
   Set this to Spoolman's currency if you use both.: "如果两者都使用，请在此设置为 Spoolman 的货币。"
   Set up: 设置
@@ -4538,6 +4541,7 @@ translations:
   Sliced for {}, not {}.: '为 {} 切片，而不是 {}。'
   Slicer: 切片软件
   Slide the paper back and forth.: "来回滑动纸张。"
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: 来回滑动纸张。当纸张在喷嘴下略有阻力时停止。
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "来回滑动纸张。当纸张在喷嘴和热床之间略有阻力时停止。"
   Sliders: 滑块
   Slot: 槽位
@@ -4717,6 +4721,7 @@ translations:
   Stop the running cycle before starting another: '请先停止当前周期，再启动新的周期'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : 请停止主机上的摄像头、延时摄影和额外服务，检查其电源和 SD 卡，然后重启固件。如果在同一位置再次发生，请降低速度或细分。
+  Stop when the paper just drags under the nozzle.: 当纸张在喷嘴下略有阻力时停止。
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "当纸张在喷嘴和热床之间略有阻力时停止。"
   Stop with an emergency stop?: '要用紧急停止来停止吗？'
   Stopped: 已停止
@@ -5953,6 +5958,7 @@ translations:
   Year: 年
   Year Month Day: 年 月 日
   'Yes': 是
+  You are needed for the first {} min: 前 {} 分钟需要您参与
   You are needed for the first {} min, then it runs on its own: 前 {} 分钟需要您参与，之后自动运行
   You can skip this and calibrate later in Settings.: 您可以跳过此步骤，稍后在设置中进行校准。
   You have unsaved changes. Discard them?: 您有未保存的更改。是否丢弃？

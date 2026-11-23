@@ -2426,6 +2426,7 @@ translations:
   'Identify failed: {}': "Échec de l'identification : {}"
   Idle: Inactif
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Si Moonraker est local ou si votre écran est connecté directement à l'imprimante, la connexion sera automatique
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Si Moonraker est local ou si votre écran est connecté à l'imprimante, la connexion sera automatique
   If the extruder has no tension lever, see your printer's manual.: "Si l'extrudeur n'a pas de levier de tension, consultez le manuel de votre imprimante."
   Ignore: Ignorer
   Ignore the click that fires when you lift after scrolling: Ignorer le clic déclenché au relâchement après un défilement
@@ -4219,6 +4220,7 @@ translations:
   Runout Backup: 'Secours en fin de filament'
   Runout Sensor: Capteur de fin de filament
   Runs on its own once started: Fonctionne seul une fois lancé
+  Runs everything this printer needs, in order: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre'
   Runs everything this printer needs, in order ·: 'Exécute tout ce dont cette imprimante a besoin, dans l''ordre ·'
   Runs the printer's tool offset calibration for every tool.: Lance la calibration des offsets d'outil de l'imprimante pour tous les outils.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': "SAVE_CONFIG a échoué : {}. Les décalages d'outil ont été appliqués mais non enregistrés. Lancez SAVE_CONFIG manuellement, sinon ils seront perdus au redémarrage."
@@ -4457,6 +4459,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Réglez à la main le type et la couleur du filament pour ce slot. Si l'étiquette devrait être lisible, remettez la bobine en place, étiquette face au lecteur, une fois la boîte au repos
   Set the filament type for this head in the filament panel, then resume.: 'Définissez le type de filament de cette tête dans le panneau filament, puis reprenez.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Choisissez la luminosité de l''écran et quand il se met en veille. Vous pourrez tout modifier plus tard dans Paramètres.'
   Set the slot's filament information, or load the slot by hand.: Renseignez les informations de filament du slot, ou chargez le slot à la main.
   Set this to Spoolman's currency if you use both.: "Choisissez ici la devise de Spoolman si vous utilisez les deux."
   Set up: Configurer
@@ -4550,6 +4553,7 @@ translations:
   Sliced for {}, not {}.: 'Tranché pour {}, pas pour {}.'
   Slicer: Trancheur
   Slide the paper back and forth.: "Fais glisser le papier d'avant en arrière."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Fais glisser le papier d'avant en arrière. Arrête-toi quand le papier frotte sous la buse.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Fais glisser le papier d'avant en arrière. Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."
   Sliders: Curseurs
   Slot: Slot
@@ -4729,6 +4733,7 @@ translations:
   Stop the running cycle before starting another: 'Arrêtez le cycle en cours avant d''en lancer un autre'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Arrêtez les webcams, les timelapses et les services supplémentaires sur l'hôte, vérifiez son alimentation et sa carte SD, puis redémarrez le firmware. Si cela se reproduit au même endroit, réduisez la vitesse ou les micropas.
+  Stop when the paper just drags under the nozzle.: Arrête-toi quand le papier frotte sous la buse.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Arrête-toi quand le papier frotte légèrement entre la buse et le plateau."
   Stop with an emergency stop?: 'Arrêter par un arrêt d''urgence ?'
   Stopped: Arrêté
@@ -5965,6 +5970,7 @@ translations:
   Year: Année
   Year Month Day: Année Mois Jour
   'Yes': Oui
+  You are needed for the first {} min: On a besoin de vous les {} premières min
   You are needed for the first {} min, then it runs on its own: On a besoin de vous les {} premières min, puis tout se fait seul
   You can skip this and calibrate later in Settings.: Vous pouvez ignorer cette étape et calibrer plus tard dans les paramètres.
   You have unsaved changes. Discard them?: Vous avez des modifications non enregistrées. Les abandonner ?

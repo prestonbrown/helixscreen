@@ -8,8 +8,8 @@
     <!-- Step metadata (read by wizard orchestrator) -->
     <str name="step_title" value="Printer Setup: Connection" value_tag="Printer Setup: Connection"/>
     <str name="step_subtitle"
-         value="If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically"
-         value_tag="If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically"/>
+         value="If Moonraker is local or your screen is attached to the printer, we'll connect automatically"
+         value_tag="If Moonraker is local or your screen is attached to the printer, we'll connect automatically"/>
     <int name="step_order" value="2"/>
   </consts>
   <view name="wizard_connection_root"

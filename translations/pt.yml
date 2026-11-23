@@ -2414,6 +2414,7 @@ translations:
   'Identify failed: {}': "Falha ao identificar: {}"
   Idle: Ocioso
   If Moonraker is local or your screen is attached to the printer directly, we'll connect automatically: Se o Moonraker for local ou sua tela estiver conectada diretamente à impressora, conectaremos automaticamente
+  If Moonraker is local or your screen is attached to the printer, we'll connect automatically: Se o Moonraker for local ou sua tela estiver conectada à impressora, conectaremos automaticamente
   If the extruder has no tension lever, see your printer's manual.: "Se a extrusora não tiver alavanca de tensão, consulte o manual da impressora."
   Ignore: Ignorar
   Ignore the click that fires when you lift after scrolling: Ignora o clique que ocorre ao soltar após rolagem
@@ -4207,6 +4208,7 @@ translations:
   Runout Backup: 'Reserva no fim de filamento'
   Runout Sensor: Sensor de Fim de Filamento
   Runs on its own once started: Funciona sozinho depois de iniciado
+  Runs everything this printer needs, in order: 'Executa tudo o que esta impressora precisa, em ordem'
   Runs everything this printer needs, in order ·: 'Executa tudo o que esta impressora precisa, em ordem ·'
   Runs the printer's tool offset calibration for every tool.: Executa a calibração de offsets de ferramenta da impressora para todas as ferramentas.
   'SAVE_CONFIG failed: {}. Tool offsets were applied but not saved. Run SAVE_CONFIG manually or they will be lost on restart.': 'SAVE_CONFIG falhou: {}. Os offsets de ferramenta foram aplicados mas não salvos. Execute SAVE_CONFIG manualmente ou serão perdidos ao reiniciar.'
@@ -4445,6 +4447,7 @@ translations:
   ? Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle
   : Defina manualmente o tipo e a cor do filamento deste slot. Se a etiqueta deveria ser legível, reencaixe o carretel com o rótulo voltado para o leitor quando a caixa estiver ociosa
   Set the filament type for this head in the filament panel, then resume.: 'Defina o tipo de filamento deste cabeçote no painel de filamento e retome.'
+  Set the screen brightness and when it rests. You can change these later in Settings.: 'Defina o brilho da tela e quando ela descansa. Você pode mudar tudo depois em Configurações.'
   Set the slot's filament information, or load the slot by hand.: Defina as informações de filamento do slot, ou carregue o slot à mão.
   Set this to Spoolman's currency if you use both.: "Defina aqui a moeda do Spoolman se usar ambos."
   Set up: Configurar
@@ -4538,6 +4541,7 @@ translations:
   Sliced for {}, not {}.: 'Fatiado para {}, não para {}.'
   Slicer: Fatiador
   Slide the paper back and forth.: "Deslize o papel para frente e para trás."
+  Slide the paper back and forth. Stop when the paper just drags under the nozzle.: Deslize o papel para frente e para trás. Pare quando o papel arrastar sob o bico.
   Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Deslize o papel para frente e para trás. Pare quando o papel arrastar levemente entre o bico do cabeçote e a mesa."
   Sliders: Controles
   Slot: Slot
@@ -4717,6 +4721,7 @@ translations:
   Stop the running cycle before starting another: 'Pare o ciclo em andamento antes de iniciar outro'
   ? Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps.
   : Pare webcams, timelapses e serviços extras no host, verifique a fonte de alimentação e o cartão SD, e reinicie o firmware. Se acontecer de novo no mesmo ponto, reduza a velocidade ou os micropassos.
+  Stop when the paper just drags under the nozzle.: Pare quando o papel arrastar sob o bico.
   Stop when the paper just lightly drags between the toolhead nozzle and the bed.: "Pare quando o papel arrastar levemente entre o bico do cabeçote e a mesa."
   Stop with an emergency stop?: 'Parar com uma parada de emergência?'
   Stopped: Parado
@@ -5953,6 +5958,7 @@ translations:
   Year: Ano
   Year Month Day: Ano Mês Dia
   'Yes': Sim
+  You are needed for the first {} min: Você é necessário nos primeiros {} min
   You are needed for the first {} min, then it runs on its own: Você é necessário nos primeiros {} min, depois funciona sozinho
   You can skip this and calibrate later in Settings.: Você pode pular isto e calibrar depois nas Configurações.
   You have unsaved changes. Discard them?: Você tem alterações não salvas. Descartar?

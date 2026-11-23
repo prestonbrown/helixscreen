@@ -402,6 +402,8 @@ void CalibrationRunOverlay::init_subjects() {
     add_int(hide_discard_, 1, "cal_run_hide_discard");
     add_string(results_sub_, results_sub_buf_, kLongLen, "cal_run_results_sub");
     add_string(save_line_, save_line_buf_, kLongLen, "cal_run_save_line");
+    add_string(save_sub_, save_sub_buf_, kShortLen, "cal_run_save_sub");
+    add_int(save_sub_hidden_, 1, "cal_run_save_sub_hidden");
     add_int(has_error_, 0, "cal_run_has_error");
     add_string(error_, error_buf_, kLongLen, "cal_run_error");
 
@@ -583,10 +585,9 @@ void CalibrationRunOverlay::publish_pick() {
              n == 1 ? fmt::format(fmt::runtime(lv_tr("1 step · {} min")), minutes)
                     : fmt::format(fmt::runtime(lv_tr("{} steps · {} min")), n, minutes));
     set_text(hands_line_,
-             hands > 0 ? fmt::format(fmt::runtime(lv_tr("You are needed for the first {} min, "
-                                                        "then it runs on its own")),
-                                     hands)
-                       : std::string(lv_tr("Runs on its own once started")));
+             hands > 0
+                 ? fmt::format(fmt::runtime(lv_tr("You are needed for the first {} min")), hands)
+                 : std::string(lv_tr("Runs on its own once started")));
     set_text(hands_short_, hands > 0 ? fmt::format(fmt::runtime(lv_tr("you: first {} min")), hands)
                                      : std::string(lv_tr("runs on its own")));
 }
@@ -713,7 +714,9 @@ void CalibrationRunOverlay::publish_run() {
                              !e.step->restores_on_discard();
         lv_subject_set_int(&state_[k], dropped ? 3 : dot_state(e.status));
         const std::string dropped_text = lv_tr("Dropped when the printer restarted");
-        const std::string status = dropped ? dropped_text : entry_status_text(e);
+        // The step list and the table give a per-axis result one line per axis.
+        const std::string status =
+            dropped ? dropped_text : calibration::shaper_axes_on_lines(entry_status_text(e));
         set_text(detail_[k], status);
         set_text(after_[k], e.restore_note.empty() ? status : e.restore_note);
         set_text(before_subj_[k], before_text_[k]);
@@ -810,6 +813,7 @@ void CalibrationRunOverlay::publish_run() {
     const bool offers_save = can_save && !busy;
     lv_subject_set_int(&offers_save_, offers_save ? 1 : 0);
     set_text(results_primary_, results_primary_label(offers_save, restart_known_, save_restarts_));
+    std::string save_sub;
     switch (phase) {
     case RunPhase::Saving:
         set_text(save_line_, lv_tr("Saving..."));
@@ -832,13 +836,17 @@ void CalibrationRunOverlay::publish_run() {
             const std::string count =
                 saving == 1 ? std::string(lv_tr("Saving 1 result"))
                             : fmt::format(fmt::runtime(lv_tr("Saving {} results")), saving);
-            set_text(save_line_, count + " · " +
-                                     (!restart_known_  ? lv_tr("Klipper may restart")
-                                      : save_restarts_ ? lv_tr("one restart")
-                                                       : lv_tr("no restart")));
+            // The count and the restart on two lines: beside a long translation of the
+            // save button one line has no room for both.
+            set_text(save_line_, count);
+            save_sub = !restart_known_  ? lv_tr("Klipper may restart")
+                       : save_restarts_ ? lv_tr("one restart")
+                                        : lv_tr("no restart");
         }
         break;
     }
+    set_text(save_sub_, save_sub);
+    lv_subject_set_int(&save_sub_hidden_, save_sub.empty() ? 1 : 0);
     const std::string err = run_->error().empty() ? end_note_text(run_->end_note()) : run_->error();
     lv_subject_set_int(&has_error_, err.empty() ? 0 : 1);
     set_text(error_, err);
@@ -932,8 +940,8 @@ void CalibrationRunOverlay::start() {
     const auto options = run_options();
     for (const auto& info : picked_steps()) {
         if (const int i = step_index(info.id); i >= 0) {
-            before_text_[static_cast<size_t>(i)] =
-                run_before_text(info, get_printer_state().get_configured_z_offset_microns());
+            before_text_[static_cast<size_t>(i)] = calibration::shaper_axes_on_lines(
+                run_before_text(info, get_printer_state().get_configured_z_offset_microns()));
         }
         if (auto step = calibration::make_run_step(info, options)) {
             steps.push_back(std::move(step));

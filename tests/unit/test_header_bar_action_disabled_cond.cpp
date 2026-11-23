@@ -23,6 +23,8 @@
  * Compiling each shipped expression against live subjects is what catches that.
  */
 
+#include "ui_obj_flags.h"
+
 #include "../test_fixtures.h"
 #include "core/subject.h"
 #include "core/update_queue.h"
@@ -211,6 +213,47 @@ TEST_CASE_METHOD(
     lv_obj_delete(footer);
     UpdateQueue::instance().drain();
     ready.reset();
+}
+
+TEST_CASE_METHOD(XMLTestFixture,
+                 "a wizard footer's second status line hides while its hide subject is 1",
+                 "[calibration_run]") {
+    REQUIRE(register_component("wizard_frame_footer"));
+    static helix::Subject line;
+    static helix::Subject sub;
+    static helix::Subject sub_hidden;
+    static char line_buf[64];
+    static char sub_buf[64];
+    if (!line.is_live())
+        line.init_string(line_buf, "Saving 4 results");
+    if (!sub.is_live())
+        sub.init_string(sub_buf, "one restart");
+    sub_hidden.init_int(0);
+    lv_xml_register_subject(nullptr, "test_footer_line", &line);
+    lv_xml_register_subject(nullptr, "test_footer_sub", &sub);
+    lv_xml_register_subject(nullptr, "test_footer_sub_hidden", &sub_hidden);
+
+    const char* attrs[] = {"status_subject",
+                           "test_footer_line",
+                           "status_sub_subject",
+                           "test_footer_sub",
+                           "status_sub_hide_subject",
+                           "test_footer_sub_hidden",
+                           nullptr};
+    lv_obj_t* footer = create_component("wizard_frame_footer", attrs);
+    REQUIRE(footer != nullptr);
+    lv_obj_t* status_sub = lv_obj_find_by_name(footer, "cal_footer_status_sub");
+    REQUIRE(status_sub != nullptr);
+
+    CHECK_FALSE(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(&sub_hidden, 1);
+    CHECK(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
+    lv_subject_set_int(&sub_hidden, 0);
+    CHECK_FALSE(helix::ui::obj_has_flags(status_sub, LV_OBJ_FLAG_HIDDEN));
+
+    lv_obj_delete(footer);
+    UpdateQueue::instance().drain();
+    sub_hidden.reset();
 }
 
 namespace {

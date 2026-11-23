@@ -2360,6 +2360,7 @@
   <translation tag="Identify failed: {}" ru="Не удалось определить: {}"/>
   <translation tag="Idle" ru="Ожидание"/>
   <translation tag="If Moonraker is local or your screen is attached to the printer directly, we&apos;ll connect automatically" ru="Если Moonraker локальный или экран подключён к принтеру напрямую, подключение произойдёт автоматически"/>
+  <translation tag="If Moonraker is local or your screen is attached to the printer, we&apos;ll connect automatically" ru="Если Moonraker локальный или экран подключён к принтеру, подключение произойдёт автоматически"/>
   <translation tag="If the extruder has no tension lever, see your printer&apos;s manual." ru="Если у экструдера нет рычага прижима, см. руководство к принтеру."/>
   <translation tag="Ignore" ru="Игнорировать"/>
   <translation tag="Ignore the click that fires when you lift after scrolling" ru="Игнорировать клик, возникающий при отпускании после прокрутки"/>
@@ -4131,6 +4132,7 @@
   <translation tag="Runout" ru="Окончание"/>
   <translation tag="Runout Backup" ru="Резерв при окончании"/>
   <translation tag="Runout Sensor" ru="Датчик окончания"/>
+  <translation tag="Runs everything this printer needs, in order" ru="Выполняет всё, что нужно этому принтеру, по порядку"/>
   <translation tag="Runs everything this printer needs, in order ·" ru="Выполняет всё, что нужно этому принтеру, по порядку ·"/>
   <translation tag="Runs on its own once started" ru="После запуска работает сам"/>
   <translation tag="Runs the printer&apos;s tool offset calibration for every tool." ru="Запускает калибровку смещений инструментов принтера для всех инструментов."/>
@@ -4364,6 +4366,7 @@
   <translation tag="Set the clock, theme and units. You can change any of these later in Settings." ru="Настройте часы, тему и единицы. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set the filament type and color by hand for this slot. If the tag should be readable, re-seat the spool with its label facing the reader once the box is idle" ru="Задайте тип и цвет филамента для этого слота вручную. Если метка должна читаться, переустановите катушку этикеткой к считывателю, когда блок простаивает"/>
   <translation tag="Set the filament type for this head in the filament panel, then resume." ru="Задайте тип филамента для этой головки на панели филамента, затем продолжите."/>
+  <translation tag="Set the screen brightness and when it rests. You can change these later in Settings." ru="Настройте яркость экрана и когда он отдыхает. Всё это можно изменить позже в Настройках."/>
   <translation tag="Set the slot&apos;s filament information, or load the slot by hand." ru="Задайте сведения о филаменте слота или загрузите слот вручную."/>
   <translation tag="Set this to Spoolman&apos;s currency if you use both." ru="Если используете оба, выберите здесь валюту Spoolman."/>
   <translation tag="Set up" ru="Настроить"/>
@@ -4457,6 +4460,7 @@
   <translation tag="Sliced for {}, not {}." ru="Нарезано для {}, а не для {}."/>
   <translation tag="Slicer" ru="Слайсер"/>
   <translation tag="Slide the paper back and forth." ru="Двигайте бумагу вперёд и назад."/>
+  <translation tag="Slide the paper back and forth. Stop when the paper just drags under the nozzle." ru="Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт цепляться под соплом."/>
   <translation tag="Slide the paper back and forth. Stop when the paper just lightly drags between the toolhead nozzle and the bed." ru="Двигайте бумагу вперёд и назад. Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."/>
   <translation tag="Sliders" ru="Ползунки"/>
   <translation tag="Slot" ru="Слот"/>
@@ -4634,6 +4638,7 @@
   <translation tag="Stop the check?" ru="Остановить проверку?"/>
   <translation tag="Stop the running cycle before starting another" ru="Остановите текущий цикл, прежде чем запускать новый"/>
   <translation tag="Stop webcams, timelapses and extra services on the host, check its power supply and SD card, then restart the firmware. If it happens at the same spot again, lower the speed or the microsteps." ru="Остановите веб-камеры, таймлапсы и лишние службы на хосте, проверьте его блок питания и SD-карту, затем перезапустите прошивку. Если это снова происходит в том же месте, снизьте скорость или микрошаг."/>
+  <translation tag="Stop when the paper just drags under the nozzle." ru="Остановитесь, когда бумага начнёт цепляться под соплом."/>
   <translation tag="Stop when the paper just lightly drags between the toolhead nozzle and the bed." ru="Остановитесь, когда бумага начнёт слегка цепляться между соплом и столом."/>
   <translation tag="Stop with an emergency stop?" ru="Остановить аварийной остановкой?"/>
   <translation tag="Stopped" ru="Остановлено"/>
@@ -5808,6 +5813,7 @@
   <translation tag="Year" ru="Год"/>
   <translation tag="Year Month Day" ru="Год Месяц День"/>
   <translation tag="Yes" ru="Да"/>
+  <translation tag="You are needed for the first {} min" ru="Вы нужны первые {} мин"/>
   <translation tag="You are needed for the first {} min, then it runs on its own" ru="Вы нужны первые {} мин, дальше всё идёт само"/>
   <translation tag="You can skip this and calibrate later in Settings." ru="Вы можете пропустить это и откалибровать позже в настройках."/>
   <translation tag="You have unsaved changes. Discard them?" ru="У вас есть несохранённые изменения. Отменить их?"/>

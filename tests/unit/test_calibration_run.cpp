@@ -626,6 +626,13 @@ TEST_CASE("a guided run's results read as the measured values", "[calibration_ru
     CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.71), format_shaper_axis("ei", 47.6)) ==
           "X: MZV 36.7 · Y: EI 47.6");
     CHECK(join_shaper_axes(format_shaper_axis("mzv", 36.7), "") == "X: MZV 36.7");
+    // The run's step list and results table: one axis per line; anything else unchanged.
+    CHECK(shaper_axes_on_lines("X: 3HUMP_EI 83.2 · Y: MZV 39.6") ==
+          "X: 3HUMP_EI 83.2\nY: MZV 39.6");
+    CHECK(shaper_axes_on_lines("X: MZV 36.7") == "X: MZV 36.7");
+    CHECK(shaper_axes_on_lines("nozzle PID · bed PID") == "nozzle PID · bed PID");
+    CHECK(shaper_axes_on_lines("Failed: no accelerometer. Saves X: MZV 36.7") ==
+          "Failed: no accelerometer. Saves X: MZV 36.7");
     CHECK(format_mesh_range(0.183) == "0.18 mm range");
 }
 
