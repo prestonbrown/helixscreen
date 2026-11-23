@@ -2910,8 +2910,6 @@ translations:
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   : スライサーの押し出しモードを開始 G-code に合わせてください（通常は相対、M83）。max_extrude_cross_section は、意図的に太いパージラインを引く場合にのみ上げてください。
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : '自分で切り替えないプリンター向けに、各ツールまたはレーンのスプールから Spoolman が使用量を差し引くようにし、印刷ごとに各スプールの使用量を記録します。'
   Manage: 管理
   Manage Printers: プリンター管理
   Manage configured printers: 設定済みプリンターを管理
@@ -4795,7 +4793,6 @@ translations:
   Switch and calibrate: 切り替えてキャリブレート
   Switch back to the Snapmaker screen: 'Snapmakerの画面に戻します'
   Switch between light and dark themes: ライトテーマとダークテーマを切り替え
-  Switch spools at each tool change: 'ツール交換ごとにスプールを切り替える'
   Switch the active tool or extruder: アクティブなツールやエクストルーダーを切り替え
   Switch the nozzle to MPC?: ノズルを MPC に切り替えますか？
   Switch to a backup slot on runout: フィラメント切れ時に予備スロットへ切り替え

@@ -122,13 +122,13 @@ Turn this on to keep spool weights up to date ("Auto-poll for weight updates"). 
 
 How often HelixScreen asks Spoolman for new weights: **30s**, **1 min**, **2 min** or **5 min**. Shorter is more up to date but uses more network traffic.
 
-### Switch spools at each tool change
+### Spool switching at each tool change
 
-> Only shown once Spoolman is connected.
+There is no setting for this: it is automatic once Spoolman is connected.
 
-Spoolman takes filament off one spool at a time: whichever spool is active. On a printer with several tools or lanes, every tool change has to switch the active spool, or one spool gets charged for filament that came from another. Some printers do this themselves (AFC, Happy Hare with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and printers whose tool-change macros set the spool); for those this row does nothing.
+Spoolman takes filament off one spool at a time: whichever spool is active. On a printer with several tools or lanes, every tool change has to switch the active spool, or one spool gets charged for filament that came from another. Some printers do this themselves (AFC, Happy Hare with its Spoolman support on, a Snapmaker U1 running the extended firmware's SpoolLink, and printers whose tool-change macros set the spool), and HelixScreen leaves those alone.
 
-Turn it on to have the active spool follow the tool or lane that is printing, using the spools you linked to each tool or lane. With the [HelixPrint plugin](../helixprint-plugin.md#switch-spools-at-each-tool-change) installed, the plugin does it for every print, whichever app started it, and records which spools each print used; the print's details in [Print History](../print-history.md#print-details--reprinting) list them. Without the plugin, HelixScreen switches the spool itself, but only while it is connected and only for tools that print from their own extruder; on a remote screen, the row says so. Off by default. Not yet supported for Creality CFS and Anycubic ACE lane changes: there the active spool follows the loaded lane only while HelixScreen is connected, as before.
+Everywhere else, the active spool follows the tool or lane that is printing, using the spools you linked to each tool or lane. With the [HelixPrint plugin](../helixprint-plugin.md#spool-switching-at-each-tool-change) installed, the plugin does it for every print, whichever app started it, and records which spools each print used; the print's details in [Print History](../print-history.md#print-details--reprinting) list them. Without the plugin, HelixScreen switches the spool itself, but only while it is connected and only for tools that print from their own extruder. Not yet supported for Creality CFS and Anycubic ACE lane changes: there the active spool follows the loaded lane only while HelixScreen is connected. If your printer switches spools in a way HelixScreen does not recognize, you can [turn it off](../helixprint-plugin.md#spool-switching-at-each-tool-change).
 
 ### Label Printer
 

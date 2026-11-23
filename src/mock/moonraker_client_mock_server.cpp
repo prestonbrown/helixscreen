@@ -626,14 +626,14 @@ void register_server_handlers(std::unordered_map<std::string, MethodHandler>& re
                 {"available", true},
                 {"enabled", auto_cleanup.is_boolean() && auto_cleanup.get<bool>()},
                 {"reason", nullptr}};
-            // filament_accounting acts on spools: off until opted into, as
-            // the plugin reads helix-screen/plugin_features.
+            // filament_accounting is on unless opted out, as the plugin reads
+            // helix-screen/plugin_features.
             const json filament_opt_in =
                 self->mock_db_get("helix-screen", "plugin_features.filament_accounting");
             response["result"]["features"]["filament_accounting"] = {
                 {"version", 1},
                 {"available", true},
-                {"enabled", filament_opt_in.is_boolean() && filament_opt_in.get<bool>()},
+                {"enabled", !filament_opt_in.is_boolean() || filament_opt_in.get<bool>()},
                 {"reason", nullptr}};
             // photos only observes, so it is on unless opted out.
             const json photos_opt_in = self->mock_db_get("helix-screen", "plugin_features.photos");

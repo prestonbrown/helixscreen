@@ -2974,8 +2974,6 @@ translations:
   ? Make the slicer's extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line.
   : Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии прочистки.
   MakeID (Bluetooth): MakeID (Bluetooth)
-  ? Makes Spoolman charge each tool's or lane's own spool, for printers that do not switch it themselves, and records per print what each spool used.
-  : 'Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки.'
   Manage: Управление
   Manage Printers: Управление принтерами
   Manage configured printers: Управление настроенными принтерами
@@ -4883,7 +4881,6 @@ translations:
   Switch and calibrate: Переключить и калибровать
   Switch back to the Snapmaker screen: 'Вернуться к экрану Snapmaker'
   Switch between light and dark themes: Переключение между светлой и тёмной темами
-  Switch spools at each tool change: 'Переключать катушку при каждой смене инструмента'
   Switch the active tool or extruder: Смена активного инструмента
   Switch the nozzle to MPC?: Перевести сопло на MPC?
   Switch to a backup slot on runout: Переключаться на резервный слот при окончании филамента

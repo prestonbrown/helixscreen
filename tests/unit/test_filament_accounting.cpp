@@ -5,13 +5,19 @@
 // per-spool record the print history shows. The ownership, key and switch
 // rules come from the case table the plugin's suite reads too.
 
+#include "../fake_moonraker_client.h"
+#include "../lvgl_ui_test_fixture.h"
 #include "../test_helpers/filament_accounting_cases.h"
 #include "../ui_test_utils.h"
+#include "app_globals.h"
+#include "core/update_queue.h"
 #include "filament_accounting.h"
 #include "filament_accounting_controller.h"
 #include "helix_plugin_features.h"
+#include "moonraker_api.h"
 #include "printer_discovery.h"
 #include "printer_plugin_status_state.h"
+#include "printer_state.h"
 #include "tool_state.h"
 
 #include <algorithm>
@@ -306,25 +312,34 @@ TEST_CASE("filament accounting: history lines name who fed what", "[plugin_filam
     CHECK(describe_spool_usage({}, nullptr, ui::LaneNoun::Slot).empty());
 }
 
-TEST_CASE("filament accounting: its switch lives on the Spoolman page", "[plugin_filament]") {
-    const auto row = std::find_if(kPluginSwitchFeatures.begin(), kPluginSwitchFeatures.end(),
-                                  [](const PluginSwitchFeature& f) {
-                                      return std::string(f.name) == kFilamentAccountingFeature;
-                                  });
-    REQUIRE(row != kPluginSwitchFeatures.end());
-    CHECK(row->has_fallback);
-    CHECK(row->acts);
-    CHECK(std::string(row->on_subject) == "plugin_feature_on_filament_accounting");
+TEST_CASE("filament accounting: on unless plugin_features turns it off", "[plugin_filament]") {
+    INFO("no record, or no key in it: on");
+    CHECK(filament_accounting_opted_in(json::object()));
+    CHECK(filament_accounting_opted_in(json{{"photos", false}}));
+    INFO("a key that is not a bool is the default");
+    CHECK(filament_accounting_opted_in(json{{kFilamentAccountingFeature, "no"}}));
+    INFO("the escape hatch");
+    CHECK_FALSE(filament_accounting_opted_in(json{{kFilamentAccountingFeature, false}}));
+    CHECK(filament_accounting_opted_in(json{{kFilamentAccountingFeature, true}}));
+}
+
+TEST_CASE("filament accounting: no settings switch, a status line in the overview",
+          "[plugin_filament]") {
+    CHECK(std::none_of(kPluginSwitchFeatures.begin(), kPluginSwitchFeatures.end(),
+                       [](const PluginSwitchFeature& f) {
+                           return std::string(f.name) == kFilamentAccountingFeature;
+                       }));
 
     PluginFeatureMap features;
-    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, true, false, {}, ""};
+    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, true, true, {}, ""};
     const auto lines = plugin_feature_lines(features);
     REQUIRE(lines.size() == 1);
-    CHECK(lines[0].home == PluginFeatureHome::Spoolman);
+    CHECK(lines[0].home == PluginFeatureHome::None);
     CHECK(lines[0].label != kFilamentAccountingFeature);
 
-    INFO("acts on spools: off until opted into");
-    CHECK_FALSE(plugin_feature_opted_in(json::object(), kFilamentAccountingFeature, true));
+    INFO("a printer without Moonraker's [spoolman] has nothing to switch: no line");
+    features[kFilamentAccountingFeature] = PluginFeatureEntry{1, false, false, {}, "no_spoolman"};
+    CHECK(plugin_feature_lines(features).empty());
 }
 
 TEST_CASE("filament accounting: who sets the spool for an explicit link of the loaded lane",
@@ -339,4 +354,79 @@ TEST_CASE("filament accounting: who sets the spool for an explicit link of the l
     INFO("firmware keeping its own assignment (SpoolLink) is left to it");
     CHECK_FALSE(app_sets_spool_on_edit(ActiveSpoolOwner::Printer, false));
     CHECK_FALSE(app_sets_spool_on_edit(ActiveSpoolOwner::NoSpoolman, false));
+}
+
+namespace {
+
+/// The controller against a fake Moonraker published as the app's.
+struct OptInsFx : LVGLUITestFixture {
+    helix::test::FakeMoonrakerClient client;
+    MoonrakerAPI api{client, get_printer_state()};
+    IMoonrakerAPI* previous_api = nullptr;
+    std::unique_ptr<FilamentAccountingController> controller;
+
+    OptInsFx() {
+        previous_api = get_moonraker_api();
+        set_moonraker_api(&api);
+        controller = std::make_unique<FilamentAccountingController>();
+    }
+    ~OptInsFx() override {
+        controller.reset();
+        drain();
+        set_moonraker_api(previous_api);
+    }
+
+    static void drain() {
+        for (int i = 0; i < 5; ++i) {
+            ui::UpdateQueue::instance().drain();
+        }
+    }
+
+    void read(const json& record) {
+        client.respond_to(
+            "server.database.get_item",
+            json{{"result",
+                  {{"namespace", "helix-screen"}, {"key", "plugin_features"}, {"value", record}}}});
+        controller->read_opt_ins();
+        drain();
+    }
+
+    FilamentAccountingSender sender() const {
+        return controller->fallback_sender(PluginFeatureState::Absent, ActiveSpoolOwner::Helix,
+                                           FallbackSenderRole::Sender);
+    }
+};
+
+} // namespace
+
+TEST_CASE_METHOD(OptInsFx, "filament accounting: the fallback acts only on a record it read",
+                 "[plugin_filament]") {
+    INFO("nothing read yet: no switching");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    read(json::object());
+    INFO("an empty record, read: on");
+    CHECK(sender() == FilamentAccountingSender::App);
+
+    read(json{{kFilamentAccountingFeature, false}});
+    INFO("the user's false, read at the next job start: off");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    read(json::object());
+    REQUIRE(sender() == FilamentAccountingSender::App);
+    MoonrakerError lost;
+    lost.type = MoonrakerErrorType::TIMEOUT;
+    client.fail_on("server.database.get_item", lost);
+    controller->read_opt_ins();
+    drain();
+    INFO("a failed read: off until one succeeds");
+    CHECK(sender() == FilamentAccountingSender::None);
+
+    MoonrakerError missing;
+    missing.code = 404;
+    client.fail_on("server.database.get_item", missing);
+    controller->read_opt_ins();
+    drain();
+    INFO("no record at all: on");
+    CHECK(sender() == FilamentAccountingSender::App);
 }

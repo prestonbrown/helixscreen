@@ -2790,7 +2790,6 @@
   <translation tag="Make sure the printer is safe, then restart the firmware." de="Sicherstellen, dass der Drucker in einem sicheren Zustand ist, dann die Firmware neu starten."/>
   <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." de="Extrusionsmodus des Slicers an den Start-G-Code anpassen (üblich ist relativ, M83). max_extrude_cross_section nur für eine absichtlich dicke Spüllinie erhöhen."/>
   <translation tag="MakeID (Bluetooth)" de="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." de="Lässt Spoolman den Verbrauch von der Spule des jeweiligen Werkzeugs oder der Spur abbuchen, für Drucker, die nicht selbst umschalten, und zeichnet pro Druck auf, was jede Spule verbraucht hat."/>
   <translation tag="Manage" de="Verwalten"/>
   <translation tag="Manage Printers" de="Drucker verwalten"/>
   <translation tag="Manage configured printers" de="Konfigurierte Drucker verwalten"/>
@@ -4643,7 +4642,6 @@
   <translation tag="Switch and calibrate" de="Umstellen und kalibrieren"/>
   <translation tag="Switch back to the Snapmaker screen" de="Zurück zum Snapmaker-Bildschirm wechseln"/>
   <translation tag="Switch between light and dark themes" de="Zwischen Hell- und Dunkelthemen wechseln"/>
-  <translation tag="Switch spools at each tool change" de="Spulen bei jedem Werkzeugwechsel umschalten"/>
   <translation tag="Switch the active tool or extruder" de="Aktives Werkzeug oder Extruder wechseln"/>
   <translation tag="Switch the nozzle to MPC?" de="Düse auf MPC umstellen?"/>
   <translation tag="Switch to a backup slot on runout" de="Bei Filamentende zu einem Ersatz-Slot wechseln"/>

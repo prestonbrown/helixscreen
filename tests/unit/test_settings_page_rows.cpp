@@ -103,7 +103,7 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page, 
           "row_updates_unavailable"}},
         {"about_settings_overlay", {"row_version"}, {"row_check_updates"}},
         // Each plugin feature's switch is on the page its PluginFeatureHome opens:
-        // Devices, Safety, System > Storage, Spoolman.
+        // Devices, Safety, System > Storage.
         {"settings_hardware_overlay",
          {"row_print_photos"},
          {"row_printers", "row_spoolman_settings"}},
@@ -113,7 +113,6 @@ TEST_CASE_METHOD(PageRowsFixture, "settings pages: every row lives on its page, 
         {"settings_system_overlay",
          {"row_storage"},
          {"row_network", "row_printer_host", "row_touch_input"}},
-        {"spoolman_settings", {"row_filament_accounting"}},
         {"settings_storage_overlay", {"row_storage_auto_cleanup"}},
     };
     for (const auto& p : placements) {

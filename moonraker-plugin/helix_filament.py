@@ -546,6 +546,11 @@ class FilamentAccounting:
     def _spoolman(self) -> Optional[Any]:
         return self.server.lookup_component("spoolman", None)
 
+    def availability(self) -> Tuple[bool, Optional[str]]:
+        """Available only where Moonraker's spoolman component is loaded: with
+        no deductor there is no spool to switch and no usage to record."""
+        return (True, None) if self._spoolman() is not None else (False, OWNER_NO_SPOOLMAN)
+
     def _active_spool(self) -> Optional[int]:
         spoolman = self._spoolman()
         return _spool_id(getattr(spoolman, "spool_id", None)) if spoolman is not None else None

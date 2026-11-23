@@ -131,6 +131,47 @@ FilamentAccountingController::FilamentAccountingController() {
         tools.get_active_tool_subject(), this,
         [](FilamentAccountingController* self, int tool) { self->on_active_tool_changed(tool); },
         tools.get_subjects_lifetime());
+    print_active_observer_ = observe<int>(
+        ps.print_state().get_print_active_subject(), this,
+        [](FilamentAccountingController* self, int active) {
+            if (active != 0) {
+                self->read_opt_ins();
+            }
+        },
+        ps.get_subjects_lifetime());
+}
+
+void FilamentAccountingController::read_opt_ins() {
+    IMoonrakerAPI* api = get_moonraker_api();
+    if (api == nullptr || !api->is_connected()) {
+        return;
+    }
+    api->database_get_item(
+        kPluginFeaturesNamespace, kPluginFeaturesKey,
+        [this, token = lifetime_.token()](const nlohmann::json& record) {
+            const bool on = filament_accounting_opted_in(record);
+            token.defer("FilamentAccounting::opt_ins", [this, on] { opted_in_ = on; });
+        },
+        [this, token = lifetime_.token()](const MoonrakerError& err) {
+            std::optional<nlohmann::json> record = opt_ins_after_failed_read(err);
+            if (!record) {
+                spdlog::warn("[FilamentAccounting] Reading plugin_features failed, no spool "
+                             "switching until a read succeeds: {}",
+                             err.message);
+            }
+            std::optional<bool> on;
+            if (record) {
+                on = filament_accounting_opted_in(*record);
+            }
+            token.defer("FilamentAccounting::opt_ins_failed", [this, on] { opted_in_ = on; });
+        });
+}
+
+FilamentAccountingSender
+FilamentAccountingController::fallback_sender(PluginFeatureState accounting, ActiveSpoolOwner owner,
+                                              FallbackSenderRole role) const {
+    const bool opted_in = opted_in_.value_or(false);
+    return filament_accounting_sender(accounting, opted_in, owner, role);
 }
 
 FeedEntry FilamentAccountingController::feed_for_tool(int tool_index) {
@@ -206,12 +247,14 @@ void FilamentAccountingController::on_plugin_probed() {
     written_.reset();
     considered_.reset();
     role_pending_ = false;
+    read_opt_ins();
     refresh_record();
 }
 
 void FilamentAccountingController::on_connection_changed(int state) {
     if (state != static_cast<int>(ConnectionState::CONNECTED)) {
         armed_ = false;
+        opted_in_.reset();
     }
 }
 
@@ -299,21 +342,18 @@ void FilamentAccountingController::on_active_tool_changed(int tool_index) {
     auto& status = ps.plugin_status_state();
     const PluginFeatureState state =
         status.plugin_feature(kFilamentAccountingFeature, kFilamentAccountingMinVersion);
-    const bool opted_in =
-        plugin_feature_opted_in(status.stored_opt_ins(), kFilamentAccountingFeature, /*acts=*/true);
     const ActiveSpoolOwner owner =
         active_spool_owner_now(ps.is_spoolman_available(), backends_manage_active_spool());
     // Only a switch this instance would make needs to know who else is here.
-    if (filament_accounting_sender(state, opted_in, owner, FallbackSenderRole::Sender) !=
+    if (fallback_sender(state, owner, FallbackSenderRole::Sender) !=
         FilamentAccountingSender::App) {
         return;
     }
     FeedEntry feed = feed_for_tool(tool_index);
     std::vector<int> mapped = mapped_spools(signals_now());
     resolve_fallback_sender_role(
-        lifetime_.token(), [this, state, opted_in, owner, feed, mapped](FallbackSenderRole role) {
-            if (filament_accounting_sender(state, opted_in, owner, role) !=
-                FilamentAccountingSender::App) {
+        lifetime_.token(), [this, state, owner, feed, mapped](FallbackSenderRole role) {
+            if (fallback_sender(state, owner, role) != FilamentAccountingSender::App) {
                 spdlog::debug("[FilamentAccounting] A local screen switches the spool");
                 return;
             }

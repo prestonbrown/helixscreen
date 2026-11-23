@@ -2838,7 +2838,6 @@
   <translation tag="Make sure the printer is safe, then restart the firmware." ru="Убедитесь, что принтер в безопасном состоянии, затем перезапустите прошивку."/>
   <translation tag="Make the slicer&apos;s extrusion mode match the start G-code (relative, M83, is usual). Raise max_extrude_cross_section only for a deliberately thick purge line." ru="Приведите режим экструзии в слайсере в соответствие со стартовым G-code (обычно относительный, M83). Увеличивайте max_extrude_cross_section только для намеренно толстой линии прочистки."/>
   <translation tag="MakeID (Bluetooth)" ru="MakeID (Bluetooth)"/>
-  <translation tag="Makes Spoolman charge each tool&apos;s or lane&apos;s own spool, for printers that do not switch it themselves, and records per print what each spool used." ru="Spoolman списывает расход с катушки каждого инструмента или канала на принтерах, которые не переключают её сами, и записывает для каждой печати расход каждой катушки."/>
   <translation tag="Manage" ru="Управление"/>
   <translation tag="Manage Printers" ru="Управление принтерами"/>
   <translation tag="Manage configured printers" ru="Управление настроенными принтерами"/>
@@ -4709,7 +4708,6 @@
   <translation tag="Switch and calibrate" ru="Переключить и калибровать"/>
   <translation tag="Switch back to the Snapmaker screen" ru="Вернуться к экрану Snapmaker"/>
   <translation tag="Switch between light and dark themes" ru="Переключение между светлой и тёмной темами"/>
-  <translation tag="Switch spools at each tool change" ru="Переключать катушку при каждой смене инструмента"/>
   <translation tag="Switch the active tool or extruder" ru="Смена активного инструмента"/>
   <translation tag="Switch the nozzle to MPC?" ru="Перевести сопло на MPC?"/>
   <translation tag="Switch to a backup slot on runout" ru="Переключаться на резервный слот при окончании филамента"/>
