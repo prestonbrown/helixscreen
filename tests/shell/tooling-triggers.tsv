@@ -46,6 +46,7 @@ tests/shell/test_code_lint.bats	.github/workflows/nightly.yml include/ams_backen
 tests/shell/test_comment_archaeology_gate.bats	scripts/check_comment_archaeology.py scripts/check_constant_naming.py scripts/mutate_diff.py scripts/qc/comment_archaeology.sh scripts/quality-checks.sh scripts/ratchet.py
 tests/shell/test_competing_ui_state_gate.bats	scripts/lib/installer/common.sh scripts/lib/installer/competing_uis.sh scripts/lib/installer/uninstall.sh
 tests/shell/test_completion_gate.bats	scripts/full-test-run.sh scripts/lib/build_hosts.sh scripts/lib/sweep_location.sh
+tests/shell/test_copyright_gate.bats	scripts/qc/copyright.sh scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_cov_diff_gate.bats	scripts/cov_diff.py scripts/diff_base.py scripts/untestable_paths.txt
 tests/shell/test_depfile_free_goals.bats	Makefile mk/ scripts/gen_theme_tokens.py scripts/land-gate.sh
 tests/shell/test_deploy_pi_ownership_sudo.bats	mk/cross.mk
@@ -64,6 +65,7 @@ tests/shell/test_esp32_app_srcs_gate.bats	Makefile firmware/helixscreen-esp32/co
 tests/shell/test_esp32_build_debug_heap.bats	scripts/esp32_build_debug_heap.sh scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/pool-docker.sh
 tests/shell/test_esp32_pack_assets_ci.bats	tests/python/test_esp32_pack_assets.py
 tests/shell/test_head_labels_gate.bats	scripts/check_head_labels.py scripts/qc/head_labels.sh scripts/quality-checks.sh scripts/source_strip.py scripts/staged_content.py
+tests/shell/test_mdi_icon_gates.bats	scripts/verify_mdi_codepoints.py scripts/validate_icon_fonts.sh
 tests/shell/test_nightly_esp32_link.bats	.github/workflows/nightly.yml .github/workflows/esp32-build.yml tests/shell/helpers.bash
 tests/shell/test_esp32_package_release.bats	scripts/esp32_package_release.sh
 tests/shell/test_esp32_stub_coverage_gate.bats	scripts/check_esp32_app_srcs.py scripts/check_esp32_stub_coverage.py scripts/qc/_lib.sh scripts/qc/esp32_stub_coverage.sh
@@ -183,6 +185,7 @@ tests/shell/test_shard_batching.bats	mk/tests.mk
 tests/shell/test_shellcheck_gate.bats	scripts/qc/shellcheck.sh config/creality-backend.init config/helixscreen.init docs/devel/BUILD_SYSTEM.md scripts/helix-launcher.sh scripts/install-dev.sh scripts/lib/installer/main.sh scripts/qc/_lib.sh src/ui/controls/ui_panel_macros.cpp ui_xml/globals.xml
 tests/shell/test_shipped_spacing_tokens_gate.bats	mk/cross.mk scripts/check_shipped_spacing_tokens.py scripts/source_strip.py
 tests/shell/test_size_flags_gate.bats	Makefile mk/cross.mk
+tests/shell/test_spdlog_only_gate.bats	scripts/qc/spdlog_only.sh scripts/qc/design_tokens.sh scripts/qc/_lib.sh scripts/quality-checks.sh
 tests/shell/test_spdlog_probe.bats	Makefile mk/cross.mk
 tests/shell/test_subagent_brief.bats	scripts/helix-claim scripts/lib/build_hosts.sh scripts/lib/mem_available.sh scripts/resource-advisor.sh scripts/subagent-brief.sh
 tests/shell/test_suite_report_guard.bats	scripts/run_suite_report.sh
