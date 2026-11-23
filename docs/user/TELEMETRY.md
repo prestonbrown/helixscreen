@@ -57,8 +57,8 @@ Recorded when a print finishes (success, failure, or cancellation). Helps us tra
 | `phases_completed` | The furthest print start phase reached, as its number in that build (12 = complete) | `12` |
 | `filament_used_mm` | Filament consumed in millimeters | `1500.0` |
 | `filament_type` | Filament material | `"PLA"`, `"PETG"`, `"ABS"` |
-| `nozzle_temp` | Target nozzle temperature in degrees C | `215` |
-| `bed_temp` | Target bed temperature in degrees C | `60` |
+| `nozzle_temp` | Highest nozzle target during the print, in degrees C | `215` |
+| `bed_temp` | Highest bed target during the print, in degrees C | `60` |
 
 ### Crash Reports
 
