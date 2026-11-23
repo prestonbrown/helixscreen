@@ -2391,13 +2391,18 @@ attached and remote screens.
 
 - **Calibration config edits** (#2157) - a saved calibration value replaces the copy in the
   SAVE_CONFIG block, and an edit counts as done only once Klipper is running it.
+- **Switching a heater from PID to MPC** (#2157) - after the change restarts Klipper, the screen
+  waits until it sees Klipper ready before starting the MPC calibration, instead of having
+  the calibration refused as "Klipper is halted".
 - **Input shaper progress** assumed a fixed 5-100 Hz sweep, so on printers configured to sweep
   higher the bar filled with a quarter of the test left and "Analyzing" sat for the last half
   minute. It follows the real range now.
 - **Dismissing the input shaper memory warning** made the next single-axis run carry on into
   an unrequested Y sweep.
-- **MPC calibration outliving its timeout** (#1544) was reported as failed with Retry offered
-  over the still-running calibration.
+- **Long MPC calibrations** (#1544, #2160) - an MPC calibration that runs past 20 minutes, as
+  it can on a high-power hotend, is no longer reported as failed while Klipper is still
+  working on it, and a brief Wi-Fi drop during the run does not end it. The screen waits up
+  to an hour for the result, and reports right away if Klipper stops.
 - **Centauri Carbon** (#1529) - screws tilt, probe accuracy and Z-offset no longer probe on an
   untared load cell, and the tare uses the command COSMOS actually defines.
 - **Bed screw arrows on the AD5M and AD5X** (#1860) - they were reversed there; they match
