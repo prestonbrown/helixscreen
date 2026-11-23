@@ -37,9 +37,7 @@
 
 using namespace helix;
 using namespace helix::ui;
-// ============================================================================
 // Test Fixture
-// ============================================================================
 
 class HistoryManagerTestFixture : public LVGLTestFixture {
     static bool queue_initialized;
@@ -168,9 +166,7 @@ class HistoryManagerTestFixture : public LVGLTestFixture {
 };
 bool HistoryManagerTestFixture::queue_initialized = false;
 
-// ============================================================================
 // Basic Functionality Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager starts unloaded",
                  "[history_manager]") {
@@ -181,10 +177,8 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager starts unloaded
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager fetches history from API",
                  "[history_manager]") {
-    // When: fetch is called
     manager_->fetch(HistoryScope::COMPLETE);
 
-    // Then: wait for async completion
     REQUIRE(wait_for_loaded());
 
     // And: jobs are populated
@@ -194,11 +188,9 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager fetches history
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager builds filename stats map",
                  "[history_manager]") {
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
-    // Then: filename stats map is populated
     const auto& stats = manager_->get_filename_stats();
     REQUIRE_FALSE(stats.empty());
 
@@ -211,17 +203,13 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager builds filename
     }
 }
 
-// ============================================================================
 // Aggregation Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager aggregates success count correctly", "[history_manager]") {
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
-    // Then: check that COMPLETED jobs are counted as successes
     const auto& jobs = manager_->get_jobs();
     const auto& stats = manager_->get_filename_stats();
 
@@ -244,7 +232,6 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager aggregates failure count correctly", "[history_manager]") {
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
@@ -270,7 +257,6 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager tracks most recent job status",
                  "[history_manager]") {
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
@@ -303,14 +289,11 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager tracks most rec
     }
 }
 
-// ============================================================================
 // Path Stripping Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager strips path from filename for aggregation",
                  "[history_manager]") {
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
@@ -322,23 +305,18 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     }
 }
 
-// ============================================================================
 // Observer Pattern Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager notifies observers on fetch",
                  "[history_manager]") {
     std::atomic<int> callback_count{0};
 
-    // Given: an observer is registered (store in variable, pass pointer)
     HistoryChangedCallback callback = [&callback_count]() { callback_count++; };
     manager_->add_observer(&callback);
 
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
-    // Then: observer was notified
     REQUIRE(callback_count.load() >= 1);
 }
 
@@ -347,17 +325,14 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager supports multip
     std::atomic<int> callback1_count{0};
     std::atomic<int> callback2_count{0};
 
-    // Given: multiple observers registered (store in variables, pass pointers)
     HistoryChangedCallback callback1 = [&callback1_count]() { callback1_count++; };
     HistoryChangedCallback callback2 = [&callback2_count]() { callback2_count++; };
     manager_->add_observer(&callback1);
     manager_->add_observer(&callback2);
 
-    // When: fetch completes
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
 
-    // Then: both observers were notified
     REQUIRE(callback1_count.load() >= 1);
     REQUIRE(callback2_count.load() >= 1);
 }
@@ -365,13 +340,12 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager supports multip
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager skips observers removed during notification",
                  "[history_manager]") {
-    // Regression: notify_observers() iterated a snapshot of the observer list
-    // and called through each raw HistoryChangedCallback* without re-checking it
-    // against the live set. If an observer's backing object was destroyed during
-    // the same dispatch pass — e.g. a PrintStatusWidget torn down on panel
-    // teardown, whose destructor calls remove_observer() — the stale snapshot
-    // still dereferenced the now-freed std::function pointer (SIGSEGV,
-    // fault ~0x800020c during nav-away + reconnect).
+    // notify_observers() iterates a snapshot of the observer list and must
+    // re-check each raw HistoryChangedCallback* against the live set before
+    // calling through it. If an observer's backing object is destroyed during
+    // the same dispatch pass (e.g. a PrintStatusWidget torn down on panel
+    // teardown, whose destructor calls remove_observer()), the stale snapshot
+    // would dereference a freed std::function pointer.
     std::atomic<int> victim_count{0};
 
     // The "victim" models that torn-down widget: it is removed mid-dispatch and
@@ -392,43 +366,33 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE(victim_count.load() == 0);
 }
 
-// ============================================================================
 // Cache Invalidation Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager invalidate clears loaded state",
                  "[history_manager]") {
-    // Given: manager has loaded data
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
     REQUIRE(manager_->is_loaded(HistoryScope::RECENT));
 
-    // When: invalidate is called
     manager_->invalidate();
 
-    // Then: loaded state is cleared
     REQUIRE_FALSE(manager_->is_loaded(HistoryScope::RECENT));
 }
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager can re-fetch after invalidate",
                  "[history_manager]") {
-    // Given: manager was loaded then invalidated
     manager_->fetch(HistoryScope::COMPLETE);
     REQUIRE(wait_for_loaded());
     manager_->invalidate();
     REQUIRE_FALSE(manager_->is_loaded(HistoryScope::RECENT));
 
-    // When: fetch is called again
     manager_->fetch(HistoryScope::COMPLETE);
 
-    // Then: data is reloaded
     REQUIRE(wait_for_loaded());
     REQUIRE_FALSE(manager_->get_jobs().empty());
 }
 
-// ============================================================================
 // File-list Notification Tests
-// ============================================================================
 // Deleting a gcode file fires notify_filelist_changed, NOT
 // notify_history_changed: Moonraker only emits the latter when a job is added
 // or the history is cleared. Subscribing to history alone left the cache
@@ -612,17 +576,14 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE_FALSE(manager_->get_jobs().empty());
 }
 
-// ============================================================================
 // Lazy load vs invalidation
-// ============================================================================
 //
 // fetch() and ensure_loaded() are two intents behind one request. fetch() means
 // "the cached list is wrong"; ensure_loaded() means "I need it populated, by
-// whoever". Collapsing them cost a real double fetch: three panels ask for
-// history during startup, all of them landed while the first request was still
-// out, and every one was read as an invalidation. On an AD5X the 500-job list
-// took 10.4s and ~800 KB, then went straight out again for nothing (bundles
-// MG34LYR4 / VXYB9JPQ, v0.99.116).
+// whoever". Treating them as one would double fetch: three panels ask for
+// history during startup, all land while the first request is still out, and
+// each would read as an invalidation. On an AD5X the 500-job list takes 10.4s
+// and ~800 KB, so a second fetch is pure waste.
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager does not re-fetch for lazy loads that land mid-flight",
@@ -738,9 +699,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE(notified.load() == 0);
 }
 
-// ============================================================================
 // Newest-surviving-job Accessor Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture,
                  "PrintHistoryManager skips deleted jobs when picking the newest",
@@ -780,9 +739,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE(manager_->get_newest_existing_job() == nullptr);
 }
 
-// ============================================================================
 // Edge Case Tests
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager handles concurrent fetch calls",
                  "[history_manager]") {
@@ -822,9 +779,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "PrintHistoryManager handles empty h
     (void)stats.size();
 }
 
-// ============================================================================
 // UUID/Size-Based Matching Tests
-// ============================================================================
 // These tests verify the UUID and file size fields that enable precise
 // history matching (prevents false positives with same-named files).
 
@@ -934,9 +889,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE(found_stats_with_size);
 }
 
-// ============================================================================
 // Staleness across a dropped connection
-// ============================================================================
 //
 // notify_history_changed and notify_filelist_changed only reach a live socket.
 // Anything added or deleted while the WebSocket is down is therefore never
@@ -1014,9 +967,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture,
     REQUIRE_FALSE(manager_->get_jobs().empty());
 }
 
-// ============================================================================
 // Fidelity
-// ============================================================================
 // The cache is populated at two fidelities: a small slice at startup, the whole
 // list once a consumer that aggregates over all of history asks. A consumer
 // that cannot tell the two apart renders a boot-time slice as the complete
@@ -1119,9 +1070,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "A queued re-issue keeps the widest 
     REQUIRE(api_->history_last_limit() == PrintHistoryManager::kCompleteJobLimit);
 }
 
-// ============================================================================
 // Weekly coverage
-// ============================================================================
 // PrintStatsWidget aggregates a seven-day window on every update, so a startup
 // slice that stops short of it undercounts on a busy printer.
 
@@ -1206,9 +1155,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "A cold cache is covered by loading 
     REQUIRE(api_->history_last_limit() == PrintHistoryManager::kRecentJobLimit);
 }
 
-// ============================================================================
 // Notification payload
-// ============================================================================
 // notify_history_changed carries the complete job it announces, including the
 // `exists` flag Moonraker recomputes against the file manager. Re-pulling the
 // list to learn what the notification already said costs ~714KB of JSON and
@@ -1358,9 +1305,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "A history notification on a cold ca
     REQUIRE(api_->history_list_calls() > before);
 }
 
-// ============================================================================
 // Invalidation coalescing
-// ============================================================================
 
 TEST_CASE_METHOD(HistoryManagerTestFixture, "A burst of invalidations costs one request",
                  "[history_manager][filelist][debounce]") {
@@ -1413,9 +1358,7 @@ TEST_CASE_METHOD(HistoryManagerTestFixture, "An invalidation refetches at the lo
     CHECK(api_->history_last_limit() == PrintHistoryManager::kCompleteJobLimit);
 }
 
-// ============================================================================
 // A job printed from a rewritten copy is presented as the original's print
-// ============================================================================
 
 namespace {
 PrintHistoryJob history_job(const std::string& filename, double start_time) {

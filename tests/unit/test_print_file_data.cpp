@@ -14,9 +14,7 @@
 
 #include "../catch_amalgamated.hpp"
 
-// ============================================================================
 // PrintFileData::from_moonraker_file() Tests
-// ============================================================================
 
 TEST_CASE("from_moonraker_file creates PrintFileData from FileInfo", "[print_file_data]") {
     FileInfo file;
@@ -83,9 +81,7 @@ TEST_CASE("from_moonraker_file handles edge cases", "[print_file_data]") {
     }
 }
 
-// ============================================================================
 // PrintFileData::from_usb_file() Tests
-// ============================================================================
 
 TEST_CASE("from_usb_file creates PrintFileData from UsbGcodeFile", "[print_file_data]") {
     UsbGcodeFile file("/mnt/usb/model.gcode", "model.gcode", 512 * 1024, 1735000000);
@@ -119,9 +115,7 @@ TEST_CASE("from_usb_file creates PrintFileData from UsbGcodeFile", "[print_file_
     }
 }
 
-// ============================================================================
 // PrintFileData::make_directory() Tests
-// ============================================================================
 
 TEST_CASE("make_directory creates directory entry", "[print_file_data]") {
     SECTION("normal directory") {
