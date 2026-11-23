@@ -5,6 +5,7 @@
 
 #include "ams_insert_signals.h"
 #include "ams_print_routing.h"
+#include "ams_runout_other_head.h"
 #include "ams_step_model.h"
 #include "ams_subscription_backend.h"
 #include "core/timer_guard.h"
@@ -59,7 +60,8 @@ class RunoutScopeTestAccess;
 class AmsBackendSnapmaker : public AmsSubscriptionBackend,
                             public helix::IStepOperation,
                             public helix::IInsertSignals,
-                            public helix::IPrintRouting {
+                            public helix::IPrintRouting,
+                            public helix::IRunoutOtherHead {
   public:
     [[nodiscard]] void* capability(helix::TypeTag tag) override {
         if (tag == helix::type_tag<helix::IInsertSignals>()) {
@@ -70,6 +72,9 @@ class AmsBackendSnapmaker : public AmsSubscriptionBackend,
         }
         if (tag == helix::type_tag<helix::IPrintRouting>()) {
             return static_cast<helix::IPrintRouting*>(this);
+        }
+        if (tag == helix::type_tag<helix::IRunoutOtherHead>()) {
+            return static_cast<helix::IRunoutOtherHead*>(this);
         }
         return AmsSubscriptionBackend::capability(tag);
     }
