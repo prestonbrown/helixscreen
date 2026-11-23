@@ -141,9 +141,7 @@ Route* try_new_route(PathPlan& plan) {
     return &new_route(plan);
 }
 
-// ----------------------------------------------------------------------------
 // Multi-tool (toolchanger / mixed overview — one nozzle per tool)
-// ----------------------------------------------------------------------------
 
 // One unit→tool route.
 struct GlobalRoute {
@@ -290,7 +288,7 @@ void place_nozzle_boxes(const SystemPathData& data, const SysLayout& L, const No
     }
 }
 
-// ---- Junction row ----------------------------------------------------------
+// ---- Junction row
 // Every junction box wants to sit on its toolhead, but toolheads can sit closer
 // together than a box is wide. The row is solved as one problem: boxes keep
 // their order, stay inside the canvas, keep a gap from each other and stay
@@ -1074,9 +1072,7 @@ void plan_multi_tool(const SystemPathData& data, const SysLayout& L, PathPlan& p
     }
 }
 
-// ----------------------------------------------------------------------------
 // Single-tool (all units converge through the combiner hub on one nozzle)
-// ----------------------------------------------------------------------------
 
 struct TrunkYs {
     int32_t hub_bottom, bypass_merge, toolhead, nozzle_top;

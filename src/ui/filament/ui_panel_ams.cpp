@@ -156,18 +156,14 @@ void ensure_ams_widgets_registered() {
 // Context menu callbacks handled by helix::ui::AmsContextMenu class
 // Slot editor callbacks handled by helix::ui::AmsEditOverlay class
 
-// ============================================================================
 // Construction
-// ============================================================================
 
 AmsPanel::AmsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::debug("[AmsPanel] Constructed");
 }
 
-// ============================================================================
 // PanelBase Interface
-// ============================================================================
 
 void AmsPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -728,9 +724,7 @@ void AmsPanel::clear_panel_reference() {
     spdlog::debug("[AMS Panel] Cleared all widget references");
 }
 
-// ============================================================================
 // Setup Helpers
-// ============================================================================
 
 void AmsPanel::setup_slots() {
     lv_obj_t* unit_detail = helix::ui::find_required(panel_, "unit_detail", get_name());
@@ -1018,9 +1012,7 @@ void AmsPanel::update_endless_arrows_from_backend() {
 
 // Step progress, start_operation, preheat methods moved to AmsOperationSidebar
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void AmsPanel::refresh_slots() {
     if (!panel_ || !subjects_initialized_) {
@@ -1049,9 +1041,7 @@ void AmsPanel::refresh_slots() {
             ams_detail_setup_path_canvas(path_canvas_, slot_grid_, kAllUnits, backend, *info));
 }
 
-// ============================================================================
 // UI Update Handlers
-// ============================================================================
 
 void AmsPanel::update_slot_colors() {
     int slot_count = lv_subject_get_int(AmsState::instance().get_slot_count_subject());
@@ -1096,9 +1086,7 @@ void AmsPanel::update_current_slot_highlight(int slot_index) {
     }
 }
 
-// ============================================================================
 // Event Callbacks
-// ============================================================================
 
 void AmsPanel::on_bypass_spool_clicked(void* user_data) {
     auto* self = static_cast<AmsPanel*>(user_data);
@@ -1223,16 +1211,12 @@ void AmsPanel::on_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // Observer Callbacks
-// ============================================================================
 
 // on_slots_version_changed, on_action_changed, on_current_slot_changed, on_path_state_changed
 // all migrated to lambdas in init_subjects()
 
-// ============================================================================
 // Action Handlers
-// ============================================================================
 
 void AmsPanel::handle_slot_tap(int slot_index) {
     spdlog::info("[{}] Slot {} tapped", get_name(), slot_index);
@@ -1251,9 +1235,7 @@ void AmsPanel::handle_slot_tap(int slot_index) {
     }
 }
 
-// ============================================================================
 // Context Menu Management (delegates to helix::ui::open_slot_context_menu)
-// ============================================================================
 
 void AmsPanel::show_context_menu(int slot_index, lv_obj_t* near_widget,
                                  std::optional<lv_point_t> tap) {
@@ -1432,9 +1414,7 @@ void AmsPanel::dismiss_error_modal_silently(const char* reason) {
     error_modal_->dismiss_silently();
 }
 
-// ============================================================================
 // Global Instance
-// ============================================================================
 
 static helix::ui::WidgetRef s_ams_panel_obj;
 // Theme generation the cached tree was built under; its widgets keep the

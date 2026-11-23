@@ -62,9 +62,7 @@ void ThemeEditorOverlay::set_editing_dark_mode(bool is_dark) {
     spdlog::debug("[ThemeEditorOverlay] Editing {} palette", is_dark ? "dark" : "light");
 }
 
-// ============================================================================
 // OVERLAYBASE IMPLEMENTATION
-// ============================================================================
 
 ThemeEditorOverlay::~ThemeEditorOverlay() {
     cancel_preview_timer();
@@ -251,9 +249,7 @@ void ThemeEditorOverlay::on_ui_destroyed() {
     panel_ = nullptr;
 }
 
-// ============================================================================
 // THEME EDITOR API
-// ============================================================================
 
 void ThemeEditorOverlay::load_theme(const std::string& filename) {
     // Pass just the theme name - load_theme_from_file() handles path resolution
@@ -283,9 +279,7 @@ void ThemeEditorOverlay::load_theme(const std::string& filename) {
     spdlog::info("[{}] Loaded theme '{}' for editing", get_name(), loaded.name);
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void ThemeEditorOverlay::update_swatch_colors() {
     for (size_t i = 0; i < swatch_color_pool_.size(); ++i) {
@@ -389,9 +383,7 @@ void ThemeEditorOverlay::show_save_as_status(const char* text) {
     lv_subject_set_int(&save_as_status_shown_subject_, text[0] != '\0' ? 1 : 0);
 }
 
-// ============================================================================
 // BACK BUTTON
-// ============================================================================
 
 void ThemeEditorOverlay::on_back_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[ThemeEditorOverlay] on_back_clicked");
@@ -410,9 +402,7 @@ void ThemeEditorOverlay::handle_back_clicked() {
     }
 }
 
-// ============================================================================
 // INSTANCE HANDLERS - Slider Property Changes
-// ============================================================================
 
 // Translation hints for border radius size names (dynamic lookup via BorderRadiusSizes::name()).
 // These are never called — they exist so the translation extractor can find the strings.
@@ -457,9 +447,7 @@ void ThemeEditorOverlay::handle_shadow_intensity_changed(int value) {
     spdlog::debug("[{}] Shadow intensity changed to {}", get_name(), value);
 }
 
-// ============================================================================
 // INSTANCE HANDLERS - Action Buttons
-// ============================================================================
 
 void ThemeEditorOverlay::handle_save_clicked() {
     if (!editing_theme_.is_valid()) {
@@ -573,9 +561,7 @@ void ThemeEditorOverlay::perform_reset_to_default() {
     ToastManager::instance().show(ToastSeverity::SUCCESS, lv_tr("Theme reset to defaults"));
 }
 
-// ============================================================================
 // COLOR PICKER, DIALOGS
-// ============================================================================
 
 void ThemeEditorOverlay::handle_swatch_click(int palette_index) {
     if (palette_index < 0 || palette_index >= static_cast<int>(swatch_color_pool_.size())) {
@@ -745,9 +731,7 @@ void ThemeEditorOverlay::show_discard_confirmation(std::function<void()> on_disc
     }
 }
 
-// ============================================================================
 // SAVE AS DIALOG
-// ============================================================================
 
 void ThemeEditorOverlay::handle_save_as_confirm() {
     if (!save_as_dialog_) {
@@ -814,9 +798,7 @@ void ThemeEditorOverlay::handle_save_as_confirm() {
     helix::nav::go_back();
 }
 
-// ============================================================================
 // FILENAME HELPERS
-// ============================================================================
 
 std::string ThemeEditorOverlay::sanitize_filename(const std::string& name) {
     std::string result;

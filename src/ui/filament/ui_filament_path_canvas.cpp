@@ -37,9 +37,7 @@
 
 using namespace helix::ui::fpath;
 
-// ============================================================================
 // Registry + theme
-// ============================================================================
 
 static helix::WidgetDataRegistry<FilamentPathData> s_registry;
 
@@ -117,9 +115,7 @@ static void load_theme_sizes(FilamentPathData* data) {
     theme.label_font = font_name ? lv_xml_get_font(nullptr, font_name) : &noto_sans_12;
 }
 
-// ============================================================================
 // Geometry helpers (shared with the topology renderers)
-// ============================================================================
 
 namespace helix::ui::fpath {
 
@@ -208,9 +204,7 @@ helix::ui::ParallelTap helix::ui::parallel_tap_at(lv_point_t p, const ParallelTa
     return {};
 }
 
-// ============================================================================
 // Event handlers
-// ============================================================================
 
 // The slots' number badges sit on the spool box's front edge, where the lanes leave it, and the
 // slot card is drawn before this canvas: they are drawn again over the lanes so a tube never
@@ -383,9 +377,7 @@ static void filament_path_delete_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Widget construction (shared by XML create and the programmatic API)
-// ============================================================================
 
 static lv_obj_t* create_widget(lv_obj_t* parent) {
     lv_obj_t* obj = lv_obj_create(parent);
@@ -419,9 +411,7 @@ static lv_obj_t* create_widget(lv_obj_t* parent) {
     return obj;
 }
 
-// ============================================================================
 // XML Widget Interface
-// ============================================================================
 
 static void* filament_path_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);
@@ -506,9 +496,7 @@ static void filament_path_xml_apply(lv_xml_parser_state_t* state, const char** a
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_filament_path_canvas_register(void) {
     lv_xml_register_widget("filament_path_canvas", filament_path_xml_create,

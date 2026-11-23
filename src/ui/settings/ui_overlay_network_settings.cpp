@@ -41,9 +41,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Helper Types
-// ============================================================================
 
 /**
  * @brief Per-instance network item data for click handling
@@ -97,9 +95,7 @@ static void network_item_delete_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 NetworkSettingsOverlay::NetworkSettingsOverlay() {
     std::memset(ssid_buffer_, 0, sizeof(ssid_buffer_));
@@ -151,9 +147,7 @@ NetworkSettingsOverlay::~NetworkSettingsOverlay() {
     // NOTE: Do NOT use spdlog here - it may be destroyed during exit
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void NetworkSettingsOverlay::init_subjects() {
     spdlog::debug("[NetworkSettingsOverlay] Initializing subjects");
@@ -213,9 +207,7 @@ void NetworkSettingsOverlay::init_subjects() {
     spdlog::debug("[NetworkSettingsOverlay] Subjects initialized");
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void NetworkSettingsOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -253,9 +245,7 @@ void NetworkSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Screen Creation
-// ============================================================================
 
 lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     // Register wifi_network_item component first
@@ -327,9 +317,7 @@ lv_obj_t* NetworkSettingsOverlay::create(lv_obj_t* parent_screen) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void NetworkSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -410,9 +398,7 @@ void NetworkSettingsOverlay::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // Cleanup
-// ============================================================================
 
 void NetworkSettingsOverlay::on_ui_destroyed() {
     detach_country_dropdown();
@@ -462,9 +448,7 @@ void NetworkSettingsOverlay::cleanup() {
     spdlog::debug("[NetworkSettingsOverlay] Cleanup complete");
 }
 
-// ============================================================================
 // Helper Functions
-// ============================================================================
 
 void NetworkSettingsOverlay::refresh_transport_status() {
     update_wifi_status();
@@ -921,9 +905,7 @@ void NetworkSettingsOverlay::show_password_status(const std::string& text) {
     lv_subject_set_int(&password_status_shown_, text.empty() ? 0 : 1);
 }
 
-// ============================================================================
 // Event Handler Implementations
-// ============================================================================
 
 void NetworkSettingsOverlay::handle_wlan_toggle_changed(lv_event_t* e) {
     lv_obj_t* sw = static_cast<lv_obj_t*>(lv_event_get_target(e));
@@ -1476,9 +1458,7 @@ void NetworkSettingsOverlay::handle_network_forget_cancel() {
     pending_forget_ssid_.clear();
 }
 
-// ============================================================================
 // Password Modal Implementation
-// ============================================================================
 
 void NetworkSettingsOverlay::show_password_modal(const char* ssid) {
     spdlog::debug("[NetworkSettingsOverlay] Showing password modal for: {}",

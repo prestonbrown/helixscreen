@@ -41,9 +41,7 @@ namespace helix::settings {
 using helix::ui::event_selected;
 using helix::ui::find_required;
 
-// ============================================================================
 // HELPERS
-// ============================================================================
 
 /// Map cryptic BLE chip names to user-friendly product names.
 /// Some printers advertise their SoC name rather than the product brand.
@@ -121,9 +119,7 @@ static std::vector<helix::LabelSize> get_sizes_for_current_printer() {
     return BrotherQLPrinter::supported_sizes_static();
 }
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 LabelPrinterSettingsOverlay::~LabelPrinterSettingsOverlay() {
     stop_label_printer_discovery();
@@ -131,9 +127,7 @@ LabelPrinterSettingsOverlay::~LabelPrinterSettingsOverlay() {
     stop_bt_discovery();
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_subjects() {
     // Ensure manager subjects are initialized (reads config for initial value)
@@ -208,9 +202,7 @@ void LabelPrinterSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -247,9 +239,7 @@ void LabelPrinterSettingsOverlay::on_deactivating(DeactivateReason) {
     stop_bt_discovery();
 }
 
-// ============================================================================
 // INTERNAL METHODS
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::handle_manual_entry_started() {
     auto_picked_ = false;
@@ -366,9 +356,7 @@ void LabelPrinterSettingsOverlay::init_preset_dropdown() {
     }
 }
 
-// ============================================================================
 // MDNS DISCOVERY
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_discovery_dropdown() {
     if (!overlay_root_)
@@ -581,9 +569,7 @@ void LabelPrinterSettingsOverlay::update_ipp_selected_subject() {
     lv_subject_set_int(&ipp_selected_subject_, ipp_val);
 }
 
-// ============================================================================
 // PRINTER TYPE
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_printer_type_dropdown() {
     if (!overlay_root_)
@@ -684,9 +670,7 @@ void LabelPrinterSettingsOverlay::handle_type_changed(int index) {
     }
 }
 
-// ============================================================================
 // LABEL COUNT
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_label_count_dropdown() {
     if (!overlay_root_)
@@ -727,9 +711,7 @@ void LabelPrinterSettingsOverlay::handle_label_count_changed(int index) {
     LabelPrinterSettingsManager::instance().set_label_count(count);
 }
 
-// ============================================================================
 // USB DETECTION
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_usb_printer_dropdown() {
     if (!overlay_root_)
@@ -825,9 +807,7 @@ void LabelPrinterSettingsOverlay::handle_usb_printer_selected(int index) {
     settings.set_usb_serial(printer.serial);
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::handle_address_changed() {
     lv_obj_t* row = find_required(overlay_root_, "row_address_port", get_name());
@@ -978,9 +958,7 @@ void LabelPrinterSettingsOverlay::handle_test_print() {
     });
 }
 
-// ============================================================================
 // BLUETOOTH DISCOVERY
-// ============================================================================
 
 void LabelPrinterSettingsOverlay::init_bt_printer_dropdown() {
     if (!overlay_root_)

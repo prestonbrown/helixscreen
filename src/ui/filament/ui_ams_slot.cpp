@@ -51,9 +51,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Per-widget user data (managed via static registry for safe shutdown)
-// ============================================================================
 
 /**
  * @brief User data stored on each ams_slot widget
@@ -161,9 +159,7 @@ static void cleanup_all_slot_data() {
     spdlog::debug("[AmsSlot] Pre-deinit cleanup: all slot data released");
 }
 
-// ============================================================================
 // Name and Material Labels
-// ============================================================================
 
 /**
  * @brief Paint the name and material lines from the per-slot subjects.
@@ -353,9 +349,7 @@ static void bind_drying_badge(AmsSlotData* data, lv_subject_t* subject) {
     }
 }
 
-// ============================================================================
 // Observer Callbacks
-// ============================================================================
 
 // Helper functions for observer logic (called by lambdas and initial triggers)
 
@@ -581,9 +575,7 @@ static void apply_tool_badge(AmsSlotData* data, int mapped_tool, bool is_overrid
         spdlog::trace("[AmsSlot] Slot {} tool badge: hidden", data->slot_index);
     }
 }
-// ============================================================================
 // Widget Event Handler (for cleanup)
-// ============================================================================
 
 /**
  * @brief Event handler for widget lifecycle (DELETE event for cleanup)
@@ -618,9 +610,7 @@ static void ams_slot_event_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Widget Creation (Internal)
-// ============================================================================
 /**
  * @brief Setup observers for a given slot index
  * Uses observer factory pattern for type-safe lambda observers
@@ -869,9 +859,7 @@ static void setup_slot_observers(AmsSlotData* data) {
     spdlog::trace("[AmsSlot] Created observers for slot {}", data->slot_index);
 }
 
-// ============================================================================
 // XML Handlers
-// ============================================================================
 
 /**
  * @brief XML create handler for ams_slot
@@ -1017,9 +1005,7 @@ static void ams_slot_xml_apply(lv_xml_parser_state_t* state, const char** attrs)
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_ams_slot_register(void) {
     // The view embeds <ams_lane_spool>; it must be registered before the view
@@ -1546,9 +1532,7 @@ void ui_ams_slot_move_badge_to_layer(lv_obj_t* obj, lv_obj_t* badge_layer, int32
                   badge_y);
 }
 
-// ============================================================================
 // Pulse Animation for Loading Operations
-// ============================================================================
 
 void ui_ams_slot_set_pulsing(lv_obj_t* obj, bool pulsing) {
     if (!obj) {

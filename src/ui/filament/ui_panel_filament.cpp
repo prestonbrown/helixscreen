@@ -136,9 +136,7 @@ static void length_hold(lv_event_t* e, int index) {
     }
 }
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 FilamentPanel::FilamentPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
@@ -382,9 +380,7 @@ FilamentPanel::~FilamentPanel() {
     }
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void FilamentPanel::init_subjects() {
     init_subjects_guarded([this]() {
@@ -830,9 +826,7 @@ void FilamentPanel::bind_extrude_speed_dropdown() {
     sync_extrude_speed_dropdown();
 }
 
-// ============================================================================
 // PRIVATE HELPERS
-// ============================================================================
 
 void FilamentPanel::update_temp_display() {
     format_temperature_pair(nozzle_current_, nozzle_target_, temp_display_buf_,
@@ -1138,9 +1132,7 @@ void FilamentPanel::update_all_temps() {
     }
 }
 
-// ============================================================================
 // INSTANCE HANDLERS
-// ============================================================================
 
 void FilamentPanel::handle_preset_button(int material_id) {
     // Delegate state update and display refresh to the public API
@@ -1403,7 +1395,6 @@ void FilamentPanel::sync_extrude_speed_dropdown() {
     helix::ui::fit_dropdown_to_text(extrude_speed_dropdown_);
 }
 
-// ============================================================================
 // ON-BUTTON OPERATION FEEDBACK
 //
 // Each op button shows its own progress (animated spinner → checkmark) via an
@@ -1412,7 +1403,6 @@ void FilamentPanel::sync_extrude_speed_dropdown() {
 // on the main thread (op_started from the click handler; op_succeeded/op_failed
 // inside the object_lifetime_.bg_cb bodies that marshal off the WebSocket
 // background thread).
-// ============================================================================
 
 constexpr uint32_t kOpDoneRevertMs = 1500;     ///< how long the "done" checkmark shows
 constexpr uint32_t kMinSpinnerVisibleMs = 500; ///< floor so instant ops still flash a spinner
@@ -1961,9 +1951,7 @@ void FilamentPanel::execute_retract() {
         IMoonrakerAPI::kExtrusionTimeoutMs);
 }
 
-// ============================================================================
 // EXTRUDER DROPDOWN
-// ============================================================================
 
 // Left-column sizing: graph always grows to fill, spool card hugs its
 // content. Works for every breakpoint and every AMS mode — previous
@@ -2344,9 +2332,7 @@ void FilamentPanel::handle_cooldown() {
     update_preset_buttons_visual();
 }
 
-// ============================================================================
 // PUBLIC API
-// ============================================================================
 
 void FilamentPanel::set_temp(int current, int target) {
     // Validate temperature ranges
@@ -2557,9 +2543,7 @@ void FilamentPanel::set_limits(const SafetyLimits& limits) {
                   max_temp);
 }
 
-// ============================================================================
 // POST-PLAN OUTCOME — what execute_load()/execute_unload() do with a plan
-// ============================================================================
 
 namespace helix::ui {
 
@@ -2642,9 +2626,7 @@ FilamentPanelOutcome panel_unload_outcome(const FilamentOpPlan& plan, bool backe
 
 } // namespace helix::ui
 
-// ============================================================================
 // FILAMENT SENSOR WARNING HELPERS
-// ============================================================================
 
 helix::ui::FilamentOpPlan FilamentPanel::current_load_plan() const {
     // The three-tier routing (AMS backend → configured macro → raw gcode) lives
@@ -2944,9 +2926,7 @@ void FilamentPanel::show_unload_warning() {
     spdlog::debug("[{}] Unload warning dialog shown", get_name());
 }
 
-// ============================================================================
 // GLOBAL INSTANCE (needed by main.cpp)
-// ============================================================================
 
 FilamentPanel& get_global_filament_panel() {
     return helix::lazy_global<FilamentPanel>("FilamentPanel", get_printer_state(), nullptr);

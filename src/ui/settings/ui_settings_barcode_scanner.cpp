@@ -28,17 +28,13 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 BarcodeScannerSettingsOverlay::~BarcodeScannerSettingsOverlay() {
     stop_bt_discovery();
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void BarcodeScannerSettingsOverlay::init_subjects() {
     auto& loader = helix::bluetooth::BluetoothLoader::instance();
@@ -159,9 +155,7 @@ void BarcodeScannerSettingsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void BarcodeScannerSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -249,9 +243,7 @@ void BarcodeScannerSettingsOverlay::on_deactivating(DeactivateReason) {
     btn_bt_forget_ = nullptr;
 }
 
-// ============================================================================
 // INTERNAL HELPERS
-// ============================================================================
 
 void BarcodeScannerSettingsOverlay::refresh_current_selection_label() {
     auto id = helix::SettingsManager::instance().get_scanner_device_id();
@@ -260,9 +252,7 @@ void BarcodeScannerSettingsOverlay::refresh_current_selection_label() {
     lv_subject_set_string(&current_device_label_subject_, text);
 }
 
-// ============================================================================
 // DEVICE LIST POPULATION
-// ============================================================================
 
 void BarcodeScannerSettingsOverlay::add_device_row(lv_obj_t* container, const char* icon,
                                                    const std::string& label,

@@ -1446,9 +1446,7 @@ void ams_detail_pre_show_env_indicator(AmsDetailWidgets& w, int unit_index) {
     }
 }
 
-// ============================================================================
 // Shared Context-Menu Dispatch
-// ============================================================================
 
 namespace helix {
 namespace ui {

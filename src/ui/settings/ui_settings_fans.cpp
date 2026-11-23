@@ -71,9 +71,7 @@ lv_obj_t* FanSettingsOverlay::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void FanSettingsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -84,9 +82,7 @@ void FanSettingsOverlay::on_deactivating(DeactivateReason) {
     cancel_rename(); // Dismiss rename modal if open
 }
 
-// ============================================================================
 // FAN LIST POPULATION
-// ============================================================================
 
 void FanSettingsOverlay::populate_fan_list(lv_obj_t* list, bool controllable) {
     if (!list)
@@ -174,9 +170,7 @@ void FanSettingsOverlay::populate_fans() {
     populate_fan_list(auto_list_, false);
 }
 
-// ============================================================================
 // FAN RENAME
-// ============================================================================
 
 void FanSettingsOverlay::handle_fan_rename(const std::string& object_name,
                                            const std::string& current_name) {

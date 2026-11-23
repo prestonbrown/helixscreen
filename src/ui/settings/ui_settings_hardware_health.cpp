@@ -27,9 +27,7 @@
 
 namespace helix::settings {
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void HardwareHealthOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -47,9 +45,7 @@ void HardwareHealthOverlay::on_deactivating(DeactivateReason) {
     pending_hardware_save_.clear();
 }
 
-// ============================================================================
 // INTERNAL METHODS
-// ============================================================================
 
 void HardwareHealthOverlay::populate_hardware_issues() {
     if (!overlay_root_) {
@@ -125,9 +121,7 @@ void HardwareHealthOverlay::populate_hardware_issues() {
                   result.newly_discovered.size(), result.changed_from_last_session.size());
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void HardwareHealthOverlay::register_callbacks() {
     register_xml_callbacks({

@@ -22,9 +22,7 @@
 
 namespace helix::ui::fpath {
 
-// ============================================================================
 // Frame
-// ============================================================================
 
 lv_color_t pulsed_error_color(const FilamentPathData& data) {
     const lv_color_t error = data.theme.color_error;
@@ -1389,9 +1387,7 @@ MixedFrame compute_mixed_frame(const FilamentPathData& data, const BaseGeometry&
     return f;
 }
 
-// ============================================================================
 // Routes, styles, bands
-// ============================================================================
 
 bool hub_is_bare(const FilamentPathData& data) {
     return data.topology == static_cast<int>(PathTopology::HUB) && !data.hub_on_toolhead &&
@@ -1666,9 +1662,7 @@ float load_band_y(const LinearHubFrame& f, float run_end) {
 
 } // namespace
 
-// ============================================================================
 // Plan
-// ============================================================================
 
 void reset_plan(PathPlan& out) {
     out.route_count = 0;
@@ -2151,9 +2145,7 @@ void plan_linear_hub(const LinearHubFrame& f, const FilamentPathData& data, cons
     total_dropped(out);
 }
 
-// ============================================================================
 // Paint
-// ============================================================================
 
 namespace {
 

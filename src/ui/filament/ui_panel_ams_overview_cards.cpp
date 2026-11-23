@@ -196,9 +196,7 @@ static int bars_end(const AmsUnit& unit, uint32_t mask) {
     return end;
 }
 
-// ============================================================================
 // Unit Card Management
-// ============================================================================
 
 void AmsOverviewPanel::refresh_units() {
     if (!cards_row_) {
@@ -686,9 +684,7 @@ void AmsOverviewPanel::create_mini_bars(UnitCard& card, const AmsUnit& unit) {
                                          bars_end(unit, mask), bar_width, kMiniBarHeightPx, mask);
 }
 
-// ============================================================================
 // System Path
-// ============================================================================
 
 void AmsOverviewPanel::push_unit_anchors(bool relayout) {
     if (!system_path_ || !cards_row_)

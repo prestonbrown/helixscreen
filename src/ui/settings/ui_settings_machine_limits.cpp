@@ -21,9 +21,7 @@
 
 namespace helix::settings {
 
-// ============================================================================
 // KEYPAD-EDITABLE ROWS
-// ============================================================================
 
 namespace {
 
@@ -62,18 +60,14 @@ bool field_in_range(int raw) {
 
 } // namespace
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 void init_machine_limits_overlay(IMoonrakerAPI* api) {
     auto& overlay = get_machine_limits_overlay();
     overlay.set_api(api);
 }
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 MachineLimitsOverlay::~MachineLimitsOverlay() {
     if (apply_timer_) {
@@ -83,17 +77,13 @@ MachineLimitsOverlay::~MachineLimitsOverlay() {
     deinit_subjects();
 }
 
-// ============================================================================
 // CONFIGURATION
-// ============================================================================
 
 void MachineLimitsOverlay::set_api(IMoonrakerAPI* api) {
     api_ = api;
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void MachineLimitsOverlay::init_subjects() {
     // Em-dash stands in for an unknown value
@@ -171,9 +161,7 @@ void MachineLimitsOverlay::deinit_subjects() {
     deinit_subjects_base(subjects_);
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void MachineLimitsOverlay::on_activate() {
     // Call base class first
@@ -210,9 +198,7 @@ void MachineLimitsOverlay::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // DATA REFRESH
-// ============================================================================
 
 void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
     if (api_) {
@@ -254,9 +240,7 @@ void MachineLimitsOverlay::query_and_show(lv_obj_t* /*parent_screen*/) {
     }
 }
 
-// ============================================================================
 // DISPLAY UPDATES
-// ============================================================================
 
 void MachineLimitsOverlay::update_display() {
     // Update max velocity display
@@ -330,9 +314,7 @@ void MachineLimitsOverlay::update_sliders() {
     }
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void MachineLimitsOverlay::handle_velocity_changed(int value) {
     current_limits_.max_velocity = static_cast<double>(value);
@@ -488,9 +470,7 @@ void MachineLimitsOverlay::apply_limits() {
             }));
 }
 
-// ============================================================================
 // KEYPAD
-// ============================================================================
 
 void MachineLimitsOverlay::on_keypad_value(float value, void* user_data) {
     auto* self = static_cast<MachineLimitsOverlay*>(user_data);

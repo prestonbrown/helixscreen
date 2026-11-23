@@ -64,9 +64,7 @@ CfsChuteCalibrationOverlay::~CfsChuteCalibrationOverlay() {
     }
 }
 
-// ============================================================================
 // SUBJECTS / CALLBACKS
-// ============================================================================
 
 void CfsChuteCalibrationOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -107,9 +105,7 @@ void CfsChuteCalibrationOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION / LIFECYCLE
-// ============================================================================
 
 lv_obj_t* CfsChuteCalibrationOverlay::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -208,9 +204,7 @@ void CfsChuteCalibrationOverlay::on_ui_destroyed() {
     jog_pad_ = nullptr;
 }
 
-// ============================================================================
 // STEP MACHINE
-// ============================================================================
 
 void CfsChuteCalibrationOverlay::set_state(State state) {
     lv_subject_set_int(&s_cfs_chute_state, static_cast<int>(state));

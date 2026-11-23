@@ -80,9 +80,7 @@ HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_clear_shown_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_spoolman_shown_subject_;
 HELIX_PSRAM_BSS helix::Subject AmsContextMenu::slot_scan_qr_shown_subject_;
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 void AmsContextMenu::init_subjects() {
     s_subjects.ensure_init([] {
@@ -172,9 +170,7 @@ AmsContextMenu& AmsContextMenu::operator=(AmsContextMenu&& other) noexcept {
     return *this;
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void AmsContextMenu::set_action_callback(ActionCallback callback) {
     action_callback_ = std::move(callback);
@@ -230,9 +226,7 @@ bool AmsContextMenu::show_for_external_spool(lv_obj_t* parent, lv_obj_t* anchor_
     return result;
 }
 
-// ============================================================================
 // ContextMenu override
-// ============================================================================
 
 void AmsContextMenu::on_created(lv_obj_t* menu_obj) {
     int slot_index = get_item_index();
@@ -514,9 +508,7 @@ void AmsContextMenu::append_slot_plugin_rows(lv_obj_t* menu_obj, int slot_index)
         /*divider=*/false, PluginRowLayout::Column);
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void AmsContextMenu::dispatch_ams_action(MenuAction action) {
     int slot = get_item_index();
@@ -762,9 +754,7 @@ void AmsContextMenu::handle_scan_qr() {
     dispatch_ams_action(MenuAction::SCAN_QR);
 }
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void AmsContextMenu::register_callbacks() {
     if (callbacks_registered_) {
@@ -792,9 +782,7 @@ void AmsContextMenu::register_callbacks() {
     spdlog::debug("[AmsContextMenu] Callbacks registered");
 }
 
-// ============================================================================
 // Static Callbacks (Instance Lookup via ContextMenu::active())
-// ============================================================================
 
 AmsContextMenu* AmsContextMenu::get_active_instance() {
     auto* self = ContextMenu::active_as<AmsContextMenu>();

@@ -563,9 +563,7 @@ void draw_heat_glow(lv_layer_t* layer, int32_t cx, int32_t cy, int32_t radius, l
     lv_draw_arc(layer, &arc_dsc);
 }
 
-// ============================================================================
 // Flow chevrons
-// ============================================================================
 // Chevrons streaming along an active tube to show filament moving: down toward
 // the nozzle on a load or extrude, back up on an unload or retract. Sized from
 // the tube gauge and phased by flow_offset for animation.
@@ -593,9 +591,7 @@ void draw_flow(lv_layer_t* layer, const FilamentPathData& data, const pg::Filame
                                   ink, kFlowChevronOpa, seg_shown, avoid, n_avoid);
 }
 
-// ============================================================================
 // Toolhead glyph
-// ============================================================================
 
 // Nozzle tip Y for the configured style — anchors the heat glow halo.
 int32_t toolhead_tip_y(int32_t nozzle_y, int32_t extruder_scale) {

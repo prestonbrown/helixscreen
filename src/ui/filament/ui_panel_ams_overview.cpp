@@ -61,9 +61,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // Layout Constants
-// ============================================================================
 
 /// Zoom animation duration (ms) for detail view transitions
 static constexpr uint32_t kDetailZoomDurationMs = 200;
@@ -77,18 +75,14 @@ static constexpr int32_t kDetailZoomScaleMax = 256;
 // Global instance pointer for XML callback access (used by back button and animation callbacks)
 static std::atomic<AmsOverviewPanel*> g_overview_panel_instance{nullptr};
 
-// ============================================================================
 // Construction
-// ============================================================================
 
 AmsOverviewPanel::AmsOverviewPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
     spdlog::debug("[AMS Overview] Constructed");
 }
 
-// ============================================================================
 // PanelBase Interface
-// ============================================================================
 
 void AmsOverviewPanel::init_subjects() {
     init_subjects_guarded([this]() {
@@ -366,9 +360,7 @@ void AmsOverviewPanel::on_deactivating(DeactivateReason) {
     }
 }
 
-// ============================================================================
 // Event Handling
-// ============================================================================
 
 void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("[AMS Overview] on_detail_slot_clicked");
@@ -386,9 +378,7 @@ void AmsOverviewPanel::on_detail_slot_clicked(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // Unit view (one unit per page)
-// ============================================================================
 
 namespace {
 
@@ -889,9 +879,7 @@ void AmsOverviewPanel::on_page_dots_resized(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Cleanup
-// ============================================================================
 
 void AmsOverviewPanel::clear_panel_reference() {
     open_ = false;
@@ -959,9 +947,7 @@ void AmsOverviewPanel::clear_panel_reference() {
     subjects_initialized_ = false;
 }
 
-// ============================================================================
 // Global Instance
-// ============================================================================
 
 static helix::ui::WidgetRef s_ams_overview_panel_obj;
 // Theme generation the cached tree was built under.
@@ -1122,9 +1108,7 @@ AmsOverviewPanel& get_global_ams_overview_panel() {
     return panel;
 }
 
-// ============================================================================
 // Slot Context Menu (unit view)
-// ============================================================================
 
 void AmsOverviewPanel::handle_detail_slot_tap(int global_slot_index) {
     spdlog::info("[{}] Detail slot {} tapped", get_name(), global_slot_index);
@@ -1171,9 +1155,7 @@ void AmsOverviewPanel::show_detail_context_menu(int slot_index, lv_obj_t* near_w
     helix::ui::open_slot_context_menu(*context_menu_, host, slot_index, near_widget);
 }
 
-// ============================================================================
 // Bypass Spool Interaction
-// ============================================================================
 
 void AmsOverviewPanel::on_bypass_spool_clicked(lv_event_t* e) {
     if (auto* self = static_cast<AmsOverviewPanel*>(lv_event_get_user_data(e))) {
@@ -1326,9 +1308,7 @@ void AmsOverviewPanel::update_page_bypass_widgets_position() {
     helix::ui::ams_detail_place_bypass_spool(detail_path_canvas_, page_bypass_widgets_);
 }
 
-// ============================================================================
 // Multi-unit Navigation
-// ============================================================================
 
 namespace {
 

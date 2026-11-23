@@ -79,9 +79,7 @@ void MacroButtonsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void MacroButtonsOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -89,9 +87,7 @@ void MacroButtonsOverlay::on_activate() {
     populate_dropdowns();
 }
 
-// ============================================================================
 // DROPDOWN POPULATION
-// ============================================================================
 
 void MacroButtonsOverlay::populate_dropdowns() {
     if (!overlay_root_) {
@@ -206,9 +202,7 @@ void MacroButtonsOverlay::populate_dropdowns() {
                   printer_macros_.size());
 }
 
-// ============================================================================
 // HELPER FUNCTIONS
-// ============================================================================
 
 std::string MacroButtonsOverlay::quick_button_index_to_slot_name(int index) {
     if (index == 0) {
@@ -238,9 +232,7 @@ std::string MacroButtonsOverlay::get_selected_macro_from_dropdown(lv_obj_t* drop
     return selected; // Return the macro name
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void MacroButtonsOverlay::handle_standard_macro_changed(StandardMacroSlot slot,
                                                         lv_obj_t* dropdown) {

@@ -103,9 +103,7 @@ static void load_theme_sizes(SystemPathData* data) {
     data->label_line_h = data->label_font ? lv_font_get_line_height(data->label_font) : 0;
 }
 
-// ============================================================================
 // Drawing Helpers
-// ============================================================================
 
 namespace {
 // A buffer shown in a box: where it sits on its travel and whether it is faulted.
@@ -190,9 +188,7 @@ static void draw_trunk_buffer(lv_layer_t* layer, const SystemPathData* data, con
                     {data->buffer_position, data->buffer_fault});
 }
 
-// ============================================================================
 // Draw
-// ============================================================================
 // system_path_draw_cb plans every tube and sensor band (plan_overview), paints
 // them with the detail views' painter, then draws the boxes, the box-edge
 // bands, the toolheads and their badges on top.
@@ -417,9 +413,7 @@ static void system_path_draw_cb(lv_event_t* e) {
                   plan.route_count, plan.band_count);
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 // Bypass spool clicks are handled by the BypassSpoolWidgets overlay the panel
 // places on top of this canvas — see ui_bypass_spool_widget.h.
@@ -432,9 +426,7 @@ static void system_path_delete_cb(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // XML Widget Interface
-// ============================================================================
 
 static void* system_path_xml_create(lv_xml_parser_state_t* state, const char** attrs) {
     LV_UNUSED(attrs);
@@ -508,9 +500,7 @@ static void system_path_xml_apply(lv_xml_parser_state_t* state, const char** att
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_system_path_canvas_register(void) {
     lv_xml_register_widget("system_path_canvas", system_path_xml_create, system_path_xml_apply);

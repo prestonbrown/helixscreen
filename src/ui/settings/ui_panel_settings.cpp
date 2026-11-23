@@ -72,9 +72,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // CONSTRUCTOR
-// ============================================================================
 
 SettingsPanel::SettingsPanel(PrinterState& printer_state, IMoonrakerAPI* api)
     : PanelBase(printer_state, api) {
@@ -89,9 +87,7 @@ SettingsPanel::~SettingsPanel() {
     // Note: Don't log here - spdlog may be destroyed during static destruction
 }
 
-// ============================================================================
 // PANELBASE IMPLEMENTATION
-// ============================================================================
 
 void SettingsPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -218,9 +214,7 @@ void SettingsPanel::on_activate() {
     refresh_status_lines();
 }
 
-// ============================================================================
 // SETUP HELPERS
-// ============================================================================
 
 namespace {
 // A subject owned by an overlay not yet created (e.g. update_new_version,
@@ -333,9 +327,7 @@ void SettingsPanel::render_connection_status() {
             .c_str());
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void SettingsPanel::show_restart_prompt() {
     // Already showing
@@ -367,9 +359,7 @@ void SettingsPanel::handle_hardware_health_clicked() {
     overlay.show(parent_screen_);
 }
 
-// ============================================================================
 // GLOBAL INSTANCE
-// ============================================================================
 
 SettingsPanel& get_global_settings_panel() {
     return helix::lazy_global<SettingsPanel>("SettingsPanel", get_printer_state(), nullptr);

@@ -46,9 +46,7 @@
 #include <string>
 #include <vector>
 
-// ============================================================================
 // Layout constants
-// ============================================================================
 
 /** Minimum bar width in pixels (prevents bars from becoming invisible) */
 static constexpr int32_t kMinBarWidthPx = 3;
@@ -89,9 +87,7 @@ static int lane_badge_px(int spool_size) {
     return std::min(spool_size, kMaxSpoolImgPx) * 2 / 5;
 }
 
-// ============================================================================
 // Per-widget user data
-// ============================================================================
 
 /** Magic number to identify ams_mini_status widgets ("AMS1" as ASCII) */
 static constexpr uint32_t kAmsMiniStatusMagic = 0x414D5331;
@@ -280,9 +276,7 @@ static bool rebuild_spools(AmsMiniStatusData* data);
 static void rebuild(AmsMiniStatusData* data);
 static void sync_from_ams_state(AmsMiniStatusData* data);
 
-// ============================================================================
 // Internal helpers
-// ============================================================================
 
 /** The XML flex-place name of the strip's bars_align. */
 static const char* bars_align_name(lv_flex_align_t align) {
@@ -1424,7 +1418,7 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
     const lv_font_t* pct_font = theme_manager_get_font("font_xs");
     const int pct_h = line_h(pct_font, 12);
 
-    // ---- Plan ----
+    // ---- Plan
     // Every lane at a usable spool: all of them in the box when they fit (the
     // largest spool), else as many rows as the height holds, scrolling
     // sideways. Only an auto tray (the home tile) titles its unit groups.
@@ -1812,9 +1806,7 @@ static void bind_bypass_observers(AmsMiniStatusData* data, lv_obj_t* container) 
                      settings.get_subjects_lifetime());
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 /**
  * @brief Build the strip from the ams_mini_status_frame component and bind it
@@ -2049,9 +2041,7 @@ bool ui_ams_mini_status_is_valid(lv_obj_t* obj) {
     return data && data->magic == kAmsMiniStatusMagic;
 }
 
-// ============================================================================
 // Auto-binding to AmsState
-// ============================================================================
 
 /**
  * @brief Sync widget state from AmsState backend
@@ -2176,9 +2166,7 @@ static void sync_from_ams_state(AmsMiniStatusData* data) {
     spdlog::trace("[AmsMiniStatus] Synced from AmsState: {} slots", slot_count);
 }
 
-// ============================================================================
 // XML Widget Registration
-// ============================================================================
 
 /**
  * @brief XML create callback - creates widget with responsive sizing

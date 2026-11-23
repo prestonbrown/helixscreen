@@ -40,9 +40,7 @@ namespace helix::ui {
 // Static member initialization
 bool SpoolEditModal::callbacks_registered_ = false;
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 SpoolEditModal::SpoolEditModal() {
     spdlog::debug("[SpoolEditModal] Constructed");
@@ -54,9 +52,7 @@ SpoolEditModal::~SpoolEditModal() {
     spdlog::trace("[SpoolEditModal] Destroyed");
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void SpoolEditModal::set_completion_callback(CompletionCallback callback) {
     completion_callback_ = std::move(callback);
@@ -78,9 +74,7 @@ bool SpoolEditModal::show_for_spool(lv_obj_t* parent, const SpoolInfo& spool, IM
     return true;
 }
 
-// ============================================================================
 // Modal Hooks
-// ============================================================================
 
 void SpoolEditModal::on_show() {
     // Suppress field change events during initial population — setting textarea
@@ -105,9 +99,7 @@ void SpoolEditModal::on_hide() {
     spdlog::debug("[SpoolEditModal] on_hide()");
 }
 
-// ============================================================================
 // Internal Methods
-// ============================================================================
 
 void SpoolEditModal::init_subjects() {
     if (subjects_initialized_) {
@@ -383,9 +375,7 @@ void SpoolEditModal::update_save_button_text() {
     lv_subject_set_string(&save_button_text_subject_, is_dirty() ? lv_tr("Save") : lv_tr("Close"));
 }
 
-// ============================================================================
 // Event Handlers
-// ============================================================================
 
 void SpoolEditModal::handle_close() {
     spdlog::debug("[SpoolEditModal] Close requested");
@@ -562,9 +552,7 @@ void SpoolEditModal::handle_print_label() {
 }
 #endif
 
-// ============================================================================
 // Static Callback Registration
-// ============================================================================
 
 void SpoolEditModal::register_callbacks() {
     if (callbacks_registered_) {

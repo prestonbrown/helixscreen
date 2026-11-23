@@ -45,9 +45,7 @@ static void temp_input_range_msg(char* msg, size_t size, const char* fmt, int mi
              helix::units::format_display_temp(max_c).c_str());
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void MaterialTempsOverlay::init_subjects() {
     // View toggle subject: 0=list, 1=editing
@@ -77,9 +75,7 @@ void MaterialTempsOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION
-// ============================================================================
 
 lv_obj_t* MaterialTempsOverlay::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Creating overlay...", get_name());
@@ -105,18 +101,14 @@ void MaterialTempsOverlay::before_show() {
     show_list_view();
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void MaterialTempsOverlay::on_activate() {
     OverlayBase::on_activate();
     populate_material_list();
 }
 
-// ============================================================================
 // LIST VIEW
-// ============================================================================
 
 void MaterialTempsOverlay::populate_material_list() {
     if (!list_view_) {
@@ -173,9 +165,7 @@ void MaterialTempsOverlay::populate_material_list() {
     spdlog::debug("[{}] Populated {} materials", get_name(), sorted.size());
 }
 
-// ============================================================================
 // EDIT VIEW
-// ============================================================================
 
 void MaterialTempsOverlay::show_edit_view(const std::string& material_name) {
     editing_material_ = material_name;
@@ -292,9 +282,7 @@ void MaterialTempsOverlay::show_list_view() {
     lv_subject_set_int(&editing_subject_, 0);
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void MaterialTempsOverlay::handle_material_row_clicked(const std::string& material_name) {
     spdlog::debug("[{}] Material row clicked: {}", get_name(), material_name);
@@ -447,9 +435,7 @@ void MaterialTempsOverlay::handle_reset_defaults() {
     }
 }
 
-// ============================================================================
 // MACRO DROPDOWN
-// ============================================================================
 
 void MaterialTempsOverlay::populate_macro_dropdown() {
     if (!macro_dropdown_)
@@ -490,9 +476,7 @@ void MaterialTempsOverlay::handle_macro_dropdown_changed() {
                   (sel < macro_names_.size()) ? macro_names_[sel] : "(invalid)");
 }
 
-// ============================================================================
 // STATIC CALLBACKS
-// ============================================================================
 
 // Attached with lv_obj_add_event_cb: the rows and the back button are built in
 // code, so there is no XML slot to register against.

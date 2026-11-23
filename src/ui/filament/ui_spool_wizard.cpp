@@ -58,9 +58,7 @@ void set_spoolman_temp(nlohmann::json& data, const char* key, int min_val, int m
 
 } // namespace
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 // Out of line: ColorPickerModal is incomplete in the header.
 SpoolWizardOverlay::SpoolWizardOverlay() = default;
@@ -70,9 +68,7 @@ SpoolWizardOverlay::~SpoolWizardOverlay() {
     deinit_subjects();
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void SpoolWizardOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -154,9 +150,7 @@ void SpoolWizardOverlay::deinit_subjects() {
     catalog_finish_.reclaim();
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void SpoolWizardOverlay::register_callbacks() {
     register_xml_callbacks({
@@ -349,9 +343,7 @@ void SpoolWizardOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void SpoolWizardOverlay::on_activate() {
     OverlayBase::on_activate();
@@ -463,9 +455,7 @@ void SpoolWizardOverlay::reset_state() {
     spdlog::debug("[{}] State reset for new wizard session", get_name());
 }
 
-// ============================================================================
 // Step Navigation (pure logic — testable without LVGL)
-// ============================================================================
 
 void SpoolWizardOverlay::navigate_next() {
     if (!can_proceed_) {
@@ -567,9 +557,7 @@ void SpoolWizardOverlay::on_create_requested() {
     }
 }
 
-// ============================================================================
 // Navigation Helpers
-// ============================================================================
 
 void SpoolWizardOverlay::navigate_to_step(Step step) {
     current_step_ = step;
@@ -599,9 +587,7 @@ void SpoolWizardOverlay::sync_subjects() {
     lv_subject_set_int(&can_proceed_subject_, can_proceed_ ? 1 : 0);
 }
 
-// ============================================================================
 // Creation Flow
-// ============================================================================
 
 void SpoolWizardOverlay::set_creating(bool val) {
     if (subjects_initialized_) {
@@ -831,9 +817,7 @@ void SpoolWizardOverlay::on_creation_error(const std::string& message, int rollb
     set_creating(false);
 }
 
-// ============================================================================
 // Vendor Step Logic
-// ============================================================================
 
 std::vector<SpoolWizardOverlay::VendorEntry>
 SpoolWizardOverlay::sorted_vendors(const std::vector<VendorEntry>& server_vendors) {
@@ -1050,9 +1034,7 @@ void SpoolWizardOverlay::populate_vendor_list() {
     spdlog::debug("[{}] Populated {} vendor rows", get_name(), filtered_vendors_.size());
 }
 
-// ============================================================================
 // Vendor Step Handlers
-// ============================================================================
 
 void SpoolWizardOverlay::show_create_vendor_modal() {
     spdlog::debug("[SpoolWizard] Show create vendor modal");
@@ -1160,9 +1142,7 @@ void SpoolWizardOverlay::confirm_create_vendor() {
     spdlog::info("[SpoolWizard] New vendor '{}' confirmed (will be created on submit)", name);
 }
 
-// ============================================================================
 // Filament Step Logic
-// ============================================================================
 
 void SpoolWizardOverlay::load_filaments() {
     spdlog::debug("[{}] Loading filaments for vendor '{}' (server_id={})", get_name(),
@@ -1458,9 +1438,7 @@ void SpoolWizardOverlay::update_new_filament_can_proceed() {
                   new_filament_material_, new_filament_color_hex_, valid);
 }
 
-// ============================================================================
 // Filament Step Handlers
-// ============================================================================
 
 void SpoolWizardOverlay::show_create_filament_modal() {
     spdlog::debug("[SpoolWizard] Show create filament modal");
@@ -1688,9 +1666,7 @@ void SpoolWizardOverlay::confirm_create_filament() {
     spdlog::info("[SpoolWizard] New filament '{}' confirmed (will be created on submit)", summary);
 }
 
-// ============================================================================
 // SpoolmanDB Search
-// ============================================================================
 
 SpoolWizardOverlay::FilamentEntry
 SpoolWizardOverlay::entry_from_catalog(const helix::ExternalFilament& f) {

@@ -9,9 +9,7 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 AmsLoadingErrorModal::AmsLoadingErrorModal() {
     spdlog::debug("[AmsLoadingErrorModal] Constructed");
@@ -31,9 +29,7 @@ void AmsLoadingErrorModal::init_subjects() {
     names_.publish(&hint_subject_, "hint_subject", "hint");
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 bool AmsLoadingErrorModal::show(lv_obj_t* parent, const std::string& error_message,
                                 RetryCallback retry_callback) {
@@ -72,9 +68,7 @@ void AmsLoadingErrorModal::dismiss_silently() {
     silent_dismiss_ = false;
 }
 
-// ============================================================================
 // Modal Hooks
-// ============================================================================
 
 void AmsLoadingErrorModal::on_show() {
     // Wire buttons via Modal base class — uses per-callback user_data,
@@ -101,9 +95,7 @@ void AmsLoadingErrorModal::on_hide() {
     spdlog::debug("[AmsLoadingErrorModal] on_hide()");
 }
 
-// ============================================================================
 // Virtual Button Handlers
-// ============================================================================
 
 void AmsLoadingErrorModal::on_ok() {
     spdlog::info("[AmsLoadingErrorModal] Retry requested");

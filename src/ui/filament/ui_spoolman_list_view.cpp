@@ -19,17 +19,13 @@
 
 namespace helix::ui {
 
-// ============================================================================
 // Destruction
-// ============================================================================
 
 SpoolmanListView::~SpoolmanListView() {
     cleanup();
 }
 
-// ============================================================================
 // Setup / Cleanup
-// ============================================================================
 
 bool SpoolmanListView::setup(lv_obj_t* container) {
     if (!container) {
@@ -113,9 +109,7 @@ void SpoolmanListView::reset() {
     spdlog::debug("[SpoolmanListView] reset()");
 }
 
-// ============================================================================
 // Pool Initialization
-// ============================================================================
 
 bool SpoolmanListView::add_pool_row() {
     if (!container_) {
@@ -131,9 +125,7 @@ bool SpoolmanListView::add_pool_row() {
     return true;
 }
 
-// ============================================================================
 // Row Configuration
-// ============================================================================
 
 void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int active_spool_id) {
     if (!rw.root) {
@@ -218,9 +210,7 @@ void SpoolmanListView::configure_row(RowWidgets& rw, const SpoolInfo& spool, int
     lv_obj_set_hidden(rw.root, false);
 }
 
-// ============================================================================
 // Population / Visibility
-// ============================================================================
 
 void SpoolmanListView::populate(const std::vector<SpoolInfo>& spools, int active_spool_id,
                                 bool preserve_scroll) {

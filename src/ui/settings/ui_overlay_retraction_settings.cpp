@@ -242,9 +242,7 @@ void RetractionSettingsOverlay::send_retraction_settings() {
     api_->execute_gcode(gcode, nullptr, nullptr);
 }
 
-// =============================================================================
 // EVENT HANDLERS
-// =============================================================================
 
 lv_obj_t* RetractionSettingsOverlay::field_slider(Field field) const {
     switch (field) {

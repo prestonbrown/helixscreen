@@ -212,9 +212,7 @@ void publish_loaded_chip(size_t i, const helix::GcodeToolInfo& tool,
 
 } // namespace
 
-// ============================================================================
 // Setup
-// ============================================================================
 
 void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container,
                                  lv_obj_t* warning_container) {
@@ -247,9 +245,7 @@ void FilamentMappingCard::create(lv_obj_t* card_widget, lv_obj_t* rows_container
     spdlog::debug("[FilamentMapping] Card created");
 }
 
-// ============================================================================
 // Update / visibility
-// ============================================================================
 
 bool FilamentMappingCard::recompute_visibility() {
     // The WHOLE visibility rule, in one place, so update() and set_used_tools()
@@ -417,9 +413,7 @@ void FilamentMappingCard::on_ui_destroyed() {
     }
 }
 
-// ============================================================================
 // Chips
-// ============================================================================
 
 void FilamentMappingCard::init_subjects() {
     init_chip_subjects();
@@ -489,17 +483,13 @@ void FilamentMappingCard::publish_chips() {
                   capacity, overflow ? " + overflow pill" : "");
 }
 
-// ============================================================================
 // Color queries
-// ============================================================================
 
 std::vector<uint32_t> FilamentMappingCard::get_mapped_colors() const {
     return helix::FilamentMapper::resolve_display_colors(tool_info_, mappings_, available_slots_);
 }
 
-// ============================================================================
 // Modal interaction
-// ============================================================================
 
 void FilamentMappingCard::open_mapping_modal() {
     spdlog::debug("[FilamentMapping] Opening mapping modal");
@@ -520,9 +510,7 @@ void FilamentMappingCard::open_full_mapping() {
     }
 }
 
-// ============================================================================
 // Chip dropdown
-// ============================================================================
 
 FilamentMappingCard::~FilamentMappingCard() {
     if (s_chip_card == this) {
@@ -602,9 +590,7 @@ void FilamentMappingCard::open_slot_picker(size_t chip, lv_obj_t* trigger) {
         options);
 }
 
-// ============================================================================
 // Data collection
-// ============================================================================
 
 size_t FilamentMappingCard::chips_that_fit(int32_t content_width, int32_t gap, int32_t chip_width) {
     // Layout has not settled on the very first render, so the width reads 0 (or
