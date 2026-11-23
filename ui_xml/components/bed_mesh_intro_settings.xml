@@ -16,20 +16,21 @@
             style_border_width="0" flex_flow="row" scrollable="false">
       <cal_intro_chip name="mesh_heat_cold"
                       label="Cold" detail="no heat" choice="bed_mesh_heat_choice" value="0" index="0"
-                      callback="on_bed_mesh_heat_choice"/>
+                      callback="on_bed_mesh_heat_choice" label_font="#bed_mesh_chip_font"/>
       <cal_intro_chip name="mesh_heat_pla"
                       label="PLA" bind_detail="bed_mesh_heat_pla" choice="bed_mesh_heat_choice" value="1" index="1"
-                      callback="on_bed_mesh_heat_choice"/>
+                      callback="on_bed_mesh_heat_choice" label_font="#bed_mesh_chip_font"/>
     </lv_obj>
     <lv_obj name="mesh_heat_row_b"
             width="100%" height="content" style_pad_all="0" style_pad_gap="#space_sm" style_bg_opa="0"
             style_border_width="0" flex_flow="row" scrollable="false">
+      <!-- ABS / ASA is the long label, so the second row gives it the larger share. -->
       <cal_intro_chip name="mesh_heat_petg"
                       label="PETG" bind_detail="bed_mesh_heat_petg" choice="bed_mesh_heat_choice" value="2" index="2"
-                      callback="on_bed_mesh_heat_choice"/>
+                      callback="on_bed_mesh_heat_choice" label_font="#bed_mesh_chip_font" grow="2"/>
       <cal_intro_chip name="mesh_heat_abs"
                       label="ABS / ASA" bind_detail="bed_mesh_heat_abs" choice="bed_mesh_heat_choice" value="3"
-                      index="3" callback="on_bed_mesh_heat_choice"/>
+                      index="3" callback="on_bed_mesh_heat_choice" label_font="#bed_mesh_chip_font" grow="3"/>
     </lv_obj>
     <text_small name="mesh_heat_desc"
                 width="100%" style_text_font="#cal_font_subtitle" style_text_color="#text_muted"

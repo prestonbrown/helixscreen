@@ -857,6 +857,16 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
     return cell;
 }
 
+/// Draw @p label in @p font when the grid chose a face other than the label's
+/// themed @p themed one; otherwise let the theme's face apply.
+static void apply_grid_font(lv_obj_t* label, const lv_font_t* font, const lv_font_t* themed) {
+    // DECLARATIVE_OK: the font is measured against the grid cell.
+    if (font && font != themed)
+        lv_obj_set_style_text_font(label, font, LV_PART_MAIN);
+    else
+        lv_obj_remove_local_style_prop(label, LV_STYLE_TEXT_FONT, LV_PART_MAIN);
+}
+
 /**
  * @brief Spool mode's bypass: a divider and one more cell pinned past the
  * lanes' scroller, sized like a lane's, its spool painted from the external
@@ -864,7 +874,8 @@ static lv_obj_t* create_spool_cell(lv_obj_t* parent, int slot_index, int spool_s
  */
 static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_px, int spool_size,
                                int text_w, bool stacked, bool ellipsize, bool show_pct,
-                               int scrollbar_room) {
+                               int scrollbar_room, const lv_font_t* name_font,
+                               const lv_font_t* meta_font) {
     const bool show = data->bypass.shown && !data->spool_cells.empty();
     if (!show) {
         if (data->bypass_divider)
@@ -924,10 +935,14 @@ static void layout_bypass_cell(AmsMiniStatusData* data, lv_obj_t* row, int cell_
         lv_obj_set_width(mat, text_w);
         lv_label_set_long_mode(mat, ellipsize ? LV_LABEL_LONG_MODE_DOTS : LV_LABEL_LONG_MODE_WRAP);
         lv_label_set_max_lines(mat, ellipsize ? 1 : 0);
+        // The label is measured in the grid's name face, like a lane's.
+        apply_grid_font(mat, name_font, theme_manager_get_font("font_small"));
     }
     helix::ui::set_row_label_text(cell, "bypass_material", bypass_label_text(data->bypass));
-    if (lv_obj_t* pct = lv_obj_find_by_name(cell, "bypass_pct"))
+    if (lv_obj_t* pct = lv_obj_find_by_name(cell, "bypass_pct")) {
+        apply_grid_font(pct, meta_font, theme_manager_get_font("font_xs"));
         lv_obj_set_hidden(pct, !show_pct);
+    }
     lv_obj_set_hidden(cell, false);
 }
 
@@ -1483,6 +1498,16 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
                                                                    : LV_SCROLL_SNAP_NONE);
     if (!scrolls)
         lv_obj_scroll_to_x(sc, 0, LV_ANIM_OFF);
+    // One scrolling block shows whole columns: the viewport ends on a column
+    // edge, so no lane stands cut off with a sliver of its label showing.
+    // (Titled units snap to their group's start instead.)
+    lv_obj_remove_local_style_prop(sc, LV_STYLE_MAX_WIDTH, LV_PART_MAIN);
+    if (scrolls && grid_spans.size() == 1 && !grid.plan.groups.empty()) {
+        const int bypass_w = bypass_cell ? cell_px + 1 + 2 * (gap + bypass_divider_margin()) : 0;
+        const int visible = (avail_w - bypass_w + gap) / (cell_px + gap);
+        if (visible >= 1 && visible < grid.plan.groups[0].cols)
+            lv_obj_set_style_max_width(sc, visible * cell_px + (visible - 1) * gap, LV_PART_MAIN);
+    }
 
     const int n = static_cast<int>(data->spool_cells.size());
     if (!helix::ui::ams_mini_status_shows_lanes(data->slot_count, n)) {
@@ -1675,7 +1700,8 @@ static bool rebuild_spools(AmsMiniStatusData* data) {
             lv_obj_set_hidden(meta, !(show_text && (show_pct || chip)));
     }
 
-    layout_bypass_cell(data, row, cell_px, spool_size, text_w, true, true, show_pct, pad_bottom);
+    layout_bypass_cell(data, row, cell_px, spool_size, text_w, true, true, show_pct, pad_bottom,
+                       grid.name_font, meta_font);
 
     if (condemned)
         helix::ui::safe_delete_deferred(condemned);

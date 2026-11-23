@@ -63,8 +63,7 @@
             snprintf((buffer), sizeof(buffer), "%s", (initial_value));                             \
         }                                                                                          \
         helix::subject_init_string((subject), (buffer), nullptr, sizeof(buffer), (buffer));        \
-        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_STRING);                  \
+        ::helix::publish_subject(&(subject), (name), LV_SUBJECT_TYPE_STRING, HELIX_SUBJECT_SITE);  \
     } while (0)
 
 /**
@@ -94,8 +93,7 @@
             snprintf((buffer), (size), "%s", (initial_value));                                     \
         }                                                                                          \
         helix::subject_init_string((subject), (buffer), nullptr, (size), (buffer));                \
-        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_STRING);                  \
+        ::helix::publish_subject(&(subject), (name), LV_SUBJECT_TYPE_STRING, HELIX_SUBJECT_SITE);  \
     } while (0)
 
 /**
@@ -116,8 +114,7 @@
 #define UI_SUBJECT_INIT_AND_REGISTER_INT(subject, initial_value, name)                             \
     do {                                                                                           \
         helix::subject_init_int((subject), (initial_value));                                       \
-        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_INT);                     \
+        ::helix::publish_subject(&(subject), (name), LV_SUBJECT_TYPE_INT, HELIX_SUBJECT_SITE);     \
     } while (0)
 
 /**
@@ -138,8 +135,7 @@
 #define UI_SUBJECT_INIT_AND_REGISTER_POINTER(subject, initial_value, name)                         \
     do {                                                                                           \
         helix::subject_init_pointer((subject), (initial_value));                                   \
-        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_POINTER);                 \
+        ::helix::publish_subject(&(subject), (name), LV_SUBJECT_TYPE_POINTER, HELIX_SUBJECT_SITE); \
     } while (0)
 
 /**
@@ -160,8 +156,7 @@
 #define UI_SUBJECT_INIT_AND_REGISTER_COLOR(subject, initial_value, name)                           \
     do {                                                                                           \
         helix::subject_init_color((subject), (initial_value));                                     \
-        helix::xml::register_subject_in_current_scope((name), &(subject));                         \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (name), LV_SUBJECT_TYPE_COLOR);                   \
+        ::helix::publish_subject(&(subject), (name), LV_SUBJECT_TYPE_COLOR, HELIX_SUBJECT_SITE);   \
     } while (0)
 
 /**

@@ -25,9 +25,10 @@
     <prop name="callback" type="string" default=""/>
     <prop name="label_align" type="string" default="left"/>
     <prop name="label_font" type="string" default="#cal_font_name_bold"/>
+    <prop name="grow" type="int" default="1"/>
   </api>
   <view extends="lv_obj"
-        width="0" height="#cal_intro_chip_h" flex_grow="1" style_radius="#border_radius" style_border_width="2"
+        width="0" height="#cal_intro_chip_h" flex_grow="$grow" style_radius="#border_radius" style_border_width="2"
         style_border_color="#elevated_bg" style_bg_opa="0" style_bg_color="#primary" style_bg_opa-checked="255"
         style_border_opa-checked="0" style_pad_hor="#cal_intro_chip_pad" style_pad_ver="0" flex_flow="row"
         style_pad_gap="#space_xs" style_flex_cross_place="center" style_flex_track_place="center"
@@ -37,7 +38,7 @@
     <event_cb trigger="clicked" callback="$callback" user_data="$index"/>
     <text_small name="chip_label"
                 width="0" flex_grow="1" style_text_align="$label_align" text="$label" translation_tag="$label_tag"
-                bind_text="$bind_label" style_text_font="$label_font" style_text_font-checked="#cal_font_name_bold"
+                bind_text="$bind_label" style_text_font="$label_font" style_text_font-checked="$label_font"
                 style_text_color="#text" style_text_color-checked="#text_on_primary" long_mode="dots" clickable="false"
                 event_bubble="true">
       <bind_state_if_eq subject="$choice" state="checked" ref_value="$value"/>

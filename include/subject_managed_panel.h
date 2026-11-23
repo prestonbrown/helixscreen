@@ -360,6 +360,17 @@ inline std::string next_instance_prefix(const char* base) {
     static unsigned next_id = 0;
     return std::string(base) + "_" + std::to_string(next_id++);
 }
+
+/**
+ * @brief Publish @p subject under @p xml_name in the current XML scope, register
+ *        it with @p manager and record it in SubjectDebugRegistry
+ *
+ * The body of every UI_MANAGED_SUBJECT_* site, out of line: inlined, the two
+ * std::string temporaries the registry takes cost each site ~100 bytes.
+ */
+void publish_managed_subject(SubjectManager& manager, lv_subject_t* subject, const char* xml_name,
+                             lv_subject_type_t type, const char* file, int line);
+
 } // namespace helix
 
 /**
@@ -375,9 +386,8 @@ inline std::string next_instance_prefix(const char* base) {
 #define UI_MANAGED_SUBJECT_INT(subject, initial_value, xml_name, manager)                          \
     do {                                                                                           \
         helix::subject_init_int((subject), (initial_value));                                       \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_INT);                 \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name), LV_SUBJECT_TYPE_INT,   \
+                                         HELIX_SUBJECT_SITE);                                      \
     } while (0)
 
 /**
@@ -394,9 +404,8 @@ inline std::string next_instance_prefix(const char* base) {
 #define UI_MANAGED_SUBJECT_STRING(subject, buffer, initial_value, xml_name, manager)               \
     do {                                                                                           \
         helix::subject_init_string((subject), (buffer), nullptr, sizeof(buffer), (initial_value)); \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_STRING);              \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_STRING, HELIX_SUBJECT_SITE);              \
     } while (0)
 
 /**
@@ -416,9 +425,8 @@ inline std::string next_instance_prefix(const char* base) {
     do {                                                                                           \
         snprintf((buffer), (size), "%s", (initial_value));                                         \
         helix::subject_init_string((subject), (buffer), nullptr, (size), (buffer));                \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_STRING);              \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_STRING, HELIX_SUBJECT_SITE);              \
     } while (0)
 
 /**
@@ -434,9 +442,8 @@ inline std::string next_instance_prefix(const char* base) {
 #define UI_MANAGED_SUBJECT_POINTER(subject, initial_value, xml_name, manager)                      \
     do {                                                                                           \
         helix::subject_init_pointer((subject), (initial_value));                                   \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_POINTER);             \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name),                        \
+                                         LV_SUBJECT_TYPE_POINTER, HELIX_SUBJECT_SITE);             \
     } while (0)
 
 /**
@@ -452,7 +459,6 @@ inline std::string next_instance_prefix(const char* base) {
 #define UI_MANAGED_SUBJECT_COLOR(subject, initial_value, xml_name, manager)                        \
     do {                                                                                           \
         helix::subject_init_color((subject), (initial_value));                                     \
-        helix::xml::register_subject_in_current_scope((xml_name), &(subject));                     \
-        (manager).register_subject(&(subject), (xml_name));                                        \
-        HELIX_SUBJECT_DEBUG_REGISTER(&(subject), (xml_name), LV_SUBJECT_TYPE_COLOR);               \
+        ::helix::publish_managed_subject((manager), &(subject), (xml_name), LV_SUBJECT_TYPE_COLOR, \
+                                         HELIX_SUBJECT_SITE);                                      \
     } while (0)

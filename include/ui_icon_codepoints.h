@@ -34,7 +34,7 @@ struct IconMapping {
 
 // Complete icon mapping table
 // Sorted alphabetically by name for efficient binary search
-static const IconMapping kIconMap[] = {
+inline constexpr IconMapping kIconMap[] = {
     // Alert/Status icons
     {"alert",              "\xF3\xB0\x80\xA6"},  // F0026 alert/triangle-exclamation
     {"alert_circle",       "\xF3\xB0\x80\xA8"},  // F0028 alert-circle
@@ -365,7 +365,7 @@ static const IconMapping kIconMap[] = {
 // clang-format on
 
 // Number of icons in the mapping table
-static constexpr size_t kIconMapSize = sizeof(kIconMap) / sizeof(kIconMap[0]);
+inline constexpr size_t kIconMapSize = sizeof(kIconMap) / sizeof(kIconMap[0]);
 
 /**
  * @brief Look up an icon codepoint by name

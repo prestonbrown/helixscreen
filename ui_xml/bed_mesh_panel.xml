@@ -67,6 +67,22 @@
     <px name="bed_mesh_profile_row_height_medium" value="44"/>
     <px name="bed_mesh_profile_row_height_large" value="44"/>
 
+    <!-- The intro's picture column and the material chips' label face. At the
+         smaller tiers the settings column beside the picture must hold two
+         chips that each fit "ABS / ASA" and its temperature, so the picture
+         narrows and the label steps down a face. -->
+    <px name="bed_mesh_intro_left_w_micro" value="150"/>
+    <px name="bed_mesh_intro_left_w_tiny" value="170"/>
+    <px name="bed_mesh_intro_left_w_small" value="170"/>
+    <px name="bed_mesh_intro_left_w_medium" value="300"/>
+    <px name="bed_mesh_intro_left_w_large" value="360"/>
+    <string name="bed_mesh_chip_font_micro" value="noto_sans_bold_14"/>
+    <string name="bed_mesh_chip_font_tiny" value="noto_sans_bold_14"/>
+    <string name="bed_mesh_chip_font_small" value="noto_sans_bold_14"/>
+    <string name="bed_mesh_chip_font_medium" value="noto_sans_bold_18"/>
+    <string name="bed_mesh_chip_font_large" value="noto_sans_bold_20"/>
+    <string name="bed_mesh_chip_font_xlarge" value="noto_sans_bold_24"/>
+
   </consts>
   <styles>
     <!-- bed_mesh_view: 0 the intro (picture, bed temperature, Probe the bed),
@@ -75,7 +91,7 @@
     <style name="content_profiles" pad_all="#space_md" pad_row="#space_md" pad_column="#space_md"/>
     <style name="split_intro" pad_left="#space_lg" pad_right="#space_lg" pad_column="#space_lg" pad_row="#space_sm"/>
     <style name="split_profiles" pad_left="0" pad_right="0" pad_column="#space_md" pad_row="#space_md"/>
-    <style name="left_intro" width="#cal_intro_left_w" height="100%" flex_grow="0"/>
+    <style name="left_intro" width="#bed_mesh_intro_left_w" height="100%" flex_grow="0"/>
     <style name="left_profiles" width="0" height="100%" flex_grow="1"/>
     <style name="canvas_intro" height="#cal_intro_picture_h" flex_grow="0"/>
     <style name="canvas_profiles" height="0" flex_grow="1"/>
