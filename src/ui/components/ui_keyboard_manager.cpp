@@ -73,9 +73,7 @@ bool buttonmatrix_button_area(lv_obj_t* obj, uint32_t btn_id, lv_area_t* out) {
 static constexpr int32_t kKeyboardSlideDurationMs = 200;
 static constexpr int32_t kKeyboardExitDurationMs = 150;
 
-// ============================================================================
 // STATIC DATA
-// ============================================================================
 
 // Alternative character mapping table (Gboard-style layout)
 const KeyboardManager::AltCharMapping KeyboardManager::alt_char_map_[] = {
@@ -174,18 +172,14 @@ static const lv_buttonmatrix_ctrl_t kb_ctrl_num_improved[] = {
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 1),
     static_cast<lv_buttonmatrix_ctrl_t>(LV_BUTTONMATRIX_CTRL_CHECKED | 1)};
 
-// ============================================================================
 // SINGLETON INSTANCE
-// ============================================================================
 
 KeyboardManager& KeyboardManager::instance() {
     static KeyboardManager instance;
     return instance;
 }
 
-// ============================================================================
 // HELPER METHODS
-// ============================================================================
 
 const char* KeyboardManager::find_alternatives(char base_char) const {
     // A user-reordered list wins over the shipped order for this session.
@@ -381,9 +375,7 @@ void KeyboardManager::apply_keyboard_mode() {
     lv_obj_invalidate(keyboard_);
 }
 
-// ============================================================================
 // EVENT CALLBACKS
-// ============================================================================
 
 void KeyboardManager::textarea_focus_event_cb(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_BEGIN("textarea_focus_event_cb");
@@ -955,9 +947,7 @@ void KeyboardManager::keyboard_draw_alternative_chars(lv_event_t* e) {
     LVGL_SAFE_EVENT_CB_END();
 }
 
-// ============================================================================
 // KEYBOARD MANAGER IMPLEMENTATION
-// ============================================================================
 
 namespace {
 // Keyboard slide-up / screen-shift animations, gated once for all four call

@@ -64,9 +64,7 @@ static constexpr uint32_t kShaperOverlayColors[] = {
 static constexpr size_t kNumShaperColors =
     sizeof(kShaperOverlayColors) / sizeof(kShaperOverlayColors[0]);
 
-// ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
-// ============================================================================
 
 // State subject (0=IDLE, 1=MEASURING, 2=RESULTS, 3=ERROR)
 static helix::Subject s_input_shaper_state;
@@ -110,9 +108,7 @@ static void on_input_shaper_row_clicked(lv_event_t* e) {
     panel.show(lv_screen_active());
 }
 
-// ============================================================================
 // XML EVENT CALLBACK REGISTRATION
-// ============================================================================
 
 void ui_panel_input_shaper_register_callbacks() {
     // Register event callbacks for XML
@@ -188,9 +184,7 @@ void ui_panel_input_shaper_register_callbacks() {
     spdlog::debug("[InputShaper] Registered XML event callbacks");
 }
 
-// ============================================================================
 // SUBJECT INITIALIZATION
-// ============================================================================
 
 void InputShaperPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -360,9 +354,7 @@ void InputShaperPanel::deinit_subjects() {
     deinit_subjects_base(subjects_);
 }
 
-// ============================================================================
 // CREATE
-// ============================================================================
 
 lv_obj_t* InputShaperPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -372,9 +364,7 @@ lv_obj_t* InputShaperPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // SETUP WIDGETS (private helper)
-// ============================================================================
 
 void InputShaperPanel::setup_widgets() {
     if (!overlay_root_) {
@@ -400,9 +390,7 @@ void InputShaperPanel::setup_widgets() {
     spdlog::debug("[InputShaper] Widget setup complete");
 }
 
-// ============================================================================
 // SHOW
-// ============================================================================
 
 void InputShaperPanel::set_api(IMoonrakerClient* client, IMoonrakerAPI* api) {
     client_ = client;
@@ -413,9 +401,7 @@ void InputShaperPanel::set_api(IMoonrakerClient* client, IMoonrakerAPI* api) {
     spdlog::debug("[InputShaper] Calibrator created");
 }
 
-// ============================================================================
 // LIFECYCLE HOOKS
-// ============================================================================
 
 void InputShaperPanel::on_activate() {
     // Call base class first
@@ -567,9 +553,7 @@ void InputShaperPanel::on_ui_destroyed() {
     legend_y_shaper_dot_ = nullptr;
 }
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 void InputShaperPanel::set_state(State new_state) {
     spdlog::debug("[InputShaper] State change: {} -> {}", static_cast<int>(state_),
@@ -587,9 +571,7 @@ void InputShaperPanel::set_state(State new_state) {
     lv_subject_set_int(&s_input_shaper_state, static_cast<int>(new_state));
 }
 
-// ============================================================================
 // CALIBRATION COMMANDS (using IMoonrakerAPI)
-// ============================================================================
 
 void InputShaperPanel::start_with_preflight(char axis) {
     // Cancelled before anything moved: no Y sweep may chain after a later single-axis run.
@@ -706,9 +688,7 @@ void InputShaperPanel::calibrate_all() {
     start_with_preflight('X');
 }
 
-// ============================================================================
 // LIVE-BEFORE CONFIG SNAPSHOT
-// ============================================================================
 
 void InputShaperPanel::snapshot_config_before() {
     has_config_before_ = false;
@@ -874,9 +854,7 @@ void InputShaperPanel::start_calibration(char axis) {
                         }));
 }
 
-// ============================================================================
 // ANALYSIS-PHASE DISPLAY (spinner + elapsed-seconds label)
-// ============================================================================
 
 void InputShaperPanel::query_preview_facts() {
     if (!api_) {
@@ -1167,9 +1145,7 @@ void InputShaperPanel::save_configuration() {
         static_cast<int>(save_restart_timeout_ms_));
 }
 
-// ============================================================================
 // RESULT CALLBACKS (from API)
-// ============================================================================
 
 void InputShaperPanel::on_calibration_result(const InputShaperResult& result) {
     spdlog::debug(
@@ -1281,9 +1257,7 @@ void InputShaperPanel::on_calibration_error(const std::string& message) {
     set_state(State::ERROR);
 }
 
-// ============================================================================
 // UI UPDATE HELPERS
-// ============================================================================
 
 void InputShaperPanel::refresh_intro_facts() {
     // Text set from C++ follows the language each time the intro opens.
@@ -1394,9 +1368,7 @@ void InputShaperPanel::clear_results() {
     }
 }
 
-// ============================================================================
 // PER-AXIS RESULT HELPERS
-// ============================================================================
 
 const char* InputShaperPanel::get_shaper_explanation(const std::string& type) {
     // Kalico smooth shapers
@@ -1616,9 +1588,7 @@ void InputShaperPanel::populate_axis_result(char axis, const InputShaperResult& 
     populate_chart(axis, result);
 }
 
-// ============================================================================
 // LIVE-BEFORE DELTA ROWS
-// ============================================================================
 
 void InputShaperPanel::populate_axis_delta(char axis, const InputShaperResult& result) {
     auto& delta_subject = (axis == 'X') ? is_x_delta_text_ : is_y_delta_text_;
@@ -1712,9 +1682,7 @@ void InputShaperPanel::populate_axis_delta(char axis, const InputShaperResult& r
                   new_buf, old_pct, new_pct);
 }
 
-// ============================================================================
 // FREQUENCY RESPONSE CHART
-// ============================================================================
 
 void InputShaperPanel::create_chart_widgets() {
     auto tier = helix::PlatformCapabilities::detect().tier;
@@ -2018,9 +1986,7 @@ void InputShaperPanel::handle_chip_y_clicked(int index) {
     select_shaper_overlay('Y', index);
 }
 
-// ============================================================================
 // DEMO INJECTION
-// ============================================================================
 
 void InputShaperPanel::inject_demo_results() {
     spdlog::info("[InputShaper] Injecting demo results for screenshot mode");
@@ -2168,9 +2134,7 @@ void InputShaperPanel::inject_demo_results() {
     set_state(State::RESULTS);
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void InputShaperPanel::handle_calibrate_all_clicked() {
     if (state_ != State::IDLE)

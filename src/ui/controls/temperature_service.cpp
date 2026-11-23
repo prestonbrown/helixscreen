@@ -45,9 +45,7 @@ using namespace helix;
 using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
 
-// ============================================================================
 // Helper: heater type index
-// ============================================================================
 static int idx(HeaterType type) {
     return static_cast<int>(type);
 }
@@ -64,9 +62,7 @@ static const char* heater_label(HeaterType type) {
     return "Unknown";
 }
 
-// ============================================================================
 // Constructor
-// ============================================================================
 
 TemperatureService::TemperatureService(PrinterState& printer_state, IMoonrakerAPI* api)
     : printer_state_(printer_state), api_(api) {
@@ -198,9 +194,7 @@ TemperatureService::~TemperatureService() {
     deinit_subjects();
 }
 
-// ============================================================================
 // Generic temperature/target change handlers
-// ============================================================================
 
 void TemperatureService::on_temp_changed(HeaterType type, int temp_deci) {
     auto& h = heaters_[idx(type)];
@@ -265,9 +259,7 @@ void TemperatureService::recompute_chamber_target() {
     update_status(HeaterType::Chamber);
 }
 
-// ============================================================================
 // Display + Status updates (generic)
-// ============================================================================
 
 void TemperatureService::update_display(HeaterType type) {
     if (!subjects_initialized_) {
@@ -330,9 +322,7 @@ void TemperatureService::update_status(HeaterType type) {
                   h.status_buf.data(), heating_state);
 }
 
-// ============================================================================
 // Graph updates (generic)
-// ============================================================================
 
 void TemperatureService::update_graphs(HeaterType type, float temp_deg, int64_t now_ms) {
     auto& h = heaters_[idx(type)];
@@ -344,9 +334,7 @@ void TemperatureService::update_graphs(HeaterType type, float temp_deg, int64_t 
     }
 }
 
-// ============================================================================
 // Subject init/deinit
-// ============================================================================
 
 void TemperatureService::init_subjects() {
     if (subjects_initialized_) {
@@ -393,9 +381,7 @@ void TemperatureService::deinit_subjects() {
     spdlog::debug("[TempPanel] Subjects deinitialized");
 }
 
-// ============================================================================
 // Setters (backward-compat)
-// ============================================================================
 
 void TemperatureService::set_heater(HeaterType type, int current, int target) {
     auto& h = heaters_[idx(type)];
@@ -414,9 +400,7 @@ void TemperatureService::set_heater_limits(HeaterType type, int min_temp, int ma
     spdlog::debug("[TempPanel] {} limits updated: {}-{}°C", heater_label(type), min_temp, max_temp);
 }
 
-// ============================================================================
 // XML event callbacks - chamber-heater diagnostics (issue #1290)
-// ============================================================================
 // Both fire from the chamber card's banner and filter-fan switch inside
 // temp_graph_overlay with no instance user data, so they reach the
 // controller through the same app_globals registration production wires in
@@ -485,9 +469,7 @@ void TemperatureService::on_chamber_dryer_stop_clicked(lv_event_t* /*e*/) {
     }
 }
 
-// ============================================================================
 // MULTI-EXTRUDER SUPPORT
-// ============================================================================
 
 void TemperatureService::select_extruder(const std::string& name) {
     if (name == active_extruder_name_) {

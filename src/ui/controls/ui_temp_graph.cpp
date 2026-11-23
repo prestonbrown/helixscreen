@@ -1140,9 +1140,7 @@ static void draw_target_lines_cb(lv_event_t* e) {
         // accent tick at the current setpoint stays full-color for emphasis.
         lv_color_t muted = mute_color(meta->color, LV_OPA_30, graph->cached_graph_bg);
 
-        // -----------------------------------------------------------------
         // Legacy horizontal-line mode (fallback when TARGET_HISTORY is off)
-        // -----------------------------------------------------------------
         if (!history_mode) {
             int32_t content_y =
                 chart_height - lv_map(static_cast<int32_t>(meta->target_temp * kTempScale),
@@ -1168,9 +1166,7 @@ static void draw_target_lines_cb(lv_event_t* e) {
             continue;
         }
 
-        // -----------------------------------------------------------------
         // History mode — polyline of target_deci_buf samples with breaks
-        // -----------------------------------------------------------------
         if (!meta->target_deci_buf || meta->target_head <= 0)
             continue;
 

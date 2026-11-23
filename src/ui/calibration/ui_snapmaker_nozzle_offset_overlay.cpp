@@ -125,9 +125,7 @@ nozzle_offset::Runner::Hooks SnapmakerNozzleOffsetOverlay::make_hooks() {
             }};
 }
 
-// ============================================================================
 // SUBJECTS / CALLBACKS
-// ============================================================================
 
 void SnapmakerNozzleOffsetOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -158,9 +156,7 @@ void SnapmakerNozzleOffsetOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // LIFECYCLE
-// ============================================================================
 
 void SnapmakerNozzleOffsetOverlay::open(lv_obj_t* parent) {
     runner_.reset();
@@ -219,9 +215,7 @@ void SnapmakerNozzleOffsetOverlay::prompt_end_held_calibration() {
         options);
 }
 
-// ============================================================================
 // TRANSPORT
-// ============================================================================
 
 void SnapmakerNozzleOffsetOverlay::send(const std::string& gcode, uint32_t timeout_ms,
                                         nozzle_offset::Runner::Completion done) {
@@ -277,9 +271,7 @@ void SnapmakerNozzleOffsetOverlay::read_offsets() {
         0, true);
 }
 
-// ============================================================================
 // RENDER
-// ============================================================================
 
 void SnapmakerNozzleOffsetOverlay::refresh() {
     if (!subjects_initialized_) {

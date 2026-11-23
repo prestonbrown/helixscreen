@@ -75,9 +75,7 @@ namespace helix {
 using helix::temperature_rules::deci_to_degrees_f;
 using helix::ui::observe;
 
-// ============================================================================
 // Shared color palette
-// ============================================================================
 
 const lv_color_t kTempGraphSeriesColors[kTempGraphPaletteSize] = {
     lv_color_hex(0xFF4444), // Nozzle (red)
@@ -98,9 +96,7 @@ uint32_t temp_graph_series_hex(int index) {
            static_cast<uint32_t>(c.blue);
 }
 
-// ============================================================================
 // Construction / Destruction
-// ============================================================================
 
 namespace {
 // A series plots the chamber's subjects only when it names the chamber: the
@@ -186,9 +182,7 @@ TempGraphController::~TempGraphController() {
     spdlog::debug("[TempGraphController] Destroyed");
 }
 
-// ============================================================================
 // Public interface
-// ============================================================================
 
 void TempGraphController::set_features(uint32_t features) {
     if (is_valid()) {
@@ -377,9 +371,7 @@ SeriesId TempGraphController::series_id_for(const std::string& klipper_name) con
     return SeriesId::None;
 }
 
-// ============================================================================
 // Graph creation
-// ============================================================================
 
 void TempGraphController::create_graph() {
     if (!container_) {
@@ -408,9 +400,7 @@ void TempGraphController::create_graph() {
     ui_temp_graph_set_point_count(graph_, config_.point_count);
 }
 
-// ============================================================================
 // Series setup
-// ============================================================================
 
 void TempGraphController::setup_series() {
     if (!graph_)
@@ -447,9 +437,7 @@ void TempGraphController::setup_series() {
     spdlog::trace("[TempGraphController] Setup {} series", series_.size());
 }
 
-// ============================================================================
 // Observer setup
-// ============================================================================
 
 void TempGraphController::setup_observers() {
     // Belt-and-suspenders against deferred-delete races (#1117): a queued
@@ -760,9 +748,7 @@ void TempGraphController::setup_connection_observer() {
     }
 }
 
-// ============================================================================
 // History backfill
-// ============================================================================
 
 void TempGraphController::backfill_history() {
     auto* history_mgr = get_temperature_history_manager();
@@ -833,9 +819,7 @@ void TempGraphController::backfill_history() {
     }
 }
 
-// ============================================================================
 // Auto-range
-// ============================================================================
 
 void TempGraphController::apply_auto_range() {
     if (!is_valid())

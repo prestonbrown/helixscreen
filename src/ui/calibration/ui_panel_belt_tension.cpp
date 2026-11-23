@@ -109,9 +109,7 @@ std::string format_turn_amount(float turns) {
 
 } // namespace
 
-// ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
-// ============================================================================
 
 // State subject (0=START, 1=RUNNING, 2=RESULTS, 3=ERROR, 4=TUNING)
 static helix::Subject s_belt_tension_state;
@@ -166,9 +164,7 @@ void init_belt_tension_row_handler() {
     spdlog::trace("[BeltTension] Row click callback registered");
 }
 
-// ============================================================================
 // XML EVENT CALLBACK REGISTRATION
-// ============================================================================
 
 void ui_panel_belt_tension_register_callbacks() {
     register_xml_callbacks({
@@ -250,9 +246,7 @@ void ui_panel_belt_tension_register_callbacks() {
     spdlog::debug("[BeltTension] Registered XML event callbacks");
 }
 
-// ============================================================================
 // SUBJECT INITIALIZATION
-// ============================================================================
 
 void BeltTensionPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -394,9 +388,7 @@ void BeltTensionPanel::deinit_subjects() {
     }
 }
 
-// ============================================================================
 // CREATE
-// ============================================================================
 
 lv_obj_t* BeltTensionPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -418,9 +410,7 @@ lv_obj_t* BeltTensionPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // SHOW / LIFECYCLE
-// ============================================================================
 
 void BeltTensionPanel::set_api(helix::IMoonrakerClient* client, IMoonrakerAPI* api) {
     client_ = client;
@@ -627,9 +617,7 @@ void BeltTensionPanel::on_ui_destroyed() {
     chart_host_wide_ = nullptr;
 }
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 void BeltTensionPanel::set_view_state(ViewState state) {
     spdlog::debug("[BeltTension] View state change: {} -> {}",
@@ -684,9 +672,7 @@ void BeltTensionPanel::place_chart(ViewState state) {
     }
 }
 
-// ============================================================================
 // HARDWARE DETECTION CALLBACK
-// ============================================================================
 
 void BeltTensionPanel::on_hardware_detected(const helix::calibration::BeltTensionHardware& hw) {
     detected_hw_ = hw;
@@ -726,9 +712,7 @@ void BeltTensionPanel::on_error(const std::string& message) {
     set_view_state(ViewState::ERROR);
 }
 
-// ============================================================================
 // RUN ORCHESTRATION
-// ============================================================================
 
 void BeltTensionPanel::handle_start_clicked() {
     spdlog::info("[BeltTension] Start clicked");
@@ -797,9 +781,7 @@ void BeltTensionPanel::hide_retest_menu() {
     retest_menu_.hide();
 }
 
-// ============================================================================
 // WHICH BELT IS WHICH
-// ============================================================================
 
 void BeltTensionPanel::handle_names_clicked() {
     if (names_modal_.is_visible()) {
@@ -1418,9 +1400,7 @@ bool BeltTensionPanel::measuring() const {
            (state == ViewState::TUNING && tune_phase_ == TunePhase::SWEEPING);
 }
 
-// ============================================================================
 // SUBJECT REFRESH
-// ============================================================================
 
 void BeltTensionPanel::refresh_notes() {
     const bool running =
@@ -1501,9 +1481,7 @@ void BeltTensionPanel::start_elapsed_timer() {
         1000, this));
 }
 
-// ============================================================================
 // TUNING LOOP
-// ============================================================================
 
 void BeltTensionPanel::handle_tune_clicked() {
     if (!last_cmp_.valid || !runs_[0].has || !runs_[1].has || measuring()) {
@@ -2125,9 +2103,7 @@ std::string BeltTensionPanel::tune_last_message() const {
     return {};
 }
 
-// ============================================================================
 // PRECONDITION GATE
-// ============================================================================
 
 void BeltTensionPanel::refresh_gate() {
     auto& ps = get_printer_state();
@@ -2303,9 +2279,7 @@ void BeltTensionPanel::refresh_hw_sweep() {
     lv_subject_set_string(&intro_minutes_subject_, intro_minutes_buf_);
 }
 
-// ============================================================================
 // CHART
-// ============================================================================
 
 lv_color_t BeltTensionPanel::path_color(helix::calibration::BeltPath path) {
     return theme_manager_get_color(path == helix::calibration::BeltPath::PATH_A ? "belt_path_a"

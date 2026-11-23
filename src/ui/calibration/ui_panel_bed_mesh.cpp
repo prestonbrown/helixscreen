@@ -76,16 +76,12 @@ using namespace helix;
 #include <memory>
 #include <mutex>
 
-// ============================================================================
 // Forward declarations for the profile-row callbacks
-// ============================================================================
 static void on_profile_clicked_cb(lv_event_t* e);
 static void on_profile_rename_cb(lv_event_t* e);
 static void on_profile_delete_cb(lv_event_t* e);
 
-// ============================================================================
 // Constructor / Destructor
-// ============================================================================
 
 static constexpr const char* kBedHeater = "heater_bed";
 
@@ -154,9 +150,7 @@ BedMeshPanel::~BedMeshPanel() {
     rename_name_input_ = nullptr;
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void BedMeshPanel::init_subjects() {
     init_subjects_guarded([this]() {
@@ -249,9 +243,7 @@ void BedMeshPanel::deinit_subjects() {
     deinit_subjects_base(subjects_);
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* BedMeshPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -309,9 +301,7 @@ lv_obj_t* BedMeshPanel::create(lv_obj_t* parent) {
     return overlay_root_;
 }
 
-// ============================================================================
 // Canvas / content wiring — initial create(), and surviving a rebuild
-// ============================================================================
 //
 // bed_mesh_panel.xml's top-level view branches on <if cond="ui_is_portrait eq
 // 1"> to pick between the portrait and landscape arrangements. Because that
@@ -452,9 +442,7 @@ void BedMeshPanel::rewire_after_orientation_flip() {
     apply_portrait_canvas_height();
 }
 
-// ============================================================================
 // Portrait canvas sizing
-// ============================================================================
 
 void BedMeshPanel::on_content_size_changed(lv_event_t* e) {
     auto* self = static_cast<BedMeshPanel*>(lv_event_get_user_data(e));
@@ -568,9 +556,7 @@ void BedMeshPanel::apply_portrait_canvas_height() {
     }
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 void BedMeshPanel::register_callbacks() {
     register_xml_callbacks({
@@ -638,9 +624,7 @@ void BedMeshPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void BedMeshPanel::on_activate() {
     // Call base class first
@@ -813,9 +797,7 @@ void BedMeshPanel::on_ui_destroyed() {
     portrait_rewire_observer_.reset();
 }
 
-// ============================================================================
 // Profile List Update
-// ============================================================================
 
 void BedMeshPanel::update_profile_list_subjects() {
     IMoonrakerAPI* api = api_;
@@ -872,9 +854,7 @@ float BedMeshPanel::calculate_profile_range(const std::string& profile_name) {
     return mesh ? helix::compute_mesh_stats(*mesh).range : 0.0f;
 }
 
-// ============================================================================
 // Mesh Data Update
-// ============================================================================
 
 void BedMeshPanel::set_mesh_data(const std::vector<std::vector<float>>& mesh_data) {
     if (!canvas_) {
@@ -1070,9 +1050,7 @@ void BedMeshPanel::on_mesh_update_internal(const BedMeshProfile& mesh) {
                  stats.min_z - z_mean, stats.max_z - z_mean);
 }
 
-// ============================================================================
 // Profile Operations
-// ============================================================================
 
 void BedMeshPanel::load_profile(int index) {
     if (index < 0 || index >= BED_MESH_MAX_PROFILES)
@@ -1524,9 +1502,7 @@ void BedMeshPanel::launch_calibration(IMoonrakerAPI* api, int expected_probes, i
         expected_probes, probe_samples);
 }
 
-// ============================================================================
 // Modal Management
-// ============================================================================
 
 void BedMeshPanel::show_rename_modal(const std::string& profile_name) {
     pending_rename_old_ = profile_name;
@@ -1615,9 +1591,7 @@ void BedMeshPanel::confirm_rename(const std::string& new_name) {
     execute_rename_profile(old_name, new_name);
 }
 
-// ============================================================================
 // Profile Operation Implementations
-// ============================================================================
 
 void BedMeshPanel::execute_delete_profile(const std::string& name) {
     IMoonrakerAPI* api = api_;
@@ -1744,9 +1718,7 @@ void BedMeshPanel::execute_save_config() {
         });
 }
 
-// ============================================================================
 // Calibration Progress Handlers
-// ============================================================================
 
 void BedMeshPanel::on_probe_progress(int current, int total) {
     if (calibration_cancelled_) {
@@ -2171,9 +2143,7 @@ void BedMeshPanel::cancel_overwrite() {
     pending_overwrite_name_.clear();
 }
 
-// ============================================================================
 // Profile Row Callbacks
-// ============================================================================
 
 // Helper to extract profile index from callback name
 static int get_profile_index_from_event(lv_event_t* e) {

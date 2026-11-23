@@ -71,9 +71,7 @@ void disable_lvgl_keyboards(bool disable) {
 
 namespace helix::ui {
 
-// ============================================================================
 // CONSTRUCTOR / DESTRUCTOR
-// ============================================================================
 
 QrScannerOverlay::QrScannerOverlay() {
 #if HELIX_HAS_CAMERA
@@ -86,9 +84,7 @@ QrScannerOverlay::~QrScannerOverlay() {
     stop_scanning();
 }
 
-// ============================================================================
 // INITIALIZATION
-// ============================================================================
 
 void QrScannerOverlay::init_subjects() {
     init_subjects_guarded([this]() {
@@ -104,9 +100,7 @@ void QrScannerOverlay::register_callbacks() {
     });
 }
 
-// ============================================================================
 // UI CREATION
-// ============================================================================
 
 lv_obj_t* QrScannerOverlay::create(lv_obj_t* parent) {
     spdlog::debug("[{}] Creating overlay...", get_name());
@@ -140,9 +134,7 @@ void QrScannerOverlay::on_ui_destroyed() {
     success_flash_ = nullptr;
 }
 
-// ============================================================================
 // SHOW / LIFECYCLE
-// ============================================================================
 
 void QrScannerOverlay::show(lv_obj_t* parent, int slot_index, ResultCallback on_result,
                             CancelCallback on_cancel) {
@@ -240,9 +232,7 @@ void QrScannerOverlay::on_deactivating(DeactivateReason reason) {
     spdlog::debug("[{}] Deactivated", get_name());
 }
 
-// ============================================================================
 // SCANNING
-// ============================================================================
 
 void QrScannerOverlay::start_scanning() {
     scan_active_ = true;
@@ -422,9 +412,7 @@ void QrScannerOverlay::stop_scanning() {
     spdlog::debug("[QR Scanner] Scanning stopped");
 }
 
-// ============================================================================
 // CAMERA FRAME PROCESSING
-// ============================================================================
 
 #if HELIX_HAS_CAMERA
 void QrScannerOverlay::on_camera_frame(lv_draw_buf_t* frame) {
@@ -516,9 +504,7 @@ void QrScannerOverlay::on_snapshot_frame(lv_draw_buf_t* frame) {
     }
 }
 
-// ============================================================================
 // SPOOL LOOKUP
-// ============================================================================
 
 void QrScannerOverlay::on_spool_id_detected(int spool_id) {
     // On UI thread
@@ -641,9 +627,7 @@ void QrScannerOverlay::update_status(const std::string& text) {
     spdlog::debug("[{}] Status: {}", get_name(), text);
 }
 
-// ============================================================================
 // CLOSE
-// ============================================================================
 
 void QrScannerOverlay::handle_close() {
     spdlog::info("[{}] Close clicked", get_name());

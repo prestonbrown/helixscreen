@@ -240,9 +240,7 @@ static JogPadZone jog_pad_zone_at(lv_obj_t* obj, jog_pad_state_t* st, const lv_p
 
 // Custom draw event: Draw two-zone circular jog pad (Bambu Lab style)
 //
-// ================================================================================
 // LVGL ARC DRAWING SYSTEM - THE TRUTH (after much painful debugging)
-// ================================================================================
 //
 // CRITICAL: LVGL arcs are NOT strokes - they are RINGS with thickness measured INWARD
 //

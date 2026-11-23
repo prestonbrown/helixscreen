@@ -39,9 +39,7 @@
 
 using namespace helix;
 
-// ============================================================================
 // GLOBAL INSTANCE AND ROW CLICK HANDLER
-// ============================================================================
 
 IMoonrakerClient* get_moonraker_client();
 IMoonrakerAPI* get_moonraker_api();
@@ -59,9 +57,7 @@ void init_screws_tilt_row_handler() {
     spdlog::trace("[ScrewsTilt] Row click callback registered");
 }
 
-// ============================================================================
 // XML EVENT CALLBACK REGISTRATION
-// ============================================================================
 
 void ui_panel_screws_tilt_register_callbacks() {
     // Register event callbacks
@@ -87,9 +83,7 @@ void ui_panel_screws_tilt_register_callbacks() {
     spdlog::debug("[ScrewsTilt] Registered XML event callbacks");
 }
 
-// ============================================================================
 // SUBJECT INITIALIZATION (must run BEFORE XML creation)
-// ============================================================================
 
 void ScrewsTiltPanel::init_subjects() {
     if (subjects_initialized_) {
@@ -150,9 +144,7 @@ void ScrewsTiltPanel::deinit_subjects() {
     spdlog::debug("[ScrewsTiltPanel] Subjects deinitialized");
 }
 
-// ============================================================================
 // DESTRUCTOR
-// ============================================================================
 
 ScrewsTiltPanel::~ScrewsTiltPanel() {
     // cleanup() unregisters the overlay instance and sets the cleanup_called_ flag
@@ -163,9 +155,7 @@ ScrewsTiltPanel::~ScrewsTiltPanel() {
     deinit_subjects();
 }
 
-// ============================================================================
 // OVERLAYBASE INTERFACE
-// ============================================================================
 
 lv_obj_t* ScrewsTiltPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -261,9 +251,7 @@ void ScrewsTiltPanel::cleanup() {
     OverlayBase::cleanup();
 }
 
-// ============================================================================
 // STATE MANAGEMENT
-// ============================================================================
 
 void ScrewsTiltPanel::set_state(State new_state) {
     spdlog::debug("[ScrewsTilt] State change: {} -> {}", static_cast<int>(state_),
@@ -275,9 +263,7 @@ void ScrewsTiltPanel::set_state(State new_state) {
     lv_subject_set_int(&state_subject_, static_cast<int>(new_state));
 }
 
-// ============================================================================
 // COMMAND HELPERS
-// ============================================================================
 
 void ScrewsTiltPanel::start_probing() {
     ensure_bed_clear_then(lifetime_.token(), [this]() { probe_once_bed_clear(); });
@@ -356,9 +342,7 @@ void ScrewsTiltPanel::cancel_probing() {
     set_state(State::IDLE);
 }
 
-// ============================================================================
 // RESULT CALLBACKS
-// ============================================================================
 
 void ScrewsTiltPanel::on_screws_tilt_results(const std::vector<ScrewTiltResult>& results) {
     spdlog::info("[ScrewsTilt] Received {} screw results", results.size());
@@ -419,9 +403,7 @@ void ScrewsTiltPanel::on_screws_tilt_error(const std::string& message) {
     set_state(State::ERROR);
 }
 
-// ============================================================================
 // UI UPDATE HELPERS
-// ============================================================================
 
 void ScrewsTiltPanel::populate_results(const std::vector<ScrewTiltResult>& results) {
     clear_results();
@@ -738,9 +720,7 @@ lv_color_t ScrewsTiltPanel::get_adjustment_color(const ScrewTiltResult& screw, b
     return get_theme_color("danger");
 }
 
-// ============================================================================
 // CONFIG QUERY
-// ============================================================================
 
 void ScrewsTiltPanel::query_screw_thread() {
     if (!client_) {
@@ -800,9 +780,7 @@ void ScrewsTiltPanel::query_screw_thread() {
     });
 }
 
-// ============================================================================
 // EVENT HANDLERS
-// ============================================================================
 
 void ScrewsTiltPanel::handle_start_clicked() {
     spdlog::debug("[ScrewsTilt] Start clicked");

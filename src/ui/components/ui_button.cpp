@@ -178,7 +178,6 @@ static const lv_font_t* get_button_icon_font() {
     return s_icon_font;
 }
 
-// ---------------------------------------------------------------------------
 // op-state spinner (bind_op_state busy animation)
 //
 // A self-contained Material-style indeterminate arc spinner rendered inside the
@@ -186,7 +185,6 @@ static const lv_font_t* get_button_icon_font() {
 // animation callbacks (lv_anim_delete keys on obj+exec_cb, so the callbacks must
 // be distinct from the standalone <spinner> widget's). The arc is sized to the
 // icon line-height so the button width never reflows between idle and busy.
-// ---------------------------------------------------------------------------
 namespace op_spinner_anim {
 
 constexpr uint32_t kRotationDurationMs = 1568;

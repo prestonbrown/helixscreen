@@ -36,16 +36,12 @@ using helix::temperature_rules::deci_to_degrees_f;
 using helix::temperature_rules::format_temp_number;
 using helix::ui::temperature::get_heating_state_color;
 
-// ============================================================================
 // Constants
-// ============================================================================
 
 /** Magic number to identify temp_display widgets ("TMP1" as ASCII) */
 static constexpr uint32_t kTempDisplayMagic = 0x544D5031;
 
-// ============================================================================
 // Per-widget user data
-// ============================================================================
 
 /**
  * @brief User data stored on each temp_display widget
@@ -127,9 +123,7 @@ static TempDisplayData* get_data(lv_obj_t* obj) {
     return s_registry.get(obj);
 }
 
-// ============================================================================
 // Internal helpers
-// ============================================================================
 
 /** Get font based on size string using shared helper */
 static const lv_font_t* get_font_for_size(const char* size) {
@@ -390,9 +384,7 @@ static void on_delete(lv_event_t* e) {
     }
 }
 
-// ============================================================================
 // Subject observer callbacks for reactive binding
-// ============================================================================
 
 /** Observer callback for current temperature subject */
 static void current_temp_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
@@ -487,9 +479,7 @@ static void mode_observer_cb(lv_observer_t* observer, lv_subject_t* subject) {
     update_heating_color(data);
 }
 
-// ============================================================================
 // XML widget callbacks
-// ============================================================================
 
 /**
  * XML create callback for <temp_display> widget
@@ -793,9 +783,7 @@ static void ui_temp_display_apply_cb(lv_xml_parser_state_t* state, const char** 
     lv_xml_obj_apply(state, attrs);
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void ui_temp_display_init(void) {
     lv_xml_register_widget("temp_display", ui_temp_display_create_cb, ui_temp_display_apply_cb);

@@ -19,9 +19,7 @@
 #include <string>
 #include <unordered_set>
 
-// ============================================================================
 // Responsive Layout
-// ============================================================================
 
 int32_t ui_get_header_content_padding() {
     // Use unified space_* system - values are already responsive based on breakpoint
@@ -52,9 +50,7 @@ int32_t ui_get_responsive_header_height(int32_t screen_height) {
     }
 }
 
-// ============================================================================
 // LED Icon Utilities
-// ============================================================================
 
 const char* ui_brightness_to_lightbulb_icon(int brightness) {
     // Clamp to valid range
@@ -91,9 +87,7 @@ const char* ui_brightness_to_lightbulb_icon(int brightness) {
     return "lightbulb_on"; // 100%
 }
 
-// ============================================================================
 // Owned user_data strings
-// ============================================================================
 
 namespace helix::ui {
 
@@ -180,9 +174,7 @@ const char* get_owned_user_string(lv_obj_t* obj) {
     return static_cast<const char*>(lv_obj_get_user_data(obj));
 }
 
-// ============================================================================
 // Input reset scoped to a subtree
-// ============================================================================
 
 namespace {
 
@@ -213,9 +205,7 @@ void reset_input_within(lv_obj_t* subtree) {
     }
 }
 
-// ============================================================================
 // Required widget lookups
-// ============================================================================
 
 lv_obj_t* find_required(lv_obj_t* root, const char* name, const char* owner) {
     if (!root) {

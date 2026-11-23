@@ -278,9 +278,7 @@ helix::HomeBarSegments helix::motion_home_bar_segments(bool individual_xyz_homin
 
 /// Bed-grid preset keys as they appear in motion_panel.xml user_data, in
 /// MotionPreset declaration order (rear row first, front row last).
-// ============================================================================
 // Constructor
-// ============================================================================
 
 MotionPanel::MotionPanel()
     : move_sender_(lifetime_, "MotionPanel",
@@ -353,9 +351,7 @@ MotionPanel::~MotionPanel() {
     stop_hold_repeat();
 }
 
-// ============================================================================
 // Subject Initialization
-// ============================================================================
 
 void MotionPanel::init_subjects() {
     // SubjectInitializer initializes this at boot, ahead of the first show().
@@ -511,9 +507,7 @@ void MotionPanel::deinit_subjects() {
     spdlog::debug("[{}] Subjects deinitialized", get_name());
 }
 
-// ============================================================================
 // Callback Registration
-// ============================================================================
 
 /// Forward a pointer event on the Bed tab's surface with the point it fired at.
 static void on_bed_touch_event(lv_event_t* e, helix::BedTouch phase) {
@@ -642,9 +636,7 @@ void MotionPanel::register_callbacks() {
     });
 }
 
-// ============================================================================
 // Create
-// ============================================================================
 
 lv_obj_t* MotionPanel::create(lv_obj_t* parent) {
     if (!OverlayBase::create(parent)) {
@@ -671,9 +663,7 @@ void MotionPanel::rewire_jog_pad_after_orientation_flip() {
     setup_jog_pad();
 }
 
-// ============================================================================
 // Lifecycle Hooks
-// ============================================================================
 
 void MotionPanel::on_activate() {
     // Call base class first
@@ -760,9 +750,7 @@ void helix::open_motion_panel(lv_obj_t* parent_screen) {
     get_global_motion_panel().show(parent_screen);
 }
 
-// ============================================================================
 // Hold-to-Repeat (Z buttons; the pad owns its own repeat)
-// ============================================================================
 
 void MotionPanel::begin_jog_hold(const char* button_name, lv_obj_t* button) {
     if (!button_name)
@@ -797,9 +785,7 @@ void MotionPanel::stop_hold_repeat() {
         ui_jog_pad_stop_repeat(jog_pad_);
 }
 
-// ============================================================================
 // Jog Pad Setup
-// ============================================================================
 
 void MotionPanel::fit_jog_pad() {
     lv_obj_t* jog_wrapper = lv_obj_get_parent(jog_pad_);
@@ -898,9 +884,7 @@ void MotionPanel::setup_jog_pad() {
     }
 }
 
-// ============================================================================
 // Position Observers
-// ============================================================================
 
 void MotionPanel::register_position_observers() {
     // Subscribe to PrinterState position updates so UI reflects real printer position
@@ -1167,9 +1151,7 @@ void MotionPanel::refresh_position_display() {
     lv_subject_set_string(&pos_z_subject_, pos_z_buf_);
 }
 
-// ============================================================================
 // Jog Button Handler
-// ============================================================================
 
 bool MotionPanel::handle_jog_button(const char* name, bool is_repeat) {
     const auto button = parse_jog_button(name);
@@ -1219,9 +1201,7 @@ bool MotionPanel::handle_jog_button(const char* name, bool is_repeat) {
     return dispatch_jog({0.0, 0.0, distance});
 }
 
-// ============================================================================
 // Jog Pad Callbacks
-// ============================================================================
 
 bool MotionPanel::jog_pad_jog_cb(JogDirection direction, float distance_mm, bool is_repeat,
                                  void* user_data) {
@@ -1239,9 +1219,7 @@ void MotionPanel::jog_pad_home_cb(void* user_data) {
     }
 }
 
-// ============================================================================
 // Public API
-// ============================================================================
 
 void MotionPanel::set_position(float x, float y, float z) {
     current_x_ = x;
@@ -1423,9 +1401,7 @@ void MotionPanel::home_axes(const std::string& axes) {
         });
 }
 
-// ============================================================================
 // Coordinate Source Preference + Axis Keypad
-// ============================================================================
 
 void MotionPanel::toggle_coordinate_source() {
     auto& settings = SettingsManager::instance();
@@ -1513,9 +1489,7 @@ void MotionPanel::request_axis_target(char axis, double mm) {
     dispatch_target(target);
 }
 
-// ============================================================================
 // Content Tabs (Jog / Move / Bed)
-// ============================================================================
 
 void MotionPanel::set_motion_tab(int tab) {
     if (tab < 0 || tab > 2) {
@@ -1613,9 +1587,7 @@ void MotionPanel::notify_part_too_tall() {
     NOTIFY_WARNING(helix::part_too_tall_text());
 }
 
-// ============================================================================
 // Bed Tab
-// ============================================================================
 
 /// Mapper over the Bed tab surface's content box, where the plate and the
 /// marker are positioned.
@@ -1923,9 +1895,7 @@ void MotionPanel::handle_motors_off() {
     helix::ui::show_motors_off_confirm(get_moonraker_api(), motors_off_dialog_, lifetime_.token());
 }
 
-// ============================================================================
 // Jog Mode (Fine/Coarse/Turbo)
-// ============================================================================
 
 void MotionPanel::set_jog_mode(JogMode mode) {
     if (current_mode_ == mode)
@@ -1989,9 +1959,7 @@ void MotionPanel::refresh_z_key_labels() {
     }
 }
 
-// ============================================================================
 // Step Selector (arrow layouts)
-// ============================================================================
 
 void MotionPanel::refresh_step_list() {
     steps_ = jog_step_list();

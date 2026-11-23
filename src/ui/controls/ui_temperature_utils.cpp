@@ -83,9 +83,7 @@ const char* get_extrusion_safety_status(int current_temp, int min_extrusion_temp
     return status_buf;
 }
 
-// ============================================================================
 // Formatting Functions
-// ============================================================================
 
 namespace {
 int in_display_unit(int celsius) {
@@ -155,9 +153,7 @@ char* format_temperature_range(int min_temp, int max_temp, char* buffer, size_t 
     return buffer;
 }
 
-// ============================================================================
 // Display Color Functions
-// ============================================================================
 
 HeatState classify_heat_state(int current, int target, int tolerance) {
     if (target <= 0) {
@@ -227,9 +223,7 @@ const char* get_heating_state_variant(int current_deg, int target_deg, int toler
     return heat_state_look(classify_heat_state(current_deg, target_deg, tolerance)).variant;
 }
 
-// ============================================================================
 // Heater Display
-// ============================================================================
 
 HeaterDisplayResult heater_display(int current_deci, int target_deci) {
     HeaterDisplayResult result;
