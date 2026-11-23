@@ -719,8 +719,11 @@
   <translation tag="Bypass disabled" ru="Байпас отключён"/>
   <translation tag="Bypass enabled" ru="Байпас включён"/>
   <translation tag="Bypass failed" ru="Ошибка байпаса"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." ru="Филамент обхода находится в печатающей головке. Выгрузите его перед выключением обхода."/>
+  <translation tag="Bypass filament is loaded" ru="Филамент обхода загружен"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" ru="Активен байпас, но эта печать использует слоты AMS. Принтер может отказаться загружать слот, пока филамент байпаса находится в печатающей головке. Извлеките филамент и выключите байпас перед печатью. Всё равно начать?"/>
   <translation tag="Bypass mode is not currently active" ru="Режим обхода сейчас не активен"/>
+  <translation tag="Bypass mode is on" ru="Режим обхода включён"/>
   <translation tag="Bypass off macro" ru="Макрос выключения обхода"/>
   <translation tag="Bypass on macro" ru="Макрос включения обхода"/>
   <translation tag="Bypass toggle failed" ru="Не удалось переключить байпас"/>
@@ -5450,6 +5453,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." ru="Отключите аппроксимацию дугами в слайсере и заново нарежьте файл."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." ru="Выключите аппроксимацию дугами в слайсере, затем нарежьте файл заново."/>
   <translation tag="Turn off bed check" ru="Отключить проверку стола"/>
+  <translation tag="Turn off bypass mode to load from a lane" ru="Выключите режим обхода, чтобы загрузить из канала"/>
   <translation tag="Turn off detection" ru="Отключить обнаружение"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." ru="Выключите калибровку потока для этой печати или используйте сопло побольше."/>
   <translation tag="Turn on the lights your light buttons control" ru="Включает свет, которым управляют кнопки света"/>

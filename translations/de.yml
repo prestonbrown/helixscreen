@@ -700,9 +700,12 @@ translations:
   Bypass disabled: Bypass deaktiviert
   Bypass enabled: Bypass aktiviert
   Bypass failed: Bypass fehlgeschlagen
+  Bypass filament is at the toolhead. Unload it before turning off bypass.: 'Bypass-Filament ist im Werkzeugkopf. Entladen Sie es, bevor Sie den Bypass deaktivieren.'
+  Bypass filament is loaded: 'Bypass-Filament ist geladen'
   ? Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?
   : Bypass ist aktiv, aber dieser Druck verwendet AMS-Slots. Der Drucker verweigert möglicherweise das Laden eines Slots, solange Bypass-Filament im Werkzeugkopf ist. Entfernen Sie das Filament und deaktivieren Sie Bypass, bevor Sie drucken. Trotzdem starten?
   Bypass mode is not currently active: 'Der Bypass-Modus ist derzeit nicht aktiv'
+  Bypass mode is on: 'Der Bypass-Modus ist aktiv'
   Bypass off macro: 'Bypass-aus-Makro'
   Bypass on macro: 'Bypass-ein-Makro'
   Bypass toggle failed: Bypass-Umschaltung fehlgeschlagen
@@ -5607,6 +5610,7 @@ translations:
   Turn off arc fitting in the slicer and slice the file again.: Bogenanpassung (Arc Fitting) im Slicer ausschalten und die Datei neu slicen.
   Turn off arc fitting in the slicer, then slice the file again.: 'Bogenanpassung (Arc Fitting) im Slicer ausschalten, dann die Datei neu slicen.'
   Turn off bed check: 'Bettprüfung ausschalten'
+  Turn off bypass mode to load from a lane: 'Bypass-Modus ausschalten, um aus einer Spur zu laden'
   Turn off detection: Erkennung ausschalten
   Turn off flow calibration for this print, or use a larger nozzle.: 'Flusskalibrierung für diesen Druck ausschalten oder eine größere Düse verwenden.'
   Turn on the lights your light buttons control: Schaltet die Lichter ein, die Ihre Lichttasten steuern

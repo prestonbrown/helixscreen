@@ -683,8 +683,11 @@
   <translation tag="Bypass disabled" fr="Bypass désactivé"/>
   <translation tag="Bypass enabled" fr="Bypass activé"/>
   <translation tag="Bypass failed" fr="Échec du bypass"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." fr="Du filament bypass est dans la tête d&apos;outil. Déchargez-le avant de désactiver le bypass."/>
+  <translation tag="Bypass filament is loaded" fr="Du filament bypass est chargé"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" fr="Le bypass est actif, mais cette impression utilise les slots de l&apos;AMS. L&apos;imprimante peut refuser de charger un slot tant que du filament bypass se trouve dans la tête d&apos;outil. Retirez le filament et désactivez le bypass avant d&apos;imprimer. Démarrer quand même ?"/>
   <translation tag="Bypass mode is not currently active" fr="Le mode bypass n&apos;est pas actif actuellement"/>
+  <translation tag="Bypass mode is on" fr="Le mode bypass est actif"/>
   <translation tag="Bypass off macro" fr="Macro de désactivation du bypass"/>
   <translation tag="Bypass on macro" fr="Macro d&apos;activation du bypass"/>
   <translation tag="Bypass toggle failed" fr="Échec de la bascule du bypass"/>
@@ -5390,6 +5393,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." fr="Désactivez l&apos;arc fitting dans le trancheur et retranchez le fichier."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." fr="Désactivez l&apos;ajustement en arcs dans le trancheur, puis retranchez le fichier."/>
   <translation tag="Turn off bed check" fr="Désactiver la vérification du plateau"/>
+  <translation tag="Turn off bypass mode to load from a lane" fr="Désactivez le mode bypass pour charger depuis une voie"/>
   <translation tag="Turn off detection" fr="Désactiver la détection"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." fr="Désactivez la calibration du débit pour cette impression, ou utilisez une buse plus grande."/>
   <translation tag="Turn on the lights your light buttons control" fr="Allume les lumières que vos boutons lumière contrôlent"/>

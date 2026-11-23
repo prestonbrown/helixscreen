@@ -677,8 +677,11 @@
   <translation tag="Bypass disabled" pt="Bypass desativado"/>
   <translation tag="Bypass enabled" pt="Bypass ativado"/>
   <translation tag="Bypass failed" pt="Falha no bypass"/>
+  <translation tag="Bypass filament is at the toolhead. Unload it before turning off bypass." pt="Há filamento de bypass no cabeçote. Descarregue-o antes de desligar o bypass."/>
+  <translation tag="Bypass filament is loaded" pt="Há filamento de bypass carregado"/>
   <translation tag="Bypass is active, but this print uses AMS slots. The printer may refuse to load a slot while bypass filament is in the toolhead. Remove the filament and turn bypass off before printing. Start anyway?" pt="O bypass está ativo, mas esta impressão usa slots AMS. A impressora pode não conseguir carregar um slot enquanto houver filamento de bypass no cabeçote. Remova o filamento e desative o bypass antes de imprimir. Iniciar mesmo assim?"/>
   <translation tag="Bypass mode is not currently active" pt="O modo bypass não está ativo no momento"/>
+  <translation tag="Bypass mode is on" pt="O modo bypass está ativo"/>
   <translation tag="Bypass off macro" pt="Macro de desligar bypass"/>
   <translation tag="Bypass on macro" pt="Macro de ligar bypass"/>
   <translation tag="Bypass toggle failed" pt="Falha ao alternar bypass"/>
@@ -5384,6 +5387,7 @@
   <translation tag="Turn off arc fitting in the slicer and slice the file again." pt="Desligue o arc fitting no fatiador e fatie o arquivo novamente."/>
   <translation tag="Turn off arc fitting in the slicer, then slice the file again." pt="Desligue o ajuste de arcos no fatiador e fatie o arquivo novamente."/>
   <translation tag="Turn off bed check" pt="Desligar verificação da mesa"/>
+  <translation tag="Turn off bypass mode to load from a lane" pt="Desligue o modo bypass para carregar de uma lane"/>
   <translation tag="Turn off detection" pt="Desligar detecção"/>
   <translation tag="Turn off flow calibration for this print, or use a larger nozzle." pt="Desligue a calibração de fluxo nesta impressão, ou use um bico maior."/>
   <translation tag="Turn on the lights your light buttons control" pt="Liga as luzes que os botões de luz controlam"/>

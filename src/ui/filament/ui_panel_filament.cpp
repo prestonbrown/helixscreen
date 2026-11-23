@@ -2587,6 +2587,9 @@ FilamentPanelOutcome panel_load_outcome(const FilamentOpPlan& plan) {
             // lane into it would jam the hotend, so say what to do instead.
             out.toast = lv_tr("Remove the bypass spool from the toolhead first");
             break;
+        case FilamentRefusal::BackendRefused:
+            out.backend_refusal = plan.backend_refusal;
+            break;
         case FilamentRefusal::SelectSlot:
         default:
             out.toast = lv_tr("Select a filament slot to load");
@@ -2734,7 +2737,11 @@ void FilamentPanel::execute_load() {
     surface.on_refused = [this](const helix::ui::FilamentOpPlan& refused) {
         const helix::ui::FilamentPanelOutcome outcome = helix::ui::panel_load_outcome(refused);
         spdlog::info("[{}] Load refused ({})", get_name(), static_cast<int>(refused.refusal));
-        NOTIFY_INFO(fmt::runtime(outcome.toast.c_str()));
+        if (!outcome.backend_refusal.success()) {
+            helix::ui::notify_ams_warning(outcome.backend_refusal);
+        } else {
+            NOTIFY_INFO(fmt::runtime(outcome.toast.c_str()));
+        }
         if (outcome.navigate_to_ams) {
             navigate_to_ams_panel();
         }
