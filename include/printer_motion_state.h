@@ -6,6 +6,7 @@
 #include "subject_managed_panel.h"
 
 #include <lvgl.h>
+#include <optional>
 
 namespace helix {
 
@@ -95,6 +96,7 @@ class PrinterMotionState {
     /// deinit_subjects() leaves alone. PrinterState::clear_printer_data() runs it.
     void clear_data() {
         axis_bounds_ = AxisBounds{};
+        motion_y_max_.reset();
     }
 
     /**
@@ -181,9 +183,23 @@ class PrinterMotionState {
     bool has_pending_z_offset_adjustment() const;
     void clear_pending_z_offset_delta();
 
-    /// Kinematic envelope (mm) from toolhead.axis_minimum/axis_maximum.
-    /// has_x/y/z is false until the first subscription update arrives.
+    /// Envelope (mm) that motion planned anywhere on the bed may use:
+    /// toolhead.axis_minimum/axis_maximum, with Y capped at the print area on
+    /// firmware that widens axis_maximum for a service zone past it
+    /// (include/motion_envelope.h). has_x/y/z is false until the first
+    /// subscription update arrives.
     [[nodiscard]] AxisBounds get_axis_bounds() const {
+        AxisBounds b = axis_bounds_;
+        if (motion_y_max_ && b.has_y && b.y_max > *motion_y_max_) {
+            b.y_max = *motion_y_max_;
+        }
+        return b;
+    }
+
+    /// toolhead.axis_minimum/axis_maximum as Klipper reports them, service zone
+    /// included. Only moves that deliberately enter the service zone (the
+    /// filament chute calibration) may plan against these.
+    [[nodiscard]] AxisBounds get_kinematic_axis_bounds() const {
         return axis_bounds_;
     }
 
@@ -192,7 +208,8 @@ class PrinterMotionState {
     /// against gcode_move.gcode_position (jog clamps, keypad limits, Z-button
     /// blocking) must use these, not the machine bounds.
     [[nodiscard]] AxisBounds get_gcode_axis_bounds() const {
-        return to_gcode_space(axis_bounds_, homing_origin_x_, homing_origin_y_, homing_origin_z_);
+        return to_gcode_space(get_axis_bounds(), homing_origin_x_, homing_origin_y_,
+                              homing_origin_z_);
     }
 
   private:
@@ -237,6 +254,8 @@ class PrinterMotionState {
 
     // Kinematic envelope (not subjects — read on demand by jog clamping etc.)
     AxisBounds axis_bounds_{};
+    /// Print-area Y limit from the firmware's service-zone guard, if it has one
+    std::optional<float> motion_y_max_;
 
     // gcode_move.homing_origin per axis (mm): machine = gcode + origin
     double homing_origin_x_ = 0.0;
