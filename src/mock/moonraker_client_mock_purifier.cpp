@@ -3,8 +3,8 @@
 // The U1 top module's purifier in the mock: its status object, the mode and fan
 // commands, and the inner fan's work time accruing with the simulation clock.
 
+#include "core/gcode_params.h"
 #include "core/text_io.h"
-#include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/spdlog.h>

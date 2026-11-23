@@ -3,6 +3,7 @@
 
 #include "gcode_parser.h"
 
+#include "core/gcode_params.h"
 #include "core/text_io.h"
 #include "filament_database.h"
 #include "gcode_color_metadata.h"
@@ -510,30 +511,6 @@ void GCodeParser::parse_arc_command(std::string_view line, bool clockwise) {
     if (has_extrusion) {
         current_e_ = new_e;
     }
-}
-
-std::optional<std::string> gcode_param_value(std::string_view line, std::string_view key) {
-    std::string needle(key);
-    needle += '=';
-    const size_t pos = line.find(needle);
-    if (pos == std::string_view::npos) {
-        return std::nullopt;
-    }
-    const size_t start = pos + needle.size();
-    if (start >= line.size()) {
-        return std::nullopt;
-    }
-    const char quote = line[start];
-    if (quote == '"' || quote == '\'') {
-        const size_t close = line.find(quote, start + 1);
-        if (close == std::string_view::npos || close == start + 1) {
-            return std::nullopt;
-        }
-        return std::string(line.substr(start + 1, close - start - 1));
-    }
-    const size_t end = line.find_first_of(" \t", start);
-    return std::string(
-        line.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start));
 }
 
 std::optional<GCodeObject> parse_exclude_object_define(std::string_view line) {

@@ -6,9 +6,9 @@
 // firmware's pa_test tower (HELIX_MOCK_PA_TEST): TUNING_TOWER arms a sweep and
 // PRINT_PA_TOWER prints the tower, riding the mock's ordinary print phase.
 
+#include "core/gcode_params.h"
 #include "core/text_io.h"
 #include "env_knobs.h"
-#include "gcode_parser.h"
 #include "moonraker_client_mock.h"
 
 #include <spdlog/fmt/fmt.h>
@@ -81,15 +81,8 @@ bool is_nonlinear(ModelKind kind) {
     return kind == ModelKind::Tanh || kind == ModelKind::Recipr;
 }
 
-/// A parameter's value on @p gcode, matched on a whole word so OFFSET never
-/// reads TIME_OFFSET's value.
-std::optional<std::string> word_param(const std::string& gcode, const char* key) {
-    return helix::gcode::gcode_param_value(gcode.substr(std::min(gcode.find(' '), gcode.size())),
-                                           std::string(" ") + key);
-}
-
 std::optional<double> number_param(const std::string& gcode, const char* key) {
-    auto v = word_param(gcode, key);
+    auto v = helix::gcode::gcode_param_value(gcode, key);
     return v ? helix::text_io::parse_leading<double>(*v) : std::nullopt;
 }
 
@@ -140,7 +133,8 @@ json MoonrakerClientMock::pressure_advance_status(const PressureAdvance& pa) {
 MoonrakerClientMock::GcodeResult
 MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
     // Klipper defaults EXTRUDER to the active one; the mock prints on "extruder".
-    const std::string extruder = word_param(gcode, "EXTRUDER").value_or("extruder");
+    const std::string extruder =
+        helix::gcode::gcode_param_value(gcode, "EXTRUDER").value_or("extruder");
     PressureAdvance pa = pressure_advance_for(extruder);
 
     auto reject = [&](std::string message) -> GcodeResult {
@@ -157,7 +151,7 @@ MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
             pa.smooth_time = std::max(0.0, *v);
         }
     } else {
-        if (auto name = word_param(gcode, "MODEL")) {
+        if (auto name = helix::gcode::gcode_param_value(gcode, "MODEL")) {
             auto kind = model_from_name(*name);
             if (!kind) {
                 return reject(fmt::format("Invalid MODEL='{}' choice", *name));
@@ -209,10 +203,10 @@ MoonrakerClientMock::gcode_set_pressure_advance(const std::string& gcode) {
 
 // TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=<p> START=<f> FACTOR=<f>
 MoonrakerClientMock::GcodeResult MoonrakerClientMock::gcode_tuning_tower(const std::string& gcode) {
-    if (word_param(gcode, "COMMAND").value_or("") != "SET_PRESSURE_ADVANCE") {
+    if (helix::gcode::gcode_param_value(gcode, "COMMAND").value_or("") != "SET_PRESSURE_ADVANCE") {
         return std::nullopt;
     }
-    const std::string parameter = word_param(gcode, "PARAMETER").value_or("");
+    const std::string parameter = helix::gcode::gcode_param_value(gcode, "PARAMETER").value_or("");
     if (parameter != "ADVANCE" && parameter != "OFFSET" && parameter != "TIME_OFFSET") {
         std::lock_guard<std::mutex> lock(gcode_error_mutex_);
         last_gcode_error_ =

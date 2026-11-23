@@ -445,11 +445,6 @@ struct ParsedGCodeFile {
     }
 };
 
-/// Value of KEY=value in one G-code command line. A quoted value ('a b' or
-/// "a b") comes back without its quotes, the way Klipper's parameter parser
-/// reads it. nullopt when the key is absent or has no value.
-std::optional<std::string> gcode_param_value(std::string_view line, std::string_view key);
-
 /// One EXCLUDE_OBJECT_DEFINE line as Klipper reads it (comment ignored);
 /// nullopt for any other line or a DEFINE without NAME.
 std::optional<GCodeObject> parse_exclude_object_define(std::string_view line);

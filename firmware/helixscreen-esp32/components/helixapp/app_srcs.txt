@@ -668,6 +668,7 @@ src/ui/filament/ui_filament_path_topology.cpp
 src/ui/filament/ui_filament_runout_handler.cpp
 src/ui/filament/ui_filament_slot_picker.cpp
 src/core/gcode_filename.cpp
+src/core/gcode_params.cpp
 src/system/display_format.cpp
 src/printer/display_numbering.cpp
 src/ui/lane_count_label.cpp
