@@ -66,6 +66,18 @@ class FilamentAccountingController {
     /// The active tool is now @p tool_index. Main thread.
     void on_active_tool_changed(int tool_index);
 
+    /// Read the plugin_features record the fallback acts on, as it is now: at
+    /// each plugin probe and each job start, so a change made outside the app
+    /// reaches the next print. Main thread.
+    void read_opt_ins();
+
+    /// Who switches the spool at a tool change, by @p accounting, @p owner and
+    /// @p role and the record as last read. Until a read succeeds, and after
+    /// one fails, the fallback switches nothing: an unread record must not
+    /// override a user's `false`.
+    FilamentAccountingSender fallback_sender(PluginFeatureState accounting, ActiveSpoolOwner owner,
+                                             FallbackSenderRole role) const;
+
   private:
     void on_plugin_probed();
     void on_connection_changed(int state);
@@ -82,10 +94,16 @@ class FilamentAccountingController {
     ObserverGuard data_revision_observer_;
     ObserverGuard tools_version_observer_;
     ObserverGuard active_tool_observer_;
+    ObserverGuard print_active_observer_;
 
     /// Guards the database and Spoolman replies, which arrive on the
     /// WebSocket thread.
     AsyncLifetimeGuard lifetime_;
+
+    /// filament_accounting_opted_in() of helix-screen/plugin_features as last
+    /// read; nullopt before a read succeeds, after one fails, and after a
+    /// disconnect.
+    std::optional<bool> opted_in_;
 
     /// The record as last written this connection; nullopt until then.
     std::optional<std::string> written_;

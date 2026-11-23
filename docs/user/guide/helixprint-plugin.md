@@ -236,8 +236,8 @@ curl -X POST http://<printer-ip>:7125/server/database/item \
   -d '{"namespace": "helix-screen", "key": "plugin_features.filament_accounting", "value": false}'
 ```
 
-Write `true` the same way to turn it back on. With the plugin, the change applies from the
-next print. Without it, restart HelixScreen so the screen picks it up.
+Write `true` the same way to turn it back on. The change applies from the next print, with
+or without the plugin; no restart is needed.
 
 **Linking a spool by hand**, with or without the plugin: linking a spool to the lane that is
 loaded right now makes it the active spool, unless the printer does that itself (AFC, or a U1
