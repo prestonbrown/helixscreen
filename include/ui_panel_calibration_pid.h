@@ -331,6 +331,11 @@ class PIDCalibrationPanel : public OverlayBase {
     /// ceiling on that wait.
     ObserverGuard klippy_ready_observer_;
     OperationTimeoutGuard klippy_ready_wait_;
+    /// The klippy state has changed since the wait began.
+    bool klippy_ready_moved_ = false;
+    /// Bumped by each run's start and by Abort, so an earlier run's late
+    /// answer (its collector still listening) never lands on a later run.
+    uint32_t run_generation_ = 0;
     /// A run entered CALIBRATING behind the screensaver: the wake starts its
     /// progress tracking instead of resuming one.
     bool tracking_starts_on_wake_ = false;
@@ -602,6 +607,8 @@ class PIDCalibrationPanel : public OverlayBase {
     /// API refuses gcode until it does.
     void begin_calibration_when_ready(CalibMethod method);
     void cancel_klippy_ready_wait();
+    /// End the wait in ERROR, asking for a fresh start.
+    void fail_klippy_ready_wait(const char* why);
     void update_migration_notice();
     void set_page(Page page);
     void show_switch_page();

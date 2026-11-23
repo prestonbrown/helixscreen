@@ -6,6 +6,7 @@
 #include "accel_sensor_manager.h"
 #include "app_globals.h"
 #include "bed_mesh_probe_parser.h"
+#include "connection_state.h"
 #include "core/error_reporting.h"
 #include "core/observer_factory.h"
 #include "core/observer_guard.h"
@@ -410,23 +411,13 @@ class CalibrationCollectorCore {
                 }
                 fallback_.armed = true;
                 fallback_.awaits_lines_only = stream_intact && !fallback_.edge_immediate;
-                std::shared_ptr<bool> subject_lifetime;
-                lv_subject_t* idle_subject =
-                    state.calibration_state().get_idle_timeout_printing_subject(subject_lifetime);
-                if (idle_subject && !fallback_.awaits_lines_only) {
-                    fallback_.was_busy_at_arm = lv_subject_get_int(idle_subject) == 1;
-                    // The subject is freed by PrinterCalibrationState's
-                    // deinit_subjects() on a printer switch (and by test
-                    // re-init); the lifetime token makes the observer's
-                    // removal skip the freed node instead of chasing it.
-                    fallback_.observer = helix::ui::observe<int>(
-                        idle_subject, this,
-                        [idle_subject](CalibrationCollectorCore* self, int printing) {
-                            self->on_idle_report(idle_subject, printing == 1);
-                        },
-                        subject_lifetime);
+                if (fallback_.awaits_lines_only) {
+                    watch_while_awaiting_lines(state);
+                } else {
+                    watch_idle_edge(state);
                 }
-                fallback_.idle_subject = idle_subject;
+                fallback_.idle_subject =
+                    state.calibration_state().get_idle_timeout_printing_subject();
                 fallback_.backstop_ms = backstop_ms;
                 begin_backstop(backstop_ms);
             });
@@ -473,6 +464,8 @@ class CalibrationCollectorCore {
         fallback_.on_idle = nullptr;
         fallback_.on_unrecovered = nullptr;
         fallback_.observer.reset();
+        fallback_.klippy_observer.reset();
+        fallback_.link_observer.reset();
         fallback_.backstop.end();
         fallback_.grace.end();
         clear_armed_timers();
@@ -524,6 +517,81 @@ class CalibrationCollectorCore {
             }
         });
         s_armed_backstop.store(&fallback_.backstop, std::memory_order_release);
+    }
+
+    /// Follow the printer's busy flag: its busy->idle edge ends the run. Main thread.
+    void watch_idle_edge(PrinterState& state) {
+        std::shared_ptr<bool> subject_lifetime;
+        lv_subject_t* idle_subject =
+            state.calibration_state().get_idle_timeout_printing_subject(subject_lifetime);
+        if (!idle_subject) {
+            return;
+        }
+        fallback_.was_busy_at_arm = lv_subject_get_int(idle_subject) == 1;
+        // The subject is freed by PrinterCalibrationState's deinit_subjects() on
+        // a printer switch (and by test re-init); the lifetime token makes the
+        // observer's removal skip the freed node instead of chasing it.
+        fallback_.observer = helix::ui::observe<int>(
+            idle_subject, this,
+            [idle_subject](CalibrationCollectorCore* self, int printing) {
+                self->on_idle_report(idle_subject, printing == 1);
+            },
+            subject_lifetime);
+    }
+
+    /// The stream is intact, so only the collector's own lines answer, but two
+    /// changes end the wait sooner: Klipper leaving READY (an e-stop, a restart,
+    /// a disconnect from Moonraker) prints no result line, and a dropped socket
+    /// can lose one, so the busy->idle edge takes over from there. Main thread.
+    void watch_while_awaiting_lines(PrinterState& state) {
+        auto& net = state.network_state();
+        fallback_.klippy_was_ready = false;
+        fallback_.link_was_up = false;
+        fallback_.klippy_observer = helix::ui::observe<int>(
+            net.get_klippy_state_subject(), this,
+            [](CalibrationCollectorCore* self, int klippy) { self->on_klippy_report(klippy); },
+            state.get_subjects_lifetime());
+        fallback_.link_observer = helix::ui::observe<int>(
+            net.get_printer_connection_state_subject(), this,
+            [&state](CalibrationCollectorCore* self, int link) {
+                self->on_link_report(state, link);
+            },
+            state.get_subjects_lifetime());
+    }
+
+    /// Only a move away from a READY this wait has seen counts: the subject's
+    /// placeholder before any report is SHUTDOWN.
+    void on_klippy_report(int klippy) {
+        if (!fallback_.armed || !fallback_.awaits_lines_only) {
+            return;
+        }
+        if (klippy == static_cast<int>(KlippyState::READY)) {
+            fallback_.klippy_was_ready = true;
+            return;
+        }
+        if (fallback_.klippy_was_ready) {
+            conclude_unrecovered(kKlipperStopped);
+        }
+    }
+
+    void on_link_report(PrinterState& state, int link) {
+        if (!fallback_.armed || !fallback_.awaits_lines_only) {
+            return;
+        }
+        if (link == static_cast<int>(ConnectionState::CONNECTED)) {
+            fallback_.link_was_up = true;
+            return;
+        }
+        if (!fallback_.link_was_up) {
+            return;
+        }
+        spdlog::debug("[{}] Socket dropped while waiting out a timed-out RPC; following the "
+                      "printer's busy flag from here",
+                      handler_name_);
+        fallback_.awaits_lines_only = false;
+        fallback_.klippy_observer.reset();
+        fallback_.link_observer.reset();
+        watch_idle_edge(state);
     }
 
     /// The armed fallback's view of the printer's busy flag, deferred out of
@@ -648,6 +716,9 @@ class CalibrationCollectorCore {
     static constexpr const char* kNoResultInExtendedWait =
         "sent no result within the extended wait";
 
+    /// The answer when Klipper leaves READY before the result arrives.
+    static constexpr const char* kKlipperStopped = "Klipper stopped before the result arrived";
+
     /// Atomic because the destructor may run on the WebSocket thread while a
     /// later calibration arms from the main thread.
     static std::atomic<OperationTimeoutGuard*> s_armed_backstop;
@@ -666,6 +737,11 @@ class CalibrationCollectorCore {
         /// Armed on a live socket by a line-driven collector: idle reports are
         /// ignored and only result lines or the backstop end the run.
         bool awaits_lines_only = false;
+        /// What the lines-only wait has seen of Klipper and the socket.
+        bool klippy_was_ready = false;
+        bool link_was_up = false;
+        ObserverGuard klippy_observer;
+        ObserverGuard link_observer;
         /// Subject value at arm time. For edge_immediate collectors an idle
         /// report while this is false means the macro may never have run at
         /// all (the socket was already down at send): completing as success

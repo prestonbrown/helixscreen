@@ -14,6 +14,9 @@ struct PIDCalibrationPanelTestAccess {
     static void send_save_config(PIDCalibrationPanel& p) {
         p.send_save_config();
     }
+    static void abort_clicked(PIDCalibrationPanel& p) {
+        p.handle_abort_clicked();
+    }
     static void start_clicked(PIDCalibrationPanel& p) {
         p.handle_start_clicked();
     }
