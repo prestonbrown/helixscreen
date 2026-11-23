@@ -919,7 +919,10 @@ hardware switch, which the screen cannot turn off, or a strand the toolhead sens
 "Remove the bypass spool". `can_load_lane()` answers in advance so `plan_load()` refuses
 before any preheat or homing, except for a strand the toolhead sensor sees, which it leaves
 to the planner's own BypassLoaded refusal. `disable_bypass()` refuses while that strand is
-there, since the next lane tap would feed into it. With bypass off, filament at the
+there, since the next lane tap would feed into it. Only a single-extruder machine can confirm a
+strand: a toolchanger's toolhead reading is whichever head reported last, so it is treated like a
+machine with no toolhead sensor. A stuck toolhead sensor therefore blocks turning bypass off from
+the screen; `SET_FILAMENT_SENSOR SENSOR=virtual_bypass ENABLE=0` at the console still does it. With bypass off, filament at the
 toolhead sensor and no lane loaded, AFC only logs it at PREP and carries on, which leaves the
 UI with a toolhead that reads full and a unit that reads empty.
 
